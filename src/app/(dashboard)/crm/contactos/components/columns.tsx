@@ -107,6 +107,19 @@ export function createColumns({
       },
     },
     {
+      accessorKey: 'address',
+      header: 'Direccion',
+      cell: ({ row }) => {
+        const address = row.getValue('address') as string | null
+        if (!address) return <span className="text-muted-foreground">-</span>
+        return (
+          <div className="text-sm max-w-[200px] truncate" title={address}>
+            {address}
+          </div>
+        )
+      },
+    },
+    {
       accessorKey: 'city',
       header: ({ column }) => (
         <Button

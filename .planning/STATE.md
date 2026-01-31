@@ -490,6 +490,16 @@ Plan 04 complete:
 - 24h window detection shows template button when closed
 - Variables auto-filled from contact/order via variable_mapping
 
+Plan 05 complete:
+- Team management page at /configuracion/whatsapp/equipos
+- Team form with name and is_default toggle
+- Team members manager with add/remove functionality
+- Online/offline status display for each team member
+- AssignDropdown in chat header for manual conversation assignment
+- AvailabilityToggle in conversation list header for agent status
+- Agents grouped by team in assignment dropdown
+- ConversationWithDetails extended with assigned_name field
+
 **Key files:**
 - supabase/migrations/20260131000002_whatsapp_extended_foundation.sql
 - supabase/migrations/20260131000003_conversation_rls_update.sql
@@ -515,9 +525,31 @@ Plan 04 complete:
 - src/app/(dashboard)/whatsapp/components/template-button.tsx
 - src/app/(dashboard)/whatsapp/components/template-send-modal.tsx
 - src/app/(dashboard)/whatsapp/components/template-preview.tsx
+- src/app/(dashboard)/configuracion/whatsapp/equipos/page.tsx
+- src/app/(dashboard)/configuracion/whatsapp/equipos/components/team-list.tsx
+- src/app/(dashboard)/configuracion/whatsapp/equipos/components/team-form.tsx
+- src/app/(dashboard)/configuracion/whatsapp/equipos/components/team-members-manager.tsx
+- src/app/(dashboard)/whatsapp/components/assign-dropdown.tsx
+- src/app/(dashboard)/whatsapp/components/availability-toggle.tsx
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:27:26Z
-Stopped at: Completed 08-04-PLAN.md (Template Sending)
+Last session: 2026-01-31T21:30:00Z
+Stopped at: Completed 08-05-PLAN.md (Team Management UI)
 Resume file: Continue with remaining Phase 8 plans
+
+Plan 08 complete:
+- Webhook handler records cost on billable 'sent' status
+- Usage dashboard at /configuracion/whatsapp/costos
+- Period selector (today, 7d, 30d, this month)
+- Summary cards (total messages, total cost, limit status)
+- UsageChart with daily area chart (recharts)
+- CategoryBreakdown with donut chart and cost table
+
+**Additional Key files (08-08):**
+- src/lib/whatsapp/webhook-handler.ts (extended with cost recording)
+- src/app/(dashboard)/configuracion/whatsapp/costos/page.tsx
+- src/app/(dashboard)/configuracion/whatsapp/costos/components/period-selector.tsx
+- src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-summary.tsx
+- src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-chart.tsx
+- src/app/(dashboard)/configuracion/whatsapp/costos/components/category-breakdown.tsx

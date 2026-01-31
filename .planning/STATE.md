@@ -139,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase 8-06]: is_workspace_manager function checks owner/admin roles
 - [Phase 8-06]: Agent visibility: assigned + unassigned only (not other agents' chats)
 - [Phase 8-06]: DELETE conversations restricted to managers only
+- [Phase 8-07]: Custom autocomplete instead of react-textarea-autocomplete for React 19 compatibility
+- [Phase 8-07]: 150ms debounce on slash-command search for performance
 
 ### Project Rules
 
@@ -457,6 +459,14 @@ Plan 06 complete:
 - "Sin asignar" badge for unassigned conversations
 - Inbox filter tabs for "Mis chats" and "Sin asignar"
 
+Plan 07 complete:
+- Quick replies settings page at /configuracion/whatsapp/quick-replies
+- QuickReplyForm component with shortcut validation
+- QuickReplyList with grid card layout
+- QuickReplyAutocomplete component for slash-command in chat
+- Message input integrated with autocomplete (type / to trigger)
+- Keyboard navigation (Up/Down/Enter/Escape) for suggestions
+
 **Key files:**
 - supabase/migrations/20260131000002_whatsapp_extended_foundation.sql
 - supabase/migrations/20260131000003_conversation_rls_update.sql
@@ -464,11 +474,15 @@ Plan 06 complete:
 - src/lib/whatsapp/templates-api.ts
 - src/app/actions/templates.ts
 - src/app/actions/teams.ts (from prior work)
+- src/app/actions/quick-replies.ts
 - src/hooks/use-conversations.ts
 - src/app/(dashboard)/whatsapp/components/filters/inbox-filters.tsx
+- src/app/(dashboard)/configuracion/whatsapp/quick-replies/page.tsx
+- src/app/(dashboard)/whatsapp/components/quick-reply-autocomplete.tsx
+- src/app/(dashboard)/whatsapp/components/message-input.tsx
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:22:02Z
-Stopped at: Completed 08-06-PLAN.md (Role-Based Visibility)
+Last session: 2026-01-31T21:25:19Z
+Stopped at: Completed 08-07-PLAN.md (Quick Replies Management)
 Resume file: Continue with remaining Phase 8 plans

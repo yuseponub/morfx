@@ -521,3 +521,182 @@ export interface ConversationFilters {
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { error: string; field?: string }
+
+// ============================================================================
+// PHASE 8: TEMPLATE TYPES
+// ============================================================================
+
+/**
+ * Template category for Meta approval.
+ */
+export type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+
+/**
+ * Template approval status from Meta.
+ */
+export type TemplateStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
+
+/**
+ * Template quality rating from Meta.
+ */
+export type QualityRating = 'HIGH' | 'MEDIUM' | 'LOW' | 'PENDING'
+
+/**
+ * Template component (header, body, footer, buttons).
+ */
+export interface TemplateComponent {
+  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
+  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+  text?: string
+  example?: {
+    header_text?: string[]
+    body_text?: string[][]
+    header_handle?: string[]
+  }
+  buttons?: Array<{
+    type: 'PHONE_NUMBER' | 'URL' | 'QUICK_REPLY'
+    text: string
+    phone_number?: string
+    url?: string
+  }>
+}
+
+/**
+ * Template entity from database.
+ */
+export interface Template {
+  id: string
+  workspace_id: string
+  name: string
+  language: string
+  category: TemplateCategory
+  status: TemplateStatus
+  quality_rating: QualityRating | null
+  rejected_reason: string | null
+  components: TemplateComponent[]
+  variable_mapping: Record<string, string>  // "1" -> "contact.name"
+  created_at: string
+  updated_at: string
+  submitted_at: string | null
+  approved_at: string | null
+}
+
+// ============================================================================
+// PHASE 8: TEAM TYPES
+// ============================================================================
+
+/**
+ * Team entity for agent assignment.
+ */
+export interface Team {
+  id: string
+  workspace_id: string
+  name: string
+  is_default: boolean
+  created_at: string
+}
+
+/**
+ * Team member entity (junction table).
+ */
+export interface TeamMember {
+  id: string
+  team_id: string
+  user_id: string
+  is_online: boolean
+  last_assigned_at: string | null
+  created_at: string
+  // Joined fields from profiles
+  user_email?: string
+  user_name?: string
+}
+
+// ============================================================================
+// PHASE 8: QUICK REPLY TYPES
+// ============================================================================
+
+/**
+ * Quick reply entity for shortcut responses.
+ */
+export interface QuickReply {
+  id: string
+  workspace_id: string
+  shortcut: string
+  content: string
+  category: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================================
+// PHASE 8: COST TRACKING TYPES
+// ============================================================================
+
+/**
+ * Message cost category.
+ */
+export type CostCategory = 'marketing' | 'utility' | 'authentication' | 'service'
+
+/**
+ * Message cost entity for billing tracking.
+ */
+export interface MessageCost {
+  id: string
+  workspace_id: string
+  wamid: string
+  category: CostCategory
+  pricing_model: string
+  recipient_country: string | null
+  cost_usd: number | null
+  recorded_at: string
+}
+
+// ============================================================================
+// PHASE 8: WORKSPACE LIMITS TYPES
+// ============================================================================
+
+/**
+ * Workspace limits (Super Admin configuration).
+ */
+export interface WorkspaceLimits {
+  workspace_id: string
+  allowed_categories: TemplateCategory[]
+  quick_replies_with_variables: boolean
+  quick_replies_with_categories: boolean
+  monthly_spend_limit_usd: number | null
+  alert_threshold_percent: number
+  updated_at: string
+  updated_by: string | null
+}
+
+// ============================================================================
+// PHASE 8: 360DIALOG TEMPLATE API TYPES
+// ============================================================================
+
+/**
+ * Response from 360dialog list templates API.
+ */
+export interface ListTemplatesResponse {
+  waba_templates: Array<{
+    name: string
+    status: string
+    category: string
+    language: string
+    components: TemplateComponent[]
+    quality_score?: {
+      score: string
+    }
+    rejected_reason?: string
+  }>
+  count: number
+  total: number
+}
+
+/**
+ * Response from 360dialog create template API.
+ */
+export interface CreateTemplateResponse {
+  id: string
+  status: string
+  category: string
+}

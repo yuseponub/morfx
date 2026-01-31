@@ -39,7 +39,7 @@ export async function getConversations(
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, city, tags:contact_tags(tag:tags(*)))
+      contact:contacts(id, name, phone, address, city, tags:contact_tags(tag:tags(*)))
     `)
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false, nullsFirst: false })

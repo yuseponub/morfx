@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, User, ShoppingBag, ExternalLink, Eye } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { X, User, ShoppingBag, ExternalLink, Eye, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -22,9 +23,16 @@ interface ContactPanelProps {
  * Shows "unknown contact" state when no contact is linked.
  */
 export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
+  const router = useRouter()
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
+
+  // Handler for when order is created - refresh data
+  const handleOrderCreated = () => {
+    setOrdersRefreshKey(k => k + 1)
+    router.refresh()
+  }
   // Empty state
   if (!conversation) {
     return (
@@ -78,8 +86,14 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
                   </div>
                 </div>
 
-                {contact.city && (
-                  <p className="text-sm text-muted-foreground">{contact.city}</p>
+                {(contact.address || contact.city) && (
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div>
+                      {contact.address && <p>{contact.address}</p>}
+                      {contact.city && <p>{contact.city}</p>}
+                    </div>
+                  </div>
                 )}
 
                 {/* Tags */}
@@ -166,7 +180,7 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
         defaultPhone={conversation.phone}
         defaultName={conversation.profile_name || undefined}
         conversationId={conversation.id}
-        onSuccess={() => setOrdersRefreshKey(k => k + 1)}
+        onSuccess={handleOrderCreated}
       />
 
       {/* Create contact sheet */}
@@ -176,6 +190,7 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
         defaultPhone={conversation.phone}
         defaultName={conversation.profile_name || undefined}
         conversationId={conversation.id}
+        onSuccess={() => router.refresh()}
       />
     </div>
   )

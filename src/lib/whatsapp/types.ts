@@ -220,6 +220,7 @@ export interface ConversationWithDetails extends Conversation {
     id: string
     name: string
     phone: string
+    address: string | null
     city: string | null
   } | null
   tags: Array<{

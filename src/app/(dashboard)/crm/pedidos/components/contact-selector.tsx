@@ -41,6 +41,8 @@ interface ContactSelectorProps {
   disabled?: boolean
   /** Pre-fill phone when creating new contact (e.g., from WhatsApp conversation) */
   defaultPhone?: string
+  /** Pre-fill name when creating new contact (e.g., from WhatsApp profile) */
+  defaultName?: string
 }
 
 export function ContactSelector({
@@ -50,6 +52,7 @@ export function ContactSelector({
   onContactCreated,
   disabled,
   defaultPhone,
+  defaultName,
 }: ContactSelectorProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
@@ -93,14 +96,18 @@ export function ContactSelector({
   }
 
   const openCreateDialog = () => {
-    // Pre-fill with search term or defaultPhone
+    // Pre-fill with search term, defaultPhone and defaultName
     const phoneToUse = defaultPhone || ''
+    const nameToUse = defaultName || ''
     if (search && !/^\d+$/.test(search)) {
+      // Search term is text - use it as name
       setNewContact({ name: search, phone: phoneToUse, city: '' })
     } else if (search && /^\d+$/.test(search)) {
-      setNewContact({ name: '', phone: search || phoneToUse, city: '' })
+      // Search term is numeric - use it as phone
+      setNewContact({ name: nameToUse, phone: search || phoneToUse, city: '' })
     } else {
-      setNewContact({ name: '', phone: phoneToUse, city: '' })
+      // No search - use defaults
+      setNewContact({ name: nameToUse, phone: phoneToUse, city: '' })
     }
     setCreateError(null)
     setShowCreateDialog(true)

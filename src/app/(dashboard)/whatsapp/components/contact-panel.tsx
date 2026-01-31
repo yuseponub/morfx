@@ -164,6 +164,7 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
         onOpenChange={setOrderSheetOpen}
         defaultContactId={contact?.id}
         defaultPhone={conversation.phone}
+        defaultName={conversation.profile_name || undefined}
         conversationId={conversation.id}
         onSuccess={() => setOrdersRefreshKey(k => k + 1)}
       />
@@ -173,6 +174,7 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
         open={contactSheetOpen}
         onOpenChange={setContactSheetOpen}
         defaultPhone={conversation.phone}
+        defaultName={conversation.profile_name || undefined}
         conversationId={conversation.id}
       />
     </div>

@@ -61,6 +61,8 @@ interface OrderFormProps {
   defaultContactId?: string
   /** Pre-fill phone when creating new contact inline (e.g., from WhatsApp) */
   defaultPhone?: string
+  /** Pre-fill name when creating new contact inline (e.g., from WhatsApp profile) */
+  defaultName?: string
   /** Called when a new contact is created inline (e.g., to link to conversation) */
   onContactCreated?: (contact: ContactWithTags) => void
   onSuccess?: () => void
@@ -77,6 +79,7 @@ export function OrderForm({
   defaultStageId,
   defaultContactId,
   defaultPhone,
+  defaultName,
   onContactCreated,
   onSuccess,
   onCancel,
@@ -219,6 +222,7 @@ export function OrderForm({
                   onContactCreated={handleContactCreated}
                   disabled={isPending}
                   defaultPhone={defaultPhone}
+                  defaultName={defaultName}
                 />
               )}
             />

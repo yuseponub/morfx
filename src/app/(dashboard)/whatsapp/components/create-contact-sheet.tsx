@@ -15,6 +15,8 @@ interface CreateContactSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultPhone?: string
+  /** Pre-fill name from WhatsApp profile */
+  defaultName?: string
   /** Conversation ID to auto-link the contact after creation */
   conversationId?: string
   onSuccess?: (contactId?: string) => void
@@ -28,6 +30,7 @@ export function CreateContactSheet({
   open,
   onOpenChange,
   defaultPhone,
+  defaultName,
   conversationId,
   onSuccess,
 }: CreateContactSheetProps) {
@@ -53,10 +56,10 @@ export function CreateContactSheet({
         <div className="mt-6">
           {/* Key forces remount when sheet opens, ensuring defaultValues are applied */}
           <ContactForm
-            key={open ? `contact-form-${defaultPhone}` : 'closed'}
+            key={open ? `contact-form-${defaultPhone}-${defaultName}` : 'closed'}
             mode="create"
             defaultValues={{
-              name: '',
+              name: defaultName || '',
               phone: defaultPhone || '',
               email: '',
               address: '',

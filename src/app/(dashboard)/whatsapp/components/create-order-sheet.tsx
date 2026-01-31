@@ -23,6 +23,8 @@ interface CreateOrderSheetProps {
   defaultContactId?: string
   /** Pre-fill phone when creating new contact inline */
   defaultPhone?: string
+  /** Pre-fill name from WhatsApp profile when creating new contact inline */
+  defaultName?: string
   /** Conversation ID to auto-link contacts created inline */
   conversationId?: string
   onSuccess?: () => void
@@ -37,6 +39,7 @@ export function CreateOrderSheet({
   onOpenChange,
   defaultContactId,
   defaultPhone,
+  defaultName,
   conversationId,
   onSuccess,
 }: CreateOrderSheetProps) {
@@ -141,6 +144,7 @@ export function CreateOrderSheet({
             defaultStageId={defaultStageId}
             defaultContactId={defaultContactId}
             defaultPhone={defaultPhone}
+            defaultName={defaultName}
             onContactCreated={handleContactCreated}
             onSuccess={handleSuccess}
             onCancel={handleCancel}

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 8 of 10 (WhatsApp Extended)
-Plan: 6 of 6 complete
-Status: In progress (parallel wave 2 plans executing)
-Last activity: 2026-01-31 - Completed 08-06-PLAN.md (Role-Based Visibility)
+Plan: 08 of 8+ complete
+Status: In progress
+Last activity: 2026-01-31 - Completed 08-08-PLAN.md (Usage Tracking Dashboard)
 
-Progress: [########=-] ~85%
+Progress: [########=-] ~87%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -143,6 +143,11 @@ Recent decisions affecting current work:
 - [Phase 8-07]: 150ms debounce on slash-command search for performance
 - [Phase 8-03]: Form action wrapper returns void (TypeScript form action constraint)
 - [Phase 8-03]: Variable regex /\{\{(\d+)\}\}/g for {{n}} pattern extraction
+- [Phase 8-08]: Cost recording only on 'sent' status to avoid duplicates
+- [Phase 8-08]: Country code extraction from phone for rate lookup
+- [Phase 8-08]: Hardcoded chart colors (Recharts doesn't support CSS variables)
+- [Phase 8-04]: Two-step template modal (select -> preview) for user verification
+- [Phase 8-04]: Variables auto-fill from contact/order via template's variable_mapping
 
 ### Project Rules
 
@@ -477,6 +482,14 @@ Plan 07 complete:
 - Message input integrated with autocomplete (type / to trigger)
 - Keyboard navigation (Up/Down/Enter/Escape) for suggestions
 
+Plan 04 complete:
+- sendTemplateMessage Server Action in messages.ts
+- Template selection modal with two-step flow (select -> preview)
+- TemplatePreview component with variable substitution
+- TemplateButton integrated into MessageInput
+- 24h window detection shows template button when closed
+- Variables auto-filled from contact/order via variable_mapping
+
 **Key files:**
 - supabase/migrations/20260131000002_whatsapp_extended_foundation.sql
 - supabase/migrations/20260131000003_conversation_rls_update.sql
@@ -499,9 +512,12 @@ Plan 07 complete:
 - src/app/(dashboard)/configuracion/whatsapp/templates/nuevo/page.tsx
 - src/app/(dashboard)/configuracion/whatsapp/templates/[id]/page.tsx
 - src/app/(dashboard)/configuracion/whatsapp/templates/[id]/components/template-detail.tsx
+- src/app/(dashboard)/whatsapp/components/template-button.tsx
+- src/app/(dashboard)/whatsapp/components/template-send-modal.tsx
+- src/app/(dashboard)/whatsapp/components/template-preview.tsx
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:26:10Z
-Stopped at: Completed 08-03-PLAN.md (Template Management UI)
+Last session: 2026-01-31T21:27:26Z
+Stopped at: Completed 08-04-PLAN.md (Template Sending)
 Resume file: Continue with remaining Phase 8 plans

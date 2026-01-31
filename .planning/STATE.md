@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** Phase 7 - WhatsApp Core (In progress)
+**Current focus:** Phase 8 - WhatsApp Extended (In progress)
 
 ## Current Position
 
-Phase: 7 of 10 (WhatsApp Core)
-Plan: 3 of 3 complete
-Status: **VERIFIED** ✓
-Last activity: 2026-01-31 - Phase 7 verified in production (Vercel)
+Phase: 8 of 10 (WhatsApp Extended)
+Plan: 2 of 6 complete
+Status: In progress
+Last activity: 2026-01-31 - Completed 08-02-PLAN.md (Server Actions)
 
-Progress: [########--] ~80%
+Progress: [########=-] ~83%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -130,6 +130,12 @@ Recent decisions affecting current work:
 - [Phase 7-03]: frimousse for emoji picker (2kb, React 19 compatible)
 - [Phase 7-03]: Base64 encoding for file upload in Server Actions
 - [Phase 7-03]: Subtle geometric SVG pattern for chat background
+- [Phase 8-01]: Migration 20260131000002 (not 000001) to avoid storage_policies conflict
+- [Phase 8-01]: whatsapp_templates: admins full access, agents SELECT approved only
+- [Phase 8-01]: message_costs: no INSERT policy (webhook uses service role)
+- [Phase 8-01]: workspace_limits: no policies (Super Admin only via service role)
+- [Phase 8-01]: Template names auto-cleaned: lowercase, underscores only
+- [Phase 8-01]: Template CRUD: local DB first, then 360dialog API
 
 ### Project Rules
 
@@ -429,8 +435,26 @@ Plan 03 complete:
 - src/app/(dashboard)/whatsapp/components/contact-panel.tsx
 - src/app/(dashboard)/whatsapp/components/window-indicator.tsx
 
+## Phase 8 Summary (IN PROGRESS)
+
+Plan 01 complete:
+- whatsapp_templates, teams, team_members, quick_replies, message_costs, workspace_limits tables
+- ALTER conversations add team_id column
+- ALTER messages add template_name column
+- RLS policies for role-based access
+- TypeScript types for Template, Team, QuickReply, MessageCost, WorkspaceLimits
+- 360dialog template API client (templates-api.ts)
+- Template Server Actions (templates.ts)
+
+**Key files:**
+- supabase/migrations/20260131000002_whatsapp_extended_foundation.sql
+- src/lib/whatsapp/types.ts (extended)
+- src/lib/whatsapp/templates-api.ts
+- src/app/actions/templates.ts
+- src/app/actions/teams.ts (from prior work)
+
 ## Session Continuity
 
-Last session: 2026-01-30T17:15:00Z
-Stopped at: Completed 07-03-PLAN.md (Chat View) - Phase 7 complete
-Resume file: Next phase: 08-whatsapp-advanced
+Last session: 2026-01-31T21:07:42Z
+Stopped at: Completed 08-01-PLAN.md (Database Foundation)
+Resume file: Continue with 08-02-PLAN.md

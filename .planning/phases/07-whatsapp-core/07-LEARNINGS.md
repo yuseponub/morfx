@@ -12,6 +12,12 @@
 |-----|-------|-----|------------|
 | TypeScript error en getMessages return type | Action retornaba tipo genérico en lugar de Message[] | Especificar return type explícito `Promise<ActionResult<Message[]>>` | Siempre especificar tipos de retorno explícitos en Server Actions |
 | Realtime subscription not filtering | Channel subscription no filtraba por workspace_id | Agregar filter en postgres_changes: `filter: 'workspace_id=eq.${workspaceId}'` | Verificar filtros RLS también aplican a Realtime |
+| formatChanges async usado sin await | Server Action (async) usada síncronamente en Client Component | Extraer a función síncrona pura en `lib/activity/formatters.ts` | Helpers puros no deben ser Server Actions |
+| orderId narrowing en async function | TypeScript no puede inferir narrowing dentro de función async anidada | Capturar variable antes: `const currentOrderId = orderId` | Capturar valores narrowed antes de funciones async |
+| address no se mostraba en pedidos | Tipo OrderWithDetails.contact no incluía address, query no lo traía | Agregar address al tipo y a la query de getOrders | Verificar tipos coincidan con queries de Supabase |
+| shipping_address no visible en detalle | order-sheet solo mostraba carrier/tracking, no dirección de envío | Agregar sección de dirección en la UI de envío | Revisar que todos los campos del modelo se muestren |
+| Workspace cookie no se setea en incógnito | UI mostraba workspace pero cookie no existía, queries fallaban | WorkspaceProvider auto-setea cookie si workspace existe pero cookie no | Siempre verificar cookie existe cuando se necesita en server |
+| selectedConversation no se actualiza | Estado local no se refrescaba al crear contacto/orden | Agregar refreshSelectedConversation callback que recarga de DB | Pasar callbacks de refresh cuando datos pueden cambiar |
 
 ## Decisiones Técnicas
 

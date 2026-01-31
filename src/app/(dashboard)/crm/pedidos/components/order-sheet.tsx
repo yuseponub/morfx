@@ -7,7 +7,6 @@ import { es } from 'date-fns/locale'
 import {
   UserIcon,
   PhoneIcon,
-  MailIcon,
   MapPinIcon,
   PackageIcon,
   TruckIcon,
@@ -15,7 +14,6 @@ import {
   PencilIcon,
   Trash2Icon,
   ExternalLinkIcon,
-  ChevronDownIcon,
   LoaderIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -239,29 +237,16 @@ export function OrderSheet({
                       {contact.phone}
                     </a>
                   </div>
-                  {(contact as { email?: string }).email && (
-                    <div className="flex items-center gap-3">
-                      <MailIcon className="h-4 w-4 text-muted-foreground" />
-                      <a
-                        href={`mailto:${(contact as { email?: string }).email}`}
-                        className="text-primary hover:underline"
-                      >
-                        {(contact as { email?: string }).email}
-                      </a>
+                  {contact.address && (
+                    <div className="flex items-start gap-3">
+                      <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <span>{contact.address}</span>
                     </div>
                   )}
                   {contact.city && (
                     <div className="flex items-center gap-3">
                       <MapPinIcon className="h-4 w-4 text-muted-foreground" />
                       <span>{contact.city}</span>
-                    </div>
-                  )}
-                  {(contact as { address?: string }).address && (
-                    <div className="flex items-start gap-3">
-                      <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <span className="text-sm text-muted-foreground">
-                        {(contact as { address?: string }).address}
-                      </span>
                     </div>
                   )}
                 </div>

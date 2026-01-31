@@ -219,7 +219,7 @@ export async function getOrders(filters?: OrderFilters): Promise<OrderWithDetail
     .from('orders')
     .select(`
       *,
-      contact:contacts(id, name, phone, city),
+      contact:contacts(id, name, phone, address, city),
       stage:pipeline_stages(id, name, color, is_closed),
       pipeline:pipelines(id, name),
       products:order_products(*),

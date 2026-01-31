@@ -130,6 +130,7 @@ export interface OrderWithDetails extends Order {
     id: string
     name: string
     phone: string
+    address: string | null
     city: string | null
   } | null
   stage: {

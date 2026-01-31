@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { differenceInHours } from 'date-fns'
@@ -271,10 +271,12 @@ export async function sendMediaMessage(
 
   try {
     // Convert base64 to buffer and upload to Supabase Storage
+    // Use admin client to bypass RLS for storage uploads
+    const adminClient = createAdminClient()
     const buffer = Buffer.from(fileData, 'base64')
     const filePath = `${workspaceId}/${conversationId}/${Date.now()}-${fileName}`
 
-    const { error: uploadError } = await supabase
+    const { error: uploadError } = await adminClient
       .storage
       .from('whatsapp-media')
       .upload(filePath, buffer, {
@@ -284,11 +286,11 @@ export async function sendMediaMessage(
 
     if (uploadError) {
       console.error('Error uploading media:', uploadError)
-      return { error: 'Error al subir archivo' }
+      return { error: `Error al subir archivo: ${uploadError.message}` }
     }
 
     // Get public URL
-    const { data: publicUrlData } = supabase
+    const { data: publicUrlData } = adminClient
       .storage
       .from('whatsapp-media')
       .getPublicUrl(filePath)

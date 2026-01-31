@@ -160,6 +160,12 @@ export function ChatView({
       <MessageInput
         conversationId={conversationId}
         isWindowOpen={isWindowOpen}
+        contact={conversation.contact ? {
+          id: conversation.contact.id,
+          name: conversation.contact.name,
+          phone: conversation.contact.phone,
+          city: conversation.contact.city,
+        } : null}
         onSend={() => {
           // Scroll to bottom after sending
           scrolledToBottomRef.current = true

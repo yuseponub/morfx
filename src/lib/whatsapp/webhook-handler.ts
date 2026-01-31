@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { recordMessageCost } from '@/app/actions/usage'
 import type {
   WebhookPayload,
   WebhookValue,
@@ -16,6 +17,7 @@ import type {
   LocationContent,
   ContactsContent,
   ReactionContent,
+  CostCategory,
 } from './types'
 
 // ============================================================================
@@ -63,7 +65,7 @@ export async function processWebhook(
       // Process status updates
       if (value.statuses && value.statuses.length > 0) {
         for (const status of value.statuses) {
-          await processStatusUpdate(status)
+          await processStatusUpdate(status, workspaceId)
         }
       }
     }
@@ -148,9 +150,12 @@ async function processIncomingMessage(
 
 /**
  * Process a message status update.
- * Updates the status of an outbound message.
+ * Updates the status of an outbound message and records cost if billable.
  */
-async function processStatusUpdate(status: IncomingStatus): Promise<void> {
+async function processStatusUpdate(
+  status: IncomingStatus,
+  workspaceId: string
+): Promise<void> {
   const supabase = createAdminClient()
 
   try {
@@ -182,6 +187,36 @@ async function processStatusUpdate(status: IncomingStatus): Promise<void> {
     }
 
     console.log(`Updated status for message ${status.id}: ${mappedStatus}`)
+
+    // Record cost if billable (only on 'sent' status to avoid duplicates)
+    if (status.pricing?.billable && mappedStatus === 'sent') {
+      // Extract country code from phone (e.g., +57 for Colombia)
+      const countryCode = status.recipient_id?.match(/^\+?(\d{1,3})/)?.[1]
+      const countryMap: Record<string, string> = {
+        '57': 'CO',
+        '1': 'US',
+        '52': 'MX',
+        '54': 'AR',
+        '55': 'BR',
+        '56': 'CL',
+        '51': 'PE',
+        '593': 'EC',
+        '58': 'VE',
+      }
+      const recipientCountry = countryMap[countryCode || ''] || null
+
+      // Map the category from webhook to our CostCategory type
+      const category = (status.pricing.category?.toLowerCase() || 'service') as CostCategory
+
+      await recordMessageCost({
+        workspaceId,
+        wamid: status.id,
+        category,
+        recipientCountry,
+      })
+
+      console.log(`Recorded cost for message ${status.id}: ${category}`)
+    }
   } catch (error) {
     console.error('Error processing status update:', error)
     throw error

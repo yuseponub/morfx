@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 8 of 10 (WhatsApp Extended)
-Plan: 2 of 6 complete
-Status: In progress
-Last activity: 2026-01-31 - Completed 08-02-PLAN.md (Server Actions)
+Plan: 6 of 6 complete
+Status: In progress (parallel wave 2 plans executing)
+Last activity: 2026-01-31 - Completed 08-06-PLAN.md (Role-Based Visibility)
 
-Progress: [########=-] ~83%
+Progress: [########=-] ~85%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -136,6 +136,9 @@ Recent decisions affecting current work:
 - [Phase 8-01]: workspace_limits: no policies (Super Admin only via service role)
 - [Phase 8-01]: Template names auto-cleaned: lowercase, underscores only
 - [Phase 8-01]: Template CRUD: local DB first, then 360dialog API
+- [Phase 8-06]: is_workspace_manager function checks owner/admin roles
+- [Phase 8-06]: Agent visibility: assigned + unassigned only (not other agents' chats)
+- [Phase 8-06]: DELETE conversations restricted to managers only
 
 ### Project Rules
 
@@ -446,15 +449,26 @@ Plan 01 complete:
 - 360dialog template API client (templates-api.ts)
 - Template Server Actions (templates.ts)
 
+Plan 06 complete:
+- is_workspace_manager() helper function for role checking
+- Role-based RLS policies for conversations (managers see all, agents see assigned+unassigned)
+- DELETE restricted to managers only
+- useConversations hook extended with 'mine' and 'unassigned' filters
+- "Sin asignar" badge for unassigned conversations
+- Inbox filter tabs for "Mis chats" and "Sin asignar"
+
 **Key files:**
 - supabase/migrations/20260131000002_whatsapp_extended_foundation.sql
+- supabase/migrations/20260131000003_conversation_rls_update.sql
 - src/lib/whatsapp/types.ts (extended)
 - src/lib/whatsapp/templates-api.ts
 - src/app/actions/templates.ts
 - src/app/actions/teams.ts (from prior work)
+- src/hooks/use-conversations.ts
+- src/app/(dashboard)/whatsapp/components/filters/inbox-filters.tsx
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:07:42Z
-Stopped at: Completed 08-01-PLAN.md (Database Foundation)
-Resume file: Continue with 08-02-PLAN.md
+Last session: 2026-01-31T21:22:02Z
+Stopped at: Completed 08-06-PLAN.md (Role-Based Visibility)
+Resume file: Continue with remaining Phase 8 plans

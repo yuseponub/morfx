@@ -148,6 +148,9 @@ Recent decisions affecting current work:
 - [Phase 8-08]: Hardcoded chart colors (Recharts doesn't support CSS variables)
 - [Phase 8-04]: Two-step template modal (select -> preview) for user verification
 - [Phase 8-04]: Variables auto-fill from contact/order via template's variable_mapping
+- [Phase 8-05]: Expandable cards with single-expanded state for team details
+- [Phase 8-05]: Agents grouped by team in assignment dropdown
+- [Phase 8-05]: Availability toggle in conversation list header (always visible)
 
 ### Project Rules
 

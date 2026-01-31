@@ -58,9 +58,13 @@ export function ConversationList({
                 ? 'No se encontraron conversaciones'
                 : filter === 'unread'
                   ? 'No hay mensajes sin leer'
-                  : filter === 'archived'
-                    ? 'No hay conversaciones archivadas'
-                    : 'No hay conversaciones aun'
+                  : filter === 'mine'
+                    ? 'No tienes chats asignados'
+                    : filter === 'unassigned'
+                      ? 'No hay chats sin asignar'
+                      : filter === 'archived'
+                        ? 'No hay conversaciones archivadas'
+                        : 'No hay conversaciones aun'
               }
             </p>
           </div>

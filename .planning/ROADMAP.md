@@ -171,15 +171,15 @@ Plans:
 **Plans**: 9 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Database foundation: templates, teams, quick_replies, message_costs, workspace_limits with RLS
-- [ ] 08-02-PLAN.md — Server Actions: teams, quick replies, assignment, and usage tracking
-- [ ] 08-03-PLAN.md — Template management UI: list, create form, variable mapper, status badges
-- [ ] 08-04-PLAN.md — Template sending: modal with preview, variable substitution, 24h window integration
-- [ ] 08-05-PLAN.md — Team management: configuration page, member management, assignment dropdown
-- [ ] 08-06-PLAN.md — Role-based visibility: RLS policies for manager vs agent conversation access
-- [ ] 08-07-PLAN.md — Quick replies: management page and slash-command autocomplete in chat
-- [ ] 08-08-PLAN.md — Usage tracking: webhook cost recording and cost dashboard with charts
-- [ ] 08-09-PLAN.md — Super Admin panel: workspace configuration and consolidated costs
+- [x] 08-01-PLAN.md — Database foundation: templates, teams, quick_replies, message_costs, workspace_limits with RLS
+- [x] 08-02-PLAN.md — Server Actions: teams, quick replies, assignment, and usage tracking
+- [x] 08-03-PLAN.md — Template management UI: list, create form, variable mapper, status badges
+- [x] 08-04-PLAN.md — Template sending: modal with preview, variable substitution, 24h window integration
+- [x] 08-05-PLAN.md — Team management: configuration page, member management, assignment dropdown
+- [x] 08-06-PLAN.md — Role-based visibility: RLS policies for manager vs agent conversation access
+- [x] 08-07-PLAN.md — Quick replies: management page and slash-command autocomplete in chat
+- [x] 08-08-PLAN.md — Usage tracking: webhook cost recording and cost dashboard with charts
+- [x] 08-09-PLAN.md — Super Admin panel: workspace configuration and consolidated costs
 
 ### Phase 9: CRM-WhatsApp Sync
 **Goal**: Tags and order states synchronize between CRM and WhatsApp modules (core value)
@@ -229,10 +229,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 5. Contacts Extended | 4/4 | Complete | 2026-01-29 |
 | 6. Orders | 5/5 | Complete | 2026-01-29 |
 | 7. WhatsApp Core | 3/3 | Complete | 2026-01-30 |
-| 8. WhatsApp Extended | 0/9 | Not started | - |
+| 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
 | 9. CRM-WhatsApp Sync | 0/3 | Not started | - |
 | 10. Search, Tasks & Analytics | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-01-30 (Phase 8 scope expanded: templates + usage tracking)*
+*Last updated: 2026-01-31 (Phase 8 complete)*

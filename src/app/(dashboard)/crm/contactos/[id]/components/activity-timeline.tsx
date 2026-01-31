@@ -16,7 +16,7 @@ import { Timeline, TimelineItem, formatRelativeDate } from '@/components/ui/time
 import {
   formatChanges,
   getActionDescription,
-} from '@/lib/activity/formatters'
+} from '@/app/actions/activity'
 import type { ContactActivityWithUser } from '@/lib/custom-fields/types'
 
 interface ActivityTimelineProps {

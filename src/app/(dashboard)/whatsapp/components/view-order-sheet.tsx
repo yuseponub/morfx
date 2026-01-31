@@ -85,14 +85,12 @@ export function ViewOrderSheet({
   React.useEffect(() => {
     if (!open || !orderId) return
 
-    const currentOrderId = orderId // Capture for TypeScript narrowing
-
     async function loadData() {
       setIsLoading(true)
       setIsEditing(false)
       try {
         const [orderData, pipelinesData, productsData, contactsData] = await Promise.all([
-          getOrder(currentOrderId),
+          getOrder(orderId),
           getPipelines(),
           getActiveProducts(),
           getContacts(),

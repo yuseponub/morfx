@@ -1,0 +1,427 @@
+# Project State
+
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-01-28)
+
+**Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
+**Current focus:** Phase 7 - WhatsApp Core (In progress)
+
+## Current Position
+
+Phase: 7 of 10 (WhatsApp Core)
+Plan: 3 of 3 complete
+Status: Phase complete
+Last activity: 2026-01-30 - Completed 07-03-PLAN.md (Chat View)
+
+Progress: [########--] ~80%
+
+## Performance Metrics
+
+**Velocity:**
+- Total phases completed: 6
+- Phase 1: ~45 minutes (3 plans)
+- Phase 2: ~2 hours (manual implementation)
+- Phase 3: ~56 minutes (4 plans)
+- Phase 4: ~35 minutes (3 plans)
+- Phase 5: ~43 minutes (4 plans)
+- Phase 6: ~57 minutes (5 plans)
+- Phase 7: ~31 minutes (3 plans)
+
+**By Phase:**
+
+| Phase | Plans | Total | Notes |
+|-------|-------|-------|-------|
+| 01-foundation-auth | 3/3 | ~45min | Formal GSD plans |
+| 02-workspaces-roles | manual | ~2hrs | Implemented without formal plans |
+| 03-action-dsl-core | 4/4 | ~56min | Complete |
+| 04-contacts-base | 3/3 | ~35min | Complete |
+| 05-contacts-extended | 4/4 | ~43min | Complete |
+| 06-orders | 5/5 | ~57min | Complete |
+| 07-whatsapp-core | 3/3 | ~31min | Complete |
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- [Phase 2]: Cookie-based workspace persistence (server-accessible)
+- [Phase 2]: Profiles table for user email access (auth.users not joinable)
+- [Phase 2]: Link-based invitations (Supabase email limit 4/hour)
+- [Phase 2]: SECURITY DEFINER functions for public invitation viewing
+- [Phase 2]: Permissions defined in code, not database (simpler for MVP)
+- [Phase 3-01]: Use pnpm (project's package manager, not npm)
+- [Phase 3-01]: jose 6.1 for Edge Runtime compatibility
+- [Phase 3-01]: Forensic logging with before/after snapshots
+- [Phase 3-01]: API keys use bcrypt hash (never plaintext)
+- [Phase 3-02]: Pino redacts by removing fields entirely (not [REDACTED])
+- [Phase 3-02]: Tool logging never throws (must not interrupt business logic)
+- [Phase 3-02]: Distinct error classes (ToolValidationError, ToolNotFoundError, PermissionError)
+- [Phase 3-03]: Placeholder handlers return _placeholder: true for debugging
+- [Phase 3-03]: PHASE_4_CONTRACT/PHASE_7_CONTRACT comments mark handler replacement points
+- [Phase 3-03]: initializeTools() is idempotent with initialized flag
+- [Phase 3-04]: SHA-256 for API keys (not bcrypt) - fast comparison, keys are random
+- [Phase 3-04]: Middleware header passing for workspace context
+- [Phase 3-04]: MCP-compatible discovery endpoint format
+- [Phase 4-01]: Phone stored in E.164 format (+573001234567) for consistent matching
+- [Phase 4-01]: Tags are global per workspace (usable on contacts, orders, whatsapp)
+- [Phase 4-01]: Zod v4 uses .issues instead of .errors for validation errors
+- [Phase 4-02]: createColumns factory pattern to inject action callbacks
+- [Phase 4-02]: CityCombobox uses shouldFilter={false} with limit 50 for performance
+- [Phase 4-02]: DataTable accepts searchColumn+searchValue props for external filter control
+- [Phase 4-03]: TagInput uses popover+command instead of Emblor for simpler integration
+- [Phase 4-03]: Client-side filtering for fast tag toggle UX
+- [Phase 4-03]: Optimistic updates with revert on error for tag operations
+- [Phase 5-01]: Activity trigger skips updated_at to reduce noise
+- [Phase 5-01]: Activity table is immutable (no UPDATE/DELETE RLS)
+- [Phase 5-01]: Notes editable by author OR admin/owner
+- [Phase 5-02]: Auto-generate field key from display name (reduces user friction)
+- [Phase 5-02]: Cannot change field type or key after creation (would break data)
+- [Phase 5-02]: contact_relation uses text input for MVP (combobox later)
+- [Phase 5-03]: TimelineItem title accepts ReactNode (not just string) for rich content
+- [Phase 5-03]: Note activities logged via application code (not trigger)
+- [Phase 5-04]: CSV parsing without web worker (worker:true causes Next.js issues)
+- [Phase 5-04]: Batch insert 100 contacts at a time (performance/memory balance)
+- [Phase 5-04]: BOM included in CSV export for Excel UTF-8 compatibility
+- [Phase 6-01]: Snapshot pricing in order_products (sku, title, unit_price copied at order time)
+- [Phase 6-01]: GENERATED ALWAYS AS for subtotal column (PostgreSQL handles computation)
+- [Phase 6-01]: ON DELETE RESTRICT for pipeline_id/stage_id on orders (data integrity)
+- [Phase 6-01]: linked_order_id for order relationships (returns linked to original sales)
+- [Phase 6-01]: saved_views shared via is_shared flag (user sees own or shared views)
+- [Phase 6-02]: Price input uses numeric formatting with Intl.NumberFormat, stored as number
+- [Phase 6-02]: Products default to active, with toggle in table actions
+- [Phase 6-02]: Show inactive products is off by default for cleaner UX
+- [Phase 6-02]: AlertDialog for delete confirmation (safer than window.confirm)
+- [Phase 6-03]: @dnd-kit for drag-drop (React 19 compatible, accessible)
+- [Phase 6-03]: Optimistic updates on drag with revert on error
+- [Phase 6-03]: STAGE_COLORS separate from TAG_COLORS (decoupled for flexibility)
+- [Phase 6-03]: Default pipeline Ventas with 4 stages (Nuevo, En Proceso, Ganado, Perdido)
+- [Phase 6-04]: Sheet instead of Dialog for order form (more space for complex forms)
+- [Phase 6-04]: ProductPicker supports catalog products and manual entry
+- [Phase 6-04]: No Zod validation in form - explicit TypeScript interface for react-hook-form
+- [Phase 6-04]: Pipeline filter resets stage filter when changed (UX)
+- [Phase 6-04]: ContactSelector shows first 50 results with client-side search
+- [Phase 6-05]: Fuse.js threshold 0.4 for balance between fuzzy and precision
+- [Phase 6-05]: Weighted search: contact name (2), phone/tracking (1.5), products (1)
+- [Phase 6-05]: Kanban is default view (per CONTEXT.md)
+- [Phase 6-05]: Pipeline tabs persist to localStorage for session continuity
+- [Phase 6-05]: View mode persists to localStorage
+- [Phase 6-05]: Optimistic updates on drag with revert on error
+- [Phase 7-01]: wamid unique constraint for message deduplication
+- [Phase 7-01]: Async webhook processing after 200 response (360dialog 5s timeout)
+- [Phase 7-01]: Trigger updates conversation stats on message insert
+- [Phase 7-01]: Auto-link conversations to contacts by E.164 phone
+- [Phase 7-02]: Fuse.js weighted search for conversations (same pattern as Phase 6)
+- [Phase 7-02]: Realtime subscription per workspace prevents cross-workspace data
+- [Phase 7-02]: Window indicator shows warning only when <2h remaining (per CONTEXT.md)
+- [Phase 7-02]: RecentOrdersList as separate component in ContactPanel
+- [Phase 7-03]: TanStack Virtual for message list performance
+- [Phase 7-03]: frimousse for emoji picker (2kb, React 19 compatible)
+- [Phase 7-03]: Base64 encoding for file upload in Server Actions
+- [Phase 7-03]: Subtle geometric SVG pattern for chat background
+
+### Project Rules
+
+Established in `CLAUDE.md`:
+1. ALWAYS restart server after code changes before testing
+2. ALWAYS use America/Bogota timezone for dates
+3. ALWAYS follow GSD workflow completely
+
+### Pending Todos
+
+- Configure SMTP in Supabase for production email sending
+- Mobile nav workspace switcher
+- Apply migrations to Supabase (tool_executions, api_keys, contacts, tags, custom_fields, notes, activity, orders, conversations, messages)
+- Configure 360dialog webhook URL and env vars
+
+### Blockers/Concerns
+
+None.
+
+## Phase 3 Summary (COMPLETE)
+
+Plan 01 complete:
+- Dependencies installed (ajv, pino, jose, etc.)
+- tool_executions table with forensic logging
+- api_keys table with validate_api_key() function
+- TypeScript types for tool system
+
+Plan 02 complete:
+- Pino logger with security redaction (src/lib/audit/logger.ts)
+- Tool execution logging to Supabase (src/lib/audit/tool-logger.ts)
+- Tool Registry with compiled Ajv validators (src/lib/tools/registry.ts)
+- Tool Executor with dry-run and permission checking (src/lib/tools/executor.ts)
+
+Plan 03 complete:
+- 9 CRM tool schemas (src/lib/tools/schemas/crm.tools.ts)
+- 7 WhatsApp tool schemas (src/lib/tools/schemas/whatsapp.tools.ts)
+- Placeholder handlers for CRM (src/lib/tools/handlers/crm/index.ts)
+- Placeholder handlers for WhatsApp (src/lib/tools/handlers/whatsapp/index.ts)
+- Tool initialization (src/lib/tools/init.ts)
+- Next.js instrumentation hook (src/instrumentation.ts)
+
+Plan 04 complete:
+- API key validation utility (src/lib/auth/api-key.ts)
+- Middleware API key auth for /api/v1/tools/* routes
+- GET /api/v1/tools (discovery endpoint)
+- POST /api/v1/tools/{name} (execution endpoint)
+
+**Phase 3 Deliverables:**
+- 16 registered tools (9 CRM + 7 WhatsApp)
+- MCP-compatible API for AI agent integration
+- Forensic logging for all tool executions
+- API key authentication for external access
+
+## Phase 4 Summary (COMPLETE)
+
+Plan 01 complete:
+- contacts, tags, contact_tags tables with RLS policies
+- Phone normalization utility (libphonenumber-js)
+- Colombian cities dataset (~100 municipalities)
+- Tag color palette with contrast calculation
+- Server Actions: getContacts, createContact, updateContact, deleteContact
+- Server Actions: getTags, createTag, updateTag, deleteTag
+- Bulk tag operations: bulkAddTag, bulkRemoveTag
+
+Plan 02 complete:
+- TanStack Table integration with sorting and row selection
+- Contact list page /crm/contactos with search and bulk operations
+- Contact form with phone validation and city autocomplete
+- Contact detail page /crm/contactos/[id]
+- Toast notifications via Sonner
+- Empty state with CTA
+
+Plan 03 complete:
+- TagBadge component for colored tag display
+- TagInput for adding/removing tags with optimistic updates
+- TagFilter for multi-tag filtering (Linear-style toggle)
+- TagManager for workspace tag CRUD with color picker
+- Client-side filtering by tags in ContactsTable
+- Inline tag editing on contact detail page
+
+**Phase 4 Deliverables:**
+- Full contact CRUD with RLS isolation
+- Tag system with colors and filtering
+- Phone normalization to E.164 format
+- Colombian cities autocomplete
+- Bulk operations (delete, add/remove tags)
+
+**Key files:**
+- src/components/contacts/tag-badge.tsx
+- src/components/contacts/tag-input.tsx
+- src/app/(dashboard)/crm/contactos/components/tag-filter.tsx
+- src/app/(dashboard)/crm/contactos/components/tag-manager.tsx
+
+## Phase 5 Summary (COMPLETE)
+
+Plan 01 complete:
+- custom_field_definitions table for workspace-scoped field schemas
+- contacts.custom_fields JSONB column with GIN index
+- contact_notes table with author tracking
+- contact_activity table for automatic change history
+- log_contact_changes() trigger with JSONB diff calculation
+- TypeScript types for custom fields, notes, activity
+
+Plan 02 complete:
+- Server Actions: getCustomFields, createCustomField, updateCustomField, deleteCustomField, reorderCustomFields
+- Dynamic Zod validator buildCustomFieldSchema() for all 12 field types
+- FieldInput and FieldDisplay components for all field types
+- Settings page at /crm/configuracion/campos-custom with FieldBuilder dialog
+- CustomFieldsSection on contact detail with view/edit modes
+- Select UI component added (@radix-ui/react-select)
+
+Plan 03 complete:
+- Notes CRUD Server Actions (getContactNotes, createNote, updateNote, deleteNote)
+- Activity fetch Server Action (getContactActivity) with formatting helpers
+- Reusable Timeline and TimelineItem components
+- NotesSection with add/edit/delete and optimistic updates
+- ActivityTimeline with type filters (edits, notes, tags)
+- Contact detail page with tabs (Info, Campos, Notas, Historial)
+
+Plan 04 complete:
+- CSV parsing utilities with PapaParse (src/lib/csv/parser.ts)
+- CSV export utilities with BOM support (src/lib/csv/exporter.ts)
+- Bulk import Server Actions (bulkCreateContacts, getExistingPhones, updateContactByPhone)
+- CsvImportDialog with multi-step wizard (upload, parse, duplicates, import, results)
+- DuplicateResolver for conflict resolution during import
+- CsvExportButton with column selection popover
+- ScrollArea UI component added (@radix-ui/react-scroll-area)
+
+**Phase 5 Deliverables:**
+- Custom field definitions with 12 field types
+- Notes system with author tracking
+- Activity timeline with JSONB diff display
+- CSV import with column auto-detection and duplicate resolution
+- CSV export with column selection and Excel compatibility
+- Contact detail page with tabbed interface
+
+**Key files:**
+- src/lib/custom-fields/types.ts
+- src/lib/custom-fields/validator.ts
+- src/app/actions/custom-fields.ts
+- src/components/custom-fields/field-input.tsx
+- src/components/custom-fields/field-display.tsx
+- src/app/(dashboard)/crm/configuracion/campos-custom/page.tsx
+- supabase/migrations/20260129000002_custom_fields_notes_activity.sql
+- src/app/actions/notes.ts
+- src/app/actions/activity.ts
+- src/components/ui/timeline.tsx
+- src/app/(dashboard)/crm/contactos/[id]/components/notes-section.tsx
+- src/app/(dashboard)/crm/contactos/[id]/components/activity-timeline.tsx
+- src/lib/csv/parser.ts
+- src/lib/csv/exporter.ts
+- src/app/(dashboard)/crm/contactos/components/csv-import-dialog.tsx
+- src/app/(dashboard)/crm/contactos/components/csv-export-button.tsx
+- src/app/(dashboard)/crm/contactos/components/duplicate-resolver.tsx
+
+## Phase 6 Summary (COMPLETE)
+
+Plan 01 complete:
+- products, pipelines, pipeline_stages tables
+- orders table with contact, pipeline, stage relations
+- order_products junction with snapshot pricing and auto-total trigger
+- order_tags junction reusing Phase 4 tags
+- saved_views table for persisted filters
+- RLS policies for workspace isolation
+- TypeScript types for orders module
+
+Plan 02 complete:
+- Products CRUD Server Actions (getProducts, createProduct, updateProduct, deleteProduct, toggleProductActive)
+- Products catalog page at /crm/productos
+- TanStack Table with search, sorting, and active/inactive toggle
+- Product form with Zod validation and COP currency formatting
+- AlertDialog component for delete confirmations
+
+Plan 03 complete:
+- Pipeline Server Actions (getPipelines, createPipeline, updatePipeline, deletePipeline)
+- Stage Server Actions (createStage, updateStage, updateStageOrder, deleteStage)
+- Pipeline configuration page at /crm/configuracion/pipelines
+- Stage manager with drag-to-reorder using @dnd-kit
+- Color picker and WIP limit configuration per stage
+- Default pipeline auto-creation on first visit
+
+Plan 04 complete:
+- Orders Server Actions (getOrders, createOrder, updateOrder, deleteOrder, moveOrderToStage)
+- Orders list page at /crm/pedidos with TanStack Table
+- Order form in Sheet with Contact, Products, Details, Shipping, Notes sections
+- ProductPicker with catalog search and manual entry
+- ContactSelector combobox with name/phone search
+- Pipeline/Stage filter dropdowns
+- Calendar component (react-day-picker) for closing date
+- AlertDialog for delete confirmations
+
+Plan 05 complete:
+- Kanban board with @dnd-kit drag-and-drop between stages
+- Fuzzy search with Fuse.js (weighted by contact, products, tracking)
+- Pipeline tabs (taskbar style) with localStorage persistence
+- View toggle Kanban/List with localStorage persistence
+- Order detail sheet with full information
+- Combined filters: search + stage + tags
+- WIP limit visual enforcement
+
+**Phase 6 Deliverables:**
+- Products catalog with CRUD
+- Pipeline/stage configuration with drag reorder
+- Orders CRUD with list view
+- Kanban board with drag-and-drop
+- Fuzzy search and filtering
+- Multi-pipeline tabs
+- Order detail sheet
+
+**Key files:**
+- supabase/migrations/20260129000003_orders_foundation.sql
+- src/lib/orders/types.ts
+- src/lib/search/fuse-config.ts
+- src/app/actions/products.ts
+- src/app/actions/orders.ts
+- src/app/(dashboard)/crm/productos/page.tsx
+- src/app/(dashboard)/crm/productos/components/products-table.tsx
+- src/app/(dashboard)/crm/productos/components/product-form.tsx
+- src/app/(dashboard)/crm/productos/components/columns.tsx
+- src/app/(dashboard)/crm/configuracion/pipelines/page.tsx
+- src/app/(dashboard)/crm/configuracion/pipelines/components/stage-manager.tsx
+- src/app/(dashboard)/crm/pedidos/page.tsx
+- src/app/(dashboard)/crm/pedidos/components/orders-view.tsx
+- src/app/(dashboard)/crm/pedidos/components/orders-table.tsx
+- src/app/(dashboard)/crm/pedidos/components/order-form.tsx
+- src/app/(dashboard)/crm/pedidos/components/columns.tsx
+- src/app/(dashboard)/crm/pedidos/components/product-picker.tsx
+- src/app/(dashboard)/crm/pedidos/components/contact-selector.tsx
+- src/app/(dashboard)/crm/pedidos/components/kanban-board.tsx
+- src/app/(dashboard)/crm/pedidos/components/kanban-column.tsx
+- src/app/(dashboard)/crm/pedidos/components/kanban-card.tsx
+- src/app/(dashboard)/crm/pedidos/components/order-sheet.tsx
+- src/app/(dashboard)/crm/pedidos/components/pipeline-tabs.tsx
+- src/app/(dashboard)/crm/pedidos/components/view-toggle.tsx
+- src/app/(dashboard)/crm/pedidos/components/order-filters.tsx
+- src/components/ui/calendar.tsx
+- src/components/ui/toggle-group.tsx
+
+## Phase 7 Summary (COMPLETE)
+
+Plan 01 complete:
+- conversations, messages tables with RLS policies
+- Supabase Realtime enabled for both tables
+- wamid unique constraint for deduplication
+- Trigger update_conversation_on_message for stats
+- TypeScript types for WhatsApp domain
+- 360dialog API client (sendTextMessage, sendMediaMessage, etc.)
+- Webhook handler (processWebhook, processIncomingMessage, processStatusUpdate)
+- Webhook endpoint at /api/webhooks/whatsapp
+- Server Actions: getConversations, getConversation, markAsRead, archiveConversation, linkContactToConversation, etc.
+
+Plan 02 complete:
+- useConversations hook with Fuse.js fuzzy search and Realtime subscription
+- useMessages hook with Realtime subscription
+- 3-column inbox layout (conversation list, chat, contact panel)
+- Conversation list with search and filters (all, unread, archived)
+- Contact panel with contact info, recent orders, window indicator
+- Window indicator shows warning only when <2h or closed
+
+Plan 03 complete:
+- Message Server Actions (getMessages, sendMessage, sendMediaMessage, markMessageAsRead)
+- ChatView with TanStack Virtual for virtualized message list
+- MessageBubble with styled bubbles and status indicators
+- ChatHeader with actions (archive, mark read, open in CRM)
+- MediaPreview for images, video, audio, documents
+- MessageInput with emoji picker and file attachments
+- EmojiPicker using frimousse library
+- 24h window enforcement for message sending
+- Disabled input state with template button when window closed
+
+**Phase 7 Deliverables:**
+- Full WhatsApp inbox with 3-column layout
+- Real-time message and conversation updates
+- Message sending within 24h window
+- File attachments (images, video, audio, documents)
+- Emoji picker with Spanish locale
+- Contact linking by phone
+- Window indicator for 24h window status
+
+**Key files:**
+- supabase/migrations/20260130000002_whatsapp_conversations.sql
+- src/lib/whatsapp/types.ts
+- src/lib/whatsapp/api.ts
+- src/lib/whatsapp/webhook-handler.ts
+- src/app/api/webhooks/whatsapp/route.ts
+- src/app/actions/conversations.ts
+- src/app/actions/messages.ts
+- src/hooks/use-conversations.ts
+- src/hooks/use-messages.ts
+- src/app/(dashboard)/whatsapp/components/inbox-layout.tsx
+- src/app/(dashboard)/whatsapp/components/conversation-list.tsx
+- src/app/(dashboard)/whatsapp/components/chat-view.tsx
+- src/app/(dashboard)/whatsapp/components/message-bubble.tsx
+- src/app/(dashboard)/whatsapp/components/message-input.tsx
+- src/app/(dashboard)/whatsapp/components/emoji-picker.tsx
+- src/app/(dashboard)/whatsapp/components/media-preview.tsx
+- src/app/(dashboard)/whatsapp/components/contact-panel.tsx
+- src/app/(dashboard)/whatsapp/components/window-indicator.tsx
+
+## Session Continuity
+
+Last session: 2026-01-30T17:15:00Z
+Stopped at: Completed 07-03-PLAN.md (Chat View) - Phase 7 complete
+Resume file: Next phase: 08-whatsapp-advanced

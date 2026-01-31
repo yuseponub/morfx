@@ -322,18 +322,8 @@ export function OrderSheet({
                 <TruckIcon className="h-4 w-4" />
                 Envio
               </h3>
-              {order.shipping_address || order.shipping_city || order.carrier || order.tracking_number ? (
+              {order.carrier || order.tracking_number ? (
                 <div className="space-y-2">
-                  {(order.shipping_address || order.shipping_city) && (
-                    <div className="flex items-start gap-3">
-                      <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        {order.shipping_address && <span>{order.shipping_address}</span>}
-                        {order.shipping_address && order.shipping_city && <span> - </span>}
-                        {order.shipping_city && <span className="text-muted-foreground">{order.shipping_city}</span>}
-                      </div>
-                    </div>
-                  )}
                   {order.carrier && (
                     <div className="flex items-center gap-3">
                       <span className="text-muted-foreground text-sm w-24">Transportadora</span>

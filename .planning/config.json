@@ -1,0 +1,18 @@
+{
+  "mode": "yolo",
+  "depth": "comprehensive",
+  "parallelization": true,
+  "commit_docs": true,
+  "model_profile": "quality",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "learnings": true
+  },
+  "learnings": {
+    "mandatory": true,
+    "template": ".planning/templates/LEARNINGS-TEMPLATE.md",
+    "purpose": "Documentar bugs, decisiones y tips para entrenar agentes futuros"
+  }
+}

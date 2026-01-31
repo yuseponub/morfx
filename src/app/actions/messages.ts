@@ -4,7 +4,12 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { differenceInHours } from 'date-fns'
-import { sendTextMessage, sendMediaMessage as sendMedia360 } from '@/lib/whatsapp/api'
+import {
+  sendTextMessage,
+  sendMediaMessage as sendMedia360,
+  sendTemplateMessage as sendTemplate360,
+} from '@/lib/whatsapp/api'
+import { getTemplate } from './templates'
 import type {
   Message,
   MessageContent,
@@ -418,5 +423,165 @@ export async function markMessageAsRead(messageId: string): Promise<ActionResult
   } catch (err) {
     console.error('Error marking message as read:', err)
     return { error: 'Error al marcar mensaje como leido' }
+  }
+}
+
+// ============================================================================
+// TEMPLATE OPERATIONS
+// ============================================================================
+
+/**
+ * Send a template message (used when 24h window is closed).
+ *
+ * @param params.conversationId - Conversation ID
+ * @param params.templateId - Template ID from database
+ * @param params.variableValues - Variable values keyed by position ("1" -> "value")
+ */
+export async function sendTemplateMessage(params: {
+  conversationId: string
+  templateId: string
+  variableValues: Record<string, string>
+}): Promise<ActionResult<{ messageId: string }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
+
+  // Get conversation to get recipient phone
+  const { data: conversation, error: convError } = await supabase
+    .from('conversations')
+    .select('id, phone, contact_id, status')
+    .eq('id', params.conversationId)
+    .eq('workspace_id', workspaceId)
+    .single()
+
+  if (convError || !conversation) {
+    return { error: 'Conversacion no encontrada' }
+  }
+
+  // Get template
+  const template = await getTemplate(params.templateId)
+  if (!template) {
+    return { error: 'Template no encontrado' }
+  }
+  if (template.status !== 'APPROVED') {
+    return { error: 'Template no aprobado por Meta' }
+  }
+
+  // Build template components with variable values
+  const bodyComponent = template.components.find(c => c.type === 'BODY')
+  const headerComponent = template.components.find(c => c.type === 'HEADER')
+
+  const apiComponents: Array<{
+    type: 'header' | 'body' | 'button'
+    parameters?: Array<{
+      type: 'text'
+      text: string
+    }>
+  }> = []
+
+  // Extract variable numbers from body text and build parameters
+  const bodyVars = bodyComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
+  if (bodyVars.length > 0) {
+    apiComponents.push({
+      type: 'body',
+      parameters: bodyVars.map(v => {
+        const num = v.replace(/[{}]/g, '')
+        return { type: 'text' as const, text: params.variableValues[num] || '' }
+      })
+    })
+  }
+
+  // Same for header if it has variables
+  const headerVars = headerComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
+  if (headerVars.length > 0) {
+    apiComponents.push({
+      type: 'header',
+      parameters: headerVars.map(v => {
+        const num = v.replace(/[{}]/g, '')
+        return { type: 'text' as const, text: params.variableValues[num] || '' }
+      })
+    })
+  }
+
+  // Get workspace settings for API key
+  const { data: workspaceSettings } = await supabase
+    .from('workspaces')
+    .select('settings')
+    .eq('id', workspaceId)
+    .single()
+
+  const apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+  if (!apiKey) {
+    return { error: 'API key de WhatsApp no configurada' }
+  }
+
+  try {
+    // Send via 360dialog
+    const response = await sendTemplate360(
+      apiKey,
+      conversation.phone,
+      template.name,
+      template.language,
+      apiComponents.length > 0 ? apiComponents : undefined
+    )
+
+    const wamid = response.messages[0]?.id
+    if (!wamid) {
+      return { error: 'No se recibio ID de mensaje de WhatsApp' }
+    }
+
+    // Build the rendered message text for display
+    let renderedText = bodyComponent?.text || ''
+    Object.entries(params.variableValues).forEach(([num, value]) => {
+      renderedText = renderedText.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value)
+    })
+
+    // Store message in database
+    const { data: message, error: insertError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: params.conversationId,
+        workspace_id: workspaceId,
+        wamid,
+        direction: 'outbound',
+        type: 'template',
+        content: { body: renderedText } as unknown as Record<string, unknown>,
+        template_name: template.name,
+        status: 'sent',
+        timestamp: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (insertError || !message) {
+      console.error('Error inserting template message:', insertError)
+      return { error: 'Mensaje enviado pero no se pudo guardar' }
+    }
+
+    // Update conversation
+    const preview = `[Template] ${template.name}`
+    await supabase
+      .from('conversations')
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: preview,
+        ...(conversation.status === 'archived' ? { status: 'active' } : {}),
+      })
+      .eq('id', params.conversationId)
+
+    revalidatePath('/whatsapp')
+    return { success: true, data: { messageId: message.id } }
+  } catch (err) {
+    console.error('Error sending template message via 360dialog:', err)
+    return { error: err instanceof Error ? err.message : 'Error al enviar template' }
   }
 }

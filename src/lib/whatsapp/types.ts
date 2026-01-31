@@ -228,6 +228,8 @@ export interface ConversationWithDetails extends Conversation {
     name: string
     color: string
   }>
+  // Assignee info (joined from profiles)
+  assigned_name?: string | null
 }
 
 /**

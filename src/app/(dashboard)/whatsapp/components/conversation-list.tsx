@@ -5,6 +5,7 @@ import { useConversations } from '@/hooks/use-conversations'
 import { InboxFilters } from './filters/inbox-filters'
 import { SearchInput } from './filters/search-input'
 import { ConversationItem } from './conversation-item'
+import { AvailabilityToggle } from './availability-toggle'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ConversationListProps {
@@ -39,6 +40,12 @@ export function ConversationList({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header with availability toggle */}
+      <div className="px-3 py-2 border-b flex items-center justify-between">
+        <h2 className="font-semibold">Conversaciones</h2>
+        <AvailabilityToggle />
+      </div>
+
       {/* Filters */}
       <div className="p-3 border-b space-y-3">
         <InboxFilters value={filter} onChange={setFilter} />

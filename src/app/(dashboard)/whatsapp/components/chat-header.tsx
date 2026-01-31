@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { WindowIndicator } from './window-indicator'
+import { AssignDropdown } from './assign-dropdown'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
 import { toast } from 'sonner'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
@@ -116,6 +117,16 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-1">
+          {/* Assignment dropdown */}
+          <AssignDropdown
+            conversationId={conversation.id}
+            currentAssignee={
+              conversation.assigned_to
+                ? { id: conversation.assigned_to, name: conversation.assigned_name || 'Agente' }
+                : null
+            }
+          />
+
           {/* Mark as read */}
           {!conversation.is_read && (
             <Button

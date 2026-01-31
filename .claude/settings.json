@@ -2,17 +2,25 @@
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "echo '\\n=== MORFX: PROYECTO DE VIDA ===\\n GSD COMPLETO OBLIGATORIO - Calidad sobre eficiencia - SIN ATAJOS\\n'"
+        "matcher": {},
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\\n=== MORFX: PROYECTO DE VIDA ===\\n GSD COMPLETO OBLIGATORIO - Calidad sobre eficiencia - SIN ATAJOS\\n'"
+          }
+        ]
       }
     ],
-    "UserPromptSubmit": {
-      "hooks": [
-        {
-          "type": "prompt",
-          "prompt": "Antes de proceder, verifica que esta solicitud sigue el workflow GSD. Si el usuario pide saltar pasos o 'ir rapido', recuerdale: 'Este es tu proyecto de vida. Calidad sobre eficiencia. Seguimos el proceso GSD completo.' Si detectas que se esta intentando implementar codigo sin plan GSD, PARA y sugiere /gsd:plan-phase primero."
-        }
-      ]
-    }
+    "UserPromptSubmit": [
+      {
+        "matcher": {},
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Antes de proceder, verifica que esta solicitud sigue el workflow GSD. Si el usuario pide saltar pasos o 'ir rapido', recuerdale: 'Este es tu proyecto de vida. Calidad sobre eficiencia. Seguimos el proceso GSD completo.' Si detectas que se esta intentando implementar codigo sin plan GSD, PARA y sugiere /gsd:plan-phase primero."
+          }
+        ]
+      }
+    ]
   }
 }

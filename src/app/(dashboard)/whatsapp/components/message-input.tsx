@@ -1,19 +1,37 @@
 'use client'
 
-import { useState, useRef, useCallback, KeyboardEvent, ChangeEvent } from 'react'
-import { Paperclip, Smile, Send, Lock, FileType, X, File, Image as ImageIcon, Video, Music } from 'lucide-react'
+import { useState, useRef, useCallback, ChangeEvent } from 'react'
+import { Paperclip, Smile, Send, Lock, X, File, Image as ImageIcon, Video, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { EmojiPicker } from './emoji-picker'
+import { QuickReplyAutocomplete } from './quick-reply-autocomplete'
+import { TemplateButton } from './template-button'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 
+interface Contact {
+  id: string
+  name: string
+  phone: string
+  email?: string | null
+  city?: string | null
+}
+
+interface Order {
+  id: string
+  total: number
+  tracking_number?: string | null
+  carrier?: string | null
+}
+
 interface MessageInputProps {
   conversationId: string
   isWindowOpen: boolean
+  contact?: Contact | null
+  recentOrder?: Order | null
   onSend?: () => void
 }
 
@@ -37,6 +55,8 @@ const MAX_FILE_SIZE = 16 * 1024 * 1024
 export function MessageInput({
   conversationId,
   isWindowOpen,
+  contact,
+  recentOrder,
   onSend,
 }: MessageInputProps) {
   const [text, setText] = useState('')
@@ -46,34 +66,17 @@ export function MessageInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Handle text change
-  const handleTextChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value)
+  // Handle text change (for autocomplete)
+  const handleTextChange = useCallback((value: string) => {
+    setText(value)
   }, [])
 
   // Handle emoji selection
   const handleEmojiSelect = useCallback((emoji: string) => {
-    const textarea = textareaRef.current
-    if (!textarea) {
-      setText((prev) => prev + emoji)
-      return
-    }
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const before = text.slice(0, start)
-    const after = text.slice(end)
-
-    setText(before + emoji + after)
+    // Append emoji to end of text
+    setText((prev) => prev + emoji)
     setShowEmojiPicker(false)
-
-    // Move cursor after emoji
-    setTimeout(() => {
-      textarea.focus()
-      const newPos = start + emoji.length
-      textarea.setSelectionRange(newPos, newPos)
-    }, 0)
-  }, [text])
+  }, [])
 
   // Handle send (text or media)
   const handleSend = useCallback(async () => {
@@ -130,15 +133,6 @@ export function MessageInput({
       setIsLoading(false)
     }
   }, [conversationId, text, isLoading, onSend, attachedFile])
-
-  // Handle keyboard events
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter sends, Shift+Enter creates newline
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }, [handleSend])
 
   // Handle file selection
   const handleFileClick = useCallback(() => {
@@ -203,21 +197,25 @@ export function MessageInput({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  // Disabled state when window closed
+  // Disabled state when window closed - show template button
   if (!isWindowOpen) {
     return (
-      <div className="flex-shrink-0 px-4 py-3 border-t bg-muted/20">
+      <div className="flex-shrink-0 px-4 py-3 border-t bg-yellow-50/50 dark:bg-yellow-900/10">
         <div className="flex items-center gap-3">
-          <Lock className="h-4 w-4 text-muted-foreground" />
+          <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
           <div className="flex-1">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
               Ventana de 24h cerrada
             </p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400">
+              Solo puedes enviar templates aprobados
+            </p>
           </div>
-          <Button variant="outline" size="sm" disabled>
-            <FileType className="h-4 w-4 mr-2" />
-            Usar template
-          </Button>
+          <TemplateButton
+            conversationId={conversationId}
+            contact={contact || null}
+            recentOrder={recentOrder}
+          />
         </div>
       </div>
     )
@@ -313,20 +311,19 @@ export function MessageInput({
             </PopoverContent>
           </Popover>
 
-          {/* Text input */}
+          {/* Text input with quick reply autocomplete */}
           <div className="flex-1 min-w-0">
-            <Textarea
+            <QuickReplyAutocomplete
               ref={textareaRef}
               value={text}
               onChange={handleTextChange}
-              onKeyDown={handleKeyDown}
-              placeholder={attachedFile ? "Agregar caption (opcional)..." : "Escribe un mensaje..."}
+              onSend={handleSend}
+              placeholder={attachedFile ? "Agregar caption (opcional)..." : "Escribe un mensaje... (/ para respuestas rapidas)"}
               disabled={isLoading}
               className={cn(
-                'min-h-[40px] max-h-[120px] resize-none py-2',
+                'min-h-[40px] max-h-[120px] py-2',
                 'focus-visible:ring-1'
               )}
-              rows={1}
             />
           </div>
 

@@ -16,13 +16,15 @@ import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 interface ContactPanelProps {
   conversation: ConversationWithDetails | null
   onClose: () => void
+  /** Called when conversation data should be refreshed (e.g., after contact/order creation) */
+  onConversationUpdated?: () => void
 }
 
 /**
  * Right panel showing contact info and recent orders.
  * Shows "unknown contact" state when no contact is linked.
  */
-export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
+export function ContactPanel({ conversation, onClose, onConversationUpdated }: ContactPanelProps) {
   const router = useRouter()
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
@@ -32,6 +34,13 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
   const handleOrderCreated = () => {
     setOrdersRefreshKey(k => k + 1)
     router.refresh()
+    onConversationUpdated?.()
+  }
+
+  // Handler for when contact is created - refresh conversation to show linked contact
+  const handleContactCreated = () => {
+    router.refresh()
+    onConversationUpdated?.()
   }
   // Empty state
   if (!conversation) {
@@ -190,7 +199,7 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
         defaultPhone={conversation.phone}
         defaultName={conversation.profile_name || undefined}
         conversationId={conversation.id}
-        onSuccess={() => router.refresh()}
+        onSuccess={handleContactCreated}
       />
     </div>
   )

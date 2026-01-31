@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { ConversationList } from './conversation-list'
 import { ContactPanel } from './contact-panel'
 import { ChatView } from './chat-view'
-import { markAsRead } from '@/app/actions/conversations'
+import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface InboxLayoutProps {
@@ -37,6 +37,15 @@ export function InboxLayout({
     }
   }, [])
 
+  // Refresh selected conversation data (called after contact/order creation)
+  const refreshSelectedConversation = useCallback(async () => {
+    if (!selectedConversationId) return
+    const updated = await getConversation(selectedConversationId)
+    if (updated) {
+      setSelectedConversation(updated)
+    }
+  }, [selectedConversationId])
+
   return (
     <div className="flex h-full">
       {/* Left column: Conversation list */}
@@ -66,6 +75,7 @@ export function InboxLayout({
         <ContactPanel
           conversation={selectedConversation}
           onClose={() => setIsPanelOpen(false)}
+          onConversationUpdated={refreshSelectedConversation}
         />
       </div>
     </div>

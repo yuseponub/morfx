@@ -168,14 +168,18 @@ Plans:
   5. User can save and use quick replies for common responses
   6. System tracks message costs by category (marketing, utility, authentication, service)
   7. Admin can view usage dashboard with costs per workspace (for billing pass-through)
-**Plans**: TBD
+**Plans**: 9 plans
 
 Plans:
-- [ ] 08-01: Template builder and Meta approval integration
-- [ ] 08-02: Template sending with variable substitution
-- [ ] 08-03: Conversation assignment and visibility rules
-- [ ] 08-04: Quick replies system
-- [ ] 08-05: Usage tracking and cost dashboard (per workspace)
+- [ ] 08-01-PLAN.md — Database foundation: templates, teams, quick_replies, message_costs, workspace_limits with RLS
+- [ ] 08-02-PLAN.md — Server Actions: teams, quick replies, assignment, and usage tracking
+- [ ] 08-03-PLAN.md — Template management UI: list, create form, variable mapper, status badges
+- [ ] 08-04-PLAN.md — Template sending: modal with preview, variable substitution, 24h window integration
+- [ ] 08-05-PLAN.md — Team management: configuration page, member management, assignment dropdown
+- [ ] 08-06-PLAN.md — Role-based visibility: RLS policies for manager vs agent conversation access
+- [ ] 08-07-PLAN.md — Quick replies: management page and slash-command autocomplete in chat
+- [ ] 08-08-PLAN.md — Usage tracking: webhook cost recording and cost dashboard with charts
+- [ ] 08-09-PLAN.md — Super Admin panel: workspace configuration and consolidated costs
 
 ### Phase 9: CRM-WhatsApp Sync
 **Goal**: Tags and order states synchronize between CRM and WhatsApp modules (core value)
@@ -225,7 +229,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 5. Contacts Extended | 4/4 | Complete | 2026-01-29 |
 | 6. Orders | 5/5 | Complete | 2026-01-29 |
 | 7. WhatsApp Core | 3/3 | Complete | 2026-01-30 |
-| 8. WhatsApp Extended | 0/5 | Not started | - |
+| 8. WhatsApp Extended | 0/9 | Not started | - |
 | 9. CRM-WhatsApp Sync | 0/3 | Not started | - |
 | 10. Search, Tasks & Analytics | 0/3 | Not started | - |
 

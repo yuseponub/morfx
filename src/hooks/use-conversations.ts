@@ -3,6 +3,12 @@
 // ============================================================================
 // useConversations Hook
 // Real-time conversation subscription with fuzzy search
+//
+// VISIBILITY RULES (enforced by RLS at database level):
+// - Managers (owner/admin) see all workspace conversations
+// - Agents see only conversations assigned to them or unassigned
+//
+// No additional filtering needed in this hook - RLS handles visibility.
 // ============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -15,7 +21,15 @@ import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 // Types
 // ============================================================================
 
-export type ConversationFilter = 'all' | 'unread' | 'archived'
+/**
+ * Filter types for conversation inbox.
+ * - 'all': All visible conversations (RLS determines actual visibility)
+ * - 'unread': Only unread conversations
+ * - 'mine': Only conversations assigned to current user
+ * - 'unassigned': Only unassigned conversations
+ * - 'archived': Only archived conversations
+ */
+export type ConversationFilter = 'all' | 'unread' | 'mine' | 'unassigned' | 'archived'
 
 interface UseConversationsOptions {
   workspaceId: string
@@ -88,17 +102,48 @@ export function useConversations({
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ConversationFilter>('all')
   const [isLoading, setIsLoading] = useState(!initialConversations.length)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // Get current user ID for 'mine' filter
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id || null)
+    })
+  }, [])
 
   // Fetch conversations
+  // RLS handles visibility at DB level (managers see all, agents see assigned+unassigned)
+  // These filters further refine the results within what RLS allows
   const fetchConversations = useCallback(async () => {
     setIsLoading(true)
     try {
-      // Get filter params based on current filter
-      const filterParams = filter === 'archived'
-        ? { status: 'archived' as const }
-        : filter === 'unread'
-          ? { status: 'active' as const, is_read: false }
-          : { status: 'active' as const }
+      // Build filter params based on current filter
+      // Note: RLS already limits visibility - these filters refine within visible set
+      let filterParams: {
+        status?: 'active' | 'archived'
+        is_read?: boolean
+        assigned_to?: string | null
+      } = {}
+
+      switch (filter) {
+        case 'archived':
+          filterParams = { status: 'archived' }
+          break
+        case 'unread':
+          filterParams = { status: 'active', is_read: false }
+          break
+        case 'mine':
+          // Show only conversations assigned to current user
+          filterParams = { status: 'active', assigned_to: currentUserId || undefined }
+          break
+        case 'unassigned':
+          // Show only unassigned conversations
+          filterParams = { status: 'active', assigned_to: null }
+          break
+        default: // 'all'
+          filterParams = { status: 'active' }
+      }
 
       const data = await getConversations(filterParams)
       setConversations(data)
@@ -107,7 +152,7 @@ export function useConversations({
     } finally {
       setIsLoading(false)
     }
-  }, [filter])
+  }, [filter, currentUserId])
 
   // Initial fetch
   useEffect(() => {

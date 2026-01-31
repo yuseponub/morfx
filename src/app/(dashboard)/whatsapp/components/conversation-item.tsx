@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { TagBadge } from '@/components/contacts/tag-badge'
+import { Badge } from '@/components/ui/badge'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ConversationItemProps {
@@ -72,19 +73,25 @@ export function ConversationItem({
         {preview}
       </p>
 
-      {/* Tags */}
-      {conversation.tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {conversation.tags.slice(0, 3).map((tag) => (
-            <TagBadge key={tag.id} tag={tag} size="sm" />
-          ))}
-          {conversation.tags.length > 3 && (
-            <span className="text-xs text-muted-foreground">
-              +{conversation.tags.length - 3}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Assignment status and Tags */}
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        {/* Unassigned badge - shows for managers to identify chats needing attention */}
+        {!conversation.assigned_to && (
+          <Badge variant="outline" className="text-xs font-normal">
+            Sin asignar
+          </Badge>
+        )}
+
+        {/* Tags */}
+        {conversation.tags.slice(0, 3).map((tag) => (
+          <TagBadge key={tag.id} tag={tag} size="sm" />
+        ))}
+        {conversation.tags.length > 3 && (
+          <span className="text-xs text-muted-foreground">
+            +{conversation.tags.length - 3}
+          </span>
+        )}
+      </div>
     </button>
   )
 }

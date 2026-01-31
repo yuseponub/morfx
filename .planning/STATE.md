@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 8 of 10 (WhatsApp Extended)
-Plan: 08 of 8+ complete
-Status: In progress
-Last activity: 2026-01-31 - Completed 08-08-PLAN.md (Usage Tracking Dashboard)
+Plan: 09 of 9 complete
+Status: Phase 8 complete
+Last activity: 2026-01-31 - Completed 08-09-PLAN.md (Super Admin Panel)
 
-Progress: [########=-] ~87%
+Progress: [#########-] ~90%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -151,6 +151,8 @@ Recent decisions affecting current work:
 - [Phase 8-05]: Expandable cards with single-expanded state for team details
 - [Phase 8-05]: Agents grouped by team in assignment dropdown
 - [Phase 8-05]: Availability toggle in conversation list header (always visible)
+- [Phase 8-09]: Super admin access via MORFX_OWNER_USER_ID env var (simple, no DB lookup)
+- [Phase 8-09]: Workspace limits upsert pattern for configuration
 
 ### Project Rules
 
@@ -537,9 +539,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:30:00Z
-Stopped at: Completed 08-05-PLAN.md (Team Management UI)
-Resume file: Continue with remaining Phase 8 plans
+Last session: 2026-01-31T21:37:00Z
+Stopped at: Completed 08-09-PLAN.md (Super Admin Panel) - Phase 8 complete
+Resume file: None - ready for Phase 9
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status
@@ -549,6 +551,14 @@ Plan 08 complete:
 - UsageChart with daily area chart (recharts)
 - CategoryBreakdown with donut chart and cost table
 
+Plan 09 complete:
+- Super Admin panel at /super-admin with MORFX_OWNER_USER_ID access guard
+- Platform overview page showing totals (workspaces, messages, costs)
+- Workspace list and detail pages for configuration
+- WorkspaceLimitsForm for template categories, quick reply features, spending limits
+- Consolidated cost dashboard with period selector and near-limit warnings
+- Progress component added for usage visualization
+
 **Additional Key files (08-08):**
 - src/lib/whatsapp/webhook-handler.ts (extended with cost recording)
 - src/app/(dashboard)/configuracion/whatsapp/costos/page.tsx
@@ -556,3 +566,13 @@ Plan 08 complete:
 - src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-summary.tsx
 - src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-chart.tsx
 - src/app/(dashboard)/configuracion/whatsapp/costos/components/category-breakdown.tsx
+
+**Additional Key files (08-09):**
+- src/app/super-admin/layout.tsx
+- src/app/super-admin/page.tsx
+- src/app/super-admin/workspaces/page.tsx
+- src/app/super-admin/workspaces/[id]/page.tsx
+- src/app/super-admin/workspaces/[id]/components/workspace-limits-form.tsx
+- src/app/super-admin/costos/page.tsx
+- src/app/actions/super-admin.ts
+- src/components/ui/progress.tsx

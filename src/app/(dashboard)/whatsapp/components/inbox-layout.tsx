@@ -11,6 +11,8 @@ import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 interface InboxLayoutProps {
   workspaceId: string
   initialConversations: ConversationWithDetails[]
+  /** Pre-select a conversation by ID (e.g., from URL param) */
+  initialSelectedId?: string
 }
 
 /**
@@ -22,9 +24,15 @@ interface InboxLayoutProps {
 export function InboxLayout({
   workspaceId,
   initialConversations,
+  initialSelectedId,
 }: InboxLayoutProps) {
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
-  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null)
+  // Initialize with pre-selected conversation if provided
+  const initialConversation = initialSelectedId
+    ? initialConversations.find(c => c.id === initialSelectedId) || null
+    : null
+
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialSelectedId || null)
+  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(initialConversation)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
 
   // Handle conversation selection - receives conversation from list

@@ -3,7 +3,8 @@
 import * as React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { UserIcon, PackageIcon, TruckIcon } from 'lucide-react'
+import { UserIcon, PackageIcon, TruckIcon, MessageCircleIcon } from 'lucide-react'
+import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
@@ -164,12 +165,24 @@ export function KanbanCard({
         </div>
       )}
 
-      {/* Footer: Date */}
+      {/* Footer: Date + WhatsApp */}
       <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
         <span>{formatRelativeTime(order.created_at)}</span>
-        {order.contact?.city && (
-          <span className="truncate ml-2">{order.contact.city}</span>
-        )}
+        <div className="flex items-center gap-2">
+          {order.contact?.phone && (
+            <Link
+              href={`/whatsapp?phone=${encodeURIComponent(order.contact.phone)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="p-1 rounded hover:bg-green-100 hover:text-green-600 transition-colors"
+              title="Ver en WhatsApp"
+            >
+              <MessageCircleIcon className="h-3.5 w-3.5" />
+            </Link>
+          )}
+          {order.contact?.city && (
+            <span className="truncate">{order.contact.city}</span>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -15,7 +15,9 @@ import {
   Trash2Icon,
   ExternalLinkIcon,
   LoaderIcon,
+  MessageCircleIcon,
 } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -168,6 +170,19 @@ export function OrderSheet({
               <Trash2Icon className="h-4 w-4 mr-2" />
               Eliminar
             </Button>
+            {contact?.phone && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                asChild
+              >
+                <Link href={`/whatsapp?phone=${encodeURIComponent(contact.phone)}`}>
+                  <MessageCircleIcon className="h-4 w-4 mr-2" />
+                  WhatsApp
+                </Link>
+              </Button>
+            )}
 
             {/* Spacer */}
             <div className="flex-1" />

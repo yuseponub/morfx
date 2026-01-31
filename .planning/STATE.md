@@ -141,6 +141,8 @@ Recent decisions affecting current work:
 - [Phase 8-06]: DELETE conversations restricted to managers only
 - [Phase 8-07]: Custom autocomplete instead of react-textarea-autocomplete for React 19 compatibility
 - [Phase 8-07]: 150ms debounce on slash-command search for performance
+- [Phase 8-03]: Form action wrapper returns void (TypeScript form action constraint)
+- [Phase 8-03]: Variable regex /\{\{(\d+)\}\}/g for {{n}} pattern extraction
 
 ### Project Rules
 
@@ -451,6 +453,14 @@ Plan 01 complete:
 - 360dialog template API client (templates-api.ts)
 - Template Server Actions (templates.ts)
 
+Plan 03 complete:
+- WhatsApp settings hub at /configuracion/whatsapp
+- Template list page with status badges (pending/approved/rejected)
+- Template creation form with category selection
+- Variable mapper for {{n}} pattern extraction
+- Template detail page with editable variable mapping
+- Color-coded status badges (yellow/green/red)
+
 Plan 06 complete:
 - is_workspace_manager() helper function for role checking
 - Role-based RLS policies for conversations (managers see all, agents see assigned+unassigned)
@@ -480,9 +490,18 @@ Plan 07 complete:
 - src/app/(dashboard)/configuracion/whatsapp/quick-replies/page.tsx
 - src/app/(dashboard)/whatsapp/components/quick-reply-autocomplete.tsx
 - src/app/(dashboard)/whatsapp/components/message-input.tsx
+- src/app/(dashboard)/configuracion/whatsapp/page.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/page.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/components/template-list.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/components/template-status-badge.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/components/template-form.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/components/variable-mapper.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/nuevo/page.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/[id]/page.tsx
+- src/app/(dashboard)/configuracion/whatsapp/templates/[id]/components/template-detail.tsx
 
 ## Session Continuity
 
-Last session: 2026-01-31T21:25:19Z
-Stopped at: Completed 08-07-PLAN.md (Quick Replies Management)
+Last session: 2026-01-31T21:26:10Z
+Stopped at: Completed 08-03-PLAN.md (Template Management UI)
 Resume file: Continue with remaining Phase 8 plans

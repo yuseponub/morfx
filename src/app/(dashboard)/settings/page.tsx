@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, Shield, Building2 } from 'lucide-react'
+import { Users, Shield, Building2, MessageSquare } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const settingsLinks = [
@@ -14,6 +14,12 @@ const settingsLinks = [
     title: 'Roles y permisos',
     description: 'Consulta los permisos disponibles para cada rol',
     icon: Shield,
+  },
+  {
+    href: '/configuracion/whatsapp',
+    title: 'WhatsApp',
+    description: 'Templates, equipos, respuestas rapidas y costos de mensajeria',
+    icon: MessageSquare,
   },
 ]
 

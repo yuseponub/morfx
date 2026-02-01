@@ -1,15 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { createQuickReply, updateQuickReply } from '@/app/actions/quick-replies'
+import { createQuickReply, updateQuickReply, uploadQuickReplyMedia, deleteQuickReplyMedia } from '@/app/actions/quick-replies'
 import type { QuickReply } from '@/lib/whatsapp/types'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ImagePlus, X } from 'lucide-react'
 
 interface QuickReplyFormProps {
   quickReply?: QuickReply
@@ -18,26 +19,114 @@ interface QuickReplyFormProps {
 
 export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [shortcut, setShortcut] = useState(quickReply?.shortcut || '')
   const [content, setContent] = useState(quickReply?.content || '')
 
+  // Media state
+  const [mediaUrl, setMediaUrl] = useState<string | null>(quickReply?.media_url || null)
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'document' | 'audio' | null>(quickReply?.media_type || null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(quickReply?.media_url || null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
   const isEditing = !!quickReply
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type (only images for now)
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten imagenes')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('El archivo no puede superar 5MB')
+      return
+    }
+
+    setSelectedFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+    setMediaType('image')
+  }
+
+  const handleRemoveMedia = async () => {
+    // If editing and had existing media, delete from storage
+    if (isEditing && mediaUrl && !selectedFile) {
+      try {
+        await deleteQuickReplyMedia(mediaUrl)
+      } catch (error) {
+        console.error('Error deleting media:', error)
+      }
+    }
+
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setMediaUrl(null)
+    setMediaType(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
+      let finalMediaUrl = mediaUrl
+      let finalMediaType = mediaType
+
+      // Upload new file if selected
+      if (selectedFile) {
+        // Convert file to base64
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(selectedFile)
+        })
+
+        const uploadResult = await uploadQuickReplyMedia(base64, selectedFile.name, selectedFile.type)
+        if ('error' in uploadResult) {
+          toast.error(uploadResult.error)
+          return
+        }
+        finalMediaUrl = uploadResult.data.url
+        finalMediaType = uploadResult.data.type
+
+        // If editing and had old media, delete it
+        if (isEditing && quickReply.media_url && quickReply.media_url !== finalMediaUrl) {
+          try {
+            await deleteQuickReplyMedia(quickReply.media_url)
+          } catch (error) {
+            console.error('Error deleting old media:', error)
+          }
+        }
+      }
+
       if (isEditing) {
-        const result = await updateQuickReply(quickReply.id, { shortcut, content })
+        const result = await updateQuickReply(quickReply.id, {
+          shortcut,
+          content,
+          media_url: finalMediaUrl,
+          media_type: finalMediaType
+        })
         if ('error' in result) {
           toast.error(result.error)
           return
         }
         toast.success('Respuesta actualizada')
       } else {
-        const result = await createQuickReply({ shortcut, content })
+        const result = await createQuickReply({
+          shortcut,
+          content,
+          media_url: finalMediaUrl,
+          media_type: finalMediaType
+        })
         if ('error' in result) {
           toast.error(result.error)
           return
@@ -85,6 +174,54 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
         <p className="text-xs text-muted-foreground">
           Este texto se insertara cuando uses el atajo /{shortcut || 'atajo'}
         </p>
+      </div>
+
+      {/* Media upload section */}
+      <div className="space-y-2">
+        <Label>Imagen (opcional)</Label>
+
+        {previewUrl ? (
+          <div className="relative inline-block">
+            <Image
+              src={previewUrl}
+              alt="Preview"
+              width={200}
+              height={200}
+              className="rounded-lg border object-cover"
+              style={{ maxWidth: '200px', maxHeight: '200px' }}
+            />
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-6 w-6"
+              onClick={handleRemoveMedia}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div
+            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Click para agregar imagen
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Max 5MB, formatos: JPG, PNG, GIF
+            </p>
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

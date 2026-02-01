@@ -8,6 +8,7 @@ import { EmojiPicker } from './emoji-picker'
 import { QuickReplyAutocomplete } from './quick-reply-autocomplete'
 import { TemplateButton } from './template-button'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
+import type { QuickReply } from '@/lib/whatsapp/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
@@ -63,6 +64,7 @@ export function MessageInput({
   const [isLoading, setIsLoading] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null)
+  const [pendingQuickReplyMedia, setPendingQuickReplyMedia] = useState<QuickReply | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -78,9 +80,60 @@ export function MessageInput({
     setShowEmojiPicker(false)
   }, [])
 
+  // Handle quick reply with media selection
+  const handleQuickReplyWithMedia = useCallback((reply: QuickReply) => {
+    if (reply.media_url) {
+      setPendingQuickReplyMedia(reply)
+    }
+  }, [])
+
   // Handle send (text or media)
   const handleSend = useCallback(async () => {
     if (isLoading) return
+
+    // If there's a quick reply with media pending, send it
+    if (pendingQuickReplyMedia && pendingQuickReplyMedia.media_url) {
+      setIsLoading(true)
+      try {
+        // Fetch the image and convert to base64
+        const response = await fetch(pendingQuickReplyMedia.media_url)
+        const blob = await response.blob()
+        const buffer = await blob.arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        let binary = ''
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i])
+        }
+        const base64 = btoa(binary)
+
+        // Extract filename from URL
+        const urlParts = pendingQuickReplyMedia.media_url.split('/')
+        const fileName = urlParts[urlParts.length - 1] || 'image.jpg'
+
+        const result = await sendMediaMessage(
+          conversationId,
+          base64,
+          fileName,
+          blob.type || 'image/jpeg',
+          text.trim() || undefined // caption (the quick reply content)
+        )
+
+        if ('error' in result) {
+          toast.error(result.error)
+        } else {
+          toast.success('Mensaje enviado')
+          setPendingQuickReplyMedia(null)
+          setText('')
+          onSend?.()
+        }
+      } catch (error) {
+        console.error('Error sending quick reply media:', error)
+        toast.error('Error al enviar imagen')
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
 
     // If there's an attached file, send it
     if (attachedFile) {
@@ -132,7 +185,7 @@ export function MessageInput({
     } finally {
       setIsLoading(false)
     }
-  }, [conversationId, text, isLoading, onSend, attachedFile])
+  }, [conversationId, text, isLoading, onSend, attachedFile, pendingQuickReplyMedia])
 
   // Handle file selection
   const handleFileClick = useCallback(() => {
@@ -265,6 +318,37 @@ export function MessageInput({
         </div>
       )}
 
+      {/* Quick reply media indicator */}
+      {pendingQuickReplyMedia && pendingQuickReplyMedia.media_url && (
+        <div className="px-4 pt-3 pb-2">
+          <div className="relative inline-flex items-center gap-3 p-3 bg-primary/10 rounded-lg max-w-sm">
+            <button
+              onClick={() => setPendingQuickReplyMedia(null)}
+              className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
+              title="Cancelar"
+            >
+              <X className="h-3 w-3" />
+            </button>
+            <div className="relative h-12 w-12 rounded overflow-hidden flex-shrink-0">
+              <Image
+                src={pendingQuickReplyMedia.media_url}
+                alt="Quick reply media"
+                fill
+                className="object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-primary">
+                Respuesta rapida con imagen
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Presiona enviar para mandar
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
       <div className="px-4 py-3">
         <div className="flex items-end gap-2">
@@ -318,11 +402,13 @@ export function MessageInput({
               value={text}
               onChange={handleTextChange}
               onSend={handleSend}
-              placeholder={attachedFile ? "Agregar caption (opcional)..." : "Escribe un mensaje... (/ para respuestas rapidas)"}
+              onSelectWithMedia={handleQuickReplyWithMedia}
+              placeholder={attachedFile ? "Agregar caption (opcional)..." : pendingQuickReplyMedia ? "Enviar con imagen..." : "Escribe un mensaje... (/ para respuestas rapidas)"}
               disabled={isLoading}
               className={cn(
                 'min-h-[40px] max-h-[120px] py-2',
-                'focus-visible:ring-1'
+                'focus-visible:ring-1',
+                pendingQuickReplyMedia && 'border-primary'
               )}
             />
           </div>
@@ -332,7 +418,7 @@ export function MessageInput({
             size="icon"
             className="h-10 w-10 flex-shrink-0"
             onClick={handleSend}
-            disabled={(!text.trim() && !attachedFile) || isLoading}
+            disabled={(!text.trim() && !attachedFile && !pendingQuickReplyMedia) || isLoading}
             title="Enviar mensaje"
           >
             <Send className="h-5 w-5" />

@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: WhatsApp Core** - 360dialog integration, inbox, messaging
 - [x] **Phase 8: WhatsApp Extended** - Templates, assignment, quick replies
 - [x] **Phase 8.1: Settings Navigation WhatsApp** - WhatsApp config accessible from Settings (INSERTED)
+- [x] **Phase 8.2: Quick Replies con Media** - Fotos y archivos en respuestas rapidas (INSERTED)
 - [ ] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
 - [ ] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
 
@@ -192,6 +193,19 @@ Plans:
 
 Plans:
 - [x] 08.1-01-PLAN.md — Add WhatsApp settings link to main settings page
+
+### Phase 8.2: Quick Replies con Media (INSERTED)
+**Goal**: Quick replies pueden incluir fotos y archivos adjuntos
+**Depends on**: Phase 8
+**Requirements**: WAPP-09 (extended)
+**Success Criteria** (what must be TRUE):
+  1. User can create quick reply with imagen adjunta
+  2. Al usar el atajo, se envia texto + imagen en un solo flujo
+  3. Preview de imagen visible en el formulario de creacion
+**Plans**: TBD
+
+Plans:
+- [x] 08.2-01-PLAN.md — Quick replies con soporte de media (fotos)
 
 ### Phase 9: CRM-WhatsApp Sync
 **Goal**: Tags and order states synchronize between CRM and WhatsApp modules (core value)

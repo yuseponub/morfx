@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import type { QuickReply } from '@/lib/whatsapp/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { QuickReplyForm } from './quick-reply-form'
-import { deleteQuickReply } from '@/app/actions/quick-replies'
+import { deleteQuickReply, deleteQuickReplyMedia } from '@/app/actions/quick-replies'
 import { toast } from 'sonner'
-import { MessageSquare, Edit, Trash2 } from 'lucide-react'
+import { MessageSquare, Edit, Trash2, ImageIcon } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -49,9 +50,13 @@ export function QuickReplyList({ quickReplies }: QuickReplyListProps) {
     )
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(reply: QuickReply) {
     try {
-      const result = await deleteQuickReply(id)
+      // Delete media from storage if exists
+      if (reply.media_url) {
+        await deleteQuickReplyMedia(reply.media_url)
+      }
+      const result = await deleteQuickReply(reply.id)
       if ('error' in result) {
         toast.error(result.error)
         return
@@ -70,9 +75,16 @@ export function QuickReplyList({ quickReplies }: QuickReplyListProps) {
           <Card key={reply.id}>
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-2">
-                <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                  /{reply.shortcut}
-                </code>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                    /{reply.shortcut}
+                  </code>
+                  {reply.media_url && (
+                    <span className="text-muted-foreground" title="Incluye imagen">
+                      <ImageIcon className="h-4 w-4" />
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
@@ -97,7 +109,7 @@ export function QuickReplyList({ quickReplies }: QuickReplyListProps) {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(reply.id)}>
+                        <AlertDialogAction onClick={() => handleDelete(reply)}>
                           Eliminar
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -105,6 +117,21 @@ export function QuickReplyList({ quickReplies }: QuickReplyListProps) {
                   </AlertDialog>
                 </div>
               </div>
+
+              {/* Thumbnail preview */}
+              {reply.media_url && reply.media_type === 'image' && (
+                <div className="mb-2">
+                  <Image
+                    src={reply.media_url}
+                    alt="Preview"
+                    width={80}
+                    height={80}
+                    className="rounded border object-cover"
+                    style={{ width: '80px', height: '80px' }}
+                  />
+                </div>
+              )}
+
               <p className="text-sm text-muted-foreground line-clamp-3">
                 {reply.content}
               </p>

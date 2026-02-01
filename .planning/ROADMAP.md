@@ -19,7 +19,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Contacts Extended** - Custom fields, import/export, notes, history
 - [x] **Phase 6: Orders** - Order CRUD, Kanban pipeline, multi-products
 - [x] **Phase 7: WhatsApp Core** - 360dialog integration, inbox, messaging
-- [ ] **Phase 8: WhatsApp Extended** - Templates, assignment, quick replies
+- [x] **Phase 8: WhatsApp Extended** - Templates, assignment, quick replies
+- [x] **Phase 8.1: Settings Navigation WhatsApp** - WhatsApp config accessible from Settings (INSERTED)
 - [ ] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
 - [ ] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
 
@@ -180,6 +181,17 @@ Plans:
 - [x] 08-07-PLAN.md — Quick replies: management page and slash-command autocomplete in chat
 - [x] 08-08-PLAN.md — Usage tracking: webhook cost recording and cost dashboard with charts
 - [x] 08-09-PLAN.md — Super Admin panel: workspace configuration and consolidated costs
+
+### Phase 8.1: Settings Navigation WhatsApp (INSERTED)
+**Goal**: WhatsApp configuration accessible from main Settings page
+**Depends on**: Phase 8
+**Requirements**: UIUX
+**Success Criteria** (what must be TRUE):
+  1. User can access WhatsApp configuration (templates, equipos, quick replies, costos) from /settings page
+**Plans**: 1 plan
+
+Plans:
+- [x] 08.1-01-PLAN.md — Add WhatsApp settings link to main settings page
 
 ### Phase 9: CRM-WhatsApp Sync
 **Goal**: Tags and order states synchronize between CRM and WhatsApp modules (core value)

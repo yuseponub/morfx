@@ -626,6 +626,8 @@ export interface QuickReply {
   shortcut: string
   content: string
   category: string | null
+  media_url: string | null
+  media_type: 'image' | 'video' | 'document' | 'audio' | null
   created_at: string
   updated_at: string
 }

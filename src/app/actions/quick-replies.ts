@@ -14,6 +14,8 @@ export interface QuickReply {
   shortcut: string
   content: string
   category: string | null
+  media_url: string | null
+  media_type: 'image' | 'video' | 'document' | 'audio' | null
   created_at: string
   updated_at: string
 }
@@ -138,6 +140,8 @@ export async function createQuickReply(params: {
   shortcut: string
   content: string
   category?: string | null
+  media_url?: string | null
+  media_type?: 'image' | 'video' | 'document' | 'audio' | null
 }): Promise<ActionResult<QuickReply>> {
   const supabase = await createClient()
 
@@ -173,7 +177,9 @@ export async function createQuickReply(params: {
       workspace_id: workspaceId,
       shortcut: normalizedShortcut,
       content: params.content.trim(),
-      category: params.category?.trim() || null
+      category: params.category?.trim() || null,
+      media_url: params.media_url || null,
+      media_type: params.media_type || null
     })
     .select()
     .single()
@@ -200,6 +206,8 @@ export async function updateQuickReply(
     shortcut?: string
     content?: string
     category?: string | null
+    media_url?: string | null
+    media_type?: 'image' | 'video' | 'document' | 'audio' | null
   }
 ): Promise<ActionResult> {
   const supabase = await createClient()
@@ -220,6 +228,8 @@ export async function updateQuickReply(
     shortcut?: string
     content?: string
     category?: string | null
+    media_url?: string | null
+    media_type?: 'image' | 'video' | 'document' | 'audio' | null
     updated_at: string
   } = {
     updated_at: new Date().toISOString()
@@ -245,6 +255,14 @@ export async function updateQuickReply(
 
   if (params.category !== undefined) {
     updates.category = params.category?.trim() || null
+  }
+
+  if (params.media_url !== undefined) {
+    updates.media_url = params.media_url || null
+  }
+
+  if (params.media_type !== undefined) {
+    updates.media_type = params.media_type || null
   }
 
   const { error } = await supabase
@@ -296,5 +314,103 @@ export async function deleteQuickReply(id: string): Promise<ActionResult> {
 
   revalidatePath('/configuracion/whatsapp/quick-replies')
   revalidatePath('/whatsapp')
+  return { success: true, data: undefined }
+}
+
+// ============================================================================
+// Media Operations
+// ============================================================================
+
+/**
+ * Upload media file for quick reply
+ * Returns the public URL of the uploaded file
+ */
+export async function uploadQuickReplyMedia(
+  fileBase64: string,
+  fileName: string,
+  mimeType: string
+): Promise<ActionResult<{ url: string; type: 'image' | 'video' | 'document' | 'audio' }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
+
+  // Determine media type from mime
+  let mediaType: 'image' | 'video' | 'document' | 'audio' = 'document'
+  if (mimeType.startsWith('image/')) {
+    mediaType = 'image'
+  } else if (mimeType.startsWith('video/')) {
+    mediaType = 'video'
+  } else if (mimeType.startsWith('audio/')) {
+    mediaType = 'audio'
+  }
+
+  // Convert base64 to buffer
+  const base64Data = fileBase64.split(',')[1] || fileBase64
+  const buffer = Buffer.from(base64Data, 'base64')
+
+  // Generate unique file path
+  const timestamp = Date.now()
+  const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
+  const filePath = `quick-replies/${workspaceId}/${timestamp}_${safeFileName}`
+
+  // Upload to Supabase Storage
+  const { error: uploadError } = await supabase.storage
+    .from('whatsapp-media')
+    .upload(filePath, buffer, {
+      contentType: mimeType,
+      upsert: false
+    })
+
+  if (uploadError) {
+    console.error('Error uploading quick reply media:', uploadError)
+    return { error: 'Error al subir el archivo' }
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('whatsapp-media')
+    .getPublicUrl(filePath)
+
+  return { success: true, data: { url: publicUrl, type: mediaType } }
+}
+
+/**
+ * Delete media file from quick reply
+ */
+export async function deleteQuickReplyMedia(mediaUrl: string): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  // Extract file path from URL
+  // URL format: https://xxx.supabase.co/storage/v1/object/public/whatsapp-media/quick-replies/...
+  const urlParts = mediaUrl.split('/whatsapp-media/')
+  if (urlParts.length !== 2) {
+    return { error: 'URL de media invalida' }
+  }
+
+  const filePath = urlParts[1]
+
+  const { error } = await supabase.storage
+    .from('whatsapp-media')
+    .remove([filePath])
+
+  if (error) {
+    console.error('Error deleting quick reply media:', error)
+    return { error: 'Error al eliminar el archivo' }
+  }
+
   return { success: true, data: undefined }
 }

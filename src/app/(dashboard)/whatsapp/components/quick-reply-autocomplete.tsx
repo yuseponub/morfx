@@ -9,6 +9,7 @@ interface QuickReplyAutocompleteProps {
   value: string
   onChange: (value: string) => void
   onSend: () => void
+  onSelectWithMedia?: (reply: QuickReply) => void
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -27,7 +28,7 @@ interface SuggestionPosition {
 export const QuickReplyAutocomplete = forwardRef<
   HTMLTextAreaElement,
   QuickReplyAutocompleteProps
->(({ value, onChange, onSend, placeholder, disabled, className }, ref) => {
+>(({ value, onChange, onSend, onSelectWithMedia, placeholder, disabled, className }, ref) => {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [suggestions, setSuggestions] = useState<QuickReply[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -125,6 +126,11 @@ export const QuickReplyAutocomplete = forwardRef<
     setTriggerStart(null)
     setSuggestions([])
 
+    // If has media, notify parent to handle media sending
+    if (reply.media_url && onSelectWithMedia) {
+      onSelectWithMedia(reply)
+    }
+
     // Focus textarea and move cursor to end of inserted content
     setTimeout(() => {
       const textarea = textareaRef.current
@@ -134,7 +140,7 @@ export const QuickReplyAutocomplete = forwardRef<
         textarea.setSelectionRange(newCursorPos, newCursorPos)
       }
     }, 0)
-  }, [value, triggerStart, onChange, textareaRef])
+  }, [value, triggerStart, onChange, textareaRef, onSelectWithMedia])
 
   // Handle keyboard navigation
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -243,10 +249,22 @@ export const QuickReplyAutocomplete = forwardRef<
                     <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
                       /{reply.shortcut}
                     </code>
+                    {reply.media_url && (
+                      <span className="text-xs text-muted-foreground">📷</span>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {reply.content}
-                  </p>
+                  <div className="flex gap-2 mt-1">
+                    {reply.media_url && reply.media_type === 'image' && (
+                      <img
+                        src={reply.media_url}
+                        alt=""
+                        className="w-10 h-10 rounded object-cover flex-shrink-0"
+                      />
+                    )}
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {reply.content}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>

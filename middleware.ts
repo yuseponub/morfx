@@ -5,6 +5,12 @@ import { validateApiKey, extractApiKey } from '@/lib/auth/api-key'
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
+  // ==================== WEBHOOK ROUTES ====================
+  // Allow webhooks to pass through without authentication
+  if (pathname.startsWith('/api/webhooks')) {
+    return NextResponse.next()
+  }
+
   // ==================== API TOOL ROUTES ====================
   // Handle /api/v1/tools/* with API key authentication
   // This runs BEFORE the existing session logic

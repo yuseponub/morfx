@@ -110,10 +110,17 @@ function MessageContent({
     }
 
     case 'template': {
+      const templateContent = content as { body?: string }
       return (
-        <div className="text-sm">
-          <p className="font-medium">Mensaje de plantilla</p>
-          <p className="text-xs text-muted-foreground">Template enviado</p>
+        <div className="space-y-1">
+          {templateContent.body ? (
+            <p className="whitespace-pre-wrap break-words">{templateContent.body}</p>
+          ) : (
+            <p className="italic text-muted-foreground">Mensaje de plantilla</p>
+          )}
+          {message.template_name && (
+            <p className="text-[10px] opacity-60">Template: {message.template_name}</p>
+          )}
         </div>
       )
     }

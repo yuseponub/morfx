@@ -372,7 +372,8 @@ export async function uploadQuickReplyMedia(
 
   if (uploadError) {
     console.error('Error uploading quick reply media:', uploadError)
-    return { error: 'Error al subir el archivo' }
+    console.error('Upload details:', { filePath, mimeType, bufferSize: buffer.length })
+    return { error: `Error al subir: ${uploadError.message}` }
   }
 
   // Get public URL

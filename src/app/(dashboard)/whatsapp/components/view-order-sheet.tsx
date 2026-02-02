@@ -161,10 +161,12 @@ export function ViewOrderSheet({
       <SheetContent className="sm:max-w-[550px] p-0 flex flex-col h-full max-h-screen overflow-hidden">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
+            <SheetTitle className="sr-only">Cargando pedido</SheetTitle>
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : !order ? (
           <div className="flex-1 flex items-center justify-center p-6">
+            <SheetTitle className="sr-only">Pedido no encontrado</SheetTitle>
             <p className="text-muted-foreground">Pedido no encontrado</p>
           </div>
         ) : isEditing ? (

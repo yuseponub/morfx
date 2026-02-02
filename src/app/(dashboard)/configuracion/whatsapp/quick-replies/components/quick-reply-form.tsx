@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,10 +30,11 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'document' | 'audio' | null>(quickReply?.media_type || null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(quickReply?.media_url || null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isCompressing, setIsCompressing] = useState(false)
 
   const isEditing = !!quickReply
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -42,15 +44,31 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
       return
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('El archivo no puede superar 5MB')
-      return
-    }
+    setIsCompressing(true)
 
-    setSelectedFile(file)
-    setPreviewUrl(URL.createObjectURL(file))
-    setMediaType('image')
+    try {
+      // Always compress if larger than 2MB (safe for base64 upload)
+      let processedFile = file
+      if (file.size > 2 * 1024 * 1024) {
+        const options = {
+          maxSizeMB: 2, // Safe size for base64 payload
+          maxWidthOrHeight: 1600,
+          useWebWorker: false,
+          initialQuality: 0.8,
+        }
+        processedFile = await imageCompression(file, options)
+        toast.success(`Imagen comprimida: ${(file.size / 1024 / 1024).toFixed(1)}MB → ${(processedFile.size / 1024 / 1024).toFixed(1)}MB`)
+      }
+
+      setSelectedFile(processedFile)
+      setPreviewUrl(URL.createObjectURL(processedFile))
+      setMediaType('image')
+    } catch (error) {
+      console.error('Error compressing image:', error)
+      toast.error('Error al procesar la imagen')
+    } finally {
+      setIsCompressing(false)
+    }
   }
 
   const handleRemoveMedia = async () => {
@@ -82,6 +100,12 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
 
       // Upload new file if selected
       if (selectedFile) {
+        // Check file size before upload (max 3MB for base64 payload safety)
+        if (selectedFile.size > 3 * 1024 * 1024) {
+          toast.error(`Archivo muy grande (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB). Max 3MB despues de compresion.`)
+          return
+        }
+
         // Convert file to base64
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
@@ -93,6 +117,7 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
         const uploadResult = await uploadQuickReplyMedia(base64, selectedFile.name, selectedFile.type)
         if ('error' in uploadResult) {
           toast.error(uploadResult.error)
+          console.error('Upload error:', uploadResult)
           return
         }
         finalMediaUrl = uploadResult.data.url
@@ -180,7 +205,14 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
       <div className="space-y-2">
         <Label>Imagen (opcional)</Label>
 
-        {previewUrl ? (
+        {isCompressing ? (
+          <div className="border-2 border-dashed rounded-lg p-6 text-center">
+            <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              Comprimiendo imagen...
+            </p>
+          </div>
+        ) : previewUrl ? (
           <div className="relative inline-block">
             <Image
               src={previewUrl}
@@ -210,7 +242,7 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
               Click para agregar imagen
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Max 5MB, formatos: JPG, PNG, GIF
+              JPG, PNG, GIF (se comprime automaticamente)
             </p>
           </div>
         )}
@@ -225,7 +257,7 @@ export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="submit" disabled={loading || !shortcut.trim() || !content.trim()}>
+        <Button type="submit" disabled={loading || isCompressing || !shortcut.trim() || !content.trim()}>
           {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           {isEditing ? 'Guardar Cambios' : 'Crear Respuesta'}
         </Button>

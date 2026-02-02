@@ -118,7 +118,7 @@ export async function assignToNextAvailable(
   // Get agent profile for name
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email')
+    .select('email')
     .eq('id', nextAgent.user_id)
     .single()
 
@@ -143,7 +143,7 @@ export async function assignToNextAvailable(
     success: true,
     data: {
       agentId: nextAgent.user_id,
-      agentName: profile?.full_name || profile?.email || 'Agente',
+      agentName: profile?.email?.split('@')[0] || 'Agente',
       teamId
     }
   }
@@ -282,11 +282,11 @@ export async function getAvailableAgents(): Promise<AvailableAgent[]> {
   const userIds = [...new Set(members.map(m => m.user_id))]
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, full_name, email')
+    .select('id, email')
     .in('id', userIds)
 
   const profileMap = new Map(
-    profiles?.map(p => [p.id, { name: p.full_name || p.email, email: p.email }]) || []
+    profiles?.map(p => [p.id, { name: p.email.split('@')[0], email: p.email }]) || []
   )
 
   return members.map(m => ({

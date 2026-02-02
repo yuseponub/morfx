@@ -46,18 +46,13 @@ export default async function WorkspaceConfigPage({ params }: Props) {
                 workspace.workspace_members?.map((member: {
                   user_id: string
                   role: string
-                  profiles: { email: string; full_name: string | null } | null
+                  profiles: { email: string } | null
                 }) => (
                   <div key={member.user_id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div>
                       <p className="text-sm font-medium">
-                        {member.profiles?.full_name || member.profiles?.email}
+                        {member.profiles?.email}
                       </p>
-                      {member.profiles?.full_name && (
-                        <p className="text-xs text-muted-foreground">
-                          {member.profiles?.email}
-                        </p>
-                      )}
                     </div>
                     <span className="text-xs bg-muted px-2 py-1 rounded capitalize">
                       {member.role}

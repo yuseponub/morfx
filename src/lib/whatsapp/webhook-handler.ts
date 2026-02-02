@@ -17,8 +17,9 @@ import type {
   LocationContent,
   ContactsContent,
   ReactionContent,
-  CostCategory,
 } from './types'
+
+type CostCategory = 'marketing' | 'utility' | 'authentication' | 'service'
 
 // ============================================================================
 // MAIN WEBHOOK PROCESSOR

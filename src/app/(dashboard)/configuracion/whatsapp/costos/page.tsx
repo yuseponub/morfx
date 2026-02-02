@@ -47,42 +47,46 @@ export default function CostosPage() {
 
   if (loading && !summary) {
     return (
-      <div className="container py-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex-1 overflow-auto">
+        <div className="container py-6 px-6">
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Costos y Uso</h1>
-          <p className="text-muted-foreground">
-            Estadisticas de mensajes y costos de WhatsApp
-          </p>
-        </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
-      </div>
-
-      {summary && (
-        <div className="space-y-6">
-          <UsageSummary
-            totalMessages={summary.totalMessages}
-            totalCost={summary.totalCost}
-            byCategory={summary.byCategory}
-            limit={spending?.limit ?? null}
-            percentUsed={spending?.percentUsed ?? null}
-          />
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <UsageChart data={dailyData} />
-            <CategoryBreakdown data={summary.byCategory} />
+    <div className="flex-1 overflow-auto">
+      <div className="container py-6 px-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Costos y Uso</h1>
+            <p className="text-muted-foreground">
+              Estadisticas de mensajes y costos de WhatsApp
+            </p>
           </div>
+          <PeriodSelector value={period} onChange={setPeriod} />
         </div>
-      )}
+
+        {summary && (
+          <div className="space-y-6">
+            <UsageSummary
+              totalMessages={summary.totalMessages}
+              totalCost={summary.totalCost}
+              byCategory={summary.byCategory}
+              limit={spending?.limit ?? null}
+              percentUsed={spending?.percentUsed ?? null}
+            />
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <UsageChart data={dailyData} />
+              <CategoryBreakdown data={summary.byCategory} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

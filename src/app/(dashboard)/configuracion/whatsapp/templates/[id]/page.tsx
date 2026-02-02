@@ -15,8 +15,10 @@ export default async function TemplateDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="container py-6 max-w-3xl">
-      <TemplateDetail template={template} />
+    <div className="flex-1 overflow-auto">
+      <div className="container py-6 px-6 max-w-3xl mx-auto">
+        <TemplateDetail template={template} />
+      </div>
     </div>
   )
 }

@@ -31,22 +31,24 @@ const settings = [
 
 export default function WhatsAppSettingsPage() {
   return (
-    <div className="container py-6">
-      <h1 className="text-2xl font-bold mb-6">Configuracion de WhatsApp</h1>
-      <div className="grid gap-4 md:grid-cols-2">
-        {settings.map((setting) => (
-          <Link key={setting.href} href={setting.href}>
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <setting.icon className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <CardTitle className="text-lg">{setting.title}</CardTitle>
-                  <CardDescription>{setting.description}</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
+    <div className="flex-1 overflow-auto">
+      <div className="container py-6 px-6">
+        <h1 className="text-2xl font-bold mb-6">Configuracion de WhatsApp</h1>
+        <div className="grid gap-4 md:grid-cols-2">
+          {settings.map((setting) => (
+            <Link key={setting.href} href={setting.href}>
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <setting.icon className="h-8 w-8 text-muted-foreground" />
+                  <div>
+                    <CardTitle className="text-lg">{setting.title}</CardTitle>
+                    <CardDescription>{setting.description}</CardDescription>
+                  </div>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )

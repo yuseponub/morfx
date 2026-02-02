@@ -22,13 +22,14 @@ interface AssignDropdownProps {
     id: string
     name: string
   } | null
+  onAssign?: (assignee: { id: string; name: string } | null) => void
 }
 
 /**
  * Dropdown to manually assign a conversation to an agent.
  * Shows agents grouped by team with online/offline status.
  */
-export function AssignDropdown({ conversationId, currentAssignee }: AssignDropdownProps) {
+export function AssignDropdown({ conversationId, currentAssignee, onAssign }: AssignDropdownProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -59,7 +60,7 @@ export function AssignDropdown({ conversationId, currentAssignee }: AssignDropdo
     }
   }
 
-  async function handleAssign(agentId: string | null) {
+  async function handleAssign(agentId: string | null, agentName?: string) {
     setLoading(true)
     try {
       const result = await assignConversation(conversationId, agentId)
@@ -67,6 +68,10 @@ export function AssignDropdown({ conversationId, currentAssignee }: AssignDropdo
         toast.error(result.error)
       } else {
         toast.success(agentId ? 'Conversacion asignada' : 'Conversacion desasignada')
+        // Notify parent immediately for optimistic UI update
+        if (onAssign) {
+          onAssign(agentId ? { id: agentId, name: agentName || 'Agente' } : null)
+        }
         router.refresh()
       }
       setOpen(false)
@@ -137,7 +142,7 @@ export function AssignDropdown({ conversationId, currentAssignee }: AssignDropdo
               {teamAgents.map((agent) => (
                 <DropdownMenuItem
                   key={agent.id}
-                  onClick={() => handleAssign(agent.id)}
+                  onClick={() => handleAssign(agent.id, agent.name)}
                   disabled={loading || agent.id === currentAssignee?.id}
                   className="flex items-center gap-2"
                 >

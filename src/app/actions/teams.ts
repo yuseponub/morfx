@@ -117,22 +117,22 @@ export async function getTeamWithMembers(teamId: string): Promise<(Team & { memb
 
   // Get profiles for members
   const userIds = (members || []).map(m => m.user_id)
-  let profileMap = new Map<string, { email: string; full_name: string | null }>()
+  let profileMap = new Map<string, { email: string }>()
 
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, email, full_name')
+      .select('id, email')
       .in('id', userIds)
 
-    profileMap = new Map(profiles?.map(p => [p.id, { email: p.email, full_name: p.full_name }]) || [])
+    profileMap = new Map(profiles?.map(p => [p.id, { email: p.email }]) || [])
   }
 
-  // Combine members with profile info
+  // Combine members with profile info (use email prefix as display name)
   const membersWithProfile: TeamMember[] = (members || []).map(m => ({
     ...m,
     user_email: profileMap.get(m.user_id)?.email,
-    user_name: profileMap.get(m.user_id)?.full_name
+    user_name: profileMap.get(m.user_id)?.email?.split('@')[0]
   }))
 
   return {
@@ -200,13 +200,13 @@ export async function getUnassignedMembers(): Promise<{ id: string; email: strin
   // Get profiles for unassigned members
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, email, full_name')
+    .select('id, email')
     .in('id', unassignedUserIds)
 
   return (profiles || []).map(p => ({
     id: p.id,
     email: p.email,
-    name: p.full_name
+    name: p.email.split('@')[0] // Use email prefix as display name
   }))
 }
 

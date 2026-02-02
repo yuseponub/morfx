@@ -3,12 +3,14 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns'
+import { getCostRate } from '@/lib/whatsapp/cost-utils'
+
+// Cost category type (defined locally to avoid Turbopack import issues)
+export type CostCategory = 'marketing' | 'utility' | 'authentication' | 'service'
 
 // ============================================================================
 // Types
 // ============================================================================
-
-export type CostCategory = 'marketing' | 'utility' | 'authentication' | 'service'
 
 export interface MessageCost {
   id: string
@@ -51,23 +53,6 @@ export interface SpendingStatus {
 }
 
 export type DatePreset = 'today' | '7days' | '30days' | 'month'
-
-// ============================================================================
-// Cost Rates (Meta's pricing per message in USD)
-// Update monthly from Meta's pricing page
-// ============================================================================
-
-const COST_RATES: Record<CostCategory, Record<string, number>> = {
-  marketing: { CO: 0.0177, default: 0.02 },     // Colombia, default
-  utility: { CO: 0.0064, default: 0.008 },
-  authentication: { CO: 0.0064, default: 0.008 },
-  service: { CO: 0.0, default: 0.0 }            // Service within 24h is free
-}
-
-function getCostRate(category: CostCategory, countryCode?: string | null): number {
-  const rates = COST_RATES[category]
-  return rates[countryCode || 'default'] || rates.default
-}
 
 // ============================================================================
 // Date Range Helpers
@@ -429,22 +414,5 @@ export async function setWorkspaceLimit(
   return { success: true }
 }
 
-// ============================================================================
-// Cost Estimation (for UI preview)
-// ============================================================================
-
-/**
- * Estimate cost for sending a message
- * Used in UI to show estimated cost before sending template
- */
-export function estimateMessageCost(
-  category: CostCategory,
-  countryCode?: string | null
-): { costUsd: number; costCop: number } {
-  const costUsd = getCostRate(category, countryCode)
-  // Approximate USD to COP conversion (update periodically)
-  const usdToCop = 4200
-  const costCop = costUsd * usdToCop
-
-  return { costUsd, costCop }
-}
+// Note: estimateMessageCost is available from '@/lib/whatsapp/cost-utils'
+// Cannot re-export here because 'use server' requires async functions only

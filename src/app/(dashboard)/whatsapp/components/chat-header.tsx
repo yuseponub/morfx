@@ -31,6 +31,11 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [localAssignee, setLocalAssignee] = useState<{ id: string; name: string } | null>(
+    conversation.assigned_to
+      ? { id: conversation.assigned_to, name: conversation.assigned_name || 'Agente' }
+      : null
+  )
 
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const canEditName = !conversation.contact // Solo editable si no tiene contacto vinculado
@@ -120,11 +125,8 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
           {/* Assignment dropdown */}
           <AssignDropdown
             conversationId={conversation.id}
-            currentAssignee={
-              conversation.assigned_to
-                ? { id: conversation.assigned_to, name: conversation.assigned_name || 'Agente' }
-                : null
-            }
+            currentAssignee={localAssignee}
+            onAssign={setLocalAssignee}
           />
 
           {/* Mark as read */}

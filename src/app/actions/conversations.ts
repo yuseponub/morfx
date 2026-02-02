@@ -35,13 +35,11 @@ export async function getConversations(
   }
 
   // Build query with contact join (tags come through contact)
-  // Also join profiles for assigned user name
   let query = supabase
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, address, city, tags:contact_tags(tag:tags(*))),
-      assignee:profiles!conversations_assigned_to_fkey(full_name, email)
+      contact:contacts(id, name, phone, address, city, tags:contact_tags(tag:tags(*)))
     `)
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -79,16 +77,11 @@ export async function getConversations(
     // Remove nested tags from contact object
     const contact = conv.contact ? { ...conv.contact, tags: undefined } : null
 
-    // Get assigned user name
-    const assignee = conv.assignee as { full_name: string | null; email: string } | null
-    const assigned_name = assignee?.full_name || assignee?.email || null
-
     return {
       ...conv,
       contact,
       tags,
-      assigned_name,
-      assignee: undefined, // Remove nested object
+      assigned_name: null, // TODO: fetch from profiles if needed
     }
   }) as ConversationWithDetails[]
 
@@ -131,8 +124,7 @@ export async function getConversation(
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, email, city, address, tags:contact_tags(tag:tags(*))),
-      assignee:profiles!conversations_assigned_to_fkey(full_name, email)
+      contact:contacts(id, name, phone, email, city, address, tags:contact_tags(tag:tags(*)))
     `)
     .eq('id', id)
     .single()
@@ -149,15 +141,11 @@ export async function getConversation(
   // Remove nested tags from contact object
   const contact = data.contact ? { ...data.contact, tags: undefined } : null
 
-  // Get assigned user name
-  const assignee = data.assignee as { full_name: string | null; email: string } | null
-  const assigned_name = assignee?.full_name || assignee?.email || null
-
   return {
     ...data,
     contact,
     tags,
-    assigned_name,
+    assigned_name: null,
   } as ConversationWithDetails
 }
 

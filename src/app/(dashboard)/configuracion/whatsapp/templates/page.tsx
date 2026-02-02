@@ -22,32 +22,34 @@ export default async function TemplatesPage() {
   const templates = await getTemplates()
 
   return (
-    <div className="container py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Templates de WhatsApp</h1>
-          <p className="text-muted-foreground">
-            Crea y gestiona plantillas de mensajes para enviar fuera de la
-            ventana de 24h
-          </p>
+    <div className="flex-1 overflow-auto">
+      <div className="container py-6 px-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Templates de WhatsApp</h1>
+            <p className="text-muted-foreground">
+              Crea y gestiona plantillas de mensajes para enviar fuera de la
+              ventana de 24h
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <form action={handleSync}>
+              <Button variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sincronizar
+              </Button>
+            </form>
+            <Link href="/configuracion/whatsapp/templates/nuevo">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Template
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <form action={handleSync}>
-            <Button variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sincronizar
-            </Button>
-          </form>
-          <Link href="/configuracion/whatsapp/templates/nuevo">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Template
-            </Button>
-          </Link>
-        </div>
-      </div>
 
-      <TemplateList templates={templates} />
+        <TemplateList templates={templates} />
+      </div>
     </div>
   )
 }

@@ -169,6 +169,7 @@ Established in `CLAUDE.md`:
 - Mobile nav workspace switcher
 - Apply migrations to Supabase (tool_executions, api_keys, contacts, tags, custom_fields, notes, activity, orders, conversations, messages)
 - Configure 360dialog webhook URL and env vars
+- Quick replies: Upload directo a Supabase Storage (sin Server Actions) para soportar imágenes grandes sin compresión
 
 ### Blockers/Concerns
 

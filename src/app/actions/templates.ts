@@ -209,15 +209,19 @@ export async function createTemplate(params: {
         .eq('id', template.id)
     } catch (apiError) {
       console.error('Failed to submit template to 360dialog:', apiError)
-      // Template is saved locally, can retry submission later
+      const errorMessage = apiError instanceof Error ? apiError.message : 'Error al enviar a 360dialog'
+
       // Update template with error info
       await supabase
         .from('whatsapp_templates')
         .update({
           status: 'REJECTED',
-          rejected_reason: apiError instanceof Error ? apiError.message : 'Error al enviar a 360dialog',
+          rejected_reason: errorMessage,
         })
         .eq('id', template.id)
+
+      revalidatePath('/configuracion/whatsapp/templates')
+      return { error: `Error de 360dialog: ${errorMessage}` }
     }
   }
 
@@ -370,13 +374,16 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
 
     // Update local templates with remote status
     for (const remote of remoteTemplates) {
+      // 360dialog returns lowercase status, normalize to uppercase
+      const normalizedStatus = remote.status?.toUpperCase() || 'PENDING'
+
       const { error } = await supabase
         .from('whatsapp_templates')
         .update({
-          status: remote.status,
+          status: normalizedStatus,
           quality_rating: remote.quality_score?.score || null,
           rejected_reason: remote.rejected_reason || null,
-          approved_at: remote.status === 'APPROVED' ? new Date().toISOString() : null,
+          approved_at: normalizedStatus === 'APPROVED' ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
         })
         .eq('workspace_id', workspaceId)
@@ -387,7 +394,8 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
       }
     }
 
-    revalidatePath('/configuracion/whatsapp/templates')
+    // Note: revalidatePath is called by the form action, not here
+    // (calling during render causes Next.js error)
     return { success: true, data: updatedCount }
   } catch (error) {
     console.error('Failed to sync template statuses:', error)

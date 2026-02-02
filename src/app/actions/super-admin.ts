@@ -88,7 +88,7 @@ export async function getWorkspaceDetails(workspaceId: string) {
       workspace_members(
         user_id,
         role,
-        profiles!user_id(email, full_name)
+        profiles!user_id(email)
       )
     `)
     .eq('id', workspaceId)

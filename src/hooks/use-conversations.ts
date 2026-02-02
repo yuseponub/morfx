@@ -53,6 +53,8 @@ interface UseConversationsReturn {
   hasQuery: boolean
   /** Refresh conversations */
   refresh: () => Promise<void>
+  /** Get a specific conversation by ID (always returns latest data) */
+  getConversationById: (id: string) => ConversationWithDetails | undefined
 }
 
 // ============================================================================
@@ -209,6 +211,11 @@ export function useConversations({
     return fuse.search(trimmed).map(result => result.item)
   }, [fuse, query, conversations])
 
+  // Get conversation by ID from the unfiltered list
+  const getConversationById = useCallback((id: string) => {
+    return conversations.find(c => c.id === id)
+  }, [conversations])
+
   return {
     conversations: filteredConversations,
     query,
@@ -218,5 +225,6 @@ export function useConversations({
     isLoading,
     hasQuery: query.trim().length > 0,
     refresh: fetchConversations,
+    getConversationById,
   }
 }

@@ -33,7 +33,22 @@ export function ChatView({
   })
 
   // Calculate 24h window status
+  // Uses both conversation data AND real-time messages to stay updated
   const isWindowOpen = (() => {
+    // First check messages (most up-to-date via realtime)
+    const lastInboundMessage = [...messages]
+      .reverse()
+      .find(m => m.direction === 'inbound')
+
+    if (lastInboundMessage) {
+      const hoursSinceMessage = differenceInHours(
+        new Date(),
+        new Date(lastInboundMessage.timestamp)
+      )
+      if (hoursSinceMessage < 24) return true
+    }
+
+    // Fallback to conversation data
     if (!conversation?.last_customer_message_at) return false
     const hoursSince = differenceInHours(
       new Date(),

@@ -77,6 +77,7 @@ export interface Message {
   media_url: string | null
   media_mime_type: string | null
   media_filename: string | null
+  template_name: string | null
   timestamp: string
   created_at: string
 }

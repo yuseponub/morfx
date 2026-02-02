@@ -182,7 +182,9 @@ export function useConversations({
           await fetchConversations()
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log('Realtime conversations status:', status, err || '')
+      })
 
     // Cleanup on unmount
     return () => {

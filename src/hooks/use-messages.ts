@@ -148,7 +148,9 @@ export function useMessages({
           )
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log('Realtime messages status:', status, err || '')
+      })
 
     // Cleanup on unmount
     return () => {

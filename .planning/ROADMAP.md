@@ -258,12 +258,15 @@ Plans:
   3. User can create tasks linked to contacts, orders, or conversations
   4. System notifies user when a task is approaching its deadline
   5. Dashboard displays key metrics: total orders, total value, conversion rate, response time
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 10-01: Global search implementation
-- [ ] 10-02: Tasks and reminders system
-- [ ] 10-03: Analytics dashboard
+- [ ] 10-01-PLAN.md — Tasks database foundation: tasks table with exclusive arc pattern, task_types, RLS policies, TypeScript types
+- [ ] 10-02-PLAN.md — Task management core: Server Actions, /tareas page, task list, form, filters
+- [ ] 10-03-PLAN.md — Task integration: contextual creation from entities, sidebar badge, task settings page
+- [ ] 10-04-PLAN.md — Global search: command palette with Cmd+K, Fuse.js, entity filtering, sidebar integration
+- [ ] 10-05-PLAN.md — Analytics dashboard: metrics Server Actions, /analytics page with cards and charts, role-based access
+- [ ] 10-06-PLAN.md — Final integration: sidebar navigation update, role-based visibility, human verification
 
 ## Progress
 
@@ -282,8 +285,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
 | 9. CRM-WhatsApp Sync | 7/8 | Complete | 2026-02-03 |
 | 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
-| 10. Search, Tasks & Analytics | 0/3 | Not started | - |
+| 10. Search, Tasks & Analytics | 0/6 | Planned | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-03 (Phase 9.1 planned)*
+*Last updated: 2026-02-03 (Phase 10 planned)*

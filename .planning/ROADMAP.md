@@ -211,11 +211,12 @@ Plans:
 **Goal**: Tags and order states synchronize between CRM and WhatsApp modules (core value)
 **Depends on**: Phase 6, Phase 8
 **Requirements**: ORDR-10, ORDR-11, WAPP-10
+**Note**: Shopify integration deferred to Phase 11+ (see 09-CONTEXT.md)
 **Success Criteria** (what must be TRUE):
   1. When a tag is added to a contact in CRM, it appears in their WhatsApp conversation
   2. When a tag is added to a conversation in WhatsApp, it appears on the contact in CRM
   3. When an order state changes in CRM, it reflects in the linked WhatsApp conversation
-  4. Contact, order, and conversation data remain consistent across modules
+  4. Tags can be scoped to specific contexts (WhatsApp-only, Orders-only, or both)
 **Plans**: 8 plans
 
 Plans:

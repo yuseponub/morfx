@@ -494,17 +494,32 @@ export async function startNewConversation(params: {
   }
 
   // Normalize phone number to E.164
-  let normalizedPhone = params.phone.trim().replace(/\s+/g, '')
-  if (!normalizedPhone.startsWith('+')) {
-    // Assume Colombia if no country code
-    normalizedPhone = normalizedPhone.startsWith('57')
-      ? '+' + normalizedPhone
-      : '+57' + normalizedPhone
+  // Remove all non-digit characters except leading +
+  let normalizedPhone = params.phone.trim()
+  const hasPlus = normalizedPhone.startsWith('+')
+  normalizedPhone = normalizedPhone.replace(/[^\d]/g, '') // Keep only digits
+
+  // Handle different input formats for Colombia
+  if (normalizedPhone.length === 10 && normalizedPhone.startsWith('3')) {
+    // Colombian mobile without country code: 3001234567
+    normalizedPhone = '+57' + normalizedPhone
+  } else if (normalizedPhone.length === 12 && normalizedPhone.startsWith('57')) {
+    // Colombian with country code but no +: 573001234567
+    normalizedPhone = '+' + normalizedPhone
+  } else if (normalizedPhone.length === 7 || normalizedPhone.length === 8) {
+    // Colombian landline without country code
+    normalizedPhone = '+57' + normalizedPhone
+  } else if (hasPlus || normalizedPhone.length > 10) {
+    // Already has country code or international number
+    normalizedPhone = '+' + normalizedPhone
+  } else {
+    // Default: assume Colombia
+    normalizedPhone = '+57' + normalizedPhone
   }
 
-  // Validate phone format
+  // Validate phone format (E.164: + followed by 10-15 digits)
   if (!/^\+\d{10,15}$/.test(normalizedPhone)) {
-    return { error: 'Numero de telefono invalido' }
+    return { error: 'Numero de telefono invalido. Ejemplo: 3001234567 o +573001234567' }
   }
 
   // Check if conversation already exists

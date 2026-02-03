@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrders, getPipelines, getOrCreateDefaultPipeline } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
 import { getContacts } from '@/app/actions/contacts'
-import { getTags } from '@/app/actions/tags'
+import { getTagsForScope } from '@/app/actions/tags'
 import { OrdersView } from './components/orders-view'
 
 export default async function OrdersPage() {
@@ -18,7 +18,7 @@ export default async function OrdersPage() {
     getPipelines(),
     getActiveProducts(),
     getContacts(),
-    getTags()
+    getTagsForScope('orders')
   ])
 
   return (

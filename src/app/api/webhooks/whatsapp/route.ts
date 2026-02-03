@@ -4,7 +4,6 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { processWebhook } from '@/lib/whatsapp/webhook-handler'
 import type { WebhookPayload } from '@/lib/whatsapp/types'
 
@@ -88,34 +87,27 @@ export async function POST(request: NextRequest) {
 
 /**
  * Process webhook asynchronously after returning 200.
- * Looks up workspace by phone_number_id and processes the payload.
+ * Uses WHATSAPP_DEFAULT_WORKSPACE_ID for MVP single-workspace setup.
  */
 async function processWebhookAsync(
   payload: WebhookPayload,
   phoneNumberId: string
 ): Promise<void> {
-  const supabase = await createClient()
-
   try {
-    // Look up workspace by phone_number_id
-    // For now, we store this in workspace_settings (to be created)
-    // Fallback: use environment variable for single-workspace MVP
-    let workspaceId = process.env.WHATSAPP_DEFAULT_WORKSPACE_ID
-
-    // Try to look up from workspace_settings
-    const { data: settings } = await supabase
-      .from('workspace_settings')
-      .select('workspace_id')
-      .eq('whatsapp_phone_number_id', phoneNumberId)
-      .single()
-
-    if (settings) {
-      workspaceId = settings.workspace_id
-    }
+    // MVP: Use environment variable for workspace ID
+    // Future: Look up workspace by phone_number_id in a mapping table
+    const workspaceId = process.env.WHATSAPP_DEFAULT_WORKSPACE_ID
 
     if (!workspaceId) {
-      console.error(`No workspace found for phone_number_id: ${phoneNumberId}`)
+      console.error('WHATSAPP_DEFAULT_WORKSPACE_ID not configured')
       return
+    }
+
+    // Verify phone_number_id matches (optional security check)
+    const expectedPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    if (expectedPhoneNumberId && phoneNumberId !== expectedPhoneNumberId) {
+      console.warn(`Webhook for unexpected phone: ${phoneNumberId}, expected: ${expectedPhoneNumberId}`)
+      // Still process - might be valid for multi-number setups
     }
 
     // Process the webhook
@@ -124,7 +116,6 @@ async function processWebhookAsync(
     console.log(`Webhook processed for workspace ${workspaceId}`)
   } catch (error) {
     console.error('Error in async webhook processing:', error)
-    // In production, we would queue for retry or dead-letter
     throw error
   }
 }

@@ -5,8 +5,20 @@ import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
-import { OrderStatusIndicator } from './order-status-indicator'
+import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
+
+/**
+ * Get initials from a name (up to 2 characters).
+ */
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map(n => n[0] || '')
+    .join('')
+    .toUpperCase()
+}
 
 interface ConversationItemProps {
   conversation: ConversationWithDetails
@@ -41,6 +53,10 @@ export function ConversationItem({
   const conversationTags = conversation.tags || []
   const contactTags = conversation.contactTags || []
 
+  // Get primary order emoji for avatar indicator (first active order)
+  const firstOrder = orders.find(o => !o.stage.is_closed)
+  const primaryEmoji = firstOrder ? getStageEmoji(firstOrder.stage as StageWithOrderState) : null
+
   return (
     <button
       onClick={() => onSelect(conversation.id)}
@@ -50,33 +66,42 @@ export function ConversationItem({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        {/* Name and unread badge */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={cn(
-            'font-medium truncate',
-            !conversation.is_read && 'font-semibold'
-          )}>
-            {displayName}
-          </span>
-          {conversation.unread_count > 0 && (
-            <span className="flex-shrink-0 inline-flex items-center justify-center h-5 min-w-5 px-1.5 text-xs font-semibold text-white bg-primary rounded-full">
-              {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+        {/* Avatar with emoji indicator + Name and unread badge */}
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Avatar with optional emoji indicator (Callbell style) */}
+          <div className="relative flex-shrink-0">
+            {/* Avatar circle with initials */}
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <span className="text-sm font-medium text-primary">
+                {getInitials(displayName)}
+              </span>
+            </div>
+            {/* Emoji indicator on top-right corner */}
+            {primaryEmoji && (
+              <span className="absolute -top-0.5 -right-0.5 text-xs leading-none">
+                {primaryEmoji}
+              </span>
+            )}
+          </div>
+
+          {/* Name and unread badge */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={cn(
+              'font-medium truncate',
+              !conversation.is_read && 'font-semibold'
+            )}>
+              {displayName}
             </span>
-          )}
+            {conversation.unread_count > 0 && (
+              <span className="flex-shrink-0 inline-flex items-center justify-center h-5 min-w-5 px-1.5 text-xs font-semibold text-white bg-primary rounded-full">
+                {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Order indicators and timestamp */}
+        {/* Timestamp (no inline order indicators - now on avatar) */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Order status indicators */}
-          {orders.length > 0 && (
-            <OrderStatusIndicator
-              orders={orders}
-              maxDisplay={3}
-              showTooltip={false}
-              size="sm"
-            />
-          )}
-          {/* Timestamp */}
           {timeAgo && (
             <span className="text-xs text-muted-foreground">
               {timeAgo}

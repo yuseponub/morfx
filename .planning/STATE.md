@@ -186,6 +186,9 @@ Recent decisions affecting current work:
 - [Phase 9.1-01]: ON DELETE SET NULL for order_state_id FK - stages become unassigned when state deleted
 - [Phase 9.1-01]: Manager-only write policies for order_states (SELECT for all members)
 - [Phase 9.1-01]: Temp negative positions pattern for reorder to avoid unique constraint violations
+- [Phase 9.1-02]: Stage assignment available in both create and edit modes
+- [Phase 9.1-02]: Emoji picker uses Popover with close-on-select behavior
+- [Phase 9.1-02]: Stages assigned to other states shown with disabled checkbox
 - [Phase 9.1-03]: Fallback pattern: DB emoji first, then hardcoded PHASE_INDICATORS
 - [Phase 9.1-03]: Closed stages never show emoji indicator
 - [Phase 9.1-03]: Only first active order emoji shown on avatar (not all)

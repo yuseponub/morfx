@@ -176,6 +176,9 @@ Recent decisions affecting current work:
 - [Phase 9-07]: WhatsApp section in CRM contact placed after tags for visibility
 - [Phase 9-07]: Client-side fetch for WhatsApp conversations to avoid blocking page load
 - [Phase 9-07]: Cast conversation_tags to any[] for Supabase nested join TypeScript compatibility
+- [Phase 9-06]: Orders subscription filters on stage_id changes only (reduces API calls)
+- [Phase 9-06]: conversation_tags subscription has no workspace filter (RLS handles security)
+- [Phase 9-06]: Batch order loading uses Map<contactId, OrderSummary[]> for efficient lookup
 
 ### Project Rules
 
@@ -563,9 +566,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T18:04:18Z
-Stopped at: Completed 09-07-PLAN.md (CRM WhatsApp Section)
-Resume file: None - Plan 09-07 complete, 09-08 next
+Last session: 2026-02-03T18:08:51Z
+Stopped at: Completed 09-06-PLAN.md (Wire Order Data and Realtime Sync)
+Resume file: None - Plans 09-06 and 09-07 complete, 09-08 next
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

@@ -11,6 +11,7 @@ import { WindowIndicator } from './window-indicator'
 import { CreateOrderSheet } from './create-order-sheet'
 import { CreateContactSheet } from './create-contact-sheet'
 import { ViewOrderSheet } from './view-order-sheet'
+import { OrderStageBadge } from './order-status-indicator'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ContactPanelProps {
@@ -105,12 +106,32 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated }: C
                   </div>
                 )}
 
-                {/* Tags */}
-                {conversation.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-2">
-                    {conversation.tags.map((tag) => (
-                      <TagBadge key={tag.id} tag={tag} size="sm" />
-                    ))}
+                {/* Tags section - dual display */}
+                {(conversation.tags.length > 0 || (conversation.contactTags && conversation.contactTags.length > 0)) && (
+                  <div className="pt-2 space-y-2">
+                    {/* Conversation-specific tags */}
+                    {conversation.tags.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Etiquetas de chat</p>
+                        <div className="flex flex-wrap gap-1">
+                          {conversation.tags.map((tag) => (
+                            <TagBadge key={tag.id} tag={tag} size="sm" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contact inherited tags */}
+                    {conversation.contactTags && conversation.contactTags.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Etiquetas de contacto</p>
+                        <div className="flex flex-wrap gap-1">
+                          {conversation.contactTags.map((tag) => (
+                            <TagBadge key={tag.id} tag={tag} size="sm" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -273,15 +294,7 @@ function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refres
             >
               <div className="flex items-center gap-2">
                 {order.stage && (
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: order.stage.color + '20',
-                      color: order.stage.color,
-                    }}
-                  >
-                    {order.stage.name}
-                  </span>
+                  <OrderStageBadge stage={order.stage} size="sm" />
                 )}
                 <span className="text-sm font-medium">
                   {order.total_value

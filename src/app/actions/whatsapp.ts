@@ -116,7 +116,14 @@ export async function getContactOrders(
       total_value,
       created_at,
       updated_at,
-      stage:pipeline_stages(id, name, color, is_closed),
+      stage:pipeline_stages(
+        id,
+        name,
+        color,
+        is_closed,
+        order_state_id,
+        order_state:order_states(id, emoji, name)
+      ),
       pipeline:pipelines(id, name)
     `)
     .eq('workspace_id', workspaceId)
@@ -202,7 +209,14 @@ export async function getOrdersForContacts(
       total_value,
       created_at,
       updated_at,
-      stage:pipeline_stages(id, name, color, is_closed),
+      stage:pipeline_stages(
+        id,
+        name,
+        color,
+        is_closed,
+        order_state_id,
+        order_state:order_states(id, emoji, name)
+      ),
       pipeline:pipelines(id, name)
     `)
     .eq('workspace_id', workspaceId)

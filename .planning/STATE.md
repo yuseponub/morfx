@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 0 of TBD complete
-Status: Phase 9 not started
-Last activity: 2026-01-31 - Phase 8.2 complete (quick replies with media)
+Plan: 1 of 8 complete
+Status: Phase 9 in progress
+Last activity: 2026-02-03 - Completed 09-01-PLAN.md (database foundation)
 
-Progress: [########--] ~80%
+Progress: [########=-] ~81%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -155,6 +155,10 @@ Recent decisions affecting current work:
 - [Phase 8-05]: Availability toggle in conversation list header (always visible)
 - [Phase 8-09]: Super admin access via MORFX_OWNER_USER_ID env var (simple, no DB lookup)
 - [Phase 8-09]: Workspace limits upsert pattern for configuration
+- [Phase 9-01]: applies_to column defaults to 'both' for backward compatibility
+- [Phase 9-01]: Auto-tag trigger only fires on UPDATE (not INSERT) for explicit stage transitions
+- [Phase 9-01]: Stage-to-phase mapping falls back to 'pending' for unknown stages
+- [Phase 9-01]: Won orders show no indicator (success = no visual noise)
 
 ### Project Rules
 
@@ -542,9 +546,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-01-31T22:00:00Z
-Stopped at: Phase 8 verified (7/7) - ready for Phase 9
-Resume file: None - ready for Phase 9
+Last session: 2026-02-03T15:14:26Z
+Stopped at: Completed 09-01-PLAN.md (database foundation)
+Resume file: None - ready for 09-02-PLAN.md
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

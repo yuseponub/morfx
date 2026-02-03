@@ -92,6 +92,14 @@ export function OrderSheet({
 }: OrderSheetProps) {
   const router = useRouter()
   const [isChangingStage, setIsChangingStage] = React.useState(false)
+  const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
+
+  // Sync local tags when order changes
+  React.useEffect(() => {
+    if (order?.tags) {
+      setLocalTags(order.tags)
+    }
+  }, [order?.id, order?.tags])
 
   if (!order) return null
 
@@ -99,7 +107,6 @@ export function OrderSheet({
   const stage = order.stage
   const pipeline = order.pipeline
   const products = order.products
-  const tags = order.tags
 
   // Handle stage change
   const handleStageChange = async (newStageId: string) => {
@@ -376,8 +383,15 @@ export function OrderSheet({
               </h3>
               <OrderTagInput
                 orderId={order.id}
-                currentTags={tags}
-                onTagsChange={() => router.refresh()}
+                currentTags={localTags}
+                onTagAdded={(tag) => {
+                  setLocalTags(prev => [...prev, tag])
+                  router.refresh()
+                }}
+                onTagRemoved={(tagId) => {
+                  setLocalTags(prev => prev.filter(t => t.id !== tagId))
+                  router.refresh()
+                }}
               />
             </section>
 

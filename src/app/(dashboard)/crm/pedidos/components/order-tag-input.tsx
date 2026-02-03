@@ -26,8 +26,10 @@ interface OrderTagInputProps {
   orderId: string
   /** Currently applied tags */
   currentTags: Array<{ id: string; name: string; color: string }>
-  /** Callback when tags change */
-  onTagsChange?: () => void
+  /** Callback when a tag is added (receives the added tag) */
+  onTagAdded?: (tag: { id: string; name: string; color: string }) => void
+  /** Callback when a tag is removed (receives the removed tag id) */
+  onTagRemoved?: (tagId: string) => void
   /** Whether the input is disabled */
   disabled?: boolean
 }
@@ -39,7 +41,8 @@ interface OrderTagInputProps {
 export function OrderTagInput({
   orderId,
   currentTags,
-  onTagsChange,
+  onTagAdded,
+  onTagRemoved,
   disabled = false,
 }: OrderTagInputProps) {
   const [open, setOpen] = useState(false)
@@ -69,6 +72,9 @@ export function OrderTagInput({
   )
 
   const handleAddTag = (tagId: string) => {
+    const tag = availableTags.find(t => t.id === tagId)
+    if (!tag) return
+
     startTransition(async () => {
       const result = await addOrderTag(orderId, tagId)
 
@@ -78,7 +84,7 @@ export function OrderTagInput({
       }
 
       toast.success('Etiqueta agregada')
-      onTagsChange?.()
+      onTagAdded?.(tag)
       setOpen(false)
     })
   }
@@ -93,7 +99,7 @@ export function OrderTagInput({
       }
 
       toast.success('Etiqueta eliminada')
-      onTagsChange?.()
+      onTagRemoved?.(tagId)
     })
   }
 

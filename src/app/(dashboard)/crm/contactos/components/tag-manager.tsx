@@ -12,6 +12,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { TAG_COLORS, DEFAULT_TAG_COLOR, getContrastColor } from '@/lib/data/tag-colors'
 import { createTag, updateTag, deleteTag } from '@/app/actions/tags'
 import { toast } from 'sonner'
@@ -34,10 +41,12 @@ interface TagManagerProps {
 export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
   const [newTagName, setNewTagName] = React.useState('')
   const [newTagColor, setNewTagColor] = React.useState(DEFAULT_TAG_COLOR)
+  const [newTagScope, setNewTagScope] = React.useState<'whatsapp' | 'orders' | 'both'>('both')
   const [isCreating, setIsCreating] = React.useState(false)
   const [editingTagId, setEditingTagId] = React.useState<string | null>(null)
   const [editName, setEditName] = React.useState('')
   const [editColor, setEditColor] = React.useState('')
+  const [editScope, setEditScope] = React.useState<'whatsapp' | 'orders' | 'both'>('both')
 
   // Handle create tag
   const handleCreateTag = async (e: React.FormEvent) => {
@@ -48,6 +57,7 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
     const formData = new FormData()
     formData.set('name', newTagName.trim())
     formData.set('color', newTagColor)
+    formData.set('applies_to', newTagScope)
 
     const result = await createTag(formData)
     setIsCreating(false)
@@ -58,6 +68,7 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
       toast.success(`Etiqueta "${newTagName}" creada`)
       setNewTagName('')
       setNewTagColor(DEFAULT_TAG_COLOR)
+      setNewTagScope('both')
     }
   }
 
@@ -66,6 +77,7 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
     setEditingTagId(tag.id)
     setEditName(tag.name)
     setEditColor(tag.color)
+    setEditScope(tag.applies_to || 'both')
   }
 
   // Cancel editing
@@ -73,6 +85,7 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
     setEditingTagId(null)
     setEditName('')
     setEditColor('')
+    setEditScope('both')
   }
 
   // Save edited tag
@@ -85,6 +98,7 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
     const formData = new FormData()
     formData.set('name', editName.trim())
     formData.set('color', editColor)
+    formData.set('applies_to', editScope)
 
     const result = await updateTag(tagId, formData)
 
@@ -150,6 +164,42 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
               />
             </div>
 
+            {/* Scope selection for new tag */}
+            <div className="space-y-2">
+              <Label htmlFor="new-tag-scope">Aplicar a</Label>
+              <Select
+                value={newTagScope}
+                onValueChange={(value) => setNewTagScope(value as 'whatsapp' | 'orders' | 'both')}
+              >
+                <SelectTrigger id="new-tag-scope">
+                  <SelectValue placeholder="Seleccionar ambito" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="both">
+                    <div className="flex items-center gap-2">
+                      <span>Todos</span>
+                      <span className="text-xs text-muted-foreground">(WhatsApp y Pedidos)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="whatsapp">
+                    <div className="flex items-center gap-2">
+                      <span>Solo WhatsApp</span>
+                      <span className="text-xs text-muted-foreground">(Conversaciones)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="orders">
+                    <div className="flex items-center gap-2">
+                      <span>Solo Pedidos</span>
+                      <span className="text-xs text-muted-foreground">(CRM)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Define donde se puede usar esta etiqueta
+              </p>
+            </div>
+
             {/* Preview */}
             {newTagName.trim() && (
               <div className="flex items-center gap-3 pt-2">
@@ -183,35 +233,50 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
                   >
                     {editingTagId === tag.id ? (
                       // Edit mode
-                      <>
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="flex-1 h-8"
-                          autoFocus
-                        />
-                        <ColorPicker
-                          value={editColor}
-                          onChange={setEditColor}
-                          compact
-                        />
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => saveEdit(tag.id)}
-                          className="h-8 w-8 p-0"
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="flex-1 h-8"
+                            autoFocus
+                          />
+                          <ColorPicker
+                            value={editColor}
+                            onChange={setEditColor}
+                            compact
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => saveEdit(tag.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <CheckIcon className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={cancelEditing}
+                            className="h-8 w-8 p-0"
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Select
+                          value={editScope}
+                          onValueChange={(value) => setEditScope(value as 'whatsapp' | 'orders' | 'both')}
                         >
-                          <CheckIcon className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={cancelEditing}
-                          className="h-8 w-8 p-0"
-                        >
-                          <XIcon className="h-4 w-4" />
-                        </Button>
-                      </>
+                          <SelectTrigger className="h-8 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="both">Todos (WhatsApp y Pedidos)</SelectItem>
+                            <SelectItem value="whatsapp">Solo WhatsApp</SelectItem>
+                            <SelectItem value="orders">Solo Pedidos</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     ) : (
                       // View mode
                       <>
@@ -224,6 +289,11 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
                         >
                           {tag.name}
                         </span>
+                        {tag.applies_to && tag.applies_to !== 'both' && (
+                          <span className="text-xs text-muted-foreground">
+                            ({tag.applies_to === 'whatsapp' ? 'WhatsApp' : 'Pedidos'})
+                          </span>
+                        )}
                         <div className="flex-1" />
                         <Button
                           size="sm"

@@ -210,19 +210,23 @@ Plans:
 ### Phase 9: CRM-WhatsApp Sync
 **Goal**: Tags and order states synchronize between CRM and WhatsApp modules (core value)
 **Depends on**: Phase 6, Phase 8
-**Requirements**: ORDR-10, ORDR-11, WAPP-10, INTG-01, INTG-02
+**Requirements**: ORDR-10, ORDR-11, WAPP-10
 **Success Criteria** (what must be TRUE):
   1. When a tag is added to a contact in CRM, it appears in their WhatsApp conversation
   2. When a tag is added to a conversation in WhatsApp, it appears on the contact in CRM
   3. When an order state changes in CRM, it reflects in the linked WhatsApp conversation
-  4. Shopify orders received via webhook create/update contacts and orders in MorfX
-  5. Contact, order, and conversation data remain consistent across modules
-**Plans**: TBD
+  4. Contact, order, and conversation data remain consistent across modules
+**Plans**: 8 plans
 
 Plans:
-- [ ] 09-01: Bidirectional tag synchronization
-- [ ] 09-02: Order state to WhatsApp sync
-- [ ] 09-03: Shopify webhook integration
+- [ ] 09-01-PLAN.md — Database foundation: conversation_tags table, tags.applies_to field, auto-tag trigger, stage-phases utility
+- [ ] 09-02-PLAN.md — Server Actions: conversation tag CRUD, tag scope filtering, extended queries
+- [ ] 09-03-PLAN.md — Types extension: ConversationWithDetails with contactTags, OrderSummary, order fetching
+- [ ] 09-04-PLAN.md — WhatsApp UI: OrderStatusIndicator, conversation-item with indicators, contact-panel dual tags
+- [ ] 09-05-PLAN.md — Tag management: ConversationTagInput, chat header tag controls
+- [ ] 09-06-PLAN.md — Integration wiring: useConversations with orders, realtime subscriptions, batch loading
+- [ ] 09-07-PLAN.md — CRM reverse sync: WhatsAppSection in contact detail, conversation tags in CRM
+- [ ] 09-08-PLAN.md — Final integration: tag scope UI, end-to-end verification
 
 ### Phase 10: Search, Tasks & Analytics
 **Goal**: Users have global search, task reminders, and a metrics dashboard
@@ -256,9 +260,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 6. Orders | 5/5 | Complete | 2026-01-29 |
 | 7. WhatsApp Core | 3/3 | Complete | 2026-01-30 |
 | 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
-| 9. CRM-WhatsApp Sync | 0/3 | Not started | - |
+| 9. CRM-WhatsApp Sync | 0/8 | Ready | - |
 | 10. Search, Tasks & Analytics | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-01-31 (Phase 8 complete)*
+*Last updated: 2026-02-03 (Phase 9 planned)*

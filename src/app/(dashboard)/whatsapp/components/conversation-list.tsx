@@ -33,6 +33,7 @@ export function ConversationList({
 
   const {
     conversations,
+    ordersByContact,
     query,
     setQuery,
     filter,
@@ -110,14 +111,22 @@ export function ConversationList({
           </div>
         ) : (
           <div>
-            {conversations.map((conversation) => (
-              <ConversationItem
-                key={conversation.id}
-                conversation={conversation}
-                isSelected={selectedId === conversation.id}
-                onSelect={(id) => onSelect(id, conversation)}
-              />
-            ))}
+            {conversations.map((conversation) => {
+              // Get orders for this conversation's contact
+              const contactOrders = conversation.contact?.id
+                ? ordersByContact.get(conversation.contact.id) || []
+                : []
+
+              return (
+                <ConversationItem
+                  key={conversation.id}
+                  conversation={conversation}
+                  isSelected={selectedId === conversation.id}
+                  onSelect={(id) => onSelect(id, conversation)}
+                  orders={contactOrders}
+                />
+              )
+            })}
           </div>
         )}
       </ScrollArea>

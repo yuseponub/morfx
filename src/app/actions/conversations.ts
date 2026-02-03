@@ -466,3 +466,108 @@ export async function getConversationStats(): Promise<{
     windowClosed: windowClosed || 0,
   }
 }
+
+// ============================================================================
+// START NEW CONVERSATION
+// ============================================================================
+
+/**
+ * Start a new conversation by sending a template to a phone number.
+ * Creates or finds existing conversation, sends template, returns conversation ID.
+ */
+export async function startNewConversation(params: {
+  phone: string
+  templateId: string
+  variableValues: Record<string, string>
+}): Promise<ActionResult<{ conversationId: string }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
+
+  // Normalize phone number to E.164
+  let normalizedPhone = params.phone.trim().replace(/\s+/g, '')
+  if (!normalizedPhone.startsWith('+')) {
+    // Assume Colombia if no country code
+    normalizedPhone = normalizedPhone.startsWith('57')
+      ? '+' + normalizedPhone
+      : '+57' + normalizedPhone
+  }
+
+  // Validate phone format
+  if (!/^\+\d{10,15}$/.test(normalizedPhone)) {
+    return { error: 'Numero de telefono invalido' }
+  }
+
+  // Check if conversation already exists
+  let { data: conversation } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('phone', normalizedPhone)
+    .single()
+
+  // Create new conversation if doesn't exist
+  if (!conversation) {
+    // Get workspace phone_number_id from settings or env
+    const { data: workspace } = await supabase
+      .from('workspaces')
+      .select('settings')
+      .eq('id', workspaceId)
+      .single()
+
+    const phoneNumberId = workspace?.settings?.whatsapp_phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || ''
+
+    // Try to find existing contact by phone
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('phone', normalizedPhone)
+      .single()
+
+    const { data: newConv, error: createError } = await supabase
+      .from('conversations')
+      .insert({
+        workspace_id: workspaceId,
+        phone: normalizedPhone,
+        phone_number_id: phoneNumberId,
+        contact_id: contact?.id || null,
+        status: 'active',
+        is_read: true,
+        unread_count: 0,
+      })
+      .select('id')
+      .single()
+
+    if (createError || !newConv) {
+      console.error('Error creating conversation:', createError)
+      return { error: 'Error al crear conversacion' }
+    }
+
+    conversation = newConv
+  }
+
+  // Now send the template using the existing sendTemplateMessage
+  const { sendTemplateMessage } = await import('./messages')
+  const result = await sendTemplateMessage({
+    conversationId: conversation.id,
+    templateId: params.templateId,
+    variableValues: params.variableValues,
+  })
+
+  if ('error' in result) {
+    return { error: result.error }
+  }
+
+  revalidatePath('/whatsapp')
+  return { success: true, data: { conversationId: conversation.id } }
+}

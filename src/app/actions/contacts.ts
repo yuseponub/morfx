@@ -93,6 +93,48 @@ export async function getContacts(): Promise<ContactWithTags[]> {
 }
 
 /**
+ * Search contacts by name or phone
+ * Returns basic contact info (id, name, phone) for quick lookups
+ */
+export async function searchContacts(params: {
+  search: string
+  limit?: number
+}): Promise<Array<{ id: string; name: string; phone: string }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return []
+  }
+
+  const searchTerm = params.search.trim()
+  if (!searchTerm) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('id, name, phone')
+    .eq('workspace_id', workspaceId)
+    .or(`name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+    .order('name')
+    .limit(params.limit || 10)
+
+  if (error) {
+    console.error('Error searching contacts:', error)
+    return []
+  }
+
+  return data || []
+}
+
+/**
  * Get a single contact by ID with tags
  * Returns null if not found or not accessible
  */

@@ -1,11 +1,15 @@
 'use client'
 
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
 import { useConversations } from '@/hooks/use-conversations'
 import { InboxFilters } from './filters/inbox-filters'
 import { SearchInput } from './filters/search-input'
 import { ConversationItem } from './conversation-item'
 import { AvailabilityToggle } from './availability-toggle'
+import { NewConversationModal } from './new-conversation-modal'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ConversationListProps {
@@ -25,6 +29,8 @@ export function ConversationList({
   selectedId,
   onSelect,
 }: ConversationListProps) {
+  const [showNewModal, setShowNewModal] = useState(false)
+
   const {
     conversations,
     query,
@@ -33,18 +39,45 @@ export function ConversationList({
     setFilter,
     isLoading,
     hasQuery,
+    refresh,
   } = useConversations({
     workspaceId,
     initialConversations,
   })
 
+  // Handle new conversation created
+  const handleConversationCreated = async (conversationId: string) => {
+    // Refresh the list to include the new conversation
+    await refresh()
+    // Select the new conversation
+    onSelect(conversationId)
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header with availability toggle */}
+      {/* Header with new button and availability toggle */}
       <div className="px-3 py-2 border-b flex items-center justify-between">
-        <h2 className="font-semibold">Conversaciones</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold">Conversaciones</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => setShowNewModal(true)}
+            title="Nueva conversacion"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
         <AvailabilityToggle />
       </div>
+
+      {/* New conversation modal */}
+      <NewConversationModal
+        open={showNewModal}
+        onOpenChange={setShowNewModal}
+        onConversationCreated={handleConversationCreated}
+      />
 
       {/* Filters */}
       <div className="p-3 border-b space-y-3">

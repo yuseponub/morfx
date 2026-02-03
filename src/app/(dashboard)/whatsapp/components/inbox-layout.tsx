@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { ConversationList } from './conversation-list'
 import { ContactPanel } from './contact-panel'
@@ -35,6 +35,11 @@ export function InboxLayout({
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(initialConversation)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
 
+  // Callback to sync selected conversation from list updates (realtime)
+  const handleConversationUpdatedFromList = useCallback((conversation: ConversationWithDetails) => {
+    setSelectedConversation(conversation)
+  }, [])
+
   // Handle conversation selection - receives conversation from list
   const handleSelectConversation = useCallback(async (id: string | null, conversation?: ConversationWithDetails) => {
     setSelectedConversationId(id)
@@ -63,6 +68,7 @@ export function InboxLayout({
           initialConversations={initialConversations}
           selectedId={selectedConversationId}
           onSelect={handleSelectConversation}
+          onSelectedUpdated={handleConversationUpdatedFromList}
         />
       </div>
 

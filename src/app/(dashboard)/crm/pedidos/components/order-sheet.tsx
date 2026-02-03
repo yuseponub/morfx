@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { TagBadge } from '@/components/contacts/tag-badge'
+import { OrderTagInput } from './order-tag-input'
 import { moveOrderToStage } from '@/app/actions/orders'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -374,15 +374,11 @@ export function OrderSheet({
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Etiquetas
               </h3>
-              {tags.length > 0 ? (
-                <div className="flex gap-2 flex-wrap">
-                  {tags.map((tag) => (
-                    <TagBadge key={tag.id} tag={tag} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Sin etiquetas</p>
-              )}
+              <OrderTagInput
+                orderId={order.id}
+                currentTags={tags}
+                onTagsChange={() => router.refresh()}
+              />
             </section>
 
             {/* Notes */}

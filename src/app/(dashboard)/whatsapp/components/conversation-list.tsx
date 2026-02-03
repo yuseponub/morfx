@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,8 @@ interface ConversationListProps {
   initialConversations: ConversationWithDetails[]
   selectedId: string | null
   onSelect: (id: string | null, conversation?: ConversationWithDetails) => void
+  /** Called when selected conversation data changes via realtime */
+  onSelectedUpdated?: (conversation: ConversationWithDetails) => void
 }
 
 /**
@@ -28,6 +30,7 @@ export function ConversationList({
   initialConversations,
   selectedId,
   onSelect,
+  onSelectedUpdated,
 }: ConversationListProps) {
   const [showNewModal, setShowNewModal] = useState(false)
 
@@ -41,10 +44,37 @@ export function ConversationList({
     isLoading,
     hasQuery,
     refresh,
+    getConversationById,
   } = useConversations({
     workspaceId,
     initialConversations,
   })
+
+  // Sync selected conversation when realtime updates arrive
+  // This ensures the chat header shows current window status
+  const prevConversationsRef = useRef(conversations)
+  useEffect(() => {
+    if (!selectedId || !onSelectedUpdated) return
+
+    // Find selected in updated conversations
+    const updated = getConversationById(selectedId)
+    if (!updated) return
+
+    // Find in previous conversations to compare
+    const prev = prevConversationsRef.current.find(c => c.id === selectedId)
+
+    // If key fields changed, notify parent
+    if (prev && (
+      prev.last_customer_message_at !== updated.last_customer_message_at ||
+      prev.last_message_at !== updated.last_message_at ||
+      prev.is_read !== updated.is_read ||
+      JSON.stringify(prev.tags) !== JSON.stringify(updated.tags)
+    )) {
+      onSelectedUpdated(updated)
+    }
+
+    prevConversationsRef.current = conversations
+  }, [conversations, selectedId, onSelectedUpdated, getConversationById])
 
   // Handle new conversation created
   const handleConversationCreated = async (conversationId: string) => {

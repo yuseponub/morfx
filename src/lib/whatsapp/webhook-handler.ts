@@ -143,7 +143,7 @@ async function processIncomingMessage(
     const messageTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString()
     const preview = buildMessagePreview(msg)
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('conversations')
       .update({
         last_message_at: messageTimestamp,
@@ -152,6 +152,10 @@ async function processIncomingMessage(
         is_read: false,
       })
       .eq('id', conversationId)
+
+    if (updateError) {
+      console.error('Error updating conversation stats:', updateError)
+    }
 
     console.log(`Processed inbound message ${msg.id} from ${phone}`)
   } catch (error) {

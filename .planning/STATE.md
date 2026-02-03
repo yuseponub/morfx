@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 3 of 8 complete
+Plan: 4 of 8 complete (09-01, 09-02, 09-03, 09-05)
 Status: Phase 9 in progress
-Last activity: 2026-02-03 - Completed 09-02-PLAN.md (Server Actions for conversation tags)
+Last activity: 2026-02-03 - Completed 09-05-PLAN.md (Conversation Tag UI)
 
-Progress: [########=-] ~84%
+Progress: [########=-] ~86%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -166,6 +166,9 @@ Recent decisions affecting current work:
 - [Phase 9-02]: Duplicate tag addition returns success (idempotent) via error code 23505
 - [Phase 9-02]: Conversations return tags (direct) and contactTags (inherited) separately
 - [Phase 9-02]: getTagsForScope filters by 'whatsapp' or 'orders' using applies_to IN clause
+- [Phase 9-05]: Compact tag mode shows max 3 tags with overflow indicator
+- [Phase 9-05]: Remove tag via hover X button on badge
+- [Phase 9-05]: router.refresh() for UI update after tag changes
 
 ### Project Rules
 
@@ -553,9 +556,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T15:19:00Z
-Stopped at: Completed 09-02-PLAN.md (Server Actions for conversation tags)
-Resume file: None - ready for Wave 3 plans (09-04, 09-05, 09-06)
+Last session: 2026-02-03T15:31:36Z
+Stopped at: Completed 09-05-PLAN.md (Conversation Tag UI)
+Resume file: None - Wave 3 in progress (09-04 in parallel, 09-06 next)
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

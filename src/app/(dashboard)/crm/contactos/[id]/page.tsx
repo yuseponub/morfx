@@ -18,6 +18,7 @@ import { ContactDetailActions } from './contact-detail-actions'
 import { CustomFieldsSection } from './components/custom-fields-section'
 import { NotesSection } from './components/notes-section'
 import { ActivityTimeline } from './components/activity-timeline'
+import { WhatsAppSection } from './components/whatsapp-section'
 
 interface ContactDetailPageProps {
   params: Promise<{ id: string }>
@@ -116,6 +117,9 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
               />
             </CardContent>
           </Card>
+
+          {/* WhatsApp conversations section */}
+          <WhatsAppSection contactId={contact.id} />
 
           {/* Contact info cards */}
           <div className="grid gap-4 md:grid-cols-2">

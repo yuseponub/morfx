@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 1 of 8 complete
+Plan: 3 of 8 complete (02/03 executing in parallel, both complete)
 Status: Phase 9 in progress
-Last activity: 2026-02-03 - Completed 09-01-PLAN.md (database foundation)
+Last activity: 2026-02-03 - Completed 09-03-PLAN.md (WhatsApp types extension)
 
-Progress: [########=-] ~81%
+Progress: [########=-] ~84%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -159,6 +159,9 @@ Recent decisions affecting current work:
 - [Phase 9-01]: Auto-tag trigger only fires on UPDATE (not INSERT) for explicit stage transitions
 - [Phase 9-01]: Stage-to-phase mapping falls back to 'pending' for unknown stages
 - [Phase 9-01]: Won orders show no indicator (success = no visual noise)
+- [Phase 9-03]: contactTags property is read-only in conversation context (inherited from contact)
+- [Phase 9-03]: OrderSummary includes is_closed for filtering won orders
+- [Phase 9-03]: getOrdersForContacts enables batch loading for conversation list efficiency
 
 ### Project Rules
 
@@ -546,9 +549,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T15:14:26Z
-Stopped at: Completed 09-01-PLAN.md (database foundation)
-Resume file: None - ready for 09-02-PLAN.md
+Last session: 2026-02-03T15:21:00Z
+Stopped at: Completed 09-03-PLAN.md (WhatsApp types extension)
+Resume file: None - ready for Wave 3 plans (09-04, 09-05, 09-06)
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

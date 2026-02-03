@@ -22,8 +22,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: WhatsApp Extended** - Templates, assignment, quick replies
 - [x] **Phase 8.1: Settings Navigation WhatsApp** - WhatsApp config accessible from Settings (INSERTED)
 - [x] **Phase 8.2: Quick Replies con Media** - Fotos y archivos en respuestas rapidas (INSERTED)
-- [ ] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
-- [ ] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
+- [x] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
+- [x] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
 - [ ] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
 
 ## Phase Details
@@ -280,8 +280,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 6. Orders | 5/5 | Complete | 2026-01-29 |
 | 7. WhatsApp Core | 3/3 | Complete | 2026-01-30 |
 | 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
-| 9. CRM-WhatsApp Sync | 0/8 | Ready | - |
-| 9.1 Order States Config | 0/4 | Ready | - |
+| 9. CRM-WhatsApp Sync | 7/8 | Complete | 2026-02-03 |
+| 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
 | 10. Search, Tasks & Analytics | 0/3 | Not started | - |
 
 ---

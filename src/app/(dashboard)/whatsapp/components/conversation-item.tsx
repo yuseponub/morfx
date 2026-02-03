@@ -78,7 +78,7 @@ export function ConversationItem({
             </div>
             {/* Emoji indicator on top-right corner */}
             {primaryEmoji && (
-              <span className="absolute -top-0.5 -right-0.5 text-xs leading-none">
+              <span className="absolute -top-1 -right-1 text-sm leading-none bg-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm border border-gray-100">
                 {primaryEmoji}
               </span>
             )}

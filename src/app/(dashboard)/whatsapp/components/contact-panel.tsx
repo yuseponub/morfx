@@ -232,7 +232,8 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated }: C
 
 import { getRecentOrders } from '@/app/actions/whatsapp'
 import { getTagsForScope } from '@/app/actions/tags'
-import { addOrderTag, removeOrderTag } from '@/app/actions/orders'
+import { addOrderTag, removeOrderTag, moveOrderToStage } from '@/app/actions/orders'
+import { getPipelines } from '@/app/actions/orders'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Plus, X as XIcon } from 'lucide-react'
@@ -254,7 +255,8 @@ import { toast } from 'sonner'
 interface RecentOrder {
   id: string
   total_value: number | null
-  stage: { name: string; color: string } | null
+  stage: { id: string; name: string; color: string } | null
+  stage_id: string
   created_at: string
   tags: Array<{ id: string; name: string; color: string }>
 }
@@ -265,23 +267,39 @@ interface AvailableTag {
   color: string
 }
 
+interface PipelineStage {
+  id: string
+  name: string
+  color: string
+}
+
+interface Pipeline {
+  id: string
+  name: string
+  stages: PipelineStage[]
+}
+
 function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refreshKey?: number }) {
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
+  const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
   const [openTagPopover, setOpenTagPopover] = useState<string | null>(null)
+  const [openStagePopover, setOpenStagePopover] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true)
       try {
-        const [ordersData, tagsData] = await Promise.all([
+        const [ordersData, tagsData, pipelinesData] = await Promise.all([
           getRecentOrders(contactId),
-          getTagsForScope('orders')
+          getTagsForScope('orders'),
+          getPipelines()
         ])
         setOrders(ordersData)
         setAvailableTags(tagsData)
+        setPipelines(pipelinesData)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -335,6 +353,33 @@ function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refres
     }
   }
 
+  const handleStageChange = async (orderId: string, newStage: PipelineStage) => {
+    // Store original for revert
+    const originalOrders = orders
+
+    // Optimistic update
+    setOrders(prev => prev.map(order => {
+      if (order.id === orderId) {
+        return {
+          ...order,
+          stage_id: newStage.id,
+          stage: { id: newStage.id, name: newStage.name, color: newStage.color }
+        }
+      }
+      return order
+    }))
+    setOpenStagePopover(null)
+
+    const result = await moveOrderToStage(orderId, newStage.id)
+    if ('error' in result) {
+      toast.error(result.error)
+      // Revert
+      setOrders(originalOrders)
+    } else {
+      toast.success(`Pedido movido a ${newStage.name}`)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -361,30 +406,67 @@ function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refres
           t => !order.tags.some(ot => ot.id === t.id)
         )
 
+        // Get all stages from all pipelines for selector
+        const allStages = pipelines.flatMap(p => p.stages)
+
         return (
           <div
             key={order.id}
             className="p-2 rounded-lg border hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center justify-between">
-              <Link
-                href={`/crm/pedidos?order=${order.id}`}
-                className="flex-1 min-w-0"
-              >
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  {order.stage && (
-                    <OrderStageBadge stage={order.stage} size="sm" />
-                  )}
-                  <span className="text-sm font-medium">
-                    {order.total_value
-                      ? new Intl.NumberFormat('es-CO', {
-                          style: 'currency',
-                          currency: 'COP',
-                          maximumFractionDigits: 0,
-                        }).format(order.total_value)
-                      : '-'
-                    }
-                  </span>
+                  {/* Stage selector */}
+                  <Popover
+                    open={openStagePopover === order.id}
+                    onOpenChange={(open) => setOpenStagePopover(open ? order.id : null)}
+                  >
+                    <PopoverTrigger asChild>
+                      <button className="hover:opacity-80 transition-opacity">
+                        {order.stage && (
+                          <OrderStageBadge stage={order.stage} size="sm" />
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar etapa..." />
+                        <CommandList>
+                          <CommandEmpty>No hay etapas</CommandEmpty>
+                          {pipelines.map((pipeline) => (
+                            <CommandGroup key={pipeline.id} heading={pipeline.name}>
+                              {pipeline.stages.map((stage) => (
+                                <CommandItem
+                                  key={stage.id}
+                                  onSelect={() => handleStageChange(order.id, stage)}
+                                  className={order.stage?.id === stage.id ? 'bg-accent' : ''}
+                                >
+                                  <span
+                                    className="w-3 h-3 rounded-full mr-2"
+                                    style={{ backgroundColor: stage.color }}
+                                  />
+                                  {stage.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Link href={`/crm/pedidos?order=${order.id}`}>
+                    <span className="text-sm font-medium hover:underline">
+                      {order.total_value
+                        ? new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            maximumFractionDigits: 0,
+                          }).format(order.total_value)
+                        : '-'
+                      }
+                    </span>
+                  </Link>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {formatDistanceToNow(new Date(order.created_at), {
@@ -392,7 +474,7 @@ function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refres
                     locale: es,
                   })}
                 </p>
-              </Link>
+              </div>
               <button
                 onClick={() => setViewingOrderId(order.id)}
                 className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-2"

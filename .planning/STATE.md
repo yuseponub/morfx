@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 4 of 8 complete (09-01, 09-02, 09-03, 09-05)
+Plan: 5 of 8 complete (09-01, 09-02, 09-03, 09-04, 09-05)
 Status: Phase 9 in progress
-Last activity: 2026-02-03 - Completed 09-05-PLAN.md (Conversation Tag UI)
+Last activity: 2026-02-03 - Completed 09-04-PLAN.md (WhatsApp UI Order Indicators)
 
-Progress: [########=-] ~86%
+Progress: [########=-] ~87%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -169,6 +169,10 @@ Recent decisions affecting current work:
 - [Phase 9-05]: Compact tag mode shows max 3 tags with overflow indicator
 - [Phase 9-05]: Remove tag via hover X button on badge
 - [Phase 9-05]: router.refresh() for UI update after tag changes
+- [Phase 9-04]: Won orders don't show indicators (success = no visual noise)
+- [Phase 9-04]: Contact tags displayed with 60% opacity to distinguish from conversation tags
+- [Phase 9-04]: Max 3 order indicators in conversation list with overflow +N
+- [Phase 9-04]: Section labels "Etiquetas de chat" and "Etiquetas de contacto" in contact panel
 
 ### Project Rules
 
@@ -556,9 +560,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T15:31:36Z
-Stopped at: Completed 09-05-PLAN.md (Conversation Tag UI)
-Resume file: None - Wave 3 in progress (09-04 in parallel, 09-06 next)
+Last session: 2026-02-03T15:32:23Z
+Stopped at: Completed 09-04-PLAN.md (WhatsApp UI Order Indicators)
+Resume file: None - Wave 3 plans 09-04 and 09-05 complete, 09-06 next
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -11,7 +11,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { logout } from '@/app/actions/auth'
 import type { WorkspaceWithRole } from '@/lib/types/database'
+import type { User } from '@supabase/supabase-js'
 
 const navItems = [
   {
@@ -39,9 +42,10 @@ const navItems = [
 interface SidebarProps {
   workspaces?: WorkspaceWithRole[]
   currentWorkspace?: WorkspaceWithRole | null
+  user?: User | null
 }
 
-export function Sidebar({ workspaces = [], currentWorkspace }: SidebarProps) {
+export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProps) {
   const pathname = usePathname()
 
   return (
@@ -100,11 +104,40 @@ export function Sidebar({ workspaces = [], currentWorkspace }: SidebarProps) {
         </TooltipProvider>
       </nav>
 
-      {/* Footer */}
+      {/* Footer - User profile */}
       <div className="p-4 border-t">
-        <p className="text-xs text-muted-foreground text-center">
-          morfx v0.1.0
-        </p>
+        {user && (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user.email?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {user.email?.split('@')[0]}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+            <form action={logout}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="submit"
+                    className="p-2 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Cerrar sesion</p>
+                </TooltipContent>
+              </Tooltip>
+            </form>
+          </div>
+        )}
       </div>
     </aside>
   )

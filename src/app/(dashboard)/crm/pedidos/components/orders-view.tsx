@@ -43,7 +43,6 @@ import { PipelineTabs } from './pipeline-tabs'
 import { StageEditDialog } from './stage-edit-dialog'
 import { OrderForm } from './order-form'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
-import { UserMenu } from '@/components/layout/user-menu'
 import { deleteOrder, deleteOrders, exportOrdersToCSV } from '@/app/actions/orders'
 import { useOrderSearch } from '@/lib/search/fuse-config'
 import type { User } from '@supabase/supabase-js'
@@ -519,9 +518,6 @@ export function OrdersView({
 
         {/* Theme toggle */}
         <ThemeToggle />
-
-        {/* User menu */}
-        {user && <UserMenu user={user} />}
       </div>
 
       {/* Selection bar */}

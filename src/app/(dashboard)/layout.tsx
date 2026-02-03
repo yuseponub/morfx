@@ -33,7 +33,7 @@ export default async function DashboardLayout({
   return (
     <WorkspaceProvider workspace={currentWorkspace} workspaces={workspaces}>
       <div className="flex h-screen">
-        <Sidebar workspaces={workspaces} currentWorkspace={currentWorkspace} />
+        <Sidebar workspaces={workspaces} currentWorkspace={currentWorkspace} user={user} />
         <main className="flex-1 flex flex-col overflow-hidden">
           {children}
         </main>

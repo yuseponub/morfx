@@ -1,15 +1,9 @@
 'use client'
 
-import { User } from '@supabase/supabase-js'
 import { ThemeToggle } from './theme-toggle'
-import { UserMenu } from './user-menu'
 import { MobileNav } from './mobile-nav'
 
-interface HeaderProps {
-  user: User
-}
-
-export function Header({ user }: HeaderProps) {
+export function Header() {
   return (
     <header className="h-12 border-b bg-card flex items-center justify-between px-4 md:px-6">
       {/* Left: Mobile nav only */}
@@ -17,10 +11,9 @@ export function Header({ user }: HeaderProps) {
         <MobileNav />
       </div>
 
-      {/* Right: Theme toggle + User menu */}
+      {/* Right: Theme toggle */}
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <UserMenu user={user} />
       </div>
     </header>
   )

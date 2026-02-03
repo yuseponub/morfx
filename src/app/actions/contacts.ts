@@ -768,3 +768,71 @@ export async function getContactByPhone(phone: string): Promise<Contact | null> 
 
   return data
 }
+
+// ============================================================================
+// WhatsApp Integration
+// ============================================================================
+
+/**
+ * Conversation summary for display in CRM contact page.
+ */
+export interface ContactConversationSummary {
+  id: string
+  phone: string
+  status: string
+  last_message_at: string | null
+  last_message_preview: string | null
+  unread_count: number
+  tags: Array<{ id: string; name: string; color: string }>
+}
+
+/**
+ * Get WhatsApp conversations linked to a contact.
+ * Returns conversations with their conversation-specific tags.
+ */
+export async function getContactConversations(
+  contactId: string
+): Promise<ContactConversationSummary[]> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('conversations')
+    .select(`
+      id,
+      phone,
+      status,
+      last_message_at,
+      last_message_preview,
+      unread_count,
+      conversation_tags:conversation_tags(tag:tags(id, name, color))
+    `)
+    .eq('contact_id', contactId)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+
+  if (error) {
+    console.error('Error fetching contact conversations:', error)
+    return []
+  }
+
+  // Transform to summary format
+  return (data || []).map((conv) => {
+    const tags = (conv.conversation_tags || [])
+      .map((ct: { tag: { id: string; name: string; color: string } | null }) => ct.tag)
+      .filter((tag): tag is { id: string; name: string; color: string } => tag !== null)
+
+    return {
+      id: conv.id,
+      phone: conv.phone,
+      status: conv.status,
+      last_message_at: conv.last_message_at,
+      last_message_preview: conv.last_message_preview,
+      unread_count: conv.unread_count,
+      tags,
+    }
+  })
+}

@@ -62,6 +62,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
   const currentUserId = user?.id
 
   return (
+    <div className="flex-1 overflow-auto p-6">
     <div className="space-y-6 max-w-4xl">
       {/* Back button */}
       <div className="flex items-center gap-4">
@@ -261,6 +262,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
     </div>
   )
 }

@@ -76,12 +76,21 @@ export interface UpdateMemberInput {
 // Phase 4: Contacts & Tags
 // ============================================================================
 
+/**
+ * Tag scope determines where a tag can be applied.
+ * - 'whatsapp': Only on conversations
+ * - 'orders': Only on orders
+ * - 'both': On both conversations and orders (default)
+ */
+export type TagScope = 'whatsapp' | 'orders' | 'both'
+
 // Base entity types
 export interface Tag {
   id: string
   workspace_id: string
   name: string
   color: string
+  applies_to: TagScope
   created_at: string
 }
 
@@ -132,11 +141,13 @@ export interface UpdateContactInput {
 export interface CreateTagInput {
   name: string
   color?: string
+  applies_to?: TagScope
 }
 
 export interface UpdateTagInput {
   name?: string
   color?: string
+  applies_to?: TagScope
 }
 
 // ============================================================================

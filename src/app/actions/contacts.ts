@@ -821,9 +821,13 @@ export async function getContactConversations(
 
   // Transform to summary format
   return (data || []).map((conv) => {
-    const tags = (conv.conversation_tags || [])
-      .map((ct: { tag: { id: string; name: string; color: string } | null }) => ct.tag)
-      .filter((tag): tag is { id: string; name: string; color: string } => tag !== null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conversationTags = conv.conversation_tags as any[] || []
+    const tags = conversationTags
+      .map((ct) => ct.tag)
+      .filter((tag): tag is { id: string; name: string; color: string } =>
+        tag !== null && typeof tag === 'object' && 'id' in tag
+      )
 
     return {
       id: conv.id,

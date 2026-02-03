@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, Shield, Building2, MessageSquare } from 'lucide-react'
+import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const settingsLinks = [
@@ -20,6 +20,36 @@ const settingsLinks = [
     title: 'WhatsApp',
     description: 'Templates, equipos, respuestas rapidas y costos de mensajeria',
     icon: MessageSquare,
+  },
+  {
+    href: '/crm/contactos',
+    title: 'Contactos',
+    description: 'Lista y gestion de contactos del CRM',
+    icon: Contact,
+  },
+  {
+    href: '/crm/productos',
+    title: 'Productos',
+    description: 'Catalogo de productos disponibles para pedidos',
+    icon: Package,
+  },
+  {
+    href: '/crm/configuracion/campos-custom',
+    title: 'Campos personalizados',
+    description: 'Define campos adicionales para contactos',
+    icon: SlidersHorizontal,
+  },
+  {
+    href: '/crm/configuracion/pipelines',
+    title: 'Pipelines',
+    description: 'Configura etapas del pipeline de ventas',
+    icon: GitBranch,
+  },
+  {
+    href: '/crm/configuracion/estados-pedido',
+    title: 'Estados de pedido',
+    description: 'Configura estados con emoji para indicadores',
+    icon: CircleDot,
   },
 ]
 

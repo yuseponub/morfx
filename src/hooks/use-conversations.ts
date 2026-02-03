@@ -15,7 +15,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import Fuse, { IFuseOptions } from 'fuse.js'
 import { createClient } from '@/lib/supabase/client'
 import { getConversations } from '@/app/actions/conversations'
-import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+import { getOrdersForContacts } from '@/app/actions/whatsapp'
+import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 
 // ============================================================================
 // Types
@@ -39,6 +40,8 @@ interface UseConversationsOptions {
 interface UseConversationsReturn {
   /** All conversations (filtered by search and status) */
   conversations: ConversationWithDetails[]
+  /** Orders mapped by contact ID */
+  ordersByContact: Map<string, OrderSummary[]>
   /** Search query */
   query: string
   /** Update search query */
@@ -49,6 +52,8 @@ interface UseConversationsReturn {
   setFilter: (filter: ConversationFilter) => void
   /** Loading state */
   isLoading: boolean
+  /** Loading orders state */
+  isLoadingOrders: boolean
   /** Whether there's an active search */
   hasQuery: boolean
   /** Refresh conversations */
@@ -101,9 +106,11 @@ export function useConversations({
 }: UseConversationsOptions): UseConversationsReturn {
   // State
   const [conversations, setConversations] = useState<ConversationWithDetails[]>(initialConversations)
+  const [ordersByContact, setOrdersByContact] = useState<Map<string, OrderSummary[]>>(new Map())
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ConversationFilter>('all')
   const [isLoading, setIsLoading] = useState(!initialConversations.length)
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // Get current user ID for 'mine' filter
@@ -161,14 +168,47 @@ export function useConversations({
     fetchConversations()
   }, [fetchConversations])
 
-  // Set up Supabase Realtime subscription
+  // Load orders for all contacts in batch after conversations load
+  useEffect(() => {
+    async function loadOrders() {
+      // Get unique contact IDs from conversations
+      const contactIds = conversations
+        .map(c => c.contact?.id)
+        .filter((id): id is string => !!id)
+
+      if (contactIds.length === 0) {
+        setOrdersByContact(new Map())
+        return
+      }
+
+      // Deduplicate
+      const uniqueContactIds = [...new Set(contactIds)]
+
+      setIsLoadingOrders(true)
+      try {
+        const orders = await getOrdersForContacts(uniqueContactIds)
+        setOrdersByContact(orders)
+      } catch (error) {
+        console.error('Error loading orders:', error)
+      } finally {
+        setIsLoadingOrders(false)
+      }
+    }
+
+    // Only load orders after initial conversations load
+    if (!isLoading && conversations.length > 0) {
+      loadOrders()
+    }
+  }, [conversations, isLoading])
+
+  // Set up Supabase Realtime subscriptions
   useEffect(() => {
     if (!workspaceId) return
 
     const supabase = createClient()
 
     // Subscribe to conversations table changes
-    const channel = supabase
+    const conversationsChannel = supabase
       .channel(`conversations:${workspaceId}`)
       .on(
         'postgres_changes',
@@ -188,11 +228,78 @@ export function useConversations({
         console.log('Realtime conversations status:', status, err || '')
       })
 
+    // Subscribe to conversation_tags changes (for tag sync)
+    // Note: conversation_tags is a junction table without workspace_id
+    // RLS ensures we only see tags for conversations in our workspace
+    const tagsChannel = supabase
+      .channel(`conversation_tags:${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversation_tags',
+        },
+        async () => {
+          console.log('Conversation tags change received')
+          await fetchConversations()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to contact_tags changes (for inherited tag sync)
+    const contactTagsChannel = supabase
+      .channel(`contact_tags:${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contact_tags',
+        },
+        async () => {
+          console.log('Contact tags change received')
+          await fetchConversations()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to orders changes (for order indicator updates when stage changes)
+    const ordersChannel = supabase
+      .channel(`orders:${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        async (payload) => {
+          // Only refresh orders if stage_id changed
+          if (payload.old?.stage_id !== payload.new?.stage_id) {
+            console.log('Order stage change received')
+            // Refresh orders data
+            const contactIds = conversations
+              .map(c => c.contact?.id)
+              .filter((id): id is string => !!id)
+            if (contactIds.length > 0) {
+              const orders = await getOrdersForContacts([...new Set(contactIds)])
+              setOrdersByContact(orders)
+            }
+          }
+        }
+      )
+      .subscribe()
+
     // Cleanup on unmount
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(conversationsChannel)
+      supabase.removeChannel(tagsChannel)
+      supabase.removeChannel(contactTagsChannel)
+      supabase.removeChannel(ordersChannel)
     }
-  }, [workspaceId, fetchConversations])
+  }, [workspaceId, fetchConversations, conversations])
 
   // Memoized Fuse instance
   const fuse = useMemo(
@@ -218,11 +325,13 @@ export function useConversations({
 
   return {
     conversations: filteredConversations,
+    ordersByContact,
     query,
     setQuery,
     filter,
     setFilter,
     isLoading,
+    isLoadingOrders,
     hasQuery: query.trim().length > 0,
     refresh: fetchConversations,
     getConversationById,

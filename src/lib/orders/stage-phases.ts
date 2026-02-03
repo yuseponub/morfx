@@ -3,6 +3,31 @@
 // Maps pipeline stages to simplified display phases for WhatsApp conversation UI
 // ============================================================================
 
+// ============================================================================
+// DB-DRIVEN TYPES (Phase 9.1)
+// ============================================================================
+
+/**
+ * Stage with optional order_state info for DB-driven emoji lookup.
+ * Used when stage data is fetched with order_state join.
+ */
+export interface StageWithOrderState {
+  id: string
+  name: string
+  color: string
+  is_closed?: boolean
+  order_state_id?: string | null
+  order_state?: {
+    id: string
+    emoji: string
+    name: string
+  } | null
+}
+
+// ============================================================================
+// LEGACY HARDCODED MAPPING (Fallback)
+// ============================================================================
+
 /**
  * Simplified order phase for display in conversation list.
  * - pending: Needs attention (missing info, unconfirmed)
@@ -113,4 +138,53 @@ export function getOrderPhase(stageName: string): OrderPhase {
  */
 export function shouldShowIndicator(phase: OrderPhase): boolean {
   return phase !== 'won'
+}
+
+// ============================================================================
+// DB-DRIVEN FUNCTIONS (Phase 9.1)
+// ============================================================================
+
+/**
+ * Get the emoji for a stage.
+ * Returns the configured order_state.emoji if assigned, otherwise falls back to hardcoded PHASE_INDICATORS.
+ * Returns null if no indicator should be shown (e.g., won/closed orders).
+ */
+export function getStageEmoji(stage: StageWithOrderState): string | null {
+  // Closed stages (won) don't show indicators
+  if (stage.is_closed) {
+    return null
+  }
+
+  // If stage has order_state assigned, use its emoji
+  if (stage.order_state?.emoji) {
+    return stage.order_state.emoji
+  }
+
+  // Fallback to hardcoded mapping
+  const phase = getOrderPhase(stage.name)
+  if (!shouldShowIndicator(phase)) {
+    return null
+  }
+  return PHASE_INDICATORS[phase].emoji
+}
+
+/**
+ * Check if a stage should show an indicator.
+ * If stage has order_state assigned, always show (unless empty emoji or closed).
+ * If no order_state, use legacy shouldShowIndicator logic.
+ */
+export function shouldShowStageIndicator(stage: StageWithOrderState): boolean {
+  // Closed stages never show indicators
+  if (stage.is_closed) {
+    return false
+  }
+
+  // If stage has order_state, show indicator (order_state.emoji is required so always truthy)
+  if (stage.order_state_id) {
+    return !!stage.order_state?.emoji
+  }
+
+  // Fallback to legacy logic
+  const phase = getOrderPhase(stage.name)
+  return shouldShowIndicator(phase)
 }

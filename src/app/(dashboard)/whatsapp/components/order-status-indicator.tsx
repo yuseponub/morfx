@@ -1,6 +1,12 @@
 'use client'
 
-import { getOrderPhase, PHASE_INDICATORS, shouldShowIndicator, type OrderPhase } from '@/lib/orders/stage-phases'
+import {
+  getStageEmoji,
+  shouldShowStageIndicator,
+  PHASE_INDICATORS,
+  getOrderPhase,
+  type StageWithOrderState,
+} from '@/lib/orders/stage-phases'
 import type { OrderSummary } from '@/lib/whatsapp/types'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -31,35 +37,49 @@ export function OrderStatusIndicator({
   showTooltip = true,
   size = 'sm',
 }: OrderStatusIndicatorProps) {
-  // Filter to only active (non-won) orders and get their phases
-  const activePhases = orders
-    .map(order => ({
-      order,
-      phase: getOrderPhase(order.stage.name),
-    }))
-    .filter(({ phase }) => shouldShowIndicator(phase))
+  // Filter to orders with stages that should show indicators (DB-driven or fallback)
+  const activeOrders = orders.filter(order =>
+    shouldShowStageIndicator(order.stage as StageWithOrderState)
+  )
 
-  if (activePhases.length === 0) {
+  if (activeOrders.length === 0) {
     return null
   }
 
-  // Group by phase (deduplicate) and get unique phases
-  const uniquePhases = [...new Set(activePhases.map(({ phase }) => phase))]
-  const displayedPhases = uniquePhases.slice(0, maxDisplay)
-  const overflow = uniquePhases.length - maxDisplay
+  // Get unique emojis (deduplicate by emoji value)
+  const emojiMap = new Map<string, { emoji: string; label: string; orders: typeof activeOrders }>()
+
+  for (const order of activeOrders) {
+    const emoji = getStageEmoji(order.stage as StageWithOrderState)
+    if (emoji) {
+      const existing = emojiMap.get(emoji)
+      // Label: use order_state.name if available, otherwise fallback to legacy phase label
+      const label = order.stage.order_state?.name ||
+        PHASE_INDICATORS[getOrderPhase(order.stage.name)].label
+      if (existing) {
+        existing.orders.push(order)
+      } else {
+        emojiMap.set(emoji, { emoji, label, orders: [order] })
+      }
+    }
+  }
+
+  const uniqueEmojis = Array.from(emojiMap.values())
+  const displayedEmojis = uniqueEmojis.slice(0, maxDisplay)
+  const overflow = uniqueEmojis.length - maxDisplay
 
   const sizeClasses = size === 'sm' ? 'text-xs' : 'text-sm'
 
   if (!showTooltip) {
     return (
       <div className="flex items-center gap-0.5">
-        {displayedPhases.map((phase) => (
+        {displayedEmojis.map(({ emoji, label }) => (
           <span
-            key={phase}
+            key={emoji}
             className={sizeClasses}
-            aria-label={PHASE_INDICATORS[phase].label}
+            aria-label={label}
           >
-            {PHASE_INDICATORS[phase].emoji}
+            {emoji}
           </span>
         ))}
         {overflow > 0 && (
@@ -74,32 +94,26 @@ export function OrderStatusIndicator({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-0.5">
-        {displayedPhases.map((phase) => {
-          // Get orders for this phase for tooltip
-          const phaseOrders = activePhases.filter(({ phase: p }) => p === phase)
-          const indicator = PHASE_INDICATORS[phase]
-
-          return (
-            <Tooltip key={phase}>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${sizeClasses} cursor-help`}
-                  aria-label={indicator.label}
-                >
-                  {indicator.emoji}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[200px]">
-                <div className="text-xs">
-                  <p className="font-medium">{indicator.label}</p>
-                  <p className="text-muted-foreground">
-                    {phaseOrders.length} pedido{phaseOrders.length > 1 ? 's' : ''}
-                  </p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )
-        })}
+        {displayedEmojis.map(({ emoji, label, orders: emojiOrders }) => (
+          <Tooltip key={emoji}>
+            <TooltipTrigger asChild>
+              <span
+                className={`${sizeClasses} cursor-help`}
+                aria-label={label}
+              >
+                {emoji}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[200px]">
+              <div className="text-xs">
+                <p className="font-medium">{label}</p>
+                <p className="text-muted-foreground">
+                  {emojiOrders.length} pedido{emojiOrders.length > 1 ? 's' : ''}
+                </p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ))}
         {overflow > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>

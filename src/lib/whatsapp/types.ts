@@ -542,6 +542,7 @@ export type ActionResult<T = void> =
 /**
  * Order summary for display in WhatsApp contact panel.
  * Minimal fields needed for order indicators and list display.
+ * Stage includes optional order_state info for DB-driven emoji lookup (Phase 9.1).
  */
 export interface OrderSummary {
   id: string
@@ -551,6 +552,12 @@ export interface OrderSummary {
     name: string
     color: string
     is_closed: boolean
+    order_state_id?: string | null
+    order_state?: {
+      id: string
+      emoji: string
+      name: string
+    } | null
   }
   pipeline: {
     id: string

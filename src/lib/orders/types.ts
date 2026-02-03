@@ -64,6 +64,7 @@ export interface PipelineStage {
   position: number
   wip_limit: number | null
   is_closed: boolean
+  order_state_id?: string | null
   created_at: string
 }
 
@@ -80,6 +81,39 @@ export interface PipelineStageFormData {
  */
 export interface PipelineWithStages extends Pipeline {
   stages: PipelineStage[]
+}
+
+// ============================================================================
+// ORDER STATE TYPES
+// ============================================================================
+
+/**
+ * Configurable order state that groups pipeline stages.
+ * Each state has a name and emoji (displayed as indicator in WhatsApp).
+ */
+export interface OrderState {
+  id: string
+  workspace_id: string
+  name: string
+  emoji: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Form data for creating/updating an order state.
+ */
+export interface OrderStateFormData {
+  name: string
+  emoji: string
+}
+
+/**
+ * Order state with its assigned stages loaded.
+ */
+export interface OrderStateWithStages extends OrderState {
+  stages: Pick<PipelineStage, 'id' | 'name' | 'color' | 'pipeline_id'>[]
 }
 
 // ============================================================================

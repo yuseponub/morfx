@@ -5,22 +5,26 @@ import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
-import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+import { OrderStatusIndicator } from './order-status-indicator'
+import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 
 interface ConversationItemProps {
   conversation: ConversationWithDetails
   isSelected: boolean
   onSelect: (id: string) => void
+  /** Orders for this conversation's contact (for status indicators) */
+  orders?: OrderSummary[]
 }
 
 /**
  * Single conversation item in the inbox list.
- * Shows contact name/phone, last message preview, timestamp, and tags.
+ * Shows contact name/phone, last message preview, timestamp, order indicators, and tags.
  */
 export function ConversationItem({
   conversation,
   isSelected,
   onSelect,
+  orders = [],
 }: ConversationItemProps) {
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
@@ -32,6 +36,10 @@ export function ConversationItem({
         locale: es,
       })
     : null
+
+  // Combine tags: conversation tags first, then contact tags (marked as inherited)
+  const conversationTags = conversation.tags || []
+  const contactTags = conversation.contactTags || []
 
   return (
     <button
@@ -57,12 +65,24 @@ export function ConversationItem({
           )}
         </div>
 
-        {/* Timestamp */}
-        {timeAgo && (
-          <span className="flex-shrink-0 text-xs text-muted-foreground">
-            {timeAgo}
-          </span>
-        )}
+        {/* Order indicators and timestamp */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Order status indicators */}
+          {orders.length > 0 && (
+            <OrderStatusIndicator
+              orders={orders}
+              maxDisplay={3}
+              showTooltip={false}
+              size="sm"
+            />
+          )}
+          {/* Timestamp */}
+          {timeAgo && (
+            <span className="text-xs text-muted-foreground">
+              {timeAgo}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Last message preview */}
@@ -82,13 +102,25 @@ export function ConversationItem({
           </Badge>
         )}
 
-        {/* Tags */}
-        {conversation.tags.slice(0, 3).map((tag) => (
-          <TagBadge key={tag.id} tag={tag} size="sm" />
+        {/* Conversation-specific tags (direct) */}
+        {conversationTags.slice(0, 2).map((tag) => (
+          <TagBadge key={`conv-${tag.id}`} tag={tag} size="sm" />
         ))}
-        {conversation.tags.length > 3 && (
+
+        {/* Contact tags (inherited) - shown with opacity to distinguish */}
+        {contactTags.slice(0, 2).map((tag) => (
+          <TagBadge
+            key={`contact-${tag.id}`}
+            tag={tag}
+            size="sm"
+            className="opacity-60"
+          />
+        ))}
+
+        {/* Overflow indicator */}
+        {(conversationTags.length + contactTags.length) > 4 && (
           <span className="text-xs text-muted-foreground">
-            +{conversation.tags.length - 3}
+            +{conversationTags.length + contactTags.length - 4}
           </span>
         )}
       </div>

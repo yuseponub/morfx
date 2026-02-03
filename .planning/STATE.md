@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 3 of 8 complete (02/03 executing in parallel, both complete)
+Plan: 3 of 8 complete
 Status: Phase 9 in progress
-Last activity: 2026-02-03 - Completed 09-03-PLAN.md (WhatsApp types extension)
+Last activity: 2026-02-03 - Completed 09-02-PLAN.md (Server Actions for conversation tags)
 
 Progress: [########=-] ~84%
 
@@ -162,6 +162,10 @@ Recent decisions affecting current work:
 - [Phase 9-03]: contactTags property is read-only in conversation context (inherited from contact)
 - [Phase 9-03]: OrderSummary includes is_closed for filtering won orders
 - [Phase 9-03]: getOrdersForContacts enables batch loading for conversation list efficiency
+- [Phase 9-02]: Tag scope validation rejects 'orders' scope tags for conversations
+- [Phase 9-02]: Duplicate tag addition returns success (idempotent) via error code 23505
+- [Phase 9-02]: Conversations return tags (direct) and contactTags (inherited) separately
+- [Phase 9-02]: getTagsForScope filters by 'whatsapp' or 'orders' using applies_to IN clause
 
 ### Project Rules
 
@@ -549,8 +553,8 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T15:21:00Z
-Stopped at: Completed 09-03-PLAN.md (WhatsApp types extension)
+Last session: 2026-02-03T15:19:00Z
+Stopped at: Completed 09-02-PLAN.md (Server Actions for conversation tags)
 Resume file: None - ready for Wave 3 plans (09-04, 09-05, 09-06)
 
 Plan 08 complete:

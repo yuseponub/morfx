@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9.1 of 10 (Order States Config)
-Plan: 1 of 3 complete (09.1-01)
-Status: Phase 9.1 in progress
-Last activity: 2026-02-03 - Completed 09.1-01-PLAN.md (Order States Foundation)
+Plan: 3 of 3 complete (09.1-01, 09.1-02, 09.1-03)
+Status: Phase 9.1 complete
+Last activity: 2026-02-03 - Completed 09.1-03-PLAN.md (WhatsApp DB Emoji Integration)
 
-Progress: [#########=] ~92%
+Progress: [##########] ~95%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -186,6 +186,9 @@ Recent decisions affecting current work:
 - [Phase 9.1-01]: ON DELETE SET NULL for order_state_id FK - stages become unassigned when state deleted
 - [Phase 9.1-01]: Manager-only write policies for order_states (SELECT for all members)
 - [Phase 9.1-01]: Temp negative positions pattern for reorder to avoid unique constraint violations
+- [Phase 9.1-03]: Fallback pattern: DB emoji first, then hardcoded PHASE_INDICATORS
+- [Phase 9.1-03]: Closed stages never show emoji indicator
+- [Phase 9.1-03]: Only first active order emoji shown on avatar (not all)
 
 ### Project Rules
 
@@ -573,9 +576,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T20:55:18Z
-Stopped at: Completed 09.1-01-PLAN.md (Order States Foundation)
-Resume file: None - Plan 09.1-01 complete, 09.1-02 next
+Last session: 2026-02-03T21:02:00Z
+Stopped at: Completed 09.1-03-PLAN.md (WhatsApp DB Emoji Integration)
+Resume file: None - Phase 9.1 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

@@ -215,6 +215,9 @@ export interface ReactionContent {
 
 /**
  * Conversation with contact details for UI display.
+ * Tags are split into two sources:
+ * - tags: Direct conversation tags (applied to the conversation)
+ * - contactTags: Inherited from linked contact (read-only in conversation context)
  */
 export interface ConversationWithDetails extends Conversation {
   contact: {
@@ -224,7 +227,14 @@ export interface ConversationWithDetails extends Conversation {
     address: string | null
     city: string | null
   } | null
+  /** Direct tags applied to this conversation */
   tags: Array<{
+    id: string
+    name: string
+    color: string
+  }>
+  /** Inherited tags from linked contact (read-only display) */
+  contactTags: Array<{
     id: string
     name: string
     color: string
@@ -524,6 +534,31 @@ export interface ConversationFilters {
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { error: string; field?: string }
+
+// ============================================================================
+// ORDER SUMMARY FOR WHATSAPP CONTEXT (PHASE 9)
+// ============================================================================
+
+/**
+ * Order summary for display in WhatsApp contact panel.
+ * Minimal fields needed for order indicators and list display.
+ */
+export interface OrderSummary {
+  id: string
+  total_value: number | null
+  stage: {
+    id: string
+    name: string
+    color: string
+    is_closed: boolean
+  }
+  pipeline: {
+    id: string
+    name: string
+  }
+  created_at: string
+  updated_at: string
+}
 
 // ============================================================================
 // PHASE 8: TEMPLATE TYPES

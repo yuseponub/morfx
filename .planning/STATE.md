@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 5 of 8 complete (09-01, 09-02, 09-03, 09-04, 09-05)
+Plan: 7 of 8 complete (09-01, 09-02, 09-03, 09-04, 09-05, 09-06, 09-07)
 Status: Phase 9 in progress
-Last activity: 2026-02-03 - Completed 09-04-PLAN.md (WhatsApp UI Order Indicators)
+Last activity: 2026-02-03 - Completed 09-07-PLAN.md (CRM WhatsApp Section)
 
-Progress: [########=-] ~87%
+Progress: [#########=] ~91%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -173,6 +173,9 @@ Recent decisions affecting current work:
 - [Phase 9-04]: Contact tags displayed with 60% opacity to distinguish from conversation tags
 - [Phase 9-04]: Max 3 order indicators in conversation list with overflow +N
 - [Phase 9-04]: Section labels "Etiquetas de chat" and "Etiquetas de contacto" in contact panel
+- [Phase 9-07]: WhatsApp section in CRM contact placed after tags for visibility
+- [Phase 9-07]: Client-side fetch for WhatsApp conversations to avoid blocking page load
+- [Phase 9-07]: Cast conversation_tags to any[] for Supabase nested join TypeScript compatibility
 
 ### Project Rules
 
@@ -560,9 +563,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T15:32:23Z
-Stopped at: Completed 09-04-PLAN.md (WhatsApp UI Order Indicators)
-Resume file: None - Wave 3 plans 09-04 and 09-05 complete, 09-06 next
+Last session: 2026-02-03T18:04:18Z
+Stopped at: Completed 09-07-PLAN.md (CRM WhatsApp Section)
+Resume file: None - Plan 09-07 complete, 09-08 next
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

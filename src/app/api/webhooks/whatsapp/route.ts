@@ -41,10 +41,12 @@ export async function GET(request: NextRequest) {
 // ============================================================================
 // WEBHOOK EVENTS (POST)
 // Receives message and status events from 360dialog
-// CRITICAL: Must return 200 within 5 seconds
+// Processing is synchronous to ensure completion before Vercel kills the function
 // ============================================================================
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+
   // Parse payload
   let payload: WebhookPayload
   try {
@@ -60,62 +62,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid webhook type' }, { status: 400 })
   }
 
-  // Get phone_number_id from the first entry to look up workspace
+  // Get phone_number_id from the first entry
   const phoneNumberId = payload.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
   if (!phoneNumberId) {
     console.error('No phone_number_id in webhook payload')
     return NextResponse.json({ received: true }, { status: 200 })
   }
 
-  // Return 200 immediately - CRITICAL for 360dialog
-  // 360dialog has a 5-second timeout and will retry if we don't respond
-  const responsePromise = NextResponse.json({ received: true }, { status: 200 })
-
-  // Process webhook asynchronously
-  // In a production system, this would go to a queue
-  // For MVP, we process inline but after returning the response
-  processWebhookAsync(payload, phoneNumberId).catch((error) => {
-    console.error('Async webhook processing error:', error)
-  })
-
-  return responsePromise
-}
-
-// ============================================================================
-// ASYNC WEBHOOK PROCESSING
-// ============================================================================
-
-/**
- * Process webhook asynchronously after returning 200.
- * Uses WHATSAPP_DEFAULT_WORKSPACE_ID for MVP single-workspace setup.
- */
-async function processWebhookAsync(
-  payload: WebhookPayload,
-  phoneNumberId: string
-): Promise<void> {
-  try {
-    // MVP: Use environment variable for workspace ID
-    // Future: Look up workspace by phone_number_id in a mapping table
-    const workspaceId = process.env.WHATSAPP_DEFAULT_WORKSPACE_ID
-
-    if (!workspaceId) {
-      console.error('WHATSAPP_DEFAULT_WORKSPACE_ID not configured')
-      return
-    }
-
-    // Verify phone_number_id matches (optional security check)
-    const expectedPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-    if (expectedPhoneNumberId && phoneNumberId !== expectedPhoneNumberId) {
-      console.warn(`Webhook for unexpected phone: ${phoneNumberId}, expected: ${expectedPhoneNumberId}`)
-      // Still process - might be valid for multi-number setups
-    }
-
-    // Process the webhook
-    await processWebhook(payload, workspaceId, phoneNumberId)
-
-    console.log(`Webhook processed for workspace ${workspaceId}`)
-  } catch (error) {
-    console.error('Error in async webhook processing:', error)
-    throw error
+  // Get workspace ID from environment
+  const workspaceId = process.env.WHATSAPP_DEFAULT_WORKSPACE_ID
+  if (!workspaceId) {
+    console.error('WHATSAPP_DEFAULT_WORKSPACE_ID not configured')
+    return NextResponse.json({ received: true }, { status: 200 })
   }
+
+  // Process webhook SYNCHRONOUSLY to ensure it completes before Vercel kills the function
+  try {
+    await processWebhook(payload, workspaceId, phoneNumberId)
+    const duration = Date.now() - startTime
+    console.log(`Webhook processed in ${duration}ms for workspace ${workspaceId}`)
+  } catch (error) {
+    console.error('Webhook processing error:', error)
+    // Still return 200 to prevent 360dialog retries
+  }
+
+  return NextResponse.json({ received: true }, { status: 200 })
 }

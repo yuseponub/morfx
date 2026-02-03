@@ -34,12 +34,13 @@ export async function getConversations(
     return []
   }
 
-  // Build query with contact join (tags come through contact)
+  // Build query with contact join (tags come through contact) and conversation tags
   let query = supabase
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, address, city, tags:contact_tags(tag:tags(*)))
+      contact:contacts(id, name, phone, address, city, tags:contact_tags(tag:tags(*))),
+      conversation_tags:conversation_tags(tag:tags(*))
     `)
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -70,9 +71,13 @@ export async function getConversations(
 
   // Transform and apply client-side filters
   let conversations = (data || []).map((conv) => {
-    // Get tags from linked contact
-    const contactTags = conv.contact?.tags || []
-    const tags = contactTags.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
+    // Get tags from linked contact (inherited tags)
+    const contactTagsData = conv.contact?.tags || []
+    const inheritedTags = contactTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
+
+    // Get conversation-specific tags (direct tags)
+    const convTagsData = conv.conversation_tags || []
+    const conversationTags = convTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
 
     // Remove nested tags from contact object
     const contact = conv.contact ? { ...conv.contact, tags: undefined } : null
@@ -80,7 +85,9 @@ export async function getConversations(
     return {
       ...conv,
       contact,
-      tags,
+      tags: conversationTags,      // Direct conversation tags
+      contactTags: inheritedTags,  // Inherited from contact (for display)
+      conversation_tags: undefined, // Clean up raw data
       assigned_name: null, // TODO: fetch from profiles if needed
     }
   }) as ConversationWithDetails[]
@@ -124,7 +131,8 @@ export async function getConversation(
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, email, city, address, tags:contact_tags(tag:tags(*)))
+      contact:contacts(id, name, phone, email, city, address, tags:contact_tags(tag:tags(*))),
+      conversation_tags:conversation_tags(tag:tags(*))
     `)
     .eq('id', id)
     .single()
@@ -134,9 +142,13 @@ export async function getConversation(
     return null
   }
 
-  // Transform tags from contact
-  const contactTags = data.contact?.tags || []
-  const tags = contactTags.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
+  // Transform tags from contact (inherited tags)
+  const contactTagsData = data.contact?.tags || []
+  const inheritedTags = contactTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
+
+  // Get conversation-specific tags (direct tags)
+  const convTagsData = data.conversation_tags || []
+  const conversationTags = convTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
 
   // Remove nested tags from contact object
   const contact = data.contact ? { ...data.contact, tags: undefined } : null
@@ -144,7 +156,9 @@ export async function getConversation(
   return {
     ...data,
     contact,
-    tags,
+    tags: conversationTags,      // Direct conversation tags
+    contactTags: inheritedTags,  // Inherited from contact (for display)
+    conversation_tags: undefined, // Clean up raw data
     assigned_name: null,
   } as ConversationWithDetails
 }
@@ -585,4 +599,115 @@ export async function startNewConversation(params: {
 
   revalidatePath('/whatsapp')
   return { success: true, data: { conversationId: conversation.id } }
+}
+
+// ============================================================================
+// CONVERSATION TAG OPERATIONS
+// ============================================================================
+
+/**
+ * Add a tag to a conversation.
+ * Validates that the tag scope allows WhatsApp usage.
+ */
+export async function addTagToConversation(
+  conversationId: string,
+  tagId: string
+): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  // Validate tag exists and check scope
+  const { data: tag, error: tagError } = await supabase
+    .from('tags')
+    .select('id, applies_to')
+    .eq('id', tagId)
+    .single()
+
+  if (tagError || !tag) {
+    return { error: 'Etiqueta no encontrada' }
+  }
+
+  // Check tag scope - 'orders' only tags cannot be added to conversations
+  if (tag.applies_to === 'orders') {
+    return { error: 'Esta etiqueta solo aplica a pedidos' }
+  }
+
+  // Insert the tag association
+  const { error } = await supabase
+    .from('conversation_tags')
+    .insert({ conversation_id: conversationId, tag_id: tagId })
+
+  if (error) {
+    // Handle duplicate (tag already added) - not an error
+    if (error.code === '23505') {
+      return { success: true, data: undefined }
+    }
+    console.error('Error adding tag to conversation:', error)
+    return { error: 'Error al agregar la etiqueta' }
+  }
+
+  revalidatePath('/whatsapp')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Remove a tag from a conversation.
+ */
+export async function removeTagFromConversation(
+  conversationId: string,
+  tagId: string
+): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const { error } = await supabase
+    .from('conversation_tags')
+    .delete()
+    .eq('conversation_id', conversationId)
+    .eq('tag_id', tagId)
+
+  if (error) {
+    console.error('Error removing tag from conversation:', error)
+    return { error: 'Error al quitar la etiqueta' }
+  }
+
+  revalidatePath('/whatsapp')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Get tags for a specific conversation (conversation-specific only, not contact tags).
+ */
+export async function getConversationTags(
+  conversationId: string
+): Promise<Array<{ id: string; name: string; color: string }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('conversation_tags')
+    .select('tag:tags(id, name, color)')
+    .eq('conversation_id', conversationId)
+
+  if (error) {
+    console.error('Error fetching conversation tags:', error)
+    return []
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data || [])
+    .map((item: any) => item.tag)
+    .filter((tag): tag is { id: string; name: string; color: string } => tag !== null)
 }

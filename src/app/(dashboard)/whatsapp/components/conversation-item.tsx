@@ -53,9 +53,16 @@ export function ConversationItem({
   const conversationTags = conversation.tags || []
   const contactTags = conversation.contactTags || []
 
-  // Get primary order emoji for avatar indicator (first active order)
-  const firstOrder = orders.find(o => !o.stage.is_closed)
-  const primaryEmoji = firstOrder ? getStageEmoji(firstOrder.stage as StageWithOrderState) : null
+  // Get primary order emoji for avatar indicator
+  // Try to find first order with emoji (even if closed, if it has order_state configured)
+  let primaryEmoji: string | null = null
+  for (const order of orders) {
+    const emoji = getStageEmoji(order.stage as StageWithOrderState)
+    if (emoji) {
+      primaryEmoji = emoji
+      break
+    }
+  }
 
   return (
     <button

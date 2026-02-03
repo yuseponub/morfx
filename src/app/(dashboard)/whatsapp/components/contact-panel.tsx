@@ -184,7 +184,7 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated }: C
           </div>
 
           {hasContact ? (
-            <RecentOrdersList contactId={contact.id} refreshKey={ordersRefreshKey} />
+            <RecentOrdersList contactId={contact.id} refreshKey={ordersRefreshKey} onStageChanged={onConversationUpdated} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Vincula un contacto para ver sus pedidos
@@ -279,7 +279,7 @@ interface Pipeline {
   stages: PipelineStage[]
 }
 
-function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refreshKey?: number }) {
+function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId: string; refreshKey?: number; onStageChanged?: () => void }) {
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -377,6 +377,8 @@ function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refres
       setOrders(originalOrders)
     } else {
       toast.success(`Pedido movido a ${newStage.name}`)
+      // Notify parent to refresh conversations (updates emoji indicator)
+      onStageChanged?.()
     }
   }
 

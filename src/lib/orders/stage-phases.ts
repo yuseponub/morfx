@@ -147,17 +147,17 @@ export function shouldShowIndicator(phase: OrderPhase): boolean {
 /**
  * Get the emoji for a stage.
  * Returns the configured order_state.emoji if assigned, otherwise falls back to hardcoded PHASE_INDICATORS.
- * Returns null if no indicator should be shown (e.g., won/closed orders).
+ * Returns null only if no indicator is configured.
  */
 export function getStageEmoji(stage: StageWithOrderState): string | null {
-  // Closed stages (won) don't show indicators
-  if (stage.is_closed) {
-    return null
-  }
-
-  // If stage has order_state assigned, use its emoji
+  // If stage has order_state assigned, always use its emoji (even for closed stages)
   if (stage.order_state?.emoji) {
     return stage.order_state.emoji
+  }
+
+  // Closed stages without explicit order_state don't show indicators
+  if (stage.is_closed) {
+    return null
   }
 
   // Fallback to hardcoded mapping
@@ -170,18 +170,18 @@ export function getStageEmoji(stage: StageWithOrderState): string | null {
 
 /**
  * Check if a stage should show an indicator.
- * If stage has order_state assigned, always show (unless empty emoji or closed).
- * If no order_state, use legacy shouldShowIndicator logic.
+ * If stage has order_state assigned, always show (even for closed stages).
+ * If no order_state, use legacy shouldShowIndicator logic (closed = no indicator).
  */
 export function shouldShowStageIndicator(stage: StageWithOrderState): boolean {
-  // Closed stages never show indicators
-  if (stage.is_closed) {
-    return false
+  // If stage has order_state with emoji, always show indicator (even for closed stages)
+  if (stage.order_state?.emoji) {
+    return true
   }
 
-  // If stage has order_state, show indicator (order_state.emoji is required so always truthy)
-  if (stage.order_state_id) {
-    return !!stage.order_state?.emoji
+  // Closed stages without explicit order_state don't show indicators
+  if (stage.is_closed) {
+    return false
   }
 
   // Fallback to legacy logic

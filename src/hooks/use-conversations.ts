@@ -58,6 +58,8 @@ interface UseConversationsReturn {
   hasQuery: boolean
   /** Refresh conversations */
   refresh: () => Promise<void>
+  /** Refresh orders only (for emoji indicator updates) */
+  refreshOrders: () => Promise<void>
   /** Get a specific conversation by ID (always returns latest data) */
   getConversationById: (id: string) => ConversationWithDetails | undefined
 }
@@ -323,6 +325,23 @@ export function useConversations({
     return conversations.find(c => c.id === id)
   }, [conversations])
 
+  // Refresh orders only (for emoji indicator updates after stage change)
+  const refreshOrders = useCallback(async () => {
+    const contactIds = conversations
+      .map(c => c.contact?.id)
+      .filter((id): id is string => !!id)
+
+    if (contactIds.length === 0) return
+
+    const uniqueContactIds = [...new Set(contactIds)]
+    try {
+      const orders = await getOrdersForContacts(uniqueContactIds)
+      setOrdersByContact(orders)
+    } catch (error) {
+      console.error('Error refreshing orders:', error)
+    }
+  }, [conversations])
+
   return {
     conversations: filteredConversations,
     ordersByContact,
@@ -334,6 +353,7 @@ export function useConversations({
     isLoadingOrders,
     hasQuery: query.trim().length > 0,
     refresh: fetchConversations,
+    refreshOrders,
     getConversationById,
   }
 }

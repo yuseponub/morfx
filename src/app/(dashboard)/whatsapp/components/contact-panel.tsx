@@ -19,13 +19,15 @@ interface ContactPanelProps {
   onClose: () => void
   /** Called when conversation data should be refreshed (e.g., after contact/order creation) */
   onConversationUpdated?: () => void
+  /** Called when orders change (e.g., stage change) to refresh emoji indicators */
+  onOrdersChanged?: () => Promise<void>
 }
 
 /**
  * Right panel showing contact info and recent orders.
  * Shows "unknown contact" state when no contact is linked.
  */
-export function ContactPanel({ conversation, onClose, onConversationUpdated }: ContactPanelProps) {
+export function ContactPanel({ conversation, onClose, onConversationUpdated, onOrdersChanged }: ContactPanelProps) {
   const router = useRouter()
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
@@ -184,7 +186,7 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated }: C
           </div>
 
           {hasContact ? (
-            <RecentOrdersList contactId={contact.id} refreshKey={ordersRefreshKey} onStageChanged={onConversationUpdated} />
+            <RecentOrdersList contactId={contact.id} refreshKey={ordersRefreshKey} onStageChanged={onOrdersChanged} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Vincula un contacto para ver sus pedidos
@@ -279,7 +281,7 @@ interface Pipeline {
   stages: PipelineStage[]
 }
 
-function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId: string; refreshKey?: number; onStageChanged?: () => void }) {
+function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId: string; refreshKey?: number; onStageChanged?: () => Promise<void> }) {
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
   const [pipelines, setPipelines] = useState<Pipeline[]>([])

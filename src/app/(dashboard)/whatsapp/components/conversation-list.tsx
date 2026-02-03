@@ -19,6 +19,8 @@ interface ConversationListProps {
   onSelect: (id: string | null, conversation?: ConversationWithDetails) => void
   /** Called when selected conversation data changes via realtime */
   onSelectedUpdated?: (conversation: ConversationWithDetails) => void
+  /** Callback to expose refreshOrders function to parent */
+  onRefreshOrdersReady?: (refreshOrders: () => Promise<void>) => void
 }
 
 /**
@@ -31,6 +33,7 @@ export function ConversationList({
   selectedId,
   onSelect,
   onSelectedUpdated,
+  onRefreshOrdersReady,
 }: ConversationListProps) {
   const [showNewModal, setShowNewModal] = useState(false)
 
@@ -44,11 +47,17 @@ export function ConversationList({
     isLoading,
     hasQuery,
     refresh,
+    refreshOrders,
     getConversationById,
   } = useConversations({
     workspaceId,
     initialConversations,
   })
+
+  // Expose refreshOrders to parent
+  useEffect(() => {
+    onRefreshOrdersReady?.(refreshOrders)
+  }, [onRefreshOrdersReady, refreshOrders])
 
   // Sync selected conversation when realtime updates arrive
   // This ensures the chat header shows current window status

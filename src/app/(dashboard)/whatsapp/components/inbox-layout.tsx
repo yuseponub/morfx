@@ -8,6 +8,9 @@ import { ChatView } from './chat-view'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
+// No-op function for initial state
+const noopRefreshOrders = async () => {}
+
 interface InboxLayoutProps {
   workspaceId: string
   initialConversations: ConversationWithDetails[]
@@ -34,6 +37,7 @@ export function InboxLayout({
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialSelectedId || null)
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(initialConversation)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
+  const [refreshOrdersFn, setRefreshOrdersFn] = useState<() => Promise<void>>(() => noopRefreshOrders)
 
   // Callback to sync selected conversation from list updates (realtime)
   const handleConversationUpdatedFromList = useCallback((conversation: ConversationWithDetails) => {
@@ -59,6 +63,11 @@ export function InboxLayout({
     }
   }, [selectedConversationId])
 
+  // Handle refreshOrders function from ConversationList
+  const handleRefreshOrdersReady = useCallback((fn: () => Promise<void>) => {
+    setRefreshOrdersFn(() => fn)
+  }, [])
+
   return (
     <div className="flex h-full">
       {/* Left column: Conversation list */}
@@ -69,6 +78,7 @@ export function InboxLayout({
           selectedId={selectedConversationId}
           onSelect={handleSelectConversation}
           onSelectedUpdated={handleConversationUpdatedFromList}
+          onRefreshOrdersReady={handleRefreshOrdersReady}
         />
       </div>
 
@@ -90,6 +100,7 @@ export function InboxLayout({
           conversation={selectedConversation}
           onClose={() => setIsPanelOpen(false)}
           onConversationUpdated={refreshSelectedConversation}
+          onOrdersChanged={refreshOrdersFn}
         />
       </div>
     </div>

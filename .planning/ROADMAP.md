@@ -23,6 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8.1: Settings Navigation WhatsApp** - WhatsApp config accessible from Settings (INSERTED)
 - [x] **Phase 8.2: Quick Replies con Media** - Fotos y archivos en respuestas rapidas (INSERTED)
 - [ ] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
+- [ ] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
 - [ ] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
 
 ## Phase Details
@@ -229,6 +230,24 @@ Plans:
 - [ ] 09-07-PLAN.md — CRM reverse sync: WhatsAppSection in contact detail, conversation tags in CRM
 - [ ] 09-08-PLAN.md — Final integration: tag scope UI, end-to-end verification
 
+### Phase 9.1: Order States Config (INSERTED)
+**Goal**: Admin puede configurar estados de pedido con emoji que reemplazan el mapeo hardcodeado
+**Depends on**: Phase 9
+**Requirements**: SYNC (extended)
+**Success Criteria** (what must be TRUE):
+  1. Admin puede crear/editar estados de pedido (order_states) a nivel workspace
+  2. Cada estado tiene: nombre y emoji (obligatorios)
+  3. Admin puede asignar stages del pipeline a un estado
+  4. El indicador en WhatsApp usa el emoji configurado del estado
+  5. Estados se pueden reordenar con drag-and-drop
+**Plans**: 4 plans
+
+Plans:
+- [ ] 09.1-01-PLAN.md — Database foundation: order_states table, FK on pipeline_stages, Server Actions
+- [ ] 09.1-02-PLAN.md — Configuration UI: settings page with dnd-kit reorder, emoji picker, stage assignment
+- [ ] 09.1-03-PLAN.md — WhatsApp integration: emoji on avatar indicator (Callbell style), DB-driven lookup
+- [ ] 09.1-04-PLAN.md — Wiring and verification: order queries with order_state join, end-to-end testing
+
 ### Phase 10: Search, Tasks & Analytics
 **Goal**: Users have global search, task reminders, and a metrics dashboard
 **Depends on**: Phase 9
@@ -262,8 +281,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. WhatsApp Core | 3/3 | Complete | 2026-01-30 |
 | 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
 | 9. CRM-WhatsApp Sync | 0/8 | Ready | - |
+| 9.1 Order States Config | 0/4 | Ready | - |
 | 10. Search, Tasks & Analytics | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-03 (Phase 9 planned)*
+*Last updated: 2026-02-03 (Phase 9.1 planned)*

@@ -14,6 +14,7 @@ import type { Tag } from '@/lib/types/database'
 const tagSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color invalido').optional(),
+  applies_to: z.enum(['whatsapp', 'orders', 'both']).optional(),
 })
 
 // ============================================================================
@@ -104,6 +105,7 @@ export async function createTag(formData: FormData): Promise<ActionResult<Tag>> 
   const raw = {
     name: formData.get('name')?.toString() || '',
     color: formData.get('color')?.toString() || DEFAULT_TAG_COLOR,
+    applies_to: (formData.get('applies_to')?.toString() || 'both') as 'whatsapp' | 'orders' | 'both',
   }
 
   const result = tagSchema.safeParse(raw)
@@ -119,6 +121,7 @@ export async function createTag(formData: FormData): Promise<ActionResult<Tag>> 
       workspace_id: workspaceId,
       name: result.data.name,
       color: result.data.color || DEFAULT_TAG_COLOR,
+      applies_to: result.data.applies_to || 'both',
     })
     .select()
     .single()
@@ -133,6 +136,7 @@ export async function createTag(formData: FormData): Promise<ActionResult<Tag>> 
   }
 
   revalidatePath('/crm/contactos')
+  revalidatePath('/whatsapp')
   revalidatePath('/settings/tags')
   return { success: true, data }
 }
@@ -152,6 +156,7 @@ export async function updateTag(id: string, formData: FormData): Promise<ActionR
   const raw = {
     name: formData.get('name')?.toString() || '',
     color: formData.get('color')?.toString() || undefined,
+    applies_to: formData.get('applies_to')?.toString() as 'whatsapp' | 'orders' | 'both' | undefined,
   }
 
   const result = tagSchema.safeParse(raw)
@@ -161,9 +166,10 @@ export async function updateTag(id: string, formData: FormData): Promise<ActionR
   }
 
   // Build update object (only include fields that are provided)
-  const updates: { name?: string; color?: string } = {}
+  const updates: { name?: string; color?: string; applies_to?: 'whatsapp' | 'orders' | 'both' } = {}
   if (result.data.name) updates.name = result.data.name
   if (result.data.color) updates.color = result.data.color
+  if (result.data.applies_to) updates.applies_to = result.data.applies_to
 
   // Update tag
   const { data, error } = await supabase
@@ -182,6 +188,7 @@ export async function updateTag(id: string, formData: FormData): Promise<ActionR
   }
 
   revalidatePath('/crm/contactos')
+  revalidatePath('/whatsapp')
   revalidatePath('/settings/tags')
   return { success: true, data }
 }
@@ -213,6 +220,49 @@ export async function deleteTag(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/crm/contactos')
+  revalidatePath('/whatsapp')
   revalidatePath('/settings/tags')
   return { success: true, data: undefined }
+}
+
+// ============================================================================
+// Scope-Filtered Queries
+// ============================================================================
+
+/**
+ * Get tags filtered by scope.
+ * @param scope - 'whatsapp' returns tags with applies_to 'whatsapp' or 'both'
+ *                'orders' returns tags with applies_to 'orders' or 'both'
+ *                undefined returns all tags
+ */
+export async function getTagsForScope(
+  scope?: 'whatsapp' | 'orders'
+): Promise<Tag[]> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  let query = supabase
+    .from('tags')
+    .select('*')
+    .order('name', { ascending: true })
+
+  // Filter by scope
+  if (scope === 'whatsapp') {
+    query = query.in('applies_to', ['whatsapp', 'both'])
+  } else if (scope === 'orders') {
+    query = query.in('applies_to', ['orders', 'both'])
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching tags:', error)
+    return []
+  }
+
+  return data || []
 }

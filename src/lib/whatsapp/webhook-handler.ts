@@ -138,6 +138,21 @@ async function processIncomingMessage(
       throw msgError
     }
 
+    // Safety net: manually update conversation stats
+    // (backup in case trigger fails - same pattern as Server Actions)
+    const messageTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString()
+    const preview = buildMessagePreview(msg)
+
+    await supabase
+      .from('conversations')
+      .update({
+        last_message_at: messageTimestamp,
+        last_message_preview: preview,
+        last_customer_message_at: messageTimestamp,
+        is_read: false,
+      })
+      .eq('id', conversationId)
+
     console.log(`Processed inbound message ${msg.id} from ${phone}`)
   } catch (error) {
     console.error('Error processing incoming message:', error)
@@ -406,6 +421,42 @@ function buildMessageContent(msg: IncomingMessage): MessageContent {
 
     default:
       return { body: `[${msg.type}]` } as TextContent
+  }
+}
+
+/**
+ * Build message preview text for conversation list display.
+ */
+function buildMessagePreview(msg: IncomingMessage): string {
+  switch (msg.type) {
+    case 'text':
+      return (msg.text?.body || '').slice(0, 100)
+    case 'image':
+      return msg.image?.caption ? msg.image.caption.slice(0, 100) : '[Imagen]'
+    case 'video':
+      return msg.video?.caption ? msg.video.caption.slice(0, 100) : '[Video]'
+    case 'audio':
+      return '[Audio]'
+    case 'document':
+      return msg.document?.caption ? msg.document.caption.slice(0, 100) : '[Documento]'
+    case 'sticker':
+      return '[Sticker]'
+    case 'location':
+      return '[Ubicacion]'
+    case 'contacts':
+      return '[Contacto]'
+    case 'reaction':
+      return '[Reaccion]'
+    case 'interactive':
+      if (msg.interactive?.type === 'button_reply') {
+        return msg.interactive.button_reply?.title || '[Respuesta]'
+      }
+      if (msg.interactive?.type === 'list_reply') {
+        return msg.interactive.list_reply?.title || '[Respuesta]'
+      }
+      return '[Interactivo]'
+    default:
+      return '[Mensaje]'
   }
 }
 

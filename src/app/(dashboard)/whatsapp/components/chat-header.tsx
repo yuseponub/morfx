@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Archive, ArchiveRestore, Check, ExternalLink, PanelRightOpen, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { WindowIndicator } from './window-indicator'
 import { AssignDropdown } from './assign-dropdown'
+import { ConversationTagInput } from './conversation-tag-input'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
 import { toast } from 'sonner'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
@@ -24,10 +26,11 @@ interface ChatHeaderProps {
 }
 
 /**
- * Chat header with contact name, window indicator, and actions.
+ * Chat header with contact name, window indicator, tags, and actions.
  * Actions: Mark as read, Archive, Open in CRM, Edit name.
  */
 export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
+  const router = useRouter()
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -36,6 +39,10 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
       ? { id: conversation.assigned_to, name: conversation.assigned_name || 'Agente' }
       : null
   )
+
+  const handleTagsChange = () => {
+    router.refresh()
+  }
 
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const canEditName = !conversation.contact // Solo editable si no tiene contacto vinculado
@@ -117,6 +124,16 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
                 {conversation.phone}
               </p>
             )}
+          </div>
+
+          {/* Tag management - inline in header */}
+          <div className="flex items-center gap-2 ml-2">
+            <ConversationTagInput
+              conversationId={conversation.id}
+              currentTags={conversation.tags || []}
+              onTagsChange={handleTagsChange}
+              compact
+            />
           </div>
         </div>
 

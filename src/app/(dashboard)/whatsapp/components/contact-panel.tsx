@@ -231,36 +231,109 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated }: C
 // ============================================================================
 
 import { getRecentOrders } from '@/app/actions/whatsapp'
+import { getTagsForScope } from '@/app/actions/tags'
+import { addOrderTag, removeOrderTag } from '@/app/actions/orders'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Plus, X as XIcon } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { toast } from 'sonner'
 
 interface RecentOrder {
   id: string
   total_value: number | null
   stage: { name: string; color: string } | null
   created_at: string
+  tags: Array<{ id: string; name: string; color: string }>
+}
+
+interface AvailableTag {
+  id: string
+  name: string
+  color: string
 }
 
 function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refreshKey?: number }) {
   const [orders, setOrders] = useState<RecentOrder[]>([])
+  const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
+  const [openTagPopover, setOpenTagPopover] = useState<string | null>(null)
 
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchData() {
       setIsLoading(true)
       try {
-        const data = await getRecentOrders(contactId)
-        setOrders(data)
+        const [ordersData, tagsData] = await Promise.all([
+          getRecentOrders(contactId),
+          getTagsForScope('orders')
+        ])
+        setOrders(ordersData)
+        setAvailableTags(tagsData)
       } catch (error) {
-        console.error('Error fetching orders:', error)
+        console.error('Error fetching data:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchOrders()
+    fetchData()
   }, [contactId, refreshKey])
+
+  const handleAddTag = async (orderId: string, tag: AvailableTag) => {
+    // Optimistic update
+    setOrders(prev => prev.map(order => {
+      if (order.id === orderId) {
+        return { ...order, tags: [...order.tags, tag] }
+      }
+      return order
+    }))
+    setOpenTagPopover(null)
+
+    const result = await addOrderTag(orderId, tag.id)
+    if ('error' in result && result.error) {
+      toast.error(result.error)
+      // Revert optimistic update
+      setOrders(prev => prev.map(order => {
+        if (order.id === orderId) {
+          return { ...order, tags: order.tags.filter(t => t.id !== tag.id) }
+        }
+        return order
+      }))
+    }
+  }
+
+  const handleRemoveTag = async (orderId: string, tagId: string) => {
+    // Store original tags for revert
+    const originalOrders = orders
+
+    // Optimistic update
+    setOrders(prev => prev.map(order => {
+      if (order.id === orderId) {
+        return { ...order, tags: order.tags.filter(t => t.id !== tagId) }
+      }
+      return order
+    }))
+
+    const result = await removeOrderTag(orderId, tagId)
+    if ('error' in result && result.error) {
+      toast.error(result.error)
+      // Revert
+      setOrders(originalOrders)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -282,48 +355,119 @@ function RecentOrdersList({ contactId, refreshKey }: { contactId: string; refres
 
   return (
     <div className="space-y-2">
-      {orders.map((order) => (
-        <div
-          key={order.id}
-          className="p-2 rounded-lg border hover:bg-muted/50 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <Link
-              href={`/crm/pedidos?order=${order.id}`}
-              className="flex-1 min-w-0"
-            >
-              <div className="flex items-center gap-2">
-                {order.stage && (
-                  <OrderStageBadge stage={order.stage} size="sm" />
-                )}
-                <span className="text-sm font-medium">
-                  {order.total_value
-                    ? new Intl.NumberFormat('es-CO', {
-                        style: 'currency',
-                        currency: 'COP',
-                        maximumFractionDigits: 0,
-                      }).format(order.total_value)
-                    : '-'
-                  }
+      {orders.map((order) => {
+        // Filter out tags already on this order from available options
+        const tagsNotOnOrder = availableTags.filter(
+          t => !order.tags.some(ot => ot.id === t.id)
+        )
+
+        return (
+          <div
+            key={order.id}
+            className="p-2 rounded-lg border hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <Link
+                href={`/crm/pedidos?order=${order.id}`}
+                className="flex-1 min-w-0"
+              >
+                <div className="flex items-center gap-2">
+                  {order.stage && (
+                    <OrderStageBadge stage={order.stage} size="sm" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {order.total_value
+                      ? new Intl.NumberFormat('es-CO', {
+                          style: 'currency',
+                          currency: 'COP',
+                          maximumFractionDigits: 0,
+                        }).format(order.total_value)
+                      : '-'
+                    }
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatDistanceToNow(new Date(order.created_at), {
+                    addSuffix: true,
+                    locale: es,
+                  })}
+                </p>
+              </Link>
+              <button
+                onClick={() => setViewingOrderId(order.id)}
+                className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-2"
+                title="Ver pedido"
+              >
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Order tags */}
+            <div className="flex flex-wrap items-center gap-1 mt-2">
+              {order.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium"
+                  style={{
+                    backgroundColor: `${tag.color}20`,
+                    color: tag.color,
+                  }}
+                >
+                  {tag.name}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleRemoveTag(order.id, tag.id)
+                    }}
+                    className="hover:bg-black/10 rounded-full p-0.5"
+                  >
+                    <XIcon className="h-3 w-3" />
+                  </button>
                 </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatDistanceToNow(new Date(order.created_at), {
-                  addSuffix: true,
-                  locale: es,
-                })}
-              </p>
-            </Link>
-            <button
-              onClick={() => setViewingOrderId(order.id)}
-              className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-2"
-              title="Ver pedido"
-            >
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            </button>
+              ))}
+
+              {/* Add tag button */}
+              {tagsNotOnOrder.length > 0 && (
+                <Popover
+                  open={openTagPopover === order.id}
+                  onOpenChange={(open) => setOpenTagPopover(open ? order.id : null)}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border border-dashed hover:bg-muted"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Tag
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar tag..." />
+                      <CommandList>
+                        <CommandEmpty>No hay tags</CommandEmpty>
+                        <CommandGroup>
+                          {tagsNotOnOrder.map((tag) => (
+                            <CommandItem
+                              key={tag.id}
+                              onSelect={() => handleAddTag(order.id, tag)}
+                            >
+                              <span
+                                className="w-3 h-3 rounded-full mr-2"
+                                style={{ backgroundColor: tag.color }}
+                              />
+                              {tag.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       <Link
         href={`/crm/contactos/${contactId}`}

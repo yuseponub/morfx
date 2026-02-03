@@ -14,6 +14,7 @@ interface RecentOrder {
   total_value: number | null
   stage: { name: string; color: string } | null
   created_at: string
+  tags: Array<{ id: string; name: string; color: string }>
 }
 
 /**
@@ -46,7 +47,8 @@ export async function getRecentOrders(
       id,
       total_value,
       created_at,
-      stage:pipeline_stages(name, color)
+      stage:pipeline_stages(name, color),
+      order_tags(tag:tags(id, name, color))
     `)
     .eq('workspace_id', workspaceId)
     .eq('contact_id', contactId)
@@ -63,11 +65,18 @@ export async function getRecentOrders(
     const stage = order.stage as unknown
     const stageData = Array.isArray(stage) ? stage[0] : stage
 
+    // Extract tags from order_tags junction
+    const orderTags = (order.order_tags || []) as unknown as Array<{ tag: { id: string; name: string; color: string } | null }>
+    const tags = orderTags
+      .map(ot => ot.tag)
+      .filter((tag): tag is { id: string; name: string; color: string } => tag !== null)
+
     return {
       id: order.id,
       total_value: order.total_value,
       stage: stageData as { name: string; color: string } | null,
       created_at: order.created_at,
+      tags,
     }
   })
 }

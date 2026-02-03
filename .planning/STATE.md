@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 9 of 10 (CRM-WhatsApp Sync)
-Plan: 7 of 8 complete (09-01, 09-02, 09-03, 09-04, 09-05, 09-06, 09-07)
-Status: Phase 9 in progress
-Last activity: 2026-02-03 - Completed 09-07-PLAN.md (CRM WhatsApp Section)
+Phase: 9.1 of 10 (Order States Config)
+Plan: 1 of 3 complete (09.1-01)
+Status: Phase 9.1 in progress
+Last activity: 2026-02-03 - Completed 09.1-01-PLAN.md (Order States Foundation)
 
-Progress: [#########=] ~91%
+Progress: [#########=] ~92%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -52,6 +52,10 @@ All success criteria verified:
 | 08-whatsapp-extended | 9/9 | ~75min | Complete (verified 7/7) |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 9.1 inserted after Phase 9: Order States Config (URGENT) - Estados de pedido configurables con emoji y guía de comportamiento para agente conversacional. Reemplaza el mapeo hardcodeado de stage-phases.ts.
 
 ### Decisions
 
@@ -179,6 +183,9 @@ Recent decisions affecting current work:
 - [Phase 9-06]: Orders subscription filters on stage_id changes only (reduces API calls)
 - [Phase 9-06]: conversation_tags subscription has no workspace filter (RLS handles security)
 - [Phase 9-06]: Batch order loading uses Map<contactId, OrderSummary[]> for efficient lookup
+- [Phase 9.1-01]: ON DELETE SET NULL for order_state_id FK - stages become unassigned when state deleted
+- [Phase 9.1-01]: Manager-only write policies for order_states (SELECT for all members)
+- [Phase 9.1-01]: Temp negative positions pattern for reorder to avoid unique constraint violations
 
 ### Project Rules
 
@@ -566,9 +573,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T18:08:51Z
-Stopped at: Completed 09-06-PLAN.md (Wire Order Data and Realtime Sync)
-Resume file: None - Plans 09-06 and 09-07 complete, 09-08 next
+Last session: 2026-02-03T20:55:18Z
+Stopped at: Completed 09.1-01-PLAN.md (Order States Foundation)
+Resume file: None - Plan 09.1-01 complete, 09.1-02 next
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

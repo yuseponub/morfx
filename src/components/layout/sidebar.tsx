@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users, LogOut } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -13,7 +13,9 @@ import {
 import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher'
 import { GlobalSearch } from '@/components/search/global-search'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { logout } from '@/app/actions/auth'
+import { useTaskBadge } from '@/hooks/use-task-badge'
 import type { WorkspaceWithRole } from '@/lib/types/database'
 import type { User } from '@supabase/supabase-js'
 
@@ -27,6 +29,12 @@ const navItems = [
     href: '/whatsapp',
     label: 'WhatsApp',
     icon: MessageSquare,
+  },
+  {
+    href: '/tareas',
+    label: 'Tareas',
+    icon: ListTodo,
+    hasBadge: true,
   },
   {
     href: '/settings/workspace/members',
@@ -48,6 +56,7 @@ interface SidebarProps {
 
 export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProps) {
   const pathname = usePathname()
+  const { badgeCount } = useTaskBadge()
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card">
@@ -81,6 +90,8 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
             {navItems.map((item) => {
               const isActive = pathname.startsWith(item.href)
               const Icon = item.icon
+              // Show badge for Tareas if there are overdue/due soon tasks
+              const showBadge = 'hasBadge' in item && item.hasBadge && badgeCount > 0
 
               return (
                 <li key={item.href}>
@@ -96,7 +107,12 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
                         )}
                       >
                         <Icon className="h-5 w-5" />
-                        <span>{item.label}</span>
+                        <span className="flex-1">{item.label}</span>
+                        {showBadge && (
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
                       </Link>
                     </TooltipTrigger>
                     <TooltipContent side="right">

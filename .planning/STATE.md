@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 Phase: 10 of 10 (Search, Tasks & Analytics)
 Plan: 6 of 6
 Status: In progress
-Last activity: 2026-02-04 - Completed 10-02-PLAN.md (Task CRUD and Main UI)
+Last activity: 2026-02-04 - Completed 10-03-PLAN.md (Task Integration and Settings)
 
 Progress: [##########] ~99%
 
@@ -204,6 +204,10 @@ Recent decisions affecting current work:
 - [Phase 10-05]: Loading states via animate-pulse divs (no separate Skeleton component)
 - [Phase 10-02]: Client-side task grouping by due date proximity for responsive UX
 - [Phase 10-02]: Reusable TaskItem in src/components/tasks for embedding in entity pages
+- [Phase 10-03]: Badge count = overdue + dueSoon (most urgent tasks needing attention)
+- [Phase 10-03]: CreateTaskButton with entity props pre-fills form (single reusable component)
+- [Phase 10-03]: Task types use TAG_COLORS from tag system for consistency
+- [Phase 10-03]: getWorkspaceMembersForTasks helper for client component workspace ID access
 
 ### Project Rules
 
@@ -591,9 +595,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-04T00:30:50Z
-Stopped at: Completed 10-02-PLAN.md (Task CRUD and Main UI)
-Resume file: None - Plan 10-02 complete
+Last session: 2026-02-04T00:41:44Z
+Stopped at: Completed 10-03-PLAN.md (Task Integration and Settings)
+Resume file: None - Plan 10-03 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

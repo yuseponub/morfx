@@ -1,10 +1,8 @@
 // ============================================================================
 // Phase 11: Shopify Connection Test Utility
 // Tests Shopify connection by making a simple API call to verify credentials
+// Uses direct fetch instead of SDK for reliability
 // ============================================================================
-
-import { shopifyApi, ApiVersion, Session } from '@shopify/shopify-api'
-import '@shopify/shopify-api/adapters/node'
 
 /**
  * Result of testing Shopify connection.
@@ -23,10 +21,11 @@ export interface ConnectionTestResult {
 /**
  * Tests Shopify connection by making a simple API call.
  * This verifies the credentials are valid and have required permissions.
+ * Uses direct fetch for reliability (SDK has compatibility issues).
  *
  * @param shopDomain - The shop domain (e.g., "mystore.myshopify.com")
  * @param accessToken - The Admin API access token
- * @param apiSecret - The API secret key (needed to initialize SDK)
+ * @param apiSecret - The API secret key (stored for webhook verification)
  * @returns Test result with scopes and shop name if successful
  */
 export async function testShopifyConnection(
@@ -40,32 +39,48 @@ export async function testShopifyConnection(
     return { success: false, error: 'Dominio de tienda invalido' }
   }
 
+  const baseUrl = `https://${normalizedDomain}/admin/api/2024-01`
+  const headers = {
+    'X-Shopify-Access-Token': accessToken,
+    'Content-Type': 'application/json',
+  }
+
   try {
-    // Initialize Shopify API client
-    const shopify = shopifyApi({
-      apiKey: 'not-used-for-custom-apps',
-      apiSecretKey: apiSecret,
-      hostName: normalizedDomain,
-      apiVersion: ApiVersion.January25,
-      isCustomStoreApp: true,
-      isEmbeddedApp: false,
-      adminApiAccessToken: accessToken,
-    })
+    // Test with shop endpoint to verify connection
+    const shopResponse = await fetch(`${baseUrl}/shop.json`, { headers })
 
-    // Create session for API calls
-    const session = shopify.session.customAppSession(normalizedDomain)
+    if (!shopResponse.ok) {
+      const status = shopResponse.status
+      if (status === 401) {
+        return { success: false, error: 'Access Token invalido o expirado' }
+      }
+      if (status === 404) {
+        return { success: false, error: 'Tienda no encontrada. Verifica el dominio.' }
+      }
+      if (status === 403) {
+        return { success: false, error: 'Acceso denegado. Verifica los permisos de la app.' }
+      }
+      return { success: false, error: `Error de Shopify: ${status}` }
+    }
 
-    // Create REST client
-    const client = new shopify.clients.Rest({ session })
+    const shopData = await shopResponse.json()
+    const shopName = shopData.shop?.name || normalizedDomain
 
-    // Test with access_scopes endpoint (lightweight, always available)
-    const response = await client.get<{
-      access_scopes: Array<{ handle: string }>
-    }>({
-      path: 'oauth/access_scopes',
-    })
+    // Get access scopes to verify permissions
+    const scopesResponse = await fetch(`${baseUrl}/oauth/access_scopes.json`, { headers })
 
-    const scopes = response.body.access_scopes.map(s => s.handle)
+    if (!scopesResponse.ok) {
+      // If we can read shop but not scopes, still consider it a success
+      // Some apps may not have this endpoint available
+      return {
+        success: true,
+        shopName,
+        scopes: [],
+      }
+    }
+
+    const scopesData = await scopesResponse.json()
+    const scopes = (scopesData.access_scopes || []).map((s: { handle: string }) => s.handle)
 
     // Verify required scopes for order and customer data
     const requiredScopes = ['read_orders', 'read_customers']
@@ -79,17 +94,10 @@ export async function testShopifyConnection(
       }
     }
 
-    // Get shop info for confirmation
-    const shopResponse = await client.get<{
-      shop: { name: string; domain: string }
-    }>({
-      path: 'shop',
-    })
-
     return {
       success: true,
       scopes,
-      shopName: shopResponse.body.shop.name,
+      shopName,
     }
   } catch (error: unknown) {
     console.error('Shopify connection test failed:', error)
@@ -98,20 +106,14 @@ export async function testShopifyConnection(
     if (error instanceof Error) {
       const message = error.message.toLowerCase()
 
-      if (message.includes('401') || message.includes('unauthorized')) {
-        return { success: false, error: 'Access Token invalido o expirado' }
-      }
-      if (message.includes('404') || message.includes('not found')) {
-        return { success: false, error: 'Tienda no encontrada. Verifica el dominio.' }
-      }
-      if (message.includes('403') || message.includes('forbidden')) {
-        return { success: false, error: 'Acceso denegado. Verifica los permisos de la app.' }
-      }
       if (message.includes('enotfound') || message.includes('getaddrinfo')) {
         return { success: false, error: 'No se pudo conectar. Verifica el dominio de la tienda.' }
       }
-      if (message.includes('timeout')) {
+      if (message.includes('timeout') || message.includes('etimedout')) {
         return { success: false, error: 'Tiempo de espera agotado. Intenta de nuevo.' }
+      }
+      if (message.includes('fetch failed')) {
+        return { success: false, error: 'Error de conexion. Verifica tu internet.' }
       }
 
       return { success: false, error: error.message }

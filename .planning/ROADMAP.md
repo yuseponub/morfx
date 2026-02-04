@@ -257,7 +257,9 @@ Plans:
   2. Search results show type and preview, with optional filtering by type
   3. User can create tasks linked to contacts, orders, or conversations
   4. System notifies user when a task is approaching its deadline
-  5. Dashboard displays key metrics: total orders, total value, conversion rate, response time
+  5. Dashboard displays key metrics: total orders, total value, conversion rate, avg ticket
+
+> **Note:** ANLT-03 (tiempo promedio de respuesta WhatsApp) deferred per CONTEXT.md to future phase
 **Plans**: 6 plans
 
 Plans:

@@ -310,7 +310,16 @@ Plans:
   3. Pedido de Shopify auto-crea contacto si no existe (por telefono/email)
   4. Pedido de Shopify auto-crea pedido en MorfX con productos y monto
   5. Productos se matchean por SKU con catalogo existente
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Database foundation: integrations, webhook_events tables, orders.shopify_order_id column
+- [ ] 11-02-PLAN.md — Core utilities: HMAC verification, phone normalization, contact matching with fuzzy logic
+- [ ] 11-03-PLAN.md — Order mapping and webhook handler: Shopify to MorfX order transformation
+- [ ] 11-04-PLAN.md — Server Actions: connection test, integration CRUD with Owner-only access
+- [ ] 11-05-PLAN.md — Webhook endpoint: /api/webhooks/shopify with HMAC verification
+- [ ] 11-06-PLAN.md — Configuration UI: /configuracion/integraciones with form and sync status
+- [ ] 11-07-PLAN.md — Navigation wiring and end-to-end verification
 
 ---
 
@@ -382,7 +391,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
 | 10. Search, Tasks & Analytics | 6/6 | Complete | 2026-02-04 |
 | 10.1 Task Notes & History | 4/4 | Complete | 2026-02-04 |
-| **11. Shopify Integration** | 0/? | **Next** | - |
+| **11. Shopify Integration** | 0/7 | **Next** | - |
 
 ### MVP v2: Agentes Conversacionales (Futuro)
 
@@ -395,4 +404,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-04 (Phase 11 added, MVP v2 roadmap defined)*
+*Last updated: 2026-02-04 (Phase 11 planned with 7 plans)*

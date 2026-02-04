@@ -154,93 +154,96 @@ export function OrderSheet({
             </div>
           </div>
 
-          {/* Action buttons + Stage selector */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onClose()
-                onEdit(order)
-              }}
-            >
-              <PencilIcon className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => {
-                onClose()
-                onDelete(order)
-              }}
-            >
-              <Trash2Icon className="h-4 w-4 mr-2" />
-              Eliminar
-            </Button>
-            {contact?.phone && (
+          {/* Action buttons - Two rows with spacing */}
+          <div className="space-y-3">
+            {/* Row 1: Editar, Eliminar */}
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                asChild
-              >
-                <Link href={`/whatsapp?phone=${encodeURIComponent(contact.phone)}`}>
-                  <MessageCircleIcon className="h-4 w-4 mr-2" />
-                  WhatsApp
-                </Link>
-              </Button>
-            )}
-            <CreateTaskButton
-              orderId={order.id}
-              orderInfo={`Pedido ${formatCurrency(order.total_value)} - ${contact?.name || 'Sin contacto'}`}
-              variant="outline"
-              size="sm"
-            />
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Stage selector */}
-            <Select
-              value={order.stage_id}
-              onValueChange={handleStageChange}
-              disabled={isChangingStage}
-            >
-              <SelectTrigger
-                className="w-[150px] h-9"
-                style={{
-                  backgroundColor: `${stage.color}15`,
-                  borderColor: stage.color,
+                onClick={() => {
+                  onClose()
+                  onEdit(order)
                 }}
               >
-                {isChangingStage ? (
-                  <LoaderIcon className="h-4 w-4 animate-spin" />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: stage.color }}
-                    />
-                    <span className="truncate">{stage.name}</span>
-                  </div>
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {stages.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
+                <PencilIcon className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => {
+                  onClose()
+                  onDelete(order)
+                }}
+              >
+                <Trash2Icon className="h-4 w-4 mr-2" />
+                Eliminar
+              </Button>
+            </div>
+
+            {/* Row 2: WhatsApp, Fases, Tarea */}
+            <div className="flex items-center gap-2">
+              {contact?.phone && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                  asChild
+                >
+                  <Link href={`/whatsapp?phone=${encodeURIComponent(contact.phone)}`}>
+                    <MessageCircleIcon className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </Link>
+                </Button>
+              )}
+              {/* Stage selector */}
+              <Select
+                value={order.stage_id}
+                onValueChange={handleStageChange}
+                disabled={isChangingStage}
+              >
+                <SelectTrigger
+                  className="w-[150px] h-9"
+                  style={{
+                    backgroundColor: `${stage.color}15`,
+                    borderColor: stage.color,
+                  }}
+                >
+                  {isChangingStage ? (
+                    <LoaderIcon className="h-4 w-4 animate-spin" />
+                  ) : (
                     <div className="flex items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: s.color }}
+                        style={{ backgroundColor: stage.color }}
                       />
-                      {s.name}
+                      <span className="truncate">{stage.name}</span>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {stages.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: s.color }}
+                        />
+                        {s.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <CreateTaskButton
+                orderId={order.id}
+                orderInfo={`Pedido ${formatCurrency(order.total_value)} - ${contact?.name || 'Sin contacto'}`}
+                variant="outline"
+                size="sm"
+              />
+            </div>
           </div>
         </SheetHeader>
 

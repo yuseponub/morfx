@@ -25,6 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
 - [x] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
 - [ ] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
+- [ ] **Phase 10.1: Task Notes & History** - Notas en tareas e historial de cambios (INSERTED)
 
 ## Phase Details
 
@@ -263,12 +264,29 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Tasks database foundation: tasks table with exclusive arc pattern, task_types, RLS policies, TypeScript types
-- [ ] 10-02-PLAN.md — Task management core: Server Actions, /tareas page, task list, form, filters
-- [ ] 10-03-PLAN.md — Task integration: contextual creation from entities, sidebar badge, task settings page
-- [ ] 10-04-PLAN.md — Global search: command palette with Cmd+K, Fuse.js, entity filtering, sidebar integration
-- [ ] 10-05-PLAN.md — Analytics dashboard: metrics Server Actions, /analytics page with cards and charts, role-based access
-- [ ] 10-06-PLAN.md — Final integration: sidebar navigation update, role-based visibility, human verification
+- [x] 10-01-PLAN.md — Tasks database foundation: tasks table with exclusive arc pattern, task_types, RLS policies, TypeScript types
+- [x] 10-02-PLAN.md — Task management core: Server Actions, /tareas page, task list, form, filters
+- [x] 10-03-PLAN.md — Task integration: contextual creation from entities, sidebar badge, task settings page
+- [x] 10-04-PLAN.md — Global search: command palette with Cmd+K, Fuse.js, entity filtering, sidebar integration
+- [x] 10-05-PLAN.md — Analytics dashboard: metrics Server Actions, /analytics page with cards and charts, role-based access
+- [x] 10-06-PLAN.md — Final integration: sidebar navigation update, role-based visibility, human verification
+
+### Phase 10.1: Task Notes & History (INSERTED)
+**Goal**: Tareas tienen notas internas e historial de cambios para detectar postergaciones
+**Depends on**: Phase 10
+**Requirements**: TASK (extended)
+**Success Criteria** (what must be TRUE):
+  1. User puede agregar notas a una tarea
+  2. Sistema registra automaticamente cambios de fecha limite (historial)
+  3. User puede ver historial de cambios en la tarea
+  4. Se muestra indicador visual cuando una tarea ha sido postergada multiples veces
+**Plans**: 4 plans
+
+Plans:
+- [ ] 10.1-01-PLAN.md — Database foundation: task_notes, task_activity tables, log_task_changes trigger, postponement_count
+- [ ] 10.1-02-PLAN.md — Server Actions: task notes CRUD, task activity fetching with formatting helpers
+- [ ] 10.1-03-PLAN.md — UI components: PostponementBadge, TaskNotesSection, TaskHistoryTimeline, list integration
+- [ ] 10.1-04-PLAN.md — Task detail view: tabbed interface with Info, Notas, Historial tabs
 
 ## Progress
 
@@ -287,8 +305,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
 | 9. CRM-WhatsApp Sync | 7/8 | Complete | 2026-02-03 |
 | 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
-| 10. Search, Tasks & Analytics | 0/6 | Planned | - |
+| 10. Search, Tasks & Analytics | 6/6 | In Progress | - |
+| 10.1 Task Notes & History | 0/4 | Planned | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-03 (Phase 10 planned)*
+*Last updated: 2026-02-04 (Phase 10.1 planned)*

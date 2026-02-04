@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -19,7 +19,15 @@ import { useTaskBadge } from '@/hooks/use-task-badge'
 import type { WorkspaceWithRole } from '@/lib/types/database'
 import type { User } from '@supabase/supabase-js'
 
-const navItems = [
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof Building2
+  hasBadge?: boolean
+  adminOnly?: boolean
+}
+
+const navItems: NavItem[] = [
   {
     href: '/crm',
     label: 'CRM',
@@ -35,6 +43,12 @@ const navItems = [
     label: 'Tareas',
     icon: ListTodo,
     hasBadge: true,
+  },
+  {
+    href: '/analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    adminOnly: true,
   },
   {
     href: '/settings/workspace/members',
@@ -57,6 +71,11 @@ interface SidebarProps {
 export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProps) {
   const pathname = usePathname()
   const { badgeCount } = useTaskBadge()
+
+  // Filter nav items based on user role (hide adminOnly items for agents)
+  const userRole = currentWorkspace?.role
+  const isManager = userRole === 'owner' || userRole === 'admin'
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || isManager)
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card">
@@ -87,7 +106,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
       <nav className="flex-1 p-4">
         <TooltipProvider>
           <ul className="space-y-1">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const isActive = pathname.startsWith(item.href)
               const Icon = item.icon
               // Show badge for Tareas if there are overdue/due soon tasks

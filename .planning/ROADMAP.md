@@ -313,13 +313,13 @@ Plans:
 **Plans**: 7 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Database foundation: integrations, webhook_events tables, orders.shopify_order_id column
-- [ ] 11-02-PLAN.md — Core utilities: HMAC verification, phone normalization, contact matching with fuzzy logic
-- [ ] 11-03-PLAN.md — Order mapping and webhook handler: Shopify to MorfX order transformation
-- [ ] 11-04-PLAN.md — Server Actions: connection test, integration CRUD with Owner-only access
-- [ ] 11-05-PLAN.md — Webhook endpoint: /api/webhooks/shopify with HMAC verification
-- [ ] 11-06-PLAN.md — Configuration UI: /configuracion/integraciones with form and sync status
-- [ ] 11-07-PLAN.md — Navigation wiring and end-to-end verification
+- [x] 11-01-PLAN.md — Database foundation: integrations, webhook_events tables, orders.shopify_order_id column
+- [x] 11-02-PLAN.md — Core utilities: HMAC verification, phone normalization, contact matching with fuzzy logic
+- [x] 11-03-PLAN.md — Order mapping and webhook handler: Shopify to MorfX order transformation
+- [x] 11-04-PLAN.md — Server Actions: connection test, integration CRUD with Owner-only access
+- [x] 11-05-PLAN.md — Webhook endpoint: /api/webhooks/shopify with HMAC verification
+- [x] 11-06-PLAN.md — Configuration UI: /configuracion/integraciones with form and sync status
+- [x] 11-07-PLAN.md — Navigation wiring and end-to-end verification
 
 ---
 

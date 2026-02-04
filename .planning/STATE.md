@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 11 of 11 (Shopify Integration)
-Plan: 1 of 4
+Plan: 2 of 4
 Status: In progress
-Last activity: 2026-02-04 - Completed 11-01-PLAN.md (Database Foundation)
+Last activity: 2026-02-04 - Completed 11-02-PLAN.md (Core Utilities)
 
 Progress: [##########] 100% (MVP complete, Phase 11 in progress)
 
@@ -234,6 +234,11 @@ Recent decisions affecting current work:
 - [Phase 11-01]: is_workspace_owner() helper checks role = 'owner' specifically for sensitive credentials
 - [Phase 11-01]: JSONB config field for type-specific integration settings
 - [Phase 11-01]: Partial index on shopify_order_id WHERE NOT NULL for efficient deduplication
+- [Phase 11-02]: crypto.timingSafeEqual for HMAC verification to prevent timing attacks
+- [Phase 11-02]: International phone normalization with CO fallback for Shopify numbers
+- [Phase 11-02]: Fuzzy matches always require human verification (needsVerification: true)
+- [Phase 11-02]: Double Metaphone for phonetic matching (better than Soundex for Spanish names)
+- [Phase 11-02]: 40% confidence threshold for fuzzy matching to avoid false positives
 
 ### Project Rules
 
@@ -621,9 +626,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-04T21:00:09Z
-Stopped at: Completed 11-01-PLAN.md (Database Foundation)
-Resume file: None - Plan 11-01 complete
+Last session: 2026-02-04T21:08:35Z
+Stopped at: Completed 11-02-PLAN.md (Core Utilities)
+Resume file: None - Plan 11-02 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

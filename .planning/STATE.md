@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 10 of 10 (Search, Tasks & Analytics)
-Plan: 0 of 3
-Status: Ready to start Phase 10
-Last activity: 2026-02-03 - UAT complete for Phase 9 + 9.1 (10/10 tests passed)
+Plan: 1 of 3
+Status: In progress
+Last activity: 2026-02-03 - Completed 10-01-PLAN.md (Tasks Foundation)
 
-Progress: [##########] ~98%
+Progress: [##########] ~99%
 
 ### Phase 7 Verification (2026-01-31)
 All success criteria verified:
@@ -192,6 +192,10 @@ Recent decisions affecting current work:
 - [Phase 9.1-03]: Fallback pattern: DB emoji first, then hardcoded PHASE_INDICATORS
 - [Phase 9.1-03]: Closed stages never show emoji indicator
 - [Phase 9.1-03]: Only first active order emoji shown on avatar (not all)
+- [Phase 10-01]: Exclusive arc pattern with CHECK constraint for task entity linking (at most one of contact/order/conversation)
+- [Phase 10-01]: Tasks cascade delete with linked entity
+- [Phase 10-01]: Task types manageable only by workspace admins
+- [Phase 10-01]: Tasks updatable by creator, assignee, or admin
 
 ### Project Rules
 
@@ -579,9 +583,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-03T21:02:00Z
-Stopped at: Completed 09.1-03-PLAN.md (WhatsApp DB Emoji Integration)
-Resume file: None - Phase 9.1 complete
+Last session: 2026-02-04T00:13:00Z
+Stopped at: Completed 10-01-PLAN.md (Tasks Foundation)
+Resume file: None - Plan 10-01 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

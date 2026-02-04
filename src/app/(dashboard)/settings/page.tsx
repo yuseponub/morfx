@@ -1,8 +1,18 @@
 import Link from 'next/link'
-import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot } from 'lucide-react'
+import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 
-const settingsLinks = [
+type SettingsLink = {
+  href: string
+  title: string
+  description: string
+  icon: typeof Users
+  ownerOnly?: boolean
+}
+
+const settingsLinks: SettingsLink[] = [
   {
     href: '/settings/workspace/members',
     title: 'Miembros del equipo',
@@ -20,6 +30,13 @@ const settingsLinks = [
     title: 'WhatsApp',
     description: 'Templates, equipos, respuestas rapidas y costos de mensajeria',
     icon: MessageSquare,
+  },
+  {
+    href: '/configuracion/integraciones',
+    title: 'Integraciones',
+    description: 'Conecta Shopify y otras plataformas para sincronizar pedidos automaticamente',
+    icon: Plug,
+    ownerOnly: true,
   },
   {
     href: '/crm/contactos',
@@ -53,7 +70,29 @@ const settingsLinks = [
   },
 ]
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  // Check user role to show owner-only items
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let isOwner = false
+  if (user) {
+    const cookieStore = await cookies()
+    const workspaceId = cookieStore.get('morfx_workspace')?.value
+    if (workspaceId) {
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.id)
+        .single()
+      isOwner = member?.role === 'owner'
+    }
+  }
+
+  // Filter settings based on role
+  const visibleLinks = settingsLinks.filter(item => !item.ownerOnly || isOwner)
+
   return (
     <div className="space-y-6">
       <div>
@@ -64,7 +103,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {settingsLinks.map((item) => {
+        {visibleLinks.map((item) => {
           const Icon = item.icon
           return (
             <Link key={item.href} href={item.href}>

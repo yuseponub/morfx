@@ -299,7 +299,16 @@ export function TaskList({ initialTasks, taskTypes, members }: TaskListProps) {
                 {group.tasks.map((task) => (
                   <div
                     key={task.id}
-                    onClick={() => handleViewDetails(task)}
+                    onClick={(e) => {
+                      // Don't open detail sheet if clicking on dropdown or checkbox
+                      const target = e.target as HTMLElement
+                      if (target.closest('[data-radix-collection-item]') ||
+                          target.closest('button') ||
+                          target.closest('[role="checkbox"]')) {
+                        return
+                      }
+                      handleViewDetails(task)
+                    }}
                     className="cursor-pointer"
                   >
                     <TaskItem

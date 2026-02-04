@@ -83,6 +83,8 @@ export interface Task {
   created_by: string | null
   /** Timestamp when task was marked completed */
   completed_at: string | null
+  /** Number of times due_date was moved forward (postponed) */
+  postponement_count: number
   created_at: string
   updated_at: string
 }
@@ -230,4 +232,76 @@ export interface TaskListOptions {
   sortDirection?: SortDirection
   limit?: number
   offset?: number
+}
+
+// ============================================================================
+// TASK NOTE TYPES
+// ============================================================================
+
+/**
+ * Note attached to a task.
+ * All workspace members can see notes; author (or admin/owner) can edit/delete.
+ */
+export interface TaskNote {
+  id: string
+  task_id: string
+  workspace_id: string
+  user_id: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Note with user profile info for display.
+ */
+export interface TaskNoteWithUser extends TaskNote {
+  user: {
+    id: string
+    email: string
+  }
+}
+
+// ============================================================================
+// TASK ACTIVITY TYPES
+// ============================================================================
+
+/**
+ * Task activity action types.
+ * Semantic actions for better timeline display.
+ */
+export type TaskActivityAction =
+  | 'created'
+  | 'updated'
+  | 'completed'
+  | 'reopened'
+  | 'due_date_changed'
+  | 'deleted'
+  | 'note_added'
+  | 'note_updated'
+  | 'note_deleted'
+
+/**
+ * Activity log entry for a task.
+ * Immutable audit trail of all task changes.
+ */
+export interface TaskActivity {
+  id: string
+  task_id: string
+  workspace_id: string
+  user_id: string | null
+  action: TaskActivityAction
+  changes: Record<string, { old: unknown; new: unknown }> | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+/**
+ * Activity with user profile info for display.
+ */
+export interface TaskActivityWithUser extends TaskActivity {
+  user: {
+    id: string
+    email: string
+  } | null
 }

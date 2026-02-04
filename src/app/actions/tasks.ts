@@ -417,6 +417,46 @@ export async function getTaskSummary(): Promise<TaskSummary> {
 }
 
 // ============================================================================
+// Helper: Get Workspace Members for Task Assignment
+// ============================================================================
+
+/**
+ * Get workspace members for task assignment dropdowns.
+ * Uses current workspace from cookie - designed for client components.
+ */
+export async function getWorkspaceMembersForTasks(): Promise<Array<{ user_id: string; email: string | null }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const workspaceId = await getWorkspaceId()
+  if (!workspaceId) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('workspace_members')
+    .select(`
+      user_id,
+      profiles!workspace_members_user_id_fkey(email)
+    `)
+    .eq('workspace_id', workspaceId)
+
+  if (error) {
+    console.error('Error fetching workspace members:', error)
+    return []
+  }
+
+  return (data || []).map((member: any) => ({
+    user_id: member.user_id,
+    email: member.profiles?.email || null,
+  }))
+}
+
+// ============================================================================
 // Task Type Operations
 // ============================================================================
 

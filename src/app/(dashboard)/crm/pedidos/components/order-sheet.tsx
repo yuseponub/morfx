@@ -16,6 +16,7 @@ import {
   ExternalLinkIcon,
   LoaderIcon,
   MessageCircleIcon,
+  ListTodo,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { OrderTagInput } from './order-tag-input'
+import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { moveOrderToStage } from '@/app/actions/orders'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -190,6 +192,12 @@ export function OrderSheet({
                 </Link>
               </Button>
             )}
+            <CreateTaskButton
+              orderId={order.id}
+              orderInfo={`Pedido ${formatCurrency(order.total_value)} - ${contact?.name || 'Sin contacto'}`}
+              variant="outline"
+              size="sm"
+            />
 
             {/* Spacer */}
             <div className="flex-1" />

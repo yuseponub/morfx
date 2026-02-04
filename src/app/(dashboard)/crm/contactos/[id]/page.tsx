@@ -19,6 +19,7 @@ import { CustomFieldsSection } from './components/custom-fields-section'
 import { NotesSection } from './components/notes-section'
 import { ActivityTimeline } from './components/activity-timeline'
 import { WhatsAppSection } from './components/whatsapp-section'
+import { ContactTasks } from './components/contact-tasks'
 
 interface ContactDetailPageProps {
   params: Promise<{ id: string }>
@@ -95,6 +96,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
           <TabsTrigger value="info">Informacion</TabsTrigger>
+          <TabsTrigger value="tasks">Tareas</TabsTrigger>
           <TabsTrigger value="custom">Campos</TabsTrigger>
           <TabsTrigger value="notes">Notas</TabsTrigger>
           <TabsTrigger value="history">Historial</TabsTrigger>
@@ -215,6 +217,18 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
               timeZone: 'America/Bogota',
             })}
           </p>
+        </TabsContent>
+
+        {/* Tasks tab */}
+        <TabsContent value="tasks">
+          <Card>
+            <CardContent className="pt-6">
+              <ContactTasks
+                contactId={contact.id}
+                contactName={contact.name}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Custom Fields tab */}

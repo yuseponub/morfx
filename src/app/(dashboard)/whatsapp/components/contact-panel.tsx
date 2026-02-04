@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, User, ShoppingBag, ExternalLink, Eye, MapPin } from 'lucide-react'
+import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -11,6 +11,7 @@ import { WindowIndicator } from './window-indicator'
 import { CreateOrderSheet } from './create-order-sheet'
 import { CreateContactSheet } from './create-contact-sheet'
 import { ViewOrderSheet } from './view-order-sheet'
+import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
@@ -138,14 +139,22 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
                 )}
               </div>
 
-              {/* View in CRM link */}
-              <Link
-                href={`/crm/contactos/${contact.id}`}
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Ver en CRM
-              </Link>
+              {/* Actions row: CRM link and Task button */}
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/crm/contactos/${contact.id}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Ver en CRM
+                </Link>
+                <CreateTaskButton
+                  conversationId={conversation.id}
+                  conversationPhone={conversation.phone}
+                  variant="outline"
+                  size="sm"
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher'
+import { GlobalSearch } from '@/components/search/global-search'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { logout } from '@/app/actions/auth'
 import type { WorkspaceWithRole } from '@/lib/types/database'
@@ -66,6 +67,11 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
           workspaces={workspaces}
           currentWorkspace={currentWorkspace}
         />
+      </div>
+
+      {/* Global Search */}
+      <div className="px-4 pb-4">
+        <GlobalSearch />
       </div>
 
       {/* Navigation */}

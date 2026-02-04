@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 11 of 11 (Shopify Integration)
-Plan: 5 of 7
+Plan: 6 of 7
 Status: In progress
-Last activity: 2026-02-04 - Completed 11-05-PLAN.md (Shopify Webhook Endpoint)
+Last activity: 2026-02-04 - Completed 11-06-PLAN.md (Settings UI)
 
 Progress: [##########] 100% (MVP complete, Phase 11 in progress)
 
@@ -248,6 +248,9 @@ Recent decisions affecting current work:
 - [Phase 11-04]: Owner-only writes for all integration mutations (save, toggle, delete)
 - [Phase 11-04]: Connection test mandatory before save to prevent invalid credentials
 - [Phase 11-05]: Always return 200 from webhook (even on error) to prevent Shopify retry storms
+- [Phase 11-06]: Owner-only access for integrations settings (redirect non-owners)
+- [Phase 11-06]: Test connection required before save (via server action validation)
+- [Phase 11-06]: Pipeline/stage cascade: stage resets to first when pipeline changes
 
 ### Project Rules
 
@@ -635,9 +638,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-04T21:30:00Z
-Stopped at: Completed 11-05-PLAN.md (Shopify Webhook Endpoint)
-Resume file: None - Plan 11-05 complete
+Last session: 2026-02-04T21:32:00Z
+Stopped at: Completed 11-06-PLAN.md (Settings UI)
+Resume file: None - Plan 11-06 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

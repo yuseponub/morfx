@@ -80,16 +80,18 @@ export function TaskHistoryTimeline({ activities }: TaskHistoryTimelineProps) {
             date={formatRelativeDate(activity.created_at)}
             isLast={index === activities.length - 1}
           >
-            {/* Show changes for update actions */}
-            {activity.changes && Object.keys(activity.changes).length > 0 && (
-              <ActivityChanges changes={activity.changes} />
-            )}
-            {/* Show note preview for note actions */}
-            {activity.metadata?.preview && (
-              <p className="text-sm text-muted-foreground italic">
-                &quot;{activity.metadata.preview as string}&quot;
-              </p>
-            )}
+            <>
+              {/* Show changes for update actions */}
+              {activity.changes && Object.keys(activity.changes).length > 0 ? (
+                <ActivityChanges changes={activity.changes} />
+              ) : null}
+              {/* Show note preview for note actions */}
+              {activity.metadata?.preview ? (
+                <p className="text-sm text-muted-foreground italic">
+                  &quot;{String(activity.metadata.preview)}&quot;
+                </p>
+              ) : null}
+            </>
           </TimelineItem>
         )
       })}

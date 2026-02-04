@@ -62,8 +62,8 @@ export async function getTasks(filters?: TaskFilters): Promise<TaskWithDetails[]
       contact:contacts(id, name, phone),
       order:orders(id, total_value, contact:contacts(name)),
       conversation:conversations(id, phone, contact:contacts(name)),
-      assigned_user:profiles!tasks_assigned_to_fkey(id, email),
-      created_user:profiles!tasks_created_by_fkey(id, email)
+      assigned_user:profiles!tasks_assigned_to_profiles_fkey(id, email),
+      created_user:profiles!tasks_created_by_profiles_fkey(id, email)
     `)
     .eq('workspace_id', workspaceId)
 
@@ -180,8 +180,8 @@ export async function getTask(id: string): Promise<TaskWithDetails | null> {
       contact:contacts(id, name, phone),
       order:orders(id, total_value, contact:contacts(name)),
       conversation:conversations(id, phone, contact:contacts(name)),
-      assigned_user:profiles!tasks_assigned_to_fkey(id, email),
-      created_user:profiles!tasks_created_by_fkey(id, email)
+      assigned_user:profiles!tasks_assigned_to_profiles_fkey(id, email),
+      created_user:profiles!tasks_created_by_profiles_fkey(id, email)
     `)
     .eq('id', id)
     .single()

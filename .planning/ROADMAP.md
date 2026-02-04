@@ -2,7 +2,9 @@
 
 ## Overview
 
-MorfX is a CRM + WhatsApp SaaS platform for e-commerce COD businesses. This roadmap delivers the v1 MVP through 10 phases, starting with foundational infrastructure (auth, workspaces, Action DSL), building up the CRM module (contacts, orders), then the WhatsApp module, and culminating in the core value: synchronized tags and states between CRM and WhatsApp. The journey ends with polish features (search, tasks, analytics) that enhance but don't define the product.
+MorfX is a CRM + WhatsApp SaaS platform for e-commerce COD businesses. This roadmap delivers the v1 MVP through 11 phases, starting with foundational infrastructure (auth, workspaces, Action DSL), building up the CRM module (contacts, orders), then the WhatsApp module, culminating in the core value: synchronized tags and states between CRM and WhatsApp, and completing with Shopify integration for automatic order sync.
+
+**MVP v2** will focus on Conversational Agents: connecting the Action DSL with real operations, building an agent engine with Claude API, a sandbox for testing, and finally integrating agents with WhatsApp for automated customer service.
 
 ## Phases
 
@@ -26,6 +28,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
 - [x] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
 - [x] **Phase 10.1: Task Notes & History** - Notas en tareas e historial de cambios (INSERTED)
+- [ ] **Phase 11: Shopify Integration** - Webhooks de pedidos, auto-crear contactos y pedidos
+
+---
+
+### MVP v2: Agentes Conversacionales (Post-MVP v1)
+
+- [ ] **Phase 12: Agent Architecture & DSL Connection** - Conectar Action DSL con funciones reales, diseño de arquitectura de agentes
+- [ ] **Phase 13: Conversational Agent Engine** - Motor de agente con Claude API, configuración de contexto y herramientas
+- [ ] **Phase 14: Agent Sandbox** - UI de pruebas para simular conversaciones cliente-robot
+- [ ] **Phase 15: WhatsApp Agent Integration** - Conectar agentes con WhatsApp real, handoff humano-robot
 
 ## Phase Details
 
@@ -288,6 +300,69 @@ Plans:
 - [x] 10.1-03-PLAN.md — UI components: PostponementBadge, TaskNotesSection, TaskHistoryTimeline, list integration
 - [x] 10.1-04-PLAN.md — Task detail view: tabbed interface with Info, Notas, Historial tabs
 
+### Phase 11: Shopify Integration
+**Goal**: Pedidos de Shopify se sincronizan automaticamente con MorfX
+**Depends on**: Phase 6 (Orders)
+**Requirements**: INTG-01, INTG-02
+**Success Criteria** (what must be TRUE):
+  1. Admin puede configurar conexion con tienda Shopify (API credentials)
+  2. Sistema recibe webhooks de Shopify cuando se crea un pedido
+  3. Pedido de Shopify auto-crea contacto si no existe (por telefono/email)
+  4. Pedido de Shopify auto-crea pedido en MorfX con productos y monto
+  5. Productos se matchean por SKU con catalogo existente
+**Plans**: TBD
+
+---
+
+## MVP v2: Agentes Conversacionales
+
+> **Nota:** Estas fases se planificaran despues de completar MVP v1.
+> La arquitectura se basara en los agentes existentes de n8n pero con codigo propio para mayor control.
+
+### Phase 12: Agent Architecture & DSL Connection
+**Goal**: Action DSL conectado con funciones reales + diseño de arquitectura de agentes
+**Depends on**: Phase 11 (MVP v1 complete)
+**Requirements**: ADSL (extended)
+**Success Criteria** (what must be TRUE):
+  1. Handlers del Action DSL ejecutan operaciones reales (no placeholders)
+  2. API /api/v1/tools funciona para operaciones CRM y WhatsApp
+  3. Documento de arquitectura de agentes conversacionales aprobado
+  4. Logging forense captura todas las ejecuciones de tools
+**Plans**: TBD
+
+### Phase 13: Conversational Agent Engine
+**Goal**: Motor de agente conversacional con Claude API
+**Depends on**: Phase 12
+**Requirements**: AGENT-01 (new)
+**Success Criteria** (what must be TRUE):
+  1. Agente puede recibir mensaje y generar respuesta contextual
+  2. Agente tiene acceso a herramientas del Action DSL
+  3. Configuracion de prompt del sistema y contexto de negocio
+  4. Historial de conversacion mantenido por sesion
+**Plans**: TBD
+
+### Phase 14: Agent Sandbox
+**Goal**: UI de pruebas para simular conversaciones cliente-robot
+**Depends on**: Phase 13
+**Requirements**: AGENT-02 (new)
+**Success Criteria** (what must be TRUE):
+  1. Usuario puede crear sesion de prueba en /sandbox
+  2. Usuario escribe como "cliente", agente responde
+  3. UI muestra herramientas que el agente usa (transparencia)
+  4. Historial de sesiones de prueba guardado
+**Plans**: TBD
+
+### Phase 15: WhatsApp Agent Integration
+**Goal**: Agentes conectados con WhatsApp real
+**Depends on**: Phase 14
+**Requirements**: AGENT-03 (new)
+**Success Criteria** (what must be TRUE):
+  1. Conversacion de WhatsApp puede ser atendida por agente automaticamente
+  2. Handoff de robot a humano cuando se requiere
+  3. Configuracion de cuando el agente interviene vs humano
+  4. Metricas de conversaciones manejadas por agente
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
@@ -307,7 +382,17 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
 | 10. Search, Tasks & Analytics | 6/6 | Complete | 2026-02-04 |
 | 10.1 Task Notes & History | 4/4 | Complete | 2026-02-04 |
+| **11. Shopify Integration** | 0/? | **Next** | - |
+
+### MVP v2: Agentes Conversacionales (Futuro)
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 12. Agent Architecture & DSL Connection | TBD | Planned | - |
+| 13. Conversational Agent Engine | TBD | Planned | - |
+| 14. Agent Sandbox | TBD | Planned | - |
+| 15. WhatsApp Agent Integration | TBD | Planned | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-04 (Phase 10.1 planned)*
+*Last updated: 2026-02-04 (Phase 11 added, MVP v2 roadmap defined)*

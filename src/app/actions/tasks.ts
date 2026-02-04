@@ -423,6 +423,7 @@ export async function getTaskSummary(): Promise<TaskSummary> {
 /**
  * Get workspace members for task assignment dropdowns.
  * Uses current workspace from cookie - designed for client components.
+ * Uses two separate queries (members + profiles) for reliability.
  */
 export async function getWorkspaceMembersForTasks(): Promise<Array<{ user_id: string; email: string | null }>> {
   const supabase = await createClient()
@@ -437,22 +438,35 @@ export async function getWorkspaceMembersForTasks(): Promise<Array<{ user_id: st
     return []
   }
 
-  const { data, error } = await supabase
+  // Step 1: Get workspace members
+  const { data: members, error: membersError } = await supabase
     .from('workspace_members')
-    .select(`
-      user_id,
-      profiles!workspace_members_user_id_fkey(email)
-    `)
+    .select('user_id')
     .eq('workspace_id', workspaceId)
 
-  if (error) {
-    console.error('Error fetching workspace members:', error)
+  if (membersError || !members || members.length === 0) {
+    console.error('Error fetching workspace members:', membersError)
     return []
   }
 
-  return (data || []).map((member: any) => ({
+  // Step 2: Get profiles for those members
+  const userIds = members.map(m => m.user_id)
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .in('id', userIds)
+
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError)
+    return []
+  }
+
+  // Step 3: Combine into result
+  const profileMap = new Map(profiles?.map(p => [p.id, p.email]) || [])
+
+  return members.map(member => ({
     user_id: member.user_id,
-    email: member.profiles?.email || null,
+    email: profileMap.get(member.user_id) || null,
   }))
 }
 

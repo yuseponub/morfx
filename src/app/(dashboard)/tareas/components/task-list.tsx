@@ -25,6 +25,7 @@ import {
 import { TaskFiltersBar } from './task-filters'
 import { TaskForm } from './task-form'
 import { TaskItem } from '@/components/tasks/task-item'
+import { TaskDetailSheet } from './task-detail-sheet'
 import { deleteTask } from '@/app/actions/tasks'
 import { toast } from 'sonner'
 import type { TaskWithDetails, TaskType, TaskFilters } from '@/lib/tasks/types'
@@ -117,6 +118,10 @@ export function TaskList({ initialTasks, taskTypes, members }: TaskListProps) {
   const [taskToDelete, setTaskToDelete] = React.useState<TaskWithDetails | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
 
+  // Detail sheet state
+  const [detailSheetOpen, setDetailSheetOpen] = React.useState(false)
+  const [selectedTask, setSelectedTask] = React.useState<TaskWithDetails | null>(null)
+
   // Update tasks when initialTasks changes (e.g., after server revalidation)
   React.useEffect(() => {
     setTasks(initialTasks)
@@ -195,6 +200,18 @@ export function TaskList({ initialTasks, taskTypes, members }: TaskListProps) {
   const handleFormClose = () => {
     setFormSheetOpen(false)
     setEditingTask(null)
+  }
+
+  const handleViewDetails = (task: TaskWithDetails) => {
+    setSelectedTask(task)
+    setDetailSheetOpen(true)
+  }
+
+  const handleDetailSheetClose = (open: boolean) => {
+    if (!open) {
+      setDetailSheetOpen(false)
+      setSelectedTask(null)
+    }
   }
 
   // Empty state
@@ -280,12 +297,17 @@ export function TaskList({ initialTasks, taskTypes, members }: TaskListProps) {
               </h3>
               <div className="space-y-2">
                 {group.tasks.map((task) => (
-                  <TaskItem
+                  <div
                     key={task.id}
-                    task={task}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                    onClick={() => handleViewDetails(task)}
+                    className="cursor-pointer"
+                  >
+                    <TaskItem
+                      task={task}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -339,6 +361,13 @@ export function TaskList({ initialTasks, taskTypes, members }: TaskListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Task Detail Sheet */}
+      <TaskDetailSheet
+        task={selectedTask}
+        open={detailSheetOpen}
+        onOpenChange={handleDetailSheetClose}
+      />
     </>
   )
 }

@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 10 of 10 (Search, Tasks & Analytics)
-Plan: 6 of 6
+Phase: 10.1 of 10.1 (Task Notes & History)
+Plan: 1 of 4
 Status: In progress
-Last activity: 2026-02-04 - Completed 10-03-PLAN.md (Task Integration and Settings)
+Last activity: 2026-02-04 - Completed 10.1-01-PLAN.md (Database Foundation)
 
 Progress: [##########] ~99%
 
@@ -56,6 +56,7 @@ All success criteria verified:
 ### Roadmap Evolution
 
 - Phase 9.1 inserted after Phase 9: Order States Config (URGENT) - Estados de pedido configurables con emoji y guía de comportamiento para agente conversacional. Reemplaza el mapeo hardcodeado de stage-phases.ts.
+- Phase 10.1 inserted after Phase 10: Task Notes & History (URGENT) - Notas en tareas e historial de cambios para detectar postergaciones. Encontrado durante UAT de Fase 10.
 
 ### Decisions
 
@@ -208,6 +209,9 @@ Recent decisions affecting current work:
 - [Phase 10-03]: CreateTaskButton with entity props pre-fills form (single reusable component)
 - [Phase 10-03]: Task types use TAG_COLORS from tag system for consistency
 - [Phase 10-03]: getWorkspaceMembersForTasks helper for client component workspace ID access
+- [Phase 10.1-01]: BEFORE trigger (not AFTER) for log_task_changes to allow modifying NEW.postponement_count
+- [Phase 10.1-01]: Postponement only counts when both old and new due_date are NOT NULL and new > old
+- [Phase 10.1-01]: Skip postponement_count in JSONB diff to avoid logging derived field changes
 
 ### Project Rules
 
@@ -595,9 +599,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-04T00:41:44Z
-Stopped at: Completed 10-03-PLAN.md (Task Integration and Settings)
-Resume file: None - Plan 10-03 complete
+Last session: 2026-02-04T15:00:00Z
+Stopped at: Completed 10.1-01-PLAN.md (Database Foundation)
+Resume file: None - Plan 10.1-01 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

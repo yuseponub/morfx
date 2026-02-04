@@ -2,8 +2,8 @@
 
 import * as React from 'react'
 import { useForm, Controller } from 'react-hook-form'
-import { CalendarIcon, LoaderIcon } from 'lucide-react'
-import { format } from 'date-fns'
+import { CalendarIcon, LoaderIcon, Clock } from 'lucide-react'
+import { format, isToday, startOfDay, addHours } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,11 +35,46 @@ import { cn } from '@/lib/utils'
 import type { TaskWithDetails, TaskType, TaskPriority } from '@/lib/tasks/types'
 import type { MemberWithUser } from '@/lib/types/database'
 
+// Helper: Get default time based on selected date
+function getDefaultTime(selectedDate: Date): string {
+  const now = new Date()
+  if (isToday(selectedDate)) {
+    // If today, default to current time + 4 hours
+    const futureTime = addHours(now, 4)
+    return format(futureTime, 'HH:mm')
+  }
+  // If tomorrow or later, use current time
+  return format(now, 'HH:mm')
+}
+
+// Helper: Combine date and time into ISO string with Colombia timezone
+function combineDateAndTime(date: Date, time: string): string {
+  const [hours, minutes] = time.split(':').map(Number)
+  const combined = new Date(date)
+  combined.setHours(hours, minutes, 0, 0)
+  // Return as ISO string - the server will interpret in Colombia timezone
+  return combined.toISOString()
+}
+
+// Helper: Extract time from ISO date string
+function extractTime(isoString: string): string {
+  const date = new Date(isoString)
+  return format(date, 'HH:mm')
+}
+
+// Generate time options (every 30 minutes)
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const hours = Math.floor(i / 2)
+  const minutes = (i % 2) * 30
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+})
+
 // Form data type
 interface FormData {
   title: string
   description: string | null
   due_date: string | null
+  due_time: string
   priority: TaskPriority
   task_type_id: string | null
   assigned_to: string | null
@@ -66,11 +101,13 @@ export function TaskForm({
   const [serverError, setServerError] = React.useState<string | null>(null)
 
   const defaultValues: FormData = React.useMemo(() => {
+    const defaultTime = format(addHours(new Date(), 4), 'HH:mm')
     if (mode === 'edit' && task) {
       return {
         title: task.title,
         description: task.description,
         due_date: task.due_date,
+        due_time: task.due_date ? extractTime(task.due_date) : defaultTime,
         priority: task.priority,
         task_type_id: task.task_type_id,
         assigned_to: task.assigned_to,
@@ -80,6 +117,7 @@ export function TaskForm({
       title: '',
       description: null,
       due_date: null,
+      due_time: defaultTime,
       priority: 'medium' as TaskPriority,
       task_type_id: null,
       assigned_to: null,
@@ -94,12 +132,19 @@ export function TaskForm({
     setIsPending(true)
     setServerError(null)
 
+    // Combine date and time if date is set
+    let dueDateTime: string | undefined = undefined
+    if (data.due_date) {
+      const dateObj = new Date(data.due_date)
+      dueDateTime = combineDateAndTime(dateObj, data.due_time)
+    }
+
     try {
       const result = mode === 'edit' && task
         ? await updateTask(task.id, {
             title: data.title,
             description: data.description,
-            due_date: data.due_date,
+            due_date: dueDateTime || null,
             priority: data.priority,
             task_type_id: data.task_type_id,
             assigned_to: data.assigned_to,
@@ -107,7 +152,7 @@ export function TaskForm({
         : await createTask({
             title: data.title,
             description: data.description || undefined,
-            due_date: data.due_date || undefined,
+            due_date: dueDateTime,
             priority: data.priority,
             task_type_id: data.task_type_id || undefined,
             assigned_to: data.assigned_to || undefined,
@@ -161,57 +206,93 @@ export function TaskForm({
             />
           </div>
 
-          {/* Due date */}
+          {/* Due date and time */}
           <div className="space-y-2">
-            <Label htmlFor="due_date">Fecha limite</Label>
-            <Controller
-              control={form.control}
-              name="due_date"
-              render={({ field }) => (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !field.value && 'text-muted-foreground'
+            <Label htmlFor="due_date">Fecha y hora limite</Label>
+            <div className="flex gap-2">
+              {/* Date picker */}
+              <Controller
+                control={form.control}
+                name="due_date"
+                render={({ field }) => (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          'flex-1 justify-start text-left font-normal',
+                          !field.value && 'text-muted-foreground'
+                        )}
+                        disabled={isPending}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value
+                          ? format(new Date(field.value), 'PPP', { locale: es })
+                          : 'Seleccionar fecha'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            // Store as ISO string at start of day (local time)
+                            const localDate = startOfDay(date)
+                            field.onChange(localDate.toISOString())
+                            // Update default time based on selected date
+                            form.setValue('due_time', getDefaultTime(date))
+                          } else {
+                            field.onChange(null)
+                          }
+                        }}
+                        initialFocus
+                        locale={es}
+                      />
+                      {field.value && (
+                        <div className="p-2 border-t">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => field.onChange(null)}
+                          >
+                            Quitar fecha
+                          </Button>
+                        </div>
                       )}
-                      disabled={isPending}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {field.value
-                        ? format(new Date(field.value), 'PPP', { locale: es })
-                        : 'Seleccionar fecha'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) =>
-                        field.onChange(date ? format(date, 'yyyy-MM-dd') : null)
-                      }
-                      initialFocus
-                      locale={es}
-                    />
-                    {field.value && (
-                      <div className="p-2 border-t">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => field.onChange(null)}
-                        >
-                          Quitar fecha
-                        </Button>
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-              )}
-            />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
+
+              {/* Time picker */}
+              <Controller
+                control={form.control}
+                name="due_time"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={isPending || !form.watch('due_date')}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <Clock className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Hora" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {TIME_OPTIONS.map((time) => (
+                        <SelectItem key={time} value={time}>
+                          {time}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
           </div>
 
           {/* Priority */}

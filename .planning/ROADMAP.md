@@ -24,8 +24,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8.2: Quick Replies con Media** - Fotos y archivos en respuestas rapidas (INSERTED)
 - [x] **Phase 9: CRM-WhatsApp Sync** - Tags and states synchronized (core value)
 - [x] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
-- [ ] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
-- [ ] **Phase 10.1: Task Notes & History** - Notas en tareas e historial de cambios (INSERTED)
+- [x] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
+- [x] **Phase 10.1: Task Notes & History** - Notas en tareas e historial de cambios (INSERTED)
 
 ## Phase Details
 
@@ -283,10 +283,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 10.1-01-PLAN.md — Database foundation: task_notes, task_activity tables, log_task_changes trigger, postponement_count
-- [ ] 10.1-02-PLAN.md — Server Actions: task notes CRUD, task activity fetching with formatting helpers
-- [ ] 10.1-03-PLAN.md — UI components: PostponementBadge, TaskNotesSection, TaskHistoryTimeline, list integration
-- [ ] 10.1-04-PLAN.md — Task detail view: tabbed interface with Info, Notas, Historial tabs
+- [x] 10.1-01-PLAN.md — Database foundation: task_notes, task_activity tables, log_task_changes trigger, postponement_count
+- [x] 10.1-02-PLAN.md — Server Actions: task notes CRUD, task activity fetching with formatting helpers
+- [x] 10.1-03-PLAN.md — UI components: PostponementBadge, TaskNotesSection, TaskHistoryTimeline, list integration
+- [x] 10.1-04-PLAN.md — Task detail view: tabbed interface with Info, Notas, Historial tabs
 
 ## Progress
 
@@ -305,8 +305,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. WhatsApp Extended | 9/9 | Complete | 2026-01-31 |
 | 9. CRM-WhatsApp Sync | 7/8 | Complete | 2026-02-03 |
 | 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
-| 10. Search, Tasks & Analytics | 6/6 | In Progress | - |
-| 10.1 Task Notes & History | 0/4 | Planned | - |
+| 10. Search, Tasks & Analytics | 6/6 | Complete | 2026-02-04 |
+| 10.1 Task Notes & History | 4/4 | Complete | 2026-02-04 |
 
 ---
 *Roadmap created: 2026-01-26*

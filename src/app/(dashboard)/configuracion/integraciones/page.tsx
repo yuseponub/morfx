@@ -73,7 +73,7 @@ export default async function IntegracionesPage() {
                     Los pedidos creados en Shopify apareceran en tu CRM.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="max-h-[calc(100vh-300px)] overflow-y-auto">
                   <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded" />}>
                     <ShopifyForm
                       integration={integration}

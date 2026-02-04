@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 11 of 11 (Shopify Integration)
-Plan: 3 of 4
+Plan: 4 of 4
 Status: In progress
-Last activity: 2026-02-04 - Completed 11-03-PLAN.md (Order Mapping & Webhook Processing)
+Last activity: 2026-02-04 - Completed 11-04-PLAN.md (Connection Testing & Server Actions)
 
 Progress: [##########] 100% (MVP complete, Phase 11 in progress)
 
@@ -243,6 +243,10 @@ Recent decisions affecting current work:
 - [Phase 11-03]: Unmatched products included with generated SKU (SHOPIFY-{id}) for traceability
 - [Phase 11-03]: Dual idempotency: webhook_id + shopify_order_id prevents duplicate processing and orders
 - [Phase 11-03]: Contact duplicate phone race condition handled gracefully by querying existing contact
+- [Phase 11-04]: @shopify/shopify-api SDK for connection test (official SDK, proper error handling)
+- [Phase 11-04]: isEmbeddedApp: false required for custom store apps
+- [Phase 11-04]: Owner-only writes for all integration mutations (save, toggle, delete)
+- [Phase 11-04]: Connection test mandatory before save to prevent invalid credentials
 
 ### Project Rules
 
@@ -630,9 +634,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-04T21:18:55Z
-Stopped at: Completed 11-03-PLAN.md (Order Mapping & Webhook Processing)
-Resume file: None - Plan 11-03 complete
+Last session: 2026-02-04T21:23:07Z
+Stopped at: Completed 11-04-PLAN.md (Connection Testing & Server Actions)
+Resume file: None - Plan 11-04 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

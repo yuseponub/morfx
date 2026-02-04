@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9.1: Order States Config** - Estados de pedido configurables con emoji (INSERTED)
 - [x] **Phase 10: Search, Tasks & Analytics** - Global search, reminders, dashboard
 - [x] **Phase 10.1: Task Notes & History** - Notas en tareas e historial de cambios (INSERTED)
-- [ ] **Phase 11: Shopify Integration** - Webhooks de pedidos, auto-crear contactos y pedidos
+- [x] **Phase 11: Shopify Integration** - Webhooks de pedidos, auto-crear contactos y pedidos
 
 ---
 
@@ -391,7 +391,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 9.1 Order States Config | 3/4 | Complete | 2026-02-03 |
 | 10. Search, Tasks & Analytics | 6/6 | Complete | 2026-02-04 |
 | 10.1 Task Notes & History | 4/4 | Complete | 2026-02-04 |
-| **11. Shopify Integration** | 0/7 | **Next** | - |
+| **11. Shopify Integration** | 7/7 | **Complete** | 2026-02-04 |
 
 ### MVP v2: Agentes Conversacionales (Futuro)
 

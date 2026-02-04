@@ -257,13 +257,12 @@ export async function saveShopifyIntegration(formData: IntegrationFormData): Pro
   let integration: ShopifyIntegration
 
   if (existing) {
-    // Update existing
+    // Update existing - don't change is_active (use toggle for that)
     const { data: updated, error } = await adminSupabase
       .from('integrations')
       .update({
         name: formData.name || `Shopify - ${testResult.shopName}`,
         config,
-        is_active: true,
         updated_at: new Date().toISOString(),
       })
       .eq('id', existing.id)

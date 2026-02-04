@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 10 of 10 (Search, Tasks & Analytics)
-Plan: 1 of 3
+Plan: 4 of 5
 Status: In progress
-Last activity: 2026-02-03 - Completed 10-01-PLAN.md (Tasks Foundation)
+Last activity: 2026-02-04 - Completed 10-04-PLAN.md (Global Search)
 
 Progress: [##########] ~99%
 
@@ -196,6 +196,9 @@ Recent decisions affecting current work:
 - [Phase 10-01]: Tasks cascade delete with linked entity
 - [Phase 10-01]: Task types manageable only by workspace admins
 - [Phase 10-01]: Tasks updatable by creator, assignee, or admin
+- [Phase 10-04]: Fetch all searchable items on dialog open (limit 500 per type) for instant filtering
+- [Phase 10-04]: Results grouped by type when "all" filter selected (max 5 per type)
+- [Phase 10-04]: Ctrl+K shortcut label for Windows users
 
 ### Project Rules
 

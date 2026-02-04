@@ -34,6 +34,7 @@ import {
 import { completeTask, reopenTask, deleteTask } from '@/app/actions/tasks'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { PostponementBadge } from '@/components/tasks/postponement-badge'
 import type { TaskWithDetails } from '@/lib/tasks/types'
 
 interface TaskItemProps {
@@ -219,6 +220,11 @@ export function TaskItem({ task, onEdit, onDelete }: TaskItemProps) {
               {dueDateStyle.label ? `${dueDateStyle.label} - ` : ''}
               {format(parseISO(task.due_date), 'dd MMM', { locale: es })}
             </Badge>
+          )}
+
+          {/* Postponement badge - shows after due date */}
+          {task.postponement_count > 0 && (
+            <PostponementBadge count={task.postponement_count} />
           )}
 
           {/* Assigned user */}

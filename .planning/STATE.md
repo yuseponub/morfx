@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 10.1 of 10.1 (Task Notes & History)
-Plan: 1 of 4
+Plan: 2 of 4
 Status: In progress
-Last activity: 2026-02-04 - Completed 10.1-01-PLAN.md (Database Foundation)
+Last activity: 2026-02-04 - Completed 10.1-02-PLAN.md (Server Actions)
 
 Progress: [##########] ~99%
 
@@ -212,6 +212,9 @@ Recent decisions affecting current work:
 - [Phase 10.1-01]: BEFORE trigger (not AFTER) for log_task_changes to allow modifying NEW.postponement_count
 - [Phase 10.1-01]: Postponement only counts when both old and new due_date are NOT NULL and new > old
 - [Phase 10.1-01]: Skip postponement_count in JSONB diff to avoid logging derived field changes
+- [Phase 10.1-02]: Task notes and activity follow exact patterns from notes.ts and activity.ts
+- [Phase 10.1-02]: Note activities logged via application code, not triggers
+- [Phase 10.1-02]: formatTaskValue handles priority/status/date with Spanish labels and America/Bogota timezone
 
 ### Project Rules
 
@@ -599,9 +602,9 @@ Plan 05 complete:
 
 ## Session Continuity
 
-Last session: 2026-02-04T15:00:00Z
-Stopped at: Completed 10.1-01-PLAN.md (Database Foundation)
-Resume file: None - Plan 10.1-01 complete
+Last session: 2026-02-04T15:02:29Z
+Stopped at: Completed 10.1-02-PLAN.md (Server Actions)
+Resume file: None - Plan 10.1-02 complete
 
 Plan 08 complete:
 - Webhook handler records cost on billable 'sent' status

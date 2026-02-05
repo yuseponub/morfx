@@ -353,11 +353,13 @@ Plans:
   3. Handler `whatsapp.send_message` envia mensaje real via 360dialog API
   4. API `/api/v1/tools` permite invocar cualquier tool y recibe respuesta estructurada
   5. Cada ejecucion de tool genera log forense con inputs, outputs, duracion y errores
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 12-01: TBD during /gsd:plan-phase
-- [ ] 12-02: TBD during /gsd:plan-phase
+- [ ] 12-01-PLAN.md — Foundation: ToolResult types, rate limiter, migration, enhanced logging
+- [ ] 12-02-PLAN.md — CRM handlers real: 9 handlers (contact CRUD, tags, orders)
+- [ ] 12-03-PLAN.md — WhatsApp handlers real: 7 handlers (message send, templates, conversations)
+- [ ] 12-04-PLAN.md — Executor enhancement: timeout, rate limiting, API route structured responses
 
 ### Phase 13: Agent Engine Core
 **Goal**: Motor generico que ejecuta agentes conversacionales con Claude API, tools, y persistencia de sesion

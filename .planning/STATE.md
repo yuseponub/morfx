@@ -69,6 +69,10 @@ Recent decisions affecting MVP v2 work:
 - [12-01]: In-memory sliding window rate limiter (not Redis) for single-process deployment
 - [12-01]: Tool logger switched to createAdminClient (critical bug fix for API/agent contexts)
 - [12-01]: agent_session_id added to ExecutionContext + ToolExecutionRecord for agent tracing
+- [12-02]: All 9 CRM handlers real with createAdminClient and workspace isolation
+- [12-02]: Tag operations use tag NAME (not ID) for agent-friendly interface
+- [12-02]: Order create auto-resolves default pipeline and first stage
+- [12-02]: Contact list supports ALL-match tag filtering
 - [12-03]: All 7 WhatsApp handlers real with 360dialog integration, 24h window enforcement, template approval checks
 - [12-03]: Conversation close maps to 'archived' status (DB constraint)
 - [12-03]: Template lookup by name (not ID) for agent-friendly interface

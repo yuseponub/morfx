@@ -9,6 +9,65 @@
 import type { Permission } from '@/lib/permissions'
 
 // ============================================================================
+// Tool Result Types (Response Contract for Real Handlers)
+// ============================================================================
+
+/**
+ * Error type classification for tool execution failures.
+ * Used by agents to determine appropriate recovery action.
+ */
+export type ToolErrorType =
+  | 'validation_error'
+  | 'not_found'
+  | 'duplicate'
+  | 'external_api_error'
+  | 'permission_denied'
+  | 'rate_limited'
+  | 'timeout'
+  | 'internal_error'
+
+/**
+ * Successful tool execution result.
+ * Contains the full resource data so agents can use it without additional queries.
+ */
+export interface ToolSuccess<T> {
+  success: true
+  /** Full resource data (contact, order, message, etc.) */
+  data: T
+  /** CRM resource URL, e.g., /crm/contactos/{id} */
+  resource_url?: string
+  /** WhatsApp message ID from 360dialog (wamid) */
+  message_id?: string
+}
+
+/**
+ * Failed tool execution result.
+ * Contains structured error information for agent decision-making.
+ */
+export interface ToolError {
+  success: false
+  error: {
+    /** Error classification */
+    type: ToolErrorType
+    /** Machine-readable error code, e.g., 'PHONE_DUPLICATE' */
+    code: string
+    /** Human-readable message in Spanish */
+    message: string
+    /** Suggested recovery action, e.g., 'Use crm.contact.read para buscar el contacto existente' */
+    suggestion?: string
+    /** Whether the agent should retry this operation */
+    retryable: boolean
+  }
+}
+
+/**
+ * Discriminated union for tool execution results.
+ * All real tool handlers return this type.
+ * Use `result.success` to discriminate between success and error.
+ */
+export type ToolResult<T> = ToolSuccess<T> | ToolError
+
+// ============================================================================
 // Tool Modules & Categories
 // ============================================================================
 
@@ -141,6 +200,8 @@ export interface ExecutionContext {
   workspaceId: string
   /** Session ID for tracking related operations */
   sessionId?: string
+  /** Agent session ID for tracing agent conversation tool calls */
+  agent_session_id?: string
   /** Request metadata for forensic logging */
   requestContext: RequestContext
 }
@@ -219,6 +280,8 @@ export interface ToolExecutionRecord {
   snapshot_after?: Record<string, unknown>
   batch_id?: string
   related_executions?: string[]
+  /** Agent session ID for tracing tool calls within a conversation. NOT NULL when invoked by agent. */
+  agent_session_id?: string
   created_at: string
 }
 

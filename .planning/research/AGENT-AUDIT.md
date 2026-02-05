@@ -207,40 +207,130 @@ WhatsApp → Callbell → Historial v3 (Orquestador)
 ### Arquitectura
 
 ```
-Slack (#bots) → n8n → Bigin CRM
-                  ├→ robot-coordinadora (Playwright)
-                  ├→ robot-inter-envia-bog (PDFKit/ExcelJS)
+Slack (#bots) → n8n (Robots Logistica.json)
+                  ├→ Bigin CRM (OAuth)
+                  ├→ Claude API (data extraction)
+                  ├→ robot-coordinadora:3001 (Playwright)
+                  ├→ robot-inter-envia-bog:3002 (PDFKit/ExcelJS)
                   └→ ocr-guias-bot (Claude Vision)
                        ↓
                   Files: /opt/n8n/local-files/
                        ↓
-                  Caddy (HTTPS)
+                  Caddy (HTTPS) → Download links
 ```
 
-### Robot: Coordinadora
+### Workflow n8n: "Slack Sin Ordenes Inter Import"
 
-**Tecnología:** Playwright (automatización web)
-**Función:** Crear guías en portal de Coordinadora
-**Base de datos:** 1,488 municipios colombianos validados
-**Timeout:** 180 segundos
+**Trigger:** Comandos de Slack en #bots
+**Función:** Orquesta los 4 carriers de logística
 
-**Limitación:** Browser automation es frágil y lento.
+| Comando | Stage Bigin | Robot | Output |
+|---------|-------------|-------|--------|
+| `subir ordenes coord` | ROBOT COORD | robot-coordinadora | Guías web |
+| `generar guias inter` | ROBOT INTER | robot-inter-envia | PDFs 4x6 |
+| `generar guias bogota` | ROBOT BOGOTA | robot-inter-envia | PDFs |
+| `generar excel envia` | ROBOT ENVIA | robot-inter-envia | Excel |
 
-### Robot: Inter-Envía-Bog
+**Flujo:**
+1. Slack trigger → Filtro de mensaje
+2. Router (¿Qué Robot?)
+3. Refresh OAuth token de Bigin
+4. Query órdenes por stage
+5. Claude API extrae/normaliza datos
+6. Valida ciudades (robot-coordinadora)
+7. Genera documentos (robot-inter-envia)
+8. Actualiza Bigin con tracking
+9. Notifica Slack con links de descarga
 
-**Tecnología:** Node.js + PDFKit + ExcelJS
-**Puerto:** 3002
-**Funciones:**
-- Generar PDFs 4x6 para Interrapidísimo
-- Generar PDFs para Bogotá Courier
-- Exportar Excel para Envía
+---
 
-**Fortaleza:** Generación directa sin browser.
+### Robot 1: robot-coordinadora (Puerto 3001)
 
-### Robot: OCR Guías
+**Tecnología:** Node.js + Express + Playwright
+**Función:** Automatización web del portal ff.coordinadora.com
 
-**Tecnología:** Claude Vision API
-**Función:** Extraer datos de fotos de guías de envío
+**Endpoints:**
+| Método | Endpoint | Función |
+|--------|----------|---------|
+| GET | `/api/health` | Estado del servicio |
+| GET | `/api/ultimo-pedido` | Último número de pedido |
+| POST | `/api/validar-ciudad` | Valida municipio + COD |
+| POST | `/api/crear-pedido` | Crea orden individual |
+| POST | `/api/crear-pedidos-batch` | Batch de órdenes |
+
+**Datos de Ciudad:**
+- 1,488 municipios colombianos validados
+- 1,181 soportan COD (contra-entrega)
+- Archivos de texto estáticos
+
+**Flujo de Creación:**
+1. Request llega a Express
+2. Lanza Chromium headless
+3. Carga cookies o hace login
+4. Navega al formulario
+5. Llena campos con Playwright selectors
+6. Detecta resultado via SweetAlert2
+7. Cierra browser
+
+**Limitaciones Críticas:**
+- Browser por request (no persistente)
+- Depende de selectores CSS del portal
+- 2s delay entre órdenes batch
+- Requiere mismo servidor que n8n (Docker 172.17.0.1)
+- Login manual si cookies expiran
+
+---
+
+### Robot 2: robot-inter-envia-bog (Puerto 3002)
+
+**Tecnología:** Node.js + Express + PDFKit + ExcelJS
+**Función:** Generación directa de documentos (SIN browser)
+
+**Endpoints:**
+| Método | Endpoint | Función |
+|--------|----------|---------|
+| GET | `/api/health` | Estado del servicio |
+| POST | `/api/generar-guias` | PDFs múltiples en 1 documento |
+| POST | `/api/generar-excel-envia` | Excel para carga masiva |
+| GET | `/api/download/:filename` | Descarga de archivo |
+
+**Carriers Soportados:**
+| Carrier | Formato | Tamaño |
+|---------|---------|--------|
+| Interrapidísimo | PDF | 4x6 pulgadas |
+| Bogotá Courier | PDF | 4x6 pulgadas |
+| Envía | Excel | Columnas estándar |
+
+**Fortaleza:** Generación directa es ~100x más rápida que Playwright.
+
+---
+
+### Robot 3: ocr-guias-bot (Claude Vision)
+
+**Tecnología:** Node.js + Claude Vision API
+**Función:** OCR de fotos de guías de envío
+
+**Formatos Soportados:** JPG, PNG, WebP, GIF
+
+**Datos Extraídos:**
+- Número de guía/tracking
+- Nombre del destinatario
+- Dirección de entrega
+- Ciudad/municipio
+- Teléfono de contacto
+- Nombre del carrier
+
+**Carriers Reconocidos:**
+- Envía
+- Coordinadora
+- Interrapidísimo
+- Servientrega
+
+**Features:**
+- Confidence scoring por campo
+- Matching inteligente con órdenes en Bigin
+- Validación de datos de envío
+- Input: upload directo, base64, o URL remota
 
 ---
 
@@ -371,11 +461,44 @@ Agent Runtime (Code)
 
 | Métrica | Valor |
 |---------|-------|
-| Workflows n8n | 7 (ventas) + 3 (logística) |
+| Workflows n8n Ventas | 7 |
+| Workflows n8n Logística | 1 (orquesta 4 carriers) |
+| Robots Node.js | 3 (coordinadora, inter-envia, ocr) |
 | Intents soportados | 17 |
-| Campos de datos | 8 |
-| Robots Node.js | 3 |
-| Líneas de documentación | ~150KB |
+| Campos de datos cliente | 8 |
+| Municipios validados | 1,488 |
+| Municipios con COD | 1,181 |
+| Carriers soportados | 4 (Coordinadora, Inter, Bogotá, Envía) |
+| Puertos usados | 3001, 3002 |
+| Documentación | ~200KB |
+
+## Resumen: Qué Migrar a MorfX
+
+### Sistema de Ventas (Prioridad ALTA)
+
+| Componente | Acción | Destino en MorfX |
+|------------|--------|------------------|
+| Historial v3 | Reimplementar | Agent Session Manager |
+| State Analyzer | Reimplementar | Intent Detector (Claude API) |
+| Data Extractor | Reimplementar | Field Extractor Tool |
+| Carolina v3 | Reimplementar | Response Generator |
+| Order Manager | Eliminar | Ya existe en MorfX CRM |
+| Proactive Timer | Reimplementar | Timer/Automation Manager |
+| Snapshot | Reimplementar | Session Query API |
+
+### Robots de Logística (Prioridad MEDIA)
+
+| Robot | Acción | Notas |
+|-------|--------|-------|
+| robot-coordinadora | Mantener separado | Playwright es específico, difícil de integrar |
+| robot-inter-envia | Integrar como Tool | PDFKit/ExcelJS portable |
+| ocr-guias-bot | Integrar como Tool | Claude Vision fácil de mover |
+
+### Lo que NO Migrar
+
+- Bigin integración (MorfX lo reemplaza)
+- Callbell-specific code (360dialog lo reemplaza)
+- n8n workflow JSONs (código propio lo reemplaza)
 
 ---
 

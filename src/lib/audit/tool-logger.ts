@@ -7,7 +7,7 @@
  */
 
 import { logger, createModuleLogger } from './logger'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { ToolExecutionRecord, RequestContext } from '@/lib/tools/types'
 
 const toolLogger = createModuleLogger('tools')
@@ -58,7 +58,7 @@ export async function logToolExecution(
 
   // 2. Persist to database (async, may fail)
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { error } = await supabase.from('tool_executions').insert({
       id: executionId,
@@ -74,6 +74,7 @@ export async function logToolExecution(
       duration_ms: execution.duration_ms,
       user_id: execution.user_id,
       session_id: execution.session_id,
+      agent_session_id: execution.agent_session_id,
       request_context: execution.request_context,
       snapshot_before: execution.snapshot_before,
       snapshot_after: execution.snapshot_after,

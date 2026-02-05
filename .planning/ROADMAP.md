@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### MVP v2.0: Agentes Conversacionales
 
-- [ ] **Phase 12: Action DSL Real** - Conectar handlers placeholder con operaciones reales
+- [x] **Phase 12: Action DSL Real** - Conectar handlers placeholder con operaciones reales
 - [ ] **Phase 13: Agent Engine Core** - Motor generico de ejecucion de agentes
 - [ ] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
 - [ ] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
@@ -356,10 +356,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Foundation: ToolResult types, rate limiter, migration, enhanced logging
-- [ ] 12-02-PLAN.md — CRM handlers real: 9 handlers (contact CRUD, tags, orders)
-- [ ] 12-03-PLAN.md — WhatsApp handlers real: 7 handlers (message send, templates, conversations)
-- [ ] 12-04-PLAN.md — Executor enhancement: timeout, rate limiting, API route structured responses
+- [x] 12-01-PLAN.md — Foundation: ToolResult types, rate limiter, migration, enhanced logging
+- [x] 12-02-PLAN.md — CRM handlers real: 9 handlers (contact CRUD, tags, orders)
+- [x] 12-03-PLAN.md — WhatsApp handlers real: 7 handlers (message send, templates, conversations)
+- [x] 12-04-PLAN.md — Executor enhancement: timeout, rate limiting, API route structured responses
 
 ### Phase 13: Agent Engine Core
 **Goal**: Motor generico que ejecuta agentes conversacionales con Claude API, tools, y persistencia de sesion
@@ -456,7 +456,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Action DSL Real | TBD | Not started | - |
+| 12. Action DSL Real | 4/4 | Complete | 2026-02-05 |
 | 13. Agent Engine Core | TBD | Not started | - |
 | 14. Agente Ventas Somnio | TBD | Not started | - |
 | 15. Agent Sandbox | TBD | Not started | - |
@@ -464,4 +464,4 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-04 (MVP v2.0 roadmap added - Phases 12-16)*
+*Last updated: 2026-02-05 (Phase 12 Action DSL Real complete)*

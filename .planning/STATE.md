@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 12: Action DSL Real
+**Current focus:** MVP v2.0 — Phase 13: Agent Engine Core
 
 ## Current Position
 
-Phase: 12 of 16 (Action DSL Real)
-Plan: 3 of 4
-Status: In progress
-Last activity: 2026-02-05 — Completed 12-03-PLAN.md (WhatsApp Real Handlers)
+Phase: 13 of 16 (Agent Engine Core)
+Plan: 0 of TBD
+Status: Not started
+Last activity: 2026-02-05 — Completed Phase 12 (Action DSL Real)
 
-Progress: [##########] 100% MVP v1 | [███░░░░░░░] 75% Phase 12 | [░░░░░░░░░░] 8% MVP v2
+Progress: [##########] 100% MVP v1 | [██░░░░░░░░] 20% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -28,7 +28,7 @@ All 11 phases + 4 inserted phases completed:
 **Milestone Goal:** Agente de ventas Somnio funcionando en codigo propio, reemplazando n8n.
 
 5 phases planned:
-- Phase 12: Action DSL Real (9 requirements)
+- Phase 12: Action DSL Real (9 requirements) — COMPLETE
 - Phase 13: Agent Engine Core (11 requirements)
 - Phase 14: Agente Ventas Somnio (10 requirements)
 - Phase 15: Agent Sandbox (8 requirements)
@@ -50,7 +50,7 @@ Total: 45 requirements mapped
 | 10. Search, Tasks & Analytics | 6/6 | Complete |
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
-| 12. Action DSL Real | 3/4 | In progress |
+| 12. Action DSL Real | 4/4 | Complete |
 
 ## Accumulated Context
 
@@ -76,6 +76,10 @@ Recent decisions affecting MVP v2 work:
 - [12-03]: All 7 WhatsApp handlers real with 360dialog integration, 24h window enforcement, template approval checks
 - [12-03]: Conversation close maps to 'archived' status (DB constraint)
 - [12-03]: Template lookup by name (not ID) for agent-friendly interface
+- [12-04]: Domain-specific timeouts: CRM 5s, WhatsApp 15s, System 10s
+- [12-04]: Rate limit enforced before handler execution (fail-fast)
+- [12-04]: API route returns structured errors with HTTP status mapping (429, 504)
+- [12-04]: executeToolFromAgent accepts optional agentSessionId for agent tracing
 
 ### Project Rules
 
@@ -98,5 +102,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 12-03-PLAN.md (WhatsApp Real Handlers)
-Resume file: .planning/phases/12-action-dsl-real/12-04-PLAN.md
+Stopped at: Completed Phase 12 (Action DSL Real)
+Next: Phase 13 - Agent Engine Core (needs /gsd:discuss-phase 13)

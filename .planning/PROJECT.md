@@ -10,52 +10,72 @@ MorfX es una plataforma SaaS multi-tenant que combina CRM + WhatsApp para negoci
 
 Si todo lo demás falla, esta sincronización entre WhatsApp y CRM debe funcionar.
 
+## Current Milestone: v2.0 Agentes Conversacionales
+
+**Goal:** Transformar los agentes existentes de n8n en agentes conversacionales con código propio, mayor control, y visualización tipo canvas.
+
+**Target features:**
+- Auditoría profunda de agentes n8n actuales en producción
+- Canvas visual para gestión de agentes (tipo n8n pero con más control)
+- Action DSL conectado con funciones reales
+- Motor de agente con Claude API
+- Sandbox para probar conversaciones
+- Integración de agentes con WhatsApp real
+
 ## Requirements
 
-### Validated
+### Validated (MVP v1.0)
 
-(None yet — ship to validate)
+<!-- Shipped and confirmed valuable in MVP v1 -->
 
-### Active
+- ✓ Authentication (email/password, sessions, reset) — Phase 1
+- ✓ Workspaces & Roles (multi-tenant RLS, Owner/Admin/Agent) — Phase 2
+- ✓ Action DSL Core (16 tools, registry, logging) — Phase 3
+- ✓ Contacts (CRUD, tags, custom fields, notes, activity, import/export) — Phases 4-5
+- ✓ Orders (CRUD, Kanban, multi-products, pipeline config) — Phase 6
+- ✓ WhatsApp Core (inbox, messaging, 24h window) — Phase 7
+- ✓ WhatsApp Extended (templates, teams, quick replies, costs) — Phase 8
+- ✓ CRM ↔ WhatsApp Sync (tags, order states with emoji) — Phase 9
+- ✓ Search, Tasks & Analytics — Phase 10
+- ✓ Shopify Integration (webhooks, auto-create) — Phase 11
 
-#### Módulo CRM
-- [ ] Gestión de contactos (nombre, teléfono, dirección, ciudad, campos custom)
-- [ ] Gestión de pedidos (productos múltiples, valor, estado, tracking)
-- [ ] Pipeline/Kanban de ventas con etapas configurables
-- [ ] Sistema de tags compartido con módulo WhatsApp
-- [ ] Estados de pedido sincronizados entre módulos
-- [ ] Notas internas en contactos y pedidos
+### Active (MVP v2.0 — Agentes Conversacionales)
 
-#### Módulo WhatsApp
-- [ ] Inbox de conversaciones unificado
-- [ ] Envío de mensajes (dentro de ventana 24h)
-- [ ] Envío de templates (fuera de ventana 24h)
-- [ ] Asignación de conversaciones a agentes
-- [ ] Historial completo de conversación por contacto
-- [ ] Tags compartidos con módulo CRM
-- [ ] Quick replies / respuestas rápidas
+#### Auditoría de Agentes Actuales
+- [ ] Documentar todos los agentes n8n en producción (workflows, triggers, acciones)
+- [ ] Identificar limitaciones de cada agente actual
+- [ ] Mapear dependencias entre agentes
+- [ ] Diseñar arquitectura de transformación a código propio
 
-#### Módulo Auth & Permisos
-- [ ] Autenticación email + contraseña
-- [ ] Sistema de workspaces (multi-tenant)
-- [ ] Roles: Owner, Admin, Manager, Agent, Viewer
-- [ ] Permisos granulares por módulo y acción
-- [ ] Row Level Security para aislamiento de datos
+#### Canvas Visual de Agentes
+- [ ] Investigar opciones de display visual (React Flow, custom canvas, etc.)
+- [ ] Diseñar UX para control granular de agentes
+- [ ] Decidir si módulo interno o plataforma dev separada
+- [ ] Prototipo de visualización de flujos de agente
 
-#### Módulo Integraciones
-- [ ] Webhooks entrantes de Shopify (pedidos)
-- [ ] Webhooks salientes para Zapier/n8n/Make
-- [ ] Arquitectura abierta para futuras integraciones
+#### Action DSL → Funciones Reales
+- [ ] Reemplazar handlers placeholder con operaciones reales
+- [ ] API /api/v1/tools funcional para CRM y WhatsApp
+- [ ] Logging forense completo de ejecuciones
+- [ ] Tests de integración para cada tool
 
-#### Action DSL (Base para IA Distribuida)
-- [ ] Estructura de lenguaje de acciones
-- [ ] Cada operación CRM/WhatsApp como "tool" ejecutable
-- [ ] Logging estructurado de acciones
+#### Motor de Agente Claude
+- [ ] Integración con Claude API (tool use, streaming)
+- [ ] Configuración de system prompt por agente
+- [ ] Gestión de contexto y historial de conversación
+- [ ] Manejo de herramientas del Action DSL
 
-#### Documentación
-- [ ] Agente documentador por módulo
-- [ ] Documentación de arquitectura actualizada
-- [ ] Guías de desarrollo para contribuciones futuras
+#### Agent Sandbox
+- [ ] UI de pruebas en /sandbox
+- [ ] Simulación cliente ↔ agente
+- [ ] Visualización de tools ejecutados (transparencia)
+- [ ] Historial de sesiones de prueba
+
+#### WhatsApp Agent Integration
+- [ ] Conexión de agentes con conversaciones reales
+- [ ] Handoff robot → humano configurable
+- [ ] Reglas de cuándo interviene agente vs humano
+- [ ] Métricas de conversaciones automatizadas
 
 ### Out of Scope
 
@@ -144,4 +164,4 @@ Después de completar cada fase, es **OBLIGATORIO** crear un archivo `{phase}-LE
 **Template**: `.planning/templates/LEARNINGS-TEMPLATE.md`
 
 ---
-*Last updated: 2026-01-28 after adding mandatory LEARNINGS workflow*
+*Last updated: 2026-02-04 after starting MVP v2.0 Agentes Conversacionales*

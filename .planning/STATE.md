@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** Phase 10 - Search, Tasks & Analytics (Next)
+**Current focus:** MVP v2.0 — Agentes Conversacionales (Research phase)
 
 ## Current Position
 
-Phase: 11 of 11 (Shopify Integration)
-Plan: 7 of 7
-Status: COMPLETE
-Last activity: 2026-02-04 - Completed Phase 11 (Shopify Integration)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for MVP v2.0
+Last activity: 2026-02-04 — Milestone v2.0 started (Agentes Conversacionales)
 
-Progress: [##########] 100% (MVP v1 COMPLETE)
+Progress: [░░░░░░░░░░] 0% (MVP v2 starting)
 
 ### Phase 10 & 10.1 Verification (2026-02-04)
 All success criteria verified by user:

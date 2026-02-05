@@ -1,13 +1,28 @@
 /**
  * Tool Execution API
- * Phase 3: Action DSL Core - Plan 04, Task 3
+ * Phase 12: Action DSL Real - Plan 04
  *
  * POST /api/v1/tools/{toolName} - Execute a tool
  * GET /api/v1/tools/{toolName} - Get tool schema/documentation
+ *
+ * Returns structured ToolResult responses with proper HTTP status codes:
+ * - 200: Success or dry_run
+ * - 400: Validation error
+ * - 403: Permission denied
+ * - 404: Unknown tool
+ * - 429: Rate limit exceeded
+ * - 500: Internal/execution error
+ * - 504: Timeout
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { executeTool, ToolValidationError, PermissionError } from '@/lib/tools/executor'
+import {
+  executeTool,
+  ToolValidationError,
+  PermissionError,
+  TimeoutError,
+  RateLimitError,
+} from '@/lib/tools/executor'
 import { toolRegistry } from '@/lib/tools/registry'
 import { initializeTools, areToolsInitialized } from '@/lib/tools/init'
 import type { ExecutionContext } from '@/lib/tools/types'
@@ -32,7 +47,7 @@ import type { ExecutionContext } from '@/lib/tools/types'
  * {
  *   execution_id: string,
  *   status: 'success' | 'dry_run',
- *   outputs: object,
+ *   outputs: ToolResult<T>,    // Structured handler response
  *   duration_ms: number
  * }
  *
@@ -40,6 +55,8 @@ import type { ExecutionContext } from '@/lib/tools/types'
  * {
  *   error: string,
  *   code: string,
+ *   retryable: boolean,
+ *   retry_after_ms?: number,
  *   details?: object
  * }
  */
@@ -61,6 +78,7 @@ export async function POST(
         {
           error: `Unknown tool: ${toolName}`,
           code: 'UNKNOWN_TOOL',
+          retryable: false,
           available_tools: toolRegistry.listTools().map((t) => t.name)
         },
         { status: 404 }
@@ -73,7 +91,7 @@ export async function POST(
       body = await request.json()
     } catch {
       return NextResponse.json(
-        { error: 'Invalid JSON body', code: 'INVALID_JSON' },
+        { error: 'Invalid JSON body', code: 'INVALID_JSON', retryable: false },
         { status: 400 }
       )
     }
@@ -86,7 +104,7 @@ export async function POST(
 
     if (!workspaceId) {
       return NextResponse.json(
-        { error: 'Missing workspace context', code: 'MISSING_CONTEXT' },
+        { error: 'Missing workspace context', code: 'MISSING_CONTEXT', retryable: false },
         { status: 500 }
       )
     }
@@ -110,13 +128,15 @@ export async function POST(
       context
     })
 
-    // Return result
+    // Return result - pass through ToolResult structure from handlers
     if (result.status === 'error') {
       return NextResponse.json(
         {
           error: result.error?.message || 'Tool execution failed',
           code: 'EXECUTION_ERROR',
-          execution_id: result.id
+          retryable: false,
+          execution_id: result.id,
+          duration_ms: result.durationMs,
         },
         { status: 500 }
       )
@@ -129,36 +149,70 @@ export async function POST(
       duration_ms: result.durationMs
     })
   } catch (error) {
-    // Handle validation errors
+    // Handle rate limit errors -> 429
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: 'RATE_LIMITED',
+          retryable: true,
+          retry_after_ms: error.resetMs,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil(error.resetMs / 1000)),
+          },
+        }
+      )
+    }
+
+    // Handle timeout errors -> 504
+    if (error instanceof TimeoutError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: 'TIMEOUT',
+          retryable: true,
+          timeout_ms: error.timeoutMs,
+        },
+        { status: 504 }
+      )
+    }
+
+    // Handle validation errors -> 400
     if (error instanceof ToolValidationError) {
       return NextResponse.json(
         {
           error: 'Validation failed',
           code: 'VALIDATION_ERROR',
+          retryable: false,
           details: error.toJSON().errors
         },
         { status: 400 }
       )
     }
 
-    // Handle permission errors
+    // Handle permission errors -> 403
     if (error instanceof PermissionError) {
       return NextResponse.json(
         {
           error: error.message,
-          code: 'PERMISSION_DENIED'
+          code: 'PERMISSION_DENIED',
+          retryable: false,
         },
         { status: 403 }
       )
     }
 
-    // Log unexpected errors
+    // Log unexpected errors -> 500
     console.error('Tool API error:', error)
 
     return NextResponse.json(
       {
         error: 'Internal server error',
-        code: 'INTERNAL_ERROR'
+        code: 'INTERNAL_ERROR',
+        retryable: false,
       },
       { status: 500 }
     )

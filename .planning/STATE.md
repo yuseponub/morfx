@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 12 of 16 (Action DSL Real)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-02-04 — MVP v2.0 roadmap created (Phases 12-16)
+Plan: 1 of 4
+Status: In progress
+Last activity: 2026-02-05 — Completed 12-01-PLAN.md (Foundation Types, Rate Limiter & Logging)
 
-Progress: [##########] 100% MVP v1 | [░░░░░░░░░░] 0% MVP v2
+Progress: [##########] 100% MVP v1 | [█░░░░░░░░░] 25% Phase 12 | [░░░░░░░░░░] 5% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -50,6 +50,7 @@ Total: 45 requirements mapped
 | 10. Search, Tasks & Analytics | 6/6 | Complete |
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
+| 12. Action DSL Real | 1/4 | In progress |
 
 ## Accumulated Context
 
@@ -64,6 +65,10 @@ Recent decisions affecting MVP v2 work:
 - [Research]: Preserve session versioning pattern from n8n agents
 - [Research]: Token budget enforcement critical (50K max per conversation)
 - [Research]: Hybrid execution: Next.js API routes + Supabase Edge Functions
+- [12-01]: ToolResult<T> discriminated union with success boolean for handler responses
+- [12-01]: In-memory sliding window rate limiter (not Redis) for single-process deployment
+- [12-01]: Tool logger switched to createAdminClient (critical bug fix for API/agent contexts)
+- [12-01]: agent_session_id added to ExecutionContext + ToolExecutionRecord for agent tracing
 
 ### Project Rules
 
@@ -85,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-04
-Stopped at: MVP v2.0 roadmap created
-Resume file: None - Ready for /gsd:plan-phase 12
+Last session: 2026-02-05
+Stopped at: Completed 12-01-PLAN.md (Foundation Types, Rate Limiter & Logging)
+Resume file: .planning/phases/12-action-dsl-real/12-02-PLAN.md

@@ -1,9 +1,9 @@
 /**
  * Tool Executor
- * Phase 3: Action DSL Core - Plan 02, Task 4
+ * Phase 12: Action DSL Real - Plan 04
  *
  * Handles tool execution with dry-run support, permission checking,
- * and full forensic logging.
+ * domain-specific timeouts, rate limiting, and full forensic logging.
  */
 
 import {
@@ -11,6 +11,7 @@ import {
   ToolValidationError,
   ToolNotFoundError,
 } from './registry'
+import { rateLimiter } from './rate-limiter'
 import { logToolExecution, logToolError, logPermissionDenied } from '@/lib/audit/tool-logger'
 import { hasPermission } from '@/lib/permissions'
 import type { WorkspaceRole } from '@/lib/types/database'
@@ -18,10 +19,56 @@ import type {
   ExecutionContext,
   ExecutionOptions,
   ToolExecutionResult,
+  ToolModule,
 } from './types'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('executor')
+
+// ============================================================================
+// Domain-Specific Timeouts
+// ============================================================================
+
+/** Timeout per module in milliseconds */
+const TIMEOUTS: Record<ToolModule, number> = {
+  crm: 5_000,       // 5 seconds for DB operations
+  whatsapp: 15_000,  // 15 seconds for external API (360dialog)
+  system: 10_000,    // 10 seconds default
+}
+
+// ============================================================================
+// Error Classes
+// ============================================================================
+
+/**
+ * Timeout error thrown when a tool exceeds its domain-specific timeout
+ */
+export class TimeoutError extends Error {
+  public readonly toolName: string
+  public readonly timeoutMs: number
+
+  constructor(toolName: string, timeoutMs: number) {
+    super(`Tool ${toolName} timed out after ${timeoutMs}ms`)
+    this.name = 'TimeoutError'
+    this.toolName = toolName
+    this.timeoutMs = timeoutMs
+  }
+}
+
+/**
+ * Rate limit error thrown when workspace exceeds module rate limit
+ */
+export class RateLimitError extends Error {
+  public readonly toolName: string
+  public readonly resetMs: number
+
+  constructor(toolName: string, resetMs: number) {
+    super(`Rate limit exceeded for tool ${toolName}. Retry after ${Math.ceil(resetMs / 1000)}s`)
+    this.name = 'RateLimitError'
+    this.toolName = toolName
+    this.resetMs = resetMs
+  }
+}
 
 /**
  * Permission error thrown when user lacks required permissions
@@ -131,18 +178,28 @@ export async function executeTool<TOutput = unknown>(
       }
     }
 
-    // 3. Execute handler
+    // 3. Rate limit check (before handler execution)
+    const module = tool.metadata.module
+    const rateLimitResult = rateLimiter.check(options.context.workspaceId, module)
+    if (!rateLimitResult.allowed) {
+      throw new RateLimitError(toolName, rateLimitResult.resetMs)
+    }
+
+    // 4. Execute handler with domain-specific timeout
     const dryRun = options.dryRun ?? false
-    const outputs = await tool.handler(
-      inputs,
-      options.context,
-      dryRun
-    )
+    const timeoutMs = TIMEOUTS[module] ?? TIMEOUTS.system
+
+    const outputs = await Promise.race([
+      tool.handler(inputs, options.context, dryRun),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new TimeoutError(toolName, timeoutMs)), timeoutMs)
+      ),
+    ])
 
     const completedAt = new Date()
     const durationMs = Math.round(performance.now() - startTime)
 
-    // 4. Log execution (unless explicitly skipped)
+    // 5. Log execution (unless explicitly skipped)
     let executionId: string | null = null
     if (!options.skipLogging) {
       executionId = await logToolExecution({
@@ -156,6 +213,7 @@ export async function executeTool<TOutput = unknown>(
         duration_ms: durationMs,
         user_id: options.context.userId ?? undefined,
         session_id: options.context.sessionId,
+        agent_session_id: options.context.agent_session_id,
         request_context: options.context.requestContext,
       })
     }
@@ -197,15 +255,18 @@ export async function executeTool<TOutput = unknown>(
         duration_ms: durationMs,
         user_id: options.context.userId ?? undefined,
         session_id: options.context.sessionId,
+        agent_session_id: options.context.agent_session_id,
         request_context: options.context.requestContext,
       })
     }
 
-    // Re-throw validation, permission, and not-found errors (client should handle)
+    // Re-throw validation, permission, not-found, timeout, and rate limit errors (client should handle)
     if (
       error instanceof ToolValidationError ||
       error instanceof PermissionError ||
-      error instanceof ToolNotFoundError
+      error instanceof ToolNotFoundError ||
+      error instanceof TimeoutError ||
+      error instanceof RateLimitError
     ) {
       throw error
     }
@@ -309,12 +370,13 @@ export async function executeToolFromAPI<TOutput = unknown>(
 
 /**
  * Execute a tool from an AI agent
- * Uses 'agent' as the source
+ * Uses 'agent' as the source and tracks agent_session_id for forensic logging
  *
  * @param toolName - The tool to execute
  * @param inputs - The inputs to pass to the tool
  * @param workspaceId - The workspace context
  * @param sessionId - The agent session ID for tracking related operations
+ * @param agentSessionId - The agent session ID for forensic logging (persisted in tool_executions)
  * @param dryRun - Whether to run in dry-run mode (default: false)
  */
 export async function executeToolFromAgent<TOutput = unknown>(
@@ -322,6 +384,7 @@ export async function executeToolFromAgent<TOutput = unknown>(
   inputs: unknown,
   workspaceId: string,
   sessionId: string,
+  agentSessionId?: string,
   dryRun = false
 ): Promise<ToolExecutionResult<TOutput>> {
   return executeTool<TOutput>(toolName, inputs, {
@@ -330,6 +393,7 @@ export async function executeToolFromAgent<TOutput = unknown>(
       workspaceId,
       userId: null, // Agents don't have a user context
       sessionId,
+      agent_session_id: agentSessionId ?? sessionId, // Default to sessionId if no explicit agentSessionId
       requestContext: {
         source: 'agent',
       },
@@ -368,3 +432,4 @@ export async function executeToolFromWebhook<TOutput = unknown>(
 
 // Re-export errors for consumers
 export { ToolValidationError, ToolNotFoundError } from './registry'
+export { TimeoutError as ToolTimeoutError, RateLimitError as ToolRateLimitError }

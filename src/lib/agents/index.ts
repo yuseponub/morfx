@@ -175,3 +175,14 @@ export type { IntentDetectionResult } from './intent-detector'
 
 export { Orchestrator, DEFAULT_ORCHESTRATOR_PROMPT } from './orchestrator'
 export type { OrchestrationInput, OrchestrationOutput } from './orchestrator'
+
+// ============================================================================
+// Agent Engine
+// ============================================================================
+
+export { AgentEngine } from './engine'
+export type {
+  ProcessMessageInput,
+  ToolExecutionResultFormatted,
+  TurnToolCall,
+} from './engine'

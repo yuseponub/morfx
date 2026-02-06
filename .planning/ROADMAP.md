@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### MVP v2.0: Agentes Conversacionales
 
 - [x] **Phase 12: Action DSL Real** - Conectar handlers placeholder con operaciones reales
-- [ ] **Phase 13: Agent Engine Core** - Motor generico de ejecucion de agentes
+- [x] **Phase 13: Agent Engine Core** - Motor generico de ejecucion de agentes
 - [ ] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
 - [ ] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
@@ -391,11 +391,15 @@ Plans:
   3. Agente selecciona y envia templates con variables sustituidas ({{nombre}}, {{precio}})
   4. Agente crea contacto y orden en MorfX cuando se confirma la compra
   5. Agente aplica delays entre mensajes (2-6 segundos) y detecta interrupciones para abortar secuencia
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 14-01: TBD during /gsd:plan-phase
-- [ ] 14-02: TBD during /gsd:plan-phase
+- [ ] 14-01-PLAN.md — Database schema for templates + Somnio agent config with 20 intents and prompts
+- [ ] 14-02-PLAN.md — Data Extractor component with normalization and inference
+- [ ] 14-03-PLAN.md — Template Manager with variable substitution
+- [ ] 14-04-PLAN.md — Message Sequencer with delays and interruption handling
+- [ ] 14-05-PLAN.md — Somnio Orchestrator with transition validation and flow logic
+- [ ] 14-06-PLAN.md — Order Creator and API endpoint for end-to-end flow
 
 ### Phase 15: Agent Sandbox
 **Goal**: UI de pruebas para simular conversaciones sin afectar WhatsApp real
@@ -461,11 +465,11 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 12. Action DSL Real | 4/4 | Complete | 2026-02-05 |
-| 13. Agent Engine Core | 6/6 | Complete | 2026-02-05 |
-| 14. Agente Ventas Somnio | TBD | Not started | - |
+| 13. Agent Engine Core | 6/6 | Complete | 2026-02-06 |
+| 14. Agente Ventas Somnio | 0/6 | Not started | - |
 | 15. Agent Sandbox | TBD | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-05 (Phase 13 Agent Engine Core complete)*
+*Last updated: 2026-02-06 (Phase 14 planning complete)*

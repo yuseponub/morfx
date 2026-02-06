@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15 of 16 (Agent Sandbox)
-Plan: 2 of 4
+Plan: 3 of 4
 Status: In progress
-Last activity: 2026-02-06 — Completed 15-02-PLAN.md (Sandbox Chat Panel)
+Last activity: 2026-02-06 — Completed 15-03-PLAN.md (Debug Panel)
 
-Progress: [##########] 100% MVP v1 | [████████████░] 88% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████░] 90% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -51,7 +51,7 @@ All 11 phases + 4 inserted phases completed:
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
-| 15. Agent Sandbox | 2/4 | In Progress |
+| 15. Agent Sandbox | 3/4 | In Progress |
 
 ## Accumulated Context
 
@@ -130,6 +130,9 @@ Recent decisions affecting MVP v2 work:
 - [15-02]: Inverted theme for sandbox: user=right/primary, agent=left/muted (opposite of inbox)
 - [15-02]: HH:mm:ss timestamp format always visible on messages
 - [15-02]: Message delays simulated 2-6 seconds for realistic agent typing
+- [15-03]: JsonViewEditor from @uiw/react-json-view/editor for state editing (v2 API)
+- [15-03]: Confidence thresholds: 85+ green, 60-84 yellow, 40-59 orange, <40 red
+- [15-03]: Token budget warning at 40K (80% of 50K limit)
 
 ### Project Rules
 
@@ -153,6 +156,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 15-02-PLAN.md (Sandbox Chat Panel)
+Stopped at: Completed 15-03-PLAN.md (Debug Panel)
 Resume file: None
-Next: 15-03-PLAN.md (Debug Panel)
+Next: 15-04-PLAN.md (Sandbox Page Assembly)

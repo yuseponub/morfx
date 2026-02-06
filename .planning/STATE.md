@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 13 of 16 (Agent Engine Core)
-Plan: 1 of 6
+Plan: 2 of 6
 Status: In progress
-Last activity: 2026-02-05 — Completed 13-01-PLAN.md (Database Foundation & Types)
+Last activity: 2026-02-06 — Completed 13-02-PLAN.md (Registry & Session Manager)
 
-Progress: [##########] 100% MVP v1 | [███░░░░░░░] 28% MVP v2
+Progress: [##########] 100% MVP v1 | [████░░░░░░] 33% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -49,7 +49,7 @@ All 11 phases + 4 inserted phases completed:
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
-| 13. Agent Engine Core | 1/6 | In Progress |
+| 13. Agent Engine Core | 2/6 | In Progress |
 
 ## Accumulated Context
 
@@ -83,6 +83,10 @@ Recent decisions affecting MVP v2 work:
 - [13-01]: VersionConflictError is retryable, BudgetExceededError is not
 - [13-01]: Tool calls stored as JSONB array with name/input/result structure
 - [13-01]: Error class hierarchy with retryable flag for automatic retry decisions
+- [13-02]: SessionManager uses admin client to bypass RLS (workspace isolation via explicit filters)
+- [13-02]: PGRST116 error code for version conflict detection in optimistic locking
+- [13-02]: Atomic session creation (agent_sessions + session_state with rollback)
+- [13-02]: AgentRegistry.get throws AgentNotFoundError (not undefined return)
 
 ### Project Rules
 
@@ -104,7 +108,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-05
-Stopped at: Completed 13-01-PLAN.md (Database Foundation & Types)
-Resume file: .planning/phases/13-agent-engine-core/13-02-PLAN.md
-Next: Execute Plan 02 - Session Manager
+Last session: 2026-02-06
+Stopped at: Completed 13-02-PLAN.md (Registry & Session Manager)
+Resume file: .planning/phases/13-agent-engine-core/13-03-PLAN.md
+Next: Execute Plan 03 - Intent Detector

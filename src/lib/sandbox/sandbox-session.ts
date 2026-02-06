@@ -15,6 +15,7 @@ const MAX_SESSIONS = 20 // Prevent localStorage quota issues
  * Load all saved sandbox sessions from localStorage.
  */
 export function loadSandboxSessions(): SavedSandboxSession[] {
+  if (typeof window === 'undefined') return []
   try {
     const data = localStorage.getItem(SESSIONS_KEY)
     if (!data) return []
@@ -67,6 +68,7 @@ export function deleteSandboxSession(sessionId: string): void {
  * Get the last used agent ID.
  */
 export function getLastAgentId(): string | null {
+  if (typeof window === 'undefined') return null
   try {
     return localStorage.getItem(LAST_AGENT_KEY)
   } catch {

@@ -146,3 +146,16 @@ export type {
   UpdateSessionParams as UpdateSessionManagerParams,
   AgentSessionWithState,
 } from './session-manager'
+
+// ============================================================================
+// Claude Client
+// ============================================================================
+
+export { ClaudeClient } from './claude-client'
+
+// ============================================================================
+// Token Budget Manager
+// ============================================================================
+
+export { TokenBudgetManager } from './token-budget'
+export type { BudgetCheckResult as TokenBudgetCheckResult } from './token-budget'

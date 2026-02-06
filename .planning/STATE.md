@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 15: Agent Sandbox
+**Current focus:** MVP v2.0 — Phase 16: WhatsApp Agent Integration
 
 ## Current Position
 
 Phase: 15 of 16 (Agent Sandbox)
-Plan: 3 of 4
-Status: In progress
-Last activity: 2026-02-06 — Completed 15-03-PLAN.md (Debug Panel)
+Plan: 4 of 4
+Status: Phase Complete
+Last activity: 2026-02-06 — Completed 15-04-PLAN.md (Sandbox Page Assembly)
 
-Progress: [##########] 100% MVP v1 | [████████████░] 90% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████░░] 93% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -31,7 +31,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 12: Action DSL Real (4 plans) — COMPLETE
 - Phase 13: Agent Engine Core (6 plans) — COMPLETE
 - Phase 14: Agente Ventas Somnio (6 plans) — COMPLETE
-- Phase 15: Agent Sandbox (4 plans) — IN PROGRESS
+- Phase 15: Agent Sandbox (4 plans) — COMPLETE
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -51,7 +51,7 @@ All 11 phases + 4 inserted phases completed:
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
-| 15. Agent Sandbox | 3/4 | In Progress |
+| 15. Agent Sandbox | 4/4 | Complete |
 
 ## Accumulated Context
 
@@ -133,6 +133,9 @@ Recent decisions affecting MVP v2 work:
 - [15-03]: JsonViewEditor from @uiw/react-json-view/editor for state editing (v2 API)
 - [15-03]: Confidence thresholds: 85+ green, 60-84 yellow, 40-59 orange, <40 red
 - [15-03]: Token budget warning at 40K (80% of 50K limit)
+- [15-04]: Session controls in center of header (between agent selector and stats)
+- [15-04]: Confirmation dialog before New session if messages exist
+- [15-04]: Sandbox visible to all authenticated users (not adminOnly)
 
 ### Project Rules
 
@@ -156,6 +159,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 15-03-PLAN.md (Debug Panel)
+Stopped at: Completed 15-04-PLAN.md (Sandbox Page Assembly)
 Resume file: None
-Next: 15-04-PLAN.md (Sandbox Page Assembly)
+Next: Phase 16: WhatsApp Agent Integration

@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 12: Action DSL Real** - Conectar handlers placeholder con operaciones reales
 - [x] **Phase 13: Agent Engine Core** - Motor generico de ejecucion de agentes
-- [ ] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
+- [x] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
 - [ ] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
@@ -394,12 +394,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Database schema for templates + Somnio agent config with 20 intents and prompts
-- [ ] 14-02-PLAN.md — Data Extractor component with normalization and inference
-- [ ] 14-03-PLAN.md — Template Manager with variable substitution
-- [ ] 14-04-PLAN.md — Message Sequencer with delays and interruption handling
-- [ ] 14-05-PLAN.md — Somnio Orchestrator with transition validation and flow logic
-- [ ] 14-06-PLAN.md — Order Creator and API endpoint for end-to-end flow
+- [x] 14-01-PLAN.md — Database schema for templates + Somnio agent config with 20 intents and prompts
+- [x] 14-02-PLAN.md — Data Extractor component with normalization and inference
+- [x] 14-03-PLAN.md — Template Manager with variable substitution
+- [x] 14-04-PLAN.md — Message Sequencer with delays and interruption handling
+- [x] 14-05-PLAN.md — Somnio Orchestrator with transition validation and flow logic
+- [x] 14-06-PLAN.md — Order Creator and API endpoint for end-to-end flow
 
 ### Phase 15: Agent Sandbox
 **Goal**: UI de pruebas para simular conversaciones sin afectar WhatsApp real
@@ -411,11 +411,14 @@ Plans:
   3. UI muestra tools ejecutados con inputs/outputs para transparencia
   4. Usuario puede ver estado actual de la sesion (JSON viewer) y resetear para nueva prueba
   5. Sesiones de prueba se guardan para revision posterior
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 15-01: TBD during /gsd:plan-phase
-- [ ] 15-02: TBD during /gsd:plan-phase
+- [ ] 15-01-PLAN.md — Foundation: dependencies, types, SandboxEngine, session persistence, typing indicator
+- [ ] 15-02-PLAN.md — Chat UI: Allotment layout, message bubbles with inverted theme, input
+- [ ] 15-03-PLAN.md — Debug panel: 4 tabs (Tools, Estado, Intent, Tokens) with editable JSON viewer
+- [ ] 15-04-PLAN.md — Session management: save/load/new controls, sidebar navigation
+- [ ] 15-05-PLAN.md — Human verification: end-to-end testing of all SAND-* requirements
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
@@ -466,10 +469,10 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 |-------|----------------|--------|-----------|
 | 12. Action DSL Real | 4/4 | Complete | 2026-02-05 |
 | 13. Agent Engine Core | 6/6 | Complete | 2026-02-06 |
-| 14. Agente Ventas Somnio | 0/6 | Not started | - |
-| 15. Agent Sandbox | TBD | Not started | - |
+| 14. Agente Ventas Somnio | 6/6 | Complete | 2026-02-06 |
+| 15. Agent Sandbox | 0/5 | Planned | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-06 (Phase 14 planning complete)*
+*Last updated: 2026-02-06 (Phase 15 planning complete)*

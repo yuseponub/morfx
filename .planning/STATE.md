@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 14 of 16 (Agente Ventas Somnio)
-Plan: 4 of 6
+Plan: 5 of 6
 Status: In progress
-Last activity: 2026-02-06 — Completed 14-04-PLAN.md (Message Sequencer)
+Last activity: 2026-02-06 — Completed 14-05-PLAN.md (Somnio Orchestrator)
 
-Progress: [##########] 100% MVP v1 | [████████░░] 72% MVP v2
+Progress: [##########] 100% MVP v1 | [████████░░] 76% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -50,7 +50,7 @@ All 11 phases + 4 inserted phases completed:
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
-| 14. Agente Ventas Somnio | 4/6 | In progress |
+| 14. Agente Ventas Somnio | 5/6 | In progress |
 
 ## Accumulated Context
 
@@ -118,6 +118,11 @@ Recent decisions affecting MVP v2 work:
 - [14-04]: Interruption detected when last_activity_at is within 2 seconds of current time
 - [14-04]: Complementary intents append pending, conflicting intents (asesor, queja) discard
 - [14-04]: setTimeout for delays in non-Inngest context (Inngest uses step.sleep)
+- [14-05]: resumen_* intents require ofrecer_promos seen first (CONTEXT.md rule)
+- [14-05]: compra_confirmada requires resumen_* seen first (CONTEXT.md rule)
+- [14-05]: ofrecer_promos auto-triggers when 8 fields complete (5 critical + 3 additional)
+- [14-05]: shouldCreateOrder flag signals SomnioEngine to invoke OrderCreator
+- [14-05]: Pack detection via regex patterns for natural language (quiero el de 2, dame el 3x)
 
 ### Project Rules
 
@@ -141,6 +146,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 14-04-PLAN.md (Message Sequencer)
+Stopped at: Completed 14-05-PLAN.md (Somnio Orchestrator)
 Resume file: None
-Next: 14-05-PLAN.md
+Next: 14-06-PLAN.md

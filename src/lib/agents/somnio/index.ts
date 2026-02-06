@@ -93,6 +93,22 @@ export type {
   SequenceResult,
 } from './message-sequencer'
 
+// Transition Validator
+export {
+  TransitionValidator,
+  validateTransition,
+  TRANSITION_RULES,
+  CRITICAL_FIELDS as TRANSITION_CRITICAL_FIELDS,
+} from './transition-validator'
+export type {
+  TransitionRule,
+  TransitionResult,
+} from './transition-validator'
+
+// Somnio Orchestrator
+export { SomnioOrchestrator } from './somnio-orchestrator'
+export type { SomnioOrchestratorResult } from './somnio-orchestrator'
+
 // ============================================================================
 // Agent Registration
 // ============================================================================

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3 } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -49,6 +49,11 @@ const navItems: NavItem[] = [
     label: 'Analytics',
     icon: BarChart3,
     adminOnly: true,
+  },
+  {
+    href: '/sandbox',
+    label: 'Sandbox',
+    icon: Bot,
   },
   {
     href: '/settings/workspace/members',

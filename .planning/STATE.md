@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 14: Agente Ventas Somnio
+**Current focus:** MVP v2.0 — Phase 15: Agent Sandbox
 
 ## Current Position
 
-Phase: 14 of 16 (Agente Ventas Somnio)
-Plan: 5 of 6
+Phase: 15 of 16 (Agent Sandbox)
+Plan: 1 of 4
 Status: In progress
-Last activity: 2026-02-06 — Completed 14-05-PLAN.md (Somnio Orchestrator)
+Last activity: 2026-02-06 — Completed 15-01-PLAN.md (Sandbox Foundation)
 
-Progress: [##########] 100% MVP v1 | [████████░░] 76% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████░] 85% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -30,8 +30,8 @@ All 11 phases + 4 inserted phases completed:
 5 phases planned:
 - Phase 12: Action DSL Real (4 plans) — COMPLETE
 - Phase 13: Agent Engine Core (6 plans) — COMPLETE
-- Phase 14: Agente Ventas Somnio (TBD plans)
-- Phase 15: Agent Sandbox (TBD plans)
+- Phase 14: Agente Ventas Somnio (6 plans) — COMPLETE
+- Phase 15: Agent Sandbox (4 plans) — IN PROGRESS
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -50,7 +50,8 @@ All 11 phases + 4 inserted phases completed:
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
-| 14. Agente Ventas Somnio | 5/6 | In progress |
+| 14. Agente Ventas Somnio | 6/6 | Complete |
+| 15. Agent Sandbox | 1/4 | In Progress |
 
 ## Accumulated Context
 
@@ -123,6 +124,9 @@ Recent decisions affecting MVP v2 work:
 - [14-05]: ofrecer_promos auto-triggers when 8 fields complete (5 critical + 3 additional)
 - [14-05]: shouldCreateOrder flag signals SomnioEngine to invoke OrderCreator
 - [14-05]: Pack detection via regex patterns for natural language (quiero el de 2, dame el 3x)
+- [15-01]: SandboxEngine uses mock session object for orchestrator compatibility
+- [15-01]: localStorage MAX_SESSIONS=20 to prevent quota issues
+- [15-01]: Session ID format: sandbox-{timestamp}-{random7chars}
 
 ### Project Rules
 
@@ -146,6 +150,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 14-05-PLAN.md (Somnio Orchestrator)
+Stopped at: Completed 15-01-PLAN.md (Sandbox Foundation)
 Resume file: None
-Next: 14-06-PLAN.md
+Next: 15-02-PLAN.md (Sandbox Chat Panel)

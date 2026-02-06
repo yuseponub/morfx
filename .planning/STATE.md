@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 13 of 16 (Agent Engine Core)
-Plan: 0 of TBD
-Status: Not started
-Last activity: 2026-02-05 — Completed Phase 12 (Action DSL Real)
+Plan: 1 of 6
+Status: In progress
+Last activity: 2026-02-05 — Completed 13-01-PLAN.md (Database Foundation & Types)
 
-Progress: [##########] 100% MVP v1 | [██░░░░░░░░] 20% MVP v2
+Progress: [##########] 100% MVP v1 | [███░░░░░░░] 28% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -28,13 +28,11 @@ All 11 phases + 4 inserted phases completed:
 **Milestone Goal:** Agente de ventas Somnio funcionando en codigo propio, reemplazando n8n.
 
 5 phases planned:
-- Phase 12: Action DSL Real (9 requirements) — COMPLETE
-- Phase 13: Agent Engine Core (11 requirements)
-- Phase 14: Agente Ventas Somnio (10 requirements)
-- Phase 15: Agent Sandbox (8 requirements)
-- Phase 16: WhatsApp Agent Integration (7 requirements)
-
-Total: 45 requirements mapped
+- Phase 12: Action DSL Real (4 plans) — COMPLETE
+- Phase 13: Agent Engine Core (6 plans) — IN PROGRESS (1/6)
+- Phase 14: Agente Ventas Somnio (TBD plans)
+- Phase 15: Agent Sandbox (TBD plans)
+- Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
 
@@ -51,6 +49,7 @@ Total: 45 requirements mapped
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
+| 13. Agent Engine Core | 1/6 | In Progress |
 
 ## Accumulated Context
 
@@ -80,6 +79,10 @@ Recent decisions affecting MVP v2 work:
 - [12-04]: Rate limit enforced before handler execution (fail-fast)
 - [12-04]: API route returns structured errors with HTTP status mapping (429, 504)
 - [12-04]: executeToolFromAgent accepts optional agentSessionId for agent tracing
+- [13-01]: Session-to-state relationship 1:1 via session_id PK/FK
+- [13-01]: VersionConflictError is retryable, BudgetExceededError is not
+- [13-01]: Tool calls stored as JSONB array with name/input/result structure
+- [13-01]: Error class hierarchy with retryable flag for automatic retry decisions
 
 ### Project Rules
 
@@ -102,5 +105,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed Phase 12 (Action DSL Real)
-Next: Phase 13 - Agent Engine Core (needs /gsd:discuss-phase 13)
+Stopped at: Completed 13-01-PLAN.md (Database Foundation & Types)
+Resume file: .planning/phases/13-agent-engine-core/13-02-PLAN.md
+Next: Execute Plan 02 - Session Manager

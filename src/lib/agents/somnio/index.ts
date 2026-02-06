@@ -62,6 +62,20 @@ export {
   CITY_TO_DEPARTAMENTO,
 } from './normalizers'
 
+// Variable Substitution
+export {
+  substituteVariables,
+  extractVariables,
+  hasUnsubstitutedVariables,
+  getMissingVariables,
+  SOMNIO_PRICES,
+} from './variable-substitutor'
+export type { VariableContext, PackType } from './variable-substitutor'
+
+// Template Manager
+export { TemplateManager } from './template-manager'
+export type { TemplateSelection, ProcessedTemplate } from './template-manager'
+
 // ============================================================================
 // Agent Registration
 // ============================================================================

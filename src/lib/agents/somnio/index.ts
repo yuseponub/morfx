@@ -76,6 +76,23 @@ export type { VariableContext, PackType } from './variable-substitutor'
 export { TemplateManager } from './template-manager'
 export type { TemplateSelection, ProcessedTemplate } from './template-manager'
 
+// Interruption Handler
+export { InterruptionHandler } from './interruption-handler'
+export type {
+  PendingMessage,
+  InterruptionState,
+  InterruptionResult,
+} from './interruption-handler'
+
+// Message Sequencer
+export { MessageSequencer } from './message-sequencer'
+export type {
+  MessageToSend,
+  SequenceStatus,
+  MessageSequence,
+  SequenceResult,
+} from './message-sequencer'
+
 // ============================================================================
 // Agent Registration
 // ============================================================================

@@ -416,12 +416,12 @@ export interface AgentResponse {
  */
 export interface TokenUsage {
   sessionId: string
-  /** Estimated input tokens used */
-  totalInputTokens: number
-  /** Estimated output tokens used */
-  totalOutputTokens: number
+  /** Total tokens used (input + output combined) */
+  totalTokens: number
   /** Total turns in session */
   turnCount: number
+  /** Remaining tokens in budget */
+  remaining: number
 }
 
 /**

@@ -8,14 +8,19 @@
  */
 
 import { useState, useCallback } from 'react'
-import { Allotment } from 'allotment'
-import 'allotment/dist/style.css'
+import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
 import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession } from '@/lib/sandbox/types'
 import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
+
+// Dynamic import for split panel (Allotment has no SSR support)
+const SandboxSplitPanel = dynamic(
+  () => import('./sandbox-split-panel').then(mod => mod.SandboxSplitPanel),
+  { ssr: false, loading: () => <div className="flex-1 flex items-center justify-center text-muted-foreground">Cargando...</div> }
+)
 
 // Initial agent - will be expanded when more agents are registered
 const DEFAULT_AGENT_ID = 'somnio-sales-v1'
@@ -130,8 +135,8 @@ export function SandboxLayout() {
       />
 
       <div className="flex-1 min-h-0">
-        <Allotment defaultSizes={[60, 40]} minSize={300}>
-          <Allotment.Pane>
+        <SandboxSplitPanel
+          leftPanel={
             <SandboxChat
               messages={messages}
               isTyping={isTyping}
@@ -139,16 +144,16 @@ export function SandboxLayout() {
               agentId={agentId}
               currentMode={state.currentMode}
             />
-          </Allotment.Pane>
-          <Allotment.Pane snap>
+          }
+          rightPanel={
             <DebugTabs
               debugTurns={debugTurns}
               state={state}
               onStateEdit={handleStateEdit}
               totalTokens={totalTokens}
             />
-          </Allotment.Pane>
-        </Allotment>
+          }
+        />
       </div>
     </div>
   )

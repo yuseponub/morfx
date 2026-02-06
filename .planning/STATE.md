@@ -103,6 +103,10 @@ Recent decisions affecting MVP v2 work:
 - [13-06]: waitForEvent match on data.sessionId for timer cancellation
 - [13-06]: Lazy SessionManager initialization in Inngest functions
 - [13-06]: 6-min data collection timeout, 10-min promos timeout
+- [14-01]: 22 base intents + 11 hola+X combinations = 33 total intent definitions
+- [14-01]: Intent categories: informativo (13), flujo_compra (8), escape (1), combinacion (11)
+- [14-01]: 6 agent states: conversacion, collecting_data, ofrecer_promos, resumen, confirmado, handoff
+- [14-01]: Agent registered as 'somnio-sales-v1' via module-level registration
 - [14-02]: Using claude-haiku-4-5 for data extraction (fast, cheap)
 - [14-02]: N/A as explicit value for negated fields (vs empty string)
 - [14-02]: 5 critical fields for minimum data (timer trigger), 8 total for auto ofrecer_promos

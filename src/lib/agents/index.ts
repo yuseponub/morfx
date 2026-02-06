@@ -161,3 +161,17 @@ export { ClaudeClient } from './claude-client'
 
 export { TokenBudgetManager } from './token-budget'
 export type { BudgetCheckResult as TokenBudgetCheckResult } from './token-budget'
+
+// ============================================================================
+// Intent Detector
+// ============================================================================
+
+export { IntentDetector, DEFAULT_INTENT_PROMPT } from './intent-detector'
+export type { IntentDetectionResult } from './intent-detector'
+
+// ============================================================================
+// Orchestrator
+// ============================================================================
+
+export { Orchestrator, DEFAULT_ORCHESTRATOR_PROMPT } from './orchestrator'
+export type { OrchestrationInput, OrchestrationOutput } from './orchestrator'

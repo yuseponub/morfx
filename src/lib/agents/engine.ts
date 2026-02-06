@@ -380,9 +380,8 @@ export class AgentEngine {
         data: {
           sessionId: input.sessionId,
           conversationId: input.conversationId,
-          contactId: input.contactId,
-          workspaceId: session.workspace_id,
-          messageContent: input.messageContent,
+          messageId: crypto.randomUUID(), // Generate unique ID for this message
+          content: input.messageContent,
         },
       })
 

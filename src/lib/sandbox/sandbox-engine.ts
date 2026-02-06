@@ -118,6 +118,8 @@ export class SandboxEngine {
       }
 
       // 4. Build mock session for orchestrator
+      // IMPORTANT: Use currentState.intentsVistos (BEFORE adding current intent)
+      // so TemplateManager correctly detects primera_vez vs siguientes
       const mockSession = {
         id: 'sandbox-session',
         agent_id: somnioAgentConfig.id,
@@ -132,7 +134,8 @@ export class SandboxEngine {
         last_activity_at: new Date().toISOString(),
         state: {
           session_id: 'sandbox-session',
-          intents_vistos: newIntentsVistos.map((i, idx) => ({
+          // Use state BEFORE adding current intent - determines primera_vez vs siguientes
+          intents_vistos: currentState.intentsVistos.map((i, idx) => ({
             intent: i,
             orden: idx + 1,
             timestamp: new Date().toISOString(),

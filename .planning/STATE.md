@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 14 of 16 (Agente Ventas Somnio)
-Plan: 3 of 6
+Plan: 4 of 6
 Status: In progress
-Last activity: 2026-02-06 — Completed 14-03-PLAN.md (Template Manager)
+Last activity: 2026-02-06 — Completed 14-04-PLAN.md (Message Sequencer)
 
-Progress: [##########] 100% MVP v1 | [████████░░] 68% MVP v2
+Progress: [##########] 100% MVP v1 | [████████░░] 72% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -50,7 +50,7 @@ All 11 phases + 4 inserted phases completed:
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
-| 14. Agente Ventas Somnio | 3/6 | In progress |
+| 14. Agente Ventas Somnio | 4/6 | In progress |
 
 ## Accumulated Context
 
@@ -114,6 +114,10 @@ Recent decisions affecting MVP v2 work:
 - [14-03]: SOMNIO_PRICES hardcoded ($77,900 / $109,900 / $139,900) - configurable prices deferred post-MVP
 - [14-03]: Template cache 5-minute expiry for balance between freshness and performance
 - [14-03]: Fallback from siguientes to primera_vez if no siguientes templates exist
+- [14-04]: Pending messages stored in datos_capturados with __pending_messages key as JSON
+- [14-04]: Interruption detected when last_activity_at is within 2 seconds of current time
+- [14-04]: Complementary intents append pending, conflicting intents (asesor, queja) discard
+- [14-04]: setTimeout for delays in non-Inngest context (Inngest uses step.sleep)
 
 ### Project Rules
 
@@ -137,6 +141,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 14-03-PLAN.md (Template Manager)
+Stopped at: Completed 14-04-PLAN.md (Message Sequencer)
 Resume file: None
-Next: 14-04-PLAN.md
+Next: 14-05-PLAN.md

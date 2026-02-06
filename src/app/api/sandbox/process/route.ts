@@ -10,6 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
 import type { SandboxState } from '@/lib/sandbox/types'
 
+// Import somnio module to trigger agent registration
+import '@/lib/agents/somnio'
+
 // Single engine instance per server (stateless processing)
 const engine = new SandboxEngine()
 

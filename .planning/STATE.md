@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 13: Agent Engine Core
+**Current focus:** MVP v2.0 — Phase 14: Agente Ventas Somnio
 
 ## Current Position
 
-Phase: 13 of 16 (Agent Engine Core)
-Plan: 6 of 6
-Status: Phase complete
-Last activity: 2026-02-06 — Completed 13-06-PLAN.md (Inngest Timer Workflows)
+Phase: 14 of 16 (Agente Ventas Somnio)
+Plan: 2 of 6
+Status: In progress
+Last activity: 2026-02-06 — Completed 14-02-PLAN.md (Data Extractor)
 
-Progress: [##########] 100% MVP v1 | [███████░░░] 56% MVP v2
+Progress: [##########] 100% MVP v1 | [████████░░] 64% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -50,6 +50,7 @@ All 11 phases + 4 inserted phases completed:
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
+| 14. Agente Ventas Somnio | 2/6 | In progress |
 
 ## Accumulated Context
 
@@ -102,6 +103,10 @@ Recent decisions affecting MVP v2 work:
 - [13-06]: waitForEvent match on data.sessionId for timer cancellation
 - [13-06]: Lazy SessionManager initialization in Inngest functions
 - [13-06]: 6-min data collection timeout, 10-min promos timeout
+- [14-02]: Using claude-haiku-4-5 for data extraction (fast, cheap)
+- [14-02]: N/A as explicit value for negated fields (vs empty string)
+- [14-02]: 5 critical fields for minimum data (timer trigger), 8 total for auto ofrecer_promos
+- [14-02]: Normalization order: city first, then infer departamento
 
 ### Project Rules
 
@@ -125,6 +130,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed Phase 13 (Agent Engine Core) - all 6 plans
-Resume file: None - Phase 13 complete
-Next: Phase 14 (Agente Ventas Somnio) - discuss and plan
+Stopped at: Completed 14-02-PLAN.md (Data Extractor)
+Resume file: None
+Next: 14-03-PLAN.md

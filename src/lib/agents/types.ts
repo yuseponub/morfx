@@ -554,3 +554,71 @@ export function isValidTurnRole(role: string): role is TurnRole {
 export function isValidPackSelection(pack: string | null): pack is PackSelection | null {
   return pack === null || ['1x', '2x', '3x'].includes(pack)
 }
+
+// ============================================================================
+// Agent Template Types
+// ============================================================================
+
+/**
+ * Content type for agent templates.
+ * - texto: Plain text message
+ * - template: WhatsApp template (requires approval)
+ * - imagen: Image URL (sent within 24h window)
+ */
+export type TemplateContentType = 'texto' | 'template' | 'imagen'
+
+/**
+ * Visit type for template selection.
+ * - primera_vez: First time customer sees this intent
+ * - siguientes: Repeat visits to this intent
+ */
+export type TemplateVisitType = 'primera_vez' | 'siguientes'
+
+/**
+ * Agent template record.
+ * Matches agent_templates table schema.
+ */
+export interface AgentTemplate {
+  id: string
+  agent_id: string
+  intent: string
+  visit_type: TemplateVisitType
+  orden: number
+  content_type: TemplateContentType
+  content: string
+  delay_s: number
+  workspace_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Database row type for agent_templates table (Supabase queries)
+ */
+export interface AgentTemplateRow {
+  id: string
+  agent_id: string
+  intent: string
+  visit_type: string
+  orden: number
+  content_type: string
+  content: string
+  delay_s: number
+  workspace_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Type guard for valid TemplateContentType
+ */
+export function isValidTemplateContentType(type: string): type is TemplateContentType {
+  return ['texto', 'template', 'imagen'].includes(type)
+}
+
+/**
+ * Type guard for valid TemplateVisitType
+ */
+export function isValidTemplateVisitType(type: string): type is TemplateVisitType {
+  return ['primera_vez', 'siguientes'].includes(type)
+}

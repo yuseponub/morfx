@@ -17,6 +17,7 @@ export type { ClaudeModel } from './types'
 export type {
   ClaudeComponentConfig,
   ConfidenceThresholds,
+  ConfidenceAction,
   StateTransitions,
   AgentConfig,
 } from './types'
@@ -88,7 +89,7 @@ export type {
 } from './types'
 
 // Constants
-export { MAX_TOKENS_PER_CONVERSATION } from './types'
+export { MAX_TOKENS_PER_CONVERSATION, DEFAULT_CONFIDENCE_THRESHOLDS } from './types'
 
 // Type guards
 export {
@@ -116,6 +117,7 @@ export {
   BudgetExceededError,
   ClaudeApiError,
   ClaudeParseError,
+  IntentDetectionError,
   InvalidTransitionError,
   AgentToolError,
 } from './errors'

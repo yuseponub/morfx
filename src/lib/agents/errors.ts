@@ -313,6 +313,28 @@ export class ClaudeParseError extends ClaudeApiError {
   }
 }
 
+/**
+ * Error thrown when intent detection fails.
+ * This may be retryable depending on the underlying cause.
+ */
+export class IntentDetectionError extends ClaudeApiError {
+  /** Raw response that caused the error, if available */
+  readonly rawResponse?: string
+
+  constructor(message: string, rawResponse?: string) {
+    super(message, { retryable: true })
+    this.name = 'IntentDetectionError'
+    this.rawResponse = rawResponse
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      ...super.toJSON(),
+      rawResponse: this.rawResponse?.substring(0, 500),
+    }
+  }
+}
+
 // ============================================================================
 // State Machine Errors
 // ============================================================================

@@ -48,6 +48,21 @@ export interface ConfidenceThresholds {
 }
 
 /**
+ * Default confidence thresholds from user decision in CONTEXT.md
+ */
+export const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
+  proceed: 85,
+  reanalyze: 60,
+  clarify: 40,
+  handoff: 0,
+}
+
+/**
+ * Action determined by confidence routing.
+ */
+export type ConfidenceAction = 'proceed' | 'reanalyze' | 'clarify' | 'handoff'
+
+/**
  * Agent state machine transition rules.
  * Maps each state to valid next states.
  */

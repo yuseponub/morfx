@@ -4,8 +4,7 @@
  * Sandbox Layout Component
  * Phase 15: Agent Sandbox
  *
- * Allotment split pane layout with chat (60%) and debug panel (40%).
- * Resizable with drag handle.
+ * Complete layout with chat, debug panel, and session management.
  */
 
 import { useState, useCallback } from 'react'
@@ -13,9 +12,10 @@ import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
-import type { SandboxState, DebugTurn, SandboxMessage } from '@/lib/sandbox/types'
+import { DebugTabs } from './debug-panel'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession } from '@/lib/sandbox/types'
 import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
-import { getLastAgentId } from '@/lib/sandbox/sandbox-session'
+import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 
 // Initial agent - will be expanded when more agents are registered
 const DEFAULT_AGENT_ID = 'somnio-sales-v1'
@@ -57,7 +57,7 @@ export function SandboxLayout() {
     // 5. Hide typing and add response messages with delays
     if (result.success && result.messages.length > 0) {
       for (let i = 0; i < result.messages.length; i++) {
-        // Simulate delay (2-6 seconds) between messages
+        // Simulate delay (2-6 seconds) between messages per CONTEXT.md
         const delay = 2000 + Math.random() * 4000
         await new Promise(resolve => setTimeout(resolve, delay))
 
@@ -88,14 +88,30 @@ export function SandboxLayout() {
     setIsTyping(false)
   }, [engine])
 
+  // Handle new session (same as reset but through controls)
+  const handleNewSession = useCallback(() => {
+    handleReset()
+  }, [handleReset])
+
   // Handle agent change
   const handleAgentChange = useCallback((newAgentId: string) => {
     setAgentId(newAgentId)
+    setLastAgentId(newAgentId)
   }, [])
 
-  // Handle state edit from debug panel (future use)
-  const _handleStateEdit = useCallback((newState: SandboxState) => {
+  // Handle state edit from debug panel
+  const handleStateEdit = useCallback((newState: SandboxState) => {
     setState(newState)
+  }, [])
+
+  // Handle loading a saved session
+  const handleLoadSession = useCallback((session: SavedSandboxSession) => {
+    setAgentId(session.agentId)
+    setMessages(session.messages)
+    setState(session.state)
+    setDebugTurns(session.debugTurns)
+    setTotalTokens(session.totalTokens)
+    setIsTyping(false)
   }, [])
 
   return (
@@ -104,8 +120,13 @@ export function SandboxLayout() {
         agentId={agentId}
         onAgentChange={handleAgentChange}
         onReset={handleReset}
+        onNewSession={handleNewSession}
+        onLoadSession={handleLoadSession}
         totalTokens={totalTokens}
         messageCount={messages.length}
+        messages={messages}
+        state={state}
+        debugTurns={debugTurns}
       />
 
       <div className="flex-1 min-h-0">
@@ -120,13 +141,12 @@ export function SandboxLayout() {
             />
           </Allotment.Pane>
           <Allotment.Pane snap>
-            {/* Debug panel placeholder - will be implemented in Plan 03 */}
-            <div className="h-full bg-muted/30 flex items-center justify-center text-muted-foreground">
-              <div className="text-center space-y-2">
-                <p className="font-medium">Debug Panel</p>
-                <p className="text-sm">Tools | Estado | Intent | Tokens</p>
-              </div>
-            </div>
+            <DebugTabs
+              debugTurns={debugTurns}
+              state={state}
+              onStateEdit={handleStateEdit}
+              totalTokens={totalTokens}
+            />
           </Allotment.Pane>
         </Allotment>
       </div>

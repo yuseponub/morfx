@@ -4,8 +4,7 @@
  * Sandbox Header Component
  * Phase 15: Agent Sandbox
  *
- * Toolbar with agent selector and session controls.
- * Shows agent name + status.
+ * Toolbar with agent selector, session controls, and stats.
  */
 
 import { Bot, RotateCcw, Coins } from 'lucide-react'
@@ -28,7 +27,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { SessionControls } from './session-controls'
 import { setLastAgentId } from '@/lib/sandbox/sandbox-session'
+import type { SandboxMessage, SandboxState, DebugTurn, SavedSandboxSession } from '@/lib/sandbox/types'
 
 // Available agents - will grow as more agents are registered
 const AVAILABLE_AGENTS = [
@@ -39,16 +40,26 @@ interface SandboxHeaderProps {
   agentId: string
   onAgentChange: (agentId: string) => void
   onReset: () => void
+  onNewSession: () => void
+  onLoadSession: (session: SavedSandboxSession) => void
   totalTokens: number
   messageCount: number
+  messages: SandboxMessage[]
+  state: SandboxState
+  debugTurns: DebugTurn[]
 }
 
 export function SandboxHeader({
   agentId,
   onAgentChange,
   onReset,
+  onNewSession,
+  onLoadSession,
   totalTokens,
   messageCount,
+  messages,
+  state,
+  debugTurns,
 }: SandboxHeaderProps) {
   const handleAgentChange = (newAgentId: string) => {
     setLastAgentId(newAgentId)
@@ -80,7 +91,19 @@ export function SandboxHeader({
         </span>
       </div>
 
-      {/* Right: Stats and controls */}
+      {/* Center: Session controls */}
+      <SessionControls
+        agentId={agentId}
+        messages={messages}
+        state={state}
+        debugTurns={debugTurns}
+        totalTokens={totalTokens}
+        hasMessages={messageCount > 0}
+        onNewSession={onNewSession}
+        onLoadSession={onLoadSession}
+      />
+
+      {/* Right: Stats and reset */}
       <div className="flex items-center gap-4">
         {/* Token counter */}
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

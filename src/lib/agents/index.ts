@@ -186,3 +186,10 @@ export type {
   ToolExecutionResultFormatted,
   TurnToolCall,
 } from './engine'
+
+// ============================================================================
+// Inngest (re-export for convenience)
+// ============================================================================
+
+export { inngest } from '@/inngest/client'
+export type { AgentEvents, AgentEventData } from '@/inngest/events'

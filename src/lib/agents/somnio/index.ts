@@ -109,6 +109,21 @@ export type {
 export { SomnioOrchestrator } from './somnio-orchestrator'
 export type { SomnioOrchestratorResult } from './somnio-orchestrator'
 
+// Order Creator
+export { OrderCreator } from './order-creator'
+export type {
+  OrderCreationResult,
+  ContactData,
+  OrderData,
+} from './order-creator'
+
+// Somnio Engine
+export { SomnioEngine } from './somnio-engine'
+export type {
+  SomnioProcessMessageInput,
+  SomnioEngineResult,
+} from './somnio-engine'
+
 // ============================================================================
 // Agent Registration
 // ============================================================================

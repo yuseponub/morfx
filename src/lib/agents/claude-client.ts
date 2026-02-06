@@ -23,8 +23,8 @@ const logger = createModuleLogger('claude-client')
 
 /** Map of model IDs to Anthropic API model strings */
 const MODEL_MAP: Record<ClaudeModel, string> = {
-  'claude-haiku-4-5': 'claude-sonnet-4-5-20250514', // Using Sonnet as Haiku 4.5 not yet available
-  'claude-sonnet-4-5': 'claude-sonnet-4-5-20250514',
+  'claude-haiku-4-5': 'claude-3-5-haiku-latest',
+  'claude-sonnet-4-5': 'claude-3-5-sonnet-latest',
 }
 
 /**

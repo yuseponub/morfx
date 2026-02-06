@@ -128,3 +128,21 @@ export {
   isClaudeApiError,
   isRetryableError,
 } from './errors'
+
+// ============================================================================
+// Registry
+// ============================================================================
+
+export { AgentRegistry, agentRegistry } from './registry'
+
+// ============================================================================
+// Session Manager
+// ============================================================================
+
+export { SessionManager } from './session-manager'
+export type {
+  CreateSessionParams as CreateSessionManagerParams,
+  AddTurnParams as AddTurnManagerParams,
+  UpdateSessionParams as UpdateSessionManagerParams,
+  AgentSessionWithState,
+} from './session-manager'

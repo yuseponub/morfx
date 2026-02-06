@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 13 of 16 (Agent Engine Core)
-Plan: 3 of 6
+Plan: 4 of 6
 Status: In progress
-Last activity: 2026-02-06 — Completed 13-03-PLAN.md (Claude Client & Token Budget)
+Last activity: 2026-02-06 — Completed 13-04-PLAN.md (Intent Detector & Orchestrator)
 
-Progress: [##########] 100% MVP v1 | [████░░░░░░] 38% MVP v2
+Progress: [##########] 100% MVP v1 | [█████░░░░░] 44% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -49,7 +49,7 @@ All 11 phases + 4 inserted phases completed:
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
-| 13. Agent Engine Core | 3/6 | In Progress |
+| 13. Agent Engine Core | 4/6 | In Progress |
 
 ## Accumulated Context
 
@@ -90,6 +90,10 @@ Recent decisions affecting MVP v2 work:
 - [13-03]: Using claude-sonnet-4-5 for both models until Haiku 4.5 available
 - [13-03]: Tool names converted: dots to underscores for Claude API, underscores to dots for Action DSL
 - [13-03]: TokenUsage simplified to totalTokens instead of split input/output
+- [13-04]: ConfidenceAction type and DEFAULT_CONFIDENCE_THRESHOLDS added to types.ts
+- [13-04]: IntentDetectionError added to errors.ts for intent-specific failures
+- [13-04]: Handoff/clarify actions handled locally without Claude call (saves tokens)
+- [13-04]: Confidence routing: 85+ proceed, 60-84 reanalyze, 40-59 clarify, <40 handoff
 
 ### Project Rules
 
@@ -112,6 +116,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 13-03-PLAN.md (Claude Client & Token Budget)
-Resume file: .planning/phases/13-agent-engine-core/13-04-PLAN.md
-Next: Execute Plan 04 - Agent Engine
+Stopped at: Completed 13-04-PLAN.md (Intent Detector & Orchestrator)
+Resume file: .planning/phases/13-agent-engine-core/13-05-PLAN.md
+Next: Execute Plan 05 - Agent Engine

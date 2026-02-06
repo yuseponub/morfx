@@ -12,9 +12,17 @@ import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession } from '@/lib/sandbox/types'
-import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult } from '@/lib/sandbox/types'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
+
+// Initial state (matches SandboxEngine.getInitialState())
+const INITIAL_STATE: SandboxState = {
+  currentMode: 'conversacion',
+  intentsVistos: [],
+  templatesEnviados: [],
+  datosCapturados: {},
+  packSeleccionado: null,
+}
 
 // Dynamic import for split panel (Allotment has no SSR support)
 const SandboxSplitPanel = dynamic(
@@ -29,15 +37,12 @@ export function SandboxLayout() {
   // Session state
   const [agentId, setAgentId] = useState<string>(getLastAgentId() ?? DEFAULT_AGENT_ID)
   const [messages, setMessages] = useState<SandboxMessage[]>([])
-  const [state, setState] = useState<SandboxState>(() => new SandboxEngine().getInitialState())
+  const [state, setState] = useState<SandboxState>(INITIAL_STATE)
   const [debugTurns, setDebugTurns] = useState<DebugTurn[]>([])
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
 
-  // Engine instance
-  const [engine] = useState(() => new SandboxEngine())
-
-  // Handle message send
+  // Handle message send via API route
   const handleSendMessage = useCallback(async (content: string) => {
     // 1. Add user message immediately
     const userMessage: SandboxMessage = {
@@ -51,47 +56,58 @@ export function SandboxLayout() {
     // 2. Show typing indicator
     setIsTyping(true)
 
-    // 3. Build history for engine
+    // 3. Build history for API
     const history = messages.map(m => ({ role: m.role, content: m.content }))
     history.push({ role: 'user', content })
 
-    // 4. Process message
-    const turnNumber = debugTurns.length + 1
-    const result = await engine.processMessage(content, state, history, turnNumber)
+    try {
+      // 4. Process message via server API
+      const turnNumber = debugTurns.length + 1
+      const response = await fetch('/api/sandbox/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: content, state, history, turnNumber }),
+      })
 
-    // 5. Hide typing and add response messages with delays
-    if (result.success && result.messages.length > 0) {
-      for (let i = 0; i < result.messages.length; i++) {
-        // Simulate delay (2-6 seconds) between messages per CONTEXT.md
-        const delay = 2000 + Math.random() * 4000
-        await new Promise(resolve => setTimeout(resolve, delay))
+      const result: SandboxEngineResult = await response.json()
 
-        const assistantMessage: SandboxMessage = {
-          id: `msg-${Date.now()}-assistant-${i}`,
-          role: 'assistant',
-          content: result.messages[i],
-          timestamp: new Date().toISOString(),
+      // 5. Hide typing and add response messages with delays
+      if (result.success && result.messages.length > 0) {
+        for (let i = 0; i < result.messages.length; i++) {
+          // Simulate delay (2-6 seconds) between messages
+          const delay = 2000 + Math.random() * 4000
+          await new Promise(resolve => setTimeout(resolve, delay))
+
+          const assistantMessage: SandboxMessage = {
+            id: `msg-${Date.now()}-assistant-${i}`,
+            role: 'assistant',
+            content: result.messages[i],
+            timestamp: new Date().toISOString(),
+          }
+          setMessages(prev => [...prev, assistantMessage])
         }
-        setMessages(prev => [...prev, assistantMessage])
       }
+
+      setIsTyping(false)
+
+      // 6. Update state and debug info
+      setState(result.newState)
+      setDebugTurns(prev => [...prev, result.debugTurn])
+      setTotalTokens(prev => prev + result.debugTurn.tokens.tokensUsed)
+    } catch (error) {
+      setIsTyping(false)
+      console.error('[Sandbox] Error processing message:', error)
     }
-
-    setIsTyping(false)
-
-    // 6. Update state and debug info
-    setState(result.newState)
-    setDebugTurns(prev => [...prev, result.debugTurn])
-    setTotalTokens(prev => prev + result.debugTurn.tokens.tokensUsed)
-  }, [messages, state, debugTurns, engine])
+  }, [messages, state, debugTurns])
 
   // Handle session reset
   const handleReset = useCallback(() => {
     setMessages([])
-    setState(engine.getInitialState())
+    setState(INITIAL_STATE)
     setDebugTurns([])
     setTotalTokens(0)
     setIsTyping(false)
-  }, [engine])
+  }, [])
 
   // Handle new session (same as reset but through controls)
   const handleNewSession = useCallback(() => {

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 13 of 16 (Agent Engine Core)
-Plan: 4 of 6
+Plan: 5 of 6
 Status: In progress
-Last activity: 2026-02-06 — Completed 13-04-PLAN.md (Intent Detector & Orchestrator)
+Last activity: 2026-02-06 — Completed 13-05-PLAN.md (Agent Engine)
 
-Progress: [##########] 100% MVP v1 | [█████░░░░░] 44% MVP v2
+Progress: [##########] 100% MVP v1 | [██████░░░░] 50% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -29,7 +29,7 @@ All 11 phases + 4 inserted phases completed:
 
 5 phases planned:
 - Phase 12: Action DSL Real (4 plans) — COMPLETE
-- Phase 13: Agent Engine Core (6 plans) — IN PROGRESS (3/6)
+- Phase 13: Agent Engine Core (6 plans) — IN PROGRESS (5/6)
 - Phase 14: Agente Ventas Somnio (TBD plans)
 - Phase 15: Agent Sandbox (TBD plans)
 - Phase 16: WhatsApp Agent Integration (TBD plans)
@@ -49,7 +49,7 @@ All 11 phases + 4 inserted phases completed:
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
-| 13. Agent Engine Core | 4/6 | In Progress |
+| 13. Agent Engine Core | 5/6 | In Progress |
 
 ## Accumulated Context
 
@@ -94,6 +94,10 @@ Recent decisions affecting MVP v2 work:
 - [13-04]: IntentDetectionError added to errors.ts for intent-specific failures
 - [13-04]: Handoff/clarify actions handled locally without Claude call (saves tokens)
 - [13-04]: Confidence routing: 85+ proceed, 60-84 reanalyze, 40-59 clarify, <40 handoff
+- [13-05]: AgentEngine processMessage as main entry point with full flow
+- [13-05]: Version conflict retry pattern (max 3 retries) for optimistic locking
+- [13-05]: Dynamic inngest import to avoid circular dependencies
+- [13-05]: Inngest event emission is non-blocking (failures logged but don't stop processing)
 
 ### Project Rules
 
@@ -116,6 +120,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 13-04-PLAN.md (Intent Detector & Orchestrator)
-Resume file: .planning/phases/13-agent-engine-core/13-05-PLAN.md
-Next: Execute Plan 05 - Agent Engine
+Stopped at: Completed 13-05-PLAN.md (Agent Engine)
+Resume file: .planning/phases/13-agent-engine-core/13-06-PLAN.md
+Next: Execute Plan 06 - API Routes & Inngest

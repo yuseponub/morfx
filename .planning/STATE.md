@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15 of 16 (Agent Sandbox)
-Plan: 1 of 4
+Plan: 2 of 4
 Status: In progress
-Last activity: 2026-02-06 — Completed 15-01-PLAN.md (Sandbox Foundation)
+Last activity: 2026-02-06 — Completed 15-02-PLAN.md (Sandbox Chat Panel)
 
-Progress: [##########] 100% MVP v1 | [███████████░] 85% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████░] 88% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -51,7 +51,7 @@ All 11 phases + 4 inserted phases completed:
 | 12. Action DSL Real | 4/4 | Complete |
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
-| 15. Agent Sandbox | 1/4 | In Progress |
+| 15. Agent Sandbox | 2/4 | In Progress |
 
 ## Accumulated Context
 
@@ -127,6 +127,9 @@ Recent decisions affecting MVP v2 work:
 - [15-01]: SandboxEngine uses mock session object for orchestrator compatibility
 - [15-01]: localStorage MAX_SESSIONS=20 to prevent quota issues
 - [15-01]: Session ID format: sandbox-{timestamp}-{random7chars}
+- [15-02]: Inverted theme for sandbox: user=right/primary, agent=left/muted (opposite of inbox)
+- [15-02]: HH:mm:ss timestamp format always visible on messages
+- [15-02]: Message delays simulated 2-6 seconds for realistic agent typing
 
 ### Project Rules
 
@@ -150,6 +153,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 15-01-PLAN.md (Sandbox Foundation)
+Stopped at: Completed 15-02-PLAN.md (Sandbox Chat Panel)
 Resume file: None
-Next: 15-02-PLAN.md (Sandbox Chat Panel)
+Next: 15-03-PLAN.md (Debug Panel)

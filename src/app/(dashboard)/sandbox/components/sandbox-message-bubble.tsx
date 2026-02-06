@@ -44,7 +44,7 @@ export function SandboxMessageBubble({ message }: SandboxMessageBubbleProps) {
       >
         {/* Message content */}
         <div className="text-sm">
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="whitespace-pre-line break-words">{message.content}</p>
         </div>
 
         {/* Timestamp - always visible per CONTEXT.md */}

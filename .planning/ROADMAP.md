@@ -374,12 +374,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Database foundation: agent_sessions, agent_turns, session_state tables with RLS and types
-- [ ] 13-02-PLAN.md — Agent Registry and Session Manager with optimistic locking
-- [ ] 13-03-PLAN.md — Claude Client with streaming and Token Budget Manager
-- [ ] 13-04-PLAN.md — Intent Detector and Orchestrator components with confidence routing
-- [ ] 13-05-PLAN.md — Agent Engine main loop with tool execution and retry logic
-- [ ] 13-06-PLAN.md — Inngest timer workflows for proactive agent actions
+- [x] 13-01-PLAN.md — Database foundation: agent_sessions, agent_turns, session_state tables with RLS and types
+- [x] 13-02-PLAN.md — Agent Registry and Session Manager with optimistic locking
+- [x] 13-03-PLAN.md — Claude Client with streaming and Token Budget Manager
+- [x] 13-04-PLAN.md — Intent Detector and Orchestrator components with confidence routing
+- [x] 13-05-PLAN.md — Agent Engine main loop with tool execution and retry logic
+- [x] 13-06-PLAN.md — Inngest timer workflows for proactive agent actions
 
 ### Phase 14: Agente Ventas Somnio
 **Goal**: El agente de ventas de Somnio funciona como el actual en n8n pero con codigo controlado
@@ -461,11 +461,11 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 12. Action DSL Real | 4/4 | Complete | 2026-02-05 |
-| 13. Agent Engine Core | 0/6 | Planned | - |
+| 13. Agent Engine Core | 6/6 | Complete | 2026-02-05 |
 | 14. Agente Ventas Somnio | TBD | Not started | - |
 | 15. Agent Sandbox | TBD | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-05 (Phase 13 Agent Engine Core planned)*
+*Last updated: 2026-02-05 (Phase 13 Agent Engine Core complete)*

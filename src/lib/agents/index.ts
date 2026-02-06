@@ -193,3 +193,25 @@ export type {
 
 export { inngest } from '@/inngest/client'
 export type { AgentEvents, AgentEventData } from '@/inngest/events'
+
+// ============================================================================
+// Agent Template Types
+// ============================================================================
+
+export type {
+  TemplateContentType,
+  TemplateVisitType,
+  AgentTemplate,
+  AgentTemplateRow,
+} from './types'
+
+export {
+  isValidTemplateContentType,
+  isValidTemplateVisitType,
+} from './types'
+
+// ============================================================================
+// Somnio Agent
+// ============================================================================
+
+export * from './somnio'

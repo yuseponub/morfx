@@ -214,7 +214,7 @@ export class DataExtractor {
       systemPrompt,
       conversationHistory,
       message,
-      'claude-haiku-4-5' // Use fast model for extraction
+      'claude-sonnet-4-5' // Using Sonnet until Haiku 4.5 available (decision 13-03)
     )
 
     // Parse the extraction from Claude's response

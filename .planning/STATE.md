@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 13 of 16 (Agent Engine Core)
-Plan: 5 of 6
-Status: In progress
-Last activity: 2026-02-06 — Completed 13-05-PLAN.md (Agent Engine)
+Plan: 6 of 6
+Status: Phase complete
+Last activity: 2026-02-06 — Completed 13-06-PLAN.md (Inngest Timer Workflows)
 
-Progress: [##########] 100% MVP v1 | [██████░░░░] 50% MVP v2
+Progress: [##########] 100% MVP v1 | [███████░░░] 56% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -29,7 +29,7 @@ All 11 phases + 4 inserted phases completed:
 
 5 phases planned:
 - Phase 12: Action DSL Real (4 plans) — COMPLETE
-- Phase 13: Agent Engine Core (6 plans) — IN PROGRESS (5/6)
+- Phase 13: Agent Engine Core (6 plans) — COMPLETE
 - Phase 14: Agente Ventas Somnio (TBD plans)
 - Phase 15: Agent Sandbox (TBD plans)
 - Phase 16: WhatsApp Agent Integration (TBD plans)
@@ -49,7 +49,7 @@ All 11 phases + 4 inserted phases completed:
 | 10.1 Task Notes & History | 4/4 | Complete |
 | 11. Shopify Integration | 7/7 | Complete |
 | 12. Action DSL Real | 4/4 | Complete |
-| 13. Agent Engine Core | 5/6 | In Progress |
+| 13. Agent Engine Core | 6/6 | Complete |
 
 ## Accumulated Context
 
@@ -98,6 +98,10 @@ Recent decisions affecting MVP v2 work:
 - [13-05]: Version conflict retry pattern (max 3 retries) for optimistic locking
 - [13-05]: Dynamic inngest import to avoid circular dependencies
 - [13-05]: Inngest event emission is non-blocking (failures logged but don't stop processing)
+- [13-06]: Event naming convention: agent/{entity}.{action}
+- [13-06]: waitForEvent match on data.sessionId for timer cancellation
+- [13-06]: Lazy SessionManager initialization in Inngest functions
+- [13-06]: 6-min data collection timeout, 10-min promos timeout
 
 ### Project Rules
 
@@ -112,6 +116,7 @@ Established in `CLAUDE.md`:
 - Mobile nav workspace switcher
 - Apply migrations to Supabase (all pending)
 - Configure 360dialog webhook URL and env vars
+- Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
 
 ### Blockers/Concerns
 
@@ -120,6 +125,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 13-05-PLAN.md (Agent Engine)
-Resume file: .planning/phases/13-agent-engine-core/13-06-PLAN.md
-Next: Execute Plan 06 - API Routes & Inngest
+Stopped at: Completed Phase 13 (Agent Engine Core) - all 6 plans
+Resume file: None - Phase 13 complete
+Next: Phase 14 (Agente Ventas Somnio) - discuss and plan

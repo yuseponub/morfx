@@ -23,12 +23,14 @@ import { SessionManager, type AgentSessionWithState } from '../session-manager'
 import { IntentDetector } from '../intent-detector'
 import { ClaudeClient } from '../claude-client'
 import { agentRegistry } from '../registry'
-import type { PackSelection } from '../types'
+import type { PackSelection, ClaudeMessage } from '../types'
 import { SomnioOrchestrator, type SomnioOrchestratorResult } from './somnio-orchestrator'
 import { MessageSequencer, type MessageSequence, type MessageToSend } from './message-sequencer'
 import { OrderCreator, type ContactData, type OrderCreationResult } from './order-creator'
 import { somnioAgentConfig } from './config'
-import { mergeExtractedData } from './data-extractor'
+import { mergeExtractedData, hasCriticalData } from './data-extractor'
+import { IngestManager, type IngestState, type IngestResult } from './ingest-manager'
+import { MessageClassifier } from './message-classifier'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('somnio-engine')
@@ -98,6 +100,8 @@ export class SomnioEngine {
   private orchestrator: SomnioOrchestrator
   private messageSequencer: MessageSequencer
   private orderCreator: OrderCreator
+  private ingestManager: IngestManager
+  private messageClassifier: MessageClassifier
   private workspaceId: string
 
   constructor(
@@ -107,6 +111,7 @@ export class SomnioEngine {
       claudeClient?: ClaudeClient
       orchestrator?: SomnioOrchestrator
       messageSequencer?: MessageSequencer
+      ingestManager?: IngestManager
     }
   ) {
     this.workspaceId = workspaceId
@@ -116,6 +121,8 @@ export class SomnioEngine {
     this.orchestrator = options?.orchestrator ?? new SomnioOrchestrator(this.claudeClient)
     this.messageSequencer = options?.messageSequencer ?? new MessageSequencer(this.sessionManager)
     this.orderCreator = new OrderCreator(workspaceId)
+    this.ingestManager = options?.ingestManager ?? new IngestManager()
+    this.messageClassifier = new MessageClassifier()
   }
 
   /**
@@ -147,7 +154,36 @@ export class SomnioEngine {
       // 2. Build conversation history
       const history = await this.buildConversationHistory(session.id)
 
-      // 3. Detect intent
+      // 3. Check for "implicit yes" - datos sent outside collecting_data
+      const currentMode = session.current_mode
+      if (currentMode !== 'collecting_data') {
+        const implicitYesResult = await this.checkImplicitYes(
+          input.messageContent,
+          session,
+          history,
+          input
+        )
+        if (implicitYesResult) {
+          return implicitYesResult
+        }
+      }
+
+      // 4. Handle ingest mode (collecting_data with silent accumulation)
+      if (currentMode === 'collecting_data') {
+        const ingestResult = await this.handleIngestMode(
+          input.messageContent,
+          session,
+          history,
+          input
+        )
+        if (ingestResult) {
+          return ingestResult
+        }
+        // If ingestResult is null, continue with normal orchestration
+        // (for 'pregunta' or 'mixto' that need response)
+      }
+
+      // 5. Detect intent
       const { intent, action, tokensUsed: intentTokens } = await this.intentDetector.detect(
         input.messageContent,
         history,
@@ -168,7 +204,7 @@ export class SomnioEngine {
         'Intent detected'
       )
 
-      // 4. Record user turn
+      // 6. Record user turn
       const turnNumber = history.length + 1
       await this.sessionManager.addTurn({
         sessionId: session.id,
@@ -180,15 +216,15 @@ export class SomnioEngine {
         tokensUsed: intentTokens,
       })
 
-      // 5. Update intents_vistos
+      // 7. Update intents_vistos
       await this.sessionManager.addIntentSeen(session.id, intent.intent)
 
-      // 6. Handle handoff
+      // 8. Handle handoff
       if (action === 'handoff') {
         return this.handleHandoff(session.id)
       }
 
-      // 7. Orchestrate response
+      // 9. Orchestrate response
       const orchestratorResult = await this.orchestrator.orchestrate(
         intent,
         session,
@@ -197,7 +233,7 @@ export class SomnioEngine {
       )
       totalTokens += orchestratorResult.tokensUsed ?? 0
 
-      // 8. Handle blocked transition (clarification)
+      // 10. Handle blocked transition (clarification)
       if (orchestratorResult.action === 'clarify' && orchestratorResult.response) {
         await this.sessionManager.addTurn({
           sessionId: session.id,
@@ -215,10 +251,10 @@ export class SomnioEngine {
         }
       }
 
-      // 9. Apply state updates from orchestrator
+      // 11. Apply state updates from orchestrator
       await this.applyStateUpdates(session.id, orchestratorResult, session)
 
-      // 10. Update session mode if changed
+      // 12. Update session mode if changed
       if (orchestratorResult.nextMode) {
         await this.sessionManager.updateSessionWithVersion(
           session.id,
@@ -230,7 +266,7 @@ export class SomnioEngine {
         )
       }
 
-      // 11. CRITICAL: Check shouldCreateOrder flag and invoke OrderCreator
+      // 13. CRITICAL: Check shouldCreateOrder flag and invoke OrderCreator
       let orderResult: OrderCreationResult | undefined
       if (orchestratorResult.shouldCreateOrder) {
         const updatedState = await this.sessionManager.getState(session.id)
@@ -285,7 +321,7 @@ export class SomnioEngine {
         }
       }
 
-      // 12. Send messages via MessageSequencer
+      // 14. Send messages via MessageSequencer
       let messagesSent = 0
       if (orchestratorResult.templates && orchestratorResult.templates.length > 0) {
         const sequence = this.messageSequencer.buildSequence(
@@ -311,7 +347,7 @@ export class SomnioEngine {
         messagesSent = sequenceResult.messagesSent
       }
 
-      // 13. Record assistant turn
+      // 15. Record assistant turn
       const responseText = orchestratorResult.templates
         ?.map((t) => t.content)
         .join('\n') ?? ''
@@ -469,6 +505,316 @@ export class SomnioEngine {
       return value && value.trim().length > 0 && value !== 'N/A'
     })
   }
+
+  // ============================================================================
+  // Ingest Mode Methods (Phase 15.5)
+  // ============================================================================
+
+  /**
+   * Handle ingest mode during collecting_data.
+   *
+   * Routes messages through IngestManager for classification and silent accumulation.
+   * Returns null if normal orchestration should continue (for pregunta/mixto).
+   *
+   * @returns SomnioEngineResult if handled silently, null to continue normal flow
+   */
+  private async handleIngestMode(
+    messageContent: string,
+    session: AgentSessionWithState,
+    history: ClaudeMessage[],
+    input: SomnioProcessMessageInput
+  ): Promise<SomnioEngineResult | null> {
+    const sessionState = session.state
+
+    // Build ingest state from session
+    const ingestState: IngestState = {
+      active: true,
+      startedAt: sessionState.proactive_started_at ?? null,
+      firstDataAt: sessionState.first_data_at ?? null,
+      fieldsCollected: Object.keys(sessionState.datos_capturados).filter(
+        (k) => sessionState.datos_capturados[k] && sessionState.datos_capturados[k] !== 'N/A'
+      ),
+    }
+
+    // Route through IngestManager
+    const ingestResult = await this.ingestManager.handleMessage({
+      sessionId: session.id,
+      message: messageContent,
+      ingestState,
+      existingData: sessionState.datos_capturados,
+      conversationHistory: history,
+    })
+
+    logger.debug(
+      {
+        sessionId: session.id,
+        classification: ingestResult.classification.classification,
+        action: ingestResult.action,
+      },
+      'Ingest result'
+    )
+
+    // Emit timer events if needed
+    if (ingestResult.shouldEmitTimerStart) {
+      await this.emitIngestStarted(session, ingestResult.timerDuration === '6m')
+    }
+    if (ingestResult.shouldEmitTimerComplete) {
+      await this.emitIngestCompleted(session.id, 'all_fields')
+    }
+
+    // Handle silent accumulation (datos or irrelevante)
+    if (ingestResult.action === 'silent') {
+      // Update datos_capturados if data was extracted
+      if (ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0) {
+        await this.sessionManager.updateState(session.id, {
+          datos_capturados: ingestResult.mergedData ?? sessionState.datos_capturados,
+          first_data_at: ingestState.firstDataAt ?? new Date().toISOString(),
+        })
+      }
+
+      // Return early - no response sent (SILENT)
+      logger.info(
+        {
+          sessionId: session.id,
+          classification: ingestResult.classification.classification,
+          fieldsExtracted: ingestResult.extractedData
+            ? Object.keys(ingestResult.extractedData.normalized)
+            : [],
+        },
+        'Silent accumulation - no response'
+      )
+
+      return {
+        success: true,
+        response: undefined, // SILENT - no response
+        sessionId: session.id,
+        tokensUsed: 0,
+        newMode: 'collecting_data',
+      }
+    }
+
+    // Handle complete (all 8 fields) - transition to ofrecer_promos
+    if (ingestResult.action === 'complete') {
+      // Update datos_capturados
+      if (ingestResult.mergedData) {
+        await this.sessionManager.updateState(session.id, {
+          datos_capturados: ingestResult.mergedData,
+          first_data_at: ingestState.firstDataAt ?? new Date().toISOString(),
+        })
+      }
+
+      // Transition to ofrecer_promos will be handled by orchestrator
+      // For now, just update state and let normal flow continue
+      await this.sessionManager.updateSessionWithVersion(
+        session.id,
+        session.version,
+        {
+          currentMode: 'ofrecer_promos',
+          lastActivityAt: new Date().toISOString(),
+        }
+      )
+
+      logger.info(
+        { sessionId: session.id },
+        'Ingest complete - transitioning to ofrecer_promos'
+      )
+
+      // Continue with normal orchestration to send ofrecer_promos templates
+      return null
+    }
+
+    // For 'respond' (pregunta or mixto), update extracted data and continue normal flow
+    if (ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0) {
+      await this.sessionManager.updateState(session.id, {
+        datos_capturados: ingestResult.mergedData ?? sessionState.datos_capturados,
+        first_data_at: ingestState.firstDataAt ?? new Date().toISOString(),
+      })
+    }
+
+    // Return null to continue with normal orchestration
+    return null
+  }
+
+  /**
+   * Check for "implicit yes" - customer sends datos outside collecting_data mode.
+   *
+   * If detected:
+   * 1. Transition to collecting_data
+   * 2. Send collecting_data templates
+   * 3. Extract the data from current message
+   *
+   * @returns SomnioEngineResult if handled, null to continue normal flow
+   */
+  private async checkImplicitYes(
+    messageContent: string,
+    session: AgentSessionWithState,
+    history: ClaudeMessage[],
+    input: SomnioProcessMessageInput
+  ): Promise<SomnioEngineResult | null> {
+    // Classify the message
+    const classification = await this.messageClassifier.classify(messageContent)
+
+    // Only trigger implicit yes for 'datos' or 'mixto' (contains data)
+    if (
+      classification.classification !== 'datos' &&
+      classification.classification !== 'mixto'
+    ) {
+      return null
+    }
+
+    logger.info(
+      {
+        sessionId: session.id,
+        classification: classification.classification,
+        currentMode: session.current_mode,
+      },
+      'Implicit yes detected - entering collecting_data'
+    )
+
+    // Transition to collecting_data
+    await this.sessionManager.updateSessionWithVersion(
+      session.id,
+      session.version,
+      {
+        currentMode: 'collecting_data',
+        lastActivityAt: new Date().toISOString(),
+      }
+    )
+
+    // Build ingest state for the implicit yes
+    const ingestState: IngestState = {
+      active: true,
+      startedAt: new Date().toISOString(),
+      firstDataAt: null, // Will be set by ingestManager
+      fieldsCollected: [],
+    }
+
+    // Process the data through IngestManager
+    const ingestResult = await this.ingestManager.handleMessage({
+      sessionId: session.id,
+      message: messageContent,
+      ingestState,
+      existingData: session.state.datos_capturados,
+      conversationHistory: history,
+    })
+
+    // Update datos_capturados if data was extracted
+    if (ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0) {
+      await this.sessionManager.updateState(session.id, {
+        datos_capturados: ingestResult.mergedData ?? session.state.datos_capturados,
+        first_data_at: new Date().toISOString(),
+        proactive_started_at: new Date().toISOString(),
+      })
+    }
+
+    // Emit timer start event
+    if (ingestResult.shouldEmitTimerStart || Object.keys(ingestResult.extractedData?.normalized ?? {}).length > 0) {
+      await this.emitIngestStarted(session, true)
+    }
+
+    // Check if all fields complete (rare but possible)
+    if (ingestResult.shouldEmitTimerComplete) {
+      await this.emitIngestCompleted(session.id, 'all_fields')
+
+      // Skip collecting_data templates, go straight to ofrecer_promos
+      await this.sessionManager.updateSessionWithVersion(
+        session.id,
+        session.version + 1,
+        {
+          currentMode: 'ofrecer_promos',
+          lastActivityAt: new Date().toISOString(),
+        }
+      )
+
+      logger.info(
+        { sessionId: session.id },
+        'Implicit yes with all fields - skipping to ofrecer_promos'
+      )
+
+      // Return null to continue with normal orchestration for ofrecer_promos
+      return null
+    }
+
+    // Return null to continue - orchestrator will send collecting_data templates
+    // The implicit transition to collecting_data triggers the templates
+    return null
+  }
+
+  /**
+   * Emit agent/ingest.started event to start the timer.
+   *
+   * @param session - Current session
+   * @param hasPartialData - Whether customer already sent some data
+   */
+  private async emitIngestStarted(
+    session: AgentSessionWithState,
+    hasPartialData: boolean
+  ): Promise<void> {
+    const timerDurationMs = hasPartialData ? 360000 : 600000 // 6 min or 10 min
+
+    try {
+      const { inngest } = await import('@/inngest/client')
+      await inngest.send({
+        name: 'agent/ingest.started',
+        data: {
+          sessionId: session.id,
+          conversationId: session.conversation_id,
+          workspaceId: this.workspaceId,
+          hasPartialData,
+          timerDurationMs,
+        },
+      })
+
+      logger.info(
+        {
+          sessionId: session.id,
+          timerDurationMs,
+          hasPartialData,
+        },
+        'Ingest started event emitted'
+      )
+    } catch (error) {
+      // Non-blocking - log but don't fail processing
+      logger.warn(
+        { error, sessionId: session.id },
+        'Failed to emit ingest.started event'
+      )
+    }
+  }
+
+  /**
+   * Emit agent/ingest.completed event to cancel the timer.
+   *
+   * @param sessionId - Session ID
+   * @param reason - Why ingest completed
+   */
+  private async emitIngestCompleted(
+    sessionId: string,
+    reason: 'all_fields' | 'timeout' | 'cancelled'
+  ): Promise<void> {
+    try {
+      const { inngest } = await import('@/inngest/client')
+      await inngest.send({
+        name: 'agent/ingest.completed',
+        data: { sessionId, reason },
+      })
+
+      logger.info(
+        { sessionId, reason },
+        'Ingest completed event emitted'
+      )
+    } catch (error) {
+      // Non-blocking - log but don't fail processing
+      logger.warn(
+        { error, sessionId },
+        'Failed to emit ingest.completed event'
+      )
+    }
+  }
+
+  // ============================================================================
+  // Getters (for testing)
+  // ============================================================================
 
   /**
    * Get the OrderCreator instance (for testing).

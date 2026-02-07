@@ -15,6 +15,7 @@ import { mergeExtractedData, hasCriticalData } from '@/lib/agents/somnio/data-ex
 import { IngestManager } from '@/lib/agents/somnio/ingest-manager'
 import { MessageClassifier } from '@/lib/agents/somnio/message-classifier'
 import type { IngestState } from '@/lib/agents/somnio/ingest-manager'
+import type { ModelTokenEntry } from '@/lib/agents/types'
 import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, IntentInfo, IngestStatus } from './types'
 
 /**
@@ -71,6 +72,7 @@ export class SandboxEngine {
   ): Promise<SandboxEngineResult> {
     const tools: ToolExecution[] = []
     let totalTokens = 0
+    const tokenDetails: ModelTokenEntry[] = []
 
     try {
       const agentConfig = agentRegistry.get(somnioAgentConfig.id)
@@ -90,7 +92,8 @@ export class SandboxEngine {
           history,
           turnNumber,
           tools,
-          totalTokens
+          totalTokens,
+          tokenDetails
         )
 
         if (ingestResult) {
@@ -106,14 +109,14 @@ export class SandboxEngine {
 
       // 2. Check for "implicit yes" - datos sent outside collecting_data
       if (currentState.currentMode !== 'collecting_data' && currentState.currentMode !== 'ofrecer_promos') {
-        const implicitYesPreviousMode = currentState.currentMode
         const implicitYesResult = await this.checkImplicitYes(
           message,
           currentState,
           history,
           turnNumber,
           tools,
-          totalTokens
+          totalTokens,
+          tokenDetails
         )
 
         if (implicitYesResult) {
@@ -152,6 +155,10 @@ export class SandboxEngine {
         intent = detected.intent
         action = detected.action
         totalTokens += detected.tokensUsed
+        // Collect per-model details from intent detection
+        if (detected.tokenDetails) {
+          tokenDetails.push(...detected.tokenDetails)
+        }
       }
 
       const intentInfo: IntentInfo = {
@@ -180,7 +187,7 @@ export class SandboxEngine {
           turnNumber,
           intent: intentInfo,
           tools: [],
-          tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+          tokens: { turnNumber, tokensUsed: totalTokens, models: tokenDetails, timestamp: new Date().toISOString() },
           stateAfter: handoffState,
         }
 
@@ -234,6 +241,14 @@ export class SandboxEngine {
         history
       )
       totalTokens += orchestratorResult.tokensUsed ?? 0
+      // Approximate per-model detail for orchestrator (doesn't expose input/output split)
+      if (orchestratorResult.tokensUsed) {
+        tokenDetails.push({
+          model: 'claude-sonnet-4-5',
+          inputTokens: Math.round((orchestratorResult.tokensUsed ?? 0) * 0.7),
+          outputTokens: Math.round((orchestratorResult.tokensUsed ?? 0) * 0.3),
+        })
+      }
 
       // 8. Build new state
       const newState: SandboxState = {
@@ -268,7 +283,7 @@ export class SandboxEngine {
         turnNumber,
         intent: intentInfo,
         tools, // Tool executions would be populated if we had tool calls
-        tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+        tokens: { turnNumber, tokensUsed: totalTokens, models: tokenDetails, timestamp: new Date().toISOString() },
         stateAfter: newState,
       }
 
@@ -287,7 +302,7 @@ export class SandboxEngine {
         debugTurn: {
           turnNumber,
           tools,
-          tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+          tokens: { turnNumber, tokensUsed: totalTokens, models: tokenDetails, timestamp: new Date().toISOString() },
           stateAfter: currentState,
         },
         newState: currentState,
@@ -312,7 +327,8 @@ export class SandboxEngine {
     history: { role: 'user' | 'assistant'; content: string }[],
     turnNumber: number,
     tools: ToolExecution[],
-    totalTokens: number
+    totalTokens: number,
+    tokenDetails: ModelTokenEntry[]
   ): Promise<SandboxEngineResult | null> {
     // Build ingest state from sandbox state
     const ingestState: IngestState = {
@@ -347,6 +363,16 @@ export class SandboxEngine {
       timerType: ingestResult.timerDuration === '6m' ? 'partial' : 'no_data',
       timerExpiresAt: null, // Timer simulation not needed in sandbox
       lastClassification: ingestResult.classification.classification,
+      timeline: [
+        ...(currentState.ingestStatus?.timeline ?? []),
+        {
+          message: message.substring(0, 100),
+          classification: ingestResult.classification.classification,
+          confidence: ingestResult.classification.confidence,
+          fieldsExtracted: Object.keys(ingestResult.extractedData?.normalized ?? {}),
+          timestamp: new Date().toISOString(),
+        },
+      ],
     }
 
     // Handle silent accumulation (datos or irrelevante)
@@ -360,7 +386,7 @@ export class SandboxEngine {
       const debugTurn: DebugTurn = {
         turnNumber,
         tools,
-        tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+        tokens: { turnNumber, tokensUsed: totalTokens, models: tokenDetails, timestamp: new Date().toISOString() },
         stateAfter: silentState,
       }
 
@@ -408,7 +434,8 @@ export class SandboxEngine {
     history: { role: 'user' | 'assistant'; content: string }[],
     turnNumber: number,
     tools: ToolExecution[],
-    totalTokens: number
+    totalTokens: number,
+    tokenDetails: ModelTokenEntry[]
   ): Promise<SandboxEngineResult | null> {
     // Classify the message
     const classification = await this.messageClassifier.classify(message)
@@ -456,6 +483,16 @@ export class SandboxEngine {
       timerType: ingestResult.timerDuration === '6m' ? 'partial' : 'no_data',
       timerExpiresAt: null,
       lastClassification: classification.classification,
+      timeline: [
+        ...(currentState.ingestStatus?.timeline ?? []),
+        {
+          message: message.substring(0, 100),
+          classification: classification.classification,
+          confidence: classification.confidence,
+          fieldsExtracted: Object.keys(ingestResult.extractedData?.normalized ?? {}),
+          timestamp: new Date().toISOString(),
+        },
+      ],
     }
 
     const newState: SandboxState = {
@@ -479,7 +516,7 @@ export class SandboxEngine {
     const debugTurn: DebugTurn = {
       turnNumber,
       tools,
-      tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+      tokens: { turnNumber, tokensUsed: totalTokens, models: tokenDetails, timestamp: new Date().toISOString() },
       stateAfter: newState,
     }
 

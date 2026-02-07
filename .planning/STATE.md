@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.6 of 17 (Sandbox Evolution - INSERTED)
-Plan: 1 of 6
+Plan: 2 of 6
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.6-01-PLAN.md (Foundation Types)
+Last activity: 2026-02-07 — Completed 15.6-02-PLAN.md (Multi-Panel Debug UI)
 
 Progress: [##########] 100% MVP v1 | [█████████████░] 94% MVP v2
 
@@ -54,7 +54,7 @@ All 11 phases + 4 inserted phases completed:
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
-| 15.6 Sandbox Evolution | 1/6 | In Progress |
+| 15.6 Sandbox Evolution | 2/6 | In Progress |
 
 ## Accumulated Context
 
@@ -157,6 +157,9 @@ Recent decisions affecting MVP v2 work:
 - [15.6-01]: Orchestrator token split approximated 70/30 input/output (exact split unavailable)
 - [15.6-01]: IngestStatus.timeline is required field (not optional) for simpler consumer code
 - [15.6-01]: No changes to production SomnioOrchestrator/SomnioEngine - only sandbox pipeline
+- [15.6-02]: Default visible tabs: Tools + Estado (matching CONTEXT.md)
+- [15.6-02]: Max 3 visible panels enforced in handleToggleTab state logic
+- [15.6-02]: Ingest panel shows placeholder text until Plan 04 creates IngestTab
 
 ### Project Rules
 
@@ -192,6 +195,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.6-01-PLAN.md (Foundation Types)
+Stopped at: Completed 15.6-02-PLAN.md (Multi-Panel Debug UI)
 Resume file: None
-Next: 15.6-02-PLAN.md
+Next: 15.6-03-PLAN.md

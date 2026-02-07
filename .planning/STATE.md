@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.5 of 17 (Somnio Ingest System - INSERTED)
-Plan: 1 of TBD
+Plan: 2 of 4
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.5-01-PLAN.md (Message Classifier)
+Last activity: 2026-02-07 — Completed 15.5-02-PLAN.md (Ingest Manager)
 
 Progress: [##########] 100% MVP v1 | [████████████░░] 91% MVP v2
 
@@ -141,6 +141,10 @@ Recent decisions affecting MVP v2 work:
 - [15.5-01]: 4 classification categories: datos, pregunta, mixto, irrelevante
 - [15.5-01]: Hola+datos classified as mixto (Pitfall 5 from research)
 - [15.5-01]: Default to irrelevante with 30% confidence on parse failure
+- [15.5-02]: IngestManager returns silent action for datos classification (no response)
+- [15.5-02]: Timer starts on FIRST data only, does NOT restart on additional data
+- [15.5-02]: 6min timeout for partial data, 10min for no data
+- [15.5-02]: AllAgentEvents type combines base + ingest events for Inngest client
 
 ### Project Rules
 
@@ -176,6 +180,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.5-01-PLAN.md (Message Classifier)
+Stopped at: Completed 15.5-02-PLAN.md (Ingest Manager)
 Resume file: None
-Next: 15.5-02-PLAN.md (Ingest Manager)
+Next: 15.5-03-PLAN.md (SomnioEngine Integration)

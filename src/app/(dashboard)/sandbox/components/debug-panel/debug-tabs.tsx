@@ -2,19 +2,26 @@
 
 /**
  * Debug Tabs Component
- * Phase 15: Agent Sandbox
+ * Phase 15.6: Sandbox Evolution
  *
- * Tab container for the debug panel.
- * Uses Radix UI Tabs (already in project).
+ * Multi-panel debug container with draggable tab bar.
+ * Supports up to 3 visible panels simultaneously.
  */
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Wrench, FileJson, Brain, Coins } from 'lucide-react'
-import { ToolsTab } from './tools-tab'
-import { StateTab } from './state-tab'
-import { IntentTab } from './intent-tab'
-import { TokensTab } from './tokens-tab'
-import type { DebugTurn, SandboxState } from '@/lib/sandbox/types'
+import { useState, useCallback } from 'react'
+import { TabBar } from './tab-bar'
+import { PanelContainer } from './panel-container'
+import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId } from '@/lib/sandbox/types'
+
+const DEFAULT_TABS: DebugPanelTab[] = [
+  { id: 'tools', label: 'Tools', visible: true },
+  { id: 'state', label: 'Estado', visible: true },
+  { id: 'intent', label: 'Intent', visible: false },
+  { id: 'tokens', label: 'Tokens', visible: false },
+  { id: 'ingest', label: 'Ingest', visible: false },
+]
+
+const MAX_VISIBLE = 3
 
 interface DebugTabsProps {
   debugTurns: DebugTurn[]
@@ -29,50 +36,54 @@ export function DebugTabs({
   onStateEdit,
   totalTokens,
 }: DebugTabsProps) {
+  const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
+
+  const handleReorder = useCallback((newTabs: DebugPanelTab[]) => {
+    setTabs(newTabs)
+  }, [])
+
+  const handleToggleTab = useCallback((tabId: DebugPanelTabId) => {
+    setTabs(prev => {
+      const tab = prev.find(t => t.id === tabId)
+      if (!tab) return prev
+
+      // If already visible, toggle off
+      if (tab.visible) {
+        return prev.map(t => t.id === tabId ? { ...t, visible: false } : t)
+      }
+
+      // If not visible, check if we can add more
+      const visibleCount = prev.filter(t => t.visible).length
+      if (visibleCount >= MAX_VISIBLE) return prev // Can't add more
+
+      return prev.map(t => t.id === tabId ? { ...t, visible: true } : t)
+    })
+  }, [])
+
+  const visiblePanels = tabs.filter(t => t.visible).map(t => t.id)
+
   return (
     <div className="h-full flex flex-col bg-background">
       <div className="px-3 py-2 border-b">
         <h3 className="text-sm font-medium">Debug Panel</h3>
       </div>
 
-      <Tabs defaultValue="tools" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-3 mt-2 grid w-auto grid-cols-4">
-          <TabsTrigger value="tools" className="text-xs">
-            <Wrench className="h-3.5 w-3.5 mr-1" />
-            Tools
-          </TabsTrigger>
-          <TabsTrigger value="state" className="text-xs">
-            <FileJson className="h-3.5 w-3.5 mr-1" />
-            Estado
-          </TabsTrigger>
-          <TabsTrigger value="intent" className="text-xs">
-            <Brain className="h-3.5 w-3.5 mr-1" />
-            Intent
-          </TabsTrigger>
-          <TabsTrigger value="tokens" className="text-xs">
-            <Coins className="h-3.5 w-3.5 mr-1" />
-            Tokens
-          </TabsTrigger>
-        </TabsList>
+      <TabBar
+        tabs={tabs}
+        onReorder={handleReorder}
+        onToggleTab={handleToggleTab}
+        maxVisible={MAX_VISIBLE}
+      />
 
-        <div className="flex-1 min-h-0 overflow-auto">
-          <TabsContent value="tools" className="h-full m-0 p-3">
-            <ToolsTab debugTurns={debugTurns} />
-          </TabsContent>
-
-          <TabsContent value="state" className="h-full m-0 p-3">
-            <StateTab state={state} onStateEdit={onStateEdit} />
-          </TabsContent>
-
-          <TabsContent value="intent" className="h-full m-0 p-3">
-            <IntentTab debugTurns={debugTurns} />
-          </TabsContent>
-
-          <TabsContent value="tokens" className="h-full m-0 p-3">
-            <TokensTab debugTurns={debugTurns} totalTokens={totalTokens} />
-          </TabsContent>
-        </div>
-      </Tabs>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <PanelContainer
+          visiblePanels={visiblePanels}
+          debugTurns={debugTurns}
+          state={state}
+          onStateEdit={onStateEdit}
+          totalTokens={totalTokens}
+        />
+      </div>
     </div>
   )
 }

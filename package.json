@@ -58,6 +58,7 @@
     "papaparse": "^5.5.3",
     "pino": "^10.3.0",
     "pino-http": "^11.0.0",
+    "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-csv-importer": "^0.8.1",
     "react-day-picker": "^9.13.0",

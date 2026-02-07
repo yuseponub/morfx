@@ -56,6 +56,16 @@ export type { ExtractedData, ExtractionResult } from './data-extractor'
 export { MessageClassifier } from './message-classifier'
 export type { MessageClassification, ClassificationResult } from './message-classifier'
 
+// Ingest Manager
+export {
+  IngestManager,
+  createEmptyIngestState,
+  createActiveIngestState,
+  updateIngestState,
+  calculateTimerDuration,
+} from './ingest-manager'
+export type { IngestState, IngestResult, HandleMessageInput } from './ingest-manager'
+
 // Normalizers
 export {
   normalizePhone,

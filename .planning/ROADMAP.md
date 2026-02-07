@@ -47,6 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
 - [x] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
 - [ ] **Phase 15.5: Somnio Ingest System** - Acumulacion de datos con deteccion datos vs pregunta (INSERTED)
+- [ ] **Phase 15.6: Sandbox Evolution** - Debug multi-panel, tools visibility, agent separation, ingest testing (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
 ---
@@ -439,6 +440,22 @@ Plans:
 - [ ] 15.5-03-PLAN.md — Engine Integration and Sandbox IngestStatus visibility
 - [ ] 15.5-04-PLAN.md — Human verification: end-to-end ingest testing
 
+### Phase 15.6: Sandbox Evolution (INSERTED)
+**Goal**: Evolucionar sandbox con debug multi-panel, tools visibility con dry-run/live toggle, separacion agentes conversacionales vs CRM, tab de ingest configurable, y tokens por modelo
+**Depends on**: Phase 15.5
+**Requirements**: SEVO-01, SEVO-02, SEVO-03, SEVO-04, SEVO-05, SEVO-06
+**Success Criteria** (what must be TRUE):
+  1. Tab Tools muestra que tools se ejecutarian (dry-run) con inputs/outputs simulados
+  2. Toggle permite ejecutar tools reales desde sandbox (modo live)
+  3. Agentes separados: conversacional (flujo de venta) vs CRM (operaciones de datos)
+  4. Debug panel permite ver hasta 3 tabs simultaneamente
+  5. Tab Ingest permite configurar timers (ej: 10s en vez de 6min) para testing rapido
+  6. Tab Tokens desglosa uso por modelo (Haiku vs Sonnet) con costos distintos
+**Plans**: TBD
+
+Plans:
+- [ ] 15.6-01: TBD during /gsd:plan-phase
+
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
 **Depends on**: Phase 15
@@ -490,7 +507,8 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 13. Agent Engine Core | 6/6 | Complete | 2026-02-06 |
 | 14. Agente Ventas Somnio | 6/6 | Complete | 2026-02-06 |
 | 15. Agent Sandbox | 4/5 | In progress | - |
-| 15.5. Somnio Ingest System | 0/4 | Not started | - |
+| 15.5. Somnio Ingest System | 3/4 | In progress | - |
+| 15.6. Sandbox Evolution | TBD | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---

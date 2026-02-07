@@ -451,10 +451,15 @@ Plans:
   4. Debug panel permite ver hasta 3 tabs simultaneamente
   5. Tab Ingest permite configurar timers (ej: 10s en vez de 6min) para testing rapido
   6. Tab Tokens desglosa uso por modelo (Haiku vs Sonnet) con costos distintos
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 15.6-01: TBD during /gsd:plan-phase
+- [ ] 15.6-01-PLAN.md — Foundation types + per-model token tracking pipeline
+- [ ] 15.6-02-PLAN.md — Multi-panel debug UI with DnD tab bar
+- [ ] 15.6-03-PLAN.md — CRM agent system (types, registry, Order Manager)
+- [ ] 15.6-04-PLAN.md — Ingest tab + Tokens tab per-model enhancement
+- [ ] 15.6-05-PLAN.md — CRM sandbox integration (header, engine, tools tab)
+- [ ] 15.6-06-PLAN.md — Human verification of all success criteria
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
@@ -508,9 +513,9 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 14. Agente Ventas Somnio | 6/6 | Complete | 2026-02-06 |
 | 15. Agent Sandbox | 4/5 | In progress | - |
 | 15.5. Somnio Ingest System | 3/4 | In progress | - |
-| 15.6. Sandbox Evolution | TBD | Not started | - |
+| 15.6. Sandbox Evolution | 0/6 | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-07 (Phase 15.5 planning complete)*
+*Last updated: 2026-02-07 (Phase 15.6 planning complete)*

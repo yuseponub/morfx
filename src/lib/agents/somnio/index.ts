@@ -52,6 +52,10 @@ export {
 } from './data-extractor'
 export type { ExtractedData, ExtractionResult } from './data-extractor'
 
+// Message Classifier
+export { MessageClassifier } from './message-classifier'
+export type { MessageClassification, ClassificationResult } from './message-classifier'
+
 // Normalizers
 export {
   normalizePhone,

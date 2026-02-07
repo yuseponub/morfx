@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 15.5 of 17 (Somnio Ingest System - INSERTED)
-Plan: 3 of 4
+Phase: 15.6 of 17 (Sandbox Evolution - INSERTED)
+Plan: 1 of 6
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.5-03-PLAN.md (SomnioEngine Integration)
+Last activity: 2026-02-07 — Completed 15.6-01-PLAN.md (Foundation Types)
 
-Progress: [##########] 100% MVP v1 | [█████████████░] 93% MVP v2
+Progress: [##########] 100% MVP v1 | [█████████████░] 94% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -33,6 +33,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 14: Agente Ventas Somnio (6 plans) — COMPLETE
 - Phase 15: Agent Sandbox (5 plans) — COMPLETE
 - Phase 15.5: Somnio Ingest System (TBD plans) — INSERTED (urgent fix)
+- Phase 15.6: Sandbox Evolution (6 plans) — INSERTED
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -53,6 +54,7 @@ All 11 phases + 4 inserted phases completed:
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
+| 15.6 Sandbox Evolution | 1/6 | In Progress |
 
 ## Accumulated Context
 
@@ -151,6 +153,10 @@ Recent decisions affecting MVP v2 work:
 - [15.5-03]: Implicit yes: datos outside collecting_data triggers mode transition + extraction
 - [15.5-03]: IngestStatus tracks active, startedAt, firstDataAt, fieldsAccumulated, timerType
 - [15.5-03]: Sandbox shows classification in debug: [SANDBOX: Silent - clasificacion: datos]
+- [15.6-01]: ModelTokenEntry uses ClaudeModel type for type-safe model identity
+- [15.6-01]: Orchestrator token split approximated 70/30 input/output (exact split unavailable)
+- [15.6-01]: IngestStatus.timeline is required field (not optional) for simpler consumer code
+- [15.6-01]: No changes to production SomnioOrchestrator/SomnioEngine - only sandbox pipeline
 
 ### Project Rules
 
@@ -186,6 +192,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.5-03-PLAN.md (SomnioEngine Integration)
+Stopped at: Completed 15.6-01-PLAN.md (Foundation Types)
 Resume file: None
-Next: 15.5-04-PLAN.md (if exists) or Phase 16
+Next: 15.6-02-PLAN.md

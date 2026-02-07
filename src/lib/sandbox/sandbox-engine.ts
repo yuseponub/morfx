@@ -11,7 +11,7 @@ import { IntentDetector } from '@/lib/agents/intent-detector'
 import { SomnioOrchestrator } from '@/lib/agents/somnio/somnio-orchestrator'
 import { somnioAgentConfig } from '@/lib/agents/somnio/config'
 import { agentRegistry } from '@/lib/agents/registry'
-import { mergeExtractedData } from '@/lib/agents/somnio/data-extractor'
+import { mergeExtractedData, hasCriticalData } from '@/lib/agents/somnio/data-extractor'
 import { IngestManager } from '@/lib/agents/somnio/ingest-manager'
 import { MessageClassifier } from '@/lib/agents/somnio/message-classifier'
 import type { IngestState } from '@/lib/agents/somnio/ingest-manager'
@@ -105,7 +105,8 @@ export class SandboxEngine {
       }
 
       // 2. Check for "implicit yes" - datos sent outside collecting_data
-      if (currentState.currentMode !== 'collecting_data') {
+      if (currentState.currentMode !== 'collecting_data' && currentState.currentMode !== 'ofrecer_promos') {
+        const implicitYesPreviousMode = currentState.currentMode
         const implicitYesResult = await this.checkImplicitYes(
           message,
           currentState,
@@ -117,6 +118,11 @@ export class SandboxEngine {
 
         if (implicitYesResult) {
           return implicitYesResult
+        }
+
+        // Check if checkImplicitYes transitioned to ofrecer_promos (all 8 fields in one message)
+        if ((currentState.currentMode as string) === 'ofrecer_promos') {
+          justCompletedIngest = true
         }
       }
 
@@ -432,9 +438,16 @@ export class SandboxEngine {
       conversationHistory: history,
     })
 
+    // Check if all 8 fields are complete after extraction
+    const mergedData = ingestResult.mergedData ?? currentState.datosCapturados
+    const allFieldsComplete = hasCriticalData(mergedData)
+
+    // Determine target mode: ofrecer_promos if complete, collecting_data if not
+    const targetMode = allFieldsComplete ? 'ofrecer_promos' : 'collecting_data'
+
     // Build ingest status
     const newIngestStatus: IngestStatus = {
-      active: true,
+      active: !allFieldsComplete, // Active only if still collecting
       startedAt: new Date().toISOString(),
       firstDataAt: ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0
         ? new Date().toISOString()
@@ -447,9 +460,20 @@ export class SandboxEngine {
 
     const newState: SandboxState = {
       ...currentState,
-      currentMode: 'collecting_data',
-      datosCapturados: ingestResult.mergedData ?? currentState.datosCapturados,
+      currentMode: targetMode,
+      datosCapturados: mergedData,
       ingestStatus: newIngestStatus,
+    }
+
+    // If all fields complete, continue to orchestrator with ofrecer_promos
+    if (allFieldsComplete) {
+      // Mutate currentState to let the main flow continue with ofrecer_promos
+      currentState.currentMode = 'ofrecer_promos'
+      currentState.datosCapturados = mergedData
+      currentState.ingestStatus = newIngestStatus
+
+      // Return null to continue flow - main loop will detect ofrecer_promos transition
+      return null
     }
 
     const debugTurn: DebugTurn = {
@@ -459,8 +483,7 @@ export class SandboxEngine {
       stateAfter: newState,
     }
 
-    // Return with implicit yes message - actual templates will be sent by orchestrator
-    // For sandbox, we show the transition and continue
+    // Return with implicit yes message for partial data
     return {
       success: true,
       messages: [

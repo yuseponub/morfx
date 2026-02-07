@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.6 of 17 (Sandbox Evolution - INSERTED)
-Plan: 4 of 6
+Plan: 5 of 6
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.6-04-PLAN.md (Ingest & Tokens Tabs)
+Last activity: 2026-02-07 — Completed 15.6-05-PLAN.md (CRM Sandbox Integration)
 
-Progress: [##########] 100% MVP v1 | [███████████████] 96% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████████] 97% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -54,7 +54,7 @@ All 11 phases + 4 inserted phases completed:
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
-| 15.6 Sandbox Evolution | 4/6 | In Progress |
+| 15.6 Sandbox Evolution | 5/6 | In Progress |
 
 ## Accumulated Context
 
@@ -169,6 +169,11 @@ Recent decisions affecting MVP v2 work:
 - [15.6-04]: Model display names: claude-haiku-4-5 -> Haiku, claude-sonnet-4-5 -> Sonnet
 - [15.6-04]: Model color coding: Haiku=sky, Sonnet=violet for visual distinction
 - [15.6-04]: Per-turn model badges use compact format: Haiku: 120in/45out
+- [15.6-05]: CRM agents loaded via /api/sandbox/crm-agents route (dynamic from registry)
+- [15.6-05]: CRM state reset to disabled+dry-run on session reset
+- [15.6-05]: Live mode uses executeToolFromAgent with workspace='sandbox'
+- [15.6-05]: ToolExecution.mode optional field for DRY/LIVE visual differentiation
+- [15.6-05]: CRM orchestrator invoked only when shouldCreateOrder + order-manager in crmModes
 
 ### Project Rules
 
@@ -204,6 +209,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.6-04-PLAN.md (Ingest & Tokens Tabs)
+Stopped at: Completed 15.6-05-PLAN.md (CRM Sandbox Integration)
 Resume file: None
-Next: 15.6-05-PLAN.md
+Next: 15.6-06-PLAN.md

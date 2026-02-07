@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.6 of 17 (Sandbox Evolution - INSERTED)
-Plan: 2 of 6
+Plan: 3 of 6
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.6-02-PLAN.md (Multi-Panel Debug UI)
+Last activity: 2026-02-07 — Completed 15.6-03-PLAN.md (CRM Agent System)
 
-Progress: [##########] 100% MVP v1 | [█████████████░] 94% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████░] 95% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -54,7 +54,7 @@ All 11 phases + 4 inserted phases completed:
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
-| 15.6 Sandbox Evolution | 2/6 | In Progress |
+| 15.6 Sandbox Evolution | 3/6 | In Progress |
 
 ## Accumulated Context
 
@@ -160,6 +160,10 @@ Recent decisions affecting MVP v2 work:
 - [15.6-02]: Default visible tabs: Tools + Estado (matching CONTEXT.md)
 - [15.6-02]: Max 3 visible panels enforced in handleToggleTab state logic
 - [15.6-02]: Ingest panel shows placeholder text until Plan 04 creates IngestTab
+- [15.6-03]: CRM agents separated from conversational agents; Somnio never calls CRM agents directly
+- [15.6-03]: Self-registration pattern: importing crm/index.ts registers all CRM agents
+- [15.6-03]: Live mode stubs return dry-run data with _note marker; real wiring in Plan 05
+- [15.6-03]: OrderManagerMode: full (8 fields + pack), no_promo (8 fields, default 1x), draft (nombre + telefono)
 
 ### Project Rules
 
@@ -195,6 +199,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.6-02-PLAN.md (Multi-Panel Debug UI)
+Stopped at: Completed 15.6-03-PLAN.md (CRM Agent System)
 Resume file: None
-Next: 15.6-03-PLAN.md
+Next: 15.6-04-PLAN.md

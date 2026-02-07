@@ -7,6 +7,7 @@
  */
 
 import type { IntentResult, SessionState, ToolCallRecord, PackSelection } from '@/lib/agents/types'
+import type { MessageClassification } from '@/lib/agents/somnio/message-classifier'
 
 /**
  * Message in sandbox conversation
@@ -65,6 +66,28 @@ export interface DebugTurn {
 }
 
 /**
+ * Ingest status for sandbox visibility (Phase 15.5)
+ *
+ * Tracks the state of silent data accumulation during collecting_data mode.
+ */
+export interface IngestStatus {
+  /** Whether ingest is currently active */
+  active: boolean
+  /** When ingest mode started (ISO string) */
+  startedAt: string | null
+  /** When first data message was received (ISO string) */
+  firstDataAt: string | null
+  /** List of fields that have been accumulated */
+  fieldsAccumulated: string[]
+  /** Timer type based on data status: 'partial' (6min) or 'no_data' (10min) */
+  timerType: 'partial' | 'no_data' | null
+  /** When timer expires (ISO string) - for display only, not enforced in sandbox */
+  timerExpiresAt: string | null
+  /** Last classification result for debug visibility */
+  lastClassification?: MessageClassification
+}
+
+/**
  * Sandbox session state (in-memory, not persisted to DB)
  */
 export interface SandboxState {
@@ -73,6 +96,8 @@ export interface SandboxState {
   templatesEnviados: string[]
   datosCapturados: Record<string, string>
   packSeleccionado: PackSelection | null
+  /** Ingest tracking for debug visibility (Phase 15.5) */
+  ingestStatus?: IngestStatus
 }
 
 /**

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.5 of 17 (Somnio Ingest System - INSERTED)
-Plan: 0 of TBD
-Status: Not started
-Last activity: 2026-02-07 — Inserted Phase 15.5 for Ingest System
+Plan: 1 of TBD
+Status: In progress
+Last activity: 2026-02-07 — Completed 15.5-01-PLAN.md (Message Classifier)
 
-Progress: [##########] 100% MVP v1 | [████████████░░] 90% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████░░] 91% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -137,6 +137,10 @@ Recent decisions affecting MVP v2 work:
 - [15-04]: Session controls in center of header (between agent selector and stats)
 - [15-04]: Confirmation dialog before New session if messages exist
 - [15-04]: Sandbox visible to all authenticated users (not adminOnly)
+- [15.5-01]: MessageClassifier uses Haiku-first with Sonnet fallback pattern
+- [15.5-01]: 4 classification categories: datos, pregunta, mixto, irrelevante
+- [15.5-01]: Hola+datos classified as mixto (Pitfall 5 from research)
+- [15.5-01]: Default to irrelevante with 30% confidence on parse failure
 
 ### Project Rules
 
@@ -172,6 +176,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Inserted Phase 15.5 (Somnio Ingest System)
+Stopped at: Completed 15.5-01-PLAN.md (Message Classifier)
 Resume file: None
-Next: Phase 15.5: Somnio Ingest System (discuss → research → plan → execute)
+Next: 15.5-02-PLAN.md (Ingest Manager)

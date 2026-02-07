@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 13: Agent Engine Core** - Motor generico de ejecucion de agentes
 - [x] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
 - [x] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
-- [ ] **Phase 15.5: Somnio Ingest System** - Acumulación de datos con detección datos vs pregunta (INSERTED)
+- [ ] **Phase 15.5: Somnio Ingest System** - Acumulacion de datos con deteccion datos vs pregunta (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
 ---
@@ -422,19 +422,22 @@ Plans:
 - [ ] 15-05-PLAN.md — Human verification: end-to-end testing of all SAND-* requirements
 
 ### Phase 15.5: Somnio Ingest System (INSERTED)
-**Goal**: Sistema de acumulación de datos con detección datos vs pregunta, timer de espera, y silencio mientras compila
+**Goal**: Sistema de acumulacion de datos con deteccion datos vs pregunta, timer de espera, y silencio mientras compila
 **Depends on**: Phase 15
 **Requirements**: INGS-01, INGS-02, INGS-03, INGS-04, INGS-05
 **Success Criteria** (what must be TRUE):
   1. En modo collecting_data, sistema detecta si mensaje es DATOS o PREGUNTA
   2. Si es DATOS: acumula silenciosamente sin responder
-  3. Si es PREGUNTA: responde normalmente sin interrumpir acumulación
+  3. Si es PREGUNTA: responde normalmente sin interrumpir acumulacion
   4. Timer de 6 min para datos parciales, 10 min sin datos
-  5. Cliente puede enviar datos sin decir "sí" primero (sí implícito)
-**Plans**: TBD
+  5. Cliente puede enviar datos sin decir "si" primero (si implicito)
+**Plans**: 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 15.5 to break down)
+- [ ] 15.5-01-PLAN.md — Message Classifier with Claude Haiku structured outputs
+- [ ] 15.5-02-PLAN.md — Ingest Manager and Timer with 6min/10min conditional timeout
+- [ ] 15.5-03-PLAN.md — Engine Integration and Sandbox IngestStatus visibility
+- [ ] 15.5-04-PLAN.md — Human verification: end-to-end ingest testing
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
@@ -487,9 +490,9 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 13. Agent Engine Core | 6/6 | Complete | 2026-02-06 |
 | 14. Agente Ventas Somnio | 6/6 | Complete | 2026-02-06 |
 | 15. Agent Sandbox | 4/5 | In progress | - |
-| 15.5. Somnio Ingest System | 0/TBD | Not started | - |
+| 15.5. Somnio Ingest System | 0/4 | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-06 (Phase 15 planning complete)*
+*Last updated: 2026-02-07 (Phase 15.5 planning complete)*

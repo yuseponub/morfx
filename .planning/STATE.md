@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.5 of 17 (Somnio Ingest System - INSERTED)
-Plan: 2 of 4
+Plan: 3 of 4
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.5-02-PLAN.md (Ingest Manager)
+Last activity: 2026-02-07 — Completed 15.5-03-PLAN.md (SomnioEngine Integration)
 
-Progress: [##########] 100% MVP v1 | [████████████░░] 91% MVP v2
+Progress: [##########] 100% MVP v1 | [█████████████░] 93% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -145,6 +145,12 @@ Recent decisions affecting MVP v2 work:
 - [15.5-02]: Timer starts on FIRST data only, does NOT restart on additional data
 - [15.5-02]: 6min timeout for partial data, 10min for no data
 - [15.5-02]: AllAgentEvents type combines base + ingest events for Inngest client
+- [15.5-03]: SomnioEngine routes through IngestManager BEFORE intent detection in collecting_data
+- [15.5-03]: Return undefined response (silent) for datos classification
+- [15.5-03]: Emit agent/ingest.started on first data, agent/ingest.completed on 8 fields
+- [15.5-03]: Implicit yes: datos outside collecting_data triggers mode transition + extraction
+- [15.5-03]: IngestStatus tracks active, startedAt, firstDataAt, fieldsAccumulated, timerType
+- [15.5-03]: Sandbox shows classification in debug: [SANDBOX: Silent - clasificacion: datos]
 
 ### Project Rules
 
@@ -180,6 +186,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.5-02-PLAN.md (Ingest Manager)
+Stopped at: Completed 15.5-03-PLAN.md (SomnioEngine Integration)
 Resume file: None
-Next: 15.5-03-PLAN.md (SomnioEngine Integration)
+Next: 15.5-04-PLAN.md (if exists) or Phase 16

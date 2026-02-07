@@ -79,6 +79,10 @@ export class SandboxEngine {
       let ingestStatus: IngestStatus | undefined = currentState.ingestStatus
 
       // 1. Check for ingest mode handling (collecting_data)
+      // Track if we just completed ingest to force ofrecer_promos intent
+      let justCompletedIngest = false
+      const previousMode = currentState.currentMode
+
       if (currentState.currentMode === 'collecting_data') {
         const ingestResult = await this.handleIngestMode(
           message,
@@ -92,7 +96,12 @@ export class SandboxEngine {
         if (ingestResult) {
           return ingestResult
         }
-        // If null, continue with normal orchestration (for pregunta/mixto)
+        // If null, continue with normal orchestration (for pregunta/mixto or complete)
+        // Check if handleIngestMode transitioned to ofrecer_promos (mutated currentState)
+        // Use type assertion because TypeScript doesn't track the mutation
+        if (previousMode === 'collecting_data' && (currentState.currentMode as string) === 'ofrecer_promos') {
+          justCompletedIngest = true
+        }
       }
 
       // 2. Check for "implicit yes" - datos sent outside collecting_data
@@ -111,22 +120,38 @@ export class SandboxEngine {
         }
       }
 
-      // 3. Detect intent
-      const { intent, action, tokensUsed: intentTokens } = await this.intentDetector.detect(
-        message,
-        history,
-        {
-          systemPrompt: agentConfig.intentDetector.systemPrompt,
-          model: agentConfig.intentDetector.model,
-          thresholds: agentConfig.confidenceThresholds,
+      // 3. Detect intent (or force ofrecer_promos if just completed ingest)
+      let intent: { intent: string; confidence: number; alternatives?: Array<{ intent: string; confidence: number }>; reasoning?: string }
+      let action: 'proceed' | 'handoff' | 'clarify' | 'reanalyze'
+
+      if (justCompletedIngest) {
+        // Force ofrecer_promos intent when ingest completes (all 8 fields)
+        intent = {
+          intent: 'ofrecer_promos',
+          confidence: 100,
+          alternatives: [],
+          reasoning: 'Auto-triggered: all 8 fields collected',
         }
-      )
-      totalTokens += intentTokens
+        action = 'proceed'
+      } else {
+        const detected = await this.intentDetector.detect(
+          message,
+          history,
+          {
+            systemPrompt: agentConfig.intentDetector.systemPrompt,
+            model: agentConfig.intentDetector.model,
+            thresholds: agentConfig.confidenceThresholds,
+          }
+        )
+        intent = detected.intent
+        action = detected.action
+        totalTokens += detected.tokensUsed
+      }
 
       const intentInfo: IntentInfo = {
         intent: intent.intent,
         confidence: intent.confidence,
-        alternatives: intent.alternatives,
+        alternatives: intent.alternatives ?? [],
         reasoning: intent.reasoning,
         timestamp: new Date().toISOString(),
       }
@@ -345,34 +370,20 @@ export class SandboxEngine {
     }
 
     // Handle complete (all 8 fields) - transition to ofrecer_promos
+    // Mutate currentState and return null to continue with orchestrator
+    // The orchestrator will then send the ofrecer_promos templates
     if (ingestResult.action === 'complete') {
-      const completeState: SandboxState = {
-        ...currentState,
-        currentMode: 'ofrecer_promos',
-        datosCapturados: ingestResult.mergedData ?? currentState.datosCapturados,
-        ingestStatus: {
-          ...newIngestStatus,
-          active: false,
-        },
+      // Mutate currentState to reflect transition (passed by reference)
+      currentState.currentMode = 'ofrecer_promos'
+      currentState.datosCapturados = ingestResult.mergedData ?? currentState.datosCapturados
+      currentState.ingestStatus = {
+        ...newIngestStatus,
+        active: false,
       }
 
-      // Return null to continue with normal orchestration for ofrecer_promos
-      // But update the currentState to reflect the transition
-      // This is a bit of a workaround - we need to update state but continue
-      // For sandbox, we'll return a special message indicating the transition
-      const debugTurn: DebugTurn = {
-        turnNumber,
-        tools,
-        tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
-        stateAfter: completeState,
-      }
-
-      return {
-        success: true,
-        messages: ['[SANDBOX: Ingest complete - all 8 fields collected, transitioning to ofrecer_promos]'],
-        debugTurn,
-        newState: completeState,
-      }
+      // Return null to continue with normal orchestration
+      // The orchestrator will process with mode=ofrecer_promos and send templates
+      return null
     }
 
     // For 'respond' (pregunta or mixto), update state and continue normal flow

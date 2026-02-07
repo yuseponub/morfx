@@ -17,7 +17,7 @@
  */
 
 import { Inngest, EventSchemas } from 'inngest'
-import type { AgentEvents } from './events'
+import type { AllAgentEvents } from './events'
 
 /**
  * Inngest client for MorfX agent workflows.
@@ -40,5 +40,5 @@ import type { AgentEvents } from './events'
  */
 export const inngest = new Inngest({
   id: 'morfx-agents',
-  schemas: new EventSchemas().fromRecord<AgentEvents>(),
+  schemas: new EventSchemas().fromRecord<AllAgentEvents>(),
 })

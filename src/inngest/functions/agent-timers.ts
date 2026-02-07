@@ -262,10 +262,121 @@ export const promosTimer = inngest.createFunction(
   }
 )
 
+// ============================================================================
+// Ingest Timer (Phase 15.5: Somnio Ingest System)
+// ============================================================================
+
+/**
+ * Build timeout message based on data status.
+ * From CONTEXT.md:
+ * - No data: "Quedamos pendientes a tus datos..."
+ * - Partial data: "Para poder despachar tu producto nos faltaria: ..."
+ */
+function buildTimeoutMessage(
+  datosCapturados: Record<string, string>,
+  hasPartialData: boolean
+): string {
+  if (!hasPartialData) {
+    return 'Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla'
+  }
+
+  // List missing critical fields
+  const criticalFields = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
+  const fieldLabels: Record<string, string> = {
+    nombre: 'Tu nombre completo',
+    telefono: 'Numero de telefono',
+    direccion: 'Direccion de entrega',
+    ciudad: 'Ciudad',
+    departamento: 'Departamento',
+  }
+
+  const missing = criticalFields
+    .filter(f => !datosCapturados[f] || datosCapturados[f] === 'N/A')
+    .map(f => `- ${fieldLabels[f]}`)
+
+  if (missing.length === 0) {
+    // All critical fields present but timer expired anyway (edge case)
+    return 'Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla'
+  }
+
+  return `Para poder despachar tu producto nos faltaria:\n${missing.join('\n')}\nQuedamos pendientes`
+}
+
+/**
+ * Ingest Timer
+ * Phase 15.5: Somnio Ingest System
+ *
+ * Triggered when first data is received in collecting_data mode.
+ * Uses waitForEvent with conditional timeout (6 min partial / 10 min no data).
+ *
+ * Flow from CONTEXT.md:
+ * - 6 min timeout if customer sent partial data
+ * - 10 min timeout if no data was received
+ * - On timeout: send appropriate message based on data status
+ * - Timer cancelled if agent/ingest.completed received
+ */
+export const ingestTimer = inngest.createFunction(
+  {
+    id: 'ingest-timer',
+    name: 'Ingest Timer',
+    retries: 3,
+  },
+  { event: 'agent/ingest.started' },
+  async ({ event, step }) => {
+    const { sessionId, conversationId, workspaceId, hasPartialData, timerDurationMs } = event.data
+
+    logger.info(
+      { sessionId, hasPartialData, timerDurationMs },
+      'Ingest timer started'
+    )
+
+    // Wait for completion event OR timeout
+    const completionEvent = await step.waitForEvent('wait-for-completion', {
+      event: 'agent/ingest.completed',
+      timeout: `${timerDurationMs}ms`,
+      match: 'data.sessionId',
+    })
+
+    if (completionEvent) {
+      // Data collection completed normally (all 8 fields)
+      logger.info(
+        { sessionId, reason: completionEvent.data.reason },
+        'Ingest completed - timer cancelled'
+      )
+      return { status: 'completed', reason: completionEvent.data.reason }
+    }
+
+    // Timeout expired - send appropriate message
+    await step.run('handle-ingest-timeout', async () => {
+      const sessionManager = getSessionManager()
+      const session = await sessionManager.getSession(sessionId)
+      const datos = session.state.datos_capturados
+
+      const message = buildTimeoutMessage(datos, hasPartialData)
+
+      logger.info(
+        { sessionId, hasPartialData, missingFields: Object.keys(datos) },
+        'Ingest timeout - sending message'
+      )
+
+      // Send timeout message via WhatsApp
+      await executeToolFromAgent(
+        'whatsapp.message.send',
+        { contactId: conversationId, message },
+        workspaceId,
+        sessionId
+      )
+    })
+
+    return { status: 'timeout', hadData: hasPartialData }
+  }
+)
+
 /**
  * All agent timer functions for export.
  */
 export const agentTimerFunctions = [
   dataCollectionTimer,
   promosTimer,
+  ingestTimer,
 ]

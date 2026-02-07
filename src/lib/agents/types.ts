@@ -457,6 +457,22 @@ export interface BudgetCheckResult {
 export const MAX_TOKENS_PER_CONVERSATION = 50_000
 
 // ============================================================================
+// Per-Model Token Tracking (Phase 15.6)
+// ============================================================================
+
+/**
+ * Token usage detail for a single Claude API call, with model identity.
+ */
+export interface ModelTokenEntry {
+  /** Model used for this call (e.g., 'claude-haiku-4-5', 'claude-sonnet-4-5') */
+  model: ClaudeModel
+  /** Input tokens consumed */
+  inputTokens: number
+  /** Output tokens consumed */
+  outputTokens: number
+}
+
+// ============================================================================
 // Database Row Types (for Supabase queries)
 // ============================================================================
 

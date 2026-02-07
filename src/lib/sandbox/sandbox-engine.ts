@@ -4,6 +4,7 @@
  *
  * In-memory engine wrapper that uses Somnio components without
  * writing to the real database. Simulates full agent flow.
+ * Phase 15.6: CRM orchestrator integration for order creation.
  */
 
 import { ClaudeClient } from '@/lib/agents/claude-client'
@@ -14,9 +15,17 @@ import { agentRegistry } from '@/lib/agents/registry'
 import { mergeExtractedData, hasCriticalData } from '@/lib/agents/somnio/data-extractor'
 import { IngestManager } from '@/lib/agents/somnio/ingest-manager'
 import { MessageClassifier } from '@/lib/agents/somnio/message-classifier'
+import { crmOrchestrator } from '@/lib/agents/crm'
+import type { CrmExecutionMode } from '@/lib/agents/crm/types'
 import type { IngestState } from '@/lib/agents/somnio/ingest-manager'
 import type { ModelTokenEntry } from '@/lib/agents/types'
 import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, IntentInfo, IngestStatus } from './types'
+
+/** CRM agent mode passed from the client */
+interface CrmMode {
+  agentId: string
+  mode: CrmExecutionMode
+}
 
 /**
  * SandboxEngine: Processes messages using Somnio agent components
@@ -25,7 +34,7 @@ import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, Inten
  * Key differences from real SomnioEngine:
  * - No SessionManager (state passed in/out)
  * - No MessageSequencer (returns messages array, caller handles delays)
- * - No OrderCreator (returns shouldCreateOrder flag, never creates real orders)
+ * - CRM orchestrator integration for order creation when agents enabled
  */
 export class SandboxEngine {
   private claudeClient: ClaudeClient
@@ -63,12 +72,14 @@ export class SandboxEngine {
    * @param currentState - Current sandbox state
    * @param history - Conversation history
    * @param turnNumber - Current turn number (for debug tracking)
+   * @param crmModes - Enabled CRM agent modes (from sandbox header)
    */
   async processMessage(
     message: string,
     currentState: SandboxState,
     history: { role: 'user' | 'assistant'; content: string }[],
-    turnNumber: number
+    turnNumber: number,
+    crmModes?: CrmMode[]
   ): Promise<SandboxEngineResult> {
     const tools: ToolExecution[] = []
     let totalTokens = 0
@@ -274,15 +285,60 @@ export class SandboxEngine {
         }
       }
 
-      // If shouldCreateOrder is true, add a note (no real order creation)
+      // 10. Handle shouldCreateOrder - route to CRM orchestrator if agents enabled
       if (orchestratorResult.shouldCreateOrder) {
-        messages.push('[SANDBOX: Order would be created here with pack: ' + newState.packSeleccionado + ']')
+        const orderManagerMode = crmModes?.find(m => m.agentId === 'order-manager')
+
+        if (orderManagerMode) {
+          // Route create_order command to CRM orchestrator
+          try {
+            const crmResult = await crmOrchestrator.route(
+              {
+                type: 'create_order',
+                payload: { ...newState.datosCapturados, _workspaceId: 'sandbox' },
+                source: 'orchestrator',
+                orderMode: 'full',
+              },
+              orderManagerMode.mode
+            )
+
+            // Add CRM tool calls to debug tools with mode annotation
+            const crmToolCalls = crmResult.toolCalls.map(t => ({
+              ...t,
+              mode: orderManagerMode.mode as 'dry-run' | 'live',
+            }))
+            tools.push(...crmToolCalls)
+
+            // Add CRM token usage
+            if (crmResult.tokensUsed.length > 0) {
+              tokenDetails.push(...crmResult.tokensUsed)
+              const crmTokenTotal = crmResult.tokensUsed.reduce(
+                (sum, t) => sum + t.inputTokens + t.outputTokens, 0
+              )
+              totalTokens += crmTokenTotal
+            }
+
+            // Replace placeholder message with CRM result
+            const modeLabel = orderManagerMode.mode === 'dry-run' ? 'DRY-RUN' : 'LIVE'
+            if (crmResult.success) {
+              messages.push(`[SANDBOX: CRM ${modeLabel} - Order created via ${crmResult.agentId}]`)
+            } else {
+              messages.push(`[SANDBOX: CRM ${modeLabel} - Order creation failed: ${crmResult.error?.message ?? 'Unknown error'}]`)
+            }
+          } catch (crmError) {
+            const crmErrorMsg = crmError instanceof Error ? crmError.message : 'Unknown CRM error'
+            messages.push(`[SANDBOX: CRM Error - ${crmErrorMsg}]`)
+          }
+        } else {
+          // No CRM agents enabled - show original placeholder
+          messages.push('[SANDBOX: Order would be created here with pack: ' + newState.packSeleccionado + ']')
+        }
       }
 
       const debugTurn: DebugTurn = {
         turnNumber,
         intent: intentInfo,
-        tools, // Tool executions would be populated if we had tool calls
+        tools, // Tool executions from CRM agents (if any)
         tokens: { turnNumber, tokensUsed: totalTokens, models: tokenDetails, timestamp: new Date().toISOString() },
         stateAfter: newState,
       }

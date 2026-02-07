@@ -4,15 +4,16 @@
  * Sandbox Layout Component
  * Phase 15: Agent Sandbox
  *
- * Complete layout with chat, debug panel, and session management.
+ * Complete layout with chat, debug panel, session management,
+ * and CRM agent state management.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode } from '@/lib/sandbox/types'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 
 // Initial state (matches SandboxEngine.getInitialState())
@@ -42,6 +43,31 @@ export function SandboxLayout() {
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
 
+  // CRM agent state - initialized from registry via API
+  const [crmAgents, setCrmAgents] = useState<CrmAgentState[]>([])
+
+  // Load CRM agents from registry on mount
+  useEffect(() => {
+    fetch('/api/sandbox/crm-agents')
+      .then(res => res.json())
+      .then((agents: CrmAgentState[]) => setCrmAgents(agents))
+      .catch(err => console.error('[Sandbox] Failed to load CRM agents:', err))
+  }, [])
+
+  // CRM agent toggle handler
+  const handleCrmAgentToggle = useCallback((agentId: string, enabled: boolean) => {
+    setCrmAgents(prev => prev.map(a =>
+      a.agentId === agentId ? { ...a, enabled } : a
+    ))
+  }, [])
+
+  // CRM agent mode change handler
+  const handleCrmAgentModeChange = useCallback((agentId: string, mode: CrmExecutionMode) => {
+    setCrmAgents(prev => prev.map(a =>
+      a.agentId === agentId ? { ...a, mode } : a
+    ))
+  }, [])
+
   // Handle message send via API route
   const handleSendMessage = useCallback(async (content: string) => {
     // 1. Add user message immediately
@@ -60,18 +86,29 @@ export function SandboxLayout() {
     const history = messages.map(m => ({ role: m.role, content: m.content }))
     history.push({ role: 'user', content })
 
+    // 4. Build CRM agents payload (only enabled ones)
+    const enabledCrmAgents = crmAgents
+      .filter(a => a.enabled)
+      .map(a => ({ agentId: a.agentId, mode: a.mode }))
+
     try {
-      // 4. Process message via server API
+      // 5. Process message via server API
       const turnNumber = debugTurns.length + 1
       const response = await fetch('/api/sandbox/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, state, history, turnNumber }),
+        body: JSON.stringify({
+          message: content,
+          state,
+          history,
+          turnNumber,
+          crmAgents: enabledCrmAgents,
+        }),
       })
 
       const result: SandboxEngineResult = await response.json()
 
-      // 5. Hide typing and add response messages with delays
+      // 6. Hide typing and add response messages with delays
       if (result.success && result.messages.length > 0) {
         for (let i = 0; i < result.messages.length; i++) {
           // Simulate delay (2-6 seconds) between messages
@@ -90,7 +127,7 @@ export function SandboxLayout() {
 
       setIsTyping(false)
 
-      // 6. Update state and debug info
+      // 7. Update state and debug info
       setState(result.newState)
       setDebugTurns(prev => [...prev, result.debugTurn])
       setTotalTokens(prev => prev + result.debugTurn.tokens.tokensUsed)
@@ -98,7 +135,7 @@ export function SandboxLayout() {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [messages, state, debugTurns])
+  }, [messages, state, debugTurns, crmAgents])
 
   // Handle session reset
   const handleReset = useCallback(() => {
@@ -107,6 +144,8 @@ export function SandboxLayout() {
     setDebugTurns([])
     setTotalTokens(0)
     setIsTyping(false)
+    // Reset CRM agents to disabled
+    setCrmAgents(prev => prev.map(a => ({ ...a, enabled: false, mode: 'dry-run' as const })))
   }, [])
 
   // Handle new session (same as reset but through controls)
@@ -148,6 +187,9 @@ export function SandboxLayout() {
         messages={messages}
         state={state}
         debugTurns={debugTurns}
+        crmAgents={crmAgents}
+        onCrmAgentToggle={handleCrmAgentToggle}
+        onCrmAgentModeChange={handleCrmAgentModeChange}
       />
 
       <div className="flex-1 min-h-0">

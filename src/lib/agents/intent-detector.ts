@@ -19,6 +19,7 @@ import type {
   ConfidenceAction,
   ConfidenceThresholds,
   IntentResult,
+  ModelTokenEntry,
 } from './types'
 import { DEFAULT_CONFIDENCE_THRESHOLDS } from './types'
 import { IntentDetectionError } from './errors'
@@ -79,6 +80,8 @@ export interface IntentDetectionResult {
   intent: IntentResult
   action: ConfidenceAction
   tokensUsed: number
+  /** Per-model token breakdown from all Claude calls (Phase 15.6) */
+  tokenDetails: ModelTokenEntry[]
 }
 
 /**
@@ -123,12 +126,15 @@ export class IntentDetector {
     )
 
     try {
-      const { result: intent, tokensUsed } = await this.claudeClient.detectIntent(
+      const { result: intent, tokensUsed, tokenDetail } = await this.claudeClient.detectIntent(
         systemPrompt,
         history,
         message,
         model
       )
+
+      // Collect per-model token details from all Claude calls
+      const tokenDetails: ModelTokenEntry[] = [tokenDetail]
 
       // Validate intent result
       if (!intent.intent || typeof intent.confidence !== 'number') {
@@ -151,7 +157,7 @@ export class IntentDetector {
         'Intent detected with action'
       )
 
-      return { intent, action, tokensUsed }
+      return { intent, action, tokensUsed, tokenDetails }
     } catch (error) {
       if (error instanceof IntentDetectionError) {
         throw error

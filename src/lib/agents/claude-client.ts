@@ -13,6 +13,7 @@ import type {
   ClaudeMessage,
   ContentBlock,
   IntentResult,
+  ModelTokenEntry,
   OrchestratorResult,
   SessionState,
 } from './types'
@@ -64,7 +65,7 @@ export class ClaudeClient {
     conversationHistory: ClaudeMessage[],
     currentMessage: string,
     model: ClaudeModel = 'claude-haiku-4-5'
-  ): Promise<{ result: IntentResult; tokensUsed: number }> {
+  ): Promise<{ result: IntentResult; tokensUsed: number; tokenDetail: ModelTokenEntry }> {
     logger.debug(
       { model, messageLength: currentMessage.length },
       'Detecting intent'
@@ -90,7 +91,15 @@ export class ClaudeClient {
         'Intent detected'
       )
 
-      return { result, tokensUsed }
+      return {
+        result,
+        tokensUsed,
+        tokenDetail: {
+          model,
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        },
+      }
     } catch (error) {
       if (error instanceof Anthropic.APIError) {
         throw new ClaudeApiError(
@@ -161,7 +170,7 @@ export class ClaudeClient {
     sessionState: SessionState,
     toolNames: string[],
     model: ClaudeModel = 'claude-sonnet-4-5'
-  ): Promise<{ result: OrchestratorResult; tokensUsed: number }> {
+  ): Promise<{ result: OrchestratorResult; tokensUsed: number; tokenDetail: ModelTokenEntry }> {
     logger.debug(
       { model, intent: intentResult.intent, toolCount: toolNames.length },
       'Orchestrating response'
@@ -197,7 +206,15 @@ export class ClaudeClient {
         'Orchestration complete'
       )
 
-      return { result, tokensUsed }
+      return {
+        result,
+        tokensUsed,
+        tokenDetail: {
+          model,
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        },
+      }
     } catch (error) {
       if (error instanceof Anthropic.APIError) {
         throw new ClaudeApiError(
@@ -302,7 +319,7 @@ export class ClaudeClient {
     conversationHistory: ClaudeMessage[],
     model: ClaudeModel = 'claude-sonnet-4-5',
     onText: (text: string) => void
-  ): Promise<{ fullText: string; tokensUsed: number }> {
+  ): Promise<{ fullText: string; tokensUsed: number; tokenDetail: ModelTokenEntry }> {
     logger.debug({ model }, 'Starting streaming response')
 
     let fullText = ''
@@ -328,7 +345,15 @@ export class ClaudeClient {
         'Streaming complete'
       )
 
-      return { fullText, tokensUsed }
+      return {
+        fullText,
+        tokensUsed,
+        tokenDetail: {
+          model,
+          inputTokens: finalMessage.usage.input_tokens,
+          outputTokens: finalMessage.usage.output_tokens,
+        },
+      }
     } catch (error) {
       if (error instanceof Anthropic.APIError) {
         throw new ClaudeApiError(

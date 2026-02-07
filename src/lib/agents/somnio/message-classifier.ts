@@ -147,16 +147,16 @@ export class MessageClassifier {
     logger.debug({ messageLength: message.length }, 'Classifying message')
 
     try {
-      // Try Haiku first (fast and cheap)
-      return await this.callClaude(message, 'claude-haiku-4-5-20251101')
+      // Try Sonnet (using Sonnet until Haiku 4 available - decision 13-03)
+      return await this.callClaude(message, 'claude-sonnet-4-20250514')
     } catch (error) {
-      // Fallback to Sonnet if Haiku fails (decision 13-03 pattern)
+      // Retry on transient errors
       if (error instanceof Anthropic.APIError) {
         logger.warn(
           { error: error.message, status: error.status },
-          'Haiku failed, falling back to Sonnet'
+          'Claude API error, retrying once'
         )
-        return await this.callClaude(message, 'claude-sonnet-4-5-20250514')
+        return await this.callClaude(message, 'claude-sonnet-4-20250514')
       }
       throw error
     }

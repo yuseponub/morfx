@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 15 of 16 (Agent Sandbox)
-Plan: 4 of 4
-Status: Phase Complete
-Last activity: 2026-02-06 — Completed 15-04-PLAN.md (Sandbox Page Assembly)
+Phase: 15.5 of 17 (Somnio Ingest System - INSERTED)
+Plan: 0 of TBD
+Status: Not started
+Last activity: 2026-02-07 — Inserted Phase 15.5 for Ingest System
 
-Progress: [##########] 100% MVP v1 | [████████████░░] 93% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████░░] 90% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -31,7 +31,8 @@ All 11 phases + 4 inserted phases completed:
 - Phase 12: Action DSL Real (4 plans) — COMPLETE
 - Phase 13: Agent Engine Core (6 plans) — COMPLETE
 - Phase 14: Agente Ventas Somnio (6 plans) — COMPLETE
-- Phase 15: Agent Sandbox (4 plans) — COMPLETE
+- Phase 15: Agent Sandbox (5 plans) — COMPLETE
+- Phase 15.5: Somnio Ingest System (TBD plans) — INSERTED (urgent fix)
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -170,7 +171,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-06
-Stopped at: Completed 15-04-PLAN.md (Sandbox Page Assembly)
+Last session: 2026-02-07
+Stopped at: Inserted Phase 15.5 (Somnio Ingest System)
 Resume file: None
-Next: Phase 16: WhatsApp Agent Integration
+Next: Phase 15.5: Somnio Ingest System (discuss → research → plan → execute)

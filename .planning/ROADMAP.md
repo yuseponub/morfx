@@ -45,7 +45,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Action DSL Real** - Conectar handlers placeholder con operaciones reales
 - [x] **Phase 13: Agent Engine Core** - Motor generico de ejecucion de agentes
 - [x] **Phase 14: Agente Ventas Somnio** - Implementar el agente de ventas existente en codigo
-- [ ] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
+- [x] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
+- [ ] **Phase 15.5: Somnio Ingest System** - Acumulación de datos con detección datos vs pregunta (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
 ---
@@ -414,11 +415,26 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Foundation: dependencies, types, SandboxEngine, session persistence, typing indicator
-- [ ] 15-02-PLAN.md — Chat UI: Allotment layout, message bubbles with inverted theme, input
-- [ ] 15-03-PLAN.md — Debug panel: 4 tabs (Tools, Estado, Intent, Tokens) with editable JSON viewer
-- [ ] 15-04-PLAN.md — Session management: save/load/new controls, sidebar navigation
+- [x] 15-01-PLAN.md — Foundation: dependencies, types, SandboxEngine, session persistence, typing indicator
+- [x] 15-02-PLAN.md — Chat UI: Allotment layout, message bubbles with inverted theme, input
+- [x] 15-03-PLAN.md — Debug panel: 4 tabs (Tools, Estado, Intent, Tokens) with editable JSON viewer
+- [x] 15-04-PLAN.md — Session management: save/load/new controls, sidebar navigation
 - [ ] 15-05-PLAN.md — Human verification: end-to-end testing of all SAND-* requirements
+
+### Phase 15.5: Somnio Ingest System (INSERTED)
+**Goal**: Sistema de acumulación de datos con detección datos vs pregunta, timer de espera, y silencio mientras compila
+**Depends on**: Phase 15
+**Requirements**: INGS-01, INGS-02, INGS-03, INGS-04, INGS-05
+**Success Criteria** (what must be TRUE):
+  1. En modo collecting_data, sistema detecta si mensaje es DATOS o PREGUNTA
+  2. Si es DATOS: acumula silenciosamente sin responder
+  3. Si es PREGUNTA: responde normalmente sin interrumpir acumulación
+  4. Timer de 6 min para datos parciales, 10 min sin datos
+  5. Cliente puede enviar datos sin decir "sí" primero (sí implícito)
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 15.5 to break down)
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
@@ -470,7 +486,8 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 12. Action DSL Real | 4/4 | Complete | 2026-02-05 |
 | 13. Agent Engine Core | 6/6 | Complete | 2026-02-06 |
 | 14. Agente Ventas Somnio | 6/6 | Complete | 2026-02-06 |
-| 15. Agent Sandbox | 0/5 | Planned | - |
+| 15. Agent Sandbox | 4/5 | In progress | - |
+| 15.5. Somnio Ingest System | 0/TBD | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---

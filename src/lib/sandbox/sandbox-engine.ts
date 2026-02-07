@@ -12,7 +12,10 @@ import { SomnioOrchestrator } from '@/lib/agents/somnio/somnio-orchestrator'
 import { somnioAgentConfig } from '@/lib/agents/somnio/config'
 import { agentRegistry } from '@/lib/agents/registry'
 import { mergeExtractedData } from '@/lib/agents/somnio/data-extractor'
-import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, IntentInfo } from './types'
+import { IngestManager } from '@/lib/agents/somnio/ingest-manager'
+import { MessageClassifier } from '@/lib/agents/somnio/message-classifier'
+import type { IngestState } from '@/lib/agents/somnio/ingest-manager'
+import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, IntentInfo, IngestStatus } from './types'
 
 /**
  * SandboxEngine: Processes messages using Somnio agent components
@@ -27,11 +30,15 @@ export class SandboxEngine {
   private claudeClient: ClaudeClient
   private intentDetector: IntentDetector
   private orchestrator: SomnioOrchestrator
+  private ingestManager: IngestManager
+  private messageClassifier: MessageClassifier
 
   constructor() {
     this.claudeClient = new ClaudeClient()
     this.intentDetector = new IntentDetector(this.claudeClient)
     this.orchestrator = new SomnioOrchestrator(this.claudeClient)
+    this.ingestManager = new IngestManager()
+    this.messageClassifier = new MessageClassifier()
   }
 
   /**
@@ -44,6 +51,7 @@ export class SandboxEngine {
       templatesEnviados: [],
       datosCapturados: {},
       packSeleccionado: null,
+      ingestStatus: undefined,
     }
   }
 
@@ -67,7 +75,43 @@ export class SandboxEngine {
     try {
       const agentConfig = agentRegistry.get(somnioAgentConfig.id)
 
-      // 1. Detect intent
+      // Track ingest status for debug visibility
+      let ingestStatus: IngestStatus | undefined = currentState.ingestStatus
+
+      // 1. Check for ingest mode handling (collecting_data)
+      if (currentState.currentMode === 'collecting_data') {
+        const ingestResult = await this.handleIngestMode(
+          message,
+          currentState,
+          history,
+          turnNumber,
+          tools,
+          totalTokens
+        )
+
+        if (ingestResult) {
+          return ingestResult
+        }
+        // If null, continue with normal orchestration (for pregunta/mixto)
+      }
+
+      // 2. Check for "implicit yes" - datos sent outside collecting_data
+      if (currentState.currentMode !== 'collecting_data') {
+        const implicitYesResult = await this.checkImplicitYes(
+          message,
+          currentState,
+          history,
+          turnNumber,
+          tools,
+          totalTokens
+        )
+
+        if (implicitYesResult) {
+          return implicitYesResult
+        }
+      }
+
+      // 3. Detect intent
       const { intent, action, tokensUsed: intentTokens } = await this.intentDetector.detect(
         message,
         history,
@@ -87,13 +131,13 @@ export class SandboxEngine {
         timestamp: new Date().toISOString(),
       }
 
-      // 2. Update intents_vistos
+      // 4. Update intents_vistos
       const newIntentsVistos = [...currentState.intentsVistos]
       if (!newIntentsVistos.includes(intent.intent)) {
         newIntentsVistos.push(intent.intent)
       }
 
-      // 3. Handle handoff
+      // 5. Handle handoff
       if (action === 'handoff') {
         const handoffState: SandboxState = {
           ...currentState,
@@ -117,7 +161,7 @@ export class SandboxEngine {
         }
       }
 
-      // 4. Build mock session for orchestrator
+      // 6. Build mock session for orchestrator
       // IMPORTANT: Use currentState.intentsVistos (BEFORE adding current intent)
       // so TemplateManager correctly detects primera_vez vs siguientes
       const mockSession = {
@@ -151,7 +195,7 @@ export class SandboxEngine {
         },
       }
 
-      // 5. Orchestrate response
+      // 7. Orchestrate response
       const orchestratorResult = await this.orchestrator.orchestrate(
         intent,
         mockSession,
@@ -160,7 +204,7 @@ export class SandboxEngine {
       )
       totalTokens += orchestratorResult.tokensUsed ?? 0
 
-      // 6. Build new state
+      // 8. Build new state
       const newState: SandboxState = {
         currentMode: orchestratorResult.nextMode ?? currentState.currentMode,
         intentsVistos: newIntentsVistos,
@@ -173,7 +217,7 @@ export class SandboxEngine {
         packSeleccionado: orchestratorResult.stateUpdates?.packSeleccionado ?? currentState.packSeleccionado,
       }
 
-      // 7. Extract response messages
+      // 9. Extract response messages
       const messages: string[] = []
       if (orchestratorResult.response) {
         messages.push(orchestratorResult.response)
@@ -218,6 +262,202 @@ export class SandboxEngine {
         newState: currentState,
         error: { code: 'SANDBOX_ERROR', message: errorMessage },
       }
+    }
+  }
+
+  // ============================================================================
+  // Ingest Mode Methods (Phase 15.5)
+  // ============================================================================
+
+  /**
+   * Handle ingest mode during collecting_data.
+   *
+   * Routes messages through IngestManager for classification and silent accumulation.
+   * Returns SandboxEngineResult if handled silently, null to continue normal flow.
+   */
+  private async handleIngestMode(
+    message: string,
+    currentState: SandboxState,
+    history: { role: 'user' | 'assistant'; content: string }[],
+    turnNumber: number,
+    tools: ToolExecution[],
+    totalTokens: number
+  ): Promise<SandboxEngineResult | null> {
+    // Build ingest state from sandbox state
+    const ingestState: IngestState = {
+      active: true,
+      startedAt: currentState.ingestStatus?.startedAt ?? null,
+      firstDataAt: currentState.ingestStatus?.firstDataAt ?? null,
+      fieldsCollected: Object.keys(currentState.datosCapturados).filter(
+        (k) => currentState.datosCapturados[k] && currentState.datosCapturados[k] !== 'N/A'
+      ),
+    }
+
+    // Route through IngestManager
+    const ingestResult = await this.ingestManager.handleMessage({
+      sessionId: 'sandbox-session',
+      message,
+      ingestState,
+      existingData: currentState.datosCapturados,
+      conversationHistory: history,
+    })
+
+    // Build updated ingest status for debug visibility
+    const newIngestStatus: IngestStatus = {
+      active: currentState.currentMode === 'collecting_data',
+      startedAt: currentState.ingestStatus?.startedAt ?? new Date().toISOString(),
+      firstDataAt: ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0
+        ? (currentState.ingestStatus?.firstDataAt ?? new Date().toISOString())
+        : currentState.ingestStatus?.firstDataAt ?? null,
+      fieldsAccumulated: [
+        ...(currentState.ingestStatus?.fieldsAccumulated ?? []),
+        ...Object.keys(ingestResult.extractedData?.normalized ?? {}),
+      ].filter((v, i, a) => a.indexOf(v) === i), // unique
+      timerType: ingestResult.timerDuration === '6m' ? 'partial' : 'no_data',
+      timerExpiresAt: null, // Timer simulation not needed in sandbox
+      lastClassification: ingestResult.classification.classification,
+    }
+
+    // Handle silent accumulation (datos or irrelevante)
+    if (ingestResult.action === 'silent') {
+      const silentState: SandboxState = {
+        ...currentState,
+        datosCapturados: ingestResult.mergedData ?? currentState.datosCapturados,
+        ingestStatus: newIngestStatus,
+      }
+
+      const debugTurn: DebugTurn = {
+        turnNumber,
+        tools,
+        tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+        stateAfter: silentState,
+      }
+
+      // Silent response with classification info for debug
+      const classificationNote = `[SANDBOX: Silent - clasificacion: ${ingestResult.classification.classification}, confidence: ${ingestResult.classification.confidence}%]`
+
+      return {
+        success: true,
+        messages: [classificationNote],
+        debugTurn,
+        newState: silentState,
+      }
+    }
+
+    // Handle complete (all 8 fields) - transition to ofrecer_promos
+    if (ingestResult.action === 'complete') {
+      const completeState: SandboxState = {
+        ...currentState,
+        currentMode: 'ofrecer_promos',
+        datosCapturados: ingestResult.mergedData ?? currentState.datosCapturados,
+        ingestStatus: {
+          ...newIngestStatus,
+          active: false,
+        },
+      }
+
+      // Return null to continue with normal orchestration for ofrecer_promos
+      // But update the currentState to reflect the transition
+      // This is a bit of a workaround - we need to update state but continue
+      // For sandbox, we'll return a special message indicating the transition
+      const debugTurn: DebugTurn = {
+        turnNumber,
+        tools,
+        tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+        stateAfter: completeState,
+      }
+
+      return {
+        success: true,
+        messages: ['[SANDBOX: Ingest complete - all 8 fields collected, transitioning to ofrecer_promos]'],
+        debugTurn,
+        newState: completeState,
+      }
+    }
+
+    // For 'respond' (pregunta or mixto), update state and continue normal flow
+    // Return null to let orchestrator handle the response
+    return null
+  }
+
+  /**
+   * Check for "implicit yes" - customer sends datos outside collecting_data mode.
+   *
+   * If detected, returns result with collecting_data transition message.
+   */
+  private async checkImplicitYes(
+    message: string,
+    currentState: SandboxState,
+    history: { role: 'user' | 'assistant'; content: string }[],
+    turnNumber: number,
+    tools: ToolExecution[],
+    totalTokens: number
+  ): Promise<SandboxEngineResult | null> {
+    // Classify the message
+    const classification = await this.messageClassifier.classify(message)
+
+    // Only trigger implicit yes for 'datos' or 'mixto' (contains data)
+    if (
+      classification.classification !== 'datos' &&
+      classification.classification !== 'mixto'
+    ) {
+      return null
+    }
+
+    // Build ingest state for the implicit yes
+    const ingestState: IngestState = {
+      active: true,
+      startedAt: new Date().toISOString(),
+      firstDataAt: null,
+      fieldsCollected: [],
+    }
+
+    // Process the data through IngestManager
+    const ingestResult = await this.ingestManager.handleMessage({
+      sessionId: 'sandbox-session',
+      message,
+      ingestState,
+      existingData: currentState.datosCapturados,
+      conversationHistory: history,
+    })
+
+    // Build ingest status
+    const newIngestStatus: IngestStatus = {
+      active: true,
+      startedAt: new Date().toISOString(),
+      firstDataAt: ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0
+        ? new Date().toISOString()
+        : null,
+      fieldsAccumulated: Object.keys(ingestResult.extractedData?.normalized ?? {}),
+      timerType: ingestResult.timerDuration === '6m' ? 'partial' : 'no_data',
+      timerExpiresAt: null,
+      lastClassification: classification.classification,
+    }
+
+    const newState: SandboxState = {
+      ...currentState,
+      currentMode: 'collecting_data',
+      datosCapturados: ingestResult.mergedData ?? currentState.datosCapturados,
+      ingestStatus: newIngestStatus,
+    }
+
+    const debugTurn: DebugTurn = {
+      turnNumber,
+      tools,
+      tokens: { turnNumber, tokensUsed: totalTokens, timestamp: new Date().toISOString() },
+      stateAfter: newState,
+    }
+
+    // Return with implicit yes message - actual templates will be sent by orchestrator
+    // For sandbox, we show the transition and continue
+    return {
+      success: true,
+      messages: [
+        `[SANDBOX: Implicit yes detected - clasificacion: ${classification.classification}]`,
+        '[SANDBOX: Transitioning to collecting_data mode]',
+      ],
+      debugTurn,
+      newState,
     }
   }
 }

@@ -106,7 +106,69 @@ export type AgentEvents = {
   }
 }
 
+// ============================================================================
+// Ingest Events (Phase 15.5: Somnio Ingest System)
+// ============================================================================
+
+/**
+ * Ingest-related events for silent data accumulation workflow.
+ *
+ * Timer logic from CONTEXT.md:
+ * - 6 min timeout if customer sent partial data
+ * - 10 min timeout if no data was received
+ * - Timer starts with FIRST data, NOT on each message
+ * - Timer cancelled when all 8 fields complete
+ */
+export type IngestEvents = {
+  /**
+   * Emitted when ingest timer should start (first data received).
+   * Triggers the ingest timer workflow with conditional timeout.
+   */
+  'agent/ingest.started': {
+    data: {
+      sessionId: string
+      conversationId: string
+      workspaceId: string
+      /** Whether customer has sent any partial data */
+      hasPartialData: boolean
+      /** Timer duration: 360000 (6 min partial) or 600000 (10 min no data) */
+      timerDurationMs: number
+    }
+  }
+
+  /**
+   * Emitted when ingest completes (all 8 fields collected, or cancelled).
+   * Cancels the running ingest timer via step.waitForEvent().
+   */
+  'agent/ingest.completed': {
+    data: {
+      sessionId: string
+      /** Why ingest completed */
+      reason: 'all_fields' | 'timeout' | 'cancelled'
+    }
+  }
+
+  /**
+   * Emitted when new data is extracted during ingest.
+   * For tracking/debugging purposes (not for timer control).
+   */
+  'agent/ingest.data_received': {
+    data: {
+      sessionId: string
+      /** Fields extracted in this message */
+      fieldsExtracted: string[]
+      /** Total fields collected so far */
+      totalFields: number
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents
+
 /**
  * Type helper for extracting event data by name
  */
-export type AgentEventData<T extends keyof AgentEvents> = AgentEvents[T]['data']
+export type AgentEventData<T extends keyof AllAgentEvents> = AllAgentEvents[T]['data']

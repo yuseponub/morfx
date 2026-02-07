@@ -152,6 +152,18 @@ Established in `CLAUDE.md`:
 - Configure 360dialog webhook URL and env vars
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
 
+### Future Phase: Somnio Sales Agent v2
+
+**Problema identificado:** Templates con contenido duplicado se envían múltiples veces en la misma conversación.
+
+**Solución propuesta:**
+1. Concepto de "primera duda" vs "dudas siguientes" basado en turno de intents
+2. Templates modulares reutilizables (tiempoefecto1, modopago, etc.)
+3. Primera duda: 3 templates (respuesta + complemento1 + complemento2)
+4. Dudas siguientes: 2 templates (respuesta + complemento), sin repetir contenido ya enviado
+5. Filtrado por contenido (hash) además de por template ID
+6. El intent "hola" podría no contarse como intent real para este cálculo
+
 ### Blockers/Concerns
 
 None.

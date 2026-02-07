@@ -109,6 +109,10 @@ export class ClaudeClient {
   /**
    * Parse the intent response from Claude.
    * Expects JSON format, falls back to unknown intent if parsing fails.
+   *
+   * NOTE: This method is also used by DataExtractor which expects a different
+   * JSON structure. We always include the raw text in `reasoning` so callers
+   * can parse it themselves if needed.
    */
   private parseIntentResponse(text: string): IntentResult {
     // Try to extract JSON from the response
@@ -120,7 +124,8 @@ export class ClaudeClient {
           intent: parsed.intent ?? 'unknown',
           confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
           alternatives: Array.isArray(parsed.alternatives) ? parsed.alternatives : undefined,
-          reasoning: parsed.reasoning,
+          // Always include raw text so DataExtractor can parse its own format
+          reasoning: text,
         }
       } catch {
         // Fall through to default

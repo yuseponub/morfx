@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.6 of 17 (Sandbox Evolution - INSERTED)
-Plan: 3 of 6
+Plan: 4 of 6
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.6-03-PLAN.md (CRM Agent System)
+Last activity: 2026-02-07 — Completed 15.6-04-PLAN.md (Ingest & Tokens Tabs)
 
-Progress: [##########] 100% MVP v1 | [██████████████░] 95% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████████] 96% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -54,7 +54,7 @@ All 11 phases + 4 inserted phases completed:
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
-| 15.6 Sandbox Evolution | 3/6 | In Progress |
+| 15.6 Sandbox Evolution | 4/6 | In Progress |
 
 ## Accumulated Context
 
@@ -164,6 +164,11 @@ Recent decisions affecting MVP v2 work:
 - [15.6-03]: Self-registration pattern: importing crm/index.ts registers all CRM agents
 - [15.6-03]: Live mode stubs return dry-run data with _note marker; real wiring in Plan 05
 - [15.6-03]: OrderManagerMode: full (8 fields + pack), no_promo (8 fields, default 1x), draft (nombre + telefono)
+- [15.6-04]: Timer presets: Real (360s/600s), Rapido (30s/60s), Instantaneo (0s/0s)
+- [15.6-04]: Slider ranges: partial 0-600s step 10, noData 0-900s step 10
+- [15.6-04]: Model display names: claude-haiku-4-5 -> Haiku, claude-sonnet-4-5 -> Sonnet
+- [15.6-04]: Model color coding: Haiku=sky, Sonnet=violet for visual distinction
+- [15.6-04]: Per-turn model badges use compact format: Haiku: 120in/45out
 
 ### Project Rules
 
@@ -199,6 +204,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 15.6-03-PLAN.md (CRM Agent System)
+Stopped at: Completed 15.6-04-PLAN.md (Ingest & Tokens Tabs)
 Resume file: None
-Next: 15.6-04-PLAN.md
+Next: 15.6-05-PLAN.md

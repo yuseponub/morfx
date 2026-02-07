@@ -13,6 +13,7 @@ import { ToolsTab } from './tools-tab'
 import { StateTab } from './state-tab'
 import { IntentTab } from './intent-tab'
 import { TokensTab } from './tokens-tab'
+import { IngestTab } from './ingest-tab'
 import type { DebugPanelTabId, DebugTurn, SandboxState } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
@@ -34,12 +35,7 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
     case 'tokens':
       return <TokensTab debugTurns={props.debugTurns} totalTokens={props.totalTokens} />
     case 'ingest':
-      // IngestTab will be created in Plan 04. Show placeholder for now.
-      return (
-        <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-          Tab Ingest (disponible pronto)
-        </div>
-      )
+      return <IngestTab state={props.state} />
     default:
       return null
   }

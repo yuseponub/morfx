@@ -32,6 +32,8 @@ export interface ToolExecution {
   }
   durationMs?: number
   timestamp: string
+  /** Execution mode for CRM tools: dry-run (mock) or live (real DB) */
+  mode?: 'dry-run' | 'live'
 }
 
 /**

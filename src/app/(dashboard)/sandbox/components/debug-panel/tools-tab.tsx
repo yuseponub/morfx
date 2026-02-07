@@ -5,7 +5,8 @@
  * Phase 15: Agent Sandbox
  *
  * Expandable list of tool executions with inputs/outputs.
- * Shows tool name + status badge, click to expand.
+ * Shows tool name + status badge + mode badge (DRY/LIVE), click to expand.
+ * Phase 15.6: DRY/LIVE mode badges for CRM tool visibility.
  */
 
 import { useState } from 'react'
@@ -34,6 +35,16 @@ function ToolExecutionItem({ tool }: { tool: ToolExecution }) {
         )}
 
         <span className="font-mono text-sm truncate flex-1">{tool.name}</span>
+
+        {/* Mode badge for CRM tools */}
+        {tool.mode && (
+          <Badge
+            variant={tool.mode === 'live' ? 'destructive' : 'outline'}
+            className="shrink-0 text-[10px] px-1.5 py-0"
+          >
+            {tool.mode === 'dry-run' ? 'DRY' : 'LIVE'}
+          </Badge>
+        )}
 
         {tool.result ? (
           <Badge variant={tool.result.success ? 'default' : 'destructive'} className="shrink-0">
@@ -104,10 +115,27 @@ export function ToolsTab({ debugTurns }: ToolsTabProps) {
     )
   }
 
+  // Count by mode for summary
+  const dryRunCount = allTools.filter(t => t.mode === 'dry-run').length
+  const liveCount = allTools.filter(t => t.mode === 'live').length
+  const noModeCount = allTools.filter(t => !t.mode).length
+
   return (
     <div className="space-y-2">
-      <div className="text-xs text-muted-foreground mb-2">
-        {allTools.length} tool{allTools.length !== 1 ? 's' : ''} ejecutado{allTools.length !== 1 ? 's' : ''}
+      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+        <span>
+          {allTools.length} tool{allTools.length !== 1 ? 's' : ''} ejecutado{allTools.length !== 1 ? 's' : ''}
+        </span>
+        {dryRunCount > 0 && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {dryRunCount} DRY
+          </Badge>
+        )}
+        {liveCount > 0 && (
+          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+            {liveCount} LIVE
+          </Badge>
+        )}
       </div>
 
       {allTools.map(tool => (

@@ -15,6 +15,7 @@ import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
 import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode } from '@/lib/sandbox/types'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
+import { useWorkspace } from '@/components/providers/workspace-provider'
 
 // Initial state (matches SandboxEngine.getInitialState())
 const INITIAL_STATE: SandboxState = {
@@ -42,6 +43,9 @@ export function SandboxLayout() {
   const [debugTurns, setDebugTurns] = useState<DebugTurn[]>([])
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
+
+  // Workspace ID for LIVE mode CRM operations
+  const { workspace } = useWorkspace()
 
   // CRM agent state - initialized from registry via API
   const [crmAgents, setCrmAgents] = useState<CrmAgentState[]>([])
@@ -103,6 +107,7 @@ export function SandboxLayout() {
           history,
           turnNumber,
           crmAgents: enabledCrmAgents,
+          workspaceId: workspace?.id,
         }),
       })
 

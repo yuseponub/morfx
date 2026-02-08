@@ -79,7 +79,8 @@ export class SandboxEngine {
     currentState: SandboxState,
     history: { role: 'user' | 'assistant'; content: string }[],
     turnNumber: number,
-    crmModes?: CrmMode[]
+    crmModes?: CrmMode[],
+    workspaceId?: string
   ): Promise<SandboxEngineResult> {
     const tools: ToolExecution[] = []
     let totalTokens = 0
@@ -218,7 +219,7 @@ export class SandboxEngine {
         agent_id: somnioAgentConfig.id,
         conversation_id: 'sandbox-conversation',
         contact_id: 'sandbox-contact',
-        workspace_id: 'sandbox-workspace',
+        workspace_id: workspaceId ?? 'sandbox-workspace',
         version: 1,
         status: 'active' as const,
         current_mode: currentState.currentMode,
@@ -295,7 +296,7 @@ export class SandboxEngine {
             const crmResult = await crmOrchestrator.route(
               {
                 type: 'create_order',
-                payload: { ...newState.datosCapturados, _workspaceId: 'sandbox' },
+                payload: { ...newState.datosCapturados, _workspaceId: workspaceId ?? 'sandbox' },
                 source: 'orchestrator',
                 orderMode: 'full',
               },

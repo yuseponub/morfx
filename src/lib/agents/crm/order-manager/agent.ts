@@ -166,7 +166,9 @@ export class OrderManagerAgent extends BaseCrmAgent {
         })
       }
 
-      const contactId = (contactResult.outputs as Record<string, unknown>)?.id as string
+      const outputs = contactResult.outputs as Record<string, unknown>
+      const contactData = (outputs?.data ?? outputs) as Record<string, unknown>
+      const contactId = contactData?.id as string
 
       // Step 2: Assign somnio-lead tag
       const tagStartTime = performance.now()

@@ -8,12 +8,13 @@
  * and CRM agent state management.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, ResponseSpeedPreset } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, ResponseSpeedPreset, TimerState, TimerConfig, TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
+import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
 import { getMessageDelay } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
@@ -50,6 +51,18 @@ export function SandboxLayout() {
   const [isTyping, setIsTyping] = useState(false)
   const [responseSpeed, setResponseSpeed] = useState<ResponseSpeedPreset>('real')
 
+  // Timer state (Phase 15.7)
+  const [timerState, setTimerState] = useState<TimerState>({
+    active: false,
+    level: null,
+    levelName: '',
+    remainingMs: 0,
+    paused: false,
+  })
+  const [timerEnabled, setTimerEnabled] = useState(false)
+  const [timerConfig, setTimerConfig] = useState<TimerConfig>(TIMER_DEFAULTS)
+  const simulatorRef = useRef<IngestTimerSimulator | null>(null)
+
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
 
@@ -63,6 +76,126 @@ export function SandboxLayout() {
       .then((agents: CrmAgentState[]) => setCrmAgents(agents))
       .catch(err => console.error('[Sandbox] Failed to load CRM agents:', err))
   }, [])
+
+  // ============================================================================
+  // Timer Lifecycle (Phase 15.7)
+  // ============================================================================
+
+  // Ref to hold latest handleTimerExpire to avoid stale closures in simulator
+  const timerExpireRef = useRef<(level: number, action: TimerAction) => void>(() => {})
+
+  // Helper: start timer at a specific level
+  const startTimerForLevel = useCallback((level: number) => {
+    const durationS = timerConfig.levels[level] ?? TIMER_DEFAULTS.levels[level]
+    const durationMs = durationS * 1000
+    simulatorRef.current?.start(level, durationMs)
+  }, [timerConfig])
+
+  // Handle timer expiration: inject message, handle transitions, chain timers
+  const handleTimerExpire = useCallback((level: number, action: TimerAction) => {
+    // 1. Inject message into chat (if action has one)
+    if (action.message) {
+      const timerMessage: SandboxMessage = {
+        id: `msg-${Date.now()}-timer`,
+        role: 'assistant',
+        content: action.message,
+        timestamp: new Date().toISOString(),
+      }
+      setMessages(prev => [...prev, timerMessage])
+    }
+
+    // 2. Handle mode transition (level 2: silent transition to ofrecer_promos)
+    if (action.type === 'transition_mode' && action.targetMode) {
+      setState(prev => ({ ...prev, currentMode: action.targetMode! }))
+
+      // Level 2 chains to level 3: after transitioning to ofrecer_promos,
+      // immediately start level 3 timer
+      if (level === 2) {
+        setTimeout(() => {
+          startTimerForLevel(3)
+        }, 100) // Small delay to allow state update
+      }
+    }
+
+    // 3. Handle order creation (levels 3, 4)
+    if (action.type === 'create_order') {
+      const valor = action.orderConfig?.valor ?? 0
+      const pack = action.orderConfig?.pack ?? ''
+      const placeholderMsg: SandboxMessage = {
+        id: `msg-${Date.now()}-timer-order`,
+        role: 'assistant',
+        content: `[SANDBOX: Timer L${level} - Orden creada con valor $${valor}${pack ? ` (pack: ${pack})` : ''}]`,
+        timestamp: new Date().toISOString(),
+      }
+      setMessages(prev => [...prev, placeholderMsg])
+    }
+
+    // 4. Reset timer state display (timer has expired)
+    setTimerState({
+      active: false,
+      level: null,
+      levelName: '',
+      remainingMs: 0,
+      paused: false,
+    })
+  }, [startTimerForLevel])
+
+  // Keep ref up-to-date with latest handleTimerExpire
+  useEffect(() => {
+    timerExpireRef.current = handleTimerExpire
+  }, [handleTimerExpire])
+
+  // Initialize simulator on mount
+  useEffect(() => {
+    const simulator = new IngestTimerSimulator(
+      // onTick: update timer display state
+      (remainingMs, level) => {
+        const levelConfig = TIMER_LEVELS.find(l => l.id === level)
+        setTimerState(prev => ({
+          active: true,
+          level,
+          levelName: levelConfig?.name ?? '',
+          remainingMs,
+          paused: prev.paused,
+        }))
+      },
+      // onExpire: delegate to ref (avoids stale closure)
+      (level, action) => {
+        timerExpireRef.current(level, action)
+      }
+    )
+    simulatorRef.current = simulator
+    return () => simulator.destroy()
+  }, [])
+
+  // Timer config change handler
+  const handleTimerConfigChange = useCallback((newConfig: TimerConfig) => {
+    setTimerConfig(newConfig)
+    // If timer is active, restart with new duration for current level
+    if (timerState.active && timerState.level !== null) {
+      const newDurationS = newConfig.levels[timerState.level] ?? TIMER_DEFAULTS.levels[timerState.level]
+      simulatorRef.current?.start(timerState.level, newDurationS * 1000)
+    }
+  }, [timerState])
+
+  // Timer toggle handler
+  const handleTimerToggle = useCallback((enabled: boolean) => {
+    setTimerEnabled(enabled)
+    if (!enabled) {
+      simulatorRef.current?.stop()
+      setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+    }
+  }, [])
+
+  // Timer pause/resume handler
+  const handleTimerPause = useCallback(() => {
+    if (timerState.paused) {
+      simulatorRef.current?.resume()
+    } else {
+      simulatorRef.current?.pause()
+    }
+    setTimerState(prev => ({ ...prev, paused: !prev.paused }))
+  }, [timerState.paused])
 
   // CRM agent toggle handler
   const handleCrmAgentToggle = useCallback((agentId: string, enabled: boolean) => {
@@ -144,19 +277,60 @@ export function SandboxLayout() {
       setState(result.newState)
       setDebugTurns(prev => [...prev, result.debugTurn])
       setTotalTokens(prev => prev + result.debugTurn.tokens.tokensUsed)
+
+      // 8. Process timer signals from SandboxEngine (Phase 15.7)
+      if (timerEnabled && result.timerSignal) {
+        const signal = result.timerSignal
+        if (signal.type === 'start') {
+          // Build eval context from new state
+          const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
+            k => result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
+          )
+          const ctx: TimerEvalContext = {
+            fieldsCollected,
+            totalFields: fieldsCollected.length,
+            currentMode: result.newState.currentMode,
+            packSeleccionado: result.newState.packSeleccionado ?? null,
+            promosOffered: result.newState.intentsVistos.includes('ofrecer_promos'),
+          }
+          const level = simulatorRef.current?.evaluateLevel(ctx)
+          if (level !== null && level !== undefined) {
+            startTimerForLevel(level)
+          }
+        } else if (signal.type === 'reevaluate') {
+          const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
+            k => result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
+          )
+          const ctx: TimerEvalContext = {
+            fieldsCollected,
+            totalFields: fieldsCollected.length,
+            currentMode: result.newState.currentMode,
+            packSeleccionado: result.newState.packSeleccionado ?? null,
+            promosOffered: result.newState.intentsVistos.includes('ofrecer_promos'),
+          }
+          simulatorRef.current?.reevaluateLevel(ctx, timerConfig)
+        } else if (signal.type === 'cancel') {
+          simulatorRef.current?.stop()
+          setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+        }
+      }
     } catch (error) {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [messages, state, debugTurns, crmAgents, responseSpeed])
+  }, [messages, state, debugTurns, crmAgents, responseSpeed, timerEnabled, timerConfig, startTimerForLevel])
 
-  // Handle session reset (preserves CRM agent selection)
+  // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {
     setMessages([])
     setState(INITIAL_STATE)
     setDebugTurns([])
     setTotalTokens(0)
     setIsTyping(false)
+    // Stop timer on reset (Phase 15.7)
+    simulatorRef.current?.stop()
+    setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+    setTimerEnabled(false)
   }, [])
 
   // Handle new session (same as reset but through controls)
@@ -223,6 +397,12 @@ export function SandboxLayout() {
               agentName={AGENT_NAMES[agentId] ?? agentId}
               responseSpeed={responseSpeed}
               onResponseSpeedChange={setResponseSpeed}
+              timerState={timerState}
+              timerEnabled={timerEnabled}
+              timerConfig={timerConfig}
+              onTimerToggle={handleTimerToggle}
+              onTimerConfigChange={handleTimerConfigChange}
+              onTimerPause={handleTimerPause}
             />
           }
         />

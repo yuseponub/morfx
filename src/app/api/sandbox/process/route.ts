@@ -10,11 +10,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
 import type { SandboxState } from '@/lib/sandbox/types'
+import { initializeTools } from '@/lib/tools/init'
 
 // Import somnio module to trigger agent registration
 import '@/lib/agents/somnio'
 // Import CRM module to trigger CRM agent registration
 import '@/lib/agents/crm'
+
+// Initialize Action DSL tools (required for LIVE mode CRM execution)
+initializeTools()
 
 // Single engine instance per server (stateless processing)
 const engine = new SandboxEngine()

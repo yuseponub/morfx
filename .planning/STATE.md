@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 15.6 of 17 (Sandbox Evolution - INSERTED)
-Plan: 5 of 6
+Phase: 15.7 of 17 (Ingest Timer Pluggable - INSERTED)
+Plan: 1 of 3
 Status: In progress
-Last activity: 2026-02-07 — Completed 15.6-05-PLAN.md (CRM Sandbox Integration)
+Last activity: 2026-02-08 — Completed 15.7-01-PLAN.md (Timer Engine Foundation)
 
-Progress: [##########] 100% MVP v1 | [███████████████] 97% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████████] 97% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -33,7 +33,8 @@ All 11 phases + 4 inserted phases completed:
 - Phase 14: Agente Ventas Somnio (6 plans) — COMPLETE
 - Phase 15: Agent Sandbox (5 plans) — COMPLETE
 - Phase 15.5: Somnio Ingest System (TBD plans) — INSERTED (urgent fix)
-- Phase 15.6: Sandbox Evolution (6 plans) — INSERTED
+- Phase 15.6: Sandbox Evolution (6 plans) — INSERTED — COMPLETE
+- Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -54,7 +55,8 @@ All 11 phases + 4 inserted phases completed:
 | 13. Agent Engine Core | 6/6 | Complete |
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
-| 15.6 Sandbox Evolution | 5/6 | In Progress |
+| 15.6 Sandbox Evolution | 6/6 | Complete |
+| 15.7 Ingest Timer Pluggable | 1/3 | In Progress |
 
 ## Accumulated Context
 
@@ -174,6 +176,12 @@ Recent decisions affecting MVP v2 work:
 - [15.6-05]: Live mode uses executeToolFromAgent with workspace='sandbox'
 - [15.6-05]: ToolExecution.mode optional field for DRY/LIVE visual differentiation
 - [15.6-05]: CRM orchestrator invoked only when shouldCreateOrder + order-manager in crmModes
+- [15.7-01]: TIMER_MINIMUM_FIELDS (6 fields incl. apellido) separate from CRITICAL_FIELDS (5 fields)
+- [15.7-01]: IngestTimerSimulator pure-logic class with no React deps (setTimeout/setInterval)
+- [15.7-01]: Timer state in instance properties to avoid stale closure pitfall
+- [15.7-01]: timerExpiresAt kept null for backward compat; new timer reads from TimerState
+- [15.7-01]: 5 timer levels: Sin datos (600s), Datos parciales (360s), Datos minimos (120s), Promos sin respuesta (600s), Pack sin confirmar (600s)
+- [15.7-01]: 3 presets: real, rapido (scaled 10x), instantaneo (1-2s minimum)
 
 ### Project Rules
 
@@ -208,7 +216,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-07
-Stopped at: Completed 15.6-05-PLAN.md (CRM Sandbox Integration)
+Last session: 2026-02-08
+Stopped at: Completed 15.7-01-PLAN.md (Timer Engine Foundation)
 Resume file: None
-Next: 15.6-06-PLAN.md
+Next: 15.7-02-PLAN.md

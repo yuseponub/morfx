@@ -201,6 +201,20 @@ export class OrderManagerAgent extends BaseCrmAgent {
                 return cPhone.endsWith(normalizedSearch) || normalizedSearch.endsWith(cPhone)
               }) ?? contacts[0]
               contactId = match.id as string
+
+              // Update existing contact with test-prefixed name and fresh data
+              await executeToolFromAgent(
+                'crm.contact.update',
+                {
+                  contactId,
+                  name: testPayload.nombre as string,
+                  address: this.buildAddress(testPayload),
+                  city: testPayload.ciudad as string,
+                },
+                workspaceId,
+                sessionId,
+                sessionId
+              )
             }
           }
 
@@ -208,7 +222,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
             name: 'crm.contact.list',
             input: { search: e164Phone, pageSize: 5 },
             result: contactId
-              ? { success: true, data: { contactId, reused: true } }
+              ? { success: true, data: { contactId, reused: true, updated: true } }
               : { success: false, error: { code: 'NOT_FOUND', message: 'Could not find existing contact after duplicate' } },
             durationMs: listDuration,
             timestamp: new Date().toISOString(),
@@ -270,6 +284,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
             },
           ],
           shippingAddress: this.buildShippingAddress(testPayload),
+          stageName: 'NUEVO PEDIDO',
         },
         workspaceId,
         sessionId,

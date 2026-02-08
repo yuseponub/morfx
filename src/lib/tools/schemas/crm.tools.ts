@@ -414,6 +414,11 @@ export const crmOrderCreate: ToolSchema = {
         type: 'string',
         maxLength: 2000,
         description: 'Order notes (optional)'
+      },
+      stageName: {
+        type: 'string',
+        maxLength: 100,
+        description: 'Pipeline stage name to create the order in (optional, defaults to first stage)'
       }
     },
     required: ['contactId', 'products'],

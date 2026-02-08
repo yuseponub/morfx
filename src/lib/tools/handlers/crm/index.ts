@@ -68,6 +68,7 @@ interface OrderCreateInput {
   }>
   shippingAddress?: string
   notes?: string
+  stageName?: string
 }
 
 interface OrderUpdateStatusInput {
@@ -1091,16 +1092,36 @@ const orderCreate: ToolHandler = async (
     }
   }
 
-  // Get first stage (lowest position)
-  const { data: firstStage } = await supabase
-    .from('pipeline_stages')
-    .select('id')
-    .eq('pipeline_id', pipelineId)
-    .order('position', { ascending: true })
-    .limit(1)
-    .single()
+  // Get target stage: by name if provided, otherwise first by position
+  let targetStageId: string | null = null
 
-  if (!firstStage) {
+  if (data.stageName) {
+    const { data: namedStage } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('pipeline_id', pipelineId)
+      .ilike('name', data.stageName)
+      .single()
+
+    if (namedStage) {
+      targetStageId = namedStage.id
+    }
+  }
+
+  if (!targetStageId) {
+    // Fallback to first stage (lowest position)
+    const { data: firstStage } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('pipeline_id', pipelineId)
+      .order('position', { ascending: true })
+      .limit(1)
+      .single()
+
+    targetStageId = firstStage?.id ?? null
+  }
+
+  if (!targetStageId) {
     return {
       success: false,
       error: {
@@ -1128,7 +1149,7 @@ const orderCreate: ToolHandler = async (
         contactId: data.contactId,
         contactName: contact.name,
         pipelineId,
-        stageId: firstStage.id,
+        stageId: targetStageId,
         products: data.products,
         estimatedTotal: previewTotal,
         shippingAddress: data.shippingAddress || null,
@@ -1144,7 +1165,7 @@ const orderCreate: ToolHandler = async (
       workspace_id: context.workspaceId,
       contact_id: data.contactId,
       pipeline_id: pipelineId,
-      stage_id: firstStage.id,
+      stage_id: targetStageId,
       shipping_address: data.shippingAddress || null,
       description: data.notes || null,
     })
@@ -1209,7 +1230,7 @@ const orderCreate: ToolHandler = async (
       orderId: order.id,
       total: completeOrder?.total_value ?? previewTotal,
       contactId: data.contactId,
-      stageId: firstStage.id,
+      stageId: targetStageId,
       pipelineId,
       products: insertedProducts || [],
       created_at: completeOrder?.created_at ?? order.created_at,

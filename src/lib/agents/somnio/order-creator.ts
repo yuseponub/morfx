@@ -374,6 +374,7 @@ export class OrderCreator {
         ],
         shippingAddress: orderData.shippingAddress,
         notes: orderData.notes,
+        stageName: 'NUEVO PEDIDO',
       },
       this.workspaceId,
       sessionId,

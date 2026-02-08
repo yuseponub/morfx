@@ -2,55 +2,28 @@
 
 /**
  * Ingest Tab Component
- * Phase 15.6: Sandbox Evolution - Plan 04
+ * Phase 15.7: Ingest Timer Pluggable - Plan 02
  *
- * Shows ingest status, classification timeline, and configurable timer presets.
+ * Shows ingest status, classification timeline, and 5-level timer configuration.
  * Provides visibility into the silent data accumulation process during collecting_data mode.
+ *
+ * Timer controls:
+ * - Toggle to enable/disable timer simulation
+ * - 3 presets (Real / Rapido / Instantaneo) set all 5 levels simultaneously
+ * - 5 independent sliders for fine-tuning each level
+ * - Countdown display showing remaining time + level name
+ * - Pause/Resume button for active timer
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { Activity, Clock, Database, Tag, Timer, Zap } from 'lucide-react'
+import { Activity, Clock, Database, Pause, Play, Tag, Timer, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
-import { format, formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
-import type { SandboxState, IngestTimelineEntry } from '@/lib/sandbox/types'
-
-// ============================================================================
-// Timer Presets
-// ============================================================================
-
-type TimerPreset = 'real' | 'rapido' | 'instantaneo'
-
-interface TimerPresetConfig {
-  label: string
-  description: string
-  partialSeconds: number
-  noDataSeconds: number
-}
-
-const TIMER_PRESETS: Record<TimerPreset, TimerPresetConfig> = {
-  real: {
-    label: 'Real',
-    description: '6min / 10min',
-    partialSeconds: 360,
-    noDataSeconds: 600,
-  },
-  rapido: {
-    label: 'Rapido',
-    description: '30s / 60s',
-    partialSeconds: 30,
-    noDataSeconds: 60,
-  },
-  instantaneo: {
-    label: 'Instantaneo',
-    description: '0s / 0s',
-    partialSeconds: 0,
-    noDataSeconds: 0,
-  },
-}
+import { format } from 'date-fns'
+import { TIMER_PRESETS, TIMER_LEVELS, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
+import type { SandboxState, IngestTimelineEntry, TimerState, TimerConfig, TimerPreset } from '@/lib/sandbox/types'
 
 // ============================================================================
 // Classification Colors
@@ -100,15 +73,54 @@ function formatSeconds(seconds: number): string {
 }
 
 // ============================================================================
-// Sub-components
+// Timer Display (replaces old TimerCountdown)
 // ============================================================================
 
-function StatusGrid({ state }: { state: SandboxState }) {
+function TimerDisplay({ timerState, onPause }: { timerState: TimerState; onPause: () => void }) {
+  if (!timerState.active || timerState.level === null) {
+    return <span className="text-xs text-muted-foreground">-</span>
+  }
+
+  const totalSeconds = Math.ceil(timerState.remainingMs / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  const display = `${minutes}:${seconds.toString().padStart(2, '0')}`
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="text-sm font-medium font-mono">{display}</span>
+      <span className="text-xs text-muted-foreground">
+        (L{timerState.level}: {timerState.levelName})
+      </span>
+      <button
+        onClick={onPause}
+        className="p-0.5 rounded hover:bg-muted"
+        title={timerState.paused ? 'Reanudar' : 'Pausar'}
+      >
+        {timerState.paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+      </button>
+    </div>
+  )
+}
+
+// ============================================================================
+// Status Grid (updated with timer display)
+// ============================================================================
+
+function StatusGrid({
+  state,
+  timerState,
+  onTimerPause,
+}: {
+  state: SandboxState
+  timerState: TimerState
+  onTimerPause: () => void
+}) {
   const ingest = state.ingestStatus
   const isActive = ingest?.active ?? false
   const fieldsCount = ingest?.fieldsAccumulated?.length ?? 0
   const lastClassification = ingest?.lastClassification ?? null
-  const timerType = ingest?.timerType ?? null
 
   return (
     <div className="border rounded-lg p-3 bg-muted/30 space-y-3">
@@ -153,10 +165,10 @@ function StatusGrid({ state }: { state: SandboxState }) {
           )}
         </div>
 
-        {/* Timer countdown */}
+        {/* Timer countdown (Phase 15.7) */}
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">Timer</div>
-          <TimerCountdown ingestStatus={state.ingestStatus} />
+          <TimerDisplay timerState={timerState} onPause={onTimerPause} />
         </div>
       </div>
 
@@ -178,49 +190,9 @@ function StatusGrid({ state }: { state: SandboxState }) {
   )
 }
 
-function TimerCountdown({ ingestStatus }: { ingestStatus?: SandboxState['ingestStatus'] }) {
-  const [remaining, setRemaining] = useState<string | null>(null)
-
-  const calculateRemaining = useCallback(() => {
-    if (!ingestStatus?.active || !ingestStatus.timerExpiresAt) {
-      setRemaining(null)
-      return
-    }
-    const expiresAt = new Date(ingestStatus.timerExpiresAt).getTime()
-    const now = Date.now()
-    const diff = expiresAt - now
-
-    if (diff <= 0) {
-      setRemaining('Expirado')
-      return
-    }
-
-    const seconds = Math.ceil(diff / 1000)
-    setRemaining(formatSeconds(seconds))
-  }, [ingestStatus?.active, ingestStatus?.timerExpiresAt])
-
-  useEffect(() => {
-    calculateRemaining()
-    const interval = setInterval(calculateRemaining, 1000)
-    return () => clearInterval(interval)
-  }, [calculateRemaining])
-
-  if (!ingestStatus?.active || !ingestStatus.timerType) {
-    return <span className="text-xs text-muted-foreground">-</span>
-  }
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
-      <span className="text-sm font-medium font-mono">
-        {remaining ?? '-'}
-      </span>
-      <span className="text-xs text-muted-foreground">
-        ({ingestStatus.timerType === 'partial' ? 'parcial' : 'sin datos'})
-      </span>
-    </div>
-  )
-}
+// ============================================================================
+// Timeline
+// ============================================================================
 
 function Timeline({ entries }: { entries: IngestTimelineEntry[] }) {
   if (entries.length === 0) {
@@ -284,114 +256,122 @@ function Timeline({ entries }: { entries: IngestTimelineEntry[] }) {
   )
 }
 
-function TimerControls({
-  onTimerChange,
+// ============================================================================
+// Timer Controls V2 (5-level configuration)
+// ============================================================================
+
+/** Slider range config per level: min/max/step in seconds */
+const SLIDER_CONFIG: Record<number, { min: number; max: number; step: number }> = {
+  0: { min: 0, max: 900, step: 10 },
+  1: { min: 0, max: 600, step: 10 },
+  2: { min: 0, max: 300, step: 5 },
+  3: { min: 0, max: 900, step: 10 },
+  4: { min: 0, max: 900, step: 10 },
+}
+
+function TimerControlsV2({
+  timerEnabled,
+  timerConfig,
+  onTimerToggle,
+  onTimerConfigChange,
 }: {
-  onTimerChange?: (partial: number, noData: number) => void
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
 }) {
-  const [preset, setPreset] = useState<TimerPreset>('real')
-  const [partialSeconds, setPartialSeconds] = useState(360)
-  const [noDataSeconds, setNoDataSeconds] = useState(600)
+  // Detect current preset from config values
+  const detectPreset = (config: TimerConfig): TimerPreset | null => {
+    for (const [key, presetConfig] of Object.entries(TIMER_PRESETS)) {
+      const matches = Object.keys(presetConfig.levels).every(
+        k => presetConfig.levels[Number(k)] === config.levels[Number(k)]
+      )
+      if (matches) return key as TimerPreset
+    }
+    return null
+  }
+
+  const currentPreset = detectPreset(timerConfig)
 
   const handlePresetChange = (value: string) => {
     if (!value) return
-    const newPreset = value as TimerPreset
-    setPreset(newPreset)
-    const config = TIMER_PRESETS[newPreset]
-    setPartialSeconds(config.partialSeconds)
-    setNoDataSeconds(config.noDataSeconds)
-    onTimerChange?.(config.partialSeconds, config.noDataSeconds)
+    const preset = value as TimerPreset
+    onTimerConfigChange(TIMER_PRESETS[preset])
   }
 
-  const handlePartialChange = (value: number[]) => {
-    const newVal = value[0]
-    setPartialSeconds(newVal)
-    // Detect if this matches a preset
-    detectPreset(newVal, noDataSeconds)
-    onTimerChange?.(newVal, noDataSeconds)
-  }
-
-  const handleNoDataChange = (value: number[]) => {
-    const newVal = value[0]
-    setNoDataSeconds(newVal)
-    detectPreset(partialSeconds, newVal)
-    onTimerChange?.(partialSeconds, newVal)
-  }
-
-  const detectPreset = (partial: number, noData: number) => {
-    for (const [key, config] of Object.entries(TIMER_PRESETS)) {
-      if (config.partialSeconds === partial && config.noDataSeconds === noData) {
-        setPreset(key as TimerPreset)
-        return
-      }
-    }
-    // No preset matches - keep current selection visual but it's custom
+  const handleLevelChange = (levelId: number, seconds: number) => {
+    onTimerConfigChange({
+      levels: { ...timerConfig.levels, [levelId]: seconds },
+    })
   }
 
   return (
     <div className="border rounded-lg p-3 space-y-3">
-      <div className="flex items-center gap-2">
-        <Zap className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium">Timers de Ingest</span>
-      </div>
-
-      {/* Preset buttons */}
-      <div>
-        <div className="text-xs text-muted-foreground mb-1.5">Preset</div>
-        <ToggleGroup
-          type="single"
-          value={preset}
-          onValueChange={handlePresetChange}
+      {/* Header with toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Timer Simulacion</span>
+        </div>
+        <Switch
           size="sm"
-          className="gap-1"
-        >
-          {Object.entries(TIMER_PRESETS).map(([key, config]) => (
-            <ToggleGroupItem
-              key={key}
-              value={key}
-              className="text-xs px-3"
+          checked={timerEnabled}
+          onCheckedChange={onTimerToggle}
+        />
+      </div>
+
+      {timerEnabled && (
+        <>
+          {/* Preset buttons */}
+          <div>
+            <div className="text-xs text-muted-foreground mb-1.5">Preset</div>
+            <ToggleGroup
+              type="single"
+              value={currentPreset ?? ''}
+              onValueChange={handlePresetChange}
+              size="sm"
+              className="gap-1"
             >
-              <div className="flex flex-col items-center">
-                <span>{config.label}</span>
-                <span className="text-[10px] text-muted-foreground">{config.description}</span>
-              </div>
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-
-      {/* Fine-tune sliders */}
-      <div className="space-y-3">
-        {/* Partial data timer */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Timer parcial (datos incompletos)</span>
-            <span className="text-xs font-mono font-medium">{formatSeconds(partialSeconds)}</span>
+              {Object.entries(TIMER_PRESETS).map(([key]) => (
+                <ToggleGroupItem
+                  key={key}
+                  value={key}
+                  className="text-xs px-3"
+                >
+                  <span className="capitalize">{key}</span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
-          <Slider
-            value={[partialSeconds]}
-            onValueChange={handlePartialChange}
-            min={0}
-            max={600}
-            step={10}
-          />
-        </div>
 
-        {/* No data timer */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Timer sin datos</span>
-            <span className="text-xs font-mono font-medium">{formatSeconds(noDataSeconds)}</span>
+          {/* 5 sliders - one per timer level */}
+          <div className="space-y-2.5">
+            {TIMER_LEVELS.map((level) => {
+              const sliderConf = SLIDER_CONFIG[level.id]
+              const currentValue = timerConfig.levels[level.id] ?? level.defaultDurationS
+              return (
+                <div key={level.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      L{level.id}: {level.name}
+                    </span>
+                    <span className="text-xs font-mono font-medium">
+                      {formatSeconds(currentValue)}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[currentValue]}
+                    onValueChange={(val) => handleLevelChange(level.id, val[0])}
+                    min={sliderConf.min}
+                    max={sliderConf.max}
+                    step={sliderConf.step}
+                  />
+                </div>
+              )
+            })}
           </div>
-          <Slider
-            value={[noDataSeconds]}
-            onValueChange={handleNoDataChange}
-            min={0}
-            max={900}
-            step={10}
-          />
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }
@@ -402,22 +382,40 @@ function TimerControls({
 
 interface IngestTabProps {
   state: SandboxState
-  onTimerChange?: (partial: number, noData: number) => void
+  timerState: TimerState
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
+  onTimerPause: () => void
 }
 
-export function IngestTab({ state, onTimerChange }: IngestTabProps) {
+export function IngestTab({
+  state,
+  timerState,
+  timerEnabled,
+  timerConfig,
+  onTimerToggle,
+  onTimerConfigChange,
+  onTimerPause,
+}: IngestTabProps) {
   const timeline = state.ingestStatus?.timeline ?? []
 
   return (
     <div className="space-y-4">
-      {/* Section 1: Status grid */}
-      <StatusGrid state={state} />
+      {/* Section 1: Status grid with timer display */}
+      <StatusGrid state={state} timerState={timerState} onTimerPause={onTimerPause} />
 
       {/* Section 2: Classification timeline */}
       <Timeline entries={timeline} />
 
-      {/* Section 3: Timer controls */}
-      <TimerControls onTimerChange={onTimerChange} />
+      {/* Section 3: Timer controls (5 levels, 3 presets) */}
+      <TimerControlsV2
+        timerEnabled={timerEnabled}
+        timerConfig={timerConfig}
+        onTimerToggle={onTimerToggle}
+        onTimerConfigChange={onTimerConfigChange}
+      />
     </div>
   )
 }

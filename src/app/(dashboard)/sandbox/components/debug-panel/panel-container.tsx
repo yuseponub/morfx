@@ -15,7 +15,7 @@ import { IntentTab } from './intent-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
-import type { DebugPanelTabId, DebugTurn, SandboxState, ResponseSpeedPreset } from '@/lib/sandbox/types'
+import type { DebugPanelTabId, DebugTurn, SandboxState, ResponseSpeedPreset, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
   visiblePanels: DebugPanelTabId[]
@@ -26,6 +26,13 @@ interface PanelContainerProps {
   agentName: string
   responseSpeed: ResponseSpeedPreset
   onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
+  // Timer props (Phase 15.7)
+  timerState: TimerState
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
+  onTimerPause: () => void
 }
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
@@ -39,7 +46,17 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
     case 'tokens':
       return <TokensTab debugTurns={props.debugTurns} totalTokens={props.totalTokens} />
     case 'ingest':
-      return <IngestTab state={props.state} />
+      return (
+        <IngestTab
+          state={props.state}
+          timerState={props.timerState}
+          timerEnabled={props.timerEnabled}
+          timerConfig={props.timerConfig}
+          onTimerToggle={props.onTimerToggle}
+          onTimerConfigChange={props.onTimerConfigChange}
+          onTimerPause={props.onTimerPause}
+        />
+      )
     case 'config':
       return <ConfigTab agentName={props.agentName} responseSpeed={props.responseSpeed} onResponseSpeedChange={props.onResponseSpeedChange} />
     default:

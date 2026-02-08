@@ -11,7 +11,7 @@
 import { useState, useCallback } from 'react'
 import { TabBar } from './tab-bar'
 import { PanelContainer } from './panel-container'
-import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, ResponseSpeedPreset } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, ResponseSpeedPreset, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'tools', label: 'Tools', visible: true },
@@ -32,6 +32,13 @@ interface DebugTabsProps {
   agentName: string
   responseSpeed: ResponseSpeedPreset
   onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
+  // Timer props (Phase 15.7)
+  timerState: TimerState
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
+  onTimerPause: () => void
 }
 
 export function DebugTabs({
@@ -42,6 +49,12 @@ export function DebugTabs({
   agentName,
   responseSpeed,
   onResponseSpeedChange,
+  timerState,
+  timerEnabled,
+  timerConfig,
+  onTimerToggle,
+  onTimerConfigChange,
+  onTimerPause,
 }: DebugTabsProps) {
   const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
 
@@ -92,6 +105,12 @@ export function DebugTabs({
           agentName={agentName}
           responseSpeed={responseSpeed}
           onResponseSpeedChange={onResponseSpeedChange}
+          timerState={timerState}
+          timerEnabled={timerEnabled}
+          timerConfig={timerConfig}
+          onTimerToggle={onTimerToggle}
+          onTimerConfigChange={onTimerConfigChange}
+          onTimerPause={onTimerPause}
         />
       </div>
     </div>

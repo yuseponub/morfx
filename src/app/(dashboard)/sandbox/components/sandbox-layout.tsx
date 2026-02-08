@@ -13,7 +13,8 @@ import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, ResponseSpeedPreset } from '@/lib/sandbox/types'
+import { getMessageDelay } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
 
@@ -35,6 +36,10 @@ const SandboxSplitPanel = dynamic(
 // Initial agent - will be expanded when more agents are registered
 const DEFAULT_AGENT_ID = 'somnio-sales-v1'
 
+const AGENT_NAMES: Record<string, string> = {
+  'somnio-sales-v1': 'Somnio Sales Agent',
+}
+
 export function SandboxLayout() {
   // Session state
   const [agentId, setAgentId] = useState<string>(getLastAgentId() ?? DEFAULT_AGENT_ID)
@@ -43,6 +48,7 @@ export function SandboxLayout() {
   const [debugTurns, setDebugTurns] = useState<DebugTurn[]>([])
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
+  const [responseSpeed, setResponseSpeed] = useState<ResponseSpeedPreset>('real')
 
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
@@ -116,9 +122,11 @@ export function SandboxLayout() {
       // 6. Hide typing and add response messages with delays
       if (result.success && result.messages.length > 0) {
         for (let i = 0; i < result.messages.length; i++) {
-          // Simulate delay (2-6 seconds) between messages
-          const delay = 2000 + Math.random() * 4000
-          await new Promise(resolve => setTimeout(resolve, delay))
+          // Configurable delay between messages (via Config tab preset)
+          const delay = getMessageDelay(responseSpeed)
+          if (delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay))
+          }
 
           const assistantMessage: SandboxMessage = {
             id: `msg-${Date.now()}-assistant-${i}`,
@@ -140,7 +148,7 @@ export function SandboxLayout() {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [messages, state, debugTurns, crmAgents])
+  }, [messages, state, debugTurns, crmAgents, responseSpeed])
 
   // Handle session reset (preserves CRM agent selection)
   const handleReset = useCallback(() => {
@@ -212,6 +220,9 @@ export function SandboxLayout() {
               state={state}
               onStateEdit={handleStateEdit}
               totalTokens={totalTokens}
+              agentName={AGENT_NAMES[agentId] ?? agentId}
+              responseSpeed={responseSpeed}
+              onResponseSpeedChange={setResponseSpeed}
             />
           }
         />

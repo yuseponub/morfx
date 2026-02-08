@@ -14,7 +14,7 @@
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, arrayMove, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Wrench, FileJson, Brain, Coins, Database, X } from 'lucide-react'
+import { Wrench, FileJson, Brain, Coins, Database, Settings, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DebugPanelTab, DebugPanelTabId } from '@/lib/sandbox/types'
 
@@ -24,6 +24,7 @@ const TAB_ICONS: Record<DebugPanelTabId, React.ComponentType<{ className?: strin
   intent: Brain,
   tokens: Coins,
   ingest: Database,
+  config: Settings,
 }
 
 interface SortableTabItemProps {

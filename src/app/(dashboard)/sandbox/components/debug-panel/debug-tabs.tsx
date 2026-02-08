@@ -11,7 +11,7 @@
 import { useState, useCallback } from 'react'
 import { TabBar } from './tab-bar'
 import { PanelContainer } from './panel-container'
-import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, ResponseSpeedPreset } from '@/lib/sandbox/types'
 
 const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'tools', label: 'Tools', visible: true },
@@ -19,6 +19,7 @@ const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'intent', label: 'Intent', visible: false },
   { id: 'tokens', label: 'Tokens', visible: false },
   { id: 'ingest', label: 'Ingest', visible: false },
+  { id: 'config', label: 'Config', visible: false },
 ]
 
 const MAX_VISIBLE = 3
@@ -28,6 +29,9 @@ interface DebugTabsProps {
   state: SandboxState
   onStateEdit: (newState: SandboxState) => void
   totalTokens: number
+  agentName: string
+  responseSpeed: ResponseSpeedPreset
+  onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
 }
 
 export function DebugTabs({
@@ -35,6 +39,9 @@ export function DebugTabs({
   state,
   onStateEdit,
   totalTokens,
+  agentName,
+  responseSpeed,
+  onResponseSpeedChange,
 }: DebugTabsProps) {
   const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
 
@@ -82,6 +89,9 @@ export function DebugTabs({
           state={state}
           onStateEdit={onStateEdit}
           totalTokens={totalTokens}
+          agentName={agentName}
+          responseSpeed={responseSpeed}
+          onResponseSpeedChange={onResponseSpeedChange}
         />
       </div>
     </div>

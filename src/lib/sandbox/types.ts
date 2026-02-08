@@ -199,7 +199,10 @@ export interface IngestTimelineEntry {
 // ============================================================================
 
 /** Available debug panel tab IDs */
-export type DebugPanelTabId = 'tools' | 'state' | 'intent' | 'tokens' | 'ingest'
+export type DebugPanelTabId = 'tools' | 'state' | 'intent' | 'tokens' | 'ingest' | 'config'
+
+/** Response speed preset for sandbox message delays */
+export type ResponseSpeedPreset = 'real' | 'rapido' | 'instantaneo'
 
 /** Configuration for a debug panel tab */
 export interface DebugPanelTab {

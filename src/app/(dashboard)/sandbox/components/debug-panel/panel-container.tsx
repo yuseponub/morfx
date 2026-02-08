@@ -14,7 +14,8 @@ import { StateTab } from './state-tab'
 import { IntentTab } from './intent-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
-import type { DebugPanelTabId, DebugTurn, SandboxState } from '@/lib/sandbox/types'
+import { ConfigTab } from './config-tab'
+import type { DebugPanelTabId, DebugTurn, SandboxState, ResponseSpeedPreset } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
   visiblePanels: DebugPanelTabId[]
@@ -22,6 +23,9 @@ interface PanelContainerProps {
   state: SandboxState
   onStateEdit: (newState: SandboxState) => void
   totalTokens: number
+  agentName: string
+  responseSpeed: ResponseSpeedPreset
+  onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
 }
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
@@ -36,6 +40,8 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
       return <TokensTab debugTurns={props.debugTurns} totalTokens={props.totalTokens} />
     case 'ingest':
       return <IngestTab state={props.state} />
+    case 'config':
+      return <ConfigTab agentName={props.agentName} responseSpeed={props.responseSpeed} onResponseSpeedChange={props.onResponseSpeedChange} />
     default:
       return null
   }

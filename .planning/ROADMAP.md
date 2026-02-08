@@ -48,6 +48,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: Agent Sandbox** - UI para probar agentes sin afectar WhatsApp real
 - [ ] **Phase 15.5: Somnio Ingest System** - Acumulacion de datos con deteccion datos vs pregunta (INSERTED)
 - [ ] **Phase 15.6: Sandbox Evolution** - Debug multi-panel, tools visibility, agent separation, ingest testing (INSERTED)
+- [ ] **Phase 15.7: Ingest Timer Pluggable** - Timer funcional con 5 niveles, configurable en sandbox, simulacion completa (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
 ---
@@ -461,6 +462,23 @@ Plans:
 - [ ] 15.6-05-PLAN.md — CRM sandbox integration (header, engine, tools tab)
 - [ ] 15.6-06-PLAN.md — Human verification of all success criteria
 
+### Phase 15.7: Ingest Timer Pluggable (INSERTED)
+**Goal**: Timer funcional del ingest con 5 niveles escalonados, configurable en sandbox con presets y sliders, simulacion completa sin Inngest
+**Depends on**: Phase 15.6
+**Requirements**: ITIM-01, ITIM-02, ITIM-03, ITIM-04, ITIM-05
+**Success Criteria** (what must be TRUE):
+  1. Timer de ingest funciona en sandbox con los 5 niveles (sin datos, parcial, minimo, promos sin respuesta, pack sin confirmar)
+  2. Cada nivel ejecuta su accion correspondiente (reminder, pedir faltantes, avanzar promos, crear orden)
+  3. Presets (Real/Rapido/Instantaneo) controlan los tiempos reales del timer
+  4. 5 sliders independientes permiten ajustar cada nivel individualmente
+  5. Countdown numerico visible en el debug panel mostrando tiempo restante y nivel actual
+  6. Datos nuevos re-evaluan el nivel del timer; preguntas no interrumpen el timer
+**Plans**: TBD
+
+Plans:
+- [ ] 15.7-01: TBD during /gsd:plan-phase
+- [ ] 15.7-02: TBD during /gsd:plan-phase
+
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
 **Depends on**: Phase 15
@@ -514,6 +532,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15. Agent Sandbox | 4/5 | In progress | - |
 | 15.5. Somnio Ingest System | 3/4 | In progress | - |
 | 15.6. Sandbox Evolution | 0/6 | Not started | - |
+| 15.7. Ingest Timer Pluggable | TBD | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---

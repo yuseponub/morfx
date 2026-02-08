@@ -171,7 +171,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
       // Step 2: Assign somnio-lead tag
       const tagStartTime = performance.now()
       const tagResult = await executeToolFromAgent(
-        'crm.contact.tag',
+        'crm.tag.add',
         {
           contactId,
           tag: 'somnio-lead',
@@ -183,7 +183,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
       const tagDuration = Math.round(performance.now() - tagStartTime)
 
       const tagToolExec: ToolExecution = {
-        name: 'crm.contact.tag',
+        name: 'crm.tag.add',
         input: { contactId, tag: 'somnio-lead' },
         result: tagResult.status === 'success'
           ? { success: true, data: tagResult.outputs }

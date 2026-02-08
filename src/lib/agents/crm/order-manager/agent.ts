@@ -2,10 +2,8 @@
  * Order Manager CRM Agent
  * Phase 15.6: Sandbox Evolution
  *
- * Creates orders with contacts. Has 3 operating modes:
- * - full: All 8 customer fields + pack selection
- * - no_promo: All 8 fields, default 1x pack (skip promo selection)
- * - draft: Only nombre + telefono (creates draft order)
+ * Creates orders with contacts using whatever data is available.
+ * No field validation — orders can be partial/draft.
  *
  * Dry-run: Uses mock data generators.
  * Live: Uses real Action DSL tools via executeToolFromAgent with test- prefix.
@@ -16,10 +14,6 @@ import { executeToolFromAgent } from '@/lib/tools/executor'
 import type { CrmCommand, CrmAgentResult, CrmCommandType, CrmExecutionMode } from '../types'
 import type { ToolExecution } from '@/lib/sandbox/types'
 import { mockCreateContact, mockCreateOrder, mockAssignTag } from './tools'
-
-const REQUIRED_FIELDS_FULL = ['nombre', 'telefono', 'ciudad', 'departamento', 'direccion', 'barrio', 'quien_recibe', 'documento']
-const REQUIRED_FIELDS_NO_PROMO = ['nombre', 'telefono', 'ciudad', 'departamento', 'direccion', 'barrio', 'quien_recibe', 'documento']
-const REQUIRED_FIELDS_DRAFT = ['nombre', 'telefono']
 
 /** Pack prices in COP */
 const PACK_PRICES: Record<string, number> = {
@@ -47,21 +41,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
     const orderMode = command.orderMode ?? 'full'
     const payload = command.payload
 
-    // Validate required fields based on mode
-    const requiredFields =
-      orderMode === 'full' ? REQUIRED_FIELDS_FULL
-      : orderMode === 'no_promo' ? REQUIRED_FIELDS_NO_PROMO
-      : REQUIRED_FIELDS_DRAFT
-
-    const missingFields = requiredFields.filter(f => !payload[f])
-    if (missingFields.length > 0) {
-      return this.buildError({
-        commandType: command.type,
-        mode,
-        code: 'MISSING_FIELDS',
-        message: `Missing required fields for mode '${orderMode}': ${missingFields.join(', ')}`,
-      })
-    }
+    // No field validation — create order with whatever data is available
 
     if (mode === 'dry-run') {
       return this.executeDryRun(command, orderMode, payload)

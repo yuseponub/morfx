@@ -120,13 +120,17 @@ export class OrderManagerAgent extends BaseCrmAgent {
       // Prefix test data: adds "test-" to nombre
       const testPayload = this.prefixTestData(payload)
 
+      // Ensure phone has E.164 format (+prefix)
+      const phone = String(testPayload.telefono ?? '')
+      const e164Phone = phone.startsWith('+') ? phone : `+${phone}`
+
       // Step 1: Create contact via Action DSL
       const contactStartTime = performance.now()
       const contactResult = await executeToolFromAgent(
         'crm.contact.create',
         {
           name: testPayload.nombre as string,
-          phone: testPayload.telefono as string,
+          phone: e164Phone,
           address: this.buildAddress(testPayload),
           city: testPayload.ciudad as string,
         },

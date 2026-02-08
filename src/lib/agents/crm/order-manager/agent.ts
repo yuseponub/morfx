@@ -106,6 +106,11 @@ export class OrderManagerAgent extends BaseCrmAgent {
   /**
    * Live mode: Execute real Action DSL tools via executeToolFromAgent.
    * Contact names are prefixed with "test-" per CONTEXT.md sandbox rules.
+   *
+   * Uses find-or-create pattern for contacts (mirrors production OrderCreator):
+   * - Try to create contact
+   * - If PHONE_DUPLICATE, search for existing contact and reuse it
+   * - This ensures idempotent sandbox runs (plug-in/plug-out with production)
    */
   private async executeLive(
     command: CrmCommand,
@@ -124,7 +129,9 @@ export class OrderManagerAgent extends BaseCrmAgent {
       const phone = String(testPayload.telefono ?? '')
       const e164Phone = phone.startsWith('+') ? phone : `+${phone}`
 
-      // Step 1: Create contact via Action DSL
+      // Step 1: Find or create contact via Action DSL
+      let contactId: string | null = null
+
       const contactStartTime = performance.now()
       const contactResult = await executeToolFromAgent(
         'crm.contact.create',
@@ -140,23 +147,77 @@ export class OrderManagerAgent extends BaseCrmAgent {
       )
       const contactDuration = Math.round(performance.now() - contactStartTime)
 
-      const contactToolExec: ToolExecution = {
-        name: 'crm.contact.create',
-        input: {
-          name: testPayload.nombre,
-          phone: testPayload.telefono,
-          city: testPayload.ciudad,
-        },
-        result: contactResult.status === 'success'
-          ? { success: true, data: contactResult.outputs }
-          : { success: false, error: { code: contactResult.error?.code ?? 'UNKNOWN', message: contactResult.error?.message ?? 'Contact creation failed' } },
-        durationMs: contactDuration,
-        timestamp: new Date().toISOString(),
-        mode: 'live',
-      }
-      toolCalls.push(contactToolExec)
+      // Unwrap ToolResult from ToolExecutionResult.outputs
+      const contactOutputs = contactResult.outputs as Record<string, unknown> | undefined
 
-      if (contactResult.status !== 'success') {
+      if (contactResult.status === 'success' && contactOutputs?.success) {
+        // Contact created successfully — extract ID from outputs.data
+        const contactData = contactOutputs.data as Record<string, unknown>
+        contactId = contactData?.id as string
+
+        toolCalls.push({
+          name: 'crm.contact.create',
+          input: { name: testPayload.nombre, phone: e164Phone, city: testPayload.ciudad },
+          result: { success: true, data: contactData },
+          durationMs: contactDuration,
+          timestamp: new Date().toISOString(),
+          mode: 'live',
+        })
+      } else {
+        // Check if it's a PHONE_DUPLICATE business error (contact exists)
+        const handlerError = contactOutputs?.error as Record<string, unknown> | undefined
+        const isDuplicate = handlerError?.code === 'PHONE_DUPLICATE'
+
+        toolCalls.push({
+          name: 'crm.contact.create',
+          input: { name: testPayload.nombre, phone: e164Phone, city: testPayload.ciudad },
+          result: { success: false, error: { code: (handlerError?.code as string) ?? contactResult.error?.code ?? 'UNKNOWN', message: (handlerError?.message as string) ?? contactResult.error?.message ?? 'Contact creation failed' } },
+          durationMs: contactDuration,
+          timestamp: new Date().toISOString(),
+          mode: 'live',
+        })
+
+        if (isDuplicate) {
+          // Find existing contact by phone — mirrors production OrderCreator pattern
+          const listStartTime = performance.now()
+          const listResult = await executeToolFromAgent(
+            'crm.contact.list',
+            { search: e164Phone, pageSize: 5 },
+            workspaceId,
+            sessionId,
+            sessionId
+          )
+          const listDuration = Math.round(performance.now() - listStartTime)
+          const listOutputs = listResult.outputs as Record<string, unknown> | undefined
+
+          if (listResult.status === 'success' && listOutputs?.success) {
+            const listData = listOutputs.data as Record<string, unknown>
+            const contacts = listData?.contacts as Array<Record<string, unknown>> | undefined
+            if (contacts && contacts.length > 0) {
+              // Match by normalized phone
+              const normalizedSearch = e164Phone.replace(/\D/g, '')
+              const match = contacts.find((c) => {
+                const cPhone = (c.phone as string)?.replace(/\D/g, '') ?? ''
+                return cPhone.endsWith(normalizedSearch) || normalizedSearch.endsWith(cPhone)
+              }) ?? contacts[0]
+              contactId = match.id as string
+            }
+          }
+
+          toolCalls.push({
+            name: 'crm.contact.list',
+            input: { search: e164Phone, pageSize: 5 },
+            result: contactId
+              ? { success: true, data: { contactId, reused: true } }
+              : { success: false, error: { code: 'NOT_FOUND', message: 'Could not find existing contact after duplicate' } },
+            durationMs: listDuration,
+            timestamp: new Date().toISOString(),
+            mode: 'live',
+          })
+        }
+      }
+
+      if (!contactId) {
         return this.buildResult({
           commandType: command.type,
           data: { error: 'Contact creation failed', details: contactResult.error },
@@ -166,11 +227,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
         })
       }
 
-      const outputs = contactResult.outputs as Record<string, unknown>
-      const contactData = (outputs?.data ?? outputs) as Record<string, unknown>
-      const contactId = contactData?.id as string
-
-      // Step 2: Assign somnio-lead tag
+      // Step 2: Assign somnio-lead tag (non-fatal — order continues even if tag fails)
       const tagStartTime = performance.now()
       const tagResult = await executeToolFromAgent(
         'crm.tag.add',
@@ -183,18 +240,18 @@ export class OrderManagerAgent extends BaseCrmAgent {
         sessionId
       )
       const tagDuration = Math.round(performance.now() - tagStartTime)
+      const tagOutputs = tagResult.outputs as Record<string, unknown> | undefined
 
-      const tagToolExec: ToolExecution = {
+      toolCalls.push({
         name: 'crm.tag.add',
         input: { contactId, tag: 'somnio-lead' },
-        result: tagResult.status === 'success'
-          ? { success: true, data: tagResult.outputs }
-          : { success: false, error: { code: tagResult.error?.code ?? 'UNKNOWN', message: tagResult.error?.message ?? 'Tag assignment failed' } },
+        result: (tagResult.status === 'success' && tagOutputs?.success)
+          ? { success: true, data: tagOutputs.data }
+          : { success: false, error: { code: (tagOutputs?.error as Record<string, unknown>)?.code as string ?? 'UNKNOWN', message: (tagOutputs?.error as Record<string, unknown>)?.message as string ?? 'Tag assignment failed' } },
         durationMs: tagDuration,
         timestamp: new Date().toISOString(),
         mode: 'live',
-      }
-      toolCalls.push(tagToolExec)
+      })
 
       // Step 3: Create order
       const pack = orderMode === 'no_promo' ? '1x' : (payload.pack as string ?? '1x')
@@ -219,22 +276,22 @@ export class OrderManagerAgent extends BaseCrmAgent {
         sessionId
       )
       const orderDuration = Math.round(performance.now() - orderStartTime)
+      const orderOutputs = orderResult.outputs as Record<string, unknown> | undefined
 
-      const orderToolExec: ToolExecution = {
+      const orderSuccess = orderResult.status === 'success' && orderOutputs?.success
+      const orderData = orderSuccess ? orderOutputs.data as Record<string, unknown> : undefined
+      const orderId = orderData?.orderId as string | undefined ?? null
+
+      toolCalls.push({
         name: 'crm.order.create',
         input: { contactId, pack, price },
-        result: orderResult.status === 'success'
-          ? { success: true, data: orderResult.outputs }
-          : { success: false, error: { code: orderResult.error?.code ?? 'UNKNOWN', message: orderResult.error?.message ?? 'Order creation failed' } },
+        result: orderSuccess
+          ? { success: true, data: orderData }
+          : { success: false, error: { code: (orderOutputs?.error as Record<string, unknown>)?.code as string ?? 'UNKNOWN', message: (orderOutputs?.error as Record<string, unknown>)?.message as string ?? 'Order creation failed' } },
         durationMs: orderDuration,
         timestamp: new Date().toISOString(),
         mode: 'live',
-      }
-      toolCalls.push(orderToolExec)
-
-      const orderId = orderResult.status === 'success'
-        ? (orderResult.outputs as Record<string, unknown>)?.orderId as string
-        : null
+      })
 
       return this.buildResult({
         commandType: command.type,

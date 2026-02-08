@@ -218,14 +218,13 @@ export class OrderCreator {
     )
 
     if (listResult.status === 'success' && listResult.outputs) {
-      const outputs = listResult.outputs as {
-        contacts: Array<{ id: string; phone: string }>
-        total: number
-      }
+      // ToolExecutionResult.outputs wraps a ToolResult: { success, data: { contacts, total } }
+      const toolResult = listResult.outputs as { success?: boolean; data?: { contacts: Array<{ id: string; phone: string }>; total: number } }
+      const contacts = toolResult.data?.contacts ?? (toolResult as unknown as { contacts: Array<{ id: string; phone: string }> }).contacts
 
       // Check if we found a contact with matching phone
-      if (outputs.contacts && outputs.contacts.length > 0) {
-        const existingContact = outputs.contacts.find((c) => {
+      if (contacts && contacts.length > 0) {
+        const existingContact = contacts.find((c) => {
           // Normalize both phones for comparison
           const normalizedExisting = c.phone?.replace(/\D/g, '') ?? ''
           const normalizedSearch = data.telefono.replace(/\D/g, '')
@@ -264,39 +263,59 @@ export class OrderCreator {
     )
 
     if (createResult.status === 'success' && createResult.outputs) {
-      const outputs = createResult.outputs as { id: string }
-      logger.debug({ contactId: outputs.id }, 'Created new contact')
-      return { contactId: outputs.id, isNew: true }
-    }
+      // ToolExecutionResult.outputs wraps a ToolResult: { success, data: { id, ... } }
+      const toolResult = createResult.outputs as { success?: boolean; data?: { id: string }; error?: { code: string } }
 
-    // Handle duplicate phone error - try to find again
-    if (createResult.error?.code === 'PHONE_DUPLICATE') {
-      logger.debug('Phone duplicate, retrying search')
-      // Phone exists but we didn't find it before - search again more broadly
-      const retryResult = await executeToolFromAgent(
-        'crm.contact.list',
-        {
-          search: data.telefono.slice(-10), // Last 10 digits
-          pageSize: 10,
-        },
-        this.workspaceId,
-        sessionId,
-        sessionId
-      )
+      if (toolResult.success && toolResult.data?.id) {
+        logger.debug({ contactId: toolResult.data.id }, 'Created new contact')
+        return { contactId: toolResult.data.id, isNew: true }
+      }
 
-      if (retryResult.status === 'success' && retryResult.outputs) {
-        const outputs = retryResult.outputs as {
-          contacts: Array<{ id: string; phone: string }>
-        }
-        if (outputs.contacts && outputs.contacts.length > 0) {
-          const contact = outputs.contacts[0]
-          await this.updateContact(contact.id, data, sessionId)
-          return { contactId: contact.id, isNew: false }
-        }
+      // Handler returned a business error (e.g., PHONE_DUPLICATE) inside outputs
+      if (!toolResult.success && toolResult.error?.code === 'PHONE_DUPLICATE') {
+        logger.debug('Phone duplicate detected from handler outputs, retrying search')
+        return this.findExistingContactByPhone(data, sessionId)
       }
     }
 
+    // Handle duplicate phone error from execution-level error
+    if (createResult.error?.code === 'PHONE_DUPLICATE') {
+      logger.debug('Phone duplicate from execution error, retrying search')
+      return this.findExistingContactByPhone(data, sessionId)
+    }
+
     logger.error({ error: createResult.error }, 'Failed to create contact')
+    return { contactId: null, isNew: false }
+  }
+
+  /**
+   * Find existing contact by phone (broader search after duplicate detected).
+   */
+  private async findExistingContactByPhone(
+    data: ContactData,
+    sessionId: string
+  ): Promise<{ contactId: string | null; isNew: boolean }> {
+    const retryResult = await executeToolFromAgent(
+      'crm.contact.list',
+      {
+        search: data.telefono.slice(-10), // Last 10 digits
+        pageSize: 10,
+      },
+      this.workspaceId,
+      sessionId,
+      sessionId
+    )
+
+    if (retryResult.status === 'success' && retryResult.outputs) {
+      const toolResult = retryResult.outputs as { success?: boolean; data?: { contacts: Array<{ id: string; phone: string }> } }
+      const contacts = toolResult.data?.contacts ?? (toolResult as unknown as { contacts: Array<{ id: string; phone: string }> }).contacts
+      if (contacts && contacts.length > 0) {
+        const contact = contacts[0]
+        await this.updateContact(contact.id, data, sessionId)
+        return { contactId: contact.id, isNew: false }
+      }
+    }
+
     return { contactId: null, isNew: false }
   }
 
@@ -362,8 +381,12 @@ export class OrderCreator {
     )
 
     if (result.status === 'success' && result.outputs) {
-      const outputs = result.outputs as { orderId: string }
-      return { orderId: outputs.orderId }
+      // ToolExecutionResult.outputs wraps a ToolResult: { success, data: { orderId, ... } }
+      const toolResult = result.outputs as { success?: boolean; data?: { orderId: string }; orderId?: string }
+      const orderId = toolResult.data?.orderId ?? toolResult.orderId
+      if (orderId) {
+        return { orderId }
+      }
     }
 
     logger.error({ error: result.error }, 'Failed to create order')

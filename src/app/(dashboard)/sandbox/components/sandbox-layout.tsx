@@ -142,15 +142,13 @@ export function SandboxLayout() {
     }
   }, [messages, state, debugTurns, crmAgents])
 
-  // Handle session reset
+  // Handle session reset (preserves CRM agent selection)
   const handleReset = useCallback(() => {
     setMessages([])
     setState(INITIAL_STATE)
     setDebugTurns([])
     setTotalTokens(0)
     setIsTyping(false)
-    // Reset CRM agents to disabled
-    setCrmAgents(prev => prev.map(a => ({ ...a, enabled: false, mode: 'dry-run' as const })))
   }, [])
 
   // Handle new session (same as reset but through controls)

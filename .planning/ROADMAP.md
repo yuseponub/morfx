@@ -473,11 +473,12 @@ Plans:
   4. 5 sliders independientes permiten ajustar cada nivel individualmente
   5. Countdown numerico visible en el debug panel mostrando tiempo restante y nivel actual
   6. Datos nuevos re-evaluan el nivel del timer; preguntas no interrumpen el timer
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 15.7-01: TBD during /gsd:plan-phase
-- [ ] 15.7-02: TBD during /gsd:plan-phase
+- [ ] 15.7-01-PLAN.md — Types + IngestTimerSimulator engine + SandboxEngine signal fix
+- [ ] 15.7-02-PLAN.md — SandboxLayout timer integration + IngestTab 5-level UI
+- [ ] 15.7-03-PLAN.md — Human verification of all success criteria
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot

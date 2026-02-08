@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.7 of 17 (Ingest Timer Pluggable - INSERTED)
-Plan: 1 of 3
+Plan: 2 of 3
 Status: In progress
-Last activity: 2026-02-08 — Completed 15.7-01-PLAN.md (Timer Engine Foundation)
+Last activity: 2026-02-08 — Completed 15.7-02-PLAN.md (Timer UI Integration)
 
 Progress: [##########] 100% MVP v1 | [████████████████] 97% MVP v2
 
@@ -56,7 +56,7 @@ All 11 phases + 4 inserted phases completed:
 | 14. Agente Ventas Somnio | 6/6 | Complete |
 | 15. Agent Sandbox | 4/4 | Complete |
 | 15.6 Sandbox Evolution | 6/6 | Complete |
-| 15.7 Ingest Timer Pluggable | 1/3 | In Progress |
+| 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 
 ## Accumulated Context
 
@@ -182,6 +182,10 @@ Recent decisions affecting MVP v2 work:
 - [15.7-01]: timerExpiresAt kept null for backward compat; new timer reads from TimerState
 - [15.7-01]: 5 timer levels: Sin datos (600s), Datos parciales (360s), Datos minimos (120s), Promos sin respuesta (600s), Pack sin confirmar (600s)
 - [15.7-01]: 3 presets: real, rapido (scaled 10x), instantaneo (1-2s minimum)
+- [15.7-02]: timerExpireRef callback ref pattern prevents stale closures in simulator
+- [15.7-02]: shadcn Switch component for timer enable/disable toggle
+- [15.7-02]: Per-level slider ranges: L2 max 300s, L0/L3/L4 max 900s, L1 max 600s
+- [15.7-02]: TimerDisplay shows M:SS format with level identifier and inline pause button
 
 ### Project Rules
 
@@ -217,6 +221,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 15.7-01-PLAN.md (Timer Engine Foundation)
+Stopped at: Completed 15.7-02-PLAN.md (Timer UI Integration)
 Resume file: None
-Next: 15.7-02-PLAN.md
+Next: 15.7-03-PLAN.md

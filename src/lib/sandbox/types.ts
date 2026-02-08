@@ -146,6 +146,8 @@ export interface SandboxEngineResult {
   newState: SandboxState
   /** Error if failed */
   error?: { code: string; message: string }
+  /** Timer control signal from SandboxEngine (Phase 15.7) */
+  timerSignal?: TimerSignal
 }
 
 // ============================================================================
@@ -210,3 +212,74 @@ export interface DebugPanelTab {
   label: string
   visible: boolean
 }
+
+// ============================================================================
+// Timer Types (Phase 15.7)
+// ============================================================================
+
+/**
+ * Timer control signal emitted by SandboxEngine.
+ * Tells the frontend timer simulator what to do.
+ */
+export interface TimerSignal {
+  type: 'start' | 'reevaluate' | 'cancel'
+  /** Suggested timer level (from IngestManager analysis) */
+  suggestedLevel?: number
+  /** Reason for cancel signal */
+  reason?: string
+}
+
+/**
+ * Current state of the timer simulator (for UI consumption).
+ */
+export interface TimerState {
+  active: boolean
+  level: number | null
+  levelName: string
+  remainingMs: number
+  paused: boolean
+}
+
+/**
+ * Timer configuration: duration in seconds per level.
+ */
+export interface TimerConfig {
+  levels: Record<number, number> // levelId -> seconds
+}
+
+/**
+ * Action to execute when a timer level expires.
+ */
+export interface TimerAction {
+  type: 'send_message' | 'transition_mode' | 'create_order'
+  message?: string
+  targetMode?: string
+  orderConfig?: { valor: number; pack?: string }
+}
+
+/**
+ * Context for evaluating which timer level applies.
+ */
+export interface TimerEvalContext {
+  fieldsCollected: string[]
+  totalFields: number
+  currentMode: string
+  packSeleccionado: string | null
+  promosOffered: boolean
+}
+
+/**
+ * Configuration for a single timer level.
+ */
+export interface TimerLevelConfig {
+  id: number
+  name: string
+  defaultDurationS: number
+  evaluate: (ctx: TimerEvalContext) => boolean
+  buildAction: (ctx: TimerEvalContext) => TimerAction
+}
+
+/**
+ * Timer speed preset name.
+ */
+export type TimerPreset = 'real' | 'rapido' | 'instantaneo'

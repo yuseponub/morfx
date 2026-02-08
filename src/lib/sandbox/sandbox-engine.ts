@@ -19,7 +19,7 @@ import { crmOrchestrator } from '@/lib/agents/crm'
 import type { CrmExecutionMode } from '@/lib/agents/crm/types'
 import type { IngestState } from '@/lib/agents/somnio/ingest-manager'
 import type { ModelTokenEntry } from '@/lib/agents/types'
-import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, IntentInfo, IngestStatus } from './types'
+import type { SandboxState, SandboxEngineResult, DebugTurn, ToolExecution, IntentInfo, IngestStatus, TimerSignal } from './types'
 
 /** CRM agent mode passed from the client */
 interface CrmMode {
@@ -42,6 +42,8 @@ export class SandboxEngine {
   private orchestrator: SomnioOrchestrator
   private ingestManager: IngestManager
   private messageClassifier: MessageClassifier
+  /** Timer signal to propagate in result (Phase 15.7) */
+  private lastTimerSignal: TimerSignal | null = null
 
   constructor() {
     this.claudeClient = new ClaudeClient()
@@ -85,6 +87,9 @@ export class SandboxEngine {
     const tools: ToolExecution[] = []
     let totalTokens = 0
     const tokenDetails: ModelTokenEntry[] = []
+
+    // Reset timer signal for this message (Phase 15.7)
+    this.lastTimerSignal = null
 
     try {
       const agentConfig = agentRegistry.get(somnioAgentConfig.id)
@@ -349,6 +354,7 @@ export class SandboxEngine {
         messages: messages.length > 0 ? messages : ['[No response generated]'],
         debugTurn,
         newState,
+        timerSignal: this.lastTimerSignal ?? undefined,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -418,7 +424,7 @@ export class SandboxEngine {
         ...Object.keys(ingestResult.extractedData?.normalized ?? {}),
       ].filter((v, i, a) => a.indexOf(v) === i), // unique
       timerType: ingestResult.timerDuration === '6m' ? 'partial' : 'no_data',
-      timerExpiresAt: null, // Timer simulation not needed in sandbox
+      timerExpiresAt: null, // Kept for backward compat; timer display reads from TimerState (Phase 15.7)
       lastClassification: ingestResult.classification.classification,
       timeline: [
         ...(currentState.ingestStatus?.timeline ?? []),
@@ -450,11 +456,20 @@ export class SandboxEngine {
       // Silent response with classification info for debug
       const classificationNote = `[SANDBOX: Silent - clasificacion: ${ingestResult.classification.classification}, confidence: ${ingestResult.classification.confidence}%]`
 
+      // Determine timer signal (Phase 15.7)
+      // First data arrival -> start timer, subsequent data -> reevaluate level
+      const timerSignal: TimerSignal | undefined = ingestResult.shouldEmitTimerStart
+        ? { type: 'start' }
+        : ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0
+          ? { type: 'reevaluate' }
+          : undefined
+
       return {
         success: true,
         messages: [classificationNote],
         debugTurn,
         newState: silentState,
+        timerSignal,
       }
     }
 
@@ -469,6 +484,9 @@ export class SandboxEngine {
         ...newIngestStatus,
         active: false,
       }
+
+      // Signal timer cancellation (Phase 15.7) - ingest complete, timer no longer needed
+      this.lastTimerSignal = { type: 'cancel', reason: 'ingest_complete' }
 
       // Return null to continue with normal orchestration
       // The orchestrator will process with mode=ofrecer_promos and send templates
@@ -578,6 +596,7 @@ export class SandboxEngine {
     }
 
     // Return with implicit yes message for partial data
+    // Include timer start signal (Phase 15.7) - first data in collecting_data
     return {
       success: true,
       messages: [
@@ -586,6 +605,7 @@ export class SandboxEngine {
       ],
       debugTurn,
       newState,
+      timerSignal: { type: 'start' },
     }
   }
 }

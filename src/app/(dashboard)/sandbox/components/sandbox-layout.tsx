@@ -97,6 +97,11 @@ export function SandboxLayout() {
     debugTurnsRef.current = debugTurns
   }, [debugTurns])
 
+  const timerEnabledRef = useRef(false)
+  useEffect(() => {
+    timerEnabledRef.current = timerEnabled
+  }, [timerEnabled])
+
   // Ref to hold latest handleTimerExpire to avoid stale closures in simulator
   const timerExpireRef = useRef<(level: number, action: TimerAction) => void>(() => {})
 
@@ -360,7 +365,8 @@ export function SandboxLayout() {
       setTotalTokens(prev => prev + result.debugTurn.tokens.tokensUsed)
 
       // 8. Process timer signals from SandboxEngine (Phase 15.7)
-      if (timerEnabled && result.timerSignal) {
+      // Use ref to avoid stale closure (timerEnabled may be outdated after message delays)
+      if (timerEnabledRef.current && result.timerSignal) {
         const signal = result.timerSignal
         if (signal.type === 'start') {
           // Build eval context from new state
@@ -399,7 +405,7 @@ export function SandboxLayout() {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [messages, state, debugTurns, crmAgents, responseSpeed, timerEnabled, timerConfig, startTimerForLevel])
+  }, [messages, state, debugTurns, crmAgents, responseSpeed, timerConfig, startTimerForLevel])
 
   // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {

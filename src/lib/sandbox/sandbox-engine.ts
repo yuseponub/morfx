@@ -290,6 +290,17 @@ export class SandboxEngine {
         currentState.currentMode !== 'collecting_data'
       ) {
         this.lastTimerSignal = { type: 'start' }
+        // Initialize ingestStatus so the debug panel shows "Activo"
+        newState.ingestStatus = {
+          active: true,
+          startedAt: new Date().toISOString(),
+          firstDataAt: null,
+          fieldsAccumulated: [],
+          timerType: 'no_data',
+          timerExpiresAt: null,
+          lastClassification: null,
+          timeline: [],
+        }
       }
 
       // 9. Extract response messages

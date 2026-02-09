@@ -26,13 +26,14 @@ const engine = new SandboxEngine()
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, state, history, turnNumber, crmAgents, workspaceId } = body as {
+    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent } = body as {
       message: string
       state: SandboxState
       history: { role: 'user' | 'assistant'; content: string }[]
       turnNumber: number
       crmAgents?: { agentId: string; mode: 'dry-run' | 'live' }[]
       workspaceId?: string
+      forceIntent?: string
     }
 
     if (!message || !state) {
@@ -48,7 +49,8 @@ export async function POST(request: NextRequest) {
       history ?? [],
       turnNumber ?? 1,
       crmAgents,
-      workspaceId
+      workspaceId,
+      forceIntent
     )
 
     return NextResponse.json(result)

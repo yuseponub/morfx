@@ -82,10 +82,20 @@ export function SandboxLayout() {
   // Timer Lifecycle (Phase 15.7)
   // ============================================================================
 
-  // Keep stateRef in sync with latest state for timer context provider
+  // Keep refs in sync for timer callbacks (avoids stale closures)
   useEffect(() => {
     stateRef.current = state
   }, [state])
+
+  const messagesRef = useRef<SandboxMessage[]>([])
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const debugTurnsRef = useRef<DebugTurn[]>([])
+  useEffect(() => {
+    debugTurnsRef.current = debugTurns
+  }, [debugTurns])
 
   // Ref to hold latest handleTimerExpire to avoid stale closures in simulator
   const timerExpireRef = useRef<(level: number, action: TimerAction) => void>(() => {})
@@ -114,12 +124,61 @@ export function SandboxLayout() {
     if (action.type === 'transition_mode' && action.targetMode) {
       setState(prev => ({ ...prev, currentMode: action.targetMode! }))
 
-      // Level 2 chains to level 3: after transitioning to ofrecer_promos,
-      // immediately start level 3 timer
+      // Level 2: transition to ofrecer_promos + trigger engine to send promo templates
       if (level === 2) {
-        setTimeout(() => {
+        const triggerPromos = async () => {
+          const currentMessages = messagesRef.current
+          const currentDebugTurns = debugTurnsRef.current
+          const currentState = stateRef.current
+          const updatedState = { ...currentState, currentMode: action.targetMode! }
+          const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
+
+          try {
+            setIsTyping(true)
+            const response = await fetch('/api/sandbox/process', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: '[timer: datos mínimos completos]',
+                state: updatedState,
+                history,
+                turnNumber: currentDebugTurns.length + 1,
+                forceIntent: 'ofrecer_promos',
+              }),
+            })
+            const result = await response.json()
+            setIsTyping(false)
+
+            if (result.success && result.messages?.length > 0) {
+              for (const msg of result.messages) {
+                const assistantMsg: SandboxMessage = {
+                  id: `msg-${Date.now()}-timer-promo-${Math.random().toString(36).slice(2, 7)}`,
+                  role: 'assistant' as const,
+                  content: msg,
+                  timestamp: new Date().toISOString(),
+                }
+                setMessages(prev => [...prev, assistantMsg])
+                await new Promise(r => setTimeout(r, 2000))
+              }
+            }
+
+            // Update state and debug from engine response
+            if (result.newState) {
+              setState(result.newState)
+            }
+            if (result.debugTurn) {
+              setDebugTurns(prev => [...prev, result.debugTurn])
+              setTotalTokens(prev => prev + (result.debugTurn.tokens?.tokensUsed ?? 0))
+            }
+          } catch (err) {
+            setIsTyping(false)
+            console.error('[Timer L2] Failed to trigger ofrecer_promos:', err)
+          }
+
+          // Chain to level 3 after promos sent
           startTimerForLevel(3)
-        }, 100) // Small delay to allow state update
+        }
+        setTimeout(() => { triggerPromos() }, 200)
       }
     }
 

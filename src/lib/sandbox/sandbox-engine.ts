@@ -82,7 +82,8 @@ export class SandboxEngine {
     history: { role: 'user' | 'assistant'; content: string }[],
     turnNumber: number,
     crmModes?: CrmMode[],
-    workspaceId?: string
+    workspaceId?: string,
+    forceIntent?: string
   ): Promise<SandboxEngineResult> {
     const tools: ToolExecution[] = []
     let totalTokens = 0
@@ -150,13 +151,15 @@ export class SandboxEngine {
       let intent: { intent: string; confidence: number; alternatives?: Array<{ intent: string; confidence: number }>; reasoning?: string }
       let action: 'proceed' | 'handoff' | 'clarify' | 'reanalyze'
 
-      if (justCompletedIngest) {
-        // Force ofrecer_promos intent when ingest completes (all 8 fields)
+      if (justCompletedIngest || forceIntent) {
+        // Force intent when ingest completes or timer triggers a mode transition
         intent = {
-          intent: 'ofrecer_promos',
+          intent: forceIntent ?? 'ofrecer_promos',
           confidence: 100,
           alternatives: [],
-          reasoning: 'Auto-triggered: all 8 fields collected',
+          reasoning: forceIntent
+            ? `Timer-triggered: ${forceIntent}`
+            : 'Auto-triggered: all 8 fields collected',
         }
         action = 'proceed'
       } else {

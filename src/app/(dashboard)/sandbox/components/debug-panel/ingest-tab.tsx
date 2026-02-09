@@ -15,12 +15,13 @@
  * - Pause/Resume button for active timer
  */
 
-import { Activity, Clock, Database, Pause, Play, Tag, Timer, Zap } from 'lucide-react'
+import { Activity, ChevronDown, ChevronRight, Clock, Code, Database, Pause, Play, Tag, Timer, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { TIMER_PRESETS, TIMER_LEVELS, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
 import type { SandboxState, IngestTimelineEntry, TimerState, TimerConfig, TimerPreset } from '@/lib/sandbox/types'
@@ -377,6 +378,45 @@ function TimerControlsV2({
 }
 
 // ============================================================================
+// Ingest State JSON Viewer
+// ============================================================================
+
+function IngestStateViewer({ state }: { state: SandboxState }) {
+  const [expanded, setExpanded] = useState(false)
+  const ingest = state.ingestStatus
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        <Code className="h-4 w-4 text-primary" />
+        <span className="text-sm font-medium">Estado Ingest (JSON)</span>
+        <Badge variant="outline" className="ml-auto text-xs">
+          {state.currentMode}
+        </Badge>
+      </button>
+      {expanded && (
+        <pre className="p-3 border-t bg-muted/30 text-xs font-mono overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre-wrap">
+          {JSON.stringify(
+            {
+              currentMode: state.currentMode,
+              ingestStatus: ingest ?? null,
+              datosCapturados: state.datosCapturados,
+              packSeleccionado: state.packSeleccionado,
+            },
+            null,
+            2
+          )}
+        </pre>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
 // Main IngestTab Component
 // ============================================================================
 
@@ -406,10 +446,13 @@ export function IngestTab({
       {/* Section 1: Status grid with timer display */}
       <StatusGrid state={state} timerState={timerState} onTimerPause={onTimerPause} />
 
-      {/* Section 2: Classification timeline */}
+      {/* Section 2: Ingest state JSON snapshot */}
+      <IngestStateViewer state={state} />
+
+      {/* Section 3: Classification timeline */}
       <Timeline entries={timeline} />
 
-      {/* Section 3: Timer controls (5 levels, 3 presets) */}
+      {/* Section 4: Timer controls (5 levels, 3 presets) */}
       <TimerControlsV2
         timerEnabled={timerEnabled}
         timerConfig={timerConfig}

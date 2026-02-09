@@ -316,6 +316,16 @@ export class SandboxEngine {
         this.lastTimerSignal = { type: 'start' }
       }
 
+      // 8d. Cancel timer when leaving ofrecer_promos (user responded to promos)
+      // e.g., ofrecer_promos → resumen (pack selected) or ofrecer_promos → confirmado
+      if (
+        !this.lastTimerSignal &&
+        previousMode === 'ofrecer_promos' &&
+        newState.currentMode !== 'ofrecer_promos'
+      ) {
+        this.lastTimerSignal = { type: 'cancel', reason: 'promos_answered' }
+      }
+
       // 9. Extract response messages
       // Skip templates for timer-forced compra_confirmada (order creation only, no dispatch messages)
       const skipTemplates = forceIntent === 'compra_confirmada'

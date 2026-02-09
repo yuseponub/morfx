@@ -337,6 +337,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
     const parts: string[] = []
     if (data.direccion) parts.push(data.direccion as string)
     if (data.barrio) parts.push(`Barrio ${data.barrio}`)
+    if (data.indicaciones_extra) parts.push(data.indicaciones_extra as string)
     return parts.join(', ')
   }
 
@@ -345,6 +346,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
     const parts: string[] = []
     if (data.direccion) parts.push(data.direccion as string)
     if (data.barrio) parts.push(`Barrio ${data.barrio}`)
+    if (data.indicaciones_extra) parts.push(data.indicaciones_extra as string)
     if (data.ciudad) parts.push(data.ciudad as string)
     if (data.departamento && data.departamento !== data.ciudad) {
       parts.push(data.departamento as string)

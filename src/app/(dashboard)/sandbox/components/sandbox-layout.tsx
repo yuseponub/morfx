@@ -69,6 +69,8 @@ export function SandboxLayout() {
 
   // CRM agent state - initialized from registry via API
   const [crmAgents, setCrmAgents] = useState<CrmAgentState[]>([])
+  const crmAgentsRef = useRef<CrmAgentState[]>([])
+  const workspaceRef = useRef(workspace)
 
   // Load CRM agents from registry on mount
   useEffect(() => {
@@ -96,6 +98,13 @@ export function SandboxLayout() {
   useEffect(() => {
     debugTurnsRef.current = debugTurns
   }, [debugTurns])
+
+  useEffect(() => {
+    crmAgentsRef.current = crmAgents
+  }, [crmAgents])
+  useEffect(() => {
+    workspaceRef.current = workspace
+  }, [workspace])
 
   const timerEnabledRef = useRef(false)
   useEffect(() => {
@@ -187,17 +196,61 @@ export function SandboxLayout() {
       }
     }
 
-    // 3. Handle order creation (levels 3, 4)
+    // 3. Handle order creation (levels 3, 4) via CRM orchestrator
     if (action.type === 'create_order') {
-      const valor = action.orderConfig?.valor ?? 0
-      const pack = action.orderConfig?.pack ?? ''
-      const placeholderMsg: SandboxMessage = {
-        id: `msg-${Date.now()}-timer-order`,
-        role: 'assistant',
-        content: `[SANDBOX: Timer L${level} - Orden creada con valor $${valor}${pack ? ` (pack: ${pack})` : ''}]`,
-        timestamp: new Date().toISOString(),
+      const triggerOrderCreation = async () => {
+        const currentMessages = messagesRef.current
+        const currentDebugTurns = debugTurnsRef.current
+        const currentState = stateRef.current
+        const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
+        const enabledCrmAgents = crmAgentsRef.current
+          .filter(a => a.enabled)
+          .map(a => ({ agentId: a.agentId, mode: a.mode }))
+
+        try {
+          setIsTyping(true)
+          const response = await fetch('/api/sandbox/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `[timer: ${level === 3 ? 'promos sin respuesta' : 'pack sin confirmar'}]`,
+              state: currentState,
+              history,
+              turnNumber: currentDebugTurns.length + 1,
+              crmAgents: enabledCrmAgents,
+              workspaceId: workspaceRef.current?.id,
+              forceIntent: 'compra_confirmada',
+            }),
+          })
+          const result = await response.json()
+          setIsTyping(false)
+
+          if (result.success && result.messages?.length > 0) {
+            for (const msg of result.messages) {
+              const assistantMsg: SandboxMessage = {
+                id: `msg-${Date.now()}-timer-order-${Math.random().toString(36).slice(2, 7)}`,
+                role: 'assistant' as const,
+                content: msg,
+                timestamp: new Date().toISOString(),
+              }
+              setMessages(prev => [...prev, assistantMsg])
+              await new Promise(r => setTimeout(r, 2000))
+            }
+          }
+
+          if (result.newState) {
+            setState(result.newState)
+          }
+          if (result.debugTurn) {
+            setDebugTurns(prev => [...prev, result.debugTurn])
+            setTotalTokens(prev => prev + (result.debugTurn.tokens?.tokensUsed ?? 0))
+          }
+        } catch (err) {
+          setIsTyping(false)
+          console.error(`[Timer L${level}] Failed to create order:`, err)
+        }
       }
-      setMessages(prev => [...prev, placeholderMsg])
+      setTimeout(() => { triggerOrderCreation() }, 200)
     }
 
     // 4. Reset timer state display (timer has expired)

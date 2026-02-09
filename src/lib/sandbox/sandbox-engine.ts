@@ -337,7 +337,7 @@ export class SandboxEngine {
             const crmResult = await crmOrchestrator.route(
               {
                 type: 'create_order',
-                payload: { ...newState.datosCapturados, _workspaceId: workspaceId ?? 'sandbox' },
+                payload: { ...newState.datosCapturados, pack: newState.packSeleccionado, _workspaceId: workspaceId ?? 'sandbox' },
                 source: 'orchestrator',
                 orderMode: 'full',
               },

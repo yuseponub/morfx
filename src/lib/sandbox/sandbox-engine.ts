@@ -282,6 +282,7 @@ export class SandboxEngine {
           ? mergeExtractedData(currentState.datosCapturados, orchestratorResult.stateUpdates.datosCapturados)
           : currentState.datosCapturados,
         packSeleccionado: orchestratorResult.stateUpdates?.packSeleccionado ?? currentState.packSeleccionado,
+        ingestStatus: currentState.ingestStatus,
       }
 
       // 8b. Emit timer start signal on transition to collecting_data (Phase 15.7 fix)

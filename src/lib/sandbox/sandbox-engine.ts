@@ -316,14 +316,13 @@ export class SandboxEngine {
         this.lastTimerSignal = { type: 'start' }
       }
 
-      // 8d. Cancel timer when leaving ofrecer_promos (user responded to promos)
-      // e.g., ofrecer_promos → resumen (pack selected) or ofrecer_promos → confirmado
+      // 8d. Re-evaluate timer on any mode transition (covers all remaining paths)
+      // e.g., ofrecer_promos → resumen (start L4), resumen → confirmado (no level matches → stops)
       if (
         !this.lastTimerSignal &&
-        previousMode === 'ofrecer_promos' &&
-        newState.currentMode !== 'ofrecer_promos'
+        previousMode !== newState.currentMode
       ) {
-        this.lastTimerSignal = { type: 'cancel', reason: 'promos_answered' }
+        this.lastTimerSignal = { type: 'start' }
       }
 
       // 9. Extract response messages

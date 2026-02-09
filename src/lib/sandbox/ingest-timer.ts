@@ -154,7 +154,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
     name: 'Pack sin confirmar',
     defaultDurationS: 600, // 10 min
     evaluate: (ctx: TimerEvalContext): boolean =>
-      ctx.currentMode === 'ofrecer_promos' && !!ctx.packSeleccionado,
+      ctx.currentMode === 'resumen' && !!ctx.packSeleccionado,
     buildAction: (ctx: TimerEvalContext): TimerAction => ({
       type: 'create_order',
       message:

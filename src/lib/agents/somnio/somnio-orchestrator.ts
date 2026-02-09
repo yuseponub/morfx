@@ -167,7 +167,8 @@ export class SomnioOrchestrator {
     intent: IntentResult,
     session: AgentSessionWithState,
     message: string,
-    history: ClaudeMessage[]
+    history: ClaudeMessage[],
+    options?: { skipValidation?: boolean }
   ): Promise<SomnioOrchestratorResult> {
     const currentMode = session.current_mode as SomnioState
     const { state } = session
@@ -198,14 +199,16 @@ export class SomnioOrchestrator {
     }
 
     // =========================================================================
-    // Step 2: Validate transition
+    // Step 2: Validate transition (skipped for timer-forced intents)
     // =========================================================================
-    const transitionResult = this.transitionValidator.validateTransition(
-      intent.intent,
-      state.intents_vistos,
-      currentMode,
-      state.datos_capturados
-    )
+    const transitionResult = options?.skipValidation
+      ? { allowed: true as const }
+      : this.transitionValidator.validateTransition(
+          intent.intent,
+          state.intents_vistos,
+          currentMode,
+          state.datos_capturados
+        )
 
     if (!transitionResult.allowed) {
       logger.warn(

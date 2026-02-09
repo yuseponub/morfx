@@ -253,12 +253,13 @@ export class SandboxEngine {
         },
       }
 
-      // 7. Orchestrate response
+      // 7. Orchestrate response (skip validation for timer-forced intents)
       const orchestratorResult = await this.orchestrator.orchestrate(
         intent,
         mockSession,
         message,
-        history
+        history,
+        forceIntent ? { skipValidation: true } : undefined
       )
       totalTokens += orchestratorResult.tokensUsed ?? 0
       // Approximate per-model detail for orchestrator (doesn't expose input/output split)

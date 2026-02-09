@@ -298,7 +298,7 @@ export class SandboxEngine {
           fieldsAccumulated: [],
           timerType: 'no_data',
           timerExpiresAt: null,
-          lastClassification: null,
+          lastClassification: undefined,
           timeline: [],
         }
       }

@@ -307,6 +307,15 @@ export class SandboxEngine {
         }
       }
 
+      // 8c. Emit timer start after ingest completion → ofrecer_promos
+      // When ingest completes normally (all data at once), the engine emits 'cancel'
+      // to stop the ingest timer. But we need Level 3 ("promos sin respuesta").
+      // Override cancel with 'start' so the client evaluates Level 3.
+      // Also covers checkImplicitYes path where no signal was set.
+      if (justCompletedIngest && newState.currentMode === 'ofrecer_promos') {
+        this.lastTimerSignal = { type: 'start' }
+      }
+
       // 9. Extract response messages
       const messages: string[] = []
       if (orchestratorResult.response) {

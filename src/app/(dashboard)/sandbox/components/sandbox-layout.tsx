@@ -59,7 +59,7 @@ export function SandboxLayout() {
     remainingMs: 0,
     paused: false,
   })
-  const [timerEnabled, setTimerEnabled] = useState(false)
+  const [timerEnabled, setTimerEnabled] = useState(true)
   const [timerConfig, setTimerConfig] = useState<TimerConfig>(TIMER_DEFAULTS)
   const simulatorRef = useRef<IngestTimerSimulator | null>(null)
   const stateRef = useRef<SandboxState>(INITIAL_STATE)
@@ -106,7 +106,7 @@ export function SandboxLayout() {
     workspaceRef.current = workspace
   }, [workspace])
 
-  const timerEnabledRef = useRef(false)
+  const timerEnabledRef = useRef(true)
   useEffect(() => {
     timerEnabledRef.current = timerEnabled
   }, [timerEnabled])
@@ -487,7 +487,7 @@ export function SandboxLayout() {
     // Stop timer on reset (Phase 15.7)
     simulatorRef.current?.stop()
     setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
-    setTimerEnabled(false)
+    // Keep timer enabled across resets (default: on)
   }, [])
 
   // Handle new session (same as reset but through controls)

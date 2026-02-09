@@ -62,6 +62,7 @@ export function SandboxLayout() {
   const [timerEnabled, setTimerEnabled] = useState(false)
   const [timerConfig, setTimerConfig] = useState<TimerConfig>(TIMER_DEFAULTS)
   const simulatorRef = useRef<IngestTimerSimulator | null>(null)
+  const stateRef = useRef<SandboxState>(INITIAL_STATE)
 
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
@@ -80,6 +81,11 @@ export function SandboxLayout() {
   // ============================================================================
   // Timer Lifecycle (Phase 15.7)
   // ============================================================================
+
+  // Keep stateRef in sync with latest state for timer context provider
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   // Ref to hold latest handleTimerExpire to avoid stale closures in simulator
   const timerExpireRef = useRef<(level: number, action: TimerAction) => void>(() => {})
@@ -164,6 +170,22 @@ export function SandboxLayout() {
         timerExpireRef.current(level, action)
       }
     )
+    // Provide real context at expiration time (Phase 15.7 fix)
+    // Uses stateRef to avoid stale closure - always reads latest state
+    simulator.setContextProvider(() => {
+      const s = stateRef.current
+      const fieldsCollected = Object.keys(s.datosCapturados).filter(
+        k => s.datosCapturados[k] && s.datosCapturados[k] !== 'N/A'
+      )
+      return {
+        fieldsCollected,
+        totalFields: fieldsCollected.length,
+        currentMode: s.currentMode,
+        packSeleccionado: s.packSeleccionado ?? null,
+        promosOffered: s.intentsVistos.includes('ofrecer_promos'),
+      }
+    })
+
     simulatorRef.current = simulator
     return () => simulator.destroy()
   }, [])

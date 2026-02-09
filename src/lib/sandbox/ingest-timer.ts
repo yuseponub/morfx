@@ -220,12 +220,24 @@ export class IngestTimerSimulator {
   private onTick: (remainingMs: number, level: number) => void
   private onExpire: (level: number, action: TimerAction) => void
 
+  // Context provider for accurate buildAction at expiration time (Phase 15.7 fix)
+  private contextProvider: (() => TimerEvalContext) | null = null
+
   constructor(
     onTick: (remainingMs: number, level: number) => void,
     onExpire: (level: number, action: TimerAction) => void
   ) {
     this.onTick = onTick
     this.onExpire = onExpire
+  }
+
+  /**
+   * Set a callback that provides the current TimerEvalContext at expiration time.
+   * This ensures buildAction receives real data (e.g., actual fieldsCollected)
+   * instead of a hardcoded empty context.
+   */
+  setContextProvider(provider: () => TimerEvalContext): void {
+    this.contextProvider = provider
   }
 
   /**
@@ -396,20 +408,24 @@ export class IngestTimerSimulator {
       const levelConfig = TIMER_LEVELS.find((l) => l.id === level)
       if (!levelConfig) return
 
-      // Build action with a minimal context (the caller should re-evaluate if needed)
-      // For now, build with empty context - the onExpire callback holder has the real context
+      // Build action with real context from provider (Phase 15.7 fix)
+      // Falls back to minimal context if no provider is set
       this.clearTimers()
       this.currentLevel = null
       this.startedAt = null
       this.durationMs = 0
 
-      this.onExpire(level, levelConfig.buildAction({
-        fieldsCollected: [],
-        totalFields: 0,
-        currentMode: '',
-        packSeleccionado: null,
-        promosOffered: false,
-      }))
+      const context: TimerEvalContext = this.contextProvider
+        ? this.contextProvider()
+        : {
+            fieldsCollected: [],
+            totalFields: 0,
+            currentMode: '',
+            packSeleccionado: null,
+            promosOffered: false,
+          }
+
+      this.onExpire(level, levelConfig.buildAction(context))
     }, durationMs)
 
     // Set up tick interval (every 1000ms)

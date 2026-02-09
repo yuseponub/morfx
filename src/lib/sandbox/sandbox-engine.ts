@@ -280,6 +280,18 @@ export class SandboxEngine {
         packSeleccionado: orchestratorResult.stateUpdates?.packSeleccionado ?? currentState.packSeleccionado,
       }
 
+      // 8b. Emit timer start signal on transition to collecting_data (Phase 15.7 fix)
+      // The normal orchestration flow (captura_datos_si_compra intent) transitions
+      // to collecting_data but never emitted a timerSignal. handleIngestMode and
+      // checkImplicitYes handle their own signals; this covers the remaining path.
+      if (
+        !this.lastTimerSignal &&
+        newState.currentMode === 'collecting_data' &&
+        currentState.currentMode !== 'collecting_data'
+      ) {
+        this.lastTimerSignal = { type: 'start' }
+      }
+
       // 9. Extract response messages
       const messages: string[] = []
       if (orchestratorResult.response) {

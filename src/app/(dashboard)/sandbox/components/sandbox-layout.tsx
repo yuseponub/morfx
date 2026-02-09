@@ -323,8 +323,25 @@ export function SandboxLayout() {
     if (!enabled) {
       simulatorRef.current?.stop()
       setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+    } else {
+      // Retroactively start timer for current state (catches missed signals)
+      const s = stateRef.current
+      const fieldsCollected = Object.keys(s.datosCapturados).filter(
+        k => s.datosCapturados[k] && s.datosCapturados[k] !== 'N/A'
+      )
+      const ctx: TimerEvalContext = {
+        fieldsCollected,
+        totalFields: fieldsCollected.length,
+        currentMode: s.currentMode,
+        packSeleccionado: s.packSeleccionado ?? null,
+        promosOffered: s.intentsVistos.includes('ofrecer_promos'),
+      }
+      const level = simulatorRef.current?.evaluateLevel(ctx)
+      if (level !== null && level !== undefined) {
+        startTimerForLevel(level)
+      }
     }
-  }, [])
+  }, [startTimerForLevel])
 
   // Timer pause/resume handler
   const handleTimerPause = useCallback(() => {

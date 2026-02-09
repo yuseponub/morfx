@@ -317,11 +317,13 @@ export class SandboxEngine {
       }
 
       // 9. Extract response messages
+      // Skip templates for timer-forced compra_confirmada (order creation only, no dispatch messages)
+      const skipTemplates = forceIntent === 'compra_confirmada'
       const messages: string[] = []
-      if (orchestratorResult.response) {
+      if (!skipTemplates && orchestratorResult.response) {
         messages.push(orchestratorResult.response)
       }
-      if (orchestratorResult.templates) {
+      if (!skipTemplates && orchestratorResult.templates) {
         for (const template of orchestratorResult.templates) {
           messages.push(template.content)
         }

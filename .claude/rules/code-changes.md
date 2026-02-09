@@ -29,9 +29,9 @@ Solo se permite editar codigo sin plan GSD en estos casos:
 
 ## Despues de Cambios de Codigo
 
-SIEMPRE reiniciar el servidor antes de pedir al usuario que pruebe:
+SIEMPRE pushear a Vercel antes de pedir al usuario que pruebe:
 ```bash
-pkill -f "next dev" 2>/dev/null; sleep 2; cd morfx && npm run dev &
+git add <archivos> && git commit && git push origin main
 ```
 
 ## Commits

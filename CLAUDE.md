@@ -25,11 +25,11 @@ Cuando tengas duda: PARA y sigue el proceso completo.
 
 ---
 
-## REGLA 1: Reinicio de Servidor
+## REGLA 1: Push a Vercel
 
-SIEMPRE reiniciar despues de cambios de codigo antes de pedir pruebas al usuario:
+SIEMPRE pushear a Vercel despues de cambios de codigo antes de pedir pruebas al usuario:
 ```bash
-pkill -f "next dev" 2>/dev/null; sleep 2; cd morfx && npm run dev &
+git add <archivos> && git commit && git push origin main
 ```
 
 ## REGLA 2: Zona Horaria Colombia

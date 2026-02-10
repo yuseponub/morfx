@@ -43,12 +43,15 @@ export class UnifiedEngine {
   async processMessage(input: EngineInput): Promise<EngineOutput> {
     try {
       // 1. Get session via storage adapter
-      const session = await this.adapters.storage.getSession(input.sessionId)
+      // Production passes empty sessionId — use getOrCreateSession via conversationId
+      const session = input.sessionId
+        ? await this.adapters.storage.getSession(input.sessionId)
+        : await this.adapters.storage.getOrCreateSession(input.conversationId, input.contactId)
 
       // 2. Get history (sandbox passes it in; production reads from DB)
       const history = input.history.length > 0
         ? input.history
-        : await this.adapters.storage.getHistory(input.sessionId)
+        : await this.adapters.storage.getHistory(session.id)
 
       // 3. Call SomnioAgent — ALL business logic happens here
       const agentOutput = await this.somnioAgent.processMessage({

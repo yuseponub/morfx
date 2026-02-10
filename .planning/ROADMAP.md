@@ -51,7 +51,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 15.7: Ingest Timer Pluggable** - Timer funcional con 5 niveles, configurable en sandbox, simulacion completa (INSERTED)
 - [x] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
-- [ ] **Phase 16.1: Engine Unification** - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (INSERTED)
+- [x] **Phase 16.1: Engine Unification** - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (INSERTED)
 - [ ] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
 - [ ] **Phase 18: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
 
@@ -540,12 +540,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 16.1-01-PLAN.md — Adapter interfaces, engine types, and shared state shapes
-- [ ] 16.1-02-PLAN.md — SomnioAgent extraction (shared business logic from both engines)
-- [ ] 16.1-03-PLAN.md — Sandbox + Production adapter implementations (10 adapters + factories)
-- [ ] 16.1-04-PLAN.md — UnifiedEngine class + wire sandbox API route
-- [ ] 16.1-05-PLAN.md — Wire production webhook-processor with backward compat
-- [ ] 16.1-06-PLAN.md — TypeScript verification + human sandbox testing
+- [x] 16.1-01-PLAN.md — Adapter interfaces, engine types, and shared state shapes
+- [x] 16.1-02-PLAN.md — SomnioAgent extraction (shared business logic from both engines)
+- [x] 16.1-03-PLAN.md — Sandbox + Production adapter implementations (10 adapters + factories)
+- [x] 16.1-04-PLAN.md — UnifiedEngine class + wire sandbox API route
+- [x] 16.1-05-PLAN.md — Wire production webhook-processor with backward compat
+- [x] 16.1-06-PLAN.md — TypeScript verification + human sandbox testing
 
 ### Phase 17: CRM Automations Engine
 **Goal**: Motor de automatizaciones configurable con triggers y acciones entre modulos (CRM, tareas, WhatsApp)
@@ -621,10 +621,10 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.7. Ingest Timer Pluggable | 2/3 | In progress | - |
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
 | 16. WhatsApp Agent Integration | 5/6 | In progress | - |
-| 16.1. Engine Unification | TBD | Not started | - |
+| 16.1. Engine Unification | 6/6 | Complete | 2026-02-10 |
 | 17. CRM Automations Engine | TBD | Not started | - |
 | 18. AI Automation Builder | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-09 (Added Phases 17-18: Automations)*
+*Last updated: 2026-02-10 (Phase 16.1 Engine Unification complete)*

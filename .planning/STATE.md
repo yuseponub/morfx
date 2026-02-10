@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 16.1: Engine Unification
+**Current focus:** MVP v2.0 — Phase 16.1 complete, next: Phase 17
 
 ## Current Position
 
-Phase: 16.1 of 18 (Engine Unification)
-Plan: 5 of 6 (01, 02, 03, 04, 05 complete)
-Status: In progress
-Last activity: 2026-02-10 — Completed 16.1-04-PLAN.md + 16.1-05-PLAN.md
+Phase: 16.1 of 18 (Engine Unification) — COMPLETE
+Plan: 6 of 6 (all complete)
+Status: Phase complete
+Last activity: 2026-02-10 — Completed 16.1-06-PLAN.md, phase verified 7/7
 
-Progress: [##########] 100% MVP v1 | [████████████████░] 95% MVP v2
+Progress: [##########] 100% MVP v1 | [█████████████████░] 97% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -37,7 +37,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
-- Phase 16.1: Engine Unification (6 plans) — INSERTED — IN PROGRESS (5/6)
+- Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (TBD plans)
 - Phase 18: AI Automation Builder (TBD plans)
 

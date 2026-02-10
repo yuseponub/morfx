@@ -126,8 +126,21 @@ export class UnifiedEngine {
         await this.adapters.timer.onModeTransition(
           session.id,
           session.current_mode,
-          agentOutput.stateUpdates.newMode
+          agentOutput.stateUpdates.newMode,
+          input.conversationId
         )
+      }
+
+      // Timer: ingest lifecycle hooks (production emits Inngest events for ingest timer)
+      // Agent signals 'start' when first data arrives in collecting_data mode
+      const hasIngestStart = agentOutput.timerSignals.some(s => s.type === 'start')
+      const hasIngestCancel = agentOutput.timerSignals.some(s => s.type === 'cancel' && s.reason === 'ingest_complete')
+
+      if (hasIngestCancel && this.adapters.timer.onIngestCompleted) {
+        await this.adapters.timer.onIngestCompleted(session.id, 'all_fields')
+      } else if (hasIngestStart && this.adapters.timer.onIngestStarted) {
+        const hasPartialData = Object.keys(agentOutput.stateUpdates.newDatosCapturados).length > 0
+        await this.adapters.timer.onIngestStarted(session, hasPartialData)
       }
 
       // 4c. Orders: create order if agent signals it

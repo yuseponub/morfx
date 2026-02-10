@@ -246,7 +246,7 @@ export interface TimerAdapter {
   onCustomerMessage?(sessionId: string, conversationId: string, content: string): Promise<void>
 
   /** Emit mode transition event (production: Inngest event for timer workflows). */
-  onModeTransition?(sessionId: string, previousMode: string, newMode: string): Promise<void>
+  onModeTransition?(sessionId: string, previousMode: string, newMode: string, conversationId?: string): Promise<void>
 
   /** Emit ingest started event (production: Inngest event to start data collection timer). */
   onIngestStarted?(session: AgentSessionLike, hasPartialData: boolean): Promise<void>

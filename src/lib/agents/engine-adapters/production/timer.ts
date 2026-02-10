@@ -68,7 +68,7 @@ export class ProductionTimerAdapter implements TimerAdapter {
    * - collecting_data.started when entering collecting_data
    * - promos.offered when entering ofrecer_promos
    */
-  async onModeTransition(sessionId: string, previousMode: string, newMode: string): Promise<void> {
+  async onModeTransition(sessionId: string, previousMode: string, newMode: string, conversationId?: string): Promise<void> {
     if (previousMode === newMode) return
 
     try {
@@ -80,11 +80,11 @@ export class ProductionTimerAdapter implements TimerAdapter {
           name: 'agent/collecting_data.started',
           data: {
             sessionId,
-            conversationId: '', // Will be filled by the caller if needed
+            conversationId: conversationId ?? '',
             workspaceId: this.workspaceId,
           },
         })
-        logger.info({ sessionId }, 'Emitted agent/collecting_data.started event')
+        logger.info({ sessionId, conversationId }, 'Emitted agent/collecting_data.started event')
       }
 
       // Emit promos.offered when transitioning TO ofrecer_promos
@@ -93,12 +93,12 @@ export class ProductionTimerAdapter implements TimerAdapter {
           name: 'agent/promos.offered',
           data: {
             sessionId,
-            conversationId: '', // Will be filled by the caller if needed
+            conversationId: conversationId ?? '',
             workspaceId: this.workspaceId,
             packOptions: ['1x', '2x', '3x'],
           },
         })
-        logger.info({ sessionId }, 'Emitted agent/promos.offered event')
+        logger.info({ sessionId, conversationId }, 'Emitted agent/promos.offered event')
       }
     } catch (error) {
       // Non-blocking: log but don't fail processing

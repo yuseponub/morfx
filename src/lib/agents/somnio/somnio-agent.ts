@@ -671,6 +671,13 @@ export class SomnioAgent {
       conversationHistory: input.history,
     })
 
+    // If no actual data was extracted, this is just a confirmation ("si", "ok", etc.)
+    // Fall through to normal intent detection which has full history context
+    const extractedFields = Object.keys(ingestResult.extractedData?.normalized ?? {})
+    if (extractedFields.length === 0) {
+      return { handled: false }
+    }
+
     // Check if all 8 fields are complete after extraction
     const mergedData = ingestResult.mergedData ?? currentData
     const allFieldsComplete = hasCriticalData(mergedData)

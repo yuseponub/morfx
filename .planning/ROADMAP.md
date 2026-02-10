@@ -49,7 +49,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 15.5: Somnio Ingest System** - Acumulacion de datos con deteccion datos vs pregunta (INSERTED)
 - [ ] **Phase 15.6: Sandbox Evolution** - Debug multi-panel, tools visibility, agent separation, ingest testing (INSERTED)
 - [ ] **Phase 15.7: Ingest Timer Pluggable** - Timer funcional con 5 niveles, configurable en sandbox, simulacion completa (INSERTED)
-- [ ] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
+- [x] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
 ---
@@ -497,10 +497,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 15.8-01-PLAN.md -- Critical bugs: stale closures (#1-3), state mutation (#4), timer signal verify (#8), closure verify (#5), race condition (#6)
-- [ ] 15.8-02-PLAN.md -- High severity bugs (#7-13) + security fixes (sandbox auth, webhook HMAC, workspace isolation)
-- [ ] 15.8-03-PLAN.md -- Medium bugs (#14-16) + constants consolidation (CRITICAL_FIELDS, TIMER_MINIMUM_FIELDS)
-- [ ] 15.8-04-PLAN.md -- Code consolidation (phone normalization, admin client, state factory, model IDs)
+- [x] 15.8-01-PLAN.md -- Critical bugs: stale closures (#1-3), state mutation (#4), timer signal verify (#8), closure verify (#5), race condition (#6)
+- [x] 15.8-02-PLAN.md -- High severity bugs (#7-13) + security fixes (sandbox auth, webhook HMAC, workspace isolation)
+- [x] 15.8-03-PLAN.md -- Medium bugs (#14-16) + constants consolidation (CRITICAL_FIELDS, TIMER_MINIMUM_FIELDS)
+- [x] 15.8-04-PLAN.md -- Code consolidation (phone normalization, admin client, state factory, model IDs)
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
@@ -554,11 +554,11 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 14. Agente Ventas Somnio | 6/6 | Complete | 2026-02-06 |
 | 15. Agent Sandbox | 4/5 | In progress | - |
 | 15.5. Somnio Ingest System | 3/4 | In progress | - |
-| 15.6. Sandbox Evolution | 0/6 | Not started | - |
-| 15.7. Ingest Timer Pluggable | TBD | Not started | - |
-| 15.8. Codebase Cleanup | TBD | Not started | - |
+| 15.6. Sandbox Evolution | 6/6 | Complete | 2026-02-08 |
+| 15.7. Ingest Timer Pluggable | 2/3 | In progress | - |
+| 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-07 (Phase 15.6 planning complete)*
+*Last updated: 2026-02-09 (Phase 15.8 complete)*

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 15.8: Codebase Cleanup
+**Current focus:** MVP v2.0 — Phase 16: WhatsApp Agent Integration
 
 ## Current Position
 
-Phase: 15.8 of 17 (Codebase Cleanup - INSERTED)
+Phase: 15.8 of 17 (Codebase Cleanup - INSERTED) — COMPLETE
 Plan: 4 of 4
-Status: Phase complete
-Last activity: 2026-02-09 — Completed 15.8-04-PLAN.md (Code Consolidation)
+Status: Phase complete, verified ✓
+Last activity: 2026-02-09 — Phase 15.8 verified (8/8 must-haves passed)
 
 Progress: [##########] 100% MVP v1 | [█████████████████] 99% MVP v2
 
@@ -239,6 +239,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 15.8-04-PLAN.md (Code Consolidation) - Phase 15.8 complete
+Stopped at: Phase 15.8 verified and complete
 Resume file: None
-Next: Phase 16 (WhatsApp Agent Integration)
+Next: Phase 16 (WhatsApp Agent Integration) — /gsd:discuss-phase 16

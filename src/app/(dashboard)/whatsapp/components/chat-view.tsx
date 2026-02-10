@@ -1,7 +1,9 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
+import { Bot } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { createClient } from '@/lib/supabase/client'
 import { useMessages } from '@/hooks/use-messages'
 import { ChatHeader } from './chat-header'
 import { MessageBubble } from './message-bubble'
@@ -13,6 +15,7 @@ interface ChatViewProps {
   conversationId: string | null
   conversation: ConversationWithDetails | null
   onTogglePanel: () => void
+  onOpenAgentConfig?: () => void
 }
 
 /**
@@ -23,6 +26,7 @@ export function ChatView({
   conversationId,
   conversation,
   onTogglePanel,
+  onOpenAgentConfig,
 }: ChatViewProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const scrolledToBottomRef = useRef(true)
@@ -87,6 +91,44 @@ export function ChatView({
     return () => container.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Agent typing indicator via Supabase Realtime broadcast
+  // Channel matches webhook-processor: `conversation:{conversationId}` with event 'typing'
+  const [isAgentTyping, setIsAgentTyping] = useState(false)
+
+  useEffect(() => {
+    if (!conversationId) {
+      setIsAgentTyping(false)
+      return
+    }
+
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`conversation:${conversationId}`)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const data = payload.payload as { isTyping: boolean; source?: string }
+        if (data.source === 'agent') {
+          // Clear previous safety timer
+          if (safetyTimer) clearTimeout(safetyTimer)
+
+          setIsAgentTyping(data.isTyping)
+
+          // Auto-clear after 30s if stop event is missed
+          if (data.isTyping) {
+            safetyTimer = setTimeout(() => setIsAgentTyping(false), 30_000)
+          }
+        }
+      })
+      .subscribe()
+
+    return () => {
+      if (safetyTimer) clearTimeout(safetyTimer)
+      setIsAgentTyping(false)
+      supabase.removeChannel(channel)
+    }
+  }, [conversationId])
+
   // Empty state
   if (!conversationId || !conversation) {
     return (
@@ -106,6 +148,7 @@ export function ChatView({
       <ChatHeader
         conversation={conversation}
         onTogglePanel={onTogglePanel}
+        onOpenAgentConfig={onOpenAgentConfig}
       />
 
       {/* Messages container with geometric pattern background */}
@@ -170,6 +213,16 @@ export function ChatView({
           </div>
         )}
       </div>
+
+      {/* Bot typing indicator */}
+      {isAgentTyping && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-t">
+          <Bot className="h-4 w-4 text-blue-500 animate-pulse" />
+          <span className="text-sm text-muted-foreground animate-pulse">
+            Bot escribiendo...
+          </span>
+        </div>
+      )}
 
       {/* Message input */}
       <MessageInput

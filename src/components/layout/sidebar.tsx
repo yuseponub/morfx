@@ -56,6 +56,11 @@ const navItems: NavItem[] = [
     icon: Bot,
   },
   {
+    href: '/agentes',
+    label: 'Agentes',
+    icon: Bot,
+  },
+  {
     href: '/settings/workspace/members',
     label: 'Equipo',
     icon: Users,

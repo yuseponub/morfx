@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, Building2, MessageSquare, Settings } from 'lucide-react'
+import { Menu, Building2, MessageSquare, Settings, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +24,11 @@ const navItems = [
     href: '/whatsapp',
     label: 'WhatsApp',
     icon: MessageSquare,
+  },
+  {
+    href: '/agentes',
+    label: 'Agentes',
+    icon: Bot,
   },
   {
     href: '/settings',

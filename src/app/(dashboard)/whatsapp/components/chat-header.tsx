@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, Check, ExternalLink, PanelRightOpen, Pencil } from 'lucide-react'
+import { Archive, ArchiveRestore, Bot, Check, ExternalLink, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -17,19 +18,21 @@ import { WindowIndicator } from './window-indicator'
 import { AssignDropdown } from './assign-dropdown'
 import { ConversationTagInput } from './conversation-tag-input'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
+import { toggleConversationAgent, getConversationAgentStatus } from '@/app/actions/agent-config'
 import { toast } from 'sonner'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ChatHeaderProps {
   conversation: ConversationWithDetails
   onTogglePanel: () => void
+  onOpenAgentConfig?: () => void
 }
 
 /**
- * Chat header with contact name, window indicator, tags, and actions.
+ * Chat header with contact name, window indicator, tags, agent toggles, and actions.
  * Actions: Mark as read, Archive, Open in CRM, Edit name.
  */
-export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
+export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: ChatHeaderProps) {
   const router = useRouter()
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
@@ -39,6 +42,43 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
       ? { id: conversation.assigned_to, name: conversation.assigned_name || 'Agente' }
       : null
   )
+
+  // Agent toggle states (null = loading, boolean = resolved)
+  const [agentConversational, setAgentConversational] = useState<boolean | null>(null)
+  const [agentCrm, setAgentCrm] = useState<boolean | null>(null)
+
+  // Load agent status when conversation changes
+  useEffect(() => {
+    let cancelled = false
+    setAgentConversational(null)
+    setAgentCrm(null)
+
+    getConversationAgentStatus(conversation.id).then((result) => {
+      if (cancelled) return
+      if ('success' in result) {
+        setAgentConversational(result.data.conversationalEnabled)
+        setAgentCrm(result.data.crmEnabled)
+      }
+    })
+
+    return () => { cancelled = true }
+  }, [conversation.id])
+
+  // Toggle agent with optimistic update + error rollback
+  const handleToggleAgent = async (type: 'conversational' | 'crm', newValue: boolean) => {
+    const prev = type === 'conversational' ? agentConversational : agentCrm
+    const setter = type === 'conversational' ? setAgentConversational : setAgentCrm
+
+    // Optimistic update
+    setter(newValue)
+
+    const result = await toggleConversationAgent(conversation.id, type, newValue)
+    if ('error' in result) {
+      // Rollback
+      setter(prev)
+      toast.error(result.error)
+    }
+  }
 
   const handleTagsChange = () => {
     router.refresh()
@@ -137,8 +177,32 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Agent toggles + Actions */}
         <div className="flex items-center gap-1">
+          {/* Agent toggles */}
+          {agentConversational !== null && (
+            <div className="flex items-center gap-2 pr-2 border-r mr-1">
+              {/* Conversational agent toggle */}
+              <div className="flex items-center gap-1" title="Agente conversacional">
+                <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                <Switch
+                  size="sm"
+                  checked={agentConversational}
+                  onCheckedChange={(v) => handleToggleAgent('conversational', v)}
+                />
+              </div>
+              {/* CRM agent toggle */}
+              <div className="flex items-center gap-1" title="Agentes CRM">
+                <span className="text-[10px] font-medium text-muted-foreground">CRM</span>
+                <Switch
+                  size="sm"
+                  checked={agentCrm ?? false}
+                  onCheckedChange={(v) => handleToggleAgent('crm', v)}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Assignment dropdown */}
           <AssignDropdown
             conversationId={conversation.id}
@@ -194,6 +258,19 @@ export function ChatHeader({ conversation, onTogglePanel }: ChatHeaderProps) {
               <Link href={`/crm/contactos/${conversation.contact_id}`}>
                 <ExternalLink className="h-4 w-4" />
               </Link>
+            </Button>
+          )}
+
+          {/* Agent config slider */}
+          {onOpenAgentConfig && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onOpenAgentConfig}
+              title="Configuracion de agente"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
             </Button>
           )}
 

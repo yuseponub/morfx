@@ -4,12 +4,15 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { ConversationList } from './conversation-list'
 import { ContactPanel } from './contact-panel'
+import { AgentConfigSlider } from './agent-config-slider'
 import { ChatView } from './chat-view'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 // No-op function for initial state
 const noopRefreshOrders = async () => {}
+
+type RightPanel = 'contact' | 'agent-config'
 
 interface InboxLayoutProps {
   workspaceId: string
@@ -22,7 +25,7 @@ interface InboxLayoutProps {
  * 3-column inbox layout:
  * - Left: Conversation list (w-80)
  * - Center: Chat view (flex-1)
- * - Right: Contact panel (w-80, collapsible)
+ * - Right: Contact panel OR Agent config slider (w-80, collapsible)
  */
 export function InboxLayout({
   workspaceId,
@@ -37,6 +40,7 @@ export function InboxLayout({
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialSelectedId || null)
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(initialConversation)
   const [isPanelOpen, setIsPanelOpen] = useState(true)
+  const [rightPanel, setRightPanel] = useState<RightPanel>('contact')
   const [refreshOrdersFn, setRefreshOrdersFn] = useState<() => Promise<void>>(() => noopRefreshOrders)
 
   // Callback to sync selected conversation from list updates (realtime)
@@ -68,6 +72,17 @@ export function InboxLayout({
     setRefreshOrdersFn(() => fn)
   }, [])
 
+  // Open agent config slider (replaces contact panel)
+  const handleOpenAgentConfig = useCallback(() => {
+    setRightPanel('agent-config')
+    setIsPanelOpen(true)
+  }, [])
+
+  // Close agent config slider (returns to contact panel)
+  const handleCloseAgentConfig = useCallback(() => {
+    setRightPanel('contact')
+  }, [])
+
   return (
     <div className="flex h-full">
       {/* Left column: Conversation list */}
@@ -87,21 +102,29 @@ export function InboxLayout({
         conversationId={selectedConversationId}
         conversation={selectedConversation}
         onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+        onOpenAgentConfig={handleOpenAgentConfig}
       />
 
-      {/* Right column: Contact panel (collapsible) */}
+      {/* Right column: Contact panel or Agent config slider (collapsible) */}
       <div
         className={cn(
           'flex-shrink-0 border-l bg-background transition-all duration-200',
           isPanelOpen ? 'w-80' : 'w-0 overflow-hidden'
         )}
       >
-        <ContactPanel
-          conversation={selectedConversation}
-          onClose={() => setIsPanelOpen(false)}
-          onConversationUpdated={refreshSelectedConversation}
-          onOrdersChanged={refreshOrdersFn}
-        />
+        {rightPanel === 'agent-config' ? (
+          <AgentConfigSlider
+            workspaceId={workspaceId}
+            onClose={handleCloseAgentConfig}
+          />
+        ) : (
+          <ContactPanel
+            conversation={selectedConversation}
+            onClose={() => setIsPanelOpen(false)}
+            onConversationUpdated={refreshSelectedConversation}
+            onOrdersChanged={refreshOrdersFn}
+          />
+        )}
       </div>
     </div>
   )

@@ -494,12 +494,13 @@ Plans:
   6. CRITICAL_FIELDS y constantes duplicadas consolidadas
   7. Supabase admin client unificado
   8. TypeScript compila sin errores despues de todos los cambios
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
-- [ ] 15.8-01-PLAN.md -- Critical bugs: stale closures (#1-3), state mutation (#4), timer context (#5), race condition (#6)
+- [ ] 15.8-01-PLAN.md -- Critical bugs: stale closures (#1-3), state mutation (#4), timer signal verify (#8), closure verify (#5), race condition (#6)
 - [ ] 15.8-02-PLAN.md -- High severity bugs (#7-13) + security fixes (sandbox auth, webhook HMAC, workspace isolation)
-- [ ] 15.8-03-PLAN.md -- Medium bugs (#14-16) + consolidation (phone, constants, admin client, state factory, model IDs)
+- [ ] 15.8-03-PLAN.md -- Medium bugs (#14-16) + constants consolidation (CRITICAL_FIELDS, TIMER_MINIMUM_FIELDS)
+- [ ] 15.8-04-PLAN.md -- Code consolidation (phone normalization, admin client, state factory, model IDs)
 
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot

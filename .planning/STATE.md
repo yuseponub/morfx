@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.8 of 17 (Codebase Cleanup - INSERTED)
-Plan: 2 of 4
+Plan: 3 of 4
 Status: In progress
-Last activity: 2026-02-09 — Completed 15.8-02-PLAN.md (High Severity Bugs + Security)
+Last activity: 2026-02-09 — Completed 15.8-03-PLAN.md (Medium Bugs + Constants)
 
 Progress: [##########] 100% MVP v1 | [████████████████░] 98% MVP v2
 
@@ -35,7 +35,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.5: Somnio Ingest System (TBD plans) — INSERTED (urgent fix)
 - Phase 15.6: Sandbox Evolution (6 plans) — INSERTED — COMPLETE
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
-- Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — Plans 01-02 COMPLETE
+- Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — Plans 01-03 COMPLETE
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -58,7 +58,7 @@ All 11 phases + 4 inserted phases completed:
 | 15. Agent Sandbox | 4/4 | Complete |
 | 15.6 Sandbox Evolution | 6/6 | Complete |
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
-| 15.8 Codebase Cleanup | 2/4 | In Progress |
+| 15.8 Codebase Cleanup | 3/4 | In Progress |
 
 ## Accumulated Context
 
@@ -196,6 +196,9 @@ Recent decisions affecting MVP v2 work:
 - [15.8-02]: WhatsApp HMAC verification env-gated (WHATSAPP_WEBHOOK_SECRET)
 - [15.8-02]: Sandbox auth + workspace membership for LIVE mode only
 - [15.8-02]: UUID regex validation for workspaceId in template-manager query
+- [15.8-03]: constants.ts has ZERO imports from project files (prevents circular deps)
+- [15.8-03]: CRITICAL_FIELDS, TIMER_MINIMUM_FIELDS, MIN_FIELDS_FOR_AUTO_PROMO consolidated in constants.ts
+- [15.8-03]: Early expiration in reevaluateLevel documented with comment (no TimerAction type change)
 
 ### Project Rules
 
@@ -232,6 +235,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 15.8-02-PLAN.md (High Severity Bugs + Security)
+Stopped at: Completed 15.8-03-PLAN.md (Medium Bugs + Constants)
 Resume file: None
-Next: 15.8-03-PLAN.md
+Next: 15.8-04-PLAN.md

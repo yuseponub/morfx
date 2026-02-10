@@ -177,58 +177,17 @@ async function processIncomingMessage(
         const { processMessageWithAgent } = await import(
           '@/lib/agents/production/webhook-processor'
         )
-        const agentResult = await processMessageWithAgent({
+        await processMessageWithAgent({
           conversationId,
           contactId: convData?.contact_id ?? null,
           messageContent: msg.text?.body ?? '',
           workspaceId,
           phone,
         })
-
-        // Debug: quick template count check (bypasses engine, tests DB directly)
-        const { count: dbTplCount } = await supabase
-          .from('agent_templates')
-          .select('*', { count: 'exact', head: true })
-          .eq('agent_id', 'somnio-sales-v1')
-
-        // Debug: write agent result as message so it's visible
-        const agentResultAny = agentResult as unknown as Record<string, unknown>
-        const debugInfo = JSON.stringify({
-          success: agentResult.success,
-          error: agentResult.error,
-          messagesSent: agentResult.messagesSent,
-          newMode: agentResult.newMode,
-          tokensUsed: agentResult.tokensUsed,
-          response: agentResult.response?.substring(0, 200),
-          sessionId: agentResult.sessionId,
-          intent: agentResultAny._debugIntent,
-          tplCount: agentResultAny._debugTemplateCount,
-          directTpl: agentResultAny._debugDirectTpl,
-          dbTpl: dbTplCount,
-        })
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          workspace_id: workspaceId,
-          direction: 'outbound',
-          type: 'text',
-          content: { body: `[DEBUG AGENTE] Result: ${debugInfo}` },
-          timestamp: new Date().toISOString(),
-        })
       } catch (agentError) {
         // Non-blocking: log but never fail message processing
         const errMsg = agentError instanceof Error ? agentError.message : String(agentError)
         console.error('Agent processing failed (non-blocking):', errMsg)
-        // Write exception to conversation for debugging
-        try {
-          await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            workspace_id: workspaceId,
-            direction: 'outbound',
-            type: 'text',
-            content: { body: `[DEBUG AGENTE] Exception: ${errMsg}` },
-            timestamp: new Date().toISOString(),
-          })
-        } catch { /* ignore debug write failure */ }
       }
     }
 

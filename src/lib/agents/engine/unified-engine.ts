@@ -194,6 +194,20 @@ export class UnifiedEngine {
           phoneNumber: input.phoneNumber,
         })
         messagesSent = sendResult.messagesSent
+
+        // Record assistant turn so production history includes bot responses
+        // (critical for intent detection context on subsequent messages)
+        const assistantContent = agentOutput.messages
+          .filter(m => !m.startsWith('[SANDBOX:'))
+          .join('\n')
+        if (assistantContent.trim()) {
+          await this.adapters.storage.addTurn({
+            sessionId: session.id,
+            turnNumber: (input.turnNumber ?? (history.length + 1)) + 1,
+            role: 'assistant',
+            content: assistantContent,
+          })
+        }
       }
 
       // 4e. Debug: record all info
@@ -227,21 +241,7 @@ export class UnifiedEngine {
       const debugTurn = this.adapters.debug.getDebugTurn(input.turnNumber ?? (history.length + 1))
       const timerSignal = this.adapters.timer.getLastSignal()
 
-      // 5. DEBUG: Direct template query to diagnose tplCount=0
-      let _debugDirectTpl = -1
-      try {
-        const { createAdminClient } = await import('@/lib/supabase/admin')
-        const debugSupa = createAdminClient()
-        const { data: debugTplData } = await debugSupa
-          .from('agent_templates')
-          .select('id')
-          .eq('agent_id', 'somnio-sales-v1')
-          .eq('intent', agentOutput.intentInfo?.intent ?? 'unknown')
-          .is('workspace_id', null)
-        _debugDirectTpl = debugTplData?.length ?? -2
-      } catch { _debugDirectTpl = -3 }
-
-      // 6. Build EngineOutput
+      // 5. Build EngineOutput
       return {
         success: agentOutput.success,
         messages: agentOutput.messages,
@@ -257,11 +257,6 @@ export class UnifiedEngine {
         messagesSent,
         response: agentOutput.messages.join('\n'),
         error: agentOutput.error,
-        ...({
-          _debugIntent: agentOutput.intentInfo?.intent,
-          _debugTemplateCount: agentOutput.templates?.length ?? 0,
-          _debugDirectTpl,
-        }),
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

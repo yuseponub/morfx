@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Plus } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Bot, Plus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { useConversations } from '@/hooks/use-conversations'
@@ -36,6 +36,7 @@ export function ConversationList({
   onRefreshOrdersReady,
 }: ConversationListProps) {
   const [showNewModal, setShowNewModal] = useState(false)
+  const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
 
   const {
     conversations,
@@ -93,6 +94,14 @@ export function ConversationList({
     onSelect(conversationId)
   }
 
+  // Apply agent filter after existing search/filter logic
+  const filteredConversations = useMemo(() => {
+    if (agentFilter === 'all') return conversations
+    // Show conversations where agent is explicitly enabled (true)
+    // agent_conversational !== false means: true or null (inheriting global)
+    return conversations.filter(c => c.agent_conversational !== false)
+  }, [conversations, agentFilter])
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with new button and availability toggle */}
@@ -121,7 +130,21 @@ export function ConversationList({
 
       {/* Filters */}
       <div className="p-3 border-b space-y-3">
-        <InboxFilters value={filter} onChange={setFilter} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <InboxFilters value={filter} onChange={setFilter} />
+          </div>
+          {/* Agent filter toggle */}
+          <Button
+            variant={agentFilter === 'agent-attended' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={() => setAgentFilter(prev => prev === 'all' ? 'agent-attended' : 'all')}
+            title={agentFilter === 'agent-attended' ? 'Mostrando solo con agente' : 'Filtrar por agente'}
+          >
+            <Bot className="h-4 w-4" />
+          </Button>
+        </div>
         <SearchInput value={query} onChange={setQuery} />
       </div>
 
@@ -131,26 +154,28 @@ export function ConversationList({
           <div className="flex items-center justify-center h-32">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : conversations.length === 0 ? (
+        ) : filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <p className="text-muted-foreground">
-              {hasQuery
-                ? 'No se encontraron conversaciones'
-                : filter === 'unread'
-                  ? 'No hay mensajes sin leer'
-                  : filter === 'mine'
-                    ? 'No tienes chats asignados'
-                    : filter === 'unassigned'
-                      ? 'No hay chats sin asignar'
-                      : filter === 'archived'
-                        ? 'No hay conversaciones archivadas'
-                        : 'No hay conversaciones aun'
+              {agentFilter === 'agent-attended'
+                ? 'No hay conversaciones con agente activo'
+                : hasQuery
+                  ? 'No se encontraron conversaciones'
+                  : filter === 'unread'
+                    ? 'No hay mensajes sin leer'
+                    : filter === 'mine'
+                      ? 'No tienes chats asignados'
+                      : filter === 'unassigned'
+                        ? 'No hay chats sin asignar'
+                        : filter === 'archived'
+                          ? 'No hay conversaciones archivadas'
+                          : 'No hay conversaciones aun'
               }
             </p>
           </div>
         ) : (
           <div>
-            {conversations.map((conversation) => {
+            {filteredConversations.map((conversation) => {
               // Get orders for this conversation's contact
               const contactOrders = conversation.contact?.id
                 ? ordersByContact.get(conversation.contact.id) || []
@@ -170,10 +195,10 @@ export function ConversationList({
         )}
       </ScrollArea>
 
-      {/* Results count when searching */}
-      {hasQuery && conversations.length > 0 && (
+      {/* Results count when searching or filtering */}
+      {(hasQuery || agentFilter === 'agent-attended') && filteredConversations.length > 0 && (
         <div className="p-2 border-t text-xs text-muted-foreground text-center">
-          {conversations.length} resultado{conversations.length !== 1 && 's'}
+          {filteredConversations.length} resultado{filteredConversations.length !== 1 && 's'}
         </div>
       )}
     </div>

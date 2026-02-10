@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot } from 'lucide-react'
@@ -91,11 +92,9 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
     <aside className="hidden md:flex flex-col w-64 border-r bg-card">
       {/* Logo/Brand */}
       <div className="h-16 flex items-center px-6 border-b">
-        <Link href="/crm" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">M</span>
-          </div>
-          <span className="font-semibold text-xl tracking-tight">morfx</span>
+        <Link href="/crm">
+          <Image src="/logo-light.png" className="block dark:hidden h-8 w-auto" alt="morfx" width={85} height={32} />
+          <Image src="/logo-dark.png" className="hidden dark:block h-8 w-auto" alt="morfx" width={135} height={32} />
         </Link>
       </div>
 

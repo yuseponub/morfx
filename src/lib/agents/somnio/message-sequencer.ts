@@ -190,8 +190,11 @@ export class MessageSequencer {
         await sleep(message.delaySeconds * 1000)
       }
 
-      // Check for interruption before sending
-      const isInterrupted = await this.checkForInterruption(sequence.sessionId)
+      // Check for interruption before sending (skip first message —
+      // last_activity_at is always fresh from engine processing, causing false positives)
+      const isInterrupted = i > 0
+        ? await this.checkForInterruption(sequence.sessionId)
+        : false
 
       if (isInterrupted) {
         // Call interruption callback if provided

@@ -177,16 +177,41 @@ async function processIncomingMessage(
         const { processMessageWithAgent } = await import(
           '@/lib/agents/production/webhook-processor'
         )
-        await processMessageWithAgent({
+        const agentResult = await processMessageWithAgent({
           conversationId,
           contactId: convData?.contact_id ?? null,
           messageContent: msg.text?.body ?? '',
           workspaceId,
           phone,
         })
+
+        // Debug: write agent errors as system messages so they're visible
+        if (!agentResult.success && agentResult.error) {
+          console.error('[agent-debug] Agent failed:', agentResult.error)
+          await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            workspace_id: workspaceId,
+            direction: 'outbound',
+            type: 'text',
+            content: { body: `[DEBUG AGENTE] Error: ${agentResult.error.code} - ${agentResult.error.message}` },
+            timestamp: new Date().toISOString(),
+          })
+        }
       } catch (agentError) {
         // Non-blocking: log but never fail message processing
-        console.error('Agent processing failed (non-blocking):', agentError)
+        const errMsg = agentError instanceof Error ? agentError.message : String(agentError)
+        console.error('Agent processing failed (non-blocking):', errMsg)
+        // Write exception to conversation for debugging
+        try {
+          await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            workspace_id: workspaceId,
+            direction: 'outbound',
+            type: 'text',
+            content: { body: `[DEBUG AGENTE] Exception: ${errMsg}` },
+            timestamp: new Date().toISOString(),
+          })
+        } catch { /* ignore debug write failure */ }
       }
     }
 

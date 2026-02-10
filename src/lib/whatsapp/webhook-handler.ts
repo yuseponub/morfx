@@ -160,6 +160,38 @@ async function processIncomingMessage(
       console.error('Error updating conversation stats:', updateError)
     }
 
+    // ================================================================
+    // Agent routing (Phase 16): Emit Inngest event for text messages
+    // The Inngest function checks agent-config before processing.
+    // Non-blocking: agent failures must not break message reception.
+    // ================================================================
+    if (msg.type === 'text') {
+      try {
+        // Get contact_id from conversation (may be null for new conversations)
+        const { data: convData } = await supabase
+          .from('conversations')
+          .select('contact_id')
+          .eq('id', conversationId)
+          .single()
+
+        const { inngest } = await import('@/inngest/client')
+        await inngest.send({
+          name: 'agent/whatsapp.message_received',
+          data: {
+            conversationId,
+            contactId: convData?.contact_id ?? null,
+            messageContent: msg.text?.body ?? '',
+            workspaceId,
+            phone,
+            messageId: msg.id,
+          },
+        })
+      } catch (agentError) {
+        // Non-blocking: log but never fail message processing
+        console.error('Agent event emission failed (non-blocking):', agentError)
+      }
+    }
+
     console.log(`Processed inbound message ${msg.id} from ${phone}`)
   } catch (error) {
     console.error('Error processing incoming message:', error)

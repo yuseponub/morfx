@@ -104,6 +104,25 @@ export type AgentEvents = {
       content?: string
     }
   }
+
+  /**
+   * Emitted when a WhatsApp text message is received and should be
+   * processed by the production agent (Phase 16).
+   *
+   * Fired from webhook-handler.ts AFTER the message is stored in DB.
+   * The Inngest function checks agent-config before processing.
+   */
+  'agent/whatsapp.message_received': {
+    data: {
+      conversationId: string
+      contactId: string | null
+      messageContent: string
+      workspaceId: string
+      phone: string
+      /** wamid for deduplication */
+      messageId: string
+    }
+  }
 }
 
 // ============================================================================

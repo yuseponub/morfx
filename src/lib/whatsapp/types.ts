@@ -55,6 +55,8 @@ export interface Conversation {
   last_message_at: string | null
   last_message_preview: string | null
   assigned_to: string | null
+  agent_conversational: boolean | null
+  agent_crm: boolean | null
   created_at: string
   updated_at: string
 }
@@ -78,6 +80,7 @@ export interface Message {
   media_mime_type: string | null
   media_filename: string | null
   template_name: string | null
+  sent_by_agent: boolean
   timestamp: string
   created_at: string
 }

@@ -239,7 +239,7 @@ export class UnifiedEngine {
         contactId: orderResult?.contactId ?? input.contactId,
         newMode: agentOutput.stateUpdates.newMode,
         tokensUsed: agentOutput.totalTokens,
-        sessionId: input.sessionId,
+        sessionId: session.id,
         messagesSent,
         response: agentOutput.messages.join('\n'),
         error: agentOutput.error,

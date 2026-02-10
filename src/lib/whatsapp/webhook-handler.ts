@@ -192,6 +192,8 @@ async function processIncomingMessage(
           messagesSent: agentResult.messagesSent,
           newMode: agentResult.newMode,
           tokensUsed: agentResult.tokensUsed,
+          response: agentResult.response?.substring(0, 200),
+          sessionId: agentResult.sessionId,
         })
         await supabase.from('messages').insert({
           conversation_id: conversationId,

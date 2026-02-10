@@ -185,18 +185,22 @@ async function processIncomingMessage(
           phone,
         })
 
-        // Debug: write agent errors as system messages so they're visible
-        if (!agentResult.success && agentResult.error) {
-          console.error('[agent-debug] Agent failed:', agentResult.error)
-          await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            workspace_id: workspaceId,
-            direction: 'outbound',
-            type: 'text',
-            content: { body: `[DEBUG AGENTE] Error: ${agentResult.error.code} - ${agentResult.error.message}` },
-            timestamp: new Date().toISOString(),
-          })
-        }
+        // Debug: write agent result as message so it's visible
+        const debugInfo = JSON.stringify({
+          success: agentResult.success,
+          error: agentResult.error,
+          messagesSent: agentResult.messagesSent,
+          newMode: agentResult.newMode,
+          tokensUsed: agentResult.tokensUsed,
+        })
+        await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          workspace_id: workspaceId,
+          direction: 'outbound',
+          type: 'text',
+          content: { body: `[DEBUG AGENTE] Result: ${debugInfo}` },
+          timestamp: new Date().toISOString(),
+        })
       } catch (agentError) {
         // Non-blocking: log but never fail message processing
         const errMsg = agentError instanceof Error ? agentError.message : String(agentError)

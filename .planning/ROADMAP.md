@@ -9,7 +9,7 @@ MorfX is a CRM + WhatsApp SaaS platform for e-commerce COD businesses. This road
 ## Milestones
 
 - **MVP v1.0** - Phases 1-11 (Complete 2026-02-04)
-- **MVP v2.0 Agentes Conversacionales** - Phases 12-16 (In progress)
+- **MVP v2.0 Agentes Conversacionales** - Phases 12-18 (In progress)
 
 ## Phases
 
@@ -51,6 +51,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 15.7: Ingest Timer Pluggable** - Timer funcional con 5 niveles, configurable en sandbox, simulacion completa (INSERTED)
 - [x] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
+- [ ] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
+- [ ] **Phase 18: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
 
 ---
 
@@ -518,12 +520,46 @@ Plans:
 - [ ] 16-01: TBD during /gsd:plan-phase
 - [ ] 16-02: TBD during /gsd:plan-phase
 
+### Phase 17: CRM Automations Engine
+**Goal**: Motor de automatizaciones configurable con triggers y acciones entre modulos (CRM, tareas, WhatsApp)
+**Depends on**: Phase 16
+**Requirements**: TBD during /gsd:discuss-phase
+**Success Criteria** (what must be TRUE):
+  1. Usuario puede crear automatizaciones con trigger (evento) + condiciones + accion
+  2. Triggers soportados: cambio de stage en orden, asignacion de tag, creacion de contacto/orden, mensaje de WhatsApp
+  3. Acciones soportadas: crear orden en otro pipeline, asignar tag, enviar mensaje WhatsApp, crear tarea
+  4. Condiciones combinables: stage = X AND tag = Y, campo = valor
+  5. Automatizaciones se ejecutan en tiempo real cuando el trigger se dispara
+  6. Panel de historial muestra ejecuciones con estado (exito/error) y detalle
+  7. Automatizaciones habilitables/deshabilitables por toggle
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD during /gsd:plan-phase
+
+### Phase 18: AI Automation Builder
+**Goal**: Meta-agente de IA que crea y configura automatizaciones por lenguaje natural con verificacion de recursos
+**Depends on**: Phase 17
+**Requirements**: TBD during /gsd:discuss-phase
+**Success Criteria** (what must be TRUE):
+  1. Usuario describe automatizacion en lenguaje natural y el agente la crea
+  2. Agente verifica que los recursos referenciados existan (pipelines, stages, tags, templates)
+  3. Si un recurso no existe, el agente lo crea (ej: tag faltante) previa confirmacion del usuario
+  4. Agente muestra preview de la automatizacion antes de activarla
+  5. Flujos creados son editables manualmente despues de creacion por IA
+  6. Agente puede modificar automatizaciones existentes por instruccion natural
+  7. Sistema valida la automatizacion completa antes de activar (endpoints existen, permisos correctos, sin ciclos)
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD during /gsd:plan-phase
+
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 15 -> 16 (v2)
+Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 (v2)
 
 ### MVP v1.0 (Complete)
 
@@ -558,7 +594,9 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.7. Ingest Timer Pluggable | 2/3 | In progress | - |
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
+| 17. CRM Automations Engine | TBD | Not started | - |
+| 18. AI Automation Builder | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-09 (Phase 15.8 complete)*
+*Last updated: 2026-02-09 (Added Phases 17-18: Automations)*

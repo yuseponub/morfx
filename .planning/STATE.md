@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 15.8 of 17 (Codebase Cleanup - INSERTED) — COMPLETE
+Phase: 15.8 of 18 (Codebase Cleanup - INSERTED) — COMPLETE
 Plan: 4 of 4
 Status: Phase complete, verified ✓
-Last activity: 2026-02-09 — Phase 15.8 verified (8/8 must-haves passed)
+Last activity: 2026-02-09 — Added Phases 17-18 (Automations)
 
-Progress: [##########] 100% MVP v1 | [█████████████████] 99% MVP v2
+Progress: [##########] 100% MVP v1 | [█████████████░░░░] 85% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -37,6 +37,8 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (TBD plans)
+- Phase 17: CRM Automations Engine (TBD plans)
+- Phase 18: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
 

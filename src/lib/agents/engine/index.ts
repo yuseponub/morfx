@@ -1,10 +1,11 @@
 /**
  * Unified Engine - Barrel Export
- * Phase 16.1: Engine Unification - Plan 01
+ * Phase 16.1: Engine Unification - Plan 01 + Plan 04
  *
- * Re-exports all public types from the engine module.
- * Plan 04 will add the UnifiedEngine class export here.
+ * Re-exports all public types and the UnifiedEngine class.
  */
+
+export { UnifiedEngine } from './unified-engine'
 
 export type {
   EngineInput,

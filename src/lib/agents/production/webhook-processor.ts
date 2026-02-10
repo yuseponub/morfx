@@ -181,6 +181,7 @@ export async function processMessageWithAgent(
     })
 
     // Map EngineOutput to SomnioEngineResult for backward compatibility
+    const engineAny = engineOutput as unknown as Record<string, unknown>
     result = {
       success: engineOutput.success,
       response: engineOutput.response,
@@ -196,7 +197,9 @@ export async function processMessageWithAgent(
         message: engineOutput.error.message,
         retryable: engineOutput.error.retryable ?? true,
       } : undefined,
-    }
+      _debugIntent: engineAny._debugIntent,
+      _debugTemplateCount: engineAny._debugTemplateCount,
+    } as SomnioEngineResult
   } catch (engineError) {
     const errorMessage = engineError instanceof Error ? engineError.message : 'Unknown engine error'
     logger.error({ error: errorMessage, conversationId }, 'UnifiedEngine processing failed')

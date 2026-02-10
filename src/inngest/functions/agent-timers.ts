@@ -1,16 +1,14 @@
 /**
- * Agent Timer Workflows
- * Phase 13 + Hotfix: Production timer integration
+ * Agent Timer Workflows — Production
+ * Mirrors sandbox IngestTimerSimulator behavior via Inngest durable functions.
  *
- * Durable timer workflows for proactive agent actions.
- * Uses step.waitForEvent() for timeout-based customer engagement.
+ * Sandbox timer fires → evaluates level → executes action:
+ *   - send_message: send WhatsApp message
+ *   - transition_mode: call engine with forceIntent (e.g., ofrecer_promos)
+ *   - create_order: call engine with forceIntent: compra_confirmada
  *
- * Timer durations come from workspace_agent_config.timer_preset:
- * - real: 6-10 min (production defaults)
- * - rapido: 30-60 seg (fast testing)
- * - instantaneo: 1-2 seg (instant testing)
- *
- * Messages sent directly via 360dialog API (not tool executor).
+ * Production does the SAME via Inngest step.waitForEvent() + UnifiedEngine.
+ * Timer durations come from workspace_agent_config.timer_preset.
  */
 
 import { inngest } from '../client'
@@ -18,21 +16,23 @@ import { SessionManager } from '@/lib/agents/session-manager'
 import { sendTextMessage } from '@/lib/whatsapp/api'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/ingest-timer'
+import type { TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
+import { TIMER_MINIMUM_FIELDS } from '@/lib/agents/somnio/constants'
 
 const logger = createModuleLogger('agent-timers')
 
-// Lazy initialization to avoid circular dependencies
+// Lazy SessionManager
 let _sessionManager: SessionManager | null = null
 function getSessionManager(): SessionManager {
-  if (!_sessionManager) {
-    _sessionManager = new SessionManager()
-  }
+  if (!_sessionManager) _sessionManager = new SessionManager()
   return _sessionManager
 }
 
-/**
- * Get WhatsApp API key from workspace settings, fallback to env var.
- */
+// ============================================================================
+// Helper: Send WhatsApp message directly via 360dialog API
+// ============================================================================
+
 async function getWhatsAppApiKey(workspaceId: string): Promise<string | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
@@ -40,15 +40,11 @@ async function getWhatsAppApiKey(workspaceId: string): Promise<string | null> {
     .select('settings')
     .eq('id', workspaceId)
     .single()
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const settings = data?.settings as any
   return settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY || null
 }
 
-/**
- * Get phone number for a conversation.
- */
 async function getConversationPhone(conversationId: string): Promise<string | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
@@ -59,10 +55,6 @@ async function getConversationPhone(conversationId: string): Promise<string | nu
   return data?.phone ?? null
 }
 
-/**
- * Send a WhatsApp message directly via 360dialog API.
- * Also records the message in the DB.
- */
 async function sendWhatsAppMessage(
   workspaceId: string,
   conversationId: string,
@@ -70,21 +62,17 @@ async function sendWhatsAppMessage(
 ): Promise<boolean> {
   const apiKey = await getWhatsAppApiKey(workspaceId)
   if (!apiKey) {
-    logger.error({ workspaceId }, 'No WhatsApp API key configured')
+    logger.error({ workspaceId }, 'No WhatsApp API key')
     return false
   }
-
   const phone = await getConversationPhone(conversationId)
   if (!phone) {
-    logger.error({ conversationId }, 'No phone number for conversation')
+    logger.error({ conversationId }, 'No phone for conversation')
     return false
   }
-
   try {
     const response = await sendTextMessage(apiKey, phone, message)
     const wamid = response.messages?.[0]?.id
-
-    // Record message in DB
     const supabase = createAdminClient()
     await supabase.from('messages').insert({
       conversation_id: conversationId,
@@ -96,235 +84,158 @@ async function sendWhatsAppMessage(
       status: 'sent',
       timestamp: new Date().toISOString(),
     })
-
-    // Update conversation preview
-    await supabase
-      .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: message.length > 100 ? message.slice(0, 100) + '...' : message,
-      })
-      .eq('id', conversationId)
-
-    logger.info({ conversationId, wamid }, 'Timer message sent via WhatsApp')
+    await supabase.from('conversations').update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: message.length > 100 ? message.slice(0, 100) + '...' : message,
+    }).eq('id', conversationId)
+    logger.info({ conversationId, wamid }, 'Timer WhatsApp message sent')
     return true
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error)
-    logger.error({ error: errMsg, conversationId }, 'Failed to send timer message')
+    logger.error({ error, conversationId }, 'Failed to send timer WhatsApp message')
     return false
   }
 }
 
-/**
- * Data Collection Timer
- *
- * Triggered when agent enters 'collecting_data' mode.
- * Duration comes from workspace preset (event.data.timerDurationMs).
- */
-export const dataCollectionTimer = inngest.createFunction(
-  {
-    id: 'data-collection-timer',
-    name: 'Data Collection Timer',
-    retries: 3,
-  },
-  { event: 'agent/collecting_data.started' },
-  async ({ event, step }) => {
-    const { sessionId, conversationId, workspaceId } = event.data
-    const timeoutMs = event.data.timerDurationMs ?? 360_000 // default 6 min
-
-    logger.info({ sessionId, timeoutMs }, 'Data collection timer started')
-
-    // Update session state to track timer start
-    await step.run('mark-timer-start', async () => {
-      const sessionManager = getSessionManager()
-      await sessionManager.updateState(sessionId, {
-        proactive_started_at: new Date().toISOString(),
-      })
-    })
-
-    // Wait for customer message or timeout
-    const customerMessage = await step.waitForEvent('wait-for-data', {
-      event: 'agent/customer.message',
-      timeout: `${timeoutMs}ms`,
-      match: 'data.sessionId',
-    })
-
-    if (!customerMessage) {
-      // Timeout: check data status and act accordingly
-      const dataStatus = await step.run('check-data-status', async () => {
-        const sessionManager = getSessionManager()
-        const session = await sessionManager.getSession(sessionId)
-        const datos = session.state.datos_capturados
-
-        const required = ['nombre', 'telefono', 'ciudad', 'direccion', 'departamento']
-        const missing = required.filter((field) => !datos[field])
-
-        return {
-          hasAnyData: Object.keys(datos).length > 0,
-          missingFields: missing,
-          isComplete: missing.length === 0,
-        }
-      })
-
-      if (!dataStatus.hasAnyData) {
-        // No data at all - send "quedamos pendientes"
-        await step.run('send-pending-message', async () => {
-          await sendWhatsAppMessage(
-            workspaceId,
-            conversationId,
-            'Quedamos pendientes! Cuando tengas un momento, me cuentas para ayudarte con tu pedido.'
-          )
-        })
-
-        return { status: 'timeout', action: 'sent_pending_message' }
-      }
-
-      if (!dataStatus.isComplete) {
-        // Partial data - request missing fields
-        const missingText = dataStatus.missingFields.join(', ')
-        await step.run('request-missing-data', async () => {
-          await sendWhatsAppMessage(
-            workspaceId,
-            conversationId,
-            `Para continuar con tu pedido, necesito que me confirmes: ${missingText}`
-          )
-        })
-
-        return { status: 'timeout', action: 'requested_missing_data', missing: dataStatus.missingFields }
-      }
-
-      // Complete data but timeout - still transition to promos
-      logger.info({ sessionId }, 'Data complete, transitioning to promos after timeout')
-    }
-
-    // Check if data is complete
-    const isComplete = await step.run('verify-data-complete', async () => {
-      const sessionManager = getSessionManager()
-      const session = await sessionManager.getSession(sessionId)
-      const datos = session.state.datos_capturados
-      const required = ['nombre', 'telefono', 'ciudad', 'direccion', 'departamento']
-      return required.every((field) => !!datos[field])
-    })
-
-    if (isComplete) {
-      // Data complete - wait briefly then trigger promos
-      await step.sleep('wait-before-promos', '5s')
-
-      await step.run('transition-to-promos', async () => {
-        await inngest.send({
-          name: 'agent/promos.offered',
-          data: {
-            sessionId,
-            conversationId,
-            workspaceId,
-            packOptions: ['1x', '2x', '3x'],
-          },
-        })
-
-        const sessionManager = getSessionManager()
-        const session = await sessionManager.getSession(sessionId)
-        await sessionManager.updateSessionWithVersion(sessionId, session.version, {
-          currentMode: 'ofrecer_promos',
-        })
-        await sessionManager.updateState(sessionId, {
-          ofrecer_promos_at: new Date().toISOString(),
-        })
-      })
-
-      return { status: 'complete', action: 'transitioned_to_promos' }
-    }
-
-    // Customer responded but data still incomplete
-    return { status: 'responded', action: 'awaiting_more_data' }
-  }
-)
-
-/**
- * Promos Timer
- *
- * Triggered when promos are offered to customer.
- * Duration comes from workspace preset (event.data.timerDurationMs).
- */
-export const promosTimer = inngest.createFunction(
-  {
-    id: 'promos-timer',
-    name: 'Promos Timer',
-    retries: 3,
-  },
-  { event: 'agent/promos.offered' },
-  async ({ event, step }) => {
-    const { sessionId, conversationId, workspaceId } = event.data
-    const timeoutMs = event.data.timerDurationMs ?? 600_000 // default 10 min
-
-    logger.info({ sessionId, timeoutMs }, 'Promos timer started')
-
-    // Wait for customer response or timeout
-    const response = await step.waitForEvent('wait-for-selection', {
-      event: 'agent/customer.message',
-      timeout: `${timeoutMs}ms`,
-      match: 'data.sessionId',
-    })
-
-    if (!response) {
-      // Timeout: send reminder message
-      logger.info({ sessionId }, 'Promos timeout, sending reminder')
-
-      await step.run('send-promos-reminder', async () => {
-        await sendWhatsAppMessage(
-          workspaceId,
-          conversationId,
-          'Quedamos pendientes con tu seleccion de pack. Cuando estes listo, me cuentas cual prefieres: 1x, 2x, o 3x'
-        )
-      })
-
-      return { status: 'timeout', action: 'sent_reminder' }
-    }
-
-    // Customer responded - let the main engine process the selection
-    return { status: 'responded', action: 'awaiting_selection_processing' }
-  }
-)
-
 // ============================================================================
-// Ingest Timer (Phase 15.5: Somnio Ingest System)
+// Helper: Call engine with forceIntent (mirrors sandbox timer behavior)
 // ============================================================================
 
-/**
- * Build timeout message based on data status.
- */
-function buildTimeoutMessage(
-  datosCapturados: Record<string, string>,
-  hasPartialData: boolean
-): string {
-  if (!hasPartialData) {
-    return 'Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla'
+async function callEngineWithForceIntent(
+  sessionId: string,
+  conversationId: string,
+  workspaceId: string,
+  forceIntent: string,
+  phone: string,
+): Promise<void> {
+  try {
+    // Import barrel to trigger agent self-registration
+    await import('@/lib/agents/somnio')
+
+    const { UnifiedEngine } = await import('@/lib/agents/engine/unified-engine')
+    const { createProductionAdapters } = await import('@/lib/agents/engine-adapters/production')
+
+    const adapters = createProductionAdapters({
+      workspaceId,
+      conversationId,
+      phoneNumber: phone,
+    })
+
+    const engine = new UnifiedEngine(adapters, { workspaceId })
+
+    const result = await engine.processMessage({
+      sessionId,
+      conversationId,
+      contactId: '', // Engine resolves from session
+      message: '', // No customer message for timer-triggered calls
+      workspaceId,
+      history: [], // Production adapter reads from DB
+      forceIntent,
+      phoneNumber: phone,
+    })
+
+    logger.info(
+      {
+        sessionId,
+        forceIntent,
+        success: result.success,
+        messagesSent: result.messagesSent,
+        newMode: result.newMode,
+        orderCreated: result.orderCreated,
+      },
+      'Engine forceIntent call completed'
+    )
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error)
+    logger.error({ error: errMsg, sessionId, forceIntent }, 'Engine forceIntent call failed')
   }
-
-  const criticalFields = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
-  const fieldLabels: Record<string, string> = {
-    nombre: 'Tu nombre completo',
-    telefono: 'Numero de telefono',
-    direccion: 'Direccion de entrega',
-    ciudad: 'Ciudad',
-    departamento: 'Departamento',
-  }
-
-  const missing = criticalFields
-    .filter(f => !datosCapturados[f] || datosCapturados[f] === 'N/A')
-    .map(f => `- ${fieldLabels[f]}`)
-
-  if (missing.length === 0) {
-    return 'Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla'
-  }
-
-  return `Para poder despachar tu producto nos faltaria:\n${missing.join('\n')}\nQuedamos pendientes`
 }
 
+// ============================================================================
+// Helper: Build TimerEvalContext from session state
+// ============================================================================
+
+function buildTimerContext(session: {
+  current_mode: string
+  state: {
+    datos_capturados: Record<string, string>
+    pack_seleccionado: unknown
+    templates_enviados?: string[]
+  }
+}): TimerEvalContext {
+  const datos = session.state.datos_capturados ?? {}
+  const fieldsCollected = TIMER_ALL_FIELDS.filter(
+    f => datos[f] && datos[f].trim() !== '' && datos[f] !== 'N/A'
+  )
+
+  return {
+    fieldsCollected,
+    totalFields: fieldsCollected.length,
+    currentMode: session.current_mode,
+    packSeleccionado: session.state.pack_seleccionado as string | null,
+    promosOffered: (session.state.templates_enviados ?? []).some(
+      t => t.includes('ofrecer_promos') || t.includes('promo')
+    ),
+  }
+}
+
+// ============================================================================
+// Helper: Execute timer action (mirrors sandbox onExpire handler)
+// ============================================================================
+
+async function executeTimerAction(
+  level: number,
+  action: TimerAction,
+  sessionId: string,
+  conversationId: string,
+  workspaceId: string,
+  phone: string,
+): Promise<{ status: string; action: string }> {
+  logger.info({ level, actionType: action.type, sessionId }, 'Executing timer action')
+
+  if (action.type === 'send_message' && action.message) {
+    // L0, L1: Just send message
+    await sendWhatsAppMessage(workspaceId, conversationId, action.message)
+    return { status: 'timeout', action: 'sent_message' }
+  }
+
+  if (action.type === 'transition_mode' && action.targetMode) {
+    // L2: Transition to ofrecer_promos — call engine with forceIntent
+    await callEngineWithForceIntent(
+      sessionId, conversationId, workspaceId, action.targetMode, phone
+    )
+    return { status: 'timeout', action: `transitioned_to_${action.targetMode}` }
+  }
+
+  if (action.type === 'create_order') {
+    // L3, L4: Send message + create order via engine
+    if (action.message) {
+      await sendWhatsAppMessage(workspaceId, conversationId, action.message)
+    }
+    await callEngineWithForceIntent(
+      sessionId, conversationId, workspaceId, 'compra_confirmada', phone
+    )
+    return { status: 'timeout', action: 'created_order' }
+  }
+
+  return { status: 'timeout', action: 'unknown_action' }
+}
+
+// ============================================================================
+// Inngest Function: Ingest Timer (main timer — replaces all 3 old functions)
+// ============================================================================
+
 /**
- * Ingest Timer
+ * Unified Ingest Timer
  *
- * Triggered when first data is received in collecting_data mode.
- * Duration comes from workspace preset via event.data.timerDurationMs.
+ * Single timer function that evaluates levels on fire, same as sandbox.
+ * Triggered by agent/ingest.started (when first data arrives or mode enters collecting_data).
+ * Also handles collecting_data.started and promos.offered via separate triggers.
+ *
+ * Flow:
+ * 1. Wait for timeout (duration from workspace preset)
+ * 2. On timeout: evaluate current level from session state
+ * 3. Build action for that level
+ * 4. Execute action (send_message / transition_mode / create_order)
  */
 export const ingestTimer = inngest.createFunction(
   {
@@ -336,12 +247,9 @@ export const ingestTimer = inngest.createFunction(
   async ({ event, step }) => {
     const { sessionId, conversationId, workspaceId, hasPartialData, timerDurationMs } = event.data
 
-    logger.info(
-      { sessionId, hasPartialData, timerDurationMs },
-      'Ingest timer started'
-    )
+    logger.info({ sessionId, hasPartialData, timerDurationMs }, 'Ingest timer started')
 
-    // Wait for completion event OR timeout
+    // Wait for completion or timeout
     const completionEvent = await step.waitForEvent('wait-for-completion', {
       event: 'agent/ingest.completed',
       timeout: `${timerDurationMs}ms`,
@@ -349,30 +257,178 @@ export const ingestTimer = inngest.createFunction(
     })
 
     if (completionEvent) {
-      logger.info(
-        { sessionId, reason: completionEvent.data.reason },
-        'Ingest completed - timer cancelled'
-      )
+      logger.info({ sessionId, reason: completionEvent.data.reason }, 'Ingest completed — timer cancelled')
       return { status: 'completed', reason: completionEvent.data.reason }
     }
 
-    // Timeout expired - send appropriate message
-    await step.run('handle-ingest-timeout', async () => {
-      const sessionManager = getSessionManager()
-      const session = await sessionManager.getSession(sessionId)
-      const datos = session.state.datos_capturados
+    // Timeout: evaluate level and execute action
+    const result = await step.run('evaluate-and-execute', async () => {
+      const sm = getSessionManager()
+      const session = await sm.getSession(sessionId)
+      const ctx = buildTimerContext(session)
 
-      const message = buildTimeoutMessage(datos, hasPartialData)
+      // Evaluate which level applies
+      let matchedLevel: number | null = null
+      for (const level of TIMER_LEVELS) {
+        if (level.evaluate(ctx)) {
+          matchedLevel = level.id
+          break
+        }
+      }
 
-      logger.info(
-        { sessionId, hasPartialData },
-        'Ingest timeout - sending message'
-      )
+      if (matchedLevel === null) {
+        logger.warn({ sessionId, ctx }, 'No timer level matched on timeout')
+        return { status: 'timeout', action: 'no_level_matched' }
+      }
 
-      await sendWhatsAppMessage(workspaceId, conversationId, message)
+      const levelConfig = TIMER_LEVELS.find(l => l.id === matchedLevel)!
+      const action = levelConfig.buildAction(ctx)
+
+      // Get phone for WhatsApp sending
+      const phone = await getConversationPhone(conversationId)
+      if (!phone) {
+        logger.error({ conversationId }, 'No phone — cannot execute timer action')
+        return { status: 'error', action: 'no_phone' }
+      }
+
+      return executeTimerAction(matchedLevel, action, sessionId, conversationId, workspaceId, phone)
     })
 
-    return { status: 'timeout', hadData: hasPartialData }
+    return result
+  }
+)
+
+/**
+ * Data Collection Timer
+ * Triggered when entering collecting_data mode (before any data arrives).
+ * Evaluates level on timeout and delegates to same action system.
+ */
+export const dataCollectionTimer = inngest.createFunction(
+  {
+    id: 'data-collection-timer',
+    name: 'Data Collection Timer',
+    retries: 3,
+  },
+  { event: 'agent/collecting_data.started' },
+  async ({ event, step }) => {
+    const { sessionId, conversationId, workspaceId } = event.data
+    const timeoutMs = event.data.timerDurationMs ?? 360_000
+
+    logger.info({ sessionId, timeoutMs }, 'Data collection timer started')
+
+    // Mark timer start
+    await step.run('mark-timer-start', async () => {
+      const sm = getSessionManager()
+      await sm.updateState(sessionId, { proactive_started_at: new Date().toISOString() })
+    })
+
+    // Wait for customer message or timeout
+    const customerMessage = await step.waitForEvent('wait-for-data', {
+      event: 'agent/customer.message',
+      timeout: `${timeoutMs}ms`,
+      match: 'data.sessionId',
+    })
+
+    if (customerMessage) {
+      return { status: 'responded', action: 'customer_replied' }
+    }
+
+    // Timeout: evaluate level and execute action
+    const result = await step.run('evaluate-and-execute', async () => {
+      const sm = getSessionManager()
+      const session = await sm.getSession(sessionId)
+      const ctx = buildTimerContext(session)
+
+      let matchedLevel: number | null = null
+      for (const level of TIMER_LEVELS) {
+        if (level.evaluate(ctx)) {
+          matchedLevel = level.id
+          break
+        }
+      }
+
+      if (matchedLevel === null) {
+        logger.warn({ sessionId }, 'No timer level matched')
+        return { status: 'timeout', action: 'no_level_matched' }
+      }
+
+      const levelConfig = TIMER_LEVELS.find(l => l.id === matchedLevel)!
+      const action = levelConfig.buildAction(ctx)
+
+      const phone = await getConversationPhone(conversationId)
+      if (!phone) {
+        logger.error({ conversationId }, 'No phone')
+        return { status: 'error', action: 'no_phone' }
+      }
+
+      return executeTimerAction(matchedLevel, action, sessionId, conversationId, workspaceId, phone)
+    })
+
+    return result
+  }
+)
+
+/**
+ * Promos Timer
+ * Triggered when entering ofrecer_promos mode.
+ * On timeout: create order via engine forceIntent.
+ */
+export const promosTimer = inngest.createFunction(
+  {
+    id: 'promos-timer',
+    name: 'Promos Timer',
+    retries: 3,
+  },
+  { event: 'agent/promos.offered' },
+  async ({ event, step }) => {
+    const { sessionId, conversationId, workspaceId } = event.data
+    const timeoutMs = event.data.timerDurationMs ?? 600_000
+
+    logger.info({ sessionId, timeoutMs }, 'Promos timer started')
+
+    // Wait for customer message or timeout
+    const response = await step.waitForEvent('wait-for-selection', {
+      event: 'agent/customer.message',
+      timeout: `${timeoutMs}ms`,
+      match: 'data.sessionId',
+    })
+
+    if (response) {
+      return { status: 'responded', action: 'customer_replied' }
+    }
+
+    // Timeout: evaluate level and execute action
+    const result = await step.run('evaluate-and-execute', async () => {
+      const sm = getSessionManager()
+      const session = await sm.getSession(sessionId)
+      const ctx = buildTimerContext(session)
+
+      let matchedLevel: number | null = null
+      for (const level of TIMER_LEVELS) {
+        if (level.evaluate(ctx)) {
+          matchedLevel = level.id
+          break
+        }
+      }
+
+      if (matchedLevel === null) {
+        logger.warn({ sessionId }, 'No timer level matched')
+        return { status: 'timeout', action: 'no_level_matched' }
+      }
+
+      const levelConfig = TIMER_LEVELS.find(l => l.id === matchedLevel)!
+      const action = levelConfig.buildAction(ctx)
+
+      const phone = await getConversationPhone(conversationId)
+      if (!phone) {
+        logger.error({ conversationId }, 'No phone')
+        return { status: 'error', action: 'no_phone' }
+      }
+
+      return executeTimerAction(matchedLevel, action, sessionId, conversationId, workspaceId, phone)
+    })
+
+    return result
   }
 )
 

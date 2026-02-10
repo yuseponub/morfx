@@ -185,6 +185,12 @@ async function processIncomingMessage(
           phone,
         })
 
+        // Debug: quick template count check (bypasses engine, tests DB directly)
+        const { count: dbTplCount } = await supabase
+          .from('agent_templates')
+          .select('*', { count: 'exact', head: true })
+          .eq('agent_id', 'somnio-sales-v1')
+
         // Debug: write agent result as message so it's visible
         const agentResultAny = agentResult as unknown as Record<string, unknown>
         const debugInfo = JSON.stringify({
@@ -197,6 +203,7 @@ async function processIncomingMessage(
           sessionId: agentResult.sessionId,
           intent: agentResultAny._debugIntent,
           tplCount: agentResultAny._debugTemplateCount,
+          dbTpl: dbTplCount,
         })
         await supabase.from('messages').insert({
           conversation_id: conversationId,

@@ -254,6 +254,9 @@ export class TemplateManager {
       return []
     }
 
+    // DEBUG: Log template loading result for production diagnostics
+    console.log(`[TemplateManager] Loaded ${data?.length ?? 0} templates for agent=${agentId}, workspaceId=${this.workspaceId ?? 'NULL'}`)
+
     // Transform database rows to typed AgentTemplate
     const templates = (data as AgentTemplateRow[]).map(row => this.rowToTemplate(row))
 

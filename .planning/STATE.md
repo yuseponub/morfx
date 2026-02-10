@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 16 of 18 (WhatsApp Agent Integration)
-Plan: 1 of 6
+Plan: 2 of 6
 Status: In progress
-Last activity: 2026-02-09 — Completed 16-01-PLAN.md
+Last activity: 2026-02-10 — Completed 16-02-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [██████████████░░░] 87% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████░░░] 89% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -61,7 +61,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.6 Sandbox Evolution | 6/6 | Complete |
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
-| 16. WhatsApp Agent Integration | 1/6 | In Progress |
+| 16. WhatsApp Agent Integration | 2/6 | In Progress |
 
 ## Accumulated Context
 
@@ -210,6 +210,12 @@ Recent decisions affecting MVP v2 work:
 - [16-01]: 3-state per-conversation override: NULL=inherit, false=disabled, true=enabled
 - [16-01]: Agent config uses createAdminClient for all DB operations (webhook/background context)
 - [16-01]: DEFAULT_AGENT_CONFIG exported for server actions to return defaults when no row exists
+- [16-02]: Inngest event emitted for ALL text messages; agent-config check deferred to processMessageWithAgent
+- [16-02]: Typing indicator via Supabase Realtime broadcast on conversation:{id} channel
+- [16-02]: sent_by_agent marked by timestamp range (all outbound after processingStartedAt)
+- [16-02]: Auto-contact creation handles 23505 race condition (phone as name fallback)
+- [16-02]: Handoff toggles only conversational agent OFF (CRM stays active)
+- [16-02]: Round-robin assignment via last_assigned_at ASC NULLS FIRST
 
 ### Project Rules
 
@@ -245,7 +251,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: Completed 16-01-PLAN.md (Agent Production Config Foundation)
+Last session: 2026-02-10
+Stopped at: Completed 16-02-PLAN.md (Backend Agent Integration)
 Resume file: None
-Next: 16-02-PLAN.md (Webhook Agent Processor)
+Next: 16-03-PLAN.md (UI Integration)

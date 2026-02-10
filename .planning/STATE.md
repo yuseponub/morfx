@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 15.8 of 17 (Codebase Cleanup - INSERTED)
-Plan: 3 of 4
-Status: In progress
-Last activity: 2026-02-09 — Completed 15.8-03-PLAN.md (Medium Bugs + Constants)
+Plan: 4 of 4
+Status: Phase complete
+Last activity: 2026-02-09 — Completed 15.8-04-PLAN.md (Code Consolidation)
 
-Progress: [##########] 100% MVP v1 | [████████████████░] 98% MVP v2
+Progress: [##########] 100% MVP v1 | [█████████████████] 99% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -35,7 +35,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.5: Somnio Ingest System (TBD plans) — INSERTED (urgent fix)
 - Phase 15.6: Sandbox Evolution (6 plans) — INSERTED — COMPLETE
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
-- Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — Plans 01-03 COMPLETE
+- Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -58,7 +58,7 @@ All 11 phases + 4 inserted phases completed:
 | 15. Agent Sandbox | 4/4 | Complete |
 | 15.6 Sandbox Evolution | 6/6 | Complete |
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
-| 15.8 Codebase Cleanup | 3/4 | In Progress |
+| 15.8 Codebase Cleanup | 4/4 | Complete |
 
 ## Accumulated Context
 
@@ -199,6 +199,10 @@ Recent decisions affecting MVP v2 work:
 - [15.8-03]: constants.ts has ZERO imports from project files (prevents circular deps)
 - [15.8-03]: CRITICAL_FIELDS, TIMER_MINIMUM_FIELDS, MIN_FIELDS_FOR_AUTO_PROMO consolidated in constants.ts
 - [15.8-03]: Early expiration in reevaluateLevel documented with comment (no TimerAction type change)
+- [15.8-04]: normalizePhoneRaw in phone.ts as canonical raw phone normalizer (without + prefix)
+- [15.8-04]: CLAUDE_MODELS constant object in types.ts replaces scattered string literals
+- [15.8-04]: createDefaultSessionState factory helper eliminates duplicate state construction
+- [15.8-04]: message-classifier.ts keeps direct API model ID (uses Anthropic SDK directly, not ClaudeClient)
 
 ### Project Rules
 
@@ -235,6 +239,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 15.8-03-PLAN.md (Medium Bugs + Constants)
+Stopped at: Completed 15.8-04-PLAN.md (Code Consolidation) - Phase 15.8 complete
 Resume file: None
-Next: 15.8-04-PLAN.md
+Next: Phase 16 (WhatsApp Agent Integration)

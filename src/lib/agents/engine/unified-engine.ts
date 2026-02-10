@@ -53,6 +53,8 @@ export class UnifiedEngine {
         ? input.history
         : await this.adapters.storage.getHistory(session.id)
 
+      console.log(`[ENGINE] msg="${input.message}" sessionId=${session.id} historyLen=${history.length} roles=${history.map(h => h.role).join(',')}`)
+
       // 3. Call SomnioAgent — ALL business logic happens here
       const agentOutput = await this.somnioAgent.processMessage({
         message: input.message,
@@ -198,15 +200,21 @@ export class UnifiedEngine {
         // Record assistant turn so production history includes bot responses
         // (critical for intent detection context on subsequent messages)
         const assistantContent = agentOutput.messages
-          .filter(m => !m.startsWith('[SANDBOX:'))
+          .filter(m => !m.startsWith('[SANDBOX:') && !m.startsWith('[No response'))
           .join('\n')
         if (assistantContent.trim()) {
-          await this.adapters.storage.addTurn({
-            sessionId: session.id,
-            turnNumber: (input.turnNumber ?? (history.length + 1)) + 1,
-            role: 'assistant',
-            content: assistantContent,
-          })
+          try {
+            await this.adapters.storage.addTurn({
+              sessionId: session.id,
+              turnNumber: (input.turnNumber ?? (history.length + 1)) + 1,
+              role: 'assistant',
+              content: assistantContent,
+            })
+            console.log(`[ENGINE] Assistant turn saved (${assistantContent.length} chars)`)
+          } catch (turnError) {
+            // Non-blocking: don't crash main flow if turn recording fails
+            console.error('[ENGINE] Failed to save assistant turn:', turnError)
+          }
         }
       }
 

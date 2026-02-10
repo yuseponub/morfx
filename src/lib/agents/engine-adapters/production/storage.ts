@@ -88,6 +88,8 @@ export class ProductionStorageAdapter implements StorageAdapter {
 
   /**
    * Record a conversation turn to agent_turns table.
+   * Calculates actual next turn number from DB to avoid conflicts
+   * (history filtering can cause turnNumber drift).
    */
   async addTurn(params: {
     sessionId: string
@@ -98,9 +100,16 @@ export class ProductionStorageAdapter implements StorageAdapter {
     confidence?: number
     tokensUsed?: number
   }): Promise<void> {
+    // Query actual max turn number from DB to avoid UNIQUE constraint violations
+    const turns = await this.sessionManager.getTurns(params.sessionId)
+    const maxTurn = turns.length > 0
+      ? Math.max(...turns.map(t => t.turn_number))
+      : 0
+    const safeTurnNumber = Math.max(params.turnNumber, maxTurn + 1)
+
     await this.sessionManager.addTurn({
       sessionId: params.sessionId,
-      turnNumber: params.turnNumber,
+      turnNumber: safeTurnNumber,
       role: params.role,
       content: params.content,
       intentDetected: params.intentDetected ?? null,

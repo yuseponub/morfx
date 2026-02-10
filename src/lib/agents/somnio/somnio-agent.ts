@@ -722,31 +722,14 @@ export class SomnioAgent {
       }
     }
 
-    // Partial data: transition to collecting_data with early return
-    const targetMode = 'collecting_data'
-
+    // Partial data or implicit yes: signal mode change, let normal flow continue
+    // to orchestrator which selects proper templates (works in both sandbox and production)
     return {
       handled: true,
-      earlyReturn: {
-        success: true,
-        messages: [
-          `[SANDBOX: Implicit yes detected - clasificacion: ${classification.classification}]`,
-          '[SANDBOX: Transitioning to collecting_data mode]',
-        ],
-        stateUpdates: {
-          newMode: targetMode,
-          newIntentsVistos: input.session.state.intents_vistos?.map(i => i.intent) ?? [],
-          newTemplatesEnviados: input.session.state.templates_enviados ?? [],
-          newDatosCapturados: mergedData,
-          newPackSeleccionado: input.session.state.pack_seleccionado,
-          newIngestStatus: newIngestStatus,
-        },
-        shouldCreateOrder: false,
-        timerSignals: [{ type: 'start' }],
-        totalTokens,
-        tokenDetails: [...tokenDetails],
-        tools: [...(tools as unknown[])],
-      },
+      modeChanged: 'collecting_data',
+      updatedData: mergedData,
+      updatedIngestStatus: newIngestStatus,
+      timerSignal: { type: 'start' as const },
     }
   }
 }

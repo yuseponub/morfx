@@ -23,6 +23,7 @@ import type {
   OrchestratorResult,
   SessionState,
 } from './types'
+import { CLAUDE_MODELS } from './types'
 import { AgentError } from './errors'
 import { createModuleLogger } from '@/lib/audit/logger'
 
@@ -142,7 +143,7 @@ export class Orchestrator {
     }
   ): Promise<OrchestrationOutput> {
     const systemPrompt = config?.systemPrompt ?? DEFAULT_ORCHESTRATOR_PROMPT
-    const model = config?.model ?? 'claude-sonnet-4-5'
+    const model = config?.model ?? CLAUDE_MODELS.SONNET
     const tools = config?.tools ?? []
 
     logger.debug(

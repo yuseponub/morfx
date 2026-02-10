@@ -7,7 +7,7 @@
  */
 
 import type { AgentConfig, StateTransitions } from '../types'
-import { DEFAULT_CONFIDENCE_THRESHOLDS } from '../types'
+import { CLAUDE_MODELS, DEFAULT_CONFIDENCE_THRESHOLDS } from '../types'
 import { INTENT_DETECTOR_PROMPT, ORCHESTRATOR_PROMPT } from './prompts'
 
 // ============================================================================
@@ -99,14 +99,14 @@ export const somnioAgentConfig: AgentConfig = {
 
   // Intent Detector: Uses Sonnet (Haiku 4.5 not available yet per decision 13-03)
   intentDetector: {
-    model: 'claude-sonnet-4-5',
+    model: CLAUDE_MODELS.SONNET,
     systemPrompt: INTENT_DETECTOR_PROMPT,
     maxTokens: 256, // Short responses for intent detection
   },
 
   // Orchestrator: Uses Sonnet for complex reasoning
   orchestrator: {
-    model: 'claude-sonnet-4-5',
+    model: CLAUDE_MODELS.SONNET,
     systemPrompt: ORCHESTRATOR_PROMPT,
     maxTokens: 1024, // Longer responses for orchestration
   },

@@ -21,7 +21,7 @@ import type {
   IntentResult,
   ModelTokenEntry,
 } from './types'
-import { DEFAULT_CONFIDENCE_THRESHOLDS } from './types'
+import { CLAUDE_MODELS, DEFAULT_CONFIDENCE_THRESHOLDS } from './types'
 import { IntentDetectionError } from './errors'
 import { createModuleLogger } from '@/lib/audit/logger'
 
@@ -117,7 +117,7 @@ export class IntentDetector {
     }
   ): Promise<IntentDetectionResult> {
     const systemPrompt = config?.systemPrompt ?? DEFAULT_INTENT_PROMPT
-    const model = config?.model ?? 'claude-haiku-4-5'
+    const model = config?.model ?? CLAUDE_MODELS.HAIKU
     const thresholds = config?.thresholds ?? DEFAULT_CONFIDENCE_THRESHOLDS
 
     logger.debug(

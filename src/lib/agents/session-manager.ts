@@ -64,6 +64,29 @@ export interface AgentSessionWithState extends AgentSession {
 }
 
 // ============================================================================
+// Helper: Default Session State Factory
+// ============================================================================
+
+/**
+ * Create a default SessionState with all fields initialized.
+ * Single source of truth for session state construction.
+ */
+function createDefaultSessionState(sessionId: string): SessionState {
+  return {
+    session_id: sessionId,
+    intents_vistos: [],
+    templates_enviados: [],
+    datos_capturados: {},
+    pack_seleccionado: null,
+    proactive_started_at: null,
+    first_data_at: null,
+    min_data_at: null,
+    ofrecer_promos_at: null,
+    updated_at: new Date().toISOString(),
+  }
+}
+
+// ============================================================================
 // Session Manager Class
 // ============================================================================
 
@@ -115,24 +138,23 @@ export class SessionManager {
       throw new SessionError('Failed to create session', sessionError)
     }
 
-    // Initialize session state
-    const initialState: Omit<SessionState, 'session_id' | 'updated_at'> = {
-      intents_vistos: [],
-      templates_enviados: [],
-      datos_capturados: {},
-      pack_seleccionado: null,
-      proactive_started_at: null,
-      first_data_at: null,
-      min_data_at: null,
-      ofrecer_promos_at: null,
+    // Initialize session state using factory helper
+    const defaultState = createDefaultSessionState(session.id)
+    const mergedState: SessionState = {
+      ...defaultState,
       ...params.initialState,
+      session_id: session.id,
+      updated_at: defaultState.updated_at,
     }
+
+    // Destructure to separate session_id and updated_at for DB insert
+    const { session_id, updated_at, ...stateFields } = mergedState
 
     const { error: stateError } = await this.supabase
       .from('session_state')
       .insert({
-        session_id: session.id,
-        ...initialState,
+        session_id,
+        ...stateFields,
       })
 
     if (stateError) {
@@ -146,11 +168,7 @@ export class SessionManager {
 
     return {
       ...session,
-      state: {
-        session_id: session.id,
-        ...initialState,
-        updated_at: new Date().toISOString(),
-      },
+      state: mergedState,
     }
   }
 
@@ -298,18 +316,7 @@ export class SessionManager {
     if (error || !data) {
       // Return default state if not found (shouldn't happen normally)
       logger.warn({ sessionId }, 'Session state not found, returning default')
-      return {
-        session_id: sessionId,
-        intents_vistos: [],
-        templates_enviados: [],
-        datos_capturados: {},
-        pack_seleccionado: null,
-        proactive_started_at: null,
-        first_data_at: null,
-        min_data_at: null,
-        ofrecer_promos_at: null,
-        updated_at: new Date().toISOString(),
-      }
+      return createDefaultSessionState(sessionId)
     }
 
     return data as SessionState

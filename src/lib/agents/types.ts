@@ -11,10 +11,21 @@
 // ============================================================================
 
 /**
+ * Canonical model identifiers for Claude API.
+ * These are alias IDs resolved by ClaudeClient's MODEL_MAP.
+ */
+export const CLAUDE_MODELS = {
+  HAIKU: 'claude-haiku-4-5' as const,
+  SONNET: 'claude-sonnet-4-5' as const,
+} as const
+
+export type ClaudeModelId = typeof CLAUDE_MODELS[keyof typeof CLAUDE_MODELS]
+
+/**
  * Available Claude models for agent components.
  * Haiku for fast/cheap operations, Sonnet for complex reasoning.
  */
-export type ClaudeModel = 'claude-haiku-4-5' | 'claude-sonnet-4-5'
+export type ClaudeModel = ClaudeModelId
 
 // ============================================================================
 // Agent Configuration

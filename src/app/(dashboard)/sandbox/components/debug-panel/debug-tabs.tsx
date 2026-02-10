@@ -18,7 +18,7 @@ const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'state', label: 'Estado', visible: true },
   { id: 'intent', label: 'Intent', visible: false },
   { id: 'tokens', label: 'Tokens', visible: false },
-  { id: 'ingest', label: 'Ingest', visible: false },
+  { id: 'ingest', label: 'Ingest', visible: true },
   { id: 'config', label: 'Config', visible: false },
 ]
 

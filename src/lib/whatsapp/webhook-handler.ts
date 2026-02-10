@@ -161,8 +161,8 @@ async function processIncomingMessage(
     }
 
     // ================================================================
-    // Agent routing (Phase 16): Emit Inngest event for text messages
-    // The Inngest function checks agent-config before processing.
+    // Agent routing (Phase 16): Process text messages through agent
+    // Calls webhook-processor directly (inline, no Inngest dependency).
     // Non-blocking: agent failures must not break message reception.
     // ================================================================
     if (msg.type === 'text') {
@@ -174,21 +174,19 @@ async function processIncomingMessage(
           .eq('id', conversationId)
           .single()
 
-        const { inngest } = await import('@/inngest/client')
-        await inngest.send({
-          name: 'agent/whatsapp.message_received',
-          data: {
-            conversationId,
-            contactId: convData?.contact_id ?? null,
-            messageContent: msg.text?.body ?? '',
-            workspaceId,
-            phone,
-            messageId: msg.id,
-          },
+        const { processMessageWithAgent } = await import(
+          '@/lib/agents/production/webhook-processor'
+        )
+        await processMessageWithAgent({
+          conversationId,
+          contactId: convData?.contact_id ?? null,
+          messageContent: msg.text?.body ?? '',
+          workspaceId,
+          phone,
         })
       } catch (agentError) {
         // Non-blocking: log but never fail message processing
-        console.error('Agent event emission failed (non-blocking):', agentError)
+        console.error('Agent processing failed (non-blocking):', agentError)
       }
     }
 

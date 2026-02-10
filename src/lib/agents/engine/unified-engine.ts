@@ -105,12 +105,14 @@ export class UnifiedEngine {
       }
 
       // 4b. Timer: emit signals
+      console.log(`[ENGINE-TIMER] timerSignals=${JSON.stringify(agentOutput.timerSignals)} newMode=${agentOutput.stateUpdates.newMode} prevMode=${session.current_mode}`)
       for (const signal of agentOutput.timerSignals) {
         this.adapters.timer.signal(signal)
       }
 
       // Timer: optional lifecycle hooks (production emits Inngest events)
       if (this.adapters.timer.onCustomerMessage && !input.forceIntent) {
+        console.log(`[ENGINE-TIMER] Calling onCustomerMessage for session=${session.id}`)
         await this.adapters.timer.onCustomerMessage(
           session.id,
           input.conversationId,
@@ -123,6 +125,7 @@ export class UnifiedEngine {
         agentOutput.stateUpdates.newMode &&
         agentOutput.stateUpdates.newMode !== session.current_mode
       ) {
+        console.log(`[ENGINE-TIMER] Calling onModeTransition ${session.current_mode} -> ${agentOutput.stateUpdates.newMode}`)
         await this.adapters.timer.onModeTransition(
           session.id,
           session.current_mode,
@@ -135,11 +138,14 @@ export class UnifiedEngine {
       // Agent signals 'start' when first data arrives in collecting_data mode
       const hasIngestStart = agentOutput.timerSignals.some(s => s.type === 'start')
       const hasIngestCancel = agentOutput.timerSignals.some(s => s.type === 'cancel' && s.reason === 'ingest_complete')
+      console.log(`[ENGINE-TIMER] hasIngestStart=${hasIngestStart} hasIngestCancel=${hasIngestCancel} hasOnIngestStarted=${!!this.adapters.timer.onIngestStarted} hasOnIngestCompleted=${!!this.adapters.timer.onIngestCompleted}`)
 
       if (hasIngestCancel && this.adapters.timer.onIngestCompleted) {
+        console.log(`[ENGINE-TIMER] Calling onIngestCompleted for session=${session.id}`)
         await this.adapters.timer.onIngestCompleted(session.id, 'all_fields')
       } else if (hasIngestStart && this.adapters.timer.onIngestStarted) {
         const hasPartialData = Object.keys(agentOutput.stateUpdates.newDatosCapturados).length > 0
+        console.log(`[ENGINE-TIMER] Calling onIngestStarted hasPartialData=${hasPartialData} session=${session.id}`)
         await this.adapters.timer.onIngestStarted(session, hasPartialData)
       }
 

@@ -341,7 +341,7 @@ export class SomnioEngine {
         const sequenceResult = await this.messageSequencer.executeSequence(
           sequence,
           input.workspaceId,
-          input.phoneNumber ?? input.contactId
+          input.contactId ?? input.phoneNumber
         )
 
         messagesSent = sequenceResult.messagesSent

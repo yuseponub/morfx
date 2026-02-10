@@ -168,8 +168,11 @@ export class UnifiedEngine {
         error?: { message: string }
       } | undefined
 
+      console.log(`[ENGINE-ORDER] shouldCreateOrder=${agentOutput.shouldCreateOrder} hasOrderData=${!!agentOutput.orderData} pack=${agentOutput.orderData?.packSeleccionado} datos=${JSON.stringify(Object.keys(agentOutput.orderData?.datosCapturados ?? {}))}`)
+
       if (agentOutput.shouldCreateOrder && agentOutput.orderData) {
         const orderMode = this.config.crmModes?.find(m => m.agentId === 'order-manager')?.mode
+        console.log(`[ENGINE-ORDER] Creating order... orderMode=${orderMode} datosCapturados=${JSON.stringify(agentOutput.orderData.datosCapturados)}`)
         orderResult = await this.adapters.orders.createOrder(
           {
             datosCapturados: agentOutput.orderData.datosCapturados,
@@ -179,6 +182,8 @@ export class UnifiedEngine {
           },
           orderMode
         )
+
+        console.log(`[ENGINE-ORDER] Result: success=${orderResult.success} orderId=${orderResult.orderId} contactId=${orderResult.contactId} error=${orderResult.error?.message}`)
 
         // Add CRM tool calls and tokens to agent output for debug
         if (orderResult.toolCalls) {

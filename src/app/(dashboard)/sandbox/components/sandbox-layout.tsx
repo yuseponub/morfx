@@ -381,28 +381,28 @@ export function SandboxLayout() {
     // 2. Show typing indicator
     setIsTyping(true)
 
-    // 3. Build history for API
-    const history = messages.map(m => ({ role: m.role, content: m.content }))
+    // 3. Build history for API (use ref to avoid stale closure in async callback)
+    const history = messagesRef.current.map(m => ({ role: m.role, content: m.content }))
     history.push({ role: 'user', content })
 
-    // 4. Build CRM agents payload (only enabled ones)
-    const enabledCrmAgents = crmAgents
+    // 4. Build CRM agents payload (use ref to avoid stale closure in async callback)
+    const enabledCrmAgents = crmAgentsRef.current
       .filter(a => a.enabled)
       .map(a => ({ agentId: a.agentId, mode: a.mode }))
 
     try {
-      // 5. Process message via server API
-      const turnNumber = debugTurns.length + 1
+      // 5. Process message via server API (use ref to avoid stale closure in async callback)
+      const turnNumber = debugTurnsRef.current.length + 1
       const response = await fetch('/api/sandbox/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: content,
-          state,
+          state: stateRef.current,
           history,
           turnNumber,
           crmAgents: enabledCrmAgents,
-          workspaceId: workspace?.id,
+          workspaceId: workspaceRef.current?.id,
         }),
       })
 
@@ -432,7 +432,7 @@ export function SandboxLayout() {
       // 7. Update state and debug info
       setState(result.newState)
       setDebugTurns(prev => [...prev, result.debugTurn])
-      setTotalTokens(prev => prev + result.debugTurn.tokens.tokensUsed)
+      setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
 
       // 8. Process timer signals from SandboxEngine (Phase 15.7)
       // Use ref to avoid stale closure (timerEnabled may be outdated after message delays)
@@ -475,7 +475,7 @@ export function SandboxLayout() {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [messages, state, debugTurns, crmAgents, responseSpeed, timerConfig, startTimerForLevel])
+  }, [responseSpeed, timerConfig, startTimerForLevel])
 
   // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {

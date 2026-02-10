@@ -105,14 +105,13 @@ export class UnifiedEngine {
       }
 
       // 4b. Timer: emit signals
-      console.log(`[ENGINE-TIMER] timerSignals=${JSON.stringify(agentOutput.timerSignals)} newMode=${agentOutput.stateUpdates.newMode} prevMode=${session.current_mode}`)
       for (const signal of agentOutput.timerSignals) {
         this.adapters.timer.signal(signal)
       }
 
-      // Timer: optional lifecycle hooks (production emits Inngest events)
+      // Timer: lifecycle hooks (production emits Inngest events)
+      // 1. Customer message → cancels pending timers
       if (this.adapters.timer.onCustomerMessage && !input.forceIntent) {
-        console.log(`[ENGINE-TIMER] Calling onCustomerMessage for session=${session.id}`)
         await this.adapters.timer.onCustomerMessage(
           session.id,
           input.conversationId,
@@ -120,33 +119,36 @@ export class UnifiedEngine {
         )
       }
 
+      const hasIngestStart = agentOutput.timerSignals.some(s => s.type === 'start')
+      const hasIngestCancel = agentOutput.timerSignals.some(s => s.type === 'cancel' && s.reason === 'ingest_complete')
+      const newMode = agentOutput.stateUpdates.newMode
+      const modeChanged = newMode && newMode !== session.current_mode
+
+      // 2. Ingest cancel → all fields collected, cancel data timer
+      if (hasIngestCancel && this.adapters.timer.onIngestCompleted) {
+        await this.adapters.timer.onIngestCompleted(session.id, 'all_fields')
+      }
+
+      // 3. Ingest start → start data collection timer (covers collecting_data mode)
+      //    Only fire if NOT also cancelling (two-step cancel+start goes to mode transition instead)
+      if (hasIngestStart && !hasIngestCancel && this.adapters.timer.onIngestStarted) {
+        const hasPartialData = Object.keys(agentOutput.stateUpdates.newDatosCapturados).length > 0
+        await this.adapters.timer.onIngestStarted(session, hasPartialData)
+      }
+
+      // 4. Mode transition → only for ofrecer_promos (collecting_data is handled by ingest hooks above)
+      //    This covers both: direct transition to promos AND two-step cancel+start pattern
       if (
         this.adapters.timer.onModeTransition &&
-        agentOutput.stateUpdates.newMode &&
-        agentOutput.stateUpdates.newMode !== session.current_mode
+        modeChanged &&
+        newMode !== 'collecting_data'
       ) {
-        console.log(`[ENGINE-TIMER] Calling onModeTransition ${session.current_mode} -> ${agentOutput.stateUpdates.newMode}`)
         await this.adapters.timer.onModeTransition(
           session.id,
           session.current_mode,
-          agentOutput.stateUpdates.newMode,
+          newMode,
           input.conversationId
         )
-      }
-
-      // Timer: ingest lifecycle hooks (production emits Inngest events for ingest timer)
-      // Agent signals 'start' when first data arrives in collecting_data mode
-      const hasIngestStart = agentOutput.timerSignals.some(s => s.type === 'start')
-      const hasIngestCancel = agentOutput.timerSignals.some(s => s.type === 'cancel' && s.reason === 'ingest_complete')
-      console.log(`[ENGINE-TIMER] hasIngestStart=${hasIngestStart} hasIngestCancel=${hasIngestCancel} hasOnIngestStarted=${!!this.adapters.timer.onIngestStarted} hasOnIngestCompleted=${!!this.adapters.timer.onIngestCompleted}`)
-
-      if (hasIngestCancel && this.adapters.timer.onIngestCompleted) {
-        console.log(`[ENGINE-TIMER] Calling onIngestCompleted for session=${session.id}`)
-        await this.adapters.timer.onIngestCompleted(session.id, 'all_fields')
-      } else if (hasIngestStart && this.adapters.timer.onIngestStarted) {
-        const hasPartialData = Object.keys(agentOutput.stateUpdates.newDatosCapturados).length > 0
-        console.log(`[ENGINE-TIMER] Calling onIngestStarted hasPartialData=${hasPartialData} session=${session.id}`)
-        await this.adapters.timer.onIngestStarted(session, hasPartialData)
       }
 
       // 4c. Orders: create order if agent signals it

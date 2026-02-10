@@ -382,6 +382,21 @@ export class SomnioOrchestrator {
       session.state.templates_enviados
     )
 
+    // DEBUG: log template selection details
+    for (const [intentKey, selection] of templateMap.entries()) {
+      logger.info(
+        {
+          intentKey,
+          visitType: selection.visitType,
+          rawCount: selection.templates.length,
+          alreadySent: selection.alreadySent.length,
+          intentsToFetch,
+          intentsVistos: session.state.intents_vistos.length,
+        },
+        'Template selection detail'
+      )
+    }
+
     // Combine and process all templates
     const allTemplates: ProcessedTemplate[] = []
     for (const selection of templateMap.values()) {

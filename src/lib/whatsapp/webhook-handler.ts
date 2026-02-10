@@ -203,6 +203,7 @@ async function processIncomingMessage(
           sessionId: agentResult.sessionId,
           intent: agentResultAny._debugIntent,
           tplCount: agentResultAny._debugTemplateCount,
+          directTpl: agentResultAny._debugDirectTpl,
           dbTpl: dbTplCount,
         })
         await supabase.from('messages').insert({

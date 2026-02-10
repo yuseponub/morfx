@@ -199,6 +199,7 @@ export async function processMessageWithAgent(
       } : undefined,
       _debugIntent: engineAny._debugIntent,
       _debugTemplateCount: engineAny._debugTemplateCount,
+      _debugDirectTpl: engineAny._debugDirectTpl,
     } as SomnioEngineResult
   } catch (engineError) {
     const errorMessage = engineError instanceof Error ? engineError.message : 'Unknown engine error'

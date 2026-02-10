@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 16 of 18 (WhatsApp Agent Integration)
-Plan: 4 of 6
+Plan: 4 of 6 (01, 02, 03, 04 complete)
 Status: In progress
-Last activity: 2026-02-09 — Completed 16-04-PLAN.md
+Last activity: 2026-02-10 — Completed 16-03-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [███████████████░░] 92% MVP v2
 
@@ -216,6 +216,9 @@ Recent decisions affecting MVP v2 work:
 - [16-02]: Auto-contact creation handles 23505 race condition (phone as name fallback)
 - [16-02]: Handoff toggles only conversational agent OFF (CRM stays active)
 - [16-02]: Round-robin assignment via last_assigned_at ASC NULLS FIRST
+- [16-03]: Typing broadcast channel is conversation:{id} (matches webhook-processor, not agent-typing:{id})
+- [16-03]: Agent filter uses agent_conversational !== false (includes null/inherit)
+- [16-03]: Agent toggles only render after status loads (null guard prevents flash)
 - [16-04]: SlidersHorizontal icon for agent config button (distinct from Bot toggle in header)
 - [16-04]: Debounce 300ms for textarea/slider saves, immediate for toggles/selects
 - [16-04]: Panel switching via rightPanel state ('contact' | 'agent-config') in inbox-layout
@@ -254,7 +257,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: Completed 16-04-PLAN.md (Agent Config Slider + Navigation)
+Last session: 2026-02-10
+Stopped at: Completed 16-03-PLAN.md (Agent UI Indicators & Controls)
 Resume file: None
 Next: 16-05-PLAN.md (Agentes Module)

@@ -311,11 +311,12 @@ export class SandboxEngine {
         }
       }
 
-      // 8c. Emit timer start after ingest completion → ofrecer_promos
-      // When ingest completes normally (all data at once), the engine emits 'cancel'
-      // to stop the ingest timer. But we need Level 3 ("promos sin respuesta").
-      // Override cancel with 'start' so the client evaluates Level 3.
-      // Also covers checkImplicitYes path where no signal was set.
+      // TIMER SIGNAL: Start promo timer (level 3 - promos sin respuesta).
+      // This intentionally OVERRIDES the 'cancel' signal from handleIngestMode.
+      // The cancel cleared the ingest timer (levels 0-2); this starts the promo timer.
+      // This is step 2 of a two-step signal. See handleIngestMode ~line 546 for step 1.
+      // NOT a bug: cancel and start refer to DIFFERENT timer purposes.
+      // Also covers checkImplicitYes path where no signal was previously set.
       if (justCompletedIngest && newState.currentMode === 'ofrecer_promos') {
         this.lastTimerSignal = { type: 'start' }
       }
@@ -542,7 +543,12 @@ export class SandboxEngine {
         active: false,
       }
 
-      // Signal timer cancellation (Phase 15.7) - ingest complete, timer no longer needed
+      // TIMER SIGNAL: Cancel ingest timer (levels 0-2).
+      // When ingest completes (all 8 fields collected), we cancel the data-collection timer.
+      // processMessage will then OVERRIDE this with a 'start' signal if transitioning
+      // to ofrecer_promos, which starts the promo timer (level 3).
+      // This is step 1 of a two-step signal. See processMessage ~line 319 for step 2.
+      // NOT a bug: the cancel clears the ingest timer, then start initiates the promo timer.
       this.lastTimerSignal = { type: 'cancel', reason: 'ingest_complete' }
 
       // Return null to continue with normal orchestration

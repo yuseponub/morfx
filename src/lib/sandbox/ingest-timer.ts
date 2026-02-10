@@ -220,7 +220,11 @@ export class IngestTimerSimulator {
   private onTick: (remainingMs: number, level: number) => void
   private onExpire: (level: number, action: TimerAction) => void
 
-  // Context provider for accurate buildAction at expiration time (Phase 15.7 fix)
+  // Context provider for accurate buildAction at expiration time (Phase 15.7 fix).
+  // VERIFIED (Bug #5): In sandbox-layout.tsx, this provider is set via
+  // simulator.setContextProvider() and reads from stateRef.current, which
+  // always holds the latest SandboxState. This prevents the stale closure
+  // that would otherwise cause buildAction to receive outdated field data.
   private contextProvider: (() => TimerEvalContext) | null = null
 
   constructor(

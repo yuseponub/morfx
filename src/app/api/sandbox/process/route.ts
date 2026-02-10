@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
 import type { SandboxState } from '@/lib/sandbox/types'
 import { initializeTools } from '@/lib/tools/init'
@@ -25,6 +26,16 @@ const engine = new SandboxEngine()
 
 export async function POST(request: NextRequest) {
   try {
+    // Security #4: Require authentication for sandbox API
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent } = body as {
       message: string
@@ -41,6 +52,23 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields: message, state' },
         { status: 400 }
       )
+    }
+
+    // Security #4: Validate workspace membership when LIVE mode CRM agents are used
+    const hasLiveAgent = crmAgents?.some((a) => a.mode === 'live')
+    if (hasLiveAgent && workspaceId) {
+      const { data: membership } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.id)
+        .single()
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'Workspace access denied' },
+          { status: 403 }
+        )
+      }
     }
 
     const result = await engine.processMessage(

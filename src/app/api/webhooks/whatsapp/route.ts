@@ -3,9 +3,35 @@
 // Receives webhook events from 360dialog
 // ============================================================================
 
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { processWebhook } from '@/lib/whatsapp/webhook-handler'
 import type { WebhookPayload } from '@/lib/whatsapp/types'
+
+// ============================================================================
+// HMAC VERIFICATION (Security #2)
+// Verifies webhook signatures from 360dialog / WhatsApp Cloud API
+// ============================================================================
+
+/**
+ * Verify HMAC-SHA256 signature from WhatsApp webhook.
+ * Supports both 'sha256=xxx' prefix format and raw hex format.
+ */
+function verifyWhatsAppHmac(body: string, signature: string, secret: string): boolean {
+  const hmac = crypto.createHmac('sha256', secret)
+  hmac.update(body)
+  const expectedSignature = hmac.digest('hex')
+  // Handle both 'sha256=xxx' prefix format and raw hex format
+  const actualSignature = signature.startsWith('sha256=') ? signature.slice(7) : signature
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSignature),
+      Buffer.from(actualSignature)
+    )
+  } catch {
+    return false // Length mismatch
+  }
+}
 
 // ============================================================================
 // WEBHOOK VERIFICATION (GET)
@@ -47,10 +73,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
-  // Parse payload
+  // Security #2: Read raw body FIRST for HMAC verification (before JSON parsing)
+  let rawBody: string
+  try {
+    rawBody = await request.text()
+  } catch {
+    console.error('Failed to read webhook body')
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
+  }
+
+  // Security #2: Verify HMAC signature when WHATSAPP_WEBHOOK_SECRET is set (production)
+  const webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET
+  if (webhookSecret) {
+    const signature = request.headers.get('X-Hub-Signature-256') || request.headers.get('X-360Dialog-Signature') || ''
+    if (!signature) {
+      console.warn('WhatsApp webhook: missing signature header')
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+    }
+    const isValid = verifyWhatsAppHmac(rawBody, signature, webhookSecret)
+    if (!isValid) {
+      console.warn('WhatsApp webhook: invalid signature')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
+  }
+
+  // Parse payload from raw body (after HMAC verification)
   let payload: WebhookPayload
   try {
-    payload = await request.json()
+    payload = JSON.parse(rawBody)
   } catch {
     console.error('Failed to parse webhook payload')
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })

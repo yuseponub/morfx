@@ -106,6 +106,28 @@ export async function cancelInvitation(invitationId: string) {
     return { error: 'No autenticado' }
   }
 
+  // Security #3: Fetch invitation to get workspace_id, then verify membership
+  const { data: invitation } = await supabase
+    .from('workspace_invitations')
+    .select('workspace_id')
+    .eq('id', invitationId)
+    .single()
+
+  if (!invitation) {
+    return { error: 'Invitacion no encontrada' }
+  }
+
+  const { data: membership } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', invitation.workspace_id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    return { error: 'No tienes permisos para esta accion' }
+  }
+
   const { error } = await supabase
     .from('workspace_invitations')
     .delete()
@@ -212,6 +234,18 @@ export async function removeMember(workspaceId: string, memberId: string) {
     return { error: 'No autenticado' }
   }
 
+  // Security #3: Verify user is admin/owner of this workspace
+  const { data: callerMembership } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!callerMembership || !['owner', 'admin'].includes(callerMembership.role)) {
+    return { error: 'No tienes permisos para esta accion' }
+  }
+
   // Check member to remove isn't the owner
   const { data: memberToRemove } = await supabase
     .from('workspace_members')
@@ -252,6 +286,18 @@ export async function updateMemberRole(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'No autenticado' }
+  }
+
+  // Security #3: Verify user is admin/owner of this workspace
+  const { data: callerMembership } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!callerMembership || !['owner', 'admin'].includes(callerMembership.role)) {
+    return { error: 'No tienes permisos para esta accion' }
   }
 
   // Can't change owner role

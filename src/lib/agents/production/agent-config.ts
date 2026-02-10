@@ -73,32 +73,53 @@ export async function getWorkspaceAgentConfig(
 
 /**
  * Upsert workspace agent config. Creates or updates the config row.
- * Always sets updated_at to current timestamp.
+ * Uses explicit SELECT → INSERT/UPDATE to avoid partial upsert issues.
  */
 export async function upsertWorkspaceAgentConfig(
   workspaceId: string,
   updates: Partial<Omit<AgentConfig, 'workspace_id' | 'created_at' | 'updated_at'>>
 ): Promise<AgentConfig | null> {
   const supabase = createAdminClient()
+  const now = new Date().toISOString()
 
+  // Check if row exists
+  const existing = await getWorkspaceAgentConfig(workspaceId)
+
+  if (!existing) {
+    // INSERT with all defaults + updates
+    const { data, error } = await supabase
+      .from('workspace_agent_config')
+      .insert({
+        workspace_id: workspaceId,
+        ...DEFAULT_AGENT_CONFIG,
+        ...updates,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('[agent-config] INSERT error:', error)
+      return null
+    }
+    console.log('[agent-config] INSERT ok:', workspaceId, updates)
+    return data as AgentConfig
+  }
+
+  // UPDATE existing row
   const { data, error } = await supabase
     .from('workspace_agent_config')
-    .upsert(
-      {
-        workspace_id: workspaceId,
-        ...updates,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'workspace_id' }
-    )
+    .update({ ...updates, updated_at: now })
+    .eq('workspace_id', workspaceId)
     .select('*')
     .single()
 
   if (error) {
-    console.error('Error upserting workspace agent config:', error)
+    console.error('[agent-config] UPDATE error:', error)
     return null
   }
-
+  console.log('[agent-config] UPDATE ok:', workspaceId, updates)
   return data as AgentConfig
 }
 

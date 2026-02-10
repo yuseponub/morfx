@@ -92,7 +92,7 @@ export async function getAgentConfig(): Promise<
   const config = await getWorkspaceAgentConfig(ctx.workspaceId)
 
   if (!config) {
-    // Return defaults with workspace_id populated
+    console.log('[agent-config] No row found for workspace:', ctx.workspaceId, '→ returning defaults')
     return {
       success: true,
       data: {
@@ -104,6 +104,7 @@ export async function getAgentConfig(): Promise<
     }
   }
 
+  console.log('[agent-config] Read config:', ctx.workspaceId, 'agent_enabled:', config.agent_enabled)
   return { success: true, data: config }
 }
 
@@ -129,14 +130,17 @@ export async function updateAgentConfig(
   // Check owner/admin role
   const isAdmin = await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)
   if (!isAdmin) {
+    console.error('[agent-config] Not admin:', ctx.user.id, ctx.workspaceId)
     return { error: 'Solo el propietario o administrador puede modificar la configuracion del agente' }
   }
 
+  console.log('[agent-config] Saving for workspace:', ctx.workspaceId, 'updates:', updates)
   const result = await upsertWorkspaceAgentConfig(ctx.workspaceId, updates)
   if (!result) {
     return { error: 'Error al actualizar la configuracion del agente' }
   }
 
+  console.log('[agent-config] Save result:', result.agent_enabled)
   return { success: true, data: result }
 }
 

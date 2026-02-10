@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 15.8 of 18 (Codebase Cleanup - INSERTED) — COMPLETE
-Plan: 4 of 4
-Status: Phase complete, verified ✓
-Last activity: 2026-02-09 — Added Phases 17-18 (Automations)
+Phase: 16 of 18 (WhatsApp Agent Integration)
+Plan: 1 of 6
+Status: In progress
+Last activity: 2026-02-09 — Completed 16-01-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [█████████████░░░░] 85% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████░░░] 87% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -36,7 +36,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.6: Sandbox Evolution (6 plans) — INSERTED — COMPLETE
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
-- Phase 16: WhatsApp Agent Integration (TBD plans)
+- Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (1/6)
 - Phase 17: CRM Automations Engine (TBD plans)
 - Phase 18: AI Automation Builder (TBD plans)
 
@@ -61,6 +61,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.6 Sandbox Evolution | 6/6 | Complete |
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
+| 16. WhatsApp Agent Integration | 1/6 | In Progress |
 
 ## Accumulated Context
 
@@ -205,6 +206,10 @@ Recent decisions affecting MVP v2 work:
 - [15.8-04]: CLAUDE_MODELS constant object in types.ts replaces scattered string literals
 - [15.8-04]: createDefaultSessionState factory helper eliminates duplicate state construction
 - [15.8-04]: message-classifier.ts keeps direct API model ID (uses Anthropic SDK directly, not ClaudeClient)
+- [16-01]: workspace_agent_config table with global toggle, agent selection, handoff, timer preset, response speed
+- [16-01]: 3-state per-conversation override: NULL=inherit, false=disabled, true=enabled
+- [16-01]: Agent config uses createAdminClient for all DB operations (webhook/background context)
+- [16-01]: DEFAULT_AGENT_CONFIG exported for server actions to return defaults when no row exists
 
 ### Project Rules
 
@@ -241,6 +246,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 15.8 verified and complete
+Stopped at: Completed 16-01-PLAN.md (Agent Production Config Foundation)
 Resume file: None
-Next: Phase 16 (WhatsApp Agent Integration) — /gsd:discuss-phase 16
+Next: 16-02-PLAN.md (Webhook Agent Processor)

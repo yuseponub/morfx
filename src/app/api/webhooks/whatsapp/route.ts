@@ -8,6 +8,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processWebhook } from '@/lib/whatsapp/webhook-handler'
 import type { WebhookPayload } from '@/lib/whatsapp/types'
 
+// Extend function timeout for agent processing (multiple Claude API calls)
+export const maxDuration = 60
+
 // ============================================================================
 // HMAC VERIFICATION (Security #2)
 // Verifies webhook signatures from 360dialog / WhatsApp Cloud API

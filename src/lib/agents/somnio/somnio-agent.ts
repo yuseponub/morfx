@@ -227,7 +227,11 @@ export class SomnioAgent {
       }
 
       // 4. Check implicit yes (if NOT collecting_data AND NOT ofrecer_promos)
-      if (currentMode !== 'collecting_data' && currentMode !== 'ofrecer_promos') {
+      // Skip for short messages (≤10 chars) like "si", "dale", "claro" — the intent
+      // detector handles these correctly and skipping saves 2 Claude API calls (~6-10s)
+      // which prevents Vercel function timeout on the webhook route
+      const skipImplicitYes = input.message.trim().length <= 10
+      if (!skipImplicitYes && currentMode !== 'collecting_data' && currentMode !== 'ofrecer_promos') {
         const implicitResult = await this.checkImplicitYes(
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )

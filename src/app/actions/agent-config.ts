@@ -136,12 +136,12 @@ export async function updateAgentConfig(
 
   console.log('[agent-config] Saving for workspace:', ctx.workspaceId, 'updates:', updates)
   const result = await upsertWorkspaceAgentConfig(ctx.workspaceId, updates)
-  if (!result) {
-    return { error: 'Error al actualizar la configuracion del agente' }
+  if ('error' in result) {
+    return { error: result.error }
   }
 
-  console.log('[agent-config] Save result:', result.agent_enabled)
-  return { success: true, data: result }
+  console.log('[agent-config] Save result:', result.data.agent_enabled)
+  return { success: true, data: result.data }
 }
 
 // ============================================================================

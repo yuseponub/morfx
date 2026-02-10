@@ -74,11 +74,12 @@ export async function getWorkspaceAgentConfig(
 /**
  * Upsert workspace agent config. Creates or updates the config row.
  * Uses explicit SELECT → INSERT/UPDATE to avoid partial upsert issues.
+ * Returns { data } on success or { error } with the specific DB error message.
  */
 export async function upsertWorkspaceAgentConfig(
   workspaceId: string,
   updates: Partial<Omit<AgentConfig, 'workspace_id' | 'created_at' | 'updated_at'>>
-): Promise<AgentConfig | null> {
+): Promise<{ data: AgentConfig } | { error: string }> {
   const supabase = createAdminClient()
   const now = new Date().toISOString()
 
@@ -87,24 +88,25 @@ export async function upsertWorkspaceAgentConfig(
 
   if (!existing) {
     // INSERT with all defaults + updates
+    const insertPayload = {
+      workspace_id: workspaceId,
+      ...DEFAULT_AGENT_CONFIG,
+      ...updates,
+      created_at: now,
+      updated_at: now,
+    }
+    console.log('[agent-config] INSERT payload:', JSON.stringify(insertPayload))
     const { data, error } = await supabase
       .from('workspace_agent_config')
-      .insert({
-        workspace_id: workspaceId,
-        ...DEFAULT_AGENT_CONFIG,
-        ...updates,
-        created_at: now,
-        updated_at: now,
-      })
+      .insert(insertPayload)
       .select('*')
       .single()
 
     if (error) {
       console.error('[agent-config] INSERT error:', error)
-      return null
+      return { error: `INSERT: ${error.message} (${error.code})` }
     }
-    console.log('[agent-config] INSERT ok:', workspaceId, updates)
-    return data as AgentConfig
+    return { data: data as AgentConfig }
   }
 
   // UPDATE existing row
@@ -117,10 +119,9 @@ export async function upsertWorkspaceAgentConfig(
 
   if (error) {
     console.error('[agent-config] UPDATE error:', error)
-    return null
+    return { error: `UPDATE: ${error.message} (${error.code})` }
   }
-  console.log('[agent-config] UPDATE ok:', workspaceId, updates)
-  return data as AgentConfig
+  return { data: data as AgentConfig }
 }
 
 // ============================================================================

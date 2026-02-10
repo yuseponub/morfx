@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { normalizePhone } from '@/lib/utils/phone'
 import { recordMessageCost } from '@/app/actions/usage'
 import type {
   WebhookPayload,
@@ -92,7 +93,9 @@ async function processIncomingMessage(
   const supabase = createAdminClient()
 
   // Normalize phone to E.164 (should already be, but ensure)
-  const phone = normalizePhone(msg.from)
+  // WhatsApp provides phones in E.164 format, so normalizePhone should always succeed.
+  // Fall back to raw phone with + prefix if normalization fails.
+  const phone = normalizePhone(msg.from) ?? `+${msg.from.replace(/[^\d]/g, '')}`
 
   // Get contact name from webhook if available
   const contactInfo = webhookValue.contacts?.[0]
@@ -464,17 +467,3 @@ function buildMessagePreview(msg: IncomingMessage): string {
   }
 }
 
-/**
- * Normalize phone to E.164 format.
- */
-function normalizePhone(phone: string): string {
-  // Remove any non-digit characters except leading +
-  let normalized = phone.replace(/[^\d+]/g, '')
-
-  // Ensure it starts with +
-  if (!normalized.startsWith('+')) {
-    normalized = '+' + normalized
-  }
-
-  return normalized
-}

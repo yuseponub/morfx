@@ -243,53 +243,18 @@ const FIELD_NEGATION_PATTERNS: Record<string, RegExp[]> = {
 }
 
 // ============================================================================
-// Normalization Functions
+// Phone Normalization (consolidated to src/lib/utils/phone.ts)
 // ============================================================================
 
 /**
- * Normalize a Colombian phone number to 57XXXXXXXXXX format.
- *
- * @param input - Raw phone number input
- * @returns Normalized phone number or original if invalid
- *
- * @example
- * normalizePhone("3001234567") // "573001234567"
- * normalizePhone("573001234567") // "573001234567"
- * normalizePhone("+57 300 123 4567") // "573001234567"
+ * Re-exported from canonical source for backward compatibility.
+ * Returns phone in 57XXXXXXXXXX format (without +) for datos_capturados.
  */
-export function normalizePhone(input: string): string {
-  if (!input || typeof input !== 'string') {
-    return input
-  }
+export { normalizePhoneRaw as normalizePhone } from '@/lib/utils/phone'
 
-  // Strip all non-digits
-  const digits = input.replace(/\D/g, '')
-
-  // 10 digits starting with 3 (Colombian mobile)
-  if (digits.length === 10 && digits.startsWith('3')) {
-    return `57${digits}`
-  }
-
-  // 12 digits starting with 57 and third digit is 3 (already formatted)
-  if (digits.length === 12 && digits.startsWith('573')) {
-    return digits
-  }
-
-  // 11 digits starting with 57 (missing a digit - try to fix)
-  if (digits.length === 11 && digits.startsWith('57')) {
-    // Could be user typed 57 + 9-digit number
-    return digits
-  }
-
-  // 10 digits starting with 57 (incorrectly formatted, missing digits)
-  // Return as-is, might be landline or other format
-  if (digits.length >= 7 && digits.length <= 12) {
-    return digits
-  }
-
-  // Return original if we can't normalize
-  return input
-}
+// ============================================================================
+// Normalization Functions
+// ============================================================================
 
 /**
  * Normalize a Colombian city name with proper capitalization.

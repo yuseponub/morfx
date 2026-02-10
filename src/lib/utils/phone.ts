@@ -93,6 +93,45 @@ export function formatPhoneDisplay(e164: string): string {
  * @param input - Raw phone number string
  * @returns true if valid Colombian phone number
  */
+/**
+ * Normalize phone to E.164 format WITHOUT + prefix.
+ * Used by Somnio agent for backward compatibility with datos_capturados format.
+ * Example: "300 123 4567" -> "573001234567"
+ */
+export function normalizePhoneRaw(input: string): string {
+  if (!input || typeof input !== 'string') {
+    return input
+  }
+
+  // Strip all non-digits
+  const digits = input.replace(/\D/g, '')
+
+  // 10 digits starting with 3 (Colombian mobile)
+  if (digits.length === 10 && digits.startsWith('3')) {
+    return `57${digits}`
+  }
+
+  // 12 digits starting with 57 and third digit is 3 (already formatted)
+  if (digits.length === 12 && digits.startsWith('573')) {
+    return digits
+  }
+
+  // 11 digits starting with 57 (missing a digit - try to fix)
+  if (digits.length === 11 && digits.startsWith('57')) {
+    // Could be user typed 57 + 9-digit number
+    return digits
+  }
+
+  // 10 digits starting with 57 (incorrectly formatted, missing digits)
+  // Return as-is, might be landline or other format
+  if (digits.length >= 7 && digits.length <= 12) {
+    return digits
+  }
+
+  // Return original if we can't normalize
+  return input
+}
+
 export function isValidColombianPhone(input: string): boolean {
   if (!input || typeof input !== 'string') {
     return false

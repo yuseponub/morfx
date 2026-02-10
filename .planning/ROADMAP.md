@@ -51,6 +51,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 15.7: Ingest Timer Pluggable** - Timer funcional con 5 niveles, configurable en sandbox, simulacion completa (INSERTED)
 - [x] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
+- [ ] **Phase 16.1: Engine Unification** - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (INSERTED)
 - [ ] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
 - [ ] **Phase 18: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
 
@@ -524,9 +525,31 @@ Plans:
 - [ ] 16-05-PLAN.md -- Agentes module: metrics dashboard, config page, period selector
 - [ ] 16-06-PLAN.md -- Human verification of all success criteria
 
+### Phase 16.1: Engine Unification (INSERTED)
+**Goal**: Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters para storage, messaging y debug
+**Depends on**: Phase 16
+**Requirements**: Architectural debt - ~800 lines of duplicated flow logic between sandbox and production engines
+**Success Criteria** (what must be TRUE):
+  1. Un solo processMessage() con la logica de flujo completa (intent, ingest, orchestrate, order, response)
+  2. Adapter pattern para storage (in-memory vs DB), messaging (return array vs MessageSequencer), orders (CRM orch vs OrderCreator)
+  3. Sandbox usa adapters in-memory — muestra resultado en UI igual que antes
+  4. Produccion usa adapters de DB + WhatsApp — envia mensajes reales igual que antes
+  5. Cambios en la logica del flujo se aplican automaticamente en ambos entornos
+  6. Configuraciones independientes: sandbox y produccion no se afectan mutuamente
+  7. webhook-processor.ts sigue funcionando sin cambios en su interfaz externa
+**Plans**: 6 plans
+
+Plans:
+- [ ] 16.1-01-PLAN.md — Adapter interfaces, engine types, and shared state shapes
+- [ ] 16.1-02-PLAN.md — SomnioAgent extraction (shared business logic from both engines)
+- [ ] 16.1-03-PLAN.md — Sandbox + Production adapter implementations (10 adapters + factories)
+- [ ] 16.1-04-PLAN.md — UnifiedEngine class + wire sandbox API route
+- [ ] 16.1-05-PLAN.md — Wire production webhook-processor with backward compat
+- [ ] 16.1-06-PLAN.md — TypeScript verification + human sandbox testing
+
 ### Phase 17: CRM Automations Engine
 **Goal**: Motor de automatizaciones configurable con triggers y acciones entre modulos (CRM, tareas, WhatsApp)
-**Depends on**: Phase 16
+**Depends on**: Phase 16.1
 **Requirements**: TBD during /gsd:discuss-phase
 **Success Criteria** (what must be TRUE):
   1. Usuario puede crear automatizaciones con trigger (evento) + condiciones + accion
@@ -597,7 +620,8 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.6. Sandbox Evolution | 6/6 | Complete | 2026-02-08 |
 | 15.7. Ingest Timer Pluggable | 2/3 | In progress | - |
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
-| 16. WhatsApp Agent Integration | 0/6 | Planned | - |
+| 16. WhatsApp Agent Integration | 5/6 | In progress | - |
+| 16.1. Engine Unification | TBD | Not started | - |
 | 17. CRM Automations Engine | TBD | Not started | - |
 | 18. AI Automation Builder | TBD | Not started | - |
 

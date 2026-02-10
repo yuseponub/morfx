@@ -9,7 +9,8 @@ import { ChatHeader } from './chat-header'
 import { MessageBubble } from './message-bubble'
 import { MessageInput } from './message-input'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
-import { differenceInHours } from 'date-fns'
+import { differenceInHours, isSameDay, format, isToday, isYesterday } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface ChatViewProps {
   conversationId: string | null
@@ -182,6 +183,10 @@ export function ChatView({
         >
           {virtualizer.getVirtualItems().map((virtualItem) => {
             const message = messages[virtualItem.index]
+            const prevMessage = virtualItem.index > 0 ? messages[virtualItem.index - 1] : null
+            const messageDate = new Date(message.timestamp)
+            const showDateSeparator = !prevMessage || !isSameDay(messageDate, new Date(prevMessage.timestamp))
+
             return (
               <div
                 key={virtualItem.key}
@@ -195,6 +200,17 @@ export function ChatView({
                   transform: `translateY(${virtualItem.start}px)`,
                 }}
               >
+                {showDateSeparator && (
+                  <div className="flex justify-center py-3">
+                    <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full shadow-sm">
+                      {isToday(messageDate)
+                        ? 'Hoy'
+                        : isYesterday(messageDate)
+                          ? 'Ayer'
+                          : format(messageDate, "d 'de' MMMM, yyyy", { locale: es })}
+                    </span>
+                  </div>
+                )}
                 <MessageBubble
                   message={message}
                   isOwn={message.direction === 'outbound'}

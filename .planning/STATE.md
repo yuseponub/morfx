@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 16.1 of 18 (Engine Unification)
-Plan: 1 of 6 (01 complete)
+Plan: 2 of 6 (01, 02 complete)
 Status: In progress
-Last activity: 2026-02-10 — Completed 16.1-01-PLAN.md
+Last activity: 2026-02-10 — Completed 16.1-02-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [████████████████░] 95% MVP v2
 
@@ -63,7 +63,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
-| 16.1 Engine Unification | 1/6 | In Progress |
+| 16.1 Engine Unification | 2/6 | In Progress |
 
 ## Accumulated Context
 
@@ -232,6 +232,10 @@ Recent decisions affecting MVP v2 work:
 - [16.1-01]: Debug-related fields use 'any' to keep engine types environment-agnostic
 - [16.1-01]: TimerAdapter.signal() synchronous void (sandbox accumulates, production fire-and-forget)
 - [16.1-01]: engine/ directory coexists with engine.ts; bundler resolution prefers file over directory for existing imports
+- [16.1-02]: SomnioAgent uses explicit return types (IngestModeResult, ImplicitYesResult) instead of state mutation
+- [16.1-02]: Mock session built inside agent with intentsVistos BEFORE current intent for primera_vez detection
+- [16.1-02]: Timer signals as array (not single value) to preserve two-step cancel+start pattern
+- [16.1-02]: IngestStatus types use unknown to keep agent environment-agnostic
 
 ### Project Rules
 
@@ -272,6 +276,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 16.1-01-PLAN.md (Engine Type Foundation)
+Stopped at: Completed 16.1-02-PLAN.md (SomnioAgent Extraction)
 Resume file: None
-Next: 16.1-02-PLAN.md (SomnioAgent extraction)
+Next: 16.1-04-PLAN.md (UnifiedEngine, after Plan 03 adapters complete)

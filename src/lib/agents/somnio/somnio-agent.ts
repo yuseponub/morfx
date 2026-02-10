@@ -62,7 +62,8 @@ export interface SomnioAgentOutput {
   /** Response messages to send (sandbox: display, production: WhatsApp) */
   messages: string[]
   /** Response templates from orchestrator (production needs for MessageSequencer) */
-  templates?: Array<{ content: string; [key: string]: unknown }>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  templates?: any[]
   /** Orchestrator intent name (production needs for buildSequence) */
   orchestratorIntent?: string
   /** State updates to persist via storage adapter */
@@ -202,7 +203,7 @@ export class SomnioAgent {
       // 2. Initialize mutable tracking variables (explicit, not via state mutation)
       let currentMode = input.session.current_mode ?? 'bienvenida'
       let currentData = { ...input.session.state.datos_capturados }
-      let currentIngestStatus: unknown = (input.session.state as Record<string, unknown>).ingestStatus
+      let currentIngestStatus: unknown = (input.session.state as unknown as Record<string, unknown>).ingestStatus
       const previousMode = currentMode
       let justCompletedIngest = false
       const timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }> = []

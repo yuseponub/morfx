@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { UnifiedEngine } from '@/lib/agents/engine'
+import { UnifiedEngine } from '@/lib/agents/engine/unified-engine'
 import { createSandboxAdapters } from '@/lib/agents/engine-adapters/sandbox'
 import type { SandboxState } from '@/lib/sandbox/types'
 import { initializeTools } from '@/lib/tools/init'

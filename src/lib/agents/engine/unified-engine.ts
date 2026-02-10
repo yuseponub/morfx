@@ -15,6 +15,7 @@
  */
 
 import { SomnioAgent } from '../somnio/somnio-agent'
+import type { ClaudeModelId } from '../types'
 import type {
   EngineInput,
   EngineOutput,
@@ -130,6 +131,7 @@ export class UnifiedEngine {
         contactId?: string
         toolCalls?: unknown[]
         tokensUsed?: unknown[]
+        error?: { message: string }
       } | undefined
 
       if (agentOutput.shouldCreateOrder && agentOutput.orderData) {
@@ -150,7 +152,7 @@ export class UnifiedEngine {
         }
         if (orderResult.tokensUsed) {
           agentOutput.tokenDetails.push(
-            ...(orderResult.tokensUsed as Array<{ model: string; inputTokens: number; outputTokens: number }>)
+            ...(orderResult.tokensUsed as Array<{ model: ClaudeModelId; inputTokens: number; outputTokens: number }>)
           )
           const extraTokens = (orderResult.tokensUsed as Array<{ inputTokens: number; outputTokens: number }>)
             .reduce((sum, t) => sum + t.inputTokens + t.outputTokens, 0)

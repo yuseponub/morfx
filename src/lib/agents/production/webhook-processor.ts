@@ -171,10 +171,12 @@ export async function processMessageWithAgent(
     const engine = new UnifiedEngine(adapters, { workspaceId })
 
     const engineOutput: EngineOutput = await engine.processMessage({
+      sessionId: '', // Production: storage adapter uses getOrCreateSession via conversationId
       conversationId,
       contactId: contactId!,
       message: messageContent,
       workspaceId,
+      history: [], // Production: storage adapter reads history from DB
       phoneNumber: phone,
     })
 

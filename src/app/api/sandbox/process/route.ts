@@ -1,15 +1,18 @@
 /**
  * Sandbox Process API Route
- * Phase 15: Agent Sandbox
+ * Phase 16.1: Engine Unification - Plan 04
  *
- * Server-side processing for sandbox messages.
- * Keeps Anthropic API key secure on the server.
- * Phase 15.6: CRM agent modes passed to engine.
+ * Server-side processing for sandbox messages using the UnifiedEngine
+ * with sandbox adapters. Keeps Anthropic API key secure on the server.
+ *
+ * Previous: Used SandboxEngine directly.
+ * Now: Uses UnifiedEngine + createSandboxAdapters for unified pipeline.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { SandboxEngine } from '@/lib/sandbox/sandbox-engine'
+import { UnifiedEngine } from '@/lib/agents/engine'
+import { createSandboxAdapters } from '@/lib/agents/engine-adapters/sandbox'
 import type { SandboxState } from '@/lib/sandbox/types'
 import { initializeTools } from '@/lib/tools/init'
 
@@ -20,9 +23,6 @@ import '@/lib/agents/crm'
 
 // Initialize Action DSL tools (required for LIVE mode CRM execution)
 initializeTools()
-
-// Single engine instance per server (stateless processing)
-const engine = new SandboxEngine()
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,15 +71,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await engine.processMessage(
-      message,
-      state,
-      history ?? [],
-      turnNumber ?? 1,
-      crmAgents,
+    // Create per-request adapters with the incoming sandbox state
+    const adapters = createSandboxAdapters({
+      initialState: state,
+      history: history ?? [],
+      crmModes: crmAgents,
       workspaceId,
-      forceIntent
-    )
+    })
+
+    // Create engine with sandbox adapters and config
+    const engine = new UnifiedEngine(adapters, {
+      workspaceId: workspaceId ?? 'sandbox-workspace',
+      crmModes: crmAgents,
+    })
+
+    // Process message through unified engine
+    const engineOutput = await engine.processMessage({
+      sessionId: 'sandbox-session',
+      conversationId: 'sandbox-conversation',
+      contactId: 'sandbox-contact',
+      message,
+      workspaceId: workspaceId ?? 'sandbox-workspace',
+      history: history ?? [],
+      turnNumber: turnNumber ?? 1,
+      forceIntent,
+    })
+
+    // Map EngineOutput to SandboxEngineResult shape for frontend compatibility.
+    // The frontend reads: success, messages, debugTurn, newState, error, timerSignal.
+    // EngineOutput already has all these fields in compatible shapes.
+    const result = {
+      success: engineOutput.success,
+      messages: engineOutput.messages,
+      debugTurn: engineOutput.debugTurn,
+      newState: engineOutput.newState,
+      error: engineOutput.error
+        ? { code: engineOutput.error.code, message: engineOutput.error.message }
+        : undefined,
+      timerSignal: engineOutput.timerSignal,
+    }
 
     return NextResponse.json(result)
   } catch (error) {

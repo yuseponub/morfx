@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 16.1 of 18 (Engine Unification)
-Plan: 2 of 6 (01, 02 complete)
+Plan: 3 of 6 (01, 02, 03 complete)
 Status: In progress
-Last activity: 2026-02-10 — Completed 16.1-02-PLAN.md
+Last activity: 2026-02-10 — Completed 16.1-03-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [████████████████░] 95% MVP v2
 
@@ -63,7 +63,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
-| 16.1 Engine Unification | 2/6 | In Progress |
+| 16.1 Engine Unification | 3/6 | In Progress |
 
 ## Accumulated Context
 
@@ -236,6 +236,11 @@ Recent decisions affecting MVP v2 work:
 - [16.1-02]: Mock session built inside agent with intentsVistos BEFORE current intent for primera_vez detection
 - [16.1-02]: Timer signals as array (not single value) to preserve two-step cancel+start pattern
 - [16.1-02]: IngestStatus types use unknown to keep agent environment-agnostic
+- [16.1-03]: SandboxStorageAdapter adds created_at/updated_at/last_activity_at for AgentSessionWithState compat
+- [16.1-03]: SandboxOrdersAdapter uses dynamic import for crmOrchestrator to avoid circular deps
+- [16.1-03]: ProductionTimerAdapter emits 5 Inngest events covering 4 lifecycle points (non-blocking)
+- [16.1-03]: ProductionStorageAdapter uses cast for AgentSessionLike (structural compat with AgentSessionWithState)
+- [16.1-03]: SandboxTimerAdapter overwrites on each signal() call (supports cancel+start two-step)
 
 ### Project Rules
 
@@ -276,6 +281,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 16.1-02-PLAN.md (SomnioAgent Extraction)
+Stopped at: Completed 16.1-03-PLAN.md (Adapter Implementations)
 Resume file: None
-Next: 16.1-04-PLAN.md (UnifiedEngine, after Plan 03 adapters complete)
+Next: 16.1-04-PLAN.md (UnifiedEngine — depends on Plan 02 + Plan 03)

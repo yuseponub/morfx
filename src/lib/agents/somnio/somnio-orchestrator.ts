@@ -349,11 +349,9 @@ export class SomnioOrchestrator {
       'Data extraction complete'
     )
 
-    // Note: tokensUsed is not directly available from DataExtractor
-    // We'll estimate it or return 0
     return {
       extracted: result,
-      tokensUsed: 0, // DataExtractor doesn't expose token usage
+      tokensUsed: result.tokensUsed ?? 0,
     }
   }
 

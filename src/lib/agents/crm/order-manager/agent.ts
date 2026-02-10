@@ -193,7 +193,7 @@ export class OrderManagerAgent extends BaseCrmAgent {
           if (listResult.status === 'success' && listOutputs?.success) {
             const listData = listOutputs.data as Record<string, unknown>
             const contacts = listData?.contacts as Array<Record<string, unknown>> | undefined
-            if (contacts && contacts.length > 0) {
+            if (Array.isArray(contacts) && contacts.length > 0) {
               // Match by normalized phone
               const normalizedSearch = e164Phone.replace(/\D/g, '')
               const match = contacts.find((c) => {

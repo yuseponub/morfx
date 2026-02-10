@@ -7,7 +7,7 @@
  */
 
 import { ClaudeClient } from '@/lib/agents/claude-client'
-import type { ClaudeMessage } from '@/lib/agents/types'
+import type { ClaudeMessage, ClaudeModel } from '@/lib/agents/types'
 import { createModuleLogger } from '@/lib/audit/logger'
 import {
   normalizePhone,
@@ -53,6 +53,8 @@ export interface ExtractionResult {
   negations: string[]
   /** Confidence scores per field (0-100) */
   confidence: Record<string, number>
+  /** Tokens used by the Claude API call */
+  tokensUsed: number
 }
 
 /**
@@ -180,9 +182,11 @@ Solo extrae datos NUEVOS del mensaje actual que no esten en los datos existentes
  */
 export class DataExtractor {
   private claudeClient: ClaudeClient
+  private model: ClaudeModel
 
-  constructor(claudeClient?: ClaudeClient) {
+  constructor(claudeClient?: ClaudeClient, model?: ClaudeModel) {
     this.claudeClient = claudeClient ?? new ClaudeClient()
+    this.model = model ?? 'claude-sonnet-4-5'
   }
 
   /**
@@ -214,7 +218,7 @@ export class DataExtractor {
       systemPrompt,
       conversationHistory,
       message,
-      'claude-sonnet-4-5' // Using Sonnet until Haiku 4.5 available (decision 13-03)
+      this.model
     )
 
     // Parse the extraction from Claude's response
@@ -255,6 +259,7 @@ export class DataExtractor {
       inferred,
       negations,
       confidence: extraction.confidence,
+      tokensUsed,
     }
   }
 

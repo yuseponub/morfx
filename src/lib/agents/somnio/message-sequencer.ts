@@ -255,8 +255,20 @@ export class MessageSequencer {
         }
       }
 
-      // Send the message
-      const success = await this.sendMessage(message, workspaceId, phoneNumber)
+      // Send the message (wrapped in try/catch for defense-in-depth)
+      let success = false
+      try {
+        success = await this.sendMessage(message, workspaceId, phoneNumber)
+      } catch (sendError) {
+        logger.error(
+          {
+            sequenceId: sequence.id,
+            messageId: message.id,
+            error: sendError,
+          },
+          'Unexpected error sending message in sequence'
+        )
+      }
 
       if (success) {
         sentCount++
@@ -347,11 +359,25 @@ export class MessageSequencer {
    * If activity happened very recently (within last 2 seconds),
    * consider it an interruption.
    *
+   * KNOWN LIMITATION (Bug #6): SessionManager.getSession() may return
+   * cached session data in production environments. If the session was
+   * recently updated by another process (e.g., webhook handler writing
+   * a new customer message), the cached last_activity_at could be stale,
+   * causing this check to miss an interruption. The message sequence
+   * would then continue sending when it should have stopped.
+   *
+   * Mitigation: In the sandbox context this is a non-issue (no real DB
+   * or caching). For production (Phase 16+), consider:
+   * - Adding a cache-bypass option to SessionManager.getSession()
+   * - Using a DB-level timestamp comparison (SELECT NOW() vs last_activity_at)
+   * - Reducing the 2-second window if cache TTL is known
+   *
    * @param sessionId - Session to check
    * @returns True if customer interrupted
    */
   async checkForInterruption(sessionId: string): Promise<boolean> {
     try {
+      // NOTE: This may read cached data. See KNOWN LIMITATION above.
       const session = await this.sessionManager.getSession(sessionId)
       const lastActivity = new Date(session.last_activity_at)
       const now = new Date()

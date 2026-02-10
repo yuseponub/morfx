@@ -234,6 +234,12 @@ export class TemplateManager {
       .order('orden')
 
     if (this.workspaceId) {
+      // Validate workspaceId format (UUID) for defense-in-depth before interpolation
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(this.workspaceId)) {
+        console.error('[TemplateManager] Invalid workspaceId format:', this.workspaceId)
+        return []
+      }
       // Include both global and workspace-specific templates
       query = query.or(`workspace_id.is.null,workspace_id.eq.${this.workspaceId}`)
     } else {

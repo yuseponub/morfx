@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 16: WhatsApp Agent Integration
+**Current focus:** MVP v2.0 — Phase 15.8: Codebase Cleanup
 
 ## Current Position
 
-Phase: 15.7 of 17 (Ingest Timer Pluggable - INSERTED)
-Plan: 2 of 3
+Phase: 15.8 of 17 (Codebase Cleanup - INSERTED)
+Plan: 1 of 4
 Status: In progress
-Last activity: 2026-02-08 — Completed 15.7-02-PLAN.md (Timer UI Integration)
+Last activity: 2026-02-09 — Completed 15.8-01-PLAN.md (Critical Bugs)
 
-Progress: [##########] 100% MVP v1 | [████████████████] 97% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████████░] 98% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -35,6 +35,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.5: Somnio Ingest System (TBD plans) — INSERTED (urgent fix)
 - Phase 15.6: Sandbox Evolution (6 plans) — INSERTED — COMPLETE
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
+- Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — Plan 01 COMPLETE
 - Phase 16: WhatsApp Agent Integration (TBD plans)
 
 ## Performance Metrics
@@ -57,6 +58,7 @@ All 11 phases + 4 inserted phases completed:
 | 15. Agent Sandbox | 4/4 | Complete |
 | 15.6 Sandbox Evolution | 6/6 | Complete |
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
+| 15.8 Codebase Cleanup | 1/4 | In Progress |
 
 ## Accumulated Context
 
@@ -186,6 +188,10 @@ Recent decisions affecting MVP v2 work:
 - [15.7-02]: shadcn Switch component for timer enable/disable toggle
 - [15.7-02]: Per-level slider ranges: L2 max 300s, L0/L3/L4 max 900s, L1 max 600s
 - [15.7-02]: TimerDisplay shows M:SS format with level identifier and inline pause button
+- [15.8-01]: State mutation in handleIngestMode/checkImplicitYes is intentional (document, don't refactor)
+- [15.8-01]: Bug #8 timer signal override is intentional two-step design (cancel ingest -> start promos)
+- [15.8-01]: Bug #5 ingest-timer stale closure already fixed in Phase 15.7 via contextProvider
+- [15.8-01]: Bug #6 race condition documented as known limitation for Phase 16+
 
 ### Project Rules
 
@@ -220,7 +226,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-08
-Stopped at: Completed 15.7-02-PLAN.md (Timer UI Integration)
+Last session: 2026-02-09
+Stopped at: Completed 15.8-01-PLAN.md (Critical Bugs)
 Resume file: None
-Next: 15.7-03-PLAN.md
+Next: 15.8-02-PLAN.md

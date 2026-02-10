@@ -150,8 +150,8 @@ export async function processMessageWithAgent(
   // 6. Process message through SomnioEngine
   let result: SomnioEngineResult
   try {
-    // Dynamic import to avoid circular deps and reduce bundle
-    const { SomnioEngine } = await import('../somnio/somnio-engine')
+    // Import barrel to trigger agent self-registration, then get engine
+    const { SomnioEngine } = await import('../somnio')
     const engine = new SomnioEngine(workspaceId)
 
     result = await engine.processMessage({

@@ -8,6 +8,7 @@
 
 import { ClaudeClient } from '@/lib/agents/claude-client'
 import type { ClaudeMessage, ClaudeModel } from '@/lib/agents/types'
+import { CLAUDE_MODELS } from '@/lib/agents/types'
 import { createModuleLogger } from '@/lib/audit/logger'
 import {
   normalizePhone,
@@ -16,6 +17,7 @@ import {
   inferDepartamento,
   detectNegation,
 } from './normalizers'
+import { CRITICAL_FIELDS } from './constants'
 
 const logger = createModuleLogger('data-extractor')
 
@@ -57,16 +59,7 @@ export interface ExtractionResult {
   tokensUsed: number
 }
 
-/**
- * Critical fields required for order creation.
- */
-export const CRITICAL_FIELDS = [
-  'nombre',
-  'telefono',
-  'direccion',
-  'ciudad',
-  'departamento',
-] as const
+// CRITICAL_FIELDS imported from './constants' (single source of truth)
 
 /**
  * Additional fields (nice to have).
@@ -186,7 +179,7 @@ export class DataExtractor {
 
   constructor(claudeClient?: ClaudeClient, model?: ClaudeModel) {
     this.claudeClient = claudeClient ?? new ClaudeClient()
-    this.model = model ?? 'claude-sonnet-4-5'
+    this.model = model ?? CLAUDE_MODELS.SONNET
   }
 
   /**

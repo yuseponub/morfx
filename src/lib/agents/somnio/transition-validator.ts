@@ -13,6 +13,7 @@
  */
 
 import type { IntentRecord } from '../types'
+import { CRITICAL_FIELDS, MIN_FIELDS_FOR_AUTO_PROMO } from './constants'
 
 // ============================================================================
 // Types
@@ -54,17 +55,7 @@ export interface TransitionResult {
 // Constants
 // ============================================================================
 
-/**
- * Critical fields required for order creation.
- * Matches CRITICAL_FIELDS from data-extractor.ts
- */
-export const CRITICAL_FIELDS = [
-  'nombre',
-  'telefono',
-  'direccion',
-  'ciudad',
-  'departamento',
-] as const
+// CRITICAL_FIELDS imported from './constants' (single source of truth)
 
 /**
  * Transition rules based on CONTEXT.md decision document.
@@ -95,16 +86,8 @@ export const TRANSITION_RULES: TransitionRule[] = [
   },
 ]
 
-/**
- * Minimum fields for auto ofrecer_promos trigger.
- * 8 = 5 critical + 3 additional
- */
-const MIN_FIELDS_FOR_AUTO_PROMO = 8
-
-/**
- * Critical fields count for timer-based promo trigger.
- */
-const CRITICAL_FIELDS_FOR_TIMER_PROMO = 5
+// MIN_FIELDS_FOR_AUTO_PROMO imported from './constants' (single source of truth)
+// CRITICAL_FIELDS_COUNT available from './constants' if needed for timer promo threshold
 
 // ============================================================================
 // TransitionValidator Class

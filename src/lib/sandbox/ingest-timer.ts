@@ -30,25 +30,9 @@ import type {
   TimerLevelConfig,
   TimerPreset,
 } from './types'
+import { TIMER_MINIMUM_FIELDS } from '@/lib/agents/somnio/constants'
 
-// ============================================================================
-// Timer Field Definitions (separate from data-extractor CRITICAL_FIELDS)
-// ============================================================================
-
-/**
- * Minimum fields required for timer level 2 (datos minimos).
- * 6 fields: 5 from CRITICAL_FIELDS + 'apellido' from ADDITIONAL_FIELDS.
- *
- * These MUST match the keys used in datosCapturados exactly.
- */
-export const TIMER_MINIMUM_FIELDS = [
-  'nombre',
-  'apellido',
-  'telefono',
-  'direccion',
-  'ciudad',
-  'departamento',
-] as const
+// TIMER_MINIMUM_FIELDS imported from constants.ts (single source of truth)
 
 /**
  * All fields tracked by the timer system.

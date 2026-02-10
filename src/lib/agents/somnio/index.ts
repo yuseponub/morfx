@@ -39,6 +39,14 @@ export {
 } from './config'
 export type { SomnioState } from './config'
 
+// Constants (single source of truth for field definitions)
+export {
+  CRITICAL_FIELDS,
+  TIMER_MINIMUM_FIELDS,
+  MIN_FIELDS_FOR_AUTO_PROMO,
+  CRITICAL_FIELDS_COUNT,
+} from './constants'
+
 // Data Extractor
 export {
   DataExtractor,
@@ -46,7 +54,6 @@ export {
   hasMinimumData,
   hasCriticalData,
   getFieldCounts,
-  CRITICAL_FIELDS,
   ADDITIONAL_FIELDS,
   ALL_FIELDS,
 } from './data-extractor'
@@ -112,7 +119,6 @@ export {
   TransitionValidator,
   validateTransition,
   TRANSITION_RULES,
-  CRITICAL_FIELDS as TRANSITION_CRITICAL_FIELDS,
 } from './transition-validator'
 export type {
   TransitionRule,

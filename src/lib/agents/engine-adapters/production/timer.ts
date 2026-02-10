@@ -148,6 +148,9 @@ export class ProductionTimerAdapter implements TimerAdapter {
   /**
    * Emit agent/ingest.started event with duration from workspace preset.
    * L1 (partial data) or L0 (no data).
+   *
+   * IMPORTANT: First cancels any running ingest timer (via ingest.completed)
+   * to prevent duplicate timers when customer sends additional data.
    */
   async onIngestStarted(session: AgentSessionLike, hasPartialData: boolean): Promise<void> {
     const level = hasPartialData ? 1 : 0
@@ -155,6 +158,17 @@ export class ProductionTimerAdapter implements TimerAdapter {
 
     try {
       const { inngest } = await import('@/inngest/client')
+
+      // Cancel any running ingest timer first (prevents duplicates)
+      await inngest.send({
+        name: 'agent/ingest.completed',
+        data: {
+          sessionId: session.id,
+          reason: 'cancelled' as const,
+        },
+      })
+
+      // Start new ingest timer
       await inngest.send({
         name: 'agent/ingest.started',
         data: {
@@ -167,7 +181,7 @@ export class ProductionTimerAdapter implements TimerAdapter {
       })
       logger.info(
         { sessionId: session.id, timerDurationMs, hasPartialData, level },
-        'Emitted agent/ingest.started event'
+        'Emitted agent/ingest.started event (cancelled previous if any)'
       )
     } catch (error) {
       logger.warn({ error, sessionId: session.id }, 'Failed to emit ingest.started event')

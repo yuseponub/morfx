@@ -129,9 +129,16 @@ export class UnifiedEngine {
         await this.adapters.timer.onIngestCompleted(session.id, 'all_fields')
       }
 
-      // 3. Ingest start → start data collection timer (covers collecting_data mode)
-      //    Only fire if NOT also cancelling (two-step cancel+start goes to mode transition instead)
-      if (hasIngestStart && !hasIngestCancel && this.adapters.timer.onIngestStarted) {
+      // 3. Ingest start → start data collection timer (ONLY for collecting_data mode)
+      //    Skip if also cancelling (two-step cancel+start → promos via onModeTransition)
+      //    Skip if mode is NOT collecting_data (e.g., forceIntent ofrecer_promos uses onModeTransition)
+      const effectiveMode = newMode || session.current_mode
+      if (
+        hasIngestStart &&
+        !hasIngestCancel &&
+        effectiveMode === 'collecting_data' &&
+        this.adapters.timer.onIngestStarted
+      ) {
         const hasPartialData = Object.keys(agentOutput.stateUpdates.newDatosCapturados).length > 0
         await this.adapters.timer.onIngestStarted(session, hasPartialData)
       }

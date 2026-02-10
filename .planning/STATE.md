@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 16 of 18 (WhatsApp Agent Integration)
-Plan: 4 of 6 (01, 02, 03, 04 complete)
+Plan: 5 of 6 (01, 02, 03, 04, 05 complete)
 Status: In progress
-Last activity: 2026-02-10 — Completed 16-03-PLAN.md
+Last activity: 2026-02-10 — Completed 16-05-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [███████████████░░] 92% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████████░] 95% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -36,7 +36,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.6: Sandbox Evolution (6 plans) — INSERTED — COMPLETE
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
-- Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (4/6)
+- Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 17: CRM Automations Engine (TBD plans)
 - Phase 18: AI Automation Builder (TBD plans)
 
@@ -61,7 +61,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.6 Sandbox Evolution | 6/6 | Complete |
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
-| 16. WhatsApp Agent Integration | 4/6 | In Progress |
+| 16. WhatsApp Agent Integration | 5/6 | In Progress |
 
 ## Accumulated Context
 
@@ -222,6 +222,10 @@ Recent decisions affecting MVP v2 work:
 - [16-04]: SlidersHorizontal icon for agent config button (distinct from Bot toggle in header)
 - [16-04]: Debounce 300ms for textarea/slider saves, immediate for toggles/selects
 - [16-04]: Panel switching via rightPanel state ('contact' | 'agent-config') in inbox-layout
+- [16-05]: Blended token cost rate $3/1M tokens (Haiku/Sonnet ~80/20 mix)
+- [16-05]: avgResponseTimeMs returns 0 for MVP (needs instrumentation)
+- [16-05]: 3 metric groups x 3 cards = 9 total (conversations, handoffs, costs)
+- [16-05]: ConfigPanel reuses AgentConfigSlider data model with full-page descriptive layout
 
 ### Project Rules
 
@@ -258,6 +262,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 16-03-PLAN.md (Agent UI Indicators & Controls)
+Stopped at: Completed 16-05-PLAN.md (Agentes Module)
 Resume file: None
-Next: 16-05-PLAN.md (Agentes Module)
+Next: 16-06-PLAN.md (E2E Testing & Polish)

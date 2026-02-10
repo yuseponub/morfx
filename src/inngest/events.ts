@@ -60,6 +60,8 @@ export type AgentEvents = {
       sessionId: string
       conversationId: string
       workspaceId: string
+      /** Timer duration from workspace preset (ms). Defaults to 360000 (6 min). */
+      timerDurationMs?: number
     }
   }
 
@@ -78,6 +80,8 @@ export type AgentEvents = {
       conversationId: string
       workspaceId: string
       packOptions: string[]
+      /** Timer duration from workspace preset (ms). Defaults to 600000 (10 min). */
+      timerDurationMs?: number
     }
   }
 

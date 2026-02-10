@@ -1,22 +1,22 @@
 /**
  * Agent Timer Workflows
- * Phase 13: Agent Engine Core - Plan 06
+ * Phase 13 + Hotfix: Production timer integration
  *
  * Durable timer workflows for proactive agent actions.
  * Uses step.waitForEvent() for timeout-based customer engagement.
  *
- * Replaces n8n's Proactive Timer with event-driven architecture:
- * - No polling loops
- * - Persistent across restarts
- * - Automatic retry on failures
+ * Timer durations come from workspace_agent_config.timer_preset:
+ * - real: 6-10 min (production defaults)
+ * - rapido: 30-60 seg (fast testing)
+ * - instantaneo: 1-2 seg (instant testing)
  *
- * Note: Uses whatsapp.message.send handler implemented in Phase 12
- * (src/lib/tools/handlers/whatsapp/index.ts)
+ * Messages sent directly via 360dialog API (not tool executor).
  */
 
 import { inngest } from '../client'
 import { SessionManager } from '@/lib/agents/session-manager'
-import { executeToolFromAgent } from '@/lib/tools/executor'
+import { sendTextMessage } from '@/lib/whatsapp/api'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('agent-timers')
@@ -31,16 +31,95 @@ function getSessionManager(): SessionManager {
 }
 
 /**
+ * Get WhatsApp API key from workspace settings, fallback to env var.
+ */
+async function getWhatsAppApiKey(workspaceId: string): Promise<string | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('workspaces')
+    .select('settings')
+    .eq('id', workspaceId)
+    .single()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settings = data?.settings as any
+  return settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY || null
+}
+
+/**
+ * Get phone number for a conversation.
+ */
+async function getConversationPhone(conversationId: string): Promise<string | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('conversations')
+    .select('phone')
+    .eq('id', conversationId)
+    .single()
+  return data?.phone ?? null
+}
+
+/**
+ * Send a WhatsApp message directly via 360dialog API.
+ * Also records the message in the DB.
+ */
+async function sendWhatsAppMessage(
+  workspaceId: string,
+  conversationId: string,
+  message: string
+): Promise<boolean> {
+  const apiKey = await getWhatsAppApiKey(workspaceId)
+  if (!apiKey) {
+    logger.error({ workspaceId }, 'No WhatsApp API key configured')
+    return false
+  }
+
+  const phone = await getConversationPhone(conversationId)
+  if (!phone) {
+    logger.error({ conversationId }, 'No phone number for conversation')
+    return false
+  }
+
+  try {
+    const response = await sendTextMessage(apiKey, phone, message)
+    const wamid = response.messages?.[0]?.id
+
+    // Record message in DB
+    const supabase = createAdminClient()
+    await supabase.from('messages').insert({
+      conversation_id: conversationId,
+      workspace_id: workspaceId,
+      wamid,
+      direction: 'outbound',
+      type: 'text',
+      content: { body: message } as unknown as Record<string, unknown>,
+      status: 'sent',
+      timestamp: new Date().toISOString(),
+    })
+
+    // Update conversation preview
+    await supabase
+      .from('conversations')
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: message.length > 100 ? message.slice(0, 100) + '...' : message,
+      })
+      .eq('id', conversationId)
+
+    logger.info({ conversationId, wamid }, 'Timer message sent via WhatsApp')
+    return true
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error)
+    logger.error({ error: errMsg, conversationId }, 'Failed to send timer message')
+    return false
+  }
+}
+
+/**
  * Data Collection Timer
  *
  * Triggered when agent enters 'collecting_data' mode.
- * Waits for customer message with 6-minute timeout.
- *
- * Flow from CONTEXT.md:
- * - Wait for customer message (6 min timeout)
- * - If timeout without data: send "quedamos pendientes"
- * - If partial data: request missing fields
- * - If complete data: wait 2 min, then offer promos
+ * Duration comes from workspace preset (event.data.timerDurationMs).
  */
 export const dataCollectionTimer = inngest.createFunction(
   {
@@ -51,8 +130,9 @@ export const dataCollectionTimer = inngest.createFunction(
   { event: 'agent/collecting_data.started' },
   async ({ event, step }) => {
     const { sessionId, conversationId, workspaceId } = event.data
+    const timeoutMs = event.data.timerDurationMs ?? 360_000 // default 6 min
 
-    logger.info({ sessionId }, 'Data collection timer started')
+    logger.info({ sessionId, timeoutMs }, 'Data collection timer started')
 
     // Update session state to track timer start
     await step.run('mark-timer-start', async () => {
@@ -62,10 +142,10 @@ export const dataCollectionTimer = inngest.createFunction(
       })
     })
 
-    // Wait for customer message or timeout after 6 minutes
+    // Wait for customer message or timeout
     const customerMessage = await step.waitForEvent('wait-for-data', {
       event: 'agent/customer.message',
-      timeout: '6m',
+      timeout: `${timeoutMs}ms`,
       match: 'data.sessionId',
     })
 
@@ -76,7 +156,7 @@ export const dataCollectionTimer = inngest.createFunction(
         const session = await sessionManager.getSession(sessionId)
         const datos = session.state.datos_capturados
 
-        const required = ['nombre', 'telefono', 'ciudad', 'direccion']
+        const required = ['nombre', 'telefono', 'ciudad', 'direccion', 'departamento']
         const missing = required.filter((field) => !datos[field])
 
         return {
@@ -88,16 +168,11 @@ export const dataCollectionTimer = inngest.createFunction(
 
       if (!dataStatus.hasAnyData) {
         // No data at all - send "quedamos pendientes"
-        // Uses whatsapp.message.send from Phase 12: src/lib/tools/handlers/whatsapp/index.ts
         await step.run('send-pending-message', async () => {
-          await executeToolFromAgent(
-            'whatsapp.message.send',
-            {
-              contactId: conversationId, // Tool uses contactId to find conversation
-              message: 'Quedamos pendientes! Cuando tengas un momento, me cuentas para ayudarte con tu pedido.',
-            },
+          await sendWhatsAppMessage(
             workspaceId,
-            sessionId
+            conversationId,
+            'Quedamos pendientes! Cuando tengas un momento, me cuentas para ayudarte con tu pedido.'
           )
         })
 
@@ -108,14 +183,10 @@ export const dataCollectionTimer = inngest.createFunction(
         // Partial data - request missing fields
         const missingText = dataStatus.missingFields.join(', ')
         await step.run('request-missing-data', async () => {
-          await executeToolFromAgent(
-            'whatsapp.message.send',
-            {
-              contactId: conversationId,
-              message: `Para continuar con tu pedido, necesito que me confirmes: ${missingText}`,
-            },
+          await sendWhatsAppMessage(
             workspaceId,
-            sessionId
+            conversationId,
+            `Para continuar con tu pedido, necesito que me confirmes: ${missingText}`
           )
         })
 
@@ -131,16 +202,15 @@ export const dataCollectionTimer = inngest.createFunction(
       const sessionManager = getSessionManager()
       const session = await sessionManager.getSession(sessionId)
       const datos = session.state.datos_capturados
-      const required = ['nombre', 'telefono', 'ciudad', 'direccion']
+      const required = ['nombre', 'telefono', 'ciudad', 'direccion', 'departamento']
       return required.every((field) => !!datos[field])
     })
 
     if (isComplete) {
-      // Data complete - wait 2 minutes then trigger promos
-      await step.sleep('wait-before-promos', '2m')
+      // Data complete - wait briefly then trigger promos
+      await step.sleep('wait-before-promos', '5s')
 
       await step.run('transition-to-promos', async () => {
-        // Emit event to trigger promos workflow
         await inngest.send({
           name: 'agent/promos.offered',
           data: {
@@ -151,7 +221,6 @@ export const dataCollectionTimer = inngest.createFunction(
           },
         })
 
-        // Update session mode
         const sessionManager = getSessionManager()
         const session = await sessionManager.getSession(sessionId)
         await sessionManager.updateSessionWithVersion(sessionId, session.version, {
@@ -174,12 +243,7 @@ export const dataCollectionTimer = inngest.createFunction(
  * Promos Timer
  *
  * Triggered when promos are offered to customer.
- * Waits for pack selection with 10-minute timeout.
- *
- * Flow from CONTEXT.md:
- * - Wait for customer response (10 min timeout)
- * - If timeout: auto-create order with default pack
- * - If response: process pack selection
+ * Duration comes from workspace preset (event.data.timerDurationMs).
  */
 export const promosTimer = inngest.createFunction(
   {
@@ -190,71 +254,30 @@ export const promosTimer = inngest.createFunction(
   { event: 'agent/promos.offered' },
   async ({ event, step }) => {
     const { sessionId, conversationId, workspaceId } = event.data
+    const timeoutMs = event.data.timerDurationMs ?? 600_000 // default 10 min
 
-    logger.info({ sessionId }, 'Promos timer started')
+    logger.info({ sessionId, timeoutMs }, 'Promos timer started')
 
-    // Wait for customer response or timeout after 10 minutes
+    // Wait for customer response or timeout
     const response = await step.waitForEvent('wait-for-selection', {
       event: 'agent/customer.message',
-      timeout: '10m',
+      timeout: `${timeoutMs}ms`,
       match: 'data.sessionId',
     })
 
     if (!response) {
-      // Timeout: auto-create order with default pack (1x)
-      logger.info({ sessionId }, 'Promos timeout, auto-creating order')
+      // Timeout: send reminder message
+      logger.info({ sessionId }, 'Promos timeout, sending reminder')
 
-      const orderResult = await step.run('auto-create-order', async () => {
-        const sessionManager = getSessionManager()
-        const session = await sessionManager.getSession(sessionId)
-
-        // Create order with default pack
-        const result = await executeToolFromAgent(
-          'crm.order.create',
-          {
-            contact_id: session.contact_id,
-            products: [{ product_id: 'default-pack-1x', quantity: 1 }],
-            notes: 'Auto-created after 10 min timeout. Pack: 1x',
-          },
+      await step.run('send-promos-reminder', async () => {
+        await sendWhatsAppMessage(
           workspaceId,
-          sessionId
-        )
-
-        // Update session state
-        await sessionManager.updateState(sessionId, {
-          pack_seleccionado: '1x',
-        })
-
-        return result
-      })
-
-      // Send confirmation message using whatsapp.message.send from Phase 12
-      await step.run('send-order-confirmation', async () => {
-        await executeToolFromAgent(
-          'whatsapp.message.send',
-          {
-            contactId: conversationId,
-            message: 'He creado tu pedido con el Pack 1x. Un asesor se pondra en contacto contigo pronto para confirmar los detalles.',
-          },
-          workspaceId,
-          sessionId
+          conversationId,
+          'Quedamos pendientes con tu seleccion de pack. Cuando estes listo, me cuentas cual prefieres: 1x, 2x, o 3x'
         )
       })
 
-      // Update session mode
-      await step.run('update-session-mode', async () => {
-        const sessionManager = getSessionManager()
-        const session = await sessionManager.getSession(sessionId)
-        await sessionManager.updateSessionWithVersion(sessionId, session.version, {
-          currentMode: 'compra_confirmada',
-        })
-      })
-
-      // Access orderId safely from untyped outputs
-      const orderId = orderResult?.outputs && typeof orderResult.outputs === 'object'
-        ? (orderResult.outputs as Record<string, unknown>).id
-        : undefined
-      return { status: 'timeout', action: 'auto_created_order', orderId }
+      return { status: 'timeout', action: 'sent_reminder' }
     }
 
     // Customer responded - let the main engine process the selection
@@ -268,9 +291,6 @@ export const promosTimer = inngest.createFunction(
 
 /**
  * Build timeout message based on data status.
- * From CONTEXT.md:
- * - No data: "Quedamos pendientes a tus datos..."
- * - Partial data: "Para poder despachar tu producto nos faltaria: ..."
  */
 function buildTimeoutMessage(
   datosCapturados: Record<string, string>,
@@ -280,7 +300,6 @@ function buildTimeoutMessage(
     return 'Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla'
   }
 
-  // List missing critical fields
   const criticalFields = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
   const fieldLabels: Record<string, string> = {
     nombre: 'Tu nombre completo',
@@ -295,7 +314,6 @@ function buildTimeoutMessage(
     .map(f => `- ${fieldLabels[f]}`)
 
   if (missing.length === 0) {
-    // All critical fields present but timer expired anyway (edge case)
     return 'Quedamos pendientes a tus datos, o si tienes alguna pregunta acerca del producto no dudes en hacerla'
   }
 
@@ -304,16 +322,9 @@ function buildTimeoutMessage(
 
 /**
  * Ingest Timer
- * Phase 15.5: Somnio Ingest System
  *
  * Triggered when first data is received in collecting_data mode.
- * Uses waitForEvent with conditional timeout (6 min partial / 10 min no data).
- *
- * Flow from CONTEXT.md:
- * - 6 min timeout if customer sent partial data
- * - 10 min timeout if no data was received
- * - On timeout: send appropriate message based on data status
- * - Timer cancelled if agent/ingest.completed received
+ * Duration comes from workspace preset via event.data.timerDurationMs.
  */
 export const ingestTimer = inngest.createFunction(
   {
@@ -338,7 +349,6 @@ export const ingestTimer = inngest.createFunction(
     })
 
     if (completionEvent) {
-      // Data collection completed normally (all 8 fields)
       logger.info(
         { sessionId, reason: completionEvent.data.reason },
         'Ingest completed - timer cancelled'
@@ -355,17 +365,11 @@ export const ingestTimer = inngest.createFunction(
       const message = buildTimeoutMessage(datos, hasPartialData)
 
       logger.info(
-        { sessionId, hasPartialData, missingFields: Object.keys(datos) },
+        { sessionId, hasPartialData },
         'Ingest timeout - sending message'
       )
 
-      // Send timeout message via WhatsApp
-      await executeToolFromAgent(
-        'whatsapp.message.send',
-        { contactId: conversationId, message },
-        workspaceId,
-        sessionId
-      )
+      await sendWhatsAppMessage(workspaceId, conversationId, message)
     })
 
     return { status: 'timeout', hadData: hasPartialData }

@@ -1,23 +1,28 @@
 /**
  * Webhook Processor
  * Phase 16: WhatsApp Agent Integration - Plan 02
+ * Updated: Phase 16.1 - Plan 05 (Engine Unification)
  *
- * Routes incoming WhatsApp messages through SomnioEngine for production
- * agent processing. Called from the Inngest function (async, queued).
+ * Routes incoming WhatsApp messages through UnifiedEngine with production
+ * adapters for agent processing. Called from the Inngest function (async, queued).
  *
  * Responsibilities:
  * - Check if agent is enabled for the conversation
  * - Auto-create contact if conversation has no linked contact
  * - Broadcast typing indicator via Supabase Realtime
- * - Process message through SomnioEngine
+ * - Process message through UnifiedEngine (with production adapters)
  * - Mark outbound messages as sent_by_agent=true
  * - Trigger handoff if engine signals it
+ *
+ * External interface (ProcessMessageInput, SomnioEngineResult) is unchanged.
+ * Internal engine was swapped from SomnioEngine to UnifiedEngine in Plan 05.
  */
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { isAgentEnabledForConversation, getWorkspaceAgentConfig } from './agent-config'
 import type { SomnioEngineResult } from '../somnio/somnio-engine'
+import type { EngineOutput } from '../engine/types'
 
 const logger = createModuleLogger('webhook-processor')
 
@@ -147,23 +152,52 @@ export async function processMessageWithAgent(
     logger.warn({ error: typingError }, 'Failed to broadcast typing start')
   }
 
-  // 6. Process message through SomnioEngine
+  // 6. Process message through UnifiedEngine (with production adapters)
   let result: SomnioEngineResult
   try {
-    // Import barrel to trigger agent self-registration, then get engine
-    const { SomnioEngine } = await import('../somnio')
-    const engine = new SomnioEngine(workspaceId)
+    // Import barrel to trigger agent self-registration
+    await import('../somnio')
 
-    result = await engine.processMessage({
+    // Dynamic imports for UnifiedEngine and production adapter factory
+    const { UnifiedEngine } = await import('../engine/unified-engine')
+    const { createProductionAdapters } = await import('../engine-adapters/production')
+
+    const adapters = createProductionAdapters({
+      workspaceId,
       conversationId,
-      contactId,
-      messageContent,
+      phoneNumber: phone,
+    })
+
+    const engine = new UnifiedEngine(adapters, { workspaceId })
+
+    const engineOutput: EngineOutput = await engine.processMessage({
+      conversationId,
+      contactId: contactId!,
+      message: messageContent,
       workspaceId,
       phoneNumber: phone,
     })
+
+    // Map EngineOutput to SomnioEngineResult for backward compatibility
+    result = {
+      success: engineOutput.success,
+      response: engineOutput.response,
+      messagesSent: engineOutput.messagesSent,
+      orderCreated: engineOutput.orderCreated,
+      orderId: engineOutput.orderId,
+      contactId: engineOutput.contactId,
+      newMode: engineOutput.newMode,
+      tokensUsed: engineOutput.tokensUsed,
+      sessionId: engineOutput.sessionId,
+      error: engineOutput.error ? {
+        code: engineOutput.error.code,
+        message: engineOutput.error.message,
+        retryable: engineOutput.error.retryable ?? true,
+      } : undefined,
+    }
   } catch (engineError) {
     const errorMessage = engineError instanceof Error ? engineError.message : 'Unknown engine error'
-    logger.error({ error: errorMessage, conversationId }, 'SomnioEngine processing failed')
+    logger.error({ error: errorMessage, conversationId }, 'UnifiedEngine processing failed')
     result = {
       success: false,
       error: {

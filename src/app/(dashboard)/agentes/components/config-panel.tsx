@@ -9,6 +9,7 @@ import {
   Loader2,
   Save,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
@@ -74,66 +75,68 @@ export function ConfigPanel() {
     loadConfig()
   }, [])
 
-  // Save helper
+  // Save helper - reverts optimistic state on error
   const saveConfig = useCallback(async (
-    updates: Partial<Omit<AgentConfig, 'workspace_id' | 'created_at' | 'updated_at'>>
+    updates: Partial<Omit<AgentConfig, 'workspace_id' | 'created_at' | 'updated_at'>>,
+    previousConfig?: AgentConfig | null
   ) => {
     setIsSaving(true)
     const result = await updateAgentConfig(updates)
     if ('success' in result && result.success) {
       setConfig(result.data)
+    } else if ('error' in result) {
+      // Revert to previous state
+      if (previousConfig) setConfig(previousConfig)
+      toast.error(result.error)
     }
     setIsSaving(false)
   }, [])
 
   // Immediate handlers (toggles, selects)
   const handleToggleAgent = useCallback((checked: boolean) => {
-    setConfig(prev => prev ? { ...prev, agent_enabled: checked } : prev)
-    saveConfig({ agent_enabled: checked })
-  }, [saveConfig])
+    const prev = config
+    setConfig(p => p ? { ...p, agent_enabled: checked } : p)
+    saveConfig({ agent_enabled: checked }, prev)
+  }, [saveConfig, config])
 
   const handleSelectAgent = useCallback((agentId: string) => {
-    setConfig(prev => prev ? { ...prev, conversational_agent_id: agentId } : prev)
-    saveConfig({ conversational_agent_id: agentId })
-  }, [saveConfig])
+    const prev = config
+    setConfig(p => p ? { ...p, conversational_agent_id: agentId } : p)
+    saveConfig({ conversational_agent_id: agentId }, prev)
+  }, [saveConfig, config])
 
   const handleToggleCrmAgent = useCallback((agentId: string, checked: boolean) => {
-    setConfig(prev => {
-      if (!prev) return prev
-      const updated = { ...prev.crm_agents_enabled, [agentId]: checked }
-      return { ...prev, crm_agents_enabled: updated }
-    })
-    setConfig(prev => {
-      if (prev) {
-        const updatedCrm = { ...prev.crm_agents_enabled }
-        saveConfig({ crm_agents_enabled: updatedCrm })
-      }
-      return prev
-    })
-  }, [saveConfig])
+    const prev = config
+    const updatedCrm = { ...config?.crm_agents_enabled, [agentId]: checked }
+    setConfig(p => p ? { ...p, crm_agents_enabled: updatedCrm } : p)
+    saveConfig({ crm_agents_enabled: updatedCrm }, prev)
+  }, [saveConfig, config])
 
   const handleSelectPreset = useCallback((preset: TimerPreset) => {
-    setConfig(prev => prev ? { ...prev, timer_preset: preset } : prev)
-    saveConfig({ timer_preset: preset })
-  }, [saveConfig])
+    const prev = config
+    setConfig(p => p ? { ...p, timer_preset: preset } : p)
+    saveConfig({ timer_preset: preset }, prev)
+  }, [saveConfig, config])
 
   // Debounced handlers (text, slider)
   const handleHandoffChange = useCallback((value: string) => {
-    setConfig(prev => prev ? { ...prev, handoff_message: value } : prev)
+    const prev = config
+    setConfig(p => p ? { ...p, handoff_message: value } : p)
     if (handoffTimerRef.current) clearTimeout(handoffTimerRef.current)
     handoffTimerRef.current = setTimeout(() => {
-      saveConfig({ handoff_message: value })
+      saveConfig({ handoff_message: value }, prev)
     }, 300)
-  }, [saveConfig])
+  }, [saveConfig, config])
 
   const handleSpeedChange = useCallback((values: number[]) => {
     const speed = values[0]
-    setConfig(prev => prev ? { ...prev, response_speed: speed } : prev)
+    const prev = config
+    setConfig(p => p ? { ...p, response_speed: speed } : p)
     if (speedTimerRef.current) clearTimeout(speedTimerRef.current)
     speedTimerRef.current = setTimeout(() => {
-      saveConfig({ response_speed: speed })
+      saveConfig({ response_speed: speed }, prev)
     }, 300)
-  }, [saveConfig])
+  }, [saveConfig, config])
 
   // Cleanup timers
   useEffect(() => {

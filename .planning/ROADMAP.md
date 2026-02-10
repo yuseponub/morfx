@@ -49,6 +49,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 15.5: Somnio Ingest System** - Acumulacion de datos con deteccion datos vs pregunta (INSERTED)
 - [ ] **Phase 15.6: Sandbox Evolution** - Debug multi-panel, tools visibility, agent separation, ingest testing (INSERTED)
 - [ ] **Phase 15.7: Ingest Timer Pluggable** - Timer funcional con 5 niveles, configurable en sandbox, simulacion completa (INSERTED)
+- [ ] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 
 ---
@@ -480,9 +481,29 @@ Plans:
 - [ ] 15.7-02-PLAN.md — SandboxLayout timer integration + IngestTab 5-level UI
 - [ ] 15.7-03-PLAN.md — Human verification of all success criteria
 
+### Phase 15.8: Codebase Cleanup (INSERTED)
+**Goal**: Corregir los 16 bugs, 11 vulnerabilidades de seguridad, codigo duplicado y inconsistencias identificados en la auditoria profunda del codebase
+**Depends on**: Phase 15.7
+**Requirements**: Audit findings from `.planning/codebase/audit/` (BUGS.md, SECURITY.md, DUPLICATES.md, CONSISTENCY.md)
+**Success Criteria** (what must be TRUE):
+  1. Los 6 bugs criticos corregidos (stale closures, state mutation, race conditions)
+  2. Los 7 bugs de alta severidad corregidos (null access, logic errors, missing error handling)
+  3. Los 3 bugs de media severidad corregidos (timer leak, logic errors)
+  4. Vulnerabilidades de seguridad criticas/altas mitigadas (sandbox auth, webhook HMAC, workspace isolation)
+  5. Phone normalization consolidada en una sola implementacion
+  6. CRITICAL_FIELDS y constantes duplicadas consolidadas
+  7. Supabase admin client unificado
+  8. TypeScript compila sin errores despues de todos los cambios
+**Plans**: 3 plans
+
+Plans:
+- [ ] 15.8-01-PLAN.md -- Critical bugs: stale closures (#1-3), state mutation (#4), timer context (#5), race condition (#6)
+- [ ] 15.8-02-PLAN.md -- High severity bugs (#7-13) + security fixes (sandbox auth, webhook HMAC, workspace isolation)
+- [ ] 15.8-03-PLAN.md -- Medium bugs (#14-16) + consolidation (phone, constants, admin client, state factory, model IDs)
+
 ### Phase 16: WhatsApp Agent Integration
 **Goal**: Agentes conectados con inbox de WhatsApp real con handoff humano-robot
-**Depends on**: Phase 15
+**Depends on**: Phase 15.8
 **Requirements**: WINT-01, WINT-02, WINT-03, WINT-04, WINT-05, WINT-06, WINT-07
 **Success Criteria** (what must be TRUE):
   1. Conversacion de WhatsApp puede tener agente asignado que procesa mensajes automaticamente
@@ -534,6 +555,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.5. Somnio Ingest System | 3/4 | In progress | - |
 | 15.6. Sandbox Evolution | 0/6 | Not started | - |
 | 15.7. Ingest Timer Pluggable | TBD | Not started | - |
+| 15.8. Codebase Cleanup | TBD | Not started | - |
 | 16. WhatsApp Agent Integration | TBD | Not started | - |
 
 ---

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 16: WhatsApp Agent Integration
+**Current focus:** MVP v2.0 — Phase 16.1: Engine Unification
 
 ## Current Position
 
-Phase: 16 of 18 (WhatsApp Agent Integration)
-Plan: 5 of 6 (01, 02, 03, 04, 05 complete)
+Phase: 16.1 of 18 (Engine Unification)
+Plan: 1 of 6 (01 complete)
 Status: In progress
-Last activity: 2026-02-10 — Completed 16-05-PLAN.md
+Last activity: 2026-02-10 — Completed 16.1-01-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [████████████████░] 95% MVP v2
 
@@ -37,6 +37,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.7: Ingest Timer Pluggable (3 plans) — INSERTED
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
+- Phase 16.1: Engine Unification (6 plans) — INSERTED — IN PROGRESS (1/6)
 - Phase 17: CRM Automations Engine (TBD plans)
 - Phase 18: AI Automation Builder (TBD plans)
 
@@ -62,6 +63,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
+| 16.1 Engine Unification | 1/6 | In Progress |
 
 ## Accumulated Context
 
@@ -226,6 +228,10 @@ Recent decisions affecting MVP v2 work:
 - [16-05]: avgResponseTimeMs returns 0 for MVP (needs instrumentation)
 - [16-05]: 3 metric groups x 3 cards = 9 total (conversations, handoffs, costs)
 - [16-05]: ConfigPanel reuses AgentConfigSlider data model with full-page descriptive layout
+- [16.1-01]: AgentSessionLike uses SessionState directly (not simplified shape) for full orchestrator compatibility
+- [16.1-01]: Debug-related fields use 'any' to keep engine types environment-agnostic
+- [16.1-01]: TimerAdapter.signal() synchronous void (sandbox accumulates, production fire-and-forget)
+- [16.1-01]: engine/ directory coexists with engine.ts; bundler resolution prefers file over directory for existing imports
 
 ### Project Rules
 
@@ -255,6 +261,10 @@ Established in `CLAUDE.md`:
 5. Filtrado por contenido (hash) además de por template ID
 6. El intent "hola" podría no contarse como intent real para este cálculo
 
+### Roadmap Evolution
+
+- Phase 16.1 inserted after Phase 16: Engine Unification - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (URGENT)
+
 ### Blockers/Concerns
 
 None.
@@ -262,6 +272,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 16-05-PLAN.md (Agentes Module)
+Stopped at: Completed 16.1-01-PLAN.md (Engine Type Foundation)
 Resume file: None
-Next: 16-06-PLAN.md (E2E Testing & Polish)
+Next: 16.1-02-PLAN.md (SomnioAgent extraction)

@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { Bot } from 'lucide-react'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
 import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
@@ -87,6 +88,12 @@ export function ConversationItem({
             {primaryEmoji && (
               <span className="absolute -top-1 -right-1 text-sm leading-none bg-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm border border-gray-100">
                 {primaryEmoji}
+              </span>
+            )}
+            {/* Bot overlay when agent is active */}
+            {conversation.agent_conversational === true && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shadow-sm border border-white">
+                <Bot className="h-2.5 w-2.5 text-white" />
               </span>
             )}
           </div>

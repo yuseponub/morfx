@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, CheckCheck } from 'lucide-react'
+import { Bot, Check, CheckCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -158,6 +158,7 @@ function MessageContent({
  */
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const timestamp = format(new Date(message.timestamp), 'HH:mm', { locale: es })
+  const isAgentMessage = isOwn && message.sent_by_agent
 
   return (
     <div
@@ -166,14 +167,23 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
         isOwn ? 'justify-end' : 'justify-start'
       )}
     >
-      <div
-        className={cn(
-          'relative max-w-[70%] rounded-lg px-3 py-2 shadow-sm',
-          isOwn
-            ? 'bg-primary text-primary-foreground rounded-br-none'
-            : 'bg-muted rounded-bl-none'
+      <div className={cn('max-w-[70%]', isOwn ? 'flex flex-col items-end' : '')}>
+        {/* Bot badge for agent-sent messages */}
+        {isAgentMessage && (
+          <div className="flex items-center gap-1 mb-0.5 mr-1">
+            <Bot className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Bot</span>
+          </div>
         )}
-      >
+
+        <div
+          className={cn(
+            'relative rounded-lg px-3 py-2 shadow-sm',
+            isOwn
+              ? 'bg-primary text-primary-foreground rounded-br-none'
+              : 'bg-muted rounded-bl-none'
+          )}
+        >
         {/* Message content */}
         <div className="text-sm">
           <MessageContent message={message} isOwn={isOwn} />
@@ -203,6 +213,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
             {message.error_message}
           </p>
         )}
+        </div>
       </div>
     </div>
   )

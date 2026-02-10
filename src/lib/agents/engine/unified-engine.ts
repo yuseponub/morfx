@@ -267,7 +267,10 @@ export class UnifiedEngine {
         error: agentOutput.error,
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage = error instanceof Error
+        ? `${error.message}\n${(error as Error).stack?.split('\n').slice(0, 3).join('\n')}`
+        : 'Unknown error'
+      console.error('[ENGINE] CRASH:', errorMessage)
 
       return {
         success: false,

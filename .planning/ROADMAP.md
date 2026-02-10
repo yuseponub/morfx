@@ -514,11 +514,15 @@ Plans:
   3. Sistema soporta handoff bidireccional: agente a humano y humano a agente
   4. Manager puede ver conversaciones atendidas por agente (filtro especial)
   5. Sistema registra metricas de conversaciones automatizadas (tiempo respuesta, resolucion, handoffs)
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 16-01: TBD during /gsd:plan-phase
-- [ ] 16-02: TBD during /gsd:plan-phase
+- [ ] 16-01-PLAN.md -- DB foundation: workspace_agent_config table, conversation columns, messages column, server actions
+- [ ] 16-02-PLAN.md -- Backend: Webhook-to-agent routing via Inngest, handoff handler, auto-contact creation
+- [ ] 16-03-PLAN.md -- Inbox UX: Bot badge, avatar overlay, per-chat toggles, typing indicator
+- [ ] 16-04-PLAN.md -- Agent config slider, inbox panel switching, sidebar/mobile navigation
+- [ ] 16-05-PLAN.md -- Agentes module: metrics dashboard, config page, period selector
+- [ ] 16-06-PLAN.md -- Human verification of all success criteria
 
 ### Phase 17: CRM Automations Engine
 **Goal**: Motor de automatizaciones configurable con triggers y acciones entre modulos (CRM, tareas, WhatsApp)
@@ -593,7 +597,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.6. Sandbox Evolution | 6/6 | Complete | 2026-02-08 |
 | 15.7. Ingest Timer Pluggable | 2/3 | In progress | - |
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
-| 16. WhatsApp Agent Integration | TBD | Not started | - |
+| 16. WhatsApp Agent Integration | 0/6 | Planned | - |
 | 17. CRM Automations Engine | TBD | Not started | - |
 | 18. AI Automation Builder | TBD | Not started | - |
 

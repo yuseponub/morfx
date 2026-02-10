@@ -347,18 +347,20 @@ export class SomnioEngine {
         messagesSent = sequenceResult.messagesSent
       }
 
-      // 15. Record assistant turn
+      // 15. Record assistant turn (skip if empty to avoid Anthropic API errors)
       const responseText = orchestratorResult.templates
         ?.map((t) => t.content)
         .join('\n') ?? ''
 
-      await this.sessionManager.addTurn({
-        sessionId: session.id,
-        turnNumber: turnNumber + 1,
-        role: 'assistant',
-        content: responseText,
-        tokensUsed: orchestratorResult.tokensUsed ?? 0,
-      })
+      if (responseText.trim().length > 0) {
+        await this.sessionManager.addTurn({
+          sessionId: session.id,
+          turnNumber: turnNumber + 1,
+          role: 'assistant',
+          content: responseText,
+          tokensUsed: orchestratorResult.tokensUsed ?? 0,
+        })
+      }
 
       logger.info(
         {
@@ -432,6 +434,7 @@ export class SomnioEngine {
 
     return turns
       .filter((turn) => turn.role !== 'system')
+      .filter((turn) => turn.content && turn.content.trim().length > 0)
       .map((turn) => ({
         role: turn.role as 'user' | 'assistant',
         content: turn.content,

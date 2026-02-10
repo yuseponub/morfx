@@ -332,7 +332,12 @@ export class IngestTimerSimulator {
     const adjustedDuration = Math.max(0, newDurationMs - elapsed)
 
     if (adjustedDuration <= 0) {
-      // New duration already exceeded by elapsed time - fire immediately
+      // EARLY EXPIRATION: The new level's duration has already been exceeded
+      // by the elapsed time from the previous level. This happens when a
+      // level transition occurs after the new level's full duration has passed
+      // (e.g., user was on L0 for 600s, transitions to L1 with 360s duration).
+      // We fire immediately since the deadline has already passed.
+      // Reason: duration_exceeded (adjustedDuration <= 0)
       const levelConfig = TIMER_LEVELS.find((l) => l.id === newLevel)
       if (levelConfig) {
         this.currentLevel = newLevel
@@ -389,9 +394,11 @@ export class IngestTimerSimulator {
 
   /**
    * Clean up all intervals/timeouts. Call on component unmount.
+   * Also clears the context provider to prevent stale callbacks.
    */
   destroy(): void {
     this.stop()
+    this.contextProvider = null
   }
 
   // ============================================================================

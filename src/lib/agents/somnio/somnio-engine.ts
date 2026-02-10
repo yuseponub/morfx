@@ -556,7 +556,8 @@ export class SomnioEngine {
 
     // Emit timer events if needed
     if (ingestResult.shouldEmitTimerStart) {
-      await this.emitIngestStarted(session, ingestResult.timerDuration === '6m')
+      const hasPartialData = Object.keys(ingestResult.extractedData?.normalized ?? {}).length > 0
+      await this.emitIngestStarted(session, hasPartialData)
     }
     if (ingestResult.shouldEmitTimerComplete) {
       await this.emitIngestCompleted(session.id, 'all_fields')
@@ -709,7 +710,8 @@ export class SomnioEngine {
 
     // Emit timer start event
     if (ingestResult.shouldEmitTimerStart || Object.keys(ingestResult.extractedData?.normalized ?? {}).length > 0) {
-      await this.emitIngestStarted(session, true)
+      const hasPartialData = Object.keys(ingestResult.extractedData?.normalized ?? {}).length > 0
+      await this.emitIngestStarted(session, hasPartialData)
     }
 
     // Check if all fields complete (rare but possible)

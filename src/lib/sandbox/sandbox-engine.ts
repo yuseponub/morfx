@@ -117,9 +117,10 @@ export class SandboxEngine {
         if (ingestResult) {
           return ingestResult
         }
-        // If null, continue with normal orchestration (for pregunta/mixto or complete)
-        // Check if handleIngestMode transitioned to ofrecer_promos (mutated currentState)
-        // Use type assertion because TypeScript doesn't track the mutation
+        // If null, continue with normal orchestration (for pregunta/mixto or complete).
+        // handleIngestMode intentionally mutates currentState.currentMode when ingest
+        // completes (all 8 fields). Detect this transition to force ofrecer_promos intent.
+        // TypeScript doesn't track the mutation, hence the type assertion.
         if (previousMode === 'collecting_data' && (currentState.currentMode as string) === 'ofrecer_promos') {
           justCompletedIngest = true
         }
@@ -141,7 +142,9 @@ export class SandboxEngine {
           return implicitYesResult
         }
 
-        // Check if checkImplicitYes transitioned to ofrecer_promos (all 8 fields in one message)
+        // checkImplicitYes intentionally mutates currentState.currentMode when all 8
+        // fields arrive in a single message outside collecting_data.
+        // Detect this transition to force ofrecer_promos intent.
         if ((currentState.currentMode as string) === 'ofrecer_promos') {
           justCompletedIngest = true
         }
@@ -522,10 +525,16 @@ export class SandboxEngine {
     }
 
     // Handle complete (all 8 fields) - transition to ofrecer_promos
-    // Mutate currentState and return null to continue with orchestrator
-    // The orchestrator will then send the ofrecer_promos templates
+    // Return null to continue with orchestrator, which sends ofrecer_promos templates.
     if (ingestResult.action === 'complete') {
-      // Mutate currentState to reflect transition (passed by reference)
+      // WARNING: Intentional mutation of currentState parameter.
+      // This is the communication channel to processMessage (the caller).
+      // After this method returns null, processMessage checks
+      // `currentState.currentMode` at line ~123 to detect the transition
+      // from 'collecting_data' to 'ofrecer_promos' (justCompletedIngest flag).
+      // Do NOT refactor to immutable return without also updating processMessage
+      // to destructure and use the returned new state.
+      // See also: checkImplicitYes which uses the same pattern.
       currentState.currentMode = 'ofrecer_promos'
       currentState.datosCapturados = ingestResult.mergedData ?? currentState.datosCapturados
       currentState.ingestStatus = {
@@ -627,7 +636,14 @@ export class SandboxEngine {
 
     // If all fields complete, continue to orchestrator with ofrecer_promos
     if (allFieldsComplete) {
-      // Mutate currentState to let the main flow continue with ofrecer_promos
+      // WARNING: Intentional mutation of currentState parameter.
+      // This is the communication channel to processMessage (the caller).
+      // After this method returns null, processMessage checks
+      // `currentState.currentMode` at line ~145 to detect the transition
+      // to 'ofrecer_promos' (justCompletedIngest flag).
+      // Do NOT refactor to immutable return without also updating processMessage
+      // to destructure and use the returned new state.
+      // See also: handleIngestMode which uses the same pattern.
       currentState.currentMode = 'ofrecer_promos'
       currentState.datosCapturados = mergedData
       currentState.ingestStatus = newIngestStatus

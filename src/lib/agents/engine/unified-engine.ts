@@ -75,11 +75,12 @@ export class UnifiedEngine {
         )
       }
 
+      // Only save columns that exist in session_state table
+      // (ingestStatus is sandbox-only, not a DB column)
       await this.adapters.storage.saveState(session.id, {
         datos_capturados: agentOutput.stateUpdates.newDatosCapturados,
         templates_enviados: agentOutput.stateUpdates.newTemplatesEnviados,
         pack_seleccionado: agentOutput.stateUpdates.newPackSeleccionado,
-        ingestStatus: agentOutput.stateUpdates.newIngestStatus,
       })
 
       // Storage: record turns (production writes to DB; sandbox is no-op)

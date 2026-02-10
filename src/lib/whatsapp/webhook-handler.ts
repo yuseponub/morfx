@@ -186,6 +186,7 @@ async function processIncomingMessage(
         })
 
         // Debug: write agent result as message so it's visible
+        const agentResultAny = agentResult as unknown as Record<string, unknown>
         const debugInfo = JSON.stringify({
           success: agentResult.success,
           error: agentResult.error,
@@ -194,6 +195,8 @@ async function processIncomingMessage(
           tokensUsed: agentResult.tokensUsed,
           response: agentResult.response?.substring(0, 200),
           sessionId: agentResult.sessionId,
+          intent: agentResultAny._debugIntent,
+          tplCount: agentResultAny._debugTemplateCount,
         })
         await supabase.from('messages').insert({
           conversation_id: conversationId,

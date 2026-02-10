@@ -243,6 +243,7 @@ export class UnifiedEngine {
         messagesSent,
         response: agentOutput.messages.join('\n'),
         error: agentOutput.error,
+        ...({ _debugIntent: agentOutput.intentInfo?.intent, _debugTemplateCount: agentOutput.templates?.length ?? 0 }),
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

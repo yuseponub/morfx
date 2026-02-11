@@ -13,6 +13,7 @@
  */
 
 import { executeToolFromAgent } from '@/lib/tools/executor'
+import { initializeTools } from '@/lib/tools/init'
 import type { PackSelection } from '../types'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { SOMNIO_PRICES } from './variable-substitutor'
@@ -116,6 +117,9 @@ export class OrderCreator {
     pack: PackSelection,
     sessionId: string
   ): Promise<OrderCreationResult> {
+    // Ensure tool registry is initialized (may not be in Inngest/serverless context)
+    initializeTools()
+
     logger.info(
       {
         pack,

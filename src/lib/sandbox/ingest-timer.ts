@@ -95,7 +95,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
       return !hasAllMinimum
     },
     buildAction: (ctx: TimerEvalContext): TimerAction => {
-      const missing = TIMER_MINIMUM_FIELDS.filter(
+      const missing = TIMER_ALL_FIELDS.filter(
         (f) => !ctx.fieldsCollected.includes(f)
       ).map((f) => `- ${FIELD_LABELS[f]}`)
       return {

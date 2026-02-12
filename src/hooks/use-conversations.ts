@@ -266,9 +266,28 @@ export function useConversations({
       )
       .subscribe()
 
-    // Subscribe to orders changes (for order indicator updates when stage changes)
+    // Subscribe to orders changes (new orders + stage changes)
     const ordersChannel = supabase
       .channel(`orders:${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        async () => {
+          console.log('New order created')
+          const contactIds = conversations
+            .map(c => c.contact?.id)
+            .filter((id): id is string => !!id)
+          if (contactIds.length > 0) {
+            const orders = await getOrdersForContacts([...new Set(contactIds)])
+            setOrdersByContact(orders)
+          }
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -281,7 +300,6 @@ export function useConversations({
           // Only refresh orders if stage_id changed
           if (payload.old?.stage_id !== payload.new?.stage_id) {
             console.log('Order stage change received')
-            // Refresh orders data
             const contactIds = conversations
               .map(c => c.contact?.id)
               .filter((id): id is string => !!id)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo } from 'lucide-react'
 import Link from 'next/link'
@@ -13,6 +13,7 @@ import { CreateContactSheet } from './create-contact-sheet'
 import { ViewOrderSheet } from './view-order-sheet'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
+import { createClient } from '@/lib/supabase/client'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ContactPanelProps {
@@ -46,6 +47,34 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
     router.refresh()
     onConversationUpdated?.()
   }
+
+  // Realtime subscription: auto-refresh when new order created for this contact
+  const contactId = conversation?.contact?.id
+  useEffect(() => {
+    if (!contactId) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`contact-orders:${contactId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `contact_id=eq.${contactId}`,
+        },
+        () => {
+          setOrdersRefreshKey(k => k + 1)
+          onOrdersChanged?.()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [contactId, onOrdersChanged])
   // Empty state
   if (!conversation) {
     return (

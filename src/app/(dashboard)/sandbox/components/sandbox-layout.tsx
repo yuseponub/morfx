@@ -219,7 +219,7 @@ export function SandboxLayout() {
               turnNumber: currentDebugTurns.length + 1,
               crmAgents: enabledCrmAgents,
               workspaceId: workspaceRef.current?.id,
-              forceIntent: 'compra_confirmada',
+              forceIntent: level === 3 ? 'timer_sinpack' : 'timer_pendiente',
             }),
           })
           const result = await response.json()

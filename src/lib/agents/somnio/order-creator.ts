@@ -378,7 +378,7 @@ export class OrderCreator {
           {
             name: product.productName,
             quantity: product.quantity,
-            price: product.price,
+            price: orderData.price,
           },
         ],
         shippingAddress: orderData.shippingAddress,

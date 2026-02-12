@@ -86,6 +86,20 @@ export type AgentEvents = {
   }
 
   /**
+   * Emitted when customer selects a pack and enters resumen mode.
+   * Triggers L4 timeout workflow (pack sin confirmar).
+   */
+  'agent/resumen.started': {
+    data: {
+      sessionId: string
+      conversationId: string
+      workspaceId: string
+      /** Timer duration from workspace preset (ms). Defaults to 600000 (10 min). */
+      timerDurationMs?: number
+    }
+  }
+
+  /**
    * Emitted when session should be closed.
    */
   'agent/session.close': {

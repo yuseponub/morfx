@@ -436,10 +436,75 @@ export const promosTimer = inngest.createFunction(
 )
 
 /**
+ * Resumen Timer (L4: pack sin confirmar)
+ * Triggered when customer selects a pack but doesn't confirm.
+ * On timeout: create order with selected pack at valor 0.
+ */
+export const resumenTimer = inngest.createFunction(
+  {
+    id: 'resumen-timer',
+    name: 'Resumen Timer',
+    retries: 3,
+  },
+  { event: 'agent/resumen.started' },
+  async ({ event, step }) => {
+    const { sessionId, conversationId, workspaceId } = event.data
+    const timeoutMs = event.data.timerDurationMs ?? 600_000
+
+    logger.info({ sessionId, timeoutMs }, 'Resumen timer started (L4: pack sin confirmar)')
+
+    // Wait for customer message or timeout
+    const response = await step.waitForEvent('wait-for-confirmation', {
+      event: 'agent/customer.message',
+      timeout: `${timeoutMs}ms`,
+      match: 'data.sessionId',
+    })
+
+    if (response) {
+      return { status: 'responded', action: 'customer_replied' }
+    }
+
+    // Timeout: evaluate level and execute action
+    const result = await step.run('evaluate-and-execute', async () => {
+      const sm = getSessionManager()
+      const session = await sm.getSession(sessionId)
+      const ctx = buildTimerContext(session)
+
+      let matchedLevel: number | null = null
+      for (const level of TIMER_LEVELS) {
+        if (level.evaluate(ctx)) {
+          matchedLevel = level.id
+          break
+        }
+      }
+
+      if (matchedLevel === null) {
+        logger.warn({ sessionId }, 'No timer level matched')
+        return { status: 'timeout', action: 'no_level_matched' }
+      }
+
+      const levelConfig = TIMER_LEVELS.find(l => l.id === matchedLevel)!
+      const action = levelConfig.buildAction(ctx)
+
+      const phone = await getConversationPhone(conversationId)
+      if (!phone) {
+        logger.error({ conversationId }, 'No phone')
+        return { status: 'error', action: 'no_phone' }
+      }
+
+      return executeTimerAction(matchedLevel, action, sessionId, conversationId, workspaceId, phone)
+    })
+
+    return result
+  }
+)
+
+/**
  * All agent timer functions for export.
  */
 export const agentTimerFunctions = [
   dataCollectionTimer,
   promosTimer,
+  resumenTimer,
   ingestTimer,
 ]

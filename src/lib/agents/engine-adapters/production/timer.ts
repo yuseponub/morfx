@@ -140,6 +140,20 @@ export class ProductionTimerAdapter implements TimerAdapter {
         })
         logger.info({ sessionId, conversationId, durationMs, preset }, 'Emitted agent/promos.offered')
       }
+
+      if (newMode === 'resumen' && previousMode !== 'resumen') {
+        const durationMs = await this.getDuration(4) // L4: pack sin confirmar
+        await inngest.send({
+          name: 'agent/resumen.started',
+          data: {
+            sessionId,
+            conversationId: conversationId ?? '',
+            workspaceId: this.workspaceId,
+            timerDurationMs: durationMs,
+          },
+        })
+        logger.info({ sessionId, conversationId, durationMs, preset }, 'Emitted agent/resumen.started')
+      }
     } catch (error) {
       logger.warn({ error, sessionId, newMode }, 'Failed to emit mode transition event')
     }

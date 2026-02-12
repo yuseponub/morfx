@@ -48,9 +48,10 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
     onConversationUpdated?.()
   }
 
-  // Auto-refresh orders via two mechanisms:
-  // 1. Direct orders table listener (orders table is in supabase_realtime publication)
-  // 2. Outbound message proxy (backup — message arrives before order, so 5s delay)
+  // Auto-refresh orders when conversation is updated.
+  // Conversations realtime is PROVEN to work. After timer creates an order,
+  // agent-timers.ts touches the conversation → this listener fires → orders refresh.
+  // Also catches engine confirmation messages that update last_message_at.
   const contactId = conversation?.contact?.id
   useEffect(() => {
     const conversationId = conversation?.id
@@ -58,7 +59,27 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
 
     const supabase = createClient()
 
-    // Mechanism 1: Direct orders INSERT listener by contact
+    // Primary: conversation UPDATE triggers order refresh
+    // (fires after order creation because agent-timers touches conversation post-engine)
+    const convChannel = supabase
+      .channel(`conv-order-refresh:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations',
+          filter: `id=eq.${conversationId}`,
+        },
+        () => {
+          setTimeout(() => {
+            setOrdersRefreshKey(k => k + 1)
+          }, 1000)
+        }
+      )
+      .subscribe()
+
+    // Backup: direct orders INSERT listener
     const ordersChannel = supabase
       .channel(`orders-direct:${contactId}`)
       .on(
@@ -75,30 +96,9 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
       )
       .subscribe()
 
-    // Mechanism 2: Outbound message proxy (backup)
-    const messagesChannel = supabase
-      .channel(`order-refresh:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          if (payload.new?.direction === 'outbound') {
-            setTimeout(() => {
-              setOrdersRefreshKey(k => k + 1)
-            }, 5000)
-          }
-        }
-      )
-      .subscribe()
-
     return () => {
+      supabase.removeChannel(convChannel)
       supabase.removeChannel(ordersChannel)
-      supabase.removeChannel(messagesChannel)
     }
   }, [conversation?.id, contactId])
   // Empty state

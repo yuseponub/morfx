@@ -223,11 +223,12 @@ async function executeTimerAction(
     // realtime listener fires when the order already exists in DB.
     try {
       const supabase = createAdminClient()
-      await supabase.from('conversations').update({
+      const { error: touchError } = await supabase.from('conversations').update({
         last_message_at: new Date().toISOString(),
       }).eq('id', conversationId)
-    } catch {
-      // Non-critical — don't fail the timer action
+      logger.info({ conversationId, touchError }, 'Post-order conversation touch')
+    } catch (err) {
+      logger.error({ err, conversationId }, 'Post-order conversation touch failed')
     }
     return { status: 'timeout', action: `created_order_${forceIntent}` }
   }

@@ -210,8 +210,9 @@ export class SomnioAgent {
       let justCompletedIngest = false
       const timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }> = []
 
-      // 3. Check ingest mode (if collecting_data)
-      if (currentMode === 'collecting_data') {
+      // 3. Check ingest mode (if collecting_data AND not a timer-forced call)
+      // Timer-forced calls have no customer message to classify
+      if (currentMode === 'collecting_data' && !input.forceIntent) {
         const ingestResult = await this.handleIngestMode(
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )
@@ -228,8 +229,9 @@ export class SomnioAgent {
         if (ingestResult.timerSignal) timerSignals.push(ingestResult.timerSignal)
       }
 
-      // 4. Check implicit yes (if NOT collecting_data AND NOT ofrecer_promos)
-      if (currentMode !== 'collecting_data' && currentMode !== 'ofrecer_promos') {
+      // 4. Check implicit yes (if NOT collecting_data AND NOT ofrecer_promos AND not timer-forced)
+      // Timer-forced calls have no customer message to classify
+      if (currentMode !== 'collecting_data' && currentMode !== 'ofrecer_promos' && !input.forceIntent) {
         const implicitResult = await this.checkImplicitYes(
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )

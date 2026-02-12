@@ -325,6 +325,10 @@ export const dataCollectionTimer = inngest.createFunction(
       await sm.updateState(sessionId, { proactive_started_at: new Date().toISOString() })
     })
 
+    // Let concurrent events from the same request settle before listening
+    // (prevents customer.message emitted in same request from cancelling this timer)
+    await step.sleep('settle', '5s')
+
     // Wait for customer message or timeout
     const customerMessage = await step.waitForEvent('wait-for-data', {
       event: 'agent/customer.message',
@@ -389,6 +393,10 @@ export const promosTimer = inngest.createFunction(
 
     logger.info({ sessionId, timeoutMs }, 'Promos timer started')
 
+    // Let concurrent events from the same request settle before listening
+    // (prevents customer.message emitted in same request from cancelling this timer)
+    await step.sleep('settle', '5s')
+
     // Wait for customer message or timeout
     const response = await step.waitForEvent('wait-for-selection', {
       event: 'agent/customer.message',
@@ -452,6 +460,10 @@ export const resumenTimer = inngest.createFunction(
     const timeoutMs = event.data.timerDurationMs ?? 600_000
 
     logger.info({ sessionId, timeoutMs }, 'Resumen timer started (L4: pack sin confirmar)')
+
+    // Let concurrent events from the same request settle before listening
+    // (prevents customer.message emitted in same request from cancelling this timer)
+    await step.sleep('settle', '5s')
 
     // Wait for customer message or timeout
     const response = await step.waitForEvent('wait-for-confirmation', {

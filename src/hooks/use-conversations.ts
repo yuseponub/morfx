@@ -266,11 +266,40 @@ export function useConversations({
       )
       .subscribe()
 
+    // Subscribe to orders changes (for emoji indicators in conversation list)
+    const ordersChannel = supabase
+      .channel(`orders:${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        async () => {
+          // Re-fetch orders for emoji indicators
+          const contactIds = conversations
+            .map(c => c.contact?.id)
+            .filter((id): id is string => !!id)
+          if (contactIds.length === 0) return
+          const uniqueContactIds = [...new Set(contactIds)]
+          try {
+            const orders = await getOrdersForContacts(uniqueContactIds)
+            setOrdersByContact(orders)
+          } catch (error) {
+            console.error('Error refreshing orders:', error)
+          }
+        }
+      )
+      .subscribe()
+
     // Cleanup on unmount
     return () => {
       supabase.removeChannel(conversationsChannel)
       supabase.removeChannel(tagsChannel)
       supabase.removeChannel(contactTagsChannel)
+      supabase.removeChannel(ordersChannel)
     }
   }, [workspaceId, fetchConversations, conversations])
 

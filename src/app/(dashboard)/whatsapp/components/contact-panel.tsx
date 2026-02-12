@@ -48,16 +48,35 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
     onConversationUpdated?.()
   }
 
-  // Refresh orders when new outbound message arrives (proxy for order creation)
-  // Messages realtime WORKS — orders realtime doesn't. Timer always sends a
-  // WhatsApp message alongside order creation, so this catches it reliably.
+  // Auto-refresh orders via two mechanisms:
+  // 1. Direct orders table listener (orders table is in supabase_realtime publication)
+  // 2. Outbound message proxy (backup — message arrives before order, so 5s delay)
   const contactId = conversation?.contact?.id
   useEffect(() => {
     const conversationId = conversation?.id
     if (!conversationId || !contactId) return
 
     const supabase = createClient()
-    const channel = supabase
+
+    // Mechanism 1: Direct orders INSERT listener by contact
+    const ordersChannel = supabase
+      .channel(`orders-direct:${contactId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `contact_id=eq.${contactId}`,
+        },
+        () => {
+          setOrdersRefreshKey(k => k + 1)
+        }
+      )
+      .subscribe()
+
+    // Mechanism 2: Outbound message proxy (backup)
+    const messagesChannel = supabase
       .channel(`order-refresh:${conversationId}`)
       .on(
         'postgres_changes',
@@ -68,18 +87,18 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          // Refresh on outbound (bot) messages — order likely just created
           if (payload.new?.direction === 'outbound') {
             setTimeout(() => {
               setOrdersRefreshKey(k => k + 1)
-            }, 3000)
+            }, 5000)
           }
         }
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(messagesChannel)
     }
   }, [conversation?.id, contactId])
   // Empty state

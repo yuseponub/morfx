@@ -217,6 +217,18 @@ async function executeTimerAction(
     await callEngineWithForceIntent(
       sessionId, conversationId, workspaceId, forceIntent, phone
     )
+    // Touch conversation AFTER order is created to trigger frontend realtime refresh.
+    // The initial sendWhatsAppMessage fires BEFORE the engine creates the order,
+    // so the frontend refreshes too early. This second touch ensures the conversations
+    // realtime listener fires when the order already exists in DB.
+    try {
+      const supabase = createAdminClient()
+      await supabase.from('conversations').update({
+        last_message_at: new Date().toISOString(),
+      }).eq('id', conversationId)
+    } catch {
+      // Non-critical — don't fail the timer action
+    }
     return { status: 'timeout', action: `created_order_${forceIntent}` }
   }
 

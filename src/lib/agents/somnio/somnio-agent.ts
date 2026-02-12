@@ -463,7 +463,7 @@ export class SomnioAgent {
           ? {
               datosCapturados: newDatosCapturados,
               packSeleccionado: newPackSeleccionado,
-              valorOverride: (input.forceIntent === 'timer_sinpack' || input.forceIntent === 'timer_pendiente') ? 0 : undefined,
+              valorOverride: input.forceIntent === 'timer_sinpack' ? 0 : undefined,
             }
           : undefined,
         timerSignals,

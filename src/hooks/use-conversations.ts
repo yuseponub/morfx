@@ -203,27 +203,6 @@ export function useConversations({
     }
   }, [conversations, isLoading])
 
-  // Poll orders every 15 seconds (Supabase Realtime not enabled for orders table)
-  useEffect(() => {
-    if (isLoading || conversations.length === 0) return
-
-    const interval = setInterval(async () => {
-      const contactIds = conversations
-        .map(c => c.contact?.id)
-        .filter((id): id is string => !!id)
-      if (contactIds.length > 0) {
-        try {
-          const orders = await getOrdersForContacts([...new Set(contactIds)])
-          setOrdersByContact(orders)
-        } catch (error) {
-          console.error('Error polling orders:', error)
-        }
-      }
-    }, 15_000)
-
-    return () => clearInterval(interval)
-  }, [isLoading, conversations])
-
   // Set up Supabase Realtime subscriptions
   useEffect(() => {
     if (!workspaceId) return

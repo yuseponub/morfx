@@ -13,6 +13,7 @@ import { CreateContactSheet } from './create-contact-sheet'
 import { ViewOrderSheet } from './view-order-sheet'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
+import { createClient } from '@/lib/supabase/client'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 interface ContactPanelProps {
@@ -47,17 +48,40 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
     onConversationUpdated?.()
   }
 
-  // Poll for new orders every 10 seconds (Supabase Realtime not reliable for orders table)
+  // Refresh orders when new outbound message arrives (proxy for order creation)
+  // Messages realtime WORKS — orders realtime doesn't. Timer always sends a
+  // WhatsApp message alongside order creation, so this catches it reliably.
   const contactId = conversation?.contact?.id
   useEffect(() => {
-    if (!contactId) return
+    const conversationId = conversation?.id
+    if (!conversationId || !contactId) return
 
-    const interval = setInterval(() => {
-      setOrdersRefreshKey(k => k + 1)
-    }, 10_000)
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`order-refresh:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          // Refresh on outbound (bot) messages — order likely just created
+          if (payload.new?.direction === 'outbound') {
+            setTimeout(() => {
+              setOrdersRefreshKey(k => k + 1)
+            }, 3000)
+          }
+        }
+      )
+      .subscribe()
 
-    return () => clearInterval(interval)
-  }, [contactId])
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [conversation?.id, contactId])
   // Empty state
   if (!conversation) {
     return (

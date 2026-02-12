@@ -29,6 +29,7 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
       packSeleccionado: unknown
       workspaceId: string
       sessionId: string
+      valorOverride?: number
     },
     _mode?: 'dry-run' | 'live'
   ): Promise<{
@@ -39,9 +40,10 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
     tokensUsed?: unknown[]
     error?: { message: string }
   }> {
-    const pack = data.packSeleccionado as '1x' | '2x' | '3x'
+    const pack = data.packSeleccionado as '1x' | '2x' | '3x' | null
+    const isTimerOrder = data.valorOverride !== undefined
 
-    if (!pack) {
+    if (!pack && !isTimerOrder) {
       logger.warn({ sessionId: data.sessionId }, 'Cannot create order - no pack selected')
       return {
         success: false,
@@ -71,10 +73,15 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
         indicaciones_extra: data.datosCapturados.indicaciones_extra,
       }
 
+      // Timer orders: default to '1x' if no pack, override price to 0
+      const effectivePack = pack || '1x'
+      const priceOverride = isTimerOrder ? data.valorOverride : undefined
+
       const result = await this.orderCreator.createContactAndOrder(
         contactData,
-        pack,
-        data.sessionId
+        effectivePack,
+        data.sessionId,
+        priceOverride
       )
 
       if (result.success) {

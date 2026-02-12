@@ -5,7 +5,7 @@
  * Sandbox timer fires → evaluates level → executes action:
  *   - send_message: send WhatsApp message
  *   - transition_mode: call engine with forceIntent (e.g., ofrecer_promos)
- *   - create_order: call engine with forceIntent: compra_confirmada
+ *   - create_order: L3 → forceIntent: timer_sinpack, L4 → forceIntent: timer_pendiente
  *
  * Production does the SAME via Inngest step.waitForEvent() + UnifiedEngine.
  * Timer durations come from workspace_agent_config.timer_preset.
@@ -207,14 +207,17 @@ async function executeTimerAction(
   }
 
   if (action.type === 'create_order') {
-    // L3, L4: Send message + create order via engine
+    // L3, L4: Send message + create order via engine with level-specific forceIntent
+    // L3 (promos sin respuesta): timer_sinpack → pedido_sinpack mode, order with valor 0
+    // L4 (pack sin confirmar): timer_pendiente → pedido_pendiente mode, order with selected pack valor 0
     if (action.message) {
       await sendWhatsAppMessage(workspaceId, conversationId, action.message)
     }
+    const forceIntent = level === 3 ? 'timer_sinpack' : 'timer_pendiente'
     await callEngineWithForceIntent(
-      sessionId, conversationId, workspaceId, 'compra_confirmada', phone
+      sessionId, conversationId, workspaceId, forceIntent, phone
     )
-    return { status: 'timeout', action: 'created_order' }
+    return { status: 'timeout', action: `created_order_${forceIntent}` }
   }
 
   return { status: 'timeout', action: 'unknown_action' }

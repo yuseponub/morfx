@@ -179,6 +179,7 @@ export class UnifiedEngine {
             packSeleccionado: agentOutput.orderData.packSeleccionado,
             workspaceId: this.config.workspaceId,
             sessionId: session.id,
+            valorOverride: agentOutput.orderData.valorOverride,
           },
           orderMode
         )

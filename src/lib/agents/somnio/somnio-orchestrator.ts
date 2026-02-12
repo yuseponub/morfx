@@ -265,7 +265,9 @@ export class SomnioOrchestrator {
     // =========================================================================
     // Step 7: Check for compra_confirmada (order creation trigger)
     // =========================================================================
-    const shouldCreateOrder = intent.intent === 'compra_confirmada'
+    const shouldCreateOrder = intent.intent === 'compra_confirmada' ||
+      intent.intent === 'timer_sinpack' ||
+      intent.intent === 'timer_pendiente'
 
     if (shouldCreateOrder) {
       logger.info(
@@ -427,6 +429,8 @@ export class SomnioOrchestrator {
       resumen_2x: 'resumen',
       resumen_3x: 'resumen',
       compra_confirmada: 'confirmado',
+      timer_sinpack: 'pedido_sinpack',
+      timer_pendiente: 'pedido_pendiente',
       fallback: 'handoff',
       no_interesa: 'handoff',
     }

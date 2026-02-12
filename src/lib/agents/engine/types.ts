@@ -311,6 +311,8 @@ export interface OrdersAdapter {
       packSeleccionado: any
       workspaceId: string
       sessionId: string
+      /** Price override for timer-triggered orders (valor 0) */
+      valorOverride?: number
     },
     mode?: 'dry-run' | 'live'
   ): Promise<{

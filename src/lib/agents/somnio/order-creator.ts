@@ -115,17 +115,22 @@ export class OrderCreator {
   async createContactAndOrder(
     data: ContactData,
     pack: PackSelection,
-    sessionId: string
+    sessionId: string,
+    priceOverride?: number
   ): Promise<OrderCreationResult> {
     // Ensure tool registry is initialized (may not be in Inngest/serverless context)
     initializeTools()
 
+    const effectivePrice = priceOverride !== undefined ? priceOverride : SOMNIO_PRICES_NUMERIC[pack]
+
     logger.info(
       {
         pack,
+        effectivePrice,
         nombre: data.nombre,
         ciudad: data.ciudad,
         sessionId,
+        timerTriggered: priceOverride !== undefined,
       },
       'Starting contact and order creation'
     )
@@ -149,7 +154,7 @@ export class OrderCreator {
         {
           contactId,
           pack,
-          price: SOMNIO_PRICES_NUMERIC[pack],
+          price: effectivePrice,
           shippingAddress: this.buildShippingAddress(data),
           notes: data.indicaciones_extra,
         },

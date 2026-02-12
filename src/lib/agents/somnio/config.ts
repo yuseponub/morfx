@@ -18,12 +18,14 @@ import { INTENT_DETECTOR_PROMPT, ORCHESTRATOR_PROMPT } from './prompts'
  * All possible states for the Somnio agent state machine
  */
 export const SOMNIO_STATES = [
-  'conversacion',    // Initial state, answering questions
-  'collecting_data', // Capturing customer data for order
-  'ofrecer_promos',  // Showing pack options
-  'resumen',         // Customer chose a pack, showing summary
-  'confirmado',      // Purchase confirmed, creating order
-  'handoff',         // Handed off to human
+  'conversacion',      // Initial state, answering questions
+  'collecting_data',   // Capturing customer data for order
+  'ofrecer_promos',    // Showing pack options
+  'resumen',           // Customer chose a pack, showing summary
+  'confirmado',        // Purchase confirmed, creating order
+  'pedido_sinpack',    // Timer L3: promos timeout, order created with valor 0 (no pack)
+  'pedido_pendiente',  // Timer L4: pack timeout, order created with selected pack valor 0
+  'handoff',           // Handed off to human
 ] as const
 
 export type SomnioState = (typeof SOMNIO_STATES)[number]
@@ -43,14 +45,20 @@ export const SOMNIO_TRANSITIONS: StateTransitions = {
   // From collecting_data: stay, offer promos when ready, or handoff
   collecting_data: ['collecting_data', 'ofrecer_promos', 'handoff'],
 
-  // From ofrecer_promos: customer picks a pack or handoff
-  ofrecer_promos: ['resumen', 'handoff'],
+  // From ofrecer_promos: customer picks a pack, timer creates order without pack, or handoff
+  ofrecer_promos: ['resumen', 'pedido_sinpack', 'handoff'],
 
-  // From resumen: confirm, go back to promos, or handoff
-  resumen: ['confirmado', 'ofrecer_promos', 'handoff'],
+  // From resumen: confirm, timer creates pending order, go back to promos, or handoff
+  resumen: ['confirmado', 'pedido_pendiente', 'ofrecer_promos', 'handoff'],
 
   // From confirmado: terminal state (could start new conversation or handoff)
   confirmado: ['conversacion', 'handoff'],
+
+  // From pedido_sinpack: timer-created order (no pack), can continue or handoff
+  pedido_sinpack: ['conversacion', 'handoff'],
+
+  // From pedido_pendiente: timer-created order (pack selected), can continue or handoff
+  pedido_pendiente: ['conversacion', 'handoff'],
 
   // From handoff: terminal state, human takes over
   handoff: [],

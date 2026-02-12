@@ -81,6 +81,8 @@ export interface SomnioAgentOutput {
   orderData?: {
     datosCapturados: Record<string, string>
     packSeleccionado: unknown
+    /** Price override for timer-triggered orders (valor 0) */
+    valorOverride?: number
   }
   /** Timer signals accumulated during processing */
   timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }>
@@ -425,8 +427,8 @@ export class SomnioAgent {
       }
 
       // 12. Extract response messages
-      // Skip templates for timer-forced compra_confirmada (order creation only, no dispatch)
-      const skipTemplates = input.forceIntent === 'compra_confirmada'
+      // Skip ALL messages for timer-forced intents (timer already sent its own message via WhatsApp)
+      const skipTemplates = !!input.forceIntent
       const messages: string[] = []
       if (!skipTemplates && orchestratorResult.response) {
         messages.push(orchestratorResult.response)
@@ -456,7 +458,11 @@ export class SomnioAgent {
         },
         shouldCreateOrder,
         orderData: shouldCreateOrder
-          ? { datosCapturados: newDatosCapturados, packSeleccionado: newPackSeleccionado }
+          ? {
+              datosCapturados: newDatosCapturados,
+              packSeleccionado: newPackSeleccionado,
+              valorOverride: (input.forceIntent === 'timer_sinpack' || input.forceIntent === 'timer_pendiente') ? 0 : undefined,
+            }
           : undefined,
         timerSignals,
         totalTokens,

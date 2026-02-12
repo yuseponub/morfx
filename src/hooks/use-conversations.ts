@@ -203,6 +203,27 @@ export function useConversations({
     }
   }, [conversations, isLoading])
 
+  // Poll orders every 15 seconds (Supabase Realtime not enabled for orders table)
+  useEffect(() => {
+    if (isLoading || conversations.length === 0) return
+
+    const interval = setInterval(async () => {
+      const contactIds = conversations
+        .map(c => c.contact?.id)
+        .filter((id): id is string => !!id)
+      if (contactIds.length > 0) {
+        try {
+          const orders = await getOrdersForContacts([...new Set(contactIds)])
+          setOrdersByContact(orders)
+        } catch (error) {
+          console.error('Error polling orders:', error)
+        }
+      }
+    }, 15_000)
+
+    return () => clearInterval(interval)
+  }, [isLoading, conversations])
+
   // Set up Supabase Realtime subscriptions
   useEffect(() => {
     if (!workspaceId) return
@@ -266,58 +287,11 @@ export function useConversations({
       )
       .subscribe()
 
-    // Subscribe to orders changes (new orders + stage changes)
-    const ordersChannel = supabase
-      .channel(`orders:${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        async () => {
-          console.log('New order created')
-          const contactIds = conversations
-            .map(c => c.contact?.id)
-            .filter((id): id is string => !!id)
-          if (contactIds.length > 0) {
-            const orders = await getOrdersForContacts([...new Set(contactIds)])
-            setOrdersByContact(orders)
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        async (payload) => {
-          // Only refresh orders if stage_id changed
-          if (payload.old?.stage_id !== payload.new?.stage_id) {
-            console.log('Order stage change received')
-            const contactIds = conversations
-              .map(c => c.contact?.id)
-              .filter((id): id is string => !!id)
-            if (contactIds.length > 0) {
-              const orders = await getOrdersForContacts([...new Set(contactIds)])
-              setOrdersByContact(orders)
-            }
-          }
-        }
-      )
-      .subscribe()
-
     // Cleanup on unmount
     return () => {
       supabase.removeChannel(conversationsChannel)
       supabase.removeChannel(tagsChannel)
       supabase.removeChannel(contactTagsChannel)
-      supabase.removeChannel(ordersChannel)
     }
   }, [workspaceId, fetchConversations, conversations])
 

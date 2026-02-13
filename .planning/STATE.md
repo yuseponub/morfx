@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 3 of 10 (orders callers migrated)
+Plan: 4 of 10 (contacts + tags domain)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-03-PLAN.md (Orders Caller Migration)
+Last activity: 2026-02-13 — Completed 18-04-PLAN.md (Contacts & Tags Domain)
 
-Progress: [##########] 100% MVP v1 | [███████████████████░] 93% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████████████░] 94% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 3/10 | In Progress |
+| 18. Domain Layer Foundation | 4/10 | In Progress |
 
 ## Accumulated Context
 
@@ -316,6 +316,11 @@ Recent decisions affecting MVP v2 work:
 - [18-03]: WIP limit check stays in server action moveOrderToStage as adapter concern (not in domain)
 - [18-03]: deleteOrders bulk action loops over domain deleteOrder per ID (sequential, not batch)
 - [18-03]: updateOrder server action handles stage_id change via separate domainMoveOrderToStage call before domainUpdateOrder
+- [18-04]: departamento stored in custom_fields (not a standard contacts table column)
+- [18-04]: createContact tags param is best-effort: skip silently if tag not found (no auto-create per domain design)
+- [18-04]: orders.ts addOrderTag/removeOrderTag delegate to shared tags.ts (single source of truth)
+- [18-04]: updateContact emits per-key field.changed for custom_fields with custom_fields.{key} as fieldName
+- [18-04]: Shared entity module pattern: tags.ts handles both contact and order entity types via entityType param
 
 ### Project Rules
 
@@ -358,6 +363,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-03-PLAN.md (Orders Caller Migration)
+Stopped at: Completed 18-04-PLAN.md (Contacts & Tags Domain)
 Resume file: None
-Next: 18-04-PLAN.md
+Next: 18-05-PLAN.md

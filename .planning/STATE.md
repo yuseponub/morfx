@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 4 of 10 (17-04 complete)
+Plan: 5 of 10 (17-05 complete)
 Status: In progress
-Last activity: 2026-02-13 — Completed 17-04-PLAN.md (Action Executor & Trigger Emitter)
+Last activity: 2026-02-13 — Completed 17-05-PLAN.md (Automation Builder Wizard UI)
 
 Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 4/10 | In Progress |
+| 17. CRM Automations Engine | 5/10 | In Progress |
 
 ## Accumulated Context
 
@@ -269,6 +269,13 @@ Recent decisions affecting MVP v2 work:
 - [17-04]: Inngest send cast via (inngest.send as any) to bypass typed event schema until Plan 06
 - [17-04]: CRM state-modifying actions emit cascade events; WhatsApp/webhook/task do not cascade
 - [17-04]: Custom fields merged into JSONB via read-modify-write on custom_fields column
+- [17-05]: Wizard state via useState in container, passed as props to step components (not context)
+- [17-05]: Trigger type change resets conditions to null (variables differ per trigger)
+- [17-05]: ConditionGroupEditor with 1 level nesting (depth < 1 check)
+- [17-05]: ActionParamField dynamically renders UI control based on param.type from ACTION_CATALOG
+- [17-05]: readonly string[] cast for as-const options to avoid TypeScript mutable/readonly mismatch
+- [17-05]: ActionSelector popover grouped by category for action type selection
+- [17-05]: KeyValueEditor sub-component for headers and WhatsApp template variables
 
 ### Project Rules
 
@@ -309,6 +316,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 17-04-PLAN.md (Action Executor & Trigger Emitter)
+Stopped at: Completed 17-05-PLAN.md (Automation Builder Wizard UI)
 Resume file: None
-Next: 17-05-PLAN.md (Inngest Runner Function)
+Next: 17-06-PLAN.md

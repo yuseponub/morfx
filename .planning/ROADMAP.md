@@ -588,10 +588,19 @@ Plans:
   7. Shopify webhook emite triggers de automatizacion al crear ordenes/contactos
   8. Regla permanente en CLAUDE.md: domain/ es la unica fuente de verdad para mutaciones
   9. Bot WhatsApp puede disparar automatizaciones identicas a las del CRM UI
-**Plans**: TBD
+**Plans**: 10 plans
 
 Plans:
-- [ ] 18-01: TBD during /gsd:plan-phase
+- [ ] 18-01-PLAN.md -- Foundation: domain types, DB audit trigger, CLAUDE.md rule
+- [ ] 18-02-PLAN.md -- Orders domain functions (7 functions: create, update, move, delete, duplicate, addTag, removeTag)
+- [ ] 18-03-PLAN.md -- Orders wiring: all callers to domain + 4 new order tool handlers
+- [ ] 18-04-PLAN.md -- Contacts + Tags domain functions (4 contact + 2 tag functions)
+- [ ] 18-05-PLAN.md -- Contacts + Tags wiring: all callers to domain
+- [ ] 18-06-PLAN.md -- Messages/WhatsApp domain + wiring + keyword_match activation
+- [ ] 18-07-PLAN.md -- Tasks domain + wiring + 4 new task tool handlers
+- [ ] 18-08-PLAN.md -- Notes + Custom Fields domain + wiring + 5 new tool handlers
+- [ ] 18-09-PLAN.md -- Conversations domain + wiring + task.overdue cron activation
+- [ ] 18-10-PLAN.md -- TypeScript verification + human verification of all success criteria
 
 ### Phase 19: AI Automation Builder
 **Goal**: Meta-agente de IA que crea y configura automatizaciones por lenguaje natural con verificacion de recursos

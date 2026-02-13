@@ -703,6 +703,239 @@ export const crmOrderList: ToolSchema = {
   }
 }
 
+// ==================== TASK TOOLS ====================
+
+export const crmTaskCreate: ToolSchema = {
+  name: 'crm.task.create',
+  description: 'Create a new task in the workspace. Can be linked to a contact or order.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 200,
+        description: 'Task title (required)'
+      },
+      description: {
+        type: 'string',
+        maxLength: 2000,
+        description: 'Task description (optional)'
+      },
+      dueDate: {
+        type: 'string',
+        format: 'date-time',
+        description: 'Due date in ISO 8601 format (optional)'
+      },
+      priority: {
+        type: 'string',
+        enum: ['low', 'medium', 'high', 'urgent'],
+        default: 'medium',
+        description: 'Task priority (default: medium)'
+      },
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Link to a contact (optional, exclusive with orderId)'
+      },
+      orderId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Link to an order (optional, exclusive with contactId)'
+      }
+    },
+    required: ['title'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      taskId: { type: 'string' },
+      created: { type: 'boolean' }
+    },
+    required: ['taskId', 'created']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'task',
+    action: 'create',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: ['creates_record'],
+    permissions: ['contacts.create']
+  }
+}
+
+export const crmTaskUpdate: ToolSchema = {
+  name: 'crm.task.update',
+  description: 'Update an existing task. Only provided fields are updated.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      taskId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the task to update'
+      },
+      title: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 200,
+        description: 'New title (optional)'
+      },
+      description: {
+        type: 'string',
+        maxLength: 2000,
+        description: 'New description (optional)'
+      },
+      dueDate: {
+        type: 'string',
+        format: 'date-time',
+        description: 'New due date (optional, null to clear)'
+      },
+      priority: {
+        type: 'string',
+        enum: ['low', 'medium', 'high', 'urgent'],
+        description: 'New priority (optional)'
+      },
+      status: {
+        type: 'string',
+        enum: ['pending', 'in_progress', 'completed'],
+        description: 'New status (optional)'
+      }
+    },
+    required: ['taskId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      taskId: { type: 'string' },
+      updated: { type: 'boolean' }
+    },
+    required: ['taskId', 'updated']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'task',
+    action: 'update',
+    reversible: true,
+    requiresApproval: false,
+    sideEffects: ['updates_record'],
+    permissions: ['contacts.edit']
+  }
+}
+
+export const crmTaskComplete: ToolSchema = {
+  name: 'crm.task.complete',
+  description: 'Mark a task as completed. Sets status to completed with timestamp.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      taskId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the task to complete'
+      }
+    },
+    required: ['taskId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      taskId: { type: 'string' },
+      completed: { type: 'boolean' }
+    },
+    required: ['taskId', 'completed']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'task',
+    action: 'complete',
+    reversible: true,
+    requiresApproval: false,
+    sideEffects: ['updates_record'],
+    permissions: ['contacts.edit']
+  }
+}
+
+export const crmTaskList: ToolSchema = {
+  name: 'crm.task.list',
+  description: 'List tasks with optional filtering by contact, order, status, or priority.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Filter by contact ID (optional)'
+      },
+      orderId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Filter by order ID (optional)'
+      },
+      status: {
+        type: 'string',
+        enum: ['pending', 'in_progress', 'completed'],
+        description: 'Filter by status (optional)'
+      },
+      priority: {
+        type: 'string',
+        enum: ['low', 'medium', 'high', 'urgent'],
+        description: 'Filter by priority (optional)'
+      },
+      page: {
+        type: 'integer',
+        minimum: 1,
+        default: 1,
+        description: 'Page number (default: 1)'
+      },
+      pageSize: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 100,
+        default: 20,
+        description: 'Items per page (default: 20, max: 100)'
+      }
+    },
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      tasks: { type: 'array', items: { type: 'object' } },
+      total: { type: 'integer' },
+      page: { type: 'integer' },
+      pageSize: { type: 'integer' },
+      totalPages: { type: 'integer' }
+    },
+    required: ['tasks', 'total', 'page', 'pageSize', 'totalPages']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'task',
+    action: 'list',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: [],
+    permissions: ['contacts.view']
+  }
+}
+
 // Export all CRM tool schemas
 export const crmToolSchemas: ToolSchema[] = [
   crmContactCreate,
@@ -718,4 +951,8 @@ export const crmToolSchemas: ToolSchema[] = [
   crmOrderDelete,
   crmOrderDuplicate,
   crmOrderList,
+  crmTaskCreate,
+  crmTaskUpdate,
+  crmTaskComplete,
+  crmTaskList,
 ]

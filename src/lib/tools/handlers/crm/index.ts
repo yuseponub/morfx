@@ -859,6 +859,11 @@ import {
   deleteOrder as domainDeleteOrder,
   duplicateOrder as domainDuplicateOrder,
 } from '@/lib/domain/orders'
+import {
+  createTask as domainCreateTask,
+  updateTask as domainUpdateTask,
+  completeTask as domainCompleteTask,
+} from '@/lib/domain/tasks'
 import type { DomainContext } from '@/lib/domain/types'
 
 // Additional input types for new handlers
@@ -1619,6 +1624,337 @@ const orderList: ToolHandler = async (
 }
 
 // ============================================================================
+// Task Handlers — via domain/tasks
+// Phase 18: Task mutations delegate to domain layer.
+// ============================================================================
+
+interface TaskCreateInput {
+  title: string
+  description?: string
+  dueDate?: string
+  priority?: 'low' | 'medium' | 'high' | 'urgent'
+  contactId?: string
+  orderId?: string
+}
+
+interface TaskUpdateInput {
+  taskId: string
+  title?: string
+  description?: string
+  dueDate?: string | null
+  priority?: 'low' | 'medium' | 'high' | 'urgent'
+  status?: 'pending' | 'in_progress' | 'completed'
+}
+
+interface TaskCompleteInput {
+  taskId: string
+}
+
+interface TaskListInput {
+  contactId?: string
+  orderId?: string
+  status?: string
+  priority?: string
+  page?: number
+  pageSize?: number
+}
+
+/**
+ * crm.task.create — Create a new task.
+ * Delegates to domain/tasks.createTask.
+ */
+const taskCreate: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as TaskCreateInput
+
+  if (!data.title || typeof data.title !== 'string' || data.title.trim().length === 0) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'TITLE_REQUIRED',
+        message: 'El titulo de la tarea es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        title: data.title.trim(),
+        description: data.description || null,
+        dueDate: data.dueDate || null,
+        priority: data.priority || 'medium',
+        contactId: data.contactId || null,
+        orderId: data.orderId || null,
+        workspace_id: context.workspaceId,
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainCreateTask(ctx, {
+    title: data.title.trim(),
+    description: data.description || undefined,
+    dueDate: data.dueDate || undefined,
+    priority: data.priority || undefined,
+    contactId: data.contactId || undefined,
+    orderId: data.orderId || undefined,
+  })
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'TASK_CREATE_FAILED',
+        message: result.error || 'Error al crear la tarea',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      taskId: result.data!.taskId,
+      created: true,
+    },
+    resource_url: '/tareas',
+  }
+}
+
+/**
+ * crm.task.update — Update an existing task.
+ * Delegates to domain/tasks.updateTask.
+ */
+const taskUpdate: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as TaskUpdateInput
+
+  if (!data.taskId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'TASK_ID_REQUIRED',
+        message: 'El ID de la tarea es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        taskId: data.taskId,
+        updates: {
+          title: data.title,
+          description: data.description,
+          dueDate: data.dueDate,
+          priority: data.priority,
+          status: data.status,
+        },
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainUpdateTask(ctx, {
+    taskId: data.taskId,
+    title: data.title,
+    description: data.description,
+    dueDate: data.dueDate,
+    priority: data.priority,
+    status: data.status,
+  })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrada')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'TASK_NOT_FOUND',
+          message: 'Tarea no encontrada',
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'TASK_UPDATE_FAILED',
+        message: result.error || 'Error al actualizar la tarea',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      taskId: data.taskId,
+      updated: true,
+    },
+    resource_url: '/tareas',
+  }
+}
+
+/**
+ * crm.task.complete — Mark a task as completed.
+ * Delegates to domain/tasks.completeTask.
+ */
+const taskComplete: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as TaskCompleteInput
+
+  if (!data.taskId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'TASK_ID_REQUIRED',
+        message: 'El ID de la tarea es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        taskId: data.taskId,
+        action: 'complete',
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainCompleteTask(ctx, { taskId: data.taskId })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrada')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'TASK_NOT_FOUND',
+          message: 'Tarea no encontrada',
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'TASK_COMPLETE_FAILED',
+        message: result.error || 'Error al completar la tarea',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      taskId: data.taskId,
+      completed: true,
+    },
+    resource_url: '/tareas',
+  }
+}
+
+/**
+ * crm.task.list — List tasks with filters (read-only).
+ * Direct DB query — no domain function needed for reads.
+ */
+const taskList: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  _dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as TaskListInput
+
+  const page = data.page ?? 1
+  const pageSize = Math.min(data.pageSize ?? 20, 100)
+  const offset = (page - 1) * pageSize
+
+  const supabase = createAdminClient()
+
+  let query = supabase
+    .from('tasks')
+    .select(
+      'id, title, description, due_date, priority, status, completed_at, contact_id, order_id, assigned_to, created_at',
+      { count: 'exact' }
+    )
+    .eq('workspace_id', context.workspaceId)
+
+  if (data.contactId) {
+    query = query.eq('contact_id', data.contactId)
+  }
+  if (data.orderId) {
+    query = query.eq('order_id', data.orderId)
+  }
+  if (data.status) {
+    query = query.eq('status', data.status)
+  }
+  if (data.priority) {
+    query = query.eq('priority', data.priority)
+  }
+
+  query = query.order('due_date', { ascending: true, nullsFirst: false })
+  query = query.order('created_at', { ascending: false })
+  query = query.range(offset, offset + pageSize - 1)
+
+  const { data: tasks, error, count } = await query
+
+  if (error) {
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'LIST_FAILED',
+        message: `Error al listar tareas: ${error.message}`,
+        retryable: true,
+      },
+    }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.ceil(total / pageSize)
+
+  return {
+    success: true,
+    data: {
+      tasks: tasks || [],
+      total,
+      page,
+      pageSize,
+      totalPages,
+    },
+  }
+}
+
+// ============================================================================
 // Export all CRM handlers
 // ============================================================================
 
@@ -1636,4 +1972,8 @@ export const crmHandlers: Record<string, ToolHandler> = {
   'crm.order.delete': orderDelete,
   'crm.order.duplicate': orderDuplicate,
   'crm.order.list': orderList,
+  'crm.task.create': taskCreate,
+  'crm.task.update': taskUpdate,
+  'crm.task.complete': taskComplete,
+  'crm.task.list': taskList,
 }

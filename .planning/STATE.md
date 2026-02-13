@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 8 of 10 (notes + custom-fields domain + tool handlers)
+Plan: 9 of 10 (conversations domain + task.overdue cron)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-08-PLAN.md (Notes + Custom Fields Domain)
+Last activity: 2026-02-13 — Completed 18-09-PLAN.md (Conversations Domain + Task Overdue Cron)
 
-Progress: [##########] 100% MVP v1 | [█████████████████████░] 95% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████████████░] 96% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 8/10 | In Progress |
+| 18. Domain Layer Foundation | 9/10 | In Progress |
 
 ## Accumulated Context
 
@@ -341,6 +341,11 @@ Recent decisions affecting MVP v2 work:
 - [18-08]: Note tool handlers use createdBy='bot' for activity attribution
 - [18-08]: Custom field trigger uses custom.{key} fieldName pattern for namespace clarity
 - [18-08]: Action executor contact custom fields use domain/custom-fields instead of domainUpdateContact
+- [18-09]: unarchiveConversation stays as direct DB (reverse of archive, not in domain spec)
+- [18-09]: findOrCreateConversation handles race condition via 23505 duplicate key retry (same as webhook)
+- [18-09]: 24h window dedup for task.overdue cron (tasks overdue >24h skipped to avoid re-emitting ancient tasks)
+- [18-09]: 200 task safety cap per cron run to prevent overload
+- [18-09]: Resolution text storage on conversation close stays as adapter concern in tool handler
 
 ### Project Rules
 
@@ -383,6 +388,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-08-PLAN.md (Notes + Custom Fields Domain)
+Stopped at: Completed 18-09-PLAN.md (Conversations Domain + Task Overdue Cron)
 Resume file: None
-Next: 18-09-PLAN.md
+Next: 18-10-PLAN.md

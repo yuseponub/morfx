@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { logout } from '@/app/actions/auth'
 import { useTaskBadge } from '@/hooks/use-task-badge'
+import { useAutomationBadge } from '@/hooks/use-automation-badge'
 import type { WorkspaceWithRole } from '@/lib/types/database'
 import type { User } from '@supabase/supabase-js'
 
@@ -24,7 +25,7 @@ type NavItem = {
   href: string
   label: string
   icon: typeof Building2
-  hasBadge?: boolean
+  badgeType?: 'tasks' | 'automations'
   adminOnly?: boolean
 }
 
@@ -43,7 +44,13 @@ const navItems: NavItem[] = [
     href: '/tareas',
     label: 'Tareas',
     icon: ListTodo,
-    hasBadge: true,
+    badgeType: 'tasks',
+  },
+  {
+    href: '/automatizaciones',
+    label: 'Automatizaciones',
+    icon: Zap,
+    badgeType: 'automations',
   },
   {
     href: '/analytics',
@@ -81,7 +88,8 @@ interface SidebarProps {
 
 export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProps) {
   const pathname = usePathname()
-  const { badgeCount } = useTaskBadge()
+  const { badgeCount: taskBadgeCount } = useTaskBadge()
+  const { failureCount: automationFailureCount } = useAutomationBadge()
 
   // Filter nav items based on user role (hide adminOnly items for agents)
   const userRole = currentWorkspace?.role
@@ -118,8 +126,11 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
             {filteredNavItems.map((item) => {
               const isActive = pathname.startsWith(item.href)
               const Icon = item.icon
-              // Show badge for Tareas if there are overdue/due soon tasks
-              const showBadge = 'hasBadge' in item && item.hasBadge && badgeCount > 0
+              // Determine badge count based on type
+              let itemBadgeCount = 0
+              if (item.badgeType === 'tasks') itemBadgeCount = taskBadgeCount
+              else if (item.badgeType === 'automations') itemBadgeCount = automationFailureCount
+              const showBadge = itemBadgeCount > 0
 
               return (
                 <li key={item.href}>
@@ -138,7 +149,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
                         <span className="flex-1">{item.label}</span>
                         {showBadge && (
                           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
-                            {badgeCount > 99 ? '99+' : badgeCount}
+                            {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
                           </span>
                         )}
                       </Link>

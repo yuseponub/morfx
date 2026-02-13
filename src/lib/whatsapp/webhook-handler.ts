@@ -161,6 +161,30 @@ async function processIncomingMessage(
     }
 
     // ================================================================
+    // Automation trigger (Phase 17): Emit automation event for
+    // incoming messages. Fire-and-forget — does NOT block reception.
+    // ================================================================
+    {
+      // Get contact_id for automation context
+      const { data: convForAutomation } = await supabase
+        .from('conversations')
+        .select('contact_id')
+        .eq('id', conversationId)
+        .single()
+
+      const { emitWhatsAppMessageReceived } = await import(
+        '@/lib/automations/trigger-emitter'
+      )
+      emitWhatsAppMessageReceived({
+        workspaceId,
+        conversationId,
+        contactId: convForAutomation?.contact_id ?? null,
+        messageContent: msg.text?.body ?? buildMessagePreview(msg),
+        phone,
+      })
+    }
+
+    // ================================================================
     // Agent routing (Phase 16): Process text messages through agent
     // Calls webhook-processor directly (inline, no Inngest dependency).
     // Non-blocking: agent failures must not break message reception.

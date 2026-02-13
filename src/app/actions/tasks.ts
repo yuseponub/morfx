@@ -14,6 +14,7 @@ import type {
   CreateTaskTypeInput,
   UpdateTaskTypeInput,
 } from '@/lib/tasks/types'
+import { emitTaskCompleted } from '@/lib/automations/trigger-emitter'
 
 // ============================================================================
 // Helper Types
@@ -320,6 +321,19 @@ export async function updateTask(id: string, input: UpdateTaskInput): Promise<Ac
   }
 
   revalidatePath('/tareas')
+
+  // Fire-and-forget: emit automation trigger when task is completed
+  if (input.status === 'completed') {
+    const task = data as Task
+    emitTaskCompleted({
+      workspaceId: task.workspace_id,
+      taskId: id,
+      taskTitle: task.title,
+      contactId: task.contact_id ?? null,
+      orderId: task.order_id ?? null,
+    })
+  }
+
   return { success: true, data: data as Task }
 }
 

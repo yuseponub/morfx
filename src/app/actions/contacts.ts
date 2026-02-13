@@ -4,14 +4,18 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
-import { normalizePhone } from '@/lib/utils/phone'
 import type { Contact, ContactWithTags, Tag } from '@/lib/types/database'
 import {
-  emitContactCreated,
-  emitFieldChanged,
-  emitTagAssigned,
-  emitTagRemoved,
-} from '@/lib/automations/trigger-emitter'
+  createContact as domainCreateContact,
+  updateContact as domainUpdateContact,
+  deleteContact as domainDeleteContact,
+  bulkCreateContacts as domainBulkCreateContacts,
+} from '@/lib/domain/contacts'
+import {
+  assignTag as domainAssignTag,
+  removeTag as domainRemoveTag,
+} from '@/lib/domain/tags'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // Validation Schemas
@@ -34,7 +38,23 @@ type ActionResult<T = void> =
   | { error: string; field?: string }
 
 // ============================================================================
-// Read Operations
+// Auth Helper
+// ============================================================================
+
+async function getWorkspaceContext(): Promise<{ workspaceId: string } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  return { workspaceId }
+}
+
+// ============================================================================
+// Read Operations (unchanged — no mutations, no triggers)
 // ============================================================================
 
 /**
@@ -181,7 +201,7 @@ export async function getContact(id: string): Promise<ContactWithTags | null> {
 }
 
 // ============================================================================
-// Create/Update Operations
+// Create/Update Operations — Delegated to domain
 // ============================================================================
 
 /**
@@ -196,23 +216,12 @@ export interface ContactInput {
 }
 
 /**
- * Create a new contact from object data (for programmatic use)
- * Phone is normalized to E.164 format (+57XXXXXXXXXX)
+ * Create a new contact from object data (for programmatic use).
+ * Delegates to domain/contacts.createContact for DB + trigger emission.
  */
 export async function createContact(data: ContactInput): Promise<ActionResult<Contact>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  // Get workspace_id from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
   // Validate input
   const raw = {
@@ -229,68 +238,44 @@ export async function createContact(data: ContactInput): Promise<ActionResult<Co
     return { error: firstIssue.message, field: firstIssue.path[0]?.toString() }
   }
 
-  // Normalize phone number
-  const normalizedPhone = normalizePhone(result.data.phone)
-  if (!normalizedPhone) {
-    return { error: 'Numero de telefono invalido', field: 'phone' }
-  }
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainCreateContact(domainCtx, {
+    name: result.data.name,
+    phone: result.data.phone,
+    email: result.data.email || undefined,
+    address: result.data.address || undefined,
+    city: result.data.city || undefined,
+  })
 
-  // Insert contact with workspace_id
-  const { data: contact, error } = await supabase
-    .from('contacts')
-    .insert({
-      workspace_id: workspaceId,
-      name: result.data.name,
-      phone: normalizedPhone,
-      email: result.data.email || null,
-      address: result.data.address || null,
-      city: result.data.city || null,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error creating contact:', error)
-    if (error.code === '23505') {
-      return { error: 'Ya existe un contacto con este numero de telefono', field: 'phone' }
+  if (!domainResult.success) {
+    // Map domain error to ActionResult with field hint for phone duplicate
+    if (domainResult.error?.includes('telefono')) {
+      return { error: domainResult.error, field: 'phone' }
     }
-    return { error: 'Error al crear el contacto' }
+    return { error: domainResult.error || 'Error al crear el contacto' }
   }
 
   revalidatePath('/crm/contactos')
   revalidatePath('/crm/pedidos')
 
-  // Fire-and-forget: emit automation trigger
-  emitContactCreated({
-    workspaceId,
-    contactId: contact.id,
-    contactName: contact.name,
-    contactPhone: contact.phone,
-    contactEmail: contact.email ?? undefined,
-    contactCity: contact.city ?? undefined,
-  })
+  // Re-read the full contact for the response (domain returns only contactId)
+  const supabase = await createClient()
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', domainResult.data!.contactId)
+    .single()
 
-  return { success: true, data: contact }
+  return { success: true, data: contact! }
 }
 
 /**
- * Create a new contact from FormData (for form submissions)
- * Phone is normalized to E.164 format (+57XXXXXXXXXX)
+ * Create a new contact from FormData (for form submissions).
+ * Delegates to domain/contacts.createContact for DB + trigger emission.
  */
 export async function createContactFromForm(formData: FormData): Promise<ActionResult<Contact>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  // Get workspace_id from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
   // Parse and validate input
   const raw = {
@@ -307,68 +292,42 @@ export async function createContactFromForm(formData: FormData): Promise<ActionR
     return { error: firstIssue.message, field: firstIssue.path[0]?.toString() }
   }
 
-  // Normalize phone number
-  const normalizedPhone = normalizePhone(result.data.phone)
-  if (!normalizedPhone) {
-    return { error: 'Numero de telefono invalido', field: 'phone' }
-  }
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainCreateContact(domainCtx, {
+    name: result.data.name,
+    phone: result.data.phone,
+    email: result.data.email || undefined,
+    address: result.data.address || undefined,
+    city: result.data.city || undefined,
+  })
 
-  // Insert contact with workspace_id
-  const { data, error } = await supabase
-    .from('contacts')
-    .insert({
-      workspace_id: workspaceId,
-      name: result.data.name,
-      phone: normalizedPhone,
-      email: result.data.email || null,
-      address: result.data.address || null,
-      city: result.data.city || null,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error creating contact:', error)
-    // Handle unique constraint violation (duplicate phone)
-    if (error.code === '23505') {
-      return { error: 'Ya existe un contacto con este numero de telefono', field: 'phone' }
+  if (!domainResult.success) {
+    if (domainResult.error?.includes('telefono')) {
+      return { error: domainResult.error, field: 'phone' }
     }
-    return { error: 'Error al crear el contacto' }
+    return { error: domainResult.error || 'Error al crear el contacto' }
   }
 
   revalidatePath('/crm/contactos')
 
-  // Fire-and-forget: emit automation trigger
-  emitContactCreated({
-    workspaceId,
-    contactId: data.id,
-    contactName: data.name,
-    contactPhone: data.phone,
-    contactEmail: data.email ?? undefined,
-    contactCity: data.city ?? undefined,
-  })
+  // Re-read the full contact for the response
+  const supabase = await createClient()
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', domainResult.data!.contactId)
+    .single()
 
-  return { success: true, data }
+  return { success: true, data: contact! }
 }
 
 /**
- * Update an existing contact from FormData
- * Phone is normalized to E.164 format if changed
+ * Update an existing contact from FormData.
+ * Delegates to domain/contacts.updateContact for DB + trigger emission.
  */
 export async function updateContactFromForm(id: string, formData: FormData): Promise<ActionResult<Contact>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  // Capture previous state BEFORE update (for field change automation triggers)
-  const { data: previousContact } = await supabase
-    .from('contacts')
-    .select('workspace_id, name, phone, email, address, city')
-    .eq('id', id)
-    .single()
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
   // Parse and validate input
   const raw = {
@@ -385,87 +344,54 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
     return { error: firstIssue.message, field: firstIssue.path[0]?.toString() }
   }
 
-  // Normalize phone number
-  const normalizedPhone = normalizePhone(result.data.phone)
-  if (!normalizedPhone) {
-    return { error: 'Numero de telefono invalido', field: 'phone' }
-  }
-
-  const newValues = {
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainUpdateContact(domainCtx, {
+    contactId: id,
     name: result.data.name,
-    phone: normalizedPhone,
-    email: result.data.email || null,
-    address: result.data.address || null,
-    city: result.data.city || null,
-  }
+    phone: result.data.phone,
+    email: result.data.email || undefined,
+    address: result.data.address || undefined,
+    city: result.data.city || undefined,
+  })
 
-  // Update contact
-  const { data, error } = await supabase
-    .from('contacts')
-    .update(newValues)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error updating contact:', error)
-    if (error.code === '23505') {
-      return { error: 'Ya existe un contacto con este numero de telefono', field: 'phone' }
+  if (!domainResult.success) {
+    if (domainResult.error?.includes('telefono')) {
+      return { error: domainResult.error, field: 'phone' }
     }
-    return { error: 'Error al actualizar el contacto' }
+    return { error: domainResult.error || 'Error al actualizar el contacto' }
   }
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${id}`)
 
-  // Fire-and-forget: emit field change automation triggers
-  if (previousContact) {
-    const workspaceId = previousContact.workspace_id
-    const trackedFields = ['name', 'phone', 'email', 'address', 'city'] as const
-    for (const field of trackedFields) {
-      const prevVal = previousContact[field]
-      const newVal = newValues[field]
-      if (String(prevVal ?? '') !== String(newVal ?? '')) {
-        emitFieldChanged({
-          workspaceId,
-          entityType: 'contact',
-          entityId: id,
-          fieldName: field,
-          previousValue: prevVal != null ? String(prevVal) : null,
-          newValue: newVal != null ? String(newVal) : null,
-          contactId: id,
-          contactName: data.name,
-        })
-      }
-    }
-  }
+  // Re-read the full contact for the response
+  const supabase = await createClient()
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', id)
+    .single()
 
-  return { success: true, data }
+  return { success: true, data: contact! }
 }
 
 // ============================================================================
-// Delete Operations
+// Delete Operations — Delegated to domain
 // ============================================================================
 
 /**
- * Delete a single contact
+ * Delete a single contact.
+ * Delegates to domain/contacts.deleteContact.
  */
 export async function deleteContact(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainDeleteContact(domainCtx, { contactId: id })
 
-  const { error } = await supabase
-    .from('contacts')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error deleting contact:', error)
-    return { error: 'Error al eliminar el contacto' }
+  if (!domainResult.success) {
+    return { error: domainResult.error || 'Error al eliminar el contacto' }
   }
 
   revalidatePath('/crm/contactos')
@@ -473,28 +399,24 @@ export async function deleteContact(id: string): Promise<ActionResult> {
 }
 
 /**
- * Delete multiple contacts
+ * Delete multiple contacts.
+ * Loops over domain/contacts.deleteContact per ID.
  */
 export async function deleteContacts(ids: string[]): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
   if (ids.length === 0) {
     return { error: 'No se seleccionaron contactos' }
   }
 
-  const { error } = await supabase
-    .from('contacts')
-    .delete()
-    .in('id', ids)
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
 
-  if (error) {
-    console.error('Error deleting contacts:', error)
-    return { error: 'Error al eliminar los contactos' }
+  for (const id of ids) {
+    const domainResult = await domainDeleteContact(domainCtx, { contactId: id })
+    if (!domainResult.success) {
+      return { error: domainResult.error || 'Error al eliminar los contactos' }
+    }
   }
 
   revalidatePath('/crm/contactos')
@@ -502,209 +424,159 @@ export async function deleteContacts(ids: string[]): Promise<ActionResult> {
 }
 
 // ============================================================================
-// Tag Operations
+// Tag Operations — Delegated to domain/tags
 // ============================================================================
 
 /**
- * Add a tag to a contact
+ * Add a tag to a contact.
+ * UI sends tagId — adapter looks up tagName before calling domain.
  */
 export async function addTagToContact(contactId: string, tagId: string): Promise<ActionResult> {
-  const supabase = await createClient()
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
+  // Look up tag name from tagId (UI sends tagId, domain expects tagName)
+  const supabase = await createClient()
+  const { data: tag } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('id', tagId)
+    .single()
+
+  if (!tag) {
+    return { error: 'Etiqueta no encontrada' }
   }
 
-  const { error } = await supabase
-    .from('contact_tags')
-    .insert({ contact_id: contactId, tag_id: tagId })
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainAssignTag(domainCtx, {
+    entityType: 'contact',
+    entityId: contactId,
+    tagName: tag.name,
+  })
 
-  if (error) {
-    // Ignore duplicate constraint violation (tag already added)
-    if (error.code === '23505') {
-      return { success: true, data: undefined }
-    }
-    console.error('Error adding tag to contact:', error)
-    return { error: 'Error al agregar la etiqueta' }
+  if (!domainResult.success) {
+    return { error: domainResult.error || 'Error al agregar la etiqueta' }
   }
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${contactId}`)
-
-  // Fire-and-forget: emit automation trigger for tag assigned
-  const [{ data: contact }, { data: tag }] = await Promise.all([
-    supabase.from('contacts').select('workspace_id, name, phone').eq('id', contactId).single(),
-    supabase.from('tags').select('name').eq('id', tagId).single(),
-  ])
-  if (contact && tag) {
-    emitTagAssigned({
-      workspaceId: contact.workspace_id,
-      entityType: 'contact',
-      entityId: contactId,
-      tagId,
-      tagName: tag.name,
-      contactId,
-      contactName: contact.name,
-      contactPhone: contact.phone,
-    })
-  }
-
   return { success: true, data: undefined }
 }
 
 /**
- * Remove a tag from a contact
+ * Remove a tag from a contact.
+ * UI sends tagId — adapter looks up tagName before calling domain.
  */
 export async function removeTagFromContact(contactId: string, tagId: string): Promise<ActionResult> {
-  const supabase = await createClient()
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
+  // Look up tag name from tagId
+  const supabase = await createClient()
+  const { data: tag } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('id', tagId)
+    .single()
+
+  if (!tag) {
+    return { error: 'Etiqueta no encontrada' }
   }
 
-  const { error } = await supabase
-    .from('contact_tags')
-    .delete()
-    .eq('contact_id', contactId)
-    .eq('tag_id', tagId)
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainRemoveTag(domainCtx, {
+    entityType: 'contact',
+    entityId: contactId,
+    tagName: tag.name,
+  })
 
-  if (error) {
-    console.error('Error removing tag from contact:', error)
-    return { error: 'Error al quitar la etiqueta' }
+  if (!domainResult.success) {
+    return { error: domainResult.error || 'Error al quitar la etiqueta' }
   }
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${contactId}`)
+  return { success: true, data: undefined }
+}
 
-  // Fire-and-forget: emit automation trigger for tag removed
-  const [{ data: contact }, { data: tag }] = await Promise.all([
-    supabase.from('contacts').select('workspace_id, name').eq('id', contactId).single(),
-    supabase.from('tags').select('name').eq('id', tagId).single(),
-  ])
-  if (contact && tag) {
-    emitTagRemoved({
-      workspaceId: contact.workspace_id,
+/**
+ * Add a tag to multiple contacts.
+ * Loops over domain/tags.assignTag per contact.
+ */
+export async function bulkAddTag(contactIds: string[], tagId: string): Promise<ActionResult> {
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
+
+  if (contactIds.length === 0) {
+    return { error: 'No se seleccionaron contactos' }
+  }
+
+  // Look up tag name from tagId
+  const supabase = await createClient()
+  const { data: tag } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('id', tagId)
+    .single()
+
+  if (!tag) {
+    return { error: 'Etiqueta no encontrada' }
+  }
+
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+
+  for (const contactId of contactIds) {
+    await domainAssignTag(domainCtx, {
       entityType: 'contact',
       entityId: contactId,
-      tagId,
       tagName: tag.name,
-      contactId,
-      contactName: contact.name,
     })
   }
 
-  return { success: true, data: undefined }
-}
-
-/**
- * Add a tag to multiple contacts
- */
-export async function bulkAddTag(contactIds: string[], tagId: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  if (contactIds.length === 0) {
-    return { error: 'No se seleccionaron contactos' }
-  }
-
-  // Insert all contact_tag entries (ignore duplicates)
-  const entries = contactIds.map(contactId => ({
-    contact_id: contactId,
-    tag_id: tagId
-  }))
-
-  const { error } = await supabase
-    .from('contact_tags')
-    .upsert(entries, { onConflict: 'contact_id,tag_id', ignoreDuplicates: true })
-
-  if (error) {
-    console.error('Error bulk adding tag:', error)
-    return { error: 'Error al agregar la etiqueta a los contactos' }
-  }
-
   revalidatePath('/crm/contactos')
-
-  // Fire-and-forget: emit automation trigger for each contact
-  const [{ data: contacts }, { data: tag }] = await Promise.all([
-    supabase.from('contacts').select('id, workspace_id, name, phone').in('id', contactIds),
-    supabase.from('tags').select('name').eq('id', tagId).single(),
-  ])
-  if (contacts && tag) {
-    for (const contact of contacts) {
-      emitTagAssigned({
-        workspaceId: contact.workspace_id,
-        entityType: 'contact',
-        entityId: contact.id,
-        tagId,
-        tagName: tag.name,
-        contactId: contact.id,
-        contactName: contact.name,
-        contactPhone: contact.phone,
-      })
-    }
-  }
-
   return { success: true, data: undefined }
 }
 
 /**
- * Remove a tag from multiple contacts
+ * Remove a tag from multiple contacts.
+ * Loops over domain/tags.removeTag per contact.
  */
 export async function bulkRemoveTag(contactIds: string[], tagId: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
   if (contactIds.length === 0) {
     return { error: 'No se seleccionaron contactos' }
   }
 
-  const { error } = await supabase
-    .from('contact_tags')
-    .delete()
-    .in('contact_id', contactIds)
-    .eq('tag_id', tagId)
+  // Look up tag name from tagId
+  const supabase = await createClient()
+  const { data: tag } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('id', tagId)
+    .single()
 
-  if (error) {
-    console.error('Error bulk removing tag:', error)
-    return { error: 'Error al quitar la etiqueta de los contactos' }
+  if (!tag) {
+    return { error: 'Etiqueta no encontrada' }
+  }
+
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+
+  for (const contactId of contactIds) {
+    await domainRemoveTag(domainCtx, {
+      entityType: 'contact',
+      entityId: contactId,
+      tagName: tag.name,
+    })
   }
 
   revalidatePath('/crm/contactos')
-
-  // Fire-and-forget: emit automation trigger for each contact
-  const [{ data: contacts }, { data: tag }] = await Promise.all([
-    supabase.from('contacts').select('id, workspace_id, name').in('id', contactIds),
-    supabase.from('tags').select('name').eq('id', tagId).single(),
-  ])
-  if (contacts && tag) {
-    for (const contact of contacts) {
-      emitTagRemoved({
-        workspaceId: contact.workspace_id,
-        entityType: 'contact',
-        entityId: contact.id,
-        tagId,
-        tagName: tag.name,
-        contactId: contact.id,
-        contactName: contact.name,
-      })
-    }
-  }
-
   return { success: true, data: undefined }
 }
 
 // ============================================================================
-// CSV Import Operations
+// CSV Import Operations — Delegated to domain
 // ============================================================================
 
 export interface BulkCreateContact {
@@ -746,83 +618,58 @@ export async function getExistingPhones(): Promise<string[]> {
 }
 
 /**
- * Bulk create contacts from CSV import
- * Inserts contacts in batches of 100 for performance
- * Returns count of created contacts and any errors
+ * Bulk create contacts from CSV import.
+ * Delegates to domain/contacts.bulkCreateContacts for batch insert + triggers.
+ * Falls back to per-item domain calls on batch failure.
  */
 export async function bulkCreateContacts(
   contacts: BulkCreateContact[]
 ): Promise<ActionResult<BulkCreateResult>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
 
   if (contacts.length === 0) {
     return { success: true, data: { created: 0, errors: [] } }
   }
 
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
   const result: BulkCreateResult = { created: 0, errors: [] }
-  const BATCH_SIZE = 100
 
-  // Process in batches
-  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
-    const batch = contacts.slice(i, i + BATCH_SIZE)
+  // Try domain bulk create first
+  const domainResult = await domainBulkCreateContacts(domainCtx, {
+    contacts: contacts.map(c => ({
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      address: c.address,
+      city: c.city,
+    })),
+  })
 
-    const insertData = batch.map((contact, batchIndex) => ({
-      workspace_id: workspaceId,
-      name: contact.name,
-      phone: contact.phone,
-      email: contact.email || null,
-      city: contact.city || null,
-      address: contact.address || null,
-      custom_fields: contact.custom_fields || {},
-    }))
+  if (domainResult.success) {
+    result.created = domainResult.data!.created
+  } else {
+    // Batch failed — fall back to individual domain creates for per-row errors
+    for (let i = 0; i < contacts.length; i++) {
+      const contact = contacts[i]
+      const rowNum = i + 1
 
-    const { data: inserted, error } = await supabase
-      .from('contacts')
-      .insert(insertData)
-      .select('id')
+      const singleResult = await domainCreateContact(domainCtx, {
+        name: contact.name,
+        phone: contact.phone,
+        email: contact.email,
+        address: contact.address,
+        city: contact.city,
+      })
 
-    if (error) {
-      // If batch insert fails, try individual inserts to identify specific failures
-      console.error('Batch insert failed, trying individual inserts:', error)
-
-      for (let j = 0; j < batch.length; j++) {
-        const contact = batch[j]
-        const rowNum = i + j + 1
-
-        const { error: singleError } = await supabase
-          .from('contacts')
-          .insert({
-            workspace_id: workspaceId,
-            name: contact.name,
-            phone: contact.phone,
-            email: contact.email || null,
-            city: contact.city || null,
-            address: contact.address || null,
-            custom_fields: contact.custom_fields || {},
-          })
-
-        if (singleError) {
-          const errorMsg = singleError.code === '23505'
-            ? 'Telefono duplicado'
-            : 'Error al crear contacto'
-          result.errors.push({ row: rowNum, error: errorMsg })
-        } else {
-          result.created++
-        }
+      if (singleResult.success) {
+        result.created++
+      } else {
+        const errorMsg = singleResult.error?.includes('telefono')
+          ? 'Telefono duplicado'
+          : 'Error al crear contacto'
+        result.errors.push({ row: rowNum, error: errorMsg })
       }
-    } else {
-      result.created += inserted?.length || 0
     }
   }
 
@@ -831,8 +678,10 @@ export async function bulkCreateContacts(
 }
 
 /**
- * Update an existing contact by phone number
- * Used for "update" option in duplicate resolution during CSV import
+ * Update an existing contact by phone number.
+ * Used for "update" option in duplicate resolution during CSV import.
+ * Note: This is a thin convenience adapter — it finds the contact by phone,
+ * then delegates to domain updateContact.
  */
 export async function updateContactByPhone(
   phone: string,
@@ -844,42 +693,46 @@ export async function updateContactByPhone(
     custom_fields?: Record<string, unknown>
   }
 ): Promise<ActionResult<Contact>> {
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
+
+  // Find contact by phone to get ID
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  // Build update object, only include non-undefined fields
-  const updates: Record<string, unknown> = {}
-  if (data.name !== undefined) updates.name = data.name
-  if (data.email !== undefined) updates.email = data.email || null
-  if (data.city !== undefined) updates.city = data.city || null
-  if (data.address !== undefined) updates.address = data.address || null
-  if (data.custom_fields !== undefined) updates.custom_fields = data.custom_fields
-
-  if (Object.keys(updates).length === 0) {
-    return { error: 'No hay campos para actualizar' }
-  }
-
-  const { data: updated, error } = await supabase
+  const { data: existing } = await supabase
     .from('contacts')
-    .update(updates)
+    .select('id')
     .eq('phone', phone)
-    .select()
     .single()
 
-  if (error) {
-    console.error('Error updating contact by phone:', error)
-    return { error: 'Error al actualizar el contacto' }
+  if (!existing) {
+    return { error: 'Contacto no encontrado' }
+  }
+
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const domainResult = await domainUpdateContact(domainCtx, {
+    contactId: existing.id,
+    name: data.name,
+    email: data.email,
+    city: data.city,
+    address: data.address,
+    customFields: data.custom_fields,
+  })
+
+  if (!domainResult.success) {
+    return { error: domainResult.error || 'Error al actualizar el contacto' }
   }
 
   revalidatePath('/crm/contactos')
-  if (updated) {
-    revalidatePath(`/crm/contactos/${updated.id}`)
-  }
-  return { success: true, data: updated }
+  revalidatePath(`/crm/contactos/${existing.id}`)
+
+  // Re-read the full contact for the response
+  const { data: updated } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', existing.id)
+    .single()
+
+  return { success: true, data: updated! }
 }
 
 /**
@@ -908,7 +761,7 @@ export async function getContactByPhone(phone: string): Promise<Contact | null> 
 }
 
 // ============================================================================
-// WhatsApp Integration
+// WhatsApp Integration (read-only — unchanged)
 // ============================================================================
 
 /**

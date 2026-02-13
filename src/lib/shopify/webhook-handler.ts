@@ -4,6 +4,7 @@ import { mapShopifyOrder, MappedOrder } from './order-mapper'
 import { extractPhoneFromOrder } from './phone-normalizer'
 import type { ShopifyOrderWebhook, ShopifyIntegration } from './types'
 import { createOrder as domainCreateOrder } from '@/lib/domain/orders'
+import { createContact as domainCreateContact } from '@/lib/domain/contacts'
 import type { DomainContext } from '@/lib/domain/types'
 
 /**
@@ -147,7 +148,7 @@ async function resolveContact(
     }
   }
 
-  // No match - create new contact
+  // No match - create new contact via domain
   const phone = extractPhoneFromOrder(order)
   const email = order.email || order.customer?.email
   const name = buildContactName(order)
@@ -157,22 +158,18 @@ async function resolveContact(
     return { contactId: null, contactCreated: false, needsVerification: false }
   }
 
-  const { data: newContact, error } = await supabase
-    .from('contacts')
-    .insert({
-      workspace_id: workspaceId,
-      name,
-      phone,
-      email,
-      address: buildShippingAddressString(order),
-      city: order.shipping_address?.city || order.billing_address?.city || null,
-    })
-    .select('id')
-    .single()
+  const ctx: DomainContext = { workspaceId, source: 'webhook' }
+  const domainResult = await domainCreateContact(ctx, {
+    name,
+    phone: phone || undefined,
+    email: email || undefined,
+    address: buildShippingAddressString(order) || undefined,
+    city: order.shipping_address?.city || order.billing_address?.city || undefined,
+  })
 
-  if (error) {
+  if (!domainResult.success) {
     // Handle duplicate phone (race condition or existing contact)
-    if (error.code === '23505' && phone) {
+    if (domainResult.error?.includes('telefono') && phone) {
       const { data: existing } = await supabase
         .from('contacts')
         .select('id')
@@ -184,11 +181,11 @@ async function resolveContact(
         return { contactId: existing.id, contactCreated: false, needsVerification: false }
       }
     }
-    console.error('Error creating contact:', error)
+    console.error('Error creating contact via domain:', domainResult.error)
     return { contactId: null, contactCreated: false, needsVerification: false }
   }
 
-  return { contactId: newContact.id, contactCreated: true, needsVerification: false }
+  return { contactId: domainResult.data!.contactId, contactCreated: true, needsVerification: false }
 }
 
 /**

@@ -9,6 +9,15 @@
 import type { ToolHandler, ExecutionContext, ToolResult } from '../../types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/utils/phone'
+import {
+  createContact as domainCreateContact,
+  updateContact as domainUpdateContact,
+  deleteContact as domainDeleteContact,
+} from '@/lib/domain/contacts'
+import {
+  assignTag as domainAssignTag,
+  removeTag as domainRemoveTag,
+} from '@/lib/domain/tags'
 
 // ============================================================================
 // Input Types (what each handler receives from the agent/executor)
@@ -156,24 +165,19 @@ const contactCreate: ToolHandler = async (
     }
   }
 
-  const supabase = createAdminClient()
+  // Delegate to domain (handles DB insert + trigger emission)
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainCreateContact(ctx, {
+    name: data.name.trim(),
+    phone: data.phone,
+    email: data.email || undefined,
+    address: data.address || undefined,
+    city: data.city || undefined,
+    tags: data.tags,
+  })
 
-  // Insert contact
-  const { data: contact, error } = await supabase
-    .from('contacts')
-    .insert({
-      workspace_id: context.workspaceId,
-      name: data.name.trim(),
-      phone: normalizedPhone,
-      email: data.email || null,
-      address: data.address || null,
-      city: data.city || null,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    if (error.code === '23505') {
+  if (!result.success) {
+    if (result.error?.includes('telefono')) {
       return {
         success: false,
         error: {
@@ -190,60 +194,24 @@ const contactCreate: ToolHandler = async (
       error: {
         type: 'internal_error',
         code: 'INSERT_FAILED',
-        message: `Error al crear el contacto: ${error.message}`,
+        message: result.error || 'Error al crear el contacto',
         retryable: true,
       },
     }
   }
 
-  // Handle tags if provided
-  if (data.tags && data.tags.length > 0) {
-    for (const tagName of data.tags) {
-      const trimmedTagName = tagName.trim()
-      if (!trimmedTagName) continue
-
-      // Find or create tag
-      let tagId: string
-
-      const { data: existingTag } = await supabase
-        .from('tags')
-        .select('id')
-        .eq('workspace_id', context.workspaceId)
-        .eq('name', trimmedTagName)
-        .single()
-
-      if (existingTag) {
-        tagId = existingTag.id
-      } else {
-        const { data: newTag, error: tagError } = await supabase
-          .from('tags')
-          .insert({
-            workspace_id: context.workspaceId,
-            name: trimmedTagName,
-            color: '#6366f1',
-            applies_to: 'both',
-          })
-          .select('id')
-          .single()
-
-        if (tagError || !newTag) {
-          // Tag creation failed — not critical, continue
-          continue
-        }
-        tagId = newTag.id
-      }
-
-      // Link tag to contact (ignore duplicates)
-      await supabase
-        .from('contact_tags')
-        .insert({ contact_id: contact.id, tag_id: tagId })
-    }
-  }
+  // Re-read full contact for response
+  const supabase = createAdminClient()
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', result.data!.contactId)
+    .single()
 
   return {
     success: true,
     data: contact,
-    resource_url: `/crm/contactos/${contact.id}`,
+    resource_url: `/crm/contactos/${result.data!.contactId}`,
   }
 }
 
@@ -338,18 +306,19 @@ const contactUpdate: ToolHandler = async (
     }
   }
 
-  const supabase = createAdminClient()
+  // Delegate to domain (handles DB update + field.changed trigger emission)
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainUpdateContact(ctx, {
+    contactId: data.contactId,
+    name: data.name?.trim(),
+    phone: data.phone,
+    email: data.email,
+    address: data.address,
+    city: data.city,
+  })
 
-  const { data: updatedContact, error } = await supabase
-    .from('contacts')
-    .update(updates)
-    .eq('id', data.contactId)
-    .eq('workspace_id', context.workspaceId)
-    .select()
-    .single()
-
-  if (error) {
-    if (error.code === '23505') {
+  if (!result.success) {
+    if (result.error?.includes('telefono')) {
       return {
         success: false,
         error: {
@@ -361,8 +330,7 @@ const contactUpdate: ToolHandler = async (
         },
       }
     }
-    // PGRST116 = no rows returned by .single() (contact not found in this workspace)
-    if (error.code === 'PGRST116') {
+    if (result.error?.includes('no encontrado')) {
       return {
         success: false,
         error: {
@@ -379,11 +347,19 @@ const contactUpdate: ToolHandler = async (
       error: {
         type: 'internal_error',
         code: 'UPDATE_FAILED',
-        message: `Error al actualizar el contacto: ${error.message}`,
+        message: result.error || 'Error al actualizar el contacto',
         retryable: true,
       },
     }
   }
+
+  // Re-read full contact for response
+  const supabase = createAdminClient()
+  const { data: updatedContact } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', data.contactId)
+    .single()
 
   return {
     success: true,
@@ -391,7 +367,7 @@ const contactUpdate: ToolHandler = async (
       ...updatedContact,
       changedFields,
     },
-    resource_url: `/crm/contactos/${updatedContact.id}`,
+    resource_url: `/crm/contactos/${data.contactId}`,
   }
 }
 
@@ -643,41 +619,28 @@ const contactDelete: ToolHandler = async (
     }
   }
 
-  const supabase = createAdminClient()
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainDeleteContact(ctx, { contactId: data.contactId })
 
-  // Verify contact exists in workspace first
-  const { data: existing, error: fetchError } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('id', data.contactId)
-    .eq('workspace_id', context.workspaceId)
-    .single()
-
-  if (fetchError || !existing) {
-    return {
-      success: false,
-      error: {
-        type: 'not_found',
-        code: 'CONTACT_NOT_FOUND',
-        message: 'Contacto no encontrado',
-        retryable: false,
-      },
+  if (!result.success) {
+    if (result.error?.includes('no encontrado')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'CONTACT_NOT_FOUND',
+          message: 'Contacto no encontrado',
+          retryable: false,
+        },
+      }
     }
-  }
-
-  const { error: deleteError } = await supabase
-    .from('contacts')
-    .delete()
-    .eq('id', data.contactId)
-    .eq('workspace_id', context.workspaceId)
-
-  if (deleteError) {
     return {
       success: false,
       error: {
         type: 'internal_error',
         code: 'DELETE_FAILED',
-        message: `Error al eliminar el contacto: ${deleteError.message}`,
+        message: result.error || 'Error al eliminar el contacto',
         retryable: true,
       },
     }
@@ -747,82 +710,24 @@ const tagAdd: ToolHandler = async (
     }
   }
 
-  const supabase = createAdminClient()
+  // Delegate to domain (handles tag lookup, junction insert, trigger emission)
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainAssignTag(ctx, {
+    entityType: 'contact',
+    entityId: data.contactId,
+    tagName,
+  })
 
-  // Step 1: Verify contact exists and belongs to workspace
-  const { data: contact, error: contactError } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('id', data.contactId)
-    .eq('workspace_id', context.workspaceId)
-    .single()
-
-  if (contactError || !contact) {
-    return {
-      success: false,
-      error: {
-        type: 'not_found',
-        code: 'CONTACT_NOT_FOUND',
-        message: 'Contacto no encontrado',
-        retryable: false,
-      },
-    }
-  }
-
-  // Step 2: Find or create tag
-  let tagId: string
-
-  const { data: existingTag } = await supabase
-    .from('tags')
-    .select('id')
-    .eq('workspace_id', context.workspaceId)
-    .eq('name', tagName)
-    .single()
-
-  if (existingTag) {
-    tagId = existingTag.id
-  } else {
-    const { data: newTag, error: tagError } = await supabase
-      .from('tags')
-      .insert({
-        workspace_id: context.workspaceId,
-        name: tagName,
-        color: '#6366f1',
-        applies_to: 'both',
-      })
-      .select('id')
-      .single()
-
-    if (tagError || !newTag) {
+  if (!result.success) {
+    if (result.error?.includes('no encontrad')) {
+      // Could be contact or tag not found
       return {
         success: false,
         error: {
-          type: 'internal_error',
-          code: 'TAG_CREATE_FAILED',
-          message: `Error al crear la etiqueta: ${tagError?.message || 'Unknown error'}`,
-          retryable: true,
-        },
-      }
-    }
-    tagId = newTag.id
-  }
-
-  // Step 3: Link tag to contact
-  const { error: linkError } = await supabase
-    .from('contact_tags')
-    .insert({ contact_id: data.contactId, tag_id: tagId })
-
-  if (linkError) {
-    // Duplicate = tag already assigned
-    if (linkError.code === '23505') {
-      return {
-        success: true,
-        data: {
-          contactId: data.contactId,
-          tag: tagName,
-          tagId,
-          added: true,
-          alreadyHadTag: true,
+          type: 'not_found',
+          code: result.error.includes('Etiqueta') ? 'TAG_NOT_FOUND' : 'CONTACT_NOT_FOUND',
+          message: result.error,
+          retryable: false,
         },
       }
     }
@@ -831,7 +736,7 @@ const tagAdd: ToolHandler = async (
       error: {
         type: 'internal_error',
         code: 'TAG_LINK_FAILED',
-        message: `Error al asignar la etiqueta: ${linkError.message}`,
+        message: result.error || 'Error al asignar la etiqueta',
         retryable: true,
       },
     }
@@ -842,7 +747,7 @@ const tagAdd: ToolHandler = async (
     data: {
       contactId: data.contactId,
       tag: tagName,
-      tagId,
+      tagId: result.data!.tagId,
       added: true,
       alreadyHadTag: false,
     },
@@ -899,50 +804,37 @@ const tagRemove: ToolHandler = async (
     }
   }
 
-  const supabase = createAdminClient()
+  // Delegate to domain (handles tag lookup, junction delete, trigger emission)
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainRemoveTag(ctx, {
+    entityType: 'contact',
+    entityId: data.contactId,
+    tagName,
+  })
 
-  // Find tag by name in workspace
-  const { data: tag, error: tagError } = await supabase
-    .from('tags')
-    .select('id')
-    .eq('workspace_id', context.workspaceId)
-    .eq('name', tagName)
-    .single()
-
-  if (tagError || !tag) {
-    return {
-      success: false,
-      error: {
-        type: 'not_found',
-        code: 'TAG_NOT_FOUND',
-        message: `Etiqueta "${tagName}" no encontrada en el workspace`,
-        suggestion: 'Verifique el nombre exacto de la etiqueta',
-        retryable: false,
-      },
+  if (!result.success) {
+    if (result.error?.includes('no encontrad')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'TAG_NOT_FOUND',
+          message: result.error,
+          suggestion: 'Verifique el nombre exacto de la etiqueta',
+          retryable: false,
+        },
+      }
     }
-  }
-
-  // Delete the contact_tag link
-  const { error: deleteError, count } = await supabase
-    .from('contact_tags')
-    .delete()
-    .eq('contact_id', data.contactId)
-    .eq('tag_id', tag.id)
-
-  if (deleteError) {
     return {
       success: false,
       error: {
         type: 'internal_error',
         code: 'TAG_REMOVE_FAILED',
-        message: `Error al quitar la etiqueta: ${deleteError.message}`,
+        message: result.error || 'Error al quitar la etiqueta',
         retryable: true,
       },
     }
   }
-
-  // count could be 0 if the contact didn't have this tag
-  const hadTag = (count ?? 0) > 0
 
   return {
     success: true,
@@ -950,7 +842,7 @@ const tagRemove: ToolHandler = async (
       contactId: data.contactId,
       tag: tagName,
       removed: true,
-      hadTag,
+      hadTag: true,
     },
   }
 }

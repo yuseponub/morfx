@@ -3,8 +3,10 @@
 // Executes automation actions via domain layer and direct DB ops.
 // Uses createAdminClient to bypass RLS (runs from Inngest, no user session).
 //
-// Phase 18: Order actions delegated to domain/orders. Trigger emissions
-// handled by domain — no inline trigger code for order actions here.
+// Phase 18: All CRM actions (orders, contacts, tags) delegate to domain.
+// Trigger emissions handled by domain — no inline trigger code for
+// orders, contacts, or tags here.
+// Remaining direct DB: WhatsApp actions, task creation, webhooks.
 // ============================================================================
 
 import type { AutomationAction, ActionType, TriggerContext } from './types'
@@ -22,17 +24,14 @@ import {
   addOrderTag as domainAddOrderTag,
   removeOrderTag as domainRemoveOrderTag,
 } from '@/lib/domain/orders'
+import {
+  updateContact as domainUpdateContact,
+} from '@/lib/domain/contacts'
+import {
+  assignTag as domainAssignTag,
+  removeTag as domainRemoveTag,
+} from '@/lib/domain/tags'
 import type { DomainContext } from '@/lib/domain/types'
-
-// Lazy import for non-order trigger emissions (contacts, tasks, etc. — not yet migrated)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _triggerEmitter: any = null
-async function getTriggerEmitter() {
-  if (!_triggerEmitter) {
-    _triggerEmitter = await import('./trigger-emitter')
-  }
-  return _triggerEmitter
-}
 
 // ============================================================================
 // Types
@@ -158,8 +157,7 @@ async function executeByType(
 
 /**
  * Assign a tag to a contact or order.
- * For orders: delegates to domain/orders.addOrderTag.
- * For contacts: uses direct DB (contacts domain not yet migrated — Plan 05).
+ * Both entity types delegate to domain (handles DB + trigger emission).
  */
 async function executeAssignTag(
   params: Record<string, unknown>,
@@ -168,7 +166,7 @@ async function executeAssignTag(
   cascadeDepth: number
 ): Promise<unknown> {
   const tagName = String(params.tagName || '')
-  const entityType = String(params.entityType || 'contact')
+  const entityType = String(params.entityType || 'contact') as 'contact' | 'order'
 
   if (!tagName) throw new Error('tagName is required for assign_tag')
 
@@ -178,7 +176,7 @@ async function executeAssignTag(
 
   if (!entityId) throw new Error(`No ${entityType}Id available in trigger context`)
 
-  // Orders: delegate to domain (handles DB + trigger)
+  // Orders: delegate to domain/orders.addOrderTag
   if (entityType === 'order') {
     const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
     const result = await domainAddOrderTag(ctx, { orderId: entityId, tagName })
@@ -186,68 +184,16 @@ async function executeAssignTag(
     return { tagId: result.data!.tagId, tagName, entityType, entityId, assigned: true }
   }
 
-  // Contacts: direct DB (not yet migrated to domain — Plan 05)
-  const supabase = createAdminClient()
-
-  // Find or create tag
-  let tagId: string
-  const { data: existingTag } = await supabase
-    .from('tags')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('name', tagName)
-    .single()
-
-  if (existingTag) {
-    tagId = existingTag.id
-  } else {
-    const { data: newTag, error: tagError } = await supabase
-      .from('tags')
-      .insert({
-        workspace_id: workspaceId,
-        name: tagName,
-        color: '#6366f1',
-        applies_to: 'both',
-      })
-      .select('id')
-      .single()
-
-    if (tagError || !newTag) {
-      throw new Error(`Failed to create tag "${tagName}": ${tagError?.message}`)
-    }
-    tagId = newTag.id
-  }
-
-  // Link tag to contact
-  const { error: linkError } = await supabase
-    .from('contact_tags')
-    .insert({ contact_id: entityId, tag_id: tagId })
-
-  // Ignore duplicate (23505) — tag already assigned
-  if (linkError && linkError.code !== '23505') {
-    throw new Error(`Failed to assign tag: ${linkError.message}`)
-  }
-
-  // Emit cascade event for contacts (not yet migrated)
-  const emitter = await getTriggerEmitter()
-  emitter.emitTagAssigned({
-    workspaceId,
-    entityType,
-    entityId,
-    tagId,
-    tagName,
-    contactId: context.contactId || null,
-    contactName: context.contactName,
-    cascadeDepth: cascadeDepth + 1,
-  })
-
-  return { tagId, tagName, entityType, entityId, assigned: true }
+  // Contacts: delegate to domain/tags.assignTag
+  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
+  const result = await domainAssignTag(ctx, { entityType: 'contact', entityId, tagName })
+  if (!result.success) throw new Error(result.error || 'Failed to assign tag')
+  return { tagId: result.data!.tagId, tagName, entityType, entityId, assigned: true }
 }
 
 /**
  * Remove a tag from a contact or order.
- * For orders: delegates to domain/orders.removeOrderTag.
- * For contacts: uses direct DB (contacts domain not yet migrated — Plan 05).
+ * Both entity types delegate to domain (handles DB + trigger emission).
  */
 async function executeRemoveTag(
   params: Record<string, unknown>,
@@ -256,7 +202,7 @@ async function executeRemoveTag(
   cascadeDepth: number
 ): Promise<unknown> {
   const tagName = String(params.tagName || '')
-  const entityType = String(params.entityType || 'contact')
+  const entityType = String(params.entityType || 'contact') as 'contact' | 'order'
 
   if (!tagName) throw new Error('tagName is required for remove_tag')
 
@@ -266,7 +212,7 @@ async function executeRemoveTag(
 
   if (!entityId) throw new Error(`No ${entityType}Id available in trigger context`)
 
-  // Orders: delegate to domain (handles DB + trigger)
+  // Orders: delegate to domain/orders.removeOrderTag
   if (entityType === 'order') {
     const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
     const result = await domainRemoveOrderTag(ctx, { orderId: entityId, tagName })
@@ -274,45 +220,11 @@ async function executeRemoveTag(
     return { tagId: result.data!.tagId, tagName, entityType, entityId, removed: true }
   }
 
-  // Contacts: direct DB (not yet migrated to domain — Plan 05)
-  const supabase = createAdminClient()
-
-  // Find tag by name
-  const { data: tag } = await supabase
-    .from('tags')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('name', tagName)
-    .single()
-
-  if (!tag) {
-    throw new Error(`Tag "${tagName}" not found in workspace`)
-  }
-
-  // Remove link
-  const { error: deleteError } = await supabase
-    .from('contact_tags')
-    .delete()
-    .eq('contact_id', entityId)
-    .eq('tag_id', tag.id)
-
-  if (deleteError) {
-    throw new Error(`Failed to remove tag: ${deleteError.message}`)
-  }
-
-  // Emit cascade event for contacts (not yet migrated)
-  const emitter = await getTriggerEmitter()
-  emitter.emitTagRemoved({
-    workspaceId,
-    entityType,
-    entityId,
-    tagId: tag.id,
-    tagName,
-    contactId: context.contactId || null,
-    cascadeDepth: cascadeDepth + 1,
-  })
-
-  return { tagId: tag.id, tagName, entityType, entityId, removed: true }
+  // Contacts: delegate to domain/tags.removeTag
+  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
+  const result = await domainRemoveTag(ctx, { entityType: 'contact', entityId, tagName })
+  if (!result.success) throw new Error(result.error || 'Failed to remove tag')
+  return { tagId: result.data!.tagId, tagName, entityType, entityId, removed: true }
 }
 
 /**
@@ -345,8 +257,7 @@ async function executeChangeStage(
 
 /**
  * Update a field on a contact or order.
- * For orders: delegates to domain/orders.updateOrder.
- * For contacts: uses direct DB (contacts domain not yet migrated — Plan 05).
+ * Both entity types delegate to domain (handles DB + field.changed trigger emission).
  */
 async function executeUpdateField(
   params: Record<string, unknown>,
@@ -366,7 +277,7 @@ async function executeUpdateField(
 
   if (!entityId) throw new Error(`No ${entityType}Id available in trigger context`)
 
-  // Orders: delegate to domain
+  // Orders: delegate to domain/orders.updateOrder
   if (entityType === 'order') {
     const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
 
@@ -412,71 +323,38 @@ async function executeUpdateField(
     return { entityType, entityId, fieldName, newValue: value }
   }
 
-  // Contacts: direct DB (not yet migrated to domain — Plan 05)
-  const supabase = createAdminClient()
-  const table = 'contacts'
+  // Contacts: delegate to domain/contacts.updateContact
+  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
   const standardContactFields = ['name', 'phone', 'email', 'address', 'city']
 
-  let previousValue: unknown = null
-
   if (standardContactFields.includes(fieldName)) {
-    // Standard field: direct update
-    const { data: current } = await supabase
-      .from(table)
-      .select(fieldName)
-      .eq('id', entityId)
-      .eq('workspace_id', workspaceId)
-      .single()
-
-    previousValue = current ? (current as unknown as Record<string, unknown>)[fieldName] : null
-
-    const { error: updateError } = await supabase
-      .from(table)
-      .update({ [fieldName]: value })
-      .eq('id', entityId)
-      .eq('workspace_id', workspaceId)
-
-    if (updateError) {
-      throw new Error(`Failed to update field ${fieldName}: ${updateError.message}`)
-    }
+    // Standard field: call domain updateContact with the field
+    const result = await domainUpdateContact(ctx, {
+      contactId: entityId,
+      [fieldName]: value,
+    })
+    if (!result.success) throw new Error(result.error || `Failed to update field ${fieldName}`)
   } else {
-    // Custom field: merge into custom_fields JSONB
+    // Custom field: read existing, merge, call domain updateContact
+    const supabase = createAdminClient()
     const { data: current } = await supabase
-      .from(table)
+      .from('contacts')
       .select('custom_fields')
       .eq('id', entityId)
       .eq('workspace_id', workspaceId)
       .single()
 
     const existingCustom = (current?.custom_fields as Record<string, unknown>) || {}
-    previousValue = existingCustom[fieldName] ?? null
-
     const updatedCustom = { ...existingCustom, [fieldName]: value }
 
-    const { error: updateError } = await supabase
-      .from(table)
-      .update({ custom_fields: updatedCustom })
-      .eq('id', entityId)
-      .eq('workspace_id', workspaceId)
-
-    if (updateError) {
-      throw new Error(`Failed to update custom field ${fieldName}: ${updateError.message}`)
-    }
+    const result = await domainUpdateContact(ctx, {
+      contactId: entityId,
+      customFields: updatedCustom,
+    })
+    if (!result.success) throw new Error(result.error || `Failed to update custom field ${fieldName}`)
   }
 
-  // Emit cascade event for contacts (not yet migrated)
-  const emitter = await getTriggerEmitter()
-  emitter.emitFieldChanged({
-    workspaceId,
-    entityType,
-    entityId,
-    fieldName,
-    previousValue: previousValue != null ? String(previousValue) : null,
-    newValue: value != null ? String(value) : null,
-    cascadeDepth: cascadeDepth + 1,
-  })
-
-  return { entityType, entityId, fieldName, previousValue, newValue: value }
+  return { entityType, entityId, fieldName, newValue: value }
 }
 
 /**

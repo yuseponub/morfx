@@ -44,7 +44,7 @@ export default async function EditarAutomatizacionPage({ params }: EditPageProps
   }
 
   return (
-    <div className="container py-6 space-y-6">
+    <div className="flex-1 overflow-y-auto"><div className="container py-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Editar Automatizacion</h1>
         <p className="text-muted-foreground">
@@ -56,6 +56,6 @@ export default async function EditarAutomatizacionPage({ params }: EditPageProps
         pipelines={pipelines}
         tags={tags}
       />
-    </div>
+    </div></div>
   )
 }

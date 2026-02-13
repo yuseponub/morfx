@@ -26,7 +26,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
   ])
 
   return (
-    <div className="container py-6 space-y-6">
+    <div className="flex-1 overflow-y-auto"><div className="container py-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Historial de Ejecuciones</h1>
         <p className="text-muted-foreground">
@@ -38,6 +38,6 @@ export default async function HistorialPage({ searchParams }: PageProps) {
         automations={automations}
         currentFilters={{ page, status, automationId }}
       />
-    </div>
+    </div></div>
   )
 }

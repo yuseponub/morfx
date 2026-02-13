@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 8 of 10 (17-08 complete)
+Plan: 9 of 10 (17-09 complete)
 Status: In progress
-Last activity: 2026-02-13 — Completed 17-08-PLAN.md (Automation List & History UI)
+Last activity: 2026-02-13 — Completed 17-09-PLAN.md (Connected Orders)
 
-Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████████████░] 99% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -38,7 +38,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
-- Phase 17: CRM Automations Engine (10 plans) — IN PROGRESS (1/10)
+- Phase 17: CRM Automations Engine (10 plans) — IN PROGRESS (9/10)
 - Phase 18: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 8/10 | In Progress |
+| 17. CRM Automations Engine | 9/10 | In Progress |
 
 ## Accumulated Context
 
@@ -292,6 +292,10 @@ Recent decisions affecting MVP v2 work:
 - [17-08]: List page uses enriched _lastExecutionStatus from getAutomations (avoids N+1 client fetches)
 - [17-08]: History page uses URL searchParams for server-side pagination
 - [17-08]: useAutomationBadge hook polls getRecentFailures every 5 minutes
+- [17-09]: RelatedOrders placed in OrderSheet (side panel) since no standalone order detail page exists
+- [17-09]: Related orders fetched client-side via useEffect (non-blocking sheet render)
+- [17-09]: In-sheet navigation for same-pipeline orders, router.push fallback for cross-pipeline
+- [17-09]: stage_color added to RelatedOrder type for visual stage badges
 
 ### Project Rules
 
@@ -332,6 +336,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 17-08-PLAN.md (Automation List & History UI)
+Stopped at: Completed 17-09-PLAN.md (Connected Orders)
 Resume file: None
-Next: 17-09-PLAN.md
+Next: 17-10-PLAN.md

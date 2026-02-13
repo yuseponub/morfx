@@ -619,12 +619,28 @@ Plans:
 Plans:
 - [ ] 19-01: TBD during /gsd:plan-phase
 
+### Phase 20: Integration Automations (Twilio + Shopify)
+**Goal**: Expandir el motor de automatizaciones con integracion Twilio (SMS/llamadas como action types) y triggers directos de Shopify (orders/draft orders) para control granular desde el builder
+**Depends on**: Phase 17, Phase 19
+**Requirements**: TBD during /gsd:discuss-phase
+**Success Criteria** (what must be TRUE):
+  1. Credenciales Twilio configurables desde /configuracion/integraciones
+  2. Action types send_sms y make_call disponibles en el builder de automatizaciones
+  3. Triggers Shopify en catálogo: shopify.order_created, shopify.draft_order_created
+  4. Webhook de Shopify emite triggers directos (no solo crea orden en MorfX)
+  5. Usuario puede decidir desde automatizaciones qué hacer con ordenes/draft orders de Shopify
+  6. SMS/llamadas Twilio se envian correctamente desde el action executor
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01: TBD during /gsd:plan-phase
+
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 (v2)
+Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 (v2)
 
 ### MVP v1.0 (Complete)
 
@@ -661,9 +677,10 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 16. WhatsApp Agent Integration | 5/6 | In progress | - |
 | 16.1. Engine Unification | 6/6 | Complete | 2026-02-10 |
 | 17. CRM Automations Engine | 10/10 | Complete | 2026-02-13 |
-| 18. Domain Layer Foundation | TBD | Not started | - |
+| 18. Domain Layer Foundation | 10/10 | Complete | 2026-02-13 |
 | 19. AI Automation Builder | TBD | Not started | - |
+| 20. Integration Automations (Twilio + Shopify) | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-13 (Phase 18 Domain Layer added, AI Automation Builder moved to Phase 19)*
+*Last updated: 2026-02-13 (Phase 18 complete, Phase 20 Integration Automations added)*

@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 3 of 10 (17-03 complete)
+Plan: 4 of 10 (17-04 complete)
 Status: In progress
-Last activity: 2026-02-13 — Completed 17-03-PLAN.md (Server Actions CRUD)
+Last activity: 2026-02-13 — Completed 17-04-PLAN.md (Action Executor & Trigger Emitter)
 
 Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 3/10 | In Progress |
+| 17. CRM Automations Engine | 4/10 | In Progress |
 
 ## Accumulated Context
 
@@ -264,6 +264,11 @@ Recent decisions affecting MVP v2 work:
 - [17-03]: duplicateAutomation truncates name to 92 chars before ' (copia)' to respect 100 char limit
 - [17-03]: getExecutionHistory uses separate count+data queries for accurate pagination
 - [17-03]: getAutomationStats returns 100% success rate when zero executions (avoids division by zero)
+- [17-04]: WhatsApp media uses direct 360dialog sendMediaMessage API (no tool handler for media)
+- [17-04]: Lazy import of trigger-emitter from action-executor to avoid circular dependency
+- [17-04]: Inngest send cast via (inngest.send as any) to bypass typed event schema until Plan 06
+- [17-04]: CRM state-modifying actions emit cascade events; WhatsApp/webhook/task do not cascade
+- [17-04]: Custom fields merged into JSONB via read-modify-write on custom_fields column
 
 ### Project Rules
 
@@ -304,6 +309,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 17-03-PLAN.md (Server Actions CRUD)
+Stopped at: Completed 17-04-PLAN.md (Action Executor & Trigger Emitter)
 Resume file: None
-Next: 17-04-PLAN.md (Action Executor)
+Next: 17-05-PLAN.md (Inngest Runner Function)

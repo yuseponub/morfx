@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 6 of 10 (17-06 complete)
+Plan: 7 of 10 (17-07 complete)
 Status: In progress
-Last activity: 2026-02-13 — Completed 17-06-PLAN.md (Inngest Automation Runner)
+Last activity: 2026-02-13 — Completed 17-07-PLAN.md (Trigger Emission Wiring)
 
 Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 6/10 | In Progress |
+| 17. CRM Automations Engine | 7/10 | In Progress |
 
 ## Accumulated Context
 
@@ -282,6 +282,11 @@ Recent decisions affecting MVP v2 work:
 - [17-06]: Concurrency limited to 5 per workspace via Inngest concurrency key
 - [17-06]: Cascade depth double-checked: trigger-emitter + runner entry point (defense in depth)
 - [17-06]: Execution record created before actions, updated after completion
+- [17-07]: Tag emissions require extra queries for tag name and workspace_id (not in function params)
+- [17-07]: Bulk tag operations emit per-contact events (not batched) for accurate automation triggering
+- [17-07]: updateOrder emits both field.changed AND order.stage_changed when stage changes
+- [17-07]: WhatsApp automation emission fires for ALL message types (not just text)
+- [17-07]: Dynamic import of trigger-emitter in webhook handler to avoid circular dependency
 
 ### Project Rules
 
@@ -322,6 +327,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 17-06-PLAN.md (Inngest Automation Runner)
+Stopped at: Completed 17-07-PLAN.md (Trigger Emission Wiring)
 Resume file: None
-Next: 17-07-PLAN.md
+Next: 17-08-PLAN.md

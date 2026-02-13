@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 18 in progress (Domain Layer Foundation)
+**Current focus:** MVP v2.0 — Phase 18 complete, Phase 19 next (AI Automation Builder)
 
 ## Current Position
 
-Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 9 of 10 (conversations domain + task.overdue cron)
-Status: In progress
-Last activity: 2026-02-13 — Completed 18-09-PLAN.md (Conversations Domain + Task Overdue Cron)
+Phase: 18 of 19 (Domain Layer Foundation) — COMPLETE
+Plan: 10 of 10 (final verification + hotfixes)
+Status: Complete
+Last activity: 2026-02-13 — Phase 18 verified, 2 hotfixes applied, LEARNINGS written
 
-Progress: [##########] 100% MVP v1 | [██████████████████████░] 96% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████████████████░] 97% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -39,7 +39,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
-- Phase 18: Domain Layer Foundation (10 plans) — IN PROGRESS (7/10)
+- Phase 18: Domain Layer Foundation (10 plans) — COMPLETE (2026-02-13)
 - Phase 19: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 9/10 | In Progress |
+| 18. Domain Layer Foundation | 10/10 | Complete |
 
 ## Accumulated Context
 
@@ -388,6 +388,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-09-PLAN.md (Conversations Domain + Task Overdue Cron)
+Stopped at: Phase 18 complete — all 10 plans done, verified, LEARNINGS written
 Resume file: None
-Next: 18-10-PLAN.md
+Next: Phase 19 (AI Automation Builder) — /gsd:discuss-phase 19

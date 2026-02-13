@@ -17,9 +17,8 @@ import {
   emitOrderCreated,
   emitOrderStageChanged,
   emitFieldChanged,
-  emitTagAssigned,
-  emitTagRemoved,
 } from '@/lib/automations/trigger-emitter'
+import { assignTag, removeTag } from './tags'
 import type { DomainContext, DomainResult } from './types'
 
 // ============================================================================
@@ -688,64 +687,26 @@ export async function duplicateOrder(
 
 /**
  * Add a tag to an order by tag name.
- * Looks up tag by name + workspace_id. Error if tag not found.
- * Handles duplicate gracefully (already assigned = success).
- * Emits: tag.assigned
+ * Delegates to shared tags domain module (single source of truth for tag logic).
+ * Emits: tag.assigned (via tags.ts)
  */
 export async function addOrderTag(
   ctx: DomainContext,
   params: AddOrderTagParams
 ): Promise<DomainResult<AddOrderTagResult>> {
-  const supabase = createAdminClient()
+  const result = await assignTag(ctx, {
+    entityType: 'order',
+    entityId: params.orderId,
+    tagName: params.tagName,
+  })
 
-  try {
-    // Find tag by name in workspace
-    const { data: tag, error: tagError } = await supabase
-      .from('tags')
-      .select('id')
-      .eq('workspace_id', ctx.workspaceId)
-      .eq('name', params.tagName)
-      .single()
+  if (!result.success) {
+    return { success: false, error: result.error }
+  }
 
-    if (tagError || !tag) {
-      return { success: false, error: `Etiqueta "${params.tagName}" no encontrada` }
-    }
-
-    // Insert into order_tags (handle duplicate gracefully)
-    const { error: linkError } = await supabase
-      .from('order_tags')
-      .insert({ order_id: params.orderId, tag_id: tag.id })
-
-    if (linkError && linkError.code !== '23505') {
-      return { success: false, error: `Error al asignar etiqueta: ${linkError.message}` }
-    }
-
-    // Fetch contact_id from the order for trigger context
-    const { data: order } = await supabase
-      .from('orders')
-      .select('contact_id')
-      .eq('id', params.orderId)
-      .eq('workspace_id', ctx.workspaceId)
-      .single()
-
-    // Fire-and-forget: emit automation trigger
-    emitTagAssigned({
-      workspaceId: ctx.workspaceId,
-      entityType: 'order',
-      entityId: params.orderId,
-      tagId: tag.id,
-      tagName: params.tagName,
-      contactId: order?.contact_id ?? null,
-      cascadeDepth: ctx.cascadeDepth,
-    })
-
-    return {
-      success: true,
-      data: { orderId: params.orderId, tagId: tag.id },
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return { success: false, error: message }
+  return {
+    success: true,
+    data: { orderId: params.orderId, tagId: result.data!.tagId },
   }
 }
 
@@ -755,64 +716,25 @@ export async function addOrderTag(
 
 /**
  * Remove a tag from an order by tag name.
- * Looks up tag by name + workspace_id. Error if tag not found.
- * Emits: tag.removed
+ * Delegates to shared tags domain module (single source of truth for tag logic).
+ * Emits: tag.removed (via tags.ts)
  */
 export async function removeOrderTag(
   ctx: DomainContext,
   params: RemoveOrderTagParams
 ): Promise<DomainResult<RemoveOrderTagResult>> {
-  const supabase = createAdminClient()
+  const result = await removeTag(ctx, {
+    entityType: 'order',
+    entityId: params.orderId,
+    tagName: params.tagName,
+  })
 
-  try {
-    // Find tag by name in workspace
-    const { data: tag, error: tagError } = await supabase
-      .from('tags')
-      .select('id')
-      .eq('workspace_id', ctx.workspaceId)
-      .eq('name', params.tagName)
-      .single()
+  if (!result.success) {
+    return { success: false, error: result.error }
+  }
 
-    if (tagError || !tag) {
-      return { success: false, error: `Etiqueta "${params.tagName}" no encontrada` }
-    }
-
-    // Delete from order_tags
-    const { error: deleteError } = await supabase
-      .from('order_tags')
-      .delete()
-      .eq('order_id', params.orderId)
-      .eq('tag_id', tag.id)
-
-    if (deleteError) {
-      return { success: false, error: `Error al quitar etiqueta: ${deleteError.message}` }
-    }
-
-    // Fetch contact_id from the order for trigger context
-    const { data: order } = await supabase
-      .from('orders')
-      .select('contact_id')
-      .eq('id', params.orderId)
-      .eq('workspace_id', ctx.workspaceId)
-      .single()
-
-    // Fire-and-forget: emit automation trigger
-    emitTagRemoved({
-      workspaceId: ctx.workspaceId,
-      entityType: 'order',
-      entityId: params.orderId,
-      tagId: tag.id,
-      tagName: params.tagName,
-      contactId: order?.contact_id ?? null,
-      cascadeDepth: ctx.cascadeDepth,
-    })
-
-    return {
-      success: true,
-      data: { orderId: params.orderId, tagId: tag.id },
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return { success: false, error: message }
+  return {
+    success: true,
+    data: { orderId: params.orderId, tagId: result.data!.tagId },
   }
 }

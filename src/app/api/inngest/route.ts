@@ -2,6 +2,7 @@
  * Inngest Serve Route
  * Phase 13: Agent Engine Core - Plan 06
  * Updated Phase 16: WhatsApp Agent Integration - Plan 02
+ * Updated Phase 17: CRM Automations Engine - Plan 06
  *
  * API endpoint for Inngest to invoke workflow functions.
  * Must be accessible at /api/inngest for Inngest Cloud to call.
@@ -16,6 +17,7 @@ import { serve } from 'inngest/next'
 import { inngest } from '@/inngest/client'
 import { agentTimerFunctions } from '@/inngest/functions/agent-timers'
 import { agentProductionFunctions } from '@/inngest/functions/agent-production'
+import { automationFunctions } from '@/inngest/functions/automation-runner'
 
 /**
  * Serve all Inngest functions.
@@ -26,11 +28,13 @@ import { agentProductionFunctions } from '@/inngest/functions/agent-production'
  * - promos-timer: 10-min timeout for pack selection
  * - ingest-timer: Ingest data collection timeout
  * - whatsapp-agent-processor: Production agent message processing (Phase 16)
+ * - automation-*: 10 automation runners for CRM trigger events (Phase 17)
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
     ...agentTimerFunctions,
     ...agentProductionFunctions,
+    ...automationFunctions,
   ],
 })

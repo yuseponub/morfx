@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 2 of 10 (orders domain complete)
+Plan: 3 of 10 (orders callers migrated)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-02-PLAN.md (Orders Domain Functions)
+Last activity: 2026-02-13 — Completed 18-03-PLAN.md (Orders Caller Migration)
 
 Progress: [##########] 100% MVP v1 | [███████████████████░] 93% MVP v2
 
@@ -39,7 +39,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
-- Phase 18: Domain Layer Foundation (10 plans) — IN PROGRESS (2/10)
+- Phase 18: Domain Layer Foundation (10 plans) — IN PROGRESS (3/10)
 - Phase 19: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 2/10 | In Progress |
+| 18. Domain Layer Foundation | 3/10 | In Progress |
 
 ## Accumulated Context
 
@@ -309,6 +309,13 @@ Recent decisions affecting MVP v2 work:
 - [18-02]: updateOrder emits per-field triggers + custom_fields as JSON-stringified comparison
 - [18-02]: total_value recalculated after product insert (manual re-read, DB trigger may also fire)
 - [18-02]: stageId typed as string (not string|null) after resolution — initialized to '' for falsy check
+- [18-03]: Server action addOrderTag/removeOrderTag keep tagId param (UI sends tagId), adapter looks up tagName before calling domain
+- [18-03]: Action executor splits by entity type: orders via domain, contacts still direct DB (to be migrated in Plan 05)
+- [18-03]: Shopify webhook sets shopify_order_id via direct DB update AFTER domain createOrder (domain-agnostic field)
+- [18-03]: Production adapter uses OrderCreator only for contact findOrCreate, order creation fully via domain
+- [18-03]: WIP limit check stays in server action moveOrderToStage as adapter concern (not in domain)
+- [18-03]: deleteOrders bulk action loops over domain deleteOrder per ID (sequential, not batch)
+- [18-03]: updateOrder server action handles stage_id change via separate domainMoveOrderToStage call before domainUpdateOrder
 
 ### Project Rules
 
@@ -351,6 +358,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-02-PLAN.md (Orders Domain Functions)
+Stopped at: Completed 18-03-PLAN.md (Orders Caller Migration)
 Resume file: None
-Next: 18-03-PLAN.md
+Next: 18-04-PLAN.md

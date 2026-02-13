@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 5 of 10 (contacts + tags callers migrated)
+Plan: 6 of 10 (messages domain + keyword match + all callers wired)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-05-PLAN.md (Contact & Tag Callers Migration)
+Last activity: 2026-02-13 — Completed 18-06-PLAN.md (Messages Domain + Keyword Match)
 
-Progress: [##########] 100% MVP v1 | [████████████████████░] 94% MVP v2
+Progress: [##########] 100% MVP v1 | [█████████████████████░] 95% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 5/10 | In Progress |
+| 18. Domain Layer Foundation | 6/10 | In Progress |
 
 ## Accumulated Context
 
@@ -325,6 +325,12 @@ Recent decisions affecting MVP v2 work:
 - [18-05]: Tag ops in server actions look up tagName from tagId (UI sends tagId, domain expects tagName)
 - [18-05]: Lazy trigger emitter fully removed from action-executor (all CRM entities via domain)
 - [18-05]: bulkCreateContacts falls back to per-item domain calls on batch failure for CSV import error reporting
+- [18-06]: apiKey passed as param to domain message functions (caller resolves credentials)
+- [18-06]: receiveMessage returns empty messageId for duplicates (dedup via wamid constraint)
+- [18-06]: Keyword match emits once per automation (first matching keyword wins)
+- [18-06]: Unarchive (archived→active on send) stays in callers as adapter concern
+- [18-06]: Action executor removed tool executor + whatsapp/api imports — fully domain-powered for WhatsApp
+- [18-06]: resolveWhatsAppContext helper for shared contact→conversation→apiKey lookup in action executor
 
 ### Project Rules
 
@@ -367,6 +373,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-05-PLAN.md (Contact & Tag Callers Migration)
+Stopped at: Completed 18-06-PLAN.md (Messages Domain + Keyword Match)
 Resume file: None
-Next: 18-06-PLAN.md
+Next: 18-07-PLAN.md

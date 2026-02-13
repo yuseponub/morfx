@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 2 of 10 (17-02 complete)
+Plan: 3 of 10 (17-03 complete)
 Status: In progress
-Last activity: 2026-02-12 — Completed 17-02-PLAN.md (Condition Evaluator & Variable Resolver)
+Last activity: 2026-02-13 — Completed 17-03-PLAN.md (Server Actions CRUD)
 
 Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 2/10 | In Progress |
+| 17. CRM Automations Engine | 3/10 | In Progress |
 
 ## Accumulated Context
 
@@ -259,6 +259,11 @@ Recent decisions affecting MVP v2 work:
 - [17-02]: not_equals/not_contains/not_in return true for null/missing values (logically correct)
 - [17-02]: buildTriggerContext maps 8 Spanish namespaces: contacto, orden, tag, mensaje, conversacion, tarea, campo, entidad
 - [17-02]: resolveVariables leaves {{path}} unchanged for missing top-level keys, empty string for null values
+- [17-03]: getAuthContext() helper combines auth+workspace membership check for all 11 server actions
+- [17-03]: getAutomations() enriches with _recentExecutions and _lastExecutionStatus (last 24h)
+- [17-03]: duplicateAutomation truncates name to 92 chars before ' (copia)' to respect 100 char limit
+- [17-03]: getExecutionHistory uses separate count+data queries for accurate pagination
+- [17-03]: getAutomationStats returns 100% success rate when zero executions (avoids division by zero)
 
 ### Project Rules
 
@@ -298,7 +303,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-12
-Stopped at: Completed 17-02-PLAN.md (Condition Evaluator & Variable Resolver)
+Last session: 2026-02-13
+Stopped at: Completed 17-03-PLAN.md (Server Actions CRUD)
 Resume file: None
-Next: 17-03-PLAN.md (Action Executor)
+Next: 17-04-PLAN.md (Action Executor)

@@ -12,6 +12,7 @@ import type { OrdersAdapter } from '../../engine/types'
 import { OrderCreator, type ContactData } from '../../somnio/order-creator'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { initializeTools } from '@/lib/tools/init'
 import { createOrder as domainCreateOrder, addOrderTag as domainAddOrderTag } from '@/lib/domain/orders'
 import type { DomainContext } from '@/lib/domain/types'
 
@@ -51,6 +52,11 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
     const pack = data.packSeleccionado as '1x' | '2x' | '3x' | null
     const isTimerOrder = data.valorOverride !== undefined
 
+    // Ensure tool registry is initialized (findOrCreateContact uses executeToolFromAgent)
+    // Required for Inngest/serverless contexts where instrumentation.ts may not run.
+    // Known issue from Phase 16.1 LEARNINGS — idempotent, safe to call multiple times.
+    initializeTools()
+
     if (!pack && !isTimerOrder) {
       logger.warn({ sessionId: data.sessionId }, 'Cannot create order - no pack selected')
       return {
@@ -84,6 +90,10 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
       const { contactId, isNew } = await this.orderCreator.findOrCreateContact(contactData, data.sessionId)
 
       if (!contactId) {
+        logger.error(
+          { sessionId: data.sessionId, telefono: contactData.telefono },
+          'findOrCreateContact returned null contactId'
+        )
         return {
           success: false,
           error: { message: 'No se pudo crear el contacto' },

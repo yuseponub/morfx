@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 1 of 10 (17-01 complete)
+Plan: 2 of 10 (17-02 complete)
 Status: In progress
-Last activity: 2026-02-12 — Completed 17-01-PLAN.md (Foundation: DB + Types + Constants)
+Last activity: 2026-02-12 — Completed 17-02-PLAN.md (Condition Evaluator & Variable Resolver)
 
 Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 1/10 | In Progress |
+| 17. CRM Automations Engine | 2/10 | In Progress |
 
 ## Accumulated Context
 
@@ -254,6 +254,11 @@ Recent decisions affecting MVP v2 work:
 - [17-01]: MAX_CASCADE_DEPTH=3, MAX_ACTIONS=10, MAX_AUTOMATIONS=50 as starting limits
 - [17-01]: source_order_id on orders distinct from linked_order_id (automation-created vs returns)
 - [17-01]: automation_executions is SELECT-only via RLS (created by system, not users)
+- [17-02]: String coercion for equals/not_equals allows number-to-string comparison
+- [17-02]: Vacuous truth for empty condition groups (no conditions = match all)
+- [17-02]: not_equals/not_contains/not_in return true for null/missing values (logically correct)
+- [17-02]: buildTriggerContext maps 8 Spanish namespaces: contacto, orden, tag, mensaje, conversacion, tarea, campo, entidad
+- [17-02]: resolveVariables leaves {{path}} unchanged for missing top-level keys, empty string for null values
 
 ### Project Rules
 
@@ -294,6 +299,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 17-01-PLAN.md (Foundation: DB + Types + Constants)
+Stopped at: Completed 17-02-PLAN.md (Condition Evaluator & Variable Resolver)
 Resume file: None
-Next: 17-02-PLAN.md (Condition Evaluator)
+Next: 17-03-PLAN.md (Action Executor)

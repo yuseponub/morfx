@@ -18,6 +18,7 @@ import { inngest } from '@/inngest/client'
 import { agentTimerFunctions } from '@/inngest/functions/agent-timers'
 import { agentProductionFunctions } from '@/inngest/functions/agent-production'
 import { automationFunctions } from '@/inngest/functions/automation-runner'
+import { taskOverdueCron } from '@/inngest/functions/task-overdue-cron'
 
 /**
  * Serve all Inngest functions.
@@ -29,6 +30,7 @@ import { automationFunctions } from '@/inngest/functions/automation-runner'
  * - ingest-timer: Ingest data collection timeout
  * - whatsapp-agent-processor: Production agent message processing (Phase 16)
  * - automation-*: 10 automation runners for CRM trigger events (Phase 17)
+ * - task-overdue-cron: 15-minute cron for overdue task detection (Phase 18)
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -36,5 +38,6 @@ export const { GET, POST, PUT } = serve({
     ...agentTimerFunctions,
     ...agentProductionFunctions,
     ...automationFunctions,
+    taskOverdueCron,
   ],
 })

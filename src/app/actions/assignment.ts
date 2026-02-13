@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { assignConversation as domainAssignConversation } from '@/lib/domain/conversations'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // Types
@@ -52,28 +54,15 @@ export async function assignConversation(
     return { error: 'No hay workspace seleccionado' }
   }
 
-  const updates: {
-    assigned_to: string | null
-    team_id?: string | null
-    updated_at: string
-  } = {
-    assigned_to: agentId,
-    updated_at: new Date().toISOString()
-  }
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainAssignConversation(ctx, {
+    conversationId,
+    assignedTo: agentId,
+    teamId: teamId !== undefined ? (teamId || null) : undefined,
+  })
 
-  if (teamId !== undefined) {
-    updates.team_id = teamId || null
-  }
-
-  const { error } = await supabase
-    .from('conversations')
-    .update(updates)
-    .eq('id', conversationId)
-    .eq('workspace_id', workspaceId)
-
-  if (error) {
-    console.error('Error assigning conversation:', error)
-    return { error: 'Error al asignar la conversacion' }
+  if (!result.success) {
+    return { error: result.error || 'Error al asignar la conversacion' }
   }
 
   revalidatePath('/whatsapp')

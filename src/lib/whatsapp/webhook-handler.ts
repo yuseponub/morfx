@@ -7,6 +7,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/utils/phone'
 import { recordMessageCost } from '@/app/actions/usage'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
+import {
+  findOrCreateConversation as domainFindOrCreateConversation,
+  linkContactToConversation as domainLinkContactToConversation,
+} from '@/lib/domain/conversations'
 import type { DomainContext } from '@/lib/domain/types'
 import type {
   WebhookPayload,
@@ -104,17 +108,43 @@ async function processIncomingMessage(
   const profileName = contactInfo?.profile.name
 
   try {
-    // Find or create conversation (pass profile name from WhatsApp)
-    const conversationId = await findOrCreateConversation(
-      supabase,
-      workspaceId,
+    // Find or create conversation via domain
+    const ctx: DomainContext = { workspaceId, source: 'webhook' }
+    const convResult = await domainFindOrCreateConversation(ctx, {
       phone,
-      phoneNumberId,
-      profileName
-    )
+      whatsappAccountId: phoneNumberId,
+      profileName,
+    })
+
+    if (!convResult.success || !convResult.data) {
+      throw new Error(convResult.error || 'Failed to find or create conversation')
+    }
+
+    const conversationId = convResult.data.conversationId
 
     // Try to link to existing contact by phone
-    await linkConversationToContact(supabase, conversationId, workspaceId, phone)
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('phone', phone)
+      .single()
+
+    if (contact) {
+      // Check if already linked
+      const { data: conv } = await supabase
+        .from('conversations')
+        .select('contact_id')
+        .eq('id', conversationId)
+        .single()
+
+      if (!conv?.contact_id) {
+        await domainLinkContactToConversation(ctx, {
+          conversationId,
+          contactId: contact.id,
+        })
+      }
+    }
 
     // Build message content based on type
     const content = buildMessageContent(msg)
@@ -130,7 +160,6 @@ async function processIncomingMessage(
     const contactId = convForContact?.contact_id ?? null
 
     // Delegate message storage + trigger emission to domain
-    const ctx: DomainContext = { workspaceId, source: 'webhook' }
     const domainResult = await domainReceiveMessage(ctx, {
       conversationId,
       contactId,
@@ -297,106 +326,8 @@ async function processStatusUpdate(
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * Find or create a conversation for a phone number.
- * Updates profile_name if provided (WhatsApp profile name).
- */
-async function findOrCreateConversation(
-  supabase: ReturnType<typeof createAdminClient>,
-  workspaceId: string,
-  phone: string,
-  phoneNumberId: string,
-  profileName?: string
-): Promise<string> {
-  // Try to find existing conversation
-  const { data: existing } = await supabase
-    .from('conversations')
-    .select('id, profile_name')
-    .eq('workspace_id', workspaceId)
-    .eq('phone', phone)
-    .single()
-
-  if (existing) {
-    // Update profile_name if it changed or was empty
-    if (profileName && existing.profile_name !== profileName) {
-      await supabase
-        .from('conversations')
-        .update({ profile_name: profileName })
-        .eq('id', existing.id)
-    }
-    return existing.id
-  }
-
-  // Create new conversation
-  const { data: created, error } = await supabase
-    .from('conversations')
-    .insert({
-      workspace_id: workspaceId,
-      phone,
-      phone_number_id: phoneNumberId,
-      profile_name: profileName,
-    })
-    .select('id')
-    .single()
-
-  if (error) {
-    // Handle race condition - conversation was created by another request
-    if (error.code === '23505') {
-      const { data: retry } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('phone', phone)
-        .single()
-
-      if (retry) {
-        return retry.id
-      }
-    }
-    throw error
-  }
-
-  return created.id
-}
-
-/**
- * Try to link a conversation to an existing contact by phone.
- */
-async function linkConversationToContact(
-  supabase: ReturnType<typeof createAdminClient>,
-  conversationId: string,
-  workspaceId: string,
-  phone: string
-): Promise<void> {
-  // Check if already linked
-  const { data: conversation } = await supabase
-    .from('conversations')
-    .select('contact_id')
-    .eq('id', conversationId)
-    .single()
-
-  if (conversation?.contact_id) {
-    return // Already linked
-  }
-
-  // Find contact by phone in this workspace
-  const { data: contact } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('phone', phone)
-    .single()
-
-  if (!contact) {
-    return // No matching contact
-  }
-
-  // Link conversation to contact
-  await supabase
-    .from('conversations')
-    .update({ contact_id: contact.id })
-    .eq('id', conversationId)
-}
+// findOrCreateConversation and linkConversationToContact
+// are now handled by domain/conversations.ts
 
 /**
  * Build message content JSONB from incoming message.

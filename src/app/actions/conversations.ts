@@ -3,6 +3,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import {
+  assignConversation as domainAssignConversation,
+  archiveConversation as domainArchiveConversation,
+  linkContactToConversation as domainLinkContactToConversation,
+} from '@/lib/domain/conversations'
+import type { DomainContext } from '@/lib/domain/types'
 import type {
   ConversationWithDetails,
   ConversationFilters,
@@ -247,14 +253,17 @@ export async function archiveConversation(id: string): Promise<ActionResult> {
     return { error: 'No autenticado' }
   }
 
-  const { error } = await supabase
-    .from('conversations')
-    .update({ status: 'archived' })
-    .eq('id', id)
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
 
-  if (error) {
-    console.error('Error archiving conversation:', error)
-    return { error: 'Error al archivar conversacion' }
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainArchiveConversation(ctx, { conversationId: id })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al archivar conversacion' }
   }
 
   revalidatePath('/whatsapp')
@@ -302,29 +311,17 @@ export async function linkContactToConversation(
     return { error: 'No autenticado' }
   }
 
-  // Verify contact exists and belongs to same workspace
   const cookieStore = await cookies()
   const workspaceId = cookieStore.get('morfx_workspace')?.value
-
-  const { data: contact } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('id', contactId)
-    .eq('workspace_id', workspaceId)
-    .single()
-
-  if (!contact) {
-    return { error: 'Contacto no encontrado' }
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
   }
 
-  const { error } = await supabase
-    .from('conversations')
-    .update({ contact_id: contactId })
-    .eq('id', conversationId)
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainLinkContactToConversation(ctx, { conversationId, contactId })
 
-  if (error) {
-    console.error('Error linking contact:', error)
-    return { error: 'Error al vincular contacto' }
+  if (!result.success) {
+    return { error: result.error || 'Error al vincular contacto' }
   }
 
   revalidatePath('/whatsapp')
@@ -402,14 +399,20 @@ export async function assignConversation(
     return { error: 'No autenticado' }
   }
 
-  const { error } = await supabase
-    .from('conversations')
-    .update({ assigned_to: userId })
-    .eq('id', conversationId)
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
 
-  if (error) {
-    console.error('Error assigning conversation:', error)
-    return { error: 'Error al asignar conversacion' }
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainAssignConversation(ctx, {
+    conversationId,
+    assignedTo: userId,
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al asignar conversacion' }
   }
 
   revalidatePath('/whatsapp')

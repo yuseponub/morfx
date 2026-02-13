@@ -10,6 +10,6 @@ export * from './messages'         // Plan 06
 export * from './tasks'            // Plan 07
 export * from './notes'            // Plan 08
 export * from './custom-fields'    // Plan 08
-// export * from './conversations' // Plan 09
+export * from './conversations'    // Plan 09
 
 export type { DomainContext, DomainResult } from './types'

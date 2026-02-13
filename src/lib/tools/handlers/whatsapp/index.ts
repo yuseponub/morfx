@@ -12,6 +12,10 @@ import {
   sendTextMessage as domainSendTextMessage,
   sendTemplateMessage as domainSendTemplateMessage,
 } from '@/lib/domain/messages'
+import {
+  assignConversation as domainAssignConversation,
+  archiveConversation as domainArchiveConversation,
+} from '@/lib/domain/conversations'
 import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
@@ -686,7 +690,7 @@ async function handleConversationAssign(
 ): Promise<ToolResult<ConversationAssignOutput>> {
   const supabase = createAdminClient()
 
-  // Verify conversation belongs to workspace and get current assignment
+  // Read current assignment for response (previousAgent)
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
     .select('id, assigned_to')
@@ -716,21 +720,18 @@ async function handleConversationAssign(
     }
   }
 
-  // Update assigned_to
-  const { error: updateError } = await supabase
-    .from('conversations')
-    .update({
-      assigned_to: input.agentId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', input.conversationId)
-    .eq('workspace_id', context.workspaceId)
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainAssignConversation(ctx, {
+    conversationId: input.conversationId,
+    assignedTo: input.agentId,
+  })
 
-  if (updateError) {
+  if (!result.success) {
     return toolError(
       'internal_error',
       'DB_UPDATE_FAILED',
-      'Error al asignar conversacion',
+      result.error || 'Error al asignar conversacion',
       undefined,
       true
     )
@@ -758,7 +759,7 @@ async function handleConversationClose(
 ): Promise<ToolResult<ConversationCloseOutput>> {
   const supabase = createAdminClient()
 
-  // Verify conversation belongs to workspace
+  // Verify conversation belongs to workspace and check current status
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
     .select('id, status')
@@ -797,34 +798,31 @@ async function handleConversationClose(
     }
   }
 
-  // Update status to 'archived' (DB constraint: active|archived only)
-  const closedAt = new Date().toISOString()
+  // Delegate to domain for status change
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainArchiveConversation(ctx, {
+    conversationId: input.conversationId,
+  })
 
-  const updatePayload: Record<string, unknown> = {
-    status: 'archived',
-    updated_at: closedAt,
-  }
-
-  // Store resolution in last_message_preview if provided
-  // (no dedicated resolution column exists; this preserves the info)
-  if (input.resolution) {
-    updatePayload.last_message_preview = `[Cerrada] ${input.resolution.slice(0, 200)}`
-  }
-
-  const { error: updateError } = await supabase
-    .from('conversations')
-    .update(updatePayload)
-    .eq('id', input.conversationId)
-    .eq('workspace_id', context.workspaceId)
-
-  if (updateError) {
+  if (!result.success) {
     return toolError(
       'internal_error',
       'DB_UPDATE_FAILED',
-      'Error al cerrar conversacion',
+      result.error || 'Error al cerrar conversacion',
       undefined,
       true
     )
+  }
+
+  const closedAt = new Date().toISOString()
+
+  // Store resolution in last_message_preview if provided (adapter concern)
+  if (input.resolution) {
+    await supabase
+      .from('conversations')
+      .update({ last_message_preview: `[Cerrada] ${input.resolution.slice(0, 200)}` })
+      .eq('id', input.conversationId)
+      .eq('workspace_id', context.workspaceId)
   }
 
   return {

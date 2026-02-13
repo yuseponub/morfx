@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Bot, X, Zap, Clock, MessageSquare, Loader2 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -30,6 +29,12 @@ const TIMER_PRESETS: { value: TimerPreset; label: string; description: string }[
   { value: 'instantaneo', label: 'Instantaneo', description: '0 seg' },
 ]
 
+const SPEED_PRESETS: { value: number; label: string; description: string }[] = [
+  { value: 1.0, label: 'Real', description: '2-6 seg' },
+  { value: 0.2, label: 'Rapido', description: '0.5-1 seg' },
+  { value: 0.0, label: 'Instantaneo', description: '0 seg' },
+]
+
 const AVAILABLE_AGENTS = [
   { id: 'somnio-sales-v1', name: 'Somnio Sales v1' },
 ]
@@ -48,9 +53,8 @@ export function AgentConfigSlider({ workspaceId, onClose }: AgentConfigSliderPro
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Debounce refs for text/slider changes
+  // Debounce ref for text changes
   const handoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const speedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load config on mount
   useEffect(() => {
@@ -117,20 +121,15 @@ export function AgentConfigSlider({ workspaceId, onClose }: AgentConfigSliderPro
     }, 300)
   }, [saveConfig])
 
-  const handleSpeedChange = useCallback((values: number[]) => {
-    const speed = values[0]
+  const handleSelectSpeed = useCallback((speed: number) => {
     setConfig(prev => prev ? { ...prev, response_speed: speed } : prev)
-    if (speedTimerRef.current) clearTimeout(speedTimerRef.current)
-    speedTimerRef.current = setTimeout(() => {
-      saveConfig({ response_speed: speed })
-    }, 300)
+    saveConfig({ response_speed: speed })
   }, [saveConfig])
 
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (handoffTimerRef.current) clearTimeout(handoffTimerRef.current)
-      if (speedTimerRef.current) clearTimeout(speedTimerRef.current)
     }
   }, [])
 
@@ -291,25 +290,25 @@ export function AgentConfigSlider({ workspaceId, onClose }: AgentConfigSliderPro
 
         {/* Section 6: Response speed */}
         <div className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Velocidad de respuesta</span>
-            </div>
-            <span className="text-xs font-mono text-muted-foreground">
-              {config.response_speed.toFixed(1)}x
-            </span>
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Velocidad de respuesta</span>
           </div>
-          <Slider
-            value={[config.response_speed]}
-            onValueChange={handleSpeedChange}
-            min={0.5}
-            max={2.0}
-            step={0.1}
-          />
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>0.5x (lento)</span>
-            <span>2.0x (rapido)</span>
+          <div className="grid grid-cols-3 gap-2">
+            {SPEED_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                onClick={() => handleSelectSpeed(preset.value)}
+                className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg border text-center transition-colors ${
+                  config.response_speed === preset.value
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-border hover:bg-muted'
+                }`}
+              >
+                <span className="text-xs font-medium">{preset.label}</span>
+                <span className="text-[10px] text-muted-foreground">{preset.description}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>

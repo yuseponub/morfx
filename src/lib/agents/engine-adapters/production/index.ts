@@ -24,6 +24,8 @@ interface CreateProductionAdaptersParams {
   phoneNumber?: string
   /** Optional pre-existing SessionManager instance (reuse for performance) */
   sessionManager?: SessionManager
+  /** Response speed multiplier (1.0=real delays, 0.2=fast, 0=instant) */
+  responseSpeed?: number
 }
 
 /**
@@ -41,7 +43,8 @@ export function createProductionAdapters(params: CreateProductionAdaptersParams)
       sessionManager,
       params.conversationId,
       params.workspaceId,
-      params.phoneNumber
+      params.phoneNumber,
+      params.responseSpeed
     ),
     orders: new ProductionOrdersAdapter(params.workspaceId),
     debug: new ProductionDebugAdapter(),

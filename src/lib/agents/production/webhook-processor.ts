@@ -162,10 +162,14 @@ export async function processMessageWithAgent(
     const { UnifiedEngine } = await import('../engine/unified-engine')
     const { createProductionAdapters } = await import('../engine-adapters/production')
 
+    // Load agent config for response speed
+    const agentConfig = await getWorkspaceAgentConfig(workspaceId)
+
     const adapters = createProductionAdapters({
       workspaceId,
       conversationId,
       phoneNumber: phone,
+      responseSpeed: agentConfig?.response_speed,
     })
 
     const engine = new UnifiedEngine(adapters, { workspaceId })

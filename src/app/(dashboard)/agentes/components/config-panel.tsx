@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -21,7 +20,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { getAgentConfig, updateAgentConfig } from '@/app/actions/agent-config'
 import type { AgentConfig } from '@/lib/agents/production/agent-config'
 
@@ -35,6 +33,14 @@ const TIMER_PRESETS: { value: TimerPreset; label: string; description: string; d
   { value: 'real', label: 'Real', description: '6-10 min', detail: 'Tiempos reales de produccion. El agente espera 6 min por datos parciales y 10 min sin datos.' },
   { value: 'rapido', label: 'Rapido', description: '30-60 seg', detail: 'Tiempos reducidos para pruebas rapidas. 30 seg datos parciales, 60 seg sin datos.' },
   { value: 'instantaneo', label: 'Instantaneo', description: '0 seg', detail: 'Sin espera. El agente actua inmediatamente. Solo para demos.' },
+]
+
+type SpeedPreset = { value: number; label: string; description: string; detail: string }
+
+const SPEED_PRESETS: SpeedPreset[] = [
+  { value: 1.0, label: 'Real', description: '2-6 seg', detail: 'Delays tal cual vienen en los templates. El agente responde con pausas naturales.' },
+  { value: 0.2, label: 'Rapido', description: '0.5-1 seg', detail: 'Delays reducidos al 20%. Respuestas rapidas pero con algo de pausa.' },
+  { value: 0.0, label: 'Instantaneo', description: '0 seg', detail: 'Sin delays. Todos los mensajes se envian inmediatamente.' },
 ]
 
 const AVAILABLE_AGENTS = [
@@ -60,7 +66,6 @@ export function ConfigPanel() {
 
   // Debounce refs
   const handoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const speedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load config on mount
   useEffect(() => {
@@ -128,21 +133,16 @@ export function ConfigPanel() {
     }, 300)
   }, [saveConfig, config])
 
-  const handleSpeedChange = useCallback((values: number[]) => {
-    const speed = values[0]
+  const handleSelectSpeed = useCallback((speed: number) => {
     const prev = config
     setConfig(p => p ? { ...p, response_speed: speed } : p)
-    if (speedTimerRef.current) clearTimeout(speedTimerRef.current)
-    speedTimerRef.current = setTimeout(() => {
-      saveConfig({ response_speed: speed }, prev)
-    }, 300)
+    saveConfig({ response_speed: speed }, prev)
   }, [saveConfig, config])
 
   // Cleanup timers
   useEffect(() => {
     return () => {
       if (handoffTimerRef.current) clearTimeout(handoffTimerRef.current)
-      if (speedTimerRef.current) clearTimeout(speedTimerRef.current)
     }
   }, [])
 
@@ -319,34 +319,36 @@ export function ConfigPanel() {
       {/* Section 6: Response speed */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">Velocidad de respuesta</CardTitle>
-              </div>
-              <CardDescription className="mt-1">
-                Multiplicador para los delays simulados entre mensajes del agente. Menor = mas natural, mayor = mas rapido.
-              </CardDescription>
-            </div>
-            <span className="text-lg font-mono font-bold text-primary">
-              {config.response_speed.toFixed(1)}x
-            </span>
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">Velocidad de respuesta</CardTitle>
           </div>
+          <CardDescription>
+            Controla los delays entre mensajes del agente. Real simula escritura humana, Instantaneo envia todo sin pausa.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Slider
-            value={[config.response_speed]}
-            onValueChange={handleSpeedChange}
-            min={0.5}
-            max={2.0}
-            step={0.1}
-          />
-          <div className="flex justify-between text-xs text-muted-foreground mt-2">
-            <span>0.5x (natural)</span>
-            <span>1.0x (normal)</span>
-            <span>2.0x (rapido)</span>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            {SPEED_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                onClick={() => handleSelectSpeed(preset.value)}
+                className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border text-center transition-colors ${
+                  config.response_speed === preset.value
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-border hover:bg-muted'
+                }`}
+              >
+                <span className="text-sm font-medium">{preset.label}</span>
+                <span className="text-xs text-muted-foreground">{preset.description}</span>
+              </button>
+            ))}
           </div>
+          {SPEED_PRESETS.find(p => p.value === config.response_speed) && (
+            <p className="text-xs text-muted-foreground">
+              {SPEED_PRESETS.find(p => p.value === config.response_speed)?.detail}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

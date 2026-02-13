@@ -113,11 +113,16 @@ async function callEngineWithForceIntent(
 
     const { UnifiedEngine } = await import('@/lib/agents/engine/unified-engine')
     const { createProductionAdapters } = await import('@/lib/agents/engine-adapters/production')
+    const { getWorkspaceAgentConfig } = await import('@/lib/agents/production/agent-config')
+
+    // Load agent config for response speed
+    const agentConfig = await getWorkspaceAgentConfig(workspaceId)
 
     const adapters = createProductionAdapters({
       workspaceId,
       conversationId,
       phoneNumber: phone,
+      responseSpeed: agentConfig?.response_speed,
     })
 
     const engine = new UnifiedEngine(adapters, { workspaceId })

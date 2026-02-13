@@ -48,7 +48,8 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
     _sessionManager: unknown, // kept for interface compat
     private conversationId: string,
     private workspaceId: string,
-    private phoneNumber?: string
+    private phoneNumber?: string,
+    private responseSpeed: number = 1.0
   ) {}
 
   /**
@@ -100,9 +101,9 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
     for (let i = 0; i < templates.length; i++) {
       const template = templates[i]
 
-      // Apply delay (skip for first message)
-      if (i > 0 && template.delaySeconds > 0) {
-        await sleep(template.delaySeconds * 1000)
+      // Apply delay (skip for first message, skip if instantaneous)
+      if (i > 0 && template.delaySeconds > 0 && this.responseSpeed > 0) {
+        await sleep(template.delaySeconds * this.responseSpeed * 1000)
       }
 
       try {

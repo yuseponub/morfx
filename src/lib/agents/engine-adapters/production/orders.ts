@@ -1,15 +1,19 @@
 /**
  * Production Orders Adapter
  * Phase 16.1: Engine Unification - Plan 03
+ * Phase 18: Refactored to use domain/orders instead of OrderCreator for order creation.
  *
- * Uses OrderCreator for direct DB order creation in production.
  * Creates contacts and orders when the customer confirms a purchase.
+ * Contact creation still uses tool handlers (contacts domain not yet migrated).
+ * Order creation delegates to domain/orders for DB logic + trigger emission.
  */
 
 import type { OrdersAdapter } from '../../engine/types'
 import { OrderCreator, type ContactData } from '../../somnio/order-creator'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { createOrder as domainCreateOrder, addOrderTag as domainAddOrderTag } from '@/lib/domain/orders'
+import type { DomainContext } from '@/lib/domain/types'
 
 const logger = createModuleLogger('production-orders-adapter')
 
@@ -23,8 +27,9 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
   }
 
   /**
-   * Create a contact and order using OrderCreator.
-   * Converts captured data to ContactData format and delegates to OrderCreator.
+   * Create a contact and order.
+   * Contact: uses OrderCreator's findOrCreateContact (tool handlers).
+   * Order: uses domain/orders.createOrder (with trigger emission).
    */
   async createOrder(
     data: {
@@ -63,7 +68,7 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
     }
 
     try {
-      // Convert Record<string, string> to ContactData
+      // Step 1: Find or create contact via OrderCreator (tool handlers)
       const contactData: ContactData = {
         nombre: data.datosCapturados.nombre,
         apellido: data.datosCapturados.apellido,
@@ -76,38 +81,107 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
         indicaciones_extra: data.datosCapturados.indicaciones_extra,
       }
 
-      // Timer orders: default to '1x' if no pack, override price to 0
-      const effectivePack = pack || '1x'
-      const priceOverride = isTimerOrder ? data.valorOverride : undefined
+      const { contactId, isNew } = await this.orderCreator.findOrCreateContact(contactData, data.sessionId)
 
-      const result = await this.orderCreator.createContactAndOrder(
-        contactData,
-        effectivePack,
-        data.sessionId,
-        priceOverride
-      )
-
-      if (result.success) {
-        logger.info(
-          {
-            orderId: result.orderId,
-            contactId: result.contactId,
-            isNewContact: result.isNewContact,
-          },
-          'Order created successfully via ProductionOrdersAdapter'
-        )
-
-        // Auto-tag order with "WPP" (created via WhatsApp agent)
-        if (result.orderId) {
-          await this.tagOrderAsWPP(result.orderId)
+      if (!contactId) {
+        return {
+          success: false,
+          error: { message: 'No se pudo crear el contacto' },
         }
       }
 
+      // Step 2: Create order via domain layer
+      const effectivePack = pack || '1x'
+      const product = this.orderCreator.mapPackToProduct(effectivePack)
+      const effectivePrice = isTimerOrder ? (data.valorOverride ?? 0) : product.price
+
+      // Build shipping address
+      const shippingAddress = this.buildShippingAddress(contactData)
+
+      // Get default pipeline for workspace
+      const supabase = createAdminClient()
+      const { data: pipelineData } = await supabase
+        .from('pipelines')
+        .select('id')
+        .eq('workspace_id', this.workspaceId)
+        .eq('is_default', true)
+        .single()
+
+      // Fall back to any pipeline
+      const pipelineId = pipelineData?.id ?? (
+        await supabase
+          .from('pipelines')
+          .select('id')
+          .eq('workspace_id', this.workspaceId)
+          .limit(1)
+          .single()
+      ).data?.id
+
+      if (!pipelineId) {
+        return {
+          success: false,
+          error: { message: 'No pipeline configured' },
+        }
+      }
+
+      // Resolve "NUEVO PEDIDO" stage by name
+      let stageId: string | undefined
+      const { data: namedStage } = await supabase
+        .from('pipeline_stages')
+        .select('id')
+        .eq('pipeline_id', pipelineId)
+        .ilike('name', 'NUEVO PEDIDO')
+        .single()
+
+      if (namedStage) {
+        stageId = namedStage.id
+      }
+
+      // Create order via domain
+      const ctx: DomainContext = { workspaceId: this.workspaceId, source: 'adapter' }
+      const orderResult = await domainCreateOrder(ctx, {
+        pipelineId,
+        stageId,
+        contactId,
+        shippingAddress,
+        description: contactData.indicaciones_extra,
+        products: [
+          {
+            sku: product.productName.substring(0, 50).toUpperCase().replace(/\s+/g, '-'),
+            title: product.productName,
+            unitPrice: effectivePrice,
+            quantity: product.quantity,
+          },
+        ],
+      })
+
+      if (!orderResult.success) {
+        return {
+          success: false,
+          contactId,
+          error: { message: orderResult.error || 'No se pudo crear el pedido' },
+        }
+      }
+
+      const orderId = orderResult.data!.orderId
+
+      logger.info(
+        {
+          orderId,
+          contactId,
+          isNewContact: isNew,
+          pack: effectivePack,
+        },
+        'Order created successfully via ProductionOrdersAdapter (domain layer)'
+      )
+
+      // Auto-tag order with "WPP" (created via WhatsApp agent)
+      await this.tagOrderAsWPP(orderId)
+
       return {
-        success: result.success,
-        orderId: result.orderId,
-        contactId: result.contactId,
-        error: result.error ? { message: result.error.message } : undefined,
+        success: true,
+        orderId,
+        contactId,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -121,36 +195,45 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
 
   /**
    * Auto-tag an order with "WPP" to indicate it was created via WhatsApp.
-   * Finds or creates the tag, then links it to the order. Non-blocking on failure.
+   * Uses domain addOrderTag. Non-blocking on failure.
    */
   private async tagOrderAsWPP(orderId: string): Promise<void> {
     try {
-      const supabase = createAdminClient()
+      const ctx: DomainContext = { workspaceId: this.workspaceId, source: 'adapter' }
+      const result = await domainAddOrderTag(ctx, { orderId, tagName: 'WPP' })
 
-      // Find tag "WPP" for scope "orders" in this workspace
-      const { data: tag } = await supabase
-        .from('tags')
-        .select('id')
-        .eq('workspace_id', this.workspaceId)
-        .eq('name', 'WPP')
-        .eq('scope', 'orders')
-        .single()
-
-      if (!tag) {
-        logger.warn({ orderId }, 'Tag "WPP" not found — skipping auto-tag')
-        return
-      }
-
-      const { error } = await supabase
-        .from('order_tags')
-        .insert({ order_id: orderId, tag_id: tag.id })
-
-      if (error && error.code !== '23505') {
-        logger.warn({ error, orderId }, 'Failed to auto-tag order with WPP')
+      if (!result.success) {
+        // Tag might not exist — this is OK, non-critical
+        logger.warn({ orderId, error: result.error }, 'Failed to auto-tag order with WPP via domain')
       }
     } catch (error) {
       logger.warn({ error, orderId }, 'Error auto-tagging order with WPP')
     }
+  }
+
+  /**
+   * Build shipping address with city and department.
+   */
+  private buildShippingAddress(data: ContactData): string {
+    const parts: string[] = []
+
+    if (data.direccion) {
+      parts.push(data.direccion)
+    }
+
+    if (data.barrio) {
+      parts.push(`Barrio ${data.barrio}`)
+    }
+
+    if (data.ciudad) {
+      parts.push(data.ciudad)
+    }
+
+    if (data.departamento && data.departamento !== data.ciudad) {
+      parts.push(data.departamento)
+    }
+
+    return parts.join(', ')
   }
 
   /**

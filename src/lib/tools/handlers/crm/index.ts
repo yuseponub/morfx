@@ -956,15 +956,52 @@ const tagRemove: ToolHandler = async (
 }
 
 // ============================================================================
-// Order Handlers
+// Order Handlers — via domain/orders
+// Phase 18: All order mutations delegate to domain layer.
 // ============================================================================
 
+import {
+  createOrder as domainCreateOrder,
+  updateOrder as domainUpdateOrder,
+  moveOrderToStage as domainMoveOrderToStage,
+  deleteOrder as domainDeleteOrder,
+  duplicateOrder as domainDuplicateOrder,
+} from '@/lib/domain/orders'
+import type { DomainContext } from '@/lib/domain/types'
+
+// Additional input types for new handlers
+interface OrderUpdateInput {
+  orderId: string
+  contactId?: string
+  description?: string
+  carrier?: string
+  trackingNumber?: string
+  shippingAddress?: string
+  shippingCity?: string
+}
+
+interface OrderDeleteInput {
+  orderId: string
+}
+
+interface OrderDuplicateInput {
+  sourceOrderId: string
+  targetPipelineId: string
+  targetStageId?: string
+}
+
+interface OrderListInput {
+  pipelineId?: string
+  stageId?: string
+  contactId?: string
+  page?: number
+  pageSize?: number
+}
+
 /**
- * crm.order.create — Create an order with products atomically
- *
- * Verifies contact, gets default pipeline, creates order + products.
- * Manual rollback if products insertion fails.
- * Returns complete order with calculated total.
+ * crm.order.create — Create an order with products atomically.
+ * Delegates to domain/orders.createOrder for DB logic + trigger emission.
+ * Keeps validation, contact verification, pipeline/stage resolution as handler concern.
  */
 const orderCreate: ToolHandler = async (
   input: unknown,
@@ -1109,7 +1146,6 @@ const orderCreate: ToolHandler = async (
   }
 
   if (!targetStageId) {
-    // Fallback to first stage (lowest position)
     const { data: firstStage } = await supabase
       .from('pipeline_stages')
       .select('id')
@@ -1158,91 +1194,66 @@ const orderCreate: ToolHandler = async (
     }
   }
 
-  // Create order
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      workspace_id: context.workspaceId,
-      contact_id: data.contactId,
-      pipeline_id: pipelineId,
-      stage_id: targetStageId,
-      shipping_address: data.shippingAddress || null,
-      description: data.notes || null,
-    })
-    .select()
-    .single()
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainCreateOrder(ctx, {
+    pipelineId,
+    stageId: targetStageId,
+    contactId: data.contactId,
+    shippingAddress: data.shippingAddress,
+    description: data.notes,
+    products: data.products.map((p) => ({
+      sku: p.name.substring(0, 50).toUpperCase().replace(/\s+/g, '-'),
+      title: p.name,
+      unitPrice: p.price,
+      quantity: p.quantity,
+    })),
+  })
 
-  if (orderError || !order) {
+  if (!result.success) {
     return {
       success: false,
       error: {
         type: 'internal_error',
         code: 'ORDER_CREATE_FAILED',
-        message: `Error al crear el pedido: ${orderError?.message || 'Unknown error'}`,
+        message: result.error || 'Error al crear el pedido',
         retryable: true,
       },
     }
   }
-
-  // Insert products
-  const productsToInsert = data.products.map((p) => ({
-    order_id: order.id,
-    sku: p.name.substring(0, 50).toUpperCase().replace(/\s+/g, '-'),
-    title: p.name,
-    unit_price: p.price,
-    quantity: p.quantity,
-  }))
-
-  const { error: productsError } = await supabase
-    .from('order_products')
-    .insert(productsToInsert)
-
-  if (productsError) {
-    // Rollback: delete the order
-    await supabase.from('orders').delete().eq('id', order.id)
-    return {
-      success: false,
-      error: {
-        type: 'internal_error',
-        code: 'PRODUCTS_INSERT_FAILED',
-        message: `Error al agregar productos: ${productsError.message}`,
-        retryable: true,
-      },
-    }
-  }
-
-  // Re-query to get calculated total_value (DB trigger recalculates)
-  const { data: completeOrder } = await supabase
-    .from('orders')
-    .select('id, total_value, contact_id, pipeline_id, stage_id, created_at')
-    .eq('id', order.id)
-    .single()
 
   // Fetch products for response
   const { data: insertedProducts } = await supabase
     .from('order_products')
     .select('id, sku, title, unit_price, quantity, subtotal')
-    .eq('order_id', order.id)
+    .eq('order_id', result.data!.orderId)
+
+  // Re-read total value
+  const { data: completeOrder } = await supabase
+    .from('orders')
+    .select('total_value, created_at')
+    .eq('id', result.data!.orderId)
+    .single()
 
   return {
     success: true,
     data: {
-      orderId: order.id,
+      orderId: result.data!.orderId,
       total: completeOrder?.total_value ?? previewTotal,
       contactId: data.contactId,
-      stageId: targetStageId,
+      stageId: result.data!.stageId,
       pipelineId,
       products: insertedProducts || [],
-      created_at: completeOrder?.created_at ?? order.created_at,
+      created_at: completeOrder?.created_at,
     },
     resource_url: '/crm/pedidos',
   }
 }
 
 /**
- * crm.order.updateStatus — Move an order to a new pipeline stage
- *
- * Accepts stage name or stage UUID. Verifies order belongs to workspace.
+ * crm.order.updateStatus — Move an order to a new pipeline stage.
+ * Delegates to domain/orders.moveOrderToStage.
+ * Keeps stage name/UUID resolution as handler concern (agent-friendly interface).
  */
 const orderUpdateStatus: ToolHandler = async (
   input: unknown,
@@ -1297,12 +1308,11 @@ const orderUpdateStatus: ToolHandler = async (
     }
   }
 
-  // Resolve stage: by UUID or by name
+  // Resolve stage: by UUID or by name (handler concern — agent-friendly)
   let newStageId: string
   let newStageName: string
 
   if (UUID_REGEX.test(data.status)) {
-    // Input is a UUID — look up stage by ID
     const { data: stage, error: stageError } = await supabase
       .from('pipeline_stages')
       .select('id, name')
@@ -1325,7 +1335,6 @@ const orderUpdateStatus: ToolHandler = async (
     newStageId = stage.id
     newStageName = stage.name
   } else {
-    // Input is a name — look up stage by name in the order's pipeline
     const { data: stage, error: stageError } = await supabase
       .from('pipeline_stages')
       .select('id, name')
@@ -1334,7 +1343,6 @@ const orderUpdateStatus: ToolHandler = async (
       .single()
 
     if (stageError || !stage) {
-      // List available stages for the suggestion
       const { data: availableStages } = await supabase
         .from('pipeline_stages')
         .select('name')
@@ -1379,20 +1387,17 @@ const orderUpdateStatus: ToolHandler = async (
     }
   }
 
-  // Update order stage
-  const { error: updateError } = await supabase
-    .from('orders')
-    .update({ stage_id: newStageId })
-    .eq('id', data.orderId)
-    .eq('workspace_id', context.workspaceId)
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainMoveOrderToStage(ctx, { orderId: data.orderId, newStageId })
 
-  if (updateError) {
+  if (!result.success) {
     return {
       success: false,
       error: {
         type: 'internal_error',
         code: 'STATUS_UPDATE_FAILED',
-        message: `Error al actualizar el estado: ${updateError.message}`,
+        message: result.error || 'Error al actualizar el estado',
         retryable: true,
       },
     }
@@ -1411,6 +1416,316 @@ const orderUpdateStatus: ToolHandler = async (
   }
 }
 
+/**
+ * crm.order.update — Update order fields.
+ * Delegates to domain/orders.updateOrder.
+ */
+const orderUpdate: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as OrderUpdateInput
+
+  if (!data.orderId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'ORDER_ID_REQUIRED',
+        message: 'El ID del pedido es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        orderId: data.orderId,
+        updates: {
+          contactId: data.contactId,
+          description: data.description,
+          carrier: data.carrier,
+          trackingNumber: data.trackingNumber,
+          shippingAddress: data.shippingAddress,
+          shippingCity: data.shippingCity,
+        },
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainUpdateOrder(ctx, {
+    orderId: data.orderId,
+    contactId: data.contactId,
+    description: data.description,
+    carrier: data.carrier,
+    trackingNumber: data.trackingNumber,
+    shippingAddress: data.shippingAddress,
+    shippingCity: data.shippingCity,
+  })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrado')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'ORDER_NOT_FOUND',
+          message: result.error,
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'ORDER_UPDATE_FAILED',
+        message: result.error || 'Error al actualizar el pedido',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      orderId: data.orderId,
+      updated: true,
+    },
+    resource_url: '/crm/pedidos',
+  }
+}
+
+/**
+ * crm.order.delete — Delete an order.
+ * Delegates to domain/orders.deleteOrder.
+ */
+const orderDelete: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as OrderDeleteInput
+
+  if (!data.orderId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'ORDER_ID_REQUIRED',
+        message: 'El ID del pedido es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        orderId: data.orderId,
+        action: 'delete',
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainDeleteOrder(ctx, { orderId: data.orderId })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrado')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'ORDER_NOT_FOUND',
+          message: result.error,
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'ORDER_DELETE_FAILED',
+        message: result.error || 'Error al eliminar el pedido',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      orderId: data.orderId,
+      deleted: true,
+    },
+  }
+}
+
+/**
+ * crm.order.duplicate — Duplicate an order to a target pipeline.
+ * Delegates to domain/orders.duplicateOrder.
+ */
+const orderDuplicate: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as OrderDuplicateInput
+
+  if (!data.sourceOrderId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'SOURCE_ORDER_ID_REQUIRED',
+        message: 'El ID del pedido origen es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (!data.targetPipelineId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'TARGET_PIPELINE_ID_REQUIRED',
+        message: 'El ID del pipeline destino es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        sourceOrderId: data.sourceOrderId,
+        targetPipelineId: data.targetPipelineId,
+        targetStageId: data.targetStageId || null,
+        action: 'duplicate',
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainDuplicateOrder(ctx, {
+    sourceOrderId: data.sourceOrderId,
+    targetPipelineId: data.targetPipelineId,
+    targetStageId: data.targetStageId,
+  })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrado')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'ORDER_NOT_FOUND',
+          message: result.error,
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'ORDER_DUPLICATE_FAILED',
+        message: result.error || 'Error al duplicar el pedido',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      orderId: result.data!.orderId,
+      sourceOrderId: result.data!.sourceOrderId,
+      duplicated: true,
+    },
+    resource_url: '/crm/pedidos',
+  }
+}
+
+/**
+ * crm.order.list — List orders with filters (read-only).
+ * Direct DB query — no domain function needed for reads.
+ */
+const orderList: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  _dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as OrderListInput
+
+  const page = data.page ?? 1
+  const pageSize = Math.min(data.pageSize ?? 20, 100)
+  const offset = (page - 1) * pageSize
+
+  const supabase = createAdminClient()
+
+  let query = supabase
+    .from('orders')
+    .select(
+      'id, total_value, created_at, contact_id, pipeline_id, stage_id, description, carrier, tracking_number, shipping_address, shipping_city',
+      { count: 'exact' }
+    )
+    .eq('workspace_id', context.workspaceId)
+
+  if (data.pipelineId) {
+    query = query.eq('pipeline_id', data.pipelineId)
+  }
+  if (data.stageId) {
+    query = query.eq('stage_id', data.stageId)
+  }
+  if (data.contactId) {
+    query = query.eq('contact_id', data.contactId)
+  }
+
+  query = query.order('created_at', { ascending: false })
+  query = query.range(offset, offset + pageSize - 1)
+
+  const { data: orders, error, count } = await query
+
+  if (error) {
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'LIST_FAILED',
+        message: `Error al listar pedidos: ${error.message}`,
+        retryable: true,
+      },
+    }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.ceil(total / pageSize)
+
+  return {
+    success: true,
+    data: {
+      orders: orders || [],
+      total,
+      page,
+      pageSize,
+      totalPages,
+    },
+  }
+}
+
 // ============================================================================
 // Export all CRM handlers
 // ============================================================================
@@ -1425,4 +1740,8 @@ export const crmHandlers: Record<string, ToolHandler> = {
   'crm.tag.remove': tagRemove,
   'crm.order.create': orderCreate,
   'crm.order.updateStatus': orderUpdateStatus,
+  'crm.order.update': orderUpdate,
+  'crm.order.delete': orderDelete,
+  'crm.order.duplicate': orderDuplicate,
+  'crm.order.list': orderList,
 }

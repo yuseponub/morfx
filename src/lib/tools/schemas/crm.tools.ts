@@ -489,6 +489,220 @@ export const crmOrderUpdateStatus: ToolSchema = {
   }
 }
 
+export const crmOrderUpdate: ToolSchema = {
+  name: 'crm.order.update',
+  description: 'Update order fields (description, carrier, tracking, shipping address, etc.).',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      orderId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the order to update'
+      },
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'New contact ID (optional)'
+      },
+      description: {
+        type: 'string',
+        maxLength: 2000,
+        description: 'Order notes/description (optional)'
+      },
+      carrier: {
+        type: 'string',
+        maxLength: 200,
+        description: 'Shipping carrier name (optional)'
+      },
+      trackingNumber: {
+        type: 'string',
+        maxLength: 200,
+        description: 'Tracking/guide number (optional)'
+      },
+      shippingAddress: {
+        type: 'string',
+        maxLength: 500,
+        description: 'Shipping address (optional)'
+      },
+      shippingCity: {
+        type: 'string',
+        maxLength: 100,
+        description: 'Shipping city (optional)'
+      }
+    },
+    required: ['orderId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      orderId: { type: 'string' },
+      updated: { type: 'boolean' }
+    },
+    required: ['orderId', 'updated']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'order',
+    action: 'update',
+    reversible: true,
+    requiresApproval: false,
+    sideEffects: ['updates_record'],
+    permissions: ['orders.edit']
+  }
+}
+
+export const crmOrderDelete: ToolSchema = {
+  name: 'crm.order.delete',
+  description: 'Delete an order. Products and tags are removed via CASCADE.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      orderId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the order to delete'
+      }
+    },
+    required: ['orderId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      orderId: { type: 'string' },
+      deleted: { type: 'boolean' }
+    },
+    required: ['orderId', 'deleted']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'order',
+    action: 'delete',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: ['deletes_record'],
+    permissions: ['orders.delete']
+  }
+}
+
+export const crmOrderDuplicate: ToolSchema = {
+  name: 'crm.order.duplicate',
+  description: 'Duplicate an order to a target pipeline. Copies contact, products, shipping info.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      sourceOrderId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the order to duplicate'
+      },
+      targetPipelineId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the target pipeline'
+      },
+      targetStageId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the target stage (optional, defaults to first stage)'
+      }
+    },
+    required: ['sourceOrderId', 'targetPipelineId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      orderId: { type: 'string' },
+      sourceOrderId: { type: 'string' },
+      duplicated: { type: 'boolean' }
+    },
+    required: ['orderId', 'sourceOrderId', 'duplicated']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'order',
+    action: 'duplicate',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: ['creates_record'],
+    permissions: ['orders.create']
+  }
+}
+
+export const crmOrderList: ToolSchema = {
+  name: 'crm.order.list',
+  description: 'List orders with optional filtering by pipeline, stage, or contact.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      pipelineId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Filter by pipeline ID (optional)'
+      },
+      stageId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Filter by stage ID (optional)'
+      },
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Filter by contact ID (optional)'
+      },
+      page: {
+        type: 'integer',
+        minimum: 1,
+        default: 1,
+        description: 'Page number (default: 1)'
+      },
+      pageSize: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 100,
+        default: 20,
+        description: 'Items per page (default: 20, max: 100)'
+      }
+    },
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      orders: { type: 'array', items: { type: 'object' } },
+      total: { type: 'integer' },
+      page: { type: 'integer' },
+      pageSize: { type: 'integer' },
+      totalPages: { type: 'integer' }
+    },
+    required: ['orders', 'total', 'page', 'pageSize', 'totalPages']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'order',
+    action: 'list',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: [],
+    permissions: ['orders.view']
+  }
+}
+
 // Export all CRM tool schemas
 export const crmToolSchemas: ToolSchema[] = [
   crmContactCreate,
@@ -499,5 +713,9 @@ export const crmToolSchemas: ToolSchema[] = [
   crmTagAdd,
   crmTagRemove,
   crmOrderCreate,
-  crmOrderUpdateStatus
+  crmOrderUpdateStatus,
+  crmOrderUpdate,
+  crmOrderDelete,
+  crmOrderDuplicate,
+  crmOrderList,
 ]

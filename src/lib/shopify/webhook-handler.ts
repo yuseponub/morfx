@@ -3,6 +3,8 @@ import { matchContact } from './contact-matcher'
 import { mapShopifyOrder, MappedOrder } from './order-mapper'
 import { extractPhoneFromOrder } from './phone-normalizer'
 import type { ShopifyOrderWebhook, ShopifyIntegration } from './types'
+import { createOrder as domainCreateOrder } from '@/lib/domain/orders'
+import type { DomainContext } from '@/lib/domain/types'
 
 /**
  * Result of processing a Shopify webhook.
@@ -190,50 +192,43 @@ async function resolveContact(
 }
 
 /**
- * Creates order with products in a transaction.
+ * Creates order with products via domain layer.
+ * Shopify-specific fields (shopify_order_id) are set via direct DB update after domain create.
  */
 async function createOrderWithProducts(
   supabase: ReturnType<typeof createAdminClient>,
   workspaceId: string,
   mapped: MappedOrder
 ): Promise<string> {
-  // Insert order with shopify_order_id
-  const { data: newOrder, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      workspace_id: workspaceId,
-      ...mapped.order,
-      shopify_order_id: mapped.shopifyOrderId,
-    })
-    .select('id')
-    .single()
+  const ctx: DomainContext = { workspaceId, source: 'webhook' }
 
-  if (orderError) {
-    throw new Error(`Failed to create order: ${orderError.message}`)
-  }
-
-  // Insert order products
-  if (mapped.products.length > 0) {
-    const productsToInsert = mapped.products.map(p => ({
-      order_id: newOrder.id,
-      product_id: p.product_id,
+  const result = await domainCreateOrder(ctx, {
+    pipelineId: mapped.order.pipeline_id,
+    stageId: mapped.order.stage_id,
+    contactId: mapped.order.contact_id,
+    description: mapped.order.description,
+    shippingAddress: mapped.order.shipping_address,
+    shippingCity: mapped.order.shipping_city,
+    products: mapped.products.map(p => ({
+      productId: p.product_id,
       sku: p.sku,
       title: p.title,
-      unit_price: p.unit_price,
+      unitPrice: p.unit_price,
       quantity: p.quantity,
-    }))
+    })),
+  })
 
-    const { error: productsError } = await supabase
-      .from('order_products')
-      .insert(productsToInsert)
-
-    if (productsError) {
-      console.error('Error inserting order products:', productsError)
-      // Don't throw - order was created, products are secondary
-    }
+  if (!result.success) {
+    throw new Error(`Failed to create order: ${result.error}`)
   }
 
-  return newOrder.id
+  // Set shopify_order_id (domain doesn't know about Shopify-specific fields)
+  await supabase
+    .from('orders')
+    .update({ shopify_order_id: mapped.shopifyOrderId })
+    .eq('id', result.data!.orderId)
+
+  return result.data!.orderId
 }
 
 /**

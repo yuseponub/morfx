@@ -559,10 +559,19 @@ Plans:
   5. Automatizaciones se ejecutan en tiempo real cuando el trigger se dispara
   6. Panel de historial muestra ejecuciones con estado (exito/error) y detalle
   7. Automatizaciones habilitables/deshabilitables por toggle
-**Plans**: TBD
+**Plans**: 10 plans
 
 Plans:
-- [ ] 17-01: TBD during /gsd:plan-phase
+- [ ] 17-01-PLAN.md — DB schema (automations + automation_executions) + TypeScript types + constants catalog
+- [ ] 17-02-PLAN.md — Condition evaluator (AND/OR groups) + variable resolver ({{path}} templates)
+- [ ] 17-03-PLAN.md — Automation CRUD server actions + execution history queries
+- [ ] 17-04-PLAN.md — Action executor (11 action types via tool handlers) + trigger emitter (cascade protection)
+- [ ] 17-05-PLAN.md — Builder wizard UI (3-step: trigger, conditions, actions)
+- [ ] 17-06-PLAN.md — Inngest automation runner functions (10 trigger types) + route registration
+- [ ] 17-07-PLAN.md — Wire trigger emission into existing server actions (orders, tags, contacts, tasks, WhatsApp)
+- [ ] 17-08-PLAN.md — Automation list page + execution history page + sidebar navigation with badge
+- [ ] 17-09-PLAN.md — Connected orders (source_order_id) + related orders UI
+- [ ] 17-10-PLAN.md — TypeScript verification + human verification of all success criteria
 
 ### Phase 18: AI Automation Builder
 **Goal**: Meta-agente de IA que crea y configura automatizaciones por lenguaje natural con verificacion de recursos
@@ -622,7 +631,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
 | 16. WhatsApp Agent Integration | 5/6 | In progress | - |
 | 16.1. Engine Unification | 6/6 | Complete | 2026-02-10 |
-| 17. CRM Automations Engine | TBD | Not started | - |
+| 17. CRM Automations Engine | 0/10 | Planned | - |
 | 18. AI Automation Builder | TBD | Not started | - |
 
 ---

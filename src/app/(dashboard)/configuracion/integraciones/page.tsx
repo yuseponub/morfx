@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getShopifyIntegration, getPipelinesForConfig, getWebhookEvents } from '@/app/actions/shopify'
@@ -22,10 +23,19 @@ export default async function IntegracionesPage() {
     redirect('/login')
   }
 
+  // Get current workspace from cookie
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+
+  if (!workspaceId) {
+    redirect('/crm/contactos')
+  }
+
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('user_id', user.id)
+    .eq('workspace_id', workspaceId)
     .single()
 
   // Only Owner can access this page

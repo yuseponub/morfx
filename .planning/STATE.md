@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 16.1 complete, next: Phase 17
+**Current focus:** MVP v2.0 — Phase 17 in progress (CRM Automations Engine)
 
 ## Current Position
 
-Phase: 16.1 of 18 (Engine Unification) — COMPLETE
-Plan: 6 of 6 (all complete)
-Status: Phase complete
-Last activity: 2026-02-10 — Completed 16.1-06-PLAN.md, phase verified 7/7
+Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
+Plan: 1 of 10 (17-01 complete)
+Status: In progress
+Last activity: 2026-02-12 — Completed 17-01-PLAN.md (Foundation: DB + Types + Constants)
 
-Progress: [##########] 100% MVP v1 | [█████████████████░] 97% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -38,7 +38,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
-- Phase 17: CRM Automations Engine (TBD plans)
+- Phase 17: CRM Automations Engine (10 plans) — IN PROGRESS (1/10)
 - Phase 18: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -63,7 +63,8 @@ All 11 phases + 4 inserted phases completed:
 | 15.7 Ingest Timer Pluggable | 2/3 | In Progress |
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
-| 16.1 Engine Unification | 5/6 | In Progress |
+| 16.1 Engine Unification | 6/6 | Complete |
+| 17. CRM Automations Engine | 1/10 | In Progress |
 
 ## Accumulated Context
 
@@ -247,6 +248,12 @@ Recent decisions affecting MVP v2 work:
 - [16.1-05]: Dynamic import of ../engine/unified-engine directly (not barrel) for parallel plan compatibility
 - [16.1-05]: EngineOutput mapped to SomnioEngineResult with retryable defaulting to true for backward compat
 - [16.1-05]: EngineOutput type imported statically from engine/types.ts; UnifiedEngine class uses dynamic import
+- [17-01]: 10 trigger types (CRM + WhatsApp + Tasks), 11 action types including duplicate_order
+- [17-01]: Recursive ConditionGroup type for nested AND/OR condition trees
+- [17-01]: constants.ts has ZERO imports — catalogs read programmatically by Phase 18
+- [17-01]: MAX_CASCADE_DEPTH=3, MAX_ACTIONS=10, MAX_AUTOMATIONS=50 as starting limits
+- [17-01]: source_order_id on orders distinct from linked_order_id (automation-created vs returns)
+- [17-01]: automation_executions is SELECT-only via RLS (created by system, not users)
 
 ### Project Rules
 
@@ -286,7 +293,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-10
-Stopped at: Completed 16.1-04-PLAN.md (UnifiedEngine + Sandbox Wiring) + 16.1-05-PLAN.md
+Last session: 2026-02-12
+Stopped at: Completed 17-01-PLAN.md (Foundation: DB + Types + Constants)
 Resume file: None
-Next: 16.1-06-PLAN.md (Cleanup and Integration)
+Next: 17-02-PLAN.md (Condition Evaluator)

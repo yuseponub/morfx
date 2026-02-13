@@ -12,6 +12,7 @@ import type {
   Pipeline,
   PipelineWithStages,
   PipelineStage,
+  RelatedOrder,
 } from '@/lib/orders/types'
 import {
   emitOrderCreated,
@@ -750,6 +751,105 @@ export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResu
   ].join('\n')
 
   return { success: true, data: csvContent }
+}
+
+// ============================================================================
+// Related Orders (Connected via source_order_id)
+// ============================================================================
+
+/**
+ * Get related orders for an order (source, derived, siblings).
+ * Used by the order detail page to show bidirectional connections.
+ *
+ * Relationships:
+ * - source: the original order this one was derived from
+ * - derived: orders created from this order (via automations)
+ * - siblings: other orders derived from the same source (also marked 'derived')
+ */
+export async function getRelatedOrders(orderId: string): Promise<RelatedOrder[]> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // Get current order to check source_order_id
+  const { data: currentOrder } = await supabase
+    .from('orders')
+    .select('id, source_order_id')
+    .eq('id', orderId)
+    .single()
+
+  if (!currentOrder) return []
+
+  const relatedIds: { id: string; relationship: 'source' | 'derived' }[] = []
+
+  // 1. If this order has a source, include the source order
+  if (currentOrder.source_order_id) {
+    relatedIds.push({ id: currentOrder.source_order_id, relationship: 'source' })
+  }
+
+  // 2. Find all orders derived FROM this order
+  const { data: derivedOrders } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('source_order_id', orderId)
+
+  if (derivedOrders) {
+    for (const d of derivedOrders) {
+      relatedIds.push({ id: d.id, relationship: 'derived' })
+    }
+  }
+
+  // 3. Find siblings (other orders derived from same source)
+  if (currentOrder.source_order_id) {
+    const { data: siblings } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('source_order_id', currentOrder.source_order_id)
+      .neq('id', orderId)
+
+    if (siblings) {
+      for (const s of siblings) {
+        // Avoid duplicates (if sibling was already added as derived)
+        if (!relatedIds.some(r => r.id === s.id)) {
+          relatedIds.push({ id: s.id, relationship: 'derived' })
+        }
+      }
+    }
+  }
+
+  if (relatedIds.length === 0) return []
+
+  // Fetch full details for all related orders
+  const ids = relatedIds.map(r => r.id)
+  const { data: orders } = await supabase
+    .from('orders')
+    .select(`
+      id,
+      total_value,
+      created_at,
+      contact:contacts(name),
+      stage:pipeline_stages(name, color),
+      pipeline:pipelines(name)
+    `)
+    .in('id', ids)
+
+  if (!orders) return []
+
+  // Map to RelatedOrder type with relationship info
+  return orders.map((order: any) => {
+    const rel = relatedIds.find(r => r.id === order.id)
+    return {
+      id: order.id,
+      pipeline_name: order.pipeline?.name || 'Sin pipeline',
+      stage_name: order.stage?.name || 'Sin etapa',
+      stage_color: order.stage?.color || '#6b7280',
+      contact_name: order.contact?.name || null,
+      total_value: order.total_value ?? 0,
+      created_at: order.created_at,
+      relationship: rel?.relationship || 'derived',
+    }
+  })
 }
 
 // ============================================================================

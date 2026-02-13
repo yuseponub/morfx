@@ -137,6 +137,7 @@ export interface Order {
   shipping_address: string | null
   shipping_city: string | null
   linked_order_id: string | null
+  source_order_id: string | null
   custom_fields: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -153,7 +154,23 @@ export interface OrderFormData {
   shipping_address?: string | null
   shipping_city?: string | null
   linked_order_id?: string | null
+  source_order_id?: string | null
   custom_fields?: Record<string, unknown>
+}
+
+/**
+ * Related order info for bidirectional navigation.
+ * Used by the order detail page to show connected orders.
+ */
+export interface RelatedOrder {
+  id: string
+  pipeline_name: string
+  stage_name: string
+  stage_color: string
+  contact_name: string | null
+  total_value: number
+  created_at: string
+  relationship: 'source' | 'derived'
 }
 
 /**

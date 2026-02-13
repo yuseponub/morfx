@@ -38,6 +38,22 @@ TODA la logica de fechas usa **America/Bogota (UTC-5)**:
 - DB: `timezone('America/Bogota', NOW())`
 - Frontend: `toLocaleString('es-CO', { timeZone: 'America/Bogota' })`
 
+## Regla 3: Domain Layer
+
+TODA mutacion de datos DEBE pasar por `src/lib/domain/`.
+Nunca escribir directo a Supabase desde server actions, tool handlers, action executor o webhooks.
+
+Patron obligatorio:
+- Server Action → valida auth → llama domain → revalidatePath
+- Tool Handler → llama domain → retorna ToolResult
+- Action Executor → llama domain con cascadeDepth
+- Webhook → llama domain con source: 'webhook'
+
+Domain SIEMPRE:
+- Usa `createAdminClient()` (bypass RLS)
+- Filtra por `workspace_id` en cada query
+- Emite trigger de automatizacion correspondiente
+
 ---
 
 ## Comandos Esenciales

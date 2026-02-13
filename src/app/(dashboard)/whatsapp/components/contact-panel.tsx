@@ -364,9 +364,11 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
   const orderIdsRef = useRef<string>('')
 
   // Full data fetch (orders + tags + pipelines) - on mount & refreshKey change
+  const hasFetchedRef = useRef(false)
   useEffect(() => {
     async function fetchData() {
-      setIsLoading(true)
+      // Only show loading spinner on first mount, not on refreshes
+      if (!hasFetchedRef.current) setIsLoading(true)
       try {
         const [ordersData, tagsData, pipelinesData] = await Promise.all([
           getRecentOrders(contactId),
@@ -381,6 +383,7 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
         console.error('Error fetching data:', error)
       } finally {
         setIsLoading(false)
+        hasFetchedRef.current = true
       }
     }
 
@@ -405,7 +408,7 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
       } catch (error) {
         // Silent fail for polling - don't spam console
       }
-    }, 10_000) // 10 seconds
+    }, 30_000) // 30 seconds
 
     return () => clearInterval(interval)
   }, [contactId])

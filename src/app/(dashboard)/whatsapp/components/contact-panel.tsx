@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo } from 'lucide-react'
 import Link from 'next/link'
@@ -72,12 +72,15 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
           filter: `id=eq.${conversationId}`,
         },
         () => {
+          console.log('[ContactPanel] Realtime: conversations UPDATE received, refreshing orders in 1s')
           setTimeout(() => {
             setOrdersRefreshKey(k => k + 1)
           }, 1000)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[ContactPanel] conv-order-refresh channel status:', status)
+      })
 
     // Backup: direct orders INSERT listener
     const ordersChannel = supabase
@@ -91,10 +94,13 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
           filter: `contact_id=eq.${contactId}`,
         },
         () => {
+          console.log('[ContactPanel] Realtime: orders INSERT received, refreshing orders')
           setOrdersRefreshKey(k => k + 1)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[ContactPanel] orders-direct channel status:', status)
+      })
 
     return () => {
       supabase.removeChannel(convChannel)
@@ -354,6 +360,10 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
   const [openTagPopover, setOpenTagPopover] = useState<string | null>(null)
   const [openStagePopover, setOpenStagePopover] = useState<string | null>(null)
 
+  // Track current order IDs for polling comparison
+  const orderIdsRef = useRef<string>('')
+
+  // Full data fetch (orders + tags + pipelines) - on mount & refreshKey change
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true)
@@ -364,6 +374,7 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
           getPipelines()
         ])
         setOrders(ordersData)
+        orderIdsRef.current = ordersData.map(o => o.id).join(',')
         setAvailableTags(tagsData)
         setPipelines(pipelinesData)
       } catch (error) {
@@ -375,6 +386,29 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
 
     fetchData()
   }, [contactId, refreshKey])
+
+  // Polling: check for new orders every 10 seconds (orders-only, lightweight)
+  // This is the RELIABLE mechanism. Realtime is a bonus for instant refresh.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const freshOrders = await getRecentOrders(contactId)
+        const freshIds = freshOrders.map(o => o.id).join(',')
+        if (freshIds !== orderIdsRef.current) {
+          console.log('[RecentOrdersList] Polling detected order change:', {
+            old: orderIdsRef.current,
+            new: freshIds,
+          })
+          setOrders(freshOrders)
+          orderIdsRef.current = freshIds
+        }
+      } catch (error) {
+        // Silent fail for polling - don't spam console
+      }
+    }, 10_000) // 10 seconds
+
+    return () => clearInterval(interval)
+  }, [contactId])
 
   const handleAddTag = async (orderId: string, tag: AvailableTag) => {
     // Optimistic update

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 18 next (Domain Layer Foundation)
+**Current focus:** MVP v2.0 — Phase 18 in progress (Domain Layer Foundation)
 
 ## Current Position
 
-Phase: 17 of 19 (CRM Automations Engine) — COMPLETE
-Plan: 10 of 10 (all complete)
-Status: Phase 17 approved, Phase 18 next
-Last activity: 2026-02-13 — Phase 17 verified and approved by user
+Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
+Plan: 1 of TBD (foundation complete)
+Status: In progress
+Last activity: 2026-02-13 — Completed 18-01-PLAN.md (Foundation Types + Audit + CLAUDE.md Rule)
 
-Progress: [##########] 100% MVP v1 | [██████████████████░░] 90% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████████████░] 92% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -39,7 +39,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
-- Phase 18: Domain Layer Foundation (TBD plans) — Fundacion IA distribuida
+- Phase 18: Domain Layer Foundation (TBD plans) — IN PROGRESS (1/TBD)
 - Phase 19: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -66,6 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
+| 18. Domain Layer Foundation | 1/TBD | In Progress |
 
 ## Accumulated Context
 
@@ -297,6 +298,11 @@ Recent decisions affecting MVP v2 work:
 - [17-09]: Related orders fetched client-side via useEffect (non-blocking sheet render)
 - [17-09]: In-sheet navigation for same-pipeline orders, router.push fallback for cross-pipeline
 - [17-09]: stage_color added to RelatedOrder type for visual stage badges
+- [18-01]: DomainContext.source typed as string (not union) for extensibility
+- [18-01]: DomainResult<T> uses optional data/error fields (not discriminated union) for simplicity
+- [18-01]: No RLS on mutation_audit (system table, never exposed via API)
+- [18-01]: contact_tags and order_tags audit only INSERT/DELETE (no UPDATE on junction tables)
+- [18-01]: Zero-import pattern: domain/types.ts has ZERO project imports to prevent circular deps
 
 ### Project Rules
 
@@ -304,6 +310,7 @@ Established in `CLAUDE.md`:
 1. ALWAYS restart server after code changes before testing
 2. ALWAYS use America/Bogota timezone for dates
 3. ALWAYS follow GSD workflow completely
+4. ALL mutations through src/lib/domain/ (Regla 3)
 
 ### Pending Todos
 
@@ -338,6 +345,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 17-09-PLAN.md (Connected Orders)
+Stopped at: Completed 18-01-PLAN.md (Foundation Types + Audit + Rule)
 Resume file: None
-Next: 17-10-PLAN.md
+Next: 18-02-PLAN.md

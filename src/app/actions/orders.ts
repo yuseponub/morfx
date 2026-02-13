@@ -15,12 +15,14 @@ import type {
   RelatedOrder,
 } from '@/lib/orders/types'
 import {
-  emitOrderCreated,
-  emitOrderStageChanged,
-  emitFieldChanged,
-  emitTagAssigned,
-  emitTagRemoved,
-} from '@/lib/automations/trigger-emitter'
+  createOrder as domainCreateOrder,
+  updateOrder as domainUpdateOrder,
+  moveOrderToStage as domainMoveOrderToStage,
+  deleteOrder as domainDeleteOrder,
+  addOrderTag as domainAddOrderTag,
+  removeOrderTag as domainRemoveOrderTag,
+} from '@/lib/domain/orders'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // Validation Schemas
@@ -59,7 +61,23 @@ type ActionResult<T = void> =
   | { error: string; field?: string }
 
 // ============================================================================
-// Pipeline Operations
+// Auth Helper
+// ============================================================================
+
+async function getAuthContext(): Promise<{ workspaceId: string } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  return { workspaceId }
+}
+
+// ============================================================================
+// Pipeline Operations (read-only, unchanged)
 // ============================================================================
 
 /**
@@ -202,7 +220,7 @@ export async function getOrCreateDefaultPipeline(): Promise<PipelineWithStages |
 }
 
 // ============================================================================
-// Order Read Operations
+// Order Read Operations (unchanged)
 // ============================================================================
 
 /**
@@ -305,12 +323,12 @@ export async function getOrder(id: string): Promise<OrderWithDetails | null> {
 }
 
 // ============================================================================
-// Order Create/Update Operations
+// Order Create/Update Operations — via domain/orders
 // ============================================================================
 
 /**
- * Create a new order with products
- * Order total is calculated automatically by database trigger
+ * Create a new order with products.
+ * Delegates to domain/orders.createOrder for DB logic + trigger emission.
  */
 export async function createOrder(formData: OrderFormData): Promise<ActionResult<OrderWithDetails>> {
   const validation = orderSchema.safeParse(formData)
@@ -319,233 +337,120 @@ export async function createOrder(formData: OrderFormData): Promise<ActionResult
     return { error: firstIssue.message, field: firstIssue.path[0]?.toString() }
   }
 
-  const supabase = await createClient()
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
-
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
   const { products, ...orderData } = validation.data
 
-  // Create order
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      ...orderData,
-      workspace_id: workspaceId,
-      contact_id: orderData.contact_id || null,
-      closing_date: orderData.closing_date || null,
-      description: orderData.description || null,
-      carrier: orderData.carrier || null,
-      tracking_number: orderData.tracking_number || null,
-      shipping_address: orderData.shipping_address || null,
-      shipping_city: orderData.shipping_city || null,
-    })
-    .select()
-    .single()
-
-  if (orderError || !order) {
-    console.error('Error creating order:', orderError)
-    return { error: 'Error al crear el pedido' }
-  }
-
-  // Add products if provided
-  if (products && products.length > 0) {
-    const productsToInsert = products.map(p => ({
-      order_id: order.id,
-      product_id: p.product_id || null,
+  const result = await domainCreateOrder(ctx, {
+    pipelineId: orderData.pipeline_id,
+    stageId: orderData.stage_id,
+    contactId: orderData.contact_id,
+    closingDate: orderData.closing_date,
+    description: orderData.description,
+    carrier: orderData.carrier,
+    trackingNumber: orderData.tracking_number,
+    shippingAddress: orderData.shipping_address,
+    shippingCity: orderData.shipping_city,
+    customFields: orderData.custom_fields,
+    products: products.map(p => ({
+      productId: p.product_id,
       sku: p.sku,
       title: p.title,
-      unit_price: p.unit_price,
+      unitPrice: p.unit_price,
       quantity: p.quantity,
-    }))
+    })),
+  })
 
-    const { error: productsError } = await supabase
-      .from('order_products')
-      .insert(productsToInsert)
-
-    if (productsError) {
-      // Rollback order if products fail
-      await supabase.from('orders').delete().eq('id', order.id)
-      console.error('Error adding products:', productsError)
-      return { error: 'Error agregando productos al pedido' }
-    }
+  if (!result.success) {
+    return { error: result.error || 'Error al crear el pedido' }
   }
 
   revalidatePath('/crm/pedidos')
 
-  // Fetch the complete order with relations
-  const completeOrder = await getOrder(order.id)
+  // Fetch the complete order with relations for the UI
+  const completeOrder = await getOrder(result.data!.orderId)
   if (!completeOrder) {
     return { error: 'Pedido creado pero no se pudo cargar' }
   }
-
-  // Fire-and-forget: emit automation trigger
-  emitOrderCreated({
-    workspaceId,
-    orderId: order.id,
-    pipelineId: order.pipeline_id,
-    stageId: order.stage_id,
-    contactId: order.contact_id ?? null,
-    totalValue: order.total_value ?? 0,
-  })
 
   return { success: true, data: completeOrder }
 }
 
 /**
- * Update an existing order
- * If products are provided, replaces all existing products
+ * Update an existing order.
+ * Delegates to domain/orders.updateOrder for DB logic + trigger emission.
+ * If stage_id changes, also calls domain/orders.moveOrderToStage.
  */
 export async function updateOrder(id: string, formData: Partial<OrderFormData>): Promise<ActionResult<OrderWithDetails>> {
-  const supabase = await createClient()
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
   const { products, ...orderData } = formData
 
-  // Capture previous state BEFORE update (for field change automation triggers)
-  const { data: previousOrder } = await supabase
-    .from('orders')
-    .select('workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, carrier, tracking_number, shipping_address, shipping_city, custom_fields')
-    .eq('id', id)
-    .single()
-
-  // Build update object with explicit null handling
-  const updates: Record<string, unknown> = {}
-  if (orderData.contact_id !== undefined) updates.contact_id = orderData.contact_id || null
-  if (orderData.pipeline_id !== undefined) updates.pipeline_id = orderData.pipeline_id
-  if (orderData.stage_id !== undefined) updates.stage_id = orderData.stage_id
-  if (orderData.closing_date !== undefined) updates.closing_date = orderData.closing_date || null
-  if (orderData.description !== undefined) updates.description = orderData.description || null
-  if (orderData.carrier !== undefined) updates.carrier = orderData.carrier || null
-  if (orderData.tracking_number !== undefined) updates.tracking_number = orderData.tracking_number || null
-  if (orderData.shipping_address !== undefined) updates.shipping_address = orderData.shipping_address || null
-  if (orderData.shipping_city !== undefined) updates.shipping_city = orderData.shipping_city || null
-  if (orderData.custom_fields !== undefined) updates.custom_fields = orderData.custom_fields
-
-  // Update order fields
-  if (Object.keys(updates).length > 0) {
-    const { error: orderError } = await supabase
-      .from('orders')
-      .update(updates)
-      .eq('id', id)
-
-    if (orderError) {
-      console.error('Error updating order:', orderError)
-      return { error: 'Error al actualizar el pedido' }
+  // Handle stage change separately via moveOrderToStage if stage_id changed
+  if (orderData.stage_id !== undefined) {
+    const moveResult = await domainMoveOrderToStage(ctx, {
+      orderId: id,
+      newStageId: orderData.stage_id,
+    })
+    if (!moveResult.success) {
+      return { error: moveResult.error || 'Error al mover el pedido de etapa' }
     }
   }
 
-  // If products provided, replace all
-  if (products !== undefined) {
-    // Delete existing products
-    const { error: deleteError } = await supabase
-      .from('order_products')
-      .delete()
-      .eq('order_id', id)
-
-    if (deleteError) {
-      console.error('Error deleting existing products:', deleteError)
-      return { error: 'Error al actualizar productos' }
-    }
-
-    // Insert new products
-    if (products.length > 0) {
-      const productsToInsert = products.map(p => ({
-        order_id: id,
-        product_id: p.product_id || null,
+  // Build domain update params from the remaining fields
+  const hasFieldUpdates = Object.keys(orderData).some(k => k !== 'stage_id' && k !== 'pipeline_id') || products !== undefined
+  if (hasFieldUpdates) {
+    const result = await domainUpdateOrder(ctx, {
+      orderId: id,
+      contactId: orderData.contact_id,
+      closingDate: orderData.closing_date,
+      description: orderData.description,
+      carrier: orderData.carrier,
+      trackingNumber: orderData.tracking_number,
+      shippingAddress: orderData.shipping_address,
+      shippingCity: orderData.shipping_city,
+      customFields: orderData.custom_fields,
+      products: products?.map(p => ({
+        productId: p.product_id,
         sku: p.sku,
         title: p.title,
-        unit_price: p.unit_price,
+        unitPrice: p.unit_price,
         quantity: p.quantity,
-      }))
+      })),
+    })
 
-      const { error: productsError } = await supabase
-        .from('order_products')
-        .insert(productsToInsert)
-
-      if (productsError) {
-        console.error('Error inserting products:', productsError)
-        return { error: 'Error al actualizar productos' }
-      }
+    if (!result.success) {
+      return { error: result.error || 'Error al actualizar el pedido' }
     }
   }
 
   revalidatePath('/crm/pedidos')
 
-  // Fetch updated order
+  // Fetch updated order for the UI
   const updatedOrder = await getOrder(id)
   if (!updatedOrder) {
     return { error: 'Pedido actualizado pero no se pudo cargar' }
-  }
-
-  // Fire-and-forget: emit field change automation triggers
-  if (previousOrder) {
-    const workspaceId = previousOrder.workspace_id
-    const trackedFields = ['contact_id', 'pipeline_id', 'stage_id', 'closing_date', 'description', 'carrier', 'tracking_number', 'shipping_address', 'shipping_city'] as const
-    for (const field of trackedFields) {
-      const prevVal = previousOrder[field]
-      const newVal = updates[field]
-      if (newVal !== undefined && String(prevVal ?? '') !== String(newVal ?? '')) {
-        emitFieldChanged({
-          workspaceId,
-          entityType: 'order',
-          entityId: id,
-          fieldName: field,
-          previousValue: prevVal != null ? String(prevVal) : null,
-          newValue: newVal != null ? String(newVal) : null,
-          contactId: previousOrder.contact_id ?? undefined,
-        })
-      }
-    }
-
-    // Stage change also emits order.stage_changed
-    if (updates.stage_id !== undefined && previousOrder.stage_id !== updates.stage_id) {
-      emitOrderStageChanged({
-        workspaceId,
-        orderId: id,
-        previousStageId: previousOrder.stage_id,
-        newStageId: updates.stage_id as string,
-        pipelineId: previousOrder.pipeline_id,
-        contactId: previousOrder.contact_id ?? null,
-      })
-    }
   }
 
   return { success: true, data: updatedOrder }
 }
 
 /**
- * Move order to a different stage (for Kanban drag)
- * Warns if WIP limit exceeded but allows move
+ * Move order to a different stage (for Kanban drag).
+ * Delegates to domain/orders.moveOrderToStage for DB logic + trigger emission.
+ * Keeps WIP limit warning check as adapter concern.
  */
 export async function moveOrderToStage(orderId: string, newStageId: string): Promise<ActionResult<{ warning?: string }>> {
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
+
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
-
-  // Capture current order state BEFORE update (for automation trigger)
-  const { data: currentOrder } = await supabase
-    .from('orders')
-    .select('workspace_id, stage_id, pipeline_id, contact_id')
-    .eq('id', orderId)
-    .single()
-
-  // Get stage to check WIP limit
+  // Check WIP limit (adapter concern — not in domain)
   const { data: stage, error: stageError } = await supabase
     .from('pipeline_stages')
     .select('id, name, wip_limit, pipeline_id')
@@ -556,72 +461,49 @@ export async function moveOrderToStage(orderId: string, newStageId: string): Pro
     return { error: 'Etapa no encontrada' }
   }
 
-  // Check WIP limit if defined (for warning only)
   let warning: string | undefined
   if (stage.wip_limit !== null) {
     const { count, error: countError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('stage_id', newStageId)
-      .neq('id', orderId) // Exclude the order being moved
+      .neq('id', orderId)
 
     if (!countError && count !== null && count >= stage.wip_limit) {
-      warning = `"${stage.name}" excede el límite WIP de ${stage.wip_limit} pedidos`
+      warning = `"${stage.name}" excede el limite WIP de ${stage.wip_limit} pedidos`
     }
   }
 
-  // Update order stage (always allow)
-  const { error: updateError } = await supabase
-    .from('orders')
-    .update({ stage_id: newStageId })
-    .eq('id', orderId)
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const result = await domainMoveOrderToStage(ctx, { orderId, newStageId })
 
-  if (updateError) {
-    console.error('Error moving order:', updateError)
-    return { error: 'Error al mover el pedido' }
+  if (!result.success) {
+    return { error: result.error || 'Error al mover el pedido' }
   }
 
   revalidatePath('/crm/pedidos')
-
-  // Fire-and-forget: emit automation trigger for stage change
-  if (currentOrder && currentOrder.stage_id !== newStageId) {
-    emitOrderStageChanged({
-      workspaceId: currentOrder.workspace_id,
-      orderId,
-      previousStageId: currentOrder.stage_id,
-      newStageId,
-      pipelineId: currentOrder.pipeline_id,
-      contactId: currentOrder.contact_id ?? null,
-    })
-  }
 
   return { success: true, data: { warning } }
 }
 
 // ============================================================================
-// Order Delete Operation
+// Order Delete Operations — via domain/orders
 // ============================================================================
 
 /**
- * Delete an order
- * Products and tags are deleted automatically via CASCADE
+ * Delete an order.
+ * Delegates to domain/orders.deleteOrder.
  */
 export async function deleteOrder(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const result = await domainDeleteOrder(ctx, { orderId: id })
 
-  const { error } = await supabase
-    .from('orders')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error deleting order:', error)
-    return { error: 'Error al eliminar el pedido' }
+  if (!result.success) {
+    return { error: result.error || 'Error al eliminar el pedido' }
   }
 
   revalidatePath('/crm/pedidos')
@@ -629,36 +511,31 @@ export async function deleteOrder(id: string): Promise<ActionResult> {
 }
 
 /**
- * Delete multiple orders at once
+ * Delete multiple orders at once.
+ * Loops over IDs calling domain deleteOrder per ID.
  */
 export async function deleteOrders(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
   if (ids.length === 0) {
     return { error: 'No hay pedidos para eliminar' }
   }
 
-  const supabase = await createClient()
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
-  }
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  let deleted = 0
 
-  const { error, count } = await supabase
-    .from('orders')
-    .delete()
-    .in('id', ids)
-
-  if (error) {
-    console.error('Error deleting orders:', error)
-    return { error: 'Error al eliminar los pedidos' }
+  for (const id of ids) {
+    const result = await domainDeleteOrder(ctx, { orderId: id })
+    if (result.success) deleted++
   }
 
   revalidatePath('/crm/pedidos')
-  return { success: true, data: { deleted: count || ids.length } }
+  return { success: true, data: { deleted } }
 }
 
 /**
- * Export orders to CSV format
+ * Export orders to CSV format (read-only, unchanged)
  */
 export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResult<string>> {
   const supabase = await createClient()
@@ -754,7 +631,7 @@ export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResu
 }
 
 // ============================================================================
-// Related Orders (Connected via source_order_id)
+// Related Orders (read-only, unchanged)
 // ============================================================================
 
 /**
@@ -853,93 +730,67 @@ export async function getRelatedOrders(orderId: string): Promise<RelatedOrder[]>
 }
 
 // ============================================================================
-// Order Tag Operations
+// Order Tag Operations — via domain/orders
 // ============================================================================
 
 /**
- * Add a tag to an order
+ * Add a tag to an order.
+ * Server action receives tagId (from UI), looks up tag name, then delegates to domain.
  */
 export async function addOrderTag(orderId: string, tagId: string): Promise<ActionResult> {
-  const supabase = await createClient()
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
+  // Look up tag name from tagId (domain expects tagName, UI sends tagId)
+  const supabase = await createClient()
+  const { data: tag, error: tagError } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('id', tagId)
+    .single()
+
+  if (tagError || !tag) {
+    return { error: 'Etiqueta no encontrada' }
   }
 
-  const { error } = await supabase
-    .from('order_tags')
-    .insert({ order_id: orderId, tag_id: tagId })
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const result = await domainAddOrderTag(ctx, { orderId, tagName: tag.name })
 
-  if (error) {
-    // Ignore duplicate constraint violation (tag already added)
-    if (error.code === '23505') {
-      return { success: true, data: undefined }
-    }
-    console.error('Error adding tag to order:', error)
-    return { error: 'Error al agregar la etiqueta' }
+  if (!result.success) {
+    return { error: result.error || 'Error al agregar la etiqueta' }
   }
 
   revalidatePath('/crm/pedidos')
-
-  // Fire-and-forget: emit automation trigger for tag assigned
-  const [{ data: order }, { data: tag }] = await Promise.all([
-    supabase.from('orders').select('workspace_id, contact_id').eq('id', orderId).single(),
-    supabase.from('tags').select('name').eq('id', tagId).single(),
-  ])
-  if (order && tag) {
-    emitTagAssigned({
-      workspaceId: order.workspace_id,
-      entityType: 'order',
-      entityId: orderId,
-      tagId,
-      tagName: tag.name,
-      contactId: order.contact_id ?? null,
-    })
-  }
-
   return { success: true, data: undefined }
 }
 
 /**
- * Remove a tag from an order
+ * Remove a tag from an order.
+ * Server action receives tagId (from UI), looks up tag name, then delegates to domain.
  */
 export async function removeOrderTag(orderId: string, tagId: string): Promise<ActionResult> {
-  const supabase = await createClient()
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'No autenticado' }
+  // Look up tag name from tagId (domain expects tagName, UI sends tagId)
+  const supabase = await createClient()
+  const { data: tag, error: tagError } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('id', tagId)
+    .single()
+
+  if (tagError || !tag) {
+    return { error: 'Etiqueta no encontrada' }
   }
 
-  const { error } = await supabase
-    .from('order_tags')
-    .delete()
-    .eq('order_id', orderId)
-    .eq('tag_id', tagId)
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const result = await domainRemoveOrderTag(ctx, { orderId, tagName: tag.name })
 
-  if (error) {
-    console.error('Error removing tag from order:', error)
-    return { error: 'Error al quitar la etiqueta' }
+  if (!result.success) {
+    return { error: result.error || 'Error al quitar la etiqueta' }
   }
 
   revalidatePath('/crm/pedidos')
-
-  // Fire-and-forget: emit automation trigger for tag removed
-  const [{ data: order }, { data: tag }] = await Promise.all([
-    supabase.from('orders').select('workspace_id, contact_id').eq('id', orderId).single(),
-    supabase.from('tags').select('name').eq('id', tagId).single(),
-  ])
-  if (order && tag) {
-    emitTagRemoved({
-      workspaceId: order.workspace_id,
-      entityType: 'order',
-      entityId: orderId,
-      tagId,
-      tagName: tag.name,
-      contactId: order.contact_id ?? null,
-    })
-  }
-
   return { success: true, data: undefined }
 }

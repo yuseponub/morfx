@@ -36,11 +36,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { OrderTagInput } from './order-tag-input'
+import { RelatedOrders } from './related-orders'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
-import { moveOrderToStage } from '@/app/actions/orders'
+import { moveOrderToStage, getRelatedOrders } from '@/app/actions/orders'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import type { OrderWithDetails, PipelineStage } from '@/lib/orders/types'
+import type { OrderWithDetails, PipelineStage, RelatedOrder } from '@/lib/orders/types'
 
 // Format currency in COP
 function formatCurrency(value: number): string {
@@ -75,9 +76,13 @@ interface OrderSheetProps {
   order: OrderWithDetails | null
   open: boolean
   stages: PipelineStage[]
+  /** All orders in the current view (for navigating to related orders) */
+  allOrders?: OrderWithDetails[]
   onClose: () => void
   onEdit: (order: OrderWithDetails) => void
   onDelete: (order: OrderWithDetails) => void
+  /** Navigate to a different order in the sheet */
+  onViewOrder?: (order: OrderWithDetails) => void
 }
 
 /**
@@ -88,13 +93,16 @@ export function OrderSheet({
   order,
   open,
   stages,
+  allOrders,
   onClose,
   onEdit,
   onDelete,
+  onViewOrder,
 }: OrderSheetProps) {
   const router = useRouter()
   const [isChangingStage, setIsChangingStage] = React.useState(false)
   const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
+  const [relatedOrders, setRelatedOrders] = React.useState<RelatedOrder[]>([])
 
   // Sync local tags when order changes
   React.useEffect(() => {
@@ -102,6 +110,15 @@ export function OrderSheet({
       setLocalTags(order.tags)
     }
   }, [order?.id, order?.tags])
+
+  // Fetch related orders when order changes
+  React.useEffect(() => {
+    if (order?.id) {
+      getRelatedOrders(order.id).then(setRelatedOrders).catch(() => setRelatedOrders([]))
+    } else {
+      setRelatedOrders([])
+    }
+  }, [order?.id])
 
   if (!order) return null
 
@@ -405,6 +422,26 @@ export function OrderSheet({
                 }}
               />
             </section>
+
+            {/* Related orders */}
+            {relatedOrders.length > 0 && (
+              <>
+                <Separator />
+                <RelatedOrders
+                  relatedOrders={relatedOrders}
+                  onNavigate={(orderId) => {
+                    // Try to find the order in current view and navigate in-sheet
+                    const target = allOrders?.find(o => o.id === orderId)
+                    if (target && onViewOrder) {
+                      onViewOrder(target)
+                    } else {
+                      // Fallback: navigate to the orders page (order may be in another pipeline)
+                      router.push(`/crm/pedidos?order=${orderId}`)
+                    }
+                  }}
+                />
+              </>
+            )}
 
             {/* Notes */}
             {order.description && (

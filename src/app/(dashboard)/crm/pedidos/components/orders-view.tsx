@@ -594,9 +594,11 @@ export function OrdersView({
         order={viewingOrder}
         open={!!viewingOrder}
         stages={stages}
+        allOrders={orders}
         onClose={() => setViewingOrder(null)}
         onEdit={handleEditFromSheet}
         onDelete={handleDeleteFromSheet}
+        onViewOrder={setViewingOrder}
       />
 
       {/* Delete confirmation dialog */}

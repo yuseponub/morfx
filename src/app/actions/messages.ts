@@ -4,22 +4,20 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { differenceInHours } from 'date-fns'
-import {
-  sendTextMessage,
-  sendMediaMessage as sendMedia360,
-  sendTemplateMessage as sendTemplate360,
-} from '@/lib/whatsapp/api'
 import { getTemplate } from './templates'
+import {
+  sendTextMessage as domainSendTextMessage,
+  sendMediaMessage as domainSendMediaMessage,
+  sendTemplateMessage as domainSendTemplateMessage,
+} from '@/lib/domain/messages'
+import type { DomainContext } from '@/lib/domain/types'
 import type {
   Message,
-  MessageContent,
-  TextContent,
-  MediaContent,
   ActionResult,
 } from '@/lib/whatsapp/types'
 
 // ============================================================================
-// READ OPERATIONS
+// READ OPERATIONS (unchanged — domain only handles mutations)
 // ============================================================================
 
 /**
@@ -85,14 +83,13 @@ export async function getMessages(
 }
 
 // ============================================================================
-// SEND OPERATIONS
+// SEND OPERATIONS — delegates to domain/messages
 // ============================================================================
 
 /**
  * Send a text message within the 24h window.
- *
- * @param conversationId - Conversation ID
- * @param text - Message text
+ * Auth + 24h window check + API key resolution are adapter concerns.
+ * Actual send + DB storage delegated to domain.
  */
 export async function sendMessage(
   conversationId: string,
@@ -149,62 +146,35 @@ export async function sendMessage(
     return { error: 'API key de WhatsApp no configurada' }
   }
 
-  // Send via 360dialog
-  try {
-    const response = await sendTextMessage(apiKey, conversation.phone, text)
-    const wamid = response.messages[0]?.id
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainSendTextMessage(ctx, {
+    conversationId,
+    contactPhone: conversation.phone,
+    messageBody: text,
+    apiKey,
+  })
 
-    // Build message content
-    const content: TextContent = { body: text }
+  if (!result.success) {
+    return { error: result.error || 'Error al enviar mensaje' }
+  }
 
-    // Insert message to database
-    const { data: message, error: insertError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        workspace_id: workspaceId,
-        wamid,
-        direction: 'outbound',
-        type: 'text',
-        content: content as unknown as Record<string, unknown>,
-        status: 'sent',
-        timestamp: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-
-    if (insertError || !message) {
-      console.error('Error inserting message:', insertError)
-      return { error: 'Mensaje enviado pero no se pudo guardar' }
-    }
-
-    // Update conversation last_message info + unarchive if archived
-    const preview = text.length > 100 ? text.slice(0, 100) + '...' : text
+  // Unarchive conversation if needed (adapter concern)
+  if (conversation.status === 'archived') {
     await supabase
       .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: preview,
-        ...(conversation.status === 'archived' ? { status: 'active' } : {}),
-      })
+      .update({ status: 'active' })
       .eq('id', conversationId)
-
-    revalidatePath('/whatsapp')
-    return { success: true, data: { messageId: message.id } }
-  } catch (err) {
-    console.error('Error sending message via 360dialog:', err)
-    return { error: err instanceof Error ? err.message : 'Error al enviar mensaje' }
   }
+
+  revalidatePath('/whatsapp')
+  return { success: true, data: { messageId: result.data!.messageId } }
 }
 
 /**
  * Send a media message within the 24h window.
- *
- * @param conversationId - Conversation ID
- * @param fileData - Base64 encoded file data
- * @param fileName - Original file name
- * @param mimeType - File MIME type
- * @param caption - Optional caption
+ * File upload to Supabase Storage is adapter concern.
+ * Actual send + DB storage delegated to domain.
  */
 export async function sendMediaMessage(
   conversationId: string,
@@ -275,8 +245,7 @@ export async function sendMediaMessage(
   }
 
   try {
-    // Convert base64 to buffer and upload to Supabase Storage
-    // Use admin client to bypass RLS for storage uploads
+    // Upload to Supabase Storage (adapter concern — stays in server action)
     const adminClient = createAdminClient()
     const buffer = Buffer.from(fileData, 'base64')
     const filePath = `${workspaceId}/${conversationId}/${Date.now()}-${fileName}`
@@ -302,69 +271,32 @@ export async function sendMediaMessage(
 
     const mediaUrl = publicUrlData.publicUrl
 
-    // Send via 360dialog
-    const response = await sendMedia360(
-      apiKey,
-      conversation.phone,
-      mediaType,
+    // Delegate to domain
+    const ctx: DomainContext = { workspaceId, source: 'server-action' }
+    const result = await domainSendMediaMessage(ctx, {
+      conversationId,
+      contactPhone: conversation.phone,
       mediaUrl,
+      mediaType,
       caption,
-      mediaType === 'document' ? fileName : undefined
-    )
-    const wamid = response.messages[0]?.id
+      filename: mediaType === 'document' ? fileName : undefined,
+      apiKey,
+    })
 
-    // Build message content
-    const content: MediaContent = {
-      link: mediaUrl,
-      caption,
-      filename: fileName,
-      mimeType,
+    if (!result.success) {
+      return { error: result.error || 'Error al enviar archivo' }
     }
 
-    // Insert message to database
-    const { data: message, error: insertError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        workspace_id: workspaceId,
-        wamid,
-        direction: 'outbound',
-        type: mediaType,
-        content: content as unknown as Record<string, unknown>,
-        status: 'sent',
-        media_url: mediaUrl,
-        media_mime_type: mimeType,
-        media_filename: fileName,
-        timestamp: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-
-    if (insertError || !message) {
-      console.error('Error inserting message:', insertError)
-      return { error: 'Mensaje enviado pero no se pudo guardar' }
+    // Unarchive conversation if needed (adapter concern)
+    if (conversation.status === 'archived') {
+      await supabase
+        .from('conversations')
+        .update({ status: 'active' })
+        .eq('id', conversationId)
     }
-
-    // Update conversation last_message info + unarchive if archived
-    const typeLabels: Record<string, string> = {
-      image: 'Imagen',
-      video: 'Video',
-      audio: 'Audio',
-      document: 'Documento',
-    }
-    const preview = caption || `[${typeLabels[mediaType]}]`
-
-    await supabase
-      .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: preview.length > 100 ? preview.slice(0, 100) + '...' : preview,
-        ...(conversation.status === 'archived' ? { status: 'active' } : {}),
-      })
-      .eq('id', conversationId)
 
     revalidatePath('/whatsapp')
-    return { success: true, data: { messageId: message.id } }
+    return { success: true, data: { messageId: result.data!.messageId } }
   } catch (err) {
     console.error('Error sending media message:', err)
     return { error: err instanceof Error ? err.message : 'Error al enviar archivo' }
@@ -373,8 +305,7 @@ export async function sendMediaMessage(
 
 /**
  * Mark a specific message as read (send read receipt to WhatsApp).
- *
- * @param messageId - Message ID
+ * Read-only + API call — not a domain mutation, stays in server action.
  */
 export async function markMessageAsRead(messageId: string): Promise<ActionResult> {
   const supabase = await createClient()
@@ -415,7 +346,6 @@ export async function markMessageAsRead(messageId: string): Promise<ActionResult
   }
 
   try {
-    // Import and call markMessageAsRead from api.ts
     const { markMessageAsRead: markRead360 } = await import('@/lib/whatsapp/api')
     await markRead360(apiKey, message.wamid)
 
@@ -427,15 +357,13 @@ export async function markMessageAsRead(messageId: string): Promise<ActionResult
 }
 
 // ============================================================================
-// TEMPLATE OPERATIONS
+// TEMPLATE OPERATIONS — delegates to domain/messages
 // ============================================================================
 
 /**
  * Send a template message (used when 24h window is closed).
- *
- * @param params.conversationId - Conversation ID
- * @param params.templateId - Template ID from database
- * @param params.variableValues - Variable values keyed by position ("1" -> "value")
+ * Template lookup + component building are adapter concerns.
+ * Actual send + DB storage delegated to domain.
  */
 export async function sendTemplateMessage(params: {
   conversationId: string
@@ -512,6 +440,12 @@ export async function sendTemplateMessage(params: {
     })
   }
 
+  // Build the rendered message text for display
+  let renderedText = bodyComponent?.text || ''
+  Object.entries(params.variableValues).forEach(([num, value]) => {
+    renderedText = renderedText.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value)
+  })
+
   // Get workspace settings for API key
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
@@ -524,64 +458,30 @@ export async function sendTemplateMessage(params: {
     return { error: 'API key de WhatsApp no configurada' }
   }
 
-  try {
-    // Send via 360dialog
-    const response = await sendTemplate360(
-      apiKey,
-      conversation.phone,
-      template.name,
-      template.language,
-      apiComponents.length > 0 ? apiComponents : undefined
-    )
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainSendTemplateMessage(ctx, {
+    conversationId: params.conversationId,
+    contactPhone: conversation.phone,
+    templateName: template.name,
+    templateLanguage: template.language,
+    components: apiComponents.length > 0 ? apiComponents : undefined,
+    renderedText,
+    apiKey,
+  })
 
-    const wamid = response.messages[0]?.id
-    if (!wamid) {
-      return { error: 'No se recibio ID de mensaje de WhatsApp' }
-    }
+  if (!result.success) {
+    return { error: result.error || 'Error al enviar template' }
+  }
 
-    // Build the rendered message text for display
-    let renderedText = bodyComponent?.text || ''
-    Object.entries(params.variableValues).forEach(([num, value]) => {
-      renderedText = renderedText.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value)
-    })
-
-    // Store message in database
-    const { data: message, error: insertError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: params.conversationId,
-        workspace_id: workspaceId,
-        wamid,
-        direction: 'outbound',
-        type: 'template',
-        content: { body: renderedText } as unknown as Record<string, unknown>,
-        template_name: template.name,
-        status: 'sent',
-        timestamp: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-
-    if (insertError || !message) {
-      console.error('Error inserting template message:', insertError)
-      return { error: 'Mensaje enviado pero no se pudo guardar' }
-    }
-
-    // Update conversation
-    const preview = `[Template] ${template.name}`
+  // Unarchive conversation if needed (adapter concern)
+  if (conversation.status === 'archived') {
     await supabase
       .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: preview,
-        ...(conversation.status === 'archived' ? { status: 'active' } : {}),
-      })
+      .update({ status: 'active' })
       .eq('id', params.conversationId)
-
-    revalidatePath('/whatsapp')
-    return { success: true, data: { messageId: message.id } }
-  } catch (err) {
-    console.error('Error sending template message via 360dialog:', err)
-    return { error: err instanceof Error ? err.message : 'Error al enviar template' }
   }
+
+  revalidatePath('/whatsapp')
+  return { success: true, data: { messageId: result.data!.messageId } }
 }

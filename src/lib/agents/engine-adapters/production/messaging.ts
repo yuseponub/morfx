@@ -1,19 +1,17 @@
 /**
  * Production Messaging Adapter
  * Phase 16.1: Engine Unification - Plan 03
- * Updated: Hotfix — Send directly via 360dialog API
+ * Phase 18: Migrated to domain layer for message sending
  *
- * Sends agent responses directly via the WhatsApp 360dialog API,
- * bypassing the tool executor system. Records messages in the DB.
- *
- * Previous approach used MessageSequencer → executeToolFromAgent →
- * whatsapp.message.send handler, but tool registration/validation
- * issues caused messagesSent: 0 in production.
+ * Sends agent responses via the domain message layer (which calls 360dialog
+ * API + stores in DB). The adapter handles sequencing (delays between
+ * messages) — that's adapter-specific. The actual send + DB goes through domain.
  */
 
 import type { MessagingAdapter } from '../../engine/types'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendTextMessage } from '@/lib/whatsapp/api'
+import { sendTextMessage as domainSendTextMessage } from '@/lib/domain/messages'
+import type { DomainContext } from '@/lib/domain/types'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('production-messaging-adapter')
@@ -53,8 +51,8 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
   ) {}
 
   /**
-   * Send response messages directly via WhatsApp 360dialog API.
-   * Iterates templates, applies delays, sends each message, and records in DB.
+   * Send response messages via domain layer.
+   * Iterates templates, applies delays, sends each message through domain.
    */
   async send(params: {
     sessionId: string
@@ -95,7 +93,7 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
       return { messagesSent: 0 }
     }
 
-    const supabase = createAdminClient()
+    const ctx: DomainContext = { workspaceId: wsId, source: 'adapter' }
     let sentCount = 0
 
     for (let i = 0; i < templates.length; i++) {
@@ -107,61 +105,34 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
       }
 
       try {
-        // Send directly via 360dialog API
-        const response = await sendTextMessage(apiKey, phone, template.content)
-        const wamid = response.messages?.[0]?.id
+        // Send via domain (handles API call + DB storage + conversation update)
+        const result = await domainSendTextMessage(ctx, {
+          conversationId: convId,
+          contactPhone: phone,
+          messageBody: template.content,
+          apiKey,
+        })
 
-        // Record message in DB
-        const { error: insertError } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: convId,
-            workspace_id: wsId,
-            wamid,
-            direction: 'outbound',
-            type: 'text',
-            content: { body: template.content } as unknown as Record<string, unknown>,
-            status: 'sent',
-            timestamp: new Date().toISOString(),
-          })
-
-        if (insertError) {
+        if (result.success) {
+          sentCount++
+          logger.debug(
+            { messageId: result.data?.messageId, position: i + 1, total: templates.length },
+            'WhatsApp message sent via domain'
+          )
+        } else {
           logger.warn(
-            { error: insertError, wamid },
-            'Message sent but DB insert failed'
+            { error: result.error, position: i + 1 },
+            'Domain sendTextMessage returned error'
           )
         }
-
-        sentCount++
-
-        logger.debug(
-          { wamid, position: i + 1, total: templates.length },
-          'WhatsApp message sent'
-        )
       } catch (sendError) {
         const errMsg = sendError instanceof Error ? sendError.message : String(sendError)
         logger.error(
           { error: errMsg, phone, position: i + 1 },
-          'Failed to send WhatsApp message via 360dialog'
+          'Failed to send WhatsApp message via domain'
         )
         // Continue with next message even if this one failed
       }
-    }
-
-    // Update conversation last_message_at
-    if (sentCount > 0) {
-      const lastTemplate = templates[templates.length - 1]
-      const preview = lastTemplate.content.length > 100
-        ? lastTemplate.content.slice(0, 100) + '...'
-        : lastTemplate.content
-
-      await supabase
-        .from('conversations')
-        .update({
-          last_message_at: new Date().toISOString(),
-          last_message_preview: preview,
-        })
-        .eq('id', convId)
     }
 
     logger.info(

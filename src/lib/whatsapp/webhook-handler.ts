@@ -6,6 +6,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/utils/phone'
 import { recordMessageCost } from '@/app/actions/usage'
+import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
+import type { DomainContext } from '@/lib/domain/types'
 import type {
   WebhookPayload,
   WebhookValue,
@@ -116,72 +118,40 @@ async function processIncomingMessage(
 
     // Build message content based on type
     const content = buildMessageContent(msg)
-
-    // Insert message (with deduplication via wamid constraint)
-    const { error: msgError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        workspace_id: workspaceId,
-        wamid: msg.id,
-        direction: 'inbound',
-        type: msg.type,
-        content,
-        timestamp: new Date(parseInt(msg.timestamp) * 1000).toISOString(),
-      })
-
-    // Handle duplicate message (unique constraint on wamid)
-    if (msgError) {
-      if (msgError.code === '23505') {
-        // Duplicate - already processed, ignore
-        console.log(`Duplicate message ignored: ${msg.id}`)
-        return
-      }
-      console.error('Error inserting message:', msgError)
-      throw msgError
-    }
-
-    // Safety net: manually update conversation stats
-    // (backup in case trigger fails - same pattern as Server Actions)
     const messageTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString()
-    const preview = buildMessagePreview(msg)
 
-    const { error: updateError } = await supabase
+    // Get contact_id for domain context
+    const { data: convForContact } = await supabase
       .from('conversations')
-      .update({
-        last_message_at: messageTimestamp,
-        last_message_preview: preview,
-        last_customer_message_at: messageTimestamp,
-        is_read: false,
-      })
+      .select('contact_id')
       .eq('id', conversationId)
+      .single()
 
-    if (updateError) {
-      console.error('Error updating conversation stats:', updateError)
+    const contactId = convForContact?.contact_id ?? null
+
+    // Delegate message storage + trigger emission to domain
+    const ctx: DomainContext = { workspaceId, source: 'webhook' }
+    const domainResult = await domainReceiveMessage(ctx, {
+      conversationId,
+      contactId,
+      phone,
+      messageContent: msg.text?.body ?? buildMessagePreview(msg),
+      messageType: msg.type,
+      waMessageId: msg.id,
+      contentJson: content as unknown as Record<string, unknown>,
+      timestamp: messageTimestamp,
+      contactName: profileName,
+    })
+
+    // If domain returned a duplicate, stop processing
+    if (domainResult.success && domainResult.data?.messageId === '') {
+      // Duplicate message — domain handled dedup, skip agent routing
+      return
     }
 
-    // ================================================================
-    // Automation trigger (Phase 17): Emit automation event for
-    // incoming messages. Fire-and-forget — does NOT block reception.
-    // ================================================================
-    {
-      // Get contact_id for automation context
-      const { data: convForAutomation } = await supabase
-        .from('conversations')
-        .select('contact_id')
-        .eq('id', conversationId)
-        .single()
-
-      const { emitWhatsAppMessageReceived } = await import(
-        '@/lib/automations/trigger-emitter'
-      )
-      emitWhatsAppMessageReceived({
-        workspaceId,
-        conversationId,
-        contactId: convForAutomation?.contact_id ?? null,
-        messageContent: msg.text?.body ?? buildMessagePreview(msg),
-        phone,
-      })
+    if (!domainResult.success) {
+      console.error('Error processing message via domain:', domainResult.error)
+      throw new Error(domainResult.error || 'Domain receiveMessage failed')
     }
 
     // ================================================================

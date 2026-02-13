@@ -9,9 +9,10 @@
 import type { ToolHandler, ExecutionContext, ToolResult } from '../../types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
-  sendTextMessage,
-  sendTemplateMessage as send360Template,
-} from '@/lib/whatsapp/api'
+  sendTextMessage as domainSendTextMessage,
+  sendTemplateMessage as domainSendTemplateMessage,
+} from '@/lib/domain/messages'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // TYPES
@@ -244,61 +245,42 @@ async function handleMessageSend(
     )
   }
 
-  // 6. Send via 360dialog
+  // 6. Delegate to domain
   try {
-    const response = await sendTextMessage(apiKey, conversation.phone, input.message)
-    const wamid = response.messages[0]?.id
+    const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+    const result = await domainSendTextMessage(ctx, {
+      conversationId: conversation.id,
+      contactPhone: conversation.phone,
+      messageBody: input.message,
+      apiKey,
+    })
 
-    // 7. Insert message to DB
-    const { data: message, error: insertError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversation.id,
-        workspace_id: context.workspaceId,
-        wamid,
-        direction: 'outbound',
-        type: 'text',
-        content: { body: input.message } as unknown as Record<string, unknown>,
-        status: 'sent',
-        timestamp: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-
-    if (insertError || !message) {
+    if (!result.success) {
       return toolError(
-        'internal_error',
-        'DB_INSERT_FAILED',
-        'Mensaje enviado pero no se pudo guardar en base de datos',
-        undefined,
+        'external_api_error',
+        'SEND_FAILED',
+        result.error || 'Error al enviar mensaje',
+        'Verifique la configuracion de WhatsApp e intente nuevamente',
         true
       )
     }
 
-    // 8. Update conversation last_message_at
-    const preview =
-      input.message.length > 100
-        ? input.message.slice(0, 100) + '...'
-        : input.message
+    // Unarchive if needed (adapter concern)
+    if (conversation.status === 'archived') {
+      await supabase
+        .from('conversations')
+        .update({ status: 'active' as const })
+        .eq('id', conversation.id)
+    }
 
-    await supabase
-      .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: preview,
-        ...(conversation.status === 'archived' ? { status: 'active' as const } : {}),
-      })
-      .eq('id', conversation.id)
-
-    // 9. Return success
     return {
       success: true,
       data: {
-        messageId: message.id,
+        messageId: result.data!.messageId,
         sent: true,
         timestamp: new Date().toISOString(),
       },
-      message_id: wamid,
+      message_id: result.data!.waMessageId,
     }
   } catch (err) {
     return toolError(
@@ -413,7 +395,7 @@ async function handleTemplateSend(
     )
   }
 
-  // 6. Build components from templateParams
+  // 6. Build components from templateParams (adapter concern: template parsing)
   const language = input.language || template.language || 'es'
   const templateParams = input.templateParams || {}
 
@@ -427,7 +409,6 @@ async function handleTemplateSend(
     parameters?: Array<{ type: 'text'; text: string }>
   }> = []
 
-  // Extract variable numbers from body text and build parameters
   const bodyVars = bodyComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
   if (bodyVars.length > 0) {
     apiComponents.push({
@@ -439,7 +420,6 @@ async function handleTemplateSend(
     })
   }
 
-  // Same for header if it has variables
   const headerVars = headerComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
   if (headerVars.length > 0) {
     apiComponents.push({
@@ -451,83 +431,54 @@ async function handleTemplateSend(
     })
   }
 
-  // 7. Send via 360dialog
-  try {
-    const response = await send360Template(
-      apiKey,
-      conversation.phone,
-      template.name,
-      language,
-      apiComponents.length > 0 ? apiComponents : undefined
+  // Build rendered text for display
+  let renderedText = bodyComponent?.text || ''
+  Object.entries(templateParams).forEach(([num, value]) => {
+    renderedText = renderedText.replace(
+      new RegExp(`\\{\\{${num}\\}\\}`, 'g'),
+      value
     )
+  })
 
-    const wamid = response.messages[0]?.id
-    if (!wamid) {
-      return toolError(
-        'external_api_error',
-        'NO_WAMID',
-        'No se recibio ID de mensaje de WhatsApp',
-        undefined,
-        true
-      )
-    }
-
-    // 8. Build rendered text for display
-    let renderedText = bodyComponent?.text || ''
-    Object.entries(templateParams).forEach(([num, value]) => {
-      renderedText = renderedText.replace(
-        new RegExp(`\\{\\{${num}\\}\\}`, 'g'),
-        value
-      )
+  // 7. Delegate to domain
+  try {
+    const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+    const result = await domainSendTemplateMessage(ctx, {
+      conversationId: conversation.id,
+      contactPhone: conversation.phone,
+      templateName: template.name,
+      templateLanguage: language,
+      components: apiComponents.length > 0 ? apiComponents : undefined,
+      renderedText,
+      apiKey,
     })
 
-    // Insert message to DB
-    const { data: message, error: insertError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversation.id,
-        workspace_id: context.workspaceId,
-        wamid,
-        direction: 'outbound',
-        type: 'template',
-        content: { body: renderedText } as unknown as Record<string, unknown>,
-        template_name: template.name,
-        status: 'sent',
-        timestamp: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-
-    if (insertError || !message) {
+    if (!result.success) {
       return toolError(
-        'internal_error',
-        'DB_INSERT_FAILED',
-        'Template enviado pero no se pudo guardar en base de datos',
-        undefined,
+        'external_api_error',
+        'TEMPLATE_SEND_FAILED',
+        result.error || 'Error al enviar template',
+        'Verifique la configuracion de WhatsApp y que el template este aprobado',
         true
       )
     }
 
-    // 9. Update conversation
-    const preview = `[Template] ${template.name}`
-    await supabase
-      .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: preview,
-        ...(conversation.status === 'archived' ? { status: 'active' as const } : {}),
-      })
-      .eq('id', conversation.id)
+    // Unarchive if needed (adapter concern)
+    if (conversation.status === 'archived') {
+      await supabase
+        .from('conversations')
+        .update({ status: 'active' as const })
+        .eq('id', conversation.id)
+    }
 
-    // 10. Return success
     return {
       success: true,
       data: {
-        messageId: message.id,
+        messageId: result.data!.messageId,
         sent: true,
         templateUsed: template.name,
       },
-      message_id: wamid,
+      message_id: result.data!.waMessageId,
     }
   } catch (err) {
     return toolError(

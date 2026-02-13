@@ -3,19 +3,16 @@
 // Executes automation actions via domain layer and direct DB ops.
 // Uses createAdminClient to bypass RLS (runs from Inngest, no user session).
 //
-// Phase 18: All CRM actions (orders, contacts, tags) delegate to domain.
+// Phase 18: All CRM + WhatsApp actions delegate to domain.
 // Trigger emissions handled by domain — no inline trigger code for
-// orders, contacts, or tags here.
-// Remaining direct DB: WhatsApp actions, task creation, webhooks.
+// orders, contacts, tags, or messages here.
+// Remaining direct DB: task creation, webhooks.
 // ============================================================================
 
 import type { AutomationAction, ActionType, TriggerContext } from './types'
 import { resolveVariables, resolveVariablesInObject } from './variable-resolver'
 import { WEBHOOK_TIMEOUT_MS } from './constants'
-import { initializeTools } from '@/lib/tools/init'
-import { executeToolFromWebhook } from '@/lib/tools/executor'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendMediaMessage } from '@/lib/whatsapp/api'
 import {
   createOrder as domainCreateOrder,
   duplicateOrder as domainDuplicateOrder,
@@ -31,6 +28,11 @@ import {
   assignTag as domainAssignTag,
   removeTag as domainRemoveTag,
 } from '@/lib/domain/tags'
+import {
+  sendTextMessage as domainSendTextMessage,
+  sendTemplateMessage as domainSendTemplateMessage,
+  sendMediaMessage as domainSendMediaMessage,
+} from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
@@ -44,11 +46,6 @@ export interface ActionResult {
   duration_ms: number
 }
 
-// Request metadata for tool executor (Inngest context, no real IP/UA)
-const AUTOMATION_REQUEST_META = {
-  ip: 'inngest',
-  userAgent: 'automation-engine',
-}
 
 // ============================================================================
 // Main Entry Point
@@ -72,9 +69,6 @@ export async function executeAction(
   const startMs = Date.now()
 
   try {
-    // Ensure tool registry is ready (idempotent)
-    initializeTools()
-
     // Resolve variables in action params before execution
     const resolvedParams = resolveVariablesInObject(
       action.params,
@@ -451,92 +445,22 @@ async function executeDuplicateOrder(
 }
 
 // ============================================================================
-// WhatsApp Actions (via existing tool handlers — unchanged)
+// WhatsApp Actions — via domain/messages
+// Domain handles API call + DB storage + conversation update.
+// Action executor resolves contact → conversation → API key (adapter concerns).
 // ============================================================================
 
 /**
- * Send a WhatsApp template message using the existing tool handler.
- * Tool name verified: whatsapp.template.send
+ * Helper: resolve contact → conversation → API key for WhatsApp actions.
+ * All 3 WhatsApp action types need this common lookup.
  */
-async function executeSendWhatsAppTemplate(
-  params: Record<string, unknown>,
-  context: TriggerContext,
+async function resolveWhatsAppContext(
+  contactId: string,
   workspaceId: string
-): Promise<unknown> {
-  const contactId = context.contactId
-  if (!contactId) throw new Error('No contactId available for WhatsApp template send')
-
-  const templateName = String(params.templateName || '')
-  if (!templateName) throw new Error('templateName is required for send_whatsapp_template')
-
-  const result = await executeToolFromWebhook(
-    'whatsapp.template.send',
-    {
-      contactId,
-      templateName,
-      templateParams: params.variables || {},
-      language: params.language || 'es',
-    },
-    workspaceId,
-    AUTOMATION_REQUEST_META
-  )
-
-  if (result.status === 'error') {
-    throw new Error(result.error?.message || 'WhatsApp template send failed')
-  }
-
-  return result.outputs
-}
-
-/**
- * Send a WhatsApp text message using the existing tool handler.
- * Tool name verified: whatsapp.message.send
- */
-async function executeSendWhatsAppText(
-  params: Record<string, unknown>,
-  context: TriggerContext,
-  workspaceId: string
-): Promise<unknown> {
-  const contactId = context.contactId
-  if (!contactId) throw new Error('No contactId available for WhatsApp text send')
-
-  const text = String(params.text || '')
-  if (!text) throw new Error('text is required for send_whatsapp_text')
-
-  const result = await executeToolFromWebhook(
-    'whatsapp.message.send',
-    {
-      contactId,
-      message: text,
-    },
-    workspaceId,
-    AUTOMATION_REQUEST_META
-  )
-
-  if (result.status === 'error') {
-    throw new Error(result.error?.message || 'WhatsApp text send failed')
-  }
-
-  return result.outputs
-}
-
-/**
- * Send a WhatsApp media message.
- * Uses direct 360dialog API since there's no dedicated media tool handler.
- */
-async function executeSendWhatsAppMedia(
-  params: Record<string, unknown>,
-  context: TriggerContext,
-  workspaceId: string
-): Promise<unknown> {
-  const contactId = context.contactId
-  if (!contactId) throw new Error('No contactId available for WhatsApp media send')
-
-  const mediaUrl = String(params.mediaUrl || '')
-  if (!mediaUrl) throw new Error('mediaUrl is required for send_whatsapp_media')
-
-  const caption = params.caption ? String(params.caption) : undefined
-
+): Promise<{
+  conversation: { id: string; phone: string; last_customer_message_at: string | null }
+  apiKey: string
+}> {
   const supabase = createAdminClient()
 
   // Get contact phone
@@ -561,17 +485,6 @@ async function executeSendWhatsAppMedia(
 
   if (!conversation) throw new Error('No conversation found for contact')
 
-  // Check 24h window
-  if (conversation.last_customer_message_at) {
-    const hoursSince =
-      (Date.now() - new Date(conversation.last_customer_message_at).getTime()) / (1000 * 60 * 60)
-    if (hoursSince >= 24) {
-      throw new Error('24h WhatsApp window closed — cannot send media')
-    }
-  } else {
-    throw new Error('No customer message — 24h window not open')
-  }
-
   // Get API key
   const { data: workspace } = await supabase
     .from('workspaces')
@@ -584,6 +497,151 @@ async function executeSendWhatsAppMedia(
   const apiKey = settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (!apiKey) throw new Error('WhatsApp API key not configured')
 
+  return { conversation, apiKey }
+}
+
+/**
+ * Send a WhatsApp template message via domain.
+ */
+async function executeSendWhatsAppTemplate(
+  params: Record<string, unknown>,
+  context: TriggerContext,
+  workspaceId: string
+): Promise<unknown> {
+  const contactId = context.contactId
+  if (!contactId) throw new Error('No contactId available for WhatsApp template send')
+
+  const templateName = String(params.templateName || '')
+  if (!templateName) throw new Error('templateName is required for send_whatsapp_template')
+
+  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
+
+  // Look up template to build components (adapter concern)
+  const supabase = createAdminClient()
+  const { data: template } = await supabase
+    .from('whatsapp_templates')
+    .select('name, language, components, status')
+    .eq('name', templateName)
+    .eq('workspace_id', workspaceId)
+    .single()
+
+  if (!template) throw new Error(`Template "${templateName}" not found`)
+  if (template.status !== 'APPROVED') throw new Error(`Template "${templateName}" not approved`)
+
+  const language = String(params.language || template.language || 'es')
+  const templateVars = (params.variables || {}) as Record<string, string>
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const components = template.components as any[]
+  const bodyComponent = components?.find((c: { type: string }) => c.type === 'BODY')
+
+  const apiComponents: Array<{
+    type: 'header' | 'body' | 'button'
+    parameters?: Array<{ type: 'text'; text: string }>
+  }> = []
+
+  const bodyVars = bodyComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
+  if (bodyVars.length > 0) {
+    apiComponents.push({
+      type: 'body',
+      parameters: bodyVars.map((v: string) => {
+        const num = v.replace(/[{}]/g, '')
+        return { type: 'text' as const, text: templateVars[num] || '' }
+      }),
+    })
+  }
+
+  // Build rendered text
+  let renderedText = bodyComponent?.text || ''
+  Object.entries(templateVars).forEach(([num, value]) => {
+    renderedText = renderedText.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value)
+  })
+
+  const ctx: DomainContext = { workspaceId, source: 'automation' }
+  const result = await domainSendTemplateMessage(ctx, {
+    conversationId: conversation.id,
+    contactPhone: conversation.phone,
+    templateName: template.name,
+    templateLanguage: language,
+    components: apiComponents.length > 0 ? apiComponents : undefined,
+    renderedText,
+    apiKey,
+  })
+
+  if (!result.success) throw new Error(result.error || 'WhatsApp template send failed')
+
+  return { messageId: result.data!.messageId, templateUsed: templateName, sent: true }
+}
+
+/**
+ * Send a WhatsApp text message via domain.
+ */
+async function executeSendWhatsAppText(
+  params: Record<string, unknown>,
+  context: TriggerContext,
+  workspaceId: string
+): Promise<unknown> {
+  const contactId = context.contactId
+  if (!contactId) throw new Error('No contactId available for WhatsApp text send')
+
+  const text = String(params.text || '')
+  if (!text) throw new Error('text is required for send_whatsapp_text')
+
+  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
+
+  // Check 24h window (adapter concern for text messages)
+  if (conversation.last_customer_message_at) {
+    const hoursSince =
+      (Date.now() - new Date(conversation.last_customer_message_at).getTime()) / (1000 * 60 * 60)
+    if (hoursSince >= 24) {
+      throw new Error('24h WhatsApp window closed — cannot send text')
+    }
+  } else {
+    throw new Error('No customer message — 24h window not open')
+  }
+
+  const ctx: DomainContext = { workspaceId, source: 'automation' }
+  const result = await domainSendTextMessage(ctx, {
+    conversationId: conversation.id,
+    contactPhone: conversation.phone,
+    messageBody: text,
+    apiKey,
+  })
+
+  if (!result.success) throw new Error(result.error || 'WhatsApp text send failed')
+
+  return { messageId: result.data!.messageId, sent: true }
+}
+
+/**
+ * Send a WhatsApp media message via domain.
+ */
+async function executeSendWhatsAppMedia(
+  params: Record<string, unknown>,
+  context: TriggerContext,
+  workspaceId: string
+): Promise<unknown> {
+  const contactId = context.contactId
+  if (!contactId) throw new Error('No contactId available for WhatsApp media send')
+
+  const mediaUrl = String(params.mediaUrl || '')
+  if (!mediaUrl) throw new Error('mediaUrl is required for send_whatsapp_media')
+
+  const caption = params.caption ? String(params.caption) : undefined
+
+  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
+
+  // Check 24h window (adapter concern for media messages)
+  if (conversation.last_customer_message_at) {
+    const hoursSince =
+      (Date.now() - new Date(conversation.last_customer_message_at).getTime()) / (1000 * 60 * 60)
+    if (hoursSince >= 24) {
+      throw new Error('24h WhatsApp window closed — cannot send media')
+    }
+  } else {
+    throw new Error('No customer message — 24h window not open')
+  }
+
   // Detect media type from URL extension
   const ext = mediaUrl.split('.').pop()?.toLowerCase() || ''
   const mediaType: 'image' | 'video' | 'audio' | 'document' =
@@ -592,38 +650,19 @@ async function executeSendWhatsAppMedia(
     ['mp3', 'ogg', 'wav', 'opus'].includes(ext) ? 'audio' :
     'document'
 
-  // Send via 360dialog API directly
-  const response = await sendMediaMessage(
-    apiKey,
-    conversation.phone,
-    mediaType,
+  const ctx: DomainContext = { workspaceId, source: 'automation' }
+  const result = await domainSendMediaMessage(ctx, {
+    conversationId: conversation.id,
+    contactPhone: conversation.phone,
     mediaUrl,
-    caption
-  )
-
-  // Save message to DB
-  const wamid = response.messages[0]?.id
-  await supabase.from('messages').insert({
-    conversation_id: conversation.id,
-    workspace_id: workspaceId,
-    wamid,
-    direction: 'outbound',
-    type: mediaType,
-    content: { [mediaType]: { link: mediaUrl }, ...(caption ? { caption } : {}) } as unknown as Record<string, unknown>,
-    status: 'sent',
-    timestamp: new Date().toISOString(),
+    mediaType,
+    caption,
+    apiKey,
   })
 
-  // Update conversation
-  await supabase
-    .from('conversations')
-    .update({
-      last_message_at: new Date().toISOString(),
-      last_message_preview: caption ? `[${mediaType}] ${caption.slice(0, 80)}` : `[${mediaType}]`,
-    })
-    .eq('id', conversation.id)
+  if (!result.success) throw new Error(result.error || 'WhatsApp media send failed')
 
-  return { messageId: wamid, mediaType, sent: true }
+  return { messageId: result.data!.messageId, mediaType, sent: true }
 }
 
 // ============================================================================

@@ -3,7 +3,7 @@
 // Each entity module is added as it's implemented in Plans 02-09
 // ============================================================================
 
-// export * from './orders'        // Plan 02
+export * from './orders'           // Plan 02
 // export * from './contacts'      // Plan 04
 // export * from './tags'          // Plan 04
 // export * from './messages'      // Plan 06

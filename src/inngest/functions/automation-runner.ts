@@ -425,14 +425,13 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
             `update-execution-${automation.id}`,
             async () => {
               const supabase = createAdminClient()
-              const startedAt = new Date() // approximate; actual started_at is DB default
               await supabase
                 .from('automation_executions')
                 .update({
                   status: result.status,
                   actions_log: result.actionsLog,
                   error_message: result.errorMessage,
-                  completed_at: new Date().toISOString(),
+                  completed_at: new Date().toLocaleString('sv-SE', { timeZone: 'America/Bogota' }),
                   duration_ms: result.actionsLog.reduce(
                     (sum, a) => sum + a.duration_ms,
                     0

@@ -864,6 +864,14 @@ import {
   updateTask as domainUpdateTask,
   completeTask as domainCompleteTask,
 } from '@/lib/domain/tasks'
+import {
+  createNote as domainCreateNote,
+  deleteNote as domainDeleteNote,
+} from '@/lib/domain/notes'
+import {
+  updateCustomFieldValues as domainUpdateCustomFieldValues,
+  readCustomFieldValues as domainReadCustomFieldValues,
+} from '@/lib/domain/custom-fields'
 import type { DomainContext } from '@/lib/domain/types'
 
 // Additional input types for new handlers
@@ -1955,6 +1963,392 @@ const taskList: ToolHandler = async (
 }
 
 // ============================================================================
+// Note Handlers — via domain/notes
+// Phase 18: Note mutations delegate to domain layer.
+// ============================================================================
+
+interface NoteCreateInput {
+  contactId: string
+  content: string
+}
+
+interface NoteListInput {
+  contactId: string
+  page?: number
+  pageSize?: number
+}
+
+interface NoteDeleteInput {
+  noteId: string
+}
+
+/**
+ * crm.note.create — Create a note on a contact.
+ * Delegates to domain/notes.createNote.
+ */
+const noteCreate: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as NoteCreateInput
+
+  if (!data.contactId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'CONTACT_ID_REQUIRED',
+        message: 'El ID del contacto es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (!data.content || typeof data.content !== 'string' || data.content.trim().length === 0) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'CONTENT_REQUIRED',
+        message: 'El contenido de la nota es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        contactId: data.contactId,
+        content: data.content.trim().substring(0, 100),
+        action: 'create_note',
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainCreateNote(ctx, {
+    contactId: data.contactId,
+    content: data.content.trim(),
+    createdBy: 'bot',
+  })
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'NOTE_CREATE_FAILED',
+        message: result.error || 'Error al crear la nota',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      noteId: result.data!.noteId,
+      created: true,
+    },
+    resource_url: `/crm/contactos/${data.contactId}`,
+  }
+}
+
+/**
+ * crm.note.list — List notes for a contact (read-only).
+ * Direct DB query — no domain function needed for reads.
+ */
+const noteList: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  _dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as NoteListInput
+
+  if (!data.contactId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'CONTACT_ID_REQUIRED',
+        message: 'El ID del contacto es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  const page = data.page ?? 1
+  const pageSize = Math.min(data.pageSize ?? 20, 100)
+  const offset = (page - 1) * pageSize
+
+  const supabase = createAdminClient()
+
+  const { data: notes, error, count } = await supabase
+    .from('contact_notes')
+    .select('id, content, user_id, created_at', { count: 'exact' })
+    .eq('contact_id', data.contactId)
+    .eq('workspace_id', context.workspaceId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  if (error) {
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'LIST_FAILED',
+        message: `Error al listar notas: ${error.message}`,
+        retryable: true,
+      },
+    }
+  }
+
+  const total = count ?? 0
+
+  return {
+    success: true,
+    data: {
+      notes: notes || [],
+      total,
+      page,
+      pageSize,
+    },
+  }
+}
+
+/**
+ * crm.note.delete — Delete a note from a contact.
+ * Delegates to domain/notes.deleteNote.
+ */
+const noteDelete: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as NoteDeleteInput
+
+  if (!data.noteId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'NOTE_ID_REQUIRED',
+        message: 'El ID de la nota es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        noteId: data.noteId,
+        action: 'delete_note',
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainDeleteNote(ctx, { noteId: data.noteId })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrada')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'NOTE_NOT_FOUND',
+          message: 'Nota no encontrada',
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'NOTE_DELETE_FAILED',
+        message: result.error || 'Error al eliminar la nota',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      noteId: data.noteId,
+      deleted: true,
+    },
+  }
+}
+
+// ============================================================================
+// Custom Field Handlers — via domain/custom-fields
+// Phase 18: Custom field value mutations delegate to domain layer.
+// ============================================================================
+
+interface CustomFieldUpdateInput {
+  contactId: string
+  fields: Record<string, unknown>
+}
+
+interface CustomFieldReadInput {
+  contactId: string
+}
+
+/**
+ * crm.custom-field.update — Update custom field values for a contact.
+ * Delegates to domain/custom-fields.updateCustomFieldValues.
+ */
+const customFieldUpdate: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as CustomFieldUpdateInput
+
+  if (!data.contactId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'CONTACT_ID_REQUIRED',
+        message: 'El ID del contacto es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  if (!data.fields || typeof data.fields !== 'object' || Object.keys(data.fields).length === 0) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'FIELDS_REQUIRED',
+        message: 'Se requiere al menos un campo personalizado para actualizar',
+        retryable: false,
+      },
+    }
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      data: {
+        _dry_run: true,
+        contactId: data.contactId,
+        fields: data.fields,
+        action: 'update_custom_fields',
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainUpdateCustomFieldValues(ctx, {
+    contactId: data.contactId,
+    fields: data.fields,
+  })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrado')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'CONTACT_NOT_FOUND',
+          message: 'Contacto no encontrado',
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'CUSTOM_FIELD_UPDATE_FAILED',
+        message: result.error || 'Error al actualizar campos personalizados',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      contactId: data.contactId,
+      updated: true,
+    },
+    resource_url: `/crm/contactos/${data.contactId}`,
+  }
+}
+
+/**
+ * crm.custom-field.read — Read custom field values and definitions for a contact.
+ * Delegates to domain/custom-fields.readCustomFieldValues.
+ */
+const customFieldRead: ToolHandler = async (
+  input: unknown,
+  context: ExecutionContext,
+  _dryRun: boolean
+): Promise<ToolResult<unknown>> => {
+  const data = input as CustomFieldReadInput
+
+  if (!data.contactId) {
+    return {
+      success: false,
+      error: {
+        type: 'validation_error',
+        code: 'CONTACT_ID_REQUIRED',
+        message: 'El ID del contacto es requerido',
+        retryable: false,
+      },
+    }
+  }
+
+  const ctx: DomainContext = { workspaceId: context.workspaceId, source: 'tool-handler' }
+  const result = await domainReadCustomFieldValues(ctx, { contactId: data.contactId })
+
+  if (!result.success) {
+    if (result.error?.includes('no encontrado')) {
+      return {
+        success: false,
+        error: {
+          type: 'not_found',
+          code: 'CONTACT_NOT_FOUND',
+          message: 'Contacto no encontrado',
+          retryable: false,
+        },
+      }
+    }
+    return {
+      success: false,
+      error: {
+        type: 'internal_error',
+        code: 'CUSTOM_FIELD_READ_FAILED',
+        message: result.error || 'Error al leer campos personalizados',
+        retryable: true,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      fields: result.data!.fields,
+      definitions: result.data!.definitions,
+    },
+    resource_url: `/crm/contactos/${data.contactId}`,
+  }
+}
+
+// ============================================================================
 // Export all CRM handlers
 // ============================================================================
 
@@ -1976,4 +2370,9 @@ export const crmHandlers: Record<string, ToolHandler> = {
   'crm.task.update': taskUpdate,
   'crm.task.complete': taskComplete,
   'crm.task.list': taskList,
+  'crm.note.create': noteCreate,
+  'crm.note.list': noteList,
+  'crm.note.delete': noteDelete,
+  'crm.custom-field.update': customFieldUpdate,
+  'crm.custom-field.read': customFieldRead,
 }

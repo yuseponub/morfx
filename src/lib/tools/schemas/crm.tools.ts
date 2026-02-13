@@ -936,6 +936,230 @@ export const crmTaskList: ToolSchema = {
   }
 }
 
+// ==================== NOTE TOOLS ====================
+
+export const crmNoteCreate: ToolSchema = {
+  name: 'crm.note.create',
+  description: 'Create a note on a contact. Notes are visible in the contact timeline.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the contact to add the note to'
+      },
+      content: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 5000,
+        description: 'Note content (required)'
+      }
+    },
+    required: ['contactId', 'content'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      noteId: { type: 'string' },
+      created: { type: 'boolean' }
+    },
+    required: ['noteId', 'created']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'note',
+    action: 'create',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: ['creates_record'],
+    permissions: ['contacts.edit']
+  }
+}
+
+export const crmNoteList: ToolSchema = {
+  name: 'crm.note.list',
+  description: 'List notes for a contact, sorted by most recent first.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the contact to list notes for'
+      },
+      page: {
+        type: 'integer',
+        minimum: 1,
+        default: 1,
+        description: 'Page number (default: 1)'
+      },
+      pageSize: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 100,
+        default: 20,
+        description: 'Items per page (default: 20, max: 100)'
+      }
+    },
+    required: ['contactId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      notes: { type: 'array', items: { type: 'object' } },
+      total: { type: 'integer' },
+      page: { type: 'integer' },
+      pageSize: { type: 'integer' }
+    },
+    required: ['notes', 'total', 'page', 'pageSize']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'note',
+    action: 'list',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: [],
+    permissions: ['contacts.view']
+  }
+}
+
+export const crmNoteDelete: ToolSchema = {
+  name: 'crm.note.delete',
+  description: 'Delete a note from a contact.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      noteId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the note to delete'
+      }
+    },
+    required: ['noteId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      noteId: { type: 'string' },
+      deleted: { type: 'boolean' }
+    },
+    required: ['noteId', 'deleted']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'note',
+    action: 'delete',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: ['deletes_record'],
+    permissions: ['contacts.edit']
+  }
+}
+
+// ==================== CUSTOM FIELD TOOLS ====================
+
+export const crmCustomFieldUpdate: ToolSchema = {
+  name: 'crm.custom-field.update',
+  description: 'Update custom field values for a contact. Merges provided fields into existing values.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the contact to update custom fields for'
+      },
+      fields: {
+        type: 'object',
+        description: 'Key-value pairs of custom field key to new value'
+      }
+    },
+    required: ['contactId', 'fields'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      contactId: { type: 'string' },
+      updated: { type: 'boolean' }
+    },
+    required: ['contactId', 'updated']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'custom-field',
+    action: 'update',
+    reversible: true,
+    requiresApproval: false,
+    sideEffects: ['updates_record'],
+    permissions: ['contacts.edit']
+  }
+}
+
+export const crmCustomFieldRead: ToolSchema = {
+  name: 'crm.custom-field.read',
+  description: 'Read custom field values and definitions for a contact.',
+
+  inputSchema: {
+    type: 'object',
+    properties: {
+      contactId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'ID of the contact to read custom fields for'
+      }
+    },
+    required: ['contactId'],
+    additionalProperties: false
+  },
+
+  outputSchema: {
+    type: 'object',
+    properties: {
+      fields: { type: 'object' },
+      definitions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            key: { type: 'string' },
+            label: { type: 'string' },
+            type: { type: 'string' }
+          }
+        }
+      }
+    },
+    required: ['fields', 'definitions']
+  },
+
+  metadata: {
+    module: 'crm',
+    entity: 'custom-field',
+    action: 'read',
+    reversible: false,
+    requiresApproval: false,
+    sideEffects: [],
+    permissions: ['contacts.view']
+  }
+}
+
 // Export all CRM tool schemas
 export const crmToolSchemas: ToolSchema[] = [
   crmContactCreate,
@@ -955,4 +1179,9 @@ export const crmToolSchemas: ToolSchema[] = [
   crmTaskUpdate,
   crmTaskComplete,
   crmTaskList,
+  crmNoteCreate,
+  crmNoteList,
+  crmNoteDelete,
+  crmCustomFieldUpdate,
+  crmCustomFieldRead,
 ]

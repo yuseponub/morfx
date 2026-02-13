@@ -6,6 +6,8 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import type { CustomFieldDefinition, FieldType } from '@/lib/types/database'
 import { generateFieldKey } from '@/lib/custom-fields/validator'
+import { updateCustomFieldValues as domainUpdateCustomFieldValues } from '@/lib/domain/custom-fields'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // Validation Schemas
@@ -346,8 +348,8 @@ export async function reorderCustomFields(orderedIds: string[]): Promise<ActionR
 // ============================================================================
 
 /**
- * Update custom field values for a contact
- * Validates values against field definitions
+ * Update custom field values for a contact.
+ * Auth validation here, JSONB merge + field.changed triggers in domain.
  */
 export async function updateContactCustomFields(
   contactId: string,
@@ -360,20 +362,24 @@ export async function updateContactCustomFields(
     return { error: 'No autenticado' }
   }
 
-  // Update contact's custom_fields
-  const { data, error } = await supabase
-    .from('contacts')
-    .update({ custom_fields: customFields })
-    .eq('id', contactId)
-    .select('custom_fields')
-    .single()
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
 
-  if (error) {
-    console.error('Error updating contact custom fields:', error)
-    return { error: 'Error al actualizar los campos personalizados' }
+  // Delegate to domain (handles JSONB merge + field.changed trigger emission)
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainUpdateCustomFieldValues(ctx, {
+    contactId,
+    fields: customFields,
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al actualizar los campos personalizados' }
   }
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${contactId}`)
-  return { success: true, data: data.custom_fields as Record<string, unknown> }
+  return { success: true, data: customFields }
 }

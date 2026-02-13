@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import type { TaskNoteWithUser } from '@/lib/tasks/types'
+import {
+  createTaskNote as domainCreateTaskNote,
+  updateTaskNote as domainUpdateTaskNote,
+  deleteTaskNote as domainDeleteTaskNote,
+} from '@/lib/domain/notes'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // Helper Types
@@ -63,12 +69,12 @@ export async function getTaskNotes(taskId: string): Promise<TaskNoteWithUser[]> 
 }
 
 // ============================================================================
-// Create Operations
+// Create Operations — delegates to domain
 // ============================================================================
 
 /**
- * Create a new note for a task
- * Also creates an activity record for the note
+ * Create a new note for a task.
+ * Auth + workspace validation here, mutation + activity logging in domain.
  */
 export async function createTaskNote(taskId: string, content: string): Promise<ActionResult<TaskNoteWithUser>> {
   const supabase = await createClient()
@@ -91,40 +97,25 @@ export async function createTaskNote(taskId: string, content: string): Promise<A
     return { error: 'No hay workspace seleccionado' }
   }
 
-  // Insert note
-  const { data: note, error: noteError } = await supabase
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainCreateTaskNote(ctx, {
+    taskId,
+    content: trimmedContent,
+    createdBy: user.id,
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al crear la nota' }
+  }
+
+  // Re-read the note with user profile for the response
+  const { data: note } = await supabase
     .from('task_notes')
-    .insert({
-      task_id: taskId,
-      workspace_id: workspaceId,
-      user_id: user.id,
-      content: trimmedContent,
-    })
-    .select()
+    .select('*')
+    .eq('id', result.data!.noteId)
     .single()
 
-  if (noteError) {
-    console.error('Error creating task note:', noteError)
-    return { error: 'Error al crear la nota' }
-  }
-
-  // Insert activity record for note creation
-  const { error: activityError } = await supabase
-    .from('task_activity')
-    .insert({
-      task_id: taskId,
-      workspace_id: workspaceId,
-      user_id: user.id,
-      action: 'note_added',
-      metadata: { preview: trimmedContent.substring(0, 100) }
-    })
-
-  if (activityError) {
-    console.error('Error logging task note activity:', activityError)
-    // Don't fail the operation, just log the error
-  }
-
-  // Get user profile for the response
   const { data: profile } = await supabase
     .from('profiles')
     .select('id, email')
@@ -136,19 +127,19 @@ export async function createTaskNote(taskId: string, content: string): Promise<A
   return {
     success: true,
     data: {
-      ...note,
+      ...note!,
       user: profile || { id: user.id, email: user.email || 'Usuario' }
     }
   }
 }
 
 // ============================================================================
-// Update Operations
+// Update Operations — delegates to domain
 // ============================================================================
 
 /**
- * Update an existing task note
- * Only the author or admin/owner can update notes
+ * Update an existing task note.
+ * Auth + permission check here, mutation in domain.
  */
 export async function updateTaskNote(noteId: string, content: string): Promise<ActionResult<void>> {
   const supabase = await createClient()
@@ -194,30 +185,12 @@ export async function updateTaskNote(noteId: string, content: string): Promise<A
     }
   }
 
-  // Update the note
-  const { error: updateError } = await supabase
-    .from('task_notes')
-    .update({ content: trimmedContent })
-    .eq('id', noteId)
+  // Delegate to domain
+  const ctx: DomainContext = { workspaceId: note.workspace_id, source: 'server-action' }
+  const result = await domainUpdateTaskNote(ctx, { noteId, content: trimmedContent })
 
-  if (updateError) {
-    console.error('Error updating task note:', updateError)
-    return { error: 'Error al actualizar la nota' }
-  }
-
-  // Insert activity record for note update
-  const { error: activityError } = await supabase
-    .from('task_activity')
-    .insert({
-      task_id: note.task_id,
-      workspace_id: note.workspace_id,
-      user_id: user.id,
-      action: 'note_updated',
-      metadata: { note_id: noteId, preview: trimmedContent.substring(0, 100) }
-    })
-
-  if (activityError) {
-    console.error('Error logging task note update activity:', activityError)
+  if (!result.success) {
+    return { error: result.error || 'Error al actualizar la nota' }
   }
 
   revalidatePath('/tareas')
@@ -226,12 +199,12 @@ export async function updateTaskNote(noteId: string, content: string): Promise<A
 }
 
 // ============================================================================
-// Delete Operations
+// Delete Operations — delegates to domain
 // ============================================================================
 
 /**
- * Delete a task note
- * Only the author or admin/owner can delete notes
+ * Delete a task note.
+ * Auth + permission check here, deletion + activity logging in domain.
  */
 export async function deleteTaskNote(noteId: string): Promise<ActionResult<void>> {
   const supabase = await createClient()
@@ -241,7 +214,7 @@ export async function deleteTaskNote(noteId: string): Promise<ActionResult<void>
     return { error: 'No autenticado' }
   }
 
-  // Get the note first to check permissions and get content for activity log
+  // Get the note first to check permissions
   const { data: note, error: fetchError } = await supabase
     .from('task_notes')
     .select('*')
@@ -271,30 +244,12 @@ export async function deleteTaskNote(noteId: string): Promise<ActionResult<void>
     }
   }
 
-  // Insert activity record before deleting (so we have the content preview)
-  const { error: activityError } = await supabase
-    .from('task_activity')
-    .insert({
-      task_id: note.task_id,
-      workspace_id: note.workspace_id,
-      user_id: user.id,
-      action: 'note_deleted',
-      metadata: { preview: note.content.substring(0, 100) }
-    })
+  // Delegate to domain (handles activity logging + deletion)
+  const ctx: DomainContext = { workspaceId: note.workspace_id, source: 'server-action' }
+  const result = await domainDeleteTaskNote(ctx, { noteId })
 
-  if (activityError) {
-    console.error('Error logging task note deletion activity:', activityError)
-  }
-
-  // Delete the note
-  const { error: deleteError } = await supabase
-    .from('task_notes')
-    .delete()
-    .eq('id', noteId)
-
-  if (deleteError) {
-    console.error('Error deleting task note:', deleteError)
-    return { error: 'Error al eliminar la nota' }
+  if (!result.success) {
+    return { error: result.error || 'Error al eliminar la nota' }
   }
 
   revalidatePath('/tareas')

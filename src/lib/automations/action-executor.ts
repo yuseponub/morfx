@@ -25,6 +25,9 @@ import {
   updateContact as domainUpdateContact,
 } from '@/lib/domain/contacts'
 import {
+  updateCustomFieldValues as domainUpdateCustomFieldValues,
+} from '@/lib/domain/custom-fields'
+import {
   assignTag as domainAssignTag,
   removeTag as domainRemoveTag,
 } from '@/lib/domain/tags'
@@ -332,21 +335,10 @@ async function executeUpdateField(
     })
     if (!result.success) throw new Error(result.error || `Failed to update field ${fieldName}`)
   } else {
-    // Custom field: read existing, merge, call domain updateContact
-    const supabase = createAdminClient()
-    const { data: current } = await supabase
-      .from('contacts')
-      .select('custom_fields')
-      .eq('id', entityId)
-      .eq('workspace_id', workspaceId)
-      .single()
-
-    const existingCustom = (current?.custom_fields as Record<string, unknown>) || {}
-    const updatedCustom = { ...existingCustom, [fieldName]: value }
-
-    const result = await domainUpdateContact(ctx, {
+    // Custom field: delegate to domain/custom-fields (handles JSONB merge + field.changed)
+    const result = await domainUpdateCustomFieldValues(ctx, {
       contactId: entityId,
-      customFields: updatedCustom,
+      fields: { [fieldName]: value },
     })
     if (!result.success) throw new Error(result.error || `Failed to update custom field ${fieldName}`)
   }

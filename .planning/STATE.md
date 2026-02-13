@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 7 of 10 (17-07 complete)
+Plan: 8 of 10 (17-08 complete)
 Status: In progress
-Last activity: 2026-02-13 — Completed 17-07-PLAN.md (Trigger Emission Wiring)
+Last activity: 2026-02-13 — Completed 17-08-PLAN.md (Automation List & History UI)
 
 Progress: [##########] 100% MVP v1 | [██████████████████░] 98% MVP v2
 
@@ -64,7 +64,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 7/10 | In Progress |
+| 17. CRM Automations Engine | 8/10 | In Progress |
 
 ## Accumulated Context
 
@@ -287,6 +287,11 @@ Recent decisions affecting MVP v2 work:
 - [17-07]: updateOrder emits both field.changed AND order.stage_changed when stage changes
 - [17-07]: WhatsApp automation emission fires for ALL message types (not just text)
 - [17-07]: Dynamic import of trigger-emitter in webhook handler to avoid circular dependency
+- [17-08]: badgeType field replaces hasBadge boolean for multi-badge sidebar support
+- [17-08]: Category colors: CRM=blue, WhatsApp=green, Tareas=yellow matching TRIGGER_CATALOG
+- [17-08]: List page uses enriched _lastExecutionStatus from getAutomations (avoids N+1 client fetches)
+- [17-08]: History page uses URL searchParams for server-side pagination
+- [17-08]: useAutomationBadge hook polls getRecentFailures every 5 minutes
 
 ### Project Rules
 
@@ -327,6 +332,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 17-07-PLAN.md (Trigger Emission Wiring)
+Stopped at: Completed 17-08-PLAN.md (Automation List & History UI)
 Resume file: None
-Next: 17-08-PLAN.md
+Next: 17-09-PLAN.md

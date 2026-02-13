@@ -200,10 +200,139 @@ export type IngestEvents = {
   }
 }
 
+// ============================================================================
+// Automation Events (Phase 17: CRM Automations Engine)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest).
+ * Automation trigger events. Emitted by trigger-emitter.ts when CRM/WhatsApp/Task
+ * changes occur. Consumed by automation-runner.ts Inngest functions.
+ *
+ * Event naming convention: automation/{trigger_type}
+ * All events carry cascadeDepth for cascade loop prevention (MAX_CASCADE_DEPTH=3).
  */
-export type AllAgentEvents = AgentEvents & IngestEvents
+export type AutomationEvents = {
+  'automation/order.stage_changed': {
+    data: {
+      workspaceId: string
+      orderId: string
+      previousStageId: string
+      newStageId: string
+      pipelineId: string
+      contactId: string | null
+      previousStageName?: string
+      newStageName?: string
+      pipelineName?: string
+      contactName?: string
+      contactPhone?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/tag.assigned': {
+    data: {
+      workspaceId: string
+      entityType: 'contact' | 'order' | 'conversation'
+      entityId: string
+      tagId: string
+      tagName: string
+      contactId?: string
+      contactName?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/tag.removed': {
+    data: {
+      workspaceId: string
+      entityType: 'contact' | 'order' | 'conversation'
+      entityId: string
+      tagId: string
+      tagName: string
+      contactId?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/contact.created': {
+    data: {
+      workspaceId: string
+      contactId: string
+      contactName: string
+      contactPhone: string
+      contactEmail?: string
+      contactCity?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/order.created': {
+    data: {
+      workspaceId: string
+      orderId: string
+      pipelineId: string
+      stageId: string
+      contactId: string | null
+      totalValue: number
+      sourceOrderId?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/field.changed': {
+    data: {
+      workspaceId: string
+      entityType: 'contact' | 'order'
+      entityId: string
+      fieldName: string
+      previousValue: unknown
+      newValue: unknown
+      cascadeDepth: number
+    }
+  }
+  'automation/whatsapp.message_received': {
+    data: {
+      workspaceId: string
+      conversationId: string
+      contactId: string | null
+      messageContent: string
+      phone: string
+      cascadeDepth: number
+    }
+  }
+  'automation/whatsapp.keyword_match': {
+    data: {
+      workspaceId: string
+      conversationId: string
+      contactId: string | null
+      messageContent: string
+      phone: string
+      keywordMatched: string
+      cascadeDepth: number
+    }
+  }
+  'automation/task.completed': {
+    data: {
+      workspaceId: string
+      taskId: string
+      taskTitle: string
+      contactId: string | null
+      orderId: string | null
+      cascadeDepth: number
+    }
+  }
+  'automation/task.overdue': {
+    data: {
+      workspaceId: string
+      taskId: string
+      taskTitle: string
+      dueDate: string
+      contactId: string | null
+      orderId: string | null
+      cascadeDepth: number
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents
 
 /**
  * Type helper for extracting event data by name

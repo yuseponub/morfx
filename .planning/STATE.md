@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 7 of 10 (tasks domain + tool handlers)
+Plan: 8 of 10 (notes + custom-fields domain + tool handlers)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-07-PLAN.md (Tasks Domain + Tool Handlers)
+Last activity: 2026-02-13 — Completed 18-08-PLAN.md (Notes + Custom Fields Domain)
 
 Progress: [##########] 100% MVP v1 | [█████████████████████░] 95% MVP v2
 
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 7/10 | In Progress |
+| 18. Domain Layer Foundation | 8/10 | In Progress |
 
 ## Accumulated Context
 
@@ -336,6 +336,11 @@ Recent decisions affecting MVP v2 work:
 - [18-07]: Task tool permissions mapped to contacts.* (no tasks.* in Permission type)
 - [18-07]: completeTask is idempotent: already-completed tasks return success without re-emitting trigger
 - [18-07]: completed_at uses Colombia timezone via toLocaleString('sv-SE', { timeZone: 'America/Bogota' })
+- [18-08]: Activity logging (contact_activity/task_activity) is a domain concern, moved from server actions
+- [18-08]: Custom field DEFINITIONS CRUD stays in server actions (admin config, not CRM mutation)
+- [18-08]: Note tool handlers use createdBy='bot' for activity attribution
+- [18-08]: Custom field trigger uses custom.{key} fieldName pattern for namespace clarity
+- [18-08]: Action executor contact custom fields use domain/custom-fields instead of domainUpdateContact
 
 ### Project Rules
 
@@ -378,6 +383,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-07-PLAN.md (Tasks Domain + Tool Handlers)
+Stopped at: Completed 18-08-PLAN.md (Notes + Custom Fields Domain)
 Resume file: None
-Next: 18-08-PLAN.md
+Next: 18-09-PLAN.md

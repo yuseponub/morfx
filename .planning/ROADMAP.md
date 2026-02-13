@@ -52,7 +52,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15.8: Codebase Cleanup** - Corregir bugs, seguridad, duplicados e inconsistencias del audit (INSERTED)
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 - [x] **Phase 16.1: Engine Unification** - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (INSERTED)
-- [ ] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
+- [x] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
 - [ ] **Phase 18: Domain Layer Foundation** - Capa domain/ como unica fuente de verdad para todas las mutaciones, habilitando IA distribuida
 - [ ] **Phase 19: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
 
@@ -651,7 +651,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
 | 16. WhatsApp Agent Integration | 5/6 | In progress | - |
 | 16.1. Engine Unification | 6/6 | Complete | 2026-02-10 |
-| 17. CRM Automations Engine | 10/10 | In progress | - |
+| 17. CRM Automations Engine | 10/10 | Complete | 2026-02-13 |
 | 18. Domain Layer Foundation | TBD | Not started | - |
 | 19. AI Automation Builder | TBD | Not started | - |
 

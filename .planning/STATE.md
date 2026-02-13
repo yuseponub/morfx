@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 17 in progress (CRM Automations Engine)
+**Current focus:** MVP v2.0 — Phase 18 next (Domain Layer Foundation)
 
 ## Current Position
 
-Phase: 17 of 18 (CRM Automations Engine) — IN PROGRESS
-Plan: 9 of 10 (17-09 complete)
-Status: In progress
-Last activity: 2026-02-13 — Completed 17-09-PLAN.md (Connected Orders)
+Phase: 17 of 19 (CRM Automations Engine) — COMPLETE
+Plan: 10 of 10 (all complete)
+Status: Phase 17 approved, Phase 18 next
+Last activity: 2026-02-13 — Phase 17 verified and approved by user
 
-Progress: [##########] 100% MVP v1 | [███████████████████░] 99% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████████░░] 90% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -38,7 +38,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
-- Phase 17: CRM Automations Engine (10 plans) — IN PROGRESS (10/10 checkpoint)
+- Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
 - Phase 18: Domain Layer Foundation (TBD plans) — Fundacion IA distribuida
 - Phase 19: AI Automation Builder (TBD plans)
 
@@ -65,7 +65,7 @@ All 11 phases + 4 inserted phases completed:
 | 15.8 Codebase Cleanup | 4/4 | Complete |
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
-| 17. CRM Automations Engine | 9/10 | In Progress |
+| 17. CRM Automations Engine | 10/10 | Complete |
 
 ## Accumulated Context
 

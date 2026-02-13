@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 6 of 10 (messages domain + keyword match + all callers wired)
+Plan: 7 of 10 (tasks domain + tool handlers)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-06-PLAN.md (Messages Domain + Keyword Match)
+Last activity: 2026-02-13 — Completed 18-07-PLAN.md (Tasks Domain + Tool Handlers)
 
 Progress: [##########] 100% MVP v1 | [█████████████████████░] 95% MVP v2
 
@@ -39,7 +39,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
-- Phase 18: Domain Layer Foundation (10 plans) — IN PROGRESS (5/10)
+- Phase 18: Domain Layer Foundation (10 plans) — IN PROGRESS (7/10)
 - Phase 19: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 6/10 | In Progress |
+| 18. Domain Layer Foundation | 7/10 | In Progress |
 
 ## Accumulated Context
 
@@ -331,6 +331,11 @@ Recent decisions affecting MVP v2 work:
 - [18-06]: Unarchive (archived→active on send) stays in callers as adapter concern
 - [18-06]: Action executor removed tool executor + whatsapp/api imports — fully domain-powered for WhatsApp
 - [18-06]: resolveWhatsAppContext helper for shared contact→conversation→apiKey lookup in action executor
+- [18-07]: No task.created trigger emitted (not in TRIGGER_CATALOG); only task.completed
+- [18-07]: task_type_id and created_by are server-action adapter concerns (not in domain params)
+- [18-07]: Task tool permissions mapped to contacts.* (no tasks.* in Permission type)
+- [18-07]: completeTask is idempotent: already-completed tasks return success without re-emitting trigger
+- [18-07]: completed_at uses Colombia timezone via toLocaleString('sv-SE', { timeZone: 'America/Bogota' })
 
 ### Project Rules
 
@@ -373,6 +378,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-06-PLAN.md (Messages Domain + Keyword Match)
+Stopped at: Completed 18-07-PLAN.md (Tasks Domain + Tool Handlers)
 Resume file: None
-Next: 18-07-PLAN.md
+Next: 18-08-PLAN.md

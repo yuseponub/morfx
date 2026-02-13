@@ -13,6 +13,13 @@ import type {
   PipelineWithStages,
   PipelineStage,
 } from '@/lib/orders/types'
+import {
+  emitOrderCreated,
+  emitOrderStageChanged,
+  emitFieldChanged,
+  emitTagAssigned,
+  emitTagRemoved,
+} from '@/lib/automations/trigger-emitter'
 
 // ============================================================================
 // Validation Schemas
@@ -379,6 +386,16 @@ export async function createOrder(formData: OrderFormData): Promise<ActionResult
     return { error: 'Pedido creado pero no se pudo cargar' }
   }
 
+  // Fire-and-forget: emit automation trigger
+  emitOrderCreated({
+    workspaceId,
+    orderId: order.id,
+    pipelineId: order.pipeline_id,
+    stageId: order.stage_id,
+    contactId: order.contact_id ?? null,
+    totalValue: order.total_value ?? 0,
+  })
+
   return { success: true, data: completeOrder }
 }
 
@@ -395,6 +412,13 @@ export async function updateOrder(id: string, formData: Partial<OrderFormData>):
   }
 
   const { products, ...orderData } = formData
+
+  // Capture previous state BEFORE update (for field change automation triggers)
+  const { data: previousOrder } = await supabase
+    .from('orders')
+    .select('workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, carrier, tracking_number, shipping_address, shipping_city, custom_fields')
+    .eq('id', id)
+    .single()
 
   // Build update object with explicit null handling
   const updates: Record<string, unknown> = {}
@@ -465,6 +489,39 @@ export async function updateOrder(id: string, formData: Partial<OrderFormData>):
     return { error: 'Pedido actualizado pero no se pudo cargar' }
   }
 
+  // Fire-and-forget: emit field change automation triggers
+  if (previousOrder) {
+    const workspaceId = previousOrder.workspace_id
+    const trackedFields = ['contact_id', 'pipeline_id', 'stage_id', 'closing_date', 'description', 'carrier', 'tracking_number', 'shipping_address', 'shipping_city'] as const
+    for (const field of trackedFields) {
+      const prevVal = previousOrder[field]
+      const newVal = updates[field]
+      if (newVal !== undefined && String(prevVal ?? '') !== String(newVal ?? '')) {
+        emitFieldChanged({
+          workspaceId,
+          entityType: 'order',
+          entityId: id,
+          fieldName: field,
+          previousValue: prevVal != null ? String(prevVal) : null,
+          newValue: newVal != null ? String(newVal) : null,
+          contactId: previousOrder.contact_id ?? undefined,
+        })
+      }
+    }
+
+    // Stage change also emits order.stage_changed
+    if (updates.stage_id !== undefined && previousOrder.stage_id !== updates.stage_id) {
+      emitOrderStageChanged({
+        workspaceId,
+        orderId: id,
+        previousStageId: previousOrder.stage_id,
+        newStageId: updates.stage_id as string,
+        pipelineId: previousOrder.pipeline_id,
+        contactId: previousOrder.contact_id ?? null,
+      })
+    }
+  }
+
   return { success: true, data: updatedOrder }
 }
 
@@ -479,6 +536,13 @@ export async function moveOrderToStage(orderId: string, newStageId: string): Pro
   if (!user) {
     return { error: 'No autenticado' }
   }
+
+  // Capture current order state BEFORE update (for automation trigger)
+  const { data: currentOrder } = await supabase
+    .from('orders')
+    .select('workspace_id, stage_id, pipeline_id, contact_id')
+    .eq('id', orderId)
+    .single()
 
   // Get stage to check WIP limit
   const { data: stage, error: stageError } = await supabase
@@ -517,6 +581,19 @@ export async function moveOrderToStage(orderId: string, newStageId: string): Pro
   }
 
   revalidatePath('/crm/pedidos')
+
+  // Fire-and-forget: emit automation trigger for stage change
+  if (currentOrder && currentOrder.stage_id !== newStageId) {
+    emitOrderStageChanged({
+      workspaceId: currentOrder.workspace_id,
+      orderId,
+      previousStageId: currentOrder.stage_id,
+      newStageId,
+      pipelineId: currentOrder.pipeline_id,
+      contactId: currentOrder.contact_id ?? null,
+    })
+  }
+
   return { success: true, data: { warning } }
 }
 
@@ -704,6 +781,23 @@ export async function addOrderTag(orderId: string, tagId: string): Promise<Actio
   }
 
   revalidatePath('/crm/pedidos')
+
+  // Fire-and-forget: emit automation trigger for tag assigned
+  const [{ data: order }, { data: tag }] = await Promise.all([
+    supabase.from('orders').select('workspace_id, contact_id').eq('id', orderId).single(),
+    supabase.from('tags').select('name').eq('id', tagId).single(),
+  ])
+  if (order && tag) {
+    emitTagAssigned({
+      workspaceId: order.workspace_id,
+      entityType: 'order',
+      entityId: orderId,
+      tagId,
+      tagName: tag.name,
+      contactId: order.contact_id ?? null,
+    })
+  }
+
   return { success: true, data: undefined }
 }
 
@@ -730,5 +824,22 @@ export async function removeOrderTag(orderId: string, tagId: string): Promise<Ac
   }
 
   revalidatePath('/crm/pedidos')
+
+  // Fire-and-forget: emit automation trigger for tag removed
+  const [{ data: order }, { data: tag }] = await Promise.all([
+    supabase.from('orders').select('workspace_id, contact_id').eq('id', orderId).single(),
+    supabase.from('tags').select('name').eq('id', tagId).single(),
+  ])
+  if (order && tag) {
+    emitTagRemoved({
+      workspaceId: order.workspace_id,
+      entityType: 'order',
+      entityId: orderId,
+      tagId,
+      tagName: tag.name,
+      contactId: order.contact_id ?? null,
+    })
+  }
+
   return { success: true, data: undefined }
 }

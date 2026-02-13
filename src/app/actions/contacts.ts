@@ -6,6 +6,12 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { normalizePhone } from '@/lib/utils/phone'
 import type { Contact, ContactWithTags, Tag } from '@/lib/types/database'
+import {
+  emitContactCreated,
+  emitFieldChanged,
+  emitTagAssigned,
+  emitTagRemoved,
+} from '@/lib/automations/trigger-emitter'
 
 // ============================================================================
 // Validation Schemas
@@ -253,6 +259,17 @@ export async function createContact(data: ContactInput): Promise<ActionResult<Co
 
   revalidatePath('/crm/contactos')
   revalidatePath('/crm/pedidos')
+
+  // Fire-and-forget: emit automation trigger
+  emitContactCreated({
+    workspaceId,
+    contactId: contact.id,
+    contactName: contact.name,
+    contactPhone: contact.phone,
+    contactEmail: contact.email ?? undefined,
+    contactCity: contact.city ?? undefined,
+  })
+
   return { success: true, data: contact }
 }
 
@@ -320,6 +337,17 @@ export async function createContactFromForm(formData: FormData): Promise<ActionR
   }
 
   revalidatePath('/crm/contactos')
+
+  // Fire-and-forget: emit automation trigger
+  emitContactCreated({
+    workspaceId,
+    contactId: data.id,
+    contactName: data.name,
+    contactPhone: data.phone,
+    contactEmail: data.email ?? undefined,
+    contactCity: data.city ?? undefined,
+  })
+
   return { success: true, data }
 }
 
@@ -334,6 +362,13 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
   if (!user) {
     return { error: 'No autenticado' }
   }
+
+  // Capture previous state BEFORE update (for field change automation triggers)
+  const { data: previousContact } = await supabase
+    .from('contacts')
+    .select('workspace_id, name, phone, email, address, city')
+    .eq('id', id)
+    .single()
 
   // Parse and validate input
   const raw = {
@@ -356,16 +391,18 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
     return { error: 'Numero de telefono invalido', field: 'phone' }
   }
 
+  const newValues = {
+    name: result.data.name,
+    phone: normalizedPhone,
+    email: result.data.email || null,
+    address: result.data.address || null,
+    city: result.data.city || null,
+  }
+
   // Update contact
   const { data, error } = await supabase
     .from('contacts')
-    .update({
-      name: result.data.name,
-      phone: normalizedPhone,
-      email: result.data.email || null,
-      address: result.data.address || null,
-      city: result.data.city || null,
-    })
+    .update(newValues)
     .eq('id', id)
     .select()
     .single()
@@ -380,6 +417,29 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${id}`)
+
+  // Fire-and-forget: emit field change automation triggers
+  if (previousContact) {
+    const workspaceId = previousContact.workspace_id
+    const trackedFields = ['name', 'phone', 'email', 'address', 'city'] as const
+    for (const field of trackedFields) {
+      const prevVal = previousContact[field]
+      const newVal = newValues[field]
+      if (String(prevVal ?? '') !== String(newVal ?? '')) {
+        emitFieldChanged({
+          workspaceId,
+          entityType: 'contact',
+          entityId: id,
+          fieldName: field,
+          previousValue: prevVal != null ? String(prevVal) : null,
+          newValue: newVal != null ? String(newVal) : null,
+          contactId: id,
+          contactName: data.name,
+        })
+      }
+    }
+  }
+
   return { success: true, data }
 }
 
@@ -471,6 +531,25 @@ export async function addTagToContact(contactId: string, tagId: string): Promise
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${contactId}`)
+
+  // Fire-and-forget: emit automation trigger for tag assigned
+  const [{ data: contact }, { data: tag }] = await Promise.all([
+    supabase.from('contacts').select('workspace_id, name, phone').eq('id', contactId).single(),
+    supabase.from('tags').select('name').eq('id', tagId).single(),
+  ])
+  if (contact && tag) {
+    emitTagAssigned({
+      workspaceId: contact.workspace_id,
+      entityType: 'contact',
+      entityId: contactId,
+      tagId,
+      tagName: tag.name,
+      contactId,
+      contactName: contact.name,
+      contactPhone: contact.phone,
+    })
+  }
+
   return { success: true, data: undefined }
 }
 
@@ -498,6 +577,24 @@ export async function removeTagFromContact(contactId: string, tagId: string): Pr
 
   revalidatePath('/crm/contactos')
   revalidatePath(`/crm/contactos/${contactId}`)
+
+  // Fire-and-forget: emit automation trigger for tag removed
+  const [{ data: contact }, { data: tag }] = await Promise.all([
+    supabase.from('contacts').select('workspace_id, name').eq('id', contactId).single(),
+    supabase.from('tags').select('name').eq('id', tagId).single(),
+  ])
+  if (contact && tag) {
+    emitTagRemoved({
+      workspaceId: contact.workspace_id,
+      entityType: 'contact',
+      entityId: contactId,
+      tagId,
+      tagName: tag.name,
+      contactId,
+      contactName: contact.name,
+    })
+  }
+
   return { success: true, data: undefined }
 }
 
@@ -532,6 +629,27 @@ export async function bulkAddTag(contactIds: string[], tagId: string): Promise<A
   }
 
   revalidatePath('/crm/contactos')
+
+  // Fire-and-forget: emit automation trigger for each contact
+  const [{ data: contacts }, { data: tag }] = await Promise.all([
+    supabase.from('contacts').select('id, workspace_id, name, phone').in('id', contactIds),
+    supabase.from('tags').select('name').eq('id', tagId).single(),
+  ])
+  if (contacts && tag) {
+    for (const contact of contacts) {
+      emitTagAssigned({
+        workspaceId: contact.workspace_id,
+        entityType: 'contact',
+        entityId: contact.id,
+        tagId,
+        tagName: tag.name,
+        contactId: contact.id,
+        contactName: contact.name,
+        contactPhone: contact.phone,
+      })
+    }
+  }
+
   return { success: true, data: undefined }
 }
 
@@ -562,6 +680,26 @@ export async function bulkRemoveTag(contactIds: string[], tagId: string): Promis
   }
 
   revalidatePath('/crm/contactos')
+
+  // Fire-and-forget: emit automation trigger for each contact
+  const [{ data: contacts }, { data: tag }] = await Promise.all([
+    supabase.from('contacts').select('id, workspace_id, name').in('id', contactIds),
+    supabase.from('tags').select('name').eq('id', tagId).single(),
+  ])
+  if (contacts && tag) {
+    for (const contact of contacts) {
+      emitTagRemoved({
+        workspaceId: contact.workspace_id,
+        entityType: 'contact',
+        entityId: contact.id,
+        tagId,
+        tagName: tag.name,
+        contactId: contact.id,
+        contactName: contact.name,
+      })
+    }
+  }
+
   return { success: true, data: undefined }
 }
 

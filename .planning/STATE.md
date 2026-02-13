@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 18 of 19 (Domain Layer Foundation) — IN PROGRESS
-Plan: 1 of TBD (foundation complete)
+Plan: 2 of 10 (orders domain complete)
 Status: In progress
-Last activity: 2026-02-13 — Completed 18-01-PLAN.md (Foundation Types + Audit + CLAUDE.md Rule)
+Last activity: 2026-02-13 — Completed 18-02-PLAN.md (Orders Domain Functions)
 
-Progress: [##########] 100% MVP v1 | [███████████████████░] 92% MVP v2
+Progress: [##########] 100% MVP v1 | [███████████████████░] 93% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -39,7 +39,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
-- Phase 18: Domain Layer Foundation (TBD plans) — IN PROGRESS (1/TBD)
+- Phase 18: Domain Layer Foundation (10 plans) — IN PROGRESS (2/10)
 - Phase 19: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
@@ -66,7 +66,7 @@ All 11 phases + 4 inserted phases completed:
 | 16. WhatsApp Agent Integration | 5/6 | In Progress |
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
-| 18. Domain Layer Foundation | 1/TBD | In Progress |
+| 18. Domain Layer Foundation | 2/10 | In Progress |
 
 ## Accumulated Context
 
@@ -303,6 +303,12 @@ Recent decisions affecting MVP v2 work:
 - [18-01]: No RLS on mutation_audit (system table, never exposed via API)
 - [18-01]: contact_tags and order_tags audit only INSERT/DELETE (no UPDATE on junction tables)
 - [18-01]: Zero-import pattern: domain/types.ts has ZERO project imports to prevent circular deps
+- [18-02]: Domain function signature: (ctx: DomainContext, params: XxxParams) => Promise<DomainResult<XxxResult>>
+- [18-02]: Tag domain functions lookup by name only (error if not found), no find-or-create
+- [18-02]: duplicateOrder copies carrier, tracking_number, custom_fields (more complete than action-executor)
+- [18-02]: updateOrder emits per-field triggers + custom_fields as JSON-stringified comparison
+- [18-02]: total_value recalculated after product insert (manual re-read, DB trigger may also fire)
+- [18-02]: stageId typed as string (not string|null) after resolution — initialized to '' for falsy check
 
 ### Project Rules
 
@@ -345,6 +351,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 18-01-PLAN.md (Foundation Types + Audit + Rule)
+Stopped at: Completed 18-02-PLAN.md (Orders Domain Functions)
 Resume file: None
-Next: 18-02-PLAN.md
+Next: 18-03-PLAN.md

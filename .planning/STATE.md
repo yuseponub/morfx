@@ -38,8 +38,9 @@ All 11 phases + 4 inserted phases completed:
 - Phase 15.8: Codebase Cleanup (4 plans) — INSERTED — COMPLETE
 - Phase 16: WhatsApp Agent Integration (6 plans) — IN PROGRESS (5/6)
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
-- Phase 17: CRM Automations Engine (10 plans) — IN PROGRESS (9/10)
-- Phase 18: AI Automation Builder (TBD plans)
+- Phase 17: CRM Automations Engine (10 plans) — IN PROGRESS (10/10 checkpoint)
+- Phase 18: Domain Layer Foundation (TBD plans) — Fundacion IA distribuida
+- Phase 19: AI Automation Builder (TBD plans)
 
 ## Performance Metrics
 
@@ -328,6 +329,7 @@ Established in `CLAUDE.md`:
 ### Roadmap Evolution
 
 - Phase 16.1 inserted after Phase 16: Engine Unification - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (URGENT)
+- Phase 18 added: Domain Layer Foundation - Capa domain/ como unica fuente de verdad para mutaciones. Descubierto durante verificacion de Fase 17: bot WhatsApp no dispara automatizaciones porque tool handlers bypasean trigger emissions. AI Automation Builder movido a Phase 19.
 
 ### Blockers/Concerns
 

@@ -9,7 +9,7 @@ MorfX is a CRM + WhatsApp SaaS platform for e-commerce COD businesses. This road
 ## Milestones
 
 - **MVP v1.0** - Phases 1-11 (Complete 2026-02-04)
-- **MVP v2.0 Agentes Conversacionales** - Phases 12-18 (In progress)
+- **MVP v2.0 Agentes Conversacionales** - Phases 12-19 (In progress)
 
 ## Phases
 
@@ -53,7 +53,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 - [x] **Phase 16.1: Engine Unification** - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (INSERTED)
 - [ ] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
-- [ ] **Phase 18: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
+- [ ] **Phase 18: Domain Layer Foundation** - Capa domain/ como unica fuente de verdad para todas las mutaciones, habilitando IA distribuida
+- [ ] **Phase 19: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
 
 ---
 
@@ -573,9 +574,28 @@ Plans:
 - [ ] 17-09-PLAN.md — Connected orders (source_order_id) + related orders UI
 - [ ] 17-10-PLAN.md — TypeScript verification + human verification of all success criteria
 
-### Phase 18: AI Automation Builder
-**Goal**: Meta-agente de IA que crea y configura automatizaciones por lenguaje natural con verificacion de recursos
+### Phase 18: Domain Layer Foundation
+**Goal**: Crear capa `src/lib/domain/` como unica fuente de verdad para todas las mutaciones del sistema, eliminando duplicacion entre server actions, tool handlers, action executor y adapters. Fundacion para IA distribuida.
 **Depends on**: Phase 17
+**Requirements**: TBD during /gsd:discuss-phase
+**Success Criteria** (what must be TRUE):
+  1. Toda operacion que modifica datos pasa por domain/ — server actions, tool handlers, action executor, adapters y webhooks
+  2. Todas las funciones domain emiten triggers de automatizacion cuando corresponde
+  3. Tool handlers existentes (9 CRM + 7 WhatsApp) refactoreados para usar domain/
+  4. Action executor refactoreado para usar domain/ (eliminar duplicacion de logica CRM directa)
+  5. Nuevos tool handlers creados: tareas (create, update, complete, list), order CRUD extendido, notas, custom fields
+  6. Triggers muertos activados: whatsapp.keyword_match (wiring en webhook), task.overdue (cron/scheduler)
+  7. Shopify webhook emite triggers de automatizacion al crear ordenes/contactos
+  8. Regla permanente en CLAUDE.md: domain/ es la unica fuente de verdad para mutaciones
+  9. Bot WhatsApp puede disparar automatizaciones identicas a las del CRM UI
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD during /gsd:plan-phase
+
+### Phase 19: AI Automation Builder
+**Goal**: Meta-agente de IA que crea y configura automatizaciones por lenguaje natural con verificacion de recursos
+**Depends on**: Phase 18
 **Requirements**: TBD during /gsd:discuss-phase
 **Success Criteria** (what must be TRUE):
   1. Usuario describe automatizacion en lenguaje natural y el agente la crea
@@ -588,14 +608,14 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 18-01: TBD during /gsd:plan-phase
+- [ ] 19-01: TBD during /gsd:plan-phase
 
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 (v2)
+Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 (v2)
 
 ### MVP v1.0 (Complete)
 
@@ -631,9 +651,10 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 15.8. Codebase Cleanup | 4/4 | Complete | 2026-02-09 |
 | 16. WhatsApp Agent Integration | 5/6 | In progress | - |
 | 16.1. Engine Unification | 6/6 | Complete | 2026-02-10 |
-| 17. CRM Automations Engine | 0/10 | Planned | - |
-| 18. AI Automation Builder | TBD | Not started | - |
+| 17. CRM Automations Engine | 10/10 | In progress | - |
+| 18. Domain Layer Foundation | TBD | Not started | - |
+| 19. AI Automation Builder | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-10 (Phase 16.1 Engine Unification complete)*
+*Last updated: 2026-02-13 (Phase 18 Domain Layer added, AI Automation Builder moved to Phase 19)*

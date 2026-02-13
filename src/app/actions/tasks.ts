@@ -14,7 +14,13 @@ import type {
   CreateTaskTypeInput,
   UpdateTaskTypeInput,
 } from '@/lib/tasks/types'
-import { emitTaskCompleted } from '@/lib/automations/trigger-emitter'
+import {
+  createTask as domainCreateTask,
+  updateTask as domainUpdateTask,
+  completeTask as domainCompleteTask,
+  deleteTask as domainDeleteTask,
+} from '@/lib/domain/tasks'
+import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
 // Helper Types
@@ -197,7 +203,8 @@ export async function getTask(id: string): Promise<TaskWithDetails | null> {
 
 /**
  * Create a new task.
- * Validates that at most one entity_id is provided (exclusive arc).
+ * Delegates to domain/tasks.createTask for DB logic + trigger emission.
+ * Keeps auth validation + revalidatePath as adapter concerns.
  */
 export async function createTask(input: CreateTaskInput): Promise<ActionResult<Task>> {
   const supabase = await createClient()
@@ -212,49 +219,40 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
     return { error: 'No hay workspace seleccionado' }
   }
 
-  // Validate exclusive arc: at most one entity can be linked
-  const entityCount = [input.contact_id, input.order_id, input.conversation_id]
-    .filter(Boolean).length
-  if (entityCount > 1) {
-    return { error: 'Una tarea solo puede estar vinculada a un contacto, pedido o conversacion' }
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainCreateTask(ctx, {
+    title: input.title,
+    description: input.description || undefined,
+    dueDate: input.due_date || undefined,
+    priority: input.priority || undefined,
+    contactId: input.contact_id || undefined,
+    orderId: input.order_id || undefined,
+    conversationId: input.conversation_id || undefined,
+    assignedTo: input.assigned_to || undefined,
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al crear la tarea' }
   }
 
-  // Validate title
-  if (!input.title?.trim()) {
-    return { error: 'El titulo es requerido' }
-  }
-
-  const { data, error } = await supabase
+  // Re-read full task for response (domain returns only taskId)
+  // Also set created_by which is a server-action concern (domain doesn't know user)
+  const { data: taskData } = await supabase
     .from('tasks')
-    .insert({
-      workspace_id: workspaceId,
-      title: input.title.trim(),
-      description: input.description?.trim() || null,
-      due_date: input.due_date || null,
-      priority: input.priority || 'medium',
-      status: 'pending',
-      task_type_id: input.task_type_id || null,
-      assigned_to: input.assigned_to || null,
-      contact_id: input.contact_id || null,
-      order_id: input.order_id || null,
-      conversation_id: input.conversation_id || null,
-      created_by: user.id,
-    })
+    .update({ task_type_id: input.task_type_id || null, created_by: user.id })
+    .eq('id', result.data!.taskId)
     .select()
     .single()
 
-  if (error || !data) {
-    console.error('Error creating task:', error)
-    return { error: 'Error al crear la tarea' }
-  }
-
   revalidatePath('/tareas')
-  return { success: true, data: data as Task }
+  return { success: true, data: (taskData || { id: result.data!.taskId }) as Task }
 }
 
 /**
  * Update an existing task.
- * Handles status changes for completed_at timestamp.
+ * Delegates to domain/tasks.updateTask for DB logic + trigger emission.
+ * Keeps auth validation + revalidatePath as adapter concerns.
+ * task_type_id is a server-action concern (not in domain params).
  */
 export async function updateTask(id: string, input: UpdateTaskInput): Promise<ActionResult<Task>> {
   const supabase = await createClient()
@@ -264,81 +262,54 @@ export async function updateTask(id: string, input: UpdateTaskInput): Promise<Ac
     return { error: 'No autenticado' }
   }
 
-  // Build update object
-  const updates: Record<string, unknown> = {}
-
-  if (input.title !== undefined) {
-    if (!input.title?.trim()) {
-      return { error: 'El titulo es requerido' }
-    }
-    updates.title = input.title.trim()
+  const workspaceId = await getWorkspaceId()
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
   }
 
-  if (input.description !== undefined) {
-    updates.description = input.description?.trim() || null
+  // Domain handles: title, description, dueDate, priority, status, assignedTo
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainUpdateTask(ctx, {
+    taskId: id,
+    title: input.title,
+    description: input.description,
+    dueDate: input.due_date,
+    priority: input.priority,
+    status: input.status,
+    assignedTo: input.assigned_to,
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al actualizar la tarea' }
   }
 
-  if (input.due_date !== undefined) {
-    updates.due_date = input.due_date
-  }
-
-  if (input.priority !== undefined) {
-    updates.priority = input.priority
-  }
-
+  // task_type_id is a server-action concern (domain doesn't manage task types)
   if (input.task_type_id !== undefined) {
-    updates.task_type_id = input.task_type_id
+    await supabase
+      .from('tasks')
+      .update({ task_type_id: input.task_type_id })
+      .eq('id', id)
   }
 
-  if (input.assigned_to !== undefined) {
-    updates.assigned_to = input.assigned_to
-  }
-
-  // Handle status changes
-  if (input.status !== undefined) {
-    updates.status = input.status
-    if (input.status === 'completed') {
-      updates.completed_at = new Date().toISOString()
-    } else if (input.status === 'pending') {
-      updates.completed_at = null
-    }
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return { error: 'No hay cambios para guardar' }
-  }
-
+  // Re-read updated task for response
   const { data, error } = await supabase
     .from('tasks')
-    .update(updates)
-    .eq('id', id)
     .select()
+    .eq('id', id)
     .single()
 
   if (error || !data) {
-    console.error('Error updating task:', error)
-    return { error: 'Error al actualizar la tarea' }
+    console.error('Error reading updated task:', error)
+    return { error: 'Error al leer la tarea actualizada' }
   }
 
   revalidatePath('/tareas')
-
-  // Fire-and-forget: emit automation trigger when task is completed
-  if (input.status === 'completed') {
-    const task = data as Task
-    emitTaskCompleted({
-      workspaceId: task.workspace_id,
-      taskId: id,
-      taskTitle: task.title,
-      contactId: task.contact_id ?? null,
-      orderId: task.order_id ?? null,
-    })
-  }
-
   return { success: true, data: data as Task }
 }
 
 /**
  * Delete a task by ID.
+ * Delegates to domain/tasks.deleteTask.
  */
 export async function deleteTask(id: string): Promise<ActionResult<void>> {
   const supabase = await createClient()
@@ -348,14 +319,16 @@ export async function deleteTask(id: string): Promise<ActionResult<void>> {
     return { error: 'No autenticado' }
   }
 
-  const { error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', id)
+  const workspaceId = await getWorkspaceId()
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
 
-  if (error) {
-    console.error('Error deleting task:', error)
-    return { error: 'Error al eliminar la tarea' }
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainDeleteTask(ctx, { taskId: id })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al eliminar la tarea' }
   }
 
   revalidatePath('/tareas')
@@ -364,9 +337,37 @@ export async function deleteTask(id: string): Promise<ActionResult<void>> {
 
 /**
  * Mark a task as completed.
+ * Delegates to domain/tasks.completeTask directly for cleaner flow.
  */
 export async function completeTask(id: string): Promise<ActionResult<Task>> {
-  return updateTask(id, { status: 'completed' })
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const workspaceId = await getWorkspaceId()
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
+
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainCompleteTask(ctx, { taskId: id })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al completar la tarea' }
+  }
+
+  // Re-read for response
+  const { data } = await supabase
+    .from('tasks')
+    .select()
+    .eq('id', id)
+    .single()
+
+  revalidatePath('/tareas')
+  return { success: true, data: (data || { id }) as Task }
 }
 
 /**

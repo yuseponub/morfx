@@ -7,7 +7,7 @@ export * from './orders'           // Plan 02
 export * from './contacts'         // Plan 04
 export * from './tags'             // Plan 04
 export * from './messages'         // Plan 06
-// export * from './tasks'         // Plan 07
+export * from './tasks'            // Plan 07
 // export * from './notes'         // Plan 08
 // export * from './custom-fields' // Plan 08
 // export * from './conversations' // Plan 09

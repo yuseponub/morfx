@@ -3,10 +3,10 @@
 // Executes automation actions via domain layer and direct DB ops.
 // Uses createAdminClient to bypass RLS (runs from Inngest, no user session).
 //
-// Phase 18: All CRM + WhatsApp actions delegate to domain.
+// Phase 18: All CRM + WhatsApp + task actions delegate to domain.
 // Trigger emissions handled by domain — no inline trigger code for
-// orders, contacts, tags, or messages here.
-// Remaining direct DB: task creation, webhooks.
+// orders, contacts, tags, messages, or tasks here.
+// Remaining direct DB: webhooks only.
 // ============================================================================
 
 import type { AutomationAction, ActionType, TriggerContext } from './types'
@@ -33,6 +33,9 @@ import {
   sendTemplateMessage as domainSendTemplateMessage,
   sendMediaMessage as domainSendMediaMessage,
 } from '@/lib/domain/messages'
+import {
+  createTask as domainCreateTask,
+} from '@/lib/domain/tasks'
 import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
@@ -134,7 +137,7 @@ async function executeByType(
     case 'send_whatsapp_media':
       return executeSendWhatsAppMedia(params, context, workspaceId)
     case 'create_task':
-      return executeCreateTask(params, context, workspaceId)
+      return executeCreateTask(params, context, workspaceId, cascadeDepth)
     case 'webhook':
       return executeWebhook(params)
     default: {
@@ -666,25 +669,28 @@ async function executeSendWhatsAppMedia(
 }
 
 // ============================================================================
-// Task Action (Direct DB — unchanged)
+// Task Action — via domain/tasks
+// Domain handles DB logic. Trigger gap FIXED: if task created with
+// status=completed, domain emits task.completed.
 // ============================================================================
 
 /**
  * Create a task linked to the trigger's contact/order.
+ * Delegates to domain/tasks.createTask.
  */
 async function executeCreateTask(
   params: Record<string, unknown>,
   context: TriggerContext,
-  workspaceId: string
+  workspaceId: string,
+  cascadeDepth: number
 ): Promise<unknown> {
-  const supabase = createAdminClient()
   const title = String(params.title || '')
   if (!title) throw new Error('title is required for create_task')
 
-  const description = params.description ? String(params.description) : null
+  const description = params.description ? String(params.description) : undefined
 
   // Calculate due date from relative delay if provided
-  let dueDate: string | null = null
+  let dueDate: string | undefined
   if (params.dueDateRelative && typeof params.dueDateRelative === 'object') {
     const delay = params.dueDateRelative as { amount: number; unit: string }
     const now = new Date()
@@ -702,26 +708,21 @@ async function executeCreateTask(
     dueDate = now.toISOString()
   }
 
-  const { data: task, error } = await supabase
-    .from('tasks')
-    .insert({
-      workspace_id: workspaceId,
-      title,
-      description,
-      due_date: dueDate,
-      contact_id: context.contactId || null,
-      order_id: context.orderId || null,
-      assigned_to: params.assignToUserId ? String(params.assignToUserId) : null,
-      status: 'pending',
-    })
-    .select('id')
-    .single()
+  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
+  const result = await domainCreateTask(ctx, {
+    title,
+    description,
+    dueDate,
+    contactId: context.contactId || undefined,
+    orderId: context.orderId || undefined,
+    assignedTo: params.assignToUserId ? String(params.assignToUserId) : undefined,
+  })
 
-  if (error || !task) {
-    throw new Error(`Failed to create task: ${error?.message}`)
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to create task')
   }
 
-  return { taskId: task.id, title, dueDate }
+  return { taskId: result.data!.taskId, title, dueDate: dueDate || null }
 }
 
 // ============================================================================

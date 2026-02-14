@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-28)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos.
-**Current focus:** MVP v2.0 — Phase 18 complete, Phase 19 next (AI Automation Builder)
+**Current focus:** MVP v2.0 — Phase 19 in progress (AI Automation Builder)
 
 ## Current Position
 
-Phase: 18 of 19 (Domain Layer Foundation) — COMPLETE
-Plan: 10 of 10 (final verification + hotfixes)
-Status: Complete
-Last activity: 2026-02-13 — Phase 18 verified, 2 hotfixes applied, LEARNINGS written
+Phase: 19 of 19 (AI Automation Builder) — IN PROGRESS
+Plan: 1 of TBD (foundation: deps, types, DB)
+Status: In progress
+Last activity: 2026-02-14 — Completed 19-01-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [███████████████████████░] 97% MVP v2
+Progress: [##########] 100% MVP v1 | [████████████████████████] 98% MVP v2
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -40,7 +40,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
 - Phase 18: Domain Layer Foundation (10 plans) — COMPLETE (2026-02-13)
-- Phase 19: AI Automation Builder (TBD plans)
+- Phase 19: AI Automation Builder (TBD plans) — IN PROGRESS (1/TBD)
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ All 11 phases + 4 inserted phases completed:
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
 | 18. Domain Layer Foundation | 10/10 | Complete |
+| 19. AI Automation Builder | 1/TBD | In Progress |
 
 ## Accumulated Context
 
@@ -346,6 +347,10 @@ Recent decisions affecting MVP v2 work:
 - [18-09]: 24h window dedup for task.overdue cron (tasks overdue >24h skipped to avoid re-emitting ancient tasks)
 - [18-09]: 200 task safety cap per cron run to prevent overload
 - [18-09]: Resolution text storage on conversation close stays as adapter concern in tool handler
+- [19-01]: BuilderSession.messages typed as unknown[] for JSONB serialization; cast to UIMessage at usage site
+- [19-01]: DiagramNodeData uses optional fields (not discriminated union) for simpler React Flow integration
+- [19-01]: builder_sessions RLS: workspace members SELECT/INSERT, owner-only UPDATE/DELETE
+- [19-01]: --legacy-peer-deps required for npm install due to React 19 peer dep conflict with @webscopeio/react-textarea-autocomplete
 
 ### Project Rules
 
@@ -387,7 +392,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-13
-Stopped at: Phase 18 complete — all 10 plans done, verified, LEARNINGS written
+Last session: 2026-02-14
+Stopped at: Completed 19-01-PLAN.md (foundation: deps, types, DB)
 Resume file: None
-Next: Phase 19 (AI Automation Builder) — /gsd:discuss-phase 19
+Next: 19-02-PLAN.md

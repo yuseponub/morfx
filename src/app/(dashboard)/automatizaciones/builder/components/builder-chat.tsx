@@ -19,9 +19,10 @@ import { Bot } from 'lucide-react'
 interface BuilderChatProps {
   sessionId: string | null
   onSessionCreated: (id: string) => void
+  initialMessages?: UIMessage[]
 }
 
-export function BuilderChat({ sessionId, onSessionCreated }: BuilderChatProps) {
+export function BuilderChat({ sessionId, onSessionCreated, initialMessages }: BuilderChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const sessionIdRef = useRef(sessionId)
@@ -59,7 +60,7 @@ export function BuilderChat({ sessionId, onSessionCreated }: BuilderChatProps) {
     status,
     error,
     setMessages,
-  } = useChat({ transport })
+  } = useChat({ transport, messages: initialMessages })
 
   // Auto-scroll to bottom when messages change or status changes
   useEffect(() => {

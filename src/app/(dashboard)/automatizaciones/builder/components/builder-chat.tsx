@@ -4,12 +4,14 @@
 // Phase 19: AI Automation Builder - Builder Chat
 // Chat container using AI SDK v6 useChat hook with DefaultChatTransport.
 // Renders messages, handles streaming, auto-scrolls, and shows errors.
+// Wires confirm/modify callbacks for the preview-confirm-create flow.
 // ============================================================================
 
 import { useRef, useEffect, useCallback, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import type { UIMessage } from 'ai'
+import type { AutomationPreviewData } from '@/lib/builder/types'
 import { BuilderMessage } from './builder-message'
 import { BuilderInput } from './builder-input'
 import { Bot } from 'lucide-react'
@@ -21,6 +23,7 @@ interface BuilderChatProps {
 
 export function BuilderChat({ sessionId, onSessionCreated }: BuilderChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const sessionIdRef = useRef(sessionId)
 
   // Keep ref in sync for use in fetch wrapper
@@ -81,6 +84,19 @@ export function BuilderChat({ sessionId, onSessionCreated }: BuilderChatProps) {
     [sendMessage, isLoading]
   )
 
+  // Handle preview confirmation — sends a message that the agent will see
+  const handleConfirmPreview = useCallback(
+    (_previewData: AutomationPreviewData) => {
+      sendMessage({ text: 'Confirmo. Crea la automatizacion.' })
+    },
+    [sendMessage]
+  )
+
+  // Handle modify request — focuses the input for the user to describe changes
+  const handleModifyRequest = useCallback(() => {
+    inputRef.current?.focus()
+  }, [])
+
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
@@ -102,7 +118,12 @@ export function BuilderChat({ sessionId, onSessionCreated }: BuilderChatProps) {
         ) : (
           <div className="space-y-4 max-w-3xl mx-auto">
             {messages.map((message: UIMessage) => (
-              <BuilderMessage key={message.id} message={message} />
+              <BuilderMessage
+                key={message.id}
+                message={message}
+                onConfirmPreview={handleConfirmPreview}
+                onModifyRequest={handleModifyRequest}
+              />
             ))}
           </div>
         )}
@@ -124,6 +145,7 @@ export function BuilderChat({ sessionId, onSessionCreated }: BuilderChatProps) {
       <div className="border-t bg-background px-4 py-3 shrink-0">
         <div className="max-w-3xl mx-auto">
           <BuilderInput
+            ref={inputRef}
             onSubmit={handleSubmit}
             isLoading={isLoading}
           />

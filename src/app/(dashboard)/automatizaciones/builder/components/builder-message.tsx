@@ -4,15 +4,34 @@
 // Phase 19: AI Automation Builder - Builder Message
 // Renders a single chat message with AI SDK v6 parts.
 // Handles text parts, dynamic tool invocations (loading/result states),
-// and preview placeholders for the diagram generator.
+// and inline AutomationPreview diagrams for generatePreview results.
 // ============================================================================
 
 import { cn } from '@/lib/utils'
+import dynamic from 'next/dynamic'
 import type { UIMessage } from 'ai'
-import { Loader2, Check, Workflow } from 'lucide-react'
+import type { AutomationPreviewData } from '@/lib/builder/types'
+import { Loader2, Check, ExternalLink } from 'lucide-react'
+
+// Dynamically import AutomationPreview (requires browser APIs for React Flow)
+const AutomationPreview = dynamic(
+  () => import('./automation-preview').then((mod) => mod.AutomationPreview),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-48 rounded-lg border animate-pulse bg-muted" />
+    ),
+  }
+)
+
+// ============================================================================
+// Props
+// ============================================================================
 
 interface BuilderMessageProps {
   message: UIMessage
+  onConfirmPreview: (data: AutomationPreviewData) => void
+  onModifyRequest: () => void
 }
 
 // ============================================================================
@@ -23,20 +42,15 @@ const TOOL_LABELS: Record<string, string> = {
   listPipelines: 'Consultando pipelines...',
   listPipelineStages: 'Consultando etapas...',
   listTags: 'Consultando tags...',
+  listTemplates: 'Consultando templates...',
   listCustomFields: 'Consultando campos personalizados...',
   listAutomations: 'Consultando automatizaciones...',
-  getAutomationDetail: 'Cargando automatizacion...',
+  listWorkspaceMembers: 'Consultando miembros...',
+  getAutomation: 'Cargando automatizacion...',
   generatePreview: 'Generando preview...',
   createAutomation: 'Creando automatizacion...',
   updateAutomation: 'Actualizando automatizacion...',
 }
-
-// Tools whose results should show a visible indicator (write operations)
-const VISIBLE_RESULT_TOOLS = new Set([
-  'createAutomation',
-  'updateAutomation',
-  'generatePreview',
-])
 
 // ============================================================================
 // Helper sub-components
@@ -53,31 +67,92 @@ function ToolLoading({ toolName }: { toolName: string }) {
   )
 }
 
-function ToolResult({ toolName }: { toolName: string }) {
-  // Hide result indicators for read-only/lookup tools
-  if (!VISIBLE_RESULT_TOOLS.has(toolName)) {
-    return null
+function CreateAutomationResult({ output }: { output: unknown }) {
+  const result = output as
+    | { success: true; automationId: string }
+    | { success: false; error: string }
+    | null
+
+  if (!result) return null
+
+  if ('success' in result && result.success && 'automationId' in result) {
+    return (
+      <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/50">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <Check className="h-4 w-4" />
+          Automatizacion creada (desactivada)
+        </div>
+        <a
+          href={`/automatizaciones`}
+          className="flex items-center gap-1 text-xs text-emerald-600 hover:underline dark:text-emerald-400"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Ver en automatizaciones
+        </a>
+      </div>
+    )
   }
 
+  if ('success' in result && !result.success && 'error' in result) {
+    return (
+      <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-destructive/10 text-xs text-destructive w-fit">
+        <span>Error: {result.error}</span>
+      </div>
+    )
+  }
+
+  return null
+}
+
+function UpdateAutomationResult({ output }: { output: unknown }) {
+  const result = output as
+    | { success: true; automationId: string }
+    | { success: false; error: string }
+    | null
+
+  if (!result) return null
+
+  if ('success' in result && result.success) {
+    return (
+      <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/50">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <Check className="h-4 w-4" />
+          Automatizacion actualizada
+        </div>
+        <a
+          href={`/automatizaciones`}
+          className="flex items-center gap-1 text-xs text-emerald-600 hover:underline dark:text-emerald-400"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Ver en automatizaciones
+        </a>
+      </div>
+    )
+  }
+
+  if ('success' in result && !result.success && 'error' in result) {
+    return (
+      <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-destructive/10 text-xs text-destructive w-fit">
+        <span>Error: {result.error}</span>
+      </div>
+    )
+  }
+
+  return null
+}
+
+function ToolResult({ toolName }: { toolName: string }) {
   const labels: Record<string, string> = {
-    createAutomation: 'Automatizacion creada',
-    updateAutomation: 'Automatizacion actualizada',
     generatePreview: 'Preview generado',
   }
+
+  // Only show for tools not handled by their own result components
+  if (!labels[toolName]) return null
 
   return (
     <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400 w-fit">
       <Check className="h-3 w-3" />
-      <span>{labels[toolName] ?? toolName}</span>
-    </div>
-  )
-}
-
-function PreviewPlaceholder({ data }: { data: unknown }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 px-4 py-6 text-sm text-muted-foreground">
-      <Workflow className="h-5 w-5" />
-      <span>Preview del diagrama</span>
+      <span>{labels[toolName]}</span>
     </div>
   )
 }
@@ -86,7 +161,11 @@ function PreviewPlaceholder({ data }: { data: unknown }) {
 // Main component
 // ============================================================================
 
-export function BuilderMessage({ message }: BuilderMessageProps) {
+export function BuilderMessage({
+  message,
+  onConfirmPreview,
+  onModifyRequest,
+}: BuilderMessageProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -101,7 +180,7 @@ export function BuilderMessage({ message }: BuilderMessageProps) {
           'rounded-2xl px-4 py-2.5 space-y-2',
           isUser
             ? 'bg-primary text-primary-foreground ml-auto max-w-[80%]'
-            : 'bg-muted mr-auto max-w-[80%]'
+            : 'bg-muted mr-auto max-w-[90%]'
         )}
       >
         {message.parts.map((part, i) => {
@@ -131,10 +210,40 @@ export function BuilderMessage({ message }: BuilderMessageProps) {
               }
 
               if (state === 'output-available') {
+                // generatePreview: render full diagram preview inline
                 if (toolName === 'generatePreview') {
-                  return <PreviewPlaceholder key={i} data={part.output} />
+                  const previewData = part.output as AutomationPreviewData | null
+                  if (previewData && previewData.diagram) {
+                    return (
+                      <div key={i} className="w-full -mx-1">
+                        <AutomationPreview
+                          data={previewData}
+                          onConfirm={() => onConfirmPreview(previewData)}
+                          onModify={onModifyRequest}
+                        />
+                      </div>
+                    )
+                  }
+                  // Fallback if output is unexpected
+                  return <ToolResult key={i} toolName={toolName} />
                 }
-                return <ToolResult key={i} toolName={toolName} />
+
+                // createAutomation: success indicator with link
+                if (toolName === 'createAutomation') {
+                  return (
+                    <CreateAutomationResult key={i} output={part.output} />
+                  )
+                }
+
+                // updateAutomation: success indicator with link
+                if (toolName === 'updateAutomation') {
+                  return (
+                    <UpdateAutomationResult key={i} output={part.output} />
+                  )
+                }
+
+                // Other tools: no visible result (lookup/read-only)
+                return null
               }
 
               if (state === 'output-error') {

@@ -400,11 +400,13 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             }
           )
 
-          // 2. Detect cycles in the automation graph
+          // 2. Detect cycles in the automation graph (considers trigger_config + conditions)
           const cycleResult = await detectCycles(
             ctx.workspaceId,
             {
               trigger_type: params.trigger_type,
+              trigger_config: params.trigger_config,
+              conditions: params.conditions,
               actions: params.actions,
             }
           )
@@ -446,6 +448,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             diagram,
             resourceValidations,
             hasCycles: cycleResult.hasCycles,
+            cycleSeverity: cycleResult.severity,
             duplicateWarning,
             ...(params.existingAutomationId ? { existingAutomationId: params.existingAutomationId } : {}),
           }

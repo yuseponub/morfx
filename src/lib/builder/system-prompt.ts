@@ -232,6 +232,10 @@ ${variableSection}
 1. **Recursos existentes**: Siempre valida que los recursos referenciados existan en el workspace antes de incluirlos en el preview. Si no existen, marca el error en el preview.
 2. **Templates aprobados**: Para acciones de WhatsApp template, verifica que el template tenga status APPROVED. Advierte si esta PENDING o REJECTED.
 3. **Duplicados**: Verifica si ya existe una automatizacion con el mismo trigger_type y trigger_config. Si existe, advierte al usuario (podria ser intencional, pero debe confirmarlo).
-4. **Ciclos**: Detecta si la automatizacion podria crear un ciclo (ej: automatizacion A dispara un evento que activa automatizacion B, que dispara un evento que activa A). Si detectas un ciclo, BLOQUEA la creacion y explica el riesgo.
+4. **Ciclos**: Evalua si la automatizacion podria crear un ciclo con las automatizaciones existentes. Sigue estas reglas:
+   - **NO es ciclo** si las condiciones filtran por un recurso especifico (pipeline, stage, tag) y la accion produce el evento en un recurso DIFERENTE. Ejemplo: trigger "tag.assigned" (tag P/A) con condicion "stage == CONFIRMADO" en pipeline Ventas, y accion "duplicate_order" a pipeline Logistica -> la orden duplicada estara en Logistica, no en Ventas, asi que la condicion no se cumple y NO hay ciclo.
+   - **Posible ciclo (warning)**: si no se puede determinar con certeza porque faltan condiciones especificas o los IDs coinciden parcialmente. ADVIERTE al usuario explicando el riesgo y las condiciones que podrian prevenirlo, pero DEJA que el usuario decida.
+   - **Ciclo inevitable (blocker)**: solo si la misma condicion exacta se cumpliria para el objeto producido por la accion (mismos IDs de pipeline/stage/tag). BLOQUEA y explica por que.
+   - Siempre explica tu razonamiento sobre por que es o no es un ciclo.
 `
 }

@@ -158,6 +158,7 @@ export interface AutomationPreviewData {
   diagram: DiagramData
   resourceValidations: ResourceValidation[]
   hasCycles: boolean
+  cycleSeverity: 'none' | 'warning' | 'blocker'
   duplicateWarning: string | null
   /** When modifying an existing automation, this is its UUID */
   existingAutomationId?: string

@@ -231,111 +231,237 @@ export async function validateResources(
  *
  * Strategy:
  * 1. Load all existing enabled automations for the workspace
- * 2. Build a directed graph: trigger_type -> produced trigger_types (via actions)
- * 3. Add the new automation to the graph
- * 4. Run DFS from each trigger_type the new automation's actions can produce
- *    to see if we can reach the new automation's trigger_type again
+ * 2. Build a directed graph considering trigger_config specificity
+ * 3. Compare action params against trigger configs + conditions to determine
+ *    if the produced event would actually activate the target automation
+ * 4. Classify as: no_cycle, possible_cycle (warning), or inevitable_cycle (blocker)
  *
- * Returns the cycle path (automation names) if found.
+ * Key insight: A generic trigger_type match is NOT enough. If an action produces
+ * an event in pipeline B but the target automation only triggers for pipeline A,
+ * there's no cycle. Similarly, conditions that filter by specific resource IDs
+ * can break what looks like a cycle at the trigger_type level.
  */
 export async function detectCycles(
   workspaceId: string,
   newAutomation: {
     trigger_type: string
+    trigger_config: Record<string, unknown>
+    conditions?: { rules?: { field?: string; operator?: string; value?: unknown }[] } | null
     actions: { type: string; params: Record<string, unknown> }[]
   }
-): Promise<{ hasCycles: boolean; cyclePath: string[] }> {
+): Promise<{ hasCycles: boolean; cyclePath: string[]; severity: 'none' | 'warning' | 'blocker' }> {
   try {
     const supabase = createAdminClient()
 
     const { data: existingAutos, error } = await supabase
       .from('automations')
-      .select('id, name, trigger_type, actions, is_enabled')
+      .select('id, name, trigger_type, trigger_config, conditions, actions, is_enabled')
       .eq('workspace_id', workspaceId)
 
     if (error) {
       console.error('[validation] Error loading automations for cycle detection:', error)
-      return { hasCycles: false, cyclePath: [] }
+      return { hasCycles: false, cyclePath: [], severity: 'none' }
     }
 
-    // Build directed graph: triggerType -> { producedTriggers, automationName }
-    type GraphNode = { produced: Set<string>; name: string }
-    const graph = new Map<string, GraphNode[]>()
+    // Build list of all automations (existing enabled + new one)
+    type AutoNode = {
+      name: string
+      trigger_type: string
+      trigger_config: Record<string, unknown>
+      conditions: unknown
+      actions: { type: string; params: Record<string, unknown> }[]
+    }
 
-    // Add existing enabled automations
+    const allAutos: AutoNode[] = []
+
     for (const auto of existingAutos || []) {
       if (!auto.is_enabled) continue
-
-      const actions = (Array.isArray(auto.actions) ? auto.actions : []) as { type: string }[]
-      const produced = new Set<string>()
-
-      for (const action of actions) {
-        const triggers = ACTION_TO_TRIGGER_MAP[action.type] || []
-        for (const t of triggers) produced.add(t)
-      }
-
-      if (produced.size > 0) {
-        const existing = graph.get(auto.trigger_type) || []
-        existing.push({ produced, name: auto.name })
-        graph.set(auto.trigger_type, existing)
-      }
+      allAutos.push({
+        name: auto.name,
+        trigger_type: auto.trigger_type,
+        trigger_config: (auto.trigger_config || {}) as Record<string, unknown>,
+        conditions: auto.conditions,
+        actions: (Array.isArray(auto.actions) ? auto.actions : []) as { type: string; params: Record<string, unknown> }[],
+      })
     }
 
-    // Add the new automation
-    const newProduced = new Set<string>()
-    for (const action of newAutomation.actions) {
-      const triggers = ACTION_TO_TRIGGER_MAP[action.type] || []
-      for (const t of triggers) newProduced.add(t)
+    const newNode: AutoNode = {
+      name: '(nueva automatizacion)',
+      trigger_type: newAutomation.trigger_type,
+      trigger_config: newAutomation.trigger_config || {},
+      conditions: newAutomation.conditions,
+      actions: newAutomation.actions,
     }
+    allAutos.push(newNode)
 
-    if (newProduced.size === 0) {
-      // New automation doesn't produce any triggers -> no cycles possible
-      return { hasCycles: false, cyclePath: [] }
-    }
+    // Check if an action could activate a specific automation
+    // Returns: 'no' | 'possible' | 'definite'
+    function couldActionActivate(
+      action: { type: string; params: Record<string, unknown> },
+      target: AutoNode
+    ): 'no' | 'possible' | 'definite' {
+      const producedTriggers = ACTION_TO_TRIGGER_MAP[action.type] || []
+      if (!producedTriggers.includes(target.trigger_type)) return 'no'
 
-    const newName = '(nueva automatizacion)'
-    const existingEntries = graph.get(newAutomation.trigger_type) || []
-    existingEntries.push({ produced: newProduced, name: newName })
-    graph.set(newAutomation.trigger_type, existingEntries)
+      // Generic trigger_type match exists. Now check specificity.
+      const tc = target.trigger_config
+      const ap = action.params
 
-    // DFS from each produced trigger to see if we can reach newAutomation.trigger_type
-    const visited = new Set<string>()
-    const path: string[] = [newName]
-
-    function dfs(currentTrigger: string): boolean {
-      if (currentTrigger === newAutomation.trigger_type && visited.size > 0) {
-        return true // Cycle found
-      }
-
-      if (visited.has(currentTrigger)) return false
-      visited.add(currentTrigger)
-
-      const entries = graph.get(currentTrigger) || []
-      for (const entry of entries) {
-        path.push(entry.name)
-        for (const produced of entry.produced) {
-          if (dfs(produced)) return true
+      switch (target.trigger_type) {
+        case 'tag.assigned': {
+          // If target triggers on a specific tag, check if action assigns THAT tag
+          const targetTagId = tc.tagId as string | undefined
+          const actionTagId = ap.tagId as string | undefined
+          const actionTagName = ap.tagName as string | undefined
+          if (targetTagId && actionTagId && targetTagId !== actionTagId) return 'no'
+          if (targetTagId && !actionTagId && !actionTagName) return 'possible'
+          if (targetTagId && actionTagId && targetTagId === actionTagId) return 'definite'
+          return 'possible'
         }
-        path.pop()
+
+        case 'tag.removed': {
+          const targetTagId = tc.tagId as string | undefined
+          const actionTagId = ap.tagId as string | undefined
+          if (targetTagId && actionTagId && targetTagId !== actionTagId) return 'no'
+          return 'possible'
+        }
+
+        case 'order.stage_changed': {
+          // If target triggers on a specific pipeline/stage, check if action
+          // moves to THAT pipeline/stage
+          const targetPipelineId = tc.pipelineId as string | undefined
+          const targetStageId = tc.stageId as string | undefined
+          const actionPipelineId = (ap.targetPipelineId || ap.pipelineId) as string | undefined
+          const actionStageId = (ap.targetStageId || ap.stageId) as string | undefined
+
+          if (targetPipelineId && actionPipelineId && targetPipelineId !== actionPipelineId) return 'no'
+          if (targetStageId && actionStageId && targetStageId !== actionStageId) return 'no'
+          if (targetPipelineId && actionPipelineId && targetPipelineId === actionPipelineId) {
+            if (targetStageId && actionStageId && targetStageId === actionStageId) return 'definite'
+            return 'possible'
+          }
+          return 'possible'
+        }
+
+        case 'order.created': {
+          // duplicate_order/create_order produces order.created
+          // If target triggers on a specific pipeline, check if action targets that pipeline
+          const targetPipelineId = tc.pipelineId as string | undefined
+          const actionPipelineId = (ap.targetPipelineId || ap.pipelineId) as string | undefined
+          if (targetPipelineId && actionPipelineId && targetPipelineId !== actionPipelineId) return 'no'
+          if (targetPipelineId && actionPipelineId && targetPipelineId === actionPipelineId) return 'definite'
+          return 'possible'
+        }
+
+        default:
+          return 'possible'
+      }
+    }
+
+    // Also check if conditions on the target would prevent activation
+    // E.g., condition "stage == CONFIRMADO" won't match if the action
+    // creates the order in a different stage
+    function conditionsPreventActivation(
+      action: { type: string; params: Record<string, unknown> },
+      target: AutoNode
+    ): boolean {
+      const conditions = target.conditions as {
+        rules?: { field?: string; operator?: string; value?: unknown }[]
+      } | null
+
+      if (!conditions?.rules || conditions.rules.length === 0) return false
+
+      for (const rule of conditions.rules) {
+        if (!rule.field || !rule.value) continue
+
+        // Check stage conditions
+        if (rule.field === 'order.stage' || rule.field === 'stage' || rule.field === 'order.stage_id') {
+          const requiredStage = rule.value as string
+          // If the action creates/duplicates to a DIFFERENT stage
+          const actionStageId = (action.params.targetStageId || action.params.stageId) as string | undefined
+          if (actionStageId && requiredStage && actionStageId !== requiredStage) return true
+        }
+
+        // Check pipeline conditions
+        if (rule.field === 'order.pipeline' || rule.field === 'pipeline' || rule.field === 'order.pipeline_id') {
+          const requiredPipeline = rule.value as string
+          const actionPipelineId = (action.params.targetPipelineId || action.params.pipelineId) as string | undefined
+          if (actionPipelineId && requiredPipeline && actionPipelineId !== requiredPipeline) return true
+        }
+
+        // Check tag conditions
+        if (rule.field === 'contact.tag' || rule.field === 'tag') {
+          const requiredTag = rule.value as string
+          const actionTagId = (action.params.tagId || action.params.tagName) as string | undefined
+          if (actionTagId && requiredTag && actionTagId !== requiredTag) return true
+        }
       }
 
       return false
     }
 
-    // Start DFS from each trigger the new automation produces
-    for (const produced of newProduced) {
-      visited.clear()
-      path.length = 1 // Reset to just the new automation name
+    // DFS with specificity-aware edge evaluation
+    let worstSeverity: 'none' | 'warning' | 'blocker' = 'none'
+    const cyclePath: string[] = []
 
-      if (dfs(produced)) {
-        return { hasCycles: true, cyclePath: [...path] }
+    function dfs(
+      current: AutoNode,
+      target: AutoNode,
+      visited: Set<string>,
+      path: string[]
+    ): 'none' | 'warning' | 'blocker' {
+      let result: 'none' | 'warning' | 'blocker' = 'none'
+
+      for (const action of current.actions) {
+        // Check if this action could re-activate the original target
+        const activation = couldActionActivate(action, target)
+        if (activation === 'no') continue
+
+        // Check if target's conditions would prevent it
+        if (conditionsPreventActivation(action, target)) continue
+
+        // Direct cycle back to target
+        if (activation === 'definite') return 'blocker'
+        if (activation === 'possible') result = 'warning'
+
+        // Check indirect cycles through other automations
+        for (const other of allAutos) {
+          if (other === current || other === target) continue
+          if (visited.has(other.name)) continue
+
+          const otherActivation = couldActionActivate(action, other)
+          if (otherActivation === 'no') continue
+          if (conditionsPreventActivation(action, other)) continue
+
+          visited.add(other.name)
+          path.push(other.name)
+          const indirect = dfs(other, target, visited, path)
+          if (indirect === 'blocker') return 'blocker'
+          if (indirect === 'warning') result = 'warning'
+          path.pop()
+          visited.delete(other.name)
+        }
       }
+
+      return result
     }
 
-    return { hasCycles: false, cyclePath: [] }
+    const visited = new Set<string>([newNode.name])
+    const path = [newNode.name]
+    worstSeverity = dfs(newNode, newNode, visited, path)
+
+    if (worstSeverity !== 'none') {
+      cyclePath.push(...path)
+    }
+
+    return {
+      hasCycles: worstSeverity !== 'none',
+      cyclePath,
+      severity: worstSeverity,
+    }
   } catch (err) {
     console.error('[validation] Error detecting cycles:', err)
-    return { hasCycles: false, cyclePath: [] }
+    return { hasCycles: false, cyclePath: [], severity: 'none' }
   }
 }
 

@@ -36,13 +36,24 @@ interface AutomationPreviewProps {
 // Warning Banners
 // ============================================================================
 
-function CycleWarning() {
+function CycleWarning({ severity }: { severity: 'warning' | 'blocker' }) {
+  if (severity === 'blocker') {
+    return (
+      <div className="flex items-center gap-2 border-t border-red-200 bg-red-50 px-4 py-2 dark:border-red-900 dark:bg-red-950/50">
+        <Ban className="size-4 shrink-0 text-red-500" />
+        <p className="text-xs font-medium text-red-700 dark:text-red-400">
+          Ciclo inevitable detectado. No se puede crear hasta resolver.
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center gap-2 border-t border-red-200 bg-red-50 px-4 py-2 dark:border-red-900 dark:bg-red-950/50">
-      <Ban className="size-4 shrink-0 text-red-500" />
-      <p className="text-xs font-medium text-red-700 dark:text-red-400">
-        Se detecto un ciclo en las automatizaciones. No se puede crear hasta
-        resolver.
+    <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/50">
+      <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+        Posible ciclo detectado. Revisa las condiciones — si filtran por recursos
+        especificos, puede que no sea un problema real.
       </p>
     </div>
   )
@@ -100,7 +111,7 @@ export function AutomationPreview({
   onModify,
   isUpdate = false,
 }: AutomationPreviewProps) {
-  const { diagram, resourceValidations, hasCycles, duplicateWarning } = data
+  const { diagram, resourceValidations, hasCycles, cycleSeverity, duplicateWarning } = data
 
   // Dynamic height: min 200px, +80px per additional node beyond 2
   const nodeCount = diagram.nodes.length
@@ -140,8 +151,8 @@ export function AutomationPreview({
       {/* Validation Warnings */}
       <ResourceWarnings validations={resourceValidations} />
 
-      {/* Cycle Warning (blocks creation) */}
-      {hasCycles && <CycleWarning />}
+      {/* Cycle Warning */}
+      {hasCycles && <CycleWarning severity={cycleSeverity === 'blocker' ? 'blocker' : 'warning'} />}
 
       {/* Duplicate Warning */}
       {duplicateWarning && <DuplicateWarning message={duplicateWarning} />}
@@ -151,7 +162,7 @@ export function AutomationPreview({
         onConfirm={onConfirm}
         onModify={onModify}
         isUpdate={isUpdate}
-        disabled={hasCycles}
+        disabled={cycleSeverity === 'blocker'}
       />
     </div>
   )

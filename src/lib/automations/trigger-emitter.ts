@@ -94,6 +94,9 @@ export function emitTagAssigned(data: {
   contactId: string | null
   contactName?: string
   contactPhone?: string
+  orderId?: string
+  pipelineId?: string
+  stageId?: string
   cascadeDepth?: number
 }): void {
   const depth = data.cascadeDepth ?? 0
@@ -118,6 +121,9 @@ export function emitTagRemoved(data: {
   tagName: string
   contactId: string | null
   contactName?: string
+  orderId?: string
+  pipelineId?: string
+  stageId?: string
   cascadeDepth?: number
 }): void {
   const depth = data.cascadeDepth ?? 0

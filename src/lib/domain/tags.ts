@@ -94,6 +94,8 @@ export async function assignTag(
     let contactId: string | null = null
     let contactName: string | undefined
     let contactPhone: string | undefined
+    let orderPipelineId: string | undefined
+    let orderStageId: string | undefined
 
     if (params.entityType === 'contact') {
       contactId = params.entityId
@@ -106,14 +108,16 @@ export async function assignTag(
       contactName = contact?.name ?? undefined
       contactPhone = contact?.phone ?? undefined
     } else {
-      // entityType === 'order': query order's contact_id
+      // entityType === 'order': query order's contact_id + pipeline/stage for condition evaluation
       const { data: order } = await supabase
         .from('orders')
-        .select('contact_id')
+        .select('contact_id, pipeline_id, stage_id')
         .eq('id', params.entityId)
         .eq('workspace_id', ctx.workspaceId)
         .single()
       contactId = order?.contact_id ?? null
+      orderPipelineId = order?.pipeline_id ?? undefined
+      orderStageId = order?.stage_id ?? undefined
 
       // Fetch contact info if available
       if (contactId) {
@@ -137,6 +141,12 @@ export async function assignTag(
       contactId,
       contactName,
       contactPhone,
+      // When entityType is 'order', include order context for condition evaluation
+      ...(params.entityType === 'order' && {
+        orderId: params.entityId,
+        pipelineId: orderPipelineId,
+        stageId: orderStageId,
+      }),
       cascadeDepth: ctx.cascadeDepth,
     })
 
@@ -197,6 +207,8 @@ export async function removeTag(
     // Step 4: Fetch contactId + contact info for trigger context
     let contactId: string | null = null
     let contactName: string | undefined
+    let orderPipelineId: string | undefined
+    let orderStageId: string | undefined
 
     if (params.entityType === 'contact') {
       contactId = params.entityId
@@ -208,14 +220,16 @@ export async function removeTag(
         .single()
       contactName = contact?.name ?? undefined
     } else {
-      // entityType === 'order': query order's contact_id
+      // entityType === 'order': query order's contact_id + pipeline/stage for condition evaluation
       const { data: order } = await supabase
         .from('orders')
-        .select('contact_id')
+        .select('contact_id, pipeline_id, stage_id')
         .eq('id', params.entityId)
         .eq('workspace_id', ctx.workspaceId)
         .single()
       contactId = order?.contact_id ?? null
+      orderPipelineId = order?.pipeline_id ?? undefined
+      orderStageId = order?.stage_id ?? undefined
 
       if (contactId) {
         const { data: contact } = await supabase
@@ -236,6 +250,11 @@ export async function removeTag(
       tagName: params.tagName,
       contactId,
       contactName,
+      ...(params.entityType === 'order' && {
+        orderId: params.entityId,
+        pipelineId: orderPipelineId,
+        stageId: orderStageId,
+      }),
       cascadeDepth: ctx.cascadeDepth,
     })
 

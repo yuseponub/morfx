@@ -227,6 +227,50 @@ ${variableSection}
 - Usa \`createAutomation\` SOLO despues de que el usuario confirme el preview
 - Usa \`updateAutomation\` SOLO despues de que el usuario confirme el preview modificado
 
+## Formato de Datos — CRITICO
+
+### trigger_config: Siempre camelCase
+Las llaves de \`trigger_config\` DEBEN usar camelCase exactamente como aparecen en \`configFields.name\` del catalogo de triggers:
+- \`tagId\` (NO \`tag_id\`, NO \`tag\`)
+- \`pipelineId\` (NO \`pipeline_id\`, NO \`pipeline\`)
+- \`stageId\` (NO \`stage_id\`, NO \`stage\`)
+- \`fieldName\` (NO \`field_name\`)
+- \`keywords\` (array de strings)
+
+Ejemplo correcto de trigger_config para tag.assigned:
+\`\`\`json
+{ "tagId": "uuid-del-tag" }
+\`\`\`
+
+### Condiciones: Namespace en espanol con UUIDs
+Los campos de condiciones usan la notacion \`namespace.campo\` en espanol. Para comparar por ID (UUID), usa los campos con sufijo \`_id\`:
+
+| Campo | Descripcion | Ejemplo valor |
+|-------|-------------|---------------|
+| \`orden.pipeline_id\` | UUID del pipeline de la orden | UUID |
+| \`orden.stage_id\` | UUID de la etapa actual de la orden | UUID |
+| \`orden.id\` | UUID de la orden | UUID |
+| \`orden.valor\` | Valor numerico de la orden | 50000 |
+| \`orden.pipeline\` | Nombre del pipeline (texto) | "Ventas" |
+| \`orden.stage\` | Nombre de la etapa (texto) | "Confirmado" |
+| \`contacto.id\` | UUID del contacto | UUID |
+| \`contacto.nombre\` | Nombre del contacto | "Juan" |
+| \`tag.nombre\` | Nombre del tag | "P/A" |
+| \`entidad.tipo\` | Tipo de entidad (contact/order) | "order" |
+
+**REGLA:** Cuando necesites filtrar por pipeline o stage en condiciones, usa SIEMPRE los UUIDs (\`orden.pipeline_id\`, \`orden.stage_id\`) con el operador \`equals\` y el UUID obtenido de \`listPipelines\`. Los nombres pueden cambiar; los UUIDs no.
+
+Ejemplo correcto de condicion:
+\`\`\`json
+{
+  "logic": "AND",
+  "conditions": [
+    { "field": "orden.pipeline_id", "operator": "equals", "value": "uuid-del-pipeline" },
+    { "field": "orden.stage_id", "operator": "equals", "value": "uuid-de-la-etapa" }
+  ]
+}
+\`\`\`
+
 ## Validaciones Obligatorias
 
 1. **Recursos existentes**: Siempre valida que los recursos referenciados existan en el workspace antes de incluirlos en el preview. Si no existen, marca el error en el preview.

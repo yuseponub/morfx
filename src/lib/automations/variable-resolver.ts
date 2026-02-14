@@ -164,7 +164,9 @@ export function buildTriggerContext(
   if (eventData.previousStageName !== undefined) orden.stage_anterior = eventData.previousStageName
   if (eventData.newStageName !== undefined) orden.stage_nuevo = eventData.newStageName
   if (eventData.pipelineName !== undefined) orden.pipeline = eventData.pipelineName
+  if (eventData.pipelineId !== undefined) orden.pipeline_id = eventData.pipelineId
   if (eventData.stageName !== undefined) orden.stage = eventData.stageName
+  if (eventData.stageId !== undefined) orden.stage_id = eventData.stageId
   if (Object.keys(orden).length > 0) context.orden = orden
 
   // --- tag ---

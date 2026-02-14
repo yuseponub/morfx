@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 19 of 19 (AI Automation Builder) — IN PROGRESS
-Plan: 2 of TBD (system prompt & tool definitions)
+Plan: 4 of TBD (diagram generator & validation)
 Status: In progress
-Last activity: 2026-02-14 — Completed 19-02-PLAN.md
+Last activity: 2026-02-14 — Completed 19-04-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [████████████████████████] 98% MVP v2
 
@@ -40,7 +40,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
 - Phase 18: Domain Layer Foundation (10 plans) — COMPLETE (2026-02-13)
-- Phase 19: AI Automation Builder (TBD plans) — IN PROGRESS (1/TBD)
+- Phase 19: AI Automation Builder (TBD plans) — IN PROGRESS (4/TBD)
 
 ## Performance Metrics
 
@@ -67,7 +67,7 @@ All 11 phases + 4 inserted phases completed:
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
 | 18. Domain Layer Foundation | 10/10 | Complete |
-| 19. AI Automation Builder | 1/TBD | In Progress |
+| 19. AI Automation Builder | 4/TBD | In Progress |
 
 ## Accumulated Context
 
@@ -356,6 +356,10 @@ Recent decisions affecting MVP v2 work:
 - [19-02]: generatePreview returns empty DiagramData; real diagram generation deferred to Plan 04
 - [19-02]: Template approval status validation: warns about non-APPROVED templates in resource validation
 - [19-01]: --legacy-peer-deps required for npm install due to React 19 peer dep conflict with @webscopeio/react-textarea-autocomplete
+- [19-04]: DiagramNodeData extended with category and conditionCount fields for richer node rendering
+- [19-04]: Validation errors inferred to nodeIds by matching resource references in trigger_config/action params
+- [19-04]: WhatsApp send actions excluded from cycle detection graph (outgoing messages don't trigger automation handlers)
+- [19-04]: Duplicate detection uses type-specific trigger_config comparison (pipeline+stage for orders, keywords overlap for keyword_match)
 
 ### Project Rules
 
@@ -398,6 +402,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-14
-Stopped at: Completed 19-02-PLAN.md (system prompt & tool definitions)
+Stopped at: Completed 19-04-PLAN.md (diagram generator & validation)
 Resume file: None
-Next: 19-03-PLAN.md
+Next: 19-05-PLAN.md

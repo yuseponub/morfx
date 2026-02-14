@@ -48,6 +48,7 @@ export type DiagramNodeType = 'triggerNode' | 'conditionNode' | 'actionNode'
  * - actionNode: actionType, params, delay
  */
 export interface DiagramNodeData {
+  [key: string]: unknown // Index signature required by @xyflow/react Node<T>
   label: string
   hasError: boolean
   errorMessage?: string

@@ -371,6 +371,10 @@ Recent decisions affecting MVP v2 work:
 - [19-05]: v6 sendMessage replaces handleSubmit/handleInputChange; manage input state locally
 - [19-06]: DiagramNodeData needs [key: string]: unknown index signature for @xyflow/react Node<T> constraint
 - [19-06]: SSR safety delegated to consumer (dynamic import in builder-message.tsx) not wrapped in preview component itself
+- [19-07]: Inline diagram rendering inside chat message bubble via dynamic import (SSR-safe)
+- [19-07]: Confirmation sends literal text "Confirmo. Crea la automatizacion." for agent to interpret naturally
+- [19-07]: Removed 260 lines of duplicated validation/cycle-detection from tools.ts — single source in validation module
+- [19-07]: AutomationPreview max-width widened to 90% for assistant messages (diagrams need more space)
 - [19-08]: key-based remount for session switching (change chatKey forces full BuilderChat remount with new initialMessages)
 - [19-08]: Session history as overlay panel (absolute positioned, click-outside dismiss) not persistent sidebar
 - [19-08]: React 19 ref prop pattern replaces forwardRef in BuilderInput (fixes TS error with React 19 types)
@@ -416,6 +420,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-14
-Stopped at: Completed 19-08-PLAN.md (session history)
+Stopped at: Completed 19-07-PLAN.md (preview-confirm-create flow)
 Resume file: None
 Next: 19-09-PLAN.md

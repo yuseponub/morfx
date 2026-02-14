@@ -356,6 +356,9 @@ Recent decisions affecting MVP v2 work:
 - [19-02]: generatePreview returns empty DiagramData; real diagram generation deferred to Plan 04
 - [19-02]: Template approval status validation: warns about non-APPROVED templates in resource validation
 - [19-01]: --legacy-peer-deps required for npm install due to React 19 peer dep conflict with @webscopeio/react-textarea-autocomplete
+- [19-03]: AI SDK v6 uses toUIMessageStreamResponse (not toDataStreamResponse) and stopWhen: stepCountIs(N) (not maxSteps)
+- [19-03]: UIMessage has parts[] not content; use convertToModelMessages() to bridge UIMessage to ModelMessage for streamText
+- [19-03]: Session store uses createAdminClient + workspace_id filter for all 6 CRUD functions
 - [19-04]: DiagramNodeData extended with category and conditionCount fields for richer node rendering
 - [19-04]: Validation errors inferred to nodeIds by matching resource references in trigger_config/action params
 - [19-04]: WhatsApp send actions excluded from cycle detection graph (outgoing messages don't trigger automation handlers)

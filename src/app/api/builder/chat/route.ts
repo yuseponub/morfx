@@ -132,13 +132,14 @@ export async function POST(request: Request) {
       messages: modelMessages,
       tools,
       stopWhen: stepCountIs(5),
-      onFinish: async ({ response }) => {
-        // Save all messages (user + assistant) to the session after stream completes.
-        // response.messages contains the AI-generated messages from this turn.
-        // We store the raw UIMessages from the client merged with response messages
-        // for full history reconstruction.
+      onFinish: async () => {
+        // Save the UIMessages from the client as-is.
+        // The frontend sends the full conversation history on each request,
+        // so we just persist what the client sent. The response for this turn
+        // will be included in the NEXT request's messages array automatically
+        // by useChat. This avoids mixing UIMessage and ModelMessage formats.
         await updateSession(sessionId!, workspaceId, {
-          messages: [...messages, ...response.messages],
+          messages: messages as unknown[],
         })
       },
     })

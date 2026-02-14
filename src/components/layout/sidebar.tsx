@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -27,6 +27,11 @@ type NavItem = {
   icon: typeof Building2
   badgeType?: 'tasks' | 'automations'
   adminOnly?: boolean
+  subLink?: {
+    href: string
+    label: string
+    icon: typeof Building2
+  }
 }
 
 const navItems: NavItem[] = [
@@ -51,6 +56,11 @@ const navItems: NavItem[] = [
     label: 'Automatizaciones',
     icon: Zap,
     badgeType: 'automations',
+    subLink: {
+      href: '/automatizaciones/builder',
+      label: 'AI Builder',
+      icon: Sparkles,
+    },
   },
   {
     href: '/analytics',
@@ -134,30 +144,52 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
 
               return (
                 <li key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                          isActive
-                            ? 'bg-accent text-accent-foreground'
-                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                        )}
-                      >
-                        <Icon className="h-5 w-5" />
-                        <span className="flex-1">{item.label}</span>
-                        {showBadge && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
-                            {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
-                          </span>
-                        )}
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p>{item.label}</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            'flex flex-1 items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-accent text-accent-foreground'
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="flex-1">{item.label}</span>
+                          {showBadge && (
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
+                              {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
+                            </span>
+                          )}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>{item.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    {item.subLink && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={item.subLink.href}
+                            className={cn(
+                              'flex h-8 w-8 items-center justify-center rounded-md transition-colors shrink-0',
+                              pathname.startsWith(item.subLink.href)
+                                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            )}
+                          >
+                            <item.subLink.icon className="h-4 w-4" />
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>{item.subLink.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </li>
               )
             })}

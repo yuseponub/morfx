@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -16,6 +16,8 @@ import {
   XCircle,
   Loader2,
   History,
+  Sparkles,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -109,6 +111,19 @@ export function AutomationList({ initialAutomations }: AutomationListProps) {
   const [categoryFilter, setCategoryFilter] = useState<FilterCategory>('all')
   const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
+  const [bannerDismissed, setBannerDismissed] = useState(true) // Start hidden to avoid flash
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem('morfx_builder_banner_dismissed')
+    if (!dismissed) {
+      setBannerDismissed(false)
+    }
+  }, [])
+
+  function dismissBanner() {
+    setBannerDismissed(true)
+    localStorage.setItem('morfx_builder_banner_dismissed', '1')
+  }
 
   // Filter automations
   const filtered = useMemo(() => {
@@ -238,6 +253,12 @@ export function AutomationList({ initialAutomations }: AutomationListProps) {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" asChild>
+            <Link href="/automatizaciones/builder">
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI Builder
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href="/automatizaciones/historial">
               <History className="h-4 w-4 mr-2" />
               Historial
@@ -251,6 +272,28 @@ export function AutomationList({ initialAutomations }: AutomationListProps) {
           </Button>
         </div>
       </div>
+
+      {/* AI Builder Banner */}
+      {!bannerDismissed && (
+        <div className="rounded-lg border bg-muted/50 p-4 flex items-start gap-3">
+          <Sparkles className="h-5 w-5 text-violet-500 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Nuevo: AI Builder</p>
+            <p className="text-sm text-muted-foreground">
+              Describe lo que quieres automatizar en lenguaje natural y el asistente lo creara por ti.
+            </p>
+            <Link href="/automatizaciones/builder" className="text-sm text-primary hover:underline mt-1 inline-block">
+              Probar AI Builder →
+            </Link>
+          </div>
+          <button
+            onClick={dismissBanner}
+            className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

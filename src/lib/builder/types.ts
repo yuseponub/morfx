@@ -51,11 +51,13 @@ export interface DiagramNodeData {
   label: string
   hasError: boolean
   errorMessage?: string
+  category?: string
   // Trigger-specific
   triggerType?: TriggerType
   triggerConfig?: Record<string, unknown>
   // Condition-specific
   conditions?: ConditionGroup
+  conditionCount?: number
   // Action-specific
   actionType?: ActionType
   params?: Record<string, unknown>

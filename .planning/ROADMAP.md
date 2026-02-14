@@ -614,10 +614,19 @@ Plans:
   5. Flujos creados son editables manualmente despues de creacion por IA
   6. Agente puede modificar automatizaciones existentes por instruccion natural
   7. Sistema valida la automatizacion completa antes de activar (endpoints existen, permisos correctos, sin ciclos)
-**Plans**: TBD
+**Plans**: 10 plans
 
 Plans:
-- [ ] 19-01: TBD during /gsd:plan-phase
+- [ ] 19-01-PLAN.md — Foundation: deps install (ai, @ai-sdk/anthropic, @xyflow/react), builder types, builder_sessions DB migration
+- [ ] 19-02-PLAN.md — System prompt with catalog knowledge + 9 builder tool definitions
+- [ ] 19-03-PLAN.md — Streaming API route (/api/builder/chat) + session store persistence
+- [ ] 19-04-PLAN.md — Diagram generator (automation → React Flow nodes/edges) + validation (resources, cycles, duplicates)
+- [ ] 19-05-PLAN.md — Builder page + chat UI with useChat hook + message rendering with parts
+- [ ] 19-06-PLAN.md — React Flow preview component + custom nodes (trigger/condition/action) + confirmation buttons
+- [ ] 19-07-PLAN.md — Wire diagram preview into chat + confirmation flow (confirm → create, modify → refocus)
+- [ ] 19-08-PLAN.md — Session history UI + sessions API endpoint + resume past conversations
+- [ ] 19-09-PLAN.md — Navigation (automation list CTA) + modify/clone/explain flow polish
+- [ ] 19-10-PLAN.md — TypeScript verification + human verification of all success criteria
 
 ### Phase 20: Integration Automations (Twilio + Shopify)
 **Goal**: Expandir el motor de automatizaciones con integracion Twilio (SMS/llamadas como action types) y triggers directos de Shopify (orders/draft orders) para control granular desde el builder

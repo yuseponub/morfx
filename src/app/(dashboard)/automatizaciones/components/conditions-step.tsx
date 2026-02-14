@@ -8,6 +8,7 @@ import type {
   Condition,
   ConditionOperator,
 } from '@/lib/automations/types'
+import type { PipelineWithStages } from '@/lib/orders/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,9 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -30,6 +33,7 @@ interface ConditionsStepProps {
   formData: AutomationFormData
   onChange: (partial: Partial<AutomationFormData>) => void
   triggerType: TriggerType
+  pipelines?: PipelineWithStages[]
 }
 
 const OPERATORS: { value: ConditionOperator; label: string }[] = [
@@ -48,6 +52,10 @@ const OPERATORS: { value: ConditionOperator; label: string }[] = [
 ]
 
 const NO_VALUE_OPERATORS: ConditionOperator[] = ['exists', 'not_exists']
+
+// Fields that use a pipeline/stage dropdown instead of free-text input
+const PIPELINE_FIELD = 'orden.pipeline_id'
+const STAGE_FIELD = 'orden.stage_id'
 
 // ============================================================================
 // Helpers
@@ -70,6 +78,113 @@ function getVariableFields(triggerType: TriggerType): { path: string; label: str
   return vars ? [...vars] : []
 }
 
+/**
+ * Resolve a UUID to a human-readable name for display.
+ * Returns the name if found, otherwise the raw UUID truncated.
+ */
+function resolveUuidLabel(
+  value: string,
+  field: string,
+  pipelines: PipelineWithStages[]
+): string {
+  if (!value || pipelines.length === 0) return value
+
+  if (field === PIPELINE_FIELD) {
+    const found = pipelines.find((p) => p.id === value)
+    return found ? found.name : value
+  }
+
+  if (field === STAGE_FIELD) {
+    for (const p of pipelines) {
+      const stage = p.stages.find((s) => s.id === value)
+      if (stage) return `${stage.name} (${p.name})`
+    }
+    return value
+  }
+
+  return value
+}
+
+// ============================================================================
+// Value Input — renders dropdown for pipeline/stage, Input for everything else
+// ============================================================================
+
+function ConditionValueInput({
+  condition,
+  onUpdate,
+  pipelines,
+}: {
+  condition: Condition
+  onUpdate: (c: Condition) => void
+  pipelines: PipelineWithStages[]
+}) {
+  const { field, value } = condition
+  const strValue = String(value ?? '')
+
+  // Pipeline dropdown
+  if (field === PIPELINE_FIELD && pipelines.length > 0) {
+    return (
+      <Select
+        value={strValue}
+        onValueChange={(val) => onUpdate({ ...condition, value: val })}
+      >
+        <SelectTrigger className="h-9 text-xs">
+          <SelectValue placeholder="Pipeline...">
+            {resolveUuidLabel(strValue, field, pipelines)}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {pipelines.map((p) => (
+            <SelectItem key={p.id} value={p.id}>
+              {p.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  // Stage dropdown (grouped by pipeline)
+  if (field === STAGE_FIELD && pipelines.length > 0) {
+    return (
+      <Select
+        value={strValue}
+        onValueChange={(val) => onUpdate({ ...condition, value: val })}
+      >
+        <SelectTrigger className="h-9 text-xs">
+          <SelectValue placeholder="Etapa...">
+            {resolveUuidLabel(strValue, field, pipelines)}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {pipelines.map((p) => (
+            <SelectGroup key={p.id}>
+              <SelectLabel className="text-xs text-muted-foreground">
+                {p.name}
+              </SelectLabel>
+              {p.stages.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  // Default: free-text input
+  return (
+    <Input
+      className="h-9 text-xs"
+      value={strValue}
+      onChange={(e) => onUpdate({ ...condition, value: e.target.value })}
+      placeholder="Valor..."
+    />
+  )
+}
+
 // ============================================================================
 // Single Condition Row
 // ============================================================================
@@ -80,12 +195,14 @@ function ConditionRow({
   onRemove,
   fields,
   canRemove,
+  pipelines,
 }: {
   condition: Condition
   onUpdate: (c: Condition) => void
   onRemove: () => void
   fields: { path: string; label: string }[]
   canRemove: boolean
+  pipelines: PipelineWithStages[]
 }) {
   const needsValue = !NO_VALUE_OPERATORS.includes(condition.operator)
 
@@ -95,7 +212,7 @@ function ConditionRow({
       <div className="flex-1 min-w-0">
         <Select
           value={condition.field}
-          onValueChange={(val) => onUpdate({ ...condition, field: val })}
+          onValueChange={(val) => onUpdate({ ...condition, field: val, value: '' })}
         >
           <SelectTrigger className="h-9 text-xs">
             <SelectValue placeholder="Campo..." />
@@ -131,14 +248,13 @@ function ConditionRow({
         </Select>
       </div>
 
-      {/* Value input */}
+      {/* Value input (dropdown for pipeline/stage, text for others) */}
       {needsValue && (
         <div className="flex-1 min-w-0">
-          <Input
-            className="h-9 text-xs"
-            value={String(condition.value ?? '')}
-            onChange={(e) => onUpdate({ ...condition, value: e.target.value })}
-            placeholder="Valor..."
+          <ConditionValueInput
+            condition={condition}
+            onUpdate={onUpdate}
+            pipelines={pipelines}
           />
         </div>
       )}
@@ -168,12 +284,14 @@ function ConditionGroupEditor({
   onRemove,
   fields,
   depth,
+  pipelines,
 }: {
   group: ConditionGroup
   onUpdate: (g: ConditionGroup) => void
   onRemove: () => void
   fields: { path: string; label: string }[]
   depth: number
+  pipelines: PipelineWithStages[]
 }) {
   function toggleLogic() {
     onUpdate({ ...group, logic: group.logic === 'AND' ? 'OR' : 'AND' })
@@ -265,6 +383,7 @@ function ConditionGroupEditor({
                   onRemove={() => removeConditionAtIndex(index)}
                   fields={fields}
                   depth={depth + 1}
+                  pipelines={pipelines}
                 />
               )
             }
@@ -276,6 +395,7 @@ function ConditionGroupEditor({
                 onRemove={() => removeConditionAtIndex(index)}
                 fields={fields}
                 canRemove={group.conditions.length > 1}
+                pipelines={pipelines}
               />
             )
           })}
@@ -315,7 +435,7 @@ function ConditionGroupEditor({
 // Main Component
 // ============================================================================
 
-export function ConditionsStep({ formData, onChange, triggerType }: ConditionsStepProps) {
+export function ConditionsStep({ formData, onChange, triggerType, pipelines = [] }: ConditionsStepProps) {
   const conditions = formData.conditions
   const fields = getVariableFields(triggerType)
 
@@ -377,6 +497,7 @@ export function ConditionsStep({ formData, onChange, triggerType }: ConditionsSt
             onRemove={removeRoot}
             fields={fields}
             depth={0}
+            pipelines={pipelines}
           />
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground">

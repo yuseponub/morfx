@@ -201,6 +201,7 @@ export function AutomationWizard({ initialData, pipelines, tags }: WizardProps) 
             formData={formData}
             onChange={updateFormData}
             triggerType={formData.trigger_type}
+            pipelines={pipelines}
           />
         )}
         {step === 3 && (

@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 19 of 19 (AI Automation Builder) — IN PROGRESS
-Plan: 1 of TBD (foundation: deps, types, DB)
+Plan: 2 of TBD (system prompt & tool definitions)
 Status: In progress
-Last activity: 2026-02-14 — Completed 19-01-PLAN.md
+Last activity: 2026-02-14 — Completed 19-02-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [████████████████████████] 98% MVP v2
 
@@ -350,6 +350,11 @@ Recent decisions affecting MVP v2 work:
 - [19-01]: BuilderSession.messages typed as unknown[] for JSONB serialization; cast to UIMessage at usage site
 - [19-01]: DiagramNodeData uses optional fields (not discriminated union) for simpler React Flow integration
 - [19-01]: builder_sessions RLS: workspace members SELECT/INSERT, owner-only UPDATE/DELETE
+- [19-02]: AI SDK v6 tool() requires inputSchema (not parameters) property for zod v4 TypeScript compatibility
+- [19-02]: ACTION_TO_TRIGGER_MAP: static mapping from action types to trigger types for DFS cycle detection
+- [19-02]: WhatsApp send actions mapped to whatsapp.message_received in cycle detection (conservative)
+- [19-02]: generatePreview returns empty DiagramData; real diagram generation deferred to Plan 04
+- [19-02]: Template approval status validation: warns about non-APPROVED templates in resource validation
 - [19-01]: --legacy-peer-deps required for npm install due to React 19 peer dep conflict with @webscopeio/react-textarea-autocomplete
 
 ### Project Rules
@@ -393,6 +398,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-14
-Stopped at: Completed 19-01-PLAN.md (foundation: deps, types, DB)
+Stopped at: Completed 19-02-PLAN.md (system prompt & tool definitions)
 Resume file: None
-Next: 19-02-PLAN.md
+Next: 19-03-PLAN.md

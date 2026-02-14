@@ -364,6 +364,12 @@ Recent decisions affecting MVP v2 work:
 - [19-04]: WhatsApp send actions excluded from cycle detection graph (outgoing messages don't trigger automation handlers)
 - [19-04]: Duplicate detection uses type-specific trigger_config comparison (pipeline+stage for orders, keywords overlap for keyword_match)
 - [19-06]: DiagramNodeData needs [key: string]: unknown index signature for @xyflow/react Node<T> constraint
+- [19-05]: AI SDK v6 useChat requires DefaultChatTransport (not deprecated ChatInit.api)
+- [19-05]: Custom fetch wrapper on transport to intercept X-Session-Id response header (v6 removed onResponse)
+- [19-05]: dynamic-tool part type replaces tool-invocation from v5; states: input-streaming/input-available/output-available/output-error
+- [19-05]: @ai-sdk/react required for useChat (not ai/react which doesn't exist in v6)
+- [19-05]: v6 sendMessage replaces handleSubmit/handleInputChange; manage input state locally
+- [19-06]: DiagramNodeData needs [key: string]: unknown index signature for @xyflow/react Node<T> constraint
 - [19-06]: SSR safety delegated to consumer (dynamic import in builder-message.tsx) not wrapped in preview component itself
 
 ### Project Rules

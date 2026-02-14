@@ -4,20 +4,33 @@
 // Phase 19: AI Automation Builder - Builder Input
 // Textarea input that expands up to 4 lines.
 // Enter submits, Shift+Enter adds newline.
+// Accepts ref prop for external focus control (React 19 pattern).
 // ============================================================================
 
-import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent } from 'react'
+import {
+  useState,
+  useRef,
+  useCallback,
+  useImperativeHandle,
+  type KeyboardEvent,
+  type ChangeEvent,
+  type Ref,
+} from 'react'
 import { Send, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-interface BuilderInputProps {
+export interface BuilderInputProps {
   onSubmit: (text: string) => void
   isLoading: boolean
+  ref?: Ref<HTMLTextAreaElement>
 }
 
-export function BuilderInput({ onSubmit, isLoading }: BuilderInputProps) {
+export function BuilderInput({ onSubmit, isLoading, ref }: BuilderInputProps) {
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Expose the internal textarea ref to the parent via ref prop
+  useImperativeHandle(ref, () => textareaRef.current!, [])
 
   // Auto-resize textarea
   const handleChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {

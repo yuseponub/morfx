@@ -24,13 +24,28 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
 - **PUEDE:** Ejecutar herramientas definidas en su tool set
 - **NO PUEDE:** Salirse de las herramientas asignadas ni crear recursos de otros modulos
 
-## Implementacion
+## OBLIGATORIO al Crear un Agente Nuevo
 
-En el system prompt de cada agente:
-- Listar explicitamente que PUEDE y que NO PUEDE hacer
-- Incluir instruccion: "Si un recurso no existe, avisa al usuario. NUNCA lo crees automaticamente."
-- Incluir instruccion: "Tu scope es [modulo]. No operes fuera de el."
+Cuando se programe CUALQUIER agente nuevo en el sistema, se DEBE:
 
-En las tool definitions:
-- Solo exponer tools relevantes al scope del agente
-- No incluir herramientas de creacion de recursos externos
+1. **Definir scope explicitamente** antes de escribir codigo:
+   - Listar que modulos/tablas PUEDE tocar
+   - Listar que modulos/tablas NO PUEDE tocar
+   - Agregar el scope a esta seccion "Scopes por Agente"
+
+2. **System prompt DEBE incluir**:
+   - Scope explicito: "Tu scope es [modulo]. No operes fuera de el."
+   - Instruccion: "Si un recurso no existe, avisa al usuario. NUNCA lo crees automaticamente."
+   - Lista de PUEDE y NO PUEDE
+
+3. **Tool definitions DEBEN**:
+   - Solo exponer tools relevantes al scope del agente
+   - No incluir herramientas de creacion de recursos externos
+   - Validar workspace_id en CADA query
+
+4. **Verificacion en code review**:
+   - Confirmar que ningun tool handler escribe fuera del scope
+   - Confirmar que las queries NO hacen INSERT/UPDATE en tablas fuera del modulo
+   - Confirmar que el system prompt documenta las restricciones
+
+**BLOQUEANTE:** No se puede mergear un agente nuevo sin scope definido en este archivo.

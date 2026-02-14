@@ -159,6 +159,8 @@ export interface AutomationPreviewData {
   resourceValidations: ResourceValidation[]
   hasCycles: boolean
   duplicateWarning: string | null
+  /** When modifying an existing automation, this is its UUID */
+  existingAutomationId?: string
 }
 
 // ============================================================================

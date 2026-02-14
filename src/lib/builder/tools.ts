@@ -383,6 +383,10 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             })
           )
           .describe('Lista de acciones'),
+        existingAutomationId: z
+          .string()
+          .optional()
+          .describe('UUID de la automatizacion existente si se esta modificando (no clonar)'),
       }),
       execute: async (params): Promise<AutomationPreviewData | { error: string }> => {
         try {
@@ -443,6 +447,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             resourceValidations,
             hasCycles: cycleResult.hasCycles,
             duplicateWarning,
+            ...(params.existingAutomationId ? { existingAutomationId: params.existingAutomationId } : {}),
           }
 
           return preview

@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 19 of 19 (AI Automation Builder) — IN PROGRESS
-Plan: 6 of TBD (automation preview diagram)
+Plan: 8 of TBD (session history)
 Status: In progress
-Last activity: 2026-02-14 — Completed 19-06-PLAN.md
+Last activity: 2026-02-14 — Completed 19-08-PLAN.md
 
 Progress: [##########] 100% MVP v1 | [████████████████████████] 98% MVP v2
 
@@ -40,7 +40,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 16.1: Engine Unification (6 plans) — INSERTED — COMPLETE
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
 - Phase 18: Domain Layer Foundation (10 plans) — COMPLETE (2026-02-13)
-- Phase 19: AI Automation Builder (TBD plans) — IN PROGRESS (6/TBD)
+- Phase 19: AI Automation Builder (TBD plans) — IN PROGRESS (8/TBD)
 
 ## Performance Metrics
 
@@ -67,7 +67,7 @@ All 11 phases + 4 inserted phases completed:
 | 16.1 Engine Unification | 6/6 | Complete |
 | 17. CRM Automations Engine | 10/10 | Complete |
 | 18. Domain Layer Foundation | 10/10 | Complete |
-| 19. AI Automation Builder | 6/TBD | In Progress |
+| 19. AI Automation Builder | 8/TBD | In Progress |
 
 ## Accumulated Context
 
@@ -371,6 +371,9 @@ Recent decisions affecting MVP v2 work:
 - [19-05]: v6 sendMessage replaces handleSubmit/handleInputChange; manage input state locally
 - [19-06]: DiagramNodeData needs [key: string]: unknown index signature for @xyflow/react Node<T> constraint
 - [19-06]: SSR safety delegated to consumer (dynamic import in builder-message.tsx) not wrapped in preview component itself
+- [19-08]: key-based remount for session switching (change chatKey forces full BuilderChat remount with new initialMessages)
+- [19-08]: Session history as overlay panel (absolute positioned, click-outside dismiss) not persistent sidebar
+- [19-08]: React 19 ref prop pattern replaces forwardRef in BuilderInput (fixes TS error with React 19 types)
 
 ### Project Rules
 
@@ -413,6 +416,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-14
-Stopped at: Completed 19-06-PLAN.md (automation preview diagram)
+Stopped at: Completed 19-08-PLAN.md (session history)
 Resume file: None
-Next: 19-07-PLAN.md
+Next: 19-09-PLAN.md

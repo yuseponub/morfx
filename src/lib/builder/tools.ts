@@ -7,11 +7,15 @@
 import { z } from 'zod'
 import { tool } from 'ai'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { automationToDiagram } from '@/lib/builder/diagram-generator'
+import {
+  validateResources,
+  detectCycles,
+  findDuplicateAutomations,
+} from '@/lib/builder/validation'
 import type {
   BuilderToolContext,
   AutomationPreviewData,
-  ResourceValidation,
-  DiagramData,
 } from '@/lib/builder/types'
 import type { TriggerType, AutomationAction } from '@/lib/automations/types'
 import {
@@ -74,267 +78,6 @@ interface AutomationDetail {
 interface WorkspaceMember {
   id: string
   email: string
-}
-
-// ============================================================================
-// Cycle Detection
-// ============================================================================
-
-/**
- * Builds an adjacency graph from existing automations.
- * Maps trigger_type -> set of trigger_types that could be caused by its actions.
- *
- * For example, an automation triggered by "order.created" with action "change_stage"
- * could produce "order.stage_changed" events.
- */
-const ACTION_TO_TRIGGER_MAP: Record<string, string[]> = {
-  assign_tag: ['tag.assigned'],
-  remove_tag: ['tag.removed'],
-  change_stage: ['order.stage_changed'],
-  update_field: ['field.changed'],
-  create_order: ['order.created'],
-  duplicate_order: ['order.created'],
-  create_task: [], // task.created doesn't exist in catalog
-  send_whatsapp_template: ['whatsapp.message_received'], // could trigger message_received on reply
-  send_whatsapp_text: ['whatsapp.message_received'],
-  send_whatsapp_media: ['whatsapp.message_received'],
-  webhook: [],
-}
-
-/**
- * Detects cycles in the automation graph using DFS.
- * Returns true if adding an automation with the given trigger/actions
- * would create a cycle with existing automations.
- */
-function detectCycles(
-  newTriggerType: string,
-  newActions: { type: string }[],
-  existingAutomations: { trigger_type: string; actions: { type: string }[]; is_enabled: boolean }[]
-): boolean {
-  // Build adjacency graph: triggerType -> set of triggerTypes it can produce
-  const graph = new Map<string, Set<string>>()
-
-  // Add existing enabled automations to the graph
-  for (const auto of existingAutomations) {
-    if (!auto.is_enabled) continue
-
-    const producedTriggers = new Set<string>()
-    for (const action of auto.actions) {
-      const triggers = ACTION_TO_TRIGGER_MAP[action.type] || []
-      for (const t of triggers) {
-        producedTriggers.add(t)
-      }
-    }
-    if (producedTriggers.size > 0) {
-      const existing = graph.get(auto.trigger_type) || new Set()
-      for (const t of producedTriggers) {
-        existing.add(t)
-      }
-      graph.set(auto.trigger_type, existing)
-    }
-  }
-
-  // Add the new automation to the graph
-  const newProduced = new Set<string>()
-  for (const action of newActions) {
-    const triggers = ACTION_TO_TRIGGER_MAP[action.type] || []
-    for (const t of triggers) {
-      newProduced.add(t)
-    }
-  }
-  if (newProduced.size > 0) {
-    const existing = graph.get(newTriggerType) || new Set()
-    for (const t of newProduced) {
-      existing.add(t)
-    }
-    graph.set(newTriggerType, existing)
-  }
-
-  // DFS cycle detection from newTriggerType
-  const visited = new Set<string>()
-  const recStack = new Set<string>()
-
-  function dfs(node: string): boolean {
-    visited.add(node)
-    recStack.add(node)
-
-    const neighbors = graph.get(node) || new Set()
-    for (const neighbor of neighbors) {
-      if (recStack.has(neighbor)) return true // Cycle found
-      if (!visited.has(neighbor) && dfs(neighbor)) return true
-    }
-
-    recStack.delete(node)
-    return false
-  }
-
-  // Check cycle starting from each trigger type that the new automation produces
-  for (const produced of newProduced) {
-    visited.clear()
-    recStack.clear()
-    recStack.add(newTriggerType) // The new trigger is in the stack
-    if (dfs(produced)) return true
-  }
-
-  return false
-}
-
-// ============================================================================
-// Resource Validation
-// ============================================================================
-
-async function validateResources(
-  workspaceId: string,
-  triggerConfig: Record<string, unknown>,
-  actions: { type: string; params: Record<string, unknown> }[]
-): Promise<ResourceValidation[]> {
-  const supabase = createAdminClient()
-  const validations: ResourceValidation[] = []
-
-  // Collect all resource IDs to validate
-  const pipelineIds = new Set<string>()
-  const stageIds = new Set<string>()
-  const tagNames = new Set<string>()
-  const templateNames = new Set<string>()
-  const userIds = new Set<string>()
-
-  // From trigger config
-  if (triggerConfig.pipelineId) pipelineIds.add(triggerConfig.pipelineId as string)
-  if (triggerConfig.stageId) stageIds.add(triggerConfig.stageId as string)
-  if (triggerConfig.tagId) tagNames.add(triggerConfig.tagId as string) // tagId is actually tag name in some contexts
-
-  // From actions
-  for (const action of actions) {
-    if (action.params.pipelineId) pipelineIds.add(action.params.pipelineId as string)
-    if (action.params.targetPipelineId) pipelineIds.add(action.params.targetPipelineId as string)
-    if (action.params.stageId) stageIds.add(action.params.stageId as string)
-    if (action.params.targetStageId) stageIds.add(action.params.targetStageId as string)
-    if (action.params.tagName) tagNames.add(action.params.tagName as string)
-    if (action.params.templateName) templateNames.add(action.params.templateName as string)
-    if (action.params.assignToUserId) userIds.add(action.params.assignToUserId as string)
-  }
-
-  // Validate pipelines
-  if (pipelineIds.size > 0) {
-    const { data: pipelines } = await supabase
-      .from('pipelines')
-      .select('id, name')
-      .eq('workspace_id', workspaceId)
-      .in('id', Array.from(pipelineIds))
-
-    for (const pid of pipelineIds) {
-      const found = pipelines?.find((p) => p.id === pid)
-      validations.push({
-        type: 'pipeline',
-        name: found?.name || pid,
-        found: !!found,
-        id: found?.id || null,
-        details: found ? null : 'Pipeline no encontrado en el workspace',
-      })
-    }
-  }
-
-  // Validate stages
-  if (stageIds.size > 0) {
-    const { data: stages } = await supabase
-      .from('pipeline_stages')
-      .select('id, name, pipeline_id')
-      .in('id', Array.from(stageIds))
-
-    for (const sid of stageIds) {
-      const found = stages?.find((s) => s.id === sid)
-      // Also verify the stage's pipeline belongs to the workspace
-      if (found) {
-        const pipelineValidated = validations.find(
-          (v) => v.type === 'pipeline' && v.id === found.pipeline_id && v.found
-        )
-        const valid = pipelineValidated !== undefined || pipelineIds.size === 0
-        validations.push({
-          type: 'stage',
-          name: found.name,
-          found: valid,
-          id: found.id,
-          details: valid ? null : 'La etapa pertenece a un pipeline fuera del workspace',
-        })
-      } else {
-        validations.push({
-          type: 'stage',
-          name: sid,
-          found: false,
-          id: null,
-          details: 'Etapa no encontrada',
-        })
-      }
-    }
-  }
-
-  // Validate tags
-  if (tagNames.size > 0) {
-    const { data: tags } = await supabase
-      .from('tags')
-      .select('id, name')
-      .eq('workspace_id', workspaceId)
-      .in('name', Array.from(tagNames))
-
-    for (const tagName of tagNames) {
-      const found = tags?.find((t) => t.name === tagName)
-      validations.push({
-        type: 'tag',
-        name: tagName,
-        found: !!found,
-        id: found?.id || null,
-        details: found ? null : 'Tag no encontrado en el workspace. Debe crearse primero.',
-      })
-    }
-  }
-
-  // Validate templates
-  if (templateNames.size > 0) {
-    const { data: templates } = await supabase
-      .from('whatsapp_templates')
-      .select('id, name, status')
-      .eq('workspace_id', workspaceId)
-      .in('name', Array.from(templateNames))
-
-    for (const tmplName of templateNames) {
-      const found = templates?.find((t) => t.name === tmplName)
-      let details: string | null = null
-      if (!found) {
-        details = 'Template no encontrado en el workspace'
-      } else if (found.status !== 'APPROVED') {
-        details = `Template tiene status "${found.status}". Solo templates APPROVED pueden enviarse.`
-      }
-      validations.push({
-        type: 'template',
-        name: tmplName,
-        found: !!found,
-        id: found?.id || null,
-        details,
-      })
-    }
-  }
-
-  // Validate users
-  if (userIds.size > 0) {
-    const { data: members } = await supabase
-      .from('workspace_members')
-      .select('user_id')
-      .eq('workspace_id', workspaceId)
-      .in('user_id', Array.from(userIds))
-
-    for (const uid of userIds) {
-      const found = members?.find((m) => m.user_id === uid)
-      validations.push({
-        type: 'user',
-        name: uid,
-        found: !!found,
-        id: found ? uid : null,
-        details: found ? null : 'Usuario no es miembro del workspace',
-      })
-    }
-  }
-
-  return validations
 }
 
 // ============================================================================
@@ -643,52 +386,51 @@ export function createBuilderTools(ctx: BuilderToolContext) {
       }),
       execute: async (params): Promise<AutomationPreviewData | { error: string }> => {
         try {
-          const supabase = createAdminClient()
-
-          // 1. Validate resources
+          // 1. Validate resources against workspace DB
           const resourceValidations = await validateResources(
             ctx.workspaceId,
-            params.trigger_config,
-            params.actions
-          )
-
-          // 2. Check for duplicate automations
-          let duplicateWarning: string | null = null
-          const { data: existingAutos } = await supabase
-            .from('automations')
-            .select('id, name, trigger_type, trigger_config, actions, is_enabled')
-            .eq('workspace_id', ctx.workspaceId)
-
-          if (existingAutos) {
-            const duplicate = existingAutos.find(
-              (a) =>
-                a.trigger_type === params.trigger_type &&
-                JSON.stringify(a.trigger_config) === JSON.stringify(params.trigger_config)
-            )
-            if (duplicate) {
-              duplicateWarning = `Ya existe una automatizacion con el mismo trigger: "${duplicate.name}" (${duplicate.is_enabled ? 'activa' : 'desactivada'}). Esto puede ser intencional, pero verifica.`
+            {
+              trigger_type: params.trigger_type,
+              trigger_config: params.trigger_config,
+              actions: params.actions,
             }
-          }
-
-          // 3. Check for cycles
-          const existingForCycle = (existingAutos || []).map((a) => ({
-            trigger_type: a.trigger_type,
-            actions: (Array.isArray(a.actions) ? a.actions : []) as { type: string }[],
-            is_enabled: a.is_enabled,
-          }))
-
-          const hasCycles = detectCycles(
-            params.trigger_type,
-            params.actions,
-            existingForCycle
           )
 
-          // 4. Generate diagram placeholder (Plan 04 will add real diagram generation)
-          const emptyDiagram: DiagramData = {
-            nodes: [],
-            edges: [],
-            validationErrors: [],
+          // 2. Detect cycles in the automation graph
+          const cycleResult = await detectCycles(
+            ctx.workspaceId,
+            {
+              trigger_type: params.trigger_type,
+              actions: params.actions,
+            }
+          )
+
+          // 3. Find duplicate automations with overlapping triggers
+          const duplicateResult = await findDuplicateAutomations(
+            ctx.workspaceId,
+            {
+              trigger_type: params.trigger_type,
+              trigger_config: params.trigger_config,
+            }
+          )
+
+          let duplicateWarning: string | null = null
+          if (duplicateResult.isDuplicate && duplicateResult.existing.length > 0) {
+            const names = duplicateResult.existing.map((d) => `"${d.name}"`).join(', ')
+            duplicateWarning = `Ya existe(n) automatizacion(es) con trigger similar: ${names}. Esto puede ser intencional, pero verifica.`
           }
+
+          // 4. Generate React Flow diagram with validation errors mapped to nodes
+          const diagram = automationToDiagram(
+            {
+              name: params.name,
+              trigger_type: params.trigger_type,
+              trigger_config: params.trigger_config,
+              conditions: params.conditions || null,
+              actions: params.actions as AutomationAction[],
+            },
+            resourceValidations
+          )
 
           const preview: AutomationPreviewData = {
             name: params.name,
@@ -697,9 +439,9 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             trigger_config: params.trigger_config,
             conditions: params.conditions || null,
             actions: params.actions as AutomationAction[],
-            diagram: emptyDiagram,
+            diagram,
             resourceValidations,
-            hasCycles,
+            hasCycles: cycleResult.hasCycles,
             duplicateWarning,
           }
 

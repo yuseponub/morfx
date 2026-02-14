@@ -351,11 +351,40 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
         return { matched: 0, executed: 0 }
       }
 
-      // Step 2: Build contexts
+      // Step 2: Enrich event data for tag triggers on orders
+      // tag.assigned/tag.removed events only carry entityType + entityId.
+      // When the entity is an order, we need pipeline_id/stage_id for condition evaluation.
+      if (
+        (triggerType === 'tag.assigned' || triggerType === 'tag.removed') &&
+        eventData.entityType === 'order' &&
+        eventData.entityId
+      ) {
+        const orderData = await step.run(
+          `enrich-order-context`,
+          async () => {
+            const supabase = createAdminClient()
+            const { data } = await supabase
+              .from('orders')
+              .select('id, pipeline_id, stage_id')
+              .eq('id', String(eventData.entityId))
+              .eq('workspace_id', workspaceId)
+              .single()
+            return data
+          }
+        )
+
+        if (orderData) {
+          eventData.orderId = orderData.id
+          eventData.pipelineId = orderData.pipeline_id
+          eventData.stageId = orderData.stage_id
+        }
+      }
+
+      // Step 3: Build contexts (after enrichment so orden.pipeline_id etc. are available)
       const triggerContext = buildContextFromEvent(eventData)
       const variableContext = buildTriggerContext(eventData)
 
-      // Step 3: Process each matching automation
+      // Step 4: Process each matching automation
       let executed = 0
 
       for (const automation of automations) {

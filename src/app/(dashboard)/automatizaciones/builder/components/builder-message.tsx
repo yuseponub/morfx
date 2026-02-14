@@ -183,7 +183,14 @@ export function BuilderMessage({
             : 'bg-muted mr-auto max-w-[90%]'
         )}
       >
-        {message.parts.map((part, i) => {
+        {(!message.parts || !Array.isArray(message.parts)) ? (
+          // Fallback for corrupted/legacy messages without .parts (e.g. ModelMessage format)
+          <div className="text-sm whitespace-pre-wrap break-words">
+            {typeof (message as unknown as { content: string }).content === 'string'
+              ? (message as unknown as { content: string }).content
+              : ''}
+          </div>
+        ) : message.parts.map((part, i) => {
           switch (part.type) {
             case 'text':
               return (

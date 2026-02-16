@@ -76,6 +76,14 @@ export async function executeAction(
   const startMs = Date.now()
 
   try {
+    // Resolve contactId from phone/email if missing (e.g. Shopify trigger-only mode)
+    if (!context.contactId && (context.contactPhone || context.contactEmail)) {
+      const resolved = await resolveContactId(workspaceId, context.contactPhone, context.contactEmail)
+      if (resolved) {
+        context = { ...context, contactId: resolved }
+      }
+    }
+
     // Resolve variables in action params before execution
     const resolvedParams = resolveVariablesInObject(
       action.params,
@@ -843,4 +851,47 @@ async function executeWebhook(
   } finally {
     clearTimeout(timeout)
   }
+}
+
+// ============================================================================
+// Contact Resolution Helper
+// ============================================================================
+
+/**
+ * Resolve contactId from phone or email when not present in trigger context.
+ * Used for external triggers (e.g. Shopify trigger-only mode) that don't
+ * resolve contacts before emitting.
+ */
+async function resolveContactId(
+  workspaceId: string,
+  phone?: string,
+  email?: string
+): Promise<string | null> {
+  const supabase = createAdminClient()
+
+  // Try phone first (highest confidence)
+  if (phone) {
+    const { data } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('phone', phone)
+      .limit(1)
+      .single()
+    if (data) return data.id
+  }
+
+  // Fallback to email
+  if (email) {
+    const { data } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('email', email)
+      .limit(1)
+      .single()
+    if (data) return data.id
+  }
+
+  return null
 }

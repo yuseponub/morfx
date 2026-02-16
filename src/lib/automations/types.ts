@@ -23,6 +23,9 @@ export type TriggerType =
   | 'whatsapp.keyword_match'
   | 'task.completed'
   | 'task.overdue'
+  | 'shopify.order_created'
+  | 'shopify.draft_order_created'
+  | 'shopify.order_updated'
 
 /**
  * Trigger configuration — stored in trigger_config JSONB column.
@@ -87,6 +90,7 @@ export type ActionType =
   | 'send_whatsapp_media'
   | 'create_task'
   | 'webhook'
+  | 'send_sms'
 
 /**
  * Optional delay before an action executes.

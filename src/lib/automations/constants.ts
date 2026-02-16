@@ -114,6 +114,30 @@ export const TRIGGER_CATALOG = [
     configFields: [],
     variables: ['tarea.id', 'tarea.titulo', 'tarea.fecha_limite', 'contacto.nombre', 'orden.id'],
   },
+  {
+    type: 'shopify.order_created',
+    label: 'Orden de Shopify creada',
+    category: 'Shopify',
+    description: 'Se dispara cuando llega una orden nueva desde Shopify',
+    configFields: [],
+    variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
+  },
+  {
+    type: 'shopify.draft_order_created',
+    label: 'Borrador de Shopify creado',
+    category: 'Shopify',
+    description: 'Se dispara cuando se crea un borrador de orden en Shopify',
+    configFields: [],
+    variables: ['shopify.order_number', 'shopify.total', 'shopify.status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'contacto.nombre', 'contacto.telefono'],
+  },
+  {
+    type: 'shopify.order_updated',
+    label: 'Orden de Shopify actualizada',
+    category: 'Shopify',
+    description: 'Se dispara cuando una orden existente de Shopify se actualiza',
+    configFields: [],
+    variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.fulfillment_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
+  },
 ] as const
 
 // ============================================================================
@@ -238,6 +262,17 @@ export const ACTION_CATALOG = [
       { name: 'payloadTemplate', label: 'Payload JSON', type: 'json', required: false, supportsVariables: true },
     ],
   },
+  {
+    type: 'send_sms',
+    label: 'Enviar SMS',
+    category: 'Twilio',
+    description: 'Envia un mensaje SMS al contacto via Twilio',
+    params: [
+      { name: 'body', label: 'Mensaje', type: 'textarea', required: true, supportsVariables: true },
+      { name: 'to', label: 'Telefono destino (opcional)', type: 'text', required: false, supportsVariables: true },
+      { name: 'mediaUrl', label: 'URL de media (MMS)', type: 'text', required: false },
+    ],
+  },
 ] as const
 
 // ============================================================================
@@ -325,6 +360,45 @@ export const VARIABLE_CATALOG = {
     { path: 'tarea.fecha_limite', label: 'Fecha limite' },
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'orden.id', label: 'ID de la orden' },
+  ],
+  'shopify.order_created': [
+    { path: 'shopify.order_number', label: 'Numero de orden Shopify' },
+    { path: 'shopify.total', label: 'Total de la orden' },
+    { path: 'shopify.financial_status', label: 'Estado de pago' },
+    { path: 'shopify.email', label: 'Email del cliente' },
+    { path: 'shopify.phone', label: 'Telefono del cliente' },
+    { path: 'shopify.note', label: 'Nota de la orden' },
+    { path: 'shopify.productos', label: 'Productos (SKU, cantidad, precio)' },
+    { path: 'shopify.direccion_envio', label: 'Direccion de envio' },
+    { path: 'shopify.tags', label: 'Tags de Shopify' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
+  ],
+  'shopify.draft_order_created': [
+    { path: 'shopify.order_number', label: 'Numero del borrador' },
+    { path: 'shopify.total', label: 'Total del borrador' },
+    { path: 'shopify.status', label: 'Estado del borrador' },
+    { path: 'shopify.email', label: 'Email del cliente' },
+    { path: 'shopify.phone', label: 'Telefono del cliente' },
+    { path: 'shopify.note', label: 'Nota del borrador' },
+    { path: 'shopify.productos', label: 'Productos (SKU, cantidad, precio)' },
+    { path: 'shopify.direccion_envio', label: 'Direccion de envio' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
+  ],
+  'shopify.order_updated': [
+    { path: 'shopify.order_number', label: 'Numero de orden Shopify' },
+    { path: 'shopify.total', label: 'Total de la orden' },
+    { path: 'shopify.financial_status', label: 'Estado de pago' },
+    { path: 'shopify.fulfillment_status', label: 'Estado de fulfillment' },
+    { path: 'shopify.email', label: 'Email del cliente' },
+    { path: 'shopify.phone', label: 'Telefono del cliente' },
+    { path: 'shopify.note', label: 'Nota de la orden' },
+    { path: 'shopify.productos', label: 'Productos (SKU, cantidad, precio)' },
+    { path: 'shopify.direccion_envio', label: 'Direccion de envio' },
+    { path: 'shopify.tags', label: 'Tags de Shopify' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
   ],
 } as const
 

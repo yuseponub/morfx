@@ -393,6 +393,10 @@ Recent decisions affecting MVP v2 work:
 - [20-06]: ACTION_CATEGORY_CONFIG with icons and colors for all 6 action categories (consistent visual hierarchy)
 - [20-06]: checkTwilioConfigured server action in automations.ts (reuses getAuthContext, co-located with wizard actions)
 - [20-06]: Twilio warning is non-blocking (user can save automation, fails at runtime if not configured)
+- [20-05]: Server actions at src/app/actions/integrations.ts (project convention, not src/lib/actions/)
+- [20-05]: Owner + Admin can access integrations page (changed from Owner-only per CONTEXT.md)
+- [20-05]: SMS costs displayed with 4 decimal places (fractions of cents)
+- [20-05]: Teal color theme for Twilio UI elements (text-teal-600 bg-teal-50)
 
 ### Project Rules
 
@@ -434,7 +438,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-16 15:10 COT
-Stopped at: Completed 20-06-PLAN.md (Wizard UI extension)
+Last session: 2026-02-16 15:12 COT
+Stopped at: Completed 20-05-PLAN.md (Config UI: Twilio + Shopify)
 Resume file: None
-Next: Execute 20-07-PLAN.md (Settings UI for Twilio + Shopify configuration)
+Next: Execute 20-07-PLAN.md (AI Builder updates)

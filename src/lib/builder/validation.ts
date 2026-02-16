@@ -27,6 +27,7 @@ const ACTION_TO_TRIGGER_MAP: Record<string, string[]> = {
   send_whatsapp_template: [],
   send_whatsapp_text: [],
   send_whatsapp_media: [],
+  send_sms: [],  // SMS doesn't produce any trigger events
   webhook: [],
 }
 

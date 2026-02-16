@@ -36,10 +36,18 @@ import {
   ChevronDown,
   Clock,
   AlertTriangle,
+  Building2,
+  ShoppingCart,
+  MessageSquare,
+  ListTodo,
+  Globe,
+  Phone,
+  Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VariablePicker } from './variable-picker'
-import { useState } from 'react'
+import { checkTwilioConfigured } from '@/app/actions/automations'
+import { useState, useEffect } from 'react'
 
 // ============================================================================
 // Types & Constants
@@ -61,6 +69,23 @@ const DELAY_UNITS = [
   { value: 'hours', label: 'Horas' },
   { value: 'days', label: 'Dias' },
 ] as const
+
+const ACTION_CATEGORY_CONFIG: Record<string, { icon: typeof Building2; color: string }> = {
+  CRM: { icon: Building2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' },
+  Ordenes: { icon: ShoppingCart, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50' },
+  WhatsApp: { icon: MessageSquare, color: 'text-green-600 bg-green-50 dark:bg-green-950/50' },
+  Tareas: { icon: ListTodo, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/50' },
+  Integraciones: { icon: Globe, color: 'text-gray-600 bg-gray-50 dark:bg-gray-950/50' },
+  Twilio: { icon: Phone, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/50' },
+}
+
+/** Help text for specific action params */
+const PARAM_HELP_TEXT: Record<string, Record<string, string>> = {
+  send_sms: {
+    to: 'Dejar vacio para usar el telefono del contacto del trigger',
+    mediaUrl: 'MMS solo disponible para numeros de US/Canada',
+  },
+}
 
 // ============================================================================
 // KeyValue Editor Sub-component
@@ -227,6 +252,7 @@ function ActionParamField({
   tags,
   triggerType,
   allParams,
+  helpText,
 }: {
   param: CatalogParam
   value: unknown
@@ -235,6 +261,7 @@ function ActionParamField({
   tags: Tag[]
   triggerType: TriggerType
   allParams: Record<string, unknown>
+  helpText?: string
 }) {
   const supportsVars = 'supportsVariables' in param && param.supportsVariables
 
@@ -378,6 +405,17 @@ function ActionParamField({
           placeholder={`Ingresar ${param.label.toLowerCase()}...`}
           rows={3}
         />
+        {supportsVars && (
+          <p className="text-[10px] text-muted-foreground">
+            Variables como {'{{contacto.nombre}}'} se resuelven al ejecutarse
+          </p>
+        )}
+        {helpText && (
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Info className="size-3 shrink-0" />
+            {helpText}
+          </p>
+        )}
       </div>
     )
   }
@@ -401,6 +439,12 @@ function ActionParamField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={`Ingresar ${param.label.toLowerCase()}...`}
         />
+        {helpText && (
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Info className="size-3 shrink-0" />
+            {helpText}
+          </p>
+        )}
       </div>
     )
   }
@@ -518,6 +562,7 @@ function ActionCard({
   pipelines,
   tags,
   triggerType,
+  twilioWarning,
 }: {
   action: AutomationAction
   index: number
@@ -529,9 +574,14 @@ function ActionCard({
   pipelines: PipelineWithStages[]
   tags: Tag[]
   triggerType: TriggerType
+  twilioWarning: boolean
 }) {
   const catalogEntry = ACTION_CATALOG.find((a) => a.type === action.type)
   if (!catalogEntry) return null
+
+  const categoryConfig = ACTION_CATEGORY_CONFIG[catalogEntry.category]
+  const CategoryIcon = categoryConfig?.icon
+  const actionHelpTexts = PARAM_HELP_TEXT[action.type] ?? {}
 
   function updateParam(name: string, value: unknown) {
     onUpdate({
@@ -553,6 +603,11 @@ function ActionCard({
             <Badge variant="secondary" className="text-xs font-mono">
               {index + 1}
             </Badge>
+            {CategoryIcon && (
+              <div className={cn('p-1 rounded', categoryConfig.color)}>
+                <CategoryIcon className="size-3.5" />
+              </div>
+            )}
             <span className="text-sm font-medium">{catalogEntry.label}</span>
             <Badge variant="outline" className="text-xs">
               {catalogEntry.category}
@@ -596,6 +651,14 @@ function ActionCard({
 
         <p className="text-xs text-muted-foreground">{catalogEntry.description}</p>
 
+        {/* Twilio not configured warning */}
+        {twilioWarning && catalogEntry.category === 'Twilio' && (
+          <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            Twilio no configurado. Configura tus credenciales en Configuracion &gt; Integraciones antes de usar esta accion.
+          </div>
+        )}
+
         {/* Params */}
         <div className="space-y-3 border-t pt-3">
           {catalogEntry.params.map((param) => (
@@ -608,6 +671,7 @@ function ActionCard({
               tags={tags}
               triggerType={triggerType}
               allParams={action.params}
+              helpText={actionHelpTexts[param.name]}
             />
           ))}
         </div>
@@ -661,9 +725,13 @@ function ActionSelector({
           <p className="text-sm font-medium">Seleccionar accion</p>
         </div>
         <div className="max-h-72 overflow-y-auto p-1">
-          {categories.map((cat) => (
+          {categories.map((cat) => {
+            const catConfig = ACTION_CATEGORY_CONFIG[cat]
+            const CatIcon = catConfig?.icon
+            return (
             <div key={cat}>
-              <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                {CatIcon && <CatIcon className={cn('size-3', catConfig?.color?.split(' ')[0])} />}
                 {cat}
               </p>
               {ACTION_CATALOG.filter((a) => a.category === cat).map((action) => (
@@ -680,7 +748,8 @@ function ActionSelector({
                 </button>
               ))}
             </div>
-          ))}
+            )
+          })}
         </div>
       </PopoverContent>
     </Popover>
@@ -694,6 +763,27 @@ function ActionSelector({
 export function ActionsStep({ formData, onChange, pipelines, tags, triggerType }: ActionsStepProps) {
   const actions = formData.actions
   const atLimit = actions.length >= MAX_ACTIONS_PER_AUTOMATION
+  const [twilioWarning, setTwilioWarning] = useState(false)
+
+  // Check Twilio configuration when a Twilio action is present
+  const hasTwilioAction = actions.some((a) => {
+    const entry = ACTION_CATALOG.find((c) => c.type === a.type)
+    return entry?.category === 'Twilio'
+  })
+
+  useEffect(() => {
+    if (!hasTwilioAction) {
+      setTwilioWarning(false)
+      return
+    }
+    let cancelled = false
+    checkTwilioConfigured().then((configured) => {
+      if (!cancelled) {
+        setTwilioWarning(!configured)
+      }
+    })
+    return () => { cancelled = true }
+  }, [hasTwilioAction])
 
   function addAction(type: ActionType) {
     if (atLimit) return
@@ -757,6 +847,7 @@ export function ActionsStep({ formData, onChange, pipelines, tags, triggerType }
               pipelines={pipelines}
               tags={tags}
               triggerType={triggerType}
+              twilioWarning={twilioWarning}
             />
           ))}
 

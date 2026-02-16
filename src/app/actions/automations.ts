@@ -642,3 +642,33 @@ export async function getAutomationStats(automationId: string): Promise<{
     lastExecutionAt: lastExec?.started_at ?? null,
   }
 }
+
+// ============================================================================
+// Integration Checks
+// ============================================================================
+
+/**
+ * Check if Twilio is configured and active for the current workspace.
+ * Returns boolean. Used by the wizard to show configuration warnings.
+ */
+export async function checkTwilioConfigured(): Promise<boolean> {
+  const ctx = await getAuthContext()
+  if (!ctx) return false
+
+  const { supabase, workspaceId } = ctx
+
+  const { data, error } = await supabase
+    .from('integrations')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('type', 'twilio')
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Error checking Twilio config:', error)
+    return false
+  }
+
+  return !!data
+}

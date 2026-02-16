@@ -327,6 +327,67 @@ export type AutomationEvents = {
       cascadeDepth: number
     }
   }
+  // Shopify triggers (Phase 20: Integration Automations)
+  'automation/shopify.order_created': {
+    data: {
+      workspaceId: string
+      shopifyOrderId: number
+      shopifyOrderNumber: string
+      total: string
+      financialStatus: string
+      email: string | null
+      phone: string | null
+      note: string | null
+      products: Array<{ sku: string; title: string; quantity: number; price: string }>
+      shippingAddress: string | null
+      shippingCity: string | null
+      tags: string | null
+      contactId?: string
+      contactName?: string
+      contactPhone?: string
+      orderId?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/shopify.draft_order_created': {
+    data: {
+      workspaceId: string
+      shopifyDraftOrderId: number
+      shopifyOrderNumber: string
+      total: string
+      status: string
+      email: string | null
+      phone: string | null
+      note: string | null
+      products: Array<{ sku: string; title: string; quantity: number; price: string }>
+      shippingAddress: string | null
+      contactName?: string
+      contactPhone?: string
+      cascadeDepth: number
+    }
+  }
+  'automation/shopify.order_updated': {
+    data: {
+      workspaceId: string
+      shopifyOrderId: number
+      shopifyOrderNumber: string
+      total: string
+      financialStatus: string
+      fulfillmentStatus: string | null
+      email: string | null
+      phone: string | null
+      note: string | null
+      products: Array<{ sku: string; title: string; quantity: number; price: string }>
+      shippingAddress: string | null
+      shippingCity: string | null
+      tags: string | null
+      contactId?: string
+      contactName?: string
+      contactPhone?: string
+      orderId?: string
+      cascadeDepth: number
+    }
+  }
 }
 
 /**

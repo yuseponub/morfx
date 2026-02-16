@@ -51,7 +51,7 @@ function fireAndForget(
 }
 
 // ============================================================================
-// Emitter Functions (10 total — one per trigger type)
+// Emitter Functions (13 total — one per trigger type)
 // ============================================================================
 
 /**
@@ -302,6 +302,106 @@ export function emitTaskOverdue(data: {
     'automation/task.overdue',
     { ...data, cascadeDepth: depth },
     'task.overdue',
+    data.workspaceId
+  )
+}
+
+// ============================================================================
+// Shopify Trigger Emitters (Phase 20: Integration Automations)
+// ============================================================================
+
+/**
+ * Emit when a Shopify order is created (orders/create webhook).
+ */
+export function emitShopifyOrderCreated(data: {
+  workspaceId: string
+  shopifyOrderId: number
+  shopifyOrderNumber: string
+  total: string
+  financialStatus: string
+  email: string | null
+  phone: string | null
+  note: string | null
+  products: Array<{ sku: string; title: string; quantity: number; price: string }>
+  shippingAddress: string | null
+  shippingCity: string | null
+  tags: string | null
+  contactId?: string
+  contactName?: string
+  contactPhone?: string
+  orderId?: string
+  cascadeDepth?: number
+}): void {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('shopify.order_created', data.workspaceId, depth)) return
+
+  fireAndForget(
+    'automation/shopify.order_created',
+    { ...data, cascadeDepth: depth },
+    'shopify.order_created',
+    data.workspaceId
+  )
+}
+
+/**
+ * Emit when a Shopify draft order is created (draft_orders/create webhook).
+ */
+export function emitShopifyDraftOrderCreated(data: {
+  workspaceId: string
+  shopifyDraftOrderId: number
+  shopifyOrderNumber: string
+  total: string
+  status: string
+  email: string | null
+  phone: string | null
+  note: string | null
+  products: Array<{ sku: string; title: string; quantity: number; price: string }>
+  shippingAddress: string | null
+  contactName?: string
+  contactPhone?: string
+  cascadeDepth?: number
+}): void {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('shopify.draft_order_created', data.workspaceId, depth)) return
+
+  fireAndForget(
+    'automation/shopify.draft_order_created',
+    { ...data, cascadeDepth: depth },
+    'shopify.draft_order_created',
+    data.workspaceId
+  )
+}
+
+/**
+ * Emit when a Shopify order is updated (orders/updated webhook).
+ */
+export function emitShopifyOrderUpdated(data: {
+  workspaceId: string
+  shopifyOrderId: number
+  shopifyOrderNumber: string
+  total: string
+  financialStatus: string
+  fulfillmentStatus: string | null
+  email: string | null
+  phone: string | null
+  note: string | null
+  products: Array<{ sku: string; title: string; quantity: number; price: string }>
+  shippingAddress: string | null
+  shippingCity: string | null
+  tags: string | null
+  contactId?: string
+  contactName?: string
+  contactPhone?: string
+  orderId?: string
+  cascadeDepth?: number
+}): void {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('shopify.order_updated', data.workspaceId, depth)) return
+
+  fireAndForget(
+    'automation/shopify.order_updated',
+    { ...data, cascadeDepth: depth },
+    'shopify.order_updated',
     data.workspaceId
   )
 }

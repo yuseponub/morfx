@@ -13,6 +13,7 @@ import type { AutomationAction, ActionType, TriggerContext } from './types'
 import { resolveVariables, resolveVariablesInObject } from './variable-resolver'
 import { WEBHOOK_TIMEOUT_MS } from './constants'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getTwilioConfig, createTwilioClient } from '@/lib/twilio/client'
 import {
   createOrder as domainCreateOrder,
   duplicateOrder as domainDuplicateOrder,
@@ -141,6 +142,8 @@ async function executeByType(
       return executeSendWhatsAppMedia(params, context, workspaceId)
     case 'create_task':
       return executeCreateTask(params, context, workspaceId, cascadeDepth)
+    case 'send_sms':
+      return executeSendSms(params, context, workspaceId)
     case 'webhook':
       return executeWebhook(params)
     default: {
@@ -715,6 +718,73 @@ async function executeCreateTask(
   }
 
   return { taskId: result.data!.taskId, title, dueDate: dueDate || null }
+}
+
+// ============================================================================
+// Twilio SMS Action — via Twilio SDK
+// Sends SMS, stores record in sms_messages, uses status callback for async price.
+// ============================================================================
+
+/**
+ * Send an SMS via Twilio SDK and store the record in sms_messages.
+ * Price may not be available immediately — updated via status callback.
+ * SMS does not produce any cascading triggers.
+ */
+async function executeSendSms(
+  params: Record<string, unknown>,
+  context: TriggerContext,
+  workspaceId: string
+): Promise<unknown> {
+  const body = String(params.body || '')
+  if (!body) throw new Error('body is required for send_sms')
+
+  // Resolve recipient phone: explicit param > contact phone from context
+  const to = params.to ? String(params.to) : context.contactPhone
+  if (!to) throw new Error('No phone number available for SMS — set "to" param or ensure trigger has contactPhone')
+
+  // Load Twilio credentials (throws if not configured)
+  const twilioConfig = await getTwilioConfig(workspaceId)
+  const client = createTwilioClient(twilioConfig)
+
+  // Build status callback URL (optional — won't break if NEXT_PUBLIC_APP_URL not set)
+  const statusCallbackUrl = process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/status`
+    : undefined
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const messageParams: Record<string, any> = {
+    body,
+    from: twilioConfig.phone_number,
+    to,
+    ...(statusCallbackUrl && { statusCallback: statusCallbackUrl }),
+  }
+
+  // Optional MMS media (only works for US/Canada numbers)
+  if (params.mediaUrl) {
+    messageParams.mediaUrl = [String(params.mediaUrl)]
+  }
+
+  // Send SMS via Twilio
+  const message = await client.messages.create(messageParams)
+
+  // Store SMS record for usage tracking
+  const supabase = createAdminClient()
+  await supabase.from('sms_messages').insert({
+    workspace_id: workspaceId,
+    twilio_sid: message.sid,
+    from_number: twilioConfig.phone_number,
+    to_number: to,
+    body,
+    status: message.status,
+    direction: 'outbound',
+    // Price: Twilio returns negative for outbound, we store absolute value
+    price: message.price ? Math.abs(parseFloat(message.price)) : null,
+    price_unit: message.priceUnit || 'USD',
+    segments: message.numSegments ? parseInt(message.numSegments) : 1,
+    media_url: params.mediaUrl ? String(params.mediaUrl) : null,
+  })
+
+  return { messageSid: message.sid, status: message.status, to, sent: true }
 }
 
 // ============================================================================

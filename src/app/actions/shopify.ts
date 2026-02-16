@@ -235,7 +235,16 @@ export async function saveShopifyIntegration(formData: IntegrationFormData): Pro
     return { success: false, error: testResult.error || 'Error de conexion' }
   }
 
-  // Build config object
+  // Check if integration exists (read config to preserve auto_sync_orders)
+  const { data: existing } = await adminSupabase
+    .from('integrations')
+    .select('id, config')
+    .eq('workspace_id', workspaceId)
+    .eq('type', 'shopify')
+    .single()
+
+  // Build config object — preserve auto_sync_orders from existing config
+  const existingConfig = existing?.config as Record<string, unknown> | undefined
   const config: ShopifyConfig = {
     shop_domain: normalizedDomain,
     access_token: formData.access_token,
@@ -244,15 +253,10 @@ export async function saveShopifyIntegration(formData: IntegrationFormData): Pro
     default_stage_id: formData.default_stage_id,
     enable_fuzzy_matching: formData.enable_fuzzy_matching ?? false,
     product_matching: formData.product_matching ?? 'sku',
+    ...(existingConfig?.auto_sync_orders !== undefined && {
+      auto_sync_orders: existingConfig.auto_sync_orders as boolean,
+    }),
   }
-
-  // Check if integration exists
-  const { data: existing } = await adminSupabase
-    .from('integrations')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('type', 'shopify')
-    .single()
 
   let integration: ShopifyIntegration
 

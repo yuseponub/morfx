@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Building2, MessageSquare, ListTodo, Check } from 'lucide-react'
+import { Building2, MessageSquare, ListTodo, ShoppingBag, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
@@ -38,11 +38,12 @@ const CATEGORY_CONFIG = {
   CRM: { icon: Building2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' },
   WhatsApp: { icon: MessageSquare, color: 'text-green-600 bg-green-50 dark:bg-green-950/50' },
   Tareas: { icon: ListTodo, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/50' },
+  Shopify: { icon: ShoppingBag, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/50' },
 } as const
 
 type TriggerCategory = keyof typeof CATEGORY_CONFIG
 
-const CATEGORIES: TriggerCategory[] = ['CRM', 'WhatsApp', 'Tareas']
+const CATEGORIES: TriggerCategory[] = ['CRM', 'WhatsApp', 'Tareas', 'Shopify']
 
 function getTriggersForCategory(category: TriggerCategory) {
   return TRIGGER_CATALOG.filter((t) => t.category === category)

@@ -629,20 +629,26 @@ Plans:
 - [ ] 19-10-PLAN.md — TypeScript verification + human verification of all success criteria
 
 ### Phase 20: Integration Automations (Twilio + Shopify)
-**Goal**: Expandir el motor de automatizaciones con integracion Twilio (SMS/llamadas como action types) y triggers directos de Shopify (orders/draft orders) para control granular desde el builder
+**Goal**: Expandir el motor de automatizaciones con integracion Twilio SMS como action type y triggers directos de Shopify (orders/draft orders/order updates) para control granular desde el builder
 **Depends on**: Phase 17, Phase 19
-**Requirements**: TBD during /gsd:discuss-phase
+**Requirements**: Decided during /gsd:discuss-phase (20-CONTEXT.md)
 **Success Criteria** (what must be TRUE):
   1. Credenciales Twilio configurables desde /configuracion/integraciones
-  2. Action types send_sms y make_call disponibles en el builder de automatizaciones
-  3. Triggers Shopify en catálogo: shopify.order_created, shopify.draft_order_created
+  2. Action type send_sms disponible en el builder de automatizaciones (make_call diferido a fase futura)
+  3. Triggers Shopify en catalogo: shopify.order_created, shopify.draft_order_created, shopify.order_updated
   4. Webhook de Shopify emite triggers directos (no solo crea orden en MorfX)
-  5. Usuario puede decidir desde automatizaciones qué hacer con ordenes/draft orders de Shopify
-  6. SMS/llamadas Twilio se envian correctamente desde el action executor
-**Plans**: TBD
+  5. Usuario puede decidir desde automatizaciones que hacer con ordenes/draft orders de Shopify (toggle auto-sync)
+  6. SMS Twilio se envian correctamente desde el action executor con tracking de uso y costos
+**Plans**: 7 plans
 
 Plans:
-- [ ] 20-01: TBD during /gsd:plan-phase
+- [ ] 20-01-PLAN.md — Foundation: types, constants (+3 triggers, +1 action), Twilio client module, sms_messages migration
+- [ ] 20-02-PLAN.md — Shopify automations engine: 3 trigger emitters, Inngest events, runners, variable resolver
+- [ ] 20-03-PLAN.md — Twilio SMS action: executeSendSms handler, status callback endpoint, builder validation
+- [ ] 20-04-PLAN.md — Shopify webhook extension: 3-topic dispatch, dual-behavior toggle, trigger emission
+- [ ] 20-05-PLAN.md — Config UI: Twilio credentials form, SMS usage dashboard, Shopify auto-sync toggle
+- [ ] 20-06-PLAN.md — Wizard UI: Shopify trigger category (purple), Twilio action category (teal)
+- [ ] 20-07-PLAN.md — TypeScript verification + human end-to-end testing
 
 ---
 
@@ -688,8 +694,8 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 17. CRM Automations Engine | 10/10 | Complete | 2026-02-13 |
 | 18. Domain Layer Foundation | 10/10 | Complete | 2026-02-13 |
 | 19. AI Automation Builder | 10/10 | Complete | 2026-02-16 |
-| 20. Integration Automations (Twilio + Shopify) | TBD | Not started | - |
+| 20. Integration Automations (Twilio + Shopify) | 0/7 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-16 (Phase 19 complete — MVP v2.0 Agentes Conversacionales milestone)*
+*Last updated: 2026-02-16 (Phase 20 planned — 7 plans in 4 waves)*

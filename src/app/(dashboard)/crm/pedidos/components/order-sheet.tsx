@@ -152,7 +152,7 @@ export function OrderSheet({
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent className="sm:max-w-[500px] p-0 flex flex-col">
+      <SheetContent key={order.id} className="sm:max-w-[500px] p-0 flex flex-col">
         {/* Header */}
         <SheetHeader className="px-6 pt-6 pb-4 border-b space-y-4">
           <div className="flex items-start justify-between">
@@ -165,16 +165,9 @@ export function OrderSheet({
                   {formatCurrency(order.total_value)}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">
-                  {pipeline.name}
-                </p>
-                {order.source_order_id && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                    Orden derivada
-                  </span>
-                )}
-              </div>
+              <p className="text-sm text-muted-foreground">
+                {pipeline.name}
+              </p>
             </div>
           </div>
 
@@ -437,12 +430,12 @@ export function OrderSheet({
                 <RelatedOrders
                   relatedOrders={relatedOrders}
                   onNavigate={async (orderId) => {
-                    // Try to find the order in current view and navigate in-sheet
+                    // Try to find the order in current view
                     const target = allOrders?.find(o => o.id === orderId)
                     if (target && onViewOrder) {
                       onViewOrder(target)
                     } else if (onViewOrder) {
-                      // Fetch order from another pipeline and open in-sheet
+                      // Order not in current view — fetch directly
                       const fetched = await getOrder(orderId)
                       if (fetched) {
                         onViewOrder(fetched)

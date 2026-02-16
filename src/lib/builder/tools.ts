@@ -19,9 +19,72 @@ import type {
 } from '@/lib/builder/types'
 import type { TriggerType, AutomationAction } from '@/lib/automations/types'
 import {
+  ACTION_CATALOG,
   MAX_ACTIONS_PER_AUTOMATION,
   MAX_AUTOMATIONS_PER_WORKSPACE,
 } from '@/lib/automations/constants'
+
+// ============================================================================
+// Action Params Validation
+// ============================================================================
+
+interface ParamError {
+  actionIndex: number
+  actionType: string
+  message: string
+}
+
+/**
+ * Validate that each action's params match ACTION_CATALOG exactly.
+ * Returns errors for missing required params and unrecognized param names.
+ */
+function validateActionParams(
+  actions: { type: string; params: Record<string, unknown> }[]
+): ParamError[] {
+  const errors: ParamError[] = []
+
+  for (let i = 0; i < actions.length; i++) {
+    const action = actions[i]
+    const catalogEntry = ACTION_CATALOG.find((a) => a.type === action.type)
+
+    if (!catalogEntry) {
+      errors.push({
+        actionIndex: i,
+        actionType: action.type,
+        message: `Tipo de accion "${action.type}" no existe en el catalogo`,
+      })
+      continue
+    }
+
+    const catalogParamNames = catalogEntry.params.map((p) => p.name)
+    const providedParamNames = Object.keys(action.params || {})
+
+    // Check for unrecognized param names
+    for (const provided of providedParamNames) {
+      if (!catalogParamNames.includes(provided)) {
+        const suggestions = catalogParamNames.join(', ')
+        errors.push({
+          actionIndex: i,
+          actionType: action.type,
+          message: `Parametro "${provided}" no es valido para ${action.type}. Parametros validos: ${suggestions}`,
+        })
+      }
+    }
+
+    // Check for missing required params
+    for (const catalogParam of catalogEntry.params) {
+      if (catalogParam.required && !providedParamNames.includes(catalogParam.name)) {
+        errors.push({
+          actionIndex: i,
+          actionType: action.type,
+          message: `Parametro requerido "${catalogParam.name}" (${catalogParam.label}) falta en ${action.type}`,
+        })
+      }
+    }
+  }
+
+  return errors
+}
 
 // ============================================================================
 // Types for tool return values
@@ -390,6 +453,17 @@ export function createBuilderTools(ctx: BuilderToolContext) {
       }),
       execute: async (params): Promise<AutomationPreviewData | { error: string }> => {
         try {
+          // 0. Validate action params match ACTION_CATALOG
+          const paramErrors = validateActionParams(params.actions)
+          if (paramErrors.length > 0) {
+            const errorLines = paramErrors.map(
+              (e) => `Accion #${e.actionIndex + 1} (${e.actionType}): ${e.message}`
+            )
+            return {
+              error: `Errores en parametros de acciones:\n${errorLines.join('\n')}\n\nCorrige los nombres de parametros y genera el preview de nuevo.`,
+            }
+          }
+
           // 1. Validate resources against workspace DB
           const resourceValidations = await validateResources(
             ctx.workspaceId,
@@ -498,6 +572,18 @@ export function createBuilderTools(ctx: BuilderToolContext) {
         { success: true; automationId: string } | { success: false; error: string }
       > => {
         try {
+          // Validate action params before creating
+          const paramErrors = validateActionParams(params.actions)
+          if (paramErrors.length > 0) {
+            const errorLines = paramErrors.map(
+              (e) => `Accion #${e.actionIndex + 1} (${e.actionType}): ${e.message}`
+            )
+            return {
+              success: false,
+              error: `Parametros invalidos:\n${errorLines.join('\n')}`,
+            }
+          }
+
           const supabase = createAdminClient()
 
           // Check automation limit
@@ -587,6 +673,18 @@ export function createBuilderTools(ctx: BuilderToolContext) {
         { success: true; automationId: string } | { success: false; error: string }
       > => {
         try {
+          // Validate action params before updating
+          const paramErrors = validateActionParams(params.actions)
+          if (paramErrors.length > 0) {
+            const errorLines = paramErrors.map(
+              (e) => `Accion #${e.actionIndex + 1} (${e.actionType}): ${e.message}`
+            )
+            return {
+              success: false,
+              error: `Parametros invalidos:\n${errorLines.join('\n')}`,
+            }
+          }
+
           const supabase = createAdminClient()
 
           // Verify workspace ownership

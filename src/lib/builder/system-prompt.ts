@@ -227,6 +227,24 @@ ${variableSection}
 - Usa \`createAutomation\` SOLO despues de que el usuario confirme el preview
 - Usa \`updateAutomation\` SOLO despues de que el usuario confirme el preview modificado
 
+### REGLA CRITICA DE PARAMETROS DE ACCIONES
+Los nombres de los parametros de cada accion DEBEN coincidir EXACTAMENTE con los nombres definidos en el catalogo de acciones de arriba. El sistema validara y rechazara parametros incorrectos.
+
+Referencia rapida de params por accion:
+- \`assign_tag\`: **tagName** (req), entityType
+- \`remove_tag\`: **tagName** (req)
+- \`change_stage\`: **pipelineId** (req), **stageId** (req)
+- \`update_field\`: **fieldName** (req), **value** (req)
+- \`create_order\`: **pipelineId** (req), stageId, copyProducts, copyTags
+- \`duplicate_order\`: **targetPipelineId** (req), targetStageId, copyContact, copyProducts, copyValue, copyTags
+- \`send_whatsapp_template\`: **templateName** (req), variables
+- \`send_whatsapp_text\`: **text** (req)
+- \`send_whatsapp_media\`: **mediaUrl** (req), caption
+- \`create_task\`: **title** (req), description, dueDateRelative, assignToUserId
+- \`webhook\`: **url** (req), headers, payloadTemplate
+
+**NUNCA** uses nombres alternativos como \`pipelineId\` en vez de \`targetPipelineId\` para duplicate_order, ni \`destination_pipeline_id\`, ni \`tag\` en vez de \`tagName\`, etc.
+
 ## Formato de Datos — CRITICO
 
 ### trigger_config: Siempre camelCase

@@ -15,6 +15,7 @@ import {
   toggleShopifyIntegration,
   deleteShopifyIntegration,
 } from '@/app/actions/shopify'
+import { updateShopifyAutoSync } from '@/app/actions/integrations'
 import type { ShopifyIntegration, IntegrationFormData } from '@/lib/shopify/types'
 import type { Pipeline, PipelineStage } from '@/lib/orders/types'
 import { Button } from '@/components/ui/button'
@@ -55,6 +56,9 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
   const [showSecrets, setShowSecrets] = useState(false)
   const [selectedPipelineId, setSelectedPipelineId] = useState(
     integration?.config.default_pipeline_id || pipelines[0]?.id || ''
+  )
+  const [autoSyncOrders, setAutoSyncOrders] = useState(
+    (integration?.config as unknown as Record<string, unknown> | undefined)?.auto_sync_orders !== false
   )
 
   const {
@@ -148,6 +152,20 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
         router.refresh()
       } else {
         toast.error(result.error || 'Error al eliminar')
+      }
+    })
+  }
+
+  // Toggle auto-sync orders
+  const handleAutoSyncToggle = (checked: boolean) => {
+    setAutoSyncOrders(checked)
+    startTransition(async () => {
+      const result = await updateShopifyAutoSync(checked)
+      if (result.success) {
+        toast.success(checked ? 'Auto-sync activado' : 'Auto-sync desactivado')
+      } else {
+        setAutoSyncOrders(!checked) // Revert on error
+        toast.error(result.error || 'Error al actualizar')
       }
     })
   }
@@ -367,6 +385,24 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
             onCheckedChange={(checked) => setValue('enable_fuzzy_matching', checked)}
           />
         </div>
+
+        {/* Auto-sync toggle - only shown when integration is configured and active */}
+        {integration && integration.is_active && (
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="space-y-0.5">
+              <Label>Crear ordenes automaticamente</Label>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Cuando esta activado, las ordenes de Shopify crean automaticamente contactos y
+                pedidos en MorfX. Cuando esta desactivado, solo se disparan automatizaciones.
+              </p>
+            </div>
+            <Switch
+              checked={autoSyncOrders}
+              onCheckedChange={handleAutoSyncToggle}
+              disabled={isPending}
+            />
+          </div>
+        )}
       </div>
 
       {/* Actions */}

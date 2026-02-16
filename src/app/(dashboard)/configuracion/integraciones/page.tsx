@@ -1,6 +1,7 @@
 // ============================================================================
-// Phase 11: Integrations Settings Page
-// Configure external integrations (Shopify, etc.)
+// Phase 11 + Phase 20: Integrations Settings Page
+// Configure external integrations (Shopify + Twilio)
+// Accessible by Owner and Admin roles
 // ============================================================================
 
 import { Suspense } from 'react'
@@ -10,12 +11,14 @@ import { createClient } from '@/lib/supabase/server'
 import { getShopifyIntegration, getPipelinesForConfig, getWebhookEvents } from '@/app/actions/shopify'
 import { ShopifyForm } from './components/shopify-form'
 import { SyncStatus } from './components/sync-status'
+import { TwilioForm } from './components/twilio-form'
+import { TwilioUsage } from './components/twilio-usage'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShoppingBag, Settings2 } from 'lucide-react'
+import { ShoppingBag, Settings2, Phone } from 'lucide-react'
 
 export default async function IntegracionesPage() {
-  // Verify user is Owner
+  // Verify user is authenticated
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -38,12 +41,12 @@ export default async function IntegracionesPage() {
     .eq('workspace_id', workspaceId)
     .single()
 
-  // Only Owner can access this page
-  if (!member || member.role !== 'owner') {
+  // Owner + Admin can access integrations (per CONTEXT.md decision)
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
     redirect('/crm/contactos')
   }
 
-  // Load integration data
+  // Load Shopify integration data
   const [integration, pipelines, webhookData] = await Promise.all([
     getShopifyIntegration(),
     getPipelinesForConfig(),
@@ -65,9 +68,13 @@ export default async function IntegracionesPage() {
             <ShoppingBag className="h-4 w-4" />
             Shopify
           </TabsTrigger>
-          {/* Future integrations can be added here */}
+          <TabsTrigger value="twilio" className="flex items-center gap-2">
+            <Phone className="h-4 w-4" />
+            Twilio
+          </TabsTrigger>
         </TabsList>
 
+        {/* Shopify Tab */}
         <TabsContent value="shopify" className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Configuration Form */}
@@ -150,6 +157,16 @@ export default async function IntegracionesPage() {
               </ol>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Twilio Tab */}
+        <TabsContent value="twilio" className="space-y-4">
+          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded" />}>
+            <TwilioForm />
+          </Suspense>
+          <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded" />}>
+            <TwilioUsage />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

@@ -53,8 +53,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 16: WhatsApp Agent Integration** - Conectar agentes con inbox de WhatsApp
 - [x] **Phase 16.1: Engine Unification** - Unificar SandboxEngine y SomnioEngine en un solo flujo con adapters (INSERTED)
 - [x] **Phase 17: CRM Automations Engine** - Motor de automatizaciones trigger/accion entre CRM, tareas y WhatsApp
-- [ ] **Phase 18: Domain Layer Foundation** - Capa domain/ como unica fuente de verdad para todas las mutaciones, habilitando IA distribuida
-- [ ] **Phase 19: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
+- [x] **Phase 18: Domain Layer Foundation** - Capa domain/ como unica fuente de verdad para todas las mutaciones, habilitando IA distribuida
+- [x] **Phase 19: AI Automation Builder** - Meta-agente que crea automatizaciones por lenguaje natural con verificacion
 
 ---
 
@@ -609,7 +609,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Usuario describe automatizacion en lenguaje natural y el agente la crea
   2. Agente verifica que los recursos referenciados existan (pipelines, stages, tags, templates)
-  3. Si un recurso no existe, el agente lo crea (ej: tag faltante) previa confirmacion del usuario
+  3. Si un recurso no existe, el agente avisa al usuario (marca visual en diagrama) — NO auto-crea (decidido en discuss-phase)
   4. Agente muestra preview de la automatizacion antes de activarla
   5. Flujos creados son editables manualmente despues de creacion por IA
   6. Agente puede modificar automatizaciones existentes por instruccion natural
@@ -687,9 +687,9 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 11 (v1) -> 12 -> 13 -> 14 -> 1
 | 16.1. Engine Unification | 6/6 | Complete | 2026-02-10 |
 | 17. CRM Automations Engine | 10/10 | Complete | 2026-02-13 |
 | 18. Domain Layer Foundation | 10/10 | Complete | 2026-02-13 |
-| 19. AI Automation Builder | TBD | Not started | - |
+| 19. AI Automation Builder | 10/10 | Complete | 2026-02-16 |
 | 20. Integration Automations (Twilio + Shopify) | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-13 (Phase 18 complete, Phase 20 Integration Automations added)*
+*Last updated: 2026-02-16 (Phase 19 complete — MVP v2.0 Agentes Conversacionales milestone)*

@@ -2,10 +2,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { matchContact } from './contact-matcher'
 import { mapShopifyOrder, MappedOrder } from './order-mapper'
 import { extractPhoneFromOrder } from './phone-normalizer'
-import type { ShopifyOrderWebhook, ShopifyIntegration } from './types'
+import type { ShopifyOrderWebhook, ShopifyDraftOrderWebhook, ShopifyIntegration } from './types'
 import { createOrder as domainCreateOrder } from '@/lib/domain/orders'
 import { createContact as domainCreateContact } from '@/lib/domain/contacts'
 import type { DomainContext } from '@/lib/domain/types'
+import {
+  emitShopifyOrderCreated,
+  emitShopifyDraftOrderCreated,
+  emitShopifyOrderUpdated,
+} from '@/lib/automations/trigger-emitter'
 
 /**
  * Result of processing a Shopify webhook.
@@ -21,11 +26,9 @@ export interface ProcessResult {
 
 /**
  * Processes a Shopify orders/create webhook.
- * This is the main orchestration function that:
- * 1. Checks for duplicate (idempotency)
- * 2. Matches or creates contact
- * 3. Creates order with products
- * 4. Logs the webhook event
+ * Dual-behavior based on auto_sync_orders config:
+ *   - auto_sync=true (default): Creates CRM contact+order AND emits trigger
+ *   - auto_sync=false: Only emits trigger for automations to handle
  *
  * @param order - Shopify order webhook payload
  * @param integration - Shopify integration config
@@ -55,55 +58,116 @@ export async function processShopifyWebhook(
       return { success: true, error: 'Duplicate webhook' }
     }
 
-    // Step 1b: Check for duplicate order by shopify_order_id
-    const { data: existingOrder } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('workspace_id', workspaceId)
-      .eq('shopify_order_id', order.id)
-      .single()
+    // Read auto_sync setting (defaults to true for backward compatibility)
+    const autoSync = config.auto_sync_orders !== false
 
-    if (existingOrder) {
-      console.log(`Duplicate Shopify order ignored: ${order.id}`)
-      // Log event as processed (duplicate)
+    if (autoSync) {
+      // ================================================================
+      // AUTO-SYNC MODE: Create CRM records + emit trigger (existing behavior)
+      // ================================================================
+
+      // Check for duplicate order by shopify_order_id
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('shopify_order_id', order.id)
+        .single()
+
+      if (existingOrder) {
+        console.log(`Duplicate Shopify order ignored: ${order.id}`)
+        await logWebhookEvent(supabase, integration.id, webhookId, 'orders/create', order, 'processed')
+        return { success: true, orderId: existingOrder.id, error: 'Order already exists' }
+      }
+
+      // Log webhook event as pending
+      await logWebhookEvent(supabase, integration.id, webhookId, 'orders/create', order, 'pending')
+
+      // Match or create contact
+      const { contactId, contactCreated, needsVerification } = await resolveContact(
+        supabase,
+        order,
+        workspaceId,
+        config.enable_fuzzy_matching
+      )
+
+      // Map Shopify order to MorfX format
+      const mapped = await mapShopifyOrder(order, config, workspaceId, contactId)
+
+      // Create order with products
+      const orderId = await createOrderWithProducts(supabase, workspaceId, mapped)
+
+      // Update webhook event to processed
+      await updateWebhookEvent(supabase, integration.id, webhookId, 'processed')
+
+      // Update integration last_sync_at
+      await supabase
+        .from('integrations')
+        .update({ last_sync_at: new Date().toISOString() })
+        .eq('id', integration.id)
+
+      // Emit trigger for automations
+      const phone = extractPhoneFromOrder(order)
+      const contactName = buildContactName(order) || undefined
+      emitShopifyOrderCreated({
+        workspaceId,
+        shopifyOrderId: order.id,
+        shopifyOrderNumber: order.name,
+        total: order.total_price,
+        financialStatus: order.financial_status,
+        email: order.email,
+        phone,
+        note: order.note,
+        products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+        shippingAddress: buildShippingAddressString(order),
+        shippingCity: order.shipping_address?.city || null,
+        tags: null,
+        contactId: contactId ?? undefined,
+        contactName,
+        contactPhone: phone || undefined,
+        orderId,
+      })
+
+      console.log(`Processed Shopify order ${order.name} -> MorfX order ${orderId} (auto-sync)`)
+
+      return {
+        success: true,
+        orderId,
+        contactId: contactId ?? undefined,
+        contactCreated,
+        needsVerification,
+      }
+    } else {
+      // ================================================================
+      // TRIGGER-ONLY MODE: Only emit trigger, no CRM creation
+      // ================================================================
+
+      // Log webhook event
       await logWebhookEvent(supabase, integration.id, webhookId, 'orders/create', order, 'processed')
-      return { success: true, orderId: existingOrder.id, error: 'Order already exists' }
-    }
 
-    // Step 2: Log webhook event as pending
-    await logWebhookEvent(supabase, integration.id, webhookId, 'orders/create', order, 'pending')
+      // Emit trigger for automations to handle
+      const phone = extractPhoneFromOrder(order)
+      const contactName = buildContactName(order) || undefined
+      emitShopifyOrderCreated({
+        workspaceId,
+        shopifyOrderId: order.id,
+        shopifyOrderNumber: order.name,
+        total: order.total_price,
+        financialStatus: order.financial_status,
+        email: order.email,
+        phone,
+        note: order.note,
+        products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+        shippingAddress: buildShippingAddressString(order),
+        shippingCity: order.shipping_address?.city || null,
+        tags: null,
+        contactName,
+        contactPhone: phone || undefined,
+      })
 
-    // Step 3: Match or create contact
-    const { contactId, contactCreated, needsVerification } = await resolveContact(
-      supabase,
-      order,
-      workspaceId,
-      config.enable_fuzzy_matching
-    )
+      console.log(`Shopify order ${order.name} trigger emitted (trigger-only mode)`)
 
-    // Step 4: Map Shopify order to MorfX format
-    const mapped = await mapShopifyOrder(order, config, workspaceId, contactId)
-
-    // Step 5: Create order with products
-    const orderId = await createOrderWithProducts(supabase, workspaceId, mapped)
-
-    // Step 6: Update webhook event to processed
-    await updateWebhookEvent(supabase, integration.id, webhookId, 'processed')
-
-    // Step 7: Update integration last_sync_at
-    await supabase
-      .from('integrations')
-      .update({ last_sync_at: new Date().toISOString() })
-      .eq('id', integration.id)
-
-    console.log(`Processed Shopify order ${order.name} -> MorfX order ${orderId}`)
-
-    return {
-      success: true,
-      orderId,
-      contactId: contactId ?? undefined,
-      contactCreated,
-      needsVerification,
+      return { success: true }
     }
   } catch (error) {
     console.error('Error processing Shopify webhook:', error)
@@ -121,6 +185,163 @@ export async function processShopifyWebhook(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     }
+  }
+}
+
+/**
+ * Processes a Shopify orders/updated webhook.
+ * Emits shopify.order_updated trigger with full payload data.
+ * Looks up existing MorfX order by shopify_order_id for context enrichment.
+ *
+ * @param order - Shopify order webhook payload (updated order)
+ * @param integration - Shopify integration config
+ * @param webhookId - X-Shopify-Webhook-Id for idempotency
+ * @returns Processing result
+ */
+export async function processShopifyOrderUpdated(
+  order: ShopifyOrderWebhook,
+  integration: ShopifyIntegration,
+  webhookId: string
+): Promise<ProcessResult> {
+  const supabase = createAdminClient()
+  const workspaceId = integration.workspace_id
+
+  try {
+    // Check for duplicate webhook
+    const { data: existingEvent } = await supabase
+      .from('webhook_events')
+      .select('id')
+      .eq('integration_id', integration.id)
+      .eq('external_id', webhookId)
+      .single()
+
+    if (existingEvent) {
+      return { success: true, error: 'Duplicate webhook' }
+    }
+
+    // Log webhook event
+    await logWebhookEvent(supabase, integration.id, webhookId, 'orders/updated', order, 'processed')
+
+    // Look up existing MorfX order by shopify_order_id to get contactId
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id, contact_id')
+      .eq('workspace_id', workspaceId)
+      .eq('shopify_order_id', order.id)
+      .single()
+
+    // Look up contact name/phone if we have a contact
+    let contactName: string | undefined
+    let contactPhone: string | undefined
+    if (existingOrder?.contact_id) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('name, phone')
+        .eq('id', existingOrder.contact_id)
+        .single()
+      contactName = contact?.name || undefined
+      contactPhone = contact?.phone || undefined
+    }
+
+    // Emit trigger for automations
+    const phone = extractPhoneFromOrder(order)
+    emitShopifyOrderUpdated({
+      workspaceId,
+      shopifyOrderId: order.id,
+      shopifyOrderNumber: order.name,
+      total: order.total_price,
+      financialStatus: order.financial_status,
+      fulfillmentStatus: order.fulfillment_status,
+      email: order.email,
+      phone,
+      note: order.note,
+      products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+      shippingAddress: buildShippingAddressString(order),
+      shippingCity: order.shipping_address?.city || null,
+      tags: null,
+      contactId: existingOrder?.contact_id || undefined,
+      contactName,
+      contactPhone,
+      orderId: existingOrder?.id || undefined,
+    })
+
+    console.log(`Shopify order updated: ${order.name} (${order.financial_status}/${order.fulfillment_status || 'unfulfilled'})`)
+
+    return { success: true, orderId: existingOrder?.id }
+  } catch (error) {
+    console.error('Error processing Shopify order updated:', error)
+    await updateWebhookEvent(supabase, integration.id, webhookId, 'failed', error instanceof Error ? error.message : 'Unknown error')
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * Processes a Shopify draft_orders/create webhook.
+ * Draft orders ALWAYS go through automations only (no auto-sync CRM creation).
+ * Emits shopify.draft_order_created trigger with draft-specific fields.
+ *
+ * @param draftOrder - Shopify draft order webhook payload
+ * @param integration - Shopify integration config
+ * @param webhookId - X-Shopify-Webhook-Id for idempotency
+ * @returns Processing result
+ */
+export async function processShopifyDraftOrder(
+  draftOrder: ShopifyDraftOrderWebhook,
+  integration: ShopifyIntegration,
+  webhookId: string
+): Promise<ProcessResult> {
+  const supabase = createAdminClient()
+  const workspaceId = integration.workspace_id
+
+  try {
+    // Check for duplicate webhook
+    const { data: existingEvent } = await supabase
+      .from('webhook_events')
+      .select('id')
+      .eq('integration_id', integration.id)
+      .eq('external_id', webhookId)
+      .single()
+
+    if (existingEvent) {
+      return { success: true, error: 'Duplicate webhook' }
+    }
+
+    // Log webhook event
+    await logWebhookEvent(supabase, integration.id, webhookId, 'draft_orders/create', draftOrder, 'processed')
+
+    // Extract contact info from draft order
+    // Use type cast since extractPhoneFromOrder expects ShopifyOrderWebhook
+    // but the phone fields (customer.phone, shipping_address.phone, phone) are shared
+    const phone = extractPhoneFromOrder(draftOrder as unknown as ShopifyOrderWebhook)
+    const customerName = draftOrder.customer
+      ? [draftOrder.customer.first_name, draftOrder.customer.last_name].filter(Boolean).join(' ') || undefined
+      : undefined
+
+    // Emit trigger for automations (draft orders ALWAYS go through automations, no auto-sync)
+    emitShopifyDraftOrderCreated({
+      workspaceId,
+      shopifyDraftOrderId: draftOrder.id,
+      shopifyOrderNumber: draftOrder.name,
+      total: draftOrder.total_price,
+      status: draftOrder.status || 'open',
+      email: draftOrder.email,
+      phone,
+      note: draftOrder.note,
+      products: draftOrder.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+      shippingAddress: draftOrder.shipping_address
+        ? [draftOrder.shipping_address.address1, draftOrder.shipping_address.address2].filter(Boolean).join(', ') || null
+        : null,
+      contactName: customerName,
+      contactPhone: phone || undefined,
+    })
+
+    console.log(`Shopify draft order created: ${draftOrder.name} (${draftOrder.status || 'open'})`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error processing Shopify draft order:', error)
+    await updateWebhookEvent(supabase, integration.id, webhookId, 'failed', error instanceof Error ? error.message : 'Unknown error')
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 

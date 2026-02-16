@@ -2,166 +2,140 @@
 
 ## What This Is
 
-MorfX es una plataforma SaaS multi-tenant que combina CRM + WhatsApp para negocios e-commerce con modelo COD (Cash on Delivery). Permite gestionar contactos, pedidos y conversaciones de WhatsApp en una sola interfaz, con el objetivo a largo plazo de evolucionar hacia un sistema de IA Distribuida con robots autónomos, Action DSL y auditoría completa.
+MorfX es una plataforma SaaS multi-tenant que combina CRM + WhatsApp + Automatizaciones + Agentes IA para negocios e-commerce COD (Cash on Delivery). Permite gestionar contactos, pedidos, conversaciones de WhatsApp, automatizaciones inteligentes y agentes de venta AI en una sola interfaz. El sistema incluye un motor de automatizaciones configurable, un AI builder que crea automatizaciones por lenguaje natural, e integraciones con Twilio SMS y Shopify.
 
 ## Core Value
 
-**Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos módulos.**
+**Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA que atienden clientes automaticamente.**
 
-Si todo lo demás falla, esta sincronización entre WhatsApp y CRM debe funcionar.
-
-## Current Milestone: v2.0 Agentes Conversacionales
-
-**Goal:** Transformar los agentes existentes de n8n en agentes conversacionales con código propio, mayor control, y visualización tipo canvas.
-
-**Target features:**
-- Auditoría profunda de agentes n8n actuales en producción
-- Canvas visual para gestión de agentes (tipo n8n pero con más control)
-- Action DSL conectado con funciones reales
-- Motor de agente con Claude API
-- Sandbox para probar conversaciones
-- Integración de agentes con WhatsApp real
+Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agentes deben funcionar.
 
 ## Requirements
 
 ### Validated (MVP v1.0)
 
-<!-- Shipped and confirmed valuable in MVP v1 -->
+- Authentication (email/password, sessions, reset) — v1.0
+- Workspaces & Roles (multi-tenant RLS, Owner/Admin/Agent) — v1.0
+- Action DSL Core (16 tools, registry, logging) — v1.0
+- Contacts (CRUD, tags, custom fields, notes, activity, import/export) — v1.0
+- Orders (CRUD, Kanban, multi-products, pipeline config) — v1.0
+- WhatsApp Core (inbox, messaging, 24h window) — v1.0
+- WhatsApp Extended (templates, teams, quick replies, costs) — v1.0
+- CRM <-> WhatsApp Sync (tags, order states with emoji) — v1.0
+- Search, Tasks & Analytics — v1.0
+- Shopify Integration (webhooks, auto-create) — v1.0
 
-- ✓ Authentication (email/password, sessions, reset) — Phase 1
-- ✓ Workspaces & Roles (multi-tenant RLS, Owner/Admin/Agent) — Phase 2
-- ✓ Action DSL Core (16 tools, registry, logging) — Phase 3
-- ✓ Contacts (CRUD, tags, custom fields, notes, activity, import/export) — Phases 4-5
-- ✓ Orders (CRUD, Kanban, multi-products, pipeline config) — Phase 6
-- ✓ WhatsApp Core (inbox, messaging, 24h window) — Phase 7
-- ✓ WhatsApp Extended (templates, teams, quick replies, costs) — Phase 8
-- ✓ CRM ↔ WhatsApp Sync (tags, order states with emoji) — Phase 9
-- ✓ Search, Tasks & Analytics — Phase 10
-- ✓ Shopify Integration (webhooks, auto-create) — Phase 11
+### Validated (MVP v2.0)
 
-### Active (MVP v2.0 — Agentes Conversacionales)
+- Action DSL Real (16 real handlers: 9 CRM + 7 WhatsApp) — v2.0
+- Agent Engine Core (Claude API, sessions, tools, token budget) — v2.0
+- Agente Ventas Somnio (33 intents, data extraction, templates, orders) — v2.0
+- Agent Sandbox (debug panels, sessions, CRM agents, per-model tokens) — v2.0
+- Somnio Ingest System (data accumulation, classification, timer) — v2.0
+- WhatsApp Agent Integration (routing, handoff, metrics, config) — v2.0
+- Engine Unification (UnifiedEngine, SomnioAgent, 10 adapters) — v2.0
+- CRM Automations Engine (10 triggers, 11 actions, wizard, Inngest runners) — v2.0
+- Domain Layer Foundation (33 functions, 8 modules, single source of truth) — v2.0
+- AI Automation Builder (natural language, React Flow diagrams, validation) — v2.0
+- Integration Automations (Twilio SMS, 3 Shopify triggers, dual-behavior) — v2.0
 
-#### Auditoría de Agentes Actuales
-- [ ] Documentar todos los agentes n8n en producción (workflows, triggers, acciones)
-- [ ] Identificar limitaciones de cada agente actual
-- [ ] Mapear dependencias entre agentes
-- [ ] Diseñar arquitectura de transformación a código propio
+### Active
 
-#### Canvas Visual de Agentes
-- [ ] Investigar opciones de display visual (React Flow, custom canvas, etc.)
-- [ ] Diseñar UX para control granular de agentes
-- [ ] Decidir si módulo interno o plataforma dev separada
-- [ ] Prototipo de visualización de flujos de agente
-
-#### Action DSL → Funciones Reales
-- [ ] Reemplazar handlers placeholder con operaciones reales
-- [ ] API /api/v1/tools funcional para CRM y WhatsApp
-- [ ] Logging forense completo de ejecuciones
-- [ ] Tests de integración para cada tool
-
-#### Motor de Agente Claude
-- [ ] Integración con Claude API (tool use, streaming)
-- [ ] Configuración de system prompt por agente
-- [ ] Gestión de contexto y historial de conversación
-- [ ] Manejo de herramientas del Action DSL
-
-#### Agent Sandbox
-- [ ] UI de pruebas en /sandbox
-- [ ] Simulación cliente ↔ agente
-- [ ] Visualización de tools ejecutados (transparencia)
-- [ ] Historial de sesiones de prueba
-
-#### WhatsApp Agent Integration
-- [ ] Conexión de agentes con conversaciones reales
-- [ ] Handoff robot → humano configurable
-- [ ] Reglas de cuándo interviene agente vs humano
-- [ ] Métricas de conversaciones automatizadas
+(No active requirements — pending next milestone definition)
 
 ### Out of Scope
 
-- Inventario — Complejidad adicional, agregar en v2
-- Gestión de pagos/recaudos — Agregar después del MVP
-- Reportes avanzados — Solo reportes básicos en v1
-- Chatbot/automatizaciones complejas — Después del MVP core
-- Conexión directa a Meta API — Usar intermediario (360dialog) primero
-- Email/SMS como canales — Solo WhatsApp en v1
-- Mobile apps nativas — Web-first, mobile responsive
-- SCIM/SSO enterprise — Después de validar modelo de negocio
+| Feature | Reason |
+|---------|--------|
+| Email como canal | Solo WhatsApp por ahora |
+| SMS como canal de inbox | SMS solo como action de automatizacion (Twilio) |
+| Conexion directa a Meta API | Usar 360dialog como intermediario |
+| Inventario | Complejidad adicional, no critico |
+| Pagos/recaudos | Agregar despues de validar CRM+WhatsApp+Agents |
+| Mobile apps nativas | Web responsive primero |
+| Multi-idioma | Solo espanol para mercado LATAM |
+| make_call Twilio | Diferido a fase futura |
 
 ## Context
 
+### Current State (v2.0 Shipped)
+
+- **Codebase:** ~92,000 LOC TypeScript across 454+ files
+- **Tech stack:** Next.js 15 (App Router) + React 19 + Supabase + Tailwind + Inngest + AI SDK v6
+- **Architecture:** Domain layer as single source of truth, ports/adapters for agent engine, Inngest for async processing
+- **Milestones shipped:** v1.0 (CRM+WhatsApp) + v2.0 (Agents+Automations)
+- **Timeline:** 22 days total (2026-01-26 to 2026-02-16)
+
 ### Codebase Existente
 
-Este proyecto existe dentro de un repositorio con agentes de IA funcionales en producción:
-- **Agentes de Venta (n8n)**: Historial v3, State Analyzer, Data Extractor, Carolina v3, Order Manager, Proactive Timer
-- **Robots Logística**: robot-coordinadora (Playwright), robot-inter-envia (PDF/Excel), ocr-guias-bot (Claude Vision)
-- **Stack actual**: n8n + PostgreSQL + Callbell + Bigin + Claude API
+Este proyecto coexiste con agentes de IA funcionales en produccion:
+- **Agentes de Venta (n8n)**: En proceso de reemplazo por MorfX agents
+- **Robots Logistica**: robot-coordinadora (Playwright), robot-inter-envia (PDF/Excel), ocr-guias-bot (Claude Vision)
+- **Stack actual en transicion**: n8n + PostgreSQL + Callbell + Bigin → MorfX
 
-MorfX reemplazará gradualmente Bigin (CRM) y eventualmente Callbell (WhatsApp), dando control total sobre el código.
+### Vision a Largo Plazo: IA Distribuida
 
-### Visión a Largo Plazo: IA Distribuida
-
-MorfX es el primer paso hacia un sistema de IA Distribuida que incluye:
-- **Action DSL**: Lenguaje estructurado de acciones (no clicks sueltos)
-- **RUPX**: Robot Universal de Plataformas Externas
-- **Ciclo obligatorio**: PLAN → SIMULAR → EJECUTAR → VERIFICAR → LOG
-- **Admin Console**: Runs, steps, evidencias, aprobaciones
-- **CRM Adapter intercambiable**: Hoy Bigin (UI), mañana MorfX (API)
+MorfX es el primer paso hacia un sistema de IA Distribuida:
+- **Action DSL**: Lenguaje estructurado de acciones (implementado)
+- **Domain Layer**: Fuente unica de verdad para mutaciones (implementado)
+- **Agent Engine**: Motor generico con adapters (implementado)
+- **Automations**: Trigger/action engine con AI builder (implementado)
+- **RUPX**: Robot Universal de Plataformas Externas (futuro)
+- **Admin Console**: Runs, steps, evidencias, aprobaciones (futuro)
 
 ### Target Market
 
 E-commerce y negocios COD en Colombia/LATAM que venden por WhatsApp y necesitan:
 - CRM simple pero funcional
-- Integración nativa con WhatsApp
-- Sincronización con Shopify
-- Control sobre su data y procesos
-
-### Investigación Completada
-
-1. **WhatsApp Business API**: Políticas, límites de mensajes, warm-up de números, causas de bloqueo
-2. **Proveedores WhatsApp**: Comparativa completa — 360dialog recomendado (zero markup)
-3. **Callbell**: Análisis de features para replicar y mejorar
-4. **Shopify API**: Webhooks, autenticación, best practices para sync
-5. **RBAC Multi-tenant**: Esquema de roles, RLS con Supabase, JWT claims
+- Integracion nativa con WhatsApp
+- Agentes IA para atencion automatica
+- Automatizaciones entre modulos
+- Sincronizacion con Shopify
 
 ## Constraints
 
-- **UI Framework**: v0 obligatorio para desarrollo de interfaz (Next.js + React + Tailwind)
+- **UI Framework**: Next.js + React + Tailwind (v0 para desarrollo de interfaz)
 - **Database**: Supabase (PostgreSQL + Auth + RLS)
 - **Frontend Hosting**: Vercel (optimizado para Next.js)
-- **Backend/Workers**: Hostinger (procesos long-running, Redis)
-- **WhatsApp Provider**: 360dialog (zero markup, Partner API para multi-tenant)
-- **Multi-tenant**: Desde el inicio con Row Level Security
-- **Idioma**: Interfaz en español (mercado LATAM)
+- **Async Processing**: Inngest (automation runners, agent timers, webhook routing)
+- **AI**: Claude API via AI SDK v6 (Sonnet for builder, Haiku for classification)
+- **WhatsApp Provider**: 360dialog (zero markup, Partner API)
+- **Multi-tenant**: Row Level Security desde el inicio
+- **Idioma**: Interfaz en espanol (mercado LATAM)
+- **Timezone**: America/Bogota (UTC-5) para toda logica de fechas
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| 360dialog como proveedor WhatsApp | Zero markup en mensajes, Partner API para multi-tenant, mejor unit economics | — Pending |
-| Supabase para DB + Auth | RLS built-in, Auth con custom claims, Storage incluido, developer experience | — Pending |
-| Arquitectura híbrida (Vercel + Supabase + Hostinger) | Cada servicio optimizado para su caso de uso | — Pending |
-| Multi-tenant desde el inicio | Evita refactor costoso después, necesario para SaaS | — Pending |
-| Action DSL desde el inicio | Prepara el camino para IA Distribuida sin reescribir | — Pending |
-| Tags compartidos entre módulos | Core value del producto, diferenciador vs competencia | — Pending |
-| v0 para UI | Desarrollo acelerado con IA, obligatorio por el usuario | — Pending |
-| LEARNINGS.md obligatorio por fase | Documentar bugs, decisiones y tips para entrenar agentes futuros | ✓ Implemented |
+| 360dialog como proveedor WhatsApp | Zero markup, Partner API multi-tenant | Good |
+| Supabase para DB + Auth | RLS built-in, Auth con custom claims | Good |
+| Arquitectura hibrida (Vercel + Supabase) | Cada servicio optimizado | Good |
+| Multi-tenant desde el inicio | Evita refactor costoso | Good |
+| Action DSL desde el inicio | Prepara para IA Distribuida | Good |
+| Tags compartidos entre modulos | Core value, diferenciador | Good |
+| LEARNINGS.md obligatorio por fase | Documentar para agentes futuros | Good |
+| AI SDK v6 para Claude | useChat, streaming, tool use nativo | Good |
+| Inngest para async processing | Concurrency control, event-driven, serverless-safe | Good |
+| Domain layer como fuente de verdad | Elimina duplicacion, habilita IA distribuida | Good |
+| Ports/Adapters para UnifiedEngine | Un codebase para sandbox + produccion | Good |
+| React Flow para diagramas | Visual preview de automatizaciones, custom nodes | Good |
+| Fire-and-forget abandonado en webhooks | Vercel termina funcion antes de completar send | Good (critical fix) |
+| Two automation contexts (flat vs nested) | TriggerContext para logica, variableContext para templates | Good |
 
 ## Workflow Obligatorio
 
 ### LEARNINGS.md por Fase
 
-Después de completar cada fase, es **OBLIGATORIO** crear un archivo `{phase}-LEARNINGS.md` que documente:
+Despues de completar cada fase, es **OBLIGATORIO** crear un archivo LEARNINGS.md que documente:
 
-1. **Bugs encontrados**: Qué falló, por qué, cómo se arregló, cómo prevenirlo
-2. **Decisiones técnicas**: Qué se eligió, alternativas descartadas, razón
-3. **Problemas de integración**: Componentes que no funcionaron bien juntos
-4. **Tips para futuros agentes**: Lo que funcionó, lo que NO hacer, patrones a seguir
-5. **Deuda técnica**: Qué se dejó pendiente y cuándo abordarlo
+1. **Bugs encontrados**: Que fallo, por que, como se arreglo
+2. **Decisiones tecnicas**: Que se eligio, alternativas descartadas
+3. **Problemas de integracion**: Componentes que no funcionaron bien juntos
+4. **Tips para futuros agentes**: Lo que funciono, lo que NO hacer
+5. **Deuda tecnica**: Que se dejo pendiente y cuando abordarlo
 
-**Propósito**: Entrenar agentes de documentación por módulo que entiendan perfectamente cómo se construyó el software.
-
-**Template**: `.planning/templates/LEARNINGS-TEMPLATE.md`
+**Proposito**: Entrenar agentes de documentacion por modulo para la IA Distribuida.
 
 ---
-*Last updated: 2026-02-04 after starting MVP v2.0 Agentes Conversacionales*
+*Last updated: 2026-02-16 after v2.0 milestone completion*

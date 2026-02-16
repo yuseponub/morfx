@@ -120,18 +120,22 @@ export function OrdersView({
     }
   }, [searchParams, router])
 
-  // Auto-open order detail if ?order=<id> in URL (for WhatsApp integration)
+  // Auto-open order detail if ?order=<id> in URL (for WhatsApp integration & related orders)
   React.useEffect(() => {
     const orderId = searchParams.get('order')
     if (orderId) {
       const order = orders.find(o => o.id === orderId)
       if (order) {
+        // Switch to the order's pipeline if different
+        if (order.pipeline_id !== activePipelineId) {
+          setActivePipelineId(order.pipeline_id)
+        }
         setViewingOrder(order)
         // Clear the URL param after opening
         router.replace('/crm/pedidos', { scroll: false })
       }
     }
-  }, [searchParams, router, orders])
+  }, [searchParams, router, orders, activePipelineId])
 
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)

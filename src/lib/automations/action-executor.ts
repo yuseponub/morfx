@@ -24,6 +24,7 @@ import {
 } from '@/lib/domain/orders'
 import {
   updateContact as domainUpdateContact,
+  createContact as domainCreateContact,
 } from '@/lib/domain/contacts'
 import {
   updateCustomFieldValues as domainUpdateCustomFieldValues,
@@ -77,8 +78,15 @@ export async function executeAction(
 
   try {
     // Resolve contactId from phone/email if missing (e.g. Shopify trigger-only mode)
+    // Creates contact automatically if not found
     if (!context.contactId && (context.contactPhone || context.contactEmail)) {
-      const resolved = await resolveContactId(workspaceId, context.contactPhone, context.contactEmail)
+      const resolved = await resolveOrCreateContact(
+        workspaceId,
+        context.contactPhone,
+        context.contactEmail,
+        context.contactName,
+        (context.shippingCity as string) || undefined,
+      )
       if (resolved) {
         context = { ...context, contactId: resolved }
       }
@@ -877,13 +885,16 @@ async function executeWebhook(
 
 /**
  * Resolve contactId from phone or email when not present in trigger context.
+ * If no matching contact is found, creates one automatically.
  * Used for external triggers (e.g. Shopify trigger-only mode) that don't
  * resolve contacts before emitting.
  */
-async function resolveContactId(
+async function resolveOrCreateContact(
   workspaceId: string,
   phone?: string,
-  email?: string
+  email?: string,
+  name?: string,
+  city?: string,
 ): Promise<string | null> {
   const supabase = createAdminClient()
 
@@ -911,5 +922,22 @@ async function resolveContactId(
     if (data) return data.id
   }
 
+  // No existing contact found — create one via domain layer
+  if (!name && !phone) return null
+
+  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: 0 }
+  const result = await domainCreateContact(ctx, {
+    name: name || phone || 'Sin nombre',
+    phone: phone || undefined,
+    email: email || undefined,
+    city: city || undefined,
+  })
+
+  if (result.success && result.data) {
+    console.log(`[action-executor] Auto-created contact ${result.data.contactId} for ${phone || email}`)
+    return result.data.contactId
+  }
+
+  console.error(`[action-executor] Failed to auto-create contact: ${result.error}`)
   return null
 }

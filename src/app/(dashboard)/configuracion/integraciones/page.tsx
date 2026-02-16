@@ -54,6 +54,7 @@ export default async function IntegracionesPage() {
   ])
 
   return (
+    <div className="flex-1 overflow-y-auto">
     <div className="container mx-auto py-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Integraciones</h1>
@@ -169,6 +170,7 @@ export default async function IntegracionesPage() {
           </Suspense>
         </TabsContent>
       </Tabs>
+    </div>
     </div>
   )
 }

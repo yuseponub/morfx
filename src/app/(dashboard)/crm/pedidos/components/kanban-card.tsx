@@ -168,7 +168,7 @@ export function KanbanCard({
       {/* Footer: Date + WhatsApp */}
       <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
         <div className="flex items-center gap-1">
-          {order.source_order_id && (
+          {(order.source_order_id || order.has_derived_orders) && (
             <span title="Orden conectada">
               <Link2Icon className="h-3 w-3 text-blue-500" />
             </span>

@@ -273,10 +273,30 @@ export async function getOrders(filters?: OrderFilters): Promise<OrderWithDetail
   }
 
   // Transform tags from nested structure
-  return (data || []).map(order => ({
+  const orders = (data || []).map(order => ({
     ...order,
     tags: order.tags?.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || [],
   }))
+
+  // Detect which orders have derived orders (are referenced as source_order_id)
+  const orderIds = orders.map(o => o.id)
+  if (orderIds.length > 0) {
+    const { data: derived } = await supabase
+      .from('orders')
+      .select('source_order_id')
+      .in('source_order_id', orderIds)
+
+    if (derived && derived.length > 0) {
+      const sourceIds = new Set(derived.map(d => d.source_order_id))
+      for (const order of orders) {
+        if (sourceIds.has(order.id)) {
+          order.has_derived_orders = true
+        }
+      }
+    }
+  }
+
+  return orders
 }
 
 /**

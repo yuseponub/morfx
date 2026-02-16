@@ -200,6 +200,8 @@ export interface OrderWithDetails extends Order {
     color: string
   }>
   products: OrderProduct[]
+  /** True when other orders reference this one as source_order_id */
+  has_derived_orders?: boolean
 }
 
 // ============================================================================

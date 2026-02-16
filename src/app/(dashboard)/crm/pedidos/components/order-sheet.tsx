@@ -38,7 +38,7 @@ import {
 import { OrderTagInput } from './order-tag-input'
 import { RelatedOrders } from './related-orders'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
-import { moveOrderToStage, getRelatedOrders } from '@/app/actions/orders'
+import { moveOrderToStage, getRelatedOrders, getOrder } from '@/app/actions/orders'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineStage, RelatedOrder } from '@/lib/orders/types'
@@ -429,14 +429,19 @@ export function OrderSheet({
                 <Separator />
                 <RelatedOrders
                   relatedOrders={relatedOrders}
-                  onNavigate={(orderId) => {
+                  onNavigate={async (orderId) => {
                     // Try to find the order in current view and navigate in-sheet
                     const target = allOrders?.find(o => o.id === orderId)
                     if (target && onViewOrder) {
                       onViewOrder(target)
-                    } else {
-                      // Fallback: navigate to the orders page (order may be in another pipeline)
-                      router.push(`/crm/pedidos?order=${orderId}`)
+                    } else if (onViewOrder) {
+                      // Fetch order from another pipeline and open in-sheet
+                      const fetched = await getOrder(orderId)
+                      if (fetched) {
+                        onViewOrder(fetched)
+                      } else {
+                        toast.error('No se pudo cargar la orden relacionada')
+                      }
                     }
                   }}
                 />

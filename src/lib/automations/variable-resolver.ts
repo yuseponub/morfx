@@ -210,5 +210,21 @@ export function buildTriggerContext(
   if (eventData.entityId !== undefined) entidad.id = eventData.entityId
   if (Object.keys(entidad).length > 0) context.entidad = entidad
 
+  // --- shopify (Phase 20: Integration Automations) ---
+  const shopify: Record<string, unknown> = {}
+  if (eventData.shopifyOrderNumber !== undefined) shopify.order_number = eventData.shopifyOrderNumber
+  if (eventData.total !== undefined) shopify.total = eventData.total
+  if (eventData.financialStatus !== undefined) shopify.financial_status = eventData.financialStatus
+  if (eventData.fulfillmentStatus !== undefined) shopify.fulfillment_status = eventData.fulfillmentStatus
+  if (eventData.email !== undefined) shopify.email = eventData.email
+  if (eventData.phone !== undefined) shopify.phone = eventData.phone
+  if (eventData.note !== undefined) shopify.note = eventData.note
+  if (eventData.products !== undefined) shopify.productos = JSON.stringify(eventData.products)
+  if (eventData.shippingAddress !== undefined) shopify.direccion_envio = eventData.shippingAddress
+  if (eventData.shippingCity !== undefined) shopify.ciudad_envio = eventData.shippingCity
+  if (eventData.tags !== undefined) shopify.tags = eventData.tags
+  if (eventData.status !== undefined) shopify.status = eventData.status
+  if (Object.keys(shopify).length > 0) context.shopify = shopify
+
   return context
 }

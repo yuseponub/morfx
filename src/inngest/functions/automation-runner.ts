@@ -41,6 +41,9 @@ const EVENT_TO_TRIGGER: Record<string, TriggerType> = {
   'automation/whatsapp.keyword_match': 'whatsapp.keyword_match',
   'automation/task.completed': 'task.completed',
   'automation/task.overdue': 'task.overdue',
+  'automation/shopify.order_created': 'shopify.order_created',
+  'automation/shopify.draft_order_created': 'shopify.draft_order_created',
+  'automation/shopify.order_updated': 'shopify.order_updated',
 }
 
 // ============================================================================
@@ -115,6 +118,10 @@ function matchesTriggerConfig(
     case 'whatsapp.message_received':
     case 'task.completed':
     case 'task.overdue':
+    // Shopify triggers have no config filters (configFields empty)
+    case 'shopify.order_created':
+    case 'shopify.draft_order_created':
+    case 'shopify.order_updated':
       return true
 
     default:
@@ -483,7 +490,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
 }
 
 // ============================================================================
-// Create All 10 Runners
+// Create All 13 Runners
 // ============================================================================
 
 const orderStageChangedRunner = createAutomationRunner(
@@ -536,6 +543,22 @@ const taskOverdueRunner = createAutomationRunner(
   'automation/task.overdue'
 )
 
+// Shopify runners (Phase 20: Integration Automations)
+const shopifyOrderCreatedRunner = createAutomationRunner(
+  'shopify.order_created',
+  'automation/shopify.order_created'
+)
+
+const shopifyDraftOrderCreatedRunner = createAutomationRunner(
+  'shopify.draft_order_created',
+  'automation/shopify.draft_order_created'
+)
+
+const shopifyOrderUpdatedRunner = createAutomationRunner(
+  'shopify.order_updated',
+  'automation/shopify.order_updated'
+)
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -555,4 +578,7 @@ export const automationFunctions = [
   whatsappKeywordMatchRunner,
   taskCompletedRunner,
   taskOverdueRunner,
+  shopifyOrderCreatedRunner,
+  shopifyDraftOrderCreatedRunner,
+  shopifyOrderUpdatedRunner,
 ]

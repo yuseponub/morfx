@@ -56,7 +56,7 @@ function validateActionParams(
       continue
     }
 
-    const catalogParamNames = catalogEntry.params.map((p) => p.name)
+    const catalogParamNames: string[] = catalogEntry.params.map((p) => p.name)
     const providedParamNames = Object.keys(action.params || {})
 
     // Check for unrecognized param names

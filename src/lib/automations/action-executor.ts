@@ -10,7 +10,7 @@
 // ============================================================================
 
 import type { AutomationAction, ActionType, TriggerContext } from './types'
-import { resolveVariables, resolveVariablesInObject } from './variable-resolver'
+import { resolveVariables, resolveVariablesInObject, buildTriggerContext } from './variable-resolver'
 import { WEBHOOK_TIMEOUT_MS } from './constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTwilioConfig, createTwilioClient } from '@/lib/twilio/client'
@@ -72,7 +72,8 @@ export async function executeAction(
   action: AutomationAction,
   context: TriggerContext,
   workspaceId: string,
-  cascadeDepth: number
+  cascadeDepth: number,
+  variableContext?: Record<string, unknown>
 ): Promise<ActionResult> {
   const startMs = Date.now()
 
@@ -92,10 +93,11 @@ export async function executeAction(
       }
     }
 
-    // Resolve variables in action params before execution
+    // Resolve variables in action params using nested context (e.g. shopify.phone, contacto.nombre)
+    const resolvedVarContext = variableContext || buildTriggerContext(context as unknown as Record<string, unknown>)
     const resolvedParams = resolveVariablesInObject(
       action.params,
-      context as unknown as Record<string, unknown>
+      resolvedVarContext
     )
 
     // Dispatch to type-specific handler

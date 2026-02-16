@@ -264,7 +264,7 @@ async function processAutomation(
     const actionResult = await step.run(
       `action-${automation.id}-${i}-${action.type}`,
       async () => {
-        return executeAction(action, triggerContext, automation.workspace_id, cascadeDepth)
+        return executeAction(action, triggerContext, automation.workspace_id, cascadeDepth, variableContext)
       }
     )
 

@@ -374,11 +374,29 @@ async function executeCreateOrder(
   if (!pipelineId) throw new Error('pipelineId is required for create_order')
   if (!contactId) throw new Error('No contactId available in trigger context')
 
+  // Enrich order with trigger context data (e.g. Shopify order details)
+  const products = Array.isArray(context.products)
+    ? (context.products as Array<{ sku: string; title: string; quantity: number; price: string }>).map(p => ({
+        sku: p.sku || '',
+        title: p.title,
+        unitPrice: parseFloat(p.price) || 0,
+        quantity: p.quantity,
+      }))
+    : undefined
+
+  const description = context.shopifyOrderNumber
+    ? `Shopify ${context.shopifyOrderNumber}`
+    : undefined
+
   const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
   const result = await domainCreateOrder(ctx, {
     pipelineId,
     stageId,
     contactId,
+    products,
+    shippingAddress: (context.shippingAddress as string) || undefined,
+    shippingCity: (context.shippingCity as string) || undefined,
+    description,
   })
 
   if (!result.success) throw new Error(result.error || 'Failed to create order')

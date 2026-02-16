@@ -1,13 +1,16 @@
 // ============================================================================
-// Phase 11: Shopify Webhook Endpoint
-// Receives webhook events from Shopify (orders/create)
+// Phase 11 + Phase 20: Shopify Webhook Endpoint
+// Receives webhook events from Shopify:
+//   - orders/create: New order (auto-sync or trigger-only)
+//   - orders/updated: Order status/fulfillment changes
+//   - draft_orders/create: New draft order (trigger-only)
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyShopifyHmac } from '@/lib/shopify/hmac'
-import { processShopifyWebhook } from '@/lib/shopify/webhook-handler'
-import type { ShopifyOrderWebhook, ShopifyIntegration } from '@/lib/shopify/types'
+import { processShopifyWebhook, processShopifyOrderUpdated, processShopifyDraftOrder } from '@/lib/shopify/webhook-handler'
+import type { ShopifyOrderWebhook, ShopifyDraftOrderWebhook, ShopifyIntegration } from '@/lib/shopify/types'
 
 // ============================================================================
 // WEBHOOK EVENTS (POST)
@@ -75,7 +78,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Step 5: Parse payload (safe now after HMAC verification)
-  let payload: ShopifyOrderWebhook
+  // Generic parse — type cast happens in topic-specific dispatch
+  let payload: unknown
   try {
     payload = JSON.parse(rawBody)
   } catch {
@@ -83,23 +87,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Step 6: Only process orders/create topic
-  if (topic !== 'orders/create') {
+  // Step 6: Dispatch by topic
+  const supportedTopics = ['orders/create', 'orders/updated', 'draft_orders/create']
+  if (!supportedTopics.includes(topic || '')) {
     console.log(`Ignoring Shopify webhook topic: ${topic}`)
     return NextResponse.json({ received: true, ignored: topic }, { status: 200 })
   }
 
-  // Step 7: Process webhook SYNCHRONOUSLY
+  // Step 7: Process by topic
   // Shopify requires 200 response within 5 seconds, but processing should be fast
   try {
-    const result = await processShopifyWebhook(payload, integration, webhookId)
+    let result: { success: boolean; error?: string; orderId?: string; contactId?: string; contactCreated?: boolean; needsVerification?: boolean }
+
+    switch (topic) {
+      case 'orders/create':
+        result = await processShopifyWebhook(payload as ShopifyOrderWebhook, integration, webhookId)
+        break
+      case 'orders/updated':
+        result = await processShopifyOrderUpdated(payload as ShopifyOrderWebhook, integration, webhookId)
+        break
+      case 'draft_orders/create':
+        result = await processShopifyDraftOrder(payload as ShopifyDraftOrderWebhook, integration, webhookId)
+        break
+      default:
+        result = { success: true }
+    }
 
     const duration = Date.now() - startTime
-    console.log(`Shopify webhook processed in ${duration}ms: ${result.success ? 'success' : 'failed'}`)
+    console.log(`Shopify webhook [${topic}] processed in ${duration}ms: ${result.success ? 'success' : 'failed'}`)
 
     if (result.success) {
       return NextResponse.json({
         received: true,
+        topic,
         orderId: result.orderId,
         contactId: result.contactId,
         contactCreated: result.contactCreated,
@@ -108,14 +128,14 @@ export async function POST(request: NextRequest) {
     } else {
       // Log error but return 200 to prevent immediate retry
       // Failed webhooks are logged and can be retried manually
-      console.error('Shopify webhook processing failed:', result.error)
+      console.error(`Shopify webhook [${topic}] processing failed:`, result.error)
       return NextResponse.json({
         received: true,
         error: result.error,
       }, { status: 200 })
     }
   } catch (error) {
-    console.error('Shopify webhook processing error:', error)
+    console.error(`Shopify webhook [${topic}] processing error:`, error)
     // Still return 200 to prevent Shopify from hammering us with retries
     // The error is logged in webhook_events table
     return NextResponse.json({

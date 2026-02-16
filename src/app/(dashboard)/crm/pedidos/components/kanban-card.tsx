@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { UserIcon, PackageIcon, TruckIcon, MessageCircleIcon } from 'lucide-react'
+import { UserIcon, PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon } from 'lucide-react'
 import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -167,7 +167,14 @@ export function KanbanCard({
 
       {/* Footer: Date + WhatsApp */}
       <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
-        <span>{formatRelativeTime(order.created_at)}</span>
+        <div className="flex items-center gap-1">
+          {order.source_order_id && (
+            <span title="Orden conectada">
+              <Link2Icon className="h-3 w-3 text-blue-500" />
+            </span>
+          )}
+          <span>{formatRelativeTime(order.created_at)}</span>
+        </div>
         <div className="flex items-center gap-2">
           {order.contact?.phone && (
             <Link

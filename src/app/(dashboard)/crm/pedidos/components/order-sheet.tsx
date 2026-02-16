@@ -165,9 +165,16 @@ export function OrderSheet({
                   {formatCurrency(order.total_value)}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {pipeline.name}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {pipeline.name}
+                </p>
+                {order.source_order_id && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                    Orden derivada
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

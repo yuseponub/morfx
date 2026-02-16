@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 
 ## Current Position
 
-Phase: 19 of 19 (AI Automation Builder) — COMPLETE
-Plan: 10 of 10 (all plans complete)
-Status: Phase complete — Milestone complete
-Last activity: 2026-02-16 — Completed 19-10-PLAN.md (verification)
+Phase: 20 (Integration Automations - Twilio + Shopify)
+Plan: 1 of 7
+Status: In progress
+Last activity: 2026-02-16 — Completed 20-01-PLAN.md (foundation types/constants/twilio/migration)
 
-Progress: [##########] 100% MVP v1 | [██████████████████████████] 100% MVP v2
+Progress: [##########] 100% MVP v1 | [██████████████████████████] 100% MVP v2 | [█░░░░░░] 14% Phase 20
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -41,6 +41,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
 - Phase 18: Domain Layer Foundation (10 plans) — COMPLETE (2026-02-13)
 - Phase 19: AI Automation Builder (10 plans) — COMPLETE (2026-02-16)
+- Phase 20: Integration Automations (7 plans) — IN PROGRESS (1/7)
 
 ## Performance Metrics
 
@@ -68,6 +69,7 @@ All 11 phases + 4 inserted phases completed:
 | 17. CRM Automations Engine | 10/10 | Complete |
 | 18. Domain Layer Foundation | 10/10 | Complete |
 | 19. AI Automation Builder | 10/10 | Complete |
+| 20. Integration Automations | 1/7 | In Progress |
 
 ## Accumulated Context
 
@@ -378,6 +380,12 @@ Recent decisions affecting MVP v2 work:
 - [19-08]: key-based remount for session switching (change chatKey forces full BuilderChat remount with new initialMessages)
 - [19-08]: Session history as overlay panel (absolute positioned, click-outside dismiss) not persistent sidebar
 - [19-08]: React 19 ref prop pattern replaces forwardRef in BuilderInput (fixes TS error with React 19 types)
+- [20-01]: require('twilio') instead of ESM import (no default ESM export in twilio package)
+- [20-01]: Twilio client typed as any to avoid @types/twilio dependency
+- [20-01]: ShopifyDraftOrderWebhook as separate interface (not extending ShopifyOrderWebhook) for structural clarity
+- [20-01]: auto_sync_orders defaults to undefined/true for backward compatibility
+- [20-01]: sms_messages RLS: SELECT for workspace members, all writes via createAdminClient
+- [20-01]: --legacy-peer-deps required for npm install twilio (React 19 peer dep conflict)
 
 ### Project Rules
 
@@ -419,7 +427,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Phase 19 complete — MVP v2.0 milestone complete
+Last session: 2026-02-16 14:48 COT
+Stopped at: Completed 20-01-PLAN.md (foundation types/constants/twilio/migration)
 Resume file: None
-Next: /gsd:audit-milestone or /gsd:complete-milestone
+Next: Execute 20-02-PLAN.md (send_sms action executor + status callback)

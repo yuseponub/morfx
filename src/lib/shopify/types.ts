@@ -44,6 +44,8 @@ export interface ShopifyConfig {
   product_matching: 'sku' | 'name' | 'value'
   /** Optional field mappings from Shopify fields to MorfX fields */
   field_mappings?: Record<string, string>
+  /** Auto-create contacts+orders from webhooks (default: true for backward compatibility) */
+  auto_sync_orders?: boolean
 }
 
 /**
@@ -128,6 +130,51 @@ export interface ShopifyOrderWebhook {
   line_items: ShopifyLineItem[]
   /** Order note from customer */
   note: string | null
+}
+
+/**
+ * Main Shopify draft order webhook payload.
+ * Received when a draft order is created in Shopify (topic: draft_orders/create).
+ * Shares most fields with ShopifyOrderWebhook but uses `status` instead of
+ * `financial_status` and has an optional `invoice_url` field.
+ */
+export interface ShopifyDraftOrderWebhook {
+  /** Unique draft order ID in Shopify */
+  id: number
+  /** Draft order name as displayed in Shopify (e.g., "#D1") */
+  name: string
+  /** Numeric order number */
+  order_number: number
+  /** Customer email (may be null) */
+  email: string | null
+  /** Customer phone (may be null) */
+  phone: string | null
+  /** ISO 8601 timestamp of draft order creation */
+  created_at: string
+  /** Total price as string (e.g., "99.99") */
+  total_price: string
+  /** Subtotal price before taxes/shipping */
+  subtotal_price: string
+  /** Total tax amount */
+  total_tax: string
+  /** Currency code (e.g., "COP", "USD") */
+  currency: string
+  /** Draft order status: "open", "invoice_sent", "completed" */
+  status: string
+  /** Fulfillment status is always null for draft orders */
+  fulfillment_status: null
+  /** Customer information */
+  customer: ShopifyCustomer | null
+  /** Billing address */
+  billing_address: ShopifyAddress | null
+  /** Shipping address */
+  shipping_address: ShopifyAddress | null
+  /** Order line items */
+  line_items: ShopifyLineItem[]
+  /** Draft order note */
+  note: string | null
+  /** Invoice URL for the draft order (null if no invoice sent) */
+  invoice_url: string | null
 }
 
 /**

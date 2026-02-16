@@ -155,7 +155,7 @@ function buildContextFromEvent(
     contactId: eventData.contactId as string | undefined,
     contactName: eventData.contactName as string | undefined,
     contactPhone: (eventData.contactPhone ?? eventData.phone) as string | undefined,
-    contactEmail: eventData.contactEmail as string | undefined,
+    contactEmail: (eventData.contactEmail ?? eventData.email) as string | undefined,
     contactCity: eventData.contactCity as string | undefined,
     // Tag context
     tagId: eventData.tagId as string | undefined,
@@ -166,6 +166,12 @@ function buildContextFromEvent(
     // Task context
     taskId: eventData.taskId as string | undefined,
     taskTitle: eventData.taskTitle as string | undefined,
+    // Shopify context (pass through for action enrichment)
+    products: eventData.products as unknown[] | undefined,
+    shippingAddress: eventData.shippingAddress as string | undefined,
+    shippingCity: eventData.shippingCity as string | undefined,
+    shopifyOrderNumber: eventData.shopifyOrderNumber as string | undefined,
+    shopifyOrderId: eventData.shopifyOrderId as number | undefined,
   }
 }
 

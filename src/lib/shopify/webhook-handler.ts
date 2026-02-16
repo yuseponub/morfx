@@ -6,11 +6,7 @@ import type { ShopifyOrderWebhook, ShopifyDraftOrderWebhook, ShopifyIntegration 
 import { createOrder as domainCreateOrder } from '@/lib/domain/orders'
 import { createContact as domainCreateContact } from '@/lib/domain/contacts'
 import type { DomainContext } from '@/lib/domain/types'
-import {
-  emitShopifyOrderCreated,
-  emitShopifyDraftOrderCreated,
-  emitShopifyOrderUpdated,
-} from '@/lib/automations/trigger-emitter'
+import { inngest } from '@/inngest/client'
 
 /**
  * Result of processing a Shopify webhook.
@@ -106,26 +102,31 @@ export async function processShopifyWebhook(
         .update({ last_sync_at: new Date().toISOString() })
         .eq('id', integration.id)
 
-      // Emit trigger for automations
+      // Emit trigger for automations (awaited — fire-and-forget is unreliable on Vercel serverless)
       const phone = extractPhoneFromOrder(order)
       const contactName = buildContactName(order) || undefined
-      emitShopifyOrderCreated({
-        workspaceId,
-        shopifyOrderId: order.id,
-        shopifyOrderNumber: order.name,
-        total: order.total_price,
-        financialStatus: order.financial_status,
-        email: order.email,
-        phone,
-        note: order.note,
-        products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
-        shippingAddress: buildShippingAddressString(order),
-        shippingCity: order.shipping_address?.city || null,
-        tags: null,
-        contactId: contactId ?? undefined,
-        contactName,
-        contactPhone: phone || undefined,
-        orderId,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (inngest.send as any)({
+        name: 'automation/shopify.order_created',
+        data: {
+          workspaceId,
+          shopifyOrderId: order.id,
+          shopifyOrderNumber: order.name,
+          total: order.total_price,
+          financialStatus: order.financial_status,
+          email: order.email,
+          phone,
+          note: order.note,
+          products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+          shippingAddress: buildShippingAddressString(order),
+          shippingCity: order.shipping_address?.city || null,
+          tags: null,
+          contactId: contactId ?? undefined,
+          contactName,
+          contactPhone: phone || undefined,
+          orderId,
+          cascadeDepth: 0,
+        },
       })
 
       console.log(`Processed Shopify order ${order.name} -> MorfX order ${orderId} (auto-sync)`)
@@ -145,24 +146,29 @@ export async function processShopifyWebhook(
       // Log webhook event
       await logWebhookEvent(supabase, integration.id, webhookId, 'orders/create', order, 'processed')
 
-      // Emit trigger for automations to handle
+      // Emit trigger for automations (awaited — fire-and-forget is unreliable on Vercel serverless)
       const phone = extractPhoneFromOrder(order)
       const contactName = buildContactName(order) || undefined
-      emitShopifyOrderCreated({
-        workspaceId,
-        shopifyOrderId: order.id,
-        shopifyOrderNumber: order.name,
-        total: order.total_price,
-        financialStatus: order.financial_status,
-        email: order.email,
-        phone,
-        note: order.note,
-        products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
-        shippingAddress: buildShippingAddressString(order),
-        shippingCity: order.shipping_address?.city || null,
-        tags: null,
-        contactName,
-        contactPhone: phone || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (inngest.send as any)({
+        name: 'automation/shopify.order_created',
+        data: {
+          workspaceId,
+          shopifyOrderId: order.id,
+          shopifyOrderNumber: order.name,
+          total: order.total_price,
+          financialStatus: order.financial_status,
+          email: order.email,
+          phone,
+          note: order.note,
+          products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+          shippingAddress: buildShippingAddressString(order),
+          shippingCity: order.shipping_address?.city || null,
+          tags: null,
+          contactName,
+          contactPhone: phone || undefined,
+          cascadeDepth: 0,
+        },
       })
 
       console.log(`Shopify order ${order.name} trigger emitted (trigger-only mode)`)
@@ -243,26 +249,31 @@ export async function processShopifyOrderUpdated(
       contactPhone = contact?.phone || undefined
     }
 
-    // Emit trigger for automations
+    // Emit trigger for automations (awaited — fire-and-forget is unreliable on Vercel serverless)
     const phone = extractPhoneFromOrder(order)
-    emitShopifyOrderUpdated({
-      workspaceId,
-      shopifyOrderId: order.id,
-      shopifyOrderNumber: order.name,
-      total: order.total_price,
-      financialStatus: order.financial_status,
-      fulfillmentStatus: order.fulfillment_status,
-      email: order.email,
-      phone,
-      note: order.note,
-      products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
-      shippingAddress: buildShippingAddressString(order),
-      shippingCity: order.shipping_address?.city || null,
-      tags: null,
-      contactId: existingOrder?.contact_id || undefined,
-      contactName,
-      contactPhone,
-      orderId: existingOrder?.id || undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (inngest.send as any)({
+      name: 'automation/shopify.order_updated',
+      data: {
+        workspaceId,
+        shopifyOrderId: order.id,
+        shopifyOrderNumber: order.name,
+        total: order.total_price,
+        financialStatus: order.financial_status,
+        fulfillmentStatus: order.fulfillment_status,
+        email: order.email,
+        phone,
+        note: order.note,
+        products: order.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+        shippingAddress: buildShippingAddressString(order),
+        shippingCity: order.shipping_address?.city || null,
+        tags: null,
+        contactId: existingOrder?.contact_id || undefined,
+        contactName,
+        contactPhone,
+        orderId: existingOrder?.id || undefined,
+        cascadeDepth: 0,
+      },
     })
 
     console.log(`Shopify order updated: ${order.name} (${order.financial_status}/${order.fulfillment_status || 'unfulfilled'})`)
@@ -317,22 +328,27 @@ export async function processShopifyDraftOrder(
       ? [draftOrder.customer.first_name, draftOrder.customer.last_name].filter(Boolean).join(' ') || undefined
       : undefined
 
-    // Emit trigger for automations (draft orders ALWAYS go through automations, no auto-sync)
-    emitShopifyDraftOrderCreated({
-      workspaceId,
-      shopifyDraftOrderId: draftOrder.id,
-      shopifyOrderNumber: draftOrder.name,
-      total: draftOrder.total_price,
-      status: draftOrder.status || 'open',
-      email: draftOrder.email,
-      phone,
-      note: draftOrder.note,
-      products: draftOrder.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
-      shippingAddress: draftOrder.shipping_address
-        ? [draftOrder.shipping_address.address1, draftOrder.shipping_address.address2].filter(Boolean).join(', ') || null
-        : null,
-      contactName: customerName,
-      contactPhone: phone || undefined,
+    // Emit trigger for automations (awaited — fire-and-forget is unreliable on Vercel serverless)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (inngest.send as any)({
+      name: 'automation/shopify.draft_order_created',
+      data: {
+        workspaceId,
+        shopifyDraftOrderId: draftOrder.id,
+        shopifyOrderNumber: draftOrder.name,
+        total: draftOrder.total_price,
+        status: draftOrder.status || 'open',
+        email: draftOrder.email,
+        phone,
+        note: draftOrder.note,
+        products: draftOrder.line_items.map(li => ({ sku: li.sku, title: li.title, quantity: li.quantity, price: li.price })),
+        shippingAddress: draftOrder.shipping_address
+          ? [draftOrder.shipping_address.address1, draftOrder.shipping_address.address2].filter(Boolean).join(', ') || null
+          : null,
+        contactName: customerName,
+        contactPhone: phone || undefined,
+        cascadeDepth: 0,
+      },
     })
 
     console.log(`Shopify draft order created: ${draftOrder.name} (${draftOrder.status || 'open'})`)

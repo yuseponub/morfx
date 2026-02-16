@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-28)
 ## Current Position
 
 Phase: 20 (Integration Automations - Twilio + Shopify)
-Plan: 4 of 7
+Plan: 6 of 7
 Status: In progress
-Last activity: 2026-02-16 — Completed 20-04-PLAN.md (Shopify webhook extension)
+Last activity: 2026-02-16 — Completed 20-06-PLAN.md (Wizard UI extension)
 
-Progress: [##########] 100% MVP v1 | [██████████████████████████] 100% MVP v2 | [████░░░] 57% Phase 20
+Progress: [##########] 100% MVP v1 | [██████████████████████████] 100% MVP v2 | [██████░] 86% Phase 20
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -41,7 +41,7 @@ All 11 phases + 4 inserted phases completed:
 - Phase 17: CRM Automations Engine (10 plans) — COMPLETE (2026-02-13)
 - Phase 18: Domain Layer Foundation (10 plans) — COMPLETE (2026-02-13)
 - Phase 19: AI Automation Builder (10 plans) — COMPLETE (2026-02-16)
-- Phase 20: Integration Automations (7 plans) — IN PROGRESS (3/7)
+- Phase 20: Integration Automations (7 plans) — IN PROGRESS (6/7)
 
 ## Performance Metrics
 
@@ -69,7 +69,7 @@ All 11 phases + 4 inserted phases completed:
 | 17. CRM Automations Engine | 10/10 | Complete |
 | 18. Domain Layer Foundation | 10/10 | Complete |
 | 19. AI Automation Builder | 10/10 | Complete |
-| 20. Integration Automations | 4/7 | In Progress |
+| 20. Integration Automations | 6/7 | In Progress |
 
 ## Accumulated Context
 
@@ -390,6 +390,9 @@ Recent decisions affecting MVP v2 work:
 - [20-04]: Draft orders always trigger-only, never auto-create CRM records
 - [20-04]: orders/updated enriches trigger data with existing MorfX order/contact info via DB lookup
 - [20-04]: Generic payload parsing with type-safe cast per topic switch branch
+- [20-06]: ACTION_CATEGORY_CONFIG with icons and colors for all 6 action categories (consistent visual hierarchy)
+- [20-06]: checkTwilioConfigured server action in automations.ts (reuses getAuthContext, co-located with wizard actions)
+- [20-06]: Twilio warning is non-blocking (user can save automation, fails at runtime if not configured)
 
 ### Project Rules
 
@@ -431,7 +434,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-16 15:05 COT
-Stopped at: Completed 20-04-PLAN.md (Shopify webhook extension)
+Last session: 2026-02-16 15:10 COT
+Stopped at: Completed 20-06-PLAN.md (Wizard UI extension)
 Resume file: None
-Next: Execute 20-05-PLAN.md, 20-06-PLAN.md, or 20-07-PLAN.md
+Next: Execute 20-07-PLAN.md (Settings UI for Twilio + Shopify configuration)

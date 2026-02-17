@@ -36,11 +36,13 @@ interface FormData {
   pipeline_id: string
   stage_id: string
   closing_date: string | null
+  name: string | null
   description: string | null
   carrier: string | null
   tracking_number: string | null
   shipping_address: string | null
   shipping_city: string | null
+  shipping_department: string | null
   products: Array<{
     product_id?: string | null
     sku: string
@@ -103,11 +105,13 @@ export function OrderForm({
         pipeline_id: order.pipeline_id,
         stage_id: order.stage_id,
         closing_date: order.closing_date,
+        name: order.name ?? null,
         description: order.description,
         carrier: order.carrier,
         tracking_number: order.tracking_number,
         shipping_address: order.shipping_address,
         shipping_city: order.shipping_city,
+        shipping_department: order.shipping_department ?? null,
         products: order.products.map((p) => ({
           product_id: p.product_id,
           sku: p.sku,
@@ -126,11 +130,13 @@ export function OrderForm({
       pipeline_id: defaultPipelineId || pipelines[0]?.id || '',
       stage_id: defaultStageId || pipelines[0]?.stages[0]?.id || '',
       closing_date: closingDate,
+      name: null,
       description: null,
       carrier: null,
       tracking_number: null,
       shipping_address: null,
       shipping_city: null,
+      shipping_department: null,
       products: [],
     }
   }, [mode, order, defaultPipelineId, defaultStageId, defaultContactId, pipelines])
@@ -167,11 +173,13 @@ export function OrderForm({
         pipeline_id: data.pipeline_id,
         stage_id: data.stage_id,
         closing_date: data.closing_date ?? null,
+        name: data.name ?? null,
         description: data.description ?? null,
         carrier: data.carrier ?? null,
         tracking_number: data.tracking_number ?? null,
         shipping_address: data.shipping_address ?? null,
         shipping_city: data.shipping_city ?? null,
+        shipping_department: data.shipping_department ?? null,
         custom_fields: {},
         products: data.products ?? [],
       }
@@ -248,6 +256,16 @@ export function OrderForm({
           {/* Details Section */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Detalles</Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Referencia</Label>
+              <Input
+                {...form.register('name')}
+                placeholder="Ej: #1001, PED-2024-001"
+                disabled={isPending}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pipeline_id">Pipeline</Label>
@@ -381,6 +399,7 @@ export function OrderForm({
                   id="shipping_city"
                   value={field.value || ''}
                   onChange={field.onChange}
+                  onDepartmentChange={(dept) => form.setValue('shipping_department', dept)}
                   disabled={isPending}
                 />
               )}

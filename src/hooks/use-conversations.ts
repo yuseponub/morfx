@@ -9,12 +9,18 @@
 // - Agents see only conversations assigned to them or unassigned
 //
 // No additional filtering needed in this hook - RLS handles visibility.
+//
+// PERFORMANCE (standalone/whatsapp-performance plan 01):
+// - 1 consolidated realtime channel (down from 4)
+// - Surgical state updates on conversation UPDATE (no full refetch)
+// - Targeted tag fetch on conversation_tags change (not full list refetch)
+// - Debounced safety-net full refetch as eventual consistency backup
 // ============================================================================
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Fuse, { IFuseOptions } from 'fuse.js'
 import { createClient } from '@/lib/supabase/client'
-import { getConversations } from '@/app/actions/conversations'
+import { getConversations, getConversation, getConversationTags } from '@/app/actions/conversations'
 import { getOrdersForContacts } from '@/app/actions/whatsapp'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 
@@ -85,6 +91,17 @@ const conversationSearchOptions: IFuseOptions<ConversationWithDetails> = {
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Sort conversations by last_message_at descending (newest first) */
+function sortByLastMessage(convs: ConversationWithDetails[]): ConversationWithDetails[] {
+  return [...convs].sort((a, b) =>
+    new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+  )
+}
+
+// ============================================================================
 // Hook Implementation
 // ============================================================================
 
@@ -114,6 +131,26 @@ export function useConversations({
   const [isLoading, setIsLoading] = useState(!initialConversations.length)
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // ---- Refs for avoiding stale closures in realtime callbacks ----
+
+  // Track latest conversations state (used by realtime handlers)
+  const conversationsRef = useRef<ConversationWithDetails[]>(conversations)
+  useEffect(() => { conversationsRef.current = conversations }, [conversations])
+
+  // Track contact IDs for orders refresh (used by orders handler)
+  const contactIdsRef = useRef<string[]>([])
+  useEffect(() => {
+    contactIdsRef.current = conversations
+      .map(c => c.contact?.id)
+      .filter((id): id is string => !!id)
+  }, [conversations])
+
+  // Track whether initial load has completed (for orders loading)
+  const hasInitiallyLoadedRef = useRef(false)
+
+  // Safety-net debounced full refetch timer
+  const safetyRefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Get current user ID for 'mine' filter
   useEffect(() => {
@@ -170,10 +207,17 @@ export function useConversations({
     fetchConversations()
   }, [fetchConversations])
 
-  // Load orders for all contacts in batch after conversations load
+  // Load orders for all contacts in batch — only on initial conversations load
+  // Orders are separate data that don't change when conversations update.
+  // They refresh only on: 1) initial load, 2) explicit refreshOrders() call (realtime order INSERT, stage change)
   useEffect(() => {
+    // Only trigger on transition from loading to loaded (initial load complete)
+    if (isLoading || hasInitiallyLoadedRef.current) return
+    if (conversations.length === 0) return
+
+    hasInitiallyLoadedRef.current = true
+
     async function loadOrders() {
-      // Get unique contact IDs from conversations
       const contactIds = conversations
         .map(c => c.contact?.id)
         .filter((id): id is string => !!id)
@@ -183,7 +227,6 @@ export function useConversations({
         return
       }
 
-      // Deduplicate
       const uniqueContactIds = [...new Set(contactIds)]
 
       setIsLoadingOrders(true)
@@ -197,44 +240,90 @@ export function useConversations({
       }
     }
 
-    // Only load orders after initial conversations load
-    if (!isLoading && conversations.length > 0) {
-      loadOrders()
-    }
+    loadOrders()
   }, [conversations, isLoading])
 
-  // Set up Supabase Realtime subscriptions
+  // Reset hasInitiallyLoaded when filter changes (so orders reload for new filter set)
+  useEffect(() => {
+    hasInitiallyLoadedRef.current = false
+  }, [filter, currentUserId])
+
+  // Schedule a debounced safety-net full refetch (30s after last surgical update)
+  // Ensures eventual consistency if any surgical update was incomplete
+  const scheduleSafetyRefetch = useCallback(() => {
+    if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
+    safetyRefetchTimer.current = setTimeout(() => {
+      fetchConversations()
+    }, 30_000)
+  }, [fetchConversations])
+
+  // ============================================================================
+  // Consolidated Realtime Channel
+  // Single channel with 4 .on() listeners replaces 4 separate channels
+  // ============================================================================
   useEffect(() => {
     if (!workspaceId) return
 
     const supabase = createClient()
 
-    // Subscribe to conversations table changes
-    const conversationsChannel = supabase
-      .channel(`conversations:${workspaceId}`)
+    const channel = supabase
+      .channel(`inbox:${workspaceId}`)
+      // ---- conversations table: surgical updates ----
       .on(
         'postgres_changes',
         {
-          event: '*', // INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'conversations',
           filter: `workspace_id=eq.${workspaceId}`,
         },
         async (payload) => {
-          console.log('Conversation change received:', payload.eventType)
-          // Reload conversations on any change
-          await fetchConversations()
+          const { eventType } = payload
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const newRow = payload.new as Record<string, any>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const oldRow = payload.old as Record<string, any>
+
+          if (eventType === 'UPDATE') {
+            // Surgical update: spread flat columns from payload onto existing conversation
+            // Preserves join data (contact, tags, contactTags) which aren't in the payload
+            setConversations(prev => {
+              const idx = prev.findIndex(c => c.id === newRow.id)
+              if (idx === -1) return prev // Not in our list (filtered out by status/assignment)
+
+              const existing = prev[idx]
+              const updated = [...prev]
+              updated[idx] = {
+                ...existing,
+                // Only spread flat conversation columns, preserving join data
+                ...Object.fromEntries(
+                  Object.entries(newRow).filter(([key]) =>
+                    key !== 'contact' && key !== 'tags' && key !== 'contactTags' && key !== 'conversation_tags'
+                  )
+                ),
+              } as ConversationWithDetails
+
+              return sortByLastMessage(updated)
+            })
+            scheduleSafetyRefetch()
+          } else if (eventType === 'INSERT') {
+            // New conversation — need contact + tag join data, fetch just this one
+            const conv = await getConversation(newRow.id)
+            if (conv) {
+              setConversations(prev => {
+                // Avoid duplicates (in case safety refetch already added it)
+                if (prev.some(c => c.id === conv.id)) return prev
+                return sortByLastMessage([conv, ...prev])
+              })
+            }
+            scheduleSafetyRefetch()
+          } else if (eventType === 'DELETE') {
+            setConversations(prev => prev.filter(c => c.id !== oldRow.id))
+            scheduleSafetyRefetch()
+          }
         }
       )
-      .subscribe((status, err) => {
-        console.log('Realtime conversations status:', status, err || '')
-      })
-
-    // Subscribe to conversation_tags changes (for tag sync)
-    // Note: conversation_tags is a junction table without workspace_id
-    // RLS ensures we only see tags for conversations in our workspace
-    const tagsChannel = supabase
-      .channel(`conversation_tags:${workspaceId}`)
+      // ---- conversation_tags table: targeted tag fetch ----
       .on(
         'postgres_changes',
         {
@@ -242,16 +331,24 @@ export function useConversations({
           schema: 'public',
           table: 'conversation_tags',
         },
-        async () => {
-          console.log('Conversation tags change received')
-          await fetchConversations()
+        async (payload) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const convId = (payload.new as any)?.conversation_id || (payload.old as any)?.conversation_id
+          if (!convId) return
+
+          // Only process if this conversation is in our list
+          const isOurs = conversationsRef.current.some(c => c.id === convId)
+          if (!isOurs) return
+
+          // Fetch only the tags for this specific conversation
+          const tags = await getConversationTags(convId)
+          setConversations(prev =>
+            prev.map(c => c.id === convId ? { ...c, tags } : c)
+          )
+          scheduleSafetyRefetch()
         }
       )
-      .subscribe()
-
-    // Subscribe to contact_tags changes (for inherited tag sync)
-    const contactTagsChannel = supabase
-      .channel(`contact_tags:${workspaceId}`)
+      // ---- contact_tags table: debounced full refetch (rare event) ----
       .on(
         'postgres_changes',
         {
@@ -259,16 +356,21 @@ export function useConversations({
           schema: 'public',
           table: 'contact_tags',
         },
-        async () => {
-          console.log('Contact tags change received')
-          await fetchConversations()
+        (payload) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const contactId = (payload.new as any)?.contact_id || (payload.old as any)?.contact_id
+          if (!contactId) return
+
+          // Only process if any conversation in our list has this contact
+          const hasAffected = conversationsRef.current.some(c => c.contact?.id === contactId)
+          if (!hasAffected) return
+
+          // Contact tag changes are rare — trigger debounced full refetch
+          // This is simpler and acceptable for an infrequent event
+          scheduleSafetyRefetch()
         }
       )
-      .subscribe()
-
-    // Subscribe to orders changes (for emoji indicators in conversation list)
-    const ordersChannel = supabase
-      .channel(`orders:${workspaceId}`)
+      // ---- orders table: refresh order emojis ----
       .on(
         'postgres_changes',
         {
@@ -278,30 +380,28 @@ export function useConversations({
           filter: `workspace_id=eq.${workspaceId}`,
         },
         async () => {
-          // Re-fetch orders for emoji indicators
-          const contactIds = conversations
-            .map(c => c.contact?.id)
-            .filter((id): id is string => !!id)
-          if (contactIds.length === 0) return
-          const uniqueContactIds = [...new Set(contactIds)]
+          // Use ref to get latest contact IDs (avoids stale closure)
+          const ids = contactIdsRef.current
+          if (ids.length === 0) return
+          const uniqueIds = [...new Set(ids)]
           try {
-            const orders = await getOrdersForContacts(uniqueContactIds)
+            const orders = await getOrdersForContacts(uniqueIds)
             setOrdersByContact(orders)
           } catch (error) {
             console.error('Error refreshing orders:', error)
           }
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        if (err) console.error('Realtime inbox channel error:', err)
+      })
 
-    // Cleanup on unmount
+    // Cleanup on unmount or workspaceId change
     return () => {
-      supabase.removeChannel(conversationsChannel)
-      supabase.removeChannel(tagsChannel)
-      supabase.removeChannel(contactTagsChannel)
-      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(channel)
+      if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
     }
-  }, [workspaceId, fetchConversations, conversations])
+  }, [workspaceId, scheduleSafetyRefetch])
 
   // Memoized Fuse instance
   const fuse = useMemo(
@@ -326,21 +426,19 @@ export function useConversations({
   }, [conversations])
 
   // Refresh orders only (for emoji indicator updates after stage change)
+  // Uses ref to avoid stale closure
   const refreshOrders = useCallback(async () => {
-    const contactIds = conversations
-      .map(c => c.contact?.id)
-      .filter((id): id is string => !!id)
+    const ids = contactIdsRef.current
+    if (ids.length === 0) return
 
-    if (contactIds.length === 0) return
-
-    const uniqueContactIds = [...new Set(contactIds)]
+    const uniqueIds = [...new Set(ids)]
     try {
-      const orders = await getOrdersForContacts(uniqueContactIds)
+      const orders = await getOrdersForContacts(uniqueIds)
       setOrdersByContact(orders)
     } catch (error) {
       console.error('Error refreshing orders:', error)
     }
-  }, [conversations])
+  }, [])
 
   return {
     conversations: filteredConversations,

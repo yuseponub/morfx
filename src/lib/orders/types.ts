@@ -132,6 +132,7 @@ export interface Order {
   total_value: number
   closing_date: string | null
   description: string | null
+  name: string | null
   carrier: string | null
   tracking_number: string | null
   shipping_address: string | null
@@ -150,6 +151,7 @@ export interface OrderFormData {
   stage_id: string
   closing_date?: string | null
   description?: string | null
+  name?: string | null
   carrier?: string | null
   tracking_number?: string | null
   shipping_address?: string | null

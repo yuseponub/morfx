@@ -10,17 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: standalone/action-fields-audit (in progress)
-Plan: 02 of N
+Plan: 03 of N
 Status: In progress
-Last activity: 2026-02-17 — Completed action-fields-audit Plan 02 (duplicate_order toggles)
+Last activity: 2026-02-17 — Completed action-fields-audit Plan 03 (UI catalog + wizard)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [####------] action-fields
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [######----] action-fields
 
 ### Standalone: Action Fields Audit (2026-02-17) — IN PROGRESS
 
 Plans executed:
 - Plan 01: Executor field pass-through fixes (COMPLETE + SUMMARY)
-- Plan 02: Duplicate order toggle fixes (COMPLETE)
+- Plan 02: Duplicate order toggle fixes (COMPLETE + SUMMARY)
+- Plan 03: UI catalog + wizard — "Agregar campo" dropdown + field_select (COMPLETE + SUMMARY)
 
 ### Standalone: Real Fields Fix (2026-02-17) — COMPLETE
 
@@ -60,7 +61,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 31 (29 milestone + 2 standalone)
-- Total plans completed: 145
+- Total plans completed: 146
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -77,6 +78,9 @@ Decisions logged in PROJECT.md Key Decisions table.
 - duplicate_order copy flags default to true via `!== false` for backward compat
 - copyProducts toggle in create_order is opt-in only (prevents unintended product duplication)
 - carrier/trackingNumber in create_order fall back to trigger context values if not set explicitly
+- optional: true flag pattern for "Agregar campo" dropdown grouping in wizard UI
+- Generic OPTION_LABELS handler replaces per-param entityType select; works for priority, language too
+- field_select type with __custom fallback for update_field entity-aware field picker
 
 ### Project Rules
 
@@ -102,7 +106,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 18:30 COT
-Stopped at: Completed action-fields-audit Plan 01 (executor field pass-through) + SUMMARY created
+Last session: 2026-02-17 18:40 COT
+Stopped at: Completed action-fields-audit Plan 03 (UI catalog + wizard)
 Resume file: None
-Next: Continue action-fields-audit remaining plans (03, 04) or new standalone task
+Next: Continue action-fields-audit Plan 04 (AI Builder system prompt) or new standalone task

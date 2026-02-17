@@ -444,9 +444,11 @@ async function createOrderWithProducts(
     pipelineId: mapped.order.pipeline_id,
     stageId: mapped.order.stage_id,
     contactId: mapped.order.contact_id,
+    name: mapped.order.name,
     description: mapped.order.description,
     shippingAddress: mapped.order.shipping_address,
     shippingCity: mapped.order.shipping_city,
+    shippingDepartment: mapped.order.shipping_department,
     products: mapped.products.map(p => ({
       productId: p.product_id,
       sku: p.sku,

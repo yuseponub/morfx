@@ -27,6 +27,7 @@ const contactSchema = z.object({
   email: z.string().email('Email invalido').optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
+  department: z.string().optional().or(z.literal('')),
 })
 
 // ============================================================================
@@ -213,6 +214,7 @@ export interface ContactInput {
   email?: string
   address?: string
   city?: string
+  department?: string
 }
 
 /**
@@ -230,6 +232,7 @@ export async function createContact(data: ContactInput): Promise<ActionResult<Co
     email: data.email || '',
     address: data.address || '',
     city: data.city || '',
+    department: data.department || '',
   }
 
   const result = contactSchema.safeParse(raw)
@@ -245,6 +248,7 @@ export async function createContact(data: ContactInput): Promise<ActionResult<Co
     email: result.data.email || undefined,
     address: result.data.address || undefined,
     city: result.data.city || undefined,
+    department: result.data.department || undefined,
   })
 
   if (!domainResult.success) {
@@ -284,6 +288,7 @@ export async function createContactFromForm(formData: FormData): Promise<ActionR
     email: formData.get('email')?.toString() || '',
     address: formData.get('address')?.toString() || '',
     city: formData.get('city')?.toString() || '',
+    department: formData.get('department')?.toString() || '',
   }
 
   const result = contactSchema.safeParse(raw)
@@ -299,6 +304,7 @@ export async function createContactFromForm(formData: FormData): Promise<ActionR
     email: result.data.email || undefined,
     address: result.data.address || undefined,
     city: result.data.city || undefined,
+    department: result.data.department || undefined,
   })
 
   if (!domainResult.success) {
@@ -336,6 +342,7 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
     email: formData.get('email')?.toString() || '',
     address: formData.get('address')?.toString() || '',
     city: formData.get('city')?.toString() || '',
+    department: formData.get('department')?.toString() || '',
   }
 
   const result = contactSchema.safeParse(raw)
@@ -352,6 +359,7 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
     email: result.data.email || undefined,
     address: result.data.address || undefined,
     city: result.data.city || undefined,
+    department: result.data.department || undefined,
   })
 
   if (!domainResult.success) {

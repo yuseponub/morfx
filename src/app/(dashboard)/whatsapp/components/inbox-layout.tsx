@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { cn } from '@/lib/utils'
+import { useState, useCallback } from 'react'
 import { ConversationList } from './conversation-list'
 import { ContactPanel } from './contact-panel'
 import { AgentConfigSlider } from './agent-config-slider'
@@ -39,7 +38,7 @@ export function InboxLayout({
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialSelectedId || null)
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(initialConversation)
-  const [isPanelOpen, setIsPanelOpen] = useState(true)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [rightPanel, setRightPanel] = useState<RightPanel>('contact')
   const [refreshOrdersFn, setRefreshOrdersFn] = useState<() => Promise<void>>(() => noopRefreshOrders)
 
@@ -105,27 +104,25 @@ export function InboxLayout({
         onOpenAgentConfig={handleOpenAgentConfig}
       />
 
-      {/* Right column: Contact panel or Agent config slider (collapsible) */}
-      <div
-        className={cn(
-          'flex-shrink-0 border-l bg-background transition-all duration-200',
-          isPanelOpen ? 'w-80' : 'w-0 overflow-hidden'
-        )}
-      >
-        {rightPanel === 'agent-config' ? (
-          <AgentConfigSlider
-            workspaceId={workspaceId}
-            onClose={handleCloseAgentConfig}
-          />
-        ) : (
-          <ContactPanel
-            conversation={selectedConversation}
-            onClose={() => setIsPanelOpen(false)}
-            onConversationUpdated={refreshSelectedConversation}
-            onOrdersChanged={refreshOrdersFn}
-          />
-        )}
-      </div>
+      {/* Right column: Contact panel or Agent config slider (conditional render) */}
+      {isPanelOpen && (
+        <div className="w-80 flex-shrink-0 border-l bg-background">
+          {rightPanel === 'agent-config' ? (
+            <AgentConfigSlider
+              workspaceId={workspaceId}
+              onClose={handleCloseAgentConfig}
+            />
+          ) : (
+            <ContactPanel
+              key={selectedConversationId || 'none'}
+              conversation={selectedConversation}
+              onClose={() => setIsPanelOpen(false)}
+              onConversationUpdated={refreshSelectedConversation}
+              onOrdersChanged={refreshOrdersFn}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

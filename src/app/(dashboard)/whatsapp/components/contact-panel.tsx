@@ -48,10 +48,9 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
     onConversationUpdated?.()
   }
 
-  // Auto-refresh orders when conversation is updated.
-  // Conversations realtime is PROVEN to work. After timer creates an order,
-  // agent-timers.ts touches the conversation → this listener fires → orders refresh.
-  // Also catches engine confirmation messages that update last_message_at.
+  // Auto-refresh orders via consolidated realtime channel.
+  // Single channel listens for both conversation UPDATE (delayed refresh)
+  // and orders INSERT (immediate refresh). Down from 2 separate channels.
   const contactId = conversation?.contact?.id
   useEffect(() => {
     const conversationId = conversation?.id
@@ -59,10 +58,8 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
 
     const supabase = createClient()
 
-    // Primary: conversation UPDATE triggers order refresh
-    // (fires after order creation because agent-timers touches conversation post-engine)
-    const convChannel = supabase
-      .channel(`conv-order-refresh:${conversationId}`)
+    const channel = supabase
+      .channel(`panel-realtime:${conversationId}`)
       .on(
         'postgres_changes',
         {
@@ -72,19 +69,12 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
           filter: `id=eq.${conversationId}`,
         },
         () => {
-          console.log('[ContactPanel] Realtime: conversations UPDATE received, refreshing orders in 1s')
+          console.log('[ContactPanel] Realtime: conversations UPDATE, refreshing orders in 1s')
           setTimeout(() => {
             setOrdersRefreshKey(k => k + 1)
           }, 1000)
         }
       )
-      .subscribe((status) => {
-        console.log('[ContactPanel] conv-order-refresh channel status:', status)
-      })
-
-    // Backup: direct orders INSERT listener
-    const ordersChannel = supabase
-      .channel(`orders-direct:${contactId}`)
       .on(
         'postgres_changes',
         {
@@ -94,17 +84,16 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
           filter: `contact_id=eq.${contactId}`,
         },
         () => {
-          console.log('[ContactPanel] Realtime: orders INSERT received, refreshing orders')
+          console.log('[ContactPanel] Realtime: orders INSERT, refreshing orders')
           setOrdersRefreshKey(k => k + 1)
         }
       )
       .subscribe((status) => {
-        console.log('[ContactPanel] orders-direct channel status:', status)
+        console.log('[ContactPanel] panel-realtime channel status:', status)
       })
 
     return () => {
-      supabase.removeChannel(convChannel)
-      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(channel)
     }
   }, [conversation?.id, contactId])
   // Empty state

@@ -44,6 +44,7 @@ import {
   Globe,
   Phone,
   Info,
+  GitBranch,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VariablePicker } from './variable-picker'
@@ -170,6 +171,178 @@ function KeyValueEditor({
         <Plus className="size-3 mr-1" />
         Agregar
       </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// Template Variable Row (simple or conditional)
+// ============================================================================
+
+interface ConditionalData {
+  type: 'conditional'
+  source: string
+  mappings: Array<{ when: string; then: string }>
+  default?: string
+}
+
+function TemplateVarRow({
+  num,
+  simpleValue,
+  conditionalData,
+  isConditional,
+  triggerType,
+  onChangeSimple,
+  onChangeConditional,
+  onToggleMode,
+}: {
+  num: string
+  simpleValue: string
+  conditionalData: ConditionalData | null
+  isConditional: boolean
+  triggerType: TriggerType
+  onChangeSimple: (val: string) => void
+  onChangeConditional: (data: ConditionalData) => void
+  onToggleMode: (toConditional: boolean) => void
+}) {
+  if (!isConditional) {
+    // Simple mode: text input + variable picker + toggle button
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-mono text-muted-foreground w-14 shrink-0">
+          {`{{${num}}}`}
+        </span>
+        <div className="flex-1 relative">
+          <Input
+            className="h-8 text-xs pr-16"
+            placeholder={`Valor para variable ${num}...`}
+            value={simpleValue}
+            onChange={(e) => onChangeSimple(e.target.value)}
+          />
+          <div className="absolute right-0 top-0 h-8 flex items-center gap-0">
+            <VariablePicker
+              triggerType={triggerType}
+              onInsert={(variable) => onChangeSimple((simpleValue ?? '') + variable)}
+              className="h-8 w-8 p-0"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+              title="Cambiar a modo condicional"
+              onClick={() => onToggleMode(true)}
+            >
+              <GitBranch className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Conditional mode
+  const data = conditionalData!
+  return (
+    <div className="space-y-2 rounded-md border bg-muted/30 p-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <GitBranch className="size-3.5 text-amber-500" />
+          <span className="text-xs font-medium">{'{{'}{ num }{'}}'} — Condicional</span>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 text-[10px] text-muted-foreground"
+          onClick={() => onToggleMode(false)}
+        >
+          Cambiar a simple
+        </Button>
+      </div>
+
+      {/* Source variable */}
+      <div className="flex items-center gap-2">
+        <Label className="text-[10px] w-20 shrink-0">Variable fuente</Label>
+        <div className="flex-1 relative">
+          <Input
+            className="h-7 text-xs pr-8"
+            placeholder="Ej: {{orden.valor}}"
+            value={data.source}
+            onChange={(e) => onChangeConditional({ ...data, source: e.target.value })}
+          />
+          <div className="absolute right-0 top-0 h-7 flex items-center">
+            <VariablePicker
+              triggerType={triggerType}
+              onInsert={(variable) => onChangeConditional({ ...data, source: (data.source ?? '') + variable })}
+              className="h-7 w-7 p-0"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mapping rows */}
+      <div className="space-y-1">
+        <Label className="text-[10px]">Si el valor es... entonces usar:</Label>
+        {data.mappings.map((m, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <Input
+              className="h-7 text-xs flex-1"
+              placeholder="Si es..."
+              value={m.when}
+              onChange={(e) => {
+                const newMappings = [...data.mappings]
+                newMappings[i] = { ...m, when: e.target.value }
+                onChangeConditional({ ...data, mappings: newMappings })
+              }}
+            />
+            <span className="text-[10px] text-muted-foreground shrink-0">→</span>
+            <Input
+              className="h-7 text-xs flex-1"
+              placeholder="Usar..."
+              value={m.then}
+              onChange={(e) => {
+                const newMappings = [...data.mappings]
+                newMappings[i] = { ...m, then: e.target.value }
+                onChangeConditional({ ...data, mappings: newMappings })
+              }}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+              onClick={() => {
+                const newMappings = data.mappings.filter((_, j) => j !== i)
+                onChangeConditional({ ...data, mappings: newMappings.length ? newMappings : [{ when: '', then: '' }] })
+              }}
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 text-[10px]"
+          onClick={() => onChangeConditional({ ...data, mappings: [...data.mappings, { when: '', then: '' }] })}
+        >
+          <Plus className="size-3 mr-1" />
+          Agregar condicion
+        </Button>
+      </div>
+
+      {/* Default value */}
+      <div className="flex items-center gap-2">
+        <Label className="text-[10px] w-20 shrink-0">Por defecto</Label>
+        <Input
+          className="h-7 text-xs flex-1"
+          placeholder="Si no coincide ninguno..."
+          value={data.default ?? ''}
+          onChange={(e) => onChangeConditional({ ...data, default: e.target.value })}
+        />
+      </div>
     </div>
   )
 }
@@ -562,7 +735,7 @@ function ActionParamField({
 
     // If template has variables, show smart mapping UI
     if (selectedTemplate && templateVarNums.length > 0) {
-      const vars = (value as Record<string, string>) ?? {}
+      const vars = (value as Record<string, unknown>) ?? {}
       const bodyText = selectedTemplate.components?.find(
         (c: { type: string }) => c.type === 'BODY'
       )?.text || ''
@@ -576,28 +749,33 @@ function ActionParamField({
           <div className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground font-mono break-words">
             {bodyText}
           </div>
-          {templateVarNums.map((num) => (
-            <div key={num} className="flex items-center gap-2">
-              <span className="text-xs font-mono text-muted-foreground w-14 shrink-0">
-                {`{{${num}}}`}
-              </span>
-              <div className="flex-1 relative">
-                <Input
-                  className="h-8 text-xs pr-8"
-                  placeholder={`Valor para variable ${num}...`}
-                  value={vars[num] ?? ''}
-                  onChange={(e) => onChange({ ...vars, [num]: e.target.value })}
-                />
-                <div className="absolute right-0 top-0 h-8 flex items-center">
-                  <VariablePicker
-                    triggerType={triggerType}
-                    onInsert={(variable) => onChange({ ...vars, [num]: (vars[num] ?? '') + variable })}
-                    className="h-8 w-8 p-0"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
+          {templateVarNums.map((num) => {
+            const varVal = vars[num]
+            const isConditional = varVal && typeof varVal === 'object' && (varVal as { type?: string }).type === 'conditional'
+            const condData = isConditional
+              ? varVal as { type: 'conditional'; source: string; mappings: Array<{ when: string; then: string }>; default?: string }
+              : null
+
+            return (
+              <TemplateVarRow
+                key={num}
+                num={num}
+                simpleValue={typeof varVal === 'string' ? varVal : ''}
+                conditionalData={condData}
+                isConditional={!!isConditional}
+                triggerType={triggerType}
+                onChangeSimple={(val) => onChange({ ...vars, [num]: val })}
+                onChangeConditional={(data) => onChange({ ...vars, [num]: data })}
+                onToggleMode={(toConditional) => {
+                  if (toConditional) {
+                    onChange({ ...vars, [num]: { type: 'conditional', source: '', mappings: [{ when: '', then: '' }], default: '' } })
+                  } else {
+                    onChange({ ...vars, [num]: '' })
+                  }
+                }}
+              />
+            )
+          })}
         </div>
       )
     }

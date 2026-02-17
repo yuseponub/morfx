@@ -563,7 +563,19 @@ async function executeSendWhatsAppTemplate(
   if (template.status !== 'APPROVED') throw new Error(`Template "${templateName}" not approved`)
 
   const language = String(params.language || template.language || 'es')
-  const templateVars = (params.variables || {}) as Record<string, string>
+  const rawVars = (params.variables || {}) as Record<string, unknown>
+
+  // Resolve template variables — supports simple strings and conditional mappings
+  const templateVars: Record<string, string> = {}
+  for (const [num, val] of Object.entries(rawVars)) {
+    if (typeof val === 'string') {
+      templateVars[num] = val
+    } else if (val && typeof val === 'object' && (val as { type?: string }).type === 'conditional') {
+      const cond = val as { source: string; mappings: Array<{ when: string; then: string }>; default?: string }
+      const match = cond.mappings.find(m => String(m.when) === String(cond.source))
+      templateVars[num] = match ? match.then : (cond.default ?? '')
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const components = template.components as any[]

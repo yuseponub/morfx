@@ -305,7 +305,7 @@ export function KanbanBoard({
         items={localStages.map((s) => s.id)}
         strategy={horizontalListSortingStrategy}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-280px)]">
+        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-280px)]">
           {localStages.map((stage) => (
             <KanbanColumn
               key={stage.id}

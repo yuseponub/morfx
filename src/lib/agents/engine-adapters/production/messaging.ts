@@ -10,7 +10,7 @@
 
 import type { MessagingAdapter } from '../../engine/types'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendTextMessage as domainSendTextMessage } from '@/lib/domain/messages'
+import { sendTextMessage as domainSendTextMessage, sendMediaMessage as domainSendMediaMessage } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
 import { createModuleLogger } from '@/lib/audit/logger'
 
@@ -106,17 +106,28 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
 
       try {
         // Send via domain (handles API call + DB storage + conversation update)
-        const result = await domainSendTextMessage(ctx, {
-          conversationId: convId,
-          contactPhone: phone,
-          messageBody: template.content,
-          apiKey,
-        })
+        let result
+        if (template.contentType === 'imagen') {
+          result = await domainSendMediaMessage(ctx, {
+            conversationId: convId,
+            contactPhone: phone,
+            mediaUrl: template.content,
+            mediaType: 'image',
+            apiKey,
+          })
+        } else {
+          result = await domainSendTextMessage(ctx, {
+            conversationId: convId,
+            contactPhone: phone,
+            messageBody: template.content,
+            apiKey,
+          })
+        }
 
         if (result.success) {
           sentCount++
           logger.debug(
-            { messageId: result.data?.messageId, position: i + 1, total: templates.length },
+            { messageId: result.data?.messageId, position: i + 1, total: templates.length, contentType: template.contentType },
             'WhatsApp message sent via domain'
           )
         } else {

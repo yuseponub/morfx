@@ -65,6 +65,7 @@ type CatalogAction = (typeof ACTION_CATALOG)[number]
 type CatalogParam = CatalogAction['params'][number]
 
 const DELAY_UNITS = [
+  { value: 'seconds', label: 'Segundos' },
   { value: 'minutes', label: 'Minutos' },
   { value: 'hours', label: 'Horas' },
   { value: 'days', label: 'Dias' },

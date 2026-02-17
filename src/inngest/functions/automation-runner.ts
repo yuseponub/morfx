@@ -185,6 +185,8 @@ function buildContextFromEvent(
  */
 function delaySleepDuration(delay: { amount: number; unit: string }): string {
   switch (delay.unit) {
+    case 'seconds':
+      return `${delay.amount}s`
     case 'minutes':
       return `${delay.amount}m`
     case 'hours':

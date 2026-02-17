@@ -206,8 +206,9 @@ function ActionNode({ data }: NodeProps<ActionNodeType>) {
 // Helpers
 // ============================================================================
 
-function formatDelay(amount: number, unit: 'minutes' | 'hours' | 'days'): string {
+function formatDelay(amount: number, unit: 'seconds' | 'minutes' | 'hours' | 'days'): string {
   const unitLabels: Record<string, string> = {
+    seconds: amount === 1 ? 'segundo' : 'segundos',
     minutes: amount === 1 ? 'minuto' : 'minutos',
     hours: amount === 1 ? 'hora' : 'horas',
     days: amount === 1 ? 'dia' : 'dias',

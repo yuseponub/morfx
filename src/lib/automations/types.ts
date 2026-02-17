@@ -97,7 +97,7 @@ export type ActionType =
  */
 export interface DelayConfig {
   amount: number
-  unit: 'minutes' | 'hours' | 'days'
+  unit: 'seconds' | 'minutes' | 'hours' | 'days'
 }
 
 /**

@@ -5,23 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Standalone: action-fields-audit (in progress)
+**Current focus:** Standalone: action-fields-audit (COMPLETE)
 
 ## Current Position
 
-Phase: standalone/action-fields-audit (in progress)
-Plan: 03 of N
-Status: In progress
-Last activity: 2026-02-17 — Completed action-fields-audit Plan 03 (UI catalog + wizard)
+Phase: standalone/action-fields-audit (COMPLETE)
+Plan: 04 of 04
+Status: Phase complete
+Last activity: 2026-02-17 — Completed action-fields-audit Plan 04 (AI Builder system prompt)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [######----] action-fields
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields
 
-### Standalone: Action Fields Audit (2026-02-17) — IN PROGRESS
+### Standalone: Action Fields Audit (2026-02-17) — COMPLETE
 
-Plans executed:
+4 plans total:
 - Plan 01: Executor field pass-through fixes (COMPLETE + SUMMARY)
 - Plan 02: Duplicate order toggle fixes (COMPLETE + SUMMARY)
 - Plan 03: UI catalog + wizard — "Agregar campo" dropdown + field_select (COMPLETE + SUMMARY)
+- Plan 04: AI Builder system prompt — dynamic param reference + usage notes (COMPLETE + SUMMARY)
 
 ### Standalone: Real Fields Fix (2026-02-17) — COMPLETE
 
@@ -60,8 +61,8 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 31 (29 milestone + 2 standalone)
-- Total plans completed: 146
+- Total phases completed: 32 (29 milestone + 3 standalone)
+- Total plans completed: 147
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -81,6 +82,7 @@ Decisions logged in PROJECT.md Key Decisions table.
 - optional: true flag pattern for "Agregar campo" dropdown grouping in wizard UI
 - Generic OPTION_LABELS handler replaces per-param entityType select; works for priority, language too
 - field_select type with __custom fallback for update_field entity-aware field picker
+- Dynamic formatParamQuickReference() replaces hardcoded param list in AI builder system prompt (prevents drift)
 
 ### Project Rules
 
@@ -106,7 +108,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 18:40 COT
-Stopped at: Completed action-fields-audit Plan 03 (UI catalog + wizard)
+Last session: 2026-02-17 18:42 COT
+Stopped at: Completed action-fields-audit Plan 04 (AI Builder system prompt) — phase complete
 Resume file: None
-Next: Continue action-fields-audit Plan 04 (AI Builder system prompt) or new standalone task
+Next: New standalone task or CRM orders performance Plan 03

@@ -630,7 +630,8 @@ async function executeSendWhatsAppTemplate(
       type: 'body',
       parameters: bodyVars.map((v: string) => {
         const num = v.replace(/[{}]/g, '')
-        return { type: 'text' as const, text: templateVars[num] || '' }
+        // Meta rejects empty strings — use dash as fallback
+        return { type: 'text' as const, text: templateVars[num] || '-' }
       }),
     })
   }

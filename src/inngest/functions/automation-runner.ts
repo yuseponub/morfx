@@ -416,6 +416,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
             const contact = Array.isArray(order.contacts) ? order.contacts[0] : order.contacts
             return {
               orderId: order.id,
+              orderName: order.description || `Orden #${order.id.slice(0, 8)}`,
               pipelineId: order.pipeline_id,
               pipelineName: pipeline?.name,
               stageId: order.stage_id,

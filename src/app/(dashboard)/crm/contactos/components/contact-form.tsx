@@ -19,6 +19,7 @@ const contactFormSchema = z.object({
   email: z.string().email('Email invalido').optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
+  department: z.string().optional().or(z.literal('')),
 })
 
 type ContactFormData = z.infer<typeof contactFormSchema>
@@ -48,6 +49,7 @@ export function ContactForm({
       email: '',
       address: '',
       city: '',
+      department: '',
     },
   })
 
@@ -65,6 +67,7 @@ export function ContactForm({
         formData.append('email', data.email || '')
         formData.append('address', data.address || '')
         formData.append('city', data.city || '')
+        formData.append('department', data.department || '')
         result = await updateContactFromForm(contactId, formData)
       } else {
         // For create, use object directly
@@ -74,6 +77,7 @@ export function ContactForm({
           email: data.email || undefined,
           address: data.address || undefined,
           city: data.city || undefined,
+          department: data.department || undefined,
         })
       }
 
@@ -145,6 +149,7 @@ export function ContactForm({
       <CityCombobox
         value={form.watch('city') || ''}
         onChange={(value) => form.setValue('city', value)}
+        onDepartmentChange={(dept) => form.setValue('department', dept)}
         disabled={isPending}
         error={form.formState.errors.city?.message}
       />

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Between milestones — v2.0 shipped, next milestone TBD
+**Current focus:** Standalone phase — WhatsApp performance optimization
 
 ## Current Position
 
-Phase: None (between milestones)
-Plan: N/A
-Status: v2.0 SHIPPED
-Last activity: 2026-02-16 — v2.0 milestone completed and archived
+Phase: standalone/whatsapp-performance (4 plans)
+Plan: 2 of 4 complete
+Status: In progress
+Last activity: 2026-02-17 — Completed standalone/whatsapp-performance 02-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##--------] 50% WA perf
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -73,7 +73,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-16 21:00 COT
-Stopped at: v2.0 milestone completion
+Last session: 2026-02-17 ~22:27 COT
+Stopped at: Completed standalone/whatsapp-performance 02-PLAN.md
 Resume file: None
-Next: /gsd:new-milestone
+Next: Execute standalone/whatsapp-performance 03-PLAN.md (verification checkpoint)

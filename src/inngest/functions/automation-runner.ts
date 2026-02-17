@@ -390,7 +390,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
           async () => {
             const supabase = createAdminClient()
             // Load order with contact join
-            const { data: order } = await supabase
+            const { data: order, error: orderError } = await supabase
               .from('orders')
               .select(`
                 id, pipeline_id, stage_id, total_value,
@@ -401,6 +401,10 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
               .eq('workspace_id', workspaceId)
               .single()
 
+            if (orderError) {
+              console.error(`[automation-runner] Enrichment query failed for order ${lookupId}:`, orderError.message)
+              return null
+            }
             if (!order) return null
 
             // Load stage and pipeline names

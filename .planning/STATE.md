@@ -5,43 +5,43 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Standalone phase — WhatsApp performance optimization
+**Current focus:** Planning standalone/crm-orders-performance
 
 ## Current Position
 
-Phase: standalone/whatsapp-performance (4 plans)
-Plan: 3 of 4 complete (01, 02 done)
-Status: In progress
-Last activity: 2026-02-17 — Completed standalone/whatsapp-performance 01-PLAN.md
+Phase: standalone/crm-orders-performance (planning)
+Plan: N/A
+Status: Planning
+Last activity: 2026-02-17 — Completed standalone/whatsapp-performance (4/4 plans, user approved)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [###-------] 75% WA perf
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf
+
+### Standalone: WhatsApp Performance (2026-02-17) — COMPLETE
+
+4 plans executed:
+- Plan 01: Realtime consolidation (4 channels → 1, surgical updates)
+- Plan 02: Panel lazy-loading (closed by default, 2 channels → 1)
+- Plan 03: User verification (approved)
+- Plan 04: Infrastructure (Medium compute, spend cap off, Sao Paulo region)
 
 ### MVP v1.0 Complete (2026-02-04)
 
 All 11 phases + 4 inserted phases completed:
-- Phase 11 (Shopify Integration) verified by user
 - 51 plans executed across 15 phases
 - Core value delivered: CRM + WhatsApp sync
 
 ### MVP v2.0 Complete (2026-02-16)
 
 All 9 phases + 5 inserted phases completed:
-- Phase 20 (Integration Automations) verified by user (7/7 tests, 5 hotfixes)
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
-- 12 days from start to ship
-
-**Milestone archived to:**
-- `.planning/milestones/v2.0-ROADMAP.md`
-- `.planning/milestones/v2.0-REQUIREMENTS.md`
-- `.planning/milestones/v2.0-MILESTONE-AUDIT.md`
 
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 29 (across 2 milestones)
-- Total plans completed: 134
-- Total execution time: ~22 days (2026-01-26 to 2026-02-16)
+- Total phases completed: 30 (29 milestone + 1 standalone)
+- Total plans completed: 138
+- Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
 
@@ -73,7 +73,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 ~22:36 COT
-Stopped at: Completed standalone/whatsapp-performance 01-PLAN.md
+Last session: 2026-02-17 07:00 COT
+Stopped at: WhatsApp performance phase complete, starting CRM orders performance
 Resume file: None
-Next: Execute standalone/whatsapp-performance 03-PLAN.md (panel lazy-loading)
+Next: Plan standalone/crm-orders-performance

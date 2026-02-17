@@ -594,6 +594,7 @@ function ActionCard({
   onMoveDown,
   pipelines,
   tags,
+  templates,
   triggerType,
   twilioWarning,
 }: {
@@ -606,6 +607,7 @@ function ActionCard({
   onMoveDown: () => void
   pipelines: PipelineWithStages[]
   tags: Tag[]
+  templates: Template[]
   triggerType: TriggerType
   twilioWarning: boolean
 }) {
@@ -880,6 +882,7 @@ export function ActionsStep({ formData, onChange, pipelines, tags, templates = [
               onMoveDown={() => moveAction(index, 1)}
               pipelines={pipelines}
               tags={tags}
+              templates={templates}
               triggerType={triggerType}
               twilioWarning={twilioWarning}
             />

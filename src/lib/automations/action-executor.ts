@@ -523,8 +523,8 @@ async function resolveWhatsAppContext(
 
   if (!contact?.phone) throw new Error('Contact phone not found')
 
-  // Get conversation for the contact
-  const { data: conversation } = await supabase
+  // Get or create conversation for the contact
+  const { data: existingConversation } = await supabase
     .from('conversations')
     .select('id, phone, last_customer_message_at')
     .eq('contact_id', contactId)
@@ -533,7 +533,29 @@ async function resolveWhatsAppContext(
     .limit(1)
     .single()
 
-  if (!conversation) throw new Error('No conversation found for contact')
+  let conversation = existingConversation
+
+  // Templates can be sent without an existing conversation (Meta allows this).
+  // Create a conversation record so the message can be stored and tracked.
+  if (!conversation) {
+    const { data: newConv, error: convError } = await supabase
+      .from('conversations')
+      .insert({
+        workspace_id: workspaceId,
+        contact_id: contactId,
+        phone: contact.phone,
+        status: 'open',
+        last_message_at: new Date().toISOString(),
+        last_message_preview: '[Template]',
+      })
+      .select('id, phone, last_customer_message_at')
+      .single()
+
+    if (convError || !newConv) {
+      throw new Error(`Failed to create conversation for contact: ${convError?.message || 'unknown error'}`)
+    }
+    conversation = newConv
+  }
 
   // Get API key
   const { data: workspace } = await supabase

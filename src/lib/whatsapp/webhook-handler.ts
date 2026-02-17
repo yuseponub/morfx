@@ -5,6 +5,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/utils/phone'
+import { normalizeWebsiteGreeting } from '@/lib/agents/somnio/normalizers'
 import { recordMessageCost } from '@/app/actions/usage'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import {
@@ -203,7 +204,7 @@ async function processIncomingMessage(
         const agentResult = await processMessageWithAgent({
           conversationId,
           contactId: convData?.contact_id ?? null,
-          messageContent: msg.text?.body ?? '',
+          messageContent: normalizeWebsiteGreeting(msg.text?.body ?? ''),
           workspaceId,
           phone,
         })

@@ -74,6 +74,13 @@ export async function processMessageWithAgent(
     return { success: true }
   }
 
+  // 1b. Check if conversation has "WPP" tag (order completed, bot should stop)
+  const hasWppTag = await conversationHasTag(conversationId, workspaceId, 'WPP')
+  if (hasWppTag) {
+    logger.info({ conversationId }, 'Conversation has WPP tag, skipping agent')
+    return { success: true }
+  }
+
   const supabase = createAdminClient()
 
   // 2. Get conversation details and verify contact
@@ -252,7 +259,23 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 9. Check agent still enabled BEFORE considering the result final
+  // 9. Tag conversation with "WPP" if order was created
+  if (result.success && result.orderCreated) {
+    try {
+      const { assignTag } = await import('@/lib/domain/tags')
+      const tagCtx = { workspaceId, source: 'adapter' as const }
+      await assignTag(tagCtx, {
+        entityType: 'conversation',
+        entityId: conversationId,
+        tagName: 'WPP',
+      })
+      logger.info({ conversationId }, 'Tagged conversation with WPP after order creation')
+    } catch (tagError) {
+      logger.warn({ err: tagError, conversationId }, 'Failed to tag conversation with WPP')
+    }
+  }
+
+  // 10. Check agent still enabled BEFORE considering the result final
   //    (handles toggle-off during processing)
   if (result.success && result.newMode === 'handoff') {
     const stillEnabled = await isAgentEnabledForConversation(
@@ -351,4 +374,23 @@ async function autoCreateContact(
     logger.error({ error, phone }, 'Unexpected error creating contact')
     return null
   }
+}
+
+/**
+ * Check if a conversation has a specific tag assigned.
+ */
+async function conversationHasTag(
+  conversationId: string,
+  workspaceId: string,
+  tagName: string
+): Promise<boolean> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('conversation_tags')
+    .select('tag:tags!inner(id)')
+    .eq('conversation_id', conversationId)
+    .eq('tag.workspace_id', workspaceId)
+    .eq('tag.name', tagName)
+    .limit(1)
+  return (data?.length ?? 0) > 0
 }

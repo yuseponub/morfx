@@ -24,13 +24,13 @@ import type { DomainContext, DomainResult } from './types'
 // ============================================================================
 
 export interface AssignTagParams {
-  entityType: 'contact' | 'order'
+  entityType: 'contact' | 'order' | 'conversation'
   entityId: string
   tagName: string
 }
 
 export interface RemoveTagParams {
-  entityType: 'contact' | 'order'
+  entityType: 'contact' | 'order' | 'conversation'
   entityId: string
   tagName: string
 }
@@ -78,8 +78,12 @@ export async function assignTag(
     }
 
     // Step 2: Determine junction table and FK column
-    const junctionTable = params.entityType === 'contact' ? 'contact_tags' : 'order_tags'
-    const fkColumn = params.entityType === 'contact' ? 'contact_id' : 'order_id'
+    const junctionMap = {
+      contact: { table: 'contact_tags', fk: 'contact_id' },
+      order: { table: 'order_tags', fk: 'order_id' },
+      conversation: { table: 'conversation_tags', fk: 'conversation_id' },
+    } as const
+    const { table: junctionTable, fk: fkColumn } = junctionMap[params.entityType]
 
     // Step 3: Insert into junction table (handle 23505 = already assigned = success)
     const { error: linkError } = await supabase
@@ -88,6 +92,11 @@ export async function assignTag(
 
     if (linkError && linkError.code !== '23505') {
       return { success: false, error: `Error al asignar etiqueta: ${linkError.message}` }
+    }
+
+    // Conversations: no trigger emission, just return success
+    if (params.entityType === 'conversation') {
+      return { success: true, data: { tagId: tag.id } }
     }
 
     // Step 4: Fetch contactId + contact info for rich trigger context
@@ -190,8 +199,12 @@ export async function removeTag(
     }
 
     // Step 2: Determine junction table and FK column
-    const junctionTable = params.entityType === 'contact' ? 'contact_tags' : 'order_tags'
-    const fkColumn = params.entityType === 'contact' ? 'contact_id' : 'order_id'
+    const junctionMap = {
+      contact: { table: 'contact_tags', fk: 'contact_id' },
+      order: { table: 'order_tags', fk: 'order_id' },
+      conversation: { table: 'conversation_tags', fk: 'conversation_id' },
+    } as const
+    const { table: junctionTable, fk: fkColumn } = junctionMap[params.entityType]
 
     // Step 3: Delete from junction table
     const { error: deleteError } = await supabase
@@ -202,6 +215,11 @@ export async function removeTag(
 
     if (deleteError) {
       return { success: false, error: `Error al quitar etiqueta: ${deleteError.message}` }
+    }
+
+    // Conversations: no trigger emission, just return success
+    if (params.entityType === 'conversation') {
+      return { success: true, data: { tagId: tag.id } }
     }
 
     // Step 4: Fetch contactId + contact info for trigger context

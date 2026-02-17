@@ -11,6 +11,56 @@
  */
 
 // ============================================================================
+// Website Greeting Normalization
+// ============================================================================
+
+/**
+ * Template words from the default website button message:
+ * "Hola! Me interesa comprar un ELIXIR DEL SUENO"
+ */
+const WEBSITE_GREETING_WORDS = ['hola', 'me', 'interesa', 'comprar', 'un', 'elixir', 'del', 'sueno']
+
+/**
+ * Normalize website-generated greeting messages.
+ *
+ * The website button sends a fixed message like
+ * "Hola! Me interesa comprar un ELIXIR DEL SUENO".
+ * This should be treated as a simple "Hola" so the bot starts its normal flow.
+ *
+ * If the user appended extra text after the template (e.g. "...SUEÑOprecio"),
+ * returns "Hola <extra>" so the bot can still process the extra intent.
+ *
+ * @param message - Raw incoming message
+ * @returns Normalized message or original if no match
+ */
+export function normalizeWebsiteGreeting(message: string): string {
+  if (!message || typeof message !== 'string') return message
+
+  // Normalize: remove accents, lowercase, strip punctuation, collapse spaces
+  const normalized = message
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // Build regex: template words with 0-2 optional chars between them (covers typos)
+  // Pattern: hola\s*.{0,2}\s*me\s*.{0,2}\s*interesa ... sueno
+  const pattern = WEBSITE_GREETING_WORDS
+    .map((w, i) => i === 0 ? w : `.{0,2}\\s*${w}`)
+    .join('\\s*')
+
+  const regex = new RegExp(`^${pattern}(.*)$`, 'i')
+  const match = normalized.match(regex)
+
+  if (!match) return message
+
+  const extra = match[1]?.trim() ?? ''
+  return extra ? `Hola ${extra}` : 'Hola'
+}
+
+// ============================================================================
 // City to Departamento Mapping
 // ============================================================================
 

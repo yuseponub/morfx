@@ -30,8 +30,7 @@ export interface CreateContactParams {
   email?: string
   address?: string
   city?: string
-  /** Stored in custom_fields (not a standard column) */
-  departamento?: string
+  department?: string
   /** Tag names to assign after creation */
   tags?: string[]
 }
@@ -43,8 +42,7 @@ export interface UpdateContactParams {
   email?: string
   address?: string
   city?: string
-  /** Stored in custom_fields (not a standard column) */
-  departamento?: string
+  department?: string
   customFields?: Record<string, unknown>
 }
 
@@ -59,6 +57,7 @@ export interface BulkCreateContactsParams {
     email?: string
     address?: string
     city?: string
+    department?: string
   }>
 }
 
@@ -109,12 +108,6 @@ export async function createContact(
       }
     }
 
-    // Build custom_fields if departamento is provided
-    const customFields: Record<string, unknown> = {}
-    if (params.departamento) {
-      customFields.departamento = params.departamento
-    }
-
     // Insert contact
     const { data: contact, error: insertError } = await supabase
       .from('contacts')
@@ -125,9 +118,9 @@ export async function createContact(
         email: params.email || null,
         address: params.address || null,
         city: params.city || null,
-        custom_fields: Object.keys(customFields).length > 0 ? customFields : {},
+        department: params.department || null,
       })
-      .select('id, name, phone, email, city')
+      .select('id, name, phone, email, city, department')
       .single()
 
     if (insertError || !contact) {
@@ -217,6 +210,7 @@ export async function updateContact(
     if (params.email !== undefined) updates.email = params.email || null
     if (params.address !== undefined) updates.address = params.address || null
     if (params.city !== undefined) updates.city = params.city || null
+    if (params.department !== undefined) updates.department = params.department || null
 
     // Normalize phone if provided
     if (params.phone !== undefined) {
@@ -231,18 +225,12 @@ export async function updateContact(
       }
     }
 
-    // Handle custom_fields: merge departamento and explicit customFields
+    // Handle custom_fields
     const existingCustom = (previousContact.custom_fields as Record<string, unknown>) || {}
     let mergedCustom: Record<string, unknown> | undefined
 
-    if (params.departamento !== undefined || params.customFields !== undefined) {
-      mergedCustom = { ...existingCustom }
-      if (params.departamento !== undefined) {
-        mergedCustom.departamento = params.departamento
-      }
-      if (params.customFields !== undefined) {
-        mergedCustom = { ...mergedCustom, ...params.customFields }
-      }
+    if (params.customFields !== undefined) {
+      mergedCustom = { ...existingCustom, ...params.customFields }
       updates.custom_fields = mergedCustom
     }
 

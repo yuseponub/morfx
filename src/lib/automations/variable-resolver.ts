@@ -154,6 +154,7 @@ export function buildTriggerContext(
   if (eventData.contactPhone !== undefined) contacto.telefono = eventData.contactPhone
   if (eventData.contactEmail !== undefined) contacto.email = eventData.contactEmail
   if (eventData.contactCity !== undefined) contacto.ciudad = eventData.contactCity
+  if (eventData.contactDepartment !== undefined) contacto.departamento = eventData.contactDepartment
   if (eventData.contactAddress !== undefined) contacto.direccion = eventData.contactAddress
   if (Object.keys(contacto).length > 0) context.contacto = contacto
 
@@ -172,6 +173,7 @@ export function buildTriggerContext(
   if (eventData.stageId !== undefined) orden.stage_id = eventData.stageId
   if (eventData.shippingAddress !== undefined) orden.direccion_envio = eventData.shippingAddress
   if (eventData.shippingCity !== undefined) orden.ciudad_envio = eventData.shippingCity
+  if (eventData.shippingDepartment !== undefined) orden.departamento_envio = eventData.shippingDepartment
   if (eventData.orderDescription !== undefined) orden.descripcion = eventData.orderDescription
   if (Object.keys(orden).length > 0) context.orden = orden
 

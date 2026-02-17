@@ -136,6 +136,7 @@ export interface Order {
   tracking_number: string | null
   shipping_address: string | null
   shipping_city: string | null
+  shipping_department: string | null
   linked_order_id: string | null
   source_order_id: string | null
   custom_fields: Record<string, unknown>
@@ -153,6 +154,7 @@ export interface OrderFormData {
   tracking_number?: string | null
   shipping_address?: string | null
   shipping_city?: string | null
+  shipping_department?: string | null
   linked_order_id?: string | null
   source_order_id?: string | null
   custom_fields?: Record<string, unknown>

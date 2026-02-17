@@ -390,8 +390,8 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
               .from('orders')
               .select(`
                 id, name, pipeline_id, stage_id, total_value,
-                shipping_address, shipping_city, description,
-                contacts:contact_id (id, name, phone, email, address, city)
+                shipping_address, shipping_city, shipping_department, description,
+                contacts:contact_id (id, name, phone, email, address, city, department)
               `)
               .eq('id', lookupId)
               .eq('workspace_id', workspaceId)
@@ -416,6 +416,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
               orderValue: order.total_value,
               shippingAddress: order.shipping_address,
               shippingCity: order.shipping_city,
+              shippingDepartment: order.shipping_department,
               orderDescription: order.description,
               contactId: contact?.id,
               contactName: contact?.name,
@@ -423,6 +424,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
               contactEmail: contact?.email,
               contactAddress: contact?.address,
               contactCity: contact?.city,
+              contactDepartment: contact?.department,
             }
           }
         )

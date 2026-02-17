@@ -402,6 +402,7 @@ async function resolveContact(
     email: email || undefined,
     address: buildShippingAddressString(order) || undefined,
     city: order.shipping_address?.city || order.billing_address?.city || undefined,
+    department: order.shipping_address?.province || order.billing_address?.province || undefined,
   })
 
   if (!domainResult.success) {

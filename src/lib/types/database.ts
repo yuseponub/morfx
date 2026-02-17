@@ -102,6 +102,7 @@ export interface Contact {
   email: string | null
   address: string | null
   city: string | null
+  department: string | null
   /** Custom fields defined per workspace (Phase 5) */
   custom_fields: Record<string, unknown>
   created_at: string
@@ -127,6 +128,7 @@ export interface CreateContactInput {
   email?: string
   address?: string
   city?: string
+  department?: string
 }
 
 export interface UpdateContactInput {
@@ -135,6 +137,7 @@ export interface UpdateContactInput {
   email?: string
   address?: string
   city?: string
+  department?: string
 }
 
 // Form types for tags

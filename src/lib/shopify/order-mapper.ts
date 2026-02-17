@@ -67,6 +67,7 @@ export async function mapShopifyOrder(
     description: buildOrderDescription(shopifyOrder),
     shipping_address: buildShippingAddress(shopifyOrder),
     shipping_city: shopifyOrder.shipping_address?.city || null,
+    shipping_department: shopifyOrder.shipping_address?.province || null,
     // Note: total_value is computed from products by trigger
   }
 

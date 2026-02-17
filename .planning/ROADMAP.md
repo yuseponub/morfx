@@ -58,6 +58,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 </details>
 
+## Standalone Phases (between milestones)
+
+- [x] **WhatsApp Performance** — Realtime consolidation, panel lazy-loading, infrastructure (4 plans)
+- [x] **Real Fields Fix** — DB migrations, backend pipeline, CRM UI for new fields (3 plans)
+- [x] **Action Fields Audit** — Executor field pass-through, duplicate_order toggles, UI catalog + "Agregar campo", AI builder sync (4 plans)
+- [ ] **CRM Orders Performance** — Kanban scroll, infinite scroll, virtualization (2/3 plans)
+
 ## Progress
 
 ### Summary
@@ -66,7 +73,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| **Total** | **29 phases** | **134 plans** | | |
+| Standalone | 4 phases | 14 | 3 complete, 1 in progress | |
+| **Total** | **33 phases** | **148 plans** | | |
 
 ### Next Milestone
 
@@ -81,4 +89,4 @@ TBD — run `/gsd:new-milestone` to start planning.
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-16 (v2.0 milestone archived)*
+*Last updated: 2026-02-17 (standalone/action-fields-audit complete)*

@@ -41,12 +41,14 @@ export async function getConversations(
   }
 
   // Build query with contact join (tags come through contact) and conversation tags
+  // Note: address/city omitted from list query (only used in ContactPanel detail view)
+  // Tags select only id, name, color (the 3 fields actually rendered)
   let query = supabase
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, address, city, tags:contact_tags(tag:tags(*))),
-      conversation_tags:conversation_tags(tag:tags(*))
+      contact:contacts!left(id, name, phone, tags:contact_tags(tag:tags(id, name, color))),
+      conversation_tags:conversation_tags(tag:tags(id, name, color))
     `)
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false, nullsFirst: false })

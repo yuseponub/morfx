@@ -303,9 +303,11 @@ async function executeUpdateField(
     const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
 
     // Map field name to domain updateOrder params
-    const standardOrderFields = ['shipping_address', 'description', 'carrier', 'tracking_number', 'shipping_city', 'closing_date', 'contact_id']
+    const standardOrderFields = ['name', 'shipping_address', 'shipping_department', 'description', 'carrier', 'tracking_number', 'shipping_city', 'closing_date', 'contact_id']
     const domainFieldMap: Record<string, string> = {
+      'name': 'name',
       'shipping_address': 'shippingAddress',
+      'shipping_department': 'shippingDepartment',
       'description': 'description',
       'carrier': 'carrier',
       'tracking_number': 'trackingNumber',
@@ -346,7 +348,7 @@ async function executeUpdateField(
 
   // Contacts: delegate to domain/contacts.updateContact
   const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
-  const standardContactFields = ['name', 'phone', 'email', 'address', 'city']
+  const standardContactFields = ['name', 'phone', 'email', 'address', 'city', 'department']
 
   if (standardContactFields.includes(fieldName)) {
     // Standard field: call domain updateContact with the field
@@ -485,6 +487,9 @@ async function executeDuplicateOrder(
     sourceOrderId,
     targetPipelineId,
     targetStageId,
+    copyContact: params.copyContact !== undefined ? !!params.copyContact : undefined,
+    copyProducts: params.copyProducts !== undefined ? !!params.copyProducts : undefined,
+    copyValue: params.copyValue !== undefined ? !!params.copyValue : undefined,
   })
 
   if (!result.success) throw new Error(result.error || 'Failed to duplicate order')
@@ -731,6 +736,7 @@ async function executeSendWhatsAppMedia(
   if (!mediaUrl) throw new Error('mediaUrl is required for send_whatsapp_media')
 
   const caption = params.caption ? String(params.caption) : undefined
+  const filename = params.filename ? String(params.filename) : undefined
 
   const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
 
@@ -760,6 +766,7 @@ async function executeSendWhatsAppMedia(
     mediaUrl,
     mediaType,
     caption,
+    filename,
     apiKey,
   })
 
@@ -788,6 +795,7 @@ async function executeCreateTask(
   if (!title) throw new Error('title is required for create_task')
 
   const description = params.description ? String(params.description) : undefined
+  const priority = params.priority ? String(params.priority) as 'low' | 'medium' | 'high' | 'urgent' : undefined
 
   // Calculate due date from relative delay if provided
   let dueDate: string | undefined
@@ -812,6 +820,7 @@ async function executeCreateTask(
   const result = await domainCreateTask(ctx, {
     title,
     description,
+    priority,
     dueDate,
     contactId: context.contactId || undefined,
     orderId: context.orderId || undefined,

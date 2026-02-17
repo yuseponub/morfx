@@ -108,11 +108,16 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
         // Send via domain (handles API call + DB storage + conversation update)
         let result
         if (template.contentType === 'imagen') {
+          // Format: "URL" or "URL|caption"
+          const pipeIdx = template.content.indexOf('|')
+          const mediaUrl = pipeIdx > 0 ? template.content.slice(0, pipeIdx) : template.content
+          const caption = pipeIdx > 0 ? template.content.slice(pipeIdx + 1) : undefined
           result = await domainSendMediaMessage(ctx, {
             conversationId: convId,
             contactPhone: phone,
-            mediaUrl: template.content,
+            mediaUrl,
             mediaType: 'image',
+            caption,
             apiKey,
           })
         } else {

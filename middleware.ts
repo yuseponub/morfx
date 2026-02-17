@@ -17,6 +17,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ==================== TEMP ROUTE (DELETE AFTER USE) ====================
+  if (pathname.startsWith('/api/temp-send-agendados')) {
+    return NextResponse.next()
+  }
+
   // ==================== API TOOL ROUTES ====================
   // Handle /api/v1/tools/* with API key authentication
   // This runs BEFORE the existing session logic

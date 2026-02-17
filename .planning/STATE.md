@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Executing standalone/real-fields-fix
+**Current focus:** Between standalone tasks
 
 ## Current Position
 
-Phase: standalone/real-fields-fix (executing)
-Plan: 02 of 03
-Status: In progress
-Last activity: 2026-02-17 — Completed standalone/real-fields-fix Plan 02 (Backend pipeline)
+Phase: standalone/real-fields-fix (complete)
+Plan: 03 of 03
+Status: Phase complete
+Last activity: 2026-02-17 — Completed standalone/real-fields-fix Plan 03 (CRM UI)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [######----] 67% real-fields
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields
 
-### Standalone: Real Fields Fix (2026-02-17) — IN PROGRESS
+### Standalone: Real Fields Fix (2026-02-17) — COMPLETE
 
 3 plans total:
 - Plan 01: Database migrations + TypeScript types (COMPLETE)
 - Plan 02: Backend pipeline — Shopify, server actions, enrichment (COMPLETE)
-- Plan 03: Form UI updates (pending)
+- Plan 03: CRM UI — show and edit real fields (COMPLETE)
 
 ### Standalone: CRM Orders Performance (2026-02-17) — IN PROGRESS
 
@@ -53,8 +53,8 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 30 (29 milestone + 1 standalone)
-- Total plans completed: 142
+- Total phases completed: 31 (29 milestone + 2 standalone)
+- Total plans completed: 145
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -65,6 +65,9 @@ Decisions logged in PROJECT.md Key Decisions table.
 
 - Added name and shipping_department to updateOrder automation fieldMappings (critical for field.changed triggers)
 - Enrichment orderName fallback chain: order.name -> order.description -> truncated UUID (backward compat)
+- Department auto-derived from city selection (not shown as separate input in forms)
+- Order name labeled "Referencia" — users think of order refs as codes
+- Contact detail prefers stored department over city-derived (Shopify compat)
 
 ### Project Rules
 
@@ -90,7 +93,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 17:28 COT
-Stopped at: Completed standalone/real-fields-fix Plan 02
+Last session: 2026-02-17 17:38 COT
+Stopped at: Completed standalone/real-fields-fix Plan 03 (phase complete)
 Resume file: None
-Next: Execute standalone/real-fields-fix Plan 03
+Next: Execute standalone/crm-orders-performance Plan 03 or new standalone task

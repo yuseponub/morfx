@@ -10,6 +10,7 @@ import { colombiaCities } from '@/lib/data/colombia-cities'
 interface CityComboboxProps {
   value: string
   onChange: (value: string) => void
+  onDepartmentChange?: (department: string) => void
   name?: string
   id?: string
   disabled?: boolean
@@ -19,6 +20,7 @@ interface CityComboboxProps {
 export function CityCombobox({
   value,
   onChange,
+  onDepartmentChange,
   id = 'city',
   disabled = false,
   error,
@@ -124,6 +126,7 @@ export function CityCombobox({
     const city = colombiaCities.find((c) => c.value === cityValue)
     if (city) {
       onChange(cityValue)
+      onDepartmentChange?.(city.department)
       setSearch('')
       setOpen(false)
     }

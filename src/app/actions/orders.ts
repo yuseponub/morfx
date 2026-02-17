@@ -307,6 +307,91 @@ export async function getOrdersByPipeline(pipelineId: string): Promise<OrderWith
 }
 
 /**
+ * Get paginated orders for a specific pipeline stage.
+ * Used by Kanban infinite scroll — loads `limit` orders at `offset`.
+ */
+export async function getOrdersForStage(
+  stageId: string,
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ orders: OrderWithDetails[]; hasMore: boolean }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { orders: [], hasMore: false }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { orders: [], hasMore: false }
+
+  // Fetch limit+1 to determine if there are more
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      contact:contacts(id, name, phone, address, city),
+      stage:pipeline_stages(id, name, color, is_closed),
+      pipeline:pipelines(id, name),
+      products:order_products(*),
+      tags:order_tags(tag:tags(*))
+    `)
+    .eq('workspace_id', workspaceId)
+    .eq('stage_id', stageId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit)
+
+  if (error) {
+    console.error('Error fetching orders for stage:', error)
+    return { orders: [], hasMore: false }
+  }
+
+  const hasMore = (data || []).length > limit
+  const sliced = hasMore ? data!.slice(0, limit) : (data || [])
+
+  // Transform tags
+  const orders = sliced.map(order => ({
+    ...order,
+    tags: order.tags?.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || [],
+  }))
+
+  return { orders, hasMore }
+}
+
+/**
+ * Get order counts per stage for a pipeline.
+ * Used to show total count in column headers even when paginated.
+ */
+export async function getStageOrderCounts(
+  pipelineId: string
+): Promise<Record<string, number>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return {}
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return {}
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('stage_id')
+    .eq('workspace_id', workspaceId)
+    .eq('pipeline_id', pipelineId)
+
+  if (error) {
+    console.error('Error fetching stage counts:', error)
+    return {}
+  }
+
+  const counts: Record<string, number> = {}
+  for (const row of data || []) {
+    counts[row.stage_id] = (counts[row.stage_id] || 0) + 1
+  }
+  return counts
+}
+
+/**
  * Get a single order by ID with all relations
  */
 export async function getOrder(id: string): Promise<OrderWithDetails | null> {

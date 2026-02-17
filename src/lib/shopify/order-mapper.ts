@@ -64,6 +64,7 @@ export async function mapShopifyOrder(
     contact_id: contactId,
     pipeline_id: config.default_pipeline_id,
     stage_id: config.default_stage_id,
+    name: shopifyOrder.name,  // "#1001" — Shopify order reference
     description: buildOrderDescription(shopifyOrder),
     shipping_address: buildShippingAddress(shopifyOrder),
     shipping_city: shopifyOrder.shipping_address?.city || null,

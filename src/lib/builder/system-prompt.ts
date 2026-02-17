@@ -65,6 +65,21 @@ function formatActionCatalog(): string {
   return sections.join('\n\n')
 }
 
+function formatParamQuickReference(): string {
+  const lines: string[] = []
+  for (const action of ACTION_CATALOG) {
+    const required = action.params
+      .filter((p) => p.required)
+      .map((p) => `**${p.name}**`)
+    const optional = action.params
+      .filter((p) => !p.required)
+      .map((p) => p.name)
+    const allParams = [...required, ...optional].join(', ')
+    lines.push(`- \`${action.type}\`: ${allParams}`)
+  }
+  return lines.join('\n')
+}
+
 function formatVariableCatalog(): string {
   const triggerLabels: Record<string, string> = {}
   for (const t of TRIGGER_CATALOG) {
@@ -230,20 +245,31 @@ ${variableSection}
 ### REGLA CRITICA DE PARAMETROS DE ACCIONES
 Los nombres de los parametros de cada accion DEBEN coincidir EXACTAMENTE con los nombres definidos en el catalogo de acciones de arriba. El sistema validara y rechazara parametros incorrectos.
 
-Referencia rapida de params por accion:
-- \`assign_tag\`: **tagName** (req), entityType
-- \`remove_tag\`: **tagName** (req)
-- \`change_stage\`: **pipelineId** (req), **stageId** (req)
-- \`update_field\`: **fieldName** (req), **value** (req)
-- \`create_order\`: **pipelineId** (req), stageId, copyProducts, copyTags
-- \`duplicate_order\`: **targetPipelineId** (req), targetStageId, copyContact, copyProducts, copyValue, copyTags
-- \`send_whatsapp_template\`: **templateName** (req), variables
-- \`send_whatsapp_text\`: **text** (req)
-- \`send_whatsapp_media\`: **mediaUrl** (req), caption
-- \`create_task\`: **title** (req), description, dueDateRelative, assignToUserId
-- \`webhook\`: **url** (req), headers, payloadTemplate
+Referencia rapida de params por accion (generada automaticamente del catalogo):
+${formatParamQuickReference()}
 
 **NUNCA** uses nombres alternativos como \`pipelineId\` en vez de \`targetPipelineId\` para duplicate_order, ni \`destination_pipeline_id\`, ni \`tag\` en vez de \`tagName\`, etc.
+
+### Notas importantes sobre parametros especificos
+
+**entityType (assign_tag, remove_tag, update_field):**
+- Para \`assign_tag\` y \`remove_tag\`: usa entityType para especificar si el tag va en el contacto ("contact") o en la orden ("order"). Por defecto es "contact".
+- Para \`update_field\`: entityType es REQUERIDO. Determina si se actualiza un campo del contacto o de la orden. Los campos disponibles dependen del tipo de entidad.
+
+**Campos de contacto para update_field:** name, phone, email, address, city, department (o nombre de campo personalizado)
+**Campos de orden para update_field:** name, description, shipping_address, shipping_city, shipping_department, carrier, tracking_number, closing_date, contact_id (o nombre de campo personalizado)
+
+**create_order — campos opcionales adicionales:**
+Ademas de pipelineId, stageId y description, puedes usar: name (nombre/referencia de la orden), closingDate (fecha de cierre en formato ISO), carrier (transportadora), trackingNumber (numero de guia), shippingAddress, shippingCity, shippingDepartment. Usa copyProducts=true para copiar productos del trigger y copyTags=true para copiar tags.
+
+**create_task — prioridad:**
+priority acepta: "low", "medium", "high", "urgent". Por defecto es "medium".
+
+**send_whatsapp_template — idioma:**
+language acepta: "es", "en", "pt". Si no se especifica, usa el idioma del template en la base de datos.
+
+**send_whatsapp_media — nombre de archivo:**
+filename es opcional. Si el tipo de media es "document", se recomienda incluir filename para mejor presentacion en el chat.
 
 ## Formato de Datos — CRITICO
 

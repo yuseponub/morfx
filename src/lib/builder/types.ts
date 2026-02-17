@@ -62,7 +62,7 @@ export interface DiagramNodeData {
   // Action-specific
   actionType?: ActionType
   params?: Record<string, unknown>
-  delay?: { amount: number; unit: 'minutes' | 'hours' | 'days' } | null
+  delay?: { amount: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' } | null
 }
 
 /**

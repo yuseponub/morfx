@@ -370,35 +370,66 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
       const triggerContext = buildContextFromEvent(eventData)
       const variableContext = buildTriggerContext(eventData)
 
-      // Context enrichment: load order data for tag triggers on orders
-      if (
+      // Context enrichment: load full order + contact data for order/tag triggers
+      const needsOrderEnrichment =
+        (triggerType === 'order.created' || triggerType === 'order.stage_changed') &&
+        eventData.orderId
+      const needsTagOrderEnrichment =
         (triggerType === 'tag.assigned' || triggerType === 'tag.removed') &&
         eventData.entityType === 'order' &&
         eventData.entityId
-      ) {
-        const orderDetails = await step.run(
-          `enrich-order-${String(eventData.entityId).slice(0, 8)}`,
+
+      if (needsOrderEnrichment || needsTagOrderEnrichment) {
+        const lookupId = String(needsOrderEnrichment ? eventData.orderId : eventData.entityId)
+        const enriched = await step.run(
+          `enrich-order-${lookupId.slice(0, 8)}`,
           async () => {
             const supabase = createAdminClient()
-            const { data } = await supabase
+            // Load order with contact join
+            const { data: order } = await supabase
               .from('orders')
-              .select('id, pipeline_id, stage_id, total_value, name')
-              .eq('id', String(eventData.entityId))
+              .select(`
+                id, name, pipeline_id, stage_id, total_value,
+                shipping_address, shipping_city, description,
+                contacts:contact_id (id, name, phone, email, address, city)
+              `)
+              .eq('id', lookupId)
               .eq('workspace_id', workspaceId)
               .single()
-            return data
+
+            if (!order) return null
+
+            // Load stage and pipeline names
+            const [{ data: stage }, { data: pipeline }] = await Promise.all([
+              supabase.from('pipeline_stages').select('name').eq('id', order.stage_id).single(),
+              supabase.from('pipelines').select('name').eq('id', order.pipeline_id).single(),
+            ])
+
+            const contact = Array.isArray(order.contacts) ? order.contacts[0] : order.contacts
+            return {
+              orderId: order.id,
+              orderName: order.name,
+              pipelineId: order.pipeline_id,
+              pipelineName: pipeline?.name,
+              stageId: order.stage_id,
+              stageName: stage?.name,
+              orderValue: order.total_value,
+              shippingAddress: order.shipping_address,
+              shippingCity: order.shipping_city,
+              orderDescription: order.description,
+              contactId: contact?.id,
+              contactName: contact?.name,
+              contactPhone: contact?.phone,
+              contactEmail: contact?.email,
+              contactAddress: contact?.address,
+              contactCity: contact?.city,
+            }
           }
         )
-        if (orderDetails) {
-          const enriched = {
-            ...eventData,
-            orderId: orderDetails.id,
-            pipelineId: orderDetails.pipeline_id,
-            stageId: orderDetails.stage_id,
-            orderValue: orderDetails.total_value,
-            orderName: orderDetails.name,
-          }
-          Object.assign(variableContext, buildTriggerContext(enriched))
+        if (enriched) {
+          // Merge enriched data into both contexts
+          Object.assign(triggerContext, enriched)
+          Object.assign(variableContext, buildTriggerContext({ ...eventData, ...enriched }))
         }
       }
 

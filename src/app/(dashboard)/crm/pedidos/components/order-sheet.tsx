@@ -160,6 +160,9 @@ export function OrderSheet({
               <SheetTitle className="text-xl">
                 {contact?.name || 'Pedido sin contacto'}
               </SheetTitle>
+              {order.name && (
+                <p className="text-sm font-mono text-muted-foreground">{order.name}</p>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-primary">
                   {formatCurrency(order.total_value)}
@@ -364,7 +367,12 @@ export function OrderSheet({
                       <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <div>
                         {order.shipping_address && <p>{order.shipping_address}</p>}
-                        {order.shipping_city && <p className="text-muted-foreground">{order.shipping_city}</p>}
+                        {order.shipping_city && (
+                          <p className="text-muted-foreground">
+                            {order.shipping_city}
+                            {order.shipping_department && `, ${order.shipping_department}`}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

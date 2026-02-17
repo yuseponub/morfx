@@ -438,7 +438,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
               delay: z
                 .object({
                   amount: z.number(),
-                  unit: z.enum(['minutes', 'hours', 'days']),
+                  unit: z.enum(['seconds', 'minutes', 'hours', 'days']),
                 })
                 .nullable()
                 .optional()
@@ -558,7 +558,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
               delay: z
                 .object({
                   amount: z.number(),
-                  unit: z.enum(['minutes', 'hours', 'days']),
+                  unit: z.enum(['seconds', 'minutes', 'hours', 'days']),
                 })
                 .nullable()
                 .optional(),
@@ -659,7 +659,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
               delay: z
                 .object({
                   amount: z.number(),
-                  unit: z.enum(['minutes', 'hours', 'days']),
+                  unit: z.enum(['seconds', 'minutes', 'hours', 'days']),
                 })
                 .nullable()
                 .optional(),

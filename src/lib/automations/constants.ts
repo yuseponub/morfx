@@ -442,7 +442,7 @@ export const DELAY_LIMITS = {
 // Helper: Convert delay to milliseconds
 // ============================================================================
 
-export function delayToMs(delay: { amount: number; unit: 'minutes' | 'hours' | 'days' }): number {
-  const multipliers = { minutes: 60_000, hours: 3_600_000, days: 86_400_000 }
+export function delayToMs(delay: { amount: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' }): number {
+  const multipliers = { seconds: 1_000, minutes: 60_000, hours: 3_600_000, days: 86_400_000 }
   return delay.amount * multipliers[delay.unit]
 }

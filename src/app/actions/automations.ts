@@ -40,7 +40,7 @@ const actionSchema = z.object({
   delay: z
     .object({
       amount: z.number().positive(),
-      unit: z.enum(['minutes', 'hours', 'days']),
+      unit: z.enum(['seconds', 'minutes', 'hours', 'days']),
     })
     .nullable()
     .optional(),

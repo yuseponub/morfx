@@ -199,8 +199,7 @@ export async function updateTask(
   if (params.status !== undefined) {
     updates.status = params.status
     if (params.status === 'completed') {
-      // Use Colombia timezone for completed_at (CLAUDE.md Regla 2)
-      updates.completed_at = new Date().toLocaleString('sv-SE', { timeZone: 'America/Bogota' })
+      updates.completed_at = new Date().toISOString()
     } else if (current.status === 'completed') {
       // Reopening: clear completed_at (params.status is not 'completed' in this branch)
       updates.completed_at = null
@@ -271,8 +270,7 @@ export async function completeTask(
     return { success: true, data: { taskId: params.taskId } }
   }
 
-  // Use Colombia timezone for completed_at (CLAUDE.md Regla 2)
-  const completedAt = new Date().toLocaleString('sv-SE', { timeZone: 'America/Bogota' })
+  const completedAt = new Date().toISOString()
 
   const { error: updateError } = await supabase
     .from('tasks')

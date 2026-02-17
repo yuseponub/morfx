@@ -476,7 +476,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
                   status: result.status,
                   actions_log: result.actionsLog,
                   error_message: result.errorMessage,
-                  completed_at: new Date().toLocaleString('sv-SE', { timeZone: 'America/Bogota' }),
+                  completed_at: new Date().toISOString(),
                   duration_ms: result.actionsLog.reduce(
                     (sum, a) => sum + a.duration_ms,
                     0

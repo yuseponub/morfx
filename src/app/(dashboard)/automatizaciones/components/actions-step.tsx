@@ -83,6 +83,19 @@ const ACTION_CATEGORY_CONFIG: Record<string, { icon: typeof Building2; color: st
   Twilio: { icon: Phone, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/50' },
 }
 
+/** Human-readable labels for select options */
+const OPTION_LABELS: Record<string, string> = {
+  'contact': 'Contacto',
+  'order': 'Orden',
+  'low': 'Baja',
+  'medium': 'Media',
+  'high': 'Alta',
+  'urgent': 'Urgente',
+  'es': 'Espanol',
+  'en': 'Ingles',
+  'pt': 'Portugues',
+}
+
 /** Help text for specific action params */
 const PARAM_HELP_TEXT: Record<string, Record<string, string>> = {
   send_sms: {
@@ -525,30 +538,6 @@ function ActionParamField({
       )
     }
 
-    if (param.name === 'entityType' && 'options' in param) {
-      const options = param.options as readonly string[]
-      return (
-        <div className="space-y-1.5">
-          <Label className="text-xs">{param.label} {param.required && <span className="text-destructive">*</span>}</Label>
-          <Select
-            value={(value as string) ?? ''}
-            onValueChange={(val) => onChange(val || undefined)}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Seleccionar..." />
-            </SelectTrigger>
-            <SelectContent>
-              {options.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt === 'contact' ? 'Contacto' : opt === 'order' ? 'Orden' : opt}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )
-    }
-
     // templateName: show approved templates dropdown
     if (param.name === 'templateName') {
       return (
@@ -571,6 +560,31 @@ function ActionParamField({
                   </SelectItem>
                 ))
               )}
+            </SelectContent>
+          </Select>
+        </div>
+      )
+    }
+
+    // Generic select with options (entityType, priority, language, etc.)
+    if ('options' in param) {
+      const options = param.options as readonly string[]
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{param.label} {param.required && <span className="text-destructive">*</span>}</Label>
+          <Select
+            value={(value as string) ?? ''}
+            onValueChange={(val) => onChange(val || undefined)}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Seleccionar..." />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {OPTION_LABELS[opt] || opt}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -621,6 +635,63 @@ function ActionParamField({
             <Info className="size-3 shrink-0" />
             {helpText}
           </p>
+        )}
+      </div>
+    )
+  }
+
+  // field_select type — dynamic field picker based on entityType
+  if (param.type === 'field_select') {
+    const entityType = (allParams.entityType as string) || 'contact'
+
+    const CONTACT_FIELDS = [
+      { value: 'name', label: 'Nombre' },
+      { value: 'phone', label: 'Telefono' },
+      { value: 'email', label: 'Email' },
+      { value: 'address', label: 'Direccion' },
+      { value: 'city', label: 'Ciudad' },
+      { value: 'department', label: 'Departamento' },
+    ]
+
+    const ORDER_FIELDS = [
+      { value: 'name', label: 'Nombre' },
+      { value: 'description', label: 'Descripcion' },
+      { value: 'shipping_address', label: 'Direccion de envio' },
+      { value: 'shipping_city', label: 'Ciudad de envio' },
+      { value: 'shipping_department', label: 'Departamento de envio' },
+      { value: 'carrier', label: 'Transportadora' },
+      { value: 'tracking_number', label: 'Numero de guia' },
+      { value: 'closing_date', label: 'Fecha de cierre' },
+      { value: 'contact_id', label: 'Contacto (ID)' },
+    ]
+
+    const fields = entityType === 'order' ? ORDER_FIELDS : CONTACT_FIELDS
+
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{param.label} {param.required && <span className="text-destructive">*</span>}</Label>
+        <Select
+          value={(value as string) ?? ''}
+          onValueChange={(val) => onChange(val || undefined)}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Seleccionar campo..." />
+          </SelectTrigger>
+          <SelectContent>
+            {fields.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+            <SelectItem value="__custom">Campo personalizado...</SelectItem>
+          </SelectContent>
+        </Select>
+        {(value as string) === '__custom' && (
+          <Input
+            className="h-8 text-xs mt-1"
+            placeholder="Nombre del campo personalizado..."
+            onChange={(e) => onChange(e.target.value)}
+          />
         )}
       </div>
     )
@@ -869,6 +940,13 @@ function ActionCard({
   const CategoryIcon = categoryConfig?.icon
   const actionHelpTexts = PARAM_HELP_TEXT[action.type] ?? {}
 
+  // Track which optional params the user has activated
+  const [activeOptionals, setActiveOptionals] = useState<string[]>(() => {
+    return catalogEntry.params
+      .filter((p) => 'optional' in p && (p as { optional?: boolean }).optional && action.params[p.name] !== undefined && action.params[p.name] !== null && action.params[p.name] !== '')
+      .map((p) => p.name)
+  })
+
   function updateParam(name: string, value: unknown) {
     onUpdate({
       ...action,
@@ -947,20 +1025,89 @@ function ActionCard({
 
         {/* Params */}
         <div className="space-y-3 border-t pt-3">
-          {catalogEntry.params.map((param) => (
-            <ActionParamField
-              key={param.name}
-              param={param}
-              value={action.params[param.name]}
-              onChange={(val) => updateParam(param.name, val)}
-              pipelines={pipelines}
-              tags={tags}
-              templates={templates}
-              triggerType={triggerType}
-              allParams={action.params}
-              helpText={actionHelpTexts[param.name]}
-            />
-          ))}
+          {/* Required / always-visible params */}
+          {catalogEntry.params
+            .filter((p) => !('optional' in p && (p as { optional?: boolean }).optional))
+            .map((param) => (
+              <ActionParamField
+                key={param.name}
+                param={param}
+                value={action.params[param.name]}
+                onChange={(val) => updateParam(param.name, val)}
+                pipelines={pipelines}
+                tags={tags}
+                templates={templates}
+                triggerType={triggerType}
+                allParams={action.params}
+                helpText={actionHelpTexts[param.name]}
+              />
+            ))}
+
+          {/* Active optional params */}
+          {activeOptionals.map((paramName) => {
+            const param = catalogEntry.params.find((p) => p.name === paramName)
+            if (!param) return null
+            return (
+              <div key={param.name} className="flex items-start gap-2">
+                <div className="flex-1">
+                  <ActionParamField
+                    param={param}
+                    value={action.params[param.name]}
+                    onChange={(val) => updateParam(param.name, val)}
+                    pipelines={pipelines}
+                    tags={tags}
+                    templates={templates}
+                    triggerType={triggerType}
+                    allParams={action.params}
+                    helpText={actionHelpTexts[param.name]}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 mt-6 text-muted-foreground hover:text-destructive shrink-0"
+                  title="Quitar campo"
+                  onClick={() => {
+                    setActiveOptionals((prev) => prev.filter((n) => n !== paramName))
+                    updateParam(paramName, undefined)
+                  }}
+                >
+                  <Trash2 className="size-3" />
+                </Button>
+              </div>
+            )
+          })}
+
+          {/* "Add field" dropdown for remaining optional params */}
+          {(() => {
+            const optionalParams = catalogEntry.params.filter(
+              (p) => 'optional' in p && (p as { optional?: boolean }).optional && !activeOptionals.includes(p.name)
+            )
+            if (optionalParams.length === 0) return null
+            return (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                    <Plus className="size-3 mr-1" />
+                    Agregar campo
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-1">
+                  {optionalParams.map((p) => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      className="w-full text-left px-3 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors"
+                      onClick={() => setActiveOptionals((prev) => [...prev, p.name])}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            )
+          })()}
         </div>
 
         {/* Delay */}

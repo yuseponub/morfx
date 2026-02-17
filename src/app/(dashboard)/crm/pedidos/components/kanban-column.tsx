@@ -28,6 +28,10 @@ interface KanbanColumnProps {
   onAddStage?: () => void
   selectedOrderIds?: Set<string>
   onOrderSelectChange?: (orderId: string, selected: boolean) => void
+  totalCount?: number
+  hasMore?: boolean
+  isLoadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 /**
@@ -43,6 +47,10 @@ export function KanbanColumn({
   onAddStage,
   selectedOrderIds,
   onOrderSelectChange,
+  totalCount,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: KanbanColumnProps) {
   // Make column sortable (for reordering stages)
   const {
@@ -56,6 +64,26 @@ export function KanbanColumn({
     id: stage.id,
     data: { type: 'stage', stage },
   })
+
+  // Infinite scroll sentinel
+  const sentinelRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasMore || !onLoadMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingMore) {
+          onLoadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, onLoadMore])
 
   // Make column a drop target for orders
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -119,7 +147,7 @@ export function KanbanColumn({
           variant={isOverLimit ? 'destructive' : isAtLimit ? 'secondary' : 'outline'}
           className="h-5 px-1.5 text-xs font-normal"
         >
-          {orderCount}
+          {totalCount !== undefined ? totalCount : orderCount}
           {wipLimit !== null && (
             <span className="text-muted-foreground ml-0.5">/ {wipLimit}</span>
           )}
@@ -196,6 +224,15 @@ export function KanbanColumn({
                 onSelectChange={onOrderSelectChange ? (selected) => onOrderSelectChange(order.id, selected) : undefined}
               />
             ))
+          )}
+          {hasMore && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-2">
+              {isLoadingMore ? (
+                <div className="text-xs text-muted-foreground">Cargando...</div>
+              ) : (
+                <div className="h-4" />
+              )}
+            </div>
           )}
         </div>
       </SortableContext>

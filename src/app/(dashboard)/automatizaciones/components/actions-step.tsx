@@ -540,8 +540,81 @@ function ActionParamField({
     )
   }
 
-  // key_value type
+  // key_value type — special handling for template variables
   if (param.type === 'key_value') {
+    const selectedTemplateName = allParams.templateName as string | undefined
+    const selectedTemplate = selectedTemplateName
+      ? templates.find((t) => t.name === selectedTemplateName)
+      : null
+
+    // Extract {{1}}, {{2}} etc. from template body
+    const templateVarNums: string[] = []
+    if (selectedTemplate) {
+      const body = selectedTemplate.components?.find(
+        (c: { type: string }) => c.type === 'BODY'
+      )
+      const matches = body?.text?.match(/\{\{(\d+)\}\}/g) || []
+      for (const m of matches) {
+        const num = m.replace(/[{}]/g, '')
+        if (!templateVarNums.includes(num)) templateVarNums.push(num)
+      }
+    }
+
+    // If template has variables, show smart mapping UI
+    if (selectedTemplate && templateVarNums.length > 0) {
+      const vars = (value as Record<string, string>) ?? {}
+      const bodyText = selectedTemplate.components?.find(
+        (c: { type: string }) => c.type === 'BODY'
+      )?.text || ''
+
+      return (
+        <div className="space-y-2">
+          <Label className="text-xs">Variables del template</Label>
+          <p className="text-[10px] text-muted-foreground">
+            Asigna un valor a cada variable. Usa el boton {'{}'} para insertar datos dinamicos.
+          </p>
+          <div className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground font-mono break-words">
+            {bodyText}
+          </div>
+          {templateVarNums.map((num) => (
+            <div key={num} className="flex items-center gap-2">
+              <span className="text-xs font-mono text-muted-foreground w-14 shrink-0">
+                {`{{${num}}}`}
+              </span>
+              <div className="flex-1 relative">
+                <Input
+                  className="h-8 text-xs pr-8"
+                  placeholder={`Valor para variable ${num}...`}
+                  value={vars[num] ?? ''}
+                  onChange={(e) => onChange({ ...vars, [num]: e.target.value })}
+                />
+                <div className="absolute right-0 top-0 h-8 flex items-center">
+                  <VariablePicker
+                    triggerType={triggerType}
+                    onInsert={(variable) => onChange({ ...vars, [num]: (vars[num] ?? '') + variable })}
+                    className="h-8 w-8 p-0"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    // No template selected or no variables needed
+    if (selectedTemplate && templateVarNums.length === 0) {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{param.label}</Label>
+          <p className="text-[10px] text-muted-foreground">
+            Este template no tiene variables.
+          </p>
+        </div>
+      )
+    }
+
+    // Generic key_value fallback (no template context)
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{param.label}</Label>

@@ -163,6 +163,7 @@ export const ACTION_CATALOG = [
     description: 'Remueve un tag de un contacto u orden',
     params: [
       { name: 'tagName', label: 'Tag', type: 'select', required: true },
+      { name: 'entityType', label: 'Tipo de entidad', type: 'select', options: ['contact', 'order'], required: false },
     ],
   },
   {
@@ -181,8 +182,9 @@ export const ACTION_CATALOG = [
     category: 'CRM',
     description: 'Actualiza el valor de un campo de contacto u orden',
     params: [
-      { name: 'fieldName', label: 'Campo', type: 'text', required: true },
-      { name: 'value', label: 'Valor', type: 'text', required: true },
+      { name: 'entityType', label: 'Tipo de entidad', type: 'select', options: ['contact', 'order'], required: true },
+      { name: 'fieldName', label: 'Campo', type: 'field_select', required: true },
+      { name: 'value', label: 'Valor', type: 'text', required: true, supportsVariables: true },
     ],
   },
   {
@@ -194,11 +196,15 @@ export const ACTION_CATALOG = [
       { name: 'pipelineId', label: 'Pipeline', type: 'select', required: true },
       { name: 'stageId', label: 'Etapa', type: 'select', required: false },
       { name: 'description', label: 'Descripcion', type: 'text', required: false, supportsVariables: true },
-      { name: 'shippingAddress', label: 'Direccion de envio', type: 'text', required: false, supportsVariables: true },
-      { name: 'shippingCity', label: 'Ciudad de envio', type: 'text', required: false, supportsVariables: true },
-      { name: 'shippingDepartment', label: 'Departamento de envio', type: 'text', required: false, supportsVariables: true },
-      { name: 'copyProducts', label: 'Copiar productos', type: 'boolean', required: false },
-      { name: 'copyTags', label: 'Copiar tags', type: 'boolean', required: false },
+      { name: 'name', label: 'Nombre de la orden', type: 'text', required: false, supportsVariables: true, optional: true },
+      { name: 'closingDate', label: 'Fecha de cierre', type: 'text', required: false, optional: true },
+      { name: 'shippingAddress', label: 'Direccion de envio', type: 'text', required: false, supportsVariables: true, optional: true },
+      { name: 'shippingCity', label: 'Ciudad de envio', type: 'text', required: false, supportsVariables: true, optional: true },
+      { name: 'shippingDepartment', label: 'Departamento de envio', type: 'text', required: false, supportsVariables: true, optional: true },
+      { name: 'carrier', label: 'Transportadora', type: 'text', required: false, supportsVariables: true, optional: true },
+      { name: 'trackingNumber', label: 'Numero de guia', type: 'text', required: false, supportsVariables: true, optional: true },
+      { name: 'copyProducts', label: 'Copiar productos del trigger', type: 'boolean', required: false, optional: true },
+      { name: 'copyTags', label: 'Copiar tags del trigger', type: 'boolean', required: false, optional: true },
     ],
   },
   {
@@ -222,6 +228,7 @@ export const ACTION_CATALOG = [
     description: 'Envia un template de WhatsApp aprobado al contacto',
     params: [
       { name: 'templateName', label: 'Template', type: 'select', required: true },
+      { name: 'language', label: 'Idioma', type: 'select', options: ['es', 'en', 'pt'], required: false },
       { name: 'variables', label: 'Variables', type: 'key_value', required: false },
     ],
   },
@@ -242,6 +249,7 @@ export const ACTION_CATALOG = [
     params: [
       { name: 'mediaUrl', label: 'URL del archivo', type: 'text', required: true },
       { name: 'caption', label: 'Texto', type: 'text', required: false, supportsVariables: true },
+      { name: 'filename', label: 'Nombre del archivo', type: 'text', required: false },
     ],
   },
   {
@@ -252,6 +260,7 @@ export const ACTION_CATALOG = [
     params: [
       { name: 'title', label: 'Titulo', type: 'text', required: true, supportsVariables: true },
       { name: 'description', label: 'Descripcion', type: 'textarea', required: false, supportsVariables: true },
+      { name: 'priority', label: 'Prioridad', type: 'select', options: ['low', 'medium', 'high', 'urgent'], required: false },
       { name: 'dueDateRelative', label: 'Fecha limite (relativa)', type: 'delay', required: false },
       { name: 'assignToUserId', label: 'Asignar a', type: 'select', required: false },
     ],

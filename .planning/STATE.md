@@ -5,16 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Executing standalone/crm-orders-performance
+**Current focus:** Executing standalone/real-fields-fix
 
 ## Current Position
 
-Phase: standalone/crm-orders-performance (executing)
-Plan: 02 of 03
+Phase: standalone/real-fields-fix (executing)
+Plan: 01 of 03
 Status: In progress
-Last activity: 2026-02-17 — Completed standalone/crm-orders-performance Plan 02 (infinite scroll)
+Last activity: 2026-02-17 — Completed standalone/real-fields-fix Plan 01 (DB migration + types)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [###-------] 33% real-fields
+
+### Standalone: Real Fields Fix (2026-02-17) — IN PROGRESS
+
+3 plans total:
+- Plan 01: Database migrations + TypeScript types (COMPLETE)
+- Plan 02: Form UI updates (pending)
+- Plan 03: Server actions and data flow (pending)
 
 ### Standalone: CRM Orders Performance (2026-02-17) — IN PROGRESS
 
@@ -47,7 +54,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 30 (29 milestone + 1 standalone)
-- Total plans completed: 140
+- Total plans completed: 141
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -55,6 +62,8 @@ All 9 phases + 5 inserted phases completed:
 ### Decisions
 
 Decisions logged in PROJECT.md Key Decisions table.
+
+- Added name and shipping_department to updateOrder automation fieldMappings (critical for field.changed triggers)
 
 ### Project Rules
 
@@ -68,7 +77,7 @@ Established in `CLAUDE.md`:
 
 - Configure SMTP in Supabase for production email sending
 - Mobile nav workspace switcher
-- Apply migrations to Supabase (all pending)
+- Apply migrations to Supabase (all pending, including 20260217000000_real_fields.sql)
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
@@ -80,7 +89,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 08:38 COT
-Stopped at: Completed standalone/crm-orders-performance Plan 02
+Last session: 2026-02-17 17:21 COT
+Stopped at: Completed standalone/real-fields-fix Plan 01
 Resume file: None
-Next: Execute standalone/crm-orders-performance Plan 03
+Next: Execute standalone/real-fields-fix Plan 02

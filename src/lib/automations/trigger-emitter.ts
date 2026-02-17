@@ -1,8 +1,12 @@
 // ============================================================================
 // Phase 17: CRM Automations Engine — Trigger Emitter
-// Fire-and-forget functions that server actions call to notify the
-// automation engine of CRM/WhatsApp/Task changes.
-// Each function checks cascade depth and emits an Inngest event.
+// Async functions that domain layer calls to notify the automation engine
+// of CRM/WhatsApp/Task changes.
+// Each function checks cascade depth and sends an Inngest event.
+//
+// IMPORTANT: All emit functions are async and MUST be awaited by callers.
+// Fire-and-forget inngest.send is unreliable in Vercel serverless / Inngest
+// steps — the process can terminate before the send completes.
 // ============================================================================
 
 import { inngest } from '@/inngest/client'
@@ -32,22 +36,24 @@ function isCascadeSuppressed(
 }
 
 /**
- * Fire-and-forget: send event to Inngest without awaiting.
- * Errors are logged but never thrown to avoid blocking server actions.
+ * Send event to Inngest with await. Errors are logged but never thrown
+ * to avoid blocking server actions or breaking automation chains.
  */
-function fireAndForget(
+async function sendEvent(
   eventName: string,
   data: Record<string, unknown>,
   triggerType: string,
   workspaceId: string
-): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(inngest.send as any)({ name: eventName, data }).catch((err: unknown) => {
+): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (inngest.send as any)({ name: eventName, data })
+  } catch (err: unknown) {
     console.error(
       `[trigger-emitter] Failed to emit ${triggerType} for workspace ${workspaceId}:`,
       err instanceof Error ? err.message : err
     )
-  })
+  }
 }
 
 // ============================================================================
@@ -57,7 +63,7 @@ function fireAndForget(
 /**
  * Emit when an order moves to a different pipeline stage.
  */
-export function emitOrderStageChanged(data: {
+export async function emitOrderStageChanged(data: {
   workspaceId: string
   orderId: string
   previousStageId: string
@@ -70,11 +76,11 @@ export function emitOrderStageChanged(data: {
   contactName?: string
   contactPhone?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('order.stage_changed', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/order.stage_changed',
     { ...data, cascadeDepth: depth },
     'order.stage_changed',
@@ -85,7 +91,7 @@ export function emitOrderStageChanged(data: {
 /**
  * Emit when a tag is assigned to a contact or order.
  */
-export function emitTagAssigned(data: {
+export async function emitTagAssigned(data: {
   workspaceId: string
   entityType: string
   entityId: string
@@ -98,11 +104,11 @@ export function emitTagAssigned(data: {
   pipelineId?: string
   stageId?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('tag.assigned', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/tag.assigned',
     { ...data, cascadeDepth: depth },
     'tag.assigned',
@@ -113,7 +119,7 @@ export function emitTagAssigned(data: {
 /**
  * Emit when a tag is removed from a contact or order.
  */
-export function emitTagRemoved(data: {
+export async function emitTagRemoved(data: {
   workspaceId: string
   entityType: string
   entityId: string
@@ -125,11 +131,11 @@ export function emitTagRemoved(data: {
   pipelineId?: string
   stageId?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('tag.removed', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/tag.removed',
     { ...data, cascadeDepth: depth },
     'tag.removed',
@@ -140,7 +146,7 @@ export function emitTagRemoved(data: {
 /**
  * Emit when a new contact is created.
  */
-export function emitContactCreated(data: {
+export async function emitContactCreated(data: {
   workspaceId: string
   contactId: string
   contactName: string
@@ -148,11 +154,11 @@ export function emitContactCreated(data: {
   contactEmail?: string
   contactCity?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('contact.created', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/contact.created',
     { ...data, cascadeDepth: depth },
     'contact.created',
@@ -163,7 +169,7 @@ export function emitContactCreated(data: {
 /**
  * Emit when a new order is created (including from duplication).
  */
-export function emitOrderCreated(data: {
+export async function emitOrderCreated(data: {
   workspaceId: string
   orderId: string
   pipelineId: string
@@ -174,11 +180,11 @@ export function emitOrderCreated(data: {
   contactName?: string
   contactPhone?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('order.created', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/order.created',
     { ...data, cascadeDepth: depth },
     'order.created',
@@ -189,7 +195,7 @@ export function emitOrderCreated(data: {
 /**
  * Emit when a field changes on a contact or order.
  */
-export function emitFieldChanged(data: {
+export async function emitFieldChanged(data: {
   workspaceId: string
   entityType: string
   entityId: string
@@ -199,11 +205,11 @@ export function emitFieldChanged(data: {
   contactId?: string
   contactName?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('field.changed', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/field.changed',
     { ...data, cascadeDepth: depth },
     'field.changed',
@@ -215,7 +221,7 @@ export function emitFieldChanged(data: {
  * Emit when a WhatsApp message is received.
  * Typically called from the webhook handler.
  */
-export function emitWhatsAppMessageReceived(data: {
+export async function emitWhatsAppMessageReceived(data: {
   workspaceId: string
   conversationId: string
   contactId: string | null
@@ -223,11 +229,11 @@ export function emitWhatsAppMessageReceived(data: {
   phone: string
   contactName?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('whatsapp.message_received', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/whatsapp.message_received',
     { ...data, cascadeDepth: depth },
     'whatsapp.message_received',
@@ -239,7 +245,7 @@ export function emitWhatsAppMessageReceived(data: {
  * Emit when a WhatsApp message matches configured keywords.
  * Typically called after message content is checked against automation trigger config.
  */
-export function emitWhatsAppKeywordMatch(data: {
+export async function emitWhatsAppKeywordMatch(data: {
   workspaceId: string
   conversationId: string
   contactId: string | null
@@ -248,11 +254,11 @@ export function emitWhatsAppKeywordMatch(data: {
   keywordMatched: string
   contactName?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('whatsapp.keyword_match', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/whatsapp.keyword_match',
     { ...data, cascadeDepth: depth },
     'whatsapp.keyword_match',
@@ -263,18 +269,18 @@ export function emitWhatsAppKeywordMatch(data: {
 /**
  * Emit when a task is marked as completed.
  */
-export function emitTaskCompleted(data: {
+export async function emitTaskCompleted(data: {
   workspaceId: string
   taskId: string
   taskTitle: string
   contactId: string | null
   orderId: string | null
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('task.completed', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/task.completed',
     { ...data, cascadeDepth: depth },
     'task.completed',
@@ -286,7 +292,7 @@ export function emitTaskCompleted(data: {
  * Emit when a task passes its due date without being completed.
  * Typically called from a scheduled cron job or Inngest function.
  */
-export function emitTaskOverdue(data: {
+export async function emitTaskOverdue(data: {
   workspaceId: string
   taskId: string
   taskTitle: string
@@ -294,11 +300,11 @@ export function emitTaskOverdue(data: {
   contactId: string | null
   orderId: string | null
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('task.overdue', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/task.overdue',
     { ...data, cascadeDepth: depth },
     'task.overdue',
@@ -313,7 +319,7 @@ export function emitTaskOverdue(data: {
 /**
  * Emit when a Shopify order is created (orders/create webhook).
  */
-export function emitShopifyOrderCreated(data: {
+export async function emitShopifyOrderCreated(data: {
   workspaceId: string
   shopifyOrderId: number
   shopifyOrderNumber: string
@@ -332,11 +338,11 @@ export function emitShopifyOrderCreated(data: {
   contactPhone?: string
   orderId?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('shopify.order_created', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/shopify.order_created',
     { ...data, cascadeDepth: depth },
     'shopify.order_created',
@@ -347,7 +353,7 @@ export function emitShopifyOrderCreated(data: {
 /**
  * Emit when a Shopify draft order is created (draft_orders/create webhook).
  */
-export function emitShopifyDraftOrderCreated(data: {
+export async function emitShopifyDraftOrderCreated(data: {
   workspaceId: string
   shopifyDraftOrderId: number
   shopifyOrderNumber: string
@@ -361,11 +367,11 @@ export function emitShopifyDraftOrderCreated(data: {
   contactName?: string
   contactPhone?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('shopify.draft_order_created', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/shopify.draft_order_created',
     { ...data, cascadeDepth: depth },
     'shopify.draft_order_created',
@@ -376,7 +382,7 @@ export function emitShopifyDraftOrderCreated(data: {
 /**
  * Emit when a Shopify order is updated (orders/updated webhook).
  */
-export function emitShopifyOrderUpdated(data: {
+export async function emitShopifyOrderUpdated(data: {
   workspaceId: string
   shopifyOrderId: number
   shopifyOrderNumber: string
@@ -396,11 +402,11 @@ export function emitShopifyOrderUpdated(data: {
   contactPhone?: string
   orderId?: string
   cascadeDepth?: number
-}): void {
+}): Promise<void> {
   const depth = data.cascadeDepth ?? 0
   if (isCascadeSuppressed('shopify.order_updated', data.workspaceId, depth)) return
 
-  fireAndForget(
+  await sendEvent(
     'automation/shopify.order_updated',
     { ...data, cascadeDepth: depth },
     'shopify.order_updated',

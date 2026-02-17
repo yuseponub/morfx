@@ -155,7 +155,7 @@ export async function createContact(
     }
 
     // Fire-and-forget: emit automation trigger
-    emitContactCreated({
+    await emitContactCreated({
       workspaceId: ctx.workspaceId,
       contactId: contact.id,
       contactName: contact.name,
@@ -274,7 +274,7 @@ export async function updateContact(
 
       const prevVal = (previousContact as Record<string, unknown>)[dbColumn]
       if (String(prevVal ?? '') !== String(newVal ?? '')) {
-        emitFieldChanged({
+        await emitFieldChanged({
           workspaceId: ctx.workspaceId,
           entityType: 'contact',
           entityId: params.contactId,
@@ -295,7 +295,7 @@ export async function updateContact(
         const prevVal = prevCustom[key]
         const newVal = mergedCustom[key]
         if (JSON.stringify(prevVal) !== JSON.stringify(newVal)) {
-          emitFieldChanged({
+          await emitFieldChanged({
             workspaceId: ctx.workspaceId,
             entityType: 'contact',
             entityId: params.contactId,
@@ -414,7 +414,7 @@ export async function bulkCreateContacts(
 
     // Fire-and-forget: emit automation trigger per contact
     for (const contact of inserted) {
-      emitContactCreated({
+      await emitContactCreated({
         workspaceId: ctx.workspaceId,
         contactId: contact.id,
         contactName: contact.name,

@@ -88,6 +88,10 @@ function matchesTriggerConfig(
       if (triggerConfig.pipelineId && triggerConfig.pipelineId !== eventData.pipelineId) {
         return false
       }
+      // Stage filter
+      if (triggerConfig.stageId && triggerConfig.stageId !== eventData.stageId) {
+        return false
+      }
       return true
     }
 

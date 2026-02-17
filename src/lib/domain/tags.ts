@@ -141,7 +141,7 @@ export async function assignTag(
     }
 
     // Step 5: Fire-and-forget: emit automation trigger
-    emitTagAssigned({
+    await emitTagAssigned({
       workspaceId: ctx.workspaceId,
       entityType: params.entityType,
       entityId: params.entityId,
@@ -260,7 +260,7 @@ export async function removeTag(
     }
 
     // Step 5: Fire-and-forget: emit automation trigger
-    emitTagRemoved({
+    await emitTagRemoved({
       workspaceId: ctx.workspaceId,
       entityType: params.entityType,
       entityId: params.entityId,

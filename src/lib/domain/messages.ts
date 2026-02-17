@@ -391,7 +391,7 @@ export async function receiveMessage(
       .eq('id', params.conversationId)
 
     // 3. Emit whatsapp.message_received trigger (fire-and-forget)
-    emitWhatsAppMessageReceived({
+    await emitWhatsAppMessageReceived({
       workspaceId: ctx.workspaceId,
       conversationId: params.conversationId,
       contactId: params.contactId,
@@ -459,7 +459,7 @@ async function checkKeywordMatches(
       for (const keyword of keywords) {
         if (keyword && contentLower.includes(keyword.toLowerCase())) {
           // Match found — emit trigger
-          emitWhatsAppKeywordMatch({
+          await emitWhatsAppKeywordMatch({
             workspaceId: ctx.workspaceId,
             conversationId: params.conversationId,
             contactId: params.contactId,

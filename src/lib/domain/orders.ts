@@ -226,7 +226,7 @@ export async function createOrder(
       .single()
 
     // Fire-and-forget: emit automation trigger
-    emitOrderCreated({
+    await emitOrderCreated({
       workspaceId: ctx.workspaceId,
       orderId: order.id,
       pipelineId: params.pipelineId,
@@ -366,7 +366,7 @@ export async function updateOrder(
 
       const prevVal = (previousOrder as Record<string, unknown>)[dbColumn]
       if (String(prevVal ?? '') !== String(newVal ?? '')) {
-        emitFieldChanged({
+        await emitFieldChanged({
           workspaceId: ctx.workspaceId,
           entityType: 'order',
           entityId: params.orderId,
@@ -384,7 +384,7 @@ export async function updateOrder(
       const prevCustom = JSON.stringify(previousOrder.custom_fields ?? {})
       const newCustom = JSON.stringify(updates.custom_fields ?? {})
       if (prevCustom !== newCustom) {
-        emitFieldChanged({
+        await emitFieldChanged({
           workspaceId: ctx.workspaceId,
           entityType: 'order',
           entityId: params.orderId,
@@ -481,7 +481,7 @@ export async function moveOrderToStage(
 
     // Fire-and-forget: emit automation trigger
     if (previousStageId !== params.newStageId) {
-      emitOrderStageChanged({
+      await emitOrderStageChanged({
         workspaceId: ctx.workspaceId,
         orderId: params.orderId,
         previousStageId,
@@ -659,7 +659,7 @@ export async function duplicateOrder(
       .single()
 
     // Fire-and-forget: emit automation trigger
-    emitOrderCreated({
+    await emitOrderCreated({
       workspaceId: ctx.workspaceId,
       orderId: newOrder.id,
       pipelineId: params.targetPipelineId,

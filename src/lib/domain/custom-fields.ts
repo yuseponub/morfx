@@ -98,7 +98,7 @@ export async function updateCustomFieldValues(
 
       // Only emit if value actually changed
       if (prevStr !== newStr) {
-        emitFieldChanged({
+        await emitFieldChanged({
           workspaceId: ctx.workspaceId,
           entityType: 'contact',
           entityId: params.contactId,

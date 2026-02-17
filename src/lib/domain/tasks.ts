@@ -128,7 +128,7 @@ export async function createTask(
 
   // If created with status='completed', emit trigger
   if (data.status === 'completed') {
-    emitTaskCompleted({
+    await emitTaskCompleted({
       workspaceId: ctx.workspaceId,
       taskId: data.id,
       taskTitle: data.title,
@@ -224,7 +224,7 @@ export async function updateTask(
   // Emit task.completed trigger if status changed to completed
   if (params.status === 'completed' && current.status !== 'completed') {
     const taskTitle = params.title?.trim() || current.title
-    emitTaskCompleted({
+    await emitTaskCompleted({
       workspaceId: ctx.workspaceId,
       taskId: params.taskId,
       taskTitle,
@@ -287,7 +287,7 @@ export async function completeTask(
   }
 
   // Emit task.completed trigger
-  emitTaskCompleted({
+  await emitTaskCompleted({
     workspaceId: ctx.workspaceId,
     taskId: params.taskId,
     taskTitle: current.title,

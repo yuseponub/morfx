@@ -67,6 +67,7 @@ export const TRIGGER_CATALOG = [
     description: 'Se dispara cuando se crea una nueva orden',
     configFields: [
       { name: 'pipelineId', label: 'Pipeline', type: 'select', required: false },
+      { name: 'stageId', label: 'Etapa', type: 'select', required: false },
     ],
     variables: ['orden.id', 'orden.valor', 'orden.pipeline', 'orden.stage', 'contacto.nombre', 'contacto.telefono'],
   },

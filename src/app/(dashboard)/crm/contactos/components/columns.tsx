@@ -144,6 +144,24 @@ export function createColumns({
       },
     },
     {
+      accessorKey: 'department',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="-ml-4"
+        >
+          Departamento
+          <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const department = row.original.department
+        if (!department) return <span className="text-muted-foreground">-</span>
+        return <span className="text-sm">{department}</span>
+      },
+    },
+    {
       accessorKey: 'tags',
       header: 'Etiquetas',
       cell: ({ row }) => {

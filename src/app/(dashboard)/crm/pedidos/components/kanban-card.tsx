@@ -119,9 +119,16 @@ export function KanbanCard({
       <div className={cn('flex items-start justify-between gap-2 mb-2', onSelectChange && 'pl-5')}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="font-medium text-sm truncate">
-            {order.contact?.name || 'Sin contacto'}
-          </span>
+          <div className="min-w-0 flex-1">
+            <span className="font-medium text-sm truncate block">
+              {order.contact?.name || 'Sin contacto'}
+            </span>
+            {order.name && (
+              <span className="text-[11px] font-mono text-muted-foreground truncate block">
+                {order.name}
+              </span>
+            )}
+          </div>
         </div>
         <span className="font-semibold text-sm text-primary shrink-0">
           {formatCurrency(order.total_value)}

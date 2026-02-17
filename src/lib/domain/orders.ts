@@ -31,6 +31,7 @@ export interface CreateOrderParams {
   stageId?: string | null
   closingDate?: string | null
   description?: string | null
+  name?: string | null
   carrier?: string | null
   trackingNumber?: string | null
   shippingAddress?: string | null
@@ -51,10 +52,12 @@ export interface UpdateOrderParams {
   contactId?: string | null
   closingDate?: string | null
   description?: string | null
+  name?: string | null
   carrier?: string | null
   trackingNumber?: string | null
   shippingAddress?: string | null
   shippingCity?: string | null
+  shippingDepartment?: string | null
   customFields?: Record<string, unknown>
   products?: Array<{
     productId?: string | null
@@ -172,6 +175,7 @@ export async function createOrder(
         stage_id: stageId,
         closing_date: params.closingDate || null,
         description: params.description || null,
+        name: params.name || null,
         carrier: params.carrier || null,
         tracking_number: params.trackingNumber || null,
         shipping_address: params.shippingAddress || null,
@@ -265,7 +269,7 @@ export async function updateOrder(
     const { data: previousOrder, error: fetchError } = await supabase
       .from('orders')
       .select(
-        'workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, carrier, tracking_number, shipping_address, shipping_city, custom_fields'
+        'workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, name, carrier, tracking_number, shipping_address, shipping_city, shipping_department, custom_fields'
       )
       .eq('id', params.orderId)
       .eq('workspace_id', ctx.workspaceId)
@@ -280,10 +284,12 @@ export async function updateOrder(
     if (params.contactId !== undefined) updates.contact_id = params.contactId || null
     if (params.closingDate !== undefined) updates.closing_date = params.closingDate || null
     if (params.description !== undefined) updates.description = params.description || null
+    if (params.name !== undefined) updates.name = params.name || null
     if (params.carrier !== undefined) updates.carrier = params.carrier || null
     if (params.trackingNumber !== undefined) updates.tracking_number = params.trackingNumber || null
     if (params.shippingAddress !== undefined) updates.shipping_address = params.shippingAddress || null
     if (params.shippingCity !== undefined) updates.shipping_city = params.shippingCity || null
+    if (params.shippingDepartment !== undefined) updates.shipping_department = params.shippingDepartment || null
     if (params.customFields !== undefined) updates.custom_fields = params.customFields
 
     // Update order fields
@@ -354,10 +360,12 @@ export async function updateOrder(
       { paramKey: 'contact_id', dbColumn: 'contact_id' },
       { paramKey: 'closing_date', dbColumn: 'closing_date' },
       { paramKey: 'description', dbColumn: 'description' },
+      { paramKey: 'name', dbColumn: 'name' },
       { paramKey: 'carrier', dbColumn: 'carrier' },
       { paramKey: 'tracking_number', dbColumn: 'tracking_number' },
       { paramKey: 'shipping_address', dbColumn: 'shipping_address' },
       { paramKey: 'shipping_city', dbColumn: 'shipping_city' },
+      { paramKey: 'shipping_department', dbColumn: 'shipping_department' },
     ]
 
     for (const { paramKey, dbColumn } of fieldMappings) {

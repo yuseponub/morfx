@@ -384,8 +384,8 @@ async function executeCreateOrder(
   if (!pipelineId) throw new Error('pipelineId is required for create_order')
   if (!contactId) throw new Error('No contactId available in trigger context')
 
-  // Enrich order with trigger context data (e.g. Shopify order details)
-  const products = Array.isArray(context.products)
+  // Copy products from trigger context only when copyProducts toggle is enabled
+  const products = params.copyProducts && Array.isArray(context.products)
     ? (context.products as Array<{ sku: string; title: string; quantity: number; price: string }>).map(p => ({
         sku: p.sku || '',
         title: p.title,
@@ -413,6 +413,19 @@ async function executeCreateOrder(
     ? String(params.shippingDepartment)
     : (context.shippingDepartment as string) || undefined
 
+  // Pass-through fields: name, closingDate, carrier, trackingNumber, customFields
+  const name = params.name ? String(params.name) : undefined
+  const closingDate = params.closingDate ? String(params.closingDate) : undefined
+  const carrier = params.carrier
+    ? String(params.carrier)
+    : (context.carrier as string) || undefined
+  const trackingNumber = params.trackingNumber
+    ? String(params.trackingNumber)
+    : (context.trackingNumber as string) || undefined
+  const customFields = params.customFields
+    ? (typeof params.customFields === 'object' ? params.customFields as Record<string, unknown> : undefined)
+    : undefined
+
   const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
   const result = await domainCreateOrder(ctx, {
     pipelineId,
@@ -423,6 +436,11 @@ async function executeCreateOrder(
     shippingCity,
     shippingDepartment,
     description,
+    name,
+    closingDate,
+    carrier,
+    trackingNumber,
+    customFields,
   })
 
   if (!result.success) throw new Error(result.error || 'Failed to create order')

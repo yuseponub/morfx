@@ -19,7 +19,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 ### Standalone: Action Fields Audit (2026-02-17) — IN PROGRESS
 
 Plans executed:
-- Plan 01: Executor field pass-through fixes (COMPLETE — parallel)
+- Plan 01: Executor field pass-through fixes (COMPLETE + SUMMARY)
 - Plan 02: Duplicate order toggle fixes (COMPLETE)
 
 ### Standalone: Real Fields Fix (2026-02-17) — COMPLETE
@@ -75,6 +75,8 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Order name labeled "Referencia" — users think of order refs as codes
 - Contact detail prefers stored department over city-derived (Shopify compat)
 - duplicate_order copy flags default to true via `!== false` for backward compat
+- copyProducts toggle in create_order is opt-in only (prevents unintended product duplication)
+- carrier/trackingNumber in create_order fall back to trigger context values if not set explicitly
 
 ### Project Rules
 
@@ -100,7 +102,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 18:27 COT
-Stopped at: Completed action-fields-audit Plan 02 (duplicate_order toggles)
+Last session: 2026-02-17 18:30 COT
+Stopped at: Completed action-fields-audit Plan 01 (executor field pass-through) + SUMMARY created
 Resume file: None
-Next: Continue action-fields-audit remaining plans or new standalone task
+Next: Continue action-fields-audit remaining plans (03, 04) or new standalone task

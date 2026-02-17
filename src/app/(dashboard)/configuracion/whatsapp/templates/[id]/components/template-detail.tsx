@@ -83,7 +83,7 @@ export function TemplateDetail({ template }: TemplateDetailProps) {
         </div>
       </div>
 
-      {template.rejected_reason && (
+      {template.status === 'REJECTED' && template.rejected_reason && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="pt-6">
             <div className="flex gap-3">

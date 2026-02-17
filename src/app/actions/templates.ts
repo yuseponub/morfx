@@ -382,7 +382,7 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
         .update({
           status: normalizedStatus,
           quality_rating: remote.quality_score?.score || null,
-          rejected_reason: remote.rejected_reason || null,
+          rejected_reason: (remote.rejected_reason && remote.rejected_reason !== 'NONE') ? remote.rejected_reason : null,
           approved_at: normalizedStatus === 'APPROVED' ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
         })

@@ -128,7 +128,7 @@ export function TemplateList({ templates }: TemplateListProps) {
 
           {expandedId === template.id && (
             <CardContent className="pt-0 pb-4">
-              {template.rejected_reason && (
+              {template.status === 'REJECTED' && template.rejected_reason && (
                 <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg mb-3">
                   <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
                   <div>

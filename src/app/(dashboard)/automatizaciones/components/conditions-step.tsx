@@ -54,8 +54,8 @@ const OPERATORS: { value: ConditionOperator; label: string }[] = [
 const NO_VALUE_OPERATORS: ConditionOperator[] = ['exists', 'not_exists']
 
 // Fields that use a pipeline/stage dropdown instead of free-text input
-const PIPELINE_FIELD = 'orden.pipeline_id'
-const STAGE_FIELD = 'orden.stage_id'
+const PIPELINE_FIELDS = ['orden.pipeline_id', 'orden.pipeline']
+const STAGE_FIELDS = ['orden.stage_id', 'orden.stage']
 
 // ============================================================================
 // Helpers
@@ -79,25 +79,32 @@ function getVariableFields(triggerType: TriggerType): { path: string; label: str
 }
 
 /**
- * Resolve a UUID to a human-readable name for display.
- * Returns the name if found, otherwise the raw UUID truncated.
+ * Resolve a value to a human-readable name for display.
+ * Handles both UUID-based (pipeline_id/stage_id) and name-based (pipeline/stage) fields.
  */
-function resolveUuidLabel(
+function resolveDisplayLabel(
   value: string,
   field: string,
   pipelines: PipelineWithStages[]
 ): string {
   if (!value || pipelines.length === 0) return value
 
-  if (field === PIPELINE_FIELD) {
-    const found = pipelines.find((p) => p.id === value)
-    return found ? found.name : value
+  if (PIPELINE_FIELDS.includes(field)) {
+    // For ID fields, look up by ID; for name fields, the value IS the name
+    if (field.endsWith('_id')) {
+      const found = pipelines.find((p) => p.id === value)
+      return found ? found.name : value
+    }
+    return value
   }
 
-  if (field === STAGE_FIELD) {
-    for (const p of pipelines) {
-      const stage = p.stages.find((s) => s.id === value)
-      if (stage) return `${stage.name} (${p.name})`
+  if (STAGE_FIELDS.includes(field)) {
+    if (field.endsWith('_id')) {
+      for (const p of pipelines) {
+        const stage = p.stages.find((s) => s.id === value)
+        if (stage) return `${stage.name} (${p.name})`
+      }
+      return value
     }
     return value
   }
@@ -120,9 +127,10 @@ function ConditionValueInput({
 }) {
   const { field, value } = condition
   const strValue = String(value ?? '')
+  const useIds = field.endsWith('_id')
 
-  // Pipeline dropdown
-  if (field === PIPELINE_FIELD && pipelines.length > 0) {
+  // Pipeline dropdown (works for both orden.pipeline_id and orden.pipeline)
+  if (PIPELINE_FIELDS.includes(field) && pipelines.length > 0) {
     return (
       <Select
         value={strValue}
@@ -130,12 +138,12 @@ function ConditionValueInput({
       >
         <SelectTrigger className="h-9 text-xs">
           <SelectValue placeholder="Pipeline...">
-            {resolveUuidLabel(strValue, field, pipelines)}
+            {resolveDisplayLabel(strValue, field, pipelines)}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {pipelines.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
+            <SelectItem key={useIds ? p.id : p.name} value={useIds ? p.id : p.name}>
               {p.name}
             </SelectItem>
           ))}
@@ -144,8 +152,8 @@ function ConditionValueInput({
     )
   }
 
-  // Stage dropdown (grouped by pipeline)
-  if (field === STAGE_FIELD && pipelines.length > 0) {
+  // Stage dropdown (works for both orden.stage_id and orden.stage)
+  if (STAGE_FIELDS.includes(field) && pipelines.length > 0) {
     return (
       <Select
         value={strValue}
@@ -153,7 +161,7 @@ function ConditionValueInput({
       >
         <SelectTrigger className="h-9 text-xs">
           <SelectValue placeholder="Etapa...">
-            {resolveUuidLabel(strValue, field, pipelines)}
+            {resolveDisplayLabel(strValue, field, pipelines)}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -163,7 +171,7 @@ function ConditionValueInput({
                 {p.name}
               </SelectLabel>
               {p.stages.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
+                <SelectItem key={useIds ? s.id : s.name} value={useIds ? s.id : s.name}>
                   {s.name}
                 </SelectItem>
               ))}

@@ -73,13 +73,13 @@ function applyOperator(
     case 'equals':
       // Missing/null context value: false
       if (contextValue === null || contextValue === undefined) return false
-      // String coercion for comparison
-      return String(contextValue) === String(conditionValue)
+      // String coercion + trim for comparison (prevents whitespace mismatches)
+      return String(contextValue).trim() === String(conditionValue).trim()
 
     case 'not_equals':
       // Missing/null context value: true (it is indeed "not equal" to something)
       if (contextValue === null || contextValue === undefined) return true
-      return String(contextValue) !== String(conditionValue)
+      return String(contextValue).trim() !== String(conditionValue).trim()
 
     case 'contains': {
       if (contextValue === null || contextValue === undefined) return false

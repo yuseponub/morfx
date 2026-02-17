@@ -81,6 +81,12 @@ export interface DuplicateOrderParams {
   sourceOrderId: string
   targetPipelineId: string
   targetStageId?: string | null
+  /** Copy contact_id from source? Default: true */
+  copyContact?: boolean
+  /** Copy products from source? Default: true */
+  copyProducts?: boolean
+  /** Copy total_value from source? Default: true */
+  copyValue?: boolean
 }
 
 export interface AddOrderTagParams {
@@ -614,18 +620,24 @@ export async function duplicateOrder(
       targetStageId = firstStage.id
     }
 
+    // Resolve copy flags (default true for backward compatibility)
+    const shouldCopyContact = params.copyContact !== false
+    const shouldCopyProducts = params.copyProducts !== false
+    const shouldCopyValue = params.copyValue !== false
+
     // Create new order with source_order_id reference
     const { data: newOrder, error: createError } = await supabase
       .from('orders')
       .insert({
         workspace_id: ctx.workspaceId,
-        contact_id: sourceOrder.contact_id,
+        contact_id: shouldCopyContact ? sourceOrder.contact_id : null,
         pipeline_id: params.targetPipelineId,
         stage_id: targetStageId,
         source_order_id: params.sourceOrderId,
         description: sourceOrder.description,
         shipping_address: sourceOrder.shipping_address,
         shipping_city: sourceOrder.shipping_city,
+        shipping_department: sourceOrder.shipping_department,
         carrier: sourceOrder.carrier,
         tracking_number: sourceOrder.tracking_number,
         custom_fields: sourceOrder.custom_fields || {},
@@ -637,46 +649,83 @@ export async function duplicateOrder(
       return { success: false, error: `Error al duplicar el pedido: ${createError?.message}` }
     }
 
-    // Copy products
-    const sourceProducts = sourceOrder.order_products as Array<{
-      title: string
-      sku: string
-      unit_price: number
-      quantity: number
-      product_id: string | null
-    }> | null
+    // Copy products only if configured
+    if (shouldCopyProducts) {
+      const sourceProducts = sourceOrder.order_products as Array<{
+        title: string
+        sku: string
+        unit_price: number
+        quantity: number
+        product_id: string | null
+      }> | null
 
-    if (sourceProducts && sourceProducts.length > 0) {
-      const productsToInsert = sourceProducts.map((p) => ({
-        order_id: newOrder.id,
-        product_id: p.product_id || null,
-        sku: p.sku,
-        title: p.title,
-        unit_price: p.unit_price,
-        quantity: p.quantity,
-      }))
+      if (sourceProducts && sourceProducts.length > 0) {
+        const productsToInsert = sourceProducts.map((p) => ({
+          order_id: newOrder.id,
+          product_id: p.product_id || null,
+          sku: p.sku,
+          title: p.title,
+          unit_price: p.unit_price,
+          quantity: p.quantity,
+        }))
 
-      await supabase.from('order_products').insert(productsToInsert)
+        await supabase.from('order_products').insert(productsToInsert)
+      }
     }
 
-    // Re-read total_value after products insert
-    const { data: finalOrder } = await supabase
-      .from('orders')
-      .select('total_value')
-      .eq('id', newOrder.id)
-      .single()
+    // Set total_value: from products if copied, from source if copyValue, else 0
+    if (shouldCopyProducts) {
+      // Re-read total_value after products insert (DB trigger may recalculate)
+      const { data: finalOrder } = await supabase
+        .from('orders')
+        .select('total_value')
+        .eq('id', newOrder.id)
+        .single()
 
-    // Fire-and-forget: emit automation trigger
-    await emitOrderCreated({
-      workspaceId: ctx.workspaceId,
-      orderId: newOrder.id,
-      pipelineId: params.targetPipelineId,
-      stageId: targetStageId,
-      contactId: sourceOrder.contact_id ?? null,
-      totalValue: finalOrder?.total_value ?? sourceOrder.total_value ?? 0,
-      sourceOrderId: params.sourceOrderId,
-      cascadeDepth: ctx.cascadeDepth,
-    })
+      // If NOT copying value, zero it out even though products were copied
+      if (!shouldCopyValue) {
+        await supabase
+          .from('orders')
+          .update({ total_value: 0 })
+          .eq('id', newOrder.id)
+      }
+
+      // Emit trigger with appropriate value
+      const totalValue = shouldCopyValue
+        ? (finalOrder?.total_value ?? sourceOrder.total_value ?? 0)
+        : 0
+
+      await emitOrderCreated({
+        workspaceId: ctx.workspaceId,
+        orderId: newOrder.id,
+        pipelineId: params.targetPipelineId,
+        stageId: targetStageId,
+        contactId: shouldCopyContact ? (sourceOrder.contact_id ?? null) : null,
+        totalValue,
+        sourceOrderId: params.sourceOrderId,
+        cascadeDepth: ctx.cascadeDepth,
+      })
+    } else {
+      // No products copied
+      if (shouldCopyValue && sourceOrder.total_value) {
+        // Copy value without products (explicit total)
+        await supabase
+          .from('orders')
+          .update({ total_value: sourceOrder.total_value })
+          .eq('id', newOrder.id)
+      }
+
+      await emitOrderCreated({
+        workspaceId: ctx.workspaceId,
+        orderId: newOrder.id,
+        pipelineId: params.targetPipelineId,
+        stageId: targetStageId,
+        contactId: shouldCopyContact ? (sourceOrder.contact_id ?? null) : null,
+        totalValue: shouldCopyValue ? (sourceOrder.total_value ?? 0) : 0,
+        sourceOrderId: params.sourceOrderId,
+        cascadeDepth: ctx.cascadeDepth,
+      })
+    }
 
     return {
       success: true,

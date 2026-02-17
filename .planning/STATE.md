@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: standalone/real-fields-fix (executing)
-Plan: 01 of 03
+Plan: 02 of 03
 Status: In progress
-Last activity: 2026-02-17 — Completed standalone/real-fields-fix Plan 01 (DB migration + types)
+Last activity: 2026-02-17 — Completed standalone/real-fields-fix Plan 02 (Backend pipeline)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [###-------] 33% real-fields
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [######----] 67% real-fields
 
 ### Standalone: Real Fields Fix (2026-02-17) — IN PROGRESS
 
 3 plans total:
 - Plan 01: Database migrations + TypeScript types (COMPLETE)
-- Plan 02: Form UI updates (pending)
-- Plan 03: Server actions and data flow (pending)
+- Plan 02: Backend pipeline — Shopify, server actions, enrichment (COMPLETE)
+- Plan 03: Form UI updates (pending)
 
 ### Standalone: CRM Orders Performance (2026-02-17) — IN PROGRESS
 
@@ -54,7 +54,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 30 (29 milestone + 1 standalone)
-- Total plans completed: 141
+- Total plans completed: 142
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -64,6 +64,7 @@ All 9 phases + 5 inserted phases completed:
 Decisions logged in PROJECT.md Key Decisions table.
 
 - Added name and shipping_department to updateOrder automation fieldMappings (critical for field.changed triggers)
+- Enrichment orderName fallback chain: order.name -> order.description -> truncated UUID (backward compat)
 
 ### Project Rules
 
@@ -89,7 +90,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 17:21 COT
-Stopped at: Completed standalone/real-fields-fix Plan 01
+Last session: 2026-02-17 17:28 COT
+Stopped at: Completed standalone/real-fields-fix Plan 02
 Resume file: None
-Next: Execute standalone/real-fields-fix Plan 02
+Next: Execute standalone/real-fields-fix Plan 03

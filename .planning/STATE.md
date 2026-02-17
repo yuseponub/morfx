@@ -5,16 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Planning standalone/crm-orders-performance
+**Current focus:** Executing standalone/crm-orders-performance
 
 ## Current Position
 
-Phase: standalone/crm-orders-performance (planning)
-Plan: N/A
-Status: Planning
-Last activity: 2026-02-17 — Completed standalone/whatsapp-performance (4/4 plans, user approved)
+Phase: standalone/crm-orders-performance (executing)
+Plan: 01 of 03
+Status: In progress
+Last activity: 2026-02-17 — Completed standalone/crm-orders-performance Plan 01 (scroll fix + paginated actions)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [###-------] 33% CRM perf
+
+### Standalone: CRM Orders Performance (2026-02-17) — IN PROGRESS
+
+3 plans total:
+- Plan 01: Kanban scroll fix + paginated server actions (COMPLETE)
+- Plan 02: Infinite scroll with IntersectionObserver (pending)
+- Plan 03: Virtualization and final optimization (pending)
 
 ### Standalone: WhatsApp Performance (2026-02-17) — COMPLETE
 
@@ -40,7 +47,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 30 (29 milestone + 1 standalone)
-- Total plans completed: 138
+- Total plans completed: 139
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -73,7 +80,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 07:00 COT
-Stopped at: WhatsApp performance phase complete, starting CRM orders performance
+Last session: 2026-02-17 07:43 COT
+Stopped at: Completed standalone/crm-orders-performance Plan 01
 Resume file: None
-Next: Plan standalone/crm-orders-performance
+Next: Execute standalone/crm-orders-performance Plan 02

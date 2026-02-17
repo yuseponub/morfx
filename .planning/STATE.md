@@ -5,16 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Between standalone tasks
+**Current focus:** Standalone: action-fields-audit (in progress)
 
 ## Current Position
 
-Phase: standalone/real-fields-fix (complete)
-Plan: 03 of 03
-Status: Phase complete
-Last activity: 2026-02-17 — Completed standalone/real-fields-fix Plan 03 (CRM UI)
+Phase: standalone/action-fields-audit (in progress)
+Plan: 02 of N
+Status: In progress
+Last activity: 2026-02-17 — Completed action-fields-audit Plan 02 (duplicate_order toggles)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [####------] action-fields
+
+### Standalone: Action Fields Audit (2026-02-17) — IN PROGRESS
+
+Plans executed:
+- Plan 01: Executor field pass-through fixes (COMPLETE — parallel)
+- Plan 02: Duplicate order toggle fixes (COMPLETE)
 
 ### Standalone: Real Fields Fix (2026-02-17) — COMPLETE
 
@@ -68,6 +74,7 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Department auto-derived from city selection (not shown as separate input in forms)
 - Order name labeled "Referencia" — users think of order refs as codes
 - Contact detail prefers stored department over city-derived (Shopify compat)
+- duplicate_order copy flags default to true via `!== false` for backward compat
 
 ### Project Rules
 
@@ -93,7 +100,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 17:38 COT
-Stopped at: Completed standalone/real-fields-fix Plan 03 (phase complete)
+Last session: 2026-02-17 18:27 COT
+Stopped at: Completed action-fields-audit Plan 02 (duplicate_order toggles)
 Resume file: None
-Next: Execute standalone/crm-orders-performance Plan 03 or new standalone task
+Next: Continue action-fields-audit remaining plans or new standalone task

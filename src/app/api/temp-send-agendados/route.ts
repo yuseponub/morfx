@@ -61,6 +61,11 @@ const CITY_DEPARTMENT: Record<string, string> = {
   'fusagasugá': 'Cundinamarca',
   'chia': 'Cundinamarca',
   'chía': 'Cundinamarca',
+  'pueblo bello': 'Cesar',
+  'neiva huila': 'Huila',
+  'flandesparquevictoria': 'Tolima',
+  'flandes': 'Tolima',
+  'el cocuy': 'Boyacá',
 }
 
 function getDepartment(city: string | null): string {

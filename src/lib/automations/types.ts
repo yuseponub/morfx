@@ -204,6 +204,8 @@ export interface TriggerContext {
   contactPhone?: string
   contactEmail?: string
   contactCity?: string
+  contactDepartment?: string
+  contactAddress?: string
   // Tag context
   tagId?: string
   tagName?: string

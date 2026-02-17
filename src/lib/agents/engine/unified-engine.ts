@@ -15,6 +15,7 @@
  */
 
 import { SomnioAgent } from '../somnio/somnio-agent'
+import { VersionConflictError } from '../errors'
 import type { ClaudeModelId } from '../types'
 import type {
   EngineInput,
@@ -22,6 +23,8 @@ import type {
   EngineConfig,
   EngineAdapters,
 } from './types'
+
+const MAX_VERSION_CONFLICT_RETRIES = 3
 
 export class UnifiedEngine {
   private somnioAgent: SomnioAgent
@@ -40,7 +43,7 @@ export class UnifiedEngine {
    * This method is a thin runner — it fetches data via adapters, delegates all
    * business logic to SomnioAgent, and routes agent output back through adapters.
    */
-  async processMessage(input: EngineInput): Promise<EngineOutput> {
+  async processMessage(input: EngineInput, retryCount = 0): Promise<EngineOutput> {
     try {
       // 1. Get session via storage adapter
       // Production passes empty sessionId — use getOrCreateSession via conversationId
@@ -302,6 +305,11 @@ export class UnifiedEngine {
         error: agentOutput.error,
       }
     } catch (error) {
+      if (error instanceof VersionConflictError && retryCount < MAX_VERSION_CONFLICT_RETRIES) {
+        console.warn(`[ENGINE] Version conflict, retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
+        return this.processMessage(input, retryCount + 1)
+      }
+
       const errorMessage = error instanceof Error
         ? `${error.message}\n${(error as Error).stack?.split('\n').slice(0, 3).join('\n')}`
         : 'Unknown error'

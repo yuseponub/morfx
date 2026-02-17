@@ -393,7 +393,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
             const { data: order } = await supabase
               .from('orders')
               .select(`
-                id, name, pipeline_id, stage_id, total_value,
+                id, pipeline_id, stage_id, total_value,
                 shipping_address, shipping_city, shipping_department, description,
                 contacts:contact_id (id, name, phone, email, address, city, department)
               `)
@@ -412,7 +412,6 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
             const contact = Array.isArray(order.contacts) ? order.contacts[0] : order.contacts
             return {
               orderId: order.id,
-              orderName: order.name,
               pipelineId: order.pipeline_id,
               pipelineName: pipeline?.name,
               stageId: order.stage_id,

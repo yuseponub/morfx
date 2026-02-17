@@ -43,7 +43,7 @@ import { PipelineTabs } from './pipeline-tabs'
 import { StageEditDialog } from './stage-edit-dialog'
 import { OrderForm } from './order-form'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
-import { deleteOrder, deleteOrders, exportOrdersToCSV } from '@/app/actions/orders'
+import { deleteOrder, deleteOrders, exportOrdersToCSV, getOrdersForStage, getStageOrderCounts } from '@/app/actions/orders'
 import { useOrderSearch } from '@/lib/search/fuse-config'
 import type { User } from '@supabase/supabase-js'
 import { toast } from 'sonner'
@@ -103,8 +103,71 @@ export function OrdersView({
   const [selectedStageId, setSelectedStageId] = React.useState<string | null>(null)
   const [selectedTagIds, setSelectedTagIds] = React.useState<string[]>([])
 
+  // Per-stage paginated orders for Kanban
+  const [kanbanOrders, setKanbanOrders] = React.useState<Record<string, OrderWithDetails[]>>({})
+  const [kanbanHasMore, setKanbanHasMore] = React.useState<Record<string, boolean>>({})
+  const [kanbanCounts, setKanbanCounts] = React.useState<Record<string, number>>({})
+  const [kanbanLoading, setKanbanLoading] = React.useState<Record<string, boolean>>({})
+  const [kanbanInitialized, setKanbanInitialized] = React.useState(false)
+
   // Fuzzy search
   const { query: searchQuery, setQuery: setSearchQuery, results: searchResults } = useOrderSearch(orders)
+
+  // Load initial orders per stage when pipeline changes (Kanban mode)
+  React.useEffect(() => {
+    if (!activePipelineId || viewMode !== 'kanban') return
+
+    const activePipeline = pipelines.find(p => p.id === activePipelineId)
+    if (!activePipeline) return
+
+    let cancelled = false
+
+    const loadInitial = async () => {
+      const stageIds = activePipeline.stages.map(s => s.id)
+
+      const [counts, ...stageResults] = await Promise.all([
+        getStageOrderCounts(activePipelineId),
+        ...stageIds.map(stageId => getOrdersForStage(stageId, 20, 0))
+      ])
+
+      if (cancelled) return
+
+      const newOrders: Record<string, OrderWithDetails[]> = {}
+      const newHasMore: Record<string, boolean> = {}
+
+      stageIds.forEach((stageId, i) => {
+        newOrders[stageId] = stageResults[i].orders
+        newHasMore[stageId] = stageResults[i].hasMore
+      })
+
+      setKanbanOrders(newOrders)
+      setKanbanHasMore(newHasMore)
+      setKanbanCounts(counts)
+      setKanbanInitialized(true)
+    }
+
+    setKanbanInitialized(false)
+    loadInitial()
+
+    return () => { cancelled = true }
+  }, [activePipelineId, viewMode, pipelines])
+
+  // Load more orders for a specific stage (infinite scroll)
+  const handleLoadMore = React.useCallback(async (stageId: string) => {
+    if (kanbanLoading[stageId] || !kanbanHasMore[stageId]) return
+
+    setKanbanLoading(prev => ({ ...prev, [stageId]: true }))
+
+    const currentCount = kanbanOrders[stageId]?.length || 0
+    const result = await getOrdersForStage(stageId, 20, currentCount)
+
+    setKanbanOrders(prev => ({
+      ...prev,
+      [stageId]: [...(prev[stageId] || []), ...result.orders]
+    }))
+    setKanbanHasMore(prev => ({ ...prev, [stageId]: result.hasMore }))
+    setKanbanLoading(prev => ({ ...prev, [stageId]: false }))
+  }, [kanbanOrders, kanbanHasMore, kanbanLoading])
 
   // Sheet states
   const [formSheetOpen, setFormSheetOpen] = React.useState(false)
@@ -203,6 +266,9 @@ export function OrdersView({
         toast.success(`${result.data?.deleted} pedido(s) eliminado(s)`)
         clearSelection()
         router.refresh()
+        if (viewMode === 'kanban' && activePipelineId) {
+          setKanbanInitialized(false)
+        }
       }
     } finally {
       setIsBulkDeleting(false)
@@ -286,12 +352,42 @@ export function OrdersView({
 
   // Group orders by stage for Kanban
   const ordersByStage: OrdersByStage = React.useMemo(() => {
+    if (viewMode === 'kanban' && kanbanInitialized) {
+      // Use paginated per-stage data
+      const grouped: OrdersByStage = {}
+      for (const stage of stages) {
+        let stageOrders = kanbanOrders[stage.id] || []
+
+        // Apply client-side filters on loaded orders
+        if (searchQuery.trim()) {
+          const lowerQuery = searchQuery.toLowerCase()
+          stageOrders = stageOrders.filter(o =>
+            o.contact?.name?.toLowerCase().includes(lowerQuery) ||
+            o.contact?.phone?.includes(lowerQuery) ||
+            o.products?.some(p => p.title.toLowerCase().includes(lowerQuery)) ||
+            o.tracking_number?.toLowerCase().includes(lowerQuery) ||
+            o.description?.toLowerCase().includes(lowerQuery)
+          )
+        }
+        if (selectedTagIds.length > 0) {
+          stageOrders = stageOrders.filter(o => {
+            const orderTagIds = o.tags.map(t => t.id)
+            return selectedTagIds.some(tagId => orderTagIds.includes(tagId))
+          })
+        }
+
+        grouped[stage.id] = stageOrders
+      }
+      return grouped
+    }
+
+    // Fallback: use full orders (list view or before kanban initialized)
     const grouped: OrdersByStage = {}
     for (const stage of stages) {
       grouped[stage.id] = filteredOrders.filter((o) => o.stage_id === stage.id)
     }
     return grouped
-  }, [filteredOrders, stages])
+  }, [viewMode, kanbanInitialized, kanbanOrders, stages, searchQuery, selectedTagIds, filteredOrders])
 
   // Check if any filters are active
   const hasActiveFilters =
@@ -356,6 +452,9 @@ export function OrdersView({
     } else {
       toast.success('Pedido eliminado')
       router.refresh()
+      if (viewMode === 'kanban' && activePipelineId) {
+        setKanbanInitialized(false)
+      }
     }
     setDeleteDialogOpen(false)
     setOrderToDelete(null)
@@ -367,6 +466,10 @@ export function OrdersView({
     setEditingOrder(null)
     toast.success(editingOrder ? 'Pedido actualizado' : 'Pedido creado')
     router.refresh()
+    // Reload kanban data for affected pipeline
+    if (viewMode === 'kanban' && activePipelineId) {
+      setKanbanInitialized(false)
+    }
   }
 
   // Handle form close
@@ -574,6 +677,10 @@ export function OrdersView({
             onAddStage={handleAddStage}
             selectedOrderIds={selectedOrderIds}
             onOrderSelectChange={handleOrderSelectChange}
+            stageCounts={kanbanCounts}
+            stageHasMore={kanbanHasMore}
+            stageLoading={kanbanLoading}
+            onLoadMore={handleLoadMore}
           />
         ) : (
           <DataTable

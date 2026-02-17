@@ -40,6 +40,10 @@ interface KanbanBoardProps {
   selectedOrderIds?: Set<string>
   onOrderSelectChange?: (orderId: string, selected: boolean) => void
   onStagesReorder?: (stages: PipelineStage[]) => void
+  stageCounts?: Record<string, number>
+  stageHasMore?: Record<string, boolean>
+  stageLoading?: Record<string, boolean>
+  onLoadMore?: (stageId: string) => void
 }
 
 /**
@@ -102,6 +106,10 @@ export function KanbanBoard({
   selectedOrderIds,
   onOrderSelectChange,
   onStagesReorder,
+  stageCounts,
+  stageHasMore,
+  stageLoading,
+  onLoadMore,
 }: KanbanBoardProps) {
   // Track the order being dragged for overlay
   const [activeOrder, setActiveOrder] = React.useState<OrderWithDetails | null>(null)
@@ -317,6 +325,10 @@ export function KanbanBoard({
               onAddStage={onAddStage}
               selectedOrderIds={selectedOrderIds}
               onOrderSelectChange={onOrderSelectChange}
+              totalCount={stageCounts?.[stage.id]}
+              hasMore={stageHasMore?.[stage.id] ?? false}
+              isLoadingMore={stageLoading?.[stage.id] ?? false}
+              onLoadMore={onLoadMore ? () => onLoadMore(stage.id) : undefined}
             />
           ))}
         </div>

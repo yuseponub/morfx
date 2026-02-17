@@ -176,11 +176,18 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
                   <p className="text-lg font-medium">
                     {city.label}
                     <span className="text-muted-foreground ml-2 text-sm">
-                      {city.department}
+                      {contact.department || city.department}
                     </span>
                   </p>
                 ) : contact.city ? (
-                  <p className="text-lg font-medium">{contact.city}</p>
+                  <p className="text-lg font-medium">
+                    {contact.city}
+                    {contact.department && (
+                      <span className="text-muted-foreground ml-2 text-sm">
+                        {contact.department}
+                      </span>
+                    )}
+                  </p>
                 ) : (
                   <p className="text-muted-foreground">No especificada</p>
                 )}

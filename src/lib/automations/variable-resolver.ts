@@ -228,6 +228,7 @@ export function buildTriggerContext(
   if (eventData.products !== undefined) shopify.productos = JSON.stringify(eventData.products)
   if (eventData.shippingAddress !== undefined) shopify.direccion_envio = eventData.shippingAddress
   if (eventData.shippingCity !== undefined) shopify.ciudad_envio = eventData.shippingCity
+  if (eventData.shippingDepartment !== undefined) shopify.departamento_envio = eventData.shippingDepartment
   if (eventData.tags !== undefined) shopify.tags = eventData.tags
   if (eventData.status !== undefined) shopify.status = eventData.status
   if (Object.keys(shopify).length > 0) context.shopify = shopify

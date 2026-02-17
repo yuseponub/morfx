@@ -325,6 +325,7 @@ export function emitShopifyOrderCreated(data: {
   products: Array<{ sku: string; title: string; quantity: number; price: string }>
   shippingAddress: string | null
   shippingCity: string | null
+  shippingDepartment: string | null
   tags: string | null
   contactId?: string
   contactName?: string
@@ -388,6 +389,7 @@ export function emitShopifyOrderUpdated(data: {
   products: Array<{ sku: string; title: string; quantity: number; price: string }>
   shippingAddress: string | null
   shippingCity: string | null
+  shippingDepartment: string | null
   tags: string | null
   contactId?: string
   contactName?: string

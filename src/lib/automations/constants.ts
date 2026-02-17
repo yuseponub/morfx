@@ -120,7 +120,7 @@ export const TRIGGER_CATALOG = [
     category: 'Shopify',
     description: 'Se dispara cuando llega una orden nueva desde Shopify',
     configFields: [],
-    variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
+    variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.ciudad_envio', 'shopify.departamento_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
   },
   {
     type: 'shopify.draft_order_created',
@@ -136,7 +136,7 @@ export const TRIGGER_CATALOG = [
     category: 'Shopify',
     description: 'Se dispara cuando una orden existente de Shopify se actualiza',
     configFields: [],
-    variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.fulfillment_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
+    variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.fulfillment_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.ciudad_envio', 'shopify.departamento_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
   },
 ] as const
 
@@ -192,6 +192,10 @@ export const ACTION_CATALOG = [
     params: [
       { name: 'pipelineId', label: 'Pipeline', type: 'select', required: true },
       { name: 'stageId', label: 'Etapa', type: 'select', required: false },
+      { name: 'description', label: 'Descripcion', type: 'text', required: false, supportsVariables: true },
+      { name: 'shippingAddress', label: 'Direccion de envio', type: 'text', required: false, supportsVariables: true },
+      { name: 'shippingCity', label: 'Ciudad de envio', type: 'text', required: false, supportsVariables: true },
+      { name: 'shippingDepartment', label: 'Departamento de envio', type: 'text', required: false, supportsVariables: true },
       { name: 'copyProducts', label: 'Copiar productos', type: 'boolean', required: false },
       { name: 'copyTags', label: 'Copiar tags', type: 'boolean', required: false },
     ],
@@ -388,6 +392,8 @@ export const VARIABLE_CATALOG = {
     { path: 'shopify.note', label: 'Nota de la orden' },
     { path: 'shopify.productos', label: 'Productos (SKU, cantidad, precio)' },
     { path: 'shopify.direccion_envio', label: 'Direccion de envio' },
+    { path: 'shopify.ciudad_envio', label: 'Ciudad de envio' },
+    { path: 'shopify.departamento_envio', label: 'Departamento de envio' },
     { path: 'shopify.tags', label: 'Tags de Shopify' },
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'contacto.telefono', label: 'Telefono del contacto' },
@@ -414,6 +420,8 @@ export const VARIABLE_CATALOG = {
     { path: 'shopify.note', label: 'Nota de la orden' },
     { path: 'shopify.productos', label: 'Productos (SKU, cantidad, precio)' },
     { path: 'shopify.direccion_envio', label: 'Direccion de envio' },
+    { path: 'shopify.ciudad_envio', label: 'Ciudad de envio' },
+    { path: 'shopify.departamento_envio', label: 'Departamento de envio' },
     { path: 'shopify.tags', label: 'Tags de Shopify' },
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'contacto.telefono', label: 'Telefono del contacto' },

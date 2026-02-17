@@ -35,6 +35,7 @@ export interface CreateOrderParams {
   trackingNumber?: string | null
   shippingAddress?: string | null
   shippingCity?: string | null
+  shippingDepartment?: string | null
   customFields?: Record<string, unknown>
   products?: Array<{
     productId?: string | null
@@ -175,6 +176,7 @@ export async function createOrder(
         tracking_number: params.trackingNumber || null,
         shipping_address: params.shippingAddress || null,
         shipping_city: params.shippingCity || null,
+        shipping_department: params.shippingDepartment || null,
         custom_fields: params.customFields || {},
       })
       .select('id, total_value, stage_id')

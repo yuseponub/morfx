@@ -394,9 +394,24 @@ async function executeCreateOrder(
       }))
     : undefined
 
-  const description = context.shopifyOrderNumber
-    ? `Shopify ${context.shopifyOrderNumber}`
-    : undefined
+  // Use explicit params if provided, fallback to trigger context
+  const description = params.description
+    ? String(params.description)
+    : context.shopifyOrderNumber
+      ? `Shopify ${context.shopifyOrderNumber}`
+      : undefined
+
+  const shippingAddress = params.shippingAddress
+    ? String(params.shippingAddress)
+    : (context.shippingAddress as string) || undefined
+
+  const shippingCity = params.shippingCity
+    ? String(params.shippingCity)
+    : (context.shippingCity as string) || undefined
+
+  const shippingDepartment = params.shippingDepartment
+    ? String(params.shippingDepartment)
+    : (context.shippingDepartment as string) || undefined
 
   const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
   const result = await domainCreateOrder(ctx, {
@@ -404,8 +419,9 @@ async function executeCreateOrder(
     stageId,
     contactId,
     products,
-    shippingAddress: (context.shippingAddress as string) || undefined,
-    shippingCity: (context.shippingCity as string) || undefined,
+    shippingAddress,
+    shippingCity,
+    shippingDepartment,
     description,
   })
 

@@ -10,6 +10,7 @@ import type {
 } from '@/lib/automations/types'
 import type { PipelineWithStages } from '@/lib/orders/types'
 import type { Tag } from '@/lib/types/database'
+import type { Template } from '@/lib/whatsapp/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,6 +59,7 @@ interface ActionsStepProps {
   onChange: (partial: Partial<AutomationFormData>) => void
   pipelines: PipelineWithStages[]
   tags: Tag[]
+  templates?: Template[]
   triggerType: TriggerType
 }
 
@@ -251,6 +253,7 @@ function ActionParamField({
   onChange,
   pipelines,
   tags,
+  templates,
   triggerType,
   allParams,
   helpText,
@@ -260,6 +263,7 @@ function ActionParamField({
   onChange: (val: unknown) => void
   pipelines: PipelineWithStages[]
   tags: Tag[]
+  templates: Template[]
   triggerType: TriggerType
   allParams: Record<string, unknown>
   helpText?: string
@@ -372,7 +376,35 @@ function ActionParamField({
       )
     }
 
-    // Fallback select for templateName and assignToUserId
+    // templateName: show approved templates dropdown
+    if (param.name === 'templateName') {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{param.label} {param.required && <span className="text-destructive">*</span>}</Label>
+          <Select
+            value={(value as string) ?? ''}
+            onValueChange={(val) => onChange(val || undefined)}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Seleccionar template..." />
+            </SelectTrigger>
+            <SelectContent>
+              {templates.length === 0 ? (
+                <SelectItem value="__empty" disabled>No hay templates aprobados</SelectItem>
+              ) : (
+                templates.map((t) => (
+                  <SelectItem key={t.id} value={t.name}>
+                    {t.name} <span className="text-muted-foreground">({t.language})</span>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      )
+    }
+
+    // Fallback select for assignToUserId and other select params
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{param.label} {param.required && <span className="text-destructive">*</span>}</Label>
@@ -670,6 +702,7 @@ function ActionCard({
               onChange={(val) => updateParam(param.name, val)}
               pipelines={pipelines}
               tags={tags}
+              templates={templates}
               triggerType={triggerType}
               allParams={action.params}
               helpText={actionHelpTexts[param.name]}
@@ -761,7 +794,7 @@ function ActionSelector({
 // Main Component
 // ============================================================================
 
-export function ActionsStep({ formData, onChange, pipelines, tags, triggerType }: ActionsStepProps) {
+export function ActionsStep({ formData, onChange, pipelines, tags, templates = [], triggerType }: ActionsStepProps) {
   const actions = formData.actions
   const atLimit = actions.length >= MAX_ACTIONS_PER_AUTOMATION
   const [twilioWarning, setTwilioWarning] = useState(false)

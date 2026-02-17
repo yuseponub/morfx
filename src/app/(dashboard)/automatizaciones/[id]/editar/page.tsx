@@ -4,6 +4,7 @@ import { AutomationWizard } from '../../components/automation-wizard'
 import { getAutomation } from '@/app/actions/automations'
 import { getPipelines } from '@/app/actions/pipelines'
 import { getTags } from '@/app/actions/tags'
+import { getTemplates } from '@/app/actions/templates'
 import type { AutomationFormData } from '@/lib/automations/types'
 
 interface EditPageProps {
@@ -23,11 +24,14 @@ export default async function EditarAutomatizacionPage({ params }: EditPageProps
     )
   }
 
-  const [automation, pipelines, tags] = await Promise.all([
+  const [automation, pipelines, tags, templates] = await Promise.all([
     getAutomation(id),
     getPipelines(),
     getTags(),
+    getTemplates(),
   ])
+
+  const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
 
   if (!automation) {
     notFound()
@@ -55,6 +59,7 @@ export default async function EditarAutomatizacionPage({ params }: EditPageProps
         initialData={initialData}
         pipelines={pipelines}
         tags={tags}
+        templates={approvedTemplates}
       />
     </div></div>
   )

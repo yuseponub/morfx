@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { AutomationWizard } from '../components/automation-wizard'
 import { getPipelines } from '@/app/actions/pipelines'
 import { getTags } from '@/app/actions/tags'
+import { getTemplates } from '@/app/actions/templates'
 
 export default async function NuevaAutomatizacionPage() {
   const cookieStore = await cookies()
@@ -15,10 +16,13 @@ export default async function NuevaAutomatizacionPage() {
     )
   }
 
-  const [pipelines, tags] = await Promise.all([
+  const [pipelines, tags, templates] = await Promise.all([
     getPipelines(),
     getTags(),
+    getTemplates(),
   ])
+
+  const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
 
   return (
     <div className="flex-1 overflow-y-auto"><div className="container py-6 space-y-6">
@@ -28,7 +32,7 @@ export default async function NuevaAutomatizacionPage() {
           Configura un trigger, condiciones y acciones
         </p>
       </div>
-      <AutomationWizard pipelines={pipelines} tags={tags} />
+      <AutomationWizard pipelines={pipelines} tags={tags} templates={approvedTemplates} />
     </div></div>
   )
 }

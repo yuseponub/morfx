@@ -10,6 +10,7 @@ import { createAutomation, updateAutomation } from '@/app/actions/automations'
 import type { AutomationFormData, TriggerType } from '@/lib/automations/types'
 import type { PipelineWithStages } from '@/lib/orders/types'
 import type { Tag } from '@/lib/types/database'
+import type { Template } from '@/lib/whatsapp/types'
 import { TriggerStep } from './trigger-step'
 import { ConditionsStep } from './conditions-step'
 import { ActionsStep } from './actions-step'
@@ -24,6 +25,7 @@ export interface WizardProps {
   initialData?: AutomationFormData & { id?: string }
   pipelines: PipelineWithStages[]
   tags: Tag[]
+  templates?: Template[]
 }
 
 const defaultFormData: AutomationFormData = {
@@ -45,7 +47,7 @@ const STEPS = [
 // Component
 // ============================================================================
 
-export function AutomationWizard({ initialData, pipelines, tags }: WizardProps) {
+export function AutomationWizard({ initialData, pipelines, tags, templates = [] }: WizardProps) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<AutomationFormData>(
@@ -210,6 +212,7 @@ export function AutomationWizard({ initialData, pipelines, tags }: WizardProps) 
             onChange={updateFormData}
             pipelines={pipelines}
             tags={tags}
+            templates={templates}
             triggerType={formData.trigger_type}
           />
         )}

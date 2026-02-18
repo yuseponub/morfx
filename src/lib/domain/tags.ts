@@ -134,6 +134,7 @@ export async function assignTag(
           .from('contacts')
           .select('name, phone')
           .eq('id', contactId)
+          .eq('workspace_id', ctx.workspaceId)
           .single()
         contactName = contact?.name ?? undefined
         contactPhone = contact?.phone ?? undefined
@@ -257,6 +258,7 @@ export async function removeTag(
           .from('contacts')
           .select('name, phone')
           .eq('id', contactId)
+          .eq('workspace_id', ctx.workspaceId)
           .single()
         contactName = contact?.name ?? undefined
         contactPhone = contact?.phone ?? undefined

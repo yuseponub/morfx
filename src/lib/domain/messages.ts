@@ -138,10 +138,10 @@ export async function sendTextMessage(
       .single()
 
     if (insertError || !message) {
-      // Message was sent but DB insert failed — partial success
+      // Message was sent but DB insert failed — caller must know this is NOT fully successful
       console.error('[domain/messages] sendTextMessage DB insert failed:', insertError)
       return {
-        success: true,
+        success: false,
         data: { messageId: '', waMessageId: wamid },
         error: 'Mensaje enviado pero no se pudo guardar en DB',
       }
@@ -224,7 +224,7 @@ export async function sendMediaMessage(
     if (insertError || !message) {
       console.error('[domain/messages] sendMediaMessage DB insert failed:', insertError)
       return {
-        success: true,
+        success: false,
         data: { messageId: '', waMessageId: wamid },
         error: 'Mensaje enviado pero no se pudo guardar en DB',
       }
@@ -307,7 +307,7 @@ export async function sendTemplateMessage(
     if (insertError || !message) {
       console.error('[domain/messages] sendTemplateMessage DB insert failed:', insertError)
       return {
-        success: true,
+        success: false,
         data: { messageId: '', waMessageId: wamid },
         error: 'Template enviado pero no se pudo guardar en DB',
       }

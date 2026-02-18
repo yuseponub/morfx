@@ -57,15 +57,13 @@ export function resolveVariables(
 
     // Value found but is null/undefined: replace with empty string
     if (value === null || value === undefined) {
-      // Distinguish between "path exists but value is null" and "path doesn't exist"
-      // For both cases where the path resolves to null/undefined, replace with empty string
-      // Only leave {{path}} unchanged if the top-level key doesn't exist at all
+      // Any unresolved path (null, undefined, or missing key) → empty string
+      // Never leave {{placeholder}} literals in output — they confuse WhatsApp/webhooks
       const topKey = path.split('.')[0]
-      if (topKey in context) {
-        return ''
+      if (!(topKey in context)) {
+        console.warn(`[variable-resolver] Unresolved variable: {{${path}}} — top-level key "${topKey}" not in context`)
       }
-      // Path not found at all: leave original placeholder
-      return `{{${rawPath}}}`
+      return ''
     }
 
     return String(value)

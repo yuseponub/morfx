@@ -178,6 +178,7 @@ export async function updateNote(
       .from('contact_notes')
       .update({ content: trimmed })
       .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
 
     if (updateError) {
       console.error('[domain/notes] updateNote error:', updateError)
@@ -343,6 +344,7 @@ export async function updateTaskNote(
       .from('task_notes')
       .update({ content: trimmed })
       .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
 
     if (updateError) {
       console.error('[domain/notes] updateTaskNote error:', updateError)

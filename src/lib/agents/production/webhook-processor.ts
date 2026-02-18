@@ -74,10 +74,10 @@ export async function processMessageWithAgent(
     return { success: true }
   }
 
-  // 1b. Check if conversation has "WPP" tag (order completed, bot should stop)
-  const hasWppTag = await conversationHasTag(conversationId, workspaceId, 'WPP')
-  if (hasWppTag) {
-    logger.info({ conversationId }, 'Conversation has WPP tag, skipping agent')
+  // 1b. Check if conversation has "WPP" or "P/W" tag (bot should stop)
+  const hasSkipTag = await conversationHasAnyTag(conversationId, workspaceId, ['WPP', 'P/W'])
+  if (hasSkipTag) {
+    logger.info({ conversationId }, 'Conversation has WPP or P/W tag, skipping agent')
     return { success: true }
   }
 
@@ -377,12 +377,12 @@ async function autoCreateContact(
 }
 
 /**
- * Check if a conversation has a specific tag assigned.
+ * Check if a conversation has any of the given tags assigned.
  */
-async function conversationHasTag(
+async function conversationHasAnyTag(
   conversationId: string,
   workspaceId: string,
-  tagName: string
+  tagNames: string[]
 ): Promise<boolean> {
   const supabase = createAdminClient()
   const { data } = await supabase
@@ -390,7 +390,7 @@ async function conversationHasTag(
     .select('tag:tags!inner(id)')
     .eq('conversation_id', conversationId)
     .eq('tag.workspace_id', workspaceId)
-    .eq('tag.name', tagName)
+    .in('tag.name', tagNames)
     .limit(1)
   return (data?.length ?? 0) > 0
 }

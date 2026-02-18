@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getConversationMessages } from '@/app/actions/conversations'
-import type { Message } from '@/lib/whatsapp/types'
+import type { Message, TextContent } from '@/lib/whatsapp/types'
 
 // ============================================================================
 // Types
@@ -28,6 +28,8 @@ interface UseMessagesReturn {
   loadMore: () => Promise<void>
   /** Whether there are more messages to load */
   hasMore: boolean
+  /** Add an optimistic message for instant text display */
+  addOptimisticMessage: (text: string) => void
 }
 
 // ============================================================================
@@ -105,6 +107,34 @@ export function useMessages({
     fetchMessages()
   }, [fetchMessages])
 
+  // Add an optimistic message for instant text display (client-only)
+  const addOptimisticMessage = useCallback((text: string) => {
+    if (!conversationId) return
+
+    const optimisticMsg: Message = {
+      id: `optimistic-${Date.now()}`,
+      conversation_id: conversationId,
+      workspace_id: '',
+      wamid: null,
+      direction: 'outbound',
+      type: 'text',
+      content: { body: text } as TextContent,
+      status: 'sending' as Message['status'],
+      status_timestamp: null,
+      error_code: null,
+      error_message: null,
+      media_url: null,
+      media_mime_type: null,
+      media_filename: null,
+      template_name: null,
+      sent_by_agent: false,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    }
+
+    setMessages(prev => [...prev, optimisticMsg])
+  }, [conversationId])
+
   // Set up Supabase Realtime subscription
   useEffect(() => {
     if (!conversationId) return
@@ -124,9 +154,28 @@ export function useMessages({
         },
         (payload) => {
           console.log('New message received:', payload)
-          // Append new message to end
           const newMessage = payload.new as Message
-          setMessages(prev => [...prev, newMessage])
+
+          // For outbound text messages, try to replace a matching optimistic message
+          if (newMessage.direction === 'outbound' && newMessage.type === 'text') {
+            const newBody = (newMessage.content as TextContent).body
+            setMessages(prev => {
+              const optimisticIndex = prev.findIndex(
+                msg => msg.id.startsWith('optimistic-') &&
+                  msg.type === 'text' &&
+                  (msg.content as TextContent).body === newBody
+              )
+              if (optimisticIndex !== -1) {
+                // Replace optimistic message with real one
+                return prev.map((msg, i) => i === optimisticIndex ? newMessage : msg)
+              }
+              // No matching optimistic — append as normal
+              return [...prev, newMessage]
+            })
+          } else {
+            // Inbound or non-text — append as before
+            setMessages(prev => [...prev, newMessage])
+          }
         }
       )
       .on(
@@ -163,5 +212,6 @@ export function useMessages({
     isLoading,
     loadMore,
     hasMore,
+    addOptimisticMessage,
   }
 }

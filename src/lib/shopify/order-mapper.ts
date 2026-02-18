@@ -167,16 +167,20 @@ function findMatchingProduct(
 }
 
 /**
- * Builds order name from Shopify product titles.
- * Uses first product title, adds "+N" if there are more products.
+ * Builds order name from Shopify customer name.
+ * Falls back to Shopify order reference if no customer name available.
  */
 function buildOrderName(order: ShopifyOrderWebhook): string {
-  const items = order.line_items || []
-  if (items.length === 0) return order.name // fallback to "#1001"
-
-  const firstName = items[0].title || items[0].name || 'Producto'
-  if (items.length === 1) return firstName
-  return `${firstName} +${items.length - 1} más`
+  // Try customer name
+  if (order.customer?.first_name || order.customer?.last_name) {
+    return [order.customer.first_name, order.customer.last_name].filter(Boolean).join(' ')
+  }
+  // Try shipping address name
+  if (order.shipping_address?.first_name || order.shipping_address?.last_name) {
+    return [order.shipping_address.first_name, order.shipping_address.last_name].filter(Boolean).join(' ')
+  }
+  // Fallback to Shopify reference
+  return order.name
 }
 
 /**

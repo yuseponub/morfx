@@ -122,6 +122,12 @@ Established in `CLAUDE.md`:
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Envío optimista de mensajes WhatsApp | 2026-02-18 | d811760 | [001-optimistic-whatsapp-send](./quick/001-optimistic-whatsapp-send/) |
+
 ## Session Continuity
 
 Last session: 2026-02-18 07:24 COT

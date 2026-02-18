@@ -529,22 +529,42 @@ async function executeDuplicateOrder(
  */
 async function resolveWhatsAppContext(
   contactId: string,
-  workspaceId: string
+  workspaceId: string,
+  /** Phone from trigger context — avoids re-fetching from contact table */
+  triggerPhone?: string
 ): Promise<{
   conversation: { id: string; phone: string; last_customer_message_at: string | null }
   apiKey: string
 }> {
   const supabase = createAdminClient()
 
-  // Get contact phone + custom_fields (for secondary phone fallback)
-  const { data: contact } = await supabase
-    .from('contacts')
-    .select('phone, custom_fields')
-    .eq('id', contactId)
-    .eq('workspace_id', workspaceId)
-    .single()
+  // Use trigger phone if available, otherwise fetch from contact
+  let contactPhone: string | null = triggerPhone || null
+  let customFields: Record<string, unknown> = {}
 
-  if (!contact?.phone) throw new Error('Contact phone not found')
+  if (!contactPhone) {
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('phone, custom_fields')
+      .eq('id', contactId)
+      .eq('workspace_id', workspaceId)
+      .single()
+
+    contactPhone = contact?.phone || null
+    customFields = (contact?.custom_fields as Record<string, unknown>) || {}
+  } else {
+    // Still need custom_fields for secondary phone fallback
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('custom_fields')
+      .eq('id', contactId)
+      .eq('workspace_id', workspaceId)
+      .single()
+
+    customFields = (contact?.custom_fields as Record<string, unknown>) || {}
+  }
+
+  if (!contactPhone) throw new Error('Contact phone not found')
 
   // Get or create conversation for the contact
   const { data: existingConversation } = await supabase
@@ -560,7 +580,6 @@ async function resolveWhatsAppContext(
 
   // Step 2: Try secondary phone from Shopify note_attributes (Releasit COD form)
   if (!conversation) {
-    const customFields = (contact.custom_fields as Record<string, unknown>) || {}
     const secondaryPhone = customFields.secondary_phone as string | undefined
 
     if (secondaryPhone) {
@@ -599,7 +618,7 @@ async function resolveWhatsAppContext(
     const { data: phoneConv } = await supabase
       .from('conversations')
       .select('id, phone, last_customer_message_at')
-      .eq('phone', contact.phone)
+      .eq('phone', contactPhone)
       .eq('workspace_id', workspaceId)
       .limit(1)
       .single()
@@ -618,7 +637,7 @@ async function resolveWhatsAppContext(
       .insert({
         workspace_id: workspaceId,
         contact_id: contactId,
-        phone: contact.phone,
+        phone: contactPhone,
         phone_number_id: phoneNumberId,
         status: 'active',
         last_message_at: new Date().toISOString(),
@@ -650,7 +669,7 @@ async function executeSendWhatsAppTemplate(
   const templateName = String(params.templateName || '')
   if (!templateName) throw new Error('templateName is required for send_whatsapp_template')
 
-  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
+  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId, context.contactPhone)
 
   // Look up template to build components (adapter concern)
   const supabase = createAdminClient()
@@ -765,7 +784,7 @@ async function executeSendWhatsAppText(
   const text = String(params.text || '')
   if (!text) throw new Error('text is required for send_whatsapp_text')
 
-  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
+  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId, context.contactPhone)
 
   // Check 24h window (adapter concern for text messages)
   if (conversation.last_customer_message_at) {
@@ -808,7 +827,7 @@ async function executeSendWhatsAppMedia(
   const caption = params.caption ? String(params.caption) : undefined
   const filename = params.filename ? String(params.filename) : undefined
 
-  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId)
+  const { conversation, apiKey } = await resolveWhatsAppContext(contactId, workspaceId, context.contactPhone)
 
   // Check 24h window (adapter concern for media messages)
   if (conversation.last_customer_message_at) {

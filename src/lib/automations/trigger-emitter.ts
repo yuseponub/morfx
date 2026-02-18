@@ -184,7 +184,7 @@ export async function emitOrderCreated(data: {
   pipelineId: string
   stageId: string
   contactId: string | null
-  totalValue?: number
+  orderValue?: number
   sourceOrderId?: string
   contactName?: string
   contactPhone?: string

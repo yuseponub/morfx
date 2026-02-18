@@ -161,7 +161,7 @@ export function ChatView({
         }}
       >
         {/* Load more indicator */}
-        {hasMore && (
+        {hasMore && messages.length > 0 && (
           <div className="text-center py-4">
             <button
               onClick={loadMore}

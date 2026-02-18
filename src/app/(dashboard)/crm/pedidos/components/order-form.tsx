@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/popover'
 import { ContactSelector } from './contact-selector'
 import { ProductPicker } from './product-picker'
-import { CityCombobox } from '@/components/contacts/city-combobox'
 import { createOrder, updateOrder, type OrderFormData } from '@/app/actions/orders'
 import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineWithStages, Product, OrderProductFormData } from '@/lib/orders/types'
@@ -258,7 +257,7 @@ export function OrderForm({
             <Label className="text-base font-semibold">Detalles</Label>
 
             <div className="space-y-2">
-              <Label htmlFor="name">Referencia</Label>
+              <Label htmlFor="name">Nombre de la orden</Label>
               <Input
                 {...form.register('name')}
                 placeholder="Ej: #1001, PED-2024-001"
@@ -390,20 +389,27 @@ export function OrderForm({
               />
             </div>
 
-            {/* Shipping City */}
-            <Controller
-              control={form.control}
-              name="shipping_city"
-              render={({ field }) => (
-                <CityCombobox
+            {/* Shipping City + Department */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="shipping_city">Ciudad</Label>
+                <Input
+                  {...form.register('shipping_city')}
                   id="shipping_city"
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                  onDepartmentChange={(dept) => form.setValue('shipping_department', dept)}
+                  placeholder="Ej: Cali, Bogotá"
                   disabled={isPending}
                 />
-              )}
-            />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shipping_department">Departamento</Label>
+                <Input
+                  {...form.register('shipping_department')}
+                  id="shipping_department"
+                  placeholder="Ej: Valle del Cauca"
+                  disabled={isPending}
+                />
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

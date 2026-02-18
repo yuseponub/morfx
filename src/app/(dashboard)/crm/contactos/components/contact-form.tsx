@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PhoneInput } from '@/components/contacts/phone-input'
-import { CityCombobox } from '@/components/contacts/city-combobox'
 import { createContact, updateContactFromForm } from '@/app/actions/contacts'
 import { LoaderIcon } from 'lucide-react'
 
@@ -146,13 +145,31 @@ export function ContactForm({
         )}
       </div>
 
-      <CityCombobox
-        value={form.watch('city') || ''}
-        onChange={(value) => form.setValue('city', value)}
-        onDepartmentChange={(dept) => form.setValue('department', dept)}
-        disabled={isPending}
-        error={form.formState.errors.city?.message}
-      />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="city">Ciudad</Label>
+          <Input
+            id="city"
+            {...form.register('city')}
+            placeholder="Ej: Cali, Bogotá"
+            disabled={isPending}
+          />
+          {form.formState.errors.city && (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.city.message}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="department">Departamento</Label>
+          <Input
+            id="department"
+            {...form.register('department')}
+            placeholder="Ej: Valle del Cauca"
+            disabled={isPending}
+          />
+        </div>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="address">Direccion</Label>

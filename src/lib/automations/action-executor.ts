@@ -607,7 +607,7 @@ async function resolveWhatsAppContext(
         contact_id: contactId,
         phone: contact.phone,
         phone_number_id: phoneNumberId,
-        status: 'open',
+        status: 'active',
         last_message_at: new Date().toISOString(),
         last_message_preview: '[Template]',
       })

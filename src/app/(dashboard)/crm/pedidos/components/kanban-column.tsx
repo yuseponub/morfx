@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PaletteIcon, PlusIcon, TrashIcon } from 'lucide-react'
@@ -30,7 +31,6 @@ interface KanbanColumnProps {
   hasMore?: boolean
   isLoadingMore?: boolean
   onLoadMore?: () => void
-  isOver?: boolean
 }
 
 /**
@@ -50,13 +50,12 @@ export function KanbanColumn({
   hasMore,
   isLoadingMore,
   onLoadMore,
-  isOver,
 }: KanbanColumnProps) {
   // Make column sortable (for reordering stages)
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
     isDragging,
@@ -64,6 +63,20 @@ export function KanbanColumn({
     id: stage.id,
     data: { type: 'stage', stage },
   })
+
+  // Make column a drop target for order cards (useDraggable)
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: stage.id,
+  })
+
+  // Combine sortable + droppable refs
+  const setNodeRef = React.useCallback(
+    (node: HTMLElement | null) => {
+      setSortableRef(node)
+      setDroppableRef(node)
+    },
+    [setSortableRef, setDroppableRef]
+  )
 
   // Infinite scroll sentinel
   const sentinelRef = React.useRef<HTMLDivElement>(null)
@@ -194,7 +207,7 @@ export function KanbanColumn({
       )}
 
       {/* Cards container */}
-      <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[100px]">
+      <div className="flex-1 p-2 space-y-1.5 overflow-y-auto min-h-[100px]">
         {orders.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm py-8">
             Sin pedidos

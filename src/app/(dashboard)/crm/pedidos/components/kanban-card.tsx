@@ -88,7 +88,7 @@ export function KanbanCard({
       suppressHydrationWarning
       onClick={handleClick}
       className={cn(
-        'group relative bg-background border rounded-lg p-3 shadow-sm cursor-grab active:cursor-grabbing',
+        'group relative bg-background border rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing',
         'hover:border-foreground/20 hover:shadow-md transition-all',
         dragging && 'opacity-50 shadow-lg ring-2 ring-primary/50',
         isSelected && 'ring-2 ring-primary border-primary',
@@ -113,7 +113,7 @@ export function KanbanCard({
       )}
 
       {/* Header: Order name + value */}
-      <div className={cn('flex items-start justify-between gap-2 mb-2', onSelectChange && 'pl-5')}>
+      <div className={cn('flex items-start justify-between gap-2 mb-1.5', onSelectChange && 'pl-5')}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <PackageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           <div className="min-w-0 flex-1">
@@ -129,7 +129,7 @@ export function KanbanCard({
 
       {/* Products summary */}
       {order.products.length > 0 && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
           <PackageIcon className="h-3.5 w-3.5" />
           <span className="truncate">
             {order.products.length === 1
@@ -141,7 +141,7 @@ export function KanbanCard({
 
       {/* Tracking info */}
       {order.tracking_number && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
           <TruckIcon className="h-3.5 w-3.5" />
           <span className="font-mono truncate">{order.tracking_number}</span>
           {order.carrier && (
@@ -152,7 +152,7 @@ export function KanbanCard({
 
       {/* Tags */}
       {order.tags.length > 0 && (
-        <div className="flex gap-1 flex-wrap mb-2">
+        <div className="flex gap-1 flex-wrap mb-1.5">
           {order.tags.slice(0, 2).map((tag) => (
             <TagBadge key={tag.id} tag={tag} size="sm" />
           ))}

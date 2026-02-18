@@ -64,7 +64,7 @@ export async function mapShopifyOrder(
     contact_id: contactId,
     pipeline_id: config.default_pipeline_id,
     stage_id: config.default_stage_id,
-    name: shopifyOrder.name,  // "#1001" — Shopify order reference
+    name: buildOrderName(shopifyOrder),
     description: buildOrderDescription(shopifyOrder),
     shipping_address: buildShippingAddress(shopifyOrder),
     shipping_city: shopifyOrder.shipping_address?.city || null,
@@ -167,10 +167,24 @@ function findMatchingProduct(
 }
 
 /**
+ * Builds order name from Shopify product titles.
+ * Uses first product title, adds "+N" if there are more products.
+ */
+function buildOrderName(order: ShopifyOrderWebhook): string {
+  const items = order.line_items || []
+  if (items.length === 0) return order.name // fallback to "#1001"
+
+  const firstName = items[0].title || items[0].name || 'Producto'
+  if (items.length === 1) return firstName
+  return `${firstName} +${items.length - 1} más`
+}
+
+/**
  * Builds order description from Shopify data.
+ * Includes Shopify reference number, note, and payment status.
  */
 function buildOrderDescription(order: ShopifyOrderWebhook): string {
-  const parts: string[] = [`Pedido Shopify ${order.name}`]
+  const parts: string[] = [`Ref. Shopify ${order.name}`]
 
   if (order.note) {
     parts.push(`Nota: ${order.note}`)

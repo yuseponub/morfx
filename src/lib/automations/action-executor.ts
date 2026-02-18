@@ -594,9 +594,22 @@ async function resolveWhatsAppContext(
   const apiKey = settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (!apiKey) throw new Error('WhatsApp API key not configured')
 
-  // Step 3: No conversation found — create one with primary phone.
-  // Templates can be sent without an existing conversation (Meta allows this).
-  // Create a conversation record so the message can be stored and tracked.
+  // Step 3: Try finding conversation by phone (may exist but not linked to this contact)
+  if (!conversation) {
+    const { data: phoneConv } = await supabase
+      .from('conversations')
+      .select('id, phone, last_customer_message_at')
+      .eq('phone', contact.phone)
+      .eq('workspace_id', workspaceId)
+      .limit(1)
+      .single()
+
+    if (phoneConv) {
+      conversation = phoneConv
+    }
+  }
+
+  // Step 4: No conversation at all — create one with primary phone.
   if (!conversation) {
     const phoneNumberId = settings?.whatsapp_phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || ''
 

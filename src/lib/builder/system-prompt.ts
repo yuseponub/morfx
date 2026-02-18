@@ -315,6 +315,9 @@ Ejemplo correcto de condicion:
 }
 \`\`\`
 
+## REGLA DE VARIABLES DE ENVIO
+Para direcciones de envio SIEMPRE usa \`{{orden.direccion_envio}}\`, \`{{orden.ciudad_envio}}\`, \`{{orden.departamento_envio}}\`. NUNCA uses \`{{contacto.direccion}}\`/\`{{contacto.ciudad}}\`/\`{{contacto.departamento}}\` para datos de envio. Las variables \`contacto.*\` son la direccion del PERFIL del contacto, NO la direccion de envio de la orden. Solo usa \`contacto.direccion\`/\`contacto.ciudad\`/\`contacto.departamento\` cuando realmente necesites la direccion del perfil del contacto (ej: actualizar datos del cliente).
+
 ## Validaciones Obligatorias
 
 1. **Recursos existentes**: Siempre valida que los recursos referenciados existan en el workspace antes de incluirlos en el preview. Si no existen, marca el error en el preview.

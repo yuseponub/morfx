@@ -64,6 +64,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Real Fields Fix** — DB migrations, backend pipeline, CRM UI for new fields (3 plans)
 - [x] **Action Fields Audit** — Executor field pass-through, duplicate_order toggles, UI catalog + "Agregar campo", AI builder sync (4 plans)
 - [ ] **CRM Orders Performance** — Kanban scroll, infinite scroll, virtualization (2/3 plans)
+- [ ] **WhatsApp Phone Resilience** — Secondary phone extraction from Shopify note_attributes, fallback chain in action executor (2 plans)
+  - [ ] wp-resilience-01-PLAN.md — Types + extraction function + webhook handler integration
+  - [ ] wp-resilience-02-PLAN.md — Action executor fallback chain in resolveWhatsAppContext
 
 ## Progress
 
@@ -73,8 +76,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| Standalone | 4 phases | 14 | 3 complete, 1 in progress | |
-| **Total** | **33 phases** | **148 plans** | | |
+| Standalone | 5 phases | 16 | 3 complete, 2 in progress | |
+| **Total** | **34 phases** | **150 plans** | | |
 
 ### Next Milestone
 
@@ -89,4 +92,4 @@ TBD — run `/gsd:new-milestone` to start planning.
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-17 (standalone/action-fields-audit complete)*
+*Last updated: 2026-02-17 (standalone/whatsapp-phone-resilience planned)*

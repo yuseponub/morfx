@@ -43,6 +43,15 @@ export function ConversationItem({
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
 
+  // DEBUG: temporal — verificar qué datos de timestamp llegan por filtro
+  console.log('[DEBUG ConversationItem]', {
+    id: conversation.id.slice(0, 8),
+    name: displayName,
+    last_message_at: conversation.last_message_at,
+    last_customer_message_at: conversation.last_customer_message_at,
+    is_read: conversation.is_read,
+  })
+
   // Format timestamp as relative time (e.g., "hace 5 min")
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), {

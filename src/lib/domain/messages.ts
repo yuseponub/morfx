@@ -311,12 +311,13 @@ export async function sendTemplateMessage(
       }
     }
 
-    // 3. Update conversation
+    // 3. Update conversation (reactivate if archived so it appears in inbox)
     const preview = `[Template] ${params.templateName}`
 
     await supabase
       .from('conversations')
       .update({
+        status: 'active',
         last_message_at: new Date().toISOString(),
         last_message_preview: preview,
       })

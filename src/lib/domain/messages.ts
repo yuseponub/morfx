@@ -83,6 +83,8 @@ export interface ReceiveMessageParams {
   /** Full message content JSONB (type-specific fields) */
   contentJson: Record<string, unknown>
   mediaUrl?: string
+  mediaMimeType?: string
+  mediaFilename?: string
   timestamp: string
   contactName?: string
 }
@@ -365,6 +367,8 @@ export async function receiveMessage(
         content: params.contentJson,
         timestamp: params.timestamp,
         ...(params.mediaUrl ? { media_url: params.mediaUrl } : {}),
+        ...(params.mediaMimeType ? { media_mime_type: params.mediaMimeType } : {}),
+        ...(params.mediaFilename ? { media_filename: params.mediaFilename } : {}),
       })
       .select('id')
       .single()

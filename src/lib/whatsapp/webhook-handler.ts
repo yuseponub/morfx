@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/utils/phone'
 import { normalizeWebsiteGreeting } from '@/lib/agents/somnio/normalizers'
 import { recordMessageCost } from '@/app/actions/usage'
+import { downloadMedia } from './api'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import {
   findOrCreateConversation as domainFindOrCreateConversation,
@@ -151,6 +152,41 @@ async function processIncomingMessage(
     const content = buildMessageContent(msg)
     const messageTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString()
 
+    // Download and re-host media if this is a media message
+    let mediaUrl: string | undefined
+    let mediaMimeType: string | undefined
+    let mediaFilename: string | undefined
+
+    if (MEDIA_TYPES.has(msg.type)) {
+      const mediaContent = content as MediaContent
+      if (mediaContent.mediaId) {
+        // Resolve API key for this workspace
+        const { data: ws } = await supabase
+          .from('workspaces')
+          .select('settings')
+          .eq('id', workspaceId)
+          .single()
+        const apiKey = (ws?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined || process.env.WHATSAPP_API_KEY
+
+        if (apiKey) {
+          const uploaded = await downloadAndUploadMedia(
+            apiKey,
+            mediaContent.mediaId,
+            workspaceId,
+            conversationId,
+            mediaContent.mimeType
+          )
+          if (uploaded) {
+            mediaUrl = uploaded.url
+            mediaMimeType = uploaded.mimeType
+            mediaFilename = uploaded.filename || mediaContent.filename
+          }
+        } else {
+          console.warn('[webhook] No API key found for media download, workspace:', workspaceId)
+        }
+      }
+    }
+
     // Get contact_id for domain context
     const { data: convForContact } = await supabase
       .from('conversations')
@@ -171,6 +207,9 @@ async function processIncomingMessage(
       contentJson: content as unknown as Record<string, unknown>,
       timestamp: messageTimestamp,
       contactName: profileName,
+      mediaUrl,
+      mediaMimeType,
+      mediaFilename,
     })
 
     // If domain returned a duplicate, stop processing
@@ -329,6 +368,86 @@ async function processStatusUpdate(
 
 // findOrCreateConversation and linkConversationToContact
 // are now handled by domain/conversations.ts
+
+// ============================================================================
+// MEDIA DOWNLOAD + UPLOAD
+// ============================================================================
+
+const MEDIA_TYPES = new Set(['image', 'video', 'audio', 'document', 'sticker'])
+
+/**
+ * Download media from 360dialog and re-host on Supabase Storage.
+ * Returns null if download fails (caller should save message without media).
+ */
+async function downloadAndUploadMedia(
+  apiKey: string,
+  mediaId: string,
+  workspaceId: string,
+  conversationId: string,
+  mimeType?: string
+): Promise<{ url: string; mimeType: string; filename?: string } | null> {
+  try {
+    const media = await downloadMedia(apiKey, mediaId)
+
+    // Build storage path: inbound/{workspaceId}/{conversationId}/{timestamp}_{sanitized_filename_or_mediaId}
+    const ext = getExtensionFromMime(media.mimeType || mimeType || 'application/octet-stream')
+    const safeName = media.filename
+      ? media.filename.replace(/[^a-zA-Z0-9.-]/g, '_')
+      : `${mediaId}${ext}`
+    const filePath = `inbound/${workspaceId}/${conversationId}/${Date.now()}_${safeName}`
+
+    const supabase = createAdminClient()
+    const { error: uploadError } = await supabase.storage
+      .from('whatsapp-media')
+      .upload(filePath, Buffer.from(media.buffer), {
+        contentType: media.mimeType || mimeType || 'application/octet-stream',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error('[webhook] Media upload failed:', uploadError.message)
+      return null
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('whatsapp-media')
+      .getPublicUrl(filePath)
+
+    return {
+      url: publicUrl,
+      mimeType: media.mimeType || mimeType || 'application/octet-stream',
+      filename: media.filename || undefined,
+    }
+  } catch (error) {
+    console.error('[webhook] Media download/upload failed:', error instanceof Error ? error.message : error)
+    return null
+  }
+}
+
+/**
+ * Map MIME type to file extension.
+ */
+function getExtensionFromMime(mimeType: string): string {
+  const map: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+    'video/mp4': '.mp4',
+    'video/3gpp': '.3gp',
+    'audio/aac': '.aac',
+    'audio/ogg': '.ogg',
+    'audio/mpeg': '.mp3',
+    'audio/amr': '.amr',
+    'audio/opus': '.opus',
+    'application/pdf': '.pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/vnd.ms-excel': '.xls',
+    'text/plain': '.txt',
+  }
+  return map[mimeType] || ''
+}
 
 /**
  * Build message content JSONB from incoming message.

@@ -65,6 +65,7 @@ export function useMessages({
       return
     }
 
+    setMessages([])
     setIsLoading(true)
     try {
       const data = await getConversationMessages(conversationId, limit)

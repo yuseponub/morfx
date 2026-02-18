@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { Bot } from 'lucide-react'
+import { Bot, Loader2 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { createClient } from '@/lib/supabase/client'
 import { useMessages } from '@/hooks/use-messages'
@@ -170,6 +170,16 @@ export function ChatView({
             >
               {isLoading ? 'Cargando...' : 'Cargar mensajes anteriores'}
             </button>
+          </div>
+        )}
+
+        {/* Loading spinner when switching conversations */}
+        {isLoading && messages.length === 0 && (
+          <div className="flex-1 flex items-center justify-center py-20">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Cargando mensajes...</p>
+            </div>
           </div>
         )}
 

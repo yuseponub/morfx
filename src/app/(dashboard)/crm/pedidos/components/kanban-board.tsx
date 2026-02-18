@@ -5,8 +5,6 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
-  pointerWithin,
-  rectIntersection,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -50,44 +48,20 @@ interface KanbanBoardProps {
 /**
  * Custom collision detection that uses different strategies
  * depending on whether we're dragging a stage or an order.
+ * Both use closestCenter filtered to stage containers only.
  */
 function createCustomCollisionDetection(
   stageIds: Set<string>
 ): CollisionDetection {
   return (args) => {
-    const { active } = args
-    const activeData = active.data.current
-
-    // If dragging a stage, use closestCenter for smooth horizontal sorting
-    if (activeData?.type === 'stage') {
-      // Filter to only consider other stages as drop targets
-      const stageContainers = args.droppableContainers.filter(
-        (container) => stageIds.has(container.id as string)
-      )
-      return closestCenter({
-        ...args,
-        droppableContainers: stageContainers,
-      })
-    }
-
-    // If dragging an order, use pointerWithin for better column detection
-    // Fall back to rectIntersection if pointerWithin finds nothing
-    const pointerCollisions = pointerWithin(args)
-    if (pointerCollisions.length > 0) {
-      // Filter to only stage columns (not other orders)
-      const stageCollisions = pointerCollisions.filter(
-        (collision) => stageIds.has(collision.id as string)
-      )
-      if (stageCollisions.length > 0) {
-        return stageCollisions
-      }
-    }
-
-    // Fallback to rectIntersection
-    const rectCollisions = rectIntersection(args)
-    return rectCollisions.filter(
-      (collision) => stageIds.has(collision.id as string)
+    // Filter to only stage columns as valid drop targets
+    const stageContainers = args.droppableContainers.filter(
+      (container) => stageIds.has(container.id as string)
     )
+    return closestCenter({
+      ...args,
+      droppableContainers: stageContainers,
+    })
   }
 }
 
@@ -123,13 +97,22 @@ export function KanbanBoard({
   const [localOrdersByStage, setLocalOrdersByStage] = React.useState(ordersByStage)
   // Local state for stages order (optimistic)
   const [localStages, setLocalStages] = React.useState(stages)
-  // Track which stage the dragged order is over (for visual feedback)
-  const [overStageId, setOverStageId] = React.useState<string | null>(null)
+  // Prevent bounce-back: skip syncing props right after a move
+  const recentMoveRef = React.useRef(false)
+  const moveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
-  // Sync local state when prop changes
+  // Sync local state when prop changes (skip during recent moves to avoid bounce-back)
   React.useEffect(() => {
+    if (recentMoveRef.current) return
     setLocalOrdersByStage(ordersByStage)
   }, [ordersByStage])
+
+  // Cleanup move timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (moveTimeoutRef.current) clearTimeout(moveTimeoutRef.current)
+    }
+  }, [])
 
   // Sync local stages when prop changes
   React.useEffect(() => {
@@ -193,14 +176,10 @@ export function KanbanBoard({
     const { active, over } = event
     const activeData = active.data.current
 
-    if (!over) {
-      setOverStageId(null)
-      return
-    }
+    if (!over) return
 
     // Stage reordering during drag over for smooth visual feedback
     if (activeData?.type === 'stage') {
-      setOverStageId(null)
       const activeId = active.id as string
       const overId = over.id as string
 
@@ -215,10 +194,6 @@ export function KanbanBoard({
           return prev
         })
       }
-    } else {
-      // Order drag — track which stage we're hovering
-      const overId = over.id as string
-      setOverStageId(stageIds.has(overId) ? overId : null)
     }
   }
 
@@ -229,10 +204,9 @@ export function KanbanBoard({
     const { active, over } = event
     const activeData = active.data.current
 
-    // Clear active items and hover state
+    // Clear active items
     setActiveOrder(null)
     setActiveStage(null)
-    setOverStageId(null)
 
     // No drop target
     if (!over) return
@@ -287,6 +261,13 @@ export function KanbanBoard({
       .find((o) => o.id === orderId)
 
     if (!activeOrderItem || !currentStageId) return
+
+    // Suppress prop sync to prevent bounce-back from revalidatePath
+    recentMoveRef.current = true
+    if (moveTimeoutRef.current) clearTimeout(moveTimeoutRef.current)
+    moveTimeoutRef.current = setTimeout(() => {
+      recentMoveRef.current = false
+    }, 2000)
 
     // Update local state optimistically
     setLocalOrdersByStage((prev) => {
@@ -351,7 +332,6 @@ export function KanbanBoard({
               hasMore={stageHasMore?.[stage.id] ?? false}
               isLoadingMore={stageLoading?.[stage.id] ?? false}
               onLoadMore={onLoadMore ? () => onLoadMore(stage.id) : undefined}
-              isOver={overStageId === stage.id}
             />
           ))}
         </div>

@@ -124,10 +124,10 @@ export function ConversationItem({
           )}
           {conversation.last_customer_message_at && (
             <div className="flex items-center gap-0.5">
-              <User className="h-3 w-3 text-muted-foreground/70" />
+              <User className="h-3 w-3 text-muted-foreground" />
               <RelativeTime
                 date={conversation.last_customer_message_at}
-                className="text-[10px] text-muted-foreground/70"
+                className="text-xs text-muted-foreground"
               />
             </div>
           )}

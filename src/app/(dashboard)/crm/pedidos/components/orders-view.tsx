@@ -169,6 +169,26 @@ export function OrdersView({
     setKanbanLoading(prev => ({ ...prev, [stageId]: false }))
   }, [kanbanOrders, kanbanHasMore, kanbanLoading])
 
+  // Handle order moved in Kanban — update kanbanOrders so revalidatePath won't bounce back
+  const handleOrderMoved = React.useCallback((orderId: string, fromStageId: string, toStageId: string) => {
+    setKanbanOrders(prev => {
+      const fromOrders = prev[fromStageId] || []
+      const movedOrder = fromOrders.find(o => o.id === orderId)
+      if (!movedOrder) return prev
+
+      return {
+        ...prev,
+        [fromStageId]: fromOrders.filter(o => o.id !== orderId),
+        [toStageId]: [...(prev[toStageId] || []), { ...movedOrder, stage_id: toStageId }],
+      }
+    })
+    setKanbanCounts(prev => ({
+      ...prev,
+      [fromStageId]: Math.max(0, (prev[fromStageId] || 0) - 1),
+      [toStageId]: (prev[toStageId] || 0) + 1,
+    }))
+  }, [])
+
   // Sheet states
   const [formSheetOpen, setFormSheetOpen] = React.useState(false)
   const [editingOrder, setEditingOrder] = React.useState<OrderWithDetails | null>(null)
@@ -681,6 +701,7 @@ export function OrdersView({
             stageHasMore={kanbanHasMore}
             stageLoading={kanbanLoading}
             onLoadMore={handleLoadMore}
+            onOrderMoved={handleOrderMoved}
           />
         ) : (
           <DataTable

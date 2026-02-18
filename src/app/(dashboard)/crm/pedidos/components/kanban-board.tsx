@@ -44,6 +44,7 @@ interface KanbanBoardProps {
   stageHasMore?: Record<string, boolean>
   stageLoading?: Record<string, boolean>
   onLoadMore?: (stageId: string) => void
+  onOrderMoved?: (orderId: string, fromStageId: string, toStageId: string) => void
 }
 
 /**
@@ -110,6 +111,7 @@ export function KanbanBoard({
   stageHasMore,
   stageLoading,
   onLoadMore,
+  onOrderMoved,
 }: KanbanBoardProps) {
   // Track the order being dragged for overlay
   const [activeOrder, setActiveOrder] = React.useState<OrderWithDetails | null>(null)
@@ -295,9 +297,12 @@ export function KanbanBoard({
       // Revert on error
       setLocalOrdersByStage(ordersByStage)
       toast.error(result.error)
-    } else if (result.data?.warning) {
-      // Show warning but keep the move
-      toast.warning(result.data.warning)
+    } else {
+      // Notify parent so it updates kanbanOrders (prevents bounce-back on revalidate)
+      onOrderMoved?.(orderId, currentStageId, newStageId)
+      if (result.data?.warning) {
+        toast.warning(result.data.warning)
+      }
     }
   }
 

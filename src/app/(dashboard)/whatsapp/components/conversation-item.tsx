@@ -1,7 +1,5 @@
 'use client'
 
-import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { Bot, User } from 'lucide-react'
 import { TagBadge } from '@/components/contacts/tag-badge'
@@ -43,22 +41,10 @@ export function ConversationItem({
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
 
-  // DEBUG: temporal — verificar qué datos de timestamp llegan por filtro
-  console.log('[DEBUG ConversationItem]', {
-    id: conversation.id.slice(0, 8),
-    name: displayName,
-    last_message_at: conversation.last_message_at,
-    last_customer_message_at: conversation.last_customer_message_at,
-    is_read: conversation.is_read,
-  })
-
-  // Format timestamp as relative time (e.g., "hace 5 min")
-  const timeAgo = conversation.last_message_at
-    ? formatDistanceToNow(new Date(conversation.last_message_at), {
-        addSuffix: true,
-        locale: es,
-      })
-    : null
+  // Use last_customer_message_at (blue) as primary, last_message_at (gray) as fallback
+  // Both use RelativeTime (client-only) to avoid SSR hydration mismatch
+  const timerDate = conversation.last_customer_message_at || conversation.last_message_at
+  const isCustomerTimer = !!conversation.last_customer_message_at
 
   // Combine tags: conversation tags first, then contact tags (marked as inherited)
   const conversationTags = conversation.tags || []
@@ -124,24 +110,19 @@ export function ConversationItem({
           </div>
         </div>
 
-        {/* Timestamps */}
-        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          {timeAgo && (
-            <span className="text-xs text-muted-foreground">
-              {timeAgo}
-            </span>
-          )}
-          {conversation.last_customer_message_at && (
-            <div className="flex items-center gap-1">
-              <User className="h-3 w-3 text-blue-500" />
-              <span className="text-[11px] text-blue-500">Cliente:</span>
-              <RelativeTime
-                date={conversation.last_customer_message_at}
-                className="text-[11px] text-blue-500"
-              />
-            </div>
-          )}
-        </div>
+        {/* Timestamp — single line, client-only to avoid hydration mismatch */}
+        {timerDate && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {isCustomerTimer && <User className="h-3 w-3 text-blue-500" />}
+            <RelativeTime
+              date={timerDate}
+              className={cn(
+                'text-xs',
+                isCustomerTimer ? 'text-blue-500' : 'text-muted-foreground'
+              )}
+            />
+          </div>
+        )}
       </div>
 
       {/* Last message preview */}

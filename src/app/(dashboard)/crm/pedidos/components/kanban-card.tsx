@@ -123,11 +123,6 @@ export function KanbanCard({
             <span className="font-semibold text-sm truncate block">
               {order.name || 'Sin nombre'}
             </span>
-            {order.contact?.name && (
-              <span className="text-[11px] text-muted-foreground truncate block">
-                {order.contact.name}
-              </span>
-            )}
           </div>
         </div>
         <span className="font-semibold text-sm text-primary shrink-0">

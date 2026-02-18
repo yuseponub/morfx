@@ -536,10 +536,10 @@ async function resolveWhatsAppContext(
 }> {
   const supabase = createAdminClient()
 
-  // Get contact phone
+  // Get contact phone + custom_fields (for secondary phone fallback)
   const { data: contact } = await supabase
     .from('contacts')
-    .select('phone')
+    .select('phone, custom_fields')
     .eq('id', contactId)
     .eq('workspace_id', workspaceId)
     .single()
@@ -558,6 +558,31 @@ async function resolveWhatsAppContext(
 
   let conversation = existingConversation
 
+  // Step 2: Try secondary phone from Shopify note_attributes (Releasit COD form)
+  if (!conversation) {
+    const customFields = (contact.custom_fields as Record<string, unknown>) || {}
+    const secondaryPhone = customFields.secondary_phone as string | undefined
+
+    if (secondaryPhone) {
+      const { data: secondaryConv } = await supabase
+        .from('conversations')
+        .select('id, phone, last_customer_message_at')
+        .eq('phone', secondaryPhone)
+        .eq('workspace_id', workspaceId)
+        .order('last_message_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (secondaryConv) {
+        console.log(
+          `[action-executor] Using secondary phone conversation for contact ${contactId}: ${secondaryPhone}`
+        )
+        conversation = secondaryConv
+      }
+    }
+  }
+
+  // Step 3: No conversation found — create one with primary phone.
   // Templates can be sent without an existing conversation (Meta allows this).
   // Create a conversation record so the message can be stored and tracked.
   if (!conversation) {

@@ -88,14 +88,29 @@ export function MediaPreview({
             className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
             onClick={() => setIsExpanded(false)}
           >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 text-white hover:bg-white/10"
-              onClick={() => setIsExpanded(false)}
-            >
-              <X className="h-6 w-6" />
-            </Button>
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <a
+                href={url}
+                download={filename || 'image'}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/10"
+                >
+                  <Download className="h-6 w-6" />
+                </Button>
+              </a>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10"
+                onClick={() => setIsExpanded(false)}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
             <img
               src={url}
               alt={caption || 'Image'}

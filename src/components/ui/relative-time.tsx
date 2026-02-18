@@ -13,13 +13,10 @@ interface RelativeTimeProps {
 
 /**
  * Displays a relative time string (e.g., "hace 5 min") that auto-refreshes.
- * Renders only on client to avoid SSR hydration mismatch (time-dependent text).
+ * Uses suppressHydrationWarning to handle SSR/client time mismatch without error.
  */
 export function RelativeTime({ date, className, refreshInterval = 60_000 }: RelativeTimeProps) {
-  const [mounted, setMounted] = useState(false)
   const [, setTick] = useState(0)
-
-  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     if (!date) return
@@ -27,9 +24,9 @@ export function RelativeTime({ date, className, refreshInterval = 60_000 }: Rela
     return () => clearInterval(timer)
   }, [date, refreshInterval])
 
-  if (!mounted || !date) return null
+  if (!date) return null
 
   const text = formatDistanceToNow(new Date(date), { addSuffix: true, locale: es })
 
-  return <span className={className}>{text}</span>
+  return <span className={className} suppressHydrationWarning>{text}</span>
 }

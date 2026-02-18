@@ -682,11 +682,40 @@ async function executeSendWhatsAppTemplate(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const components = template.components as any[]
   const bodyComponent = components?.find((c: { type: string }) => c.type === 'BODY')
+  const headerComponent = components?.find((c: { type: string }) => c.type === 'HEADER')
 
   const apiComponents: Array<{
     type: 'header' | 'body' | 'button'
-    parameters?: Array<{ type: 'text'; text: string }>
+    parameters?: Array<{
+      type: 'text' | 'image' | 'video' | 'document'
+      text?: string
+      image?: { link: string }
+      video?: { link: string }
+      document?: { link: string }
+    }>
   }> = []
+
+  // Handle HEADER component (image/video/document require media parameter)
+  if (headerComponent) {
+    const format = (headerComponent.format || '').toUpperCase()
+    if (format === 'IMAGE' || format === 'VIDEO' || format === 'DOCUMENT') {
+      const mediaUrl = String(
+        params.headerMediaUrl ||
+        headerComponent.example?.header_handle?.[0] ||
+        ''
+      )
+      if (mediaUrl) {
+        const mediaType = format.toLowerCase() as 'image' | 'video' | 'document'
+        apiComponents.push({
+          type: 'header',
+          parameters: [{
+            type: mediaType,
+            [mediaType]: { link: mediaUrl },
+          }],
+        })
+      }
+    }
+  }
 
   const bodyVars = bodyComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
   if (bodyVars.length > 0) {

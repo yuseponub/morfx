@@ -156,6 +156,11 @@ export function buildTriggerContext(
   if (eventData.contactCity !== undefined) contacto.ciudad = eventData.contactCity
   if (eventData.contactDepartment !== undefined) contacto.departamento = eventData.contactDepartment
   if (eventData.contactAddress !== undefined) contacto.direccion = eventData.contactAddress
+  // Fallback: if contact address fields are null but shipping fields exist,
+  // populate from order shipping (common in order triggers where address lives on the order)
+  if (!contacto.direccion && eventData.shippingAddress) contacto.direccion = eventData.shippingAddress
+  if (!contacto.ciudad && eventData.shippingCity) contacto.ciudad = eventData.shippingCity
+  if (!contacto.departamento && eventData.shippingDepartment) contacto.departamento = eventData.shippingDepartment
   if (Object.keys(contacto).length > 0) context.contacto = contacto
 
   // --- orden ---
@@ -163,6 +168,7 @@ export function buildTriggerContext(
   if (eventData.orderId !== undefined) orden.id = eventData.orderId
   if (eventData.orderName !== undefined) orden.nombre = eventData.orderName
   if (eventData.orderValue !== undefined) orden.valor = eventData.orderValue
+  if (eventData.totalValue !== undefined && orden.valor === undefined) orden.valor = eventData.totalValue
   if (eventData.previousStageName !== undefined) orden.stage_anterior = eventData.previousStageName
   if (eventData.previousStageId !== undefined) orden.stage_id_anterior = eventData.previousStageId
   if (eventData.newStageName !== undefined) orden.stage_nuevo = eventData.newStageName

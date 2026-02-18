@@ -32,7 +32,7 @@ export function ChatView({
   const parentRef = useRef<HTMLDivElement>(null)
   const scrolledToBottomRef = useRef(true)
 
-  const { messages, isLoading, loadMore, hasMore } = useMessages({
+  const { messages, isLoading, loadMore, hasMore, addOptimisticMessage } = useMessages({
     conversationId,
     limit: 50,
   })
@@ -250,6 +250,7 @@ export function ChatView({
           phone: conversation.contact.phone,
           city: conversation.contact.city,
         } : null}
+        addOptimisticMessage={addOptimisticMessage}
         onSend={() => {
           // Scroll to bottom after sending
           scrolledToBottomRef.current = true

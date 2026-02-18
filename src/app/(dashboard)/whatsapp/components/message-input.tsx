@@ -33,6 +33,7 @@ interface MessageInputProps {
   isWindowOpen: boolean
   contact?: Contact | null
   recentOrder?: Order | null
+  addOptimisticMessage?: (text: string) => void
   onSend?: () => void
 }
 
@@ -58,6 +59,7 @@ export function MessageInput({
   isWindowOpen,
   contact,
   recentOrder,
+  addOptimisticMessage,
   onSend,
 }: MessageInputProps) {
   const [text, setText] = useState('')
@@ -166,26 +168,35 @@ export function MessageInput({
       return
     }
 
-    // Otherwise send text
+    // Otherwise send text (optimistic — non-blocking)
     const trimmedText = text.trim()
     if (!trimmedText) return
 
-    setIsLoading(true)
-    try {
-      const result = await sendMessage(conversationId, trimmedText)
+    // Add optimistic message, clear input, scroll — all instant
+    addOptimisticMessage?.(trimmedText)
+    setText('')
+    onSend?.()
 
+    // Fire server action in background (no await blocking the UI)
+    sendMessage(conversationId, trimmedText).then(result => {
       if ('error' in result) {
-        toast.error(result.error)
-      } else {
-        setText('')
-        onSend?.()
+        toast.error('Error al enviar mensaje', {
+          action: {
+            label: 'Reintentar',
+            onClick: () => {
+              sendMessage(conversationId, trimmedText).then(retryResult => {
+                if ('error' in retryResult) {
+                  toast.error(retryResult.error)
+                }
+              })
+            },
+          },
+        })
       }
-    } catch (error) {
+    }).catch(() => {
       toast.error('Error al enviar mensaje')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [conversationId, text, isLoading, onSend, attachedFile, pendingQuickReplyMedia])
+    })
+  }, [conversationId, text, isLoading, onSend, attachedFile, pendingQuickReplyMedia, addOptimisticMessage])
 
   // Handle file selection
   const handleFileClick = useCallback(() => {

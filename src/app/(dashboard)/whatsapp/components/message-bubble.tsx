@@ -1,6 +1,6 @@
 'use client'
 
-import { Bot, Check, CheckCheck } from 'lucide-react'
+import { Bot, Check, CheckCheck, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,11 @@ interface MessageBubbleProps {
  */
 function StatusIcon({ status }: { status: MessageStatus | null }) {
   if (!status) return null
+
+  // Client-only optimistic status (not in MessageStatus union)
+  if (status === ('sending' as any)) {
+    return <Clock className="h-3 w-3 text-muted-foreground animate-pulse" />
+  }
 
   switch (status) {
     case 'pending':
@@ -181,7 +186,8 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
             'relative rounded-lg px-3 py-2 shadow-sm',
             isOwn
               ? 'bg-primary text-primary-foreground rounded-br-none'
-              : 'bg-muted rounded-bl-none'
+              : 'bg-muted rounded-bl-none',
+            message.status === ('sending' as any) && 'opacity-70'
           )}
         >
         {/* Message content */}

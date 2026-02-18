@@ -196,6 +196,18 @@ export function useConversations({
       }
 
       const data = await getConversations(filterParams)
+      // DEBUG: ver qué datos de timestamp llegan por filtro
+      if (data.length > 0) {
+        console.log('[DEBUG useConversations]', {
+          filter,
+          count: data.length,
+          first3: data.slice(0, 3).map(c => ({
+            id: c.id.slice(0, 8),
+            last_message_at: c.last_message_at,
+            last_customer_message_at: c.last_customer_message_at,
+          })),
+        })
+      }
       setConversations(data)
     } catch (error) {
       console.error('Error fetching conversations:', error)

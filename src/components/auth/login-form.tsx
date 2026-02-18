@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,6 +20,8 @@ type LoginFormData = z.infer<typeof loginSchema>
 
 export function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get('redirect')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -51,7 +53,7 @@ export function LoginForm() {
       return
     }
 
-    router.push('/crm')
+    router.push(redirect || '/crm')
     router.refresh()
   }
 
@@ -106,7 +108,7 @@ export function LoginForm() {
         </Link>
         <span className="text-muted-foreground">
           No tienes cuenta?{' '}
-          <Link href="/signup" className="text-primary hover:underline">
+          <Link href={redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : '/signup'} className="text-primary hover:underline">
             Crear cuenta
           </Link>
         </span>

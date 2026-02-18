@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import Image from 'next/image'
 import type { Metadata } from 'next'
 import {
@@ -25,7 +26,9 @@ export default function SignupPage() {
         <CardDescription>Crea tu cuenta</CardDescription>
       </CardHeader>
       <CardContent>
-        <SignupForm />
+        <Suspense>
+          <SignupForm />
+        </Suspense>
       </CardContent>
     </Card>
   )

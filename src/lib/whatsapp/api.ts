@@ -245,7 +245,7 @@ export async function getMediaUrl(
   apiKey: string,
   mediaId: string
 ): Promise<MediaUrlResponse> {
-  return request<MediaUrlResponse>(apiKey, `/media/${mediaId}`, {
+  return request<MediaUrlResponse>(apiKey, `/${mediaId}`, {
     method: 'GET',
   })
 }
@@ -265,8 +265,14 @@ export async function downloadMedia(
   // First get the URL
   const mediaInfo = await getMediaUrl(apiKey, mediaId)
 
-  // Then download the actual file
-  const response = await fetch(mediaInfo.url, {
+  // 360dialog requires replacing Facebook CDN hostname with their proxy
+  const downloadUrl = mediaInfo.url.replace(
+    'https://lookaside.fbsbx.com',
+    BASE_URL
+  )
+
+  // Then download the actual file through 360dialog proxy
+  const response = await fetch(downloadUrl, {
     headers: {
       'D360-API-KEY': apiKey,
     },

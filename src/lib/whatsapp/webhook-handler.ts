@@ -386,8 +386,10 @@ async function downloadAndUploadMedia(
   conversationId: string,
   mimeType?: string
 ): Promise<{ url: string; mimeType: string; filename?: string } | null> {
+  console.log('[webhook] Attempting media download:', { mediaId, workspaceId, hasApiKey: !!apiKey })
   try {
     const media = await downloadMedia(apiKey, mediaId)
+    console.log('[webhook] Media downloaded:', { mimeType: media.mimeType, size: media.buffer.byteLength, hasFilename: !!media.filename })
 
     // Build storage path: inbound/{workspaceId}/{conversationId}/{timestamp}_{sanitized_filename_or_mediaId}
     const ext = getExtensionFromMime(media.mimeType || mimeType || 'application/octet-stream')
@@ -405,7 +407,7 @@ async function downloadAndUploadMedia(
       })
 
     if (uploadError) {
-      console.error('[webhook] Media upload failed:', uploadError.message)
+      console.error('[webhook] Media upload failed:', { step: 'upload', error: uploadError.message, filePath })
       return null
     }
 
@@ -413,13 +415,15 @@ async function downloadAndUploadMedia(
       .from('whatsapp-media')
       .getPublicUrl(filePath)
 
+    console.log('[webhook] Media uploaded:', { filePath, publicUrl })
+
     return {
       url: publicUrl,
       mimeType: media.mimeType || mimeType || 'application/octet-stream',
       filename: media.filename || undefined,
     }
   } catch (error) {
-    console.error('[webhook] Media download/upload failed:', error instanceof Error ? error.message : error)
+    console.error('[webhook] Media step failed:', { step: 'download', error: error instanceof Error ? error.message : error, mediaId })
     return null
   }
 }

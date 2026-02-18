@@ -59,6 +59,7 @@ export async function validateResources(
     const pipelineIds = new Set<string>()
     const stageIds = new Set<string>()
     const tagNames = new Set<string>()
+    const tagIds = new Set<string>()
     const templateNames = new Set<string>()
     const userIds = new Set<string>()
 
@@ -68,6 +69,9 @@ export async function validateResources(
     }
     if (automation.trigger_config.stageId) {
       stageIds.add(automation.trigger_config.stageId as string)
+    }
+    if (automation.trigger_config.tagId) {
+      tagIds.add(automation.trigger_config.tagId as string)
     }
 
     // From actions
@@ -145,6 +149,26 @@ export async function validateResources(
             details: `No se encontro la etapa '${sid}'`,
           })
         }
+      }
+    }
+
+    // ---- Validate Tag IDs (from trigger_config) ----
+    if (tagIds.size > 0) {
+      const { data: tagsById } = await supabase
+        .from('tags')
+        .select('id, name')
+        .eq('workspace_id', workspaceId)
+        .in('id', Array.from(tagIds))
+
+      for (const tid of tagIds) {
+        const found = tagsById?.find((t) => t.id === tid)
+        validations.push({
+          type: 'tag',
+          name: found?.name ?? tid,
+          found: !!found,
+          id: found?.id ?? null,
+          details: found ? null : `No se encontro el tag con ID '${tid}' en el workspace`,
+        })
       }
     }
 

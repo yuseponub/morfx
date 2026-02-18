@@ -430,6 +430,79 @@ function DelayEditor({
 }
 
 // ============================================================================
+// JSON Param Editor (with validation — stores parsed objects, not strings)
+// ============================================================================
+
+function JsonParamField({
+  value,
+  onChange,
+  supportsVars,
+  triggerType,
+  label,
+}: {
+  value: unknown
+  onChange: (val: unknown) => void
+  supportsVars: boolean
+  triggerType: TriggerType
+  label: string
+}) {
+  const [text, setText] = useState(() => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'object') return JSON.stringify(value, null, 2)
+    return String(value)
+  })
+  const [jsonError, setJsonError] = useState<string | null>(null)
+
+  function handleChange(newText: string) {
+    setText(newText)
+    if (!newText.trim()) {
+      setJsonError(null)
+      onChange(undefined)
+      return
+    }
+    try {
+      const parsed = JSON.parse(newText)
+      setJsonError(null)
+      onChange(parsed)
+    } catch {
+      setJsonError('JSON invalido')
+    }
+  }
+
+  function handleInsertVariable(variable: string) {
+    const updated = text + variable
+    handleChange(updated)
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">{label}</Label>
+        {supportsVars && (
+          <VariablePicker
+            triggerType={triggerType}
+            onInsert={handleInsertVariable}
+          />
+        )}
+      </div>
+      <Textarea
+        className={cn(
+          'text-xs min-h-[80px] font-mono resize-none',
+          jsonError && 'border-destructive'
+        )}
+        value={text}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder='{"key": "value"}'
+        rows={4}
+      />
+      {jsonError && (
+        <p className="text-[10px] text-destructive">{jsonError}</p>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
 // Action Param Field Renderer
 // ============================================================================
 
@@ -875,27 +948,16 @@ function ActionParamField({
     )
   }
 
-  // json type
+  // json type — parses to object before saving to DB
   if (param.type === 'json') {
     return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs">{param.label}</Label>
-          {supportsVars && (
-            <VariablePicker
-              triggerType={triggerType}
-              onInsert={(variable) => onChange(((value as string) ?? '') + variable)}
-            />
-          )}
-        </div>
-        <Textarea
-          className="text-xs min-h-[80px] font-mono resize-none"
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder='{"key": "value"}'
-          rows={4}
-        />
-      </div>
+      <JsonParamField
+        value={value}
+        onChange={onChange}
+        supportsVars={supportsVars}
+        triggerType={triggerType}
+        label={param.label}
+      />
     )
   }
 

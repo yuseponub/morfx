@@ -25,6 +25,28 @@ import {
 } from '@/lib/automations/constants'
 
 // ============================================================================
+// Condition Schema (recursive AND/OR groups)
+// ============================================================================
+
+const conditionRuleSchema = z.object({
+  field: z.string(),
+  operator: z.enum([
+    'equals', 'not_equals', 'contains', 'not_contains',
+    'in', 'not_in', 'gt', 'lt', 'gte', 'lte',
+    'exists', 'not_exists',
+  ]),
+  value: z.unknown(),
+})
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const conditionGroupSchema: z.ZodType<any> = z.lazy(() =>
+  z.object({
+    logic: z.enum(['AND', 'OR']),
+    conditions: z.array(z.union([conditionRuleSchema, conditionGroupSchema])),
+  })
+)
+
+// ============================================================================
 // Action Params Validation
 // ============================================================================
 
@@ -426,7 +448,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
           .optional()
           .default({})
           .describe('Configuracion del trigger'),
-        conditions: z.object({ logic: z.enum(['AND', 'OR']), conditions: z.array(z.any()) }).nullable().optional().describe('Condiciones (ConditionGroup o null)'),
+        conditions: conditionGroupSchema.nullable().optional().describe('Condiciones (ConditionGroup o null)'),
         actions: z
           .array(
             z.object({
@@ -549,7 +571,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
           .optional()
           .default({})
           .describe('Configuracion del trigger'),
-        conditions: z.object({ logic: z.enum(['AND', 'OR']), conditions: z.array(z.any()) }).nullable().optional().describe('Condiciones'),
+        conditions: conditionGroupSchema.nullable().optional().describe('Condiciones'),
         actions: z
           .array(
             z.object({
@@ -668,7 +690,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
           .optional()
           .default({})
           .describe('Configuracion del trigger'),
-        conditions: z.object({ logic: z.enum(['AND', 'OR']), conditions: z.array(z.any()) }).nullable().optional().describe('Condiciones'),
+        conditions: conditionGroupSchema.nullable().optional().describe('Condiciones'),
         actions: z
           .array(
             z.object({

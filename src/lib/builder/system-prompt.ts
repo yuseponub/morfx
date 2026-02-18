@@ -217,7 +217,7 @@ ${actionSection}
 - Maximo ${MAX_ACTIONS_PER_AUTOMATION} acciones por automatizacion
 - Maximo ${MAX_AUTOMATIONS_PER_WORKSPACE} automatizaciones por workspace
 - Las acciones se ejecutan en orden secuencial
-- Cada accion puede tener un delay opcional (minutos, horas, o dias)
+- Cada accion puede tener un delay opcional (segundos, minutos, horas, o dias)
 
 ## Variables Disponibles por Trigger
 
@@ -249,6 +249,22 @@ Referencia rapida de params por accion (generada automaticamente del catalogo):
 ${formatParamQuickReference()}
 
 **NUNCA** uses nombres alternativos como \`pipelineId\` en vez de \`targetPipelineId\` para duplicate_order, ni \`destination_pipeline_id\`, ni \`tag\` en vez de \`tagName\`, etc.
+
+### Valores correctos: NOMBRE vs UUID
+Algunos parametros esperan NOMBRES y otros esperan UUIDs. Confundirlos rompe la automatizacion silenciosamente.
+
+| Parametro | Valor esperado | De donde sacarlo |
+|-----------|---------------|------------------|
+| \`tagName\` (assign_tag, remove_tag) | **NOMBRE** del tag | Campo \`name\` de \`listTags\` |
+| \`templateName\` (send_whatsapp_template) | **NOMBRE** del template | Campo \`name\` de \`listTemplates\` |
+| \`pipelineId\`, \`targetPipelineId\` | **UUID** del pipeline | Campo \`id\` de \`listPipelines\` |
+| \`stageId\`, \`targetStageId\` | **UUID** de la etapa | Campo \`id\` de las stages en \`listPipelines\` |
+| \`assignToUserId\` (create_task) | **UUID** del usuario | Campo \`id\` de \`listWorkspaceMembers\` |
+
+Ejemplo correcto: \`"tagName": "P/A"\` (nombre del tag)
+Ejemplo INCORRECTO: \`"tagName": "550e8400-e29b..."\` (UUID del tag)
+
+**payloadTemplate** (webhook): Debe ser un OBJETO JSON, no un string JSON. Ejemplo: \`{"nombre": "{{contacto.nombre}}"}\`
 
 ### Notas importantes sobre parametros especificos
 

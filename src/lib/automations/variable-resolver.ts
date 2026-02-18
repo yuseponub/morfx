@@ -152,6 +152,7 @@ export function buildTriggerContext(
   if (eventData.contactName !== undefined) contacto.nombre = eventData.contactName
   if (eventData.contactId !== undefined) contacto.id = eventData.contactId
   if (eventData.contactPhone !== undefined) contacto.telefono = eventData.contactPhone
+  else if (eventData.phone !== undefined) contacto.telefono = eventData.phone
   if (eventData.contactEmail !== undefined) contacto.email = eventData.contactEmail
   if (eventData.contactCity !== undefined) contacto.ciudad = eventData.contactCity
   if (eventData.contactDepartment !== undefined) contacto.departamento = eventData.contactDepartment
@@ -187,6 +188,7 @@ export function buildTriggerContext(
   const mensaje: Record<string, unknown> = {}
   if (eventData.messageContent !== undefined) mensaje.contenido = eventData.messageContent
   if (eventData.messagePhone !== undefined) mensaje.telefono = eventData.messagePhone
+  if (eventData.phone !== undefined && !mensaje.telefono) mensaje.telefono = eventData.phone
   if (eventData.keywordMatched !== undefined) mensaje.keyword_matched = eventData.keywordMatched
   if (Object.keys(mensaje).length > 0) context.mensaje = mensaje
 
@@ -201,13 +203,14 @@ export function buildTriggerContext(
   if (eventData.taskTitle !== undefined) tarea.titulo = eventData.taskTitle
   if (eventData.taskDescription !== undefined) tarea.descripcion = eventData.taskDescription
   if (eventData.taskDueDate !== undefined) tarea.fecha_limite = eventData.taskDueDate
+  if (eventData.dueDate !== undefined && !tarea.fecha_limite) tarea.fecha_limite = eventData.dueDate
   if (Object.keys(tarea).length > 0) context.tarea = tarea
 
   // --- campo (field.changed) ---
   const campo: Record<string, unknown> = {}
   if (eventData.fieldName !== undefined) campo.nombre = eventData.fieldName
-  if (eventData.fieldPreviousValue !== undefined) campo.valor_anterior = eventData.fieldPreviousValue
-  if (eventData.fieldNewValue !== undefined) campo.valor_nuevo = eventData.fieldNewValue
+  if (eventData.previousValue !== undefined) campo.valor_anterior = eventData.previousValue
+  if (eventData.newValue !== undefined) campo.valor_nuevo = eventData.newValue
   if (Object.keys(campo).length > 0) context.campo = campo
 
   // --- entidad (generic entity for tag/field triggers) ---

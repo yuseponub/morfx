@@ -162,6 +162,8 @@ export async function emitContactCreated(data: {
   contactPhone?: string
   contactEmail?: string
   contactCity?: string
+  contactDepartment?: string
+  contactAddress?: string
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
@@ -290,7 +292,9 @@ export async function emitTaskCompleted(data: {
   workspaceId: string
   taskId: string
   taskTitle: string
+  taskDescription?: string | null
   contactId: string | null
+  contactName?: string
   orderId: string | null
   cascadeDepth?: number
 }): Promise<void> {

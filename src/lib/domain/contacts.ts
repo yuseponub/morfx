@@ -120,7 +120,7 @@ export async function createContact(
         city: params.city || null,
         department: params.department || null,
       })
-      .select('id, name, phone, email, city, department')
+      .select('id, name, phone, email, city, department, address')
       .single()
 
     if (insertError || !contact) {
@@ -162,6 +162,8 @@ export async function createContact(
       contactPhone: contact.phone ?? undefined,
       contactEmail: contact.email ?? undefined,
       contactCity: contact.city ?? undefined,
+      contactDepartment: contact.department ?? undefined,
+      contactAddress: contact.address ?? undefined,
       cascadeDepth: ctx.cascadeDepth,
     })
 
@@ -398,13 +400,14 @@ export async function bulkCreateContacts(
       email: c.email || null,
       address: c.address || null,
       city: c.city || null,
+      department: c.department || null,
     }))
 
     // Batch insert with returning
     const { data: inserted, error: insertError } = await supabase
       .from('contacts')
       .insert(insertData)
-      .select('id, name, phone, email, city')
+      .select('id, name, phone, email, city, department, address')
 
     if (insertError || !inserted) {
       return { success: false, error: `Error al crear los contactos: ${insertError?.message}` }
@@ -421,6 +424,8 @@ export async function bulkCreateContacts(
         contactPhone: contact.phone ?? undefined,
         contactEmail: contact.email ?? undefined,
         contactCity: contact.city ?? undefined,
+        contactDepartment: contact.department ?? undefined,
+        contactAddress: contact.address ?? undefined,
         cascadeDepth: ctx.cascadeDepth,
       })
     }

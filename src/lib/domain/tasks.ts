@@ -118,7 +118,7 @@ export async function createTask(
       conversation_id: params.conversationId || null,
       assigned_to: params.assignedTo || null,
     })
-    .select('id, title, status')
+    .select('id, title, description, status')
     .single()
 
   if (error || !data) {
@@ -128,11 +128,25 @@ export async function createTask(
 
   // If created with status='completed', emit trigger
   if (data.status === 'completed') {
+    // Fetch contact name if available
+    let contactName: string | undefined
+    if (params.contactId) {
+      const supabase2 = createAdminClient()
+      const { data: contact } = await supabase2
+        .from('contacts')
+        .select('name')
+        .eq('id', params.contactId)
+        .single()
+      contactName = contact?.name ?? undefined
+    }
+
     await emitTaskCompleted({
       workspaceId: ctx.workspaceId,
       taskId: data.id,
       taskTitle: data.title,
+      taskDescription: data.description,
       contactId: params.contactId || null,
+      contactName,
       orderId: params.orderId || null,
       cascadeDepth: ctx.cascadeDepth,
     })
@@ -161,7 +175,7 @@ export async function updateTask(
   // Read current task
   const { data: current, error: readError } = await supabase
     .from('tasks')
-    .select('id, title, status, contact_id, order_id')
+    .select('id, title, description, status, contact_id, order_id')
     .eq('id', params.taskId)
     .eq('workspace_id', ctx.workspaceId)
     .single()
@@ -224,11 +238,26 @@ export async function updateTask(
   // Emit task.completed trigger if status changed to completed
   if (params.status === 'completed' && current.status !== 'completed') {
     const taskTitle = params.title?.trim() || current.title
+    const taskDescription = params.description !== undefined ? params.description : current.description
+
+    // Fetch contact name if available
+    let contactName: string | undefined
+    if (current.contact_id) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('name')
+        .eq('id', current.contact_id)
+        .single()
+      contactName = contact?.name ?? undefined
+    }
+
     await emitTaskCompleted({
       workspaceId: ctx.workspaceId,
       taskId: params.taskId,
       taskTitle,
+      taskDescription: taskDescription ?? undefined,
       contactId: current.contact_id ?? null,
+      contactName,
       orderId: current.order_id ?? null,
       cascadeDepth: ctx.cascadeDepth,
     })
@@ -256,7 +285,7 @@ export async function completeTask(
   // Read current task
   const { data: current, error: readError } = await supabase
     .from('tasks')
-    .select('id, title, status, contact_id, order_id')
+    .select('id, title, description, status, contact_id, order_id')
     .eq('id', params.taskId)
     .eq('workspace_id', ctx.workspaceId)
     .single()
@@ -286,12 +315,25 @@ export async function completeTask(
     return { success: false, error: updateError.message || 'Error al completar la tarea' }
   }
 
+  // Fetch contact name if available
+  let contactName: string | undefined
+  if (current.contact_id) {
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('name')
+      .eq('id', current.contact_id)
+      .single()
+    contactName = contact?.name ?? undefined
+  }
+
   // Emit task.completed trigger
   await emitTaskCompleted({
     workspaceId: ctx.workspaceId,
     taskId: params.taskId,
     taskTitle: current.title,
+    taskDescription: current.description,
     contactId: current.contact_id ?? null,
+    contactName,
     orderId: current.order_id ?? null,
     cascadeDepth: ctx.cascadeDepth,
   })

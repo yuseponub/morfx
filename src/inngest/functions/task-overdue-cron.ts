@@ -74,7 +74,7 @@ export const taskOverdueCron = inngest.createFunction(
     // Step 2: Emit task.overdue trigger per task (fire-and-forget)
     let emitted = 0
     for (const task of overdueTasks) {
-      emitTaskOverdue({
+      await emitTaskOverdue({
         workspaceId: task.workspace_id,
         taskId: task.id,
         taskTitle: task.title,

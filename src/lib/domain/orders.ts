@@ -394,6 +394,18 @@ export async function updateOrder(
       }
     }
 
+    // Fetch contact name for trigger context
+    let orderContactName: string | undefined
+    const orderContactId = (updates.contact_id !== undefined ? updates.contact_id : previousOrder.contact_id) as string | null
+    if (orderContactId) {
+      const { data: contactData } = await supabase
+        .from('contacts')
+        .select('name')
+        .eq('id', orderContactId)
+        .single()
+      orderContactName = contactData?.name ?? undefined
+    }
+
     // Fire-and-forget: emit field change triggers for each changed field
     // Map from param key to DB column name for comparison
     const fieldMappings: Array<{ paramKey: keyof typeof updates; dbColumn: string }> = [
@@ -421,7 +433,8 @@ export async function updateOrder(
           fieldName: dbColumn,
           previousValue: prevVal != null ? String(prevVal) : null,
           newValue: newVal != null ? String(newVal) : null,
-          contactId: (previousOrder.contact_id as string) ?? undefined,
+          contactId: orderContactId ?? undefined,
+          contactName: orderContactName,
           cascadeDepth: ctx.cascadeDepth,
         })
       }
@@ -439,7 +452,8 @@ export async function updateOrder(
           fieldName: 'custom_fields',
           previousValue: prevCustom,
           newValue: newCustom,
-          contactId: (previousOrder.contact_id as string) ?? undefined,
+          contactId: orderContactId ?? undefined,
+          contactName: orderContactName,
           cascadeDepth: ctx.cascadeDepth,
         })
       }

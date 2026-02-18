@@ -148,7 +148,7 @@ function buildContextFromEvent(
     workspaceId: String(eventData.workspaceId || ''),
     // Order context
     orderId: eventData.orderId as string | undefined,
-    orderValue: eventData.totalValue as number | undefined,
+    orderValue: eventData.orderValue as number | undefined,
     previousStageId: eventData.previousStageId as string | undefined,
     previousStageName: eventData.previousStageName as string | undefined,
     newStageId: eventData.newStageId as string | undefined,
@@ -440,6 +440,48 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
           // Merge enriched data into both contexts
           Object.assign(triggerContext, enriched)
           Object.assign(variableContext, buildTriggerContext({ ...eventData, ...enriched }))
+        }
+      }
+
+      // Context enrichment: load task + contact data for task triggers
+      const needsTaskEnrichment =
+        (triggerType === 'task.completed' || triggerType === 'task.overdue') &&
+        eventData.taskId
+
+      if (needsTaskEnrichment) {
+        const taskEnriched = await step.run(
+          `enrich-task-${String(eventData.taskId).slice(0, 8)}`,
+          async () => {
+            const supabase = createAdminClient()
+            const { data: task, error: taskError } = await supabase
+              .from('tasks')
+              .select('id, title, description, contact_id, order_id')
+              .eq('id', String(eventData.taskId))
+              .single()
+
+            if (taskError || !task) return null
+
+            let contactName: string | undefined
+            if (task.contact_id) {
+              const { data: contact } = await supabase
+                .from('contacts')
+                .select('name')
+                .eq('id', task.contact_id)
+                .single()
+              contactName = contact?.name ?? undefined
+            }
+
+            return {
+              taskDescription: task.description,
+              contactId: task.contact_id,
+              contactName,
+              orderId: task.order_id,
+            }
+          }
+        )
+        if (taskEnriched) {
+          Object.assign(triggerContext, taskEnriched)
+          Object.assign(variableContext, buildTriggerContext({ ...eventData, ...taskEnriched }))
         }
       }
 

@@ -7,6 +7,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { ResourceValidation } from '@/lib/builder/types'
+import type { ConditionGroup } from '@/lib/automations/types'
 
 // ============================================================================
 // Action -> Trigger Mapping (for cycle detection)
@@ -247,7 +248,7 @@ export async function detectCycles(
   newAutomation: {
     trigger_type: string
     trigger_config: Record<string, unknown>
-    conditions?: { rules?: { field?: string; operator?: string; value?: unknown }[] } | null
+    conditions?: ConditionGroup | null
     actions: { type: string; params: Record<string, unknown> }[]
   }
 ): Promise<{ hasCycles: boolean; cyclePath: string[]; severity: 'none' | 'warning' | 'blocker' }> {
@@ -366,39 +367,49 @@ export async function detectCycles(
       action: { type: string; params: Record<string, unknown> },
       target: AutoNode
     ): boolean {
-      const conditions = target.conditions as {
-        rules?: { field?: string; operator?: string; value?: unknown }[]
-      } | null
+      const conditions = target.conditions as ConditionGroup | null
 
-      if (!conditions?.rules || conditions.rules.length === 0) return false
+      if (!conditions?.conditions || conditions.conditions.length === 0) return false
 
-      for (const rule of conditions.rules) {
-        if (!rule.field || !rule.value) continue
+      function checkConditionEntries(
+        entries: ConditionGroup['conditions']
+      ): boolean {
+        for (const entry of entries) {
+          // Handle nested ConditionGroups recursively
+          if ('logic' in entry && 'conditions' in entry) {
+            if (checkConditionEntries((entry as ConditionGroup).conditions)) return true
+            continue
+          }
 
-        // Check stage conditions
-        if (rule.field === 'order.stage' || rule.field === 'stage' || rule.field === 'order.stage_id') {
-          const requiredStage = rule.value as string
-          // If the action creates/duplicates to a DIFFERENT stage
-          const actionStageId = (action.params.targetStageId || action.params.stageId) as string | undefined
-          if (actionStageId && requiredStage && actionStageId !== requiredStage) return true
+          const rule = entry as { field?: string; operator?: string; value?: unknown }
+          if (!rule.field || !rule.value) continue
+
+          // Check stage conditions (Spanish field names used by runtime)
+          if (rule.field === 'orden.stage_id') {
+            const requiredStage = rule.value as string
+            const actionStageId = (action.params.targetStageId || action.params.stageId) as string | undefined
+            if (actionStageId && requiredStage && actionStageId !== requiredStage) return true
+          }
+
+          // Check pipeline conditions
+          if (rule.field === 'orden.pipeline_id') {
+            const requiredPipeline = rule.value as string
+            const actionPipelineId = (action.params.targetPipelineId || action.params.pipelineId) as string | undefined
+            if (actionPipelineId && requiredPipeline && actionPipelineId !== requiredPipeline) return true
+          }
+
+          // Check tag conditions
+          if (rule.field === 'tag.nombre') {
+            const requiredTag = rule.value as string
+            const actionTagName = action.params.tagName as string | undefined
+            if (actionTagName && requiredTag && actionTagName !== requiredTag) return true
+          }
         }
 
-        // Check pipeline conditions
-        if (rule.field === 'order.pipeline' || rule.field === 'pipeline' || rule.field === 'order.pipeline_id') {
-          const requiredPipeline = rule.value as string
-          const actionPipelineId = (action.params.targetPipelineId || action.params.pipelineId) as string | undefined
-          if (actionPipelineId && requiredPipeline && actionPipelineId !== requiredPipeline) return true
-        }
-
-        // Check tag conditions
-        if (rule.field === 'contact.tag' || rule.field === 'tag') {
-          const requiredTag = rule.value as string
-          const actionTagId = (action.params.tagId || action.params.tagName) as string | undefined
-          if (actionTagId && requiredTag && actionTagId !== requiredTag) return true
-        }
+        return false
       }
 
-      return false
+      return checkConditionEntries(conditions.conditions)
     }
 
     // DFS with specificity-aware edge evaluation

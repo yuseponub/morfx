@@ -172,7 +172,7 @@ export const ACTION_CATALOG = [
     category: 'CRM',
     description: 'Mueve la orden a otra etapa del pipeline',
     params: [
-      { name: 'pipelineId', label: 'Pipeline', type: 'select', required: true },
+      { name: 'pipelineId', label: 'Pipeline', type: 'select', required: false },
       { name: 'stageId', label: 'Etapa destino', type: 'select', required: true },
     ],
   },
@@ -230,6 +230,7 @@ export const ACTION_CATALOG = [
       { name: 'templateName', label: 'Template', type: 'select', required: true },
       { name: 'language', label: 'Idioma', type: 'select', options: ['es', 'en', 'pt'], required: false },
       { name: 'variables', label: 'Variables', type: 'key_value', required: false },
+      { name: 'headerMediaUrl', label: 'URL de media para header', type: 'text', required: false },
     ],
   },
   {
@@ -314,6 +315,7 @@ export const VARIABLE_CATALOG = {
   ],
   'tag.assigned': [
     { path: 'tag.nombre', label: 'Nombre del tag' },
+    { path: 'tag.color', label: 'Color del tag' },
     { path: 'entidad.tipo', label: 'Tipo de entidad (contact/order)' },
     { path: 'entidad.id', label: 'ID de la entidad' },
     { path: 'contacto.nombre', label: 'Nombre del contacto' },

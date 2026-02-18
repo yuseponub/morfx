@@ -63,10 +63,10 @@ export async function updateCustomFieldValues(
       return { success: false, error: 'No se proporcionaron campos para actualizar' }
     }
 
-    // Read current custom_fields
+    // Read current custom_fields + name for trigger context
     const { data: contact, error: readError } = await supabase
       .from('contacts')
-      .select('custom_fields')
+      .select('custom_fields, name')
       .eq('id', params.contactId)
       .eq('workspace_id', ctx.workspaceId)
       .single()
@@ -106,6 +106,7 @@ export async function updateCustomFieldValues(
           previousValue: prevStr,
           newValue: newStr,
           contactId: params.contactId,
+          contactName: contact.name,
           cascadeDepth: ctx.cascadeDepth,
         })
       }

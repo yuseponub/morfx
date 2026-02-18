@@ -106,6 +106,7 @@ export async function emitTagAssigned(data: {
   entityId: string
   tagId: string
   tagName: string
+  tagColor?: string
   contactId: string | null
   contactName?: string
   contactPhone?: string
@@ -136,6 +137,7 @@ export async function emitTagRemoved(data: {
   tagName: string
   contactId: string | null
   contactName?: string
+  contactPhone?: string
   orderId?: string
   pipelineId?: string
   stageId?: string

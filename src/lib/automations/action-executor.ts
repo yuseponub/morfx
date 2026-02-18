@@ -291,6 +291,7 @@ async function executeUpdateField(
   const entityType = String(params.entityType || 'contact')
 
   if (!fieldName) throw new Error('fieldName is required for update_field')
+  if (value === undefined || value === null) throw new Error('value is required for update_field')
 
   const entityId = entityType === 'order'
     ? context.orderId

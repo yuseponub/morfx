@@ -341,6 +341,7 @@ export type AutomationEvents = {
       products: Array<{ sku: string; title: string; quantity: number; price: string }>
       shippingAddress: string | null
       shippingCity: string | null
+      shippingDepartment: string | null
       tags: string | null
       contactId?: string
       contactName?: string
@@ -361,6 +362,8 @@ export type AutomationEvents = {
       note: string | null
       products: Array<{ sku: string; title: string; quantity: number; price: string }>
       shippingAddress: string | null
+      shippingCity: string | null
+      shippingDepartment: string | null
       contactName?: string
       contactPhone?: string
       cascadeDepth: number
@@ -380,6 +383,7 @@ export type AutomationEvents = {
       products: Array<{ sku: string; title: string; quantity: number; price: string }>
       shippingAddress: string | null
       shippingCity: string | null
+      shippingDepartment: string | null
       tags: string | null
       contactId?: string
       contactName?: string

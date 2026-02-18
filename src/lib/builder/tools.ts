@@ -426,7 +426,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
           .optional()
           .default({})
           .describe('Configuracion del trigger'),
-        conditions: z.any().nullable().optional().describe('Condiciones (ConditionGroup o null)'),
+        conditions: z.object({ logic: z.enum(['AND', 'OR']), conditions: z.array(z.any()) }).nullable().optional().describe('Condiciones (ConditionGroup o null)'),
         actions: z
           .array(
             z.object({
@@ -549,7 +549,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
           .optional()
           .default({})
           .describe('Configuracion del trigger'),
-        conditions: z.any().nullable().optional().describe('Condiciones'),
+        conditions: z.object({ logic: z.enum(['AND', 'OR']), conditions: z.array(z.any()) }).nullable().optional().describe('Condiciones'),
         actions: z
           .array(
             z.object({
@@ -581,6 +581,24 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             return {
               success: false,
               error: `Parametros invalidos:\n${errorLines.join('\n')}`,
+            }
+          }
+
+          // Validate resources exist in workspace
+          const resourceValidations = await validateResources(
+            ctx.workspaceId,
+            {
+              trigger_type: params.trigger_type,
+              trigger_config: params.trigger_config,
+              actions: params.actions,
+            }
+          )
+          const invalidResources = resourceValidations.filter((r) => !r.found)
+          if (invalidResources.length > 0) {
+            const details = invalidResources.map((r) => `${r.type} "${r.name}": ${r.details}`).join('\n')
+            return {
+              success: false,
+              error: `Recursos no encontrados:\n${details}`,
             }
           }
 
@@ -650,7 +668,7 @@ export function createBuilderTools(ctx: BuilderToolContext) {
           .optional()
           .default({})
           .describe('Configuracion del trigger'),
-        conditions: z.any().nullable().optional().describe('Condiciones'),
+        conditions: z.object({ logic: z.enum(['AND', 'OR']), conditions: z.array(z.any()) }).nullable().optional().describe('Condiciones'),
         actions: z
           .array(
             z.object({
@@ -682,6 +700,24 @@ export function createBuilderTools(ctx: BuilderToolContext) {
             return {
               success: false,
               error: `Parametros invalidos:\n${errorLines.join('\n')}`,
+            }
+          }
+
+          // Validate resources exist in workspace
+          const resourceValidations = await validateResources(
+            ctx.workspaceId,
+            {
+              trigger_type: params.trigger_type,
+              trigger_config: params.trigger_config,
+              actions: params.actions,
+            }
+          )
+          const invalidResources = resourceValidations.filter((r) => !r.found)
+          if (invalidResources.length > 0) {
+            const details = invalidResources.map((r) => `${r.type} "${r.name}": ${r.details}`).join('\n')
+            return {
+              success: false,
+              error: `Recursos no encontrados:\n${details}`,
             }
           }
 

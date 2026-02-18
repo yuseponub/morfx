@@ -132,6 +132,8 @@ export interface ShopifyOrderWebhook {
   note: string | null
   /** Additional attributes from cart/checkout (e.g. Releasit COD form fields) */
   note_attributes: Array<{ name: string; value: string }> | null
+  /** Comma-separated tags on the order */
+  tags: string | null
 }
 
 /**

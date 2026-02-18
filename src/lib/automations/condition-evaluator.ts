@@ -186,7 +186,11 @@ export function evaluateConditionGroup(
     return evaluateCondition(entry, context)
   })
 
-  if (group.logic === 'AND') {
+  // Normalize logic: legacy automations may use "operator" instead of "logic"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const logic = group.logic || (group as any).operator || 'AND'
+
+  if (logic === 'AND') {
     return results.every(Boolean)
   }
 

@@ -68,7 +68,7 @@ export async function assignTag(
     // Step 1: Find tag by name in workspace
     const { data: tag, error: tagError } = await supabase
       .from('tags')
-      .select('id')
+      .select('id, color')
       .eq('workspace_id', ctx.workspaceId)
       .eq('name', params.tagName)
       .single()
@@ -147,6 +147,7 @@ export async function assignTag(
       entityId: params.entityId,
       tagId: tag.id,
       tagName: params.tagName,
+      tagColor: tag.color ?? undefined,
       contactId,
       contactName,
       contactPhone,
@@ -225,6 +226,7 @@ export async function removeTag(
     // Step 4: Fetch contactId + contact info for trigger context
     let contactId: string | null = null
     let contactName: string | undefined
+    let contactPhone: string | undefined
     let orderPipelineId: string | undefined
     let orderStageId: string | undefined
 
@@ -232,11 +234,12 @@ export async function removeTag(
       contactId = params.entityId
       const { data: contact } = await supabase
         .from('contacts')
-        .select('name')
+        .select('name, phone')
         .eq('id', params.entityId)
         .eq('workspace_id', ctx.workspaceId)
         .single()
       contactName = contact?.name ?? undefined
+      contactPhone = contact?.phone ?? undefined
     } else {
       // entityType === 'order': query order's contact_id + pipeline/stage for condition evaluation
       const { data: order } = await supabase
@@ -252,10 +255,11 @@ export async function removeTag(
       if (contactId) {
         const { data: contact } = await supabase
           .from('contacts')
-          .select('name')
+          .select('name, phone')
           .eq('id', contactId)
           .single()
         contactName = contact?.name ?? undefined
+        contactPhone = contact?.phone ?? undefined
       }
     }
 
@@ -268,6 +272,7 @@ export async function removeTag(
       tagName: params.tagName,
       contactId,
       contactName,
+      contactPhone,
       ...(params.entityType === 'order' && {
         orderId: params.entityId,
         pipelineId: orderPipelineId,

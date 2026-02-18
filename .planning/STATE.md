@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Standalone: whatsapp-phone-resilience (IN PROGRESS)
+**Current focus:** Between standalone phases
 
 ## Current Position
 
 Phase: standalone/whatsapp-phone-resilience
-Plan: 01 of 02
-Status: Plan 01 complete, Plan 02 pending
-Last activity: 2026-02-17 — Completed wp-resilience-01 (secondary phone extraction)
+Plan: 02 of 02
+Status: Phase complete
+Last activity: 2026-02-17 — Completed wp-resilience-02 (phone fallback chain in resolveWhatsAppContext)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [#####-----] 50% wp-resilience
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience
 
-### Standalone: WhatsApp Phone Resilience (2026-02-17) — IN PROGRESS
+### Standalone: WhatsApp Phone Resilience (2026-02-17) — COMPLETE
 
 2 plans total:
 - Plan 01: Secondary phone extraction from Shopify note_attributes (COMPLETE + SUMMARY)
-- Plan 02: Phone fallback chain in resolveWhatsAppContext (pending)
+- Plan 02: Phone fallback chain in resolveWhatsAppContext (COMPLETE + SUMMARY)
 
 ### Standalone: Action Fields Audit (2026-02-17) — COMPLETE
 
@@ -67,8 +67,8 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 32 (29 milestone + 3 standalone) + wp-resilience in progress
-- Total plans completed: 148
+- Total phases completed: 33 (29 milestone + 4 standalone)
+- Total plans completed: 149
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -91,6 +91,8 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Dynamic formatParamQuickReference() replaces hardcoded param list in AI builder system prompt (prevents drift)
 - Secondary phone stored in custom_fields JSONB (not new column) -- plugin-specific metadata from Releasit/CodMonster
 - Extract-at-ingestion pattern: capture Shopify note_attributes at webhook time, not at action execution time
+- Secondary phone fallback does NOT auto-link contact to secondary conversation (v1 safety)
+- Phone fallback chain is purely additive -- contacts without secondary_phone follow unchanged path
 
 ### Project Rules
 
@@ -116,7 +118,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 20:14 COT
-Stopped at: Completed wp-resilience-01 (secondary phone extraction from Shopify note_attributes)
+Last session: 2026-02-17 20:19 COT
+Stopped at: Completed wp-resilience-02 (phone fallback chain) -- WhatsApp Phone Resilience phase COMPLETE
 Resume file: None
-Next: wp-resilience-02 (phone fallback chain in resolveWhatsAppContext)
+Next: No pending standalone phases

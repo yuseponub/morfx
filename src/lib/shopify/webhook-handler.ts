@@ -1,11 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { matchContact } from './contact-matcher'
 import { mapShopifyOrder, MappedOrder } from './order-mapper'
-import { extractPhoneFromOrder } from './phone-normalizer'
+import { extractPhoneFromOrder, extractSecondaryPhoneFromNoteAttributes } from './phone-normalizer'
 import type { ShopifyOrderWebhook, ShopifyDraftOrderWebhook, ShopifyIntegration } from './types'
 import { createOrder as domainCreateOrder } from '@/lib/domain/orders'
 import { createContact as domainCreateContact } from '@/lib/domain/contacts'
 import type { DomainContext } from '@/lib/domain/types'
+import { updateCustomFieldValues as domainUpdateCustomFieldValues } from '@/lib/domain/custom-fields'
 import { inngest } from '@/inngest/client'
 
 /**
@@ -86,6 +87,23 @@ export async function processShopifyWebhook(
         workspaceId,
         config.enable_fuzzy_matching
       )
+
+      // Extract secondary phone from note_attributes (Releasit COD form, etc.)
+      if (contactId) {
+        const primaryPhone = extractPhoneFromOrder(order)
+        const secondaryPhone = extractSecondaryPhoneFromNoteAttributes(
+          order.note_attributes,
+          primaryPhone
+        )
+        if (secondaryPhone) {
+          const cfCtx: DomainContext = { workspaceId, source: 'webhook' }
+          await domainUpdateCustomFieldValues(cfCtx, {
+            contactId,
+            fields: { secondary_phone: secondaryPhone },
+          })
+          console.log(`[webhook-handler] Stored secondary phone ${secondaryPhone} for contact ${contactId}`)
+        }
+      }
 
       // Map Shopify order to MorfX format
       const mapped = await mapShopifyOrder(order, config, workspaceId, contactId)

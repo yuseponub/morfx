@@ -3,9 +3,10 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { Bot } from 'lucide-react'
+import { Bot, User } from 'lucide-react'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
+import { RelativeTime } from '@/components/ui/relative-time'
 import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 
@@ -114,12 +115,21 @@ export function ConversationItem({
           </div>
         </div>
 
-        {/* Timestamp (no inline order indicators - now on avatar) */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Timestamps */}
+        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
           {timeAgo && (
             <span className="text-xs text-muted-foreground">
               {timeAgo}
             </span>
+          )}
+          {conversation.last_customer_message_at && (
+            <div className="flex items-center gap-0.5">
+              <User className="h-3 w-3 text-muted-foreground/70" />
+              <RelativeTime
+                date={conversation.last_customer_message_at}
+                className="text-[10px] text-muted-foreground/70"
+              />
+            </div>
           )}
         </div>
       </div>

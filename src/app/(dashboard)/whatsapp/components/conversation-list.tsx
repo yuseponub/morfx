@@ -50,6 +50,7 @@ export function ConversationList({
     refresh,
     refreshOrders,
     getConversationById,
+    markAsReadLocally,
   } = useConversations({
     workspaceId,
     initialConversations,
@@ -186,7 +187,10 @@ export function ConversationList({
                   key={conversation.id}
                   conversation={conversation}
                   isSelected={selectedId === conversation.id}
-                  onSelect={(id) => onSelect(id, conversation)}
+                  onSelect={(id) => {
+                    markAsReadLocally(id)
+                    onSelect(id, conversation)
+                  }}
                   orders={contactOrders}
                 />
               )

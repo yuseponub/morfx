@@ -68,6 +68,8 @@ interface UseConversationsReturn {
   refreshOrders: () => Promise<void>
   /** Get a specific conversation by ID (always returns latest data) */
   getConversationById: (id: string) => ConversationWithDetails | undefined
+  /** Optimistically mark a conversation as read in local state */
+  markAsReadLocally: (conversationId: string) => void
 }
 
 // ============================================================================
@@ -425,6 +427,13 @@ export function useConversations({
     return conversations.find(c => c.id === id)
   }, [conversations])
 
+  // Optimistically mark a conversation as read in local state
+  const markAsReadLocally = useCallback((conversationId: string) => {
+    setConversations(prev => prev.map(c =>
+      c.id === conversationId ? { ...c, is_read: true, unread_count: 0 } : c
+    ))
+  }, [])
+
   // Refresh orders only (for emoji indicator updates after stage change)
   // Uses ref to avoid stale closure
   const refreshOrders = useCallback(async () => {
@@ -453,5 +462,6 @@ export function useConversations({
     refresh: fetchConversations,
     refreshOrders,
     getConversationById,
+    markAsReadLocally,
   }
 }

@@ -112,3 +112,51 @@ export function extractPhoneFromOrder(order: {
 
   return null
 }
+
+/**
+ * Extract secondary phone from Shopify note_attributes.
+ * COD form apps (Releasit, CodMonster, etc.) store customer phone
+ * in note_attributes with various naming conventions.
+ *
+ * Returns the FIRST valid phone found that differs from primaryPhone,
+ * normalized to E.164. Returns null if no phone-like attribute exists,
+ * all are invalid, or all match the primary phone.
+ *
+ * @param noteAttributes - Array of {name, value} pairs from Shopify order
+ * @param primaryPhone - The contact's primary phone (E.164) to skip duplicates
+ * @returns E.164 formatted secondary phone or null
+ */
+export function extractSecondaryPhoneFromNoteAttributes(
+  noteAttributes: Array<{ name: string; value: string }> | null | undefined,
+  primaryPhone: string | null
+): string | null {
+  if (!noteAttributes || !Array.isArray(noteAttributes)) return null
+
+  const phonePatterns = [
+    'phone', 'telefono', 'celular', 'whatsapp',
+    'secondary_phone', 'secondary phone',
+    'phone_number', 'phone number',
+    'numero', 'numero_telefono', 'numero telefono',
+    'tel', 'movil', 'mobile',
+  ]
+
+  for (const attr of noteAttributes) {
+    const name = (attr.name || '').toLowerCase().trim()
+    // Check if attribute name matches any phone pattern (exact or substring)
+    const isPhoneAttribute = phonePatterns.some(pattern =>
+      name === pattern || name.includes(pattern)
+    )
+
+    if (!isPhoneAttribute) continue
+
+    const normalized = normalizeShopifyPhone(attr.value)
+    if (!normalized) continue
+
+    // Skip if same as primary phone (not a secondary)
+    if (normalized === primaryPhone) continue
+
+    return normalized
+  }
+
+  return null
+}

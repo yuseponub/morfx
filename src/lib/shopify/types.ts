@@ -130,6 +130,8 @@ export interface ShopifyOrderWebhook {
   line_items: ShopifyLineItem[]
   /** Order note from customer */
   note: string | null
+  /** Additional attributes from cart/checkout (e.g. Releasit COD form fields) */
+  note_attributes: Array<{ name: string; value: string }> | null
 }
 
 /**
@@ -173,6 +175,8 @@ export interface ShopifyDraftOrderWebhook {
   line_items: ShopifyLineItem[]
   /** Draft order note */
   note: string | null
+  /** Additional attributes from cart/checkout (e.g. Releasit COD form fields) */
+  note_attributes: Array<{ name: string; value: string }> | null
   /** Invoice URL for the draft order (null if no invoice sent) */
   invoice_url: string | null
 }

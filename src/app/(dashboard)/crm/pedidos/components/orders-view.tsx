@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { PlusIcon, ShoppingCartIcon, SearchIcon, XIcon, SlidersHorizontalIcon, Trash2Icon, DownloadIcon } from 'lucide-react'
+import { PlusIcon, ShoppingCartIcon, SearchIcon, XIcon, SlidersHorizontalIcon, Trash2Icon, DownloadIcon, ArrowUpIcon, ArrowDownIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -57,6 +57,54 @@ import type {
 import type { ContactWithTags, Tag } from '@/lib/types/database'
 
 const VIEW_MODE_STORAGE_KEY = 'morfx_orders_view_mode'
+const SORT_FIELD_STORAGE_KEY = 'morfx_kanban_sort_field'
+const SORT_DIR_STORAGE_KEY = 'morfx_kanban_sort_dir'
+
+type KanbanSortField = 'created_at' | 'updated_at' | 'total_value' | 'name' | 'closing_date'
+type KanbanSortDirection = 'asc' | 'desc'
+
+const SORT_OPTIONS: { value: KanbanSortField; label: string }[] = [
+  { value: 'created_at', label: 'Fecha de creacion' },
+  { value: 'updated_at', label: 'Ultima modificacion' },
+  { value: 'total_value', label: 'Valor' },
+  { value: 'name', label: 'Nombre' },
+  { value: 'closing_date', label: 'Fecha de cierre' },
+]
+
+function compareOrders(a: OrderWithDetails, b: OrderWithDetails, field: KanbanSortField, dir: KanbanSortDirection): number {
+  let cmp = 0
+  switch (field) {
+    case 'created_at':
+    case 'updated_at': {
+      const aVal = a[field] || ''
+      const bVal = b[field] || ''
+      cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+      break
+    }
+    case 'closing_date': {
+      const aVal = a.closing_date
+      const bVal = b.closing_date
+      if (!aVal && !bVal) cmp = 0
+      else if (!aVal) cmp = 1 // nulls last
+      else if (!bVal) cmp = -1
+      else cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+      break
+    }
+    case 'total_value':
+      cmp = (a.total_value || 0) - (b.total_value || 0)
+      break
+    case 'name': {
+      const aName = a.name || ''
+      const bName = b.name || ''
+      if (!aName && !bName) cmp = 0
+      else if (!aName) cmp = 1
+      else if (!bName) cmp = -1
+      else cmp = aName.localeCompare(bName, 'es')
+      break
+    }
+  }
+  return dir === 'asc' ? cmp : -cmp
+}
 
 interface OrdersViewProps {
   orders: OrderWithDetails[]
@@ -87,6 +135,10 @@ export function OrdersView({
 
   // View mode (kanban default per CONTEXT.md)
   const [viewMode, setViewMode] = React.useState<OrderViewMode>('kanban')
+
+  // Kanban sort
+  const [sortField, setSortField] = React.useState<KanbanSortField>('created_at')
+  const [sortDirection, setSortDirection] = React.useState<KanbanSortDirection>('desc')
 
   // Default contact from URL params (for WhatsApp integration)
   const defaultContactId = searchParams.get('contact_id')
@@ -323,12 +375,20 @@ export function OrdersView({
     )
   }
 
-  // Load saved view mode from localStorage
+  // Load saved view mode and sort from localStorage
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
       if (saved === 'kanban' || saved === 'list') {
         setViewMode(saved)
+      }
+      const savedField = localStorage.getItem(SORT_FIELD_STORAGE_KEY)
+      if (savedField && SORT_OPTIONS.some(o => o.value === savedField)) {
+        setSortField(savedField as KanbanSortField)
+      }
+      const savedDir = localStorage.getItem(SORT_DIR_STORAGE_KEY)
+      if (savedDir === 'asc' || savedDir === 'desc') {
+        setSortDirection(savedDir)
       }
     } catch {
       // Ignore localStorage errors
@@ -343,6 +403,20 @@ export function OrdersView({
     } catch {
       // Ignore localStorage errors
     }
+  }
+
+  // Sort field change
+  const handleSortFieldChange = (value: string) => {
+    const field = value as KanbanSortField
+    setSortField(field)
+    try { localStorage.setItem(SORT_FIELD_STORAGE_KEY, field) } catch {}
+  }
+
+  // Sort direction toggle
+  const toggleSortDirection = () => {
+    const next = sortDirection === 'asc' ? 'desc' : 'asc'
+    setSortDirection(next)
+    try { localStorage.setItem(SORT_DIR_STORAGE_KEY, next) } catch {}
   }
 
   // Get active pipeline
@@ -396,7 +470,8 @@ export function OrdersView({
           })
         }
 
-        grouped[stage.id] = stageOrders
+        // Sort
+        grouped[stage.id] = [...stageOrders].sort((a, b) => compareOrders(a, b, sortField, sortDirection))
       }
       return grouped
     }
@@ -404,10 +479,12 @@ export function OrdersView({
     // Fallback: use full orders (list view or before kanban initialized)
     const grouped: OrdersByStage = {}
     for (const stage of stages) {
-      grouped[stage.id] = filteredOrders.filter((o) => o.stage_id === stage.id)
+      grouped[stage.id] = filteredOrders
+        .filter((o) => o.stage_id === stage.id)
+        .sort((a, b) => compareOrders(a, b, sortField, sortDirection))
     }
     return grouped
-  }, [viewMode, kanbanInitialized, kanbanOrders, stages, searchQuery, selectedTagIds, filteredOrders])
+  }, [viewMode, kanbanInitialized, kanbanOrders, stages, searchQuery, selectedTagIds, filteredOrders, sortField, sortDirection])
 
   // Check if any filters are active
   const hasActiveFilters =
@@ -630,6 +707,37 @@ export function OrdersView({
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Sort (kanban only) */}
+        {viewMode === 'kanban' && (
+          <div className="flex items-center gap-1">
+            <Select value={sortField} onValueChange={handleSortFieldChange}>
+              <SelectTrigger className="w-[170px] h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={toggleSortDirection}
+              title={sortDirection === 'asc' ? 'Ascendente' : 'Descendente'}
+            >
+              {sortDirection === 'asc' ? (
+                <ArrowUpIcon className="h-4 w-4" />
+              ) : (
+                <ArrowDownIcon className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />

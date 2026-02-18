@@ -123,6 +123,8 @@ export function KanbanBoard({
   const [localOrdersByStage, setLocalOrdersByStage] = React.useState(ordersByStage)
   // Local state for stages order (optimistic)
   const [localStages, setLocalStages] = React.useState(stages)
+  // Track which stage the dragged order is over (for visual feedback)
+  const [overStageId, setOverStageId] = React.useState<string | null>(null)
 
   // Sync local state when prop changes
   React.useEffect(() => {
@@ -191,10 +193,14 @@ export function KanbanBoard({
     const { active, over } = event
     const activeData = active.data.current
 
-    if (!over) return
+    if (!over) {
+      setOverStageId(null)
+      return
+    }
 
-    // Only handle stage reordering during drag over for smooth visual feedback
+    // Stage reordering during drag over for smooth visual feedback
     if (activeData?.type === 'stage') {
+      setOverStageId(null)
       const activeId = active.id as string
       const overId = over.id as string
 
@@ -209,6 +215,10 @@ export function KanbanBoard({
           return prev
         })
       }
+    } else {
+      // Order drag — track which stage we're hovering
+      const overId = over.id as string
+      setOverStageId(stageIds.has(overId) ? overId : null)
     }
   }
 
@@ -219,9 +229,10 @@ export function KanbanBoard({
     const { active, over } = event
     const activeData = active.data.current
 
-    // Clear active items
+    // Clear active items and hover state
     setActiveOrder(null)
     setActiveStage(null)
+    setOverStageId(null)
 
     // No drop target
     if (!over) return
@@ -251,6 +262,9 @@ export function KanbanBoard({
     // Handle order movement between stages
     const orderId = active.id as string
     const newStageId = over.id as string
+
+    // Guard: only process if target is a valid stage
+    if (!stageIds.has(newStageId)) return
 
     // Prevent multiple moves of same order
     if (pendingMoveId === orderId) return
@@ -288,18 +302,21 @@ export function KanbanBoard({
       return newState
     })
 
+    // Notify parent BEFORE server call to prevent bounce-back from revalidation
+    onOrderMoved?.(orderId, currentStageId, newStageId)
+
     // Persist to server
     setPendingMoveId(orderId)
     const result = await moveOrderToStage(orderId, newStageId)
     setPendingMoveId(null)
 
     if ('error' in result) {
-      // Revert on error
+      // Revert local state on error
       setLocalOrdersByStage(ordersByStage)
+      // Revert parent state
+      onOrderMoved?.(orderId, newStageId, currentStageId)
       toast.error(result.error)
     } else {
-      // Notify parent so it updates kanbanOrders (prevents bounce-back on revalidate)
-      onOrderMoved?.(orderId, currentStageId, newStageId)
       if (result.data?.warning) {
         toast.warning(result.data.warning)
       }
@@ -334,6 +351,7 @@ export function KanbanBoard({
               hasMore={stageHasMore?.[stage.id] ?? false}
               isLoadingMore={stageLoading?.[stage.id] ?? false}
               onLoadMore={onLoadMore ? () => onLoadMore(stage.id) : undefined}
+              isOver={overStageId === stage.id}
             />
           ))}
         </div>

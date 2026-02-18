@@ -1,8 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { useDraggable } from '@dnd-kit/core'
 import { PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon } from 'lucide-react'
 import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
@@ -64,16 +63,14 @@ export function KanbanCard({
     listeners,
     setNodeRef,
     transform,
-    transition,
-    isDragging: isSortableDragging,
-  } = useSortable({ id: order.id })
+    isDragging: isDraggableActive,
+  } = useDraggable({ id: order.id })
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
   }
 
-  const dragging = isDragging || isSortableDragging
+  const dragging = isDragging || isDraggableActive
 
   const handleClick = (e: React.MouseEvent) => {
     // Only trigger click if not dragging (prevent clicks during drag)

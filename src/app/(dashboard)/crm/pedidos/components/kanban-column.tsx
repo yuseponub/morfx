@@ -1,10 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PaletteIcon, PlusIcon, TrashIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +30,7 @@ interface KanbanColumnProps {
   hasMore?: boolean
   isLoadingMore?: boolean
   onLoadMore?: () => void
+  isOver?: boolean
 }
 
 /**
@@ -51,12 +50,13 @@ export function KanbanColumn({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  isOver,
 }: KanbanColumnProps) {
   // Make column sortable (for reordering stages)
   const {
     attributes,
     listeners,
-    setNodeRef: setSortableRef,
+    setNodeRef,
     transform,
     transition,
     isDragging,
@@ -84,17 +84,6 @@ export function KanbanColumn({
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [hasMore, isLoadingMore, onLoadMore])
-
-  // Make column a drop target for orders
-  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
-    id: stage.id,
-  })
-
-  // Combine refs
-  const setNodeRef = (node: HTMLDivElement | null) => {
-    setSortableRef(node)
-    setDroppableRef(node)
-  }
 
   // Sortable styles
   const style = {
@@ -205,37 +194,32 @@ export function KanbanColumn({
       )}
 
       {/* Cards container */}
-      <SortableContext
-        items={orders.map((o) => o.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[100px]">
-          {orders.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm py-8">
-              Sin pedidos
-            </div>
-          ) : (
-            orders.map((order) => (
-              <KanbanCard
-                key={order.id}
-                order={order}
-                onClick={() => onOrderClick(order)}
-                isSelected={selectedOrderIds?.has(order.id) ?? false}
-                onSelectChange={onOrderSelectChange ? (selected) => onOrderSelectChange(order.id, selected) : undefined}
-              />
-            ))
-          )}
-          {hasMore && (
-            <div ref={sentinelRef} className="flex items-center justify-center py-2">
-              {isLoadingMore ? (
-                <div className="text-xs text-muted-foreground">Cargando...</div>
-              ) : (
-                <div className="h-4" />
-              )}
-            </div>
-          )}
-        </div>
-      </SortableContext>
+      <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[100px]">
+        {orders.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm py-8">
+            Sin pedidos
+          </div>
+        ) : (
+          orders.map((order) => (
+            <KanbanCard
+              key={order.id}
+              order={order}
+              onClick={() => onOrderClick(order)}
+              isSelected={selectedOrderIds?.has(order.id) ?? false}
+              onSelectChange={onOrderSelectChange ? (selected) => onOrderSelectChange(order.id, selected) : undefined}
+            />
+          ))
+        )}
+        {hasMore && (
+          <div ref={sentinelRef} className="flex items-center justify-center py-2">
+            {isLoadingMore ? (
+              <div className="text-xs text-muted-foreground">Cargando...</div>
+            ) : (
+              <div className="h-4" />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

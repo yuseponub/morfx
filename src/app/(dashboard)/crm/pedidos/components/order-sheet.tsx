@@ -158,11 +158,8 @@ export function OrderSheet({
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <SheetTitle className="text-xl">
-                {contact?.name || 'Pedido sin contacto'}
+                {order.name || 'Sin nombre'}
               </SheetTitle>
-              {order.name && (
-                <p className="text-sm font-mono text-muted-foreground">{order.name}</p>
-              )}
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold text-primary">
                   {formatCurrency(order.total_value)}

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { UserIcon, PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon } from 'lucide-react'
+import { PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon } from 'lucide-react'
 import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -115,17 +115,17 @@ export function KanbanCard({
         </div>
       )}
 
-      {/* Header: Contact name + value */}
+      {/* Header: Order name + value */}
       <div className={cn('flex items-start justify-between gap-2 mb-2', onSelectChange && 'pl-5')}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <PackageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           <div className="min-w-0 flex-1">
-            <span className="font-medium text-sm truncate block">
-              {order.contact?.name || 'Sin contacto'}
+            <span className="font-semibold text-sm truncate block">
+              {order.name || 'Sin nombre'}
             </span>
-            {order.name && (
-              <span className="text-[11px] font-mono text-muted-foreground truncate block">
-                {order.name}
+            {order.contact?.name && (
+              <span className="text-[11px] text-muted-foreground truncate block">
+                {order.contact.name}
               </span>
             )}
           </div>

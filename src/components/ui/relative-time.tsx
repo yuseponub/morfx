@@ -16,17 +16,24 @@ interface RelativeTimeProps {
  * Uses suppressHydrationWarning to handle SSR/client time mismatch without error.
  */
 export function RelativeTime({ date, className, refreshInterval = 60_000 }: RelativeTimeProps) {
+  const [mounted, setMounted] = useState(false)
   const [, setTick] = useState(0)
 
+  useEffect(() => { setMounted(true) }, [])
+
   useEffect(() => {
-    if (!date) return
+    if (!date || !mounted) return
     const timer = setInterval(() => setTick(t => t + 1), refreshInterval)
     return () => clearInterval(timer)
-  }, [date, refreshInterval])
+  }, [date, mounted, refreshInterval])
 
   if (!date) return null
 
-  const text = formatDistanceToNow(new Date(date), { addSuffix: true, locale: es })
+  // Render empty text on server/before mount, fill after mount
+  // This keeps DOM structure identical (span always exists) preventing hydration mismatch
+  const text = mounted
+    ? formatDistanceToNow(new Date(date), { addSuffix: true, locale: es })
+    : ''
 
   return <span className={className} suppressHydrationWarning>{text}</span>
 }

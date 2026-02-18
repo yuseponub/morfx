@@ -195,9 +195,7 @@ export function useConversations({
           filterParams = { status: 'active' }
       }
 
-      console.warn('🔴 FETCH START filter=' + filter)
       const data = await getConversations(filterParams)
-      console.warn('🔴 FETCH DONE filter=' + filter + ' count=' + data.length + ' first_lma=' + (data[0]?.last_message_at ?? 'NULL') + ' first_lcma=' + (data[0]?.last_customer_message_at ?? 'NULL'))
       setConversations(data)
     } catch (error) {
       console.error('Error fetching conversations:', error)

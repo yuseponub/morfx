@@ -5,16 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Standalone: action-fields-audit (COMPLETE)
+**Current focus:** Standalone: whatsapp-phone-resilience (IN PROGRESS)
 
 ## Current Position
 
-Phase: standalone/action-fields-audit (COMPLETE)
-Plan: 04 of 04
-Status: Phase complete
-Last activity: 2026-02-17 — Completed action-fields-audit Plan 04 (AI Builder system prompt)
+Phase: standalone/whatsapp-phone-resilience
+Plan: 01 of 02
+Status: Plan 01 complete, Plan 02 pending
+Last activity: 2026-02-17 — Completed wp-resilience-01 (secondary phone extraction)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [#####-----] 50% wp-resilience
+
+### Standalone: WhatsApp Phone Resilience (2026-02-17) — IN PROGRESS
+
+2 plans total:
+- Plan 01: Secondary phone extraction from Shopify note_attributes (COMPLETE + SUMMARY)
+- Plan 02: Phone fallback chain in resolveWhatsAppContext (pending)
 
 ### Standalone: Action Fields Audit (2026-02-17) — COMPLETE
 
@@ -61,8 +67,8 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 32 (29 milestone + 3 standalone)
-- Total plans completed: 147
+- Total phases completed: 32 (29 milestone + 3 standalone) + wp-resilience in progress
+- Total plans completed: 148
 - Total execution time: ~22 days (2026-01-26 to 2026-02-17)
 
 ## Accumulated Context
@@ -83,6 +89,8 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Generic OPTION_LABELS handler replaces per-param entityType select; works for priority, language too
 - field_select type with __custom fallback for update_field entity-aware field picker
 - Dynamic formatParamQuickReference() replaces hardcoded param list in AI builder system prompt (prevents drift)
+- Secondary phone stored in custom_fields JSONB (not new column) -- plugin-specific metadata from Releasit/CodMonster
+- Extract-at-ingestion pattern: capture Shopify note_attributes at webhook time, not at action execution time
 
 ### Project Rules
 
@@ -108,7 +116,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 18:42 COT
-Stopped at: Completed action-fields-audit Plan 04 (AI Builder system prompt) — phase complete
+Last session: 2026-02-17 20:14 COT
+Stopped at: Completed wp-resilience-01 (secondary phone extraction from Shopify note_attributes)
 Resume file: None
-Next: New standalone task or CRM orders performance Plan 03
+Next: wp-resilience-02 (phone fallback chain in resolveWhatsAppContext)

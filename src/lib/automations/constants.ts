@@ -30,7 +30,7 @@ export const TRIGGER_CATALOG = [
       { name: 'pipelineId', label: 'Pipeline', type: 'select', required: false },
       { name: 'stageId', label: 'Etapa destino', type: 'select', required: false },
     ],
-    variables: ['orden.id', 'orden.nombre', 'orden.valor', 'orden.stage_anterior', 'orden.stage_nuevo', 'orden.pipeline', 'contacto.nombre', 'contacto.telefono', 'contacto.ciudad'],
+    variables: ['orden.id', 'orden.nombre', 'orden.valor', 'orden.stage_anterior', 'orden.stage_nuevo', 'orden.pipeline', 'orden.direccion_envio', 'orden.ciudad_envio', 'orden.departamento_envio', 'orden.descripcion', 'contacto.nombre', 'contacto.telefono', 'contacto.ciudad'],
   },
   {
     type: 'tag.assigned',
@@ -69,7 +69,7 @@ export const TRIGGER_CATALOG = [
       { name: 'pipelineId', label: 'Pipeline', type: 'select', required: false },
       { name: 'stageId', label: 'Etapa', type: 'select', required: false },
     ],
-    variables: ['orden.id', 'orden.valor', 'orden.pipeline', 'orden.stage', 'contacto.nombre', 'contacto.telefono'],
+    variables: ['orden.id', 'orden.nombre', 'orden.valor', 'orden.pipeline', 'orden.stage', 'orden.direccion_envio', 'orden.ciudad_envio', 'orden.departamento_envio', 'orden.descripcion', 'contacto.nombre', 'contacto.telefono'],
   },
   {
     type: 'field.changed',

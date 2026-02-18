@@ -156,11 +156,6 @@ export function buildTriggerContext(
   if (eventData.contactCity !== undefined) contacto.ciudad = eventData.contactCity
   if (eventData.contactDepartment !== undefined) contacto.departamento = eventData.contactDepartment
   if (eventData.contactAddress !== undefined) contacto.direccion = eventData.contactAddress
-  // Fallback: if contact address fields are null but shipping fields exist,
-  // populate from order shipping (common in order triggers where address lives on the order)
-  if (!contacto.direccion && eventData.shippingAddress) contacto.direccion = eventData.shippingAddress
-  if (!contacto.ciudad && eventData.shippingCity) contacto.ciudad = eventData.shippingCity
-  if (!contacto.departamento && eventData.shippingDepartment) contacto.departamento = eventData.shippingDepartment
   if (Object.keys(contacto).length > 0) context.contacto = contacto
 
   // --- orden ---

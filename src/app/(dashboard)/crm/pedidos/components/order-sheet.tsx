@@ -17,6 +17,7 @@ import {
   LoaderIcon,
   MessageCircleIcon,
   ListTodo,
+  ChevronDownIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -70,6 +71,65 @@ function isValidTrackingUrl(tracking: string): boolean {
   } catch {
     return false
   }
+}
+
+function ContactSection({ contact }: { contact: { id: string; name: string; phone: string; address: string | null; city: string | null } }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const hasDetails = contact.address || contact.city
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Contacto
+        </h3>
+        {hasDetails && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronDownIcon className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <UserIcon className="h-4 w-4 text-muted-foreground" />
+          <Link
+            href={`/crm/contactos/${contact.id}`}
+            className="text-primary hover:underline"
+          >
+            {contact.name}
+          </Link>
+        </div>
+        <div className="flex items-center gap-3">
+          <PhoneIcon className="h-4 w-4 text-muted-foreground" />
+          <Link
+            href={`/crm/contactos/${contact.id}`}
+            className="text-primary hover:underline"
+          >
+            {contact.phone}
+          </Link>
+        </div>
+        {expanded && (
+          <>
+            {contact.address && (
+              <div className="flex items-start gap-3">
+                <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span>{contact.address}</span>
+              </div>
+            )}
+            {contact.city && (
+              <div className="flex items-center gap-3">
+                <MapPinIcon className="h-4 w-4 text-muted-foreground" />
+                <span>{contact.city}</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  )
 }
 
 interface OrderSheetProps {
@@ -269,38 +329,7 @@ export function OrderSheet({
           <div className="p-6 space-y-6">
             {/* Contact info */}
             {contact && (
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Contacto
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                    <span>{contact.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <PhoneIcon className="h-4 w-4 text-muted-foreground" />
-                    <a
-                      href={`tel:${contact.phone}`}
-                      className="text-primary hover:underline"
-                    >
-                      {contact.phone}
-                    </a>
-                  </div>
-                  {contact.address && (
-                    <div className="flex items-start gap-3">
-                      <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <span>{contact.address}</span>
-                    </div>
-                  )}
-                  {contact.city && (
-                    <div className="flex items-center gap-3">
-                      <MapPinIcon className="h-4 w-4 text-muted-foreground" />
-                      <span>{contact.city}</span>
-                    </div>
-                  )}
-                </div>
-              </section>
+              <ContactSection contact={contact} />
             )}
 
             <Separator />

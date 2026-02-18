@@ -235,6 +235,30 @@ export async function createOrder(
       .eq('id', order.id)
       .single()
 
+    // Fetch contact data for trigger enrichment
+    let contactName: string | undefined
+    let contactPhone: string | undefined
+    let contactAddress: string | null = null
+    let contactCity: string | null = null
+    let contactDepartment: string | null = null
+
+    if (params.contactId) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('name, phone, address, city, department')
+        .eq('id', params.contactId)
+        .eq('workspace_id', ctx.workspaceId)
+        .single()
+
+      if (contact) {
+        contactName = contact.name
+        contactPhone = contact.phone ?? undefined
+        contactAddress = contact.address
+        contactCity = contact.city
+        contactDepartment = contact.department
+      }
+    }
+
     // Fire-and-forget: emit automation trigger
     await emitOrderCreated({
       workspaceId: ctx.workspaceId,
@@ -243,6 +267,16 @@ export async function createOrder(
       stageId,
       contactId: params.contactId ?? null,
       totalValue: finalOrder?.total_value ?? 0,
+      contactName,
+      contactPhone,
+      contactAddress,
+      contactCity,
+      contactDepartment,
+      shippingAddress: params.shippingAddress ?? null,
+      shippingCity: params.shippingCity ?? null,
+      shippingDepartment: params.shippingDepartment ?? null,
+      orderName: params.name ?? null,
+      orderDescription: params.description ?? null,
       cascadeDepth: ctx.cascadeDepth,
     })
 
@@ -437,10 +471,10 @@ export async function moveOrderToStage(
   const supabase = createAdminClient()
 
   try {
-    // Read current order state
+    // Read current order state (include shipping fields for rich trigger context)
     const { data: currentOrder, error: fetchError } = await supabase
       .from('orders')
-      .select('stage_id, pipeline_id, contact_id')
+      .select('stage_id, pipeline_id, contact_id, total_value, description, name, shipping_address, shipping_city, shipping_department')
       .eq('id', params.orderId)
       .eq('workspace_id', ctx.workspaceId)
       .single()
@@ -487,7 +521,7 @@ export async function moveOrderToStage(
       currentOrder.contact_id
         ? supabase
             .from('contacts')
-            .select('name, phone')
+            .select('name, phone, address, city, department')
             .eq('id', currentOrder.contact_id)
             .single()
         : Promise.resolve({ data: null }),
@@ -507,6 +541,15 @@ export async function moveOrderToStage(
         pipelineName: pipeline?.name,
         contactName: contact?.name,
         contactPhone: contact?.phone,
+        contactAddress: contact?.address,
+        contactCity: contact?.city,
+        contactDepartment: contact?.department,
+        shippingAddress: currentOrder.shipping_address,
+        shippingCity: currentOrder.shipping_city,
+        shippingDepartment: currentOrder.shipping_department,
+        orderValue: currentOrder.total_value,
+        orderName: currentOrder.name,
+        orderDescription: currentOrder.description,
         cascadeDepth: ctx.cascadeDepth,
       })
     }
@@ -649,6 +692,30 @@ export async function duplicateOrder(
       return { success: false, error: `Error al duplicar el pedido: ${createError?.message}` }
     }
 
+    // Fetch contact data for trigger enrichment
+    let dupContactName: string | undefined
+    let dupContactPhone: string | undefined
+    let dupContactAddress: string | null = null
+    let dupContactCity: string | null = null
+    let dupContactDepartment: string | null = null
+
+    if (shouldCopyContact && sourceOrder.contact_id) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('name, phone, address, city, department')
+        .eq('id', sourceOrder.contact_id)
+        .eq('workspace_id', ctx.workspaceId)
+        .single()
+
+      if (contact) {
+        dupContactName = contact.name
+        dupContactPhone = contact.phone ?? undefined
+        dupContactAddress = contact.address
+        dupContactCity = contact.city
+        dupContactDepartment = contact.department
+      }
+    }
+
     // Copy products only if configured
     if (shouldCopyProducts) {
       const sourceProducts = sourceOrder.order_products as Array<{
@@ -703,6 +770,16 @@ export async function duplicateOrder(
         contactId: shouldCopyContact ? (sourceOrder.contact_id ?? null) : null,
         totalValue,
         sourceOrderId: params.sourceOrderId,
+        shippingAddress: sourceOrder.shipping_address ?? null,
+        shippingCity: sourceOrder.shipping_city ?? null,
+        shippingDepartment: sourceOrder.shipping_department ?? null,
+        orderName: sourceOrder.name ?? null,
+        orderDescription: sourceOrder.description ?? null,
+        contactName: dupContactName,
+        contactPhone: dupContactPhone,
+        contactAddress: dupContactAddress,
+        contactCity: dupContactCity,
+        contactDepartment: dupContactDepartment,
         cascadeDepth: ctx.cascadeDepth,
       })
     } else {
@@ -723,6 +800,16 @@ export async function duplicateOrder(
         contactId: shouldCopyContact ? (sourceOrder.contact_id ?? null) : null,
         totalValue: shouldCopyValue ? (sourceOrder.total_value ?? 0) : 0,
         sourceOrderId: params.sourceOrderId,
+        shippingAddress: sourceOrder.shipping_address ?? null,
+        shippingCity: sourceOrder.shipping_city ?? null,
+        shippingDepartment: sourceOrder.shipping_department ?? null,
+        orderName: sourceOrder.name ?? null,
+        orderDescription: sourceOrder.description ?? null,
+        contactName: dupContactName,
+        contactPhone: dupContactPhone,
+        contactAddress: dupContactAddress,
+        contactCity: dupContactCity,
+        contactDepartment: dupContactDepartment,
         cascadeDepth: ctx.cascadeDepth,
       })
     }

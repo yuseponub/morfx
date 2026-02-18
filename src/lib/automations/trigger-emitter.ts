@@ -75,6 +75,15 @@ export async function emitOrderStageChanged(data: {
   pipelineName?: string
   contactName?: string
   contactPhone?: string
+  contactAddress?: string | null
+  contactCity?: string | null
+  contactDepartment?: string | null
+  shippingAddress?: string | null
+  shippingCity?: string | null
+  shippingDepartment?: string | null
+  orderValue?: number | null
+  orderName?: string | null
+  orderDescription?: string | null
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
@@ -179,6 +188,14 @@ export async function emitOrderCreated(data: {
   sourceOrderId?: string
   contactName?: string
   contactPhone?: string
+  contactAddress?: string | null
+  contactCity?: string | null
+  contactDepartment?: string | null
+  shippingAddress?: string | null
+  shippingCity?: string | null
+  shippingDepartment?: string | null
+  orderName?: string | null
+  orderDescription?: string | null
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0

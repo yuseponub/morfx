@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { FileText, Download, Play, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -82,10 +83,10 @@ export function MediaPreview({
           <p className="text-sm whitespace-pre-wrap">{caption}</p>
         )}
 
-        {/* Fullscreen modal */}
-        {isExpanded && (
+        {/* Fullscreen modal — portal to body to escape overflow hidden */}
+        {isExpanded && createPortal(
           <div
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-8"
             onClick={() => setIsExpanded(false)}
           >
             <div className="absolute top-4 right-4 flex items-center gap-2">
@@ -117,7 +118,8 @@ export function MediaPreview({
               className="max-w-full max-h-full object-contain"
               onClick={(e) => e.stopPropagation()}
             />
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     )

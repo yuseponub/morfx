@@ -5,16 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Between standalone phases
+**Current focus:** Quick tasks
 
 ## Current Position
 
-Phase: standalone/whatsapp-phone-resilience
-Plan: 02 of 02
-Status: Phase complete
-Last activity: 2026-02-17 — Completed wp-resilience-02 (phone fallback chain in resolveWhatsAppContext)
+Phase: quick/001-optimistic-whatsapp-send
+Plan: 001 of 001
+Status: Complete
+Last activity: 2026-02-18 — Completed quick-001 (optimistic WhatsApp text send)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001
+
+### Quick: Optimistic WhatsApp Send (2026-02-18) — COMPLETE
+
+1 plan total:
+- Plan 001: Optimistic text send — instant UI, Realtime replacement, retry toast (COMPLETE + SUMMARY)
 
 ### Standalone: WhatsApp Phone Resilience (2026-02-17) — COMPLETE
 
@@ -68,8 +73,8 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 149
-- Total execution time: ~22 days (2026-01-26 to 2026-02-17)
+- Total plans completed: 150
+- Total execution time: ~23 days (2026-01-26 to 2026-02-18)
 
 ## Accumulated Context
 
@@ -93,6 +98,7 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Extract-at-ingestion pattern: capture Shopify note_attributes at webhook time, not at action execution time
 - Secondary phone fallback does NOT auto-link contact to secondary conversation (v1 safety)
 - Phone fallback chain is purely additive -- contacts without secondary_phone follow unchanged path
+- 'sending' status is client-only sentinel (not in MessageStatus union) — replaced by Realtime INSERT with real status
 
 ### Project Rules
 
@@ -118,7 +124,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17 20:19 COT
-Stopped at: Completed wp-resilience-02 (phone fallback chain) -- WhatsApp Phone Resilience phase COMPLETE
+Last session: 2026-02-18 07:24 COT
+Stopped at: Completed quick-001 (optimistic WhatsApp text send)
 Resume file: None
-Next: No pending standalone phases
+Next: No pending quick tasks

@@ -582,16 +582,31 @@ async function resolveWhatsAppContext(
     }
   }
 
+  // Get workspace settings (needed for phone_number_id and API key)
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('settings')
+    .eq('id', workspaceId)
+    .single()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settings = workspace?.settings as any
+  const apiKey = settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+  if (!apiKey) throw new Error('WhatsApp API key not configured')
+
   // Step 3: No conversation found — create one with primary phone.
   // Templates can be sent without an existing conversation (Meta allows this).
   // Create a conversation record so the message can be stored and tracked.
   if (!conversation) {
+    const phoneNumberId = settings?.whatsapp_phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || ''
+
     const { data: newConv, error: convError } = await supabase
       .from('conversations')
       .insert({
         workspace_id: workspaceId,
         contact_id: contactId,
         phone: contact.phone,
+        phone_number_id: phoneNumberId,
         status: 'open',
         last_message_at: new Date().toISOString(),
         last_message_preview: '[Template]',
@@ -604,18 +619,6 @@ async function resolveWhatsAppContext(
     }
     conversation = newConv
   }
-
-  // Get API key
-  const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('settings')
-    .eq('id', workspaceId)
-    .single()
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const settings = workspace?.settings as any
-  const apiKey = settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-  if (!apiKey) throw new Error('WhatsApp API key not configured')
 
   return { conversation, apiKey }
 }

@@ -9,12 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 ## Current Position
 
-Phase: quick/001-optimistic-whatsapp-send
+Phase: quick/002-fix-media-inbound-null-url
 Plan: 001 of 001
 Status: Complete
-Last activity: 2026-02-18 — Completed quick-001 (optimistic WhatsApp text send)
+Last activity: 2026-02-18 — Completed quick-002 (fix inbound media null URL)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001 | [##########] 100% quick-002
+
+### Quick: Fix Inbound Media Null URL (2026-02-18) — COMPLETE
+
+1 plan total:
+- Plan 001: Download media from 360dialog, re-host on Supabase Storage, pass URL to domain (COMPLETE + SUMMARY)
 
 ### Quick: Optimistic WhatsApp Send (2026-02-18) — COMPLETE
 
@@ -73,7 +78,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 150
+- Total plans completed: 151
 - Total execution time: ~23 days (2026-01-26 to 2026-02-18)
 
 ## Accumulated Context
@@ -99,6 +104,7 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Secondary phone fallback does NOT auto-link contact to secondary conversation (v1 safety)
 - Phone fallback chain is purely additive -- contacts without secondary_phone follow unchanged path
 - 'sending' status is client-only sentinel (not in MessageStatus union) — replaced by Realtime INSERT with real status
+- Inbound media re-hosting: download from 360dialog ephemeral URL, upload to Supabase Storage under inbound/ prefix, pass permanent public URL to domain
 
 ### Project Rules
 
@@ -127,10 +133,11 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 001 | Envío optimista de mensajes WhatsApp | 2026-02-18 | d811760 | [001-optimistic-whatsapp-send](./quick/001-optimistic-whatsapp-send/) |
+| 002 | Fix inbound media null URL (download+rehost) | 2026-02-18 | 6d5ae22 | [002-fix-media-inbound-null-url](./quick/002-fix-media-inbound-null-url/) |
 
 ## Session Continuity
 
-Last session: 2026-02-18 07:24 COT
-Stopped at: Completed quick-001 (optimistic WhatsApp text send)
+Last session: 2026-02-18 08:25 COT
+Stopped at: Completed quick-002 (fix inbound media null URL)
 Resume file: None
 Next: No pending quick tasks

@@ -108,6 +108,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card">
+      <TooltipProvider>
       {/* Logo/Brand */}
       <div className="h-16 flex items-center px-6 border-b">
         <Link href="/crm">
@@ -131,8 +132,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
 
       {/* Navigation */}
       <nav className="flex-1 p-4">
-        <TooltipProvider>
-          <ul className="space-y-1">
+        <ul className="space-y-1">
             {filteredNavItems.map((item) => {
               const isActive = pathname.startsWith(item.href)
               const Icon = item.icon
@@ -194,7 +194,6 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
               )
             })}
           </ul>
-        </TooltipProvider>
       </nav>
 
       {/* Footer - User profile */}
@@ -232,6 +231,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
           </div>
         )}
       </div>
+      </TooltipProvider>
     </aside>
   )
 }

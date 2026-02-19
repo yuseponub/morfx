@@ -5,16 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Quick tasks
+**Current focus:** Bulk actions for orders
 
 ## Current Position
 
-Phase: quick/004-fix-p0-1-task-overdue-variable-mismatches
-Plan: 001 of 001
-Status: Complete
-Last activity: 2026-02-19 — Completed quick-004 (fix task.overdue variable mismatches)
+Phase: standalone/bulk-actions-orders
+Plan: 001 of 002
+Status: In progress (Plan 001 complete, Plan 002 pending)
+Last activity: 2026-02-19 — Completed bulk-actions-orders-001 (server actions + dialog components)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001 | [##########] 100% quick-002 | [##########] 100% quick-003 | [##########] 100% quick-004
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001 | [##########] 100% quick-002 | [##########] 100% quick-003 | [##########] 100% quick-004 | [#####-----] 50% bulk-actions
+
+### Standalone: Bulk Actions for Orders (2026-02-19) — IN PROGRESS
+
+2 plans total:
+- Plan 001: Bulk server actions + dialog components (COMPLETE + SUMMARY)
+- Plan 002: Integration into orders table/kanban with selection state (pending)
 
 ### Quick: Fix P0-1 Task Overdue Variable Mismatches (2026-02-19) — COMPLETE
 
@@ -118,6 +124,8 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Pipeline stages scoping via parent pipeline workspace check (pipeline_stages has no workspace_id column)
 - Defense-in-depth: all contacts enrichment queries filter by workspace_id even when parent entity already verified
 - Batch-fetch contact names in dedicated Inngest step.run for N+1 avoidance in task-overdue-cron
+- Bulk operations use per-order domain loop (not batch SQL) to ensure automation triggers fire per order
+- DB field names mapped to domain param names in server action (adapter concern, not domain)
 
 ### Project Rules
 
@@ -152,7 +160,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-19 10:58 COT
-Stopped at: Completed quick-004 (fix task.overdue variable mismatches)
+Last session: 2026-02-19 15:30 COT
+Stopped at: Completed bulk-actions-orders-001 (server actions + dialog components)
 Resume file: None
-Next: No pending quick tasks
+Next: Execute bulk-actions-orders-002 (integration into table/kanban with selection state)

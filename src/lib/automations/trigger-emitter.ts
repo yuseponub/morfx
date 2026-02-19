@@ -319,8 +319,10 @@ export async function emitTaskOverdue(data: {
   workspaceId: string
   taskId: string
   taskTitle: string
+  taskDescription?: string | null
   dueDate: string
   contactId: string | null
+  contactName?: string
   orderId: string | null
   cascadeDepth?: number
 }): Promise<void> {

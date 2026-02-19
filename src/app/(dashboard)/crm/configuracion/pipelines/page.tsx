@@ -14,6 +14,7 @@ export default async function PipelinesSettingsPage() {
   }
 
   return (
+    <div className="flex-1 overflow-y-auto p-6">
     <div className="space-y-6 max-w-4xl">
       {/* Back button */}
       <div className="flex items-center gap-4">
@@ -35,6 +36,7 @@ export default async function PipelinesSettingsPage() {
 
       {/* Pipeline list with stage management */}
       <PipelineList pipelines={pipelines} />
+    </div>
     </div>
   )
 }

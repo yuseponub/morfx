@@ -378,6 +378,7 @@ async function autoCreateContact(
 
 /**
  * Check if a conversation has any of the given tags assigned.
+ * Checks both conversation_tags (direct) and contact_tags (via linked contact).
  */
 async function conversationHasAnyTag(
   conversationId: string,
@@ -385,12 +386,38 @@ async function conversationHasAnyTag(
   tagNames: string[]
 ): Promise<boolean> {
   const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('conversation_tags')
+
+  // Fetch contact_id + check conversation_tags in parallel
+  const [convTagResult, convResult] = await Promise.all([
+    supabase
+      .from('conversation_tags')
+      .select('tag:tags!inner(id)')
+      .eq('conversation_id', conversationId)
+      .eq('tag.workspace_id', workspaceId)
+      .in('tag.name', tagNames)
+      .limit(1),
+    supabase
+      .from('conversations')
+      .select('contact_id')
+      .eq('id', conversationId)
+      .single(),
+  ])
+
+  // Found in conversation_tags (e.g. WPP tag)
+  if ((convTagResult.data?.length ?? 0) > 0) return true
+
+  // No linked contact → can't check contact_tags
+  const contactId = convResult.data?.contact_id
+  if (!contactId) return false
+
+  // Check contact_tags (e.g. P/W tag assigned via automation)
+  const { data: contactTags } = await supabase
+    .from('contact_tags')
     .select('tag:tags!inner(id)')
-    .eq('conversation_id', conversationId)
+    .eq('contact_id', contactId)
     .eq('tag.workspace_id', workspaceId)
     .in('tag.name', tagNames)
     .limit(1)
-  return (data?.length ?? 0) > 0
+
+  return (contactTags?.length ?? 0) > 0
 }

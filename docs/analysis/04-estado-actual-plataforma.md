@@ -86,7 +86,6 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Funciona:** Todo lo listado
 - **Bugs conocidos:**
   - Rate limiting no implementado en API de envio (W-1 audit)
-  - Exito parcial cuando API envia pero DB falla (W-2 audit — mensaje enviado pero no registrado)
 
 ---
 
@@ -221,9 +220,9 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 
 #### Bugs documentados (CRM-AUTOMATIONS-AUDIT.md)
 - **5 Critical:** Variable key mismatches (field.changed, whatsapp.phone, task.overdue) — variables resuelven vacias
-- **8 Major:** Missing data en emitters, taskOverdue sin await, totalValue/orderValue mismatch
-- **12 Minor:** Catalog inconsistencies, missing contact enrichment en algunos emitters
-- **AI Builder cycle detection:** 3 bugs combinados (usa .rules no .conditions, English field names, sin nested groups)
+- **Major restantes:** Missing data en emitters, missing contact enrichment en algunos emitters
+- **12 Minor:** Catalog inconsistencies
+- ~~AI Builder cycle detection~~ — Resuelto: usa .conditions, field names en español, soporta nested groups
 
 ---
 
@@ -408,34 +407,32 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 ### P0 — Critica (Seguridad/Data Integrity)
 
 1. **Variables de automatizacion vacias** (CRM-AUTOMATIONS-AUDIT C1-C4) — Key mismatches entre emitters y variable-resolver causan que {{campo}} resuelva a vacio
-2. **AI Builder cycle detection roto** (CRM-AUTOMATIONS-AUDIT C5) — Usa `.rules` en vez de `.conditions`, English field names, sin nested groups
-3. **Temp route sin auth** (FIXES-PHASE1 R-1) — `src/app/api/temp-send-agendados/route.ts` debe eliminarse
-4. **workspace_id missing en queries** (FIXES-PHASE1 R-5, R-6) — 4 queries en tags.ts y 2 en notes.ts sin filtro workspace
+2. **workspace_id missing en queries** (FIXES-PHASE1 R-5, R-6) — 4 queries en tags.ts y 2 en notes.ts sin filtro workspace
 
 ### P1 — Alta (Funcionalidad)
 
-5. **Exito parcial retorna success:true** (FIXES-PHASE1 R-7) — Cuando API envia pero DB falla, deberia ser success:false
-6. **taskOverdue sin await** (CRM-AUTOMATIONS-AUDIT M3) — Viola regla "never fire-and-forget in serverless"
-7. **totalValue vs orderValue mismatch** (CRM-AUTOMATIONS-AUDIT M4) — Runner lee campo incorrecto
-8. **Missing enrichment** (CRM-AUTOMATIONS-AUDIT M1-M2) — contact.created no envia departamento/direccion, task triggers no envian contacto.nombre
-9. **TriggerContext type gap** (Real Fields Fix) — Faltan contactDepartment y contactAddress en interface
+3. **Missing enrichment** (CRM-AUTOMATIONS-AUDIT M1-M2) — contact.created no envia departamento/direccion, task triggers no envian contacto.nombre
+4. **TriggerContext type gap** (Real Fields Fix) — Faltan contactDepartment y contactAddress en interface
+5. **Webhook WhatsApp sin store-before-process** — Si `processWebhook()` falla, el mensaje inbound se pierde. Se retorna 200 a 360dialog (correcto para evitar retries) pero no hay recovery. Solucion pendiente: guardar raw payload en `webhook_events` antes de procesar.
 
 ### P2 — Media (Mejoras)
 
-10. **Server actions sin domain layer** — Config modules (pipelines, teams, tags CRUD, etc.) escriben directo a Supabase
-11. **No rate limiting** en API routes (sandbox, agents, tools)
-12. **Twilio inbound SMS** no implementado
-13. **Task timestamps UTC** — Deberian usar America/Bogota
-14. **Phone normalization inconsistente** — 4 implementaciones diferentes (consolidar a 1)
-15. **Unresolved variables como literal** (R-3) — `{{placeholder}}` deberia ser string vacio
+6. **Server actions sin domain layer** — Config modules (pipelines, teams, tags CRUD, etc.) escriben directo a Supabase
+7. **No rate limiting** en API routes (sandbox, agents, tools)
+8. **Twilio inbound SMS** no implementado
+9. **Task timestamps UTC** — Deberian usar America/Bogota
+10. **Phone normalization inconsistente** — 4 implementaciones diferentes (consolidar a 1)
+11. **Unresolved variables como literal** (R-3) — `{{placeholder}}` deberia ser string vacio
 
 ### P3 — Baja (Cleanup)
 
-16. **Duplicaciones de codigo** — Supabase admin client duplicado, model IDs hardcoded (7 refs)
-17. **Commented code** — 179 archivos con 3+ lineas de comentarios
-18. **Dead code potencial** — `getTemplatesForIntents()` en template-manager.ts
-19. **Workspace config UI** — Name/slug editing placeholder
-20. **Task reminders** — Placeholder "Proximamente"
+12. **Duplicaciones de codigo** — Supabase admin client duplicado, model IDs hardcoded (7 refs)
+13. **Commented code** — 179 archivos con 3+ lineas de comentarios
+14. **Dead code potencial** — `getTemplatesForIntents()` en template-manager.ts
+15. **Workspace config UI** — Name/slug editing placeholder
+16. **Task reminders** — Placeholder "Proximamente"
+
+> **Auditado y verificado 19 feb 2026:** P0-3 (temp route), P0-2 (cycle detection), P1-5 (exito parcial), P1-6 (taskOverdue await), P1-7 (totalValue mismatch) — todos resueltos en codigo, removidos de deuda.
 
 ---
 

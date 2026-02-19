@@ -1,8 +1,16 @@
-# Carolina Logística - Chatbot Interno
+# Carolina Logistica - Chatbot Interno
 
-**Estado:** 📋 Diseñado
-**Prioridad:** Alta
-**Fecha:** 2026-01-23
+**Estado:** 📋 Diseñado (NO IMPLEMENTADO)
+**Prioridad:** Futura (v3+)
+**Fecha original:** 2026-01-23
+**Ultima revision:** 2026-02-19
+
+> **NOTA (Feb 2026):** Este documento describe una vision de producto que NO se implemento.
+> La plataforma actual no tiene chatbot interno de logistica. Las operaciones de logistica
+> (tracking, guias, inventario) no estan integradas en MorfX v2.0.
+> Si se implementa, deberia usar la arquitectura actual (UnifiedEngine + BaseCrmAgent)
+> en vez de n8n workflows como describe este documento.
+> Ver `01-ia-distribuida-v3.md` para la arquitectura real de agentes.
 
 ---
 

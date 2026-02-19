@@ -1,8 +1,16 @@
 # Sistema Retroactivo para State Analyzer
 
-**Estado:** 📋 Diseñado
-**Prioridad:** Alta
-**Fecha:** 2026-01-23
+**Estado:** 📋 Diseñado (NO IMPLEMENTADO)
+**Prioridad:** Futura (v3+)
+**Fecha original:** 2026-01-23
+**Ultima revision:** 2026-02-19
+
+> **NOTA (Feb 2026):** Este documento describe una vision de producto que NO se implemento.
+> La arquitectura real de agentes usa un modelo diferente (UnifiedEngine + SomnioAgent con IntentDetector + Orchestrator).
+> Ver `01-ia-distribuida-v3.md` para la arquitectura REAL implementada.
+> El concepto de "comparar con conversaciones exitosas" sigue siendo valido como feature futura,
+> pero tendria que adaptarse a la arquitectura actual (no a n8n/Historial V3 como describe este doc).
+> Las referencias a n8n, Callbell, Bigin, y PostgreSQL directo ya no aplican.
 
 ---
 

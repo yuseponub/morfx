@@ -1,197 +1,231 @@
-# Arquitectura IA Distribuida v3
+# Arquitectura de Agentes IA — MorfX v2.0
 
-**Actualizado:** 2026-01-23
-
----
-
-## Principios de Diseño (DSL)
-
-| Principio | Descripción |
-|-----------|-------------|
-| **Separación de Responsabilidades** | Cada workflow = 1 tarea |
-| **Single Source of Truth** | Solo Historial escribe a PostgreSQL |
-| **Funciones Puras** | Workflows sin side effects (reciben input, retornan output) |
-| **Orquestador Central** | Historial coordina todo el flujo |
+**Actualizado:** 19 de Febrero 2026
 
 ---
 
-## Diagrama de Arquitectura
+## Resumen
+
+MorfX implementa un sistema de agentes IA basado en el patron Ports/Adapters (Hexagonal) con un UnifiedEngine que sirve tanto sandbox como produccion desde el mismo codebase. El agente principal es SomnioAgent (ventas via WhatsApp), con OrderManagerAgent como agente CRM auxiliar. Toda la logica de negocio vive en el agente; el engine es un thin runner que delega I/O a 5 adaptadores.
+
+---
+
+## Arquitectura Actual (Implementada)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      HISTORIAL V3                               │
-│              (Orquestador + ÚNICO que escribe PostgreSQL)       │
-│                                                                 │
-│  Mensaje llega → Guarda mensaje                                 │
-│       │                                                         │
-│       ▼                                                         │
-│  ┌─────────────────┐                                           │
-│  │ STATE ANALYZER  │──► Retorna: {intent, new_mode}            │
-│  │ (siempre corre) │    NO escribe PostgreSQL                  │
-│  └─────────────────┘                                           │
-│       │                                                         │
-│       │ Historial GUARDA mode en PostgreSQL                    │
-│       ▼                                                         │
-│  ┌─────────────────┐                                           │
-│  │ DATA EXTRACTOR  │──► Retorna: {captured_data}               │
-│  │ (si mode=       │    NO escribe PostgreSQL                  │
-│  │  collecting_data│                                           │
-│  └─────────────────┘                                           │
-│       │                                                         │
-│       │ Historial GUARDA captured_data en PostgreSQL           │
-│       ▼                                                         │
-│  ┌─────────────────┐                                           │
-│  │ CAROLINA        │──► Retorna: {response, should_create}     │
-│  │ (si bot_on)     │    NO escribe PostgreSQL                  │
-│  └─────────────────┘                                           │
-│       │                                                         │
-│       │ Historial GUARDA respuesta en PostgreSQL               │
-│       ▼                                                         │
-│  ┌─────────────────┐                                           │
-│  │ ORDER MANAGER   │──► Retorna: {order_id, success}           │
-│  │ (si should_     │    Solo escribe a Bigin (externo)         │
-│  │  create_order)  │                                           │
-│  └─────────────────┘                                           │
-│       │                                                         │
-│       │ Historial GUARDA order_created en PostgreSQL           │
-│       ▼                                                         │
-│  FIN                                                            │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    PROACTIVE TIMER                              │
-│              (Proceso independiente cada 1 min)                 │
-│                                                                 │
-│  Consulta sesiones inactivas > 6 min                           │
-│       │                                                         │
-│       ▼                                                         │
-│  Envía recordatorio pidiendo datos faltantes                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     UnifiedEngine                            │
+│              (Thin Runner — Ports/Adapters)                   │
+│                                                              │
+│  Mensaje llega → Fetch session → Fetch history               │
+│       │                                                      │
+│       ▼                                                      │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              SomnioAgent.processMessage()              │   │
+│  │                                                        │   │
+│  │  1. Check ingest mode (if collecting_data)             │   │
+│  │     └─ MessageClassifier → IngestManager               │   │
+│  │        └─ 4 categorias: datos/pregunta/mixto/irrelevante│  │
+│  │                                                        │   │
+│  │  2. Check implicit yes (confirmacion tacita)           │   │
+│  │                                                        │   │
+│  │  3. IntentDetector (Claude Sonnet)                     │   │
+│  │     └─ 33 intents, confidence routing                  │   │
+│  │     └─ Thresholds: 85/60/40                            │   │
+│  │                                                        │   │
+│  │  4. SomnioOrchestrator (Claude Sonnet)                 │   │
+│  │     └─ TemplateManager (primera_vez vs siguientes)     │   │
+│  │     └─ Decide: response, templates, next mode          │   │
+│  │                                                        │   │
+│  │  5. Build state updates + timer signals                │   │
+│  │     └─ Returns: SomnioAgentOutput                      │   │
+│  └──────────────────────────────────────────────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│  Route to 5 Adapters:                                        │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────┐ ┌──────┐ │
+│  │ Storage  │ │  Timer   │ │ Messaging│ │Orders│ │Debug │ │
+│  │          │ │          │ │          │ │      │ │      │ │
+│  │ Session  │ │ Inngest  │ │ WhatsApp │ │ CRM  │ │ Audit│ │
+│  │ History  │ │ Signals  │ │ Send     │ │Create│ │ Log  │ │
+│  │ State    │ │ Events   │ │ Sequence │ │      │ │      │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────┘ └──────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Responsabilidades por Componente
+## Agentes Implementados
 
-| Workflow | Qué hace | Qué NO hace | ¿Cuándo corre? |
-|----------|----------|-------------|----------------|
-| **Historial** | Orquesta flujo, escribe PostgreSQL | Lógica de negocio | Siempre |
-| **State Analyzer** | Detecta intents, decide mode | Escribir DB | Siempre |
-| **Data Extractor** | Parsea y extrae datos del mensaje | Escribir DB, cambiar mode | Si mode=collecting_data |
-| **Carolina** | Genera respuestas conversacionales | Escribir DB, guardar datos | Si bot_on |
-| **Order Manager** | Crea órdenes en Bigin | Escribir PostgreSQL | Si should_create_order |
-| **Proactive Timer** | Envía recordatorios automáticos | - | Cada 1 min (cron) |
+### SomnioAgent (Agente Principal de Ventas)
+- **Archivo:** `src/lib/agents/somnio/somnio-agent.ts` (744 lineas)
+- **Config:** `src/lib/agents/somnio/config.ts` (167 lineas)
+- **Prompts:** `src/lib/agents/somnio/prompts.ts` (313 lineas)
+- **Proposito:** Bot conversacional de ventas para Somnio (almohadas) via WhatsApp
+- **Tools:** crm.contact.create, crm.contact.update, crm.contact.get, crm.order.create, whatsapp.message.send, whatsapp.template.send
+
+**Componentes internos:**
+- `IntentDetector` — Claude Sonnet, clasifica en 33 intents con confidence scoring
+- `MessageClassifier` — Haiku-first con Sonnet fallback, 4 categorias de ingest
+- `IngestManager` — Extrae datos, maneja accumulation silenciosa
+- `SomnioOrchestrator` — Claude Sonnet, decide acciones post-intent
+- `TemplateManager` — Seleccion de templates por intent + visit type
+- `DataExtractor` — Extrae 8 campos de datos del cliente
+
+### OrderManagerAgent (Agente CRM)
+- **Archivo:** `src/lib/agents/crm/order-manager/agent.ts`
+- **Proposito:** Crea ordenes desde contexto conversacional
+- **Variantes:** full (8 campos + pack), no_promo (8 campos), draft (nombre + telefono)
+- **Modos:** dry-run (mock responses) y live (mutaciones reales via domain layer)
+
+### Agent Registry
+- **Archivo:** `src/lib/agents/registry.ts` (118 lineas)
+- **Patron:** Self-registration — cada agente se registra al importar su modulo
+- **Extensibilidad:** Nuevos agentes se agregan implementando BaseCrmAgent + registrandose
 
 ---
 
-## Flujo de Datos (Input/Output)
+## Flujo Completo: Mensaje WhatsApp → Respuesta
 
-### STATE ANALYZER
-```json
-Input:  {
-  "phone": "573137549286",
-  "message": "Hola, cuánto cuesta?",
-  "historial": [...],
-  "current_mode": "conversational"
-}
-
-Output: {
-  "intent": "precio",
-  "new_mode": "conversational",
-  "confidence": 0.95
-}
 ```
-
-### DATA EXTRACTOR
-```json
-Input:  {
-  "phone": "573137549286",
-  "message": "Soy Juan Pérez, vivo en Calle 123",
-  "current_captured_data": {}
-}
-
-Output: {
-  "captured_data": {
-    "nombre": "Juan Pérez",
-    "direccion": "Calle 123"
-  },
-  "is_complete": false
-}
-```
-
-### CAROLINA
-```json
-Input:  {
-  "phone": "573137549286",
-  "message": "Quiero comprar",
-  "intent": "compra",
-  "captured_data": {...},
-  "historial": [...]
-}
-
-Output: {
-  "response_text": "Perfecto! Para procesar tu pedido...",
-  "should_create_order": false,
-  "should_respond": true
-}
-```
-
-### ORDER MANAGER
-```json
-Input:  {
-  "captured_data": {
-    "nombre": "Juan Pérez",
-    "telefono": "573137549286",
-    "direccion": "Calle 123",
-    "ciudad": "Bogotá",
-    "producto": "Somnio x3"
-  }
-}
-
-Output: {
-  "order_id": "ORD-12345",
-  "success": true,
-  "error": null
-}
+1. 360dialog webhook → /api/webhooks/whatsapp
+2. Verify HMAC → processWebhook()
+3. Store inbound message → domain/messages.receiveMessage()
+4. Emit Inngest event → agent/whatsapp.message_received
+5. whatsappAgentProcessor (Inngest, concurrency 1/conversation)
+6. UnifiedEngine.processMessage() con production adapters
+   a. Storage: SessionManager + Supabase (agent_sessions, agent_turns)
+   b. SomnioAgent.processMessage() — ALL business logic
+   c. Storage: save state, mode changes, turns, intents
+   d. Timer: emit Inngest signals (start/cancel/reevaluate)
+   e. Orders: OrderManagerAgent if shouldCreateOrder
+   f. Messaging: MessageSequencer → WhatsApp API (with delays)
+   g. Debug: audit system
+7. Return EngineOutput → Inngest step completes
 ```
 
 ---
 
-## Cuándo Carolina Responde
+## Sandbox vs Produccion
 
-| Situación | ¿Responde? | Acción |
-|-----------|------------|--------|
-| intent=capture_data, datos incompletos | ❌ NO | Proactive Timer pide después de 6min |
-| intent=capture_data, datos completos (sin promo) | ✅ SÍ | Ofrece promos |
-| intent=capture_data, datos completos + promo | ✅ SÍ | Confirma orden |
-| intent=pregunta | ✅ SÍ | Responde pregunta |
-| intent=saludo | ✅ SÍ | Saluda |
-| bot_off | ❌ NO | Silencio (pero State Analyzer sí corre) |
-
----
-
-## Beneficios de esta Arquitectura
-
-| Beneficio | Descripción |
-|-----------|-------------|
-| **Mantenibilidad** | Cambiar un workflow no afecta otros |
-| **Testeabilidad** | Cada workflow se prueba aislado |
-| **Escalabilidad** | Agregar nuevos workflows es fácil |
-| **Debugging** | Un solo lugar donde mirar logs (Historial) |
-| **Consistencia** | Sin race conditions (un solo escritor) |
-| **Flexibilidad** | State Analyzer corre aunque bot esté OFF |
+| Aspecto | Sandbox | Produccion |
+|---------|---------|------------|
+| Storage | In-memory SandboxState | SessionManager + Supabase |
+| Timer | No-op (returns signals) | Inngest events durables |
+| Messaging | Collect as strings | WhatsApp API via MessageSequencer |
+| Orders | OrderManagerAgent dry-run | OrderManagerAgent live |
+| Debug | Collects intent, tools, tokens, state | No-op (audit system) |
+| Entry point | `/api/sandbox/process` | Inngest whatsappAgentProcessor |
+| State persistence | None (session-scoped) | DB agent_sessions + session_state |
 
 ---
 
-## Extensiones Futuras
+## Sistema de Timers (5 Niveles)
 
-### Sistema Retroactivo
-Ver: `02-sistema-retroactivo.md`
+```
+L0: Waiting     — Esperando primer dato
+L1: Partial     — 6/8 campos → pedir faltantes (6 min timeout)
+L2: Escalate    — Sin respuesta → ofrecer promos (10 min timeout)
+L3: Promos      — En promos → crear orden o timeout (10 min timeout)
+L4: Confirm     — Orden seleccionada → confirmacion final (10 min timeout)
+```
 
-### Carolina Logística
-Ver: `03-carolina-logistica.md`
+**Produccion:** Inngest `step.waitForEvent()` con timeout configurable (real/rapido/instantaneo)
+**Sandbox:** IngestTimerSimulator client-side con refs para evitar stale closures
 
 ---
 
-*Documento parte del proyecto Modelo IA Distribuida*
+## Tools Disponibles (Action DSL)
+
+**29 tools** registrados en `src/lib/tools/`:
+
+| Modulo | Tools | Handler |
+|--------|-------|---------|
+| CRM Contacts | create, update, delete, read, list | Real → domain/contacts |
+| CRM Tags | add, remove | Real → domain/tags |
+| CRM Orders | create, update, updateStatus, delete, duplicate, list | Real → domain/orders |
+| CRM Tasks | create, update, complete, list | Real → domain/tasks |
+| CRM Notes | create, list, delete | Real → domain/notes |
+| CRM Custom Fields | update, read | Real → domain/custom-fields |
+| WhatsApp Messages | send, list | Real → domain/messages |
+| WhatsApp Templates | send, list | Real → 360dialog API + domain |
+| WhatsApp Conversations | list, assign, close | Real → domain/conversations |
+
+**Executor:** `src/lib/tools/executor.ts` (292 lineas) con validacion, permisos, rate limiting, timeouts (CRM 5s, WhatsApp 15s, System 10s), y audit logging.
+
+---
+
+## Comunicacion entre Componentes
+
+```
+SomnioAgent ──[SomnioAgentOutput]──► UnifiedEngine
+    │
+    ├─ response (text to send)
+    ├─ templates[] (WhatsApp templates to send)
+    ├─ stateUpdates (intents, datos, mode, pack)
+    ├─ timerSignals[] (start/cancel/reevaluate)
+    ├─ shouldCreateOrder (boolean)
+    └─ debugInfo (intent, tools, tokens)
+
+UnifiedEngine ──[adapters]──► External Systems
+    │
+    ├─ Storage adapter → Supabase (agent_sessions, agent_turns, session_state)
+    ├─ Timer adapter → Inngest (agent/* events)
+    ├─ Messaging adapter → 360dialog API (WhatsApp messages)
+    ├─ Orders adapter → OrderManagerAgent → domain/orders
+    └─ Debug adapter → audit system
+```
+
+---
+
+## Lo que NO esta implementado (Futuro)
+
+- **Multi-agent orchestration** — Solo 1 agente conversacional (Somnio), no hay routing entre multiples
+- **Agent canvas visual** — Configuracion via codigo, no hay editor visual de flujos
+- **Sistema retroactivo** — Comparacion con conversaciones exitosas (diseñado, no implementado)
+- **Carolina Logistica** — Chatbot interno para operaciones (diseñado, no implementado)
+- **Agentes adicionales** — Recompra, seguimiento, customer service
+- **Context summarization** — No hay truncamiento automatico de contexto (< 200K tokens)
+- **Circuit breaker** — No hay fallback automatico en errores de tool
+- **Message queueing** — No hay cola Redis/Bull para burst traffic
+
+---
+
+## Archivos Clave
+
+```
+src/lib/agents/
+├── somnio/
+│   ├── somnio-agent.ts        (744L — ALL business logic)
+│   ├── config.ts              (167L — Agent configuration)
+│   ├── prompts.ts             (313L — System prompts)
+│   ├── intent-detector.ts     (Intent classification)
+│   ├── message-classifier.ts  (Ingest classification)
+│   ├── ingest-manager.ts      (Data extraction + routing)
+│   ├── somnio-orchestrator.ts (Response generation)
+│   └── template-manager.ts    (Template selection)
+├── crm/
+│   ├── base-crm-agent.ts     (Abstract base)
+│   └── order-manager/
+│       └── agent.ts           (Order creation agent)
+├── engine/
+│   └── unified-engine.ts     (329L — Thin runner)
+├── engine-adapters/
+│   ├── sandbox/index.ts      (In-memory adapters)
+│   └── production/index.ts   (Real adapters)
+└── registry.ts               (118L — Agent registration)
+
+src/lib/tools/
+├── schemas/
+│   ├── crm.tools.ts          (1,188L — 22 tool schemas)
+│   └── whatsapp.tools.ts     (365L — 7 tool schemas)
+├── handlers/
+│   ├── crm/index.ts          (Real CRM handlers)
+│   └── whatsapp/index.ts     (Real WhatsApp handlers)
+├── executor.ts               (292L — Tool execution engine)
+└── init.ts                   (93L — Registry initialization)
+```
+
+---
+
+*Documento reescrito completamente el 19 Feb 2026 basado en codigo real, reemplaza version pre-codigo del 23 Ene 2026*

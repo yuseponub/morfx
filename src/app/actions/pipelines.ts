@@ -72,6 +72,7 @@ export async function getPipelines(): Promise<PipelineWithStages[]> {
       stages:pipeline_stages(*)
     `)
     .eq('workspace_id', workspaceId)
+    .order('position')
     .order('is_default', { ascending: false })
     .order('name')
 
@@ -326,6 +327,48 @@ export async function deletePipeline(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/crm/configuracion/pipelines')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Update pipeline positions after drag reorder
+ */
+export async function updatePipelineOrder(pipelineIds: string[]): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  // Set temp negative positions to avoid unique constraint issues
+  for (let i = 0; i < pipelineIds.length; i++) {
+    const { error } = await supabase
+      .from('pipelines')
+      .update({ position: -(i + 1000) })
+      .eq('id', pipelineIds[i])
+
+    if (error) {
+      console.error('Error setting temp pipeline position:', error)
+      return { error: 'Error actualizando posiciones' }
+    }
+  }
+
+  // Set correct positions
+  for (let i = 0; i < pipelineIds.length; i++) {
+    const { error } = await supabase
+      .from('pipelines')
+      .update({ position: i })
+      .eq('id', pipelineIds[i])
+
+    if (error) {
+      console.error('Error setting final pipeline position:', error)
+      return { error: 'Error actualizando posiciones' }
+    }
+  }
+
+  revalidatePath('/crm/configuracion/pipelines')
+  revalidatePath('/crm/pedidos')
   return { success: true, data: undefined }
 }
 

@@ -157,6 +157,18 @@ export async function createOrder(
     let stageId: string = params.stageId ?? ''
 
     if (!stageId) {
+      // Verify pipeline belongs to this workspace
+      const { data: pipeline } = await supabase
+        .from('pipelines')
+        .select('id')
+        .eq('id', params.pipelineId)
+        .eq('workspace_id', ctx.workspaceId)
+        .single()
+
+      if (!pipeline) {
+        return { success: false, error: 'Pipeline no encontrado en este workspace' }
+      }
+
       const { data: firstStage } = await supabase
         .from('pipeline_stages')
         .select('id')
@@ -663,6 +675,18 @@ export async function duplicateOrder(
     let targetStageId: string = params.targetStageId ?? ''
 
     if (!targetStageId) {
+      // Verify target pipeline belongs to this workspace
+      const { data: pipeline } = await supabase
+        .from('pipelines')
+        .select('id')
+        .eq('id', params.targetPipelineId)
+        .eq('workspace_id', ctx.workspaceId)
+        .single()
+
+      if (!pipeline) {
+        return { success: false, error: 'Pipeline destino no encontrado en este workspace' }
+      }
+
       const { data: firstStage } = await supabase
         .from('pipeline_stages')
         .select('id')

@@ -45,7 +45,7 @@ export const taskOverdueCron = inngest.createFunction(
 
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, workspace_id, title, due_date, contact_id, order_id')
+        .select('id, workspace_id, title, description, due_date, contact_id, order_id')
         .in('status', ['pending', 'in_progress'])
         .not('due_date', 'is', null)
         .lt('due_date', new Date().toISOString())
@@ -61,6 +61,7 @@ export const taskOverdueCron = inngest.createFunction(
         id: string
         workspace_id: string
         title: string
+        description: string | null
         due_date: string
         contact_id: string | null
         order_id: string | null
@@ -71,15 +72,42 @@ export const taskOverdueCron = inngest.createFunction(
       return { overdue: 0, emitted: 0 }
     }
 
-    // Step 2: Emit task.overdue trigger per task (fire-and-forget)
+    // Step 2: Batch-fetch contact names for tasks with contact_id
+    const contactNameMap = await step.run('fetch-contact-names', async () => {
+      const contactIds = [...new Set(
+        overdueTasks
+          .map(t => t.contact_id)
+          .filter((id): id is string => id !== null)
+      )]
+
+      if (contactIds.length === 0) return {} as Record<string, string>
+
+      const supabase = createAdminClient()
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id, name')
+        .in('id', contactIds)
+
+      const map: Record<string, string> = {}
+      if (contacts) {
+        for (const c of contacts) {
+          map[c.id] = c.name
+        }
+      }
+      return map
+    })
+
+    // Step 3: Emit task.overdue trigger per task
     let emitted = 0
     for (const task of overdueTasks) {
       await emitTaskOverdue({
         workspaceId: task.workspace_id,
         taskId: task.id,
         taskTitle: task.title,
+        taskDescription: task.description,
         dueDate: task.due_date,
         contactId: task.contact_id,
+        contactName: task.contact_id ? contactNameMap[task.contact_id] : undefined,
         orderId: task.order_id,
       })
       emitted++

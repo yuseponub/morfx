@@ -257,6 +257,7 @@ export async function updateContact(
       .from('contacts')
       .select('name')
       .eq('id', params.contactId)
+      .eq('workspace_id', ctx.workspaceId)
       .single()
 
     const contactName = updatedContact?.name ?? previousContact.name

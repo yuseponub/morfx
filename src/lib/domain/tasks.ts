@@ -136,6 +136,7 @@ export async function createTask(
         .from('contacts')
         .select('name')
         .eq('id', params.contactId)
+        .eq('workspace_id', ctx.workspaceId)
         .single()
       contactName = contact?.name ?? undefined
     }
@@ -247,6 +248,7 @@ export async function updateTask(
         .from('contacts')
         .select('name')
         .eq('id', current.contact_id)
+        .eq('workspace_id', ctx.workspaceId)
         .single()
       contactName = contact?.name ?? undefined
     }
@@ -322,6 +324,7 @@ export async function completeTask(
       .from('contacts')
       .select('name')
       .eq('id', current.contact_id)
+      .eq('workspace_id', ctx.workspaceId)
       .single()
     contactName = contact?.name ?? undefined
   }

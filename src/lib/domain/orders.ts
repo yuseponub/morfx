@@ -414,6 +414,7 @@ export async function updateOrder(
         .from('contacts')
         .select('name')
         .eq('id', orderContactId)
+        .eq('workspace_id', ctx.workspaceId)
         .single()
       orderContactName = contactData?.name ?? undefined
     }
@@ -549,6 +550,7 @@ export async function moveOrderToStage(
             .from('contacts')
             .select('name, phone, address, city, department')
             .eq('id', currentOrder.contact_id)
+            .eq('workspace_id', ctx.workspaceId)
             .single()
         : Promise.resolve({ data: null }),
     ])

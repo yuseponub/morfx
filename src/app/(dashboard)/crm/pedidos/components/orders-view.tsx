@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { PlusIcon, ShoppingCartIcon, SearchIcon, XIcon, SlidersHorizontalIcon, Trash2Icon, DownloadIcon, ArrowUpIcon, ArrowDownIcon } from 'lucide-react'
+import { PlusIcon, ShoppingCartIcon, SearchIcon, XIcon, SlidersHorizontalIcon, Trash2Icon, DownloadIcon, ArrowUpIcon, ArrowDownIcon, ArrowRightIcon, PencilIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -41,9 +41,11 @@ import { KanbanBoard } from './kanban-board'
 import { OrderSheet } from './order-sheet'
 import { PipelineTabs } from './pipeline-tabs'
 import { StageEditDialog } from './stage-edit-dialog'
+import { BulkMoveDialog } from './bulk-move-dialog'
+import { BulkEditDialog } from './bulk-edit-dialog'
 import { OrderForm } from './order-form'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
-import { deleteOrder, deleteOrders, exportOrdersToCSV, getOrdersForStage, getStageOrderCounts } from '@/app/actions/orders'
+import { deleteOrder, deleteOrders, exportOrdersToCSV, getOrdersForStage, getStageOrderCounts, bulkMoveOrdersToStage, bulkUpdateOrderField } from '@/app/actions/orders'
 import { useOrderSearch } from '@/lib/search/fuse-config'
 import type { User } from '@supabase/supabase-js'
 import { toast } from 'sonner'
@@ -304,6 +306,10 @@ export function OrdersView({
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
 
+  // Bulk move and edit dialogs
+  const [bulkMoveDialogOpen, setBulkMoveDialogOpen] = React.useState(false)
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = React.useState(false)
+
   // Handle stage edit
   const handleEditStage = (stage: typeof stages[0]) => {
     setEditingStage(stage)
@@ -345,6 +351,38 @@ export function OrdersView({
     } finally {
       setIsBulkDeleting(false)
       setBulkDeleteDialogOpen(false)
+    }
+  }
+
+  // Handle bulk move to stage
+  const handleBulkMove = async (stageId: string) => {
+    if (selectedOrderIds.size === 0) return
+    const result = await bulkMoveOrdersToStage(Array.from(selectedOrderIds), stageId)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success(`${result.data?.moved} pedido(s) movido(s)`)
+      clearSelection()
+      router.refresh()
+      if (viewMode === 'kanban' && activePipelineId) {
+        setKanbanInitialized(false)
+      }
+    }
+  }
+
+  // Handle bulk field edit
+  const handleBulkEdit = async (field: string, value: string) => {
+    if (selectedOrderIds.size === 0) return
+    const result = await bulkUpdateOrderField(Array.from(selectedOrderIds), field, value)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success(`${result.data?.updated} pedido(s) actualizado(s)`)
+      clearSelection()
+      router.refresh()
+      if (viewMode === 'kanban' && activePipelineId) {
+        setKanbanInitialized(false)
+      }
     }
   }
 
@@ -773,6 +811,22 @@ export function OrdersView({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setBulkMoveDialogOpen(true)}
+          >
+            <ArrowRightIcon className="h-4 w-4 mr-1" />
+            Mover de etapa
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkEditDialogOpen(true)}
+          >
+            <PencilIcon className="h-4 w-4 mr-1" />
+            Editar campo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setBulkDeleteDialogOpen(true)}
             className="text-destructive hover:text-destructive"
           >
@@ -887,6 +941,23 @@ export function OrdersView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk move dialog */}
+      <BulkMoveDialog
+        open={bulkMoveDialogOpen}
+        onOpenChange={setBulkMoveDialogOpen}
+        stages={stages}
+        selectedCount={selectedOrderIds.size}
+        onConfirm={handleBulkMove}
+      />
+
+      {/* Bulk edit dialog */}
+      <BulkEditDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        selectedCount={selectedOrderIds.size}
+        onConfirm={handleBulkEdit}
+      />
 
       {/* Stage edit dialog */}
       {activePipelineId && (

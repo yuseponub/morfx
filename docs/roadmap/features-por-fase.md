@@ -1,231 +1,290 @@
-# Features Detalladas por Fase
+# Features por Fase — Estado Real
+
+**Actualizado:** 19 de Febrero 2026
 
 ---
 
-## Fase 1: MVP
+## Resumen de Ejecucion
 
-### 1.1 Autenticación
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Login con email | NextAuth con Magic Link o password | P0 |
-| Sesión persistente | JWT con refresh tokens | P0 |
-| Logout | Cerrar sesión correctamente | P0 |
-| Recuperar contraseña | Email de reset (futuro) | P2 |
-
-### 1.2 Dashboard
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Métricas principales | 4 cards: contactos, órdenes, mensajes, revenue | P0 |
-| Actividad reciente | Lista de últimos eventos | P1 |
-| Quick actions | Botones de acceso rápido | P2 |
-| Gráficos básicos | Órdenes por día (futuro) | P2 |
-
-### 1.3 Contactos
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Lista de contactos | Tabla con paginación | P0 |
-| Búsqueda | Por nombre, teléfono, email | P0 |
-| Filtros | Por tags, fecha, fuente | P1 |
-| Vista de contacto | Detalle con historial | P0 |
-| Editar contacto | Formulario de edición | P1 |
-| Tags | Agregar/quitar tags | P0 |
-| Exportar | CSV (futuro) | P2 |
-
-### 1.4 Inbox WhatsApp
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Lista conversaciones | Ordenadas por último mensaje | P0 |
-| Filtros | Por estado, tag, asignado | P1 |
-| Vista conversación | Mensajes en tiempo real | P0 |
-| Estado bot | Indicador on/off | P1 |
-| Readonly | Solo visualización (MVP) | P0 |
-
-### 1.5 Órdenes
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Vista Kanban | Columnas por stage | P0 |
-| Drag & drop | Mover entre stages | P0 |
-| Detalle orden | Vista completa | P0 |
-| Crear orden manual | Formulario básico | P1 |
-| Stages hardcodeados | 4 stages fijos | P0 |
-
-### 1.6 Integración n8n
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Webhooks entrada | Recibir eventos de n8n | P0 |
-| Webhooks salida | Enviar eventos a n8n | P1 |
-| Sync tags | Bidireccional con Callbell | P0 |
-| Sync órdenes | Crear desde bot Carolina | P1 |
+| Milestone | Fases | Planes | Dias | Estado |
+|-----------|-------|--------|------|--------|
+| v1.0 CRM + WhatsApp | 15 (11 + 4 inserted) | 51 | 10 | ✅ SHIPPED |
+| v2.0 Agentes + Automaciones | 14 (9 + 5 inserted) | 83 | 12 | ✅ SHIPPED |
+| Standalone (entre milestones) | 4 + 2 quick fixes | 16 | 2 | ✅ SHIPPED |
+| **TOTAL** | **33 fases** | **151 planes** | **23 dias** | **99.3% completo** |
 
 ---
 
-## Fase 2: Features Avanzadas
+## v1.0 — CRM + WhatsApp (26 Ene - 4 Feb 2026)
 
-### 2.1 Editor de Pipelines
+### Fase 1: Foundation & Auth ✅
+- Next.js 15 + React 19 + TypeScript + Supabase + Tailwind
+- Login/signup/logout con Supabase Auth
+- Multi-tenant workspaces con RLS desde dia 1
+- Sidebar navigation, dark/light theme
+- Port 3020 fijo
 
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Crear pipeline | Formulario + nombre | P0 |
-| Editar pipeline | Cambiar nombre, orden | P0 |
-| Eliminar pipeline | Con confirmación | P1 |
-| Crear stages | Agregar nuevos stages | P0 |
-| Editar stages | Nombre, color, orden | P0 |
-| Drag & drop stages | Reordenar visualmente | P1 |
-| Eliminar stages | Migrar órdenes | P1 |
+### Fase 2: Workspaces ✅
+- Workspace creation flow
+- Member management (invite, remove, roles)
+- Cookie-based workspace switching
+- `is_workspace_member()` helper para RLS
 
-### 2.2 Campos Personalizados
+### Fase 3: Action DSL Core ✅
+- Tool registry con JSON Schema (Ajv validation)
+- 16 tools registrados con placeholder handlers
+- API endpoints `/api/v1/tools` (discovery) y `/api/v1/tools/[name]` (execution)
+- API key authentication con SHA-256
+- Pino structured logging
+- Tool execution audit trail
 
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Definir campos | Para contactos y órdenes | P0 |
-| Tipos de campo | Text, select, number, date | P0 |
-| Opciones select | Lista editable | P0 |
-| Campo requerido | Validación | P1 |
-| Mostrar en tabla | Columnas dinámicas | P1 |
-| Filtrar por campo | Filtros dinámicos | P2 |
+### Fase 4: Contacts Base ✅
+- Contacts CRUD (create, edit, delete)
+- DataTable con TanStack Table (columns factory, memoized)
+- Tags system (shared across modules)
+- CityCombobox con autocomplete
+- Phone validation E.164
+- Workspace isolation en server actions
 
-### 2.3 WhatsApp Bidireccional
+### Fase 5: Contacts Extended ✅
+- Custom fields (JSONB) con definitions tipadas (12 field types)
+- Contact notes con timeline UI
+- Activity log automatico (trigger DB para JSONB diffs)
+- CSV import (react-csv-importer, batch 100) y export (BOM para Excel)
+- Contact detail view (5 tabs)
+- Global search
 
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Enviar mensajes | Desde CRM | P0 |
-| Apagar bot | Por conversación | P0 |
-| Templates | Mensajes predefinidos | P1 |
-| Adjuntos | Enviar imágenes/docs | P2 |
-| Notas internas | Solo visibles en CRM | P1 |
+### Fase 6: Orders ✅
+- Orders CRUD con Kanban board (@dnd-kit)
+- Multi-pipeline support
+- Snapshot pricing en order_products
+- Products catalog
+- Drag-and-drop entre stages
+- WIP limits por stage
+- Fuse.js client-side search
 
-### 2.4 Reportes
+### Fase 7: WhatsApp Core ✅
+- 360dialog API integration (send text, media, templates)
+- Webhook handler con HMAC verification
+- Message deduplication (wamid unique)
+- Inbox UI con conversation list
+- Chat view con virtual scrolling
+- Supabase Realtime para mensajes nuevos
+- Emoji picker (frimousse, 2kb)
 
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Órdenes por periodo | Gráfico + tabla | P0 |
-| Conversión por fuente | De dónde vienen ventas | P1 |
-| Performance agentes | Órdenes por agente | P1 |
-| Exportar PDF | Reporte descargable | P2 |
-| Dashboard analytics | Vista completa | P1 |
+### Fase 8: WhatsApp Extended ✅
+- WhatsApp templates (CRUD + 360dialog sync + Meta approval flow)
+- Teams y assignment (round-robin tracking)
+- Quick replies (!shortcut system)
+- Message cost tracking por categoria/pais
+- Workspace limits
 
-### 2.5 Automatizaciones
+### Fase 8.1: CRM-WhatsApp Sync ✅ (inserted)
+- conversation_tags (M2M junction)
+- tags.applies_to scope (whatsapp/orders/both)
+- Auto-tag "Cliente" cuando orden → "Ganado"
 
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Trigger por stage | Webhook al cambiar stage | P0 |
-| Trigger por tag | Webhook al agregar tag | P1 |
-| Acciones automáticas | Asignar, notificar | P2 |
-| Logs de ejecución | Ver historial | P1 |
+### Fase 8.2: Quick Replies Media ✅ (inserted)
+- Media support en quick replies (images, max 5MB)
+- Upload a Supabase Storage
+- Thumbnail preview
 
----
+### Fase 9: Global Search & Tasks ✅
+- Tasks module completo (CRUD, priority, due dates, exclusive arc)
+- Task types customizables
+- Task notes y activity
+- set_task_completed_at trigger
 
-## Fase 3: Multi-SAAS
+### Fase 9.1: Order States ✅ (inserted)
+- order_states table (emoji indicators)
+- Stage-to-state mapping
+- Phase indicators en Kanban
 
-### 3.1 Workspaces
+### Fase 10: Settings ✅
+- Configuration hub
+- Team management UI
+- Template management UI
+- Quick replies UI
+- Cost tracking UI
 
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Crear workspace | Signup con org | P0 |
-| Subdominios | {org}.morfx.com | P1 |
-| Invitar usuarios | Email invitation | P0 |
-| Roles | Admin, member, viewer | P0 |
-| Permisos granulares | Por módulo | P1 |
+### Fase 10.1: Analytics ✅ (inserted)
+- Sales analytics dashboard
+- Order metrics (count, revenue, avg)
+- Sales trend charts
+- Period selector
 
-### 3.2 Billing
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Planes | Free, Pro, Enterprise | P0 |
-| Stripe integration | Checkout + portal | P0 |
-| Límites por plan | Contactos, usuarios, etc. | P0 |
-| Upgrades/downgrades | Self-service | P1 |
-| Facturación | Invoices automáticos | P1 |
-
-### 3.3 Onboarding
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Wizard setup | Paso a paso inicial | P0 |
-| Conectar WhatsApp | Integración guiada | P0 |
-| Importar contactos | CSV/Excel | P1 |
-| Tour guiado | Tooltips interactivos | P2 |
-
-### 3.4 White Label
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Logo custom | Por workspace | P1 |
-| Colores custom | Tema personalizado | P2 |
-| Dominio custom | DNS CNAME | P2 |
-| Email branding | Emails desde su dominio | P2 |
-
----
-
-## Fase 4: IA Distribuida Avanzada
-
-### 4.1 Sistema Retroactivo
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Comparador protocolo | Detectar fase de venta | P0 |
-| Historial exitoso | DB de conversaciones ganadoras | P0 |
-| Validación State Analyzer | Confirmar/corregir intents | P0 |
-| Métricas retroactivo | Dashboard de accuracy | P1 |
-| Auto-mejora | Agregar conversaciones exitosas | P2 |
-
-### 4.2 Carolina Logística
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Intent analyzer | Detectar qué quiere el host | P0 |
-| Manejo archivos | Excel, CSV, PDF | P0 |
-| Ejecutar workflows | Llamar workflows n8n | P0 |
-| Reportar resultados | Mensajes de respuesta | P0 |
-| Permisos por rol | Limitar acciones | P1 |
-| Panel en MorfX | Chat embebido | P2 |
-
-### 4.3 Dashboard de Agentes
-
-| Feature | Descripción | Prioridad |
-|---------|-------------|-----------|
-| Lista agentes | Carolina, Extractors, etc. | P0 |
-| Estado en tiempo real | Activo/inactivo | P0 |
-| Logs por agente | Últimas ejecuciones | P1 |
-| Métricas | Mensajes procesados, errores | P1 |
-| Configuración | Parámetros por agente | P2 |
+### Fase 11: Shopify Integration ✅
+- Shopify webhooks (orders/create, orders/updated, draft_orders/create)
+- HMAC verification
+- Contact matching (exact phone + fuzzy name+city)
+- Product matching (SKU, name, price)
+- Auto-sync vs trigger-only mode
+- Webhook event logging + idempotency
 
 ---
 
-## Dependencias entre Features
+## v2.0 — Agentes + Automaciones (4 Feb - 16 Feb 2026)
 
-```
-Fase 1:
-  Autenticación ──► Dashboard ──► Contactos ──► Inbox
-                                      │
-                                      ▼
-                                   Órdenes
-                                      │
-                                      ▼
-                               Integración n8n
+### Fase 12: Action DSL Real ✅
+- 9 real handlers reemplazando placeholders
+- contact.create/update/get, order.create/update, tag.add
+- message.send, template.send
+- Forensic logging completo
 
-Fase 2:
-  Editor Pipelines ──► Campos Custom ──► WhatsApp Bidireccional
-                              │
-                              ▼
-                          Reportes ──► Automatizaciones
+### Fase 13: Agent Engine Foundation ✅
+- SomnioAgent base con IntentDetector
+- Session management (agent_sessions, agent_turns)
+- Claude Sonnet integration
+- State machine con mode transitions
 
-Fase 3:
-  Workspaces ──► Billing ──► Onboarding
-       │
-       ▼
-  White Label
+### Fase 14: Agente Ventas Somnio ✅
+- 33 intents con confidence routing
+- Data extraction (8 campos)
+- Template selection (primera_vez vs siguientes)
+- SomnioOrchestrator response generation
+- Order creation flow
 
-Fase 4:
-  Sistema Retroactivo ──► Carolina Logística ──► Dashboard Agentes
-```
+### Fase 15: Agent Sandbox ✅
+- Multi-panel debug UI (Tools, Estado, Intent, Tokens, Ingest)
+- In-memory sandbox engine
+- `/api/sandbox/process` (server-side, protege API key)
+- DRY/LIVE mode badges
+- Session save/load
+
+### Fase 15.5: Somnio Ingest System ✅ (inserted)
+- MessageClassifier (4 categorias: datos/pregunta/mixto/irrelevante)
+- Silent accumulation (no responder cuando solo dan datos)
+- Structured outputs con Zod (elimina JSON parsing errors)
+- Timer signal pattern (shouldEmitTimerStart/Complete)
+
+### Fase 15.6: Sandbox Evolution ✅ (inserted)
+- CRM agent framework (BaseCrmAgent → OrderManagerAgent)
+- Agent registry con self-registration
+- Per-model token tracking (Haiku vs Sonnet)
+- DRY/LIVE modes para CRM agents
+- PointerSensor 5px threshold (DnD + clicks)
+
+### Fase 15.7: Ingest Timer Pluggable ✅ (inserted)
+- IngestTimerSimulator client-side
+- 5 timer levels (L0-L4)
+- Ref pattern para stale closures
+- contextProvider para fresh state en callbacks
+- forceIntent pattern para timer-forced transitions
+
+### Fase 15.8: Integration Cleanup ✅ (inserted)
+- Constants consolidation (zero imports)
+- Agent-to-engine signal flow cleanup
+
+### Fase 16.1: Engine Unification ✅ (inserted — mas grande que lo planeado)
+- UnifiedEngine con Ports/Adapters pattern
+- 5 adapters: Storage, Timer, Messaging, Orders, Debug
+- Sandbox + Production desde mismo codebase
+- 14 production hotfixes resueltos
+- Inngest Cloud wiring (middleware bypass, deployment protection)
+- MessageSequencer para WhatsApp con delays
+- Cancel-before-start pattern para timers
+- initializeTools() safety net
+
+### Fase 17: CRM Automations Engine ✅
+- 10 trigger types con TRIGGER_CATALOG
+- 11 action types con ACTION_CATALOG
+- Recursive AND/OR condition groups (14 operadores)
+- Variable resolution (mustache templates, Spanish namespaces)
+- Inngest factory pattern (1 funcion → 13 runners)
+- Cascade depth prevention (MAX=3)
+- Automation wizard UI (3 pasos)
+- Execution history con paginacion
+
+### Fase 18: Domain Layer Foundation ✅
+- 8 domain modules, 33 functions
+- Single source of truth para mutaciones
+- createAdminClient() + workspace_id filtering
+- DomainResult<T> wrapper
+- Trigger emission desde domain (no desde server actions)
+- 13 tool handlers migrados a domain layer
+
+### Fase 19: AI Automation Builder ✅
+- Chat con Claude via AI SDK v6 (streaming)
+- Natural language automation creation
+- React Flow diagrams (inline en chat)
+- Validation (resources, cycles, duplicates)
+- Builder sessions con persistencia
+- Key-based remount para session switching
+
+### Fase 20: Integration Automations ✅
+- 3 Shopify triggers (order_created, draft_order_created, order_updated)
+- send_sms action (Twilio)
+- webhook action (custom HTTP)
+- resolveOrCreateContact para triggers externos
+- Action enrichment con trigger data
+- Dual context: TriggerContext (flat) + variableContext (nested)
+- Fire-and-forget → await (critical fix para Vercel serverless)
 
 ---
 
-*Documento parte del proyecto Modelo IA Distribuida*
+## Standalone Phases (17 Feb 2026)
+
+### WhatsApp Performance ✅
+- 4 Realtime channels → 1 consolidado
+- Surgical state updates (no full refetch)
+- Query ligero (sin address/city en lista)
+- Debounced safety-net refetch
+
+### Real Fields Fix ✅
+- orders.name, contacts.department, orders.shipping_department como columnas DB reales
+- Domain + trigger + UI updates
+- Variable resolution ahora funciona para {{orden.nombre}}
+
+### Action Fields Audit ✅
+- 12 action types auditados en 4 capas
+- Executor field pass-through completado
+- Broken toggle wiring corregido
+- UI "Agregar campo" dropdown para params opcionales
+- AI Builder prompt actualizado
+
+### WhatsApp Phone Resilience ✅
+- Secondary phone extraction de Shopify note_attributes
+- Additive-only pattern para custom_fields.secondary_phone
+
+### CRM Orders Performance ⚠️ (2/3 planes completos)
+- Kanban scroll fix (h calc en vez de min-h)
+- Paginated server actions (getOrdersForStage, getStageOrderCounts)
+- Pendiente: Virtualization e infinite scroll (Plan 03)
+
+---
+
+## Quick Fixes (18 Feb 2026)
+
+### 001: Optimistic WhatsApp Text Send ✅
+- addOptimisticMessage() con status 'sending'
+- Non-blocking server action
+- Realtime INSERT reemplaza optimistic message
+
+### 002: Inbound Media Null URL ✅
+- downloadAndUploadMedia() en webhook-handler
+- 360dialog download → Supabase Storage re-host
+- getExtensionFromMime() helper
+
+---
+
+## Features NO Implementadas (Futuro)
+
+### Diseñadas pero No Construidas
+- **Sistema Retroactivo** — Comparacion con conversaciones exitosas (doc existe: `02-sistema-retroactivo.md`)
+- **Carolina Logistica** — Chatbot interno para operaciones (doc existe: `03-carolina-logistica.md`)
+
+### Planeadas para v3+
+- Multi-agent orchestration (routing entre agentes)
+- Agent canvas visual (editor de flujos)
+- Agentes adicionales (recompra, seguimiento, customer service)
+- Email como canal
+- Inventario management
+- Payments/billing
+- White label (logo, colores, dominio custom)
+- Subdominios por workspace
+- Exportar reportes PDF
+- Twilio inbound SMS
+
+---
+
+*Reescrito completamente el 19 Feb 2026 basado en .planning/STATE.md, ROADMAP.md, y LEARNINGS de 33 fases. Reemplaza version pre-codigo del 23 Ene 2026.*

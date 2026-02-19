@@ -9,12 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 ## Current Position
 
-Phase: quick/003-fix-p0-4-workspace-id-missing-en-queries
+Phase: quick/004-fix-p0-1-task-overdue-variable-mismatches
 Plan: 001 of 001
 Status: Complete
-Last activity: 2026-02-19 — Completed quick-003 (fix P0-4 workspace_id missing in queries)
+Last activity: 2026-02-19 — Completed quick-004 (fix task.overdue variable mismatches)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001 | [##########] 100% quick-002 | [##########] 100% quick-003
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001 | [##########] 100% quick-002 | [##########] 100% quick-003 | [##########] 100% quick-004
+
+### Quick: Fix P0-1 Task Overdue Variable Mismatches (2026-02-19) — COMPLETE
+
+1 plan total:
+- Plan 004: Add taskDescription/contactName to emitTaskOverdue + cron batch-fetch (COMPLETE + SUMMARY)
 
 ### Quick: Fix P0-4 Workspace ID Missing in Queries (2026-02-19) — COMPLETE
 
@@ -83,7 +88,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 152
+- Total plans completed: 153
 - Total execution time: ~24 days (2026-01-26 to 2026-02-19)
 
 ## Accumulated Context
@@ -112,6 +117,7 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Inbound media re-hosting: download from 360dialog ephemeral URL, upload to Supabase Storage under inbound/ prefix, pass permanent public URL to domain
 - Pipeline stages scoping via parent pipeline workspace check (pipeline_stages has no workspace_id column)
 - Defense-in-depth: all contacts enrichment queries filter by workspace_id even when parent entity already verified
+- Batch-fetch contact names in dedicated Inngest step.run for N+1 avoidance in task-overdue-cron
 
 ### Project Rules
 
@@ -142,10 +148,11 @@ None.
 | 001 | Envío optimista de mensajes WhatsApp | 2026-02-18 | d811760 | [001-optimistic-whatsapp-send](./quick/001-optimistic-whatsapp-send/) |
 | 002 | Fix inbound media null URL (download+rehost) | 2026-02-18 | 6d5ae22 | [002-fix-media-inbound-null-url](./quick/002-fix-media-inbound-null-url/) |
 | 003 | Fix P0-4 workspace_id missing in domain queries | 2026-02-19 | 8d93dec | [003-fix-p0-4-workspace-id-missing-en-queries](./quick/003-fix-p0-4-workspace-id-missing-en-queries/) |
+| 004 | Fix P0-1 task.overdue variable mismatches | 2026-02-19 | c516884 | [004-fix-p0-1-task-overdue-variable-mismatches](./quick/004-fix-p0-1-task-overdue-variable-mismatches/) |
 
 ## Session Continuity
 
-Last session: 2026-02-19 10:49 COT
-Stopped at: Completed quick-003 (fix P0-4 workspace_id missing in queries)
+Last session: 2026-02-19 10:58 COT
+Stopped at: Completed quick-004 (fix task.overdue variable mismatches)
 Resume file: None
 Next: No pending quick tasks

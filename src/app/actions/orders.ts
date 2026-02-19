@@ -742,6 +742,80 @@ export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResu
 }
 
 // ============================================================================
+// Bulk Order Operations — via domain/orders
+// ============================================================================
+
+/**
+ * Move multiple orders to a new stage.
+ * Loops over IDs calling domain moveOrderToStage per ID (for automation triggers).
+ */
+export async function bulkMoveOrdersToStage(
+  orderIds: string[],
+  newStageId: string
+): Promise<ActionResult<{ moved: number }>> {
+  if (orderIds.length === 0) {
+    return { error: 'No hay pedidos para mover' }
+  }
+
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
+
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  let moved = 0
+
+  for (const orderId of orderIds) {
+    const result = await domainMoveOrderToStage(ctx, { orderId, newStageId })
+    if (result.success) moved++
+  }
+
+  revalidatePath('/crm/pedidos')
+  return { success: true, data: { moved } }
+}
+
+/**
+ * Update a single field on multiple orders.
+ * Loops over IDs calling domain updateOrder per ID (for automation triggers).
+ */
+export async function bulkUpdateOrderField(
+  orderIds: string[],
+  field: string,
+  value: string | null
+): Promise<ActionResult<{ updated: number }>> {
+  if (orderIds.length === 0) {
+    return { error: 'No hay pedidos para actualizar' }
+  }
+
+  const fieldMap: Record<string, string> = {
+    carrier: 'carrier',
+    shipping_city: 'shippingCity',
+    shipping_department: 'shippingDepartment',
+    shipping_address: 'shippingAddress',
+    tracking_number: 'trackingNumber',
+    name: 'name',
+    description: 'description',
+  }
+
+  const paramKey = fieldMap[field]
+  if (!paramKey) {
+    return { error: `Campo no soportado: ${field}` }
+  }
+
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
+
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  let updated = 0
+
+  for (const orderId of orderIds) {
+    const result = await domainUpdateOrder(ctx, { orderId, [paramKey]: value })
+    if (result.success) updated++
+  }
+
+  revalidatePath('/crm/pedidos')
+  return { success: true, data: { updated } }
+}
+
+// ============================================================================
 // Related Orders (read-only, unchanged)
 // ============================================================================
 

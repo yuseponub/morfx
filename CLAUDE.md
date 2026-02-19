@@ -62,6 +62,20 @@ Domain SIEMPRE:
 - `/gsd:help` - Todos los comandos GSD disponibles
 - `/gsd:plan-phase N` - Planificar fase N
 
+## Regla 4: Documentacion Siempre Actualizada
+
+Cada vez que hagas un cambio de codigo (feature, fix, refactor), DEBES actualizar la documentacion relevante:
+
+1. **`docs/analysis/04-estado-actual-plataforma.md`** — Si el cambio afecta el estado de un modulo, actualiza su seccion (status, bugs, deuda tecnica)
+2. **`docs/architecture/`** — Si cambias arquitectura de agentes, schema DB, o sistema retroactivo
+3. **`docs/roadmap/features-por-fase.md`** — Si completas una fase o feature
+4. **LEARNINGS del phase actual** — Siempre documentar bugs encontrados y patterns aprendidos
+5. **Deuda Tecnica** — Si resuelves un item P0/P1/P2/P3, eliminalo de la lista. Si creas deuda nueva, agregala.
+
+**PROHIBIDO:** Hacer merge/push sin actualizar docs afectados. El codigo y la documentacion SIEMPRE deben estar sincronizados.
+
+---
+
 ## Stack Tecnologico
 
 - Next.js 15 (App Router) + React 19

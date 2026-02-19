@@ -219,8 +219,8 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - Contact resolution para triggers Shopify
 
 #### Bugs documentados (CRM-AUTOMATIONS-AUDIT.md)
-- **5 Critical:** Variable key mismatches (field.changed, whatsapp.phone, task.overdue) — variables resuelven vacias
-- **Major restantes:** Missing data en emitters, missing contact enrichment en algunos emitters
+- ~~5 Critical: Variable key mismatches~~ — Resuelto: field.changed y whatsapp.* keys correctas; task.overdue fix (quick-004) agrego taskDescription y contactName
+- **Major restantes:** Missing data en algunos emitters menores
 - **12 Minor:** Catalog inconsistencies
 - ~~AI Builder cycle detection~~ — Resuelto: usa .conditions, field names en español, soporta nested groups
 
@@ -406,33 +406,32 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 
 ### P0 — Critica (Seguridad/Data Integrity)
 
-1. **Variables de automatizacion vacias** (CRM-AUTOMATIONS-AUDIT C1-C4) — Key mismatches entre emitters y variable-resolver causan que {{campo}} resuelva a vacio
-2. **workspace_id missing en queries** (FIXES-PHASE1 R-5, R-6) — 4 queries en tags.ts y 2 en notes.ts sin filtro workspace
+*Todos los P0 resueltos.*
 
 ### P1 — Alta (Funcionalidad)
 
-3. **Missing enrichment** (CRM-AUTOMATIONS-AUDIT M1-M2) — contact.created no envia departamento/direccion, task triggers no envian contacto.nombre
-4. **TriggerContext type gap** (Real Fields Fix) — Faltan contactDepartment y contactAddress en interface
-5. **Webhook WhatsApp sin store-before-process** — Si `processWebhook()` falla, el mensaje inbound se pierde. Se retorna 200 a 360dialog (correcto para evitar retries) pero no hay recovery. Solucion pendiente: guardar raw payload en `webhook_events` antes de procesar.
+1. **Webhook WhatsApp sin store-before-process** — Si `processWebhook()` falla, el mensaje inbound se pierde. Se retorna 200 a 360dialog (correcto para evitar retries) pero no hay recovery. Solucion pendiente: guardar raw payload en `webhook_events` antes de procesar.
+2. **AI Builder cycle detection incompleto** — Los 3 bugs criticos fueron resueltos (.conditions, Spanish names, nested groups), pero solo cubre 3 de 20+ campos de condicion y 4 de 13 trigger types. Triggers no cubiertos defaults a severity 'possible'.
 
 ### P2 — Media (Mejoras)
 
-6. **Server actions sin domain layer** — Config modules (pipelines, teams, tags CRUD, etc.) escriben directo a Supabase
-7. **No rate limiting** en API routes (sandbox, agents, tools)
-8. **Twilio inbound SMS** no implementado
-9. **Task timestamps UTC** — Deberian usar America/Bogota
-10. **Phone normalization inconsistente** — 4 implementaciones diferentes (consolidar a 1)
-11. **Unresolved variables como literal** (R-3) — `{{placeholder}}` deberia ser string vacio
+3. **Server actions sin domain layer** — Config modules (pipelines, teams, tags CRUD, etc.) escriben directo a Supabase
+4. **No rate limiting** en API routes (sandbox, agents, tools)
+5. **Twilio inbound SMS** no implementado
+6. **Task timestamps UTC** — Deberian usar America/Bogota
+7. **Phone normalization inconsistente** — 4 implementaciones diferentes (consolidar a 1)
+8. **Unresolved variables como literal** (R-3) — `{{placeholder}}` deberia ser string vacio
 
 ### P3 — Baja (Cleanup)
 
-12. **Duplicaciones de codigo** — Supabase admin client duplicado, model IDs hardcoded (7 refs)
-13. **Commented code** — 179 archivos con 3+ lineas de comentarios
-14. **Dead code potencial** — `getTemplatesForIntents()` en template-manager.ts
-15. **Workspace config UI** — Name/slug editing placeholder
-16. **Task reminders** — Placeholder "Proximamente"
+9. **Duplicaciones de codigo** — Supabase admin client duplicado, model IDs hardcoded (7 refs)
+10. **Commented code** — 179 archivos con 3+ lineas de comentarios
+11. **Dead code potencial** — `getTemplatesForIntents()` en template-manager.ts
+12. **Workspace config UI** — Name/slug editing placeholder
+13. **Task reminders** — Placeholder "Proximamente"
 
 > **Auditado y verificado 19 feb 2026:** P0-3 (temp route), P0-2 (cycle detection), P1-5 (exito parcial), P1-6 (taskOverdue await), P1-7 (totalValue mismatch) — todos resueltos en codigo, removidos de deuda.
+> **Verificado 19 feb 2026 (quick-003/004):** P0-1 (variables vacias task.overdue) — resuelto: taskDescription y contactName ahora fluyen completos. P0-4 (workspace_id missing) — resuelto: pipeline ownership validation + defense-in-depth en 8 enrichment queries. P0-2 (cycle detection) — 3 bugs criticos ya resueltos, reclasificado a P1 por cobertura incompleta. P1-3 (missing enrichment) y P1-4 (TriggerContext type gap) — resueltos en Real Fields Fix y quick-004.
 
 ---
 
@@ -448,13 +447,13 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 
 ## Proximos Pasos Recomendados
 
-1. **Wave 1 — Security Hotfixes:** Eliminar temp route, corregir workspace_id filters, HMAC verification (si no esta)
-2. **Wave 2 — Automation Variables:** Alinear keys entre emitters y variable-resolver (5 fixes criticos)
-3. **Wave 3 — AI Builder Fixes:** Corregir cycle detection, validacion de recursos
-4. **Wave 4 — Enrichment:** Agregar campos faltantes a emitters de triggers
+1. ~~**Wave 1 — Security Hotfixes:**~~ COMPLETADO (quick-003: workspace_id filters, temp route ya eliminado)
+2. ~~**Wave 2 — Automation Variables:**~~ COMPLETADO (quick-004: task.overdue emitter fix, otros triggers verificados correctos)
+3. **Wave 3 — AI Builder Coverage:** Expandir cycle detection para cubrir mas campos de condicion y trigger types (P1)
+4. **Wave 4 — Resilience:** Store-before-process en webhook WhatsApp (P1)
 5. **Wave 5 — Performance/Cleanup:** Consolidar phone normalization, rate limiting, Twilio inbound
 6. **v3.0 Planning:** Nuevas features (multi-agent, analytics avanzados, inventario, pagos)
 
 ---
 
-*Generado: 19 febrero 2026 — Basado en auditoria exhaustiva de codigo fuente, .planning/, LEARNINGS de 33 fases*
+*Generado: 19 febrero 2026 — Actualizado con fixes quick-003 (workspace_id) y quick-004 (task.overdue variables)*

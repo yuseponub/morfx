@@ -79,6 +79,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Risk:** LOW
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 21-01-PLAN.md — DANE municipalities + Coordinadora coverage tables with seed data
+- [ ] 21-02-PLAN.md — Carrier configs + robot job tracking tables
+- [ ] 21-03-PLAN.md — Logistics constants + carrier-coverage and carrier-configs domain modules
+- [ ] 21-04-PLAN.md — Robot-jobs domain module + Inngest events + barrel exports
+
 **Success Criteria:**
 1. A query for any Colombian municipality returns its DANE code, department, and alternative names (1,122+ municipalities loaded)
 2. Given a city name or DANE code, the system can answer whether Coordinadora covers it and whether COD is available there
@@ -174,13 +182,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-25 | TBD | In Progress | — |
+| v3.0 Logistica | 21-25 | 4 (Phase 21) | In Progress | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
-| **Total** | **39 phases** | **150+ plans** | | |
+| **Total** | **39 phases** | **154+ plans** | | |
 
 ### Current Phase
 
-Phase 21: DB + Domain Foundation — Not started
+Phase 21: DB + Domain Foundation — Planning complete, ready for execution
 
 ---
 
@@ -191,4 +199,4 @@ Phase 21: DB + Domain Foundation — Not started
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-20 (v3.0 Logistica phases 21-25 added)*
+*Last updated: 2026-02-20 (Phase 21 planned: 4 plans in 3 waves)*

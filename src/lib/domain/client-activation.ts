@@ -127,7 +127,7 @@ export async function backfillIsClient(workspaceId: string): Promise<{ updated: 
 
     if (error) {
       console.error('[client-activation] backfill reset error:', error)
-      return { error: `[reset-disabled] ${error.code}: ${error.message}` }
+      return { error: error.message }
     }
     return { updated: 0 }
   }
@@ -142,7 +142,7 @@ export async function backfillIsClient(workspaceId: string): Promise<{ updated: 
 
   if (ordersError) {
     console.error('[client-activation] backfill orders query error:', ordersError)
-    return { error: `[orders-query] ${ordersError.code}: ${ordersError.message}` }
+    return { error: ordersError.message }
   }
 
   const clientContactIds = [...new Set((orders || []).map(o => o.contact_id).filter(Boolean))]
@@ -156,7 +156,7 @@ export async function backfillIsClient(workspaceId: string): Promise<{ updated: 
 
   if (resetError) {
     console.error('[client-activation] backfill reset error:', resetError)
-    return { error: `[reset-all] ${resetError.code}: ${resetError.message}` }
+    return { error: resetError.message }
   }
 
   // Set matching contacts to true (batch to avoid PostgREST URL length limits)
@@ -172,7 +172,7 @@ export async function backfillIsClient(workspaceId: string): Promise<{ updated: 
 
       if (setError) {
         console.error('[client-activation] backfill set error:', setError)
-        return { error: `[set-clients] ${setError.code}: ${setError.message}` }
+        return { error: setError.message }
       }
     }
   }

@@ -6,9 +6,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateClientActivation, runClientBackfill } from '@/app/actions/client-activation'
+import { updateClientActivation } from '@/app/actions/client-activation'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 import type { PipelineWithStages } from '@/lib/orders/types'
 
@@ -19,7 +19,6 @@ interface ActivationConfigFormProps {
 
 export function ActivationConfigForm({ config, pipelines }: ActivationConfigFormProps) {
   const [isPending, startTransition] = useTransition()
-  const [isBackfilling, startBackfill] = useTransition()
 
   const [enabled, setEnabled] = useState(config?.enabled ?? false)
   const [allAreClients, setAllAreClients] = useState(config?.all_are_clients ?? false)
@@ -152,36 +151,12 @@ export function ActivationConfigForm({ config, pipelines }: ActivationConfigForm
         </Card>
       )}
 
-      {/* Save button + backfill */}
-      <div className="flex items-center justify-between">
-        {enabled && !allAreClients && selectedStageIds.length > 0 && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              startBackfill(async () => {
-                const result = await runClientBackfill()
-                if ('error' in result) {
-                  toast.error(result.error)
-                } else {
-                  toast.success(`${result.data.updated} contactos actualizados`)
-                }
-              })
-            }}
-            disabled={isBackfilling || isPending}
-          >
-            {isBackfilling
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <RefreshCw className="mr-2 h-4 w-4" />
-            }
-            Recalcular contactos existentes
-          </Button>
-        )}
-        <div className="ml-auto">
-          <Button onClick={handleSave} disabled={isPending || isBackfilling}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar cambios
-          </Button>
-        </div>
+      {/* Save button */}
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={isPending}>
+          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Guardar cambios
+        </Button>
       </div>
     </div>
   )

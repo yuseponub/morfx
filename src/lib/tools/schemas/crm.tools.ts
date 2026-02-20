@@ -119,6 +119,11 @@ export const crmContactUpdate: ToolSchema = {
         type: 'string',
         maxLength: 100,
         description: 'New city (optional)'
+      },
+      department: {
+        type: 'string',
+        maxLength: 100,
+        description: 'New department/state (optional)'
       }
     },
     required: ['contactId'],

@@ -31,6 +31,10 @@ CREATE POLICY "insert_client_activation_config" ON client_activation_config
 CREATE POLICY "update_client_activation_config" ON client_activation_config
   FOR UPDATE USING (is_workspace_admin(workspace_id));
 
+-- Grants
+GRANT ALL ON client_activation_config TO authenticated;
+GRANT ALL ON client_activation_config TO service_role;
+
 -- Auto-update updated_at
 CREATE TRIGGER update_client_activation_config_updated_at
   BEFORE UPDATE ON client_activation_config

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 22 In Progress (Plan 01 complete)
+**Current focus:** Milestone v3.0 Logistica — Phase 22 In Progress (Plan 02 complete)
 
 ## Current Position
 
 Phase: 22 — Robot Coordinadora Service (In Progress)
-Plan: 01 of 03
+Plan: 02 of 03
 Status: In progress
-Last activity: 2026-02-20 — Completed 22-01-PLAN.md (Project scaffold + types + locks)
+Last activity: 2026-02-20 — Completed 22-02-PLAN.md (CoordinadoraAdapter)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#####-----] 25% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [######----] 33% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -33,7 +33,7 @@ All 9 phases + 5 inserted phases completed:
 | Phase | Name | Status |
 |-------|------|--------|
 | 21 | DB + Domain Foundation | COMPLETE (4/4 plans) |
-| 22 | Robot Coordinadora Service | IN PROGRESS (1/3 plans) |
+| 22 | Robot Coordinadora Service | IN PROGRESS (2/3 plans) |
 | 23 | Inngest Orchestrator + Callback API | Not started |
 | 24 | Chat de Comandos UI | Not started |
 | 25 | Pipeline Integration + Docs | Not started |
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 156
+- Total plans completed: 157
 - Total execution time: ~25 days (2026-01-26 to 2026-02-20)
 
 ## Accumulated Context
@@ -110,6 +110,10 @@ Decisions logged in PROJECT.md Key Decisions table.
 - robot-coordinadora is standalone project at repo root (not inside src/), own package.json/tsconfig
 - In-memory locks (Map + Set) for workspace mutex and per-order skip -- no Redis for single-instance
 - Playwright ^1.52.0 version range (resolves to 1.58.2 latest stable)
+- fillField helper: clear-then-fill pattern for React SPA form fields with 200ms state sync delay
+- MUI Autocomplete city: locator('input[id^="mui-"]').first() for dynamic MUI IDs
+- COD toggle: multi-selector fallback (checkbox, label) for portal resilience
+- Pedido number extraction: cascading regex (Pedido N -> No. N -> 5+ digit number)
 
 ### Project Rules
 
@@ -138,6 +142,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20 COT
-Stopped at: Completed 22-01-PLAN.md (Project scaffold + types + locks)
+Stopped at: Completed 22-02-PLAN.md (CoordinadoraAdapter)
 Resume file: None
-Next: /gsd:execute-phase 22-02 (CoordinadoraAdapter)
+Next: /gsd:execute-phase 22-03 (Express server + endpoints)

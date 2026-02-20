@@ -259,7 +259,24 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 9. Tag conversation with "WPP" if order was created
+  // 9. Sync conversation.contact_id if engine resolved a different contact
+  if (result.success && result.contactId && result.contactId !== contactId) {
+    try {
+      await supabase
+        .from('conversations')
+        .update({ contact_id: result.contactId })
+        .eq('id', conversationId)
+      logger.info(
+        { conversationId, oldContactId: contactId, newContactId: result.contactId },
+        'Updated conversation contact_id after order creation'
+      )
+      contactId = result.contactId
+    } catch (syncError) {
+      logger.warn({ error: syncError, conversationId }, 'Failed to sync conversation contact_id')
+    }
+  }
+
+  // 10. Tag conversation with "WPP" if order was created
   if (result.success && result.orderCreated) {
     try {
       const { assignTag } = await import('@/lib/domain/tags')
@@ -275,7 +292,7 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 10. Check agent still enabled BEFORE considering the result final
+  // 11. Check agent still enabled BEFORE considering the result final
   //    (handles toggle-off during processing)
   if (result.success && result.newMode === 'handoff') {
     const stillEnabled = await isAgentEnabledForConversation(

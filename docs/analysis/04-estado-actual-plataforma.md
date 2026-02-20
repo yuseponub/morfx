@@ -163,6 +163,12 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - Message sequencer race condition (BUGS.md #6)
 - Template manager query injection (BUGS.md #11) — verificar si resuelto en domain layer
 
+#### Bugs resueltos (hotfix 20 feb 2026)
+- ~~ProductionOrdersAdapter no pasaba name, shippingCity, shippingDepartment a domainCreateOrder~~ — Resuelto: campos ahora se mapean desde datosCapturados
+- ~~OrderCreator.updateContact no pasaba department al tool handler~~ — Resuelto: department ahora se incluye en crm.contact.update
+- ~~contactUpdate tool handler no aceptaba ni delegaba department~~ — Resuelto: tipo ContactUpdateInput + domain call actualizados
+- ~~webhook-processor no sincronizaba conversation.contact_id despues de order creation~~ — Resuelto: paso 9 actualiza contact_id si engine resolvio contacto diferente
+
 ---
 
 ### 4. Automatizaciones
@@ -473,3 +479,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 ---
 
 *Generado: 19 febrero 2026 — Actualizado con fixes quick-003 (workspace_id) y quick-004 (task.overdue variables)*
+*Actualizado: 20 febrero 2026 — Hotfix bot CRM: mapeo name/shippingCity/shippingDepartment, department en contactUpdate, sync conversation.contact_id post-order*

@@ -98,10 +98,14 @@ MorfX implementa un sistema de agentes IA basado en el patron Ports/Adapters (He
    b. SomnioAgent.processMessage() — ALL business logic
    c. Storage: save state, mode changes, turns, intents
    d. Timer: emit Inngest signals (start/cancel/reevaluate)
-   e. Orders: OrderManagerAgent if shouldCreateOrder
+   e. Orders: ProductionOrdersAdapter if shouldCreateOrder
+      - findOrCreateContact → crm.contact.list/create/update (con department)
+      - domainCreateOrder con name, shippingCity, shippingDepartment
    f. Messaging: MessageSequencer → WhatsApp API (with delays)
    g. Debug: audit system
 7. Return EngineOutput → Inngest step completes
+8. webhook-processor: sync conversation.contact_id si engine resolvio contacto diferente
+9. webhook-processor: tag conversation "WPP" si se creo orden
 ```
 
 ---
@@ -113,7 +117,7 @@ MorfX implementa un sistema de agentes IA basado en el patron Ports/Adapters (He
 | Storage | In-memory SandboxState | SessionManager + Supabase |
 | Timer | No-op (returns signals) | Inngest events durables |
 | Messaging | Collect as strings | WhatsApp API via MessageSequencer |
-| Orders | OrderManagerAgent dry-run | OrderManagerAgent live |
+| Orders | SandboxOrdersAdapter dry-run | ProductionOrdersAdapter → domain/orders (name, city, dept) |
 | Debug | Collects intent, tools, tokens, state | No-op (audit system) |
 | Entry point | `/api/sandbox/process` | Inngest whatsappAgentProcessor |
 | State persistence | None (session-scoped) | DB agent_sessions + session_state |
@@ -172,7 +176,7 @@ UnifiedEngine ──[adapters]──► External Systems
     ├─ Storage adapter → Supabase (agent_sessions, agent_turns, session_state)
     ├─ Timer adapter → Inngest (agent/* events)
     ├─ Messaging adapter → 360dialog API (WhatsApp messages)
-    ├─ Orders adapter → OrderManagerAgent → domain/orders
+    ├─ Orders adapter → ProductionOrdersAdapter → findOrCreateContact + domain/orders
     └─ Debug adapter → audit system
 ```
 

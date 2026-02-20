@@ -147,13 +147,21 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
         stageId = namedStage.id
       }
 
+      // Build order name from contact name
+      const orderName = contactData.apellido
+        ? `${contactData.nombre} ${contactData.apellido}`
+        : contactData.nombre
+
       // Create order via domain
       const ctx: DomainContext = { workspaceId: this.workspaceId, source: 'adapter' }
       const orderResult = await domainCreateOrder(ctx, {
         pipelineId,
         stageId,
         contactId,
+        name: orderName,
         shippingAddress,
+        shippingCity: contactData.ciudad || null,
+        shippingDepartment: contactData.departamento || null,
         description: contactData.indicaciones_extra,
         products: [
           {

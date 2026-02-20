@@ -39,6 +39,7 @@ interface ContactUpdateInput {
   email?: string
   address?: string
   city?: string
+  department?: string
 }
 
 interface ContactReadInput {
@@ -281,6 +282,11 @@ const contactUpdate: ToolHandler = async (
     changedFields.push('city')
   }
 
+  if (data.department !== undefined) {
+    updates.department = data.department || null
+    changedFields.push('department')
+  }
+
   if (changedFields.length === 0) {
     return {
       success: false,
@@ -315,6 +321,7 @@ const contactUpdate: ToolHandler = async (
     email: data.email,
     address: data.address,
     city: data.city,
+    department: data.department,
   })
 
   if (!result.success) {

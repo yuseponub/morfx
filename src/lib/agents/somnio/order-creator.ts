@@ -347,6 +347,7 @@ export class OrderCreator {
         name: fullName,
         address: this.buildFullAddress(data),
         city: data.ciudad,
+        department: data.departamento,
         email: data.correo === 'N/A' ? undefined : data.correo,
       },
       this.workspaceId,

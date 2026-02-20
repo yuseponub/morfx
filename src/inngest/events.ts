@@ -6,6 +6,8 @@
  * These events drive timer-based proactive agent behaviors.
  */
 
+import type { PedidoInput } from '@/lib/logistics/constants'
+
 /**
  * All agent-related events.
  *
@@ -394,10 +396,74 @@ export type AutomationEvents = {
   }
 }
 
+// ============================================================================
+// Robot Events (Phase 21: DB + Domain Foundation)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation).
+ * Robot logistics events for job orchestration.
+ * These events drive the robot batch processing workflow.
+ *
+ * Event naming convention: robot/{entity}.{action}
+ * - job: Batch-level lifecycle events
+ * - item: Per-order result events
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents
+export type RobotEvents = {
+  /**
+   * Emitted by MorfX to trigger robot job execution.
+   * Consumed by Inngest orchestrator (Phase 23) to call robot service.
+   */
+  'robot/job.submitted': {
+    data: {
+      jobId: string
+      workspaceId: string
+      carrier: string
+      credentials: {
+        username: string
+        password: string
+      }
+      orders: Array<{
+        itemId: string
+        orderId: string
+        pedidoInput: PedidoInput
+      }>
+    }
+  }
+
+  /**
+   * Emitted when robot reports a single order result (success or error).
+   * Consumed by Inngest handler that calls updateJobItemResult domain function.
+   */
+  'robot/item.completed': {
+    data: {
+      jobId: string
+      itemId: string
+      workspaceId: string
+      status: 'success' | 'error'
+      trackingNumber?: string
+      errorType?: 'validation' | 'portal' | 'timeout' | 'unknown'
+      errorMessage?: string
+    }
+  }
+
+  /**
+   * Emitted when entire robot job completes (all items processed).
+   * Used for job-level notifications and cleanup.
+   */
+  'robot/job.completed': {
+    data: {
+      jobId: string
+      workspaceId: string
+      successCount: number
+      errorCount: number
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents
 
 /**
  * Type helper for extracting event data by name

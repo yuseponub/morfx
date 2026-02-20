@@ -47,38 +47,57 @@ export async function processWebhook(
   workspaceId: string,
   phoneNumberId: string
 ): Promise<void> {
-  // Process each entry
-  for (const entry of payload.entry) {
-    for (const change of entry.changes) {
-      const { value } = change
+  const supabase = createAdminClient()
 
-      // Verify this is for our phone number
-      if (value.metadata.phone_number_id !== phoneNumberId) {
-        console.warn(
-          `Webhook for different phone: ${value.metadata.phone_number_id}`
-        )
-        continue
-      }
+  // Store raw payload BEFORE processing (resilience)
+  const eventId = await logWhatsAppWebhookEvent(supabase, workspaceId, phoneNumberId, payload)
 
-      // Process incoming messages
-      if (value.messages && value.messages.length > 0) {
-        for (const msg of value.messages) {
-          await processIncomingMessage(
-            msg,
-            value,
-            workspaceId,
-            phoneNumberId
+  try {
+    // Process each entry
+    for (const entry of payload.entry) {
+      for (const change of entry.changes) {
+        const { value } = change
+
+        // Verify this is for our phone number
+        if (value.metadata.phone_number_id !== phoneNumberId) {
+          console.warn(
+            `Webhook for different phone: ${value.metadata.phone_number_id}`
           )
+          continue
         }
-      }
 
-      // Process status updates
-      if (value.statuses && value.statuses.length > 0) {
-        for (const status of value.statuses) {
-          await processStatusUpdate(status, workspaceId)
+        // Process incoming messages
+        if (value.messages && value.messages.length > 0) {
+          for (const msg of value.messages) {
+            await processIncomingMessage(
+              msg,
+              value,
+              workspaceId,
+              phoneNumberId
+            )
+          }
+        }
+
+        // Process status updates
+        if (value.statuses && value.statuses.length > 0) {
+          for (const status of value.statuses) {
+            await processStatusUpdate(status, workspaceId)
+          }
         }
       }
     }
+
+    // Mark event as processed
+    if (eventId) {
+      await updateWhatsAppWebhookEvent(supabase, eventId, 'processed')
+    }
+  } catch (error) {
+    // Mark event as failed with error details
+    if (eventId) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      await updateWhatsAppWebhookEvent(supabase, eventId, 'failed', errorMsg)
+    }
+    throw error // Re-throw so route.ts captures it
   }
 }
 
@@ -566,6 +585,90 @@ function buildMessagePreview(msg: IncomingMessage): string {
       return '[Interactivo]'
     default:
       return '[Mensaje]'
+  }
+}
+
+// ============================================================================
+// WEBHOOK EVENT LOGGING (Store-Before-Process)
+// ============================================================================
+
+/**
+ * Persist raw webhook payload BEFORE processing.
+ * Returns event ID for later status update.
+ * Returns null if insert fails (degradation — processing continues anyway).
+ */
+async function logWhatsAppWebhookEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  workspaceId: string,
+  phoneNumberId: string,
+  payload: WebhookPayload,
+): Promise<string | null> {
+  try {
+    // Classify event type and extract wamids
+    const allMessages = payload.entry.flatMap(e =>
+      e.changes.flatMap(c => c.value.messages ?? [])
+    )
+    const allStatuses = payload.entry.flatMap(e =>
+      e.changes.flatMap(c => c.value.statuses ?? [])
+    )
+
+    const hasMessages = allMessages.length > 0
+    const hasStatuses = allStatuses.length > 0
+    const eventType = hasMessages && hasStatuses ? 'mixed'
+      : hasMessages ? 'message'
+      : 'status'
+
+    const waMessageIds = [
+      ...allMessages.map(m => m.id),
+      ...allStatuses.map(s => s.id),
+    ].filter(Boolean)
+
+    const { data, error } = await supabase
+      .from('whatsapp_webhook_events')
+      .insert({
+        workspace_id: workspaceId,
+        event_type: eventType,
+        phone_number_id: phoneNumberId,
+        wa_message_ids: waMessageIds,
+        payload: payload as unknown as Record<string, unknown>,
+        status: 'pending',
+      })
+      .select('id')
+      .single()
+
+    if (error) {
+      console.error('[webhook] Failed to log webhook event:', error.message)
+      return null
+    }
+
+    return data.id
+  } catch (error) {
+    console.error('[webhook] Failed to log webhook event:', error)
+    return null
+  }
+}
+
+/**
+ * Update webhook event status after processing completes.
+ */
+async function updateWhatsAppWebhookEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  status: 'processed' | 'failed',
+  errorMessage?: string,
+): Promise<void> {
+  try {
+    await supabase
+      .from('whatsapp_webhook_events')
+      .update({
+        status,
+        error_message: errorMessage,
+        processed_at: status === 'processed' ? new Date().toISOString() : null,
+      })
+      .eq('id', eventId)
+  } catch (error) {
+    // Non-blocking: if we can't update status, processing still happened
+    console.error('[webhook] Failed to update webhook event status:', error)
   }
 }
 

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 21 — DB + Domain Foundation
-Plan: 02 of 04
+Plan: 03 of 04
 Status: In progress
-Last activity: 2026-02-20 — Completed 21-01-PLAN.md (DANE municipalities + Coordinadora coverage)
+Last activity: 2026-02-20 — Completed 21-03-PLAN.md (Logistics constants + carrier domain modules)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##--------] 10% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [###-------] 15% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -32,7 +32,7 @@ All 9 phases + 5 inserted phases completed:
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 21 | DB + Domain Foundation | Plans 01+02/04 complete |
+| 21 | DB + Domain Foundation | Plans 01+02+03/04 complete |
 | 22 | Robot Coordinadora Service | Not started |
 | 23 | Inngest Orchestrator + Callback API | Not started |
 | 24 | Chat de Comandos UI | Not started |
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 153
+- Total plans completed: 154
 - Total execution time: ~25 days (2026-01-26 to 2026-02-20)
 
 ## Accumulated Context
@@ -101,6 +101,9 @@ Decisions logged in PROJECT.md Key Decisions table.
 - error_type enum: validation, portal, timeout, unknown (covers all robot failure modes)
 - robot_job_items uses parent-join RLS (no workspace_id column on child table)
 - Supabase Realtime on robot_job_items only (not robot_jobs) for Chat de Comandos progress
+- 45 department abbreviation entries covering all Bogota/San Andres variants + Mexican cross-border
+- Batch validateCities uses single query + Map lookup (not N+1)
+- getCarrierCredentials validates enabled + complete before returning credentials
 
 ### Project Rules
 
@@ -129,6 +132,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20 COT
-Stopped at: Completed 21-01-PLAN.md (DANE municipalities + Coordinadora coverage)
+Stopped at: Completed 21-03-PLAN.md (Logistics constants + carrier domain modules)
 Resume file: None
-Next: Execute 21-03-PLAN.md (TypeScript types)
+Next: Execute 21-04-PLAN.md (Robot jobs domain module)

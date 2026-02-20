@@ -89,6 +89,21 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 
 ---
 
+### 2.5. Client Activation Badge
+- **Estado:** ✅ Funcional
+
+#### Configuracion (`/settings/activacion-cliente`)
+- **is_client flag:** Campo boolean en contacts, activado por trigger DB cuando orden llega a etapa configurable
+- **client_activation_config:** Tabla por workspace con enabled, all_are_clients, activation_stage_ids[]
+- **Trigger DB:** `mark_client_on_stage_change()` — INSERT OR UPDATE en orders, chequea config y marca is_client + tag "Cliente"
+- **Badge visual:** Circulo amber-500 con check en bottom-left del avatar en inbox WhatsApp
+- **all_are_clients:** Modo frontend-only que muestra badge para todos sin escribir DB
+- **Backfill:** Recalcula is_client para todo el workspace cuando cambian los stage_ids configurados
+- **Realtime:** Listener en contacts.is_client para propagacion instantanea del badge
+- **Backward compat:** Sigue asignando tag "Cliente" automaticamente
+
+---
+
 ### 3. Agentes IA
 - **Estado:** ✅ Funcional
 
@@ -363,7 +378,7 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 
 ## Base de Datos
 
-### Tablas Principales (36 tablas)
+### Tablas Principales (37 tablas)
 
 **Core:** workspaces, workspace_members, workspace_invitations
 **CRM:** contacts, contact_tags, contact_notes, contact_activity, custom_field_definitions
@@ -371,6 +386,7 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 **WhatsApp:** conversations, messages, whatsapp_templates, teams, team_members, quick_replies, message_costs, workspace_limits, conversation_tags
 **Tasks:** tasks, task_types, task_notes, task_activity
 **Agents:** agent_sessions, agent_turns, session_state, agent_templates, workspace_agent_config
+**Config:** client_activation_config
 **Automations:** automations, automation_executions, builder_sessions
 **Integrations:** integrations, webhook_events, sms_messages
 **System:** tool_executions, api_keys
@@ -387,7 +403,7 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - `log_contact_changes()` — JSONB diff para activity
 - `log_task_changes()` — JSONB diff para task activity
 - `set_task_completed_at()` — Auto-set timestamp en status='completed'
-- `auto_tag_cliente_on_ganado()` — Auto-tag "Cliente" cuando orden llega a "Ganado"
+- `mark_client_on_stage_change()` — Marca is_client=true y auto-tag "Cliente" cuando orden llega a etapa de activacion configurable
 
 ---
 

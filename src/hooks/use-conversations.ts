@@ -372,6 +372,38 @@ export function useConversations({
           scheduleSafetyRefetch()
         }
       )
+      // ---- contacts table: is_client changes ----
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'contacts',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        (payload) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const newRow = payload.new as Record<string, any>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const oldRow = payload.old as Record<string, any>
+
+          // Only react to is_client changes
+          if (newRow.is_client === oldRow.is_client) return
+
+          const contactId = newRow.id
+          if (!contactId) return
+
+          const hasAffected = conversationsRef.current.some(c => c.contact?.id === contactId)
+          if (!hasAffected) return
+
+          setConversations(prev =>
+            prev.map(c => {
+              if (c.contact?.id !== contactId) return c
+              return { ...c, contact: { ...c.contact!, is_client: newRow.is_client } }
+            })
+          )
+        }
+      )
       // ---- orders table: refresh order emojis ----
       .on(
         'postgres_changes',

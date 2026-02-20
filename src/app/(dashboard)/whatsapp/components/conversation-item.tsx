@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Bot, User } from 'lucide-react'
+import { Bot, Check, User } from 'lucide-react'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
 import { RelativeTime } from '@/components/ui/relative-time'
@@ -26,6 +26,8 @@ interface ConversationItemProps {
   onSelect: (id: string) => void
   /** Orders for this conversation's contact (for status indicators) */
   orders?: OrderSummary[]
+  /** Show client activation badge on avatar */
+  showClientBadge?: boolean
 }
 
 /**
@@ -37,6 +39,7 @@ export function ConversationItem({
   isSelected,
   onSelect,
   orders = [],
+  showClientBadge = false,
 }: ConversationItemProps) {
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
@@ -84,6 +87,12 @@ export function ConversationItem({
             {primaryEmoji && (
               <span className="absolute -top-1 -right-1 text-sm leading-none bg-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm border border-gray-100">
                 {primaryEmoji}
+              </span>
+            )}
+            {/* Client badge on bottom-left */}
+            {showClientBadge && (
+              <span className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center shadow-sm border border-white" title="Cliente">
+                <Check className="h-2.5 w-2.5 text-white" />
               </span>
             )}
             {/* Bot overlay when agent is active */}

@@ -47,7 +47,7 @@ export async function getConversations(
     .from('conversations')
     .select(`
       *,
-      contact:contacts!left(id, name, phone, tags:contact_tags(tag:tags(id, name, color))),
+      contact:contacts!left(id, name, phone, is_client, tags:contact_tags(tag:tags(id, name, color))),
       conversation_tags:conversation_tags(tag:tags(id, name, color))
     `)
     .eq('workspace_id', workspaceId)
@@ -139,7 +139,7 @@ export async function getConversation(
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, email, city, address, tags:contact_tags(tag:tags(*))),
+      contact:contacts(id, name, phone, email, city, address, is_client, tags:contact_tags(tag:tags(*))),
       conversation_tags:conversation_tags(tag:tags(*))
     `)
     .eq('id', id)

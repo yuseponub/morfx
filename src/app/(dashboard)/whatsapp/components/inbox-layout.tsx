@@ -7,6 +7,7 @@ import { AgentConfigSlider } from './agent-config-slider'
 import { ChatView } from './chat-view'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 
 // No-op function for initial state
 const noopRefreshOrders = async () => {}
@@ -18,6 +19,7 @@ interface InboxLayoutProps {
   initialConversations: ConversationWithDetails[]
   /** Pre-select a conversation by ID (e.g., from URL param) */
   initialSelectedId?: string
+  clientConfig?: ClientActivationConfig | null
 }
 
 /**
@@ -30,6 +32,7 @@ export function InboxLayout({
   workspaceId,
   initialConversations,
   initialSelectedId,
+  clientConfig,
 }: InboxLayoutProps) {
   // Initialize with pre-selected conversation if provided
   const initialConversation = initialSelectedId
@@ -93,6 +96,7 @@ export function InboxLayout({
           onSelect={handleSelectConversation}
           onSelectedUpdated={handleConversationUpdatedFromList}
           onRefreshOrdersReady={handleRefreshOrdersReady}
+          clientConfig={clientConfig}
         />
       </div>
 

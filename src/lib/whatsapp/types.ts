@@ -229,6 +229,7 @@ export interface ConversationWithDetails extends Conversation {
     phone: string
     address: string | null
     city: string | null
+    is_client?: boolean
   } | null
   /** Direct tags applied to this conversation */
   tags: Array<{

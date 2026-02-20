@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug } from 'lucide-react'
+import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug, BadgeCheck } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
@@ -67,6 +67,13 @@ const settingsLinks: SettingsLink[] = [
     title: 'Estados de pedido',
     description: 'Configura estados con emoji para indicadores',
     icon: CircleDot,
+  },
+  {
+    href: '/settings/activacion-cliente',
+    title: 'Badge de cliente',
+    description: 'Configura cuando un contacto se marca como cliente en el inbox',
+    icon: BadgeCheck,
+    ownerOnly: true,
   },
 ]
 

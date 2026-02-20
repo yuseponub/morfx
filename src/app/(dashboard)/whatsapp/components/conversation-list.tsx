@@ -11,6 +11,7 @@ import { ConversationItem } from './conversation-item'
 import { AvailabilityToggle } from './availability-toggle'
 import { NewConversationModal } from './new-conversation-modal'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 
 interface ConversationListProps {
   workspaceId: string
@@ -21,6 +22,7 @@ interface ConversationListProps {
   onSelectedUpdated?: (conversation: ConversationWithDetails) => void
   /** Callback to expose refreshOrders function to parent */
   onRefreshOrdersReady?: (refreshOrders: () => Promise<void>) => void
+  clientConfig?: ClientActivationConfig | null
 }
 
 /**
@@ -34,6 +36,7 @@ export function ConversationList({
   onSelect,
   onSelectedUpdated,
   onRefreshOrdersReady,
+  clientConfig,
 }: ConversationListProps) {
   const [showNewModal, setShowNewModal] = useState(false)
   const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
@@ -182,6 +185,10 @@ export function ConversationList({
                 ? ordersByContact.get(conversation.contact.id) || []
                 : []
 
+              const showClientBadge = clientConfig?.enabled && (
+                clientConfig.all_are_clients || conversation.contact?.is_client === true
+              )
+
               return (
                 <ConversationItem
                   key={conversation.id}
@@ -192,6 +199,7 @@ export function ConversationList({
                     onSelect(id, conversation)
                   }}
                   orders={contactOrders}
+                  showClientBadge={!!showClientBadge}
                 />
               )
             })}

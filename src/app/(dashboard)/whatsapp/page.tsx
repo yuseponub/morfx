@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { InboxLayout } from './components/inbox-layout'
 import { getConversations } from '@/app/actions/conversations'
+import { getClientActivationSettings } from '@/app/actions/client-activation'
 
 interface WhatsAppPageProps {
   searchParams: Promise<{ phone?: string }>
@@ -24,8 +25,11 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
     )
   }
 
-  // Fetch initial conversations (active, sorted by recency)
-  const initialConversations = await getConversations({ status: 'active' })
+  // Fetch initial conversations and client config in parallel
+  const [initialConversations, clientConfig] = await Promise.all([
+    getConversations({ status: 'active' }),
+    getClientActivationSettings(),
+  ])
 
   // Find conversation by phone if provided
   const initialSelectedId = phone
@@ -37,6 +41,7 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
       workspaceId={workspaceId}
       initialConversations={initialConversations}
       initialSelectedId={initialSelectedId}
+      clientConfig={clientConfig}
     />
   )
 }

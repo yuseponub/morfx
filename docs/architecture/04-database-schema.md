@@ -6,7 +6,7 @@
 
 ## Resumen
 
-36 tablas en PostgreSQL (Supabase) con RLS habilitado en todas. Multi-tenant via workspace_id. 25 migraciones aplicadas (20260127 → 20260217). Funciones helper para aislamiento: `is_workspace_member()`, `is_workspace_admin()`, `is_workspace_manager()`, `is_workspace_owner()`.
+37 tablas en PostgreSQL (Supabase) con RLS habilitado en todas. Multi-tenant via workspace_id. 27 migraciones aplicadas (20260127 → 20260221). Funciones helper para aislamiento: `is_workspace_member()`, `is_workspace_admin()`, `is_workspace_manager()`, `is_workspace_owner()`.
 
 ---
 
@@ -119,7 +119,7 @@
 
 | Tabla | Columnas Clave | RLS | Notas |
 |-------|---------------|-----|-------|
-| `contacts` | name, phone (unique/workspace), email, address, city, department, custom_fields (JSONB) | ✅ | E.164 phone format |
+| `contacts` | name, phone (unique/workspace), email, address, city, department, custom_fields (JSONB), is_client | ✅ | E.164 phone format, is_client badge |
 | `contact_tags` | contact_id, tag_id | ✅ | M2M junction |
 | `contact_notes` | contact_id, user_id, content | ✅ | Immutable author |
 | `contact_activity` | contact_id, action, changes (JSONB) | ✅ | Auto via trigger |
@@ -182,6 +182,12 @@
 | `agent_templates` | agent_id, intent, visit_type, content_type, content, orden, delay_s, workspace_id | ✅ | Intent-to-template mapping |
 | `workspace_agent_config` | workspace_id, agent_enabled, timer_preset, response_speed, handoff_message | ✅ | Per-workspace settings |
 
+### Client Activation (1 tabla)
+
+| Tabla | Columnas Clave | RLS | Notas |
+|-------|---------------|-----|-------|
+| `client_activation_config` | workspace_id (PK), enabled, all_are_clients, activation_stage_ids (UUID[]) | ✅ | Per-workspace badge config |
+
 ### Automatizaciones (3 tablas)
 
 | Tabla | Columnas Clave | RLS | Notas |
@@ -228,7 +234,7 @@ update_conversation_on_message()  -- Actualiza preview, unread_count, timestamps
 log_contact_changes()       -- JSONB diff → contact_activity (BEFORE trigger)
 log_task_changes()          -- JSONB diff → task_activity (BEFORE trigger)
 set_task_completed_at()     -- Auto-set timestamp cuando status → 'completed'
-auto_tag_cliente_on_ganado()  -- Auto-tag "Cliente" cuando orden → "Ganado"
+mark_client_on_stage_change()  -- Marca is_client + auto-tag "Cliente" cuando orden llega a etapa de activacion
 set_workspace_id()          -- Auto-set workspace_id en inserts
 ```
 
@@ -296,6 +302,9 @@ CREATE POLICY "select" ON messages
 20260214000000_builder_sessions.sql
 20260216000000_sms_messages.sql
 20260217000000_real_fields.sql
+20260219000000_pipeline_position.sql
+20260220_whatsapp_webhook_events.sql
+20260221000000_client_activation_badge.sql
 ```
 
 ---

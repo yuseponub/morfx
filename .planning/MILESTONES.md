@@ -1,5 +1,29 @@
 # Milestones: MorfX Platform
 
+## Active Milestone
+
+### v3.0 — Logística (Started: 2026-02-20)
+
+**Goal:** Integrar robots de logística al CRM de MorfX, empezando por Coordinadora. Chat de comandos para operaciones, pipeline integration, protección anti-duplicados.
+
+**Phases:** 21-25 (5 phases, 17 requirements)
+
+| Phase | Name | Requirements |
+|-------|------|--------------|
+| 21 | DB + Domain Foundation | DATA-01→04 |
+| 22 | Robot Coordinadora Service | ROBOT-01→05 |
+| 23 | Inngest Orchestrator + Callback API | PIPE-02, PIPE-03 |
+| 24 | Chat de Comandos UI | CHAT-01→04 |
+| 25 | Pipeline Integration + Docs | PIPE-01, DOC-01 |
+
+**Key architectural decisions:**
+- Playwright runs as separate Docker service on Railway (Vercel incompatible)
+- Inngest orchestrates robot jobs (same pattern as automation runners)
+- Domain layer handles all robot result updates (triggers automations)
+- Anti-duplicate: workspace lock + per-order lock + batch idempotency
+
+---
+
 ## Completed Milestones
 
 ### MVP v2.0 — Agentes Conversacionales (Shipped: 2026-02-16)
@@ -24,7 +48,7 @@
 
 **Git range:** `feat(12-01)` to `fix(20)`
 
-**What's next:** TBD — next milestone planning
+**What's next:** v3.0 — Logística
 
 ---
 
@@ -54,4 +78,4 @@
 
 ---
 
-*Last updated: 2026-02-16 after shipping v2.0*
+*Last updated: 2026-02-20 after starting v3.0*

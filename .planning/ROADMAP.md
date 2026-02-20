@@ -61,7 +61,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### v3.0 Logistica (Phases 21-25) — IN PROGRESS
 
-- [ ] **Phase 21: DB + Domain Foundation**
+- [x] **Phase 21: DB + Domain Foundation**
 - [ ] **Phase 22: Robot Coordinadora Service**
 - [ ] **Phase 23: Inngest Orchestrator + Callback API**
 - [ ] **Phase 24: Chat de Comandos UI**
@@ -82,10 +82,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 4 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — DANE municipalities + Coordinadora coverage tables with seed data
-- [ ] 21-02-PLAN.md — Carrier configs + robot job tracking tables
-- [ ] 21-03-PLAN.md — Logistics constants + carrier-coverage and carrier-configs domain modules
-- [ ] 21-04-PLAN.md — Robot-jobs domain module + Inngest events + barrel exports
+- [x] 21-01-PLAN.md — DANE municipalities + Coordinadora coverage tables with seed data
+- [x] 21-02-PLAN.md — Carrier configs + robot job tracking tables
+- [x] 21-03-PLAN.md — Logistics constants + carrier-coverage and carrier-configs domain modules
+- [x] 21-04-PLAN.md — Robot-jobs domain module + Inngest events + barrel exports
 
 **Success Criteria:**
 1. A query for any Colombian municipality returns its DANE code, department, and alternative names (1,122+ municipalities loaded)
@@ -182,13 +182,13 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-25 | 4 (Phase 21) | In Progress | — |
+| v3.0 Logistica | 21-25 | 4 (Phase 21) | Phase 21 Complete | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **39 phases** | **154+ plans** | | |
 
 ### Current Phase
 
-Phase 21: DB + Domain Foundation — Planning complete, ready for execution
+Phase 21: DB + Domain Foundation — COMPLETE (4 plans, 3 waves, verified 18/18)
 
 ---
 
@@ -199,4 +199,4 @@ Phase 21: DB + Domain Foundation — Planning complete, ready for execution
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-20 (Phase 21 planned: 4 plans in 3 waves)*
+*Last updated: 2026-02-20 (Phase 21 complete: 4 plans, 3 waves, 18/18 verified)*

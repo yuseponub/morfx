@@ -135,6 +135,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20 COT
-Stopped at: Completed 21-04-PLAN.md (Robot jobs domain module + Inngest events) -- Phase 21 COMPLETE
+Stopped at: Phase 21 verified (18/18 must-haves) — ready for Phase 22
 Resume file: None
-Next: Phase 22 (Robot Coordinadora Service)
+Next: /gsd:discuss-phase 22 (Robot Coordinadora Service)

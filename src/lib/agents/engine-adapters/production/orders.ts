@@ -66,10 +66,23 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
     }
 
     if (!this.hasRequiredContactData(data.datosCapturados)) {
-      logger.warn({ sessionId: data.sessionId }, 'Cannot create order - missing required contact data')
+      const required = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
+      const missing = required.filter((f) => {
+        const v = data.datosCapturados[f]
+        return !v || v.trim().length === 0 || v === 'N/A'
+      })
+      logger.warn(
+        {
+          sessionId: data.sessionId,
+          missingFields: missing,
+          allKeys: Object.keys(data.datosCapturados),
+          datosCapturados: data.datosCapturados,
+        },
+        'Cannot create order - missing required contact data'
+      )
       return {
         success: false,
-        error: { message: 'Missing required contact data' },
+        error: { message: `Missing required contact data: ${missing.join(', ')}` },
       }
     }
 

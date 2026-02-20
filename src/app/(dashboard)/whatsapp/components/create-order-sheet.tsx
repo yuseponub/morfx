@@ -12,10 +12,8 @@ import {
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
 import { getPipelines, getOrCreateDefaultPipeline } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
-import { getContacts } from '@/app/actions/contacts'
 import { linkContactToConversation } from '@/app/actions/conversations'
 import type { PipelineWithStages, Product } from '@/lib/orders/types'
-import type { ContactWithTags } from '@/lib/types/database'
 
 interface CreateOrderSheetProps {
   open: boolean
@@ -32,7 +30,8 @@ interface CreateOrderSheetProps {
 
 /**
  * Sheet for creating orders from WhatsApp module.
- * Loads required data (pipelines, products, contacts) when opened.
+ * Loads required data (pipelines, products) when opened.
+ * Contacts are loaded by ContactSelector autonomously.
  */
 export function CreateOrderSheet({
   open,
@@ -47,12 +46,11 @@ export function CreateOrderSheet({
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [pipelines, setPipelines] = React.useState<PipelineWithStages[]>([])
   const [products, setProducts] = React.useState<Product[]>([])
-  const [contacts, setContacts] = React.useState<ContactWithTags[]>([])
   const [defaultPipelineId, setDefaultPipelineId] = React.useState<string>()
   const [defaultStageId, setDefaultStageId] = React.useState<string>()
   const [dataLoaded, setDataLoaded] = React.useState(false)
 
-  // Load data when sheet opens
+  // Load data when sheet opens (contacts no longer needed — ContactSelector is self-contained)
   React.useEffect(() => {
     if (!open || dataLoaded) return
 
@@ -60,22 +58,14 @@ export function CreateOrderSheet({
       setIsLoading(true)
       setLoadError(null)
       try {
-        console.log('[CreateOrderSheet] Loading data...')
-        const [defaultPipeline, pipelinesData, productsData, contactsData] = await Promise.all([
+        const [defaultPipeline, pipelinesData, productsData] = await Promise.all([
           getOrCreateDefaultPipeline(),
           getPipelines(),
           getActiveProducts(),
-          getContacts(),
         ])
-        console.log('[CreateOrderSheet] Data loaded:', {
-          pipelines: pipelinesData.length,
-          products: productsData.length,
-          contacts: contactsData.length
-        })
 
         setPipelines(pipelinesData)
         setProducts(productsData)
-        setContacts(contactsData)
         setDefaultPipelineId(defaultPipeline?.id)
         setDefaultStageId(defaultPipeline?.stages[0]?.id)
         setDataLoaded(true)
@@ -100,7 +90,7 @@ export function CreateOrderSheet({
   }
 
   // Auto-link new contacts to the conversation
-  const handleContactCreated = React.useCallback(async (contact: ContactWithTags) => {
+  const handleContactCreated = React.useCallback(async (contact: { id: string; name: string; phone: string }) => {
     if (conversationId) {
       await linkContactToConversation(conversationId, contact.id)
     }
@@ -139,7 +129,6 @@ export function CreateOrderSheet({
             mode="create"
             pipelines={pipelines}
             products={products}
-            contacts={contacts}
             defaultPipelineId={defaultPipelineId}
             defaultStageId={defaultStageId}
             defaultContactId={defaultContactId}

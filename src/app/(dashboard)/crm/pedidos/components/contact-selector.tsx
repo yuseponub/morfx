@@ -29,15 +29,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { formatPhoneDisplay } from '@/lib/utils/phone'
-import { createContact } from '@/app/actions/contacts'
+import { createContact, searchContacts, getRecentContacts, getContact } from '@/app/actions/contacts'
 import { toast } from 'sonner'
-import type { ContactWithTags } from '@/lib/types/database'
+
+// Lightweight contact info for the selector (no full ContactWithTags needed)
+interface ContactInfo {
+  id: string
+  name: string
+  phone: string
+  city: string | null
+}
 
 interface ContactSelectorProps {
-  contacts: ContactWithTags[]
   value: string | null
   onChange: (contactId: string | null) => void
-  onContactCreated?: (contact: ContactWithTags) => void
+  onContactCreated?: (contact: { id: string; name: string; phone: string }) => void
   disabled?: boolean
   /** Pre-fill phone when creating new contact (e.g., from WhatsApp conversation) */
   defaultPhone?: string
@@ -46,7 +52,6 @@ interface ContactSelectorProps {
 }
 
 export function ContactSelector({
-  contacts,
   value,
   onChange,
   onContactCreated,
@@ -56,18 +61,78 @@ export function ContactSelector({
 }: ContactSelectorProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
+  const [results, setResults] = React.useState<ContactInfo[]>([])
+  const [loading, setLoading] = React.useState(false)
+  const [selectedContact, setSelectedContact] = React.useState<ContactInfo | null>(null)
   const [showCreateDialog, setShowCreateDialog] = React.useState(false)
   const [isCreating, setIsCreating] = React.useState(false)
   const [newContact, setNewContact] = React.useState({ name: '', phone: '', city: '' })
   const [createError, setCreateError] = React.useState<string | null>(null)
+  const debounceRef = React.useRef<NodeJS.Timeout | null>(null)
 
-  const selectedContact = React.useMemo(() => {
-    return contacts.find((c) => c.id === value) || null
-  }, [contacts, value])
+  // Load selected contact info on mount if value is set
+  React.useEffect(() => {
+    if (value && !selectedContact) {
+      getContact(value).then((contact) => {
+        if (contact) {
+          setSelectedContact({ id: contact.id, name: contact.name, phone: contact.phone, city: contact.city })
+        }
+      })
+    }
+    if (!value) {
+      setSelectedContact(null)
+    }
+  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load recent contacts when popover opens
+  React.useEffect(() => {
+    if (open && !search) {
+      setLoading(true)
+      getRecentContacts({ limit: 20 }).then((data) => {
+        setResults(data)
+        setLoading(false)
+      })
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced server-side search
+  React.useEffect(() => {
+    if (!open) return
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+
+    if (!search.trim()) {
+      // Empty search → show recent contacts
+      setLoading(true)
+      getRecentContacts({ limit: 20 }).then((data) => {
+        setResults(data)
+        setLoading(false)
+      })
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const data = await searchContacts({ search, limit: 20 })
+        setResults(data)
+      } catch {
+        setResults([])
+      } finally {
+        setLoading(false)
+      }
+    }, 200)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [search, open])
 
   const handleCreateContact = async () => {
     if (!newContact.name.trim() || !newContact.phone.trim()) {
-      setCreateError('Nombre y teléfono son requeridos')
+      setCreateError('Nombre y telefono son requeridos')
       return
     }
 
@@ -87,47 +152,42 @@ export function ContactSelector({
       return
     }
 
-    toast.success(`Contacto "${result.data.name}" creado`)
-    onChange(result.data.id)
-    onContactCreated?.({ ...result.data, tags: [] })
+    const created = result.data
+    toast.success(`Contacto "${created.name}" creado`)
+    const info: ContactInfo = { id: created.id, name: created.name, phone: created.phone, city: created.city }
+    setSelectedContact(info)
+    onChange(created.id)
+    onContactCreated?.({ id: created.id, name: created.name, phone: created.phone })
     setShowCreateDialog(false)
     setNewContact({ name: '', phone: '', city: '' })
     setOpen(false)
   }
 
   const openCreateDialog = () => {
-    // Pre-fill with search term, defaultPhone and defaultName
     const phoneToUse = defaultPhone || ''
     const nameToUse = defaultName || ''
     if (search && !/^\d+$/.test(search)) {
-      // Search term is text - use it as name
       setNewContact({ name: search, phone: phoneToUse, city: '' })
     } else if (search && /^\d+$/.test(search)) {
-      // Search term is numeric - use it as phone
       setNewContact({ name: nameToUse, phone: search || phoneToUse, city: '' })
     } else {
-      // No search - use defaults
       setNewContact({ name: nameToUse, phone: phoneToUse, city: '' })
     }
     setCreateError(null)
     setShowCreateDialog(true)
   }
 
-  // Filter contacts by search
-  const filteredContacts = React.useMemo(() => {
-    if (!search) return contacts.slice(0, 50)
-    const searchLower = search.toLowerCase()
-    return contacts
-      .filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchLower) ||
-          c.phone.includes(search)
-      )
-      .slice(0, 50)
-  }, [contacts, search])
-
   const handleSelect = (contactId: string) => {
-    onChange(contactId === value ? null : contactId)
+    if (contactId === value) {
+      onChange(null)
+      setSelectedContact(null)
+    } else {
+      const contact = results.find((c) => c.id === contactId)
+      if (contact) {
+        setSelectedContact(contact)
+      }
+      onChange(contactId)
+    }
     setOpen(false)
     setSearch('')
   }
@@ -135,6 +195,7 @@ export function ContactSelector({
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation()
     onChange(null)
+    setSelectedContact(null)
   }
 
   return (
@@ -197,38 +258,46 @@ export function ContactSelector({
               </CommandItem>
             </CommandGroup>
             <CommandSeparator />
-            <CommandEmpty>
-              <div className="py-4 text-center text-sm text-muted-foreground">
-                No se encontraron contactos
+            {loading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                <LoaderIcon className="h-4 w-4 animate-spin inline mr-2" />
+                Buscando...
               </div>
-            </CommandEmpty>
-            <CommandGroup heading={`Contactos (${filteredContacts.length})`}>
-              {filteredContacts.map((contact) => (
-                <CommandItem
-                  key={contact.id}
-                  value={contact.id}
-                  onSelect={handleSelect}
-                  className="flex items-center gap-2"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{contact.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatPhoneDisplay(contact.phone)}
-                        {contact.city && ` - ${contact.city}`}
+            ) : results.length === 0 ? (
+              <CommandEmpty>
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  No se encontraron contactos
+                </div>
+              </CommandEmpty>
+            ) : (
+              <CommandGroup heading={`Contactos (${results.length})`}>
+                {results.map((contact) => (
+                  <CommandItem
+                    key={contact.id}
+                    value={contact.id}
+                    onSelect={handleSelect}
+                    className="flex items-center gap-2"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{contact.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatPhoneDisplay(contact.phone)}
+                          {contact.city && ` - ${contact.city}`}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <CheckIcon
-                    className={cn(
-                      'h-4 w-4 shrink-0',
-                      value === contact.id ? 'opacity-100' : 'opacity-0'
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
+                    <CheckIcon
+                      className={cn(
+                        'h-4 w-4 shrink-0',
+                        value === contact.id ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -259,7 +328,7 @@ export function ContactSelector({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-contact-phone">Teléfono *</Label>
+              <Label htmlFor="new-contact-phone">Telefono *</Label>
               <Input
                 id="new-contact-phone"
                 value={newContact.phone}
@@ -274,7 +343,7 @@ export function ContactSelector({
                 id="new-contact-city"
                 value={newContact.city}
                 onChange={(e) => setNewContact({ ...newContact, city: e.target.value })}
-                placeholder="Bogotá"
+                placeholder="Bogota"
                 disabled={isCreating}
               />
             </div>

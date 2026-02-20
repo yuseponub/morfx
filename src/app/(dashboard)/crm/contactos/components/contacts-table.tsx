@@ -1,8 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
-import { SearchIcon, Upload } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { SearchIcon, Upload, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { DataTable, useSelectedRowIds } from '@/components/ui/data-table'
@@ -23,33 +23,85 @@ interface ContactsTableProps {
   contacts: ContactWithTags[]
   tags: Tag[]
   customFields: CustomFieldDefinition[]
+  total: number
+  page: number
+  pageSize: number
+  currentSearch: string
+  currentTagIds: string[]
 }
 
-export function ContactsTable({ contacts, tags, customFields }: ContactsTableProps) {
+export function ContactsTable({
+  contacts,
+  tags,
+  customFields,
+  total,
+  page,
+  pageSize,
+  currentSearch,
+  currentTagIds,
+}: ContactsTableProps) {
   const router = useRouter()
-  const [search, setSearch] = React.useState('')
+  const searchParams = useSearchParams()
+  const [search, setSearch] = React.useState(currentSearch)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingContact, setEditingContact] = React.useState<ContactWithTags | null>(null)
-  const [selectedTagIds, setSelectedTagIds] = React.useState<string[]>([])
   const [tagManagerOpen, setTagManagerOpen] = React.useState(false)
   const [importDialogOpen, setImportDialogOpen] = React.useState(false)
+  const debounceRef = React.useRef<NodeJS.Timeout | null>(null)
 
-  // Filter contacts by selected tags (client-side)
-  // Show contacts that have ANY of the selected tags
-  const filteredContacts = React.useMemo(() => {
-    if (selectedTagIds.length === 0) {
-      return contacts
+  // Build URL with updated params
+  const buildUrl = React.useCallback((updates: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) {
+        params.set(key, value)
+      } else {
+        params.delete(key)
+      }
     }
-    return contacts.filter((contact) =>
-      contact.tags.some((tag) => selectedTagIds.includes(tag.id))
-    )
-  }, [contacts, selectedTagIds])
+    return `/crm/contactos?${params.toString()}`
+  }, [searchParams])
 
-  // Get selected contact IDs (use filteredContacts for correct mapping)
-  const selectedIds = useSelectedRowIds(filteredContacts, rowSelection)
+  // Debounced search — update URL after 300ms
+  React.useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+    debounceRef.current = setTimeout(() => {
+      if (search !== currentSearch) {
+        router.push(buildUrl({ q: search || undefined, page: undefined }))
+      }
+    }, 300)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [search, currentSearch, router, buildUrl])
 
-  // Memoize columns to prevent infinite re-renders
+  // Tag filter → update URL immediately
+  const handleTagSelectionChange = React.useCallback((tagIds: string[]) => {
+    const tagsParam = tagIds.length > 0 ? tagIds.join(',') : undefined
+    router.push(buildUrl({ tags: tagsParam, page: undefined }))
+  }, [router, buildUrl])
+
+  // Clear row selection when page data changes
+  React.useEffect(() => {
+    setRowSelection({})
+  }, [contacts])
+
+  // Get selected contact IDs
+  const selectedIds = useSelectedRowIds(contacts, rowSelection)
+
+  // Pagination
+  const totalPages = Math.ceil(total / pageSize)
+  const startItem = (page - 1) * pageSize + 1
+  const endItem = Math.min(page * pageSize, total)
+
+  const goToPage = React.useCallback((newPage: number) => {
+    router.push(buildUrl({ page: newPage > 1 ? String(newPage) : undefined }))
+  }, [router, buildUrl])
+
+  // Memoize columns
   const columns = React.useMemo(
     () =>
       createColumns({
@@ -59,12 +111,12 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
         },
         onDelete: async (contact) => {
           if (!confirm(`Eliminar contacto "${contact.name}"?`)) return
-
           const result = await deleteContact(contact.id)
           if ('error' in result) {
             toast.error(result.error)
           } else {
             toast.success('Contacto eliminado')
+            router.refresh()
           }
         },
         onViewDetail: (contact) => {
@@ -74,40 +126,40 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
     [router]
   )
 
-  // Handle bulk delete
+  // Bulk actions
   const handleBulkDelete = async () => {
     if (!confirm(`Eliminar ${selectedIds.length} contacto(s)?`)) return
-
     const result = await deleteContacts(selectedIds)
     if ('error' in result) {
       toast.error(result.error)
     } else {
       toast.success(`${selectedIds.length} contacto(s) eliminado(s)`)
       setRowSelection({})
+      router.refresh()
     }
   }
 
-  // Handle bulk add tag
   const handleBulkAddTag = async (tagId: string) => {
     const result = await bulkAddTag(selectedIds, tagId)
     if ('error' in result) {
       toast.error(result.error)
     } else {
       toast.success('Etiqueta agregada')
+      router.refresh()
     }
   }
 
-  // Handle bulk remove tag
   const handleBulkRemoveTag = async (tagId: string) => {
     const result = await bulkRemoveTag(selectedIds, tagId)
     if ('error' in result) {
       toast.error(result.error)
     } else {
       toast.success('Etiqueta removida')
+      router.refresh()
     }
   }
 
-  // Handle dialog close and success
+  // Dialog handlers
   const handleDialogClose = () => {
     setDialogOpen(false)
     setEditingContact(null)
@@ -116,13 +168,13 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
   const handleCreateSuccess = () => {
     handleDialogClose()
     toast.success(editingContact ? 'Contacto actualizado' : 'Contacto creado')
+    router.refresh()
   }
 
-  // Determine if filters are active (tag filter or search)
-  const hasFilters = selectedTagIds.length > 0 || search.trim().length > 0
+  const hasFilters = currentTagIds.length > 0 || currentSearch.length > 0
 
-  // Show empty state if no contacts
-  if (contacts.length === 0) {
+  // Empty state: only when NO contacts exist at all (no filters active)
+  if (total === 0 && !hasFilters) {
     return (
       <>
         <EmptyState onCreateClick={() => setDialogOpen(true)} />
@@ -131,7 +183,6 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
           onOpenChange={setDialogOpen}
           onSuccess={handleCreateSuccess}
         />
-        {/* Import dialog available even with no contacts */}
         <CsvImportDialog
           open={importDialogOpen}
           onOpenChange={setImportDialogOpen}
@@ -167,7 +218,7 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
           </Button>
           <CsvExportButton
             allContacts={contacts}
-            filteredContacts={filteredContacts}
+            filteredContacts={contacts}
             customFields={customFields}
             hasFilters={hasFilters}
           />
@@ -177,8 +228,8 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
       {/* Tag filter and manager */}
       <TagFilter
         tags={tags}
-        selectedTagIds={selectedTagIds}
-        onSelectionChange={setSelectedTagIds}
+        selectedTagIds={currentTagIds}
+        onSelectionChange={handleTagSelectionChange}
         onManageTags={() => setTagManagerOpen(true)}
       />
 
@@ -192,14 +243,44 @@ export function ContactsTable({ contacts, tags, customFields }: ContactsTablePro
         onClearSelection={() => setRowSelection({})}
       />
 
-      {/* Data table */}
+      {/* Data table — no client-side search filtering, data is already server-filtered */}
       <DataTable
         columns={columns}
-        data={filteredContacts}
+        data={contacts}
         onRowSelectionChange={setRowSelection}
-        searchColumn="name"
-        searchValue={search}
       />
+
+      {/* Pagination controls */}
+      {total > 0 && (
+        <div className="flex items-center justify-between px-2">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {startItem}-{endItem} de {total.toLocaleString()} contactos
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+            >
+              <ChevronLeftIcon className="h-4 w-4 mr-1" />
+              Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Pagina {page} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+            >
+              Siguiente
+              <ChevronRightIcon className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Edit dialog */}
       <ContactDialog

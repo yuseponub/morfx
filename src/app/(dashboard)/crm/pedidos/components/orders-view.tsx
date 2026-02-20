@@ -56,7 +56,7 @@ import type {
   Product,
   OrdersByStage,
 } from '@/lib/orders/types'
-import type { ContactWithTags, Tag } from '@/lib/types/database'
+import type { Tag } from '@/lib/types/database'
 
 const VIEW_MODE_STORAGE_KEY = 'morfx_orders_view_mode'
 const SORT_FIELD_STORAGE_KEY = 'morfx_kanban_sort_field'
@@ -112,7 +112,6 @@ interface OrdersViewProps {
   orders: OrderWithDetails[]
   pipelines: PipelineWithStages[]
   products: Product[]
-  contacts: ContactWithTags[]
   tags: Tag[]
   defaultPipelineId?: string
   defaultStageId?: string
@@ -126,7 +125,6 @@ export function OrdersView({
   orders,
   pipelines,
   products,
-  contacts,
   tags,
   defaultPipelineId,
   defaultStageId,
@@ -993,7 +991,6 @@ export function OrdersView({
             order={editingOrder || undefined}
             pipelines={pipelines}
             products={products}
-            contacts={contacts}
             defaultPipelineId={defaultPipelineId}
             defaultStageId={defaultStageId}
             defaultContactId={defaultContactId || undefined}

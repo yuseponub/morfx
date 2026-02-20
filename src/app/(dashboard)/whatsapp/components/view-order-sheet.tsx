@@ -35,10 +35,8 @@ import { TagBadge } from '@/components/contacts/tag-badge'
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
 import { getOrder, getPipelines, moveOrderToStage } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
-import { getContacts } from '@/app/actions/contacts'
 import { toast } from 'sonner'
 import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage } from '@/lib/orders/types'
-import type { ContactWithTags } from '@/lib/types/database'
 
 // Format currency in COP
 function formatCurrency(value: number): string {
@@ -78,7 +76,6 @@ export function ViewOrderSheet({
   const [order, setOrder] = React.useState<OrderWithDetails | null>(null)
   const [pipelines, setPipelines] = React.useState<PipelineWithStages[]>([])
   const [products, setProducts] = React.useState<Product[]>([])
-  const [contacts, setContacts] = React.useState<ContactWithTags[]>([])
   const [stages, setStages] = React.useState<PipelineStage[]>([])
 
   // Load order data when sheet opens
@@ -92,11 +89,10 @@ export function ViewOrderSheet({
       setIsLoading(true)
       setIsEditing(false)
       try {
-        const [orderData, pipelinesData, productsData, contactsData] = await Promise.all([
+        const [orderData, pipelinesData, productsData] = await Promise.all([
           getOrder(currentOrderId),
           getPipelines(),
           getActiveProducts(),
-          getContacts(),
         ])
 
         if (orderData) {
@@ -107,7 +103,6 @@ export function ViewOrderSheet({
         }
         setPipelines(pipelinesData)
         setProducts(productsData)
-        setContacts(contactsData)
       } catch (error) {
         console.error('Error loading order:', error)
         toast.error('Error al cargar el pedido')
@@ -180,7 +175,6 @@ export function ViewOrderSheet({
               order={order}
               pipelines={pipelines}
               products={products}
-              contacts={contacts}
               onSuccess={handleEditSuccess}
               onCancel={() => setIsEditing(false)}
             />

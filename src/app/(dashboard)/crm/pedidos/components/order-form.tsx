@@ -27,7 +27,6 @@ import { ProductPicker } from './product-picker'
 import { createOrder, updateOrder, type OrderFormData } from '@/app/actions/orders'
 import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineWithStages, Product, OrderProductFormData } from '@/lib/orders/types'
-import type { ContactWithTags } from '@/lib/types/database'
 
 // Form data type (simpler than Zod inference for react-hook-form compatibility)
 interface FormData {
@@ -56,7 +55,6 @@ interface OrderFormProps {
   order?: OrderWithDetails
   pipelines: PipelineWithStages[]
   products: Product[]
-  contacts: ContactWithTags[]
   defaultPipelineId?: string
   defaultStageId?: string
   defaultContactId?: string
@@ -65,7 +63,7 @@ interface OrderFormProps {
   /** Pre-fill name when creating new contact inline (e.g., from WhatsApp profile) */
   defaultName?: string
   /** Called when a new contact is created inline (e.g., to link to conversation) */
-  onContactCreated?: (contact: ContactWithTags) => void
+  onContactCreated?: (contact: { id: string; name: string; phone: string }) => void
   onSuccess?: () => void
   onCancel?: () => void
 }
@@ -75,7 +73,6 @@ export function OrderForm({
   order,
   pipelines,
   products,
-  contacts: initialContacts,
   defaultPipelineId,
   defaultStageId,
   defaultContactId,
@@ -87,15 +84,6 @@ export function OrderForm({
 }: OrderFormProps) {
   const [isPending, setIsPending] = React.useState(false)
   const [serverError, setServerError] = React.useState<string | null>(null)
-  // Local contacts state to allow adding new contacts without page refresh
-  const [contacts, setContacts] = React.useState(initialContacts)
-
-  // Handle new contact created inline
-  const handleContactCreated = React.useCallback((newContact: ContactWithTags) => {
-    setContacts(prev => [newContact, ...prev])
-    // Also call external callback (e.g., to link contact to WhatsApp conversation)
-    onContactCreated?.(newContact)
-  }, [onContactCreated])
 
   const defaultValues: FormData = React.useMemo(() => {
     if (mode === 'edit' && order) {
@@ -223,10 +211,9 @@ export function OrderForm({
               name="contact_id"
               render={({ field }) => (
                 <ContactSelector
-                  contacts={contacts}
                   value={field.value ?? null}
                   onChange={field.onChange}
-                  onContactCreated={handleContactCreated}
+                  onContactCreated={onContactCreated}
                   disabled={isPending}
                   defaultPhone={defaultPhone}
                   defaultName={defaultName}

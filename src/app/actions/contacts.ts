@@ -59,49 +59,109 @@ async function getWorkspaceContext(): Promise<{ workspaceId: string } | { error:
 // ============================================================================
 
 /**
- * Get all contacts with their tags for the current workspace
- * Ordered by updated_at DESC (most recent first)
+ * @deprecated Use getContactsPage() instead. This function is limited to 1000 rows by PostgREST.
+ * Kept only for backward compatibility with CSV export.
  */
 export async function getContacts(): Promise<ContactWithTags[]> {
+  const result = await getContactsPage({ page: 1, pageSize: 50000 })
+  return result.contacts
+}
+
+// ============================================================================
+// Paginated Contacts (server-side search + tag filter + pagination)
+// ============================================================================
+
+export interface ContactsPageResult {
+  contacts: ContactWithTags[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * Get contacts with server-side pagination, search, and tag filtering.
+ * Replaces getContacts() to handle workspaces with >1000 contacts.
+ */
+export async function getContactsPage(params: {
+  page?: number
+  pageSize?: number
+  search?: string
+  tagIds?: string[]
+} = {}): Promise<ContactsPageResult> {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return []
+    return { contacts: [], total: 0, page: 1, pageSize: 50 }
   }
 
-  // Get contacts
-  const { data: contacts, error: contactsError } = await supabase
-    .from('contacts')
-    .select('*')
-    .order('updated_at', { ascending: false })
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { contacts: [], total: 0, page: 1, pageSize: 50 }
+  }
 
-  if (contactsError) {
-    console.error('Error fetching contacts:', contactsError)
-    return []
+  const page = Math.max(1, params.page ?? 1)
+  const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50))
+  const offset = (page - 1) * pageSize
+  const search = params.search?.trim() || ''
+  const tagIds = params.tagIds?.filter(Boolean) || []
+
+  // If tag filter active, resolve matching contact IDs first
+  let tagFilteredIds: string[] | null = null
+  if (tagIds.length > 0) {
+    const { data: taggedContacts } = await supabase
+      .from('contact_tags')
+      .select('contact_id')
+      .in('tag_id', tagIds)
+
+    tagFilteredIds = [...new Set(taggedContacts?.map(ct => ct.contact_id) || [])]
+    if (tagFilteredIds.length === 0) {
+      return { contacts: [], total: 0, page, pageSize }
+    }
+  }
+
+  // Build query with exact count for pagination
+  let query = supabase
+    .from('contacts')
+    .select('*', { count: 'exact' })
+    .eq('workspace_id', workspaceId)
+
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
+  }
+
+  if (tagFilteredIds) {
+    query = query.in('id', tagFilteredIds)
+  }
+
+  const { data: contacts, error, count } = await query
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  if (error) {
+    console.error('Error fetching contacts page:', error)
+    return { contacts: [], total: 0, page, pageSize }
   }
 
   if (!contacts || contacts.length === 0) {
-    return []
+    return { contacts: [], total: count ?? 0, page, pageSize }
   }
 
-  // Get contact_tags for all contacts
+  // Get tags for the returned contacts
   const contactIds = contacts.map(c => c.id)
   const { data: contactTags } = await supabase
     .from('contact_tags')
     .select('contact_id, tag_id')
     .in('contact_id', contactIds)
 
-  // Get all tags referenced
-  const tagIds = [...new Set(contactTags?.map(ct => ct.tag_id) || [])]
-  const { data: tags } = tagIds.length > 0
-    ? await supabase.from('tags').select('*').in('id', tagIds)
+  const tagIdsFromContacts = [...new Set(contactTags?.map(ct => ct.tag_id) || [])]
+  const { data: tags } = tagIdsFromContacts.length > 0
+    ? await supabase.from('tags').select('*').in('id', tagIdsFromContacts)
     : { data: [] }
 
-  // Build tag lookup map
   const tagMap = new Map<string, Tag>(tags?.map(t => [t.id, t]) || [])
 
-  // Build contact -> tags lookup
   const contactTagsMap = new Map<string, Tag[]>()
   for (const ct of contactTags || []) {
     const tag = tagMap.get(ct.tag_id)
@@ -112,21 +172,25 @@ export async function getContacts(): Promise<ContactWithTags[]> {
     }
   }
 
-  // Combine contacts with tags
-  return contacts.map(contact => ({
-    ...contact,
-    tags: contactTagsMap.get(contact.id) || []
-  }))
+  return {
+    contacts: contacts.map(contact => ({
+      ...contact,
+      tags: contactTagsMap.get(contact.id) || [],
+    })),
+    total: count ?? 0,
+    page,
+    pageSize,
+  }
 }
 
 /**
- * Search contacts by name or phone
- * Returns basic contact info (id, name, phone) for quick lookups
+ * Search contacts by name or phone (server-side).
+ * Returns basic contact info for quick lookups (dropdowns, selectors).
  */
 export async function searchContacts(params: {
   search: string
   limit?: number
-}): Promise<Array<{ id: string; name: string; phone: string }>> {
+}): Promise<Array<{ id: string; name: string; phone: string; city: string | null }>> {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -147,14 +211,49 @@ export async function searchContacts(params: {
 
   const { data, error } = await supabase
     .from('contacts')
-    .select('id, name, phone')
+    .select('id, name, phone, city')
     .eq('workspace_id', workspaceId)
     .or(`name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
     .order('name')
-    .limit(params.limit || 10)
+    .limit(params.limit || 20)
 
   if (error) {
     console.error('Error searching contacts:', error)
+    return []
+  }
+
+  return data || []
+}
+
+/**
+ * Get recent contacts for initial dropdown display (no search term).
+ * Returns the most recently updated contacts.
+ */
+export async function getRecentContacts(params?: {
+  limit?: number
+}): Promise<Array<{ id: string; name: string; phone: string; city: string | null }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('id, name, phone, city')
+    .eq('workspace_id', workspaceId)
+    .order('updated_at', { ascending: false })
+    .limit(params?.limit || 20)
+
+  if (error) {
+    console.error('Error fetching recent contacts:', error)
     return []
   }
 
@@ -602,8 +701,9 @@ export interface BulkCreateResult {
 }
 
 /**
- * Get all phone numbers in the current workspace
- * Used for duplicate detection during CSV import
+ * Get all phone numbers in the current workspace.
+ * Used for duplicate detection during CSV import.
+ * Paginates internally to handle >1000 contacts (PostgREST default limit).
  */
 export async function getExistingPhones(): Promise<string[]> {
   const supabase = await createClient()
@@ -613,16 +713,39 @@ export async function getExistingPhones(): Promise<string[]> {
     return []
   }
 
-  const { data, error } = await supabase
-    .from('contacts')
-    .select('phone')
-
-  if (error) {
-    console.error('Error fetching existing phones:', error)
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
     return []
   }
 
-  return data?.map(c => c.phone) || []
+  const allPhones: string[] = []
+  const batchSize = 5000
+  let offset = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('phone')
+      .eq('workspace_id', workspaceId)
+      .range(offset, offset + batchSize - 1)
+
+    if (error) {
+      console.error('Error fetching existing phones:', error)
+      break
+    }
+
+    if (!data || data.length === 0) {
+      hasMore = false
+    } else {
+      allPhones.push(...data.map(c => c.phone).filter(Boolean))
+      offset += batchSize
+      if (data.length < batchSize) hasMore = false
+    }
+  }
+
+  return allPhones
 }
 
 /**

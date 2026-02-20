@@ -36,13 +36,12 @@ import { deleteOrder } from '@/app/actions/orders'
 import { toast } from 'sonner'
 import { RowSelectionState } from '@tanstack/react-table'
 import type { OrderWithDetails, PipelineWithStages, Product } from '@/lib/orders/types'
-import type { ContactWithTags, Tag } from '@/lib/types/database'
+import type { Tag } from '@/lib/types/database'
 
 interface OrdersTableProps {
   orders: OrderWithDetails[]
   pipelines: PipelineWithStages[]
   products: Product[]
-  contacts: ContactWithTags[]
   tags: Tag[]
   defaultPipelineId?: string
   defaultStageId?: string
@@ -52,7 +51,6 @@ export function OrdersTable({
   orders,
   pipelines,
   products,
-  contacts,
   tags,
   defaultPipelineId,
   defaultStageId,
@@ -179,7 +177,7 @@ export function OrdersTable({
               mode="create"
               pipelines={pipelines}
               products={products}
-              contacts={contacts}
+
               defaultPipelineId={defaultPipelineId}
               defaultStageId={defaultStageId}
               onSuccess={handleFormSuccess}
@@ -282,7 +280,6 @@ export function OrdersTable({
             order={editingOrder || undefined}
             pipelines={pipelines}
             products={products}
-            contacts={contacts}
             defaultPipelineId={defaultPipelineId}
             defaultStageId={defaultStageId}
             onSuccess={handleFormSuccess}

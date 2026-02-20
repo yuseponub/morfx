@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrders, getPipelines, getOrCreateDefaultPipeline } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
-import { getContacts } from '@/app/actions/contacts'
 import { getTagsForScope } from '@/app/actions/tags'
 import { OrdersView } from './components/orders-view'
 
@@ -12,12 +11,11 @@ export default async function OrdersPage() {
   // Ensure at least one pipeline exists
   const defaultPipeline = await getOrCreateDefaultPipeline()
 
-  // Fetch all data in parallel
-  const [orders, pipelines, products, contacts, tags] = await Promise.all([
+  // Fetch all data in parallel (contacts removed — ContactSelector is now self-contained)
+  const [orders, pipelines, products, tags] = await Promise.all([
     getOrders(),
     getPipelines(),
     getActiveProducts(),
-    getContacts(),
     getTagsForScope('orders')
   ])
 
@@ -27,7 +25,6 @@ export default async function OrdersPage() {
         orders={orders}
         pipelines={pipelines}
         products={products}
-        contacts={contacts}
         tags={tags}
         defaultPipelineId={defaultPipeline?.id}
         defaultStageId={defaultPipeline?.stages[0]?.id}

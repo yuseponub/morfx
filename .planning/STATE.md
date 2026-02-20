@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logística
+**Current focus:** Milestone v3.0 Logistica — Phase 21: DB + Domain Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 21 — DB + Domain Foundation
 Plan: —
-Status: Defining requirements
-Last activity: 2026-02-20 — Milestone v3.0 Logística started
+Status: Roadmap created, awaiting plan
+Last activity: 2026-02-20 — v3.0 Roadmap created (Phases 21-25)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [----------] 0% v3.0
 
@@ -27,6 +27,16 @@ All 11 phases + 4 inserted phases completed:
 All 9 phases + 5 inserted phases completed:
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
+
+### v3.0 Logistica (In Progress)
+
+| Phase | Name | Status |
+|-------|------|--------|
+| 21 | DB + Domain Foundation | Not started |
+| 22 | Robot Coordinadora Service | Not started |
+| 23 | Inngest Orchestrator + Callback API | Not started |
+| 24 | Chat de Comandos UI | Not started |
+| 25 | Pipeline Integration + Docs | Not started |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -75,6 +85,15 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Bulk operations use per-order domain loop (not batch SQL) to ensure automation triggers fire per order
 - DB field names mapped to domain param names in server action (adapter concern, not domain)
 
+#### v3.0 Decisions
+- Playwright CANNOT run on Vercel — must be separate Docker service on Railway
+- Robot communicates with MorfX via Inngest events + HTTP callbacks
+- Domain layer MUST handle all robot result updates (triggers automation)
+- Anti-duplicate protection: workspace lock + per-order lock + batch idempotency
+- Chat de Comandos is pure React+Tailwind, fixed commands, Supabase Realtime for progress
+- DANE code database is foundational — blocks all carrier integrations
+- Zero new deps in MorfX for chat UI (no xterm.js, no WebSocket, no Redis/BullMQ)
+
 ### Project Rules
 
 Established in `CLAUDE.md`:
@@ -102,6 +121,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20 COT
-Stopped at: Starting milestone v3.0 Logística
+Stopped at: v3.0 Roadmap created (Phases 21-25)
 Resume file: None
-Next: Define requirements and roadmap for v3.0
+Next: `/gsd:plan-phase 21` to plan DB + Domain Foundation

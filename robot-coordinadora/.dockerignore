@@ -1,0 +1,5 @@
+node_modules
+dist
+storage/sessions
+*.md
+.git

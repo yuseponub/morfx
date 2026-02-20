@@ -41,9 +41,16 @@ export async function getTags(): Promise<Tag[]> {
     return []
   }
 
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return []
+  }
+
   const { data, error } = await supabase
     .from('tags')
     .select('*')
+    .eq('workspace_id', workspaceId)
     .order('name', { ascending: true })
 
   if (error) {
@@ -245,9 +252,16 @@ export async function getTagsForScope(
     return []
   }
 
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return []
+  }
+
   let query = supabase
     .from('tags')
-    .select('*')
+    .select('id, name, color, applies_to')
+    .eq('workspace_id', workspaceId)
     .order('name', { ascending: true })
 
   // Filter by scope
@@ -264,5 +278,5 @@ export async function getTagsForScope(
     return []
   }
 
-  return data || []
+  return (data || []) as Tag[]
 }

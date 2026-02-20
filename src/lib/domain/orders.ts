@@ -717,6 +717,8 @@ export async function duplicateOrder(
         pipeline_id: params.targetPipelineId,
         stage_id: targetStageId,
         source_order_id: params.sourceOrderId,
+        name: sourceOrder.name,
+        closing_date: sourceOrder.closing_date,
         description: sourceOrder.description,
         shipping_address: sourceOrder.shipping_address,
         shipping_city: sourceOrder.shipping_city,

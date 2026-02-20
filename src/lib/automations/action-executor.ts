@@ -914,6 +914,7 @@ async function executeCreateTask(
     dueDate,
     contactId: context.contactId || undefined,
     orderId: context.orderId || undefined,
+    conversationId: context.conversationId || undefined,
     assignedTo: params.assignToUserId ? String(params.assignToUserId) : undefined,
   })
 

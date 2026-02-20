@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 21 COMPLETE, ready for Phase 22
+**Current focus:** Milestone v3.0 Logistica — Phase 22 In Progress (Plan 01 complete)
 
 ## Current Position
 
-Phase: 21 — DB + Domain Foundation (COMPLETE)
-Plan: 04 of 04
-Status: Phase complete
-Last activity: 2026-02-20 — Completed 21-04-PLAN.md (Robot jobs domain module + Inngest events)
+Phase: 22 — Robot Coordinadora Service (In Progress)
+Plan: 01 of 03
+Status: In progress
+Last activity: 2026-02-20 — Completed 22-01-PLAN.md (Project scaffold + types + locks)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [####------] 20% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#####-----] 25% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -33,7 +33,7 @@ All 9 phases + 5 inserted phases completed:
 | Phase | Name | Status |
 |-------|------|--------|
 | 21 | DB + Domain Foundation | COMPLETE (4/4 plans) |
-| 22 | Robot Coordinadora Service | Not started |
+| 22 | Robot Coordinadora Service | IN PROGRESS (1/3 plans) |
 | 23 | Inngest Orchestrator + Callback API | Not started |
 | 24 | Chat de Comandos UI | Not started |
 | 25 | Pipeline Integration + Docs | Not started |
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 155
+- Total plans completed: 156
 - Total execution time: ~25 days (2026-01-26 to 2026-02-20)
 
 ## Accumulated Context
@@ -107,6 +107,9 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Job auto-completes when success_count + error_count >= total_items
 - Idempotency check rejects only against active jobs (pending/processing), not completed/failed
 - retryFailedItems resets job status to pending if job was completed/failed
+- robot-coordinadora is standalone project at repo root (not inside src/), own package.json/tsconfig
+- In-memory locks (Map + Set) for workspace mutex and per-order skip -- no Redis for single-instance
+- Playwright ^1.52.0 version range (resolves to 1.58.2 latest stable)
 
 ### Project Rules
 
@@ -135,6 +138,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20 COT
-Stopped at: Phase 21 verified (18/18 must-haves) — ready for Phase 22
+Stopped at: Completed 22-01-PLAN.md (Project scaffold + types + locks)
 Resume file: None
-Next: /gsd:discuss-phase 22 (Robot Coordinadora Service)
+Next: /gsd:execute-phase 22-02 (CoordinadoraAdapter)

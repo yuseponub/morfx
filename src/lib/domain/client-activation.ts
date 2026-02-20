@@ -159,17 +159,21 @@ export async function backfillIsClient(workspaceId: string): Promise<{ updated: 
     return { error: `[reset-all] ${resetError.code}: ${resetError.message}` }
   }
 
-  // Set matching contacts to true
+  // Set matching contacts to true (batch to avoid PostgREST URL length limits)
   if (clientContactIds.length > 0) {
-    const { error: setError } = await supabase
-      .from('contacts')
-      .update({ is_client: true })
-      .eq('workspace_id', workspaceId)
-      .in('id', clientContactIds)
+    const BATCH_SIZE = 200
+    for (let i = 0; i < clientContactIds.length; i += BATCH_SIZE) {
+      const batch = clientContactIds.slice(i, i + BATCH_SIZE)
+      const { error: setError } = await supabase
+        .from('contacts')
+        .update({ is_client: true })
+        .eq('workspace_id', workspaceId)
+        .in('id', batch)
 
-    if (setError) {
-      console.error('[client-activation] backfill set error:', setError)
-      return { error: `[set-clients] ${setError.code}: ${setError.message}` }
+      if (setError) {
+        console.error('[client-activation] backfill set error:', setError)
+        return { error: `[set-clients] ${setError.code}: ${setError.message}` }
+      }
     }
   }
 

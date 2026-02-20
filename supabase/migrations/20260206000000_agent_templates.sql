@@ -54,10 +54,11 @@ CREATE INDEX IF NOT EXISTS idx_agent_templates_workspace
 ALTER TABLE agent_templates ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can access templates from their workspaces OR global templates (NULL workspace)
+DROP POLICY IF EXISTS "agent_templates_workspace_isolation" ON agent_templates;
 CREATE POLICY "agent_templates_workspace_isolation" ON agent_templates
   FOR ALL USING (
     workspace_id IS NULL
-    OR workspace_id IN (SELECT get_user_workspace_ids())
+    OR is_workspace_member(workspace_id)
   );
 
 -- ============================================================================

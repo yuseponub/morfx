@@ -41,3 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .github-token
+
+# migration data (216MB+)
+scripts/bigin-migration/data/
+
+# supabase temp
+supabase/.temp/

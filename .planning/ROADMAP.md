@@ -105,6 +105,13 @@ Plans:
 
 **Risk:** MEDIUM (Playwright portal interaction, external dependency)
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Project scaffold, types, and locking middleware
+- [ ] 22-02-PLAN.md — CoordinadoraAdapter Playwright automation port
+- [ ] 22-03-PLAN.md — Express server, Dockerfile, and entry point
+
 **Success Criteria:**
 1. The Express + Playwright service runs in a Docker container on Railway and responds to health checks
 2. Before submitting an order to the portal, the service validates the destination city against Coordinadora coverage and rejects invalid cities with a clear error

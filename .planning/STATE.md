@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 21 — DB + Domain Foundation
-Plan: —
-Status: Roadmap created, awaiting plan
-Last activity: 2026-02-20 — v3.0 Roadmap created (Phases 21-25)
+Plan: 02 of 04
+Status: In progress
+Last activity: 2026-02-20 — Completed 21-02-PLAN.md (carrier_configs + robot_jobs tables)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [----------] 0% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##--------] 10% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -32,7 +32,7 @@ All 9 phases + 5 inserted phases completed:
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 21 | DB + Domain Foundation | Not started |
+| 21 | DB + Domain Foundation | Plan 02/04 complete |
 | 22 | Robot Coordinadora Service | Not started |
 | 23 | Inngest Orchestrator + Callback API | Not started |
 | 24 | Chat de Comandos UI | Not started |
@@ -93,6 +93,11 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Chat de Comandos is pure React+Tailwind, fixed commands, Supabase Realtime for progress
 - DANE code database is foundational — blocks all carrier integrations
 - Zero new deps in MorfX for chat UI (no xterm.js, no WebSocket, no Redis/BullMQ)
+- Portal password stored plaintext in v3.0 (not payment data, encryption deferred to v4.0+)
+- tracking_number is Coordinadora pedido number (not guia)
+- error_type enum: validation, portal, timeout, unknown (covers all robot failure modes)
+- robot_job_items uses parent-join RLS (no workspace_id column on child table)
+- Supabase Realtime on robot_job_items only (not robot_jobs) for Chat de Comandos progress
 
 ### Project Rules
 
@@ -121,6 +126,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20 COT
-Stopped at: v3.0 Roadmap created (Phases 21-25)
+Stopped at: Completed 21-02-PLAN.md (carrier_configs + robot_jobs tables)
 Resume file: None
-Next: `/gsd:plan-phase 21` to plan DB + Domain Foundation
+Next: Execute 21-03-PLAN.md (TypeScript types)

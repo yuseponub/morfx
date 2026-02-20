@@ -41,7 +41,16 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 
 ### Active
 
-(No active requirements — pending next milestone definition)
+#### Current Milestone: v3.0 Logística
+
+**Goal:** Integrar robots de logística (empezando por Coordinadora) al CRM de MorfX, con un chat de comandos simple y vinculación a etapas del pipeline de pedidos.
+
+**Target features:**
+- Schema de logística (transportadoras, ciudades, estados de envío)
+- Robot Coordinadora (Playwright automation adaptado a MorfX)
+- Chat de comandos (panel tipo terminal con comandos fijos)
+- Integración pipeline (cada robot vinculado a etapa de pedidos)
+- Documentación de robots futuros (Inter/Envia PDF, OCR guías)
 
 ### Out of Scope
 
@@ -58,13 +67,13 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 
 ## Context
 
-### Current State (v2.0 Shipped)
+### Current State (v3.0 In Progress)
 
 - **Codebase:** ~92,000 LOC TypeScript across 454+ files
 - **Tech stack:** Next.js 15 (App Router) + React 19 + Supabase + Tailwind + Inngest + AI SDK v6
 - **Architecture:** Domain layer as single source of truth, ports/adapters for agent engine, Inngest for async processing
 - **Milestones shipped:** v1.0 (CRM+WhatsApp) + v2.0 (Agents+Automations)
-- **Timeline:** 22 days total (2026-01-26 to 2026-02-16)
+- **Timeline:** 24 days total (2026-01-26 to 2026-02-20)
 
 ### Codebase Existente
 
@@ -137,5 +146,23 @@ Despues de completar cada fase, es **OBLIGATORIO** crear un archivo LEARNINGS.md
 
 **Proposito**: Entrenar agentes de documentacion por modulo para la IA Distribuida.
 
+| Robots de logística como servicios internos | Adaptar Playwright robots existentes en vez de reescribir desde cero | — Pending |
+| Chat de comandos (no AI) para robots | Panel simple tipo terminal, comandos fijos, sin agente conversacional | — Pending |
+| Robot por etapa del pipeline | Cada robot se vincula a una etapa, procesa pedidos en esa etapa | — Pending |
+
+## Workflow Obligatorio
+
+### LEARNINGS.md por Fase
+
+Despues de completar cada fase, es **OBLIGATORIO** crear un archivo LEARNINGS.md que documente:
+
+1. **Bugs encontrados**: Que fallo, por que, como se arreglo
+2. **Decisiones tecnicas**: Que se eligio, alternativas descartadas
+3. **Problemas de integracion**: Componentes que no funcionaron bien juntos
+4. **Tips para futuros agentes**: Lo que funciono, lo que NO hacer
+5. **Deuda tecnica**: Que se dejo pendiente y cuando abordarlo
+
+**Proposito**: Entrenar agentes de documentacion por modulo para la IA Distribuida.
+
 ---
-*Last updated: 2026-02-16 after v2.0 milestone completion*
+*Last updated: 2026-02-20 after v3.0 milestone start*

@@ -2,81 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-16)
+See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Bulk actions for orders
+**Current focus:** Milestone v3.0 Logística
 
 ## Current Position
 
-Phase: standalone/bulk-actions-orders
-Plan: 001 of 002
-Status: In progress (Plan 001 complete, Plan 002 pending)
-Last activity: 2026-02-19 — Completed bulk-actions-orders-001 (server actions + dialog components)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-20 — Milestone v3.0 Logística started
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% WA perf | [######----] 67% CRM perf | [##########] 100% real-fields | [##########] 100% action-fields | [##########] 100% wp-resilience | [##########] 100% quick-001 | [##########] 100% quick-002 | [##########] 100% quick-003 | [##########] 100% quick-004 | [#####-----] 50% bulk-actions
-
-### Standalone: Bulk Actions for Orders (2026-02-19) — IN PROGRESS
-
-2 plans total:
-- Plan 001: Bulk server actions + dialog components (COMPLETE + SUMMARY)
-- Plan 002: Integration into orders table/kanban with selection state (pending)
-
-### Quick: Fix P0-1 Task Overdue Variable Mismatches (2026-02-19) — COMPLETE
-
-1 plan total:
-- Plan 004: Add taskDescription/contactName to emitTaskOverdue + cron batch-fetch (COMPLETE + SUMMARY)
-
-### Quick: Fix P0-4 Workspace ID Missing in Queries (2026-02-19) — COMPLETE
-
-1 plan total:
-- Plan 003: Pipeline workspace validation + contacts enrichment workspace_id filters (COMPLETE + SUMMARY)
-
-### Quick: Fix Inbound Media Null URL (2026-02-18) — COMPLETE
-
-1 plan total:
-- Plan 001: Download media from 360dialog, re-host on Supabase Storage, pass URL to domain (COMPLETE + SUMMARY)
-
-### Quick: Optimistic WhatsApp Send (2026-02-18) — COMPLETE
-
-1 plan total:
-- Plan 001: Optimistic text send — instant UI, Realtime replacement, retry toast (COMPLETE + SUMMARY)
-
-### Standalone: WhatsApp Phone Resilience (2026-02-17) — COMPLETE
-
-2 plans total:
-- Plan 01: Secondary phone extraction from Shopify note_attributes (COMPLETE + SUMMARY)
-- Plan 02: Phone fallback chain in resolveWhatsAppContext (COMPLETE + SUMMARY)
-
-### Standalone: Action Fields Audit (2026-02-17) — COMPLETE
-
-4 plans total:
-- Plan 01: Executor field pass-through fixes (COMPLETE + SUMMARY)
-- Plan 02: Duplicate order toggle fixes (COMPLETE + SUMMARY)
-- Plan 03: UI catalog + wizard — "Agregar campo" dropdown + field_select (COMPLETE + SUMMARY)
-- Plan 04: AI Builder system prompt — dynamic param reference + usage notes (COMPLETE + SUMMARY)
-
-### Standalone: Real Fields Fix (2026-02-17) — COMPLETE
-
-3 plans total:
-- Plan 01: Database migrations + TypeScript types (COMPLETE)
-- Plan 02: Backend pipeline — Shopify, server actions, enrichment (COMPLETE)
-- Plan 03: CRM UI — show and edit real fields (COMPLETE)
-
-### Standalone: CRM Orders Performance (2026-02-17) — IN PROGRESS
-
-3 plans total:
-- Plan 01: Kanban scroll fix + paginated server actions (COMPLETE)
-- Plan 02: Infinite scroll with IntersectionObserver (COMPLETE)
-- Plan 03: Virtualization and final optimization (pending)
-
-### Standalone: WhatsApp Performance (2026-02-17) — COMPLETE
-
-4 plans executed:
-- Plan 01: Realtime consolidation (4 channels → 1, surgical updates)
-- Plan 02: Panel lazy-loading (closed by default, 2 channels → 1)
-- Plan 03: User verification (approved)
-- Plan 04: Infrastructure (Medium compute, spend cap off, Sao Paulo region)
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [----------] 0% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -90,12 +28,22 @@ All 9 phases + 5 inserted phases completed:
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
 
+### Standalone Work (between v2.0 and v3.0)
+
+- WhatsApp Performance (4 plans) — COMPLETE
+- Real Fields Fix (3 plans) — COMPLETE
+- Action Fields Audit (4 plans) — COMPLETE
+- CRM Orders Performance (2/3 plans) — IN PROGRESS
+- WhatsApp Phone Resilience (2 plans) — COMPLETE
+- Bulk Actions for Orders (1/2 plans) — IN PROGRESS
+- Quick fixes: 4 completed (optimistic send, media null URL, workspace_id, task overdue)
+
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
 - Total plans completed: 153
-- Total execution time: ~24 days (2026-01-26 to 2026-02-19)
+- Total execution time: ~25 days (2026-01-26 to 2026-02-20)
 
 ## Accumulated Context
 
@@ -144,23 +92,16 @@ Established in `CLAUDE.md`:
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
+- Complete bulk-actions-orders-002 (integration into table/kanban)
+- Complete CRM Orders Performance plan 003 (virtualization)
 
 ### Blockers/Concerns
 
 None.
 
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 001 | Envío optimista de mensajes WhatsApp | 2026-02-18 | d811760 | [001-optimistic-whatsapp-send](./quick/001-optimistic-whatsapp-send/) |
-| 002 | Fix inbound media null URL (download+rehost) | 2026-02-18 | 6d5ae22 | [002-fix-media-inbound-null-url](./quick/002-fix-media-inbound-null-url/) |
-| 003 | Fix P0-4 workspace_id missing in domain queries | 2026-02-19 | 8d93dec | [003-fix-p0-4-workspace-id-missing-en-queries](./quick/003-fix-p0-4-workspace-id-missing-en-queries/) |
-| 004 | Fix P0-1 task.overdue variable mismatches | 2026-02-19 | c516884 | [004-fix-p0-1-task-overdue-variable-mismatches](./quick/004-fix-p0-1-task-overdue-variable-mismatches/) |
-
 ## Session Continuity
 
-Last session: 2026-02-19 15:30 COT
-Stopped at: Completed bulk-actions-orders-001 (server actions + dialog components)
+Last session: 2026-02-20 COT
+Stopped at: Starting milestone v3.0 Logística
 Resume file: None
-Next: Execute bulk-actions-orders-002 (integration into table/kanban with selection state)
+Next: Define requirements and roadmap for v3.0

@@ -8,7 +8,7 @@ MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce
 
 - **v1.0 MVP** — Phases 1-11 (shipped 2026-02-04)
 - **v2.0 Agentes Conversacionales** — Phases 12-20 (shipped 2026-02-16)
-- **v3.0 Logistica** — Phases 21-25 (in progress)
+- **v3.0 Logistica** — Phases 21-28 (in progress)
 
 ## Phases
 
@@ -59,13 +59,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 </details>
 
-### v3.0 Logistica (Phases 21-25) — IN PROGRESS
+### v3.0 Logistica (Phases 21-28) — IN PROGRESS
 
 - [x] **Phase 21: DB + Domain Foundation**
 - [x] **Phase 22: Robot Coordinadora Service**
 - [x] **Phase 23: Inngest Orchestrator + Callback API**
 - [x] **Phase 24: Chat de Comandos UI**
-- [ ] **Phase 25: Pipeline Integration + Docs**
+- [ ] **Phase 25: Pipeline Config UI + Docs**
+- [ ] **Phase 26: Robot Lector de Guías Coordinadora**
+- [ ] **Phase 27: Robot OCR de Guías**
+- [ ] **Phase 28: Robot Creador de Guías PDF**
 
 ---
 
@@ -170,20 +173,71 @@ Plans:
 
 ---
 
-### Phase 25: Pipeline Integration + Docs
+### Phase 25: Pipeline Config UI + Docs
 
-**Goal:** Robot execution is tied to pipeline stages so that moving orders to a specific stage triggers the corresponding carrier robot, and the architecture is documented for adding future carriers.
+**Goal:** Workspace admin can visually configure which pipeline stage feeds which robot via a simple settings UI, and the robot architecture is documented for adding future carriers.
 
-**Dependencies:** Phase 23 (orchestrator), Phase 24 (UI for verification)
+**Dependencies:** Phase 24 (dispatch stage columns + commands already working)
 
 **Requirements:** PIPE-01, DOC-01
 
 **Risk:** LOW
 
 **Success Criteria:**
-1. Workspace admin can configure which pipeline stage triggers which robot (e.g., "Despacho Coordinadora" stage triggers Coordinadora robot)
-2. When orders are moved to a robot-linked stage, the system initiates a robot job for those orders automatically
-3. Architecture documentation exists that describes the robot service pattern, communication flow, and step-by-step guide for adding a new carrier (Inter, Envia, Bogota) without implementing code
+1. A "Logística" section in settings shows a simple list of bindings: Etapa → Robot, with dropdowns to select pipeline stage and robot, and add/remove capability
+2. Coordinadora appears as active carrier; future carriers (Inter, Envía, Bogotá) appear as disabled placeholders ("Próximamente")
+3. Toggle on/off per binding to activate/deactivate without deleting the configuration
+4. Architecture documentation describes the robot service pattern, communication flow, and step-by-step guide for adding a new carrier
+5. E2E verification of the full flow: config → move orders to stage → command → robot → callbacks → CRM updates
+
+---
+
+### Phase 26: Robot Lector de Guías Coordinadora
+
+**Goal:** A robot reads assigned guide numbers from the Coordinadora portal and updates CRM orders with the corresponding tracking/guide data.
+
+**Dependencies:** Phase 22 (same portal, Playwright session reuse), Phase 25 (config UI)
+
+**Risk:** MEDIUM (portal scraping, data mapping)
+
+**Success Criteria:**
+1. Robot navigates the Coordinadora portal and reads guide numbers assigned to pedidos
+2. Each guide number is mapped back to the corresponding CRM order (by pedido number)
+3. CRM orders are updated with guide numbers through the domain layer (triggering automations)
+4. Activated via command in Chat de Comandos (e.g., `leer guias coord`)
+
+---
+
+### Phase 27: Robot OCR de Guías
+
+**Goal:** A robot reads physical/PDF shipping guides, verifies shipping data integrity, and extracts guide numbers to update CRM orders.
+
+**Dependencies:** Phase 25 (config UI), Phase 21 (order data)
+
+**Risk:** HIGH (OCR accuracy, data verification logic)
+
+**Success Criteria:**
+1. Robot reads PDF or image shipping guides and extracts client name, destination, and guide number
+2. Robot verifies extracted data matches the expected order data in CRM (correct client, correct destination)
+3. Guide numbers are mapped to corresponding CRM orders and updated through domain layer
+4. Mismatches or unreadable guides are flagged with clear error messages
+5. Activated via command in Chat de Comandos
+
+---
+
+### Phase 28: Robot Creador de Guías PDF
+
+**Goal:** Integrate existing guide PDF generator (from GitHub/n8n) into MorfX so orders can generate printable shipping guide PDFs from within the platform.
+
+**Dependencies:** Phase 25 (config UI), Phase 21 (order data)
+
+**Risk:** LOW (existing code, integration only)
+
+**Success Criteria:**
+1. Existing PDF guide generator is integrated into MorfX infrastructure (replacing n8n connection)
+2. Given CRM orders, the robot generates printable PDF shipping guides with correct order and shipping data
+3. Generated PDFs are accessible from the MorfX interface
+4. Activated via command in Chat de Comandos
 
 ---
 
@@ -203,7 +257,7 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-25 | 13 (Phases 21-24) | Phase 24 Complete | — |
+| v3.0 Logistica | 21-28 | 13 (Phases 21-24) | Phase 24 Complete | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **39 phases** | **164+ plans** | | |
 
@@ -220,4 +274,4 @@ Phase 24: Chat de Comandos UI — COMPLETE (3 plans, 3 waves, verified 4/4)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-21 (Phase 24 complete: 3 plans, 3 waves, 4/4 verified)*
+*Last updated: 2026-02-21 (Phase 25 redefined, Phases 26-28 added for robot expansion)*

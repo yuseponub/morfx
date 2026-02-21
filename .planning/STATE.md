@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 23 COMPLETE (3/3 plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 24 In Progress (1/3 plans)
 
 ## Current Position
 
-Phase: 23 — Inngest Orchestrator + Callback API (COMPLETE)
-Plan: 03 of 03
-Status: Phase complete
-Last activity: 2026-02-21 — Completed quick-005 (Add Carrier/Tracking to Order Triggers)
+Phase: 24 — Chat de Comandos UI
+Plan: 01 of 03
+Status: In progress
+Last activity: 2026-02-21 — Completed 24-01-PLAN.md (DB + Domain Foundation for Chat de Comandos)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 60% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 68% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -35,7 +35,7 @@ All 9 phases + 5 inserted phases completed:
 | 21 | DB + Domain Foundation | COMPLETE (4/4 plans) |
 | 22 | Robot Coordinadora Service | COMPLETE (3/3 plans) |
 | 23 | Inngest Orchestrator + Callback API | COMPLETE (3/3 plans) |
-| 24 | Chat de Comandos UI | Not started |
+| 24 | Chat de Comandos UI | IN PROGRESS (1/3 plans) |
 | 25 | Pipeline Integration + Docs | Not started |
 
 ### Standalone Work (between v2.0 and v3.0)
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 162
+- Total plans completed: 163
 - Total execution time: ~26 days (2026-01-26 to 2026-02-21)
 
 ## Accumulated Context
@@ -128,6 +128,10 @@ Decisions logged in PROJECT.md Key Decisions table.
 - callbackSecret passed in HTTP payload so robot service can forward it in callback headers for HMAC verification
 - Batch completion check reads job.status='completed' (domain atomically set) rather than counter arithmetic (prevents spurious duplicate events)
 - Callback trigger emission errors caught and logged, never fail the callback (domain update already succeeded)
+- Supabase Realtime on robot_jobs (job status) + robot_job_items (item progress) for Chat de Comandos
+- 2-query batch-fetch for getJobItemsWithOrderInfo (items then orders+contacts Map lookup)
+- getActiveJob delegates to getJobWithItems for full data reuse (DRY)
+- OrderForDispatch flattens contact fields for direct server action consumption
 
 ### Project Rules
 
@@ -163,6 +167,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21 COT
-Stopped at: Completed quick-005 (Add Carrier/Tracking to Order Triggers)
+Stopped at: Completed 24-01-PLAN.md (DB + Domain Foundation for Chat de Comandos)
 Resume file: None
-Next: /gsd:discuss-phase 24 (Chat de Comandos UI)
+Next: /gsd:execute-phase 24-02 (Server Actions + Command Execution)

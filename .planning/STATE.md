@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 24 Complete (3/3 plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 25 In Progress (1/? plans)
 
 ## Current Position
 
-Phase: 24 — Chat de Comandos UI
-Plan: 03 of 03
-Status: COMPLETE
-Last activity: 2026-02-21 — Completed 24-03-PLAN.md (UI Components)
+Phase: 25 — Pipeline Integration + Docs
+Plan: 01
+Status: In progress
+Last activity: 2026-02-21 — Completed 25-01-PLAN.md (Logistics Settings Page)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#########-] 88% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#########-] 92% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -36,7 +36,7 @@ All 9 phases + 5 inserted phases completed:
 | 22 | Robot Coordinadora Service | COMPLETE (3/3 plans) |
 | 23 | Inngest Orchestrator + Callback API | COMPLETE (3/3 plans) |
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
-| 25 | Pipeline Integration + Docs | Not started |
+| 25 | Pipeline Integration + Docs | IN PROGRESS (1/? plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 167
+- Total plans completed: 168
 - Total execution time: ~26 days (2026-01-26 to 2026-02-21)
 
 ## Accumulated Context
@@ -136,6 +136,8 @@ Decisions logged in PROJECT.md Key Decisions table.
 - CommandResult<T> pattern for all command server actions: { success, data?, error? }
 - Realtime hook uses dual listeners on single channel: items for per-order progress, job for status
 - getJobStatus returns full GetJobWithItemsResult | null for reconnect scenario initial fetch
+- updateDispatchConfig omits portalUsername/portalPassword to preserve existing credentials when updating pipeline/stage config
+- Future carriers (Inter, Envia, Servientrega) rendered as disabled placeholder cards, no backend support yet
 
 ### Project Rules
 
@@ -171,6 +173,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21 COT
-Stopped at: Phase 24 COMPLETE (3/3 plans, verified 4/4)
+Stopped at: Completed 25-01-PLAN.md (Logistics Settings Page)
 Resume file: None
-Next: /gsd:discuss-phase 25 (Pipeline Integration + Docs)
+Next: 25-02-PLAN.md (next plan in Phase 25)

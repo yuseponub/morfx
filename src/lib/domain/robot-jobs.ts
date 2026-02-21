@@ -248,7 +248,7 @@ export async function updateJobItemResult(
     // Fetch item with parent job for workspace verification
     const { data: item, error: fetchError } = await supabase
       .from('robot_job_items')
-      .select('id, job_id, order_id, robot_jobs!inner(workspace_id)')
+      .select('id, job_id, order_id, status, robot_jobs!inner(workspace_id)')
       .eq('id', params.itemId)
       .single()
 
@@ -260,6 +260,15 @@ export async function updateJobItemResult(
     const jobData = item.robot_jobs as unknown as { workspace_id: string }
     if (jobData.workspace_id !== ctx.workspaceId) {
       return { success: false, error: 'Item no pertenece a este workspace' }
+    }
+
+    // Idempotency guard: skip if item is already in a terminal state
+    if (item.status === 'success' || item.status === 'error') {
+      console.log(`[robot-jobs] Item ${params.itemId} already in terminal state (${item.status}), skipping update`)
+      return {
+        success: true,
+        data: { itemId: params.itemId, orderId: item.order_id },
+      }
     }
 
     // Update item with result
@@ -287,6 +296,7 @@ export async function updateJobItemResult(
       await updateOrder(ctx, {
         orderId: item.order_id,
         trackingNumber: params.trackingNumber,
+        carrier: 'COORDINADORA',
       })
     }
 

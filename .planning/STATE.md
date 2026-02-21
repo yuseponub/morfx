@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 23 IN PROGRESS (Plan 01 done)
+**Current focus:** Milestone v3.0 Logistica — Phase 23 IN PROGRESS (Plan 02 done)
 
 ## Current Position
 
 Phase: 23 — Inngest Orchestrator + Callback API (IN PROGRESS)
-Plan: 01 of 03
+Plan: 02 of 03
 Status: In progress
-Last activity: 2026-02-21 — Completed 23-01-PLAN.md (Event types + trigger registration)
+Last activity: 2026-02-21 — Completed 23-02-PLAN.md (Inngest Robot Orchestrator)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 47% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 53% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -34,7 +34,7 @@ All 9 phases + 5 inserted phases completed:
 |-------|------|--------|
 | 21 | DB + Domain Foundation | COMPLETE (4/4 plans) |
 | 22 | Robot Coordinadora Service | COMPLETE (3/3 plans) |
-| 23 | Inngest Orchestrator + Callback API | IN PROGRESS (1/3 plans) |
+| 23 | Inngest Orchestrator + Callback API | IN PROGRESS (2/3 plans) |
 | 24 | Chat de Comandos UI | Not started |
 | 25 | Pipeline Integration + Docs | Not started |
 
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 159
+- Total plans completed: 160
 - Total execution time: ~26 days (2026-01-26 to 2026-02-21)
 
 ## Accumulated Context
@@ -121,6 +121,11 @@ Decisions logged in PROJECT.md Key Decisions table.
 - robot/job.batch_completed separate from robot/job.completed -- batch_completed for orchestrator step.waitForEvent signaling
 - robot.coord.completed fires per-order so automations run individually per order
 - Order enrichment enabled for robot.coord.completed so full order+contact data is available to actions
+- retries: 0 on robot-orchestrator (fail-fast) to prevent duplicate Coordinadora portal submissions
+- onFailure handler for guaranteed job failure marking (avoids try/catch around step.run anti-pattern)
+- Dynamic orchestrator timeout: (N orders x 30s) + 5 min margin for batch size scaling
+- 2s settle sleep before waitForEvent to handle tiny batches where callback arrives before event listener
+- callbackSecret passed in HTTP payload so robot service can forward it in callback headers for HMAC verification
 
 ### Project Rules
 
@@ -149,6 +154,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21 COT
-Stopped at: Completed 23-01-PLAN.md (Event types + trigger registration)
+Stopped at: Completed 23-02-PLAN.md (Inngest Robot Orchestrator)
 Resume file: None
-Next: /gsd:execute-phase 23-02 (Inngest Orchestrator)
+Next: /gsd:execute-phase 23-03 (Callback API + Webhook)

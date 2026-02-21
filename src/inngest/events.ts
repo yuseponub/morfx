@@ -394,6 +394,25 @@ export type AutomationEvents = {
       cascadeDepth: number
     }
   }
+  // Robot completion trigger (Phase 23: Inngest Orchestrator + Callback API)
+  'automation/robot.coord.completed': {
+    data: {
+      workspaceId: string
+      orderId: string
+      orderName?: string
+      trackingNumber: string
+      carrier: string
+      contactId: string | null
+      contactName?: string
+      contactPhone?: string
+      contactEmail?: string
+      orderValue?: number
+      shippingCity?: string
+      shippingAddress?: string
+      shippingDepartment?: string
+      cascadeDepth: number
+    }
+  }
 }
 
 // ============================================================================
@@ -451,6 +470,19 @@ export type RobotEvents = {
    * Used for job-level notifications and cleanup.
    */
   'robot/job.completed': {
+    data: {
+      jobId: string
+      workspaceId: string
+      successCount: number
+      errorCount: number
+    }
+  }
+
+  /**
+   * Emitted by callback API when all items in a batch have been processed.
+   * Consumed by robot-orchestrator via step.waitForEvent() to unblock.
+   */
+  'robot/job.batch_completed': {
     data: {
       jobId: string
       workspaceId: string

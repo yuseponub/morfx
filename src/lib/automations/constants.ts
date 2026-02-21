@@ -139,6 +139,20 @@ export const TRIGGER_CATALOG = [
     configFields: [],
     variables: ['shopify.order_number', 'shopify.total', 'shopify.financial_status', 'shopify.fulfillment_status', 'shopify.email', 'shopify.phone', 'shopify.note', 'shopify.productos', 'shopify.direccion_envio', 'shopify.ciudad_envio', 'shopify.departamento_envio', 'shopify.tags', 'contacto.nombre', 'contacto.telefono'],
   },
+  // Robot triggers (Phase 23: Inngest Orchestrator + Callback API)
+  {
+    type: 'robot.coord.completed',
+    label: 'Robot Coordinadora completado',
+    category: 'Logistica',
+    description: 'Se dispara cuando el robot crea exitosamente un pedido en Coordinadora',
+    configFields: [],
+    variables: [
+      'orden.id', 'orden.nombre', 'orden.valor',
+      'orden.tracking_number', 'orden.carrier',
+      'orden.ciudad_envio', 'orden.direccion_envio', 'orden.departamento_envio',
+      'contacto.nombre', 'contacto.telefono', 'contacto.email',
+    ],
+  },
 ] as const
 
 // ============================================================================
@@ -437,6 +451,20 @@ export const VARIABLE_CATALOG = {
     { path: 'shopify.tags', label: 'Tags de Shopify' },
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'contacto.telefono', label: 'Telefono del contacto' },
+  ],
+  // Robot triggers (Phase 23: Inngest Orchestrator + Callback API)
+  'robot.coord.completed': [
+    { path: 'orden.id', label: 'ID de la orden' },
+    { path: 'orden.nombre', label: 'Nombre/referencia de la orden' },
+    { path: 'orden.valor', label: 'Valor total' },
+    { path: 'orden.tracking_number', label: 'Numero de pedido Coordinadora' },
+    { path: 'orden.carrier', label: 'Transportadora' },
+    { path: 'orden.ciudad_envio', label: 'Ciudad de envio' },
+    { path: 'orden.direccion_envio', label: 'Direccion de envio' },
+    { path: 'orden.departamento_envio', label: 'Departamento de envio' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
+    { path: 'contacto.email', label: 'Email del contacto' },
   ],
 } as const
 

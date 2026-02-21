@@ -934,3 +934,72 @@ export async function removeOrderTag(
     data: { orderId: params.orderId, tagId: result.data!.tagId },
   }
 }
+
+// ============================================================================
+// getOrdersByStage
+// ============================================================================
+
+export interface OrderForDispatch {
+  id: string
+  name: string | null
+  contact_id: string | null
+  contact_name: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  shipping_address: string | null
+  shipping_city: string | null
+  shipping_department: string | null
+  total_value: number
+  products: Array<{ quantity: number }>
+  custom_fields: Record<string, unknown>
+}
+
+/**
+ * Get all orders in a specific pipeline stage with contact and product data.
+ * Used by "subir ordenes coord" command to gather orders for carrier dispatch.
+ */
+export async function getOrdersByStage(
+  ctx: DomainContext,
+  stageId: string
+): Promise<DomainResult<OrderForDispatch[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(
+        'id, name, contact_id, shipping_address, shipping_city, shipping_department, total_value, custom_fields, contacts(name, phone, email), order_products(quantity)'
+      )
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('stage_id', stageId)
+
+    if (error) {
+      return { success: false, error: `Error obteniendo pedidos: ${error.message}` }
+    }
+
+    const mappedOrders: OrderForDispatch[] = (data ?? []).map((row) => {
+      const contact = row.contacts as unknown as { name: string; phone: string; email: string } | null
+      const products = (row.order_products as unknown as Array<{ quantity: number }>) ?? []
+
+      return {
+        id: row.id,
+        name: row.name,
+        contact_id: row.contact_id,
+        contact_name: contact?.name ?? null,
+        contact_phone: contact?.phone ?? null,
+        contact_email: contact?.email ?? null,
+        shipping_address: row.shipping_address,
+        shipping_city: row.shipping_city,
+        shipping_department: row.shipping_department,
+        total_value: row.total_value ?? 0,
+        products: products.map((p) => ({ quantity: p.quantity })),
+        custom_fields: (row.custom_fields as Record<string, unknown>) ?? {},
+      }
+    })
+
+    return { success: true, data: mappedOrders }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}

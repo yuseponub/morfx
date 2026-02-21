@@ -560,3 +560,168 @@ export async function retryFailedItems(
     return { success: false, error: message }
   }
 }
+
+// ============================================================================
+// Additional Types (Chat de Comandos UI queries)
+// ============================================================================
+
+export interface JobItemWithOrderInfo extends RobotJobItem {
+  order_name: string | null
+  contact_name: string | null
+}
+
+// ============================================================================
+// getActiveJob
+// ============================================================================
+
+/**
+ * Get the currently active (pending or processing) job for a workspace.
+ * Returns null if no active job exists.
+ * Used by Chat de Comandos UI to detect and reconnect to a running job.
+ */
+export async function getActiveJob(
+  ctx: DomainContext
+): Promise<DomainResult<GetJobWithItemsResult | null>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data: activeJob, error } = await supabase
+      .from('robot_jobs')
+      .select('id')
+      .eq('workspace_id', ctx.workspaceId)
+      .in('status', ['pending', 'processing'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      return { success: false, error: `Error buscando job activo: ${error.message}` }
+    }
+
+    if (!activeJob) {
+      return { success: true, data: null }
+    }
+
+    // Delegate to getJobWithItems for full data
+    return getJobWithItems(ctx, activeJob.id)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// getJobHistory
+// ============================================================================
+
+/**
+ * Get recent jobs for a workspace, ordered by most recent first.
+ * Returns just job rows (no items) -- history panel only shows summaries.
+ */
+export async function getJobHistory(
+  ctx: DomainContext,
+  limit: number = 20
+): Promise<DomainResult<RobotJob[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('robot_jobs')
+      .select('*')
+      .eq('workspace_id', ctx.workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      return { success: false, error: `Error leyendo historial de jobs: ${error.message}` }
+    }
+
+    return { success: true, data: (data ?? []) as RobotJob[] }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// getJobItemsWithOrderInfo
+// ============================================================================
+
+/**
+ * Get job items with order name and contact name for display.
+ * Uses a 2-query approach: fetch items, then batch-fetch order+contact info.
+ * Verifies job belongs to workspace before returning data.
+ * Powers the "detalle" view when clicking a job in history.
+ */
+export async function getJobItemsWithOrderInfo(
+  ctx: DomainContext,
+  jobId: string
+): Promise<DomainResult<JobItemWithOrderInfo[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    // Verify job belongs to workspace
+    const { data: job, error: jobError } = await supabase
+      .from('robot_jobs')
+      .select('id')
+      .eq('id', jobId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (jobError || !job) {
+      return { success: false, error: 'Job no encontrado en este workspace' }
+    }
+
+    // Query 1: Fetch all items for this job
+    const { data: items, error: itemsError } = await supabase
+      .from('robot_job_items')
+      .select('*')
+      .eq('job_id', jobId)
+      .order('created_at', { ascending: true })
+
+    if (itemsError) {
+      return { success: false, error: `Error leyendo items del job: ${itemsError.message}` }
+    }
+
+    if (!items || items.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    // Query 2: Batch-fetch orders with contact names
+    const uniqueOrderIds = [...new Set(items.map((item) => item.order_id))]
+
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id, name, contacts(name)')
+      .in('id', uniqueOrderIds)
+
+    if (ordersError) {
+      return { success: false, error: `Error leyendo pedidos: ${ordersError.message}` }
+    }
+
+    // Build lookup map: orderId -> { orderName, contactName }
+    const orderMap = new Map<string, { orderName: string | null; contactName: string | null }>()
+    for (const order of orders ?? []) {
+      const contact = order.contacts as unknown as { name: string } | null
+      orderMap.set(order.id, {
+        orderName: order.name,
+        contactName: contact?.name ?? null,
+      })
+    }
+
+    // Map order info onto items
+    const enrichedItems: JobItemWithOrderInfo[] = (items as RobotJobItem[]).map((item) => {
+      const orderInfo = orderMap.get(item.order_id)
+      return {
+        ...item,
+        order_name: orderInfo?.orderName ?? null,
+        contact_name: orderInfo?.contactName ?? null,
+      }
+    })
+
+    return { success: true, data: enrichedItems }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}

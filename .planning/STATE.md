@@ -150,6 +150,12 @@ Established in `CLAUDE.md`:
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 005 | Add carrier/tracking variables to order triggers | 2026-02-21 | bfcf6bf | [005-add-carrier-tracking-to-order-triggers](./quick/005-add-carrier-tracking-to-order-triggers/) |
+
 ### Blockers/Concerns
 
 None.

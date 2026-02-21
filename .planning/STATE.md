@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 25 In Progress (1/? plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 25 Complete (2/2 plans)
 
 ## Current Position
 
-Phase: 25 — Pipeline Integration + Docs
-Plan: 01
-Status: In progress
-Last activity: 2026-02-21 — Completed 25-01-PLAN.md (Logistics Settings Page)
+Phase: 25 — Pipeline Config UI + Docs
+Plan: 02 of 02
+Status: COMPLETE
+Last activity: 2026-02-21 — Completed 25-02-PLAN.md (Architecture Docs + E2E Verification)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#########-] 92% v3.0
 
@@ -36,7 +36,7 @@ All 9 phases + 5 inserted phases completed:
 | 22 | Robot Coordinadora Service | COMPLETE (3/3 plans) |
 | 23 | Inngest Orchestrator + Callback API | COMPLETE (3/3 plans) |
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
-| 25 | Pipeline Integration + Docs | IN PROGRESS (1/? plans) |
+| 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -51,8 +51,8 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 168
+- Total phases completed: 34 (30 milestone + 4 standalone)
+- Total plans completed: 170
 - Total execution time: ~26 days (2026-01-26 to 2026-02-21)
 
 ## Accumulated Context
@@ -173,6 +173,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21 COT
-Stopped at: Completed 25-01-PLAN.md (Logistics Settings Page)
+Stopped at: Phase 25 COMPLETE (2/2 plans, verified 5/5)
 Resume file: None
-Next: 25-02-PLAN.md (next plan in Phase 25)
+Next: /gsd:discuss-phase 26 (Robot Lector de Guias Coordinadora)

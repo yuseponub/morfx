@@ -7,18 +7,18 @@
 
 ### Infraestructura de Datos
 
-- [ ] **DATA-01**: Sistema carga tabla de municipios DANE (1,122 municipios con códigos de 5 dígitos, departamentos, nombres alternativos)
-- [ ] **DATA-02**: Tabla de cobertura por transportadora vinculada a municipios DANE (Coordinadora: 1,488 ciudades + 1,181 COD)
-- [ ] **DATA-03**: Configuración de carrier por workspace (credenciales del portal, dirección de recogida, carrier default)
-- [ ] **DATA-04**: Tablas de tracking de ejecuciones del robot (robot_jobs + robot_job_items con estado por orden)
+- [x] **DATA-01**: Sistema carga tabla de municipios DANE (1,122 municipios con códigos de 5 dígitos, departamentos, nombres alternativos)
+- [x] **DATA-02**: Tabla de cobertura por transportadora vinculada a municipios DANE (Coordinadora: 1,488 ciudades + 1,181 COD)
+- [x] **DATA-03**: Configuración de carrier por workspace (credenciales del portal, dirección de recogida, carrier default)
+- [x] **DATA-04**: Tablas de tracking de ejecuciones del robot (robot_jobs + robot_job_items con estado por orden)
 
 ### Robot Coordinadora
 
-- [ ] **ROBOT-01**: Microservicio Express + Playwright en Docker desplegado en Railway, con endpoints para crear pedidos en ff.coordinadora.com
-- [ ] **ROBOT-02**: Validación de ciudades contra tabla de cobertura Coordinadora antes de enviar al robot
-- [ ] **ROBOT-03**: Creación batch de pedidos con tracking individual por orden (status, guía, error por pedido)
-- [ ] **ROBOT-04**: Persistencia de cookies/sesión para evitar re-login en cada batch (storageState API)
-- [ ] **ROBOT-05**: Protección anti-duplicados: lock por workspace (1 batch a la vez), lock por pedido (skip si processing), idempotencia por batch ID
+- [x] **ROBOT-01**: Microservicio Express + Playwright en Docker desplegado en Railway, con endpoints para crear pedidos en ff.coordinadora.com
+- [x] **ROBOT-02**: Validación de ciudades contra tabla de cobertura Coordinadora antes de enviar al robot
+- [x] **ROBOT-03**: Creación batch de pedidos con tracking individual por orden (status, guía, error por pedido)
+- [x] **ROBOT-04**: Persistencia de cookies/sesión para evitar re-login en cada batch (storageState API)
+- [x] **ROBOT-05**: Protección anti-duplicados: lock por workspace (1 batch a la vez), lock por pedido (skip si processing), idempotencia por batch ID
 
 ### Chat de Comandos
 
@@ -29,13 +29,13 @@
 
 ### Integración Pipeline
 
-- [ ] **PIPE-01**: Etapas del pipeline configurables por robot (mapear qué etapa activa qué robot)
-- [ ] **PIPE-02**: Inngest orchestrator que conecta MorfX con robot service (evento → HTTP → resultado)
-- [ ] **PIPE-03**: Callback API que recibe resultados del robot y actualiza pedidos via domain layer (triggers de automatización se disparan)
+- [x] **PIPE-01**: Etapas del pipeline configurables por robot (mapear qué etapa activa qué robot)
+- [x] **PIPE-02**: Inngest orchestrator que conecta MorfX con robot service (evento → HTTP → resultado)
+- [x] **PIPE-03**: Callback API que recibe resultados del robot y actualiza pedidos via domain layer (triggers de automatización se disparan)
 
 ### Documentación
 
-- [ ] **DOC-01**: Documentar arquitectura y patrones para robots futuros (Inter, Envia, Bogota) sin implementar código
+- [x] **DOC-01**: Documentar arquitectura y patrones para robots futuros (Inter, Envia, Bogota) sin implementar código
 
 ## Future Requirements (v4.0+)
 
@@ -80,10 +80,10 @@
 | CHAT-02 | Phase 24 | Complete |
 | CHAT-03 | Phase 24 | Complete |
 | CHAT-04 | Phase 24 | Complete |
-| PIPE-01 | Phase 25 | Pending |
+| PIPE-01 | Phase 25 | Complete |
 | PIPE-02 | Phase 23 | Complete |
 | PIPE-03 | Phase 23 | Complete |
-| DOC-01 | Phase 25 | Pending |
+| DOC-01 | Phase 25 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 17 total

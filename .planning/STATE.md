@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 23 IN PROGRESS (Plan 02 done)
+**Current focus:** Milestone v3.0 Logistica — Phase 23 COMPLETE (3/3 plans)
 
 ## Current Position
 
-Phase: 23 — Inngest Orchestrator + Callback API (IN PROGRESS)
-Plan: 02 of 03
-Status: In progress
-Last activity: 2026-02-21 — Completed 23-02-PLAN.md (Inngest Robot Orchestrator)
+Phase: 23 — Inngest Orchestrator + Callback API (COMPLETE)
+Plan: 03 of 03
+Status: Phase complete
+Last activity: 2026-02-21 — Completed 23-03-PLAN.md (Callback API + Domain Idempotency)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 53% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 60% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -34,7 +34,7 @@ All 9 phases + 5 inserted phases completed:
 |-------|------|--------|
 | 21 | DB + Domain Foundation | COMPLETE (4/4 plans) |
 | 22 | Robot Coordinadora Service | COMPLETE (3/3 plans) |
-| 23 | Inngest Orchestrator + Callback API | IN PROGRESS (2/3 plans) |
+| 23 | Inngest Orchestrator + Callback API | COMPLETE (3/3 plans) |
 | 24 | Chat de Comandos UI | Not started |
 | 25 | Pipeline Integration + Docs | Not started |
 
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 160
+- Total plans completed: 161
 - Total execution time: ~26 days (2026-01-26 to 2026-02-21)
 
 ## Accumulated Context
@@ -126,6 +126,8 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Dynamic orchestrator timeout: (N orders x 30s) + 5 min margin for batch size scaling
 - 2s settle sleep before waitForEvent to handle tiny batches where callback arrives before event listener
 - callbackSecret passed in HTTP payload so robot service can forward it in callback headers for HMAC verification
+- Batch completion check reads job.status='completed' (domain atomically set) rather than counter arithmetic (prevents spurious duplicate events)
+- Callback trigger emission errors caught and logged, never fail the callback (domain update already succeeded)
 
 ### Project Rules
 
@@ -143,6 +145,7 @@ Established in `CLAUDE.md`:
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
+- Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway (shared secret for callback auth)
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
@@ -154,6 +157,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21 COT
-Stopped at: Completed 23-02-PLAN.md (Inngest Robot Orchestrator)
+Stopped at: Completed 23-03-PLAN.md (Callback API + Domain Idempotency)
 Resume file: None
-Next: /gsd:execute-phase 23-03 (Callback API + Webhook)
+Next: /gsd:discuss-phase 24 (Chat de Comandos UI)

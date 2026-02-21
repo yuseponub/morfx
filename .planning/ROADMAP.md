@@ -63,7 +63,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 21: DB + Domain Foundation**
 - [x] **Phase 22: Robot Coordinadora Service**
-- [ ] **Phase 23: Inngest Orchestrator + Callback API**
+- [x] **Phase 23: Inngest Orchestrator + Callback API**
 - [ ] **Phase 24: Chat de Comandos UI**
 - [ ] **Phase 25: Pipeline Integration + Docs**
 
@@ -134,9 +134,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 23-01-PLAN.md — Event types + robot.coord.completed automation trigger registration
-- [ ] 23-02-PLAN.md — Inngest robot orchestrator (dispatch + waitForEvent + timeout)
-- [ ] 23-03-PLAN.md — Callback API route + domain idempotency guard + robot server patch
+- [x] 23-01-PLAN.md — Event types + robot.coord.completed automation trigger registration
+- [x] 23-02-PLAN.md — Inngest robot orchestrator (dispatch + waitForEvent + timeout)
+- [x] 23-03-PLAN.md — Callback API route + domain idempotency guard + robot server patch
 
 **Success Criteria:**
 1. An Inngest function receives a robot job event, calls the robot service via HTTP, and handles the response (success, partial failure, or total failure)
@@ -196,13 +196,13 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-25 | 10 (Phases 21-23) | Phase 23 Planned | — |
+| v3.0 Logistica | 21-25 | 10 (Phases 21-23) | Phase 23 Complete | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **39 phases** | **161+ plans** | | |
 
 ### Current Phase
 
-Phase 22: Robot Coordinadora Service — COMPLETE (3 plans, 3 waves, verified 5/5)
+Phase 23: Inngest Orchestrator + Callback API — COMPLETE (3 plans, 2 waves, verified 10/10)
 
 ---
 
@@ -213,4 +213,4 @@ Phase 22: Robot Coordinadora Service — COMPLETE (3 plans, 3 waves, verified 5/
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-20 (Phase 22 complete: 3 plans, 3 waves, 5/5 verified)*
+*Last updated: 2026-02-21 (Phase 23 complete: 3 plans, 2 waves, 10/10 verified)*

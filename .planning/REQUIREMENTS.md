@@ -81,8 +81,8 @@
 | CHAT-03 | Phase 24 | Pending |
 | CHAT-04 | Phase 24 | Pending |
 | PIPE-01 | Phase 25 | Pending |
-| PIPE-02 | Phase 23 | Pending |
-| PIPE-03 | Phase 23 | Pending |
+| PIPE-02 | Phase 23 | Complete |
+| PIPE-03 | Phase 23 | Complete |
 | DOC-01 | Phase 25 | Pending |
 
 **Coverage:**
@@ -92,4 +92,4 @@
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 — ROBOT-01 through ROBOT-05 marked Complete (Phase 22)*
+*Last updated: 2026-02-21 — PIPE-02 and PIPE-03 marked Complete (Phase 23)*

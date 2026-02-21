@@ -206,11 +206,18 @@ Plans:
 
 **Risk:** MEDIUM (portal scraping, data mapping)
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — DB migration (carrier_guide_number, job_type) + domain layer extensions
+- [ ] 26-02-PLAN.md — Robot endpoint + Inngest orchestrator + callback extension
+- [ ] 26-03-PLAN.md — Server action + Chat de Comandos UI integration
+
 **Success Criteria:**
 1. Robot navigates the Coordinadora portal and reads guide numbers assigned to pedidos
 2. Each guide number is mapped back to the corresponding CRM order (by pedido number)
 3. CRM orders are updated with guide numbers through the domain layer (triggering automations)
-4. Activated via command in Chat de Comandos (e.g., `leer guias coord`)
+4. Activated via command in Chat de Comandos (e.g., `buscar guias coord`)
 
 ---
 

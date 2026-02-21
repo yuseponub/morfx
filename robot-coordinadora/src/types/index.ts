@@ -52,6 +52,8 @@ export interface BatchRequest {
   workspaceId: string
   credentials: Credentials
   callbackUrl: string
+  /** Shared secret to include in callback headers for authentication */
+  callbackSecret?: string
   jobId: string
   orders: OrderInput[]
 }

@@ -29,13 +29,23 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Report a single order result to the MorfX callback URL.
+ * Forwards the callback secret header for authentication when provided.
  * Swallows errors -- callback failure should NOT stop batch processing.
  */
-async function reportResult(callbackUrl: string, result: BatchItemResult): Promise<void> {
+async function reportResult(
+  callbackUrl: string,
+  result: BatchItemResult,
+  callbackSecret?: string
+): Promise<void> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (callbackSecret) {
+      headers['X-Callback-Secret'] = callbackSecret
+    }
+
     await fetch(callbackUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(result),
     })
   } catch (err) {
@@ -114,7 +124,7 @@ export function createServer(): express.Express {
       return
     }
 
-    const { workspaceId, credentials, callbackUrl, jobId, orders } = body as BatchRequest
+    const { workspaceId, credentials, callbackUrl, callbackSecret, jobId, orders } = body as BatchRequest
 
     // ------------------------------------------------------------------
     // b) Check jobId idempotency cache (sequential re-submissions)
@@ -154,7 +164,7 @@ export function createServer(): express.Express {
           status: 'error',
           errorType: 'validation',
           errorMessage: 'Ciudad vacía o no proporcionada',
-        }).catch(() => {})
+        }, callbackSecret).catch(() => {})
         console.log(`[Server] Order ${order.orderId} rejected: empty ciudad`)
       } else {
         validOrders.push(order)
@@ -188,7 +198,7 @@ export function createServer(): express.Express {
     // f) Process batch in background (fire-and-forget with error handling)
     // ------------------------------------------------------------------
 
-    processBatch(workspaceId, credentials, callbackUrl, validOrders).catch(err => {
+    processBatch(workspaceId, credentials, callbackUrl, callbackSecret, validOrders).catch(err => {
       console.error('[Server] Unhandled batch processing error:', err)
     })
   })
@@ -204,6 +214,7 @@ async function processBatch(
   workspaceId: string,
   credentials: { username: string; password: string },
   callbackUrl: string,
+  callbackSecret: string | undefined,
   orders: OrderInput[],
 ): Promise<void> {
   await withWorkspaceLock(workspaceId, async () => {
@@ -223,7 +234,7 @@ async function processBatch(
             status: 'error',
             errorType: 'portal',
             errorMessage: 'Login fallido en el portal de Coordinadora',
-          })
+          }, callbackSecret)
         }
         return
       }
@@ -240,7 +251,7 @@ async function processBatch(
             status: 'error',
             errorType: 'validation',
             errorMessage: 'Pedido ya en proceso',
-          })
+          }, callbackSecret)
           continue
         }
 
@@ -258,7 +269,7 @@ async function processBatch(
             errorMessage: result.error,
           }
 
-          await reportResult(callbackUrl, callbackPayload)
+          await reportResult(callbackUrl, callbackPayload, callbackSecret)
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err)
           console.error(`[Server] Error processing order ${order.orderId}:`, err)
@@ -267,7 +278,7 @@ async function processBatch(
             status: 'error',
             errorType: 'unknown',
             errorMessage: message,
-          })
+          }, callbackSecret)
         } finally {
           unlockOrder(order.orderId)
         }
@@ -286,7 +297,7 @@ async function processBatch(
           status: 'error',
           errorType: 'unknown',
           errorMessage: 'Error fatal en el procesamiento del batch',
-        }).catch(() => {})
+        }, callbackSecret).catch(() => {})
       }
     } finally {
       // ALWAYS close adapter to prevent zombie Chromium processes

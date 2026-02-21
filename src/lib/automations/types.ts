@@ -116,6 +116,19 @@ export interface AutomationAction {
 // ============================================================================
 
 /**
+ * Automation folder — mirrors the automation_folders table row.
+ */
+export interface AutomationFolder {
+  id: string
+  workspace_id: string
+  name: string
+  position: number
+  is_collapsed: boolean
+  created_at: string
+  updated_at: string
+}
+
+/**
  * Automation definition — mirrors the automations table row.
  */
 export interface Automation {
@@ -128,6 +141,8 @@ export interface Automation {
   trigger_config: TriggerConfig
   conditions: ConditionGroup | null
   actions: AutomationAction[]
+  folder_id: string | null
+  position: number
   created_by: string | null
   created_at: string
   updated_at: string

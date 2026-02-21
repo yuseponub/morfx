@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import type {
   Automation,
+  AutomationFolder,
   AutomationFormData,
   AutomationExecution,
 } from '@/lib/automations/types'
@@ -120,6 +121,7 @@ export async function getAutomations(): Promise<Automation[]> {
     .from('automations')
     .select('*')
     .eq('workspace_id', workspaceId)
+    .order('position', { ascending: true })
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -641,6 +643,294 @@ export async function getAutomationStats(automationId: string): Promise<{
     successRate,
     lastExecutionAt: lastExec?.started_at ?? null,
   }
+}
+
+// ============================================================================
+// Integration Checks
+// ============================================================================
+
+// ============================================================================
+// Folder Operations
+// ============================================================================
+
+/**
+ * Get all folders for the current workspace, ordered by position.
+ */
+export async function getFolders(): Promise<AutomationFolder[]> {
+  const ctx = await getAuthContext()
+  if (!ctx) return []
+
+  const { supabase, workspaceId } = ctx
+
+  const { data, error } = await supabase
+    .from('automation_folders')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('position', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching folders:', error)
+    return []
+  }
+
+  return (data ?? []) as AutomationFolder[]
+}
+
+/**
+ * Create a new folder. Position is set to the end.
+ */
+export async function createFolder(
+  name: string
+): Promise<ActionResult<AutomationFolder>> {
+  if (!name.trim()) return { error: 'El nombre es requerido' }
+  if (name.length > 100) return { error: 'Maximo 100 caracteres' }
+
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  // Get max position to place at end
+  const { data: existing } = await supabase
+    .from('automation_folders')
+    .select('position')
+    .eq('workspace_id', workspaceId)
+    .order('position', { ascending: false })
+    .limit(1)
+
+  const nextPosition = existing && existing.length > 0
+    ? (existing[0].position as number) + 1000
+    : 1000
+
+  const { data, error } = await supabase
+    .from('automation_folders')
+    .insert({
+      workspace_id: workspaceId,
+      name: name.trim(),
+      position: nextPosition,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating folder:', error)
+    return { error: 'Error al crear la carpeta' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: data as AutomationFolder }
+}
+
+/**
+ * Rename a folder.
+ */
+export async function renameFolder(
+  id: string,
+  name: string
+): Promise<ActionResult<AutomationFolder>> {
+  if (!name.trim()) return { error: 'El nombre es requerido' }
+  if (name.length > 100) return { error: 'Maximo 100 caracteres' }
+
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  const { data, error } = await supabase
+    .from('automation_folders')
+    .update({ name: name.trim() })
+    .eq('id', id)
+    .eq('workspace_id', workspaceId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error renaming folder:', error)
+    return { error: 'Error al renombrar la carpeta' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: data as AutomationFolder }
+}
+
+/**
+ * Get automation names inside a folder (for delete confirmation dialog).
+ */
+export async function getFolderAutomationNames(
+  folderId: string
+): Promise<string[]> {
+  const ctx = await getAuthContext()
+  if (!ctx) return []
+
+  const { supabase, workspaceId } = ctx
+
+  const { data, error } = await supabase
+    .from('automations')
+    .select('name')
+    .eq('workspace_id', workspaceId)
+    .eq('folder_id', folderId)
+    .order('position', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching folder automations:', error)
+    return []
+  }
+
+  return (data ?? []).map((a) => a.name)
+}
+
+/**
+ * Delete a folder and all its automations (CASCADE).
+ */
+export async function deleteFolder(id: string): Promise<ActionResult> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  const { error } = await supabase
+    .from('automation_folders')
+    .delete()
+    .eq('id', id)
+    .eq('workspace_id', workspaceId)
+
+  if (error) {
+    console.error('Error deleting folder:', error)
+    return { error: 'Error al eliminar la carpeta' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Toggle folder collapsed state.
+ */
+export async function toggleFolderCollapse(
+  id: string
+): Promise<ActionResult<{ is_collapsed: boolean }>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  const { data: current, error: fetchError } = await supabase
+    .from('automation_folders')
+    .select('is_collapsed')
+    .eq('id', id)
+    .eq('workspace_id', workspaceId)
+    .single()
+
+  if (fetchError || !current) {
+    return { error: 'Carpeta no encontrada' }
+  }
+
+  const newState = !current.is_collapsed
+
+  const { error: updateError } = await supabase
+    .from('automation_folders')
+    .update({ is_collapsed: newState })
+    .eq('id', id)
+    .eq('workspace_id', workspaceId)
+
+  if (updateError) {
+    console.error('Error toggling folder collapse:', updateError)
+    return { error: 'Error al cambiar estado de carpeta' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: { is_collapsed: newState } }
+}
+
+/**
+ * Reorder folders by updating their positions.
+ */
+export async function reorderFolders(
+  orderedIds: string[]
+): Promise<ActionResult> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  // Update positions: 1000, 2000, 3000, ...
+  const updates = orderedIds.map((id, index) =>
+    supabase
+      .from('automation_folders')
+      .update({ position: (index + 1) * 1000 })
+      .eq('id', id)
+      .eq('workspace_id', workspaceId)
+  )
+
+  const results = await Promise.all(updates)
+  const failed = results.find((r) => r.error)
+
+  if (failed?.error) {
+    console.error('Error reordering folders:', failed.error)
+    return { error: 'Error al reordenar carpetas' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Move an automation to a folder (or root) and set its position.
+ */
+export async function moveAutomation(
+  automationId: string,
+  folderId: string | null,
+  position: number
+): Promise<ActionResult> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  const { error } = await supabase
+    .from('automations')
+    .update({ folder_id: folderId, position })
+    .eq('id', automationId)
+    .eq('workspace_id', workspaceId)
+
+  if (error) {
+    console.error('Error moving automation:', error)
+    return { error: 'Error al mover la automatizacion' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Batch reorder automations (positions + folder assignments).
+ */
+export async function reorderAutomations(
+  updates: { id: string; folder_id: string | null; position: number }[]
+): Promise<ActionResult> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const { supabase, workspaceId } = ctx
+
+  const promises = updates.map((u) =>
+    supabase
+      .from('automations')
+      .update({ folder_id: u.folder_id, position: u.position })
+      .eq('id', u.id)
+      .eq('workspace_id', workspaceId)
+  )
+
+  const results = await Promise.all(promises)
+  const failed = results.find((r) => r.error)
+
+  if (failed?.error) {
+    console.error('Error reordering automations:', failed.error)
+    return { error: 'Error al reordenar automatizaciones' }
+  }
+
+  revalidatePath('/automatizaciones')
+  return { success: true, data: undefined }
 }
 
 // ============================================================================

@@ -64,7 +64,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 21: DB + Domain Foundation**
 - [x] **Phase 22: Robot Coordinadora Service**
 - [x] **Phase 23: Inngest Orchestrator + Callback API**
-- [ ] **Phase 24: Chat de Comandos UI**
+- [x] **Phase 24: Chat de Comandos UI**
 - [ ] **Phase 25: Pipeline Integration + Docs**
 
 ---
@@ -158,9 +158,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 24-01-PLAN.md — Migration + domain extensions (dispatch stage, job queries, Realtime publication)
-- [ ] 24-02-PLAN.md — Server actions (subir ordenes coord flow) + Realtime hook
-- [ ] 24-03-PLAN.md — UI components (page, split panel, command panel, history panel, sidebar)
+- [x] 24-01-PLAN.md — Migration + domain extensions (dispatch stage, job queries, Realtime publication)
+- [x] 24-02-PLAN.md — Server actions (subir ordenes coord flow) + Realtime hook
+- [x] 24-03-PLAN.md — UI components (page, split panel, command panel, history panel, sidebar)
 
 **Success Criteria:**
 1. A split-panel interface following MorfX design system is accessible from /comandos in the sidebar, with command interaction on the left and job history on the right
@@ -203,13 +203,13 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-25 | 10 (Phases 21-23) | Phase 23 Complete | — |
+| v3.0 Logistica | 21-25 | 13 (Phases 21-24) | Phase 24 Complete | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
-| **Total** | **39 phases** | **161+ plans** | | |
+| **Total** | **39 phases** | **164+ plans** | | |
 
 ### Current Phase
 
-Phase 23: Inngest Orchestrator + Callback API — COMPLETE (3 plans, 2 waves, verified 10/10)
+Phase 24: Chat de Comandos UI — COMPLETE (3 plans, 3 waves, verified 4/4)
 
 ---
 
@@ -220,4 +220,4 @@ Phase 23: Inngest Orchestrator + Callback API — COMPLETE (3 plans, 2 waves, ve
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-21 (Phase 23 complete: 3 plans, 2 waves, 10/10 verified)*
+*Last updated: 2026-02-21 (Phase 24 complete: 3 plans, 3 waves, 4/4 verified)*

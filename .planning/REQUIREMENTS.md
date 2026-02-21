@@ -22,10 +22,10 @@
 
 ### Chat de Comandos
 
-- [ ] **CHAT-01**: Panel tipo terminal con monospace font, dark background, input de texto, overflow-y-auto
-- [ ] **CHAT-02**: Comandos fijos parseados: `subir ordenes coord`, `validar ciudades`, `estado`, `ayuda`
-- [ ] **CHAT-03**: Progreso real-time via Supabase Realtime mostrando estado por orden procesada
-- [ ] **CHAT-04**: Historial de jobs pasados con resultados, éxitos, errores y timestamps
+- [x] **CHAT-01**: Panel tipo terminal con monospace font, dark background, input de texto, overflow-y-auto
+- [x] **CHAT-02**: Comandos fijos parseados: `subir ordenes coord`, `validar ciudades`, `estado`, `ayuda`
+- [x] **CHAT-03**: Progreso real-time via Supabase Realtime mostrando estado por orden procesada
+- [x] **CHAT-04**: Historial de jobs pasados con resultados, éxitos, errores y timestamps
 
 ### Integración Pipeline
 
@@ -76,10 +76,10 @@
 | ROBOT-03 | Phase 22 | Complete |
 | ROBOT-04 | Phase 22 | Complete |
 | ROBOT-05 | Phase 22 | Complete |
-| CHAT-01 | Phase 24 | Pending |
-| CHAT-02 | Phase 24 | Pending |
-| CHAT-03 | Phase 24 | Pending |
-| CHAT-04 | Phase 24 | Pending |
+| CHAT-01 | Phase 24 | Complete |
+| CHAT-02 | Phase 24 | Complete |
+| CHAT-03 | Phase 24 | Complete |
+| CHAT-04 | Phase 24 | Complete |
 | PIPE-01 | Phase 25 | Pending |
 | PIPE-02 | Phase 23 | Complete |
 | PIPE-03 | Phase 23 | Complete |
@@ -92,4 +92,4 @@
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-21 — PIPE-02 and PIPE-03 marked Complete (Phase 23)*
+*Last updated: 2026-02-21 — CHAT-01 through CHAT-04 marked Complete (Phase 24)*

@@ -183,16 +183,22 @@ Plans:
 
 **Risk:** LOW
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — Settings UI: server action, page, client form, settings hub link
+- [ ] 25-02-PLAN.md — Robot architecture documentation + E2E verification checkpoint
+
 **Success Criteria:**
-1. A "Logística" section in settings shows a simple list of bindings: Etapa → Robot, with dropdowns to select pipeline stage and robot, and add/remove capability
-2. Coordinadora appears as active carrier; future carriers (Inter, Envía, Bogotá) appear as disabled placeholders ("Próximamente")
+1. A "Logistica" section in settings shows a simple list of bindings: Etapa -> Robot, with dropdowns to select pipeline stage and robot, and add/remove capability
+2. Coordinadora appears as active carrier; future carriers (Inter, Envia, Bogota) appear as disabled placeholders ("Proximamente")
 3. Toggle on/off per binding to activate/deactivate without deleting the configuration
 4. Architecture documentation describes the robot service pattern, communication flow, and step-by-step guide for adding a new carrier
-5. E2E verification of the full flow: config → move orders to stage → command → robot → callbacks → CRM updates
+5. E2E verification of the full flow: config -> move orders to stage -> command -> robot -> callbacks -> CRM updates
 
 ---
 
-### Phase 26: Robot Lector de Guías Coordinadora
+### Phase 26: Robot Lector de Guias Coordinadora
 
 **Goal:** A robot reads assigned guide numbers from the Coordinadora portal and updates CRM orders with the corresponding tracking/guide data.
 
@@ -208,7 +214,7 @@ Plans:
 
 ---
 
-### Phase 27: Robot OCR de Guías
+### Phase 27: Robot OCR de Guias
 
 **Goal:** A robot reads physical/PDF shipping guides, verifies shipping data integrity, and extracts guide numbers to update CRM orders.
 
@@ -225,7 +231,7 @@ Plans:
 
 ---
 
-### Phase 28: Robot Creador de Guías PDF
+### Phase 28: Robot Creador de Guias PDF
 
 **Goal:** Integrate existing guide PDF generator (from GitHub/n8n) into MorfX so orders can generate printable shipping guide PDFs from within the platform.
 
@@ -257,13 +263,13 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-28 | 13 (Phases 21-24) | Phase 24 Complete | — |
+| v3.0 Logistica | 21-28 | 15 (Phases 21-25) | Phase 25 Planned | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
-| **Total** | **39 phases** | **164+ plans** | | |
+| **Total** | **39 phases** | **166+ plans** | | |
 
 ### Current Phase
 
-Phase 24: Chat de Comandos UI — COMPLETE (3 plans, 3 waves, verified 4/4)
+Phase 25: Pipeline Config UI + Docs — PLANNED (2 plans, 2 waves)
 
 ---
 
@@ -274,4 +280,4 @@ Phase 24: Chat de Comandos UI — COMPLETE (3 plans, 3 waves, verified 4/4)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-21 (Phase 25 redefined, Phases 26-28 added for robot expansion)*
+*Last updated: 2026-02-21 (Phase 25 planned: 2 plans in 2 waves)*

@@ -155,9 +155,16 @@ Plans:
 
 **Risk:** LOW
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — Migration + domain extensions (dispatch stage, job queries, Realtime publication)
+- [ ] 24-02-PLAN.md — Server actions (subir ordenes coord flow) + Realtime hook
+- [ ] 24-03-PLAN.md — UI components (page, split panel, command panel, history panel, sidebar)
+
 **Success Criteria:**
-1. A terminal-style panel with monospace font and dark background is accessible from the logistics section, with a text input for commands and scrollable output
-2. User can type fixed commands (`subir ordenes coord`, `validar ciudades`, `estado`, `ayuda`) and the system parses and executes them -- unrecognized commands show help text
+1. A split-panel interface following MorfX design system is accessible from /comandos in the sidebar, with command interaction on the left and job history on the right
+2. User can type fixed commands (`subir ordenes coord`, `estado`, `ayuda`) and the system parses and executes them -- unrecognized commands show help text
 3. While a robot job is running, per-order progress updates appear in real-time (via Supabase Realtime) showing which order is processing, succeeded, or failed
 4. User can view a history of past jobs with their results, success/error counts, and timestamps
 

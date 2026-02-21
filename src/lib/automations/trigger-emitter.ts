@@ -438,3 +438,38 @@ export async function emitShopifyOrderUpdated(data: {
     data.workspaceId
   )
 }
+
+// ============================================================================
+// Robot Trigger Emitters (Phase 23: Inngest Orchestrator + Callback API)
+// ============================================================================
+
+/**
+ * Emit when the robot successfully creates a shipment on Coordinadora for an order.
+ * Fires per-order (not per-batch) so automations run per order.
+ */
+export async function emitRobotCoordCompleted(data: {
+  workspaceId: string
+  orderId: string
+  orderName?: string
+  trackingNumber: string
+  carrier: string
+  contactId: string | null
+  contactName?: string
+  contactPhone?: string
+  contactEmail?: string
+  orderValue?: number
+  shippingCity?: string
+  shippingAddress?: string
+  shippingDepartment?: string
+  cascadeDepth?: number
+}): Promise<void> {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('robot.coord.completed', data.workspaceId, depth)) return
+
+  await sendEvent(
+    'automation/robot.coord.completed',
+    { ...data, cascadeDepth: depth },
+    'robot.coord.completed',
+    data.workspaceId
+  )
+}

@@ -174,6 +174,9 @@ export function buildTriggerContext(
   if (eventData.shippingCity !== undefined) orden.ciudad_envio = eventData.shippingCity
   if (eventData.shippingDepartment !== undefined) orden.departamento_envio = eventData.shippingDepartment
   if (eventData.orderDescription !== undefined) orden.descripcion = eventData.orderDescription
+  // Robot logistics fields (Phase 23: Inngest Orchestrator + Callback API)
+  if (eventData.trackingNumber !== undefined) orden.tracking_number = eventData.trackingNumber
+  if (eventData.carrier !== undefined) orden.carrier = eventData.carrier
   if (Object.keys(orden).length > 0) context.orden = orden
 
   // --- tag ---

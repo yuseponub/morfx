@@ -44,6 +44,8 @@ const EVENT_TO_TRIGGER: Record<string, TriggerType> = {
   'automation/shopify.order_created': 'shopify.order_created',
   'automation/shopify.draft_order_created': 'shopify.draft_order_created',
   'automation/shopify.order_updated': 'shopify.order_updated',
+  // Robot triggers (Phase 23: Inngest Orchestrator + Callback API)
+  'automation/robot.coord.completed': 'robot.coord.completed',
 }
 
 // ============================================================================
@@ -126,6 +128,8 @@ function matchesTriggerConfig(
     case 'shopify.order_created':
     case 'shopify.draft_order_created':
     case 'shopify.order_updated':
+    // Robot triggers have no config filters (Phase 23)
+    case 'robot.coord.completed':
       return true
 
     default:
@@ -380,7 +384,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
 
       // Context enrichment: load full order + contact data for order/tag triggers
       const needsOrderEnrichment =
-        (triggerType === 'order.created' || triggerType === 'order.stage_changed') &&
+        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed') &&
         eventData.orderId
       const needsTagOrderEnrichment =
         (triggerType === 'tag.assigned' || triggerType === 'tag.removed') &&
@@ -654,6 +658,12 @@ const shopifyOrderUpdatedRunner = createAutomationRunner(
   'automation/shopify.order_updated'
 )
 
+// Robot runners (Phase 23: Inngest Orchestrator + Callback API)
+const robotCoordCompletedRunner = createAutomationRunner(
+  'robot.coord.completed',
+  'automation/robot.coord.completed'
+)
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -676,4 +686,5 @@ export const automationFunctions = [
   shopifyOrderCreatedRunner,
   shopifyDraftOrderCreatedRunner,
   shopifyOrderUpdatedRunner,
+  robotCoordCompletedRunner,
 ]

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug, BadgeCheck } from 'lucide-react'
+import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug, BadgeCheck, Truck } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
@@ -73,6 +73,13 @@ const settingsLinks: SettingsLink[] = [
     title: 'Badge de cliente',
     description: 'Configura cuando un contacto se marca como cliente en el inbox',
     icon: BadgeCheck,
+    ownerOnly: true,
+  },
+  {
+    href: '/settings/logistica',
+    title: 'Logistica',
+    description: 'Configura que etapa del pipeline activa cada robot de transportadora',
+    icon: Truck,
     ownerOnly: true,
   },
 ]

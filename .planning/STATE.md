@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Phase: 23 — Inngest Orchestrator + Callback API (COMPLETE)
 Plan: 03 of 03
 Status: Phase complete
-Last activity: 2026-02-21 — Completed 23-03-PLAN.md (Callback API + Domain Idempotency)
+Last activity: 2026-02-21 — Completed quick-005 (Add Carrier/Tracking to Order Triggers)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [########--] 60% v3.0
 
@@ -46,13 +46,13 @@ All 9 phases + 5 inserted phases completed:
 - CRM Orders Performance (2/3 plans) — IN PROGRESS
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
-- Quick fixes: 4 completed (optimistic send, media null URL, workspace_id, task overdue)
+- Quick fixes: 5 completed (optimistic send, media null URL, workspace_id, task overdue, carrier-tracking-order-triggers)
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 33 (29 milestone + 4 standalone)
-- Total plans completed: 161
+- Total plans completed: 162
 - Total execution time: ~26 days (2026-01-26 to 2026-02-21)
 
 ## Accumulated Context
@@ -157,6 +157,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21 COT
-Stopped at: Completed 23-03-PLAN.md (Callback API + Domain Idempotency)
+Stopped at: Completed quick-005 (Add Carrier/Tracking to Order Triggers)
 Resume file: None
 Next: /gsd:discuss-phase 24 (Chat de Comandos UI)

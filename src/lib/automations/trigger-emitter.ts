@@ -84,6 +84,8 @@ export async function emitOrderStageChanged(data: {
   orderValue?: number | null
   orderName?: string | null
   orderDescription?: string | null
+  trackingNumber?: string | null
+  carrier?: string | null
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
@@ -200,6 +202,8 @@ export async function emitOrderCreated(data: {
   shippingDepartment?: string | null
   orderName?: string | null
   orderDescription?: string | null
+  trackingNumber?: string | null
+  carrier?: string | null
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0

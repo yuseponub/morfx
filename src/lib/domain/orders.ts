@@ -289,6 +289,8 @@ export async function createOrder(
       shippingDepartment: params.shippingDepartment ?? null,
       orderName: params.name ?? null,
       orderDescription: params.description ?? null,
+      trackingNumber: params.trackingNumber ?? null,
+      carrier: params.carrier ?? null,
       cascadeDepth: ctx.cascadeDepth,
     })
 
@@ -501,7 +503,7 @@ export async function moveOrderToStage(
     // Read current order state (include shipping fields for rich trigger context)
     const { data: currentOrder, error: fetchError } = await supabase
       .from('orders')
-      .select('stage_id, pipeline_id, contact_id, total_value, description, name, shipping_address, shipping_city, shipping_department')
+      .select('stage_id, pipeline_id, contact_id, total_value, description, name, shipping_address, shipping_city, shipping_department, carrier, tracking_number')
       .eq('id', params.orderId)
       .eq('workspace_id', ctx.workspaceId)
       .single()
@@ -578,6 +580,8 @@ export async function moveOrderToStage(
         orderValue: currentOrder.total_value,
         orderName: currentOrder.name,
         orderDescription: currentOrder.description,
+        trackingNumber: currentOrder.tracking_number,
+        carrier: currentOrder.carrier,
         cascadeDepth: ctx.cascadeDepth,
       })
     }
@@ -817,6 +821,8 @@ export async function duplicateOrder(
         shippingDepartment: sourceOrder.shipping_department ?? null,
         orderName: sourceOrder.name ?? null,
         orderDescription: sourceOrder.description ?? null,
+        trackingNumber: sourceOrder.tracking_number ?? null,
+        carrier: sourceOrder.carrier ?? null,
         contactName: dupContactName,
         contactPhone: dupContactPhone,
         contactAddress: dupContactAddress,
@@ -847,6 +853,8 @@ export async function duplicateOrder(
         shippingDepartment: sourceOrder.shipping_department ?? null,
         orderName: sourceOrder.name ?? null,
         orderDescription: sourceOrder.description ?? null,
+        trackingNumber: sourceOrder.tracking_number ?? null,
+        carrier: sourceOrder.carrier ?? null,
         contactName: dupContactName,
         contactPhone: dupContactPhone,
         contactAddress: dupContactAddress,

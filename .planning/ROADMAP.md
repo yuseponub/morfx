@@ -131,10 +131,17 @@ Plans:
 
 **Risk:** LOW
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Event types + robot.coord.completed automation trigger registration
+- [ ] 23-02-PLAN.md — Inngest robot orchestrator (dispatch + waitForEvent + timeout)
+- [ ] 23-03-PLAN.md — Callback API route + domain idempotency guard + robot server patch
+
 **Success Criteria:**
 1. An Inngest function receives a robot job event, calls the robot service via HTTP, and handles the response (success, partial failure, or total failure)
 2. When the robot service reports a result for an order (guide number or error), the callback API routes through the domain layer, updating the order and robot_job_item -- automation triggers fire on those updates
-3. If the robot service is unreachable or times out, the orchestrator retries with backoff and marks the job as failed after exhausting retries
+3. If the robot service is unreachable or times out, the orchestrator marks the job as failed (fail-fast, no retries to prevent duplicate submissions)
 
 ---
 
@@ -189,7 +196,7 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-25 | 7 (Phases 21-22) | Phase 22 Complete | — |
+| v3.0 Logistica | 21-25 | 10 (Phases 21-23) | Phase 23 Planned | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **39 phases** | **161+ plans** | | |
 

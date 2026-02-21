@@ -30,7 +30,8 @@ import { toast } from 'sonner'
 import { DragDropProvider, DragOverlay, useDroppable } from '@dnd-kit/react'
 import { useSortable } from '@dnd-kit/react/sortable'
 import { move } from '@dnd-kit/helpers'
-import { CollisionPriority } from '@dnd-kit/abstract'
+// COLLISION_PRIORITY_LOW = 1 (from @dnd-kit/abstract, not directly installable)
+const COLLISION_PRIORITY_LOW = 1
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -449,7 +450,7 @@ function SortableFolderRow({
     index,
     type: 'folder',
     accept: ['folder', 'automation'],
-    collisionPriority: CollisionPriority.Low,
+    collisionPriority: COLLISION_PRIORITY_LOW,
   })
 
   const FolderIcon = isCollapsed ? FolderClosed : FolderOpen
@@ -528,7 +529,7 @@ function RootDropZone({ children, hasItems }: { children: React.ReactNode; hasIt
   const { ref } = useDroppable({
     id: 'root',
     accept: 'automation',
-    collisionPriority: CollisionPriority.Low,
+    collisionPriority: COLLISION_PRIORITY_LOW,
   })
 
   return (

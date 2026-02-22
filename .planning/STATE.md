@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 25 Complete (2/2 plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 26 In Progress (1/3 plans)
 
 ## Current Position
 
-Phase: 25 — Pipeline Config UI + Docs
-Plan: 02 of 02
-Status: COMPLETE
-Last activity: 2026-02-21 — Completed 25-02-PLAN.md (Architecture Docs + E2E Verification)
+Phase: 26 — Robot Lector de Guias Coordinadora
+Plan: 01 of 03
+Status: In progress
+Last activity: 2026-02-22 — Completed 26-01-PLAN.md (DB + Domain Foundation for Guide Lookup)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#########-] 92% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#########-] 93% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -37,6 +37,7 @@ All 9 phases + 5 inserted phases completed:
 | 23 | Inngest Orchestrator + Callback API | COMPLETE (3/3 plans) |
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
+| 26 | Robot Lector de Guias Coordinadora | IN PROGRESS (1/3 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -52,8 +53,8 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 34 (30 milestone + 4 standalone)
-- Total plans completed: 170
-- Total execution time: ~26 days (2026-01-26 to 2026-02-21)
+- Total plans completed: 171
+- Total execution time: ~27 days (2026-01-26 to 2026-02-22)
 
 ## Accumulated Context
 
@@ -138,6 +139,11 @@ Decisions logged in PROJECT.md Key Decisions table.
 - getJobStatus returns full GetJobWithItemsResult | null for reconnect scenario initial fetch
 - updateDispatchConfig omits portalUsername/portalPassword to preserve existing credentials when updating pipeline/stage config
 - Future carriers (Inter, Envia, Servientrega) rendered as disabled placeholder cards, no backend support yet
+- carrier_guide_number is separate column from tracking_number (pedido vs guide are different identifiers)
+- job_type column on robot_jobs discriminates create_shipment vs guide_lookup (independent job execution)
+- updateJobItemResult routes callback trackingNumber to carrier_guide_number for guide_lookup jobs
+- getActiveJob optional jobType filter allows concurrent shipment and guide lookup jobs
+- Pendiente callbacks (trackingNumber=undefined) skip order update entirely, preserving future lookup eligibility
 
 ### Project Rules
 
@@ -172,7 +178,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-21 COT
-Stopped at: Phase 25 COMPLETE (2/2 plans, verified 5/5)
+Last session: 2026-02-22 COT
+Stopped at: Completed 26-01-PLAN.md (DB + Domain Foundation for Guide Lookup)
 Resume file: None
-Next: /gsd:discuss-phase 26 (Robot Lector de Guias Coordinadora)
+Next: Execute 26-02-PLAN.md (Inngest Orchestrator + Robot Endpoint)

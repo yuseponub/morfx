@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 23: Inngest Orchestrator + Callback API**
 - [x] **Phase 24: Chat de Comandos UI**
 - [x] **Phase 25: Pipeline Config UI + Docs**
-- [ ] **Phase 26: Robot Lector de Guías Coordinadora**
+- [x] **Phase 26: Robot Lector de Guías Coordinadora**
 - [ ] **Phase 27: Robot OCR de Guías**
 - [ ] **Phase 28: Robot Creador de Guías PDF**
 
@@ -209,9 +209,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 26-01-PLAN.md — DB migration (carrier_guide_number, job_type) + domain layer extensions
-- [ ] 26-02-PLAN.md — Robot endpoint + Inngest orchestrator + callback extension
-- [ ] 26-03-PLAN.md — Server action + Chat de Comandos UI integration
+- [x] 26-01-PLAN.md — DB migration (carrier_guide_number, job_type) + domain layer extensions
+- [x] 26-02-PLAN.md — Robot endpoint + Inngest orchestrator + callback extension
+- [x] 26-03-PLAN.md — Server action + Chat de Comandos UI integration
 
 **Success Criteria:**
 1. Robot navigates the Coordinadora portal and reads guide numbers assigned to pedidos
@@ -270,13 +270,13 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-28 | 15 (Phases 21-25) | Phase 25 Complete | — |
+| v3.0 Logistica | 21-28 | 18 (Phases 21-26) | Phase 26 Complete | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **39 phases** | **166+ plans** | | |
 
 ### Current Phase
 
-Phase 25: Pipeline Config UI + Docs — COMPLETE (2 plans, 2 waves)
+Phase 26: Robot Lector de Guías Coordinadora — COMPLETE (3 plans, 3 waves)
 
 ---
 
@@ -287,4 +287,4 @@ Phase 25: Pipeline Config UI + Docs — COMPLETE (2 plans, 2 waves)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-21 (Phase 25 complete: 2 plans in 2 waves)*
+*Last updated: 2026-02-22 (Phase 26 complete: 3 plans in 3 waves)*

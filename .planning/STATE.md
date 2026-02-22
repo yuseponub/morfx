@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 26 In Progress (1/3 plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 26 In Progress (2/3 plans)
 
 ## Current Position
 
 Phase: 26 — Robot Lector de Guias Coordinadora
-Plan: 01 of 03
+Plan: 02 of 03
 Status: In progress
-Last activity: 2026-02-22 — Completed 26-01-PLAN.md (DB + Domain Foundation for Guide Lookup)
+Last activity: 2026-02-22 — Completed 26-02-PLAN.md (Inngest Orchestrator + Robot Endpoint)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [#########-] 93% v3.0
 
@@ -37,7 +37,7 @@ All 9 phases + 5 inserted phases completed:
 | 23 | Inngest Orchestrator + Callback API | COMPLETE (3/3 plans) |
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
-| 26 | Robot Lector de Guias Coordinadora | IN PROGRESS (1/3 plans) |
+| 26 | Robot Lector de Guias Coordinadora | IN PROGRESS (2/3 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -53,7 +53,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 34 (30 milestone + 4 standalone)
-- Total plans completed: 171
+- Total plans completed: 172
 - Total execution time: ~27 days (2026-01-26 to 2026-02-22)
 
 ## Accumulated Context
@@ -144,6 +144,10 @@ Decisions logged in PROJECT.md Key Decisions table.
 - updateJobItemResult routes callback trackingNumber to carrier_guide_number for guide_lookup jobs
 - getActiveJob optional jobType filter allows concurrent shipment and guide lookup jobs
 - Pendiente callbacks (trackingNumber=undefined) skip order update entirely, preserving future lookup eligibility
+- GuideLookupResult reuses trackingNumber field for guide number (same callback contract as create_shipment)
+- guideLookupOrchestrator uses shorter timeout (10s/pedido + 3min vs 30s/order + 5min for shipment creation)
+- emitRobotCoordCompleted skipped for guide_lookup jobs (field.changed fires from domain updateOrder instead)
+- reportResult in robot service accepts union type (BatchItemResult | GuideLookupResult) for type safety
 
 ### Project Rules
 
@@ -179,6 +183,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22 COT
-Stopped at: Completed 26-01-PLAN.md (DB + Domain Foundation for Guide Lookup)
+Stopped at: Completed 26-02-PLAN.md (Inngest Orchestrator + Robot Endpoint)
 Resume file: None
-Next: Execute 26-02-PLAN.md (Inngest Orchestrator + Robot Endpoint)
+Next: Execute 26-03-PLAN.md (Chat de Comandos Command + UI)

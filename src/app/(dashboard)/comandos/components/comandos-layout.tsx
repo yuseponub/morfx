@@ -16,6 +16,7 @@ import { HistoryPanel } from './history-panel'
 import { useRobotJobProgress } from '@/hooks/use-robot-job-progress'
 import {
   executeSubirOrdenesCoord,
+  executeBuscarGuiasCoord,
   getJobStatus,
   getCommandHistory,
   getJobItemsForHistory,
@@ -259,6 +260,36 @@ export function ComandosLayout() {
             timestamp: now(),
           })
         }
+
+        setActiveJobId(data.jobId)
+        return
+      }
+
+      if (normalized === 'buscar guias coord') {
+        setIsExecuting(true)
+        addMessage({
+          type: 'system',
+          text: 'Buscando ordenes pendientes de guia...',
+          timestamp: now(),
+        })
+
+        const result = await executeBuscarGuiasCoord()
+        if (!result.success) {
+          addMessage({
+            type: 'error',
+            text: result.error!,
+            timestamp: now(),
+          })
+          setIsExecuting(false)
+          return
+        }
+
+        const data = result.data!
+        addMessage({
+          type: 'system',
+          text: `Job creado: buscando guias para ${data.totalOrders} ordenes.`,
+          timestamp: now(),
+        })
 
         setActiveJobId(data.jobId)
         return

@@ -129,6 +129,9 @@ export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
                         {formatDate(job.created_at)}
                       </span>
                       <StatusBadge status={job.status} />
+                      <Badge variant="outline" className="text-[10px]">
+                        {job.job_type === 'guide_lookup' ? 'Buscar guias' : 'Subir ordenes'}
+                      </Badge>
                     </div>
                     <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground">
                       <span>{job.total_items} ordenes</span>

@@ -22,6 +22,7 @@ interface CommandOutputProps {
 // ---- Help text content ----
 const HELP_COMMANDS = [
   { cmd: 'subir ordenes coord', desc: 'Subir ordenes pendientes a Coordinadora' },
+  { cmd: 'buscar guias coord', desc: 'Buscar guias asignadas por Coordinadora' },
   { cmd: 'estado', desc: 'Ver estado del job activo' },
   { cmd: 'ayuda', desc: 'Mostrar esta ayuda' },
 ]

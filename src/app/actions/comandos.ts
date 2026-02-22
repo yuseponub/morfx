@@ -6,6 +6,7 @@
 //
 // Actions:
 //   executeSubirOrdenesCoord — Full flow: credentials -> orders -> validate -> job -> Inngest
+//   executeBuscarGuiasCoord  — Full flow: credentials -> pending-guide orders -> job -> Inngest
 //   getJobStatus             — Get active job with items (for reconnect)
 //   getCommandHistory        — Recent jobs for workspace (history panel)
 //   getJobItemsForHistory    — Items for a specific job (expandable detail)
@@ -24,7 +25,7 @@ import {
   type RobotJobItem,
   type GetJobWithItemsResult,
 } from '@/lib/domain/robot-jobs'
-import { getOrdersByStage, type OrderForDispatch } from '@/lib/domain/orders'
+import { getOrdersByStage, getOrdersPendingGuide, type OrderForDispatch, type OrderPendingGuide } from '@/lib/domain/orders'
 import type { PedidoInput } from '@/lib/logistics/constants'
 import type { DomainContext } from '@/lib/domain/types'
 import { inngest } from '@/inngest/client'
@@ -37,6 +38,11 @@ interface CommandResult<T = unknown> {
   success: boolean
   data?: T
   error?: string
+}
+
+interface BuscarGuiasResult {
+  jobId: string
+  totalOrders: number
 }
 
 interface SubirOrdenesResult {
@@ -150,8 +156,8 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
     }
     const dispatchStage = dispatchStageResult.data
 
-    // 4. Check for existing active job
-    const activeJobResult = await getActiveJob(ctx)
+    // 4. Check for existing active create_shipment job (scoped by type — doesn't block guide_lookup jobs)
+    const activeJobResult = await getActiveJob(ctx, 'create_shipment')
     if (!activeJobResult.success) {
       return { success: false, error: activeJobResult.error! }
     }
@@ -270,6 +276,106 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
 }
 
 // ============================================================================
+// executeBuscarGuiasCoord
+// ============================================================================
+
+/**
+ * Full flow for "buscar guias coord" command:
+ * 1. Validate credentials
+ * 2. Get dispatch stage config
+ * 3. Check for active guide_lookup job
+ * 4. Get orders with tracking_number but no carrier_guide_number
+ * 5. Create robot job (job_type: 'guide_lookup')
+ * 6. Dispatch to Inngest
+ */
+export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGuiasResult>> {
+  try {
+    // 1. Auth
+    const auth = await getAuthContext()
+    if ('error' in auth) return { success: false, error: auth.error }
+
+    const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+
+    // 2. Carrier credentials (same portal credentials)
+    const creds = await getCarrierCredentials(ctx)
+    if (!creds.success || !creds.data) {
+      return { success: false, error: creds.error || 'Credenciales de transportadora no configuradas' }
+    }
+
+    // 3. Dispatch stage config
+    const dispatchStageResult = await getDispatchStage(ctx)
+    if (!dispatchStageResult.success) {
+      return { success: false, error: dispatchStageResult.error! }
+    }
+    if (!dispatchStageResult.data) {
+      return {
+        success: false,
+        error: 'Etapa de despacho no configurada. Configure la etapa en Configuracion > Logistica.',
+      }
+    }
+
+    // 4. Check for active guide_lookup job (scoped by type — doesn't block shipment jobs)
+    const activeJobResult = await getActiveJob(ctx, 'guide_lookup')
+    if (!activeJobResult.success) {
+      return { success: false, error: activeJobResult.error! }
+    }
+    if (activeJobResult.data) {
+      return { success: false, error: 'Ya hay una busqueda de guias en progreso' }
+    }
+
+    // 5. Get orders pending guide (tracking_number NOT NULL, carrier_guide_number IS NULL)
+    const ordersResult = await getOrdersPendingGuide(ctx, dispatchStageResult.data.stageId)
+    if (!ordersResult.success) return { success: false, error: ordersResult.error! }
+    const orders = ordersResult.data!
+
+    if (orders.length === 0) {
+      return { success: false, error: 'No hay ordenes pendientes de guia en la etapa de despacho' }
+    }
+
+    // 6. Create robot job (job_type: 'guide_lookup')
+    const jobResult = await createRobotJob(ctx, {
+      orderIds: orders.map(o => o.id),
+      carrier: 'coordinadora',
+      jobType: 'guide_lookup',
+    })
+    if (!jobResult.success || !jobResult.data) {
+      return { success: false, error: jobResult.error || 'Error creando job' }
+    }
+
+    // 7. Dispatch to Inngest
+    // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
+    await (inngest.send as any)({
+      name: 'robot/guide-lookup.submitted',
+      data: {
+        jobId: jobResult.data.jobId,
+        workspaceId: ctx.workspaceId,
+        credentials: creds.data,
+        pedidoNumbers: orders.map(order => {
+          const item = jobResult.data!.items.find(i => i.orderId === order.id)!
+          return {
+            itemId: item.itemId,
+            orderId: order.id,
+            pedidoNumber: order.tracking_number,
+          }
+        }),
+      },
+    })
+
+    return {
+      success: true,
+      data: {
+        jobId: jobResult.data.jobId,
+        totalOrders: orders.length,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[comandos] executeBuscarGuiasCoord error:', message)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
 // getJobStatus
 // ============================================================================
 
@@ -277,14 +383,16 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
  * Get the currently active job with its items.
  * Returns null if no active job exists.
  * Used by the Realtime hook for initial data fetch on reconnect.
+ *
+ * @param jobType Optional filter by job_type. When omitted, returns any active job.
  */
-export async function getJobStatus(): Promise<CommandResult<GetJobWithItemsResult | null>> {
+export async function getJobStatus(jobType?: string): Promise<CommandResult<GetJobWithItemsResult | null>> {
   try {
     const auth = await getAuthContext()
     if ('error' in auth) return { success: false, error: auth.error }
 
     const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
-    const result = await getActiveJob(ctx)
+    const result = await getActiveJob(ctx, jobType)
 
     if (!result.success) return { success: false, error: result.error! }
     return { success: true, data: result.data }

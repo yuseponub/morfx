@@ -490,6 +490,26 @@ export type RobotEvents = {
       errorCount: number
     }
   }
+
+  /**
+   * Emitted by MorfX to trigger guide lookup robot job.
+   * Consumed by Inngest guide-lookup orchestrator (Phase 26).
+   */
+  'robot/guide-lookup.submitted': {
+    data: {
+      jobId: string
+      workspaceId: string
+      credentials: {
+        username: string
+        password: string
+      }
+      pedidoNumbers: Array<{
+        itemId: string
+        orderId: string
+        pedidoNumber: string
+      }>
+    }
+  }
 }
 
 /**

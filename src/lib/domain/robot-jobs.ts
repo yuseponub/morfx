@@ -23,6 +23,7 @@ export interface RobotJob {
   id: string
   workspace_id: string
   carrier: string
+  job_type: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   total_items: number
   success_count: number
@@ -59,6 +60,8 @@ export interface RobotJobItem {
 export interface CreateRobotJobParams {
   /** Carrier name. Defaults to 'coordinadora'. */
   carrier?: string
+  /** Job type discriminator. Defaults to 'create_shipment'. */
+  jobType?: string
   /** Order IDs to include in the batch job. */
   orderIds: string[]
   /** Optional idempotency key to prevent duplicate jobs. */
@@ -185,6 +188,7 @@ export async function createRobotJob(
       .insert({
         workspace_id: ctx.workspaceId,
         carrier,
+        job_type: params.jobType ?? 'create_shipment',
         total_items: params.orderIds.length,
         idempotency_key: params.idempotencyKey ?? null,
       })
@@ -290,14 +294,30 @@ export async function updateJobItemResult(
       return { success: false, error: `Error actualizando item: ${updateError.message}` }
     }
 
-    // On success: update order tracking_number through domain module
-    // This triggers automation field.changed events
+    // Fetch parent job type to determine which field to update on the order
+    const { data: parentJob } = await supabase
+      .from('robot_jobs')
+      .select('job_type')
+      .eq('id', item.job_id)
+      .single()
+
+    // On success: update order through domain module (triggers automation field.changed events)
+    // For create_shipment jobs: write tracking_number (pedido number)
+    // For guide_lookup jobs: write carrier_guide_number (guide number)
+    // The callback reuses the trackingNumber field for both — domain routes to the correct column
     if (params.status === 'success' && params.trackingNumber) {
-      await updateOrder(ctx, {
-        orderId: item.order_id,
-        trackingNumber: params.trackingNumber,
-        carrier: 'COORDINADORA',
-      })
+      if (parentJob?.job_type === 'guide_lookup') {
+        await updateOrder(ctx, {
+          orderId: item.order_id,
+          carrierGuideNumber: params.trackingNumber,
+        })
+      } else {
+        await updateOrder(ctx, {
+          orderId: item.order_id,
+          trackingNumber: params.trackingNumber,
+          carrier: 'COORDINADORA',
+        })
+      }
     }
 
     // Update job counters (read-then-write since Supabase JS has no atomic increment)
@@ -578,21 +598,31 @@ export interface JobItemWithOrderInfo extends RobotJobItem {
  * Get the currently active (pending or processing) job for a workspace.
  * Returns null if no active job exists.
  * Used by Chat de Comandos UI to detect and reconnect to a running job.
+ *
+ * @param jobType Optional filter by job_type. When provided, only jobs of that
+ *   type are considered active. This allows 'guide_lookup' and 'create_shipment'
+ *   jobs to run independently without blocking each other.
  */
 export async function getActiveJob(
-  ctx: DomainContext
+  ctx: DomainContext,
+  jobType?: string
 ): Promise<DomainResult<GetJobWithItemsResult | null>> {
   const supabase = createAdminClient()
 
   try {
-    const { data: activeJob, error } = await supabase
+    let query = supabase
       .from('robot_jobs')
       .select('id')
       .eq('workspace_id', ctx.workspaceId)
       .in('status', ['pending', 'processing'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
+
+    if (jobType) {
+      query = query.eq('job_type', jobType)
+    }
+
+    const { data: activeJob, error } = await query.maybeSingle()
 
     if (error) {
       return { success: false, error: `Error buscando job activo: ${error.message}` }

@@ -55,6 +55,7 @@ export interface UpdateOrderParams {
   name?: string | null
   carrier?: string | null
   trackingNumber?: string | null
+  carrierGuideNumber?: string | null
   shippingAddress?: string | null
   shippingCity?: string | null
   shippingDepartment?: string | null
@@ -323,7 +324,7 @@ export async function updateOrder(
     const { data: previousOrder, error: fetchError } = await supabase
       .from('orders')
       .select(
-        'workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, name, carrier, tracking_number, shipping_address, shipping_city, shipping_department, custom_fields'
+        'workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, name, carrier, tracking_number, carrier_guide_number, shipping_address, shipping_city, shipping_department, custom_fields'
       )
       .eq('id', params.orderId)
       .eq('workspace_id', ctx.workspaceId)
@@ -341,6 +342,7 @@ export async function updateOrder(
     if (params.name !== undefined) updates.name = params.name || null
     if (params.carrier !== undefined) updates.carrier = params.carrier || null
     if (params.trackingNumber !== undefined) updates.tracking_number = params.trackingNumber || null
+    if (params.carrierGuideNumber !== undefined) updates.carrier_guide_number = params.carrierGuideNumber || null
     if (params.shippingAddress !== undefined) updates.shipping_address = params.shippingAddress || null
     if (params.shippingCity !== undefined) updates.shipping_city = params.shippingCity || null
     if (params.shippingDepartment !== undefined) updates.shipping_department = params.shippingDepartment || null
@@ -430,6 +432,7 @@ export async function updateOrder(
       { paramKey: 'name', dbColumn: 'name' },
       { paramKey: 'carrier', dbColumn: 'carrier' },
       { paramKey: 'tracking_number', dbColumn: 'tracking_number' },
+      { paramKey: 'carrier_guide_number', dbColumn: 'carrier_guide_number' },
       { paramKey: 'shipping_address', dbColumn: 'shipping_address' },
       { paramKey: 'shipping_city', dbColumn: 'shipping_city' },
       { paramKey: 'shipping_department', dbColumn: 'shipping_department' },
@@ -998,6 +1001,55 @@ export async function getOrdersByStage(
     })
 
     return { success: true, data: mappedOrders }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// getOrdersPendingGuide
+// ============================================================================
+
+export interface OrderPendingGuide {
+  id: string
+  name: string | null
+  tracking_number: string
+  contact_name: string | null
+}
+
+/**
+ * Get orders that have a tracking_number (pedido) but no carrier_guide_number yet.
+ * Used by "buscar guias coord" to find orders pending guide lookup.
+ */
+export async function getOrdersPendingGuide(
+  ctx: DomainContext,
+  stageId: string
+): Promise<DomainResult<OrderPendingGuide[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, name, tracking_number, contacts(name)')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('stage_id', stageId)
+      .not('tracking_number', 'is', null)
+      .is('carrier_guide_number', null)
+
+    if (error) {
+      return { success: false, error: `Error obteniendo pedidos pendientes de guia: ${error.message}` }
+    }
+
+    return {
+      success: true,
+      data: (data ?? []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        tracking_number: row.tracking_number!,
+        contact_name: (row.contacts as unknown as { name: string } | null)?.name ?? null,
+      })),
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return { success: false, error: message }

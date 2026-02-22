@@ -89,3 +89,39 @@ export interface GuiaResult {
   numeroPedido?: string
   error?: string
 }
+
+// ============================================================================
+// Guide Lookup Types (Phase 26)
+// ============================================================================
+
+/** Single pedido to look up in the guide lookup request */
+export interface GuideLookupItem {
+  /** robot_job_items.id from MorfX */
+  itemId: string
+  /** orders.id from MorfX */
+  orderId: string
+  /** Coordinadora pedido number (stored in orders.tracking_number) */
+  pedidoNumber: string
+}
+
+/** Incoming guide lookup request from MorfX (via Inngest orchestrator) */
+export interface GuideLookupRequest {
+  workspaceId: string
+  credentials: Credentials
+  callbackUrl: string
+  callbackSecret?: string
+  jobId: string
+  pedidoNumbers: GuideLookupItem[]
+}
+
+/** Result reported back for guide lookup per pedido */
+export interface GuideLookupResult {
+  itemId: string
+  status: 'success' | 'error'
+  /** The guide number found, or undefined if pendiente */
+  trackingNumber?: string
+  /** Whether guide was actually found or just pendiente */
+  guideFound?: boolean
+  errorType?: 'validation' | 'portal' | 'timeout' | 'unknown'
+  errorMessage?: string
+}

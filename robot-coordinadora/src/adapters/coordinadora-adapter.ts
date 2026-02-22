@@ -246,6 +246,72 @@ export class CoordinadoraAdapter {
   }
 
   // ---------------------------------------------------------------------------
+  // Guide Lookup (Phase 26)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Navigate to the Coordinadora pedidos page and read the pedido->guide table.
+   * Returns a Map of pedidoNumber -> guideNumber.
+   * Loads the page once and reads all rows (batch optimized).
+   */
+  async buscarGuiasPorPedidos(pedidoNumbers: string[]): Promise<Map<string, string>> {
+    if (!this.page) {
+      throw new Error(`${LOG_PREFIX} Cannot buscar guias: browser not initialized`)
+    }
+
+    console.log(`${LOG_PREFIX} Looking up guides for ${pedidoNumbers.length} pedidos`)
+
+    const guiaMap = new Map<string, string>()
+
+    try {
+      // Navigate to the pedidos list page
+      await this.page.goto('https://ff.coordinadora.com/panel/pedidos', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      })
+
+      // Wait for the table to render
+      await this.page.waitForSelector('table tbody tr', {
+        state: 'visible',
+        timeout: 15000,
+      })
+
+      // Brief pause for full table population
+      await this.page.waitForTimeout(2000)
+
+      // Read all table rows
+      const rows = await this.page.locator('table tbody tr').all()
+      console.log(`${LOG_PREFIX} Found ${rows.length} rows in pedidos table`)
+
+      // Build a Set of pedido numbers we're looking for (normalized)
+      const targetPedidos = new Set(pedidoNumbers.map(p => p.trim()))
+
+      for (const row of rows) {
+        const cells = await row.locator('td').all()
+        if (cells.length < 2) continue
+
+        // Column 0 = pedido number, Column 1 = guide number
+        const pedidoText = (await cells[0].textContent())?.trim() || ''
+        const guiaText = (await cells[1].textContent())?.trim() || ''
+
+        if (!pedidoText) continue
+
+        // Check if this pedido is one we're looking for
+        if (targetPedidos.has(pedidoText) && guiaText && guiaText !== '-' && guiaText !== 'N/A') {
+          guiaMap.set(pedidoText, guiaText)
+        }
+      }
+
+      console.log(`${LOG_PREFIX} Found guides for ${guiaMap.size}/${pedidoNumbers.length} pedidos`)
+      return guiaMap
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Error reading pedidos table:`, err)
+      await this.takeScreenshot('buscar-guias-error')
+      throw err
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Form Field Helpers
   // ---------------------------------------------------------------------------
 

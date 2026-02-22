@@ -10,6 +10,9 @@ import {
   BatchResponse,
   BatchItemResult,
   OrderInput,
+  GuideLookupRequest,
+  GuideLookupResult,
+  GuideLookupItem,
 } from '../types/index.js'
 import { CoordinadoraAdapter } from '../adapters/coordinadora-adapter.js'
 import {
@@ -31,10 +34,11 @@ function sleep(ms: number): Promise<void> {
  * Report a single order result to the MorfX callback URL.
  * Forwards the callback secret header for authentication when provided.
  * Swallows errors -- callback failure should NOT stop batch processing.
+ * Accepts BatchItemResult or GuideLookupResult (both share the same base shape).
  */
 async function reportResult(
   callbackUrl: string,
-  result: BatchItemResult,
+  result: BatchItemResult | GuideLookupResult,
   callbackSecret?: string
 ): Promise<void> {
   try {
@@ -63,6 +67,7 @@ async function reportResult(
 // The workspace lock prevents CONCURRENT duplicates; this cache prevents
 // SEQUENTIAL re-submissions (e.g. Inngest retries after response was sent).
 const completedJobs = new Map<string, BatchResponse>()
+const completedGuideLookups = new Map<string, { success: boolean; jobId: string }>()
 
 // ---------------------------------------------------------------------------
 // Server Factory
@@ -203,6 +208,75 @@ export function createServer(): express.Express {
     })
   })
 
+  // =========================================================================
+  // POST /api/buscar-guias -- Guide lookup endpoint (Phase 26)
+  // =========================================================================
+
+  app.post('/api/buscar-guias', (req: Request, res: Response) => {
+    const body = req.body as Partial<GuideLookupRequest>
+
+    // ------------------------------------------------------------------
+    // a) Validate required fields
+    // ------------------------------------------------------------------
+
+    if (!body.workspaceId) {
+      res.status(400).json({ success: false, error: 'Campo requerido: workspaceId' })
+      return
+    }
+    if (!body.credentials || !body.credentials.username || !body.credentials.password) {
+      res.status(400).json({ success: false, error: 'Campo requerido: credentials' })
+      return
+    }
+    if (!body.callbackUrl) {
+      res.status(400).json({ success: false, error: 'Campo requerido: callbackUrl' })
+      return
+    }
+    if (!body.jobId) {
+      res.status(400).json({ success: false, error: 'Campo requerido: jobId' })
+      return
+    }
+    if (!body.pedidoNumbers || !Array.isArray(body.pedidoNumbers) || body.pedidoNumbers.length === 0) {
+      res.status(400).json({ success: false, error: 'Campo requerido: pedidoNumbers (array no vacío)' })
+      return
+    }
+
+    const { workspaceId, credentials, callbackUrl, callbackSecret, jobId, pedidoNumbers } = body as GuideLookupRequest
+
+    // ------------------------------------------------------------------
+    // b) Check jobId idempotency cache
+    // ------------------------------------------------------------------
+
+    const cached = completedGuideLookups.get(jobId)
+    if (cached) {
+      res.status(200).json(cached)
+      return
+    }
+
+    // ------------------------------------------------------------------
+    // c) Check workspace lock (concurrent operations)
+    // ------------------------------------------------------------------
+
+    if (isWorkspaceLocked(workspaceId)) {
+      res.status(409).json({ success: false, error: 'Ya hay una operación en proceso para este workspace' })
+      return
+    }
+
+    // ------------------------------------------------------------------
+    // d) Acknowledge immediately
+    // ------------------------------------------------------------------
+
+    const response = { success: true, jobId }
+    completedGuideLookups.set(jobId, response)
+    res.status(200).json(response)
+
+    // ------------------------------------------------------------------
+    // e) Process in background
+    // ------------------------------------------------------------------
+
+    processGuideLookup(workspaceId, credentials, callbackUrl, callbackSecret, jobId, pedidoNumbers)
+      .catch(err => console.error('[Server] Guide lookup fatal error:', err))
+  })
+
   return app
 }
 
@@ -301,6 +375,73 @@ async function processBatch(
       }
     } finally {
       // ALWAYS close adapter to prevent zombie Chromium processes
+      await adapter.close()
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Background Guide Lookup Processing (Phase 26)
+// ---------------------------------------------------------------------------
+
+async function processGuideLookup(
+  workspaceId: string,
+  credentials: { username: string; password: string },
+  callbackUrl: string,
+  callbackSecret: string | undefined,
+  jobId: string,
+  pedidoNumbers: GuideLookupItem[],
+): Promise<void> {
+  await withWorkspaceLock(workspaceId, async () => {
+    const adapter = new CoordinadoraAdapter(credentials, workspaceId)
+
+    try {
+      await adapter.init()
+
+      const loginSuccess = await adapter.login()
+      if (!loginSuccess) {
+        console.error(`[Server] Login failed for guide lookup, workspace ${workspaceId}`)
+        for (const item of pedidoNumbers) {
+          await reportResult(callbackUrl, {
+            itemId: item.itemId,
+            status: 'error',
+            errorType: 'portal',
+            errorMessage: 'Login fallido en el portal de Coordinadora',
+          }, callbackSecret)
+        }
+        return
+      }
+
+      // Read the pedidos table once (batch optimized)
+      const pedidoNumberStrings = pedidoNumbers.map(p => p.pedidoNumber)
+      const guiaMap = await adapter.buscarGuiasPorPedidos(pedidoNumberStrings)
+
+      // Report result for each pedido
+      for (const item of pedidoNumbers) {
+        const guia = guiaMap.get(item.pedidoNumber)
+
+        const result: GuideLookupResult = {
+          itemId: item.itemId,
+          status: 'success',  // Always success -- pendiente is not an error
+          trackingNumber: guia || undefined,  // Reuse trackingNumber field for the guide
+          guideFound: !!guia,
+        }
+
+        await reportResult(callbackUrl, result, callbackSecret)
+      }
+
+      console.log(`[Server] Guide lookup complete: ${guiaMap.size}/${pedidoNumbers.length} guides found`)
+    } catch (err) {
+      console.error(`[Server] Fatal guide lookup error for workspace ${workspaceId}:`, err)
+      for (const item of pedidoNumbers) {
+        await reportResult(callbackUrl, {
+          itemId: item.itemId,
+          status: 'error',
+          errorType: 'unknown',
+          errorMessage: 'Error fatal en la búsqueda de guías',
+        }, callbackSecret).catch(() => {})
+      }
+    } finally {
       await adapter.close()
     }
   })

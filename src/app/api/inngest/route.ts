@@ -34,6 +34,7 @@ import { robotOrchestratorFunctions } from '@/inngest/functions/robot-orchestrat
  * - automation-*: 10 automation runners for CRM trigger events (Phase 17)
  * - task-overdue-cron: 15-minute cron for overdue task detection (Phase 18)
  * - robot-orchestrator: Robot job dispatch + batch completion wait (Phase 23)
+ * - guide-lookup-orchestrator: Guide lookup dispatch + batch completion wait (Phase 26)
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,

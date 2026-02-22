@@ -98,6 +98,15 @@ export async function POST(request: NextRequest) {
   const jobData = item.robot_jobs as unknown as { workspace_id: string }
   const workspaceId = jobData.workspace_id
 
+  // Minimal lookup: only for the emitRobotCoordCompleted guard in section 5.
+  // Field routing (tracking_number vs carrier_guide_number) is handled
+  // entirely by the domain layer in updateJobItemResult.
+  const { data: parentJob } = await supabase
+    .from('robot_jobs')
+    .select('job_type')
+    .eq('id', item.job_id)
+    .single()
+
   // ------------------------------------------------------------------
   // 4. Call domain layer: updateJobItemResult
   //    Handles idempotency guard, item update, order carrier/tracking,
@@ -121,8 +130,10 @@ export async function POST(request: NextRequest) {
   // 5. On success: fire automation trigger (robot.coord.completed)
   //    Enrich with order + contact data for rich trigger context.
   //    Trigger failure is caught and logged -- never fails the callback.
+  //    SKIP for guide_lookup jobs: field.changed fires from domain layer
+  //    via updateOrder -> emitFieldChanged for carrier_guide_number.
   // ------------------------------------------------------------------
-  if (status === 'success' && trackingNumber) {
+  if (status === 'success' && trackingNumber && parentJob?.job_type !== 'guide_lookup') {
     try {
       const { data: order } = await supabase
         .from('orders')

@@ -2,11 +2,11 @@
 
 /**
  * Comandos Layout Component
- * Phase 24 + Phase 27: Chat de Comandos UI
+ * Phase 24 + Phase 27 + Phase 28: Chat de Comandos UI
  *
  * Client root that manages all state for the Comandos module.
  * Handles command parsing, realtime progress tracking, job lifecycle,
- * file upload staging, and OCR result rendering.
+ * file upload staging, OCR result rendering, and PDF/Excel guide generation.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -19,6 +19,9 @@ import {
   executeSubirOrdenesCoord,
   executeBuscarGuiasCoord,
   executeLeerGuias,
+  executeGenerarGuiasInter,
+  executeGenerarGuiasBogota,
+  executeGenerarExcelEnvia,
   getJobStatus,
   getCommandHistory,
   getJobItemsForHistory,
@@ -82,6 +85,14 @@ export type CommandMessage =
       ocrFailed: Array<{
         fileName: string
       }>
+      timestamp: string
+    }
+  | {
+      type: 'document_result'
+      documentUrl: string
+      documentType: 'pdf' | 'excel'
+      totalOrders: number
+      carrierName: string
       timestamp: string
     }
   | { type: 'error'; text: string; timestamp: string }
@@ -176,7 +187,27 @@ export function ComandosLayout() {
   // ---- Completion detection ----
   useEffect(() => {
     if (isComplete && !prevIsCompleteRef.current && activeJobId) {
-      if (activeJobType === 'ocr_guide_read') {
+      // FIRST: PDF/Excel guide completion -> document_result message
+      if (['pdf_guide_inter', 'pdf_guide_bogota', 'excel_guide_envia'].includes(activeJobType ?? '')) {
+        // Find download URL from first successful item
+        const successItem = items.find(i => i.status === 'success' && i.value_sent)
+        const documentUrl = (successItem?.value_sent as any)?.documentUrl
+        const isExcel = activeJobType === 'excel_guide_envia'
+        const carrierNames: Record<string, string> = {
+          'pdf_guide_inter': 'Inter Rapidisimo',
+          'pdf_guide_bogota': 'Bogota',
+          'excel_guide_envia': 'Envia',
+        }
+        addMessage({
+          type: 'document_result',
+          documentUrl: documentUrl || '',
+          documentType: isExcel ? 'excel' : 'pdf',
+          totalOrders: successCount,
+          carrierName: carrierNames[activeJobType!] || activeJobType!,
+          timestamp: now(),
+        })
+      // SECOND: OCR completion -> ocr_result message
+      } else if (activeJobType === 'ocr_guide_read') {
         // Parse structured OCR metadata from value_sent JSONB (set by orchestrator)
         type OcrMeta = Record<string, unknown>
 
@@ -233,6 +264,7 @@ export function ComandosLayout() {
           ocrFailed,
           timestamp: now(),
         })
+      // THIRD: Default -> shipment/guide result
       } else {
         // Existing result message for shipment/guide jobs
         const details = items
@@ -435,6 +467,63 @@ export function ComandosLayout() {
 
         setActiveJobId(data.jobId)
         setActiveJobType('ocr_guide_read')
+        return
+      }
+
+      if (normalized === 'generar guias inter') {
+        setIsExecuting(true)
+        addMessage({ type: 'system', text: 'Preparando guias Interrapidisimo...', timestamp: now() })
+        const result = await executeGenerarGuiasInter()
+        if (!result.success) {
+          addMessage({ type: 'error', text: result.error!, timestamp: now() })
+          setIsExecuting(false)
+          return
+        }
+        addMessage({
+          type: 'system',
+          text: `Job creado: generando guias para ${result.data!.totalOrders} ordenes.`,
+          timestamp: now(),
+        })
+        setActiveJobId(result.data!.jobId)
+        setActiveJobType('pdf_guide_inter')
+        return
+      }
+
+      if (normalized === 'generar guias bogota') {
+        setIsExecuting(true)
+        addMessage({ type: 'system', text: 'Preparando guias Bogota...', timestamp: now() })
+        const result = await executeGenerarGuiasBogota()
+        if (!result.success) {
+          addMessage({ type: 'error', text: result.error!, timestamp: now() })
+          setIsExecuting(false)
+          return
+        }
+        addMessage({
+          type: 'system',
+          text: `Job creado: generando guias para ${result.data!.totalOrders} ordenes.`,
+          timestamp: now(),
+        })
+        setActiveJobId(result.data!.jobId)
+        setActiveJobType('pdf_guide_bogota')
+        return
+      }
+
+      if (normalized === 'generar excel envia') {
+        setIsExecuting(true)
+        addMessage({ type: 'system', text: 'Preparando Excel Envia...', timestamp: now() })
+        const result = await executeGenerarExcelEnvia()
+        if (!result.success) {
+          addMessage({ type: 'error', text: result.error!, timestamp: now() })
+          setIsExecuting(false)
+          return
+        }
+        addMessage({
+          type: 'system',
+          text: `Job creado: generando Excel para ${result.data!.totalOrders} ordenes.`,
+          timestamp: now(),
+        })
+        setActiveJobId(result.data!.jobId)
+        setActiveJobType('excel_guide_envia')
         return
       }
 

@@ -2,15 +2,16 @@
 
 /**
  * Command Output
- * Phase 24 + Phase 27: Chat de Comandos UI
+ * Phase 24 + Phase 27 + Phase 28: Chat de Comandos UI
  *
  * Scrollable output area showing typed command messages.
  * Auto-scrolls to bottom on new messages.
  * Renders OCR result summaries with categorized guide matching results.
+ * Renders document_result messages with download links for generated PDFs/Excels.
  */
 
 import { useEffect, useRef } from 'react'
-import { ChevronRight, AlertCircle, HelpCircle, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
+import { ChevronRight, AlertCircle, HelpCircle, CheckCircle2, AlertTriangle, XCircle, Download } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,9 @@ const HELP_COMMANDS = [
   { cmd: 'subir ordenes coord', desc: 'Subir ordenes pendientes a Coordinadora' },
   { cmd: 'buscar guias coord', desc: 'Buscar guias asignadas por Coordinadora' },
   { cmd: 'leer guias', desc: 'Leer guias de envio por OCR (adjuntar fotos)' },
+  { cmd: 'generar guias inter', desc: 'Generar guias PDF para Interrapidisimo' },
+  { cmd: 'generar guias bogota', desc: 'Generar guias PDF para envios Bogota' },
+  { cmd: 'generar excel envia', desc: 'Generar archivo Excel para carga masiva Envia' },
   { cmd: 'estado', desc: 'Ver estado del job activo' },
   { cmd: 'ayuda', desc: 'Mostrar esta ayuda' },
 ]
@@ -200,6 +204,30 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )
+
+    case 'document_result':
+      return (
+        <div className="pl-6 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+            <CheckCircle2 className="h-4 w-4" />
+            Documento generado: {message.carrierName}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {message.totalOrders} orden{message.totalOrders !== 1 ? 'es' : ''} procesada{message.totalOrders !== 1 ? 's' : ''}
+          </div>
+          {message.documentUrl && (
+            <a
+              href={message.documentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <Download className="h-4 w-4" />
+              Descargar {message.documentType === 'pdf' ? 'PDF' : 'Excel'}
+            </a>
           )}
         </div>
       )

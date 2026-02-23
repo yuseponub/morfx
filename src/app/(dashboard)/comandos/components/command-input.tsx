@@ -2,14 +2,15 @@
 
 /**
  * Command Input
- * Phase 24 + Phase 27: Chat de Comandos UI
+ * Phase 24 + Phase 27 + Phase 28: Chat de Comandos UI
  *
  * Input bar with text entry, quick-action chips, and file upload (drag-and-drop + file picker).
  * Includes inline confirmation for destructive commands.
+ * Chips for guide PDF/Excel generation (Inter, Bogota, Envia).
  */
 
 import { useState, useCallback, useRef, type KeyboardEvent } from 'react'
-import { Send, Upload, Activity, HelpCircle, Image as ImageIcon, Paperclip } from 'lucide-react'
+import { Send, Upload, Activity, HelpCircle, Image as ImageIcon, Paperclip, FileText, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -105,6 +106,36 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
             >
               <ImageIcon className="h-3.5 w-3.5" />
               Leer guias
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onCommand('generar guias inter')}
+              disabled={isDisabled}
+              className="gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Guias Inter
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onCommand('generar guias bogota')}
+              disabled={isDisabled}
+              className="gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Guias Bogota
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onCommand('generar excel envia')}
+              disabled={isDisabled}
+              className="gap-1.5"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel Envia
             </Button>
             <Button
               variant="outline"

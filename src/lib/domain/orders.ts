@@ -971,7 +971,6 @@ export async function getOrdersForOcrMatching(
       .select('id, name, shipping_city, shipping_address, contact_id, contacts:contact_id(id, name, phone)')
       .eq('workspace_id', ctx.workspaceId)
       .eq('stage_id', stageId)
-      .is('carrier_guide_number', null)
 
     if (error) {
       return { success: false, error: `Error obteniendo pedidos para OCR: ${error.message}` }

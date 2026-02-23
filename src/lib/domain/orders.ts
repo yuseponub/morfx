@@ -1113,3 +1113,108 @@ export async function getOrdersPendingGuide(
     return { success: false, error: message }
   }
 }
+
+// ============================================================================
+// getOrdersForGuideGeneration
+// ============================================================================
+
+export interface OrderForGuideGen {
+  id: string
+  name: string | null
+  contact_name: string | null
+  contact_phone: string | null
+  shipping_address: string | null
+  shipping_city: string | null
+  shipping_department: string | null
+  total_value: number
+  products: Array<{ quantity: number }>
+  custom_fields: Record<string, unknown>
+  tags: string[]  // tag names for PAGO ANTICIPADO detection
+}
+
+/**
+ * Get orders in a specific pipeline stage with full shipping data and tags.
+ * Used by guide generation commands (Inter, Bogota, Envia) to gather order data
+ * for PDF/Excel generation.
+ *
+ * Uses a 2-query batch pattern (like getJobItemsWithOrderInfo):
+ *   1. Fetch orders with contacts and products
+ *   2. Batch-fetch order_tags with tag names for all order IDs
+ *   3. Map tags onto orders
+ *
+ * Tags are needed for "PAGO ANTICIPADO" detection in the Claude normalization prompt.
+ */
+export async function getOrdersForGuideGeneration(
+  ctx: DomainContext,
+  stageId: string
+): Promise<DomainResult<OrderForGuideGen[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    // Query 1: Fetch orders with contacts and products
+    const { data, error } = await supabase
+      .from('orders')
+      .select(
+        'id, name, shipping_address, shipping_city, shipping_department, total_value, custom_fields, contacts(name, phone), order_products(quantity)'
+      )
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('stage_id', stageId)
+
+    if (error) {
+      return { success: false, error: `Error obteniendo pedidos para generacion de guias: ${error.message}` }
+    }
+
+    const orders = data ?? []
+
+    if (orders.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    // Query 2: Batch-fetch tags for all order IDs
+    const orderIds = orders.map((o) => o.id)
+    const { data: orderTags, error: tagsError } = await supabase
+      .from('order_tags')
+      .select('order_id, tags(name)')
+      .in('order_id', orderIds)
+
+    if (tagsError) {
+      // Non-fatal: proceed without tags rather than failing the entire query
+      console.error('[orders] Error fetching tags for guide generation:', tagsError.message)
+    }
+
+    // Build Map<orderId, string[]> of tag names
+    const tagMap = new Map<string, string[]>()
+    for (const row of orderTags ?? []) {
+      const tagName = (row.tags as unknown as { name: string } | null)?.name
+      if (!tagName) continue
+      const existing = tagMap.get(row.order_id) ?? []
+      existing.push(tagName)
+      tagMap.set(row.order_id, existing)
+    }
+
+    // Map orders with enriched data
+    const mapped: OrderForGuideGen[] = orders.map((row) => {
+      const contact = row.contacts as unknown as { name: string; phone: string } | null
+      const products = (row.order_products as unknown as Array<{ quantity: number }>) ?? []
+
+      return {
+        id: row.id,
+        name: row.name,
+        contact_name: contact?.name ?? null,
+        contact_phone: contact?.phone ?? null,
+        shipping_address: row.shipping_address,
+        shipping_city: row.shipping_city,
+        shipping_department: row.shipping_department,
+        total_value: row.total_value ?? 0,
+        products: products.map((p) => ({ quantity: p.quantity })),
+        custom_fields: (row.custom_fields as Record<string, unknown>) ?? {},
+        tags: tagMap.get(row.id) ?? [],
+      }
+    })
+
+    return { success: true, data: mapped }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}

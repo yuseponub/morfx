@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 27 In Progress (3/4 plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 27 Complete, Phase 28 next
 
 ## Current Position
 
 Phase: 27 — Robot OCR de Guias
-Plan: 03 of 4
-Status: In progress
-Last activity: 2026-02-23 — Completed 27-03-PLAN.md (Inngest Orchestrator + Trigger)
+Plan: 04 of 4
+Status: COMPLETE
+Last activity: 2026-02-23 — Completed Phase 27 (Robot OCR de Guias)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 97% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 98% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -38,7 +38,7 @@ All 9 phases + 5 inserted phases completed:
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
-| 27 | Robot OCR de Guias | IN PROGRESS (3/4 plans) |
+| 27 | Robot OCR de Guias | COMPLETE (4/4 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -53,8 +53,8 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 35 (31 milestone + 4 standalone)
-- Total plans completed: 176
+- Total phases completed: 36 (32 milestone + 4 standalone)
+- Total plans completed: 180
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -165,6 +165,12 @@ Decisions logged in PROJECT.md Key Decisions table.
 - updateJobItemResult skips updateOrder for ocr_guide_read jobs (orchestrator handles directly)
 - Callback route trigger guard changed to positive create_shipment check (explicit, future-proof)
 - Structured value_sent JSONB with ocrCategory discriminator (auto_assigned, low_confidence, no_match, ocr_failed)
+- Claude Vision MUST use base64 (not URL) — URL access unreliable, causes hallucination with high confidence
+- OCR model: claude-sonnet-4-6 minimum (Sonnet 4 hallucinated guide data)
+- OCR stage config separate from dispatch stage (ocr_pipeline_id/ocr_stage_id in carrier_configs)
+- OCR writes to tracking_number (not carrier_guide_number) for external carriers
+- Carrier field is free text input (not hardcoded dropdown), stored uppercase
+- OCR matching: all orders in stage are eligible (no tracking_number filter, allows re-assignment)
 
 ### Project Rules
 
@@ -200,6 +206,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 27-03-PLAN.md (Inngest Orchestrator + Trigger)
+Stopped at: Completed Phase 27 (Robot OCR de Guias)
 Resume file: None
-Next: Execute 27-04-PLAN.md (Chat UI Integration)
+Next: Plan Phase 28 (Robot Creador de Guias PDF)

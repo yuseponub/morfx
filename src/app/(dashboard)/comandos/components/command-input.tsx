@@ -2,25 +2,31 @@
 
 /**
  * Command Input
- * Phase 24: Chat de Comandos UI
+ * Phase 24 + Phase 27: Chat de Comandos UI
  *
- * Input bar with text entry and quick-action chips.
+ * Input bar with text entry, quick-action chips, and file upload (drag-and-drop + file picker).
  * Includes inline confirmation for destructive commands.
  */
 
-import { useState, useCallback, type KeyboardEvent } from 'react'
-import { Send, Upload, Activity, HelpCircle } from 'lucide-react'
+import { useState, useCallback, useRef, type KeyboardEvent } from 'react'
+import { Send, Upload, Activity, HelpCircle, Image as ImageIcon, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 interface CommandInputProps {
   onCommand: (input: string) => void
+  onFilesSelected: (files: Array<{ fileName: string; mimeType: string; base64Data: string }>) => void
   isDisabled: boolean
+  /** Number of files currently staged for upload */
+  stagedFileCount: number
 }
 
-export function CommandInput({ onCommand, isDisabled }: CommandInputProps) {
+export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFileCount }: CommandInputProps) {
   const [inputValue, setInputValue] = useState('')
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = useCallback(() => {
     const trimmed = inputValue.trim()
@@ -54,8 +60,55 @@ export function CommandInput({ onCommand, isDisabled }: CommandInputProps) {
     setShowConfirmation(false)
   }, [])
 
+  // ---- File handling ----
+  const handleFiles = useCallback(async (fileList: FileList) => {
+    const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+    const converted: Array<{ fileName: string; mimeType: string; base64Data: string }> = []
+
+    for (const file of Array.from(fileList)) {
+      if (!ALLOWED.has(file.type)) continue
+      const buffer = await file.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      let binary = ''
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      const base64Data = btoa(binary)
+      converted.push({ fileName: file.name, mimeType: file.type, base64Data })
+    }
+
+    if (converted.length > 0) {
+      onFilesSelected(converted)
+    }
+  }, [onFilesSelected])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    if (e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files)
+    }
+  }, [handleFiles])
+
   return (
-    <div className="border-t bg-card p-3 space-y-3">
+    <div
+      className={cn(
+        "border-t bg-card p-3 space-y-3",
+        isDragOver && "ring-2 ring-primary ring-inset bg-primary/5"
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Quick-action chips */}
       <div className="flex items-center gap-2 flex-wrap">
         {!showConfirmation ? (
@@ -69,6 +122,16 @@ export function CommandInput({ onCommand, isDisabled }: CommandInputProps) {
             >
               <Upload className="h-3.5 w-3.5" />
               Subir ordenes
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isDisabled}
+              className="gap-1.5"
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              Leer guias
             </Button>
             <Button
               variant="outline"
@@ -115,13 +178,31 @@ export function CommandInput({ onCommand, isDisabled }: CommandInputProps) {
         )}
       </div>
 
+      {/* Staged files indicator */}
+      {stagedFileCount > 0 && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+          <Paperclip className="h-3.5 w-3.5" />
+          {stagedFileCount} archivo{stagedFileCount > 1 ? 's' : ''} adjunto{stagedFileCount > 1 ? 's' : ''}
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        className="hidden"
+        onChange={(e) => e.target.files && handleFiles(e.target.files)}
+      />
+
       {/* Text input */}
       <div className="flex items-center gap-2">
         <Input
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isDisabled ? 'Job en progreso...' : 'Escribe un comando...'}
+          placeholder={isDisabled ? 'Job en progreso...' : stagedFileCount > 0 ? 'Escribe "leer guias" para procesar...' : 'Escribe un comando...'}
           disabled={isDisabled}
           className="flex-1"
         />

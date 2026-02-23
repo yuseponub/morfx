@@ -2,10 +2,11 @@
 
 /**
  * Comandos Layout Component
- * Phase 24: Chat de Comandos UI
+ * Phase 24 + Phase 27: Chat de Comandos UI
  *
  * Client root that manages all state for the Comandos module.
- * Handles command parsing, realtime progress tracking, and job lifecycle.
+ * Handles command parsing, realtime progress tracking, job lifecycle,
+ * file upload staging, and OCR result rendering.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -17,6 +18,7 @@ import { useRobotJobProgress } from '@/hooks/use-robot-job-progress'
 import {
   executeSubirOrdenesCoord,
   executeBuscarGuiasCoord,
+  executeLeerGuias,
   getJobStatus,
   getCommandHistory,
   getJobItemsForHistory,
@@ -57,6 +59,31 @@ export type CommandMessage =
       }>
       timestamp: string
     }
+  | {
+      type: 'ocr_result'
+      autoAssigned: Array<{
+        guideNumber: string
+        orderName: string | null
+        carrier: string
+        confidence: number
+        matchedBy: string
+      }>
+      pendingConfirmation: Array<{
+        guideNumber: string | null
+        suggestedOrderName: string | null
+        carrier: string
+        confidence: number
+        matchedBy: string
+      }>
+      noMatch: Array<{
+        guideNumber: string | null
+        carrier: string
+      }>
+      ocrFailed: Array<{
+        fileName: string
+      }>
+      timestamp: string
+    }
   | { type: 'error'; text: string; timestamp: string }
   | { type: 'help'; timestamp: string }
 
@@ -77,10 +104,14 @@ export function ComandosLayout() {
   const [messages, setMessages] = useState<CommandMessage[]>([])
   // Active job tracking
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  // Active job type (for OCR vs shipment result rendering)
+  const [activeJobType, setActiveJobType] = useState<string | null>(null)
   // Job history
   const [history, setHistory] = useState<RobotJob[]>([])
   // Input disabled flag
   const [isExecuting, setIsExecuting] = useState(false)
+  // Staged files for OCR upload
+  const [stagedFiles, setStagedFiles] = useState<Array<{ fileName: string; mimeType: string; base64Data: string }>>([])
   // Track previous processed count to detect changes
   const prevProcessedRef = useRef(0)
   // Track previous isComplete to detect transition
@@ -102,6 +133,14 @@ export function ComandosLayout() {
       setHistory(result.data)
     }
   }, [])
+
+  // ---- File staging handler ----
+  const handleFilesSelected = useCallback(
+    (files: Array<{ fileName: string; mimeType: string; base64Data: string }>) => {
+      setStagedFiles(prev => [...prev, ...files])
+    },
+    []
+  )
 
   // ---- Progress message injection ----
   // When successCount + errorCount changes and job is active,
@@ -137,32 +176,92 @@ export function ComandosLayout() {
   // ---- Completion detection ----
   useEffect(() => {
     if (isComplete && !prevIsCompleteRef.current && activeJobId) {
-      // Build result details from items (filter out null order_ids for shipment/guide jobs)
-      const details = items
-        .filter(item => item.order_id != null)
-        .map(item => ({
-          orderId: item.order_id!,
-          orderName: null as string | null,
-          status: item.status === 'success' ? ('success' as const) : ('error' as const),
-          trackingNumber: item.tracking_number ?? undefined,
-          errorMessage: item.error_message ?? undefined,
-        }))
+      if (activeJobType === 'ocr_guide_read') {
+        // Parse structured OCR metadata from value_sent JSONB (set by orchestrator)
+        type OcrMeta = Record<string, unknown>
 
-      addMessage({
-        type: 'result',
-        success: successCount,
-        error: errorCount,
-        details,
-        timestamp: now(),
-      })
+        const autoAssigned: Array<{ guideNumber: string; orderName: string | null; carrier: string; confidence: number; matchedBy: string }> = []
+        const lowConfidence: Array<{ guideNumber: string | null; suggestedOrderName: string | null; carrier: string; confidence: number; matchedBy: string }> = []
+        const noMatch: Array<{ guideNumber: string | null; carrier: string }> = []
+        const ocrFailed: Array<{ fileName: string }> = []
+
+        for (const item of items) {
+          const meta = (item.value_sent ?? {}) as OcrMeta
+          const category = meta.ocrCategory as string | undefined
+
+          switch (category) {
+            case 'auto_assigned':
+              autoAssigned.push({
+                guideNumber: (meta.guideNumber as string) || 'N/A',
+                orderName: (meta.orderName as string | null) ?? null,
+                carrier: (meta.carrier as string) || 'DESCONOCIDA',
+                confidence: (meta.confidence as number) || 0,
+                matchedBy: (meta.matchedBy as string) || '',
+              })
+              break
+            case 'low_confidence':
+              lowConfidence.push({
+                guideNumber: (meta.guideNumber as string | null) ?? null,
+                suggestedOrderName: (meta.suggestedOrderName as string | null) ?? null,
+                carrier: (meta.carrier as string) || 'DESCONOCIDA',
+                confidence: (meta.confidence as number) || 0,
+                matchedBy: (meta.matchedBy as string) || '',
+              })
+              break
+            case 'no_match':
+              noMatch.push({
+                guideNumber: (meta.guideNumber as string | null) ?? null,
+                carrier: (meta.carrier as string) || 'DESCONOCIDA',
+              })
+              break
+            case 'ocr_failed':
+              ocrFailed.push({
+                fileName: (meta.fileName as string) || 'desconocido',
+              })
+              break
+            default:
+              // Fallback for items without value_sent
+              ocrFailed.push({ fileName: 'desconocido' })
+          }
+        }
+
+        addMessage({
+          type: 'ocr_result',
+          autoAssigned,
+          pendingConfirmation: lowConfidence,
+          noMatch,
+          ocrFailed,
+          timestamp: now(),
+        })
+      } else {
+        // Existing result message for shipment/guide jobs
+        const details = items
+          .filter(item => item.order_id != null)
+          .map(item => ({
+            orderId: item.order_id!,
+            orderName: null as string | null,
+            status: item.status === 'success' ? ('success' as const) : ('error' as const),
+            trackingNumber: item.tracking_number ?? undefined,
+            errorMessage: item.error_message ?? undefined,
+          }))
+
+        addMessage({
+          type: 'result',
+          success: successCount,
+          error: errorCount,
+          details,
+          timestamp: now(),
+        })
+      }
 
       setActiveJobId(null)
+      setActiveJobType(null)
       setIsExecuting(false)
       prevProcessedRef.current = 0
       loadHistory()
     }
     prevIsCompleteRef.current = isComplete
-  }, [isComplete, activeJobId, items, successCount, errorCount, addMessage, loadHistory])
+  }, [isComplete, activeJobId, activeJobType, items, successCount, errorCount, addMessage, loadHistory])
 
   // ---- Initial load ----
   useEffect(() => {
@@ -179,6 +278,7 @@ export function ComandosLayout() {
           activeJob.job.status === 'processing'
         ) {
           setActiveJobId(activeJob.job.id)
+          setActiveJobType(activeJob.job.job_type ?? null)
           addMessage({
             type: 'system',
             text: 'Reconectando a job activo...',
@@ -264,6 +364,7 @@ export function ComandosLayout() {
         }
 
         setActiveJobId(data.jobId)
+        setActiveJobType('create_shipment')
         return
       }
 
@@ -294,6 +395,46 @@ export function ComandosLayout() {
         })
 
         setActiveJobId(data.jobId)
+        setActiveJobType('guide_lookup')
+        return
+      }
+
+      if (normalized === 'leer guias') {
+        if (stagedFiles.length === 0) {
+          addMessage({
+            type: 'error',
+            text: 'Adjunta fotos de guias primero (arrastra o usa el boton "Leer guias").',
+            timestamp: now(),
+          })
+          return
+        }
+
+        setIsExecuting(true)
+        addMessage({
+          type: 'system',
+          text: `Leyendo ${stagedFiles.length} guia${stagedFiles.length > 1 ? 's' : ''}...`,
+          timestamp: now(),
+        })
+
+        const result = await executeLeerGuias({ files: stagedFiles })
+        // Clear staged files after submission
+        setStagedFiles([])
+
+        if (!result.success) {
+          addMessage({ type: 'error', text: result.error!, timestamp: now() })
+          setIsExecuting(false)
+          return
+        }
+
+        const data = result.data!
+        addMessage({
+          type: 'system',
+          text: `Job OCR creado: procesando ${data.totalFiles} archivo${data.totalFiles > 1 ? 's' : ''}.`,
+          timestamp: now(),
+        })
+
+        setActiveJobId(data.jobId)
+        setActiveJobType('ocr_guide_read')
         return
       }
 
@@ -304,7 +445,7 @@ export function ComandosLayout() {
         timestamp: now(),
       })
     },
-    [activeJobId, job, successCount, errorCount, totalItems, addMessage]
+    [activeJobId, job, successCount, errorCount, totalItems, addMessage, stagedFiles]
   )
 
   return (
@@ -319,6 +460,8 @@ export function ComandosLayout() {
             <CommandPanel
               messages={messages}
               onCommand={handleCommand}
+              onFilesSelected={handleFilesSelected}
+              stagedFileCount={stagedFiles.length}
               isExecuting={isExecuting}
               activeJobId={activeJobId}
               successCount={successCount}

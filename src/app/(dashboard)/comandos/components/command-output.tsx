@@ -2,14 +2,15 @@
 
 /**
  * Command Output
- * Phase 24: Chat de Comandos UI
+ * Phase 24 + Phase 27: Chat de Comandos UI
  *
  * Scrollable output area showing typed command messages.
  * Auto-scrolls to bottom on new messages.
+ * Renders OCR result summaries with categorized guide matching results.
  */
 
 import { useEffect, useRef } from 'react'
-import { ChevronRight, AlertCircle, HelpCircle } from 'lucide-react'
+import { ChevronRight, AlertCircle, HelpCircle, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,7 @@ interface CommandOutputProps {
 const HELP_COMMANDS = [
   { cmd: 'subir ordenes coord', desc: 'Subir ordenes pendientes a Coordinadora' },
   { cmd: 'buscar guias coord', desc: 'Buscar guias asignadas por Coordinadora' },
+  { cmd: 'leer guias', desc: 'Leer guias de envio por OCR (adjuntar fotos)' },
   { cmd: 'estado', desc: 'Ver estado del job activo' },
   { cmd: 'ayuda', desc: 'Mostrar esta ayuda' },
 ]
@@ -128,6 +130,77 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               </div>
             ))}
           </div>
+        </div>
+      )
+
+    case 'ocr_result':
+      return (
+        <div className="pl-6 space-y-3">
+          {/* Auto-assigned */}
+          {message.autoAssigned.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                Asignadas automaticamente ({message.autoAssigned.length})
+              </div>
+              {message.autoAssigned.map((item, idx) => (
+                <div key={idx} className="text-xs pl-6 flex items-center gap-2">
+                  <span className="font-mono">#{item.guideNumber}</span>
+                  <span className="text-muted-foreground">&rarr;</span>
+                  <span>{item.orderName || 'Orden'}</span>
+                  <Badge variant="outline" className="text-[10px]">{item.carrier}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pending confirmation */}
+          {message.pendingConfirmation.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                <AlertTriangle className="h-4 w-4" />
+                Pendientes de confirmacion ({message.pendingConfirmation.length})
+              </div>
+              {message.pendingConfirmation.map((item, idx) => (
+                <div key={idx} className="text-xs pl-6 flex items-center gap-2">
+                  <span className="font-mono">#{item.guideNumber || '?'}</span>
+                  <span className="text-muted-foreground">&rarr;</span>
+                  <span>{item.suggestedOrderName || '?'}</span>
+                  <span className="text-muted-foreground">({item.confidence}% por {item.matchedBy})</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* No match */}
+          {message.noMatch.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-orange-700 dark:text-orange-400">
+                <XCircle className="h-4 w-4" />
+                Sin coincidencia ({message.noMatch.length})
+              </div>
+              {message.noMatch.map((item, idx) => (
+                <div key={idx} className="text-xs pl-6">
+                  Guia {item.guideNumber || 'sin numero'} ({item.carrier})
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* OCR Failed */}
+          {message.ocrFailed.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
+                <AlertCircle className="h-4 w-4" />
+                No se pudo leer ({message.ocrFailed.length})
+              </div>
+              {message.ocrFailed.map((item, idx) => (
+                <div key={idx} className="text-xs pl-6 text-muted-foreground">
+                  {item.fileName}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )
 

@@ -2,10 +2,13 @@
  * Production Messaging Adapter
  * Phase 16.1: Engine Unification - Plan 03
  * Phase 18: Migrated to domain layer for message sending
+ * Phase 29: Character-based typing delays (replaces fixed delaySeconds)
  *
  * Sends agent responses via the domain message layer (which calls 360dialog
- * API + stores in DB). The adapter handles sequencing (delays between
- * messages) — that's adapter-specific. The actual send + DB goes through domain.
+ * API + stores in DB). The adapter handles sequencing with character-based
+ * delays that simulate human typing speed — short messages get brief pauses
+ * (~2s), longer messages ramp up to a 12s cap. The actual send + DB goes
+ * through domain.
  */
 
 import type { MessagingAdapter } from '../../engine/types'
@@ -13,6 +16,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendTextMessage as domainSendTextMessage, sendMediaMessage as domainSendMediaMessage } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
 
 const logger = createModuleLogger('production-messaging-adapter')
 
@@ -99,9 +103,11 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
     for (let i = 0; i < templates.length; i++) {
       const template = templates[i]
 
-      // Apply delay (skip for first message, skip if instantaneous)
-      if (i > 0 && template.delaySeconds > 0 && this.responseSpeed > 0) {
-        await sleep(template.delaySeconds * this.responseSpeed * 1000)
+      // Apply character-based delay (human-like typing simulation)
+      // Skip entirely if responseSpeed is 0 (instantaneo preset)
+      if (this.responseSpeed > 0) {
+        const delayMs = calculateCharDelay(template.content.length) * this.responseSpeed
+        await sleep(delayMs)
       }
 
       try {

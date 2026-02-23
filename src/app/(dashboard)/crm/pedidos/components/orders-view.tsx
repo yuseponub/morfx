@@ -116,6 +116,8 @@ interface OrdersViewProps {
   defaultPipelineId?: string
   defaultStageId?: string
   user: User | null
+  currentUserId?: string
+  isAdminOrOwner?: boolean
 }
 
 /**
@@ -129,6 +131,8 @@ export function OrdersView({
   defaultPipelineId,
   defaultStageId,
   user,
+  currentUserId,
+  isAdminOrOwner,
 }: OrdersViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -891,6 +895,8 @@ export function OrdersView({
         onEdit={handleEditFromSheet}
         onDelete={handleDeleteFromSheet}
         onViewOrder={setViewingOrder}
+        currentUserId={currentUserId}
+        isAdminOrOwner={isAdminOrOwner}
       />
 
       {/* Delete confirmation dialog */}

@@ -38,11 +38,13 @@ import {
 } from '@/components/ui/select'
 import { OrderTagInput } from './order-tag-input'
 import { RelatedOrders } from './related-orders'
+import { OrderNotesSection } from './order-notes-section'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { moveOrderToStage, getRelatedOrders } from '@/app/actions/orders'
+import { getOrderNotes } from '@/app/actions/order-notes'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import type { OrderWithDetails, PipelineStage, RelatedOrder } from '@/lib/orders/types'
+import type { OrderWithDetails, PipelineStage, RelatedOrder, OrderNoteWithUser } from '@/lib/orders/types'
 
 // Format currency in COP
 function formatCurrency(value: number): string {
@@ -143,6 +145,8 @@ interface OrderSheetProps {
   onDelete: (order: OrderWithDetails) => void
   /** Navigate to a different order in the sheet */
   onViewOrder?: (order: OrderWithDetails) => void
+  currentUserId?: string
+  isAdminOrOwner?: boolean
 }
 
 /**
@@ -158,11 +162,15 @@ export function OrderSheet({
   onEdit,
   onDelete,
   onViewOrder,
+  currentUserId,
+  isAdminOrOwner,
 }: OrderSheetProps) {
   const router = useRouter()
   const [isChangingStage, setIsChangingStage] = React.useState(false)
   const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
   const [relatedOrders, setRelatedOrders] = React.useState<RelatedOrder[]>([])
+  const [orderNotes, setOrderNotes] = React.useState<OrderNoteWithUser[]>([])
+  const [notesLoading, setNotesLoading] = React.useState(false)
 
   // Sync local tags when order changes
   React.useEffect(() => {
@@ -179,6 +187,19 @@ export function OrderSheet({
       setRelatedOrders([])
     }
   }, [order?.id])
+
+  // Fetch notes when order sheet opens
+  React.useEffect(() => {
+    if (order?.id && open) {
+      setNotesLoading(true)
+      getOrderNotes(order.id)
+        .then(setOrderNotes)
+        .catch(() => setOrderNotes([]))
+        .finally(() => setNotesLoading(false))
+    } else {
+      setOrderNotes([])
+    }
+  }, [order?.id, open])
 
   if (!order) return null
 
@@ -472,18 +493,28 @@ export function OrderSheet({
               </>
             )}
 
-            {/* Notes */}
+            {/* Description */}
             {order.description && (
               <>
                 <Separator />
                 <section className="space-y-3">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Notas
+                    Descripcion
                   </h3>
                   <p className="text-sm whitespace-pre-wrap">{order.description}</p>
                 </section>
               </>
             )}
+
+            {/* Order Notes */}
+            <Separator />
+            <OrderNotesSection
+              orderId={order.id}
+              initialNotes={orderNotes}
+              currentUserId={currentUserId}
+              isAdminOrOwner={isAdminOrOwner}
+              loading={notesLoading}
+            />
 
             <Separator />
 

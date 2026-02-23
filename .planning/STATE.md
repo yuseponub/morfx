@@ -61,13 +61,14 @@ All 9 phases + 5 inserted phases completed:
 - CRM Orders Performance (2/3 plans) — IN PROGRESS
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
+- Order Notes System (1/2 plans) — IN PROGRESS
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 185
+- Total plans completed: 186
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -88,6 +89,10 @@ Phase 28 decisions:
 - Pipeline change resets both source and dest stage selections
 - Generate + upload in same Inngest step.run to avoid 4MB step output limit
 - Stage move errors non-fatal: logged but don't fail the job
+
+Order notes system decisions:
+- No activity logging for order notes (no order_activity table exists)
+- Extended existing domain/notes.ts rather than creating new file
 
 Recent decisions affecting v4.0:
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
@@ -119,6 +124,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 28-04-PLAN.md (Inngest orchestrators for PDF + Excel guide generation)
+Stopped at: Completed order-notes-01-PLAN.md (data foundation for order notes)
 Resume file: None
-Next: Execute 28-05-PLAN.md (chat commands + UI for guide generation)
+Next: Execute order-notes-02-PLAN.md (server actions + UI component)

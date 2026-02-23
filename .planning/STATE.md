@@ -54,13 +54,13 @@ All 9 phases + 5 inserted phases completed:
 - CRM Orders Performance (2/3 plans) — IN PROGRESS
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
-- Quick fixes: 5 completed (optimistic send, media null URL, workspace_id, task overdue, carrier-tracking-order-triggers)
+- Quick fixes: 6 completed (optimistic send, media null URL, workspace_id, task overdue, carrier-tracking-order-triggers, shopify-discount-handling)
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 180
+- Total plans completed: 181
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -177,6 +177,7 @@ Decisions logged in PROJECT.md Key Decisions table.
 - OCR writes to tracking_number (not carrier_guide_number) for external carriers
 - Carrier field is free text input (not hardcoded dropdown), stored uppercase
 - OCR matching: all orders in stage are eligible (no tracking_number filter, allows re-assignment)
+- Shopify discount: unit_price = price - (total_discount / quantity), trigger payloads include total_discount + discounted_price
 
 ### Project Rules
 
@@ -204,6 +205,7 @@ Established in `CLAUDE.md`:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 005 | Add carrier/tracking variables to order triggers | 2026-02-21 | bfcf6bf | [005-add-carrier-tracking-to-order-triggers](./quick/005-add-carrier-tracking-to-order-triggers/) |
+| 006 | Fix Shopify discount handling in order pricing | 2026-02-23 | ed24ad0 | [006-fix-shopify-discount-handling](./quick/006-fix-shopify-discount-handling/) |
 
 ### Blockers/Concerns
 

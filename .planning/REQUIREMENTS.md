@@ -86,13 +86,13 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| DELAY-01 | Phase 29 | Pending |
-| DELAY-02 | Phase 29 | Pending |
+| DELAY-01 | Phase 29 | Complete |
+| DELAY-02 | Phase 29 | Complete |
 | CLASS-01 | Phase 30 | Pending |
 | CLASS-02 | Phase 30 | Pending |
 | CLASS-03 | Phase 30 | Pending |
 | CLASS-04 | Phase 30 | Pending |
-| BLOCK-01 | Phase 29 | Pending |
+| BLOCK-01 | Phase 29 | Complete |
 | BLOCK-02 | Phase 31 | Pending |
 | BLOCK-03 | Phase 31 | Pending |
 | BLOCK-04 | Phase 31 | Pending |
@@ -111,7 +111,7 @@
 | OFINT-02 | Phase 35 | Pending |
 | OFINT-03 | Phase 35 | Pending |
 | OFINT-04 | Phase 35 | Pending |
-| INFRA-01 | Phase 29 | Pending |
+| INFRA-01 | Phase 29 | Complete |
 | INFRA-02 | Phase 33 | Pending |
 | INFRA-03 | Phase 34 | Pending |
 | DOC-01 | Phase 36 | Pending |

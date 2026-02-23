@@ -277,7 +277,7 @@ Plans:
 
 **Milestone Goal:** Hacer que Somnio se comporte como un vendedor humano real en WhatsApp -- delays inteligentes, clasificacion de mensajes, sistema de bloques con interrupcion y no-repeticion, procesamiento de medios, confidence thresholds, y flujo ofi inter.
 
-- [ ] **Phase 29: Inngest Migration + Character Delays** - Webhook async via Inngest concurrency-1, typing delays by character count
+- [x] **Phase 29: Inngest Migration + Character Delays** - Webhook async via Inngest concurrency-1, typing delays by character count
 - [ ] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
 - [ ] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
 - [ ] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
@@ -301,10 +301,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 29-01-PLAN.md — TDD: calculateCharDelay logarithmic curve (chars -> delay ms)
-- [ ] 29-02-PLAN.md — DB migration (processed_by_agent) + domain layer insert
-- [ ] 29-03-PLAN.md — Webhook handler Inngest wiring + feature flag + processed_by_agent lifecycle
-- [ ] 29-04-PLAN.md — Messaging adapter: replace fixed delay with calculateCharDelay
+- [x] 29-01-PLAN.md — TDD: calculateCharDelay logarithmic curve (chars -> delay ms)
+- [x] 29-02-PLAN.md — DB migration (processed_by_agent) + domain layer insert
+- [x] 29-03-PLAN.md — Webhook handler Inngest wiring + feature flag + processed_by_agent lifecycle
+- [x] 29-04-PLAN.md — Messaging adapter: replace fixed delay with calculateCharDelay
 
 **Success Criteria:**
 1. Webhook handler returns in ~200ms after saving the message and emitting an Inngest event (no inline agent processing)
@@ -477,14 +477,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
-| v4.0 Comportamiento Humano | 29-36 | TBD | Planned | — |
+| v4.0 Comportamiento Humano | 29-36 | 4+ (Phase 29 complete) | Phase 29 Complete | — |
 | Standalone | 6 phases | 18 | 5 complete, 1 in progress | |
 | **Total** | **47 phases** | **179+ plans** | | |
 
 ### Current Phase
 
-Phase 28: Robot Creador de Guias PDF — PLANNED (5 plans, 3 waves)
-Next milestone: v4.0 Comportamiento Humano (Phases 29-36)
+Phase 29: Inngest Migration + Character Delays — COMPLETE (4 plans, 2 waves)
+Next: Phase 30 Message Classification + Silence Timer
 
 ---
 

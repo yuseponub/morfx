@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Phase 29 Inngest Migration + Character Delays (v4.0 start)
+**Current focus:** Phase 30 Message Classification + Silence Timer (v4.0 Comportamiento Humano)
 
 ## Current Position
 
 Phase: 29 of 35 (Inngest Migration + Character Delays) - COMPLETE
 Plan: 4 of 4 complete
 Status: Phase complete
-Last activity: 2026-02-23 — Completed 29-03-PLAN.md (Inngest webhook processor + feature flag)
+Last activity: 2026-02-24 — Phase 29 complete, verified 5/5 must-haves
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [###░░░░░░░] 14% v4.0
 
@@ -67,9 +67,9 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 190
-- Total execution time: ~28 days (2026-01-26 to 2026-02-23)
+- Total phases completed: 37 (33 milestone + 4 standalone)
+- Total plans completed: 191
+- Total execution time: ~29 days (2026-01-26 to 2026-02-24)
 
 ## Accumulated Context
 
@@ -132,7 +132,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-23 COT
-Stopped at: Order Notes System phase COMPLETE (2/2 plans, verified)
+Last session: 2026-02-24 COT
+Stopped at: Phase 29 COMPLETE — verified 5/5 must-haves
 Resume file: None
-Next: Continue Phase 28 execution or plan Phase 29
+Next: /gsd:discuss-phase 30 (Message Classification + Silence Timer)

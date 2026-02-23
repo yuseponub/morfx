@@ -153,6 +153,20 @@ export const TRIGGER_CATALOG = [
       'contacto.nombre', 'contacto.telefono', 'contacto.email',
     ],
   },
+  // Robot OCR trigger (Phase 27: Robot OCR de Guias)
+  {
+    type: 'robot.ocr.completed',
+    label: 'Robot OCR de guias completado',
+    category: 'Logistica',
+    description: 'Se dispara cuando el robot OCR lee exitosamente una guia y la asigna a una orden',
+    configFields: [],
+    variables: [
+      'orden.id', 'orden.nombre',
+      'orden.carrier_guide_number', 'orden.carrier',
+      'orden.ciudad_envio',
+      'contacto.nombre', 'contacto.telefono',
+    ],
+  },
 ] as const
 
 // ============================================================================
@@ -469,6 +483,16 @@ export const VARIABLE_CATALOG = {
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'contacto.telefono', label: 'Telefono del contacto' },
     { path: 'contacto.email', label: 'Email del contacto' },
+  ],
+  // Robot OCR trigger (Phase 27: Robot OCR de Guias)
+  'robot.ocr.completed': [
+    { path: 'orden.id', label: 'ID de la orden' },
+    { path: 'orden.nombre', label: 'Nombre/referencia de la orden' },
+    { path: 'orden.carrier_guide_number', label: 'Numero de guia' },
+    { path: 'orden.carrier', label: 'Transportadora (detectada por OCR)' },
+    { path: 'orden.ciudad_envio', label: 'Ciudad de envio' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
   ],
 } as const
 

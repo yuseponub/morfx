@@ -1,95 +1,90 @@
-# Requirements: MorfX v3.0 Logística
+# Requirements: MorfX v4.0 Comportamiento Humano
 
-**Defined:** 2026-02-20
-**Core Value:** Operaciones puede despachar pedidos via robots de logística desde MorfX, eliminando la dependencia de Slack + N8N.
+**Estado:** APROBADO
+**Fecha:** 2026-02-23
+**Total:** 26 requirements en 7 categorías
 
-## v3.0 Requirements
+## Milestone v4.0 Requirements
 
-### Infraestructura de Datos
+### Etapa 1: Delays Inteligentes
 
-- [x] **DATA-01**: Sistema carga tabla de municipios DANE (1,122 municipios con códigos de 5 dígitos, departamentos, nombres alternativos)
-- [x] **DATA-02**: Tabla de cobertura por transportadora vinculada a municipios DANE (Coordinadora: 1,488 ciudades + 1,181 COD)
-- [x] **DATA-03**: Configuración de carrier por workspace (credenciales del portal, dirección de recogida, carrier default)
-- [x] **DATA-04**: Tablas de tracking de ejecuciones del robot (robot_jobs + robot_job_items con estado por orden)
+- [ ] **DELAY-01**: Mensajes del bot tienen delay proporcional a caracteres (curva 2s-12s) en vez de delay fijo
+- [ ] **DELAY-02**: Multiplicador de velocidad configurable por workspace (default 1.0, presets: real/rápido/instantáneo)
 
-### Robot Coordinadora
+### Etapa 2: Clasificación + Timer Retoma
 
-- [x] **ROBOT-01**: Microservicio Express + Playwright en Docker desplegado en Railway, con endpoints para crear pedidos en ff.coordinadora.com
-- [x] **ROBOT-02**: Validación de ciudades contra tabla de cobertura Coordinadora antes de enviar al robot
-- [x] **ROBOT-03**: Creación batch de pedidos con tracking individual por orden (status, guía, error por pedido)
-- [x] **ROBOT-04**: Persistencia de cookies/sesión para evitar re-login en cada batch (storageState API)
-- [x] **ROBOT-05**: Protección anti-duplicados: lock por workspace (1 batch a la vez), lock por pedido (skip si processing), idempotencia por batch ID
+- [ ] **CLASS-01**: Mensajes clasificados post-IntentDetector como RESPONDIBLE, SILENCIOSO, o HANDOFF
+- [ ] **CLASS-02**: Mensajes SILENCIOSO (ok, jaja, 👍 en estados no-confirmatorios) no generan respuesta
+- [ ] **CLASS-03**: 6 intents HANDOFF (asesor, queja, cancelar, no_gracias, no_interesa, fallback) apagan el bot y notifican host
+- [ ] **CLASS-04**: Timer de retoma 90s para mensajes SILENCIOSO (redirige a venta si no hay respuesta)
 
-### Chat de Comandos
+### Etapa 3: Sistema de Bloques
 
-- [x] **CHAT-01**: Panel tipo terminal con monospace font, dark background, input de texto, overflow-y-auto
-- [x] **CHAT-02**: Comandos fijos parseados: `subir ordenes coord`, `validar ciudades`, `estado`, `ayuda`
-- [x] **CHAT-03**: Progreso real-time via Supabase Realtime mostrando estado por orden procesada
-- [x] **CHAT-04**: Historial de jobs pasados con resultados, éxitos, errores y timestamps
+- [ ] **BLOCK-01**: Webhook migrado a evento Inngest con concurrency 1 por conversación (procesamiento async)
+- [ ] **BLOCK-02**: Check pre-envío antes de cada plantilla — si hay nuevo inbound, para la secuencia
+- [ ] **BLOCK-03**: Plantillas no enviadas se guardan como pendientes con prioridad CORE/COMP/OPC
+- [ ] **BLOCK-04**: Pendientes se mergean con siguiente bloque por prioridad (máx 3 plantillas por bloque)
+- [ ] **BLOCK-05**: No-repetición Nivel 1: lookup directo por template ID (gratis, 0ms)
+- [ ] **BLOCK-06**: No-repetición Nivel 2: Haiku compara minifrases temáticas (~200ms, ~$0.0003)
+- [ ] **BLOCK-07**: No-repetición Nivel 3: agente lee mensaje completo para cobertura parcial (~1-3s)
+- [ ] **BLOCK-08**: Intents repetidos envían top 2 plantillas por prioridad, parafraseadas por Claude
 
-### Integración Pipeline
+### Etapa 4: Procesamiento de Medios
 
-- [x] **PIPE-01**: Etapas del pipeline configurables por robot (mapear qué etapa activa qué robot)
-- [x] **PIPE-02**: Inngest orchestrator que conecta MorfX con robot service (evento → HTTP → resultado)
-- [x] **PIPE-03**: Callback API que recibe resultados del robot y actualiza pedidos via domain layer (triggers de automatización se disparan)
+- [ ] **MEDIA-01**: Audio/voice notes transcritos con Whisper → 1-2 intents procesados normal, 3+ intents → handoff
+- [ ] **MEDIA-02**: Imágenes y videos → handoff directo ("Regálame 1 min" + notificar host)
+- [ ] **MEDIA-03**: Stickers interpretados con Claude Vision → texto procesable o handoff
+- [ ] **MEDIA-04**: Reacciones emoji interpretadas como texto → procesadas o handoff si ambiguas
 
-### Documentación
+### Etapa 5: Confidence + Disambiguation
 
-- [x] **DOC-01**: Documentar arquitectura y patrones para robots futuros (Inter, Envia, Bogota) sin implementar código
+- [ ] **CONF-01**: Intents con confidence < 80% → handoff automático + log en disambiguation_log
+- [ ] **CONF-02**: Tabla disambiguation_log registra situación completa (mensaje, alternativas, contexto, pendientes)
+- [ ] **CONF-03**: Interfaz para que humano revise y guíe (correct_intent, correct_action, guidance_notes)
 
-## Future Requirements (v4.0+)
+### Etapa 6: Flujo Ofi Inter
 
-### Robots Adicionales
-- **FROBOT-01**: Robot Interrapidísimo — PDF shipping labels via PDFKit
-- **FROBOT-02**: Robot Envia — Excel bulk upload generation via ExcelJS
-- **FROBOT-03**: Robot Bogotá — Carrier local, proceso simplificado
-- **FROBOT-04**: OCR de guías — Claude Vision para leer fotos de guías físicas y matchear contra pedidos
+- [ ] **OFINT-01**: Detección de intención ofi inter: cliente dice directamente ("ofi inter", "recojo en inter"), o solo envía municipio sin dirección, o menciona municipio poco común/lejano
+- [ ] **OFINT-02**: Confirmación obligatoria: cuando se sospecha ofi inter, el agente SIEMPRE pregunta "¿Deseas recibir en oficina de Interrapidísimo?" antes de cambiar flujo
+- [ ] **OFINT-03**: Datos bifurcados: si ofi inter → pedir nombre, apellido, teléfono, cédula de quien recoge, municipio, departamento, correo (7 campos, sin dirección/barrio, con cédula)
+- [ ] **OFINT-04**: Integración con ingest: cuando solo llega municipio, el sistema acumula datos y luego pregunta si quiere ofi inter o envío normal
 
-### Features Avanzados
-- **FADV-01**: AI-powered command parsing (lenguaje natural → intent + parámetros)
-- **FADV-02**: Carrier-aware city autocomplete en formulario de pedidos
-- **FADV-03**: Dashboard de rendimiento por transportadora (tasa éxito, tiempo promedio)
-- **FADV-04**: Workflow de entregas fallidas (novedad → WhatsApp automático + tarea)
+### Infraestructura
+
+- [ ] **INFRA-01**: Campo `processed_by_agent` en tabla messages (boolean, para check pre-envío)
+- [ ] **INFRA-02**: Tabla `disambiguation_log` en Supabase
+- [ ] **INFRA-03**: Minifrases temáticas definidas manualmente para cada plantilla (~30)
+
+## Contexto Adicional
+
+- **Ofi Inter:** Solo aplica a Interrapidísimo. No hay lista fija de municipios "lejanos" — es criterio del vendedor (municipio poco conocido). Siempre se confirma antes de asumir ofi inter.
+- **Prioridades CORE/COMP/OPC:** Asignadas por plantilla por intent en DISCUSSION.md. CORE nunca se descarta, OPC primero en caer, máx 3 por bloque.
+- **Intents repetidos:** No más visit_type='siguientes'. Claude parafrasea top 2 plantillas por prioridad.
+- **Diseño completo:** `.planning/standalone/human-behavior/DISCUSSION.md`
+
+## Future Requirements (deferred)
+
+- Encryption de credenciales de portales (actualmente plaintext)
+- Make_call Twilio (diferido a fase futura)
+- Multi-carrier Ofi Inter (solo Interrapidísimo en v4.0)
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Carrier API integration | APIs colombianas son inestables o no existen. Playwright es battle-tested |
-| Real-time carrier tracking | APIs de tracking son unreliable. Guardar guía y link al portal del carrier |
-| Multi-carrier rate shopping | Tablas de tarifas cambian mensualmente. Equipo ya sabe costos por experiencia |
-| Warehouse management (WMS) | Operación COD despacha desde bodegas pequeñas. WMS no agrega valor |
-| Custom shipping label designer | Carriers usan sus propias etiquetas estándar |
-| Autonomous robot scheduling | Peligroso sin supervisión humana. Siempre requiere trigger manual |
-| Returns management module | Devoluciones COD son raras. Se manejan con etapa "Devuelto" + automatización |
+| Feature | Razón |
+|---------|-------|
+| IA generativa libre (sin plantillas) | Las plantillas son el core del sistema de venta |
+| Multi-idioma en templates | Solo español para mercado LATAM |
+| Dashboard de analytics de agente | Diferido a milestone posterior |
+| A/B testing de plantillas | Complejidad innecesaria en v4.0 |
+| Entrenamiento por feedback loop automático | disambiguation_log es manual por diseño (v4.0) |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| DATA-01 | Phase 21 | Complete |
-| DATA-02 | Phase 21 | Complete |
-| DATA-03 | Phase 21 | Complete |
-| DATA-04 | Phase 21 | Complete |
-| ROBOT-01 | Phase 22 | Complete |
-| ROBOT-02 | Phase 22 | Complete |
-| ROBOT-03 | Phase 22 | Complete |
-| ROBOT-04 | Phase 22 | Complete |
-| ROBOT-05 | Phase 22 | Complete |
-| CHAT-01 | Phase 24 | Complete |
-| CHAT-02 | Phase 24 | Complete |
-| CHAT-03 | Phase 24 | Complete |
-| CHAT-04 | Phase 24 | Complete |
-| PIPE-01 | Phase 25 | Complete |
-| PIPE-02 | Phase 23 | Complete |
-| PIPE-03 | Phase 23 | Complete |
-| DOC-01 | Phase 25 | Complete |
+*Filled by roadmapper — maps REQ-IDs to phases*
 
-**Coverage:**
-- v3.0 requirements: 17 total
-- Mapped to phases: 17
-- Unmapped: 0 ✓
+| REQ-ID | Phase |
+|--------|-------|
+| — | — |
 
 ---
-*Requirements defined: 2026-02-20*
-*Last updated: 2026-02-21 — CHAT-01 through CHAT-04 marked Complete (Phase 24)*
+*Requirements defined: 2026-02-23*

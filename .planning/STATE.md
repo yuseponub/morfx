@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Phase 28 Robot Creador de Guias PDF (v3.0 completion) + v4.0 planned
+**Current focus:** Phase 29 Inngest Migration + Character Delays (v4.0 start)
 
 ## Current Position
 
-Phase: 28 of 35 (Robot Creador de Guias PDF)
-Plan: 04 of 5 complete
+Phase: 29 of 35 (Inngest Migration + Character Delays)
+Plan: 02 of 4 complete
 Status: In progress
-Last activity: 2026-02-23 — Completed 28-04-PLAN.md (Inngest orchestrators for PDF + Excel guide generation)
+Last activity: 2026-02-23 — Completed 29-02-PLAN.md (processed_by_agent column + domain insert)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [░░░░░░░░░░] 0% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#░░░░░░░░░] 7% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -45,7 +45,7 @@ All 9 phases + 5 inserted phases completed:
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 29 | Inngest Migration + Character Delays | Ready to plan |
+| 29 | Inngest Migration + Character Delays | IN PROGRESS (2/4 plans) |
 | 30 | Message Classification + Silence Timer | Not started |
 | 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
 | 32 | Media Processing | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 186
+- Total plans completed: 187
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -124,6 +124,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed order-notes-01-PLAN.md (data foundation for order notes)
+Stopped at: Completed 29-02-PLAN.md (processed_by_agent column + domain insert)
 Resume file: None
-Next: Execute order-notes-02-PLAN.md (server actions + UI component)
+Next: Execute 29-03-PLAN.md (Inngest webhook processor + feature flag)

@@ -137,14 +137,16 @@ export function ComandosLayout() {
   // ---- Completion detection ----
   useEffect(() => {
     if (isComplete && !prevIsCompleteRef.current && activeJobId) {
-      // Build result details from items
-      const details = items.map(item => ({
-        orderId: item.order_id,
-        orderName: null as string | null,
-        status: item.status === 'success' ? ('success' as const) : ('error' as const),
-        trackingNumber: item.tracking_number ?? undefined,
-        errorMessage: item.error_message ?? undefined,
-      }))
+      // Build result details from items (filter out null order_ids for shipment/guide jobs)
+      const details = items
+        .filter(item => item.order_id != null)
+        .map(item => ({
+          orderId: item.order_id!,
+          orderName: null as string | null,
+          status: item.status === 'success' ? ('success' as const) : ('error' as const),
+          trackingNumber: item.tracking_number ?? undefined,
+          errorMessage: item.error_message ?? undefined,
+        }))
 
       addMessage({
         type: 'result',

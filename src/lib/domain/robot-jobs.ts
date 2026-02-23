@@ -38,7 +38,7 @@ export interface RobotJob {
 export interface RobotJobItem {
   id: string
   job_id: string
-  order_id: string
+  order_id: string | null
   status: 'pending' | 'processing' | 'success' | 'error'
   tracking_number: string | null
   validated_city: string | null
@@ -106,7 +106,7 @@ export interface CreateRobotJobResult {
 
 export interface UpdateJobItemResultResult {
   itemId: string
-  orderId: string
+  orderId: string | null
 }
 
 export interface UpdateJobStatusResult {
@@ -719,7 +719,18 @@ export async function getJobItemsWithOrderInfo(
     }
 
     // Query 2: Batch-fetch orders with contact names
-    const uniqueOrderIds = [...new Set(items.map((item) => item.order_id))]
+    // Filter out null order_ids (OCR items may not have an order assigned yet)
+    const uniqueOrderIds = [...new Set(items.map((item) => item.order_id).filter(Boolean) as string[])]
+
+    if (uniqueOrderIds.length === 0) {
+      // All items have null order_id (e.g. OCR job before matching)
+      const enrichedItems: JobItemWithOrderInfo[] = (items as RobotJobItem[]).map((item) => ({
+        ...item,
+        order_name: null,
+        contact_name: null,
+      }))
+      return { success: true, data: enrichedItems }
+    }
 
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
@@ -742,7 +753,7 @@ export async function getJobItemsWithOrderInfo(
 
     // Map order info onto items
     const enrichedItems: JobItemWithOrderInfo[] = (items as RobotJobItem[]).map((item) => {
-      const orderInfo = orderMap.get(item.order_id)
+      const orderInfo = item.order_id ? orderMap.get(item.order_id) : undefined
       return {
         ...item,
         order_name: orderInfo?.orderName ?? null,

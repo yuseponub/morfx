@@ -40,6 +40,19 @@ interface CommandResult<T = unknown> {
   error?: string
 }
 
+interface LeerGuiasInput {
+  files: Array<{
+    fileName: string
+    mimeType: string
+    base64Data: string
+  }>
+}
+
+interface LeerGuiasResult {
+  jobId: string
+  totalFiles: number
+}
+
 interface BuscarGuiasResult {
   jobId: string
   totalOrders: number
@@ -371,6 +384,176 @@ export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGui
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[comandos] executeBuscarGuiasCoord error:', message)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// executeLeerGuias
+// ============================================================================
+
+/**
+ * Full flow for "leer guias" command:
+ * 1. Validate auth
+ * 2. Upload files to Supabase Storage
+ * 3. Check for active OCR job
+ * 4. Get dispatch stage config (for matching stage)
+ * 5. Create robot job (job_type: 'ocr_guide_read')
+ * 6. Dispatch to Inngest with image URLs
+ */
+export async function executeLeerGuias(
+  input: LeerGuiasInput
+): Promise<CommandResult<LeerGuiasResult>> {
+  try {
+    // 1. Auth
+    const auth = await getAuthContext()
+    if ('error' in auth) return { success: false, error: auth.error }
+
+    const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+
+    if (!input.files || input.files.length === 0) {
+      return { success: false, error: 'No se adjuntaron archivos. Arrastra o selecciona fotos de guias.' }
+    }
+
+    // Validate file types
+    const ALLOWED_TYPES = new Set([
+      'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+    ])
+    for (const file of input.files) {
+      if (!ALLOWED_TYPES.has(file.mimeType)) {
+        return {
+          success: false,
+          error: `Formato no soportado: ${file.fileName}. Solo se aceptan JPG, PNG, WebP y PDF.`,
+        }
+      }
+    }
+
+    // 2. Upload files to Supabase Storage
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const supabase = createAdminClient()
+
+    const uploadedItems: Array<{
+      fileName: string
+      mimeType: string
+      imageUrl: string
+    }> = []
+
+    for (const file of input.files) {
+      const buffer = Buffer.from(file.base64Data, 'base64')
+      const filePath = `ocr-guides/${auth.workspaceId}/${Date.now()}-${file.fileName}`
+
+      const { error: uploadError } = await supabase
+        .storage
+        .from('whatsapp-media')
+        .upload(filePath, buffer, {
+          contentType: file.mimeType,
+          upsert: false,
+        })
+
+      if (uploadError) {
+        console.error(`[comandos] Storage upload failed for ${file.fileName}:`, uploadError.message)
+        return { success: false, error: `Error subiendo ${file.fileName}: ${uploadError.message}` }
+      }
+
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('whatsapp-media')
+        .getPublicUrl(filePath)
+
+      uploadedItems.push({
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        imageUrl: publicUrlData.publicUrl,
+      })
+    }
+
+    // 3. Check for active OCR job
+    const activeJobResult = await getActiveJob(ctx, 'ocr_guide_read')
+    if (!activeJobResult.success) {
+      return { success: false, error: activeJobResult.error! }
+    }
+    if (activeJobResult.data) {
+      return { success: false, error: 'Ya hay una lectura OCR en progreso' }
+    }
+
+    // 4. Get dispatch stage config (for matching eligible orders)
+    const dispatchStageResult = await getDispatchStage(ctx)
+    if (!dispatchStageResult.success) {
+      return { success: false, error: dispatchStageResult.error! }
+    }
+    if (!dispatchStageResult.data) {
+      return {
+        success: false,
+        error: 'Etapa de despacho no configurada. Configure la etapa en Configuracion > Logistica.',
+      }
+    }
+
+    // 5. Create robot job + items
+    // OCR job items represent images, not orders. order_id is NULL at creation.
+    // (Plan 27-01 migration makes order_id nullable)
+    const jobId = crypto.randomUUID()
+    const { error: jobInsertError } = await supabase
+      .from('robot_jobs')
+      .insert({
+        id: jobId,
+        workspace_id: auth.workspaceId,
+        carrier: 'multi',
+        job_type: 'ocr_guide_read',
+        total_items: uploadedItems.length,
+      })
+
+    if (jobInsertError) {
+      console.error('[comandos] Job insert error:', jobInsertError.message)
+      return { success: false, error: 'Error creando job de OCR' }
+    }
+
+    // Create one item per image with order_id = NULL
+    const itemIds = uploadedItems.map(() => crypto.randomUUID())
+
+    const { error: itemsInsertError } = await supabase
+      .from('robot_job_items')
+      .insert(
+        uploadedItems.map((_, idx) => ({
+          id: itemIds[idx],
+          job_id: jobId,
+          order_id: null,
+        }))
+      )
+
+    if (itemsInsertError) {
+      console.error('[comandos] Items insert error:', itemsInsertError.message)
+      // Cleanup: delete the job we just created
+      await supabase.from('robot_jobs').delete().eq('id', jobId)
+      return { success: false, error: 'Error creando items de OCR' }
+    }
+
+    // 6. Dispatch to Inngest
+    // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
+    await (inngest.send as any)({
+      name: 'robot/ocr-guide.submitted',
+      data: {
+        jobId,
+        workspaceId: auth.workspaceId,
+        items: uploadedItems.map((item, idx) => ({
+          itemId: itemIds[idx],
+          imageUrl: item.imageUrl,
+          mimeType: item.mimeType,
+          fileName: item.fileName,
+        })),
+        matchStageId: dispatchStageResult.data.stageId,
+      },
+    })
+
+    return {
+      success: true,
+      data: {
+        jobId,
+        totalFiles: uploadedItems.length,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[comandos] executeLeerGuias error:', message)
     return { success: false, error: message }
   }
 }

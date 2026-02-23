@@ -183,7 +183,7 @@ export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
                                 {item.status}
                               </Badge>
                               <span className="font-mono truncate">
-                                {item.order_id.slice(0, 8)}
+                                {item.order_id?.slice(0, 8) ?? 'imagen'}
                               </span>
                               {item.tracking_number && (
                                 <span className="text-muted-foreground">

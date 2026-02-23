@@ -130,10 +130,10 @@ export async function POST(request: NextRequest) {
   // 5. On success: fire automation trigger (robot.coord.completed)
   //    Enrich with order + contact data for rich trigger context.
   //    Trigger failure is caught and logged -- never fails the callback.
-  //    SKIP for guide_lookup jobs: field.changed fires from domain layer
-  //    via updateOrder -> emitFieldChanged for carrier_guide_number.
+  //    ONLY for create_shipment jobs: guide_lookup uses field.changed from
+  //    domain updateOrder, ocr_guide_read emits its own trigger from orchestrator.
   // ------------------------------------------------------------------
-  if (status === 'success' && trackingNumber && parentJob?.job_type !== 'guide_lookup') {
+  if (status === 'success' && trackingNumber && parentJob?.job_type === 'create_shipment') {
     try {
       const { data: order } = await supabase
         .from('orders')

@@ -14,7 +14,12 @@
 // ============================================================================
 
 import { inngest } from '../client'
-import { updateJobStatus } from '@/lib/domain/robot-jobs'
+import { updateJobStatus, updateJobItemResult } from '@/lib/domain/robot-jobs'
+import { extractGuideData } from '@/lib/ocr/extract-guide-data'
+import { matchGuideToOrder } from '@/lib/ocr/match-guide-to-order'
+import { getOrdersForOcrMatching, updateOrder } from '@/lib/domain/orders'
+import { emitRobotOcrCompleted } from '@/lib/automations/trigger-emitter'
+import type { OcrItemResult, OrderForMatching } from '@/lib/ocr/types'
 
 // ============================================================================
 // Robot Orchestrator Inngest Function
@@ -293,7 +298,261 @@ const guideLookupOrchestrator = inngest.createFunction(
 )
 
 // ============================================================================
+// OCR Guide Orchestrator (Phase 27)
+// ============================================================================
+
+/**
+ * OCR Guide Orchestrator
+ *
+ * Processes uploaded guide images/PDFs through Claude Vision,
+ * matches extracted data against CRM orders, and updates guide numbers.
+ *
+ * Unlike robot-orchestrator (dispatches to external service), this runs
+ * OCR and matching directly as Inngest steps within MorfX.
+ *
+ * retries: 0 — consistent with other robot orchestrators (fail-fast)
+ * Per-image step.run: one failing image doesn't kill the batch
+ */
+const ocrGuideOrchestrator = inngest.createFunction(
+  {
+    id: 'ocr-guide-orchestrator',
+    retries: 0,
+    onFailure: async ({ event }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const originalEvent = (event as any).data?.event
+      const jobId = originalEvent?.data?.jobId as string | undefined
+      const workspaceId = originalEvent?.data?.workspaceId as string | undefined
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMessage = (event as any).data?.error?.message ?? 'Unknown error'
+
+      console.error(`[ocr-guide-orchestrator] Function failed for job ${jobId}:`, errorMessage)
+
+      if (jobId && workspaceId) {
+        await updateJobStatus(
+          { workspaceId, source: 'inngest-orchestrator' },
+          { jobId, status: 'failed' }
+        )
+        console.log(`[ocr-guide-orchestrator] Marked job ${jobId} as failed via onFailure`)
+      }
+    },
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { event: 'robot/ocr-guide.submitted' as any },
+  async ({ event, step }) => {
+    const { jobId, workspaceId, items, matchStageId } = event.data
+
+    console.log(`[ocr-guide-orchestrator] Starting job ${jobId} with ${items.length} images`)
+
+    const ctx = { workspaceId, source: 'inngest-orchestrator' as const }
+
+    // Step 1: Mark job as processing
+    await step.run('mark-processing', async () => {
+      const result = await updateJobStatus(ctx, { jobId, status: 'processing' })
+      if (!result.success) {
+        throw new Error(`Failed to mark job processing: ${result.error}`)
+      }
+    })
+
+    // Step 2: Fetch eligible orders for matching (once, shared across all images)
+    const eligibleOrders = await step.run('fetch-eligible-orders', async () => {
+      const result = await getOrdersForOcrMatching(ctx, matchStageId)
+      if (!result.success) {
+        throw new Error(`Failed to fetch eligible orders: ${result.error}`)
+      }
+      return result.data!
+    })
+
+    // Convert to matching format
+    const ordersForMatching: OrderForMatching[] = eligibleOrders.map(o => ({
+      id: o.id,
+      name: o.name,
+      contactPhone: o.contactPhone,
+      contactName: o.contactName,
+      shippingCity: o.shippingCity,
+      shippingAddress: o.shippingAddress,
+      contactId: o.contactId,
+    }))
+
+    // Step 3: OCR each image individually (per-image step for durability)
+    const results: OcrItemResult[] = []
+    // Track which orders have already been matched (prevent double-assignment)
+    const matchedOrderIds = new Set<string>()
+
+    for (const item of items) {
+      const result = await step.run(`ocr-${item.itemId}`, async () => {
+        try {
+          // 3a. Extract guide data via Claude Vision
+          const ocrData = await extractGuideData(item.imageUrl, item.mimeType)
+
+          if (ocrData.confianza === 0 && !ocrData.numeroGuia) {
+            // OCR completely failed
+            return {
+              itemId: item.itemId,
+              fileName: item.fileName,
+              ocrData: null,
+              match: null,
+              autoAssigned: false,
+              error: 'No se pudo leer la guia',
+            } satisfies OcrItemResult
+          }
+
+          // 3b. Match against eligible orders (exclude already-matched)
+          const availableOrders = ordersForMatching.filter(
+            o => !matchedOrderIds.has(o.id)
+          )
+          const match = matchGuideToOrder(ocrData, availableOrders)
+
+          const autoAssigned = match !== null && match.confidence >= 70
+
+          return {
+            itemId: item.itemId,
+            fileName: item.fileName,
+            ocrData,
+            match,
+            autoAssigned,
+          } satisfies OcrItemResult
+        } catch (err) {
+          console.error(`[ocr-guide-orchestrator] OCR failed for ${item.fileName}:`, err)
+          return {
+            itemId: item.itemId,
+            fileName: item.fileName,
+            ocrData: null,
+            match: null,
+            autoAssigned: false,
+            error: err instanceof Error ? err.message : 'Error de OCR',
+          } satisfies OcrItemResult
+        }
+      })
+
+      results.push(result)
+
+      // Track matched order (prevent double-assignment in subsequent images)
+      if (result.match && result.autoAssigned) {
+        matchedOrderIds.add(result.match.orderId)
+      }
+    }
+
+    // Step 4: Update orders for auto-assigned matches + mark items
+    // IMPORTANT: Store structured OCR metadata in the `value_sent` JSONB column
+    // of robot_job_items. This avoids fragile error_message string parsing in the UI.
+    // The UI reads value_sent to render the categorized OCR result summary.
+    await step.run('update-orders-and-items', async () => {
+      for (const result of results) {
+        if (result.autoAssigned && result.match && result.ocrData?.numeroGuia) {
+          // Auto-assign: update order carrier_guide_number via domain layer
+          await updateOrder(ctx, {
+            orderId: result.match.orderId,
+            carrierGuideNumber: result.ocrData.numeroGuia,
+          })
+
+          // Mark item as success in robot_job_items
+          // Store structured OCR result in value_sent for UI rendering
+          // NOTE: updateJobItemResult skips updateOrder for ocr_guide_read (guard in Task 1)
+          await updateJobItemResult(ctx, {
+            itemId: result.itemId,
+            status: 'success',
+            trackingNumber: result.ocrData.numeroGuia,
+            valueSent: {
+              ocrCategory: 'auto_assigned',
+              guideNumber: result.ocrData.numeroGuia,
+              orderName: result.match.orderName,
+              orderId: result.match.orderId,
+              carrier: result.ocrData.transportadora,
+              confidence: result.match.confidence,
+              matchedBy: result.match.matchedBy,
+              fileName: result.fileName,
+            },
+          })
+
+          // Emit automation trigger per auto-assigned order
+          try {
+            await emitRobotOcrCompleted({
+              workspaceId,
+              orderId: result.match.orderId,
+              orderName: result.match.orderName ?? undefined,
+              carrierGuideNumber: result.ocrData.numeroGuia,
+              carrier: result.ocrData.transportadora,
+              contactId: result.match.contactId,
+              contactName: result.match.contactName ?? undefined,
+              contactPhone: result.match.contactPhone ?? undefined,
+              shippingCity: result.match.shippingCity ?? undefined,
+            })
+          } catch (err) {
+            // Trigger emission failure should NOT fail the job
+            console.error(`[ocr-guide-orchestrator] Trigger emission failed:`, err)
+          }
+        } else if (result.error || !result.ocrData) {
+          // OCR failed entirely
+          await updateJobItemResult(ctx, {
+            itemId: result.itemId,
+            status: 'error',
+            errorType: 'unknown',
+            errorMessage: result.error || 'OCR fallido',
+            valueSent: {
+              ocrCategory: 'ocr_failed',
+              fileName: result.fileName,
+            },
+          })
+        } else if (!result.match) {
+          // OCR succeeded but no match found
+          await updateJobItemResult(ctx, {
+            itemId: result.itemId,
+            status: 'error',
+            errorType: 'validation',
+            errorMessage: `Sin coincidencia: guia ${result.ocrData.numeroGuia || 'sin numero'} (${result.ocrData.transportadora})`,
+            valueSent: {
+              ocrCategory: 'no_match',
+              guideNumber: result.ocrData.numeroGuia,
+              carrier: result.ocrData.transportadora,
+              fileName: result.fileName,
+            },
+          })
+        } else {
+          // Low confidence match (50-69%): mark as error with structured metadata
+          await updateJobItemResult(ctx, {
+            itemId: result.itemId,
+            status: 'error',
+            errorType: 'validation',
+            errorMessage: `Baja confianza (${result.match.confidence}%): guia ${result.ocrData?.numeroGuia} -> ${result.match.orderName || result.match.orderId.slice(0, 8)}`,
+            valueSent: {
+              ocrCategory: 'low_confidence',
+              guideNumber: result.ocrData?.numeroGuia,
+              suggestedOrderName: result.match.orderName,
+              suggestedOrderId: result.match.orderId,
+              carrier: result.ocrData?.transportadora,
+              confidence: result.match.confidence,
+              matchedBy: result.match.matchedBy,
+              fileName: result.fileName,
+            },
+          })
+        }
+      }
+    })
+
+    // Step 5: Job completion summary
+    const autoAssigned = results.filter(r => r.autoAssigned).length
+    const pendingConfirm = results.filter(r => r.match && !r.autoAssigned).length
+    const noMatch = results.filter(r => r.ocrData && !r.match).length
+    const ocrFailed = results.filter(r => !r.ocrData && !r.autoAssigned).length
+
+    console.log(
+      `[ocr-guide-orchestrator] Job ${jobId} done: ${autoAssigned} auto, ${pendingConfirm} pending, ${noMatch} no-match, ${ocrFailed} failed`
+    )
+
+    return {
+      status: 'completed',
+      jobId,
+      autoAssigned,
+      pendingConfirmation: pendingConfirm,
+      noMatch,
+      ocrFailed,
+      results,
+    }
+  }
+)
+
+// ============================================================================
 // Exports
 // ============================================================================
 
-export const robotOrchestratorFunctions = [robotOrchestrator, guideLookupOrchestrator]
+export const robotOrchestratorFunctions = [robotOrchestrator, guideLookupOrchestrator, ocrGuideOrchestrator]

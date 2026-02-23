@@ -39,18 +39,30 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 - AI Automation Builder (natural language, React Flow diagrams, validation) — v2.0
 - Integration Automations (Twilio SMS, 3 Shopify triggers, dual-behavior) — v2.0
 
+### Validated (MVP v3.0)
+
+- Logistics DB + Domain Foundation (DANE municipalities, carrier coverage, robot jobs) — v3.0
+- Robot Coordinadora Service (Playwright, batch processing, anti-duplicate) — v3.0
+- Inngest Orchestrator + Callback API (robot dispatch, domain-routed results) — v3.0
+- Chat de Comandos UI (terminal panel, fixed commands, Realtime progress) — v3.0
+- Pipeline Config UI + Docs (stage-to-robot binding, architecture docs) — v3.0
+- Robot Lector de Guías Coordinadora (portal scraping, guide number extraction) — v3.0
+- Robot OCR de Guías (Claude Vision, matching algorithm, auto-assignment) — v3.0
+
 ### Active
 
-#### Current Milestone: v3.0 Logística
+#### Current Milestone: v4.0 Comportamiento Humano
 
-**Goal:** Integrar robots de logística (empezando por Coordinadora) al CRM de MorfX, con un chat de comandos simple y vinculación a etapas del pipeline de pedidos.
+**Goal:** Hacer que Somnio se comporte como un vendedor humano real en WhatsApp — delays inteligentes, clasificación de mensajes, sistema de bloques con interrupción y no-repetición, procesamiento de medios, y confidence thresholds.
 
 **Target features:**
-- Schema de logística (transportadoras, ciudades, estados de envío)
-- Robot Coordinadora (Playwright automation adaptado a MorfX)
-- Chat de comandos (panel tipo terminal con comandos fijos)
-- Integración pipeline (cada robot vinculado a etapa de pedidos)
-- Documentación de robots futuros (Inter/Envia PDF, OCR guías)
+- Delays inteligentes por caracteres (curva 2s-12s, multiplicador ajustable)
+- Clasificación post-IntentDetector (RESPONDIBLE/SILENCIOSO/HANDOFF) + Timer retoma 90s
+- Sistema de bloques (check pre-envío, interrupción + merge pendientes, no-repetición escalonada 3 niveles)
+- Procesamiento de medios (Audio→Whisper, Imagen/Video→handoff, Sticker→Vision, Reacción→texto)
+- Confidence thresholds (2 bandas: 80%+ responde, <80% handoff+log) + disambiguation_log
+- Prioridades CORE/COMP/OPC por plantilla por intent + intents repetidos parafraseados
+- Migración de webhook a Inngest (concurrency 1 por conversación)
 
 ### Out of Scope
 
@@ -67,13 +79,14 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 
 ## Context
 
-### Current State (v3.0 In Progress)
+### Current State (v4.0 Starting)
 
 - **Codebase:** ~92,000 LOC TypeScript across 454+ files
 - **Tech stack:** Next.js 15 (App Router) + React 19 + Supabase + Tailwind + Inngest + AI SDK v6
 - **Architecture:** Domain layer as single source of truth, ports/adapters for agent engine, Inngest for async processing
-- **Milestones shipped:** v1.0 (CRM+WhatsApp) + v2.0 (Agents+Automations)
-- **Timeline:** 24 days total (2026-01-26 to 2026-02-20)
+- **Milestones shipped:** v1.0 (CRM+WhatsApp) + v2.0 (Agents+Automations) + v3.0 (Logística)
+- **Timeline:** 28 days total (2026-01-26 to 2026-02-23)
+- **Design docs:** `.planning/standalone/human-behavior/` (DISCUSSION.md + RESEARCH.md + ARCHITECTURE-ANALYSIS.md)
 
 ### Codebase Existente
 
@@ -165,4 +178,4 @@ Despues de completar cada fase, es **OBLIGATORIO** crear un archivo LEARNINGS.md
 **Proposito**: Entrenar agentes de documentacion por modulo para la IA Distribuida.
 
 ---
-*Last updated: 2026-02-20 after v3.0 milestone start*
+*Last updated: 2026-02-23 after v4.0 milestone start*

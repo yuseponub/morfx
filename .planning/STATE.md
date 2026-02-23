@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 27 Complete, Phase 28 next
+**Current focus:** Milestone v4.0 Comportamiento Humano — Defining requirements
 
 ## Current Position
 
-Phase: 27 — Robot OCR de Guias
-Plan: 04 of 4
-Status: COMPLETE
-Last activity: 2026-02-23 — Completed Phase 27 (Robot OCR de Guias)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-23 — Milestone v4.0 started
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 98% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [░░░░░░░░░░] 0% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -28,7 +28,7 @@ All 9 phases + 5 inserted phases completed:
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
 
-### v3.0 Logistica (In Progress)
+### v3.0 Logistica (Complete — 7/8 phases, Phase 28 handled separately)
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -39,6 +39,12 @@ All 9 phases + 5 inserted phases completed:
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
 | 27 | Robot OCR de Guias | COMPLETE (4/4 plans) |
+
+### v4.0 Comportamiento Humano (In Progress)
+
+| Phase | Name | Status |
+|-------|------|--------|
+| — | Defining requirements | ○ |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -206,6 +212,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed Phase 27 (Robot OCR de Guias)
+Stopped at: Starting milestone v4.0 Comportamiento Humano
 Resume file: None
-Next: Plan Phase 28 (Robot Creador de Guias PDF)
+Next: Define requirements and create roadmap for v4.0

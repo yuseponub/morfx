@@ -1,5 +1,5 @@
 // ============================================================================
-// Domain Layer — Notes (Contact Notes + Task Notes)
+// Domain Layer — Notes (Contact Notes + Task Notes + Order Notes)
 // Single source of truth for ALL note mutations.
 // Every caller (server actions, tool handlers) goes through
 // these functions instead of hitting DB directly.
@@ -79,6 +79,36 @@ export interface UpdateTaskNoteResult {
 }
 
 export interface DeleteTaskNoteResult {
+  noteId: string
+}
+
+// Order note params
+export interface CreateOrderNoteParams {
+  orderId: string
+  content: string
+  /** user.id from auth */
+  createdBy: string
+}
+
+export interface UpdateOrderNoteParams {
+  noteId: string
+  content: string
+}
+
+export interface DeleteOrderNoteParams {
+  noteId: string
+}
+
+// Order note results
+export interface CreateOrderNoteResult {
+  noteId: string
+}
+
+export interface UpdateOrderNoteResult {
+  noteId: string
+}
+
+export interface DeleteOrderNoteResult {
   noteId: string
 }
 
@@ -411,5 +441,144 @@ export async function deleteTaskNote(
   } catch (err) {
     console.error('[domain/notes] deleteTaskNote unexpected error:', err)
     return { success: false, error: 'Error inesperado al eliminar la nota de tarea' }
+  }
+}
+
+// ============================================================================
+// createOrderNote — Order note
+// ============================================================================
+
+/**
+ * Create a note for an order.
+ * Inserts into order_notes. No activity logging (no order_activity table).
+ */
+export async function createOrderNote(
+  ctx: DomainContext,
+  params: CreateOrderNoteParams
+): Promise<DomainResult<CreateOrderNoteResult>> {
+  try {
+    const supabase = createAdminClient()
+
+    const trimmed = params.content.trim()
+    if (!trimmed) {
+      return { success: false, error: 'El contenido de la nota es requerido' }
+    }
+
+    // Insert note
+    const { data: note, error: noteError } = await supabase
+      .from('order_notes')
+      .insert({
+        order_id: params.orderId,
+        workspace_id: ctx.workspaceId,
+        user_id: params.createdBy,
+        content: trimmed,
+      })
+      .select('id')
+      .single()
+
+    if (noteError) {
+      console.error('[domain/notes] createOrderNote error:', noteError)
+      return { success: false, error: 'Error al crear la nota de pedido' }
+    }
+
+    return { success: true, data: { noteId: note.id } }
+  } catch (err) {
+    console.error('[domain/notes] createOrderNote unexpected error:', err)
+    return { success: false, error: 'Error inesperado al crear la nota de pedido' }
+  }
+}
+
+// ============================================================================
+// updateOrderNote — Order note
+// ============================================================================
+
+/**
+ * Update an order note's content.
+ */
+export async function updateOrderNote(
+  ctx: DomainContext,
+  params: UpdateOrderNoteParams
+): Promise<DomainResult<UpdateOrderNoteResult>> {
+  try {
+    const supabase = createAdminClient()
+
+    const trimmed = params.content.trim()
+    if (!trimmed) {
+      return { success: false, error: 'El contenido de la nota es requerido' }
+    }
+
+    // Verify note exists and belongs to workspace
+    const { data: existing, error: fetchError } = await supabase
+      .from('order_notes')
+      .select('id, order_id, workspace_id')
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Nota no encontrada' }
+    }
+
+    // Update
+    const { error: updateError } = await supabase
+      .from('order_notes')
+      .update({ content: trimmed })
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+
+    if (updateError) {
+      console.error('[domain/notes] updateOrderNote error:', updateError)
+      return { success: false, error: 'Error al actualizar la nota de pedido' }
+    }
+
+    return { success: true, data: { noteId: params.noteId } }
+  } catch (err) {
+    console.error('[domain/notes] updateOrderNote unexpected error:', err)
+    return { success: false, error: 'Error inesperado al actualizar la nota de pedido' }
+  }
+}
+
+// ============================================================================
+// deleteOrderNote — Order note
+// ============================================================================
+
+/**
+ * Delete an order note.
+ * No activity logging (no order_activity table).
+ */
+export async function deleteOrderNote(
+  ctx: DomainContext,
+  params: DeleteOrderNoteParams
+): Promise<DomainResult<DeleteOrderNoteResult>> {
+  try {
+    const supabase = createAdminClient()
+
+    // Fetch note to verify ownership and workspace
+    const { data: existing, error: fetchError } = await supabase
+      .from('order_notes')
+      .select('id, order_id, workspace_id, user_id, content')
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Nota no encontrada' }
+    }
+
+    // Delete
+    const { error: deleteError } = await supabase
+      .from('order_notes')
+      .delete()
+      .eq('id', params.noteId)
+
+    if (deleteError) {
+      console.error('[domain/notes] deleteOrderNote error:', deleteError)
+      return { success: false, error: 'Error al eliminar la nota de pedido' }
+    }
+
+    return { success: true, data: { noteId: params.noteId } }
+  } catch (err) {
+    console.error('[domain/notes] deleteOrderNote unexpected error:', err)
+    return { success: false, error: 'Error inesperado al eliminar la nota de pedido' }
   }
 }

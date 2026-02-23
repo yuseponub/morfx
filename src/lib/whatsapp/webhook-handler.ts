@@ -243,55 +243,40 @@ async function processIncomingMessage(
     }
 
     // ================================================================
-    // Agent routing (Phase 16): Process text messages through agent
-    // Calls webhook-processor directly (inline, no Inngest dependency).
+    // Agent routing (Phase 16 / Phase 29 Inngest migration):
+    // Feature-flagged: USE_INNGEST_PROCESSING=true emits an Inngest
+    // event for async processing (~200ms webhook return). When false
+    // or unset, processes inline (existing behavior preserved).
+    // Inngest send failure falls back to inline as a safety net.
     // Non-blocking: agent failures must not break message reception.
     // ================================================================
     if (msg.type === 'text') {
-      try {
-        // Get contact_id from conversation (may be null for new conversations)
-        const { data: convData } = await supabase
-          .from('conversations')
-          .select('contact_id')
-          .eq('id', conversationId)
-          .single()
+      const useInngest = process.env.USE_INNGEST_PROCESSING === 'true'
+      const normalizedContent = normalizeWebsiteGreeting(msg.text?.body ?? '')
 
-        const { processMessageWithAgent } = await import(
-          '@/lib/agents/production/webhook-processor'
-        )
-        const agentResult = await processMessageWithAgent({
-          conversationId,
-          contactId: convData?.contact_id ?? null,
-          messageContent: normalizeWebsiteGreeting(msg.text?.body ?? ''),
-          workspaceId,
-          phone,
-        })
-
-        // If agent failed, write error to conversation so we can diagnose
-        if (!agentResult.success && agentResult.error) {
-          await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            workspace_id: workspaceId,
-            direction: 'outbound',
-            type: 'text',
-            content: { body: `[ERROR AGENTE] ${agentResult.error.code}: ${agentResult.error.message?.substring(0, 500)}` },
-            timestamp: new Date().toISOString(),
-          })
-        }
-      } catch (agentError) {
-        // Non-blocking: log but never fail message processing
-        const errMsg = agentError instanceof Error ? agentError.message : String(agentError)
-        console.error('Agent processing failed (non-blocking):', errMsg)
+      if (useInngest) {
+        // Async path: emit Inngest event, return fast (~200ms)
         try {
-          await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            workspace_id: workspaceId,
-            direction: 'outbound',
-            type: 'text',
-            content: { body: `[ERROR AGENTE] Exception: ${errMsg.substring(0, 500)}` },
-            timestamp: new Date().toISOString(),
+          const { inngest } = await import('@/inngest/client')
+          await (inngest.send as any)({
+            name: 'agent/whatsapp.message_received',
+            data: {
+              conversationId,
+              contactId,
+              messageContent: normalizedContent,
+              workspaceId,
+              phone,
+              messageId: msg.id,
+            },
           })
-        } catch { /* ignore */ }
+        } catch (inngestError) {
+          // Safety net: if Inngest is unreachable, fall back to inline processing
+          console.error('Inngest send failed, falling back to inline:', inngestError instanceof Error ? inngestError.message : inngestError)
+          await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+        }
+      } else {
+        // Inline path: existing behavior (feature flag off or unset)
+        await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
       }
     }
 
@@ -299,6 +284,63 @@ async function processIncomingMessage(
   } catch (error) {
     console.error('Error processing incoming message:', error)
     throw error
+  }
+}
+
+// ============================================================================
+// INLINE AGENT PROCESSING (used when USE_INNGEST_PROCESSING is off or as fallback)
+// ============================================================================
+
+/**
+ * Process a message through the agent inline (synchronous, within the webhook request).
+ * Extracted to share between the inline path and the Inngest-send-failure fallback.
+ * Non-blocking: agent failures are logged but never break message processing.
+ */
+async function processAgentInline(
+  supabase: ReturnType<typeof createAdminClient>,
+  conversationId: string,
+  contactId: string | null,
+  messageContent: string,
+  workspaceId: string,
+  phone: string,
+): Promise<void> {
+  try {
+    const { processMessageWithAgent } = await import(
+      '@/lib/agents/production/webhook-processor'
+    )
+    const agentResult = await processMessageWithAgent({
+      conversationId,
+      contactId,
+      messageContent,
+      workspaceId,
+      phone,
+    })
+
+    // If agent failed, write error to conversation so we can diagnose
+    if (!agentResult.success && agentResult.error) {
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        workspace_id: workspaceId,
+        direction: 'outbound',
+        type: 'text',
+        content: { body: `[ERROR AGENTE] ${agentResult.error.code}: ${agentResult.error.message?.substring(0, 500)}` },
+        timestamp: new Date().toISOString(),
+      })
+    }
+  } catch (agentError) {
+    // Non-blocking: log but never fail message processing
+    const errMsg = agentError instanceof Error ? agentError.message : String(agentError)
+    console.error('Agent processing failed (non-blocking):', errMsg)
+    try {
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        workspace_id: workspaceId,
+        direction: 'outbound',
+        type: 'text',
+        content: { body: `[ERROR AGENTE] Exception: ${errMsg.substring(0, 500)}` },
+        timestamp: new Date().toISOString(),
+      })
+    } catch { /* ignore */ }
   }
 }
 

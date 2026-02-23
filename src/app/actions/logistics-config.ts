@@ -128,3 +128,86 @@ export async function updateOcrConfig(params: {
 
   return { success: true, data: result.data as CarrierConfig }
 }
+
+/**
+ * Update guide generation pipeline/stage config for a specific carrier type.
+ * Each carrier type maps to its own column prefix on the same config row
+ * (carrier='coordinadora') to keep all logistics config in a single row per workspace.
+ *
+ * - inter  -> pdf_inter_pipeline_id / pdf_inter_stage_id / pdf_inter_dest_stage_id
+ * - bogota -> pdf_bogota_pipeline_id / pdf_bogota_stage_id / pdf_bogota_dest_stage_id
+ * - envia  -> pdf_envia_pipeline_id / pdf_envia_stage_id / pdf_envia_dest_stage_id
+ */
+export async function updateGuideGenConfig(params: {
+  carrierType: 'inter' | 'bogota' | 'envia'
+  pipelineId: string | null
+  stageId: string | null
+  destStageId: string | null
+}): Promise<ActionResult<CarrierConfig>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  // Check admin role
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
+    return { error: 'Solo administradores pueden cambiar esta configuracion' }
+  }
+
+  // Map carrierType to domain param names
+  type UpsertFields = {
+    pdfInterPipelineId?: string | null
+    pdfInterStageId?: string | null
+    pdfInterDestStageId?: string | null
+    pdfBogotaPipelineId?: string | null
+    pdfBogotaStageId?: string | null
+    pdfBogotaDestStageId?: string | null
+    pdfEnviaPipelineId?: string | null
+    pdfEnviaStageId?: string | null
+    pdfEnviaDestStageId?: string | null
+  }
+
+  const fieldMap: Record<'inter' | 'bogota' | 'envia', UpsertFields> = {
+    inter: {
+      pdfInterPipelineId: params.pipelineId,
+      pdfInterStageId: params.stageId,
+      pdfInterDestStageId: params.destStageId,
+    },
+    bogota: {
+      pdfBogotaPipelineId: params.pipelineId,
+      pdfBogotaStageId: params.stageId,
+      pdfBogotaDestStageId: params.destStageId,
+    },
+    envia: {
+      pdfEnviaPipelineId: params.pipelineId,
+      pdfEnviaStageId: params.stageId,
+      pdfEnviaDestStageId: params.destStageId,
+    },
+  }
+
+  const result = await upsertCarrierConfig(
+    { workspaceId, source: 'server-action' },
+    {
+      carrier: 'coordinadora',
+      ...fieldMap[params.carrierType],
+    }
+  )
+
+  if (!result.success) {
+    return { error: result.error ?? 'Error actualizando configuracion de generacion de guias' }
+  }
+
+  revalidatePath('/settings/logistica')
+
+  return { success: true, data: result.data as CarrierConfig }
+}

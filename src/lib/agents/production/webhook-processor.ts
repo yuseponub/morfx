@@ -318,6 +318,20 @@ export async function processMessageWithAgent(
     }
   }
 
+  // 12. Mark inbound messages as processed by agent
+  try {
+    await supabase
+      .from('messages')
+      .update({ processed_by_agent: true })
+      .eq('conversation_id', conversationId)
+      .eq('workspace_id', workspaceId)
+      .eq('direction', 'inbound')
+      .eq('processed_by_agent', false)
+  } catch (markError) {
+    // Non-critical: log but don't fail
+    logger.warn({ error: markError, conversationId }, 'Failed to mark messages as processed_by_agent')
+  }
+
   logger.info(
     {
       conversationId,

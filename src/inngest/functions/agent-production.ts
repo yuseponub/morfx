@@ -62,6 +62,22 @@ export const whatsappAgentProcessor = inngest.createFunction(
       })
     })
 
+    // Write error message to conversation for visibility (same as inline path)
+    if (!result.success && result.error) {
+      await step.run('write-error-message', async () => {
+        const { createAdminClient } = await import('@/lib/supabase/admin')
+        const supabase = createAdminClient()
+        await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          workspace_id: workspaceId,
+          direction: 'outbound',
+          type: 'text',
+          content: { body: `[ERROR AGENTE] ${result.error?.code}: ${result.error?.message?.substring(0, 500)}` },
+          timestamp: new Date().toISOString(),
+        })
+      })
+    }
+
     logger.info(
       {
         conversationId,

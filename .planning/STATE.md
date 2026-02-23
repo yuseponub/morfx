@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 29 of 35 (Inngest Migration + Character Delays)
-Plan: 02 of 4 complete
-Status: In progress
-Last activity: 2026-02-23 — Completed 29-02-PLAN.md (processed_by_agent column + domain insert)
+Plan: 04 of 4 complete (Wave 2 done)
+Status: In progress (29-03 pending)
+Last activity: 2026-02-23 — Completed 29-04-PLAN.md (character-based delays in messaging adapter)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#░░░░░░░░░] 7% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [##░░░░░░░░] 11% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -39,13 +39,13 @@ All 9 phases + 5 inserted phases completed:
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
 | 27 | Robot OCR de Guias | COMPLETE (4/4 plans) |
-| 28 | Robot Creador de Guias PDF | IN PROGRESS (4/5 plans) |
+| 28 | Robot Creador de Guias PDF | IN PROGRESS (5/5 plans, checkpoint pending) |
 
 ### v4.0 Comportamiento Humano (Planned)
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 29 | Inngest Migration + Character Delays | IN PROGRESS (2/4 plans) |
+| 29 | Inngest Migration + Character Delays | IN PROGRESS (3/4 plans, 29-03 pending) |
 | 30 | Message Classification + Silence Timer | Not started |
 | 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
 | 32 | Media Processing | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 187
+- Total plans completed: 188
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -124,6 +124,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 29-02-PLAN.md (processed_by_agent column + domain insert)
+Stopped at: Completed 29-04-PLAN.md (character-based delays in messaging adapter)
 Resume file: None
-Next: Execute 29-03-PLAN.md (Inngest webhook processor + feature flag)
+Next: Execute 29-03-PLAN.md (Inngest webhook processor + feature flag) — only remaining plan in Phase 29

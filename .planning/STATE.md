@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 26 Complete (3/3 plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 27 In Progress (2/? plans)
 
 ## Current Position
 
-Phase: 26 — Robot Lector de Guias Coordinadora
-Plan: 03 of 03
-Status: Phase complete
-Last activity: 2026-02-22 — Completed 26-03-PLAN.md (Chat de Comandos UI Integration)
+Phase: 27 — Robot OCR de Guias
+Plan: 02 of ?
+Status: In progress
+Last activity: 2026-02-23 — Completed 27-02-PLAN.md (OCR Extraction Engine + Matching Algorithm)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 96% v3.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 97% v3.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -38,6 +38,7 @@ All 9 phases + 5 inserted phases completed:
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
+| 27 | Robot OCR de Guias | IN PROGRESS (2/? plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -53,8 +54,8 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 35 (31 milestone + 4 standalone)
-- Total plans completed: 173
-- Total execution time: ~27 days (2026-01-26 to 2026-02-22)
+- Total plans completed: 174
+- Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
 
@@ -148,6 +149,12 @@ Decisions logged in PROJECT.md Key Decisions table.
 - guideLookupOrchestrator uses shorter timeout (10s/pedido + 3min vs 30s/order + 5min for shipment creation)
 - emitRobotCoordCompleted skipped for guide_lookup jobs (field.changed fires from domain updateOrder instead)
 - reportResult in robot service accepts union type (BatchItemResult | GuideLookupResult) for type safety
+- OCR extraction: PDF uses 'document' content block, images use 'image' content block (Anthropic SDK typed)
+- Matching confidence: phone=95, name=80, city=55, address=50 (cascading priority)
+- City match requires exactly 1 order in city (avoids ambiguity with multiple orders)
+- Address similarity uses numeric sequence matching (first 2-3 numbers must match)
+- Name matching uses word-subset containment ("MARIA LOPEZ" matches "MARIA ISABEL LOPEZ GARCIA")
+- OCR library self-contained under src/lib/ocr/ (types, normalize, extract, match)
 
 ### Project Rules
 
@@ -182,7 +189,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-22 COT
-Stopped at: Completed 26-03-PLAN.md (Chat de Comandos UI Integration) — Phase 26 complete
+Last session: 2026-02-23 COT
+Stopped at: Completed 27-02-PLAN.md (OCR Extraction Engine + Matching Algorithm)
 Resume file: None
-Next: Verify Phase 26, then plan Phase 27 (Robot OCR de Guias)
+Next: Execute 27-03-PLAN.md (Inngest Orchestrator + Trigger)

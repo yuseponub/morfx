@@ -723,7 +723,170 @@ const pdfGuideOrchestrator = inngest.createFunction(
 )
 
 // ============================================================================
+// Excel Guide Orchestrator (Phase 28)
+// ============================================================================
+
+/**
+ * Excel Guide Orchestrator
+ *
+ * Generates an Envia-format .xlsx spreadsheet from orders in configured
+ * pipeline stage. Fetches orders, normalizes via Claude AI, converts to
+ * Envia format, generates Excel, uploads to Supabase Storage, updates
+ * job items, and optionally moves orders to destination stage.
+ *
+ * Same internal-processing pattern as pdfGuideOrchestrator.
+ *
+ * retries: 0 — consistent with other robot orchestrators (fail-fast)
+ * Generate + upload in SAME step to avoid Inngest 4MB step output limit.
+ */
+const excelGuideOrchestrator = inngest.createFunction(
+  {
+    id: 'excel-guide-orchestrator',
+    retries: 0,
+    onFailure: async ({ event }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const originalEvent = (event as any).data?.event
+      const jobId = originalEvent?.data?.jobId as string | undefined
+      const workspaceId = originalEvent?.data?.workspaceId as string | undefined
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMessage = (event as any).data?.error?.message ?? 'Unknown error'
+
+      console.error(`[excel-guide-orchestrator] Function failed for job ${jobId}:`, errorMessage)
+
+      if (jobId && workspaceId) {
+        await updateJobStatus(
+          { workspaceId, source: 'inngest-orchestrator' },
+          { jobId, status: 'failed' }
+        )
+        console.log(`[excel-guide-orchestrator] Marked job ${jobId} as failed via onFailure`)
+      }
+    },
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { event: 'robot/excel-guide.submitted' as any },
+  async ({ event, step }) => {
+    const { jobId, workspaceId, sourceStageId, destStageId, items } = event.data
+    const ctx = { workspaceId, source: 'inngest-orchestrator' as const }
+
+    console.log(`[excel-guide-orchestrator] Starting job ${jobId} with ${items.length} orders`)
+
+    // Step 1: Mark job as processing
+    await step.run('mark-processing', async () => {
+      const result = await updateJobStatus(ctx, { jobId, status: 'processing' })
+      if (!result.success) {
+        throw new Error(`Failed to mark job processing: ${result.error}`)
+      }
+    })
+
+    // Step 2: Fetch orders from source stage
+    const orders = await step.run('fetch-orders', async () => {
+      const result = await getOrdersForGuideGeneration(ctx, sourceStageId)
+      if (!result.success) throw new Error(`Failed to fetch orders: ${result.error}`)
+      return result.data!
+    })
+
+    // Step 3: Normalize data via Claude AI
+    const normalized = await step.run('normalize-data', async () => {
+      // Map domain OrderForGuideGen to GuideGenOrder format for normalizer
+      const guideOrders = orders.map((o) => ({
+        id: o.id,
+        name: o.name,
+        contactName: o.contact_name,
+        contactPhone: o.contact_phone,
+        shippingAddress: o.shipping_address,
+        shippingCity: o.shipping_city,
+        shippingDepartment: o.shipping_department,
+        totalValue: o.total_value,
+        products: o.products,
+        customFields: o.custom_fields,
+        tags: o.tags,
+      }))
+      return normalizeOrdersForGuide(guideOrders)
+    })
+
+    // Step 4: Generate Excel + upload to Storage (WITHIN SAME STEP to avoid Inngest 4MB limit)
+    const downloadUrl = await step.run('generate-and-upload', async () => {
+      // Convert NormalizedOrder[] to EnviaOrderData[] using helper
+      const enviaData = normalized.map(normalizedToEnvia)
+
+      const excelBuffer = await generateEnviaExcel(enviaData)
+
+      // Upload to Supabase Storage
+      const { createAdminClient } = await import('@/lib/supabase/admin')
+      const supabase = createAdminClient()
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const fileName = `guias-envia-${timestamp}.xlsx`
+      const filePath = `guide-pdfs/${workspaceId}/${fileName}`
+
+      const { error } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(filePath, excelBuffer, {
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          upsert: false,
+        })
+
+      if (error) throw new Error(`Storage upload failed: ${error.message}`)
+
+      const { data } = supabase.storage.from('whatsapp-media').getPublicUrl(filePath)
+      return data.publicUrl
+    })
+
+    // Step 5: Update job items with results
+    await step.run('update-items', async () => {
+      const normalizedMap = new Map(normalized.map((n) => [n.orderId, n]))
+
+      for (const item of items) {
+        const norm = normalizedMap.get(item.orderId)
+        if (norm) {
+          await updateJobItemResult(ctx, {
+            itemId: item.itemId,
+            status: 'success',
+            valueSent: {
+              documentUrl: downloadUrl,
+              carrierType: 'envia',
+              orderName: norm.numero,
+              valorCobrar: norm.valorCobrar,
+            },
+          })
+        } else {
+          await updateJobItemResult(ctx, {
+            itemId: item.itemId,
+            status: 'error',
+            errorType: 'validation',
+            errorMessage: 'Error normalizando datos del pedido',
+          })
+        }
+      }
+    })
+
+    // Step 6: Move orders to destination stage (if configured)
+    if (destStageId) {
+      await step.run('move-orders', async () => {
+        for (const item of items) {
+          try {
+            await moveOrderToStage(ctx, { orderId: item.orderId, newStageId: destStageId })
+          } catch (err) {
+            console.error(`[excel-guide-orchestrator] Failed to move order ${item.orderId}:`, err)
+            // Don't fail the job for stage move errors
+          }
+        }
+      })
+    }
+
+    console.log(`[excel-guide-orchestrator] Job ${jobId} completed: ${items.length} orders for Envia`)
+
+    return { status: 'completed', jobId, downloadUrl, carrierType: 'envia', totalOrders: items.length }
+  }
+)
+
+// ============================================================================
 // Exports
 // ============================================================================
 
-export const robotOrchestratorFunctions = [robotOrchestrator, guideLookupOrchestrator, ocrGuideOrchestrator, pdfGuideOrchestrator]
+export const robotOrchestratorFunctions = [
+  robotOrchestrator,
+  guideLookupOrchestrator,
+  ocrGuideOrchestrator,
+  pdfGuideOrchestrator,
+  excelGuideOrchestrator,
+]

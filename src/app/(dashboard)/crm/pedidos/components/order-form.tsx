@@ -422,10 +422,10 @@ export function OrderForm({
 
           {/* Notes Section */}
           <div className="space-y-3">
-            <Label htmlFor="description">Notas</Label>
+            <Label htmlFor="description">Descripcion</Label>
             <Textarea
               {...form.register('description')}
-              placeholder="Notas adicionales sobre el pedido..."
+              placeholder="Descripcion del pedido..."
               disabled={isPending}
               rows={3}
             />

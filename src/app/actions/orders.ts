@@ -715,7 +715,7 @@ export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResu
     'Guia',
     'Fecha Cierre',
     'Fecha Creacion',
-    'Notas'
+    'Descripcion'
   ]
 
   const rows = orders.map((order: any) => [

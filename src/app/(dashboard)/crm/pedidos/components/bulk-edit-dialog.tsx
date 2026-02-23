@@ -19,7 +19,7 @@ const BULK_EDITABLE_FIELDS = [
   { value: 'shipping_address', label: 'Direccion de envio' },
   { value: 'tracking_number', label: 'Numero de guia' },
   { value: 'name', label: 'Nombre del pedido' },
-  { value: 'description', label: 'Notas / descripcion' },
+  { value: 'description', label: 'Descripcion' },
 ] as const
 
 interface BulkEditDialogProps {

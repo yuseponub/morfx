@@ -14,6 +14,7 @@ import {
   CalendarIcon,
   PencilIcon,
   ExternalLinkIcon,
+  MessageSquareIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -35,8 +36,9 @@ import { TagBadge } from '@/components/contacts/tag-badge'
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
 import { getOrder, getPipelines, moveOrderToStage } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
+import { getOrderNotes } from '@/app/actions/order-notes'
 import { toast } from 'sonner'
-import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage } from '@/lib/orders/types'
+import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage, OrderNoteWithUser } from '@/lib/orders/types'
 
 // Format currency in COP
 function formatCurrency(value: number): string {
@@ -77,6 +79,16 @@ export function ViewOrderSheet({
   const [pipelines, setPipelines] = React.useState<PipelineWithStages[]>([])
   const [products, setProducts] = React.useState<Product[]>([])
   const [stages, setStages] = React.useState<PipelineStage[]>([])
+  const [orderNotes, setOrderNotes] = React.useState<OrderNoteWithUser[]>([])
+
+  // Load order notes when sheet opens
+  React.useEffect(() => {
+    if (open && orderId) {
+      getOrderNotes(orderId).then(setOrderNotes).catch(() => setOrderNotes([]))
+    } else {
+      setOrderNotes([])
+    }
+  }, [open, orderId])
 
   // Load order data when sheet opens
   React.useEffect(() => {
@@ -389,14 +401,39 @@ export function ViewOrderSheet({
                   </>
                 )}
 
-                {/* Notes */}
+                {/* Description */}
                 {order.description && (
                   <>
                     <section className="space-y-3">
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        Notas
+                        Descripcion
                       </h3>
                       <p className="text-sm whitespace-pre-wrap">{order.description}</p>
+                    </section>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Order Notes (read-only) */}
+                {orderNotes.length > 0 && (
+                  <>
+                    <section className="space-y-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                        <MessageSquareIcon className="h-4 w-4" />
+                        Notas
+                      </h3>
+                      <div className="space-y-3">
+                        {orderNotes.map(note => (
+                          <div key={note.id} className="text-sm space-y-1">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <span className="font-medium">{note.user.email}</span>
+                              <span>·</span>
+                              <span>{new Date(note.created_at).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</span>
+                            </div>
+                            <p className="whitespace-pre-wrap">{note.content}</p>
+                          </div>
+                        ))}
+                      </div>
                     </section>
                     <Separator />
                   </>

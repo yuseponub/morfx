@@ -369,6 +369,7 @@ export async function receiveMessage(
         ...(params.mediaUrl ? { media_url: params.mediaUrl } : {}),
         ...(params.mediaMimeType ? { media_mime_type: params.mediaMimeType } : {}),
         ...(params.mediaFilename ? { media_filename: params.mediaFilename } : {}),
+        processed_by_agent: false,
       })
       .select('id')
       .single()

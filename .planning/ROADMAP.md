@@ -229,6 +229,14 @@ Plans:
 
 **Risk:** HIGH (OCR accuracy, data verification logic)
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — Automation trigger registration + Inngest event types
+- [ ] 27-02-PLAN.md — OCR extraction library + matching algorithm + normalization
+- [ ] 27-03-PLAN.md — Inngest OCR orchestrator + domain queries + callback extension
+- [ ] 27-04-PLAN.md — Server action + file upload + Chat de Comandos UI integration
+
 **Success Criteria:**
 1. Robot reads PDF or image shipping guides and extracts client name, destination, and guide number
 2. Robot verifies extracted data matches the expected order data in CRM (correct client, correct destination)

@@ -338,3 +338,31 @@ export interface ReorderStagesPayload {
   pipelineId: string
   stageIds: string[]
 }
+
+// ============================================================================
+// ORDER NOTE TYPES
+// ============================================================================
+
+/**
+ * Note attached to an order.
+ * All workspace members can see notes; author (or admin/owner) can edit/delete.
+ */
+export interface OrderNote {
+  id: string
+  order_id: string
+  workspace_id: string
+  user_id: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Note with user profile info for display.
+ */
+export interface OrderNoteWithUser extends OrderNote {
+  user: {
+    id: string
+    email: string
+  }
+}

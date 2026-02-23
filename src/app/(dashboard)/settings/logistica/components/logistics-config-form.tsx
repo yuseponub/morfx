@@ -11,13 +11,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Loader2, Truck, ScanLine } from 'lucide-react'
+import { Loader2, Truck, ScanLine, FileText, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateDispatchConfig, updateOcrConfig } from '@/app/actions/logistics-config'
+import { updateDispatchConfig, updateOcrConfig, updateGuideGenConfig } from '@/app/actions/logistics-config'
 import type { CarrierConfig } from '@/lib/domain/carrier-configs'
 import type { PipelineWithStages } from '@/lib/orders/types'
+import type { LucideIcon } from 'lucide-react'
 
 // ============================================================================
 // Types
@@ -28,19 +28,154 @@ interface LogisticsConfigFormProps {
   pipelines: PipelineWithStages[]
 }
 
+interface GuideGenCardProps {
+  icon: LucideIcon
+  title: string
+  description: string
+  carrierType: 'inter' | 'bogota' | 'envia'
+  pipelineId: string | null
+  stageId: string | null
+  destStageId: string | null
+  onPipelineChange: (value: string) => void
+  onStageChange: (value: string) => void
+  onDestStageChange: (value: string) => void
+  pipelines: PipelineWithStages[]
+  isPending: boolean
+  onSave: () => void
+}
+
 // ============================================================================
-// Constants
+// Sub-component: GuideGenCard
 // ============================================================================
 
-const KNOWN_CARRIERS = [
-  { id: 'coordinadora', name: 'Coordinadora', available: true },
-  { id: 'interrapidisimo', name: 'Inter Rapidisimo', available: false },
-  { id: 'envia', name: 'Envia', available: false },
-  { id: 'servientrega', name: 'Servientrega', available: false },
-] as const
+function GuideGenCard({
+  icon: Icon,
+  title,
+  description,
+  pipelineId,
+  stageId,
+  destStageId,
+  onPipelineChange,
+  onStageChange,
+  onDestStageChange,
+  pipelines,
+  isPending,
+  onSave,
+}: GuideGenCardProps) {
+  const selectedPipeline = pipelines.find(p => p.id === pipelineId)
+  const availableStages = selectedPipeline?.stages ?? []
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <Icon className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Pipeline Select */}
+          <div className="space-y-2">
+            <Label>Pipeline</Label>
+            <Select
+              value={pipelineId ?? undefined}
+              onValueChange={onPipelineChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar pipeline..." />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map(pipeline => (
+                  <SelectItem key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Source Stage Select */}
+          <div className="space-y-2">
+            <Label>Etapa origen (activa la generacion)</Label>
+            <Select
+              value={stageId ?? undefined}
+              onValueChange={onStageChange}
+              disabled={!pipelineId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={
+                  pipelineId
+                    ? 'Seleccionar etapa...'
+                    : 'Primero selecciona un pipeline'
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {availableStages.map(stage => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      {stage.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Destination Stage Select */}
+          <div className="space-y-2">
+            <Label>Etapa destino (despues de generar)</Label>
+            <Select
+              value={destStageId ?? undefined}
+              onValueChange={onDestStageChange}
+              disabled={!pipelineId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={
+                  pipelineId
+                    ? 'Seleccionar etapa destino...'
+                    : 'Primero selecciona un pipeline'
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {availableStages.map(stage => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      {stage.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-end mt-4">
+          <Button onClick={onSave} disabled={isPending} size="sm">
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 // ============================================================================
-// Component
+// Main Component
 // ============================================================================
 
 export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormProps) {
@@ -63,7 +198,40 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
     config?.ocr_stage_id ?? null
   )
 
-  // Get stages for the selected pipelines
+  // Inter Rapidisimo config
+  const [interPipelineId, setInterPipelineId] = useState<string | null>(
+    config?.pdf_inter_pipeline_id ?? null
+  )
+  const [interStageId, setInterStageId] = useState<string | null>(
+    config?.pdf_inter_stage_id ?? null
+  )
+  const [interDestStageId, setInterDestStageId] = useState<string | null>(
+    config?.pdf_inter_dest_stage_id ?? null
+  )
+
+  // Bogota config
+  const [bogotaPipelineId, setBogotaPipelineId] = useState<string | null>(
+    config?.pdf_bogota_pipeline_id ?? null
+  )
+  const [bogotaStageId, setBogotaStageId] = useState<string | null>(
+    config?.pdf_bogota_stage_id ?? null
+  )
+  const [bogotaDestStageId, setBogotaDestStageId] = useState<string | null>(
+    config?.pdf_bogota_dest_stage_id ?? null
+  )
+
+  // Envia config
+  const [enviaPipelineId, setEnviaPipelineId] = useState<string | null>(
+    config?.pdf_envia_pipeline_id ?? null
+  )
+  const [enviaStageId, setEnviaStageId] = useState<string | null>(
+    config?.pdf_envia_stage_id ?? null
+  )
+  const [enviaDestStageId, setEnviaDestStageId] = useState<string | null>(
+    config?.pdf_envia_dest_stage_id ?? null
+  )
+
+  // Get stages for the selected pipelines (Coordinadora + OCR)
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
   const availableStages = selectedPipeline?.stages ?? []
 
@@ -118,6 +286,30 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
         toast.success('Configuracion OCR actualizada')
       }
     })
+  }
+
+  // Guide generation save handlers
+  const handleSaveGuideGen = (carrierType: 'inter' | 'bogota' | 'envia', label: string) => {
+    return () => {
+      startTransition(async () => {
+        const pipelineMap = { inter: interPipelineId, bogota: bogotaPipelineId, envia: enviaPipelineId }
+        const stageMap = { inter: interStageId, bogota: bogotaStageId, envia: enviaStageId }
+        const destMap = { inter: interDestStageId, bogota: bogotaDestStageId, envia: enviaDestStageId }
+
+        const result = await updateGuideGenConfig({
+          carrierType,
+          pipelineId: pipelineMap[carrierType],
+          stageId: stageMap[carrierType],
+          destStageId: destMap[carrierType],
+        })
+
+        if ('error' in result) {
+          toast.error(result.error)
+        } else {
+          toast.success(`Configuracion ${label} actualizada`)
+        }
+      })
+    }
   }
 
   return (
@@ -290,24 +482,56 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
         </CardContent>
       </Card>
 
-      {/* Future Carriers (disabled placeholders) */}
-      {KNOWN_CARRIERS.filter(c => !c.available).map(carrier => (
-        <Card key={carrier.id} className="opacity-60">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                  <Truck className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">{carrier.name}</CardTitle>
-                </div>
-              </div>
-              <Badge variant="secondary">Proximamente</Badge>
-            </div>
-          </CardHeader>
-        </Card>
-      ))}
+      {/* Inter Rapidisimo - PDF Guide Generation */}
+      <GuideGenCard
+        icon={FileText}
+        title="Inter Rapidisimo"
+        description="Generar guias PDF 4x6 para Interrapidisimo"
+        carrierType="inter"
+        pipelineId={interPipelineId}
+        stageId={interStageId}
+        destStageId={interDestStageId}
+        onPipelineChange={(value) => { setInterPipelineId(value); setInterStageId(null); setInterDestStageId(null) }}
+        onStageChange={setInterStageId}
+        onDestStageChange={setInterDestStageId}
+        pipelines={pipelines}
+        isPending={isPending}
+        onSave={handleSaveGuideGen('inter', 'Inter Rapidisimo')}
+      />
+
+      {/* Bogota - PDF Guide Generation */}
+      <GuideGenCard
+        icon={FileText}
+        title="Bogota"
+        description="Generar guias PDF 4x6 para envios Bogota"
+        carrierType="bogota"
+        pipelineId={bogotaPipelineId}
+        stageId={bogotaStageId}
+        destStageId={bogotaDestStageId}
+        onPipelineChange={(value) => { setBogotaPipelineId(value); setBogotaStageId(null); setBogotaDestStageId(null) }}
+        onStageChange={setBogotaStageId}
+        onDestStageChange={setBogotaDestStageId}
+        pipelines={pipelines}
+        isPending={isPending}
+        onSave={handleSaveGuideGen('bogota', 'Bogota')}
+      />
+
+      {/* Envia - Excel Guide Generation */}
+      <GuideGenCard
+        icon={FileSpreadsheet}
+        title="Envia"
+        description="Generar archivo Excel para carga masiva Envia"
+        carrierType="envia"
+        pipelineId={enviaPipelineId}
+        stageId={enviaStageId}
+        destStageId={enviaDestStageId}
+        onPipelineChange={(value) => { setEnviaPipelineId(value); setEnviaStageId(null); setEnviaDestStageId(null) }}
+        onStageChange={setEnviaStageId}
+        onDestStageChange={setEnviaDestStageId}
+        pipelines={pipelines}
+        isPending={isPending}
+        onSave={handleSaveGuideGen('envia', 'Envia')}
+      />
     </div>
   )
 }

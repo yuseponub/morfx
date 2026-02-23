@@ -9,7 +9,7 @@ MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce
 - **v1.0 MVP** — Phases 1-11 (shipped 2026-02-04)
 - **v2.0 Agentes Conversacionales** — Phases 12-20 (shipped 2026-02-16)
 - **v3.0 Logistica** — Phases 21-28 (in progress)
-- **v4.0 Comportamiento Humano** — Phases 29-35 (planned)
+- **v4.0 Comportamiento Humano** — Phases 29-36 (planned)
 
 ## Phases
 
@@ -284,6 +284,7 @@ Plans:
 - [ ] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [ ] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
 - [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
+- [ ] **Phase 36: Documentación del Agente** - Documentar arquitectura, proceso de creación y patrones de Somnio para replicar en futuros agentes
 
 ---
 
@@ -429,6 +430,26 @@ Plans:
 
 ---
 
+### Phase 36: Documentación del Agente
+
+**Goal:** Documentar completamente cómo se construyó Somnio -- arquitectura, decisiones, patrones, intents, templates, engine, adapters -- para que crear un nuevo agente en el futuro sea un proceso guiado en vez de desde cero.
+
+**Dependencies:** None (runs in parallel with Phases 29-35, can start immediately)
+
+**Requirements:** DOC-01
+
+**Risk:** LOW (documentation only, no code changes)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. Existe un documento que describe la arquitectura completa de Somnio: UnifiedEngine, adapters, tool registry, session state, intent detection, template selection, ingest system
+2. El proceso de creación de un agente nuevo está documentado paso a paso: qué archivos crear, qué configurar, cómo registrar intents/templates, cómo conectar al WhatsApp pipeline
+3. Las decisiones clave están documentadas con el "por qué" (no solo el "qué"): por qué plantillas y no IA generativa, por qué ports/adapters, por qué clasificación post-intent
+4. Un desarrollador (humano o agente IA) puede seguir la documentación para crear un agente CRM básico sin leer el código de Somnio
+
+---
+
 ## Standalone Phases (between milestones)
 
 - [x] **WhatsApp Performance** — Realtime consolidation, panel lazy-loading, infrastructure (4 plans)
@@ -446,14 +467,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
-| v4.0 Comportamiento Humano | 29-35 | TBD | Planned | — |
+| v4.0 Comportamiento Humano | 29-36 | TBD | Planned | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **46 phases** | **177+ plans** | | |
 
 ### Current Phase
 
 Phase 28: Robot Creador de Guias PDF — PLANNED (5 plans, 3 waves)
-Next milestone: v4.0 Comportamiento Humano (Phases 29-35)
+Next milestone: v4.0 Comportamiento Humano (Phases 29-36)
 
 ---
 
@@ -464,4 +485,4 @@ Next milestone: v4.0 Comportamiento Humano (Phases 29-35)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-23 (v4.0 Comportamiento Humano roadmap: 7 phases, 28 requirements)*
+*Last updated: 2026-02-23 (v4.0 Comportamiento Humano roadmap: 8 phases, 29 requirements)*

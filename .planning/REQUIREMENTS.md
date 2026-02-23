@@ -2,7 +2,7 @@
 
 **Estado:** APROBADO
 **Fecha:** 2026-02-23
-**Total:** 28 requirements en 7 categorias
+**Total:** 29 requirements en 8 categorias
 
 ## Milestone v4.0 Requirements
 
@@ -48,6 +48,10 @@
 - [ ] **OFINT-02**: Confirmacion obligatoria: cuando se sospecha ofi inter, el agente SIEMPRE pregunta "Deseas recibir en oficina de Interrapidisimo?" antes de cambiar flujo
 - [ ] **OFINT-03**: Datos bifurcados: si ofi inter -- pedir nombre, apellido, telefono, cedula de quien recoge, municipio, departamento, correo (7 campos, sin direccion/barrio, con cedula)
 - [ ] **OFINT-04**: Integracion con ingest: cuando solo llega municipio, el sistema acumula datos y luego pregunta si quiere ofi inter o envio normal
+
+### Documentación
+
+- [ ] **DOC-01**: Documentar arquitectura, proceso de creación y patrones de Somnio para que futuros agentes puedan crearse siguiendo una guía paso a paso
 
 ### Infraestructura
 
@@ -110,8 +114,9 @@
 | INFRA-01 | Phase 29 | Pending |
 | INFRA-02 | Phase 33 | Pending |
 | INFRA-03 | Phase 34 | Pending |
+| DOC-01 | Phase 36 | Pending |
 
-**Coverage:** 28/28 requirements mapped. 3 INFRA requirements distributed into their consuming phases.
+**Coverage:** 29/29 requirements mapped. 3 INFRA requirements distributed into their consuming phases. DOC-01 runs in parallel.
 
 ---
 *Requirements defined: 2026-02-23*

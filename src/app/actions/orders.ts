@@ -502,19 +502,8 @@ export async function updateOrder(id: string, formData: Partial<OrderFormData>):
   // Fetch current order to compare stage before unnecessary move
   const currentOrder = await getOrder(id)
   if (!currentOrder) {
-    console.error('[updateOrder] Order not found for edit', { id, workspaceId: auth.workspaceId })
     return { error: 'Pedido no encontrado para editar' }
   }
-
-  // DIAGNOSTIC: Compare cookie workspace vs order's actual workspace
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orderWsId = (currentOrder as any).workspace_id
-  console.log('[updateOrder] DIAG workspace check', {
-    orderId: id,
-    cookieWs: auth.workspaceId,
-    orderWs: orderWsId,
-    match: auth.workspaceId === orderWsId,
-  })
 
   // Only call moveOrderToStage if stage actually changed
   if (orderData.stage_id !== undefined && orderData.stage_id !== currentOrder.stage?.id) {

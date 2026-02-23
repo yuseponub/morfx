@@ -457,6 +457,10 @@ Plans:
 - [x] **Action Fields Audit** — Executor field pass-through, duplicate_order toggles, UI catalog + "Agregar campo", AI builder sync (4 plans)
 - [ ] **CRM Orders Performance** — Kanban scroll, infinite scroll, virtualization (2/3 plans)
 - [x] **WhatsApp Phone Resilience** — Secondary phone extraction from Shopify note_attributes, fallback chain in action executor (2 plans)
+- [ ] **Order Notes System** — Notes CRUD for orders + rename "Notas" to "Descripcion" (2 plans)
+  Plans:
+  - [ ] order-notes-01-PLAN.md — DB migration + domain layer + types
+  - [ ] order-notes-02-PLAN.md — Server actions + UI component + integration + rename
 
 ## Progress
 
@@ -468,8 +472,8 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
 | v4.0 Comportamiento Humano | 29-36 | TBD | Planned | — |
-| Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
-| **Total** | **46 phases** | **177+ plans** | | |
+| Standalone | 6 phases | 18 | 4 complete, 2 in progress | |
+| **Total** | **47 phases** | **179+ plans** | | |
 
 ### Current Phase
 

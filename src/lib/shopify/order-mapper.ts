@@ -108,7 +108,8 @@ export async function matchProducts(
         product_id: catalogProduct.id,
         sku: catalogProduct.sku,
         title: catalogProduct.title,
-        unit_price: parseFloat(item.price),  // Use Shopify price as snapshot
+        // Apply line item discount (Shopify total_discount is for entire line)
+        unit_price: parseFloat(item.price) - (parseFloat(item.total_discount || '0') / item.quantity),
         quantity: item.quantity,
       })
     } else {
@@ -117,7 +118,8 @@ export async function matchProducts(
         product_id: null,  // No catalog link
         sku: item.sku || `SHOPIFY-${item.id}`,
         title: item.title || item.name,
-        unit_price: parseFloat(item.price),
+        // Apply line item discount (Shopify total_discount is for entire line)
+        unit_price: parseFloat(item.price) - (parseFloat(item.total_discount || '0') / item.quantity),
         quantity: item.quantity,
       })
       unmatched.push(item)

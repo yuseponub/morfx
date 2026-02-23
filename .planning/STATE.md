@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 29 of 35 (Inngest Migration + Character Delays)
-Plan: 04 of 4 complete (Wave 2 done)
-Status: In progress (29-03 pending)
-Last activity: 2026-02-23 — Completed 29-04-PLAN.md (character-based delays in messaging adapter)
+Phase: 29 of 35 (Inngest Migration + Character Delays) - COMPLETE
+Plan: 4 of 4 complete
+Status: Phase complete
+Last activity: 2026-02-23 — Completed 29-03-PLAN.md (Inngest webhook processor + feature flag)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [##░░░░░░░░] 11% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [###░░░░░░░] 14% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -45,7 +45,7 @@ All 9 phases + 5 inserted phases completed:
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 29 | Inngest Migration + Character Delays | IN PROGRESS (3/4 plans, 29-03 pending) |
+| 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | Not started |
 | 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
 | 32 | Media Processing | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 188
+- Total plans completed: 189
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -94,6 +94,11 @@ Order notes system decisions:
 - No activity logging for order notes (no order_activity table exists)
 - Extended existing domain/notes.ts rather than creating new file
 
+Phase 29 decisions:
+- processAgentInline helper: DRY extraction for shared inline/fallback path
+- processed_by_agent marks ALL unprocessed inbound messages (batch case)
+- Inngest send failure falls back to inline processing (safety net)
+
 Recent decisions affecting v4.0:
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
 - Character delay curve: min 2s, cap 12s at 250 chars, logarithmic
@@ -112,6 +117,7 @@ Recent decisions affecting v4.0:
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
+- Set USE_INNGEST_PROCESSING=true in Vercel to enable async agent processing
 - Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
 - Complete bulk-actions-orders-002 (integration into table/kanban)
@@ -124,6 +130,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 29-04-PLAN.md (character-based delays in messaging adapter)
+Stopped at: Completed 29-03-PLAN.md (Inngest webhook processor + feature flag) — Phase 29 COMPLETE
 Resume file: None
-Next: Execute 29-03-PLAN.md (Inngest webhook processor + feature flag) — only remaining plan in Phase 29
+Next: Phase 30 (Message Classification + Silence Timer)

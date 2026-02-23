@@ -939,6 +939,65 @@ export async function removeOrderTag(
 }
 
 // ============================================================================
+// getOrdersForOcrMatching
+// ============================================================================
+
+export interface OrderForOcrMatching {
+  id: string
+  name: string | null
+  contactPhone: string | null
+  contactName: string | null
+  contactId: string | null
+  shippingCity: string | null
+  shippingAddress: string | null
+}
+
+/**
+ * Get orders eligible for OCR guide matching in a specific pipeline stage.
+ * Only returns orders WITHOUT a carrier_guide_number (not yet assigned a guide).
+ * Includes flattened contact data for matching algorithm consumption.
+ *
+ * Used by the OCR orchestrator (Phase 27) to build the matching candidate pool.
+ */
+export async function getOrdersForOcrMatching(
+  ctx: DomainContext,
+  stageId: string
+): Promise<DomainResult<OrderForOcrMatching[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, name, shipping_city, shipping_address, contact_id, contacts:contact_id(id, name, phone)')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('stage_id', stageId)
+      .is('carrier_guide_number', null)
+
+    if (error) {
+      return { success: false, error: `Error obteniendo pedidos para OCR: ${error.message}` }
+    }
+
+    const mapped: OrderForOcrMatching[] = (data ?? []).map((row) => {
+      const contact = row.contacts as unknown as { id: string; name: string; phone: string } | null
+      return {
+        id: row.id,
+        name: row.name,
+        contactPhone: contact?.phone ?? null,
+        contactName: contact?.name ?? null,
+        contactId: contact?.id ?? row.contact_id ?? null,
+        shippingCity: row.shipping_city,
+        shippingAddress: row.shipping_address,
+      }
+    })
+
+    return { success: true, data: mapped }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
 // getOrdersByStage
 // ============================================================================
 

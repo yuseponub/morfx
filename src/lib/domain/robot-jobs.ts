@@ -304,8 +304,9 @@ export async function updateJobItemResult(
     // On success: update order through domain module (triggers automation field.changed events)
     // For create_shipment jobs: write tracking_number (pedido number)
     // For guide_lookup jobs: write carrier_guide_number (guide number)
-    // The callback reuses the trackingNumber field for both — domain routes to the correct column
-    if (params.status === 'success' && params.trackingNumber) {
+    // For ocr_guide_read jobs: SKIP — orchestrator already calls updateOrder directly
+    //   (OCR items may also have order_id = NULL before matching)
+    if (params.status === 'success' && params.trackingNumber && parentJob?.job_type !== 'ocr_guide_read') {
       if (parentJob?.job_type === 'guide_lookup') {
         await updateOrder(ctx, {
           orderId: item.order_id,

@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 28 of 35 (Robot Creador de Guias PDF)
-Plan: 02 of 5 complete
+Plan: 03 of 5 complete
 Status: In progress
-Last activity: 2026-02-23 — Completed 28-02-PLAN.md (document generation library)
+Last activity: 2026-02-23 — Completed 28-03-PLAN.md (settings UI config cards)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [░░░░░░░░░░] 0% v4.0
 
@@ -39,7 +39,7 @@ All 9 phases + 5 inserted phases completed:
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
 | 27 | Robot OCR de Guias | COMPLETE (4/4 plans) |
-| 28 | Robot Creador de Guias PDF | IN PROGRESS (2/5 plans) |
+| 28 | Robot Creador de Guias PDF | IN PROGRESS (3/5 plans) |
 
 ### v4.0 Comportamiento Humano (Planned)
 
@@ -67,7 +67,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 183
+- Total plans completed: 184
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -84,6 +84,8 @@ Phase 28 decisions:
 - Claude AI normalization fallback: buildFallbackOrder() returns usable defaults instead of throwing
 - valorCobrar set to "$0" when pagoAnticipado is true (prepaid = nothing to collect)
 - Per-order barcode try/catch: failed barcode skips without crashing the entire PDF
+- GuideGenCard sub-component for DRY carrier config cards (pipeline + source stage + dest stage)
+- Pipeline change resets both source and dest stage selections
 
 Recent decisions affecting v4.0:
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
@@ -115,6 +117,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 28-02-PLAN.md (document generation library)
+Stopped at: Completed 28-03-PLAN.md (settings UI config cards)
 Resume file: None
-Next: Execute 28-03-PLAN.md (Inngest orchestrators)
+Next: Execute 28-04-PLAN.md (Inngest orchestrators)

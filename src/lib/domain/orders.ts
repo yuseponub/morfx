@@ -331,11 +331,21 @@ export async function updateOrder(
       .single()
 
     if (fetchError || !previousOrder) {
+      // DIAGNOSTIC: Query WITHOUT workspace filter to check if order exists at all
+      const { data: orderAnyWs } = await supabase
+        .from('orders')
+        .select('id, workspace_id')
+        .eq('id', params.orderId)
+        .single()
+
       console.error('[domain/updateOrder] Order not found', {
         orderId: params.orderId,
-        workspaceId: ctx.workspaceId,
+        ctxWorkspaceId: ctx.workspaceId,
         fetchError: fetchError?.message,
         fetchErrorCode: fetchError?.code,
+        orderExistsGlobally: !!orderAnyWs,
+        actualWorkspaceId: orderAnyWs?.workspace_id ?? 'N/A',
+        isMismatch: orderAnyWs ? orderAnyWs.workspace_id !== ctx.workspaceId : 'order-deleted',
       })
       return { success: false, error: 'Pedido no encontrado' }
     }
@@ -518,11 +528,21 @@ export async function moveOrderToStage(
       .single()
 
     if (fetchError || !currentOrder) {
+      // DIAGNOSTIC: Query WITHOUT workspace filter
+      const { data: orderAnyWs } = await supabase
+        .from('orders')
+        .select('id, workspace_id')
+        .eq('id', params.orderId)
+        .single()
+
       console.error('[domain/moveOrderToStage] Order not found', {
         orderId: params.orderId,
-        workspaceId: ctx.workspaceId,
+        ctxWorkspaceId: ctx.workspaceId,
         fetchError: fetchError?.message,
         fetchErrorCode: fetchError?.code,
+        orderExistsGlobally: !!orderAnyWs,
+        actualWorkspaceId: orderAnyWs?.workspace_id ?? 'N/A',
+        isMismatch: orderAnyWs ? orderAnyWs.workspace_id !== ctx.workspaceId : 'order-deleted',
       })
       return { success: false, error: 'Pedido no encontrado' }
     }

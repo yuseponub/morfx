@@ -439,10 +439,11 @@ const ocrGuideOrchestrator = inngest.createFunction(
     await step.run('update-orders-and-items', async () => {
       for (const result of results) {
         if (result.autoAssigned && result.match && result.ocrData?.numeroGuia) {
-          // Auto-assign: update order carrier_guide_number via domain layer
+          // Auto-assign: update order tracking_number + carrier via domain layer
           await updateOrder(ctx, {
             orderId: result.match.orderId,
-            carrierGuideNumber: result.ocrData.numeroGuia,
+            trackingNumber: result.ocrData.numeroGuia,
+            carrier: result.ocrData.transportadora.toUpperCase(),
           })
 
           // Mark item as success in robot_job_items
@@ -471,7 +472,7 @@ const ocrGuideOrchestrator = inngest.createFunction(
               orderId: result.match.orderId,
               orderName: result.match.orderName ?? undefined,
               carrierGuideNumber: result.ocrData.numeroGuia,
-              carrier: result.ocrData.transportadora,
+              carrier: result.ocrData.transportadora.toUpperCase(),
               contactId: result.match.contactId,
               contactName: result.match.contactName ?? undefined,
               contactPhone: result.match.contactPhone ?? undefined,

@@ -546,6 +546,39 @@ export type RobotEvents = {
       matchStageId: string
     }
   }
+
+  /**
+   * Emitted by MorfX to trigger PDF guide generation (Inter or Bogota).
+   * Consumed by Inngest pdf-guide orchestrator (Phase 28).
+   * Carries orderIds and items -- orchestrator fetches full order data itself.
+   */
+  'robot/pdf-guide.submitted': {
+    data: {
+      jobId: string
+      workspaceId: string
+      carrierType: 'inter' | 'bogota'
+      sourceStageId: string
+      destStageId: string | null
+      orderIds: string[]
+      items: Array<{ itemId: string; orderId: string }>
+    }
+  }
+
+  /**
+   * Emitted by MorfX to trigger Excel guide generation (Envia).
+   * Consumed by Inngest excel-guide orchestrator (Phase 28).
+   * Carries orderIds and items -- orchestrator fetches full order data itself.
+   */
+  'robot/excel-guide.submitted': {
+    data: {
+      jobId: string
+      workspaceId: string
+      sourceStageId: string
+      destStageId: string | null
+      orderIds: string[]
+      items: Array<{ itemId: string; orderId: string }>
+    }
+  }
 }
 
 /**

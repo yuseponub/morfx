@@ -22,6 +22,16 @@ export interface CarrierConfig {
   dispatch_stage_id: string | null
   ocr_pipeline_id: string | null
   ocr_stage_id: string | null
+  // Guide generation stage configs (Phase 28)
+  pdf_inter_pipeline_id: string | null
+  pdf_inter_stage_id: string | null
+  pdf_inter_dest_stage_id: string | null
+  pdf_bogota_pipeline_id: string | null
+  pdf_bogota_stage_id: string | null
+  pdf_bogota_dest_stage_id: string | null
+  pdf_envia_pipeline_id: string | null
+  pdf_envia_stage_id: string | null
+  pdf_envia_dest_stage_id: string | null
   is_enabled: boolean
   created_at: string
   updated_at: string
@@ -35,6 +45,16 @@ export interface UpsertCarrierConfigParams {
   dispatchStageId?: string | null
   ocrPipelineId?: string | null
   ocrStageId?: string | null
+  // Guide generation stage configs (Phase 28)
+  pdfInterPipelineId?: string | null
+  pdfInterStageId?: string | null
+  pdfInterDestStageId?: string | null
+  pdfBogotaPipelineId?: string | null
+  pdfBogotaStageId?: string | null
+  pdfBogotaDestStageId?: string | null
+  pdfEnviaPipelineId?: string | null
+  pdfEnviaStageId?: string | null
+  pdfEnviaDestStageId?: string | null
   isEnabled?: boolean
 }
 
@@ -115,6 +135,15 @@ export async function upsertCarrierConfig(
         dispatch_stage_id: params.dispatchStageId ?? null,
         ocr_pipeline_id: params.ocrPipelineId ?? null,
         ocr_stage_id: params.ocrStageId ?? null,
+        pdf_inter_pipeline_id: params.pdfInterPipelineId ?? null,
+        pdf_inter_stage_id: params.pdfInterStageId ?? null,
+        pdf_inter_dest_stage_id: params.pdfInterDestStageId ?? null,
+        pdf_bogota_pipeline_id: params.pdfBogotaPipelineId ?? null,
+        pdf_bogota_stage_id: params.pdfBogotaStageId ?? null,
+        pdf_bogota_dest_stage_id: params.pdfBogotaDestStageId ?? null,
+        pdf_envia_pipeline_id: params.pdfEnviaPipelineId ?? null,
+        pdf_envia_stage_id: params.pdfEnviaStageId ?? null,
+        pdf_envia_dest_stage_id: params.pdfEnviaDestStageId ?? null,
         is_enabled: params.isEnabled ?? false,
         created_at: now,
         updated_at: now,
@@ -142,6 +171,16 @@ export async function upsertCarrierConfig(
     if (params.dispatchStageId !== undefined) updates.dispatch_stage_id = params.dispatchStageId
     if (params.ocrPipelineId !== undefined) updates.ocr_pipeline_id = params.ocrPipelineId
     if (params.ocrStageId !== undefined) updates.ocr_stage_id = params.ocrStageId
+    // Guide generation stage configs (Phase 28)
+    if (params.pdfInterPipelineId !== undefined) updates.pdf_inter_pipeline_id = params.pdfInterPipelineId
+    if (params.pdfInterStageId !== undefined) updates.pdf_inter_stage_id = params.pdfInterStageId
+    if (params.pdfInterDestStageId !== undefined) updates.pdf_inter_dest_stage_id = params.pdfInterDestStageId
+    if (params.pdfBogotaPipelineId !== undefined) updates.pdf_bogota_pipeline_id = params.pdfBogotaPipelineId
+    if (params.pdfBogotaStageId !== undefined) updates.pdf_bogota_stage_id = params.pdfBogotaStageId
+    if (params.pdfBogotaDestStageId !== undefined) updates.pdf_bogota_dest_stage_id = params.pdfBogotaDestStageId
+    if (params.pdfEnviaPipelineId !== undefined) updates.pdf_envia_pipeline_id = params.pdfEnviaPipelineId
+    if (params.pdfEnviaStageId !== undefined) updates.pdf_envia_stage_id = params.pdfEnviaStageId
+    if (params.pdfEnviaDestStageId !== undefined) updates.pdf_envia_dest_stage_id = params.pdfEnviaDestStageId
     if (params.isEnabled !== undefined) updates.is_enabled = params.isEnabled
 
     const { data, error } = await supabase
@@ -277,6 +316,71 @@ export async function getDispatchStage(
       data: {
         pipelineId: dispatch_pipeline_id,
         stageId: dispatch_stage_id,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Get the guide generation stage configuration for a specific carrier type.
+ * Returns null if config doesn't exist or pipeline_id/stage_id are not set.
+ * destStageId may be null (optional post-generation stage move).
+ *
+ * Used by "generar guias inter/bogota" and "generar excel envia" commands
+ * to know which stage to pull orders from and where to move them after.
+ */
+export async function getGuideGenStage(
+  ctx: DomainContext,
+  carrierType: 'inter' | 'bogota' | 'envia'
+): Promise<DomainResult<{ pipelineId: string; stageId: string; destStageId: string | null } | null>> {
+  try {
+    const configResult = await getCarrierConfig(ctx, 'coordinadora')
+
+    if (!configResult.success) {
+      return { success: false, error: configResult.error }
+    }
+
+    if (!configResult.data) {
+      return { success: true, data: null }
+    }
+
+    // Map carrierType to column prefix
+    const config = configResult.data
+    let pipelineId: string | null
+    let stageId: string | null
+    let destStageId: string | null
+
+    switch (carrierType) {
+      case 'inter':
+        pipelineId = config.pdf_inter_pipeline_id
+        stageId = config.pdf_inter_stage_id
+        destStageId = config.pdf_inter_dest_stage_id
+        break
+      case 'bogota':
+        pipelineId = config.pdf_bogota_pipeline_id
+        stageId = config.pdf_bogota_stage_id
+        destStageId = config.pdf_bogota_dest_stage_id
+        break
+      case 'envia':
+        pipelineId = config.pdf_envia_pipeline_id
+        stageId = config.pdf_envia_stage_id
+        destStageId = config.pdf_envia_dest_stage_id
+        break
+    }
+
+    if (!pipelineId || !stageId) {
+      return { success: true, data: null }
+    }
+
+    return {
+      success: true,
+      data: {
+        pipelineId,
+        stageId,
+        destStageId: destStageId ?? null,
       },
     }
   } catch (err) {

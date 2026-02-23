@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-20)
+See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v4.0 Comportamiento Humano — Defining requirements
+**Current focus:** Phase 28 Robot Creador de Guias PDF (v3.0 completion) + v4.0 planned
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-23 — Quick task 006: Fix Shopify discount handling
+Phase: 28 of 35 (Robot Creador de Guias PDF)
+Plan: 01 of 5 complete
+Status: In progress
+Last activity: 2026-02-23 — Completed 28-01-PLAN.md (guide gen data foundation)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [░░░░░░░░░░] 0% v4.0
 
@@ -28,7 +28,7 @@ All 9 phases + 5 inserted phases completed:
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
 
-### v3.0 Logistica (Complete — 7/8 phases, Phase 28 handled separately)
+### v3.0 Logistica (7/8 phases complete, Phase 28 in progress)
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -39,12 +39,19 @@ All 9 phases + 5 inserted phases completed:
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
 | 27 | Robot OCR de Guias | COMPLETE (4/4 plans) |
+| 28 | Robot Creador de Guias PDF | IN PROGRESS (1/5 plans) |
 
-### v4.0 Comportamiento Humano (In Progress)
+### v4.0 Comportamiento Humano (Planned)
 
 | Phase | Name | Status |
 |-------|------|--------|
-| — | Defining requirements | ○ |
+| 29 | Inngest Migration + Character Delays | Ready to plan |
+| 30 | Message Classification + Silence Timer | Not started |
+| 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
+| 32 | Media Processing | Not started |
+| 33 | Confidence Routing + Disambiguation Log | Not started |
+| 34 | No-Repetition System | Not started |
+| 35 | Flujo Ofi Inter | Not started |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -54,13 +61,13 @@ All 9 phases + 5 inserted phases completed:
 - CRM Orders Performance (2/3 plans) — IN PROGRESS
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
-- Quick fixes: 6 completed (optimistic send, media null URL, workspace_id, task overdue, carrier-tracking-order-triggers, shopify-discount-handling)
+- Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 181
+- Total plans completed: 182
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -69,143 +76,33 @@ All 9 phases + 5 inserted phases completed:
 
 Decisions logged in PROJECT.md Key Decisions table.
 
-- Added name and shipping_department to updateOrder automation fieldMappings (critical for field.changed triggers)
-- Enrichment orderName fallback chain: order.name -> order.description -> truncated UUID (backward compat)
-- Department auto-derived from city selection (not shown as separate input in forms)
-- Order name labeled "Referencia" — users think of order refs as codes
-- Contact detail prefers stored department over city-derived (Shopify compat)
-- duplicate_order copy flags default to true via `!== false` for backward compat
-- copyProducts toggle in create_order is opt-in only (prevents unintended product duplication)
-- carrier/trackingNumber in create_order fall back to trigger context values if not set explicitly
-- optional: true flag pattern for "Agregar campo" dropdown grouping in wizard UI
-- Generic OPTION_LABELS handler replaces per-param entityType select; works for priority, language too
-- field_select type with __custom fallback for update_field entity-aware field picker
-- Dynamic formatParamQuickReference() replaces hardcoded param list in AI builder system prompt (prevents drift)
-- Secondary phone stored in custom_fields JSONB (not new column) -- plugin-specific metadata from Releasit/CodMonster
-- Extract-at-ingestion pattern: capture Shopify note_attributes at webhook time, not at action execution time
-- Secondary phone fallback does NOT auto-link contact to secondary conversation (v1 safety)
-- Phone fallback chain is purely additive -- contacts without secondary_phone follow unchanged path
-- 'sending' status is client-only sentinel (not in MessageStatus union) — replaced by Realtime INSERT with real status
-- Inbound media re-hosting: download from 360dialog ephemeral URL, upload to Supabase Storage under inbound/ prefix, pass permanent public URL to domain
-- Pipeline stages scoping via parent pipeline workspace check (pipeline_stages has no workspace_id column)
-- Defense-in-depth: all contacts enrichment queries filter by workspace_id even when parent entity already verified
-- Batch-fetch contact names in dedicated Inngest step.run for N+1 avoidance in task-overdue-cron
-- Bulk operations use per-order domain loop (not batch SQL) to ensure automation triggers fire per order
-- DB field names mapped to domain param names in server action (adapter concern, not domain)
+Phase 28 decisions:
+- Guide gen config stored on same carrier_configs row (carrier='coordinadora') alongside dispatch/OCR config
+- Non-fatal tag fetch: getOrdersForGuideGeneration proceeds without tags on error
+- destStageId nullable (optional post-generation stage move)
 
-#### v3.0 Decisions
-- Playwright CANNOT run on Vercel — must be separate Docker service on Railway
-- Robot communicates with MorfX via Inngest events + HTTP callbacks
-- Domain layer MUST handle all robot result updates (triggers automation)
-- Anti-duplicate protection: workspace lock + per-order lock + batch idempotency
-- Chat de Comandos is pure React+Tailwind, fixed commands, Supabase Realtime for progress
-- DANE code database is foundational — blocks all carrier integrations
-- Zero new deps in MorfX for chat UI (no xterm.js, no WebSocket, no Redis/BullMQ)
-- DANE municipalities: 1,122 rows across 33 departments with normalized names for accent-insensitive lookup
-- Coordinadora coverage: 1,489 cities with nullable FK to DANE, supports_cod defaults false until COD list provided
-- Global reference tables pattern: NO workspace_id, NO RLS, SELECT-only grants
-- Portal password stored plaintext in v3.0 (not payment data, encryption deferred to v4.0+)
-- tracking_number is Coordinadora pedido number (not guia)
-- error_type enum: validation, portal, timeout, unknown (covers all robot failure modes)
-- robot_job_items uses parent-join RLS (no workspace_id column on child table)
-- Supabase Realtime on robot_job_items only (not robot_jobs) for Chat de Comandos progress
-- 45 department abbreviation entries covering all Bogota/San Andres variants + Mexican cross-border
-- Batch validateCities uses single query + Map lookup (not N+1)
-- getCarrierCredentials validates enabled + complete before returning credentials
-- Job auto-completes when success_count + error_count >= total_items
-- Idempotency check rejects only against active jobs (pending/processing), not completed/failed
-- retryFailedItems resets job status to pending if job was completed/failed
-- robot-coordinadora is standalone project at repo root (not inside src/), own package.json/tsconfig
-- In-memory locks (Map + Set) for workspace mutex and per-order skip -- no Redis for single-instance
-- Playwright ^1.52.0 version range (resolves to 1.58.2 latest stable)
-- fillField helper: clear-then-fill pattern for React SPA form fields with 200ms state sync delay
-- MUI Autocomplete city: locator('input[id^="mui-"]').first() for dynamic MUI IDs
-- COD toggle: multi-selector fallback (checkbox, label) for portal resilience
-- Pedido number extraction: cascading regex (Pedido N -> No. N -> 5+ digit number)
-- Fire-and-forget batch: processBatch().catch(log) after 200 ack (background Playwright processing)
-- Idempotency cache: Map keyed by jobId, set BEFORE res.json() to prevent retry races
-- City pre-validation: reject empty ciudad via callback before wasting browser session
-- Callback trackingNumber field maps to result.numeroPedido (not numeroGuia)
-- robot/job.batch_completed separate from robot/job.completed -- batch_completed for orchestrator step.waitForEvent signaling
-- robot.coord.completed fires per-order so automations run individually per order
-- Order enrichment enabled for robot.coord.completed so full order+contact data is available to actions
-- retries: 0 on robot-orchestrator (fail-fast) to prevent duplicate Coordinadora portal submissions
-- onFailure handler for guaranteed job failure marking (avoids try/catch around step.run anti-pattern)
-- Dynamic orchestrator timeout: (N orders x 30s) + 5 min margin for batch size scaling
-- 2s settle sleep before waitForEvent to handle tiny batches where callback arrives before event listener
-- callbackSecret passed in HTTP payload so robot service can forward it in callback headers for HMAC verification
-- Batch completion check reads job.status='completed' (domain atomically set) rather than counter arithmetic (prevents spurious duplicate events)
-- Callback trigger emission errors caught and logged, never fail the callback (domain update already succeeded)
-- Supabase Realtime on robot_jobs (job status) + robot_job_items (item progress) for Chat de Comandos
-- 2-query batch-fetch for getJobItemsWithOrderInfo (items then orders+contacts Map lookup)
-- getActiveJob delegates to getJobWithItems for full data reuse (DRY)
-- OrderForDispatch flattens contact fields for direct server action consumption
-- buildPedidoInputFromOrder defaults: peso=1, dimensions=10x10x10, COD=false (configurable later)
-- CommandResult<T> pattern for all command server actions: { success, data?, error? }
-- Realtime hook uses dual listeners on single channel: items for per-order progress, job for status
-- getJobStatus returns full GetJobWithItemsResult | null for reconnect scenario initial fetch
-- updateDispatchConfig omits portalUsername/portalPassword to preserve existing credentials when updating pipeline/stage config
-- Future carriers (Inter, Envia, Servientrega) rendered as disabled placeholder cards, no backend support yet
-- carrier_guide_number is separate column from tracking_number (pedido vs guide are different identifiers)
-- job_type column on robot_jobs discriminates create_shipment vs guide_lookup (independent job execution)
-- updateJobItemResult routes callback trackingNumber to carrier_guide_number for guide_lookup jobs
-- getActiveJob optional jobType filter allows concurrent shipment and guide lookup jobs
-- Pendiente callbacks (trackingNumber=undefined) skip order update entirely, preserving future lookup eligibility
-- GuideLookupResult reuses trackingNumber field for guide number (same callback contract as create_shipment)
-- guideLookupOrchestrator uses shorter timeout (10s/pedido + 3min vs 30s/order + 5min for shipment creation)
-- emitRobotCoordCompleted skipped for guide_lookup jobs (field.changed fires from domain updateOrder instead)
-- reportResult in robot service accepts union type (BatchItemResult | GuideLookupResult) for type safety
-- OCR extraction: PDF uses 'document' content block, images use 'image' content block (Anthropic SDK typed)
-- Matching confidence: phone=95, name=80, city=55, address=50 (cascading priority)
-- City match requires exactly 1 order in city (avoids ambiguity with multiple orders)
-- Address similarity uses numeric sequence matching (first 2-3 numbers must match)
-- Name matching uses word-subset containment ("MARIA LOPEZ" matches "MARIA ISABEL LOPEZ GARCIA")
-- OCR library self-contained under src/lib/ocr/ (types, normalize, extract, match)
-- robot_job_items.order_id nullable via partial unique index WHERE NOT NULL (OCR items are images, not orders)
-- carrierGuideNumber -> orden.carrier_guide_number in variable-resolver (distinct from trackingNumber -> orden.tracking_number)
-- robot/ocr-guide.submitted carries imageUrl/mimeType/fileName (OCR runs in MorfX, not external service)
-- OCR orchestrator runs extraction+matching as Inngest steps within MorfX (not external service dispatch)
-- Eligible orders fetched once per batch, shared across all images (efficiency)
-- matchedOrderIds Set prevents double-assignment of same order to multiple guides in one batch
-- Auto-assignment threshold: confidence >= 70% (phone=95, name=80 auto-assigned; city=55, address=50 low-confidence)
-- updateJobItemResult skips updateOrder for ocr_guide_read jobs (orchestrator handles directly)
-- Callback route trigger guard changed to positive create_shipment check (explicit, future-proof)
-- Structured value_sent JSONB with ocrCategory discriminator (auto_assigned, low_confidence, no_match, ocr_failed)
-- Claude Vision MUST use base64 (not URL) — URL access unreliable, causes hallucination with high confidence
-- OCR model: claude-sonnet-4-6 minimum (Sonnet 4 hallucinated guide data)
-- OCR stage config separate from dispatch stage (ocr_pipeline_id/ocr_stage_id in carrier_configs)
-- OCR writes to tracking_number (not carrier_guide_number) for external carriers
-- Carrier field is free text input (not hardcoded dropdown), stored uppercase
-- OCR matching: all orders in stage are eligible (no tracking_number filter, allows re-assignment)
-- Shopify discount: unit_price = price - (total_discount / quantity), trigger payloads include total_discount + discounted_price
-
-### Project Rules
-
-Established in `CLAUDE.md`:
-1. ALWAYS use America/Bogota timezone for dates
-2. ALWAYS follow GSD workflow completely
-3. ALL mutations through src/lib/domain/ (Regla 3)
-4. ALWAYS push to Vercel before asking user to test
+Recent decisions affecting v4.0:
+- Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
+- Character delay curve: min 2s, cap 12s at 250 chars, logarithmic
+- Classification post-IntentDetector (not pre-gate regex)
+- SILENCIOSO only in non-confirmatory states (resumen/collecting_data/confirmado are always RESPONDIBLE)
+- Debounce eliminated -- check pre-envio + char delay is the natural window
+- Priorities CORE/COMP/OPC per template per intent (not global)
+- No-repetition: 3 escalating levels (ID lookup, minifrase Haiku, full context)
+- Confidence V1: 2 bands (80%+ respond, <80% handoff+log), disambiguator built later with real data
+- Ofi Inter: always confirm, never assume; 3 detection paths
 
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
-- Mobile nav workspace switcher
-- Apply migrations to Supabase (all pending, including 20260217000000_real_fields.sql)
+- Apply migrations to Supabase (all pending)
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
-- Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway (shared secret for callback auth)
+- Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 005 | Add carrier/tracking variables to order triggers | 2026-02-21 | bfcf6bf | [005-add-carrier-tracking-to-order-triggers](./quick/005-add-carrier-tracking-to-order-triggers/) |
-| 006 | Fix Shopify discount handling in order pricing | 2026-02-23 | ed24ad0 | [006-fix-shopify-discount-handling](./quick/006-fix-shopify-discount-handling/) |
 
 ### Blockers/Concerns
 
@@ -214,6 +111,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Starting milestone v4.0 Comportamiento Humano
+Stopped at: Completed 28-01-PLAN.md (guide gen data foundation)
 Resume file: None
-Next: Define requirements and create roadmap for v4.0
+Next: Execute 28-02-PLAN.md (PDF orchestrator + normalization)

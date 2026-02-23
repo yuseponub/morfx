@@ -2,13 +2,14 @@
 
 ## Overview
 
-MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce COD businesses. Three milestones: v1.0 (CRM + WhatsApp core), v2.0 (Conversational Agents + Automations + Domain Layer + Integration Automations), and v3.0 (Logistics robot integration with command chat and pipeline automation).
+MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce COD businesses. Four milestones: v1.0 (CRM + WhatsApp core), v2.0 (Conversational Agents + Automations + Domain Layer + Integration Automations), v3.0 (Logistics robot integration with command chat and pipeline automation), and v4.0 (Human behavior system -- making Somnio feel like a real WhatsApp salesperson).
 
 ## Milestones
 
 - **v1.0 MVP** — Phases 1-11 (shipped 2026-02-04)
 - **v2.0 Agentes Conversacionales** — Phases 12-20 (shipped 2026-02-16)
 - **v3.0 Logistica** — Phases 21-28 (in progress)
+- **v4.0 Comportamiento Humano** — Phases 29-35 (planned)
 
 ## Phases
 
@@ -59,18 +60,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 </details>
 
-### v3.0 Logistica (Phases 21-28) — IN PROGRESS
+<details>
+<summary>v3.0 Logistica (Phases 21-28) — IN PROGRESS</summary>
 
 - [x] **Phase 21: DB + Domain Foundation**
 - [x] **Phase 22: Robot Coordinadora Service**
 - [x] **Phase 23: Inngest Orchestrator + Callback API**
 - [x] **Phase 24: Chat de Comandos UI**
 - [x] **Phase 25: Pipeline Config UI + Docs**
-- [x] **Phase 26: Robot Lector de Guías Coordinadora**
-- [x] **Phase 27: Robot OCR de Guías**
-- [ ] **Phase 28: Robot Creador de Guías PDF**
-
----
+- [x] **Phase 26: Robot Lector de Guias Coordinadora**
+- [x] **Phase 27: Robot OCR de Guias**
+- [ ] **Phase 28: Robot Creador de Guias PDF**
 
 ### Phase 21: DB + Domain Foundation
 
@@ -269,6 +269,164 @@ Plans:
 3. Generated PDFs are accessible from the MorfX interface
 4. Activated via command in Chat de Comandos
 
+</details>
+
+---
+
+### v4.0 Comportamiento Humano (Phases 29-35)
+
+**Milestone Goal:** Hacer que Somnio se comporte como un vendedor humano real en WhatsApp -- delays inteligentes, clasificacion de mensajes, sistema de bloques con interrupcion y no-repeticion, procesamiento de medios, confidence thresholds, y flujo ofi inter.
+
+- [ ] **Phase 29: Inngest Migration + Character Delays** - Webhook async via Inngest concurrency-1, typing delays by character count
+- [ ] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
+- [ ] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
+- [ ] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
+- [ ] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
+- [ ] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
+- [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
+
+---
+
+### Phase 29: Inngest Migration + Character Delays
+
+**Goal:** WhatsApp messages are processed asynchronously with concurrency-1 per conversation via Inngest, and bot responses have human-like typing delays proportional to message length.
+
+**Dependencies:** None (foundation phase for v4.0)
+
+**Requirements:** BLOCK-01, DELAY-01, DELAY-02, INFRA-01
+
+**Risk:** MEDIUM (Inngest migration is critical path -- message loss during deploy mitigated by feature flag)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. Webhook handler returns in ~200ms after saving the message and emitting an Inngest event (no inline agent processing)
+2. Messages for the same conversation are processed one at a time (concurrency 1) -- rapid messages queue and execute sequentially
+3. Bot responses have a typing delay proportional to character count (2s minimum for short messages, 12s cap for long messages) instead of the previous fixed delay
+4. Workspace admin can adjust response speed via a multiplier preset (real/rapido/instantaneo) that scales the delay curve proportionally
+5. A USE_INNGEST_PROCESSING feature flag allows instant rollback to inline processing without code deploy
+
+---
+
+### Phase 30: Message Classification + Silence Timer
+
+**Goal:** Bot distinguishes between messages that need a response, acknowledgments that should be ignored, and negative/complex intents that require human handoff -- with a 90-second retake timer that re-engages silent customers.
+
+**Dependencies:** Phase 29 (Inngest async processing required)
+
+**Requirements:** CLASS-01, CLASS-02, CLASS-03, CLASS-04
+
+**Risk:** LOW (classification is pure TypeScript logic, timer copies exact pattern from 4 existing timers)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. After intent detection, each message is classified as RESPONDIBLE (proceed normally), SILENCIOSO (ignore), or HANDOFF (route to human) based on the detected intent and current session state
+2. Acknowledgments like "ok", "jaja", thumbs-up in non-confirmatory states (conversacion, bienvenida) produce no bot response -- but the same messages in confirmatory states (resumen, collecting_data, confirmado) are treated as RESPONDIBLE
+3. Messages with HANDOFF intents (asesor, queja, cancelar, no_gracias, no_interesa, fallback) disable the bot for that conversation, send "Regalame 1 min", and notify the human host
+4. When a message is classified SILENCIOSO, a 90-second retake timer starts -- if the customer writes again before timeout the timer cancels; if timeout expires, the bot sends a re-engagement message redirecting to the sale
+
+---
+
+### Phase 31: Pre-Send Check + Interruption + Pending Merge
+
+**Goal:** Bot sends responses in blocks instead of per-message, detects when the customer replies mid-sequence and stops sending, and merges unsent templates into the next response block by priority.
+
+**Dependencies:** Phase 29 (Inngest async), Phase 30 (classification determines which messages enter the pipeline)
+
+**Requirements:** BLOCK-02, BLOCK-03, BLOCK-04
+
+**Risk:** MEDIUM (merge algorithm edge cases, priority ordering must be tested thoroughly)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. Before sending each template in a response sequence, the bot checks the DB for new inbound messages -- if a new message arrived during the delay, the sequence stops immediately
+2. Templates not sent due to interruption are saved as pending with their CORE/COMPLEMENTARIA/OPCIONAL priority
+3. The next response block merges pending templates with new templates, ordered by priority (CORE first), capped at 3 templates per block -- OPCIONAL is dropped first, CORE is never dropped
+4. A pending CORE template displaces a new COMPLEMENTARIA or OPCIONAL template when the block exceeds the 3-template maximum
+
+---
+
+### Phase 32: Media Processing
+
+**Goal:** Bot handles all WhatsApp media types intelligently -- transcribing voice notes, interpreting stickers, and routing images/videos to human agents -- instead of silently ignoring non-text messages.
+
+**Dependencies:** Phase 29 (Inngest async -- media gate runs inside the Inngest function)
+
+**Requirements:** MEDIA-01, MEDIA-02, MEDIA-03, MEDIA-04
+
+**Risk:** MEDIUM (Whisper OGG format edge cases, sticker hallucination risk with Vision)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. Voice notes and audio messages are transcribed via Whisper to Spanish text -- if the transcription contains 1-2 intents, they are processed normally as if the customer typed them; if 3+ intents are detected, the bot hands off to a human with a notification listing the detected topics
+2. When an image or video arrives, the bot immediately hands off to the human agent with "Regalame 1 min" and a notification that media was received
+3. Stickers are interpreted via Claude Vision -- recognizable ones (ok, thumbs up, greeting) are converted to equivalent text and processed normally; unrecognizable ones trigger handoff
+4. Emoji reactions on messages are mapped to text equivalents (thumbs-up to "ok", heart to "ok", laugh to "jaja") and processed through the classification pipeline; ambiguous reactions trigger handoff
+
+---
+
+### Phase 33: Confidence Routing + Disambiguation Log
+
+**Goal:** Bot routes low-confidence intent detections to human agents instead of guessing, and logs the full context of ambiguous situations for human review and future training.
+
+**Dependencies:** Phase 30 (classification pipeline where confidence check integrates)
+
+**Requirements:** CONF-01, CONF-02, CONF-03, INFRA-02
+
+**Risk:** LOW (small code change in somnio-agent + new DB table)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. When the IntentDetector returns confidence below 80%, the bot performs a real HANDOFF (bot off, "Regalame 1 min", notify host) instead of attempting a response
+2. Every low-confidence handoff automatically creates a record in the disambiguation_log table capturing the customer message, agent state, top intent alternatives with scores, templates already sent, pending templates, and a conversation history summary
+3. A human reviewer can open disambiguation_log entries (via Supabase dashboard in V1) and fill in the correct intent, correct action, and guidance notes -- marking them as reviewed
+4. The disambiguation_log preserves full context from the block system (templates_enviados, pending_templates) so reviewers understand what the bot had already communicated
+
+---
+
+### Phase 34: No-Repetition System
+
+**Goal:** Bot never sends the same information twice -- whether it was sent as a template, typed by a human, or generated by AI -- using a 3-level escalating verification system, and paraphrases templates for repeated intents.
+
+**Dependencies:** Phase 31 (pre-send check provides the send loop where no-repetition integrates, templates_enviados registry must be reliable)
+
+**Requirements:** BLOCK-05, BLOCK-06, BLOCK-07, BLOCK-08, INFRA-03
+
+**Risk:** HIGH (3-level system is the most complex feature; Haiku accuracy for Spanish semantic comparison needs validation)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. Level 1 -- a template whose exact ID was already sent in the conversation is never sent again (instant lookup from session_state.templates_enviados, 0ms, $0)
+2. Level 2 -- a template whose minifrase theme was already covered by another outbound message (template, human, or AI) is detected and blocked via Haiku comparison (~200ms, ~$0.0003 per check)
+3. Level 3 -- when Level 2 returns PARCIAL (partial thematic overlap), the system reads the full message text from DB and uses Haiku with complete context to decide whether the new template adds enough value to send (~1-3s)
+4. When a customer asks about the same intent a second time, the bot sends the top 2 templates by priority (CORE first) paraphrased by Claude -- never repeating the same text verbatim
+5. Each of the ~30 agent templates has a manually-defined minifrase that captures its thematic essence (used for Level 2 comparisons)
+
+---
+
+### Phase 35: Flujo Ofi Inter
+
+**Goal:** Agent detects when a customer wants office pickup at Interrapidisimo (instead of home delivery) through direct mention, partial data patterns, or uncommon municipality names -- always confirming before changing the flow -- and collects the correct bifurcated data fields.
+
+**Dependencies:** Phase 30 (classification pipeline), existing Ingest System (v2.0 Phase 15.5)
+
+**Requirements:** OFINT-01, OFINT-02, OFINT-03, OFINT-04
+
+**Risk:** LOW (conversation flow change within existing Somnio intent/ingest architecture)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. The agent detects ofi inter intent through three paths: direct mention ("ofi inter", "recojo en inter"), municipality-only data without address, or uncommon/remote municipality name
+2. When ofi inter is suspected, the agent ALWAYS asks "Deseas recibir en oficina de Interrapidisimo?" before changing the flow -- it never assumes office pickup
+3. If confirmed as ofi inter, the data collection switches to 7 fields (nombre, apellido, telefono, cedula de quien recoge, municipio, departamento, correo) instead of the normal 8 fields (without direccion/barrio, with cedula)
+4. When only a municipality arrives via the ingest system without an address, the system accumulates the data and then asks whether the customer wants office pickup or normal delivery before proceeding
+
 ---
 
 ## Standalone Phases (between milestones)
@@ -288,12 +446,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
+| v4.0 Comportamiento Humano | 29-35 | TBD | Planned | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
-| **Total** | **39 phases** | **170+ plans** | | |
+| **Total** | **46 phases** | **177+ plans** | | |
 
 ### Current Phase
 
-Phase 28: Robot Creador de Guías PDF — PLANNED (5 plans, 3 waves)
+Phase 28: Robot Creador de Guias PDF — PLANNED (5 plans, 3 waves)
+Next milestone: v4.0 Comportamiento Humano (Phases 29-35)
 
 ---
 
@@ -304,4 +464,4 @@ Phase 28: Robot Creador de Guías PDF — PLANNED (5 plans, 3 waves)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-23 (Phase 28 planned: 5 plans in 3 waves)*
+*Last updated: 2026-02-23 (v4.0 Comportamiento Humano roadmap: 7 phases, 28 requirements)*

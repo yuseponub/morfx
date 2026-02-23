@@ -5,16 +5,20 @@
 // Powers the command execution flow for carrier dispatch and live job monitoring.
 //
 // Actions:
-//   executeSubirOrdenesCoord — Full flow: credentials -> orders -> validate -> job -> Inngest
-//   executeBuscarGuiasCoord  — Full flow: credentials -> pending-guide orders -> job -> Inngest
-//   getJobStatus             — Get active job with items (for reconnect)
-//   getCommandHistory        — Recent jobs for workspace (history panel)
-//   getJobItemsForHistory    — Items for a specific job (expandable detail)
+//   executeSubirOrdenesCoord  — Full flow: credentials -> orders -> validate -> job -> Inngest
+//   executeBuscarGuiasCoord   — Full flow: credentials -> pending-guide orders -> job -> Inngest
+//   executeLeerGuias          — Full flow: upload images -> OCR job -> Inngest
+//   executeGenerarGuiasInter  — Full flow: stage config -> orders -> pdf job -> Inngest
+//   executeGenerarGuiasBogota — Full flow: stage config -> orders -> pdf job -> Inngest
+//   executeGenerarExcelEnvia  — Full flow: stage config -> orders -> excel job -> Inngest
+//   getJobStatus              — Get active job with items (for reconnect)
+//   getCommandHistory         — Recent jobs for workspace (history panel)
+//   getJobItemsForHistory     — Items for a specific job (expandable detail)
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
-import { getCarrierCredentials, getDispatchStage, getOcrStage } from '@/lib/domain/carrier-configs'
+import { getCarrierCredentials, getDispatchStage, getOcrStage, getGuideGenStage } from '@/lib/domain/carrier-configs'
 import { validateCities, type CityValidationItem } from '@/lib/domain/carrier-coverage'
 import {
   createRobotJob,
@@ -25,7 +29,7 @@ import {
   type RobotJobItem,
   type GetJobWithItemsResult,
 } from '@/lib/domain/robot-jobs'
-import { getOrdersByStage, getOrdersPendingGuide, type OrderForDispatch, type OrderPendingGuide } from '@/lib/domain/orders'
+import { getOrdersByStage, getOrdersPendingGuide, getOrdersForGuideGeneration, type OrderForDispatch, type OrderPendingGuide } from '@/lib/domain/orders'
 import type { PedidoInput } from '@/lib/logistics/constants'
 import type { DomainContext } from '@/lib/domain/types'
 import { inngest } from '@/inngest/client'
@@ -54,6 +58,11 @@ interface LeerGuiasResult {
 }
 
 interface BuscarGuiasResult {
+  jobId: string
+  totalOrders: number
+}
+
+interface GuideGenResult {
   jobId: string
   totalOrders: number
 }
@@ -554,6 +563,269 @@ export async function executeLeerGuias(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[comandos] executeLeerGuias error:', message)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// executeGenerarGuiasInter
+// ============================================================================
+
+/**
+ * Full flow for "generar guias inter" command:
+ * 1. Validate auth
+ * 2. Get guide gen stage config for Inter
+ * 3. Check for active pdf_guide_inter job
+ * 4. Fetch orders from source stage
+ * 5. Create robot job (job_type: 'pdf_guide_inter')
+ * 6. Dispatch to Inngest (robot/pdf-guide.submitted)
+ */
+export async function executeGenerarGuiasInter(): Promise<CommandResult<GuideGenResult>> {
+  try {
+    // 1. Auth
+    const auth = await getAuthContext()
+    if ('error' in auth) return { success: false, error: auth.error }
+
+    const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+
+    // 2. Guide gen stage config
+    const stageResult = await getGuideGenStage(ctx, 'inter')
+    if (!stageResult.success) {
+      return { success: false, error: stageResult.error! }
+    }
+    if (!stageResult.data) {
+      return {
+        success: false,
+        error: 'Etapa de generacion Inter no configurada. Configure la etapa en Configuracion > Logistica.',
+      }
+    }
+    const stageConfig = stageResult.data
+
+    // 3. Check for active pdf_guide_inter job
+    const activeJobResult = await getActiveJob(ctx, 'pdf_guide_inter')
+    if (!activeJobResult.success) {
+      return { success: false, error: activeJobResult.error! }
+    }
+    if (activeJobResult.data) {
+      return { success: false, error: 'Ya hay una generacion de guias Inter en progreso' }
+    }
+
+    // 4. Fetch orders from source stage
+    const ordersResult = await getOrdersForGuideGeneration(ctx, stageConfig.stageId)
+    if (!ordersResult.success) return { success: false, error: ordersResult.error! }
+    const orders = ordersResult.data!
+
+    if (orders.length === 0) {
+      return { success: false, error: 'No hay pedidos en la etapa de generacion Inter' }
+    }
+
+    // 5. Create robot job
+    const orderIds = orders.map(o => o.id)
+    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'inter', jobType: 'pdf_guide_inter' })
+    if (!jobResult.success || !jobResult.data) {
+      return { success: false, error: jobResult.error || 'Error creando job' }
+    }
+
+    // 6. Dispatch to Inngest
+    // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
+    await (inngest.send as any)({
+      name: 'robot/pdf-guide.submitted',
+      data: {
+        jobId: jobResult.data.jobId,
+        workspaceId: ctx.workspaceId,
+        carrierType: 'inter',
+        sourceStageId: stageConfig.stageId,
+        destStageId: stageConfig.destStageId,
+        orderIds: orderIds,
+        items: jobResult.data.items,
+      },
+    })
+
+    return {
+      success: true,
+      data: {
+        jobId: jobResult.data.jobId,
+        totalOrders: orders.length,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[comandos] executeGenerarGuiasInter error:', message)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// executeGenerarGuiasBogota
+// ============================================================================
+
+/**
+ * Full flow for "generar guias bogota" command:
+ * 1. Validate auth
+ * 2. Get guide gen stage config for Bogota
+ * 3. Check for active pdf_guide_bogota job
+ * 4. Fetch orders from source stage
+ * 5. Create robot job (job_type: 'pdf_guide_bogota')
+ * 6. Dispatch to Inngest (robot/pdf-guide.submitted)
+ */
+export async function executeGenerarGuiasBogota(): Promise<CommandResult<GuideGenResult>> {
+  try {
+    // 1. Auth
+    const auth = await getAuthContext()
+    if ('error' in auth) return { success: false, error: auth.error }
+
+    const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+
+    // 2. Guide gen stage config
+    const stageResult = await getGuideGenStage(ctx, 'bogota')
+    if (!stageResult.success) {
+      return { success: false, error: stageResult.error! }
+    }
+    if (!stageResult.data) {
+      return {
+        success: false,
+        error: 'Etapa de generacion Bogota no configurada. Configure la etapa en Configuracion > Logistica.',
+      }
+    }
+    const stageConfig = stageResult.data
+
+    // 3. Check for active pdf_guide_bogota job
+    const activeJobResult = await getActiveJob(ctx, 'pdf_guide_bogota')
+    if (!activeJobResult.success) {
+      return { success: false, error: activeJobResult.error! }
+    }
+    if (activeJobResult.data) {
+      return { success: false, error: 'Ya hay una generacion de guias Bogota en progreso' }
+    }
+
+    // 4. Fetch orders from source stage
+    const ordersResult = await getOrdersForGuideGeneration(ctx, stageConfig.stageId)
+    if (!ordersResult.success) return { success: false, error: ordersResult.error! }
+    const orders = ordersResult.data!
+
+    if (orders.length === 0) {
+      return { success: false, error: 'No hay pedidos en la etapa de generacion Bogota' }
+    }
+
+    // 5. Create robot job
+    const orderIds = orders.map(o => o.id)
+    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'bogota', jobType: 'pdf_guide_bogota' })
+    if (!jobResult.success || !jobResult.data) {
+      return { success: false, error: jobResult.error || 'Error creando job' }
+    }
+
+    // 6. Dispatch to Inngest
+    // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
+    await (inngest.send as any)({
+      name: 'robot/pdf-guide.submitted',
+      data: {
+        jobId: jobResult.data.jobId,
+        workspaceId: ctx.workspaceId,
+        carrierType: 'bogota',
+        sourceStageId: stageConfig.stageId,
+        destStageId: stageConfig.destStageId,
+        orderIds: orderIds,
+        items: jobResult.data.items,
+      },
+    })
+
+    return {
+      success: true,
+      data: {
+        jobId: jobResult.data.jobId,
+        totalOrders: orders.length,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[comandos] executeGenerarGuiasBogota error:', message)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// executeGenerarExcelEnvia
+// ============================================================================
+
+/**
+ * Full flow for "generar excel envia" command:
+ * 1. Validate auth
+ * 2. Get guide gen stage config for Envia
+ * 3. Check for active excel_guide_envia job
+ * 4. Fetch orders from source stage
+ * 5. Create robot job (job_type: 'excel_guide_envia')
+ * 6. Dispatch to Inngest (robot/excel-guide.submitted)
+ */
+export async function executeGenerarExcelEnvia(): Promise<CommandResult<GuideGenResult>> {
+  try {
+    // 1. Auth
+    const auth = await getAuthContext()
+    if ('error' in auth) return { success: false, error: auth.error }
+
+    const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+
+    // 2. Guide gen stage config
+    const stageResult = await getGuideGenStage(ctx, 'envia')
+    if (!stageResult.success) {
+      return { success: false, error: stageResult.error! }
+    }
+    if (!stageResult.data) {
+      return {
+        success: false,
+        error: 'Etapa de generacion Envia no configurada. Configure la etapa en Configuracion > Logistica.',
+      }
+    }
+    const stageConfig = stageResult.data
+
+    // 3. Check for active excel_guide_envia job
+    const activeJobResult = await getActiveJob(ctx, 'excel_guide_envia')
+    if (!activeJobResult.success) {
+      return { success: false, error: activeJobResult.error! }
+    }
+    if (activeJobResult.data) {
+      return { success: false, error: 'Ya hay una generacion de Excel Envia en progreso' }
+    }
+
+    // 4. Fetch orders from source stage
+    const ordersResult = await getOrdersForGuideGeneration(ctx, stageConfig.stageId)
+    if (!ordersResult.success) return { success: false, error: ordersResult.error! }
+    const orders = ordersResult.data!
+
+    if (orders.length === 0) {
+      return { success: false, error: 'No hay pedidos en la etapa de generacion Envia' }
+    }
+
+    // 5. Create robot job
+    const orderIds = orders.map(o => o.id)
+    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'envia', jobType: 'excel_guide_envia' })
+    if (!jobResult.success || !jobResult.data) {
+      return { success: false, error: jobResult.error || 'Error creando job' }
+    }
+
+    // 6. Dispatch to Inngest
+    // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
+    await (inngest.send as any)({
+      name: 'robot/excel-guide.submitted',
+      data: {
+        jobId: jobResult.data.jobId,
+        workspaceId: ctx.workspaceId,
+        sourceStageId: stageConfig.stageId,
+        destStageId: stageConfig.destStageId,
+        orderIds: orderIds,
+        items: jobResult.data.items,
+      },
+    })
+
+    return {
+      success: true,
+      data: {
+        jobId: jobResult.data.jobId,
+        totalOrders: orders.length,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[comandos] executeGenerarExcelEnvia error:', message)
     return { success: false, error: message }
   }
 }

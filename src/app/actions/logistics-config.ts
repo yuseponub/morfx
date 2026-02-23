@@ -81,3 +81,50 @@ export async function updateDispatchConfig(params: {
 
   return { success: true, data: result.data as CarrierConfig }
 }
+
+/**
+ * Update OCR pipeline/stage config for guide reading.
+ * Separate from dispatch config — OCR matches guides to orders in a specific stage
+ * (e.g., "ESPERANDO GUIAS") for external carriers (Envia, Inter, etc.).
+ */
+export async function updateOcrConfig(params: {
+  ocrPipelineId: string | null
+  ocrStageId: string | null
+}): Promise<ActionResult<CarrierConfig>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  // Check admin role
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
+    return { error: 'Solo administradores pueden cambiar esta configuracion' }
+  }
+
+  const result = await upsertCarrierConfig(
+    { workspaceId, source: 'server-action' },
+    {
+      carrier: 'coordinadora',
+      ocrPipelineId: params.ocrPipelineId,
+      ocrStageId: params.ocrStageId,
+    }
+  )
+
+  if (!result.success) {
+    return { error: result.error ?? 'Error actualizando configuracion OCR' }
+  }
+
+  revalidatePath('/settings/logistica')
+
+  return { success: true, data: result.data as CarrierConfig }
+}

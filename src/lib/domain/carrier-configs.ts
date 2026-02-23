@@ -20,6 +20,8 @@ export interface CarrierConfig {
   portal_password: string | null
   dispatch_pipeline_id: string | null
   dispatch_stage_id: string | null
+  ocr_pipeline_id: string | null
+  ocr_stage_id: string | null
   is_enabled: boolean
   created_at: string
   updated_at: string
@@ -31,6 +33,8 @@ export interface UpsertCarrierConfigParams {
   portalPassword?: string | null
   dispatchPipelineId?: string | null
   dispatchStageId?: string | null
+  ocrPipelineId?: string | null
+  ocrStageId?: string | null
   isEnabled?: boolean
 }
 
@@ -109,6 +113,8 @@ export async function upsertCarrierConfig(
         portal_password: params.portalPassword ?? null,
         dispatch_pipeline_id: params.dispatchPipelineId ?? null,
         dispatch_stage_id: params.dispatchStageId ?? null,
+        ocr_pipeline_id: params.ocrPipelineId ?? null,
+        ocr_stage_id: params.ocrStageId ?? null,
         is_enabled: params.isEnabled ?? false,
         created_at: now,
         updated_at: now,
@@ -134,6 +140,8 @@ export async function upsertCarrierConfig(
     if (params.portalPassword !== undefined) updates.portal_password = params.portalPassword
     if (params.dispatchPipelineId !== undefined) updates.dispatch_pipeline_id = params.dispatchPipelineId
     if (params.dispatchStageId !== undefined) updates.dispatch_stage_id = params.dispatchStageId
+    if (params.ocrPipelineId !== undefined) updates.ocr_pipeline_id = params.ocrPipelineId
+    if (params.ocrStageId !== undefined) updates.ocr_stage_id = params.ocrStageId
     if (params.isEnabled !== undefined) updates.is_enabled = params.isEnabled
 
     const { data, error } = await supabase
@@ -192,6 +200,44 @@ export async function getCarrierCredentials(
       data: {
         username: configResult.data.portal_username,
         password: configResult.data.portal_password,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Get the OCR stage configuration (pipeline + stage where orders await guide matching).
+ * Returns null if config doesn't exist or ocr_pipeline_id/ocr_stage_id are not set.
+ * Used by "leer guias" command to know which orders are eligible for OCR matching.
+ */
+export async function getOcrStage(
+  ctx: DomainContext,
+): Promise<DomainResult<{ pipelineId: string; stageId: string } | null>> {
+  try {
+    const configResult = await getCarrierConfig(ctx, 'coordinadora')
+
+    if (!configResult.success) {
+      return { success: false, error: configResult.error }
+    }
+
+    if (!configResult.data) {
+      return { success: true, data: null }
+    }
+
+    const { ocr_pipeline_id, ocr_stage_id } = configResult.data
+
+    if (!ocr_pipeline_id || !ocr_stage_id) {
+      return { success: true, data: null }
+    }
+
+    return {
+      success: true,
+      data: {
+        pipelineId: ocr_pipeline_id,
+        stageId: ocr_stage_id,
       },
     }
   } catch (err) {

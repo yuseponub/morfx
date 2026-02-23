@@ -14,7 +14,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
-import { getCarrierCredentials, getDispatchStage } from '@/lib/domain/carrier-configs'
+import { getCarrierCredentials, getDispatchStage, getOcrStage } from '@/lib/domain/carrier-configs'
 import { validateCities, type CityValidationItem } from '@/lib/domain/carrier-coverage'
 import {
   createRobotJob,
@@ -476,15 +476,15 @@ export async function executeLeerGuias(
       return { success: false, error: 'Ya hay una lectura OCR en progreso' }
     }
 
-    // 4. Get dispatch stage config (for matching eligible orders)
-    const dispatchStageResult = await getDispatchStage(ctx)
-    if (!dispatchStageResult.success) {
-      return { success: false, error: dispatchStageResult.error! }
+    // 4. Get OCR stage config (separate from dispatch stage — for orders awaiting external guides)
+    const ocrStageResult = await getOcrStage(ctx)
+    if (!ocrStageResult.success) {
+      return { success: false, error: ocrStageResult.error! }
     }
-    if (!dispatchStageResult.data) {
+    if (!ocrStageResult.data) {
       return {
         success: false,
-        error: 'Etapa de despacho no configurada. Configure la etapa en Configuracion > Logistica.',
+        error: 'Etapa de lectura OCR no configurada. Configure la etapa en Configuracion > Logistica.',
       }
     }
 
@@ -540,7 +540,7 @@ export async function executeLeerGuias(
           mimeType: item.mimeType,
           fileName: item.fileName,
         })),
-        matchStageId: dispatchStageResult.data.stageId,
+        matchStageId: ocrStageResult.data.stageId,
       },
     })
 

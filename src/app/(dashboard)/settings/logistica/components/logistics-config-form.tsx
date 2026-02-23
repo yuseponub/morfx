@@ -13,9 +13,9 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Loader2, Truck } from 'lucide-react'
+import { Loader2, Truck, ScanLine } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateDispatchConfig } from '@/app/actions/logistics-config'
+import { updateDispatchConfig, updateOcrConfig } from '@/app/actions/logistics-config'
 import type { CarrierConfig } from '@/lib/domain/carrier-configs'
 import type { PipelineWithStages } from '@/lib/orders/types'
 
@@ -46,6 +46,7 @@ const KNOWN_CARRIERS = [
 export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormProps) {
   const [isPending, startTransition] = useTransition()
 
+  // Coordinadora dispatch config
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(
     config?.dispatch_pipeline_id ?? null
   )
@@ -54,9 +55,20 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
   )
   const [isEnabled, setIsEnabled] = useState(config?.is_enabled ?? false)
 
-  // Get stages for the selected pipeline
+  // OCR config
+  const [ocrPipelineId, setOcrPipelineId] = useState<string | null>(
+    config?.ocr_pipeline_id ?? null
+  )
+  const [ocrStageId, setOcrStageId] = useState<string | null>(
+    config?.ocr_stage_id ?? null
+  )
+
+  // Get stages for the selected pipelines
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
   const availableStages = selectedPipeline?.stages ?? []
+
+  const ocrPipeline = pipelines.find(p => p.id === ocrPipelineId)
+  const ocrAvailableStages = ocrPipeline?.stages ?? []
 
   const handlePipelineChange = (value: string) => {
     setSelectedPipelineId(value)
@@ -65,6 +77,15 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
 
   const handleStageChange = (value: string) => {
     setSelectedStageId(value)
+  }
+
+  const handleOcrPipelineChange = (value: string) => {
+    setOcrPipelineId(value)
+    setOcrStageId(null)
+  }
+
+  const handleOcrStageChange = (value: string) => {
+    setOcrStageId(value)
   }
 
   const handleSave = () => {
@@ -80,6 +101,21 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
         toast.error(result.error)
       } else {
         toast.success('Configuracion de logistica actualizada')
+      }
+    })
+  }
+
+  const handleSaveOcr = () => {
+    startTransition(async () => {
+      const result = await updateOcrConfig({
+        ocrPipelineId,
+        ocrStageId,
+      })
+
+      if ('error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Configuracion OCR actualizada')
       }
     })
   }
@@ -166,6 +202,91 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
               </Select>
             </div>
           </div>
+
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleSave} disabled={isPending} size="sm">
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* OCR Guide Reading */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <ScanLine className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Lectura OCR de Guias</CardTitle>
+              <CardDescription>
+                Lee guias fisicas o PDF y las asigna a pedidos en la etapa seleccionada
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* OCR Pipeline Select */}
+            <div className="space-y-2">
+              <Label>Pipeline</Label>
+              <Select
+                value={ocrPipelineId ?? undefined}
+                onValueChange={handleOcrPipelineChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar pipeline..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map(pipeline => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* OCR Stage Select */}
+            <div className="space-y-2">
+              <Label>Etapa de ordenes esperando guia</Label>
+              <Select
+                value={ocrStageId ?? undefined}
+                onValueChange={handleOcrStageChange}
+                disabled={!ocrPipelineId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    ocrPipelineId
+                      ? 'Seleccionar etapa...'
+                      : 'Primero selecciona un pipeline'
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {ocrAvailableStages.map(stage => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleSaveOcr} disabled={isPending} size="sm">
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -187,14 +308,6 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
           </CardHeader>
         </Card>
       ))}
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isPending}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Guardar cambios
-        </Button>
-      </div>
     </div>
   )
 }

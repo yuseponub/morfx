@@ -17,7 +17,10 @@ import { inngest } from '../client'
 import { updateJobStatus, updateJobItemResult } from '@/lib/domain/robot-jobs'
 import { extractGuideData } from '@/lib/ocr/extract-guide-data'
 import { matchGuideToOrder } from '@/lib/ocr/match-guide-to-order'
-import { getOrdersForOcrMatching, updateOrder } from '@/lib/domain/orders'
+import { getOrdersForOcrMatching, getOrdersForGuideGeneration, moveOrderToStage, updateOrder } from '@/lib/domain/orders'
+import { normalizeOrdersForGuide, normalizedToEnvia } from '@/lib/pdf/normalize-order-data'
+import { generateGuidesPdf } from '@/lib/pdf/generate-guide-pdf'
+import { generateEnviaExcel } from '@/lib/pdf/generate-envia-excel'
 import { emitRobotOcrCompleted } from '@/lib/automations/trigger-emitter'
 import type { OcrItemResult, OrderForMatching } from '@/lib/ocr/types'
 
@@ -553,7 +556,174 @@ const ocrGuideOrchestrator = inngest.createFunction(
 )
 
 // ============================================================================
+// PDF Guide Orchestrator (Phase 28)
+// ============================================================================
+
+/**
+ * PDF Guide Orchestrator
+ *
+ * Generates multi-page 4x6" shipping label PDFs for Inter Rapidisimo / Bogota
+ * carriers. Fetches orders from configured pipeline stage, normalizes data
+ * via Claude AI, generates PDF with barcodes, uploads to Supabase Storage,
+ * updates job items, and optionally moves orders to destination stage.
+ *
+ * Unlike robot-orchestrator (dispatches to external service), this runs
+ * all processing directly as Inngest steps within MorfX — same pattern
+ * as ocrGuideOrchestrator.
+ *
+ * retries: 0 — consistent with other robot orchestrators (fail-fast)
+ * Generate + upload in SAME step to avoid Inngest 4MB step output limit.
+ */
+const pdfGuideOrchestrator = inngest.createFunction(
+  {
+    id: 'pdf-guide-orchestrator',
+    retries: 0,
+    onFailure: async ({ event }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const originalEvent = (event as any).data?.event
+      const jobId = originalEvent?.data?.jobId as string | undefined
+      const workspaceId = originalEvent?.data?.workspaceId as string | undefined
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMessage = (event as any).data?.error?.message ?? 'Unknown error'
+
+      console.error(`[pdf-guide-orchestrator] Function failed for job ${jobId}:`, errorMessage)
+
+      if (jobId && workspaceId) {
+        await updateJobStatus(
+          { workspaceId, source: 'inngest-orchestrator' },
+          { jobId, status: 'failed' }
+        )
+        console.log(`[pdf-guide-orchestrator] Marked job ${jobId} as failed via onFailure`)
+      }
+    },
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { event: 'robot/pdf-guide.submitted' as any },
+  async ({ event, step }) => {
+    const { jobId, workspaceId, carrierType, sourceStageId, destStageId, items } = event.data
+    const ctx = { workspaceId, source: 'inngest-orchestrator' as const }
+    const carrierLabel = carrierType === 'inter' ? 'Inter Rapidisimo' : 'Bogota'
+
+    console.log(`[pdf-guide-orchestrator] Starting job ${jobId} for ${carrierLabel} with ${items.length} orders`)
+
+    // Step 1: Mark job as processing
+    await step.run('mark-processing', async () => {
+      const result = await updateJobStatus(ctx, { jobId, status: 'processing' })
+      if (!result.success) {
+        throw new Error(`Failed to mark job processing: ${result.error}`)
+      }
+    })
+
+    // Step 2: Fetch orders from source stage
+    const orders = await step.run('fetch-orders', async () => {
+      const result = await getOrdersForGuideGeneration(ctx, sourceStageId)
+      if (!result.success) throw new Error(`Failed to fetch orders: ${result.error}`)
+      return result.data!
+    })
+
+    // Step 3: Normalize data via Claude AI
+    const normalized = await step.run('normalize-data', async () => {
+      // Map domain OrderForGuideGen to GuideGenOrder format for normalizer
+      const guideOrders = orders.map((o) => ({
+        id: o.id,
+        name: o.name,
+        contactName: o.contact_name,
+        contactPhone: o.contact_phone,
+        shippingAddress: o.shipping_address,
+        shippingCity: o.shipping_city,
+        shippingDepartment: o.shipping_department,
+        totalValue: o.total_value,
+        products: o.products,
+        customFields: o.custom_fields,
+        tags: o.tags,
+      }))
+      return normalizeOrdersForGuide(guideOrders)
+    })
+
+    // Step 4: Generate PDF + upload to Storage (WITHIN SAME STEP to avoid Inngest 4MB limit)
+    const downloadUrl = await step.run('generate-and-upload', async () => {
+      // Read logo from public/logo-light.png with graceful fallback
+      let logoBuffer: Buffer | undefined
+      try {
+        const fs = await import('fs')
+        const path = await import('path')
+        const logoPath = path.join(process.cwd(), 'public', 'logo-light.png')
+        logoBuffer = fs.readFileSync(logoPath)
+      } catch (err) {
+        console.warn('[pdf-guide-orchestrator] Could not read logo file, generating PDF without logo:', err)
+        logoBuffer = undefined
+      }
+
+      const pdfBuffer = await generateGuidesPdf(normalized, logoBuffer)
+
+      // Upload to Supabase Storage
+      const { createAdminClient } = await import('@/lib/supabase/admin')
+      const supabase = createAdminClient()
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const fileName = `guias-${carrierType}-${timestamp}.pdf`
+      const filePath = `guide-pdfs/${workspaceId}/${fileName}`
+
+      const { error } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: false })
+
+      if (error) throw new Error(`Storage upload failed: ${error.message}`)
+
+      const { data } = supabase.storage.from('whatsapp-media').getPublicUrl(filePath)
+      return data.publicUrl
+    })
+
+    // Step 5: Update job items with results
+    await step.run('update-items', async () => {
+      // Build orderId -> normalized lookup
+      const normalizedMap = new Map(normalized.map((n) => [n.orderId, n]))
+
+      for (const item of items) {
+        const norm = normalizedMap.get(item.orderId)
+        if (norm) {
+          await updateJobItemResult(ctx, {
+            itemId: item.itemId,
+            status: 'success',
+            valueSent: {
+              documentUrl: downloadUrl,
+              carrierType,
+              orderName: norm.numero,
+              valorCobrar: norm.valorCobrar,
+            },
+          })
+        } else {
+          await updateJobItemResult(ctx, {
+            itemId: item.itemId,
+            status: 'error',
+            errorType: 'validation',
+            errorMessage: 'Error normalizando datos del pedido',
+          })
+        }
+      }
+    })
+
+    // Step 6: Move orders to destination stage (if configured)
+    if (destStageId) {
+      await step.run('move-orders', async () => {
+        for (const item of items) {
+          try {
+            await moveOrderToStage(ctx, { orderId: item.orderId, newStageId: destStageId })
+          } catch (err) {
+            console.error(`[pdf-guide-orchestrator] Failed to move order ${item.orderId}:`, err)
+            // Don't fail the job for stage move errors
+          }
+        }
+      })
+    }
+
+    console.log(`[pdf-guide-orchestrator] Job ${jobId} completed: ${items.length} orders for ${carrierLabel}`)
+
+    return { status: 'completed', jobId, downloadUrl, carrierType, totalOrders: items.length }
+  }
+)
+
+// ============================================================================
 // Exports
 // ============================================================================
 
-export const robotOrchestratorFunctions = [robotOrchestrator, guideLookupOrchestrator, ocrGuideOrchestrator]
+export const robotOrchestratorFunctions = [robotOrchestrator, guideLookupOrchestrator, ocrGuideOrchestrator, pdfGuideOrchestrator]

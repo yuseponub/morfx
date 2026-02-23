@@ -254,6 +254,15 @@ Plans:
 
 **Risk:** LOW (existing code, integration only)
 
+**Plans:** 5 plans
+
+Plans:
+- [ ] 28-01-PLAN.md — DB migration + domain carrier-configs + events + orders query
+- [ ] 28-02-PLAN.md — PDF/Excel generation library (types, Claude normalizer, PDFKit, ExcelJS)
+- [ ] 28-03-PLAN.md — Settings UI: 3 real carrier config cards replacing placeholders
+- [ ] 28-04-PLAN.md — Inngest orchestrators: PDF guide + Excel guide
+- [ ] 28-05-PLAN.md — Server actions + Chat de Comandos commands, chips, download links
+
 **Success Criteria:**
 1. Existing PDF guide generator is integrated into MorfX infrastructure (replacing n8n connection)
 2. Given CRM orders, the robot generates printable PDF shipping guides with correct order and shipping data
@@ -278,13 +287,13 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-28 | 22 (Phases 21-27) | Phase 27 Complete | — |
+| v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
 | Standalone | 5 phases | 16 | 4 complete, 1 in progress | |
 | **Total** | **39 phases** | **170+ plans** | | |
 
 ### Current Phase
 
-Phase 27: Robot OCR de Guías — COMPLETE (4 plans, 3 waves)
+Phase 28: Robot Creador de Guías PDF — PLANNED (5 plans, 3 waves)
 
 ---
 
@@ -295,4 +304,4 @@ Phase 27: Robot OCR de Guías — COMPLETE (4 plans, 3 waves)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-23 (Phase 27 complete: 4 plans in 3 waves)*
+*Last updated: 2026-02-23 (Phase 28 planned: 5 plans in 3 waves)*

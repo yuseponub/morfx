@@ -12,7 +12,6 @@ import { useState, useCallback, useRef, type KeyboardEvent } from 'react'
 import { Send, Upload, Activity, HelpCircle, Image as ImageIcon, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 
 interface CommandInputProps {
   onCommand: (input: string) => void
@@ -25,7 +24,6 @@ interface CommandInputProps {
 export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFileCount }: CommandInputProps) {
   const [inputValue, setInputValue] = useState('')
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = useCallback(() => {
@@ -60,7 +58,7 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
     setShowConfirmation(false)
   }, [])
 
-  // ---- File handling ----
+  // ---- File handling (file picker only, drag-and-drop handled by CommandPanel) ----
   const handleFiles = useCallback(async (fileList: FileList) => {
     const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
     const converted: Array<{ fileName: string; mimeType: string; base64Data: string }> = []
@@ -82,33 +80,8 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
     }
   }, [onFilesSelected])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback(() => {
-    setIsDragOver(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    if (e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files)
-    }
-  }, [handleFiles])
-
   return (
-    <div
-      className={cn(
-        "border-t bg-card p-3 space-y-3",
-        isDragOver && "ring-2 ring-primary ring-inset bg-primary/5"
-      )}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+    <div className="border-t bg-card p-3 space-y-3">
       {/* Quick-action chips */}
       <div className="flex items-center gap-2 flex-wrap">
         {!showConfirmation ? (

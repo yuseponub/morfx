@@ -499,8 +499,15 @@ export async function updateOrder(id: string, formData: Partial<OrderFormData>):
   const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
   const { products, ...orderData } = formData
 
-  // Handle stage change separately via moveOrderToStage if stage_id changed
-  if (orderData.stage_id !== undefined) {
+  // Fetch current order to compare stage before unnecessary move
+  const currentOrder = await getOrder(id)
+  if (!currentOrder) {
+    console.error('[updateOrder] Order not found for edit', { id, workspaceId: auth.workspaceId })
+    return { error: 'Pedido no encontrado para editar' }
+  }
+
+  // Only call moveOrderToStage if stage actually changed
+  if (orderData.stage_id !== undefined && orderData.stage_id !== currentOrder.stage?.id) {
     const moveResult = await domainMoveOrderToStage(ctx, {
       orderId: id,
       newStageId: orderData.stage_id,

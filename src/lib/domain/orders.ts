@@ -331,6 +331,12 @@ export async function updateOrder(
       .single()
 
     if (fetchError || !previousOrder) {
+      console.error('[domain/updateOrder] Order not found', {
+        orderId: params.orderId,
+        workspaceId: ctx.workspaceId,
+        fetchError: fetchError?.message,
+        fetchErrorCode: fetchError?.code,
+      })
       return { success: false, error: 'Pedido no encontrado' }
     }
 
@@ -512,6 +518,12 @@ export async function moveOrderToStage(
       .single()
 
     if (fetchError || !currentOrder) {
+      console.error('[domain/moveOrderToStage] Order not found', {
+        orderId: params.orderId,
+        workspaceId: ctx.workspaceId,
+        fetchError: fetchError?.message,
+        fetchErrorCode: fetchError?.code,
+      })
       return { success: false, error: 'Pedido no encontrado' }
     }
 

@@ -298,7 +298,13 @@ Plans:
 
 **Risk:** MEDIUM (Inngest migration is critical path -- message loss during deploy mitigated by feature flag)
 
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 29-01-PLAN.md — TDD: calculateCharDelay logarithmic curve (chars -> delay ms)
+- [ ] 29-02-PLAN.md — DB migration (processed_by_agent) + domain layer insert
+- [ ] 29-03-PLAN.md — Webhook handler Inngest wiring + feature flag + processed_by_agent lifecycle
+- [ ] 29-04-PLAN.md — Messaging adapter: replace fixed delay with calculateCharDelay
 
 **Success Criteria:**
 1. Webhook handler returns in ~200ms after saving the message and emitting an Inngest event (no inline agent processing)

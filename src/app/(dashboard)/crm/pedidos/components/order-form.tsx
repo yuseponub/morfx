@@ -401,29 +401,10 @@ export function OrderForm({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="carrier">Transportadora</Label>
-                <Controller
-                  control={form.control}
-                  name="carrier"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || ''}
-                      onValueChange={(val) => field.onChange(val || null)}
-                      disabled={isPending}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="coordinadora">Coordinadora</SelectItem>
-                        <SelectItem value="interrapidisimo">Interrapidisimo</SelectItem>
-                        <SelectItem value="envia">Envia</SelectItem>
-                        <SelectItem value="servientrega">Servientrega</SelectItem>
-                        <SelectItem value="tcc">TCC</SelectItem>
-                        <SelectItem value="deprisa">Deprisa</SelectItem>
-                        <SelectItem value="otra">Otra</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
+                <Input
+                  {...form.register('carrier')}
+                  placeholder="ENVIA, INTER, COORDINADORA..."
+                  disabled={isPending}
                 />
               </div>
 

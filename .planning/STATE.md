@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v3.0 Logistica — Phase 27 In Progress (2/? plans)
+**Current focus:** Milestone v3.0 Logistica — Phase 27 In Progress (2/4 plans)
 
 ## Current Position
 
 Phase: 27 — Robot OCR de Guias
-Plan: 02 of ?
+Plan: 01 of 4 (also 02 complete)
 Status: In progress
-Last activity: 2026-02-23 — Completed 27-02-PLAN.md (OCR Extraction Engine + Matching Algorithm)
+Last activity: 2026-02-23 — Completed 27-01-PLAN.md (Automation Trigger + Inngest Events)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 97% v3.0
 
@@ -38,7 +38,7 @@ All 9 phases + 5 inserted phases completed:
 | 24 | Chat de Comandos UI | COMPLETE (3/3 plans) |
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
-| 27 | Robot OCR de Guias | IN PROGRESS (2/? plans) |
+| 27 | Robot OCR de Guias | IN PROGRESS (2/4 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -54,7 +54,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 35 (31 milestone + 4 standalone)
-- Total plans completed: 174
+- Total plans completed: 175
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -155,6 +155,9 @@ Decisions logged in PROJECT.md Key Decisions table.
 - Address similarity uses numeric sequence matching (first 2-3 numbers must match)
 - Name matching uses word-subset containment ("MARIA LOPEZ" matches "MARIA ISABEL LOPEZ GARCIA")
 - OCR library self-contained under src/lib/ocr/ (types, normalize, extract, match)
+- robot_job_items.order_id nullable via partial unique index WHERE NOT NULL (OCR items are images, not orders)
+- carrierGuideNumber -> orden.carrier_guide_number in variable-resolver (distinct from trackingNumber -> orden.tracking_number)
+- robot/ocr-guide.submitted carries imageUrl/mimeType/fileName (OCR runs in MorfX, not external service)
 
 ### Project Rules
 
@@ -190,6 +193,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 27-02-PLAN.md (OCR Extraction Engine + Matching Algorithm)
+Stopped at: Completed 27-01-PLAN.md (Automation Trigger + Inngest Events)
 Resume file: None
 Next: Execute 27-03-PLAN.md (Inngest Orchestrator + Trigger)

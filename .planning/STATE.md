@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Phase: Not started (defining requirements)
 Plan: —
 Status: Defining requirements
-Last activity: 2026-02-23 — Milestone v4.0 started
+Last activity: 2026-02-23 — Quick task 006: Fix Shopify discount handling
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [░░░░░░░░░░] 0% v4.0
 

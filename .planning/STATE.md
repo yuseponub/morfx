@@ -61,14 +61,14 @@ All 9 phases + 5 inserted phases completed:
 - CRM Orders Performance (2/3 plans) — IN PROGRESS
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
-- Order Notes System (1/2 plans) — IN PROGRESS
+- Order Notes System (2/2 plans) — COMPLETE
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 36 (32 milestone + 4 standalone)
-- Total plans completed: 189
+- Total plans completed: 190
 - Total execution time: ~28 days (2026-01-26 to 2026-02-23)
 
 ## Accumulated Context
@@ -93,6 +93,9 @@ Phase 28 decisions:
 Order notes system decisions:
 - No activity logging for order notes (no order_activity table exists)
 - Extended existing domain/notes.ts rather than creating new file
+- Notes loaded via useEffect on sheet open, not in initial page query
+- WhatsApp view shows notes read-only (no CRUD buttons)
+- 'Notas' label reserved exclusively for notes entity; 'Descripcion' for order.description
 
 Phase 29 decisions:
 - processAgentInline helper: DRY extraction for shared inline/fallback path
@@ -130,6 +133,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23 COT
-Stopped at: Completed 29-03-PLAN.md (Inngest webhook processor + feature flag) — Phase 29 COMPLETE
+Stopped at: Completed order-notes-02-PLAN.md (server actions + UI + integration)
 Resume file: None
 Next: Phase 30 (Message Classification + Silence Timer)

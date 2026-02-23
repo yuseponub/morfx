@@ -177,6 +177,8 @@ export function buildTriggerContext(
   // Robot logistics fields (Phase 23: Inngest Orchestrator + Callback API)
   if (eventData.trackingNumber !== undefined) orden.tracking_number = eventData.trackingNumber
   if (eventData.carrier !== undefined) orden.carrier = eventData.carrier
+  // Robot OCR fields (Phase 27: Robot OCR de Guias)
+  if (eventData.carrierGuideNumber !== undefined) orden.carrier_guide_number = eventData.carrierGuideNumber
   if (Object.keys(orden).length > 0) context.orden = orden
 
   // --- tag ---

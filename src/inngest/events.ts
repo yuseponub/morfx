@@ -413,6 +413,21 @@ export type AutomationEvents = {
       cascadeDepth: number
     }
   }
+  // Robot OCR completion trigger (Phase 27: Robot OCR de Guias)
+  'automation/robot.ocr.completed': {
+    data: {
+      workspaceId: string
+      orderId: string
+      orderName?: string
+      carrierGuideNumber: string
+      carrier: string
+      contactId: string | null
+      contactName?: string
+      contactPhone?: string
+      shippingCity?: string
+      cascadeDepth: number
+    }
+  }
 }
 
 // ============================================================================
@@ -508,6 +523,27 @@ export type RobotEvents = {
         orderId: string
         pedidoNumber: string
       }>
+    }
+  }
+
+  /**
+   * Emitted by MorfX to trigger OCR guide reading job.
+   * Consumed by Inngest ocr-guide orchestrator (Phase 27).
+   * Unlike other robot events, this one carries image URLs (not order data)
+   * because OCR runs inside MorfX, not an external service.
+   */
+  'robot/ocr-guide.submitted': {
+    data: {
+      jobId: string
+      workspaceId: string
+      items: Array<{
+        itemId: string
+        imageUrl: string
+        mimeType: string
+        fileName: string
+      }>
+      /** Pipeline stage ID to filter eligible orders for matching */
+      matchStageId: string
     }
   }
 }

@@ -57,7 +57,7 @@ async function sendEvent(
 }
 
 // ============================================================================
-// Emitter Functions (13 total — one per trigger type)
+// Emitter Functions (14 total — one per trigger type)
 // ============================================================================
 
 /**
@@ -474,6 +474,33 @@ export async function emitRobotCoordCompleted(data: {
     'automation/robot.coord.completed',
     { ...data, cascadeDepth: depth },
     'robot.coord.completed',
+    data.workspaceId
+  )
+}
+
+/**
+ * Emit when the OCR robot successfully reads a guide and assigns it to an order.
+ * Fires per-order so automations run individually per matched guide.
+ */
+export async function emitRobotOcrCompleted(data: {
+  workspaceId: string
+  orderId: string
+  orderName?: string
+  carrierGuideNumber: string
+  carrier: string
+  contactId: string | null
+  contactName?: string
+  contactPhone?: string
+  shippingCity?: string
+  cascadeDepth?: number
+}): Promise<void> {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('robot.ocr.completed', data.workspaceId, depth)) return
+
+  await sendEvent(
+    'automation/robot.ocr.completed',
+    { ...data, cascadeDepth: depth },
+    'robot.ocr.completed',
     data.workspaceId
   )
 }

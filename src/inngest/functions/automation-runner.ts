@@ -46,6 +46,8 @@ const EVENT_TO_TRIGGER: Record<string, TriggerType> = {
   'automation/shopify.order_updated': 'shopify.order_updated',
   // Robot triggers (Phase 23: Inngest Orchestrator + Callback API)
   'automation/robot.coord.completed': 'robot.coord.completed',
+  // Robot OCR triggers (Phase 27: Robot OCR de Guias)
+  'automation/robot.ocr.completed': 'robot.ocr.completed',
 }
 
 // ============================================================================
@@ -128,8 +130,9 @@ function matchesTriggerConfig(
     case 'shopify.order_created':
     case 'shopify.draft_order_created':
     case 'shopify.order_updated':
-    // Robot triggers have no config filters (Phase 23)
+    // Robot triggers have no config filters (Phase 23, Phase 27)
     case 'robot.coord.completed':
+    case 'robot.ocr.completed':
       return true
 
     default:
@@ -384,7 +387,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
 
       // Context enrichment: load full order + contact data for order/tag triggers
       const needsOrderEnrichment =
-        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed') &&
+        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed' || triggerType === 'robot.ocr.completed') &&
         eventData.orderId
       const needsTagOrderEnrichment =
         (triggerType === 'tag.assigned' || triggerType === 'tag.removed') &&
@@ -589,7 +592,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
 }
 
 // ============================================================================
-// Create All 13 Runners
+// Create All 14 Runners
 // ============================================================================
 
 const orderStageChangedRunner = createAutomationRunner(
@@ -664,6 +667,12 @@ const robotCoordCompletedRunner = createAutomationRunner(
   'automation/robot.coord.completed'
 )
 
+// Robot OCR runners (Phase 27: Robot OCR de Guias)
+const robotOcrCompletedRunner = createAutomationRunner(
+  'robot.ocr.completed',
+  'automation/robot.ocr.completed'
+)
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -687,4 +696,5 @@ export const automationFunctions = [
   shopifyDraftOrderCreatedRunner,
   shopifyOrderUpdatedRunner,
   robotCoordCompletedRunner,
+  robotOcrCompletedRunner,
 ]

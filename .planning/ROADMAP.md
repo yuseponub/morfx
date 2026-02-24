@@ -284,7 +284,7 @@ Plans:
 - [x] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [x] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
 - [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
-- [ ] **Phase 36: Documentación del Agente** - Documentar arquitectura, proceso de creación y patrones de Somnio para replicar en futuros agentes
+- [ ] **Phase 36: Documentacion del Agente** - Documentar arquitectura, proceso de creacion y patrones de Somnio para replicar en futuros agentes
 
 ---
 
@@ -452,7 +452,12 @@ Plans:
 
 **Risk:** LOW (conversation flow change within existing Somnio intent/ingest architecture)
 
-**Plans:** TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 35-01-PLAN.md — Foundation: constants, config, data-extractor, normalizers, transition-validator with ofi inter support
+- [ ] 35-02-PLAN.md — Agent detection: SomnioAgent (Route 1+3), IngestManager (Route 2), Orchestrator mode-aware handling
+- [ ] 35-03-PLAN.md — Order creation: prompts, OrderCreator, production adapter, engine/timer mode-aware hooks + verification
 
 **Success Criteria:**
 1. The agent detects ofi inter intent through three paths: direct mention ("ofi inter", "recojo en inter"), municipality-only data without address, or uncommon/remote municipality name
@@ -462,9 +467,9 @@ Plans:
 
 ---
 
-### Phase 36: Documentación del Agente
+### Phase 36: Documentacion del Agente
 
-**Goal:** Documentar completamente cómo se construyó Somnio -- arquitectura, decisiones, patrones, intents, templates, engine, adapters -- para que crear un nuevo agente en el futuro sea un proceso guiado en vez de desde cero.
+**Goal:** Documentar completamente como se construyo Somnio -- arquitectura, decisiones, patrones, intents, templates, engine, adapters -- para que crear un nuevo agente en el futuro sea un proceso guiado en vez de desde cero.
 
 **Dependencies:** None (runs in parallel with Phases 29-35, can start immediately)
 
@@ -476,9 +481,9 @@ Plans:
 
 **Success Criteria:**
 1. Existe un documento que describe la arquitectura completa de Somnio: UnifiedEngine, adapters, tool registry, session state, intent detection, template selection, ingest system
-2. El proceso de creación de un agente nuevo está documentado paso a paso: qué archivos crear, qué configurar, cómo registrar intents/templates, cómo conectar al WhatsApp pipeline
-3. Las decisiones clave están documentadas con el "por qué" (no solo el "qué"): por qué plantillas y no IA generativa, por qué ports/adapters, por qué clasificación post-intent
-4. Un desarrollador (humano o agente IA) puede seguir la documentación para crear un agente CRM básico sin leer el código de Somnio
+2. El proceso de creacion de un agente nuevo esta documentado paso a paso: que archivos crear, que configurar, como registrar intents/templates, como conectar al WhatsApp pipeline
+3. Las decisiones clave estan documentadas con el "por que" (no solo el "que"): por que plantillas y no IA generativa, por que ports/adapters, por que clasificacion post-intent
+4. Un desarrollador (humano o agente IA) puede seguir la documentacion para crear un agente CRM basico sin leer el codigo de Somnio
 
 ---
 
@@ -515,14 +520,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
-| v4.0 Comportamiento Humano | 29-36 | 27+ (Phases 29-34 complete) | Phase 35 Next | — |
+| v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-34 complete) | Phase 35 Next | — |
 | Standalone | 9 phases | 31 | 7 complete, 2 in progress | |
-| **Total** | **50 phases** | **198+ plans** | | |
+| **Total** | **50 phases** | **201+ plans** | | |
 
 ### Current Phase
 
-Phase 34: No-Repetition System — COMPLETE (4 plans, verified 5/5, feature-flagged USE_NO_REPETITION)
-Next: Phase 35 (Flujo Ofi Inter)
+Phase 35: Flujo Ofi Inter — 3 plans, 3 waves (sequential)
+Next: Execute `/gsd:execute-phase 35`
 
 ---
 
@@ -533,4 +538,4 @@ Next: Phase 35 (Flujo Ofi Inter)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-03 (Phase 34 complete: 4 plans, verified 5/5, feature-flagged USE_NO_REPETITION)*
+*Last updated: 2026-03-04 (Phase 35 planned: 3 plans in 3 waves)*

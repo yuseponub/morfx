@@ -129,7 +129,7 @@ export function ComandosLayout() {
   const prevIsCompleteRef = useRef(false)
 
   // Realtime hook
-  const { job, items, successCount, errorCount, totalItems, isComplete } =
+  const { job, items, successCount, errorCount, totalItems, isComplete, isDisconnected } =
     useRobotJobProgress(activeJobId)
 
   // ---- Helper: add message ----
@@ -194,11 +194,11 @@ export function ComandosLayout() {
         const jobType = activeJobType!
         const jobIdCopy = activeJobId
 
-        // Reset state immediately (don't wait for async)
+        // Reset job tracking immediately (stops Realtime subscription)
         setActiveJobId(null)
         setActiveJobType(null)
-        setIsExecuting(false)
         prevProcessedRef.current = 0
+        // NOTE: setIsExecuting(false) moved into .then() to prevent input race
 
         getJobItemsForHistory(jobIdCopy).then((finalResult) => {
           const finalItems = finalResult.success && finalResult.data ? finalResult.data : items
@@ -221,6 +221,10 @@ export function ComandosLayout() {
             timestamp: now(),
           })
           loadHistory()
+          setIsExecuting(false)  // NOW safe -- message has been added
+        }).catch(() => {
+          // Fallback: still re-enable input even if fetch fails
+          setIsExecuting(false)
         })
 
         prevIsCompleteRef.current = isComplete
@@ -562,6 +566,12 @@ export function ComandosLayout() {
         <Terminal className="h-5 w-5 mr-2 text-muted-foreground" />
         <h1 className="text-lg font-semibold">Comandos</h1>
       </div>
+      {isDisconnected && activeJobId && (
+        <div className="px-6 py-2 bg-yellow-500/10 border-b border-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-sm flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+          Conexion en tiempo real interrumpida. El progreso puede no actualizarse.
+        </div>
+      )}
       <div className="flex-1 min-h-0">
         <ComandosSplitPanel
           leftPanel={

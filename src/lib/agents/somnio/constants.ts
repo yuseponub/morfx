@@ -76,6 +76,13 @@ export const ACKNOWLEDGMENT_PATTERNS = [
 ]
 
 // ============================================================================
+// Confidence Routing Constants (Phase 33)
+// ============================================================================
+
+/** Minimum confidence percentage for the bot to respond. Below this, handoff to human. */
+export const LOW_CONFIDENCE_THRESHOLD = 80
+
+// ============================================================================
 // Block Composition Constants (Phase 31)
 // ============================================================================
 

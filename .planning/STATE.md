@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
-Plan: 2 of 4 complete
+Plan: 2 of 4 complete (01 + 02)
 Status: In progress
-Last activity: 2026-02-24 — Completed 31-02-PLAN.md (Block Priorities DB Infrastructure)
+Last activity: 2026-02-24 — Completed 31-01-PLAN.md (BlockComposer TDD) and 31-02-PLAN.md (Block Priorities DB)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [######░░░░] 36% v4.0
 
@@ -126,6 +126,11 @@ Recent decisions affecting v4.0:
 - Confidence V1: 2 bands (80%+ respond, <80% handoff+log), disambiguator built later with real data
 - Ofi Inter: always confirm, never assume; 3 detection paths
 
+Phase 31 decisions (Plan 01):
+- Dedup across block/pool: shouldReplace() replaces block entries when pending pool candidate has same templateId and is preferred
+- Excess intent overflow classified individually: OPC dropped, CORE/COMP to pending
+- Pool sort: PRIORITY_RANK primary, isNew tiebreaker (pending first), orden final
+
 Phase 31 decisions (Plan 02):
 - Priority as TEXT with CHECK constraint (not Postgres enum) for flexibility
 - Default priority CORE for backward compatibility
@@ -152,6 +157,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 31-02-PLAN.md (Block Priorities DB Infrastructure)
+Stopped at: Completed 31-01-PLAN.md (BlockComposer TDD) — Plans 01 + 02 done
 Resume file: None
 Next: Execute 31-03-PLAN.md (Pre-Send Check Inngest Function)

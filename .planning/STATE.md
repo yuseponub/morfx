@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 34 of 36 (No-Repetition System)
-Plan: 1 of 4 complete (01)
+Plan: 2 of 4 complete (01, 02)
 Status: In progress
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-03-03 — Completed 34-01 DB Foundation + Types + Outbound Registry
+Last activity: 2026-03-03 — Completed 34-02 Minifrase Generator + No-Repetition Filter
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########--] 75% v4.0
 
@@ -51,7 +51,7 @@ All 9 phases + 5 inserted phases completed:
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
 | 32 | Media Processing | COMPLETE (3/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans, verified 8/8) |
-| 34 | No-Repetition System | IN PROGRESS (1/4 plans) |
+| 34 | No-Repetition System | IN PROGRESS (2/4 plans) |
 | 35 | Flujo Ofi Inter | Not started |
 
 ### Standalone Work (between v2.0 and v3.0)
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 207
+- Total plans completed: 208
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -222,6 +222,14 @@ Phase 33 decisions (Plan 02):
 - Last 10 conversation turns captured (input.history.slice(-10)), no LLM summarization
 - Step 7 timer cancel fix: empty array -> [{type: 'cancel', reason: 'handoff'}] (phantom timer prevention)
 
+Phase 34 decisions (Plan 02):
+- Sonnet 4 for all Haiku calls (claude-sonnet-4-20250514) until Haiku 4 available
+- Fail-open on all error paths (ENVIAR on API/parse errors, send rather than block)
+- Template minifrases cached per-instance (Map) to avoid repeated DB queries in same request
+- Level 3 only receives entries with fullContent (human/AI), not templates
+- Minifrase generation uses Promise.all for parallel Haiku calls
+- Fallback minifrase: first 15 words of content (no LLM call needed)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -243,6 +251,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-03 COT
-Stopped at: Completed 34-01-PLAN.md (DB + types + outbound registry)
+Stopped at: Completed 34-02-PLAN.md (Minifrase Generator + No-Repetition Filter)
 Resume file: None
-Next: 34-02-PLAN.md (Minifrase Generator)
+Next: 34-03-PLAN.md (Engine Integration)

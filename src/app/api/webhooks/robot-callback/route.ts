@@ -55,13 +55,7 @@ export async function POST(request: NextRequest) {
   // ------------------------------------------------------------------
   // 2. Parse and validate payload
   // ------------------------------------------------------------------
-  let body: {
-    itemId?: string
-    status?: 'success' | 'error'
-    trackingNumber?: string
-    errorType?: 'validation' | 'portal' | 'timeout' | 'unknown'
-    errorMessage?: string
-  }
+  let body: Record<string, unknown>
 
   try {
     body = await request.json()
@@ -69,15 +63,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { itemId, status, trackingNumber, errorType, errorMessage } = body
+  const { itemId, status, trackingNumber, errorType, errorMessage } = body as {
+    itemId?: unknown
+    status?: unknown
+    trackingNumber?: unknown
+    errorType?: unknown
+    errorMessage?: unknown
+  }
 
-  if (!itemId || !status) {
-    return NextResponse.json({ error: 'Missing itemId or status' }, { status: 400 })
+  // Required fields
+  if (!itemId || typeof itemId !== 'string') {
+    return NextResponse.json({ error: 'Invalid itemId: must be a non-empty string' }, { status: 400 })
   }
 
   if (status !== 'success' && status !== 'error') {
-    return NextResponse.json({ error: 'Invalid status (must be success or error)' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid status: must be "success" or "error"' }, { status: 400 })
   }
+
+  // UUID format validation
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_REGEX.test(itemId)) {
+    return NextResponse.json({ error: 'Invalid itemId: not a valid UUID' }, { status: 400 })
+  }
+
+  // Validate tracking number format on success
+  const validatedTrackingNumber = typeof trackingNumber === 'string' ? trackingNumber : undefined
+  if (status === 'success' && validatedTrackingNumber) {
+    if (validatedTrackingNumber.length < 3 || validatedTrackingNumber.length > 50) {
+      return NextResponse.json({ error: 'Invalid trackingNumber: length must be between 3 and 50' }, { status: 400 })
+    }
+  }
+
+  // Validate errorType enum
+  const validErrorTypes = ['validation', 'portal', 'timeout', 'unknown'] as const
+  type ValidErrorType = typeof validErrorTypes[number]
+  let validatedErrorType: ValidErrorType | undefined
+  if (status === 'error' && errorType) {
+    if (typeof errorType !== 'string' || !validErrorTypes.includes(errorType as ValidErrorType)) {
+      return NextResponse.json({ error: `Invalid errorType: must be one of ${validErrorTypes.join(', ')}` }, { status: 400 })
+    }
+    validatedErrorType = errorType as ValidErrorType
+  }
+
+  const validatedErrorMessage = typeof errorMessage === 'string' ? errorMessage.slice(0, 500) : undefined
 
   // ------------------------------------------------------------------
   // 3. Look up item to get workspace context
@@ -115,10 +143,10 @@ export async function POST(request: NextRequest) {
   const ctx = { workspaceId, source: 'robot-callback' as const }
   const result = await updateJobItemResult(ctx, {
     itemId,
-    status,
-    trackingNumber,
-    errorType,
-    errorMessage,
+    status: status as 'success' | 'error',
+    trackingNumber: validatedTrackingNumber,
+    errorType: validatedErrorType,
+    errorMessage: validatedErrorMessage,
   })
 
   if (!result.success) {
@@ -133,7 +161,7 @@ export async function POST(request: NextRequest) {
   //    ONLY for create_shipment jobs: guide_lookup uses field.changed from
   //    domain updateOrder, ocr_guide_read emits its own trigger from orchestrator.
   // ------------------------------------------------------------------
-  if (status === 'success' && trackingNumber && parentJob?.job_type === 'create_shipment') {
+  if (status === 'success' && validatedTrackingNumber && parentJob?.job_type === 'create_shipment') {
     try {
       const { data: order } = await supabase
         .from('orders')
@@ -152,7 +180,7 @@ export async function POST(request: NextRequest) {
           workspaceId,
           orderId: order.id,
           orderName: order.name || order.description || undefined,
-          trackingNumber,
+          trackingNumber: validatedTrackingNumber,
           carrier: 'COORDINADORA',
           contactId: contact?.id ?? null,
           contactName: contact?.name ?? undefined,

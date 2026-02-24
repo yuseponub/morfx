@@ -22,6 +22,8 @@ import { getCarrierCredentials, getDispatchStage, getOcrStage, getGuideGenStage 
 import { validateCities, type CityValidationItem } from '@/lib/domain/carrier-coverage'
 import {
   createRobotJob,
+  createOcrRobotJob,
+  updateJobStatus,
   getActiveJob,
   getJobHistory,
   getJobWithItems,
@@ -264,20 +266,33 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
 
     // 9. Dispatch to Inngest
     // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
-    await (inngest.send as any)({
-      name: 'robot/job.submitted',
-      data: {
-        jobId: jobResult.data.jobId,
-        workspaceId: ctx.workspaceId,
-        carrier: 'coordinadora',
-        credentials: creds.data,
-        orders: jobResult.data.items.map((item, idx) => ({
-          itemId: item.itemId,
-          orderId: item.orderId,
-          pedidoInput: pedidoInputs[idx],
-        })),
-      },
-    })
+    try {
+      await (inngest.send as any)({
+        name: 'robot/job.submitted',
+        data: {
+          jobId: jobResult.data.jobId,
+          workspaceId: ctx.workspaceId,
+          carrier: 'coordinadora',
+          credentials: creds.data,
+          orders: jobResult.data.items.map((item, idx) => ({
+            itemId: item.itemId,
+            orderId: item.orderId,
+            pedidoInput: pedidoInputs[idx],
+          })),
+        },
+      })
+    } catch (sendError) {
+      console.error(`[comandos] Inngest send failed for job ${jobResult.data.jobId}:`, sendError)
+      try {
+        await updateJobStatus(ctx, { jobId: jobResult.data.jobId, status: 'failed' })
+      } catch (cleanupError) {
+        console.error(`[comandos] Job cleanup also failed:`, cleanupError)
+      }
+      return {
+        success: false,
+        error: 'Error iniciando el procesamiento. El job fue cancelado. Intente nuevamente.',
+      }
+    }
 
     // 10. Return result
     return {
@@ -364,24 +379,55 @@ export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGui
       return { success: false, error: jobResult.error || 'Error creando job' }
     }
 
-    // 7. Dispatch to Inngest
+    // 7. Build pedidoNumbers with safe access (Bug #7: no crash on null tracking/item match)
+    const pedidoNumbers = orders
+      .map(order => {
+        const item = jobResult.data?.items.find(i => i.orderId === order.id)
+        if (!item || !order.tracking_number) return null
+        return {
+          itemId: item.itemId,
+          orderId: order.id,
+          pedidoNumber: order.tracking_number,
+        }
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+
+    if (pedidoNumbers.length === 0) {
+      return { success: false, error: 'Ninguna orden tiene numero de pedido asignado' }
+    }
+
+    // Bug #18: Basic tracking number format validation (soft -- warn, don't block)
+    const invalidTrackingOrders = pedidoNumbers.filter(
+      p => p.pedidoNumber.length < 3 || p.pedidoNumber.length > 50
+    )
+    if (invalidTrackingOrders.length > 0) {
+      console.warn(`[comandos] ${invalidTrackingOrders.length} orders with suspicious tracking numbers, proceeding anyway`)
+    }
+
+    // 8. Dispatch to Inngest
     // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
-    await (inngest.send as any)({
-      name: 'robot/guide-lookup.submitted',
-      data: {
-        jobId: jobResult.data.jobId,
-        workspaceId: ctx.workspaceId,
-        credentials: creds.data,
-        pedidoNumbers: orders.map(order => {
-          const item = jobResult.data!.items.find(i => i.orderId === order.id)!
-          return {
-            itemId: item.itemId,
-            orderId: order.id,
-            pedidoNumber: order.tracking_number,
-          }
-        }),
-      },
-    })
+    try {
+      await (inngest.send as any)({
+        name: 'robot/guide-lookup.submitted',
+        data: {
+          jobId: jobResult.data.jobId,
+          workspaceId: ctx.workspaceId,
+          credentials: creds.data,
+          pedidoNumbers,
+        },
+      })
+    } catch (sendError) {
+      console.error(`[comandos] Inngest send failed for job ${jobResult.data.jobId}:`, sendError)
+      try {
+        await updateJobStatus(ctx, { jobId: jobResult.data.jobId, status: 'failed' })
+      } catch (cleanupError) {
+        console.error(`[comandos] Job cleanup also failed:`, cleanupError)
+      }
+      return {
+        success: false,
+        error: 'Error iniciando el procesamiento. El job fue cancelado. Intente nuevamente.',
+      }
+    }
 
     return {
       success: true,
@@ -497,66 +543,46 @@ export async function executeLeerGuias(
       }
     }
 
-    // 5. Create robot job + items
-    // OCR job items represent images, not orders. order_id is NULL at creation.
-    // (Plan 27-01 migration makes order_id nullable)
-    const jobId = crypto.randomUUID()
-    const { error: jobInsertError } = await supabase
-      .from('robot_jobs')
-      .insert({
-        id: jobId,
-        workspace_id: auth.workspaceId,
-        carrier: 'multi',
-        job_type: 'ocr_guide_read',
-        total_items: uploadedItems.length,
-      })
-
-    if (jobInsertError) {
-      console.error('[comandos] Job insert error:', jobInsertError.message)
-      return { success: false, error: 'Error creando job de OCR' }
-    }
-
-    // Create one item per image with order_id = NULL
-    const itemIds = uploadedItems.map(() => crypto.randomUUID())
-
-    const { error: itemsInsertError } = await supabase
-      .from('robot_job_items')
-      .insert(
-        uploadedItems.map((_, idx) => ({
-          id: itemIds[idx],
-          job_id: jobId,
-          order_id: null,
-        }))
-      )
-
-    if (itemsInsertError) {
-      console.error('[comandos] Items insert error:', itemsInsertError.message)
-      // Cleanup: delete the job we just created
-      await supabase.from('robot_jobs').delete().eq('id', jobId)
-      return { success: false, error: 'Error creando items de OCR' }
+    // 5. Create robot job + items via domain layer (Bug #10: no raw Supabase inserts)
+    const ocrResult = await createOcrRobotJob(ctx, { fileCount: uploadedItems.length })
+    if (!ocrResult.success || !ocrResult.data) {
+      return { success: false, error: ocrResult.error || 'Error creando job de OCR' }
     }
 
     // 6. Dispatch to Inngest
     // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
-    await (inngest.send as any)({
-      name: 'robot/ocr-guide.submitted',
-      data: {
-        jobId,
-        workspaceId: auth.workspaceId,
-        items: uploadedItems.map((item, idx) => ({
-          itemId: itemIds[idx],
-          imageUrl: item.imageUrl,
-          mimeType: item.mimeType,
-          fileName: item.fileName,
-        })),
-        matchStageId: ocrStageResult.data.stageId,
-      },
-    })
+    try {
+      await (inngest.send as any)({
+        name: 'robot/ocr-guide.submitted',
+        data: {
+          jobId: ocrResult.data.jobId,
+          workspaceId: ctx.workspaceId,
+          items: uploadedItems.map((item, idx) => ({
+            itemId: ocrResult.data!.itemIds[idx],
+            imageUrl: item.imageUrl,
+            mimeType: item.mimeType,
+            fileName: item.fileName,
+          })),
+          matchStageId: ocrStageResult.data.stageId,
+        },
+      })
+    } catch (sendError) {
+      console.error(`[comandos] Inngest send failed for job ${ocrResult.data.jobId}:`, sendError)
+      try {
+        await updateJobStatus(ctx, { jobId: ocrResult.data.jobId, status: 'failed' })
+      } catch (cleanupError) {
+        console.error(`[comandos] Job cleanup also failed:`, cleanupError)
+      }
+      return {
+        success: false,
+        error: 'Error iniciando el procesamiento. El job fue cancelado. Intente nuevamente.',
+      }
+    }
 
     return {
       success: true,
       data: {
-        jobId,
+        jobId: ocrResult.data.jobId,
         totalFiles: uploadedItems.length,
       },
     }
@@ -628,18 +654,31 @@ export async function executeGenerarGuiasInter(): Promise<CommandResult<GuideGen
 
     // 6. Dispatch to Inngest
     // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
-    await (inngest.send as any)({
-      name: 'robot/pdf-guide.submitted',
-      data: {
-        jobId: jobResult.data.jobId,
-        workspaceId: ctx.workspaceId,
-        carrierType: 'inter',
-        sourceStageId: stageConfig.stageId,
-        destStageId: stageConfig.destStageId,
-        orderIds: orderIds,
-        items: jobResult.data.items,
-      },
-    })
+    try {
+      await (inngest.send as any)({
+        name: 'robot/pdf-guide.submitted',
+        data: {
+          jobId: jobResult.data.jobId,
+          workspaceId: ctx.workspaceId,
+          carrierType: 'inter',
+          sourceStageId: stageConfig.stageId,
+          destStageId: stageConfig.destStageId,
+          orderIds: orderIds,
+          items: jobResult.data.items,
+        },
+      })
+    } catch (sendError) {
+      console.error(`[comandos] Inngest send failed for job ${jobResult.data.jobId}:`, sendError)
+      try {
+        await updateJobStatus(ctx, { jobId: jobResult.data.jobId, status: 'failed' })
+      } catch (cleanupError) {
+        console.error(`[comandos] Job cleanup also failed:`, cleanupError)
+      }
+      return {
+        success: false,
+        error: 'Error iniciando el procesamiento. El job fue cancelado. Intente nuevamente.',
+      }
+    }
 
     return {
       success: true,
@@ -716,18 +755,31 @@ export async function executeGenerarGuiasBogota(): Promise<CommandResult<GuideGe
 
     // 6. Dispatch to Inngest
     // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
-    await (inngest.send as any)({
-      name: 'robot/pdf-guide.submitted',
-      data: {
-        jobId: jobResult.data.jobId,
-        workspaceId: ctx.workspaceId,
-        carrierType: 'bogota',
-        sourceStageId: stageConfig.stageId,
-        destStageId: stageConfig.destStageId,
-        orderIds: orderIds,
-        items: jobResult.data.items,
-      },
-    })
+    try {
+      await (inngest.send as any)({
+        name: 'robot/pdf-guide.submitted',
+        data: {
+          jobId: jobResult.data.jobId,
+          workspaceId: ctx.workspaceId,
+          carrierType: 'bogota',
+          sourceStageId: stageConfig.stageId,
+          destStageId: stageConfig.destStageId,
+          orderIds: orderIds,
+          items: jobResult.data.items,
+        },
+      })
+    } catch (sendError) {
+      console.error(`[comandos] Inngest send failed for job ${jobResult.data.jobId}:`, sendError)
+      try {
+        await updateJobStatus(ctx, { jobId: jobResult.data.jobId, status: 'failed' })
+      } catch (cleanupError) {
+        console.error(`[comandos] Job cleanup also failed:`, cleanupError)
+      }
+      return {
+        success: false,
+        error: 'Error iniciando el procesamiento. El job fue cancelado. Intente nuevamente.',
+      }
+    }
 
     return {
       success: true,
@@ -804,17 +856,30 @@ export async function executeGenerarExcelEnvia(): Promise<CommandResult<GuideGen
 
     // 6. Dispatch to Inngest
     // CRITICAL: ALWAYS await inngest.send in serverless (Vercel terminates early otherwise)
-    await (inngest.send as any)({
-      name: 'robot/excel-guide.submitted',
-      data: {
-        jobId: jobResult.data.jobId,
-        workspaceId: ctx.workspaceId,
-        sourceStageId: stageConfig.stageId,
-        destStageId: stageConfig.destStageId,
-        orderIds: orderIds,
-        items: jobResult.data.items,
-      },
-    })
+    try {
+      await (inngest.send as any)({
+        name: 'robot/excel-guide.submitted',
+        data: {
+          jobId: jobResult.data.jobId,
+          workspaceId: ctx.workspaceId,
+          sourceStageId: stageConfig.stageId,
+          destStageId: stageConfig.destStageId,
+          orderIds: orderIds,
+          items: jobResult.data.items,
+        },
+      })
+    } catch (sendError) {
+      console.error(`[comandos] Inngest send failed for job ${jobResult.data.jobId}:`, sendError)
+      try {
+        await updateJobStatus(ctx, { jobId: jobResult.data.jobId, status: 'failed' })
+      } catch (cleanupError) {
+        console.error(`[comandos] Job cleanup also failed:`, cleanupError)
+      }
+      return {
+        success: false,
+        error: 'Error iniciando el procesamiento. El job fue cancelado. Intente nuevamente.',
+      }
+    }
 
     return {
       success: true,

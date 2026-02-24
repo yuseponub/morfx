@@ -124,6 +124,82 @@ export interface RetryFailedItemsResult {
 }
 
 // ============================================================================
+// createOcrRobotJob
+// ============================================================================
+
+export interface CreateOcrRobotJobParams {
+  /** Number of image files to process */
+  fileCount: number
+}
+
+export interface CreateOcrRobotJobResult {
+  jobId: string
+  itemIds: string[]
+}
+
+/**
+ * Create a robot job for OCR guide reading.
+ * OCR items have order_id = NULL (images, not orders).
+ * Uses domain layer pattern (workspace_id filter, admin client).
+ */
+export async function createOcrRobotJob(
+  ctx: DomainContext,
+  params: CreateOcrRobotJobParams
+): Promise<DomainResult<CreateOcrRobotJobResult>> {
+  const supabase = createAdminClient()
+
+  try {
+    if (params.fileCount <= 0) {
+      return { success: false, error: 'Se requiere al menos un archivo' }
+    }
+
+    // Insert robot_jobs row
+    const { data: job, error: jobError } = await supabase
+      .from('robot_jobs')
+      .insert({
+        workspace_id: ctx.workspaceId,
+        carrier: 'multi',
+        job_type: 'ocr_guide_read',
+        total_items: params.fileCount,
+      })
+      .select('id')
+      .single()
+
+    if (jobError || !job) {
+      return { success: false, error: `Error creando job de OCR: ${jobError?.message}` }
+    }
+
+    // Insert items with order_id = NULL
+    const itemsToInsert = Array.from({ length: params.fileCount }, () => ({
+      job_id: job.id,
+      order_id: null,
+    }))
+
+    const { data: items, error: itemsError } = await supabase
+      .from('robot_job_items')
+      .insert(itemsToInsert)
+      .select('id')
+
+    if (itemsError || !items) {
+      // Rollback job
+      await supabase.from('robot_jobs').delete().eq('id', job.id)
+      return { success: false, error: `Error creando items de OCR: ${itemsError?.message}` }
+    }
+
+    return {
+      success: true,
+      data: {
+        jobId: job.id,
+        itemIds: items.map(i => i.id),
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
 // createRobotJob
 // ============================================================================
 

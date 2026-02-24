@@ -9,7 +9,9 @@
 
 import type { StorageAdapter, AgentSessionLike } from '../../engine/types'
 import type { SessionManager } from '../../session-manager'
+import type { PrioritizedTemplate } from '../../somnio/block-composer'
 import { somnioAgentConfig } from '../../somnio/config'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export class ProductionStorageAdapter implements StorageAdapter {
   constructor(
@@ -130,5 +132,42 @@ export class ProductionStorageAdapter implements StorageAdapter {
    */
   async handoff(sessionId: string, version: number): Promise<void> {
     await this.sessionManager.handoffSession(sessionId, version)
+  }
+
+  // ==========================================================================
+  // Phase 31: Pending Templates (replaces InterruptionHandler datos_capturados hack)
+  // ==========================================================================
+
+  /**
+   * Save pending templates to session_state.pending_templates JSONB column.
+   * REPLACES old InterruptionHandler.savePendingMessages datos_capturados hack.
+   * Always replaces entirely (never appends).
+   */
+  async savePendingTemplates(sessionId: string, pending: PrioritizedTemplate[]): Promise<void> {
+    const supabase = createAdminClient()
+    await supabase
+      .from('session_state')
+      .update({ pending_templates: pending })
+      .eq('session_id', sessionId)
+  }
+
+  /**
+   * Get pending templates from session_state.
+   */
+  async getPendingTemplates(sessionId: string): Promise<PrioritizedTemplate[]> {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('session_state')
+      .select('pending_templates')
+      .eq('session_id', sessionId)
+      .single()
+    return (data?.pending_templates as PrioritizedTemplate[]) ?? []
+  }
+
+  /**
+   * Clear pending templates (HANDOFF, session close).
+   */
+  async clearPendingTemplates(sessionId: string): Promise<void> {
+    await this.savePendingTemplates(sessionId, [])
   }
 }

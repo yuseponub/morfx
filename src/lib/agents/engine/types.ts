@@ -224,6 +224,15 @@ export interface StorageAdapter {
 
   /** Hand off session to human agent. Sets status to 'handed_off'. */
   handoff(sessionId: string, version: number): Promise<void>
+
+  // Phase 31: Pending templates (optional — sandbox adapter doesn't need these)
+
+  /** Save pending templates to session state. Phase 31. */
+  savePendingTemplates?(sessionId: string, pending: unknown[]): Promise<void>
+  /** Get pending templates from session state. Phase 31. */
+  getPendingTemplates?(sessionId: string): Promise<unknown[]>
+  /** Clear pending templates. Phase 31. */
+  clearPendingTemplates?(sessionId: string): Promise<void>
 }
 
 // ============================================================================

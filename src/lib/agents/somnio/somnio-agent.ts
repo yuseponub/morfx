@@ -464,9 +464,9 @@ export class SomnioAgent {
 
       // 10. Build new state from orchestrator result
       const newMode = orchestratorResult.nextMode ?? currentMode
-      const newTemplatesEnviados = orchestratorResult.stateUpdates?.templatesSent
-        ? [...(input.session.state.templates_enviados ?? []), ...orchestratorResult.stateUpdates.templatesSent]
-        : (input.session.state.templates_enviados ?? [])
+      // Phase 34: Don't add templatesSent here. The engine adds them post-send
+      // to fix the over-count bug (only actually-sent templates are tracked).
+      const newTemplatesEnviados = input.session.state.templates_enviados ?? []
       const newDatosCapturados = orchestratorResult.stateUpdates?.datosCapturados
         ? mergeExtractedData(currentData, orchestratorResult.stateUpdates.datosCapturados)
         : currentData

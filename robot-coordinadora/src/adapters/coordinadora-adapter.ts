@@ -262,14 +262,30 @@ export class CoordinadoraAdapter {
       // Wait before submit (matching old robot timing)
       await this.page.waitForTimeout(1000)
 
+      // Screenshot before submit for debugging
+      await this.takeScreenshot('before-submit')
+
+      // Check for any visible validation errors before submitting
+      const errorTexts = await this.page.locator('.MuiFormHelperText-root.Mui-error, .error-message, [class*="error"]').allTextContents().catch(() => [])
+      if (errorTexts.length > 0) {
+        console.error(`${LOG_PREFIX} Form validation errors visible: ${errorTexts.join(', ')}`)
+      }
+
       // --- Submit the form (exact selector from working robot) ---
       console.log(`${LOG_PREFIX} Submitting form`)
-      await this.page.click('button[type="submit"]:has-text("Enviar Pedido")')
+      const submitBtn = this.page.locator('button[type="submit"]:has-text("Enviar Pedido"), button:has-text("ENVIAR PEDIDO")')
+      const submitCount = await submitBtn.count()
+      console.log(`${LOG_PREFIX} Submit button matches: ${submitCount}`)
+      await submitBtn.first().click()
 
-      // Wait for portal response (old robot waits 5 seconds)
-      await this.page.waitForTimeout(5000)
+      // Screenshot right after clicking submit
+      await this.page.waitForTimeout(2000)
+      await this.takeScreenshot('after-submit')
 
-      // Detect SweetAlert2 result
+      // Wait for portal response
+      await this.page.waitForTimeout(3000)
+
+      // Detect SweetAlert2 result (check multiple possible selectors)
       const swalResult = await this.detectSweetAlertResult()
 
       // On success, update the pedido counter and save to file

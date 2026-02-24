@@ -325,7 +325,12 @@ Plans:
 
 **Risk:** LOW (classification is pure TypeScript logic, timer copies exact pattern from 4 existing timers)
 
-**Plans:** TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 30-01-PLAN.md — Intents + constants + event type + state transitions foundation
+- [ ] 30-02-PLAN.md — Message category classifier + SomnioAgent pipeline integration + engine wiring
+- [ ] 30-03-PLAN.md — Silence retake timer Inngest function + production timer adapter hook
 
 **Success Criteria:**
 1. After intent detection, each message is classified as RESPONDIBLE (proceed normally), SILENCIOSO (ignore), or HANDOFF (route to human) based on the detected intent and current session state

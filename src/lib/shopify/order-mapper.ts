@@ -115,6 +115,7 @@ export async function matchProducts(
   for (const item of lineItems) {
     const catalogProduct = findMatchingProduct(item, catalogProducts, matchStrategy)
     const lineDiscount = getLineItemDiscount(item)
+    const discountedUnitPrice = Math.round(parseFloat(item.price) - (lineDiscount / item.quantity))
 
     if (catalogProduct) {
       // Matched - use catalog product ID with Shopify pricing snapshot
@@ -122,7 +123,7 @@ export async function matchProducts(
         product_id: catalogProduct.id,
         sku: catalogProduct.sku,
         title: catalogProduct.title,
-        unit_price: parseFloat(item.price) - (lineDiscount / item.quantity),
+        unit_price: discountedUnitPrice,
         quantity: item.quantity,
       })
     } else {
@@ -131,7 +132,7 @@ export async function matchProducts(
         product_id: null,  // No catalog link
         sku: item.sku || `SHOPIFY-${item.id}`,
         title: item.title || item.name,
-        unit_price: parseFloat(item.price) - (lineDiscount / item.quantity),
+        unit_price: discountedUnitPrice,
         quantity: item.quantity,
       })
       unmatched.push(item)

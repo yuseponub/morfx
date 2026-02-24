@@ -478,6 +478,11 @@ Plans:
   Plans:
   - [x] order-notes-01-PLAN.md — DB migration + domain layer + types
   - [x] order-notes-02-PLAN.md — Server actions + UI component + integration + rename
+- [x] **WhatsApp Webhook Resilience v2** — Conditional HTTP 500 for 360dialog retries, CLI replay script, Regla 5 (3 plans)
+  Plans:
+  - [x] resilience-v2-01-PLAN.md — DB migration (retry columns + expanded status CHECK)
+  - [x] resilience-v2-02-PLAN.md — Conditional HTTP response + replayWebhookPayload export
+  - [x] resilience-v2-03-PLAN.md — CLI replay script + scripts/tsconfig.json
 
 ## Progress
 
@@ -489,13 +494,14 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 18+ (Phases 29-31 complete) | Phase 31 Complete | — |
-| Standalone | 6 phases | 18 | 5 complete, 1 in progress | |
-| **Total** | **47 phases** | **179+ plans** | | |
+| Standalone | 7 phases | 21 | 6 complete, 1 in progress | |
+| **Total** | **48 phases** | **182+ plans** | | |
 
 ### Current Phase
 
 Phase 28: Robot Creador de Guias PDF — COMPLETE (5 plans, 3 waves)
 Phase 31: Pre-Send Check + Interruption + Pending Merge — COMPLETE (4 plans, 3 waves)
+Standalone: WhatsApp Webhook Resilience v2 — COMPLETE (3 plans, 3 waves)
 Next: Phase 32 Media Processing
 
 ---

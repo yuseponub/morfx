@@ -734,17 +734,23 @@ async function logWhatsAppWebhookEvent(
 async function updateWhatsAppWebhookEvent(
   supabase: ReturnType<typeof createAdminClient>,
   eventId: string,
-  status: 'processed' | 'failed',
+  status: 'processed' | 'failed' | 'reprocessed' | 'dead_letter',
   errorMessage?: string,
 ): Promise<void> {
   try {
+    const updates: Record<string, unknown> = {
+      status,
+      error_message: errorMessage ?? null,
+    }
+    if (status === 'processed') {
+      updates.processed_at = new Date().toISOString()
+    }
+    if (status === 'reprocessed') {
+      updates.reprocessed_at = new Date().toISOString()
+    }
     await supabase
       .from('whatsapp_webhook_events')
-      .update({
-        status,
-        error_message: errorMessage,
-        processed_at: status === 'processed' ? new Date().toISOString() : null,
-      })
+      .update(updates)
       .eq('id', eventId)
   } catch (error) {
     // Non-blocking: if we can't update status, processing still happened

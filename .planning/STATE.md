@@ -194,6 +194,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed hardening-01-PLAN.md (atomic counters + idempotency)
+Stopped at: Completed hardening-05 (Realtime disconnect + doc URL race fix)
 Resume file: None
-Next: hardening-02-PLAN.md (error classification) or continue with remaining hardening plans
+Next: Remaining hardening plans (03, 04) or Phase 32 Media Processing

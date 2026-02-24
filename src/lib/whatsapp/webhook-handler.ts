@@ -107,6 +107,37 @@ export async function processWebhook(
   }
 }
 
+/**
+ * Replay a stored webhook payload without re-logging to whatsapp_webhook_events.
+ * Used by the replay script to reprocess failed events.
+ * The original event row already exists — replay only runs the processing pipeline.
+ */
+export async function replayWebhookPayload(
+  payload: WebhookPayload,
+  workspaceId: string,
+  phoneNumberId: string
+): Promise<void> {
+  for (const entry of payload.entry) {
+    for (const change of entry.changes) {
+      const { value } = change
+      if (value.metadata.phone_number_id !== phoneNumberId) {
+        console.warn(`Webhook for different phone: ${value.metadata.phone_number_id}`)
+        continue
+      }
+      if (value.messages && value.messages.length > 0) {
+        for (const msg of value.messages) {
+          await processIncomingMessage(msg, value, workspaceId, phoneNumberId)
+        }
+      }
+      if (value.statuses && value.statuses.length > 0) {
+        for (const status of value.statuses) {
+          await processStatusUpdate(status, workspaceId)
+        }
+      }
+    }
+  }
+}
+
 // ============================================================================
 // INCOMING MESSAGE PROCESSOR
 // ============================================================================

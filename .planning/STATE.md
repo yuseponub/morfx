@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 32 of 35 (Media Processing)
-Plan: 2 of 3 complete (01, 02)
-Status: In progress
+Phase: 32 of 35 (Media Processing) — COMPLETE
+Plan: 3 of 3 complete (01, 02, 03)
+Status: Phase complete
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-24 — Completed 32-02-PLAN.md (media gate + audio transcriber + sticker interpreter)
+Last activity: 2026-02-24 — Completed 32-03-PLAN.md (webhook + Inngest media pipeline integration)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 50% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########░] 57% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -49,7 +49,7 @@ All 9 phases + 5 inserted phases completed:
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
-| 32 | Media Processing | IN PROGRESS (2/3 plans) |
+| 32 | Media Processing | COMPLETE (3/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
 | 34 | No-Repetition System | Not started |
 | 35 | Flujo Ofi Inter | Not started |
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 39 (34 milestone + 5 standalone)
-- Total plans completed: 200
+- Total plans completed: 201
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -200,6 +200,14 @@ Phase 32 decisions (Plan 02):
 - Dynamic media_type detection from Content-Type header for sticker interpretation (not hardcoded webp)
 - handleReaction is synchronous (no async needed, pure function delegation to reaction-mapper)
 
+Phase 32 decisions (Plan 03):
+- AGENT_PROCESSABLE_TYPES as local const inside processIncomingMessage (scoping clarity)
+- Reactions pass raw emoji to Inngest (not '[Reaccion]'), media gate's mapReaction handles mapping
+- Inline fallback restricted to text-only: media messages silently skip when Inngest unavailable
+- Media handoff uses executeHandoff directly (bypasses engine), requires explicit silence timer cancellation
+- notify_host uses domain createTask (Rule 3), not raw supabase insert
+- No messageType added to ProcessMessageInput: media gate resolves everything to text before processMessageWithAgent
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -221,6 +229,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 32-02-PLAN.md (media gate + audio transcriber + sticker interpreter)
+Stopped at: Completed 32-03-PLAN.md (webhook + Inngest media pipeline integration)
 Resume file: None
-Next: Phase 32 Plan 03 (webhook integration + Inngest pipeline wiring)
+Next: Phase 33 (Confidence Routing + Disambiguation Log)

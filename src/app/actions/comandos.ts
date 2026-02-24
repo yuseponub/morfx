@@ -129,7 +129,7 @@ function buildPedidoInputFromOrder(
     departamento: cityValidation.departmentAbbrev!,
     celular: (order.contact_phone || '0000000000').replace(/\D/g, '').slice(-10),
     email: order.contact_email || 'sin@email.com',
-    referencia: order.name || order.id.slice(0, 8),
+    referencia: 'AA1',
     unidades,
     totalConIva: order.total_value || 0,
     valorDeclarado: 55000,

@@ -349,31 +349,31 @@ export class CoordinadoraAdapter {
     try {
       // Navigate to the pedidos list page
       await this.page.goto('https://ff.coordinadora.com/panel/pedidos', {
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'networkidle',
         timeout: 30000,
       })
 
-      // Wait for the table to render
-      await this.page.waitForSelector('table tbody tr', {
+      // Wait for MuiDataGrid to render (portal uses MUI DataGrid, not plain table)
+      await this.page.waitForSelector('.MuiDataGrid-root', {
         state: 'visible',
         timeout: 15000,
       })
 
-      // Brief pause for full table population
+      // Wait for data to populate
       await this.page.waitForTimeout(2000)
 
-      // Read all table rows
-      const rows = await this.page.locator('table tbody tr').all()
+      // Read all data rows from MuiDataGrid
+      const rows = await this.page.locator('.MuiDataGrid-row, [role="row"]').all()
       console.log(`${LOG_PREFIX} Found ${rows.length} rows in pedidos table`)
 
       // Build a Set of pedido numbers we're looking for (normalized)
       const targetPedidos = new Set(pedidoNumbers.map(p => p.trim()))
 
       for (const row of rows) {
-        const cells = await row.locator('td').all()
+        const cells = await row.locator('.MuiDataGrid-cell, [role="cell"]').all()
         if (cells.length < 2) continue
 
-        // Column 0 = pedido number, Column 1 = guide number
+        // Column 0 = pedido number (may be a link), Column 1 = guide number
         const pedidoText = (await cells[0].textContent())?.trim() || ''
         const guiaText = (await cells[1].textContent())?.trim() || ''
 
@@ -382,6 +382,7 @@ export class CoordinadoraAdapter {
         // Check if this pedido is one we're looking for
         if (targetPedidos.has(pedidoText) && guiaText && guiaText !== '-' && guiaText !== 'N/A') {
           guiaMap.set(pedidoText, guiaText)
+          console.log(`${LOG_PREFIX} Found guide: pedido ${pedidoText} -> guia ${guiaText}`)
         }
       }
 

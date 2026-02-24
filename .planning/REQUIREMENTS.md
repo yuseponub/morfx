@@ -38,9 +38,9 @@
 
 ### Etapa 5: Confidence + Disambiguation
 
-- [ ] **CONF-01**: Intents con confidence < 80% -- handoff automatico + log en disambiguation_log
-- [ ] **CONF-02**: Tabla disambiguation_log registra situacion completa (mensaje, alternativas, contexto, pendientes)
-- [ ] **CONF-03**: Interfaz para que humano revise y guie (correct_intent, correct_action, guidance_notes)
+- [x] **CONF-01**: Intents con confidence < 80% -- handoff automatico + log en disambiguation_log
+- [x] **CONF-02**: Tabla disambiguation_log registra situacion completa (mensaje, alternativas, contexto, pendientes)
+- [x] **CONF-03**: Interfaz para que humano revise y guie (correct_intent, correct_action, guidance_notes)
 
 ### Etapa 6: Flujo Ofi Inter
 
@@ -56,7 +56,7 @@
 ### Infraestructura
 
 - [ ] **INFRA-01**: Campo `processed_by_agent` en tabla messages (boolean, para check pre-envio)
-- [ ] **INFRA-02**: Tabla `disambiguation_log` en Supabase
+- [x] **INFRA-02**: Tabla `disambiguation_log` en Supabase
 - [ ] **INFRA-03**: Minifrases tematicas definidas manualmente para cada plantilla (~30)
 
 ## Contexto Adicional
@@ -104,15 +104,15 @@
 | MEDIA-02 | Phase 32 | Complete |
 | MEDIA-03 | Phase 32 | Complete |
 | MEDIA-04 | Phase 32 | Complete |
-| CONF-01 | Phase 33 | Pending |
-| CONF-02 | Phase 33 | Pending |
-| CONF-03 | Phase 33 | Pending |
+| CONF-01 | Phase 33 | Complete |
+| CONF-02 | Phase 33 | Complete |
+| CONF-03 | Phase 33 | Complete |
 | OFINT-01 | Phase 35 | Pending |
 | OFINT-02 | Phase 35 | Pending |
 | OFINT-03 | Phase 35 | Pending |
 | OFINT-04 | Phase 35 | Pending |
 | INFRA-01 | Phase 29 | Complete |
-| INFRA-02 | Phase 33 | Pending |
+| INFRA-02 | Phase 33 | Complete |
 | INFRA-03 | Phase 34 | Pending |
 | DOC-01 | Phase 36 | Pending |
 

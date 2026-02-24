@@ -281,7 +281,7 @@ Plans:
 - [x] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
 - [x] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
 - [x] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
-- [ ] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
+- [x] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [ ] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
 - [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
 - [ ] **Phase 36: Documentación del Agente** - Documentar arquitectura, proceso de creación y patrones de Somnio para replicar en futuros agentes
@@ -404,8 +404,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 33-01-PLAN.md — Migration (disambiguation_log table) + LOW_CONFIDENCE_THRESHOLD constant + Rule 1.5 in classifier
-- [ ] 33-02-PLAN.md — logDisambiguation helper + somnio-agent integration + step 7 timer fix
+- [x] 33-01-PLAN.md — Migration (disambiguation_log table) + LOW_CONFIDENCE_THRESHOLD constant + Rule 1.5 in classifier
+- [x] 33-02-PLAN.md — logDisambiguation helper + somnio-agent integration + step 7 timer fix
 
 **Success Criteria:**
 1. When the IntentDetector returns confidence below 80%, the bot performs a real HANDOFF (bot off, "Regalame 1 min", notify host) instead of attempting a response
@@ -509,14 +509,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
-| v4.0 Comportamiento Humano | 29-36 | 23+ (Phases 29-32 complete) | Phase 33 Planning | — |
+| v4.0 Comportamiento Humano | 29-36 | 23+ (Phases 29-33 complete) | Phase 34 Next | — |
 | Standalone | 9 phases | 31 | 7 complete, 2 in progress | |
 | **Total** | **50 phases** | **194+ plans** | | |
 
 ### Current Phase
 
-Phase 33: Confidence Routing + Disambiguation Log — PLANNED (2 plans, 2 waves)
-Next: Execute Phase 33
+Phase 33: Confidence Routing + Disambiguation Log — COMPLETE (2 plans, verified 8/8)
+Next: Phase 34 (No-Repetition System)
 
 ---
 
@@ -527,4 +527,4 @@ Next: Execute Phase 33
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-02 (Phase 33 planned: 2 plans, 2 waves)*
+*Last updated: 2026-03-02 (Phase 33 complete: 2 plans, verified 8/8)*

@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 30 of 35 (Message Classification + Silence Timer)
-Plan: 1 of 3 complete
-Status: In progress
-Last activity: 2026-02-24 — Completed 30-01-PLAN.md (Foundation Definitions)
+Plan: 2 of 3 complete (30-01 + 30-03)
+Status: In progress (Wave 2: 30-03 done, 30-02 in parallel)
+Last activity: 2026-02-24 — Completed 30-03-PLAN.md (Silence Retake Timer)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [####░░░░░░] 19% v4.0
 
@@ -46,7 +46,7 @@ All 9 phases + 5 inserted phases completed:
 | Phase | Name | Status |
 |-------|------|--------|
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
-| 30 | Message Classification + Silence Timer | IN PROGRESS (1/3 plans) |
+| 30 | Message Classification + Silence Timer | IN PROGRESS (2/3 plans: 30-01 + 30-03) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
 | 32 | Media Processing | Not started |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
@@ -107,6 +107,10 @@ Phase 30 decisions:
 - fallback triggers emptied: overlapping keywords moved to dedicated asesor intent
 - bienvenida state added to SOMNIO_STATES for explicit state machine correctness
 - ACKNOWLEDGMENT_PATTERNS uses regex array (not Set) for pattern matching flexibility
+- Retake message is a constant (not AI-generated) for predictability
+- 90s timeout hardcoded (not configurable via workspace preset)
+- is_agent_enabled guard before timer-triggered retake messages (prevents retake after HANDOFF)
+- Non-blocking onSilenceDetected: log failure but don't crash request
 
 Recent decisions affecting v4.0:
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
@@ -139,6 +143,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 30-01-PLAN.md (Foundation Definitions)
+Stopped at: Completed 30-03-PLAN.md (Silence Retake Timer)
 Resume file: None
-Next: /gsd:execute-phase 30-02 (Message Category Classifier)
+Next: /gsd:execute-phase 30-02 (Message Category Classifier) — completes Phase 30

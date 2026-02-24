@@ -432,18 +432,30 @@ export class CoordinadoraAdapter {
 
     try {
       // Pago contra entrega radio button
-      if (esRecaudo) {
-        await this.page.click('input[name="pago_contra_entrega"][value="S"]')
+      const pagoValue = esRecaudo ? 'S' : 'N'
+      const pagoRadio = this.page.locator(`input[name="pago_contra_entrega"][value="${pagoValue}"]`)
+      const pagoChecked = await pagoRadio.isChecked().catch(() => false)
+      if (!pagoChecked) {
+        await pagoRadio.click({ timeout: 5000 })
+        console.log(`${LOG_PREFIX} Clicked pago_contra_entrega=${pagoValue}`)
       } else {
-        await this.page.click('input[name="pago_contra_entrega"][value="N"]')
+        console.log(`${LOG_PREFIX} pago_contra_entrega=${pagoValue} already checked`)
       }
       await this.page.waitForTimeout(500)
 
-      // Flete contra entrega: always NO
-      await this.page.click('input[name="flete_contra_entrega"][value="N"]')
+      // Flete contra entrega: always NO (may be auto-checked + disabled)
+      const fleteRadio = this.page.locator('input[name="flete_contra_entrega"][value="N"]')
+      const fleteChecked = await fleteRadio.isChecked().catch(() => false)
+      const fleteDisabled = await fleteRadio.isDisabled().catch(() => false)
+      if (!fleteChecked && !fleteDisabled) {
+        await fleteRadio.click({ timeout: 5000 })
+        console.log(`${LOG_PREFIX} Clicked flete_contra_entrega=N`)
+      } else {
+        console.log(`${LOG_PREFIX} flete_contra_entrega=N already set (checked=${fleteChecked}, disabled=${fleteDisabled})`)
+      }
       await this.page.waitForTimeout(300)
 
-      console.log(`${LOG_PREFIX} Recaudo set: pago=${esRecaudo ? 'S' : 'N'}, flete=N`)
+      console.log(`${LOG_PREFIX} Recaudo set: pago=${pagoValue}, flete=N`)
     } catch (err) {
       console.error(`${LOG_PREFIX} Failed to set recaudo:`, err)
     }

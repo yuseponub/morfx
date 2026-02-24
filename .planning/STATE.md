@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 30 of 35 (Message Classification + Silence Timer)
-Plan: 3 of 3 complete
-Status: Phase complete
-Last activity: 2026-02-25 — Phase 30 complete, verified 4/4 must-haves
+Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
+Plan: 2 of 4 complete
+Status: In progress
+Last activity: 2026-02-24 — Completed 31-02-PLAN.md (Block Priorities DB Infrastructure)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#####░░░░░] 29% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [######░░░░] 36% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -47,7 +47,7 @@ All 9 phases + 5 inserted phases completed:
 |-------|------|--------|
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
-| 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
+| 31 | Pre-Send Check + Interruption + Pending Merge | IN PROGRESS (2/4 plans) |
 | 32 | Media Processing | Not started |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
 | 34 | No-Repetition System | Not started |
@@ -126,6 +126,12 @@ Recent decisions affecting v4.0:
 - Confidence V1: 2 bands (80%+ respond, <80% handoff+log), disambiguator built later with real data
 - Ofi Inter: always confirm, never assume; 3 detection paths
 
+Phase 31 decisions (Plan 02):
+- Priority as TEXT with CHECK constraint (not Postgres enum) for flexibility
+- Default priority CORE for backward compatibility
+- Seed priorities by orden (0=CORE, 1=COMP, 2+=OPC)
+- isValidTemplatePriority as standalone type guard (not importing from parallel plan files)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -145,7 +151,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-25 COT
-Stopped at: Phase 30 COMPLETE — verified 4/4 must-haves
+Last session: 2026-02-24 COT
+Stopped at: Completed 31-02-PLAN.md (Block Priorities DB Infrastructure)
 Resume file: None
-Next: /gsd:discuss-phase 31 (Pre-Send Check + Interruption + Pending Merge)
+Next: Execute 31-03-PLAN.md (Pre-Send Check Inngest Function)

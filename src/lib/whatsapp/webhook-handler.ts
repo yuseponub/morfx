@@ -46,7 +46,7 @@ export async function processWebhook(
   payload: WebhookPayload,
   workspaceId: string,
   phoneNumberId: string
-): Promise<void> {
+): Promise<{ stored: boolean }> {
   const supabase = createAdminClient()
 
   // Store raw payload BEFORE processing (resilience)
@@ -91,13 +91,19 @@ export async function processWebhook(
     if (eventId) {
       await updateWhatsAppWebhookEvent(supabase, eventId, 'processed')
     }
+
+    return { stored: eventId !== null }
   } catch (error) {
     // Mark event as failed with error details
     if (eventId) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       await updateWhatsAppWebhookEvent(supabase, eventId, 'failed', errorMsg)
+      // Stored but failed processing = safe to ACK (replay later)
+      console.error('[webhook] Processing failed but payload stored for replay:', errorMsg)
+      return { stored: true }
     }
-    throw error // Re-throw so route.ts captures it
+    // NOT stored AND failed = no safety net, re-throw for 500
+    throw error
   }
 }
 

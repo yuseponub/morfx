@@ -280,16 +280,32 @@ async function processIncomingMessage(
     }
 
     // ================================================================
-    // Agent routing (Phase 16 / Phase 29 Inngest migration):
+    // Agent routing (Phase 16 / Phase 29 Inngest migration / Phase 32 media):
     // Feature-flagged: USE_INNGEST_PROCESSING=true emits an Inngest
     // event for async processing (~200ms webhook return). When false
     // or unset, processes inline (existing behavior preserved).
     // Inngest send failure falls back to inline as a safety net.
     // Non-blocking: agent failures must not break message reception.
+    //
+    // Phase 32: Expanded to route media messages (audio, image, video,
+    // sticker, reaction) through the Inngest pipeline. Media messages
+    // REQUIRE Inngest for async transcription/vision processing.
+    // Inline fallback only applies to text messages.
     // ================================================================
-    if (msg.type === 'text') {
+    const AGENT_PROCESSABLE_TYPES = new Set(['text', 'audio', 'sticker', 'image', 'video', 'reaction'])
+
+    if (AGENT_PROCESSABLE_TYPES.has(msg.type)) {
       const useInngest = process.env.USE_INNGEST_PROCESSING === 'true'
-      const normalizedContent = normalizeWebsiteGreeting(msg.text?.body ?? '')
+
+      // Compute normalized content based on message type:
+      // - text: normalize website greeting (existing behavior)
+      // - reaction: raw emoji string (media gate maps to text/notify/ignore)
+      // - other media: preview string (e.g. '[Audio]', '[Imagen]')
+      const normalizedContent = msg.type === 'text'
+        ? normalizeWebsiteGreeting(msg.text?.body ?? '')
+        : msg.type === 'reaction'
+          ? (msg.reaction?.emoji ?? '')
+          : buildMessagePreview(msg)
 
       if (useInngest) {
         // Async path: emit Inngest event, return fast (~200ms)
@@ -305,16 +321,24 @@ async function processIncomingMessage(
               phone,
               messageId: msg.id,
               messageTimestamp,
+              messageType: msg.type,
+              mediaUrl: mediaUrl ?? null,
+              mediaMimeType: mediaMimeType ?? null,
             },
           })
         } catch (inngestError) {
           // Safety net: if Inngest is unreachable, fall back to inline processing
+          // Inline fallback only for text -- media requires Inngest for async processing
           console.error('Inngest send failed, falling back to inline:', inngestError instanceof Error ? inngestError.message : inngestError)
-          await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+          if (msg.type === 'text') {
+            await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+          }
         }
       } else {
-        // Inline path: existing behavior (feature flag off or unset)
-        await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+        // Inline path: only for text (media requires Inngest for async processing)
+        if (msg.type === 'text') {
+          await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+        }
       }
     }
 

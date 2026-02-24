@@ -76,6 +76,22 @@ Cada vez que hagas un cambio de codigo (feature, fix, refactor), DEBES actualiza
 
 ---
 
+## Regla 5: Migracion Antes de Deploy
+
+TODA migracion de base de datos DEBE aplicarse en produccion ANTES de pushear codigo que la usa.
+
+Workflow obligatorio:
+1. Crear archivo de migracion en `supabase/migrations/`
+2. **PAUSAR** -- pedir al usuario que aplique la migracion en produccion
+3. **ESPERAR** confirmacion explicita del usuario
+4. Solo entonces pushear el codigo que depende del nuevo schema
+
+**PROHIBIDO:** Pushear codigo que referencia columnas, tablas o constraints que no existen en produccion.
+
+Razon: El incidente de 20h de mensajes perdidos fue causado por codigo desplegado que referenciaba una columna inexistente, y el mecanismo de resiliencia tampoco funciono porque su tabla tampoco existia.
+
+---
+
 ## Stack Tecnologico
 
 - Next.js 15 (App Router) + React 19

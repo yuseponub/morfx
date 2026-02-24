@@ -483,6 +483,13 @@ Plans:
   - [x] resilience-v2-01-PLAN.md — DB migration (retry columns + expanded status CHECK)
   - [x] resilience-v2-02-PLAN.md — Conditional HTTP response + replayWebhookPayload export
   - [x] resilience-v2-03-PLAN.md — CLI replay script + scripts/tsconfig.json
+- [ ] **Robot Coordinadora Hardening** — Fix 17 audit bugs: atomic counters, fetch timeouts, inngest.send try-catch, idempotent batch_completed, payload validation, disconnect detection (5 plans)
+  Plans:
+  - [ ] hardening-01-PLAN.md — SQL migration (atomic RPC + batch_completed_emitted) + domain layer counter refactor
+  - [ ] hardening-02-PLAN.md — Orchestrator hardening (fetch timeout, settle sleep, error reporting)
+  - [ ] hardening-03-PLAN.md — Server actions hardening (try-catch inngest, safe access, domain refactor)
+  - [ ] hardening-04-PLAN.md — Webhook hardening (payload validation, idempotent emission, 500 on failure)
+  - [ ] hardening-05-PLAN.md — UI hardening (Realtime disconnect detection, async race fix)
 
 ## Progress
 
@@ -494,14 +501,15 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 18+ (Phases 29-31 complete) | Phase 31 Complete | — |
-| Standalone | 7 phases | 21 | 6 complete, 1 in progress | |
-| **Total** | **48 phases** | **182+ plans** | | |
+| Standalone | 8 phases | 26 | 6 complete, 2 in progress | |
+| **Total** | **49 phases** | **187+ plans** | | |
 
 ### Current Phase
 
 Phase 28: Robot Creador de Guias PDF — COMPLETE (5 plans, 3 waves)
 Phase 31: Pre-Send Check + Interruption + Pending Merge — COMPLETE (4 plans, 3 waves)
 Standalone: WhatsApp Webhook Resilience v2 — COMPLETE (3 plans, 3 waves)
+Standalone: Robot Coordinadora Hardening — PLANNED (5 plans, 2 waves)
 Next: Phase 32 Media Processing
 
 ---
@@ -513,4 +521,4 @@ Next: Phase 32 Media Processing
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-23 (v4.0 Comportamiento Humano roadmap: 8 phases, 29 requirements)*
+*Last updated: 2026-02-27 (Robot Coordinadora Hardening standalone phase planned: 5 plans, 2 waves)*

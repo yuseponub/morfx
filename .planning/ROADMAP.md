@@ -425,7 +425,13 @@ Plans:
 
 **Risk:** HIGH (3-level system is the most complex feature; Haiku accuracy for Spanish semantic comparison needs validation)
 
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 34-01-PLAN.md — DB migration (minifrase column + siguientes cleanup) + types + outbound registry
+- [ ] 34-02-PLAN.md — Minifrase generator + NoRepetitionFilter (Level 1, 2, 3)
+- [ ] 34-03-PLAN.md — Template paraphraser + TemplateManager repeated intent handling
+- [ ] 34-04-PLAN.md — Engine integration: no-rep filter wiring + over-count bug fix + async processTemplates
 
 **Success Criteria:**
 1. Level 1 -- a template whose exact ID was already sent in the conversation is never sent again (instant lookup from session_state.templates_enviados, 0ms, $0)

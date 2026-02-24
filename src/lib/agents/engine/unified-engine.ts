@@ -17,6 +17,9 @@
 import { SomnioAgent } from '../somnio/somnio-agent'
 import { VersionConflictError } from '../errors'
 import { composeBlock, type PrioritizedTemplate } from '../somnio/block-composer'
+import { NoRepetitionFilter } from '../somnio/no-repetition-filter'
+import { buildOutboundRegistry } from '../somnio/outbound-registry'
+import { generateMinifrases } from '../somnio/minifrase-generator'
 import type { ClaudeModelId } from '../types'
 import type {
   EngineInput,
@@ -244,8 +247,8 @@ export class UnifiedEngine {
 
       if (useBlockComposition) {
         // ================================================================
-        // PHASE 31: Block Composition Pipeline
-        // compose block -> send -> handle interruption -> save pending
+        // PHASE 31+34: Block Composition Pipeline
+        // compose block -> no-rep filter -> send -> post-send tracking
         // ================================================================
         const storageAdapter = this.adapters.storage
 
@@ -274,60 +277,133 @@ export class UnifiedEngine {
         // 3. Compose block (merges new + pending per priority rules)
         const composed = composeBlock(newByIntent, pending)
 
-        // 4. Convert block to templates array for messaging adapter
-        const blockTemplates = composed.block.map(t => ({
-          id: t.templateId,
-          content: t.content,
-          contentType: t.contentType,
-          delaySeconds: 0,
-        }))
+        // ================================================================
+        // PHASE 34: No-Repetition Filter (between compose and send)
+        // Build outbound registry -> generate minifrases -> filter block
+        // ================================================================
+        const templatesEnviados = agentOutput.stateUpdates.newTemplatesEnviados
+        let filteredBlock = composed.block
 
-        // 5. Send block via messaging adapter
-        const sendResult = await this.adapters.messaging.send({
-          sessionId: session.id,
-          conversationId: input.conversationId,
-          messages: composed.block.map(t => t.content),
-          templates: blockTemplates,
-          intent: agentOutput.orchestratorIntent,
-          workspaceId: this.config.workspaceId,
-          contactId: input.contactId,
-          phoneNumber: input.phoneNumber,
-          triggerTimestamp: input.messageTimestamp,
-        })
-        messagesSent = sendResult.messagesSent
+        try {
+          // 3a. Build outbound registry from conversation history
+          const outboundRegistry = await buildOutboundRegistry(
+            input.conversationId,
+            session.id,
+            templatesEnviados
+          )
 
-        // Track sent content for assistant turn (only templates that were actually sent)
-        sentMessageContents = composed.block
-          .slice(0, sendResult.messagesSent)
-          .map(t => t.content)
+          // 3b. Generate minifrases for human/AI entries (modifies in-place)
+          await generateMinifrases(outboundRegistry)
 
-        // 6. Handle interruption
-        if (sendResult.interrupted) {
-          const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
+          // 3c. Filter block through 3-level no-repetition check
+          const noRepFilter = new NoRepetitionFilter(this.config.workspaceId)
+          const filterResult = await noRepFilter.filterBlock(
+            composed.block,
+            outboundRegistry,
+            templatesEnviados
+          )
 
-          if (sendResult.messagesSent === 0) {
-            // Interrupted before any template sent: discard all, don't save pending
-            // The next Inngest invocation will process the new message fresh
-            console.log(`[ENGINE] Block interrupted at index 0 — discarding all templates, sessionId=${session.id}`)
-            if (storageAdapter.clearPendingTemplates) {
-              await storageAdapter.clearPendingTemplates(session.id)
+          filteredBlock = filterResult.surviving
+
+          if (filterResult.filtered.length > 0) {
+            console.log(
+              `[ENGINE] No-rep filter: ${filterResult.filtered.length} templates filtered, ${filterResult.surviving.length} surviving` +
+              ` (L1=${filterResult.filtered.filter(f => f.level === 1).length}` +
+              ` L2=${filterResult.filtered.filter(f => f.level === 2).length}` +
+              ` L3=${filterResult.filtered.filter(f => f.level === 3).length})`
+            )
+          }
+        } catch (noRepError) {
+          // Fail-open: if the entire no-rep pipeline crashes, send the full block
+          console.error('[ENGINE] No-rep filter crashed, sending full block (fail-open):', noRepError)
+          filteredBlock = composed.block
+        }
+
+        // ================================================================
+        // PHASE 34: Handle empty filtered block (all templates filtered)
+        // ================================================================
+        if (filteredBlock.length === 0) {
+          console.log(`[ENGINE] All templates filtered by no-rep — sending nothing, sessionId=${session.id}`)
+          // Clear stale pending since there's nothing to send or save
+          if (storageAdapter.clearPendingTemplates) {
+            await storageAdapter.clearPendingTemplates(session.id)
+          }
+          // messagesSent stays 0, sentMessageContents stays empty
+        } else {
+          // 4. Convert filtered block to templates array for messaging adapter
+          const blockTemplates = filteredBlock.map(t => ({
+            id: t.templateId,
+            content: t.content,
+            contentType: t.contentType,
+            delaySeconds: 0,
+          }))
+
+          // 5. Send filtered block via messaging adapter
+          const sendResult = await this.adapters.messaging.send({
+            sessionId: session.id,
+            conversationId: input.conversationId,
+            messages: filteredBlock.map(t => t.content),
+            templates: blockTemplates,
+            intent: agentOutput.orchestratorIntent,
+            workspaceId: this.config.workspaceId,
+            contactId: input.contactId,
+            phoneNumber: input.phoneNumber,
+            triggerTimestamp: input.messageTimestamp,
+          })
+          messagesSent = sendResult.messagesSent
+
+          // Track sent content for assistant turn (only templates that were actually sent)
+          sentMessageContents = filteredBlock
+            .slice(0, sendResult.messagesSent)
+            .map(t => t.content)
+
+          // ================================================================
+          // PHASE 34: Post-send — append actually-sent template IDs
+          // This is the TWO-PHASE SAVE that fixes the over-count bug:
+          // Pre-send saveState (above) saved base templates_enviados.
+          // Post-send: append only IDs of templates that were actually sent.
+          // ================================================================
+          const sentTemplateIds = filteredBlock
+            .slice(0, sendResult.messagesSent)
+            .map(t => t.templateId)
+            .filter((id): id is string => id != null && id.length > 0)
+
+          if (sentTemplateIds.length > 0) {
+            const updatedTemplatesEnviados = [...templatesEnviados, ...sentTemplateIds]
+            await storageAdapter.saveState(session.id, {
+              templates_enviados: updatedTemplatesEnviados,
+            })
+            console.log(`[ENGINE] Post-send: appended ${sentTemplateIds.length} sent template IDs to templates_enviados`)
+          }
+
+          // 6. Handle interruption
+          if (sendResult.interrupted) {
+            const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
+
+            if (sendResult.messagesSent === 0) {
+              // Interrupted before any template sent: discard all, don't save pending
+              // The next Inngest invocation will process the new message fresh
+              console.log(`[ENGINE] Block interrupted at index 0 — discarding all templates, sessionId=${session.id}`)
+              if (storageAdapter.clearPendingTemplates) {
+                await storageAdapter.clearPendingTemplates(session.id)
+              }
+            } else {
+              // Interrupted after sending some: save unsent templates as pending
+              const unsentFromBlock = filteredBlock.slice(sentIndex)
+              const newPending = [...unsentFromBlock, ...composed.pending]
+              if (storageAdapter.savePendingTemplates) {
+                await storageAdapter.savePendingTemplates(session.id, newPending)
+              }
+              console.log(`[ENGINE] Block interrupted — pending saved, sessionId=${session.id} sentCount=${sendResult.messagesSent} newPendingCount=${newPending.length}`)
             }
           } else {
-            // Interrupted after sending some: save unsent templates as pending
-            const unsentFromBlock = composed.block.slice(sentIndex)
-            const newPending = [...unsentFromBlock, ...composed.pending]
-            if (storageAdapter.savePendingTemplates) {
-              await storageAdapter.savePendingTemplates(session.id, newPending)
+            // Block sent successfully — save overflow as pending for next cycle
+            if (composed.pending.length > 0 && storageAdapter.savePendingTemplates) {
+              await storageAdapter.savePendingTemplates(session.id, composed.pending)
+            } else if (storageAdapter.clearPendingTemplates) {
+              // No overflow — clear any stale pending
+              await storageAdapter.clearPendingTemplates(session.id)
             }
-            console.log(`[ENGINE] Block interrupted — pending saved, sessionId=${session.id} sentCount=${sendResult.messagesSent} newPendingCount=${newPending.length}`)
-          }
-        } else {
-          // Block sent successfully — save overflow as pending for next cycle
-          if (composed.pending.length > 0 && storageAdapter.savePendingTemplates) {
-            await storageAdapter.savePendingTemplates(session.id, composed.pending)
-          } else if (storageAdapter.clearPendingTemplates) {
-            // No overflow — clear any stale pending
-            await storageAdapter.clearPendingTemplates(session.id)
           }
         }
 

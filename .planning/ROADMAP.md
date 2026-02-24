@@ -280,7 +280,7 @@ Plans:
 - [x] **Phase 29: Inngest Migration + Character Delays** - Webhook async via Inngest concurrency-1, typing delays by character count
 - [x] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
 - [x] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
-- [ ] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
+- [x] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
 - [ ] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [ ] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
 - [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
@@ -379,9 +379,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 32-01-PLAN.md — Foundation types, reaction mapper, Inngest event schema extension, openai npm install
-- [ ] 32-02-PLAN.md — Media gate library: audio transcriber (Whisper), sticker interpreter (Vision), gate entry point
-- [ ] 32-03-PLAN.md — Pipeline integration: webhook handler expansion, Inngest media gate step, handoff/ignore wiring
+- [x] 32-01-PLAN.md — Foundation types, reaction mapper, Inngest event schema extension, openai npm install
+- [x] 32-02-PLAN.md — Media gate library: audio transcriber (Whisper), sticker interpreter (Vision), gate entry point
+- [x] 32-03-PLAN.md — Pipeline integration: webhook handler expansion, Inngest media gate step, handoff/ignore wiring
 
 **Success Criteria:**
 1. Voice notes and audio messages are transcribed via Whisper to Spanish text -- if the transcription contains 1-2 intents, they are processed normally as if the customer typed them; if 3+ intents are detected, the bot hands off to a human with a notification listing the detected topics
@@ -505,7 +505,7 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
-| v4.0 Comportamiento Humano | 29-36 | 18+ (Phases 29-31 complete) | Phase 31 Complete | — |
+| v4.0 Comportamiento Humano | 29-36 | 21+ (Phases 29-32 complete) | Phase 32 Complete | — |
 | Standalone | 9 phases | 31 | 7 complete, 2 in progress | |
 | **Total** | **50 phases** | **192+ plans** | | |
 
@@ -515,8 +515,8 @@ Phase 28: Robot Creador de Guias PDF — COMPLETE (5 plans, 3 waves)
 Phase 31: Pre-Send Check + Interruption + Pending Merge — COMPLETE (4 plans, 3 waves)
 Standalone: WhatsApp Webhook Resilience v2 — COMPLETE (3 plans, 3 waves)
 Standalone: Robot Coordinadora Hardening — COMPLETE (5 plans, 2 waves, verified 14/14 must-haves)
-Phase 32: Media Processing — PLANNED (3 plans, 3 waves)
-Next: Execute Phase 32
+Phase 32: Media Processing — COMPLETE (3 plans, 3 waves, verified 7/7 must-haves)
+Next: Plan Phase 33
 
 ---
 
@@ -527,4 +527,4 @@ Next: Execute Phase 32
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-28 (Robot Coordinadora Hardening standalone phase complete: 5 plans, 14/14 verified)*
+*Last updated: 2026-03-01 (Phase 32 Media Processing complete: 3 plans, 7/7 verified)*

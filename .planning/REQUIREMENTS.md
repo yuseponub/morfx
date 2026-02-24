@@ -31,10 +31,10 @@
 
 ### Etapa 4: Procesamiento de Medios
 
-- [ ] **MEDIA-01**: Audio/voice notes transcritos con Whisper -- 1-2 intents procesados normal, 3+ intents handoff
-- [ ] **MEDIA-02**: Imagenes y videos -- handoff directo ("Regalame 1 min" + notificar host)
-- [ ] **MEDIA-03**: Stickers interpretados con Claude Vision -- texto procesable o handoff
-- [ ] **MEDIA-04**: Reacciones emoji interpretadas como texto -- procesadas o handoff si ambiguas
+- [x] **MEDIA-01**: Audio/voice notes transcritos con Whisper -- 1-2 intents procesados normal, 3+ intents handoff
+- [x] **MEDIA-02**: Imagenes y videos -- handoff directo ("Regalame 1 min" + notificar host)
+- [x] **MEDIA-03**: Stickers interpretados con Claude Vision -- texto procesable o handoff
+- [x] **MEDIA-04**: Reacciones emoji interpretadas como texto -- procesadas o handoff si ambiguas
 
 ### Etapa 5: Confidence + Disambiguation
 
@@ -100,10 +100,10 @@
 | BLOCK-06 | Phase 34 | Pending |
 | BLOCK-07 | Phase 34 | Pending |
 | BLOCK-08 | Phase 34 | Pending |
-| MEDIA-01 | Phase 32 | Pending |
-| MEDIA-02 | Phase 32 | Pending |
-| MEDIA-03 | Phase 32 | Pending |
-| MEDIA-04 | Phase 32 | Pending |
+| MEDIA-01 | Phase 32 | Complete |
+| MEDIA-02 | Phase 32 | Complete |
+| MEDIA-03 | Phase 32 | Complete |
+| MEDIA-04 | Phase 32 | Complete |
 | CONF-01 | Phase 33 | Pending |
 | CONF-02 | Phase 33 | Pending |
 | CONF-03 | Phase 33 | Pending |

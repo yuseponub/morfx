@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Phase 34 No-Repetition System (v4.0 Comportamiento Humano)
+**Current focus:** Phase 35 Flujo Ofi Inter (v4.0 Comportamiento Humano)
 
 ## Current Position
 
-Phase: 34 of 36 (No-Repetition System)
-Plan: 3 of 4 complete (01, 02, 03)
-Status: In progress
+Phase: 34 of 36 (No-Repetition System) -- COMPLETE
+Plan: 4 of 4 complete (01, 02, 03, 04)
+Status: Phase complete
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-24 — Completed 34-03 Template Paraphraser + Repeated Intent Handling
+Last activity: 2026-02-24 — Completed 34-04 Engine Integration + Over-Count Fix
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########--] 75% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 86% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -51,7 +51,7 @@ All 9 phases + 5 inserted phases completed:
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
 | 32 | Media Processing | COMPLETE (3/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans, verified 8/8) |
-| 34 | No-Repetition System | IN PROGRESS (3/4 plans) |
+| 34 | No-Repetition System | COMPLETE (4/4 plans) |
 | 35 | Flujo Ofi Inter | Not started |
 
 ### Standalone Work (between v2.0 and v3.0)
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 209
+- Total plans completed: 210
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -238,10 +238,17 @@ Phase 34 decisions (Plan 03):
 - processTemplates now async with isRepeated parameter (backward compatible default=false)
 - visitType always returns 'primera_vez' (siguientes logic completely removed from TemplateManager)
 
+Phase 34 decisions (Plan 04):
+- Only useBlockComposition path gets no-rep filter (forceIntent and sandbox bypass it)
+- Fail-open at pipeline level: entire no-rep crash falls back to sending full block
+- Two-phase save: pre-send saves base templates_enviados, post-send appends only sent IDs
+- Empty filtered block sends nothing, clears stale pending, logs the event
+- Interruption slicing uses filteredBlock (not composed.block) for accurate pending storage
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
-- Apply migrations to Supabase (all pending, including 20260302000000_disambiguation_log.sql before deploying Phase 33 code)
+- Apply migrations to Supabase (all pending, including 20260302000000_disambiguation_log.sql and 20260303000000_no_repetition_minifrases.sql)
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
@@ -259,6 +266,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 34-03-PLAN.md (Template Paraphraser + Repeated Intent Handling)
+Stopped at: Completed 34-04-PLAN.md (Engine Integration + Over-Count Fix) -- Phase 34 COMPLETE
 Resume file: None
-Next: 34-04-PLAN.md (Engine Integration + Over-Count Fix)
+Next: Phase 35 (Flujo Ofi Inter)

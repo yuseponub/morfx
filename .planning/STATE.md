@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 30 of 35 (Message Classification + Silence Timer)
-Plan: 2 of 3 complete (30-01 + 30-03)
-Status: In progress (Wave 2: 30-03 done, 30-02 in parallel)
-Last activity: 2026-02-24 — Completed 30-03-PLAN.md (Silence Retake Timer)
+Plan: 3 of 3 complete
+Status: Phase complete
+Last activity: 2026-02-24 — Completed 30-02-PLAN.md (Message Category Classifier)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [####░░░░░░] 19% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#####░░░░░] 29% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -46,7 +46,7 @@ All 9 phases + 5 inserted phases completed:
 | Phase | Name | Status |
 |-------|------|--------|
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
-| 30 | Message Classification + Silence Timer | IN PROGRESS (2/3 plans: 30-01 + 30-03) |
+| 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
 | 32 | Media Processing | Not started |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 37 (33 milestone + 4 standalone)
-- Total plans completed: 192
+- Total plans completed: 193
 - Total execution time: ~29 days (2026-01-26 to 2026-02-24)
 
 ## Accumulated Context
@@ -111,6 +111,9 @@ Phase 30 decisions:
 - 90s timeout hardcoded (not configurable via workspace preset)
 - is_agent_enabled guard before timer-triggered retake messages (prevents retake after HANDOFF)
 - Non-blocking onSilenceDetected: log failure but don't crash request
+- classifyMessage checks raw message text for SILENCIOSO (not intent name) -- IntentDetector maps "ok" to varying intents
+- Step 5.5 placed after step 6 (needs newIntentsVistos), before step 7 (preserves low-confidence handoff path)
+- HANDOFF early return includes cancel timer signal to stop active timers on handoff
 
 Recent decisions affecting v4.0:
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
@@ -143,6 +146,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 30-03-PLAN.md (Silence Retake Timer)
+Stopped at: Completed 30-02-PLAN.md (Message Category Classifier) — Phase 30 COMPLETE
 Resume file: None
-Next: /gsd:execute-phase 30-02 (Message Category Classifier) — completes Phase 30
+Next: /gsd:plan-phase 31 (Pre-Send Check + Interruption + Pending Merge)

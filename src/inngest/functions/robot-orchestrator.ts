@@ -50,15 +50,39 @@ const robotOrchestrator = inngest.createFunction(
       const jobId = originalEvent?.data?.jobId as string | undefined
       const workspaceId = originalEvent?.data?.workspaceId as string | undefined
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errorMessage = (event as any).data?.error?.message ?? 'Unknown error'
+      const errorMessage = (event as any).data?.error?.message ?? 'Error desconocido'
 
-      console.error(`[robot-orchestrator] Function failed for job ${jobId}:`, errorMessage)
+      console.error(`[robot-orchestrator] Function failed for job ${jobId}: ${errorMessage}`)
 
       if (jobId && workspaceId) {
         await updateJobStatus(
           { workspaceId, source: 'inngest-orchestrator' },
           { jobId, status: 'failed' }
         )
+
+        // Write error to a pending item so the UI can display it
+        const { createAdminClient } = await import('@/lib/supabase/admin')
+        const supabase = createAdminClient()
+        const { data: pendingItem } = await supabase
+          .from('robot_job_items')
+          .select('id')
+          .eq('job_id', jobId)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle()
+
+        if (pendingItem) {
+          await supabase
+            .from('robot_job_items')
+            .update({
+              status: 'error',
+              error_type: 'unknown',
+              error_message: `Error del orquestador: ${errorMessage}`,
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', pendingItem.id)
+        }
+
         console.log(`[robot-orchestrator] Marked job ${jobId} as failed via onFailure`)
       }
     },
@@ -151,6 +175,29 @@ const robotOrchestrator = inngest.createFunction(
           { workspaceId, source: 'inngest-orchestrator' },
           { jobId, status: 'failed' }
         )
+
+        // Write timeout error to a pending item for UI visibility
+        const { createAdminClient } = await import('@/lib/supabase/admin')
+        const supabase = createAdminClient()
+        const { data: pendingItem } = await supabase
+          .from('robot_job_items')
+          .select('id')
+          .eq('job_id', jobId)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle()
+
+        if (pendingItem) {
+          await supabase
+            .from('robot_job_items')
+            .update({
+              status: 'error',
+              error_type: 'timeout',
+              error_message: 'Tiempo de espera agotado. El servicio del robot no respondio a tiempo.',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', pendingItem.id)
+        }
       })
       return { status: 'failed', reason: 'timeout', jobId }
     }
@@ -182,8 +229,7 @@ const robotOrchestrator = inngest.createFunction(
  * retries: 0 -- a retry would re-read the same portal data unnecessarily
  * and could cause duplicate callbacks. Consistent with robot-orchestrator.
  *
- * Timeout per pedido is shorter (10s vs 30s) since guide lookup reads one
- * page for all pedidos vs navigating per-order forms.
+ * Timeout: 60s per pedido + 10min base margin (same formula as robot-orchestrator).
  */
 const guideLookupOrchestrator = inngest.createFunction(
   {
@@ -195,15 +241,39 @@ const guideLookupOrchestrator = inngest.createFunction(
       const jobId = originalEvent?.data?.jobId as string | undefined
       const workspaceId = originalEvent?.data?.workspaceId as string | undefined
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errorMessage = (event as any).data?.error?.message ?? 'Unknown error'
+      const errorMessage = (event as any).data?.error?.message ?? 'Error desconocido'
 
-      console.error(`[guide-lookup-orchestrator] Function failed for job ${jobId}:`, errorMessage)
+      console.error(`[guide-lookup-orchestrator] Function failed for job ${jobId}: ${errorMessage}`)
 
       if (jobId && workspaceId) {
         await updateJobStatus(
           { workspaceId, source: 'inngest-orchestrator' },
           { jobId, status: 'failed' }
         )
+
+        // Write error to a pending item so the UI can display it
+        const { createAdminClient } = await import('@/lib/supabase/admin')
+        const supabase = createAdminClient()
+        const { data: pendingItem } = await supabase
+          .from('robot_job_items')
+          .select('id')
+          .eq('job_id', jobId)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle()
+
+        if (pendingItem) {
+          await supabase
+            .from('robot_job_items')
+            .update({
+              status: 'error',
+              error_type: 'unknown',
+              error_message: `Error del orquestador: ${errorMessage}`,
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', pendingItem.id)
+        }
+
         console.log(`[guide-lookup-orchestrator] Marked job ${jobId} as failed via onFailure`)
       }
     },
@@ -291,6 +361,29 @@ const guideLookupOrchestrator = inngest.createFunction(
           { workspaceId, source: 'inngest-orchestrator' },
           { jobId, status: 'failed' }
         )
+
+        // Write timeout error to a pending item for UI visibility
+        const { createAdminClient } = await import('@/lib/supabase/admin')
+        const supabase = createAdminClient()
+        const { data: pendingItem } = await supabase
+          .from('robot_job_items')
+          .select('id')
+          .eq('job_id', jobId)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle()
+
+        if (pendingItem) {
+          await supabase
+            .from('robot_job_items')
+            .update({
+              status: 'error',
+              error_type: 'timeout',
+              error_message: 'Tiempo de espera agotado. El servicio del robot no respondio a tiempo.',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', pendingItem.id)
+        }
       })
       return { status: 'failed', reason: 'timeout', jobId }
     }

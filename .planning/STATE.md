@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
-Plan: 2 of 4 complete (01 + 02)
+Plan: 3 of 4 complete (01 + 02 + 03)
 Status: In progress
-Last activity: 2026-02-24 — Completed 31-01-PLAN.md (BlockComposer TDD) and 31-02-PLAN.md (Block Priorities DB)
+Last activity: 2026-02-24 — Completed 31-03-PLAN.md (Pre-Send Check + messageTimestamp Wiring)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [######░░░░] 36% v4.0
 
@@ -47,7 +47,7 @@ All 9 phases + 5 inserted phases completed:
 |-------|------|--------|
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
-| 31 | Pre-Send Check + Interruption + Pending Merge | IN PROGRESS (2/4 plans) |
+| 31 | Pre-Send Check + Interruption + Pending Merge | IN PROGRESS (3/4 plans) |
 | 32 | Media Processing | Not started |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
 | 34 | No-Repetition System | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 38 (34 milestone + 4 standalone)
-- Total plans completed: 194
+- Total plans completed: 195
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -137,6 +137,12 @@ Phase 31 decisions (Plan 02):
 - Seed priorities by orden (0=CORE, 1=COMP, 2+=OPC)
 - isValidTemplatePriority as standalone type guard (not importing from parallel plan files)
 
+Phase 31 decisions (Plan 03):
+- Pre-send check runs AFTER char delay and BEFORE send (customer types during delay)
+- Check applies to every template including index 0 (first one)
+- Lightweight count query with head:true (no row data fetched)
+- Interrupted result captured but NOT acted upon yet (Plan 04 handles pending storage)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -157,6 +163,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 31-01-PLAN.md (BlockComposer TDD) — Plans 01 + 02 done
+Stopped at: Completed 31-03-PLAN.md (Pre-Send Check + messageTimestamp Wiring)
 Resume file: None
-Next: Execute 31-03-PLAN.md (Pre-Send Check Inngest Function)
+Next: Execute 31-04-PLAN.md (BlockComposer Integration + Pending Storage)

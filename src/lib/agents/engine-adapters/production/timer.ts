@@ -220,4 +220,33 @@ export class ProductionTimerAdapter implements TimerAdapter {
       logger.warn({ error, sessionId }, 'Failed to emit ingest.completed event')
     }
   }
+
+  /**
+   * Emit agent/silence.detected event to start silence retake timer (Phase 30).
+   * Called by UnifiedEngine when SomnioAgent returns silenceDetected=true.
+   */
+  async onSilenceDetected(
+    sessionId: string,
+    conversationId: string,
+    message: string,
+    intent: string
+  ): Promise<void> {
+    try {
+      const { inngest } = await import('@/inngest/client')
+      await (inngest.send as any)({
+        name: 'agent/silence.detected',
+        data: {
+          sessionId,
+          conversationId,
+          workspaceId: this.workspaceId,
+          message,
+          intent,
+        },
+      })
+      logger.info({ sessionId, conversationId, intent }, 'Emitted agent/silence.detected event')
+    } catch (error) {
+      // Non-blocking: log but don't fail processing
+      logger.warn({ error, sessionId }, 'Failed to emit silence.detected event')
+    }
+  }
 }

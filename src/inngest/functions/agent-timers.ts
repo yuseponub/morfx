@@ -571,7 +571,7 @@ export const silenceTimer = inngest.createFunction(
       return { status: 'responded', action: 'customer_replied' }
     }
 
-    // Timeout: send retake message redirecting to sale
+    // Timeout: send pending templates + retake message redirecting to sale
     const result = await step.run('send-retake', async () => {
       // Verify agent is still enabled before sending
       const supabase = createAdminClient()
@@ -586,10 +586,49 @@ export const silenceTimer = inngest.createFunction(
         return { status: 'skipped', action: 'agent_disabled' }
       }
 
-      const sent = await sendWhatsAppMessage(workspaceId, conversationId, SILENCE_RETAKE_MESSAGE)
-      if (sent) {
-        logger.info({ sessionId, conversationId }, 'Silence retake message sent')
-        return { status: 'timeout', action: 'retake_sent' }
+      // Phase 31: Get pending templates from session state
+      const { data: sessionData } = await supabase
+        .from('session_state')
+        .select('pending_templates')
+        .eq('session_id', sessionId)
+        .single()
+
+      const pendingTemplates = (sessionData?.pending_templates as Array<{
+        templateId: string
+        content: string
+        contentType: string
+        priority: string
+      }>) ?? []
+
+      // Send pending templates (up to 3, already priority-sorted from BlockComposer)
+      const { calculateCharDelay } = await import('@/lib/agents/somnio/char-delay')
+      let pendingSent = 0
+      for (const template of pendingTemplates.slice(0, 3)) {
+        // Apply character delay for human-like timing
+        const delayMs = calculateCharDelay(template.content.length)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+
+        const sent = await sendWhatsAppMessage(workspaceId, conversationId, template.content)
+        if (sent) pendingSent++
+      }
+
+      // Clear pending after sending
+      if (pendingTemplates.length > 0) {
+        await supabase
+          .from('session_state')
+          .update({ pending_templates: [] })
+          .eq('session_id', sessionId)
+      }
+
+      // Send retake message (separate from template cap — it's a system message)
+      const retakeSent = await sendWhatsAppMessage(workspaceId, conversationId, SILENCE_RETAKE_MESSAGE)
+
+      if (retakeSent) {
+        logger.info(
+          { sessionId, conversationId, pendingSent, pendingTotal: pendingTemplates.length },
+          'Silence retake: pending templates + retake message sent'
+        )
+        return { status: 'timeout', action: 'retake_sent', pendingSent }
       } else {
         logger.error({ sessionId, conversationId }, 'Failed to send silence retake message')
         return { status: 'error', action: 'send_failed' }

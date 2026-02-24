@@ -118,22 +118,25 @@ function buildPedidoInputFromOrder(
   const unidades = order.products.reduce((sum, p) => sum + (p.quantity || 0), 0) || 1
 
   return {
-    identificacion: (order.custom_fields?.identificacion as string) || 'N/A',
+    // Identificacion: use custom field, or phone (10 digits without 57) as fallback
+    identificacion: (order.custom_fields?.identificacion as string)
+      || (order.contact_phone || '').replace(/\D/g, '').slice(-10)
+      || '0000000000',
     nombres,
     apellidos,
     direccion: order.shipping_address || 'Sin direccion',
     ciudad: cityValidation.coordinadoraCity!,
     departamento: cityValidation.departmentAbbrev!,
-    celular: order.contact_phone || '0000000000',
+    celular: (order.contact_phone || '0000000000').replace(/\D/g, '').slice(-10),
     email: order.contact_email || 'sin@email.com',
     referencia: order.name || order.id.slice(0, 8),
     unidades,
     totalConIva: order.total_value || 0,
-    valorDeclarado: order.total_value || 0,
-    esRecaudoContraentrega: false,
-    peso: 1,
-    alto: 10,
-    largo: 10,
+    valorDeclarado: 55000,
+    esRecaudoContraentrega: (order.total_value || 0) > 0,
+    peso: 0.08,
+    alto: 5,
+    largo: 5,
     ancho: 10,
   }
 }

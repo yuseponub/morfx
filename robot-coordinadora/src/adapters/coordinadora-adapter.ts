@@ -217,7 +217,11 @@ export class CoordinadoraAdapter {
       await this.navigateToForm()
 
       // --- Personal data fields (exact selectors from working robot) ---
-      await this.fillField('identificacion_destinatario', pedido.identificacion)
+      // identificacion is type="number" — use celular as fallback when not numeric
+      const identificacion = /^\d+$/.test(pedido.identificacion)
+        ? pedido.identificacion
+        : pedido.celular.replace(/\D/g, '').slice(-10)
+      await this.fillField('identificacion_destinatario', identificacion)
       await this.fillField('nombres_destinatario', pedido.nombres)
       await this.fillField('apellidos_destinatario', pedido.apellidos)
       await this.fillField('direccion_destinatario', pedido.direccion)

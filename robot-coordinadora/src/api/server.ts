@@ -5,6 +5,8 @@
 // ============================================================================
 
 import express, { Request, Response } from 'express'
+import fs from 'fs'
+import path from 'path'
 import {
   BatchRequest,
   BatchResponse,
@@ -95,6 +97,33 @@ export function createServer(): express.Express {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     })
+  })
+
+  // =========================================================================
+  // GET /api/screenshots -- List and serve debug screenshots
+  // =========================================================================
+
+  app.get('/api/screenshots', (_req: Request, res: Response) => {
+    const dir = path.join(process.cwd(), 'storage', 'artifacts')
+    try {
+      const files = fs.readdirSync(dir)
+        .filter(f => f.endsWith('.png'))
+        .sort()
+        .reverse()
+        .slice(0, 20)
+      res.json({ files })
+    } catch {
+      res.json({ files: [] })
+    }
+  })
+
+  app.get('/api/screenshots/:name', (req: Request, res: Response) => {
+    const filePath = path.join(process.cwd(), 'storage', 'artifacts', req.params.name as string)
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'Not found' })
+      return
+    }
+    res.sendFile(filePath)
   })
 
   // =========================================================================

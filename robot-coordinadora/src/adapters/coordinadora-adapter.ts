@@ -280,12 +280,33 @@ export class CoordinadoraAdapter {
 
       // Screenshot right after clicking submit
       await this.page.waitForTimeout(2000)
-      await this.takeScreenshot('after-submit')
+      await this.takeScreenshot('after-submit-2s')
 
-      // Wait for portal response
-      await this.page.waitForTimeout(3000)
+      // Log page state after submit for debugging
+      const pageUrl = this.page.url()
+      console.log(`${LOG_PREFIX} Page URL after submit: ${pageUrl}`)
 
-      // Detect SweetAlert2 result (check multiple possible selectors)
+      // Check for any visible modals, alerts, or error messages
+      const swalVisible = await this.page.locator('.swal2-popup, .swal-modal, [class*="swal"]').count().catch(() => 0)
+      const muiDialogVisible = await this.page.locator('.MuiDialog-root, .MuiModal-root').count().catch(() => 0)
+      const alertVisible = await this.page.locator('[role="alert"], .alert, .MuiAlert-root').count().catch(() => 0)
+      console.log(`${LOG_PREFIX} After submit: swal=${swalVisible}, muiDialog=${muiDialogVisible}, alerts=${alertVisible}`)
+
+      // Check if any helper text errors appeared after submit
+      const postSubmitErrors = await this.page.locator('.MuiFormHelperText-root.Mui-error, .Mui-error').allTextContents().catch(() => [])
+      if (postSubmitErrors.length > 0) {
+        console.error(`${LOG_PREFIX} Post-submit validation errors: ${postSubmitErrors.join(' | ')}`)
+      }
+
+      // Wait more for portal response
+      await this.page.waitForTimeout(5000)
+      await this.takeScreenshot('after-submit-7s')
+
+      // Check again for swal
+      const swalVisibleLate = await this.page.locator('.swal2-popup, .swal-modal, [class*="swal"]').count().catch(() => 0)
+      console.log(`${LOG_PREFIX} Late swal check: ${swalVisibleLate}`)
+
+      // Detect SweetAlert2 result
       const swalResult = await this.detectSweetAlertResult()
 
       // On success, update the pedido counter and save to file

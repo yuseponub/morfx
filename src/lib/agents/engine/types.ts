@@ -82,6 +82,8 @@ export interface EngineInput {
   turnNumber?: number
   /** Phone number for WhatsApp message sending (production only) */
   phoneNumber?: string
+  /** ISO timestamp of the inbound message that triggered processing (Phase 31: pre-send check) */
+  messageTimestamp?: string
 }
 
 /**
@@ -290,7 +292,15 @@ export interface MessagingAdapter {
     contactId?: string
     /** Phone number (production: for WhatsApp sending) */
     phoneNumber?: string
-  }): Promise<{ messagesSent: number }>
+    /** ISO timestamp of the message that triggered this block (for pre-send check). Phase 31. */
+    triggerTimestamp?: string
+  }): Promise<{
+    messagesSent: number
+    /** Whether the sequence was interrupted by a new inbound message. Phase 31. */
+    interrupted?: boolean
+    /** Index where interruption occurred (0-based). Templates from this index onward were NOT sent. */
+    interruptedAtIndex?: number
+  }>
 }
 
 // ============================================================================

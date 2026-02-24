@@ -55,8 +55,29 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
   ) {}
 
   /**
+   * Check if a new inbound message arrived after the trigger message.
+   * Uses the existing idx_messages_conversation index on (conversation_id, timestamp DESC).
+   * This is a lightweight count query (head: true) — no row data fetched.
+   */
+  private async hasNewInboundMessage(
+    conversationId: string,
+    afterTimestamp: string
+  ): Promise<boolean> {
+    const supabase = createAdminClient()
+    const { count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .eq('direction', 'inbound')
+      .gt('timestamp', afterTimestamp)
+    return (count ?? 0) > 0
+  }
+
+  /**
    * Send response messages via domain layer.
    * Iterates templates, applies delays, sends each message through domain.
+   * Phase 31: Before each template, checks for new inbound messages (pre-send check).
+   * If a new message arrived, the sequence is interrupted and remaining templates are NOT sent.
    */
   async send(params: {
     sessionId: string
@@ -67,7 +88,8 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
     workspaceId: string
     contactId?: string
     phoneNumber?: string
-  }): Promise<{ messagesSent: number }> {
+    triggerTimestamp?: string
+  }): Promise<{ messagesSent: number; interrupted?: boolean; interruptedAtIndex?: number }> {
     const templates = params.templates as Array<{
       id: string
       content: string
@@ -108,6 +130,23 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
       if (this.responseSpeed > 0) {
         const delayMs = calculateCharDelay(template.content.length) * this.responseSpeed
         await sleep(delayMs)
+      }
+
+      // Phase 31: Pre-send check — query DB for new inbound messages after trigger
+      // Runs AFTER delay (customer has time to type during delay) and BEFORE send
+      if (params.triggerTimestamp) {
+        const hasNew = await this.hasNewInboundMessage(convId, params.triggerTimestamp)
+        logger.debug(
+          { conversationId: convId, afterTimestamp: params.triggerTimestamp, hasNew, templateIndex: i },
+          'Pre-send check'
+        )
+        if (hasNew) {
+          logger.info(
+            { conversationId: convId, interruptedAtIndex: i, sentCount, totalTemplates: templates.length },
+            'Send sequence interrupted by new inbound message'
+          )
+          return { messagesSent: sentCount, interrupted: true, interruptedAtIndex: i }
+        }
       }
 
       try {

@@ -24,7 +24,8 @@ export class SandboxMessagingAdapter implements MessagingAdapter {
     workspaceId: string
     contactId?: string
     phoneNumber?: string
-  }): Promise<{ messagesSent: number }> {
+    triggerTimestamp?: string
+  }): Promise<{ messagesSent: number; interrupted?: boolean; interruptedAtIndex?: number }> {
     return { messagesSent: 0 }
   }
 }

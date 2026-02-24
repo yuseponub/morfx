@@ -32,10 +32,12 @@ export function useRobotJobProgress(jobId: string | null): {
   totalItems: number
   isComplete: boolean
   isLoading: boolean
+  isDisconnected: boolean
 } {
   const [job, setJob] = useState<RobotJob | null>(null)
   const [items, setItems] = useState<RobotJobItem[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(!!jobId)
+  const [isDisconnected, setIsDisconnected] = useState(false)
 
   // ---- Initial data fetch (handles reconnect scenario) ----
   useEffect(() => {
@@ -43,6 +45,7 @@ export function useRobotJobProgress(jobId: string | null): {
       setJob(null)
       setItems([])
       setIsLoading(false)
+      setIsDisconnected(false)
       return
     }
 
@@ -121,7 +124,12 @@ export function useRobotJobProgress(jobId: string | null): {
         }
       )
       .subscribe((status, err) => {
-        if (err) console.error('[useRobotJobProgress] Realtime error:', err)
+        if (status === 'SUBSCRIBED') {
+          setIsDisconnected(false)
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setIsDisconnected(true)
+          console.error(`[useRobotJobProgress] Realtime ${status}:`, err)
+        }
       })
 
     // Cleanup on unmount or jobId change
@@ -159,5 +167,6 @@ export function useRobotJobProgress(jobId: string | null): {
     totalItems,
     isComplete,
     isLoading,
+    isDisconnected,
   }
 }

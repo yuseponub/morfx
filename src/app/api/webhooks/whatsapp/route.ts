@@ -131,13 +131,17 @@ export async function POST(request: NextRequest) {
 
   // Process webhook SYNCHRONOUSLY to ensure it completes before Vercel kills the function
   try {
-    await processWebhook(payload, workspaceId, phoneNumberId)
+    const result = await processWebhook(payload, workspaceId, phoneNumberId)
     const duration = Date.now() - startTime
-    console.log(`Webhook processed in ${duration}ms for workspace ${workspaceId}`)
+    console.log(`Webhook processed in ${duration}ms for workspace ${workspaceId} (stored: ${result.stored})`)
+    return NextResponse.json({ received: true }, { status: 200 })
   } catch (error) {
-    console.error('Webhook processing error:', error)
-    // Still return 200 to prevent 360dialog retries
+    // processWebhook only throws when payload was NOT stored AND processing failed
+    // In this case we have NO safety net — 360dialog must retry
+    console.error('[webhook] NOT stored, returning 500 for retry:', error)
+    return NextResponse.json(
+      { error: 'Failed to process webhook' },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json({ received: true }, { status: 200 })
 }

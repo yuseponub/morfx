@@ -22,6 +22,9 @@ import { TIMER_MINIMUM_FIELDS } from '@/lib/agents/somnio/constants'
 
 const logger = createModuleLogger('agent-timers')
 
+/** Retake message sent after 90s of silence. Warm redirect to sale. */
+const SILENCE_RETAKE_MESSAGE = 'Por cierto, te cuento que tenemos promociones especiales hoy! Te gustaria conocerlas? 😊'
+
 // Lazy SessionManager
 let _sessionManager: SessionManager | null = null
 function getSessionManager(): SessionManager {
@@ -530,6 +533,74 @@ export const resumenTimer = inngest.createFunction(
 )
 
 /**
+ * Silence Retake Timer (Phase 30)
+ *
+ * Triggered when a customer message is classified as SILENCIOSO (acknowledgment
+ * in non-confirmatory state). Waits 90s for another customer message. If no
+ * response, sends a retake message redirecting to the sale.
+ *
+ * Pattern: Identical to dataCollectionTimer (settle + waitForEvent + timeout).
+ * Cancel mechanism: agent/customer.message with matching sessionId.
+ */
+export const silenceTimer = inngest.createFunction(
+  {
+    id: 'silence-retake-timer',
+    name: 'Silence Retake Timer',
+    retries: 3,
+  },
+  { event: 'agent/silence.detected' },
+  async ({ event, step }) => {
+    const { sessionId, conversationId, workspaceId, message, intent } = event.data
+
+    logger.info({ sessionId, conversationId, message: message.substring(0, 50), intent }, 'Silence retake timer started')
+
+    // Let concurrent events from the same request settle before listening.
+    // CRITICAL: Without this, the agent/customer.message emitted in the same
+    // request would immediately cancel this timer. Same pattern as all 4 existing timers.
+    await step.sleep('settle', '5s')
+
+    // Wait for customer message or 90s timeout
+    const customerMessage = await step.waitForEvent('wait-for-response', {
+      event: 'agent/customer.message',
+      timeout: '90s',
+      match: 'data.sessionId',
+    })
+
+    if (customerMessage) {
+      logger.info({ sessionId }, 'Silence timer cancelled — customer replied')
+      return { status: 'responded', action: 'customer_replied' }
+    }
+
+    // Timeout: send retake message redirecting to sale
+    const result = await step.run('send-retake', async () => {
+      // Verify agent is still enabled before sending
+      const supabase = createAdminClient()
+      const { data: conv } = await supabase
+        .from('conversations')
+        .select('agent_override_mode, is_agent_enabled')
+        .eq('id', conversationId)
+        .single()
+
+      if (conv && conv.is_agent_enabled === false) {
+        logger.info({ conversationId }, 'Agent disabled — skipping retake message')
+        return { status: 'skipped', action: 'agent_disabled' }
+      }
+
+      const sent = await sendWhatsAppMessage(workspaceId, conversationId, SILENCE_RETAKE_MESSAGE)
+      if (sent) {
+        logger.info({ sessionId, conversationId }, 'Silence retake message sent')
+        return { status: 'timeout', action: 'retake_sent' }
+      } else {
+        logger.error({ sessionId, conversationId }, 'Failed to send silence retake message')
+        return { status: 'error', action: 'send_failed' }
+      }
+    })
+
+    return result
+  }
+)
+
+/**
  * All agent timer functions for export.
  */
 export const agentTimerFunctions = [
@@ -537,4 +608,5 @@ export const agentTimerFunctions = [
   promosTimer,
   resumenTimer,
   ingestTimer,
+  silenceTimer,  // Phase 30: retake after 90s of silence
 ]

@@ -381,14 +381,24 @@ export async function updateJobItemResult(
     // On success: update order through domain module (triggers automation field.changed events)
     // For create_shipment jobs: write tracking_number (pedido number)
     // For guide_lookup jobs: overwrite tracking_number with guide number (replaces pedido number)
+    //   AND set carrier_guide_number (used as "already looked up" flag by getOrdersPendingGuide)
     // For ocr_guide_read jobs: SKIP — orchestrator already calls updateOrder directly
     //   (OCR items may also have order_id = NULL before matching)
     if (params.status === 'success' && params.trackingNumber && parentJob?.job_type !== 'ocr_guide_read') {
-      await updateOrder(ctx, {
-        orderId: item.order_id,
-        trackingNumber: params.trackingNumber,
-        carrier: 'COORDINADORA',
-      })
+      if (parentJob?.job_type === 'guide_lookup') {
+        await updateOrder(ctx, {
+          orderId: item.order_id,
+          trackingNumber: params.trackingNumber,
+          carrierGuideNumber: params.trackingNumber,
+          carrier: 'COORDINADORA',
+        })
+      } else {
+        await updateOrder(ctx, {
+          orderId: item.order_id,
+          trackingNumber: params.trackingNumber,
+          carrier: 'COORDINADORA',
+        })
+      }
     }
 
     // Atomic counter increment via RPC -- eliminates race condition where two

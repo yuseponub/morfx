@@ -376,7 +376,12 @@ Plans:
 
 **Risk:** MEDIUM (Whisper OGG format edge cases, sticker hallucination risk with Vision)
 
-**Plans:** TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 32-01-PLAN.md — Foundation types, reaction mapper, Inngest event schema extension, openai npm install
+- [ ] 32-02-PLAN.md — Media gate library: audio transcriber (Whisper), sticker interpreter (Vision), gate entry point
+- [ ] 32-03-PLAN.md — Pipeline integration: webhook handler expansion, Inngest media gate step, handoff/ignore wiring
 
 **Success Criteria:**
 1. Voice notes and audio messages are transcribed via Whisper to Spanish text -- if the transcription contains 1-2 intents, they are processed normally as if the customer typed them; if 3+ intents are detected, the bot hands off to a human with a notification listing the detected topics
@@ -510,7 +515,8 @@ Phase 28: Robot Creador de Guias PDF — COMPLETE (5 plans, 3 waves)
 Phase 31: Pre-Send Check + Interruption + Pending Merge — COMPLETE (4 plans, 3 waves)
 Standalone: WhatsApp Webhook Resilience v2 — COMPLETE (3 plans, 3 waves)
 Standalone: Robot Coordinadora Hardening — PLANNED (5 plans, 2 waves)
-Next: Phase 32 Media Processing
+Phase 32: Media Processing — PLANNED (3 plans, 3 waves)
+Next: Execute Phase 32
 
 ---
 
@@ -521,4 +527,4 @@ Next: Phase 32 Media Processing
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-02-27 (Robot Coordinadora Hardening standalone phase planned: 5 plans, 2 waves)*
+*Last updated: 2026-02-25 (Phase 32 Media Processing planned: 3 plans, 3 waves)*

@@ -279,7 +279,7 @@ Plans:
 
 - [x] **Phase 29: Inngest Migration + Character Delays** - Webhook async via Inngest concurrency-1, typing delays by character count
 - [x] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
-- [ ] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
+- [x] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
 - [ ] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
 - [ ] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [ ] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
@@ -353,10 +353,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 31-01-PLAN.md — TDD: BlockComposer pure function (compose block + merge algorithm + priority sorting)
-- [ ] 31-02-PLAN.md — DB migration (priority column, pending_templates) + type updates + Inngest event timestamp
-- [ ] 31-03-PLAN.md — Pre-send check in MessagingAdapter + messageTimestamp pipeline wiring
-- [ ] 31-04-PLAN.md — Integration: BlockComposer in engine, pending storage, silence timer pending, HANDOFF clear
+- [x] 31-01-PLAN.md — TDD: BlockComposer pure function (compose block + merge algorithm + priority sorting)
+- [x] 31-02-PLAN.md — DB migration (priority column, pending_templates) + type updates + Inngest event timestamp
+- [x] 31-03-PLAN.md — Pre-send check in MessagingAdapter + messageTimestamp pipeline wiring
+- [x] 31-04-PLAN.md — Integration: BlockComposer in engine, pending storage, silence timer pending, HANDOFF clear
 
 **Success Criteria:**
 1. Before sending each template in a response sequence, the bot checks the DB for new inbound messages -- if a new message arrived during the delay, the sequence stops immediately
@@ -488,14 +488,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
-| v4.0 Comportamiento Humano | 29-36 | 7+ (Phases 29-30 complete) | Phase 30 Complete | — |
+| v4.0 Comportamiento Humano | 29-36 | 18+ (Phases 29-31 complete) | Phase 31 Complete | — |
 | Standalone | 6 phases | 18 | 5 complete, 1 in progress | |
 | **Total** | **47 phases** | **179+ plans** | | |
 
 ### Current Phase
 
-Phase 30: Message Classification + Silence Timer — COMPLETE (3 plans, 2 waves)
-Next: Phase 31 Pre-Send Check + Interruption + Pending Merge
+Phase 31: Pre-Send Check + Interruption + Pending Merge — COMPLETE (4 plans, 3 waves)
+Next: Phase 32 Media Processing
 
 ---
 

@@ -21,9 +21,9 @@
 ### Etapa 3: Sistema de Bloques
 
 - [ ] **BLOCK-01**: Webhook migrado a evento Inngest con concurrency 1 por conversacion (procesamiento async)
-- [ ] **BLOCK-02**: Check pre-envio antes de cada plantilla -- si hay nuevo inbound, para la secuencia
-- [ ] **BLOCK-03**: Plantillas no enviadas se guardan como pendientes con prioridad CORE/COMP/OPC
-- [ ] **BLOCK-04**: Pendientes se mergean con siguiente bloque por prioridad (max 3 plantillas por bloque)
+- [x] **BLOCK-02**: Check pre-envio antes de cada plantilla -- si hay nuevo inbound, para la secuencia
+- [x] **BLOCK-03**: Plantillas no enviadas se guardan como pendientes con prioridad CORE/COMP/OPC
+- [x] **BLOCK-04**: Pendientes se mergean con siguiente bloque por prioridad (max 3 plantillas por bloque)
 - [ ] **BLOCK-05**: No-repeticion Nivel 1: lookup directo por template ID (gratis, 0ms)
 - [ ] **BLOCK-06**: No-repeticion Nivel 2: Haiku compara minifrases tematicas (~200ms, ~$0.0003)
 - [ ] **BLOCK-07**: No-repeticion Nivel 3: agente lee mensaje completo para cobertura parcial (~1-3s)
@@ -93,9 +93,9 @@
 | CLASS-03 | Phase 30 | Complete |
 | CLASS-04 | Phase 30 | Complete |
 | BLOCK-01 | Phase 29 | Complete |
-| BLOCK-02 | Phase 31 | Pending |
-| BLOCK-03 | Phase 31 | Pending |
-| BLOCK-04 | Phase 31 | Pending |
+| BLOCK-02 | Phase 31 | Complete |
+| BLOCK-03 | Phase 31 | Complete |
+| BLOCK-04 | Phase 31 | Complete |
 | BLOCK-05 | Phase 34 | Pending |
 | BLOCK-06 | Phase 34 | Pending |
 | BLOCK-07 | Phase 34 | Pending |

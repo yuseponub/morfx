@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
 Plan: 4 of 4 complete (01 + 02 + 03 + 04)
 Status: Phase complete
-Standalone: WhatsApp Webhook Resilience v2 — COMPLETE (3/3 plans, verified 8/8 must-haves)
-Last activity: 2026-02-25 — Completed whatsapp-webhook-resilience phase (verified)
+Standalone: Robot Coordinadora Hardening — IN PROGRESS (plans 01+02+05 complete)
+Last activity: 2026-02-24 — Completed hardening-05 (Realtime disconnect + doc URL race fix)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
@@ -64,13 +64,14 @@ All 9 phases + 5 inserted phases completed:
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
 - Order Notes System (2/2 plans) — COMPLETE
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
+- Robot Coordinadora Hardening (1/5 plans) — IN PROGRESS
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 39 (34 milestone + 5 standalone)
-- Total plans completed: 199
+- Total plans completed: 200
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -168,6 +169,11 @@ Resilience v2 decisions (Plan 03):
 - Script manages status updates directly via its own Supabase client (not through domain layer)
 - 2-second delay between events for rate limiting during batch replay
 
+Robot Coordinadora Hardening decisions (Plan 01):
+- SECURITY DEFINER on increment_robot_job_counter RPC for admin-level counter updates
+- Error items are re-processable (not terminal) to support retry scenarios; only success is terminal
+- Auto-completion logic moved to SQL (prevents application-level race on status transition)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -187,7 +193,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-25 COT
-Stopped at: Completed whatsapp-webhook-resilience phase (8/8 verified)
+Last session: 2026-02-24 COT
+Stopped at: Completed hardening-01-PLAN.md (atomic counters + idempotency)
 Resume file: None
-Next: Phase 32 Media Processing or other standalone work
+Next: hardening-02-PLAN.md (error classification) or continue with remaining hardening plans

@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 34 of 36 (No-Repetition System)
-Plan: 2 of 4 complete (01, 02)
+Plan: 3 of 4 complete (01, 02, 03)
 Status: In progress
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-03-03 — Completed 34-02 Minifrase Generator + No-Repetition Filter
+Last activity: 2026-02-24 — Completed 34-03 Template Paraphraser + Repeated Intent Handling
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########--] 75% v4.0
 
@@ -51,7 +51,7 @@ All 9 phases + 5 inserted phases completed:
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
 | 32 | Media Processing | COMPLETE (3/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans, verified 8/8) |
-| 34 | No-Repetition System | IN PROGRESS (2/4 plans) |
+| 34 | No-Repetition System | IN PROGRESS (3/4 plans) |
 | 35 | Flujo Ofi Inter | Not started |
 
 ### Standalone Work (between v2.0 and v3.0)
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 208
+- Total plans completed: 209
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -230,6 +230,14 @@ Phase 34 decisions (Plan 02):
 - Minifrase generation uses Promise.all for parallel Haiku calls
 - Fallback minifrase: first 15 words of content (no LLM call needed)
 
+Phase 34 decisions (Plan 03):
+- Anthropic client as module-level singleton (matching message-classifier.ts pattern)
+- MIN_CONTENT_LENGTH=20 threshold to skip paraphrasing very short templates
+- MAX_LENGTH_RATIO=1.3 validation (paraphrased max 30% longer than original)
+- REPEATED_INTENT_MAX_TEMPLATES=2 cap (top 2 by priority for repeated intents)
+- processTemplates now async with isRepeated parameter (backward compatible default=false)
+- visitType always returns 'primera_vez' (siguientes logic completely removed from TemplateManager)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -250,7 +258,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-03 COT
-Stopped at: Completed 34-02-PLAN.md (Minifrase Generator + No-Repetition Filter)
+Last session: 2026-02-24 COT
+Stopped at: Completed 34-03-PLAN.md (Template Paraphraser + Repeated Intent Handling)
 Resume file: None
-Next: 34-03-PLAN.md (Engine Integration)
+Next: 34-04-PLAN.md (Engine Integration + Over-Count Fix)

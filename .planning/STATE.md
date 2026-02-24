@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 29 of 35 (Inngest Migration + Character Delays) - COMPLETE
-Plan: 4 of 4 complete
-Status: Phase complete
-Last activity: 2026-02-24 — Phase 29 complete, verified 5/5 must-haves
+Phase: 30 of 35 (Message Classification + Silence Timer)
+Plan: 1 of 3 complete
+Status: In progress
+Last activity: 2026-02-24 — Completed 30-01-PLAN.md (Foundation Definitions)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [###░░░░░░░] 14% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [####░░░░░░] 19% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -46,7 +46,7 @@ All 9 phases + 5 inserted phases completed:
 | Phase | Name | Status |
 |-------|------|--------|
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
-| 30 | Message Classification + Silence Timer | Not started |
+| 30 | Message Classification + Silence Timer | IN PROGRESS (1/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | Not started |
 | 32 | Media Processing | Not started |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 37 (33 milestone + 4 standalone)
-- Total plans completed: 191
+- Total plans completed: 192
 - Total execution time: ~29 days (2026-01-26 to 2026-02-24)
 
 ## Accumulated Context
@@ -102,6 +102,12 @@ Phase 29 decisions:
 - processed_by_agent marks ALL unprocessed inbound messages (batch case)
 - Inngest send failure falls back to inline processing (safety net)
 
+Phase 30 decisions:
+- no_gracias intent NOT created: existing no_interesa covers polite refusals
+- fallback triggers emptied: overlapping keywords moved to dedicated asesor intent
+- bienvenida state added to SOMNIO_STATES for explicit state machine correctness
+- ACKNOWLEDGMENT_PATTERNS uses regex array (not Set) for pattern matching flexibility
+
 Recent decisions affecting v4.0:
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
 - Character delay curve: min 2s, cap 12s at 250 chars, logarithmic
@@ -133,6 +139,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Phase 29 COMPLETE — verified 5/5 must-haves
+Stopped at: Completed 30-01-PLAN.md (Foundation Definitions)
 Resume file: None
-Next: /gsd:discuss-phase 30 (Message Classification + Silence Timer)
+Next: /gsd:execute-phase 30-02 (Message Category Classifier)

@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 32 of 36 (Media Processing) — COMPLETE
-Plan: 3 of 3 complete (01, 02, 03)
-Status: Phase complete, verified 7/7 must-haves
+Phase: 33 of 36 (Confidence Routing + Disambiguation Log) — IN PROGRESS
+Plan: 1 of 2 complete (01)
+Status: In progress
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-03-01 — Completed Phase 32 Media Processing (verified)
+Last activity: 2026-02-24 — Completed 33-01-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########░] 57% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########░] 64% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -50,7 +50,7 @@ All 9 phases + 5 inserted phases completed:
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
 | 32 | Media Processing | COMPLETE (3/3 plans) |
-| 33 | Confidence Routing + Disambiguation Log | Not started |
+| 33 | Confidence Routing + Disambiguation Log | IN PROGRESS (1/2 plans) |
 | 34 | No-Repetition System | Not started |
 | 35 | Flujo Ofi Inter | Not started |
 
@@ -208,10 +208,17 @@ Phase 32 decisions (Plan 03):
 - notify_host uses domain createTask (Rule 3), not raw supabase insert
 - No messageType added to ProcessMessageInput: media gate resolves everything to text before processMessageWithAgent
 
+Phase 33 decisions (Plan 01):
+- LOW_CONFIDENCE_THRESHOLD = 80 as simple numeric constant (not configurable per workspace yet)
+- Rule 1.5 placed after HANDOFF_INTENTS check: explicit handoff intents bypass confidence check
+- Reason string format low_confidence:N enables Plan 02 to parse confidence value for logging
+- contact_id nullable with ON DELETE SET NULL (contact may be deleted after log entry)
+- No updated_at column on disambiguation_log (records immutable once reviewed; reviewed_at suffices)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
-- Apply migrations to Supabase (all pending)
+- Apply migrations to Supabase (all pending, including 20260302000000_disambiguation_log.sql before Plan 02 deploy)
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
@@ -228,7 +235,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-01 COT
-Stopped at: Completed Phase 32 Media Processing (verified 7/7 must-haves)
+Last session: 2026-02-24 COT
+Stopped at: Completed 33-01-PLAN.md (disambiguation_log migration + Rule 1.5 classifier)
 Resume file: None
-Next: Phase 33 (Confidence Routing + Disambiguation Log)
+Next: 33-02-PLAN.md (disambiguation logging in somnio-agent.ts)

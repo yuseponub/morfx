@@ -61,7 +61,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 </details>
 
 <details>
-<summary>v3.0 Logistica (Phases 21-28) — IN PROGRESS</summary>
+<summary>v3.0 Logistica (Phases 21-28) — SHIPPED 2026-02-24</summary>
 
 - [x] **Phase 21: DB + Domain Foundation**
 - [x] **Phase 22: Robot Coordinadora Service**
@@ -70,7 +70,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 25: Pipeline Config UI + Docs**
 - [x] **Phase 26: Robot Lector de Guias Coordinadora**
 - [x] **Phase 27: Robot OCR de Guias**
-- [ ] **Phase 28: Robot Creador de Guias PDF**
+- [x] **Phase 28: Robot Creador de Guias PDF**
 
 ### Phase 21: DB + Domain Foundation
 
@@ -257,11 +257,11 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 28-01-PLAN.md — DB migration + domain carrier-configs + events + orders query
-- [ ] 28-02-PLAN.md — PDF/Excel generation library (types, Claude normalizer, PDFKit, ExcelJS)
-- [ ] 28-03-PLAN.md — Settings UI: 3 real carrier config cards replacing placeholders
-- [ ] 28-04-PLAN.md — Inngest orchestrators: PDF guide + Excel guide
-- [ ] 28-05-PLAN.md — Server actions + Chat de Comandos commands, chips, download links
+- [x] 28-01-PLAN.md — DB migration + domain carrier-configs + events + orders query
+- [x] 28-02-PLAN.md — PDF/Excel generation library (types, Claude normalizer, PDFKit, ExcelJS)
+- [x] 28-03-PLAN.md — Settings UI: 3 real carrier config cards replacing placeholders
+- [x] 28-04-PLAN.md — Inngest orchestrators: PDF guide + Excel guide
+- [x] 28-05-PLAN.md — Server actions + Chat de Comandos commands, chips, download links
 
 **Success Criteria:**
 1. Existing PDF guide generator is integrated into MorfX infrastructure (replacing n8n connection)
@@ -487,13 +487,14 @@ Plans:
 |-----------|--------|-------|--------|---------|
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
-| v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
+| v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 18+ (Phases 29-31 complete) | Phase 31 Complete | — |
 | Standalone | 6 phases | 18 | 5 complete, 1 in progress | |
 | **Total** | **47 phases** | **179+ plans** | | |
 
 ### Current Phase
 
+Phase 28: Robot Creador de Guias PDF — COMPLETE (5 plans, 3 waves)
 Phase 31: Pre-Send Check + Interruption + Pending Merge — COMPLETE (4 plans, 3 waves)
 Next: Phase 32 Media Processing
 

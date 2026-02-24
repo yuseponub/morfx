@@ -28,7 +28,7 @@ All 9 phases + 5 inserted phases completed:
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
 
-### v3.0 Logistica (7/8 phases complete, Phase 28 in progress)
+### v3.0 Logistica (8/8 phases complete — SHIPPED 2026-02-24)
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -39,7 +39,7 @@ All 9 phases + 5 inserted phases completed:
 | 25 | Pipeline Config UI + Docs | COMPLETE (2/2 plans) |
 | 26 | Robot Lector de Guias Coordinadora | COMPLETE (3/3 plans) |
 | 27 | Robot OCR de Guias | COMPLETE (4/4 plans) |
-| 28 | Robot Creador de Guias PDF | IN PROGRESS (5/5 plans, checkpoint pending) |
+| 28 | Robot Creador de Guias PDF | COMPLETE (5/5 plans) |
 
 ### v4.0 Comportamiento Humano (Planned)
 

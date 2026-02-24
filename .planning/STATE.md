@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
 Plan: 4 of 4 complete (01 + 02 + 03 + 04)
 Status: Phase complete
-Standalone: Robot Coordinadora Hardening — IN PROGRESS (plans 01+02+04+05 complete)
-Last activity: 2026-02-24 — Completed hardening-04 (callback webhook hardening)
+Standalone: Robot Coordinadora Hardening — COMPLETE (all 5 plans)
+Last activity: 2026-02-24 — Completed hardening-03 (server actions hardening)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
@@ -64,7 +64,7 @@ All 9 phases + 5 inserted phases completed:
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
 - Order Notes System (2/2 plans) — COMPLETE
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
-- Robot Coordinadora Hardening (4/5 plans) — IN PROGRESS (01+02+04+05)
+- Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Quick fixes: 6 completed
 
 ## Performance Metrics
@@ -180,6 +180,11 @@ Robot Coordinadora Hardening decisions (Plan 04):
 - UUID regex validation prevents unnecessary DB lookups with garbage IDs
 - errorMessage truncated to 500 chars to prevent oversized payloads in DB
 
+Robot Coordinadora Hardening decisions (Plan 03):
+- Soft tracking number validation: warn on suspicious lengths (< 3 or > 50) but don't block (carrier formats vary)
+- Safe access filter pattern: pedidoNumbers uses .map().filter(NonNullable) instead of non-null assertions
+- createOcrRobotJob domain function for OCR jobs (null order_id, workspace-scoped)
+
 Robot Coordinadora Hardening decisions (Plan 01):
 - SECURITY DEFINER on increment_robot_job_counter RPC for admin-level counter updates
 - Error items are re-processable (not terminal) to support retry scenarios; only success is terminal
@@ -205,6 +210,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed hardening-04 (callback webhook hardening)
+Stopped at: Completed hardening-03 (server actions hardening) — all 5 hardening plans now complete
 Resume file: None
-Next: Remaining hardening plan (03) or Phase 32 Media Processing
+Next: Phase 32 Media Processing

@@ -254,6 +254,9 @@ export interface TimerAdapter {
   /** Emit ingest completed event (production: Inngest event to cancel data collection timer). */
   onIngestCompleted?(sessionId: string, reason: string): Promise<void>
 
+  /** Emit silence detected event (production: Inngest event to start retake timer). Phase 30. */
+  onSilenceDetected?(sessionId: string, conversationId: string, message: string, intent: string): Promise<void>
+
   /** Get the last accumulated timer signal. Sandbox uses this for EngineOutput.timerSignal. */
   getLastSignal(): TimerSignal | undefined
 }

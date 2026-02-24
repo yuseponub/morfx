@@ -27,6 +27,7 @@ import { SomnioOrchestrator } from './somnio-orchestrator'
 import { IngestManager, type IngestState } from './ingest-manager'
 import { MessageClassifier } from './message-classifier'
 import { mergeExtractedData, hasCriticalData } from './data-extractor'
+import { classifyMessage } from './message-category-classifier'
 import { somnioAgentConfig } from './config'
 import { agentRegistry } from '../registry'
 import type { AgentSessionLike } from '../engine/types'
@@ -86,6 +87,8 @@ export interface SomnioAgentOutput {
   }
   /** Timer signals accumulated during processing */
   timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }>
+  /** Whether message was classified SILENCIOSO (for engine to emit silence event) */
+  silenceDetected?: boolean
   /** Total tokens used in this turn */
   totalTokens: number
   /** Per-model token breakdown */
@@ -295,6 +298,67 @@ export class SomnioAgent {
       const newIntentsVistos = [...intentsVistosBeforeCurrent]
       if (!newIntentsVistos.includes(intent.intent)) {
         newIntentsVistos.push(intent.intent)
+      }
+
+      // 5.5 Classify message category (Phase 30)
+      // Skip classification for timer-forced calls (no customer message to classify)
+      if (!input.forceIntent && !justCompletedIngest) {
+        const classification = classifyMessage(
+          intent.intent,
+          intent.confidence,
+          currentMode,
+          input.message
+        )
+
+        // SILENCIOSO: return early with no messages, signal silence for timer
+        if (classification.category === 'SILENCIOSO') {
+          return {
+            success: true,
+            messages: [],
+            stateUpdates: {
+              newMode: currentMode,
+              newIntentsVistos: newIntentsVistos,
+              newTemplatesEnviados: input.session.state.templates_enviados ?? [],
+              newDatosCapturados: currentData,
+              newPackSeleccionado: input.session.state.pack_seleccionado,
+              newIngestStatus: currentIngestStatus,
+            },
+            shouldCreateOrder: false,
+            timerSignals: [],
+            silenceDetected: true,
+            totalTokens,
+            tokenDetails,
+            intentInfo,
+            tools: [],
+          }
+        }
+
+        // HANDOFF: return early with mode='handoff'
+        // Downstream: webhook-processor.ts line ~297 checks result.newMode === 'handoff'
+        // and calls executeHandoff() which sends "Regalame 1 min" + host notification.
+        if (classification.category === 'HANDOFF') {
+          return {
+            success: true,
+            messages: [],
+            stateUpdates: {
+              newMode: 'handoff',
+              newIntentsVistos: newIntentsVistos,
+              newTemplatesEnviados: input.session.state.templates_enviados ?? [],
+              newDatosCapturados: currentData,
+              newPackSeleccionado: input.session.state.pack_seleccionado,
+              newIngestStatus: currentIngestStatus,
+            },
+            shouldCreateOrder: false,
+            timerSignals: [{ type: 'cancel', reason: 'handoff' }],
+            silenceDetected: false,
+            totalTokens,
+            tokenDetails,
+            intentInfo,
+            tools: [],
+          }
+        }
+
+        // RESPONDIBLE: continue to step 7+ (normal flow)
       }
 
       // 7. Handle handoff

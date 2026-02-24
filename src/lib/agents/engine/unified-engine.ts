@@ -161,6 +161,16 @@ export class UnifiedEngine {
         )
       }
 
+      // 5. Silence detected → start retake timer (Phase 30)
+      if (agentOutput.silenceDetected && this.adapters.timer.onSilenceDetected) {
+        await this.adapters.timer.onSilenceDetected(
+          session.id,
+          input.conversationId,
+          input.message,
+          agentOutput.intentInfo?.intent ?? 'unknown'
+        )
+      }
+
       // 4c. Orders: create order if agent signals it
       let orderResult: {
         success: boolean

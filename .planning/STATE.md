@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
 Plan: 4 of 4 complete (01 + 02 + 03 + 04)
 Status: Phase complete
-Last activity: 2026-02-24 — Completed resilience-v2-02-PLAN.md (Conditional HTTP Response + Replay Export)
+Last activity: 2026-02-24 — Completed resilience-v2-03-PLAN.md (Replay Script + Dead Letter)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
@@ -62,14 +62,14 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
 - Order Notes System (2/2 plans) — COMPLETE
-- WhatsApp Webhook Resilience v2 (2/3 plans) — IN PROGRESS (handler + route modified, replay script pending)
+- WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 38 (34 milestone + 4 standalone)
-- Total plans completed: 198
+- Total plans completed: 199
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -162,6 +162,11 @@ Resilience v2 decisions (Plan 02):
 - replayWebhookPayload intentionally duplicates inner processing loop (different responsibilities)
 - updateWhatsAppWebhookEvent uses Record<string, unknown> for conditional field updates
 
+Resilience v2 decisions (Plan 03):
+- dotenv/config as first import before any app imports (env must load before process.env reads)
+- Script manages status updates directly via its own Supabase client (not through domain layer)
+- 2-second delay between events for rate limiting during batch replay
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -182,6 +187,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed resilience-v2-02-PLAN.md (Conditional HTTP Response + Replay Export)
+Stopped at: Completed resilience-v2-03-PLAN.md (Replay Script + Dead Letter)
 Resume file: None
-Next: Execute resilience-v2-03-PLAN.md (Replay Script + Dead Letter)
+Next: WhatsApp Webhook Resilience v2 standalone phase COMPLETE. Resume v4.0 Phase 32 or other standalone work.

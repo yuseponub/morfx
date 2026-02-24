@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 33 of 36 (Confidence Routing + Disambiguation Log) — IN PROGRESS
-Plan: 1 of 2 complete (01)
-Status: In progress
+Phase: 33 of 36 (Confidence Routing + Disambiguation Log) — COMPLETE
+Plan: 2 of 2 complete (01, 02)
+Status: Phase complete
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-24 — Completed 33-01-PLAN.md
+Last activity: 2026-02-24 — Completed 33-02-PLAN.md
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########░] 64% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########░] 71% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -50,7 +50,7 @@ All 9 phases + 5 inserted phases completed:
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
 | 32 | Media Processing | COMPLETE (3/3 plans) |
-| 33 | Confidence Routing + Disambiguation Log | IN PROGRESS (1/2 plans) |
+| 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans) |
 | 34 | No-Repetition System | Not started |
 | 35 | Flujo Ofi Inter | Not started |
 
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 40 (35 milestone + 5 standalone)
-- Total plans completed: 204
+- Total plans completed: 205
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -215,10 +215,17 @@ Phase 33 decisions (Plan 01):
 - contact_id nullable with ON DELETE SET NULL (contact may be deleted after log entry)
 - No updated_at column on disambiguation_log (records immutable once reviewed; reviewed_at suffices)
 
+Phase 33 decisions (Plan 02):
+- Fire-and-forget pattern: .catch() ensures handoff proceeds regardless of log failure
+- Only low-confidence handoffs logged (reason.startsWith('low_confidence:')), not intent-based handoffs
+- Admin client direct write for disambiguation_log (audit/diagnostic table, not domain layer)
+- Last 10 conversation turns captured (input.history.slice(-10)), no LLM summarization
+- Step 7 timer cancel fix: empty array -> [{type: 'cancel', reason: 'handoff'}] (phantom timer prevention)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
-- Apply migrations to Supabase (all pending, including 20260302000000_disambiguation_log.sql before Plan 02 deploy)
+- Apply migrations to Supabase (all pending, including 20260302000000_disambiguation_log.sql before deploying Phase 33 code)
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
@@ -236,6 +243,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 33-01-PLAN.md (disambiguation_log migration + Rule 1.5 classifier)
+Stopped at: Completed 33-02-PLAN.md (Phase 33 complete)
 Resume file: None
-Next: 33-02-PLAN.md (disambiguation logging in somnio-agent.ts)
+Next: Phase 34 (No-Repetition System)

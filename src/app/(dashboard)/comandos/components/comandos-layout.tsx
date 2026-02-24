@@ -188,24 +188,43 @@ export function ComandosLayout() {
   useEffect(() => {
     if (isComplete && !prevIsCompleteRef.current && activeJobId) {
       // FIRST: PDF/Excel guide completion -> document_result message
+      // Uses async fetch to avoid Realtime race condition (job status event
+      // may arrive before item updates, causing 0 orders / empty URL)
       if (['pdf_guide_inter', 'pdf_guide_bogota', 'excel_guide_envia'].includes(activeJobType ?? '')) {
-        // Find download URL from first successful item
-        const successItem = items.find(i => i.status === 'success' && i.value_sent)
-        const documentUrl = (successItem?.value_sent as any)?.documentUrl
-        const isExcel = activeJobType === 'excel_guide_envia'
-        const carrierNames: Record<string, string> = {
-          'pdf_guide_inter': 'Inter Rapidisimo',
-          'pdf_guide_bogota': 'Bogota',
-          'excel_guide_envia': 'Envia',
-        }
-        addMessage({
-          type: 'document_result',
-          documentUrl: documentUrl || '',
-          documentType: isExcel ? 'excel' : 'pdf',
-          totalOrders: successCount,
-          carrierName: carrierNames[activeJobType!] || activeJobType!,
-          timestamp: now(),
+        const jobType = activeJobType!
+        const jobIdCopy = activeJobId
+
+        // Reset state immediately (don't wait for async)
+        setActiveJobId(null)
+        setActiveJobType(null)
+        setIsExecuting(false)
+        prevProcessedRef.current = 0
+
+        getJobItemsForHistory(jobIdCopy).then((finalResult) => {
+          const finalItems = finalResult.success && finalResult.data ? finalResult.data : items
+          const finalSuccessCount = finalItems.filter(i => i.status === 'success').length
+
+          const successItem = finalItems.find(i => i.status === 'success' && i.value_sent)
+          const documentUrl = (successItem?.value_sent as any)?.documentUrl
+          const isExcel = jobType === 'excel_guide_envia'
+          const carrierNames: Record<string, string> = {
+            'pdf_guide_inter': 'Inter Rapidisimo',
+            'pdf_guide_bogota': 'Bogota',
+            'excel_guide_envia': 'Envia',
+          }
+          addMessage({
+            type: 'document_result',
+            documentUrl: documentUrl || '',
+            documentType: isExcel ? 'excel' : 'pdf',
+            totalOrders: finalSuccessCount,
+            carrierName: carrierNames[jobType] || jobType,
+            timestamp: now(),
+          })
+          loadHistory()
         })
+
+        prevIsCompleteRef.current = isComplete
+        return
       // SECOND: OCR completion -> ocr_result message
       } else if (activeJobType === 'ocr_guide_read') {
         // Parse structured OCR metadata from value_sent JSONB (set by orchestrator)

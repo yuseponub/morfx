@@ -130,7 +130,14 @@ export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
                       </span>
                       <StatusBadge status={job.status} />
                       <Badge variant="outline" className="text-[10px]">
-                        {job.job_type === 'guide_lookup' ? 'Buscar guias' : 'Subir ordenes'}
+                        {({
+                          create_shipment: 'Subir ordenes',
+                          guide_lookup: 'Buscar guias',
+                          ocr_guide_read: 'Leer guias',
+                          pdf_guide_inter: 'Guias Inter',
+                          pdf_guide_bogota: 'Guias Bogota',
+                          excel_guide_envia: 'Excel Envia',
+                        } as Record<string, string>)[job.job_type ?? ''] || job.job_type || 'Job'}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground">

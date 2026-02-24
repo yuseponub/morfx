@@ -126,6 +126,23 @@ export type AgentEvents = {
   }
 
   /**
+   * Emitted when a customer message is classified as SILENCIOSO (Phase 30).
+   * Triggers 90-second silence retake timer.
+   * Timer waits for agent/customer.message; on timeout sends retake message.
+   */
+  'agent/silence.detected': {
+    data: {
+      sessionId: string
+      conversationId: string
+      workspaceId: string
+      /** The original message that was classified silent */
+      message: string
+      /** The intent that was detected */
+      intent: string
+    }
+  }
+
+  /**
    * Emitted when a WhatsApp text message is received and should be
    * processed by the production agent (Phase 16).
    *

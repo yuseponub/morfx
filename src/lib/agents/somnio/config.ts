@@ -18,6 +18,7 @@ import { INTENT_DETECTOR_PROMPT, ORCHESTRATOR_PROMPT } from './prompts'
  * All possible states for the Somnio agent state machine
  */
 export const SOMNIO_STATES = [
+  'bienvenida',        // First contact, greeting (Phase 30)
   'conversacion',      // Initial state, answering questions
   'collecting_data',   // Capturing customer data for order
   'ofrecer_promos',    // Showing pack options
@@ -39,6 +40,9 @@ export type SomnioState = (typeof SOMNIO_STATES)[number]
  * Defines which states can transition to which other states.
  */
 export const SOMNIO_TRANSITIONS: StateTransitions = {
+  // From bienvenida: first contact, can move to conversacion, collecting_data, or handoff
+  bienvenida: ['conversacion', 'collecting_data', 'handoff'],
+
   // From conversacion: can stay or start collecting data or handoff
   conversacion: ['conversacion', 'collecting_data', 'handoff'],
 

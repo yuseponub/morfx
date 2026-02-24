@@ -112,11 +112,11 @@ export class CoordinadoraAdapter {
 
     try {
       await this.page.goto('https://ff.coordinadora.com/', {
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'networkidle',
         timeout: 30000,
       })
 
-      // Wait for page to fully render (matching old robot timing)
+      // Wait for page to fully render
       await this.page.waitForTimeout(2000)
 
       // Check if already logged in (cookies loaded a valid session)
@@ -125,14 +125,25 @@ export class CoordinadoraAdapter {
         return true
       }
 
+      // Wait for login form fields to be visible before filling
+      console.log(`${LOG_PREFIX} Waiting for login form fields`)
+      await this.page.waitForSelector('input[name="usuario"]', { state: 'visible', timeout: 10000 })
+      await this.page.waitForSelector('input[name="clave"]', { state: 'visible', timeout: 10000 })
+
       // Fill login form with exact selectors from working robot
       console.log(`${LOG_PREFIX} Filling login form`)
+      await this.page.fill('input[name="usuario"]', '')
       await this.page.fill('input[name="usuario"]', this.credentials.username)
       await this.page.waitForTimeout(500)
+      await this.page.fill('input[name="clave"]', '')
       await this.page.fill('input[name="clave"]', this.credentials.password)
       await this.page.waitForTimeout(500)
 
+      // Screenshot before clicking for debugging
+      await this.takeScreenshot('login-before-click')
+
       // Click login button (exact selector from working robot)
+      console.log(`${LOG_PREFIX} Clicking Ingresar button`)
       await this.page.click('button:has-text("Ingresar")')
 
       // Wait for navigation (old robot waits 5 seconds)
@@ -140,12 +151,14 @@ export class CoordinadoraAdapter {
 
       // Verify login succeeded
       const currentUrl = this.page.url()
+      console.log(`${LOG_PREFIX} URL after login attempt: ${currentUrl}`)
       if (currentUrl.includes('/panel')) {
         console.log(`${LOG_PREFIX} Login successful`)
         await this.saveCookies()
         return true
       }
 
+      // Take screenshot showing current state after failed login
       console.error(`${LOG_PREFIX} Login failed -- URL after submit: ${currentUrl}`)
       await this.takeScreenshot('login-failed')
       return false

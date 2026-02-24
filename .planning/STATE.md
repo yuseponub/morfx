@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
 Plan: 4 of 4 complete (01 + 02 + 03 + 04)
 Status: Phase complete
-Last activity: 2026-02-24 — Completed 31-04-PLAN.md (BlockComposer Integration + Pending Storage)
+Last activity: 2026-02-24 — Completed resilience-v2-01-PLAN.md (Retry Columns Migration + Regla 5)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
@@ -62,13 +62,14 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
 - Order Notes System (2/2 plans) — COMPLETE
+- WhatsApp Webhook Resilience v2 (1/3 plans) — IN PROGRESS (migration applied, awaiting prod deploy)
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 38 (34 milestone + 4 standalone)
-- Total plans completed: 196
+- Total plans completed: 197
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -150,6 +151,11 @@ Phase 31 decisions (Plan 04):
 - Retake message is separate from template cap (system message, not a template)
 - sentCount=0 interruption discards all templates and clears pending (fresh recalculation)
 
+Resilience v2 decisions (Plan 01):
+- Idempotent DDL with IF EXISTS/IF NOT EXISTS for safe migration re-runs
+- Partial index for replay queries: only indexes failed rows with retry_count < 3
+- Regla 5 added to CLAUDE.md: migration must be applied in production before deploying dependent code
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -170,6 +176,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 31-04-PLAN.md (BlockComposer Integration + Pending Storage)
+Stopped at: Completed resilience-v2-01-PLAN.md (Retry Columns Migration + Regla 5)
 Resume file: None
-Next: Phase 31 complete. Next phase: 32 (Media Processing)
+Next: Apply migration in production, then proceed to resilience-v2-02-PLAN.md

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Phase 31 Pre-Send Check + Interruption + Pending Merge (v4.0 Comportamiento Humano)
+**Current focus:** Phase 32 Media Processing (v4.0 Comportamiento Humano)
 
 ## Current Position
 
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
-Plan: 3 of 4 complete (01 + 02 + 03)
-Status: In progress
-Last activity: 2026-02-24 — Completed 31-03-PLAN.md (Pre-Send Check + messageTimestamp Wiring)
+Plan: 4 of 4 complete (01 + 02 + 03 + 04)
+Status: Phase complete
+Last activity: 2026-02-24 — Completed 31-04-PLAN.md (BlockComposer Integration + Pending Storage)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [######░░░░] 36% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -47,7 +47,7 @@ All 9 phases + 5 inserted phases completed:
 |-------|------|--------|
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
-| 31 | Pre-Send Check + Interruption + Pending Merge | IN PROGRESS (3/4 plans) |
+| 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
 | 32 | Media Processing | Not started |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
 | 34 | No-Repetition System | Not started |
@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 38 (34 milestone + 4 standalone)
-- Total plans completed: 195
+- Total plans completed: 196
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -143,6 +143,13 @@ Phase 31 decisions (Plan 03):
 - Lightweight count query with head:true (no row data fetched)
 - Interrupted result captured but NOT acted upon yet (Plan 04 handles pending storage)
 
+Phase 31 decisions (Plan 04):
+- Block composition guard: hasTemplates && !forceIntent (sandbox + timer bypass)
+- sentMessageContents tracks actually-sent template content for accurate assistant turn recording
+- Silence timer sends up to 3 pending templates with char-delay before retake message
+- Retake message is separate from template cap (system message, not a template)
+- sentCount=0 interruption discards all templates and clears pending (fresh recalculation)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -163,6 +170,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 31-03-PLAN.md (Pre-Send Check + messageTimestamp Wiring)
+Stopped at: Completed 31-04-PLAN.md (BlockComposer Integration + Pending Storage)
 Resume file: None
-Next: Execute 31-04-PLAN.md (BlockComposer Integration + Pending Storage)
+Next: Phase 31 complete. Next phase: 32 (Media Processing)

@@ -457,6 +457,19 @@ export function OrderSheet({
               )}
             </section>
 
+            {/* Description */}
+            {order.description && (
+              <>
+                <Separator />
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Descripcion
+                  </h3>
+                  <p className="text-sm whitespace-pre-wrap">{order.description}</p>
+                </section>
+              </>
+            )}
+
             <Separator />
 
             {/* Tags */}
@@ -490,19 +503,6 @@ export function OrderSheet({
                     router.push(`/crm/pedidos?order=${orderId}`)
                   }}
                 />
-              </>
-            )}
-
-            {/* Description */}
-            {order.description && (
-              <>
-                <Separator />
-                <section className="space-y-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Descripcion
-                  </h3>
-                  <p className="text-sm whitespace-pre-wrap">{order.description}</p>
-                </section>
               </>
             )}
 

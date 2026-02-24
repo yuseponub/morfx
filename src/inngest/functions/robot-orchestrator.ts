@@ -90,10 +90,14 @@ const robotOrchestrator = inngest.createFunction(
       const callbackSecret = process.env.ROBOT_CALLBACK_SECRET
       if (!callbackSecret) throw new Error('ROBOT_CALLBACK_SECRET env var not set')
 
+      // Fetch timeout: 60s per order + 10min base margin
+      const fetchTimeoutMs = (orders.length * 60_000) + (10 * 60_000)
       console.log(`[robot-orchestrator] Dispatching job ${jobId} to ${robotUrl}/api/crear-pedidos-batch`)
+      console.log(`[robot-orchestrator] Fetch timeout: ${Math.round(fetchTimeoutMs / 1000)}s for ${orders.length} orders`)
 
       const response = await fetch(`${robotUrl}/api/crear-pedidos-batch`, {
         method: 'POST',
+        signal: AbortSignal.timeout(fetchTimeoutMs),
         headers: {
           'Content-Type': 'application/json',
           'X-Callback-Secret': callbackSecret,
@@ -122,13 +126,13 @@ const robotOrchestrator = inngest.createFunction(
       return body
     })
 
-    // Step 3: Brief settle sleep (race condition prevention for tiny batches
-    // where the callback might arrive before waitForEvent is registered)
-    await step.sleep('settle', '2s')
+    // Step 3: Settle sleep to mitigate Inngest waitForEvent race (issue #1433)
+    // 5s settle for tiny batches where callback might arrive before waitForEvent is registered
+    await step.sleep('settle', '5s')
 
     // Step 4: Wait for batch_completed event with dynamic timeout
-    // Timeout: (N orders x 30s per order) + 5 min margin
-    const timeoutMs = (orders.length * 30_000) + (5 * 60_000)
+    // 60s per order + 10min base margin
+    const timeoutMs = (orders.length * 60_000) + (10 * 60_000)
 
     console.log(`[robot-orchestrator] Waiting for batch completion (timeout: ${Math.round(timeoutMs / 1000)}s)`)
 
@@ -230,10 +234,14 @@ const guideLookupOrchestrator = inngest.createFunction(
       const callbackSecret = process.env.ROBOT_CALLBACK_SECRET
       if (!callbackSecret) throw new Error('ROBOT_CALLBACK_SECRET env var not set')
 
+      // Fetch timeout: 60s per pedido + 10min base margin
+      const fetchTimeoutMs = (pedidoNumbers.length * 60_000) + (10 * 60_000)
       console.log(`[guide-lookup-orchestrator] Dispatching job ${jobId} to ${robotUrl}/api/buscar-guias`)
+      console.log(`[guide-lookup-orchestrator] Fetch timeout: ${Math.round(fetchTimeoutMs / 1000)}s for ${pedidoNumbers.length} pedidos`)
 
       const response = await fetch(`${robotUrl}/api/buscar-guias`, {
         method: 'POST',
+        signal: AbortSignal.timeout(fetchTimeoutMs),
         headers: {
           'Content-Type': 'application/json',
           'X-Callback-Secret': callbackSecret,
@@ -260,13 +268,13 @@ const guideLookupOrchestrator = inngest.createFunction(
       return response.json()
     })
 
-    // Step 3: Settle sleep
-    await step.sleep('settle', '2s')
+    // Step 3: Settle sleep to mitigate Inngest waitForEvent race (issue #1433)
+    // 5s settle for tiny batches where callback might arrive before waitForEvent is registered
+    await step.sleep('settle', '5s')
 
     // Step 4: Wait for batch completion
-    // Timeout: shorter than shipment creation (10s per pedido + 3 min margin)
-    // Guide lookup reads one page for all pedidos, so it's much faster.
-    const timeoutMs = (pedidoNumbers.length * 10_000) + (3 * 60_000)
+    // 60s per pedido + 10min base margin
+    const timeoutMs = (pedidoNumbers.length * 60_000) + (10 * 60_000)
 
     console.log(`[guide-lookup-orchestrator] Waiting for batch completion (timeout: ${Math.round(timeoutMs / 1000)}s)`)
 

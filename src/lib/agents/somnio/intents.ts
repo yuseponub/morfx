@@ -2,7 +2,7 @@
  * Somnio Sales Agent - Intent Definitions
  * Phase 14: Agente Ventas Somnio - Plan 01
  *
- * All 20 intents the Somnio agent can recognize, plus 11 hola+X combinations.
+ * All 25 base intents the Somnio agent can recognize, plus 11 hola+X combinations.
  * Each intent has a name, description, and example messages for training.
  */
 
@@ -302,15 +302,60 @@ const INTENT_ESCAPE: IntentDefinition = {
   name: 'fallback',
   description: 'Mensaje que no se puede clasificar, derivar a humano',
   examples: [
-    'Quiero hablar con alguien',
-    'Me pueden llamar?',
-    'Necesito un asesor',
     'asdfgh',
     'Tienen trabajo?',
+    'Que hora es?',
+    'jdjdjd',
+    'Me puedes dar tu numero?',
   ],
-  triggers: ['hablar con', 'llamar', 'asesor', 'humano'],
+  triggers: [],
   category: 'escape',
 }
+
+// ============================================================================
+// Handoff Intents (3) - Phase 30: Message Classification
+// ============================================================================
+
+const INTENTS_HANDOFF: IntentDefinition[] = [
+  {
+    name: 'asesor',
+    description: 'Cliente pide hablar con un asesor humano',
+    examples: [
+      'Quiero hablar con un asesor',
+      'Necesito un humano',
+      'Pasame con alguien',
+      'Quiero que me atienda una persona',
+      'Me pueden llamar?',
+    ],
+    triggers: ['asesor', 'humano', 'persona', 'llamar', 'hablar con'],
+    category: 'escape',
+  },
+  {
+    name: 'queja',
+    description: 'Cliente tiene una queja o reclamo',
+    examples: [
+      'Tengo una queja',
+      'Quiero poner un reclamo',
+      'El producto no me llego',
+      'No estoy conforme',
+      'Quiero devolver el producto',
+    ],
+    triggers: ['queja', 'reclamo', 'devolver', 'no llego', 'no conforme'],
+    category: 'escape',
+  },
+  {
+    name: 'cancelar',
+    description: 'Cliente quiere cancelar un pedido o proceso en curso',
+    examples: [
+      'Quiero cancelar',
+      'Cancela mi pedido',
+      'Ya no quiero',
+      'Mejor no',
+    ],
+    triggers: ['cancelar', 'cancela', 'anular'],
+    category: 'escape',
+  },
+]
 
 // ============================================================================
 // No Interest Intent (1 - part of flow but often grouped separately)
@@ -452,7 +497,7 @@ const INTENTS_COMBINACIONES: IntentDefinition[] = [
 // ============================================================================
 
 /**
- * All Somnio intents (20 base + 11 combinations = 31 total)
+ * All Somnio intents (22 base + 3 handoff + 11 combinations = 36 total)
  */
 export const SOMNIO_INTENTS: IntentDefinition[] = [
   // 13 informativos
@@ -462,6 +507,8 @@ export const SOMNIO_INTENTS: IntentDefinition[] = [
   INTENT_NO_INTERESA,
   // 1 escape
   INTENT_ESCAPE,
+  // 3 handoff (Phase 30)
+  ...INTENTS_HANDOFF,
   // 11 combinaciones
   ...INTENTS_COMBINACIONES,
 ]

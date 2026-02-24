@@ -50,3 +50,27 @@ export const MIN_FIELDS_FOR_AUTO_PROMO = 8
 
 /** Number of critical fields for timer promo threshold */
 export const CRITICAL_FIELDS_COUNT = CRITICAL_FIELDS.length // 5
+
+// ============================================================================
+// Message Classification Constants (Phase 30)
+// ============================================================================
+
+/** The 5 intents that trigger HANDOFF classification */
+export const HANDOFF_INTENTS = new Set([
+  'asesor', 'queja', 'cancelar', 'no_interesa', 'fallback'
+])
+
+/** Modes where "ok", "si", "jaja" are confirmations (RESPONDIBLE, not SILENCIOSO) */
+export const CONFIRMATORY_MODES = new Set([
+  'resumen', 'collecting_data', 'confirmado'
+])
+
+/**
+ * Patterns that are acknowledgments in non-confirmatory modes.
+ * Matched against message.trim() (case-insensitive).
+ */
+export const ACKNOWLEDGMENT_PATTERNS = [
+  /^(ok|okey|okay|va|vale|listo|jaja|jeje|ja|je|si|sí|bueno|dale|genial|perfecto|excelente)$/i,
+  /^(gracias|grax|ty|thx|thanks)$/i,
+  /^[👍👌🤣😂😊🙏]+$/,
+]

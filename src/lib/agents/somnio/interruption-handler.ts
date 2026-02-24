@@ -98,7 +98,7 @@ const CONFLICTING_INTENTS = new Set([
   'asesor',
   'queja',
   'cancelar',
-  'no_gracias',
+  'no_interesa',
 ])
 
 // ============================================================================

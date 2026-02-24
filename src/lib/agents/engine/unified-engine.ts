@@ -242,8 +242,10 @@ export class UnifiedEngine {
           workspaceId: this.config.workspaceId,
           contactId: input.contactId,
           phoneNumber: input.phoneNumber,
+          triggerTimestamp: input.messageTimestamp,  // Phase 31: pre-send check
         })
         messagesSent = sendResult.messagesSent
+        // Phase 31-04 will add: if (sendResult.interrupted) { savePending(...) }
 
         // Record assistant turn so production history includes bot responses
         // (critical for intent detection context on subsequent messages)

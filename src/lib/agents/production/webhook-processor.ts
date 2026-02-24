@@ -36,6 +36,8 @@ export interface ProcessMessageInput {
   messageContent: string
   workspaceId: string
   phone: string
+  /** ISO timestamp of the trigger message (for pre-send check). Phase 31. */
+  messageTimestamp?: string
 }
 
 // ============================================================================
@@ -189,6 +191,7 @@ export async function processMessageWithAgent(
       workspaceId,
       history: [], // Production: storage adapter reads history from DB
       phoneNumber: phone,
+      messageTimestamp: input.messageTimestamp,  // Phase 31: for pre-send check
     })
 
     // Map EngineOutput to SomnioEngineResult for backward compatibility

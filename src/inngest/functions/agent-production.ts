@@ -40,7 +40,7 @@ export const whatsappAgentProcessor = inngest.createFunction(
   },
   { event: 'agent/whatsapp.message_received' },
   async ({ event, step }) => {
-    const { conversationId, contactId, messageContent, workspaceId, phone, messageId } = event.data
+    const { conversationId, contactId, messageContent, workspaceId, phone, messageId, messageTimestamp } = event.data
 
     logger.info(
       { conversationId, phone, messageId, workspaceId },
@@ -59,6 +59,7 @@ export const whatsappAgentProcessor = inngest.createFunction(
         messageContent,
         workspaceId,
         phone,
+        messageTimestamp,  // Phase 31: for pre-send check
       })
     })
 

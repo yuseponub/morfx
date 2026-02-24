@@ -266,14 +266,15 @@ export async function updateJobItemResult(
       return { success: false, error: 'Item no pertenece a este workspace' }
     }
 
-    // Idempotency guard: skip if item is already in a terminal state
-    if (item.status === 'success' || item.status === 'error') {
-      console.log(`[robot-jobs] Item ${params.itemId} already in terminal state (${item.status}), skipping update`)
+    // Idempotency guard: success items are terminal, error items can be reprocessed (retry scenario)
+    if (item.status === 'success') {
+      console.log(`[robot-jobs] Item ${params.itemId} already succeeded, skipping update`)
       return {
         success: true,
         data: { itemId: params.itemId, orderId: item.order_id },
       }
     }
+    // Note: error items proceed to update (retry scenario)
 
     // Update item with result
     const now = new Date().toISOString()
@@ -321,40 +322,34 @@ export async function updateJobItemResult(
       }
     }
 
-    // Update job counters (read-then-write since Supabase JS has no atomic increment)
-    const { data: job, error: jobFetchError } = await supabase
-      .from('robot_jobs')
-      .select('success_count, error_count, total_items')
-      .eq('id', item.job_id)
+    // Atomic counter increment via RPC -- eliminates race condition where two
+    // concurrent callbacks both read the same count and lose an increment.
+    // The RPC also auto-completes the job when success_count + error_count >= total_items.
+    const { data: counterRaw, error: rpcError } = await supabase
+      .rpc('increment_robot_job_counter', {
+        p_job_id: item.job_id,
+        p_is_success: params.status === 'success',
+      })
       .single()
 
-    if (jobFetchError || !job) {
-      return { success: false, error: 'Error leyendo contadores del job' }
+    if (rpcError) {
+      console.error(`[robot-jobs] Counter increment failed for job ${item.job_id}:`, rpcError.message)
+      return { success: false, error: `Error actualizando contadores: ${rpcError.message}` }
     }
 
-    const newSuccessCount = params.status === 'success'
-      ? (job.success_count + 1)
-      : job.success_count
-    const newErrorCount = params.status === 'error'
-      ? (job.error_count + 1)
-      : job.error_count
+    // Cast RPC result (Supabase JS returns {} for custom RPC functions)
+    const counterResult = counterRaw as unknown as {
+      new_success_count: number
+      new_error_count: number
+      total_items: number
+      is_now_complete: boolean
+    } | null
 
-    // Check if all items are now complete
-    const allComplete = (newSuccessCount + newErrorCount) >= job.total_items
-    const jobUpdate: Record<string, unknown> = {
-      success_count: newSuccessCount,
-      error_count: newErrorCount,
+    if (counterResult?.is_now_complete) {
+      console.log(
+        `[robot-jobs] Job ${item.job_id} auto-completed: ${counterResult.new_success_count} success, ${counterResult.new_error_count} errors of ${counterResult.total_items} total`
+      )
     }
-
-    if (allComplete) {
-      jobUpdate.status = 'completed'
-      jobUpdate.completed_at = now
-    }
-
-    await supabase
-      .from('robot_jobs')
-      .update(jobUpdate)
-      .eq('id', item.job_id)
 
     return {
       success: true,

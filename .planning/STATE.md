@@ -13,7 +13,7 @@ Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
 Plan: 4 of 4 complete (01 + 02 + 03 + 04)
 Status: Phase complete
 Standalone: Robot Coordinadora Hardening — IN PROGRESS (plans 01+02+05 complete)
-Last activity: 2026-02-24 — Completed hardening-05 (Realtime disconnect + doc URL race fix)
+Last activity: 2026-02-24 — Completed hardening-02 (fetch timeouts + error reporting)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
@@ -64,7 +64,7 @@ All 9 phases + 5 inserted phases completed:
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
 - Order Notes System (2/2 plans) — COMPLETE
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
-- Robot Coordinadora Hardening (1/5 plans) — IN PROGRESS
+- Robot Coordinadora Hardening (3/5 plans) — IN PROGRESS (01+02+05)
 - Quick fixes: 6 completed
 
 ## Performance Metrics
@@ -169,6 +169,11 @@ Resilience v2 decisions (Plan 03):
 - Script manages status updates directly via its own Supabase client (not through domain layer)
 - 2-second delay between events for rate limiting during batch replay
 
+Robot Coordinadora Hardening decisions (Plan 02):
+- Fetch timeout formula: 60s/order + 10min base margin (same for fetch and waitForEvent)
+- Error propagation via pending robot_job_items (no schema migration needed)
+- Settle sleep increased from 2s to 5s (mitigates Inngest waitForEvent race #1433)
+
 Robot Coordinadora Hardening decisions (Plan 01):
 - SECURITY DEFINER on increment_robot_job_counter RPC for admin-level counter updates
 - Error items are re-processable (not terminal) to support retry scenarios; only success is terminal
@@ -194,6 +199,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed hardening-05 (Realtime disconnect + doc URL race fix)
+Stopped at: Completed hardening-02 (fetch timeouts + error reporting)
 Resume file: None
 Next: Remaining hardening plans (03, 04) or Phase 32 Media Processing

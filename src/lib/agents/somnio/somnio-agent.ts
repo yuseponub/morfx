@@ -28,6 +28,7 @@ import { IngestManager, type IngestState } from './ingest-manager'
 import { MessageClassifier } from './message-classifier'
 import { mergeExtractedData, hasCriticalData } from './data-extractor'
 import { classifyMessage } from './message-category-classifier'
+import { logDisambiguation } from './log-disambiguation'
 import { somnioAgentConfig } from './config'
 import { agentRegistry } from '../registry'
 import type { AgentSessionLike } from '../engine/types'
@@ -337,6 +338,29 @@ export class SomnioAgent {
         // Downstream: webhook-processor.ts line ~297 checks result.newMode === 'handoff'
         // and calls executeHandoff() which sends "Regalame 1 min" + host notification.
         if (classification.category === 'HANDOFF') {
+          // Log disambiguation context for low-confidence handoffs (Phase 33)
+          // Fire-and-forget: handoff proceeds regardless of log success
+          if (classification.reason.startsWith('low_confidence:')) {
+            logDisambiguation({
+              workspaceId: input.session.workspace_id,
+              sessionId: input.session.id,
+              conversationId: input.session.conversation_id,
+              contactId: input.session.contact_id,
+              customerMessage: input.message,
+              detectedIntent: intent.intent,
+              confidence: intent.confidence,
+              alternatives: intent.alternatives ?? [],
+              reasoning: intent.reasoning ?? '',
+              agentState: currentMode,
+              templatesEnviados: input.session.state.templates_enviados ?? [],
+              pendingTemplates: ((input.session.state as unknown as Record<string, unknown>).pending_templates as unknown[]) ?? [],
+              conversationHistory: input.history.slice(-10),
+            }).catch(err => {
+              // Non-blocking: log failure but don't prevent handoff
+              console.warn('[disambiguation] Failed to write log:', err)
+            })
+          }
+
           return {
             success: true,
             messages: [],
@@ -375,7 +399,7 @@ export class SomnioAgent {
             newIngestStatus: currentIngestStatus,
           },
           shouldCreateOrder: false,
-          timerSignals: [],
+          timerSignals: [{ type: 'cancel', reason: 'handoff' }],
           totalTokens,
           tokenDetails,
           intentInfo,

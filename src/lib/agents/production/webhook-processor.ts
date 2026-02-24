@@ -47,7 +47,17 @@ export interface ProcessMessageInput {
 /**
  * Process an incoming WhatsApp message through the production agent.
  *
- * @param input - Message data from the Inngest event
+ * Since Phase 32, messageContent may be:
+ * - Original text (for text messages)
+ * - Transcribed audio text (for voice notes, via Whisper)
+ * - Recognized sticker gesture text (for stickers, via Claude Vision)
+ * - Mapped reaction text (for emoji reactions)
+ *
+ * The media gate in agent-production.ts handles the transformation
+ * before calling this function. Do NOT add messageType here --
+ * the media gate resolves everything to text before this point.
+ *
+ * @param input - Message data from the Inngest event (post-media-gate)
  * @returns SomnioEngineResult (success/failure and response details)
  */
 export async function processMessageWithAgent(

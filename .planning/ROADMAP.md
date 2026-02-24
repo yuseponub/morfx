@@ -350,7 +350,13 @@ Plans:
 
 **Risk:** MEDIUM (merge algorithm edge cases, priority ordering must be tested thoroughly)
 
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 31-01-PLAN.md — TDD: BlockComposer pure function (compose block + merge algorithm + priority sorting)
+- [ ] 31-02-PLAN.md — DB migration (priority column, pending_templates) + type updates + Inngest event timestamp
+- [ ] 31-03-PLAN.md — Pre-send check in MessagingAdapter + messageTimestamp pipeline wiring
+- [ ] 31-04-PLAN.md — Integration: BlockComposer in engine, pending storage, silence timer pending, HANDOFF clear
 
 **Success Criteria:**
 1. Before sending each template in a response sequence, the bot checks the DB for new inbound messages -- if a new message arrived during the delay, the sequence stops immediately

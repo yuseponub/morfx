@@ -9,11 +9,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 34 of 36 (No-Repetition System) -- COMPLETE
+Phase: 34 of 36 (No-Repetition System) -- COMPLETE (verified 5/5, feature-flagged)
 Plan: 4 of 4 complete (01, 02, 03, 04)
-Status: Phase complete
+Status: Phase complete -- USE_NO_REPETITION=true activates no-rep system
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-24 — Completed 34-04 Engine Integration + Over-Count Fix
+Last activity: 2026-03-03 — Phase 34 complete with USE_NO_REPETITION feature flag
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 86% v4.0
 
@@ -248,7 +248,7 @@ Phase 34 decisions (Plan 04):
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
-- Apply migrations to Supabase (all pending, including 20260302000000_disambiguation_log.sql and 20260303000000_no_repetition_minifrases.sql)
+- Set USE_NO_REPETITION=true in Vercel env vars when ready to activate no-repetition system (Phase 34)
 - Configure 360dialog webhook URL and env vars
 - Set WHATSAPP_WEBHOOK_SECRET env var in Vercel
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
@@ -265,7 +265,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-24 COT
-Stopped at: Completed 34-04-PLAN.md (Engine Integration + Over-Count Fix) -- Phase 34 COMPLETE
+Last session: 2026-03-03 COT
+Stopped at: Phase 34 complete with feature flag -- pushed to Vercel
 Resume file: None
 Next: Phase 35 (Flujo Ofi Inter)

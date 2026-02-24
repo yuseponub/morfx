@@ -24,10 +24,10 @@
 - [x] **BLOCK-02**: Check pre-envio antes de cada plantilla -- si hay nuevo inbound, para la secuencia
 - [x] **BLOCK-03**: Plantillas no enviadas se guardan como pendientes con prioridad CORE/COMP/OPC
 - [x] **BLOCK-04**: Pendientes se mergean con siguiente bloque por prioridad (max 3 plantillas por bloque)
-- [ ] **BLOCK-05**: No-repeticion Nivel 1: lookup directo por template ID (gratis, 0ms)
-- [ ] **BLOCK-06**: No-repeticion Nivel 2: Haiku compara minifrases tematicas (~200ms, ~$0.0003)
-- [ ] **BLOCK-07**: No-repeticion Nivel 3: agente lee mensaje completo para cobertura parcial (~1-3s)
-- [ ] **BLOCK-08**: Intents repetidos envian top 2 plantillas por prioridad, parafraseadas por Claude
+- [x] **BLOCK-05**: No-repeticion Nivel 1: lookup directo por template ID (gratis, 0ms)
+- [x] **BLOCK-06**: No-repeticion Nivel 2: Haiku compara minifrases tematicas (~200ms, ~$0.0003)
+- [x] **BLOCK-07**: No-repeticion Nivel 3: agente lee mensaje completo para cobertura parcial (~1-3s)
+- [x] **BLOCK-08**: Intents repetidos envian top 2 plantillas por prioridad, parafraseadas por Claude
 
 ### Etapa 4: Procesamiento de Medios
 
@@ -57,7 +57,7 @@
 
 - [ ] **INFRA-01**: Campo `processed_by_agent` en tabla messages (boolean, para check pre-envio)
 - [x] **INFRA-02**: Tabla `disambiguation_log` en Supabase
-- [ ] **INFRA-03**: Minifrases tematicas definidas manualmente para cada plantilla (~30)
+- [x] **INFRA-03**: Minifrases tematicas definidas manualmente para cada plantilla (~30)
 
 ## Contexto Adicional
 
@@ -96,10 +96,10 @@
 | BLOCK-02 | Phase 31 | Complete |
 | BLOCK-03 | Phase 31 | Complete |
 | BLOCK-04 | Phase 31 | Complete |
-| BLOCK-05 | Phase 34 | Pending |
-| BLOCK-06 | Phase 34 | Pending |
-| BLOCK-07 | Phase 34 | Pending |
-| BLOCK-08 | Phase 34 | Pending |
+| BLOCK-05 | Phase 34 | Complete |
+| BLOCK-06 | Phase 34 | Complete |
+| BLOCK-07 | Phase 34 | Complete |
+| BLOCK-08 | Phase 34 | Complete |
 | MEDIA-01 | Phase 32 | Complete |
 | MEDIA-02 | Phase 32 | Complete |
 | MEDIA-03 | Phase 32 | Complete |
@@ -113,7 +113,7 @@
 | OFINT-04 | Phase 35 | Pending |
 | INFRA-01 | Phase 29 | Complete |
 | INFRA-02 | Phase 33 | Complete |
-| INFRA-03 | Phase 34 | Pending |
+| INFRA-03 | Phase 34 | Complete |
 | DOC-01 | Phase 36 | Pending |
 
 **Coverage:** 29/29 requirements mapped. 3 INFRA requirements distributed into their consuming phases. DOC-01 runs in parallel.

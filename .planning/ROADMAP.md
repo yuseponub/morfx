@@ -282,7 +282,7 @@ Plans:
 - [x] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
 - [x] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
 - [x] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
-- [ ] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
+- [x] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
 - [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
 - [ ] **Phase 36: Documentación del Agente** - Documentar arquitectura, proceso de creación y patrones de Somnio para replicar en futuros agentes
 
@@ -428,10 +428,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 34-01-PLAN.md — DB migration (minifrase column + siguientes cleanup) + types + outbound registry
-- [ ] 34-02-PLAN.md — Minifrase generator + NoRepetitionFilter (Level 1, 2, 3)
-- [ ] 34-03-PLAN.md — Template paraphraser + TemplateManager repeated intent handling
-- [ ] 34-04-PLAN.md — Engine integration: no-rep filter wiring + over-count bug fix + async processTemplates
+- [x] 34-01-PLAN.md — DB migration (minifrase column + siguientes cleanup) + types + outbound registry
+- [x] 34-02-PLAN.md — Minifrase generator + NoRepetitionFilter (Level 1, 2, 3)
+- [x] 34-03-PLAN.md — Template paraphraser + TemplateManager repeated intent handling
+- [x] 34-04-PLAN.md — Engine integration: no-rep filter wiring + over-count bug fix + async processTemplates
 
 **Success Criteria:**
 1. Level 1 -- a template whose exact ID was already sent in the conversation is never sent again (instant lookup from session_state.templates_enviados, 0ms, $0)
@@ -515,14 +515,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
-| v4.0 Comportamiento Humano | 29-36 | 23+ (Phases 29-33 complete) | Phase 34 Next | — |
+| v4.0 Comportamiento Humano | 29-36 | 27+ (Phases 29-34 complete) | Phase 35 Next | — |
 | Standalone | 9 phases | 31 | 7 complete, 2 in progress | |
-| **Total** | **50 phases** | **194+ plans** | | |
+| **Total** | **50 phases** | **198+ plans** | | |
 
 ### Current Phase
 
-Phase 33: Confidence Routing + Disambiguation Log — COMPLETE (2 plans, verified 8/8)
-Next: Phase 34 (No-Repetition System)
+Phase 34: No-Repetition System — COMPLETE (4 plans, verified 5/5, feature-flagged USE_NO_REPETITION)
+Next: Phase 35 (Flujo Ofi Inter)
 
 ---
 
@@ -533,4 +533,4 @@ Next: Phase 34 (No-Repetition System)
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-02 (Phase 33 complete: 2 plans, verified 8/8)*
+*Last updated: 2026-03-03 (Phase 34 complete: 4 plans, verified 5/5, feature-flagged USE_NO_REPETITION)*

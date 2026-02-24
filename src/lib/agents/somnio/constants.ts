@@ -74,3 +74,13 @@ export const ACKNOWLEDGMENT_PATTERNS = [
   /^(gracias|grax|ty|thx|thanks)$/i,
   /^[👍👌🤣😂😊🙏]+$/,
 ]
+
+// ============================================================================
+// Block Composition Constants (Phase 31)
+// ============================================================================
+
+/** Maximum number of templates that can be sent in a single block */
+export const BLOCK_MAX_TEMPLATES = 3
+
+/** Maximum number of intents that can be addressed in a single block */
+export const BLOCK_MAX_INTENTS = 3

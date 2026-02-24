@@ -478,7 +478,7 @@ export async function createOrderNote(
 
     if (noteError) {
       console.error('[domain/notes] createOrderNote error:', noteError)
-      return { success: false, error: 'Error al crear la nota de pedido' }
+      return { success: false, error: `Error al crear la nota de pedido: ${noteError.message}` }
     }
 
     return { success: true, data: { noteId: note.id } }

@@ -13,10 +13,10 @@
 
 ### Etapa 2: Clasificacion + Timer Retoma
 
-- [ ] **CLASS-01**: Mensajes clasificados post-IntentDetector como RESPONDIBLE, SILENCIOSO, o HANDOFF
-- [ ] **CLASS-02**: Mensajes SILENCIOSO (ok, jaja, thumbs-up en estados no-confirmatorios) no generan respuesta
-- [ ] **CLASS-03**: 6 intents HANDOFF (asesor, queja, cancelar, no_gracias, no_interesa, fallback) apagan el bot y notifican host
-- [ ] **CLASS-04**: Timer de retoma 90s para mensajes SILENCIOSO (redirige a venta si no hay respuesta)
+- [x] **CLASS-01**: Mensajes clasificados post-IntentDetector como RESPONDIBLE, SILENCIOSO, o HANDOFF
+- [x] **CLASS-02**: Mensajes SILENCIOSO (ok, jaja, thumbs-up en estados no-confirmatorios) no generan respuesta
+- [x] **CLASS-03**: 6 intents HANDOFF (asesor, queja, cancelar, no_gracias, no_interesa, fallback) apagan el bot y notifican host
+- [x] **CLASS-04**: Timer de retoma 90s para mensajes SILENCIOSO (redirige a venta si no hay respuesta)
 
 ### Etapa 3: Sistema de Bloques
 
@@ -88,10 +88,10 @@
 |--------|-------|--------|
 | DELAY-01 | Phase 29 | Complete |
 | DELAY-02 | Phase 29 | Complete |
-| CLASS-01 | Phase 30 | Pending |
-| CLASS-02 | Phase 30 | Pending |
-| CLASS-03 | Phase 30 | Pending |
-| CLASS-04 | Phase 30 | Pending |
+| CLASS-01 | Phase 30 | Complete |
+| CLASS-02 | Phase 30 | Complete |
+| CLASS-03 | Phase 30 | Complete |
+| CLASS-04 | Phase 30 | Complete |
 | BLOCK-01 | Phase 29 | Complete |
 | BLOCK-02 | Phase 31 | Pending |
 | BLOCK-03 | Phase 31 | Pending |

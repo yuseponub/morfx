@@ -278,7 +278,7 @@ Plans:
 **Milestone Goal:** Hacer que Somnio se comporte como un vendedor humano real en WhatsApp -- delays inteligentes, clasificacion de mensajes, sistema de bloques con interrupcion y no-repeticion, procesamiento de medios, confidence thresholds, y flujo ofi inter.
 
 - [x] **Phase 29: Inngest Migration + Character Delays** - Webhook async via Inngest concurrency-1, typing delays by character count
-- [ ] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
+- [x] **Phase 30: Message Classification + Silence Timer** - RESPONDIBLE/SILENCIOSO/HANDOFF classification, 90s retake timer
 - [ ] **Phase 31: Pre-Send Check + Interruption + Pending Merge** - Check DB before each send, interrupt on new inbound, priority-based merge
 - [ ] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
 - [ ] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
@@ -328,9 +328,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 30-01-PLAN.md — Intents + constants + event type + state transitions foundation
-- [ ] 30-02-PLAN.md — Message category classifier + SomnioAgent pipeline integration + engine wiring
-- [ ] 30-03-PLAN.md — Silence retake timer Inngest function + production timer adapter hook
+- [x] 30-01-PLAN.md — Intents + constants + event type + state transitions foundation
+- [x] 30-02-PLAN.md — Message category classifier + SomnioAgent pipeline integration + engine wiring
+- [x] 30-03-PLAN.md — Silence retake timer Inngest function + production timer adapter hook
 
 **Success Criteria:**
 1. After intent detection, each message is classified as RESPONDIBLE (proceed normally), SILENCIOSO (ignore), or HANDOFF (route to human) based on the detected intent and current session state
@@ -482,14 +482,14 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Phase 27 Complete, 28 Planned | — |
-| v4.0 Comportamiento Humano | 29-36 | 4+ (Phase 29 complete) | Phase 29 Complete | — |
+| v4.0 Comportamiento Humano | 29-36 | 7+ (Phases 29-30 complete) | Phase 30 Complete | — |
 | Standalone | 6 phases | 18 | 5 complete, 1 in progress | |
 | **Total** | **47 phases** | **179+ plans** | | |
 
 ### Current Phase
 
-Phase 29: Inngest Migration + Character Delays — COMPLETE (4 plans, 2 waves)
-Next: Phase 30 Message Classification + Silence Timer
+Phase 30: Message Classification + Silence Timer — COMPLETE (3 plans, 2 waves)
+Next: Phase 31 Pre-Send Check + Interruption + Pending Merge
 
 ---
 

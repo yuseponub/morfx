@@ -12,9 +12,9 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Loader2, Truck, ScanLine, FileText, FileSpreadsheet } from 'lucide-react'
+import { Loader2, Truck, Search, ScanLine, FileText, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateDispatchConfig, updateOcrConfig, updateGuideGenConfig } from '@/app/actions/logistics-config'
+import { updateDispatchConfig, updateGuideLookupConfig, updateOcrConfig, updateGuideGenConfig } from '@/app/actions/logistics-config'
 import type { CarrierConfig } from '@/lib/domain/carrier-configs'
 import type { PipelineWithStages } from '@/lib/orders/types'
 import type { LucideIcon } from 'lucide-react'
@@ -190,6 +190,14 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
   )
   const [isEnabled, setIsEnabled] = useState(config?.is_enabled ?? false)
 
+  // Guide lookup config (buscar guias coord)
+  const [guideLookupPipelineId, setGuideLookupPipelineId] = useState<string | null>(
+    config?.guide_lookup_pipeline_id ?? null
+  )
+  const [guideLookupStageId, setGuideLookupStageId] = useState<string | null>(
+    config?.guide_lookup_stage_id ?? null
+  )
+
   // OCR config
   const [ocrPipelineId, setOcrPipelineId] = useState<string | null>(
     config?.ocr_pipeline_id ?? null
@@ -235,6 +243,9 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
   const availableStages = selectedPipeline?.stages ?? []
 
+  const guideLookupPipeline = pipelines.find(p => p.id === guideLookupPipelineId)
+  const guideLookupAvailableStages = guideLookupPipeline?.stages ?? []
+
   const ocrPipeline = pipelines.find(p => p.id === ocrPipelineId)
   const ocrAvailableStages = ocrPipeline?.stages ?? []
 
@@ -245,6 +256,30 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
 
   const handleStageChange = (value: string) => {
     setSelectedStageId(value)
+  }
+
+  const handleGuideLookupPipelineChange = (value: string) => {
+    setGuideLookupPipelineId(value)
+    setGuideLookupStageId(null)
+  }
+
+  const handleGuideLookupStageChange = (value: string) => {
+    setGuideLookupStageId(value)
+  }
+
+  const handleSaveGuideLookup = () => {
+    startTransition(async () => {
+      const result = await updateGuideLookupConfig({
+        guideLookupPipelineId,
+        guideLookupStageId,
+      })
+
+      if ('error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Configuracion de busqueda de guias actualizada')
+      }
+    })
   }
 
   const handleOcrPipelineChange = (value: string) => {
@@ -397,6 +432,82 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
 
           <div className="flex justify-end mt-4">
             <Button onClick={handleSave} disabled={isPending} size="sm">
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Guide Lookup (buscar guias coord) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Search className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Busqueda de Guias</CardTitle>
+              <CardDescription>
+                Etapa donde buscar ordenes pendientes de guia (buscar guias coord)
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Pipeline</Label>
+              <Select
+                value={guideLookupPipelineId ?? undefined}
+                onValueChange={handleGuideLookupPipelineChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar pipeline..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map(pipeline => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Etapa de ordenes pendientes de guia</Label>
+              <Select
+                value={guideLookupStageId ?? undefined}
+                onValueChange={handleGuideLookupStageChange}
+                disabled={!guideLookupPipelineId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    guideLookupPipelineId
+                      ? 'Seleccionar etapa...'
+                      : 'Primero selecciona un pipeline'
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {guideLookupAvailableStages.map(stage => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleSaveGuideLookup} disabled={isPending} size="sm">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar
             </Button>

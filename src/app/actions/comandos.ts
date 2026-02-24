@@ -18,7 +18,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
-import { getCarrierCredentials, getDispatchStage, getOcrStage, getGuideGenStage } from '@/lib/domain/carrier-configs'
+import { getCarrierCredentials, getDispatchStage, getGuideLookupStage, getOcrStage, getGuideGenStage } from '@/lib/domain/carrier-configs'
 import { validateCities, type CityValidationItem } from '@/lib/domain/carrier-coverage'
 import {
   createRobotJob,
@@ -342,15 +342,15 @@ export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGui
       return { success: false, error: creds.error || 'Credenciales de transportadora no configuradas' }
     }
 
-    // 3. Dispatch stage config
-    const dispatchStageResult = await getDispatchStage(ctx)
-    if (!dispatchStageResult.success) {
-      return { success: false, error: dispatchStageResult.error! }
+    // 3. Guide lookup stage config (separate from dispatch stage)
+    const guideLookupStageResult = await getGuideLookupStage(ctx)
+    if (!guideLookupStageResult.success) {
+      return { success: false, error: guideLookupStageResult.error! }
     }
-    if (!dispatchStageResult.data) {
+    if (!guideLookupStageResult.data) {
       return {
         success: false,
-        error: 'Etapa de despacho no configurada. Configure la etapa en Configuracion > Logistica.',
+        error: 'Etapa de busqueda de guias no configurada. Configure la etapa en Configuracion > Logistica.',
       }
     }
 
@@ -364,7 +364,7 @@ export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGui
     }
 
     // 5. Get orders pending guide (tracking_number NOT NULL, carrier_guide_number IS NULL)
-    const ordersResult = await getOrdersPendingGuide(ctx, dispatchStageResult.data.stageId)
+    const ordersResult = await getOrdersPendingGuide(ctx, guideLookupStageResult.data.stageId)
     if (!ordersResult.success) return { success: false, error: ordersResult.error! }
     const orders = ordersResult.data!
 

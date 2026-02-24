@@ -130,6 +130,51 @@ export async function updateOcrConfig(params: {
 }
 
 /**
+ * Update guide lookup pipeline/stage config.
+ * Used by "buscar guias coord" to read from a stage different from dispatch stage.
+ */
+export async function updateGuideLookupConfig(params: {
+  guideLookupPipelineId: string | null
+  guideLookupStageId: string | null
+}): Promise<ActionResult<CarrierConfig>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
+    return { error: 'Solo administradores pueden cambiar esta configuracion' }
+  }
+
+  const result = await upsertCarrierConfig(
+    { workspaceId, source: 'server-action' },
+    {
+      carrier: 'coordinadora',
+      guideLookupPipelineId: params.guideLookupPipelineId,
+      guideLookupStageId: params.guideLookupStageId,
+    }
+  )
+
+  if (!result.success) {
+    return { error: result.error ?? 'Error actualizando configuracion de busqueda de guias' }
+  }
+
+  revalidatePath('/settings/logistica')
+
+  return { success: true, data: result.data as CarrierConfig }
+}
+
+/**
  * Update guide generation pipeline/stage config for a specific carrier type.
  * Each carrier type maps to its own column prefix on the same config row
  * (carrier='coordinadora') to keep all logistics config in a single row per workspace.

@@ -22,6 +22,9 @@ export interface CarrierConfig {
   dispatch_stage_id: string | null
   ocr_pipeline_id: string | null
   ocr_stage_id: string | null
+  // Guide lookup stage config (buscar guias coord)
+  guide_lookup_pipeline_id: string | null
+  guide_lookup_stage_id: string | null
   // Guide generation stage configs (Phase 28)
   pdf_inter_pipeline_id: string | null
   pdf_inter_stage_id: string | null
@@ -45,6 +48,9 @@ export interface UpsertCarrierConfigParams {
   dispatchStageId?: string | null
   ocrPipelineId?: string | null
   ocrStageId?: string | null
+  // Guide lookup stage config
+  guideLookupPipelineId?: string | null
+  guideLookupStageId?: string | null
   // Guide generation stage configs (Phase 28)
   pdfInterPipelineId?: string | null
   pdfInterStageId?: string | null
@@ -135,6 +141,8 @@ export async function upsertCarrierConfig(
         dispatch_stage_id: params.dispatchStageId ?? null,
         ocr_pipeline_id: params.ocrPipelineId ?? null,
         ocr_stage_id: params.ocrStageId ?? null,
+        guide_lookup_pipeline_id: params.guideLookupPipelineId ?? null,
+        guide_lookup_stage_id: params.guideLookupStageId ?? null,
         pdf_inter_pipeline_id: params.pdfInterPipelineId ?? null,
         pdf_inter_stage_id: params.pdfInterStageId ?? null,
         pdf_inter_dest_stage_id: params.pdfInterDestStageId ?? null,
@@ -171,6 +179,8 @@ export async function upsertCarrierConfig(
     if (params.dispatchStageId !== undefined) updates.dispatch_stage_id = params.dispatchStageId
     if (params.ocrPipelineId !== undefined) updates.ocr_pipeline_id = params.ocrPipelineId
     if (params.ocrStageId !== undefined) updates.ocr_stage_id = params.ocrStageId
+    if (params.guideLookupPipelineId !== undefined) updates.guide_lookup_pipeline_id = params.guideLookupPipelineId
+    if (params.guideLookupStageId !== undefined) updates.guide_lookup_stage_id = params.guideLookupStageId
     // Guide generation stage configs (Phase 28)
     if (params.pdfInterPipelineId !== undefined) updates.pdf_inter_pipeline_id = params.pdfInterPipelineId
     if (params.pdfInterStageId !== undefined) updates.pdf_inter_stage_id = params.pdfInterStageId
@@ -316,6 +326,44 @@ export async function getDispatchStage(
       data: {
         pipelineId: dispatch_pipeline_id,
         stageId: dispatch_stage_id,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Get the guide lookup stage configuration.
+ * Returns null if config doesn't exist or guide_lookup_pipeline_id/guide_lookup_stage_id are not set.
+ * Used by "buscar guias coord" to know which stage to search for orders pending guide.
+ */
+export async function getGuideLookupStage(
+  ctx: DomainContext,
+): Promise<DomainResult<{ pipelineId: string; stageId: string } | null>> {
+  try {
+    const configResult = await getCarrierConfig(ctx, 'coordinadora')
+
+    if (!configResult.success) {
+      return { success: false, error: configResult.error }
+    }
+
+    if (!configResult.data) {
+      return { success: true, data: null }
+    }
+
+    const { guide_lookup_pipeline_id, guide_lookup_stage_id } = configResult.data
+
+    if (!guide_lookup_pipeline_id || !guide_lookup_stage_id) {
+      return { success: true, data: null }
+    }
+
+    return {
+      success: true,
+      data: {
+        pipelineId: guide_lookup_pipeline_id,
+        stageId: guide_lookup_stage_id,
       },
     }
   } catch (err) {

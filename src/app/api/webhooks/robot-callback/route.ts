@@ -200,19 +200,23 @@ export async function POST(request: NextRequest) {
 
   // ------------------------------------------------------------------
   // 6. Check if batch completed -> emit robot/job.batch_completed
-  //    Re-read job status AFTER domain update. The domain layer atomically
-  //    sets status='completed' when success_count + error_count >= total_items,
-  //    so we use that as the authoritative guard instead of doing counter
-  //    arithmetic ourselves (avoids spurious duplicate events from concurrent
-  //    final callbacks).
+  //    Uses atomic batch_completed_emitted flag to prevent duplicate events.
+  //    Only the first callback to flip the flag from false to true emits.
+  //    This replaces the old read-after-update pattern which was race-prone:
+  //    two concurrent final callbacks could both read status='completed' and
+  //    both emit batch_completed, causing duplicate orchestrator completions.
   // ------------------------------------------------------------------
-  const { data: updatedJob } = await supabase
+  const { data: emitGuard } = await supabase
     .from('robot_jobs')
-    .select('success_count, error_count, total_items, status')
+    .update({ batch_completed_emitted: true })
     .eq('id', item.job_id)
-    .single()
+    .eq('status', 'completed')
+    .eq('batch_completed_emitted', false)
+    .select('id, success_count, error_count')
+    .maybeSingle()
 
-  if (updatedJob && updatedJob.status === 'completed') {
+  if (emitGuard) {
+    // This callback won the race -- emit the batch_completed event
     try {
       // MUST await inngest.send in serverless (Vercel can terminate early)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -221,17 +225,28 @@ export async function POST(request: NextRequest) {
         data: {
           jobId: item.job_id,
           workspaceId,
-          successCount: updatedJob.success_count,
-          errorCount: updatedJob.error_count,
+          successCount: emitGuard.success_count,
+          errorCount: emitGuard.error_count,
         },
       })
       console.log(
-        `[robot-callback] Batch completed: job ${item.job_id} (${updatedJob.success_count} success, ${updatedJob.error_count} error)`
+        `[robot-callback] Batch completed: job ${item.job_id} (${emitGuard.success_count} success, ${emitGuard.error_count} error)`
       )
     } catch (err) {
-      console.error(`[robot-callback] Failed to emit batch_completed:`, err)
+      console.error(`[robot-callback] Failed to emit batch_completed for job ${item.job_id}:`, err)
+      // Reset the flag so a retry can re-emit
+      await supabase
+        .from('robot_jobs')
+        .update({ batch_completed_emitted: false })
+        .eq('id', item.job_id)
+      // Return 500 so the robot service retries this callback
+      return NextResponse.json(
+        { error: 'Failed to notify orchestrator. Please retry.' },
+        { status: 500 }
+      )
     }
   }
+  // If emitGuard is null: either job is not completed yet, or another callback already emitted
 
   return NextResponse.json({ received: true })
 }

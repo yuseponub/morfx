@@ -249,7 +249,7 @@ export class CoordinadoraAdapter {
       await this.fillField('referencia', pedido.referencia)
       await this.fillField('unidades', String(pedido.unidades))
       await this.fillField('total_iva', '0')
-      await this.fillField('total_coniva', String(Math.round(pedido.totalConIva)))
+      await this.fillField('total_coniva', String(Math.floor(pedido.totalConIva / 100) * 100))
       await this.fillField('valor_declarado', String(Math.round(pedido.valorDeclarado)))
       await this.fillField('peso', String(pedido.peso))
       await this.fillField('alto', String(pedido.alto))

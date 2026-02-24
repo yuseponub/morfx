@@ -121,13 +121,16 @@ export class CoordinadoraAdapter {
         return true
       }
 
-      // Fill login form
+      // Fill login form (use multiple selector strategies for resilience)
       console.log(`${LOG_PREFIX} Filling login form`)
-      await this.page.fill('input[name="usuario"]', this.credentials.username)
-      await this.page.fill('input[name="clave"]', this.credentials.password)
+      const userInput = this.page.locator('input[name="usuario"], input[name="user"], input[name="username"], input[type="text"]:visible').first()
+      const passInput = this.page.locator('input[name="clave"], input[name="password"], input[type="password"]:visible').first()
+      await userInput.fill(this.credentials.username)
+      await passInput.fill(this.credentials.password)
 
-      // Submit login
-      await this.page.click('button[type="submit"]')
+      // Submit login (try multiple selectors)
+      const submitBtn = this.page.locator('button[type="submit"], button:has-text("Ingresar"), button:has-text("Iniciar")').first()
+      await submitBtn.click()
 
       // Wait for navigation (max 15 seconds)
       await this.page.waitForURL('**/panel/**', { timeout: 15000 }).catch(() => {

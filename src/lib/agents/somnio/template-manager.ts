@@ -14,7 +14,7 @@ import type {
   TemplateContentType,
   TemplateVisitType,
 } from '../types'
-import { isValidTemplateContentType, isValidTemplateVisitType } from '../types'
+import { isValidTemplateContentType, isValidTemplatePriority, isValidTemplateVisitType } from '../types'
 import { substituteVariables, type VariableContext } from './variable-substitutor'
 
 // ============================================================================
@@ -47,6 +47,8 @@ export interface ProcessedTemplate {
   delaySeconds: number
   /** Order in sequence */
   orden: number
+  /** Block priority for pre-send check. Phase 31. */
+  priority: 'CORE' | 'COMPLEMENTARIA' | 'OPCIONAL'
 }
 
 /**
@@ -150,6 +152,7 @@ export class TemplateManager {
       contentType: template.content_type,
       delaySeconds: template.delay_s,
       orden: template.orden,
+      priority: template.priority ?? 'CORE',
     }))
   }
 
@@ -286,6 +289,7 @@ export class TemplateManager {
         : 'texto',
       content: row.content,
       delay_s: row.delay_s,
+      priority: isValidTemplatePriority(row.priority) ? row.priority : 'CORE',
       workspace_id: row.workspace_id,
       created_at: row.created_at,
       updated_at: row.updated_at,

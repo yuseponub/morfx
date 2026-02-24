@@ -158,6 +158,8 @@ export type AgentEvents = {
       phone: string
       /** wamid for deduplication */
       messageId: string
+      /** ISO timestamp of the inbound message (for pre-send check). Phase 31. */
+      messageTimestamp: string
     }
   }
 }

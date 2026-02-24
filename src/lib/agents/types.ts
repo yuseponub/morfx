@@ -614,6 +614,8 @@ export interface AgentTemplate {
   content_type: TemplateContentType
   content: string
   delay_s: number
+  /** Block priority: CORE (always send), COMPLEMENTARIA (send if no interruption), OPCIONAL (send if idle). Phase 31. */
+  priority: 'CORE' | 'COMPLEMENTARIA' | 'OPCIONAL'
   workspace_id: string | null
   created_at: string
   updated_at: string
@@ -631,6 +633,8 @@ export interface AgentTemplateRow {
   content_type: string
   content: string
   delay_s: number
+  /** Block priority from DB (raw string). Phase 31. */
+  priority: string
   workspace_id: string | null
   created_at: string
   updated_at: string
@@ -648,4 +652,12 @@ export function isValidTemplateContentType(type: string): type is TemplateConten
  */
 export function isValidTemplateVisitType(type: string): type is TemplateVisitType {
   return ['primera_vez', 'siguientes'].includes(type)
+}
+
+/**
+ * Type guard for valid TemplatePriority values.
+ * Phase 31: Block priorities for pre-send check.
+ */
+export function isValidTemplatePriority(p: string): p is 'CORE' | 'COMPLEMENTARIA' | 'OPCIONAL' {
+  return ['CORE', 'COMPLEMENTARIA', 'OPCIONAL'].includes(p)
 }

@@ -267,6 +267,7 @@ async function processIncomingMessage(
               workspaceId,
               phone,
               messageId: msg.id,
+              messageTimestamp,
             },
           })
         } catch (inngestError) {

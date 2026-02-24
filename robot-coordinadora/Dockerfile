@@ -8,14 +8,17 @@ WORKDIR /app
 # Copy package files first (Docker cache layer optimization)
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev
+# Install all dependencies (need typescript for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build TypeScript
 RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --omit=dev
 
 # Create storage directories
 RUN mkdir -p storage/sessions storage/artifacts

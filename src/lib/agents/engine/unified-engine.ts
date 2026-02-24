@@ -16,6 +16,7 @@
 
 import { SomnioAgent } from '../somnio/somnio-agent'
 import { VersionConflictError } from '../errors'
+import { composeBlock, type PrioritizedTemplate } from '../somnio/block-composer'
 import type { ClaudeModelId } from '../types'
 import type {
   EngineInput,
@@ -105,6 +106,10 @@ export class UnifiedEngine {
       // Storage: handle handoff
       if (agentOutput.stateUpdates.newMode === 'handoff') {
         await this.adapters.storage.handoff(session.id, session.version)
+        // Phase 31: Clear pending templates on HANDOFF
+        if (this.adapters.storage.clearPendingTemplates) {
+          await this.adapters.storage.clearPendingTemplates(session.id)
+        }
       }
 
       // 4b. Timer: emit signals
@@ -230,9 +235,111 @@ export class UnifiedEngine {
         }
       }
 
-      // 4d. Messaging: send (production sends via WhatsApp; sandbox is no-op)
+      // 4d. Messaging: send via block composition pipeline (Phase 31)
       let messagesSent = 0
-      if (agentOutput.messages.length > 0) {
+      const hasTemplates = agentOutput.templates && agentOutput.templates.length > 0
+      const useBlockComposition = hasTemplates && !input.forceIntent
+      // Track which messages were actually sent for assistant turn recording
+      let sentMessageContents: string[] = []
+
+      if (useBlockComposition) {
+        // ================================================================
+        // PHASE 31: Block Composition Pipeline
+        // compose block -> send -> handle interruption -> save pending
+        // ================================================================
+        const storageAdapter = this.adapters.storage
+
+        // 1. Get pending templates from previous interrupted block
+        const pending: PrioritizedTemplate[] = storageAdapter.getPendingTemplates
+          ? await storageAdapter.getPendingTemplates(session.id) as PrioritizedTemplate[]
+          : []
+
+        // 2. Build new templates map grouped by intent
+        const intent = agentOutput.orchestratorIntent ?? 'unknown'
+        const newByIntent = new Map<string, PrioritizedTemplate[]>()
+        const prioritizedNew: PrioritizedTemplate[] = (agentOutput.templates as Array<{
+          id: string; content: string; contentType: 'texto' | 'template' | 'imagen';
+          priority?: 'CORE' | 'COMPLEMENTARIA' | 'OPCIONAL'; orden: number
+        }>).map(t => ({
+          templateId: t.id,
+          content: t.content,
+          contentType: t.contentType,
+          priority: t.priority ?? 'CORE',
+          intent,
+          orden: t.orden,
+          isNew: true,
+        }))
+        newByIntent.set(intent, prioritizedNew)
+
+        // 3. Compose block (merges new + pending per priority rules)
+        const composed = composeBlock(newByIntent, pending)
+
+        // 4. Convert block to templates array for messaging adapter
+        const blockTemplates = composed.block.map(t => ({
+          id: t.templateId,
+          content: t.content,
+          contentType: t.contentType,
+          delaySeconds: 0,
+        }))
+
+        // 5. Send block via messaging adapter
+        const sendResult = await this.adapters.messaging.send({
+          sessionId: session.id,
+          conversationId: input.conversationId,
+          messages: composed.block.map(t => t.content),
+          templates: blockTemplates,
+          intent: agentOutput.orchestratorIntent,
+          workspaceId: this.config.workspaceId,
+          contactId: input.contactId,
+          phoneNumber: input.phoneNumber,
+          triggerTimestamp: input.messageTimestamp,
+        })
+        messagesSent = sendResult.messagesSent
+
+        // Track sent content for assistant turn (only templates that were actually sent)
+        sentMessageContents = composed.block
+          .slice(0, sendResult.messagesSent)
+          .map(t => t.content)
+
+        // 6. Handle interruption
+        if (sendResult.interrupted) {
+          const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
+
+          if (sendResult.messagesSent === 0) {
+            // Interrupted before any template sent: discard all, don't save pending
+            // The next Inngest invocation will process the new message fresh
+            console.log(`[ENGINE] Block interrupted at index 0 — discarding all templates, sessionId=${session.id}`)
+            if (storageAdapter.clearPendingTemplates) {
+              await storageAdapter.clearPendingTemplates(session.id)
+            }
+          } else {
+            // Interrupted after sending some: save unsent templates as pending
+            const unsentFromBlock = composed.block.slice(sentIndex)
+            const newPending = [...unsentFromBlock, ...composed.pending]
+            if (storageAdapter.savePendingTemplates) {
+              await storageAdapter.savePendingTemplates(session.id, newPending)
+            }
+            console.log(`[ENGINE] Block interrupted — pending saved, sessionId=${session.id} sentCount=${sendResult.messagesSent} newPendingCount=${newPending.length}`)
+          }
+        } else {
+          // Block sent successfully — save overflow as pending for next cycle
+          if (composed.pending.length > 0 && storageAdapter.savePendingTemplates) {
+            await storageAdapter.savePendingTemplates(session.id, composed.pending)
+          } else if (storageAdapter.clearPendingTemplates) {
+            // No overflow — clear any stale pending
+            await storageAdapter.clearPendingTemplates(session.id)
+          }
+        }
+
+        // Log dropped templates
+        if (composed.dropped.length > 0) {
+          console.log(`[ENGINE] OPC templates dropped: count=${composed.dropped.length} ids=${composed.dropped.map(d => d.templateId).join(',')}`)
+        }
+      } else if (agentOutput.messages.length > 0) {
+        // ================================================================
+        // No block composition (empty response, forceIntent, handoff, silence, no templates)
+        // Send messages directly (existing behavior for sandbox + timer-triggered)
+        // ================================================================
         const sendResult = await this.adapters.messaging.send({
           sessionId: session.id,
           conversationId: input.conversationId,
@@ -242,29 +349,28 @@ export class UnifiedEngine {
           workspaceId: this.config.workspaceId,
           contactId: input.contactId,
           phoneNumber: input.phoneNumber,
-          triggerTimestamp: input.messageTimestamp,  // Phase 31: pre-send check
         })
         messagesSent = sendResult.messagesSent
-        // Phase 31-04 will add: if (sendResult.interrupted) { savePending(...) }
+        sentMessageContents = agentOutput.messages
+      }
 
-        // Record assistant turn so production history includes bot responses
-        // (critical for intent detection context on subsequent messages)
-        const assistantContent = agentOutput.messages
-          .filter(m => !m.startsWith('[SANDBOX:') && !m.startsWith('[No response'))
-          .join('\n')
-        if (assistantContent.trim()) {
-          try {
-            await this.adapters.storage.addTurn({
-              sessionId: session.id,
-              turnNumber: (input.turnNumber ?? (history.length + 1)) + 1,
-              role: 'assistant',
-              content: assistantContent,
-            })
-            console.log(`[ENGINE] Assistant turn saved (${assistantContent.length} chars)`)
-          } catch (turnError) {
-            // Non-blocking: don't crash main flow if turn recording fails
-            console.error('[ENGINE] Failed to save assistant turn:', turnError)
-          }
+      // Record assistant turn so production history includes bot responses
+      // (critical for intent detection context on subsequent messages)
+      const assistantContent = (sentMessageContents.length > 0 ? sentMessageContents : agentOutput.messages)
+        .filter(m => !m.startsWith('[SANDBOX:') && !m.startsWith('[No response'))
+        .join('\n')
+      if (assistantContent.trim()) {
+        try {
+          await this.adapters.storage.addTurn({
+            sessionId: session.id,
+            turnNumber: (input.turnNumber ?? (history.length + 1)) + 1,
+            role: 'assistant',
+            content: assistantContent,
+          })
+          console.log(`[ENGINE] Assistant turn saved (${assistantContent.length} chars)`)
+        } catch (turnError) {
+          // Non-blocking: don't crash main flow if turn recording fails
+          console.error('[ENGINE] Failed to save assistant turn:', turnError)
         }
       }
 

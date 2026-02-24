@@ -4,6 +4,11 @@
  *
  * Handles delayed message sending with interruption detection and abort capability.
  * Sends multiple messages per response with configurable delays between them.
+ *
+ * @deprecated Phase 31 replaces this with ProductionMessagingAdapter pre-send check
+ * (hasNewInboundMessage) and BlockComposer (block-composer.ts). The session.last_activity_at
+ * based interruption detection is replaced by a DB-level inbound message count query.
+ * Kept for sandbox compatibility — do NOT use in new production code.
  */
 
 import type { SessionManager } from '../session-manager'

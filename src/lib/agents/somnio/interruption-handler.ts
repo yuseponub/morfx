@@ -4,6 +4,11 @@
  *
  * Detects and manages sequence interruptions from customer messages.
  * Stores pending messages in session state for later resumption.
+ *
+ * @deprecated Phase 31 replaces this with session_state.pending_templates column
+ * and BlockComposer (block-composer.ts). The datos_capturados hack for storing
+ * pending messages is replaced by a dedicated JSONB column. Kept for sandbox
+ * compatibility — do NOT use in new production code.
  */
 
 import type { SessionManager } from '../session-manager'

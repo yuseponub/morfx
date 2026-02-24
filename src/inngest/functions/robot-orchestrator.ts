@@ -642,12 +642,12 @@ const pdfGuideOrchestrator = inngest.createFunction(
 
     // Step 4: Generate PDF + upload to Storage (WITHIN SAME STEP to avoid Inngest 4MB limit)
     const downloadUrl = await step.run('generate-and-upload', async () => {
-      // Read logo from public/logo-light.png with graceful fallback
+      // Read SOMNIO logo from public/somnio-logo.jpg with graceful fallback
       let logoBuffer: Buffer | undefined
       try {
         const fs = await import('fs')
         const path = await import('path')
-        const logoPath = path.join(process.cwd(), 'public', 'logo-light.png')
+        const logoPath = path.join(process.cwd(), 'public', 'somnio-logo.jpg')
         logoBuffer = fs.readFileSync(logoPath)
       } catch (err) {
         console.warn('[pdf-guide-orchestrator] Could not read logo file, generating PDF without logo:', err)

@@ -2,12 +2,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { matchContact } from './contact-matcher'
 import { mapShopifyOrder, MappedOrder } from './order-mapper'
 import { extractPhoneFromOrder, extractSecondaryPhoneFromNoteAttributes } from './phone-normalizer'
-import type { ShopifyOrderWebhook, ShopifyDraftOrderWebhook, ShopifyIntegration } from './types'
+import type { ShopifyOrderWebhook, ShopifyDraftOrderWebhook, ShopifyIntegration, ShopifyLineItem } from './types'
 import { createOrder as domainCreateOrder } from '@/lib/domain/orders'
 import { createContact as domainCreateContact } from '@/lib/domain/contacts'
 import type { DomainContext } from '@/lib/domain/types'
 import { updateCustomFieldValues as domainUpdateCustomFieldValues } from '@/lib/domain/custom-fields'
 import { inngest } from '@/inngest/client'
+
+/** Compute line item discount from discount_allocations (reliable) with total_discount fallback */
+function getLineItemDiscount(li: ShopifyLineItem): number {
+  if (li.discount_allocations && li.discount_allocations.length > 0) {
+    return li.discount_allocations.reduce((sum, da) => sum + parseFloat(da.amount || '0'), 0)
+  }
+  return parseFloat(li.total_discount || '0')
+}
 
 /**
  * Result of processing a Shopify webhook.
@@ -140,8 +148,8 @@ export async function processShopifyWebhook(
             title: li.title,
             quantity: li.quantity,
             price: li.price,
-            total_discount: li.total_discount || '0',
-            discounted_price: String(parseFloat(li.price) - (parseFloat(li.total_discount || '0') / li.quantity)),
+            total_discount: String(getLineItemDiscount(li)),
+            discounted_price: String(parseFloat(li.price) - (getLineItemDiscount(li) / li.quantity)),
           })),
           shippingAddress: buildShippingAddressString(order),
           shippingCity: order.shipping_address?.city || null,
@@ -192,8 +200,8 @@ export async function processShopifyWebhook(
             title: li.title,
             quantity: li.quantity,
             price: li.price,
-            total_discount: li.total_discount || '0',
-            discounted_price: String(parseFloat(li.price) - (parseFloat(li.total_discount || '0') / li.quantity)),
+            total_discount: String(getLineItemDiscount(li)),
+            discounted_price: String(parseFloat(li.price) - (getLineItemDiscount(li) / li.quantity)),
           })),
           shippingAddress: buildShippingAddressString(order),
           shippingCity: order.shipping_address?.city || null,
@@ -303,8 +311,8 @@ export async function processShopifyOrderUpdated(
           title: li.title,
           quantity: li.quantity,
           price: li.price,
-          total_discount: li.total_discount || '0',
-          discounted_price: String(parseFloat(li.price) - (parseFloat(li.total_discount || '0') / li.quantity)),
+          total_discount: String(getLineItemDiscount(li)),
+          discounted_price: String(parseFloat(li.price) - (getLineItemDiscount(li) / li.quantity)),
         })),
         shippingAddress: buildShippingAddressString(order),
         shippingCity: order.shipping_address?.city || null,
@@ -388,8 +396,8 @@ export async function processShopifyDraftOrder(
           title: li.title,
           quantity: li.quantity,
           price: li.price,
-          total_discount: li.total_discount || '0',
-          discounted_price: String(parseFloat(li.price) - (parseFloat(li.total_discount || '0') / li.quantity)),
+          total_discount: String(getLineItemDiscount(li)),
+          discounted_price: String(parseFloat(li.price) - (getLineItemDiscount(li) / li.quantity)),
         })),
         shippingAddress: draftOrder.shipping_address
           ? [draftOrder.shipping_address.address1, draftOrder.shipping_address.address2].filter(Boolean).join(', ') || null

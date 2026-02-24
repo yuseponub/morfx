@@ -82,6 +82,19 @@ export async function mapShopifyOrder(
 }
 
 /**
+ * Computes the total discount for a Shopify line item.
+ * Prefers discount_allocations (reliable) over total_discount (often "0.00" for order-level discounts).
+ */
+function getLineItemDiscount(item: ShopifyLineItem): number {
+  // discount_allocations is the reliable source — Shopify puts order-level discounts here
+  if (item.discount_allocations && item.discount_allocations.length > 0) {
+    return item.discount_allocations.reduce((sum, da) => sum + parseFloat(da.amount || '0'), 0)
+  }
+  // Fallback to total_discount (works for simple line-level discounts)
+  return parseFloat(item.total_discount || '0')
+}
+
+/**
  * Matches Shopify line items to MorfX products.
  *
  * @param lineItems - Shopify order line items
@@ -101,6 +114,7 @@ export async function matchProducts(
 
   for (const item of lineItems) {
     const catalogProduct = findMatchingProduct(item, catalogProducts, matchStrategy)
+    const lineDiscount = getLineItemDiscount(item)
 
     if (catalogProduct) {
       // Matched - use catalog product ID with Shopify pricing snapshot
@@ -108,8 +122,7 @@ export async function matchProducts(
         product_id: catalogProduct.id,
         sku: catalogProduct.sku,
         title: catalogProduct.title,
-        // Apply line item discount (Shopify total_discount is for entire line)
-        unit_price: parseFloat(item.price) - (parseFloat(item.total_discount || '0') / item.quantity),
+        unit_price: parseFloat(item.price) - (lineDiscount / item.quantity),
         quantity: item.quantity,
       })
     } else {
@@ -118,8 +131,7 @@ export async function matchProducts(
         product_id: null,  // No catalog link
         sku: item.sku || `SHOPIFY-${item.id}`,
         title: item.title || item.name,
-        // Apply line item discount (Shopify total_discount is for entire line)
-        unit_price: parseFloat(item.price) - (parseFloat(item.total_discount || '0') / item.quantity),
+        unit_price: parseFloat(item.price) - (lineDiscount / item.quantity),
         quantity: item.quantity,
       })
       unmatched.push(item)

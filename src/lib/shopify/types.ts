@@ -245,8 +245,10 @@ export interface ShopifyLineItem {
   quantity: number
   /** Unit price as string */
   price: string
-  /** Total discount applied to this line item */
+  /** Total discount applied to this line item (unreliable — often "0.00" for order-level discounts) */
   total_discount: string
+  /** Discount allocations — the reliable source of per-line-item discounts from Shopify */
+  discount_allocations?: Array<{ amount: string }>
 }
 
 // ============================================================================

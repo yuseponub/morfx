@@ -1,7 +1,7 @@
 # Robot Coordinadora - Production Docker Image
 # Uses official Playwright image (includes Chromium + all system dependencies)
 
-FROM mcr.microsoft.com/playwright:v1.52.0-noble
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
 
 WORKDIR /app
 

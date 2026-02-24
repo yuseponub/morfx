@@ -279,44 +279,46 @@ export class UnifiedEngine {
 
         // ================================================================
         // PHASE 34: No-Repetition Filter (between compose and send)
-        // Build outbound registry -> generate minifrases -> filter block
+        // Feature flag: USE_NO_REPETITION=true to enable (disabled by default)
         // ================================================================
         const templatesEnviados = agentOutput.stateUpdates.newTemplatesEnviados
         let filteredBlock = composed.block
 
-        try {
-          // 3a. Build outbound registry from conversation history
-          const outboundRegistry = await buildOutboundRegistry(
-            input.conversationId,
-            session.id,
-            templatesEnviados
-          )
-
-          // 3b. Generate minifrases for human/AI entries (modifies in-place)
-          await generateMinifrases(outboundRegistry)
-
-          // 3c. Filter block through 3-level no-repetition check
-          const noRepFilter = new NoRepetitionFilter(this.config.workspaceId)
-          const filterResult = await noRepFilter.filterBlock(
-            composed.block,
-            outboundRegistry,
-            templatesEnviados
-          )
-
-          filteredBlock = filterResult.surviving
-
-          if (filterResult.filtered.length > 0) {
-            console.log(
-              `[ENGINE] No-rep filter: ${filterResult.filtered.length} templates filtered, ${filterResult.surviving.length} surviving` +
-              ` (L1=${filterResult.filtered.filter(f => f.level === 1).length}` +
-              ` L2=${filterResult.filtered.filter(f => f.level === 2).length}` +
-              ` L3=${filterResult.filtered.filter(f => f.level === 3).length})`
+        if (process.env.USE_NO_REPETITION === 'true') {
+          try {
+            // 3a. Build outbound registry from conversation history
+            const outboundRegistry = await buildOutboundRegistry(
+              input.conversationId,
+              session.id,
+              templatesEnviados
             )
+
+            // 3b. Generate minifrases for human/AI entries (modifies in-place)
+            await generateMinifrases(outboundRegistry)
+
+            // 3c. Filter block through 3-level no-repetition check
+            const noRepFilter = new NoRepetitionFilter(this.config.workspaceId)
+            const filterResult = await noRepFilter.filterBlock(
+              composed.block,
+              outboundRegistry,
+              templatesEnviados
+            )
+
+            filteredBlock = filterResult.surviving
+
+            if (filterResult.filtered.length > 0) {
+              console.log(
+                `[ENGINE] No-rep filter: ${filterResult.filtered.length} templates filtered, ${filterResult.surviving.length} surviving` +
+                ` (L1=${filterResult.filtered.filter(f => f.level === 1).length}` +
+                ` L2=${filterResult.filtered.filter(f => f.level === 2).length}` +
+                ` L3=${filterResult.filtered.filter(f => f.level === 3).length})`
+              )
+            }
+          } catch (noRepError) {
+            // Fail-open: if the entire no-rep pipeline crashes, send the full block
+            console.error('[ENGINE] No-rep filter crashed, sending full block (fail-open):', noRepError)
+            filteredBlock = composed.block
           }
-        } catch (noRepError) {
-          // Fail-open: if the entire no-rep pipeline crashes, send the full block
-          console.error('[ENGINE] No-rep filter crashed, sending full block (fail-open):', noRepError)
-          filteredBlock = composed.block
         }
 
         // ================================================================

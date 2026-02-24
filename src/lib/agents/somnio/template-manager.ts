@@ -133,7 +133,8 @@ export class TemplateManager {
     templates.sort((a, b) => a.orden - b.orden)
 
     // Phase 34: For repeated intents, cap at top 2 by priority (CORE first)
-    if (isRepeatedVisit && templates.length > REPEATED_INTENT_MAX_TEMPLATES) {
+    // Feature flag: USE_NO_REPETITION=true to enable (disabled by default)
+    if (process.env.USE_NO_REPETITION === 'true' && isRepeatedVisit && templates.length > REPEATED_INTENT_MAX_TEMPLATES) {
       // Sort by priority rank (CORE=0 < COMP=1 < OPC=2), then by orden
       const byPriority = [...templates].sort((a, b) => {
         const rankDiff =
@@ -175,7 +176,8 @@ export class TemplateManager {
       let content = substituteVariables(template.content, context)
 
       // Phase 34: Paraphrase content for repeated intents
-      if (isRepeated) {
+      // Feature flag: USE_NO_REPETITION=true to enable (disabled by default)
+      if (process.env.USE_NO_REPETITION === 'true' && isRepeated) {
         content = await paraphraseTemplate(content)
       }
 

@@ -76,6 +76,26 @@ Cada vez que hagas un cambio de codigo (feature, fix, refactor), DEBES actualiza
 
 ---
 
+## Regla 6: Proteger Agente en Produccion
+
+Cuando se desarrolla un agente NUEVO o un milestone que modifica el comportamiento de un agente existente:
+
+1. **NO desconectar el agente actual** — el agente en produccion debe seguir funcionando sin cambios
+2. **Puede hacerse push a Vercel** — pero el nuevo codigo NO debe afectar el agente que ya esta activo
+3. **Usar feature flags** para aislar el nuevo comportamiento (ej: `USE_INNGEST_PROCESSING`, `USE_NO_REPETITION`)
+4. **El cambio se activa solo cuando el usuario lo decida** — despues de pruebas completas
+
+Patron obligatorio:
+- Nuevo agente: registrar con ID diferente, no reemplazar el actual
+- Modificar agente existente: feature flag que desactive los cambios por defecto
+- El agente viejo permanece funcional hasta activacion explicita del nuevo
+
+**PROHIBIDO:** Pushear cambios que alteren el comportamiento del agente en produccion sin feature flag o sin confirmacion explicita del usuario.
+
+Razon: El agente en produccion esta atendiendo clientes reales. Cambiar su comportamiento sin pruebas previas puede causar respuestas incorrectas, perdida de ventas, o confusion en los clientes.
+
+---
+
 ## Regla 5: Migracion Antes de Deploy
 
 TODA migracion de base de datos DEBE aplicarse en produccion ANTES de pushear codigo que la usa.

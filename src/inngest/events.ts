@@ -143,11 +143,12 @@ export type AgentEvents = {
   }
 
   /**
-   * Emitted when a WhatsApp text message is received and should be
-   * processed by the production agent (Phase 16).
+   * Emitted when a WhatsApp message is received and should be
+   * processed by the production agent (Phase 16, extended Phase 32).
    *
    * Fired from webhook-handler.ts AFTER the message is stored in DB.
    * The Inngest function checks agent-config before processing.
+   * Supports text + media types (audio, image, video, sticker, reaction).
    */
   'agent/whatsapp.message_received': {
     data: {
@@ -160,6 +161,12 @@ export type AgentEvents = {
       messageId: string
       /** ISO timestamp of the inbound message (for pre-send check). Phase 31. */
       messageTimestamp: string
+      /** Message type from WhatsApp. Defaults to 'text' if not set. Phase 32. */
+      messageType?: string
+      /** Supabase Storage public URL for media (audio, sticker, image, video). Phase 32. */
+      mediaUrl?: string | null
+      /** MIME type of the media file. Phase 32. */
+      mediaMimeType?: string | null
     }
   }
 }

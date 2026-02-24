@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 32 of 35 (Media Processing)
-Plan: 1 of 3 complete (01)
+Plan: 2 of 3 complete (01, 02)
 Status: In progress
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-24 — Completed 32-01-PLAN.md (foundation types + reaction mapper)
+Last activity: 2026-02-24 — Completed 32-02-PLAN.md (media gate + audio transcriber + sticker interpreter)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 50% v4.0
 
@@ -49,7 +49,7 @@ All 9 phases + 5 inserted phases completed:
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
-| 32 | Media Processing | IN PROGRESS (1/3 plans) |
+| 32 | Media Processing | IN PROGRESS (2/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
 | 34 | No-Repetition System | Not started |
 | 35 | Flujo Ofi Inter | Not started |
@@ -195,6 +195,11 @@ Phase 32 decisions (Plan 01):
 - ReactionAction as intermediate type before conversion to MediaGateResult (separation of concerns)
 - Inngest event media fields are optional for backward compatibility with existing text-only flow
 
+Phase 32 decisions (Plan 02):
+- Claude Sonnet 4 for sticker vision (matches OCR module pattern, ~$0.001-0.005/sticker)
+- Dynamic media_type detection from Content-Type header for sticker interpretation (not hardcoded webp)
+- handleReaction is synchronous (no async needed, pure function delegation to reaction-mapper)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -216,6 +221,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed 32-01-PLAN.md (foundation types + reaction mapper + openai install)
+Stopped at: Completed 32-02-PLAN.md (media gate + audio transcriber + sticker interpreter)
 Resume file: None
-Next: Phase 32 Plan 02 (media gate + audio transcriber + sticker interpreter)
+Next: Phase 32 Plan 03 (webhook integration + Inngest pipeline wiring)

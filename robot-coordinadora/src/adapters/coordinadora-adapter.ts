@@ -17,6 +17,7 @@ export class CoordinadoraAdapter {
   private credentials: Credentials
   private workspaceId: string
   private cookiesPath: string
+  private lastPedidoNumber: number | null = null
 
   constructor(credentials: Credentials, workspaceId: string) {
     this.credentials = credentials
@@ -110,10 +111,13 @@ export class CoordinadoraAdapter {
     console.log(`${LOG_PREFIX} Attempting login for workspace ${this.workspaceId}`)
 
     try {
-      await this.page.goto('https://ff.coordinadora.com', {
+      await this.page.goto('https://ff.coordinadora.com/', {
         waitUntil: 'domcontentloaded',
         timeout: 30000,
       })
+
+      // Wait for page to fully render (matching old robot timing)
+      await this.page.waitForTimeout(2000)
 
       // Check if already logged in (cookies loaded a valid session)
       if (this.page.url().includes('/panel')) {
@@ -121,21 +125,18 @@ export class CoordinadoraAdapter {
         return true
       }
 
-      // Fill login form (use multiple selector strategies for resilience)
+      // Fill login form with exact selectors from working robot
       console.log(`${LOG_PREFIX} Filling login form`)
-      const userInput = this.page.locator('input[name="usuario"], input[name="user"], input[name="username"], input[type="text"]:visible').first()
-      const passInput = this.page.locator('input[name="clave"], input[name="password"], input[type="password"]:visible').first()
-      await userInput.fill(this.credentials.username)
-      await passInput.fill(this.credentials.password)
+      await this.page.fill('input[name="usuario"]', this.credentials.username)
+      await this.page.waitForTimeout(500)
+      await this.page.fill('input[name="clave"]', this.credentials.password)
+      await this.page.waitForTimeout(500)
 
-      // Submit login (try multiple selectors)
-      const submitBtn = this.page.locator('button[type="submit"], button:has-text("Ingresar"), button:has-text("Iniciar")').first()
-      await submitBtn.click()
+      // Click login button (exact selector from working robot)
+      await this.page.click('button:has-text("Ingresar")')
 
-      // Wait for navigation (max 15 seconds)
-      await this.page.waitForURL('**/panel/**', { timeout: 15000 }).catch(() => {
-        // URL might not change to /panel, check manually below
-      })
+      // Wait for navigation (old robot waits 5 seconds)
+      await this.page.waitForTimeout(5000)
 
       // Verify login succeeded
       const currentUrl = this.page.url()
@@ -174,7 +175,10 @@ export class CoordinadoraAdapter {
       { waitUntil: 'domcontentloaded', timeout: 30000 }
     )
 
-    // Wait for the form to be ready (key field visible)
+    // Wait for the form to be ready (matching old robot: 3 seconds)
+    await this.page.waitForTimeout(3000)
+
+    // Verify key field is visible
     await this.page.waitForSelector('input[name="identificacion_destinatario"]', {
       state: 'visible',
       timeout: 15000,
@@ -202,43 +206,65 @@ export class CoordinadoraAdapter {
     console.log(`${LOG_PREFIX} Creating guia for ref: ${pedido.referencia}`)
 
     try {
+      // --- Get pedido number (auto-increment from portal) ---
+      if (this.lastPedidoNumber === null) {
+        this.lastPedidoNumber = await this.getLastPedidoNumber()
+      }
+      const newPedidoNumber = this.lastPedidoNumber + 1
+      console.log(`${LOG_PREFIX} Using pedido number: ${newPedidoNumber}`)
+
       // Navigate to a clean form
       await this.navigateToForm()
 
-      // --- Personal data fields ---
+      // --- Personal data fields (exact selectors from working robot) ---
       await this.fillField('identificacion_destinatario', pedido.identificacion)
-      await this.fillField('nombre_destinatario', pedido.nombres)
-      await this.fillField('apellido_destinatario', pedido.apellidos)
+      await this.fillField('nombres_destinatario', pedido.nombres)
+      await this.fillField('apellidos_destinatario', pedido.apellidos)
       await this.fillField('direccion_destinatario', pedido.direccion)
-      await this.fillField('celular_destinatario', pedido.celular)
+      await this.fillField('telefono_celular_destinatario', pedido.celular)
       await this.fillField('email_destinatario', pedido.email)
 
       // --- City field (MUI Autocomplete -- CRITICAL PATTERN) ---
-      // MUI Autocomplete requires keyboard interaction, not just value setting.
-      // Proven pattern: type -> wait for dropdown -> ArrowDown -> Enter
       await this.fillCityAutocomplete(pedido.ciudad)
 
       // --- Shipment data fields ---
+      await this.fillField('numero_pedido', String(newPedidoNumber))
       await this.fillField('referencia', pedido.referencia)
       await this.fillField('unidades', String(pedido.unidades))
+      await this.fillField('total_iva', '0')
+      await this.fillField('total_coniva', String(pedido.totalConIva))
       await this.fillField('valor_declarado', String(pedido.valorDeclarado))
       await this.fillField('peso', String(pedido.peso))
       await this.fillField('alto', String(pedido.alto))
       await this.fillField('largo', String(pedido.largo))
       await this.fillField('ancho', String(pedido.ancho))
 
-      // --- COD (recaudo contraentrega) ---
-      if (pedido.esRecaudoContraentrega) {
-        await this.enableCOD(pedido.totalConIva)
+      // --- COD (recaudo contraentrega) via radio buttons ---
+      await this.handleRecaudo(pedido.esRecaudoContraentrega)
+
+      // Wait before submit (matching old robot timing)
+      await this.page.waitForTimeout(1000)
+
+      // --- Submit the form (exact selector from working robot) ---
+      console.log(`${LOG_PREFIX} Submitting form`)
+      await this.page.click('button[type="submit"]:has-text("Enviar Pedido")')
+
+      // Wait for portal response (old robot waits 5 seconds)
+      await this.page.waitForTimeout(5000)
+
+      // Detect SweetAlert2 result
+      const swalResult = await this.detectSweetAlertResult()
+
+      // On success, update the pedido counter and save to file
+      if (swalResult.success) {
+        this.lastPedidoNumber = newPedidoNumber
+        this.saveLastPedido(newPedidoNumber)
+        // Store the pedido number in the result if not already there
+        if (!swalResult.numeroPedido) {
+          swalResult.numeroPedido = String(newPedidoNumber)
+        }
       }
 
-      // --- Submit the form ---
-      console.log(`${LOG_PREFIX} Submitting form`)
-      await this.page.click('button[type="submit"]')
-
-      // Wait for SweetAlert2 response (portal does server-side validation)
-      // The portal takes variable time -- wait up to 10 seconds for the modal
-      const swalResult = await this.detectSweetAlertResult()
       return swalResult
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -378,46 +404,31 @@ export class CoordinadoraAdapter {
   }
 
   /**
-   * Enable COD (recaudo contraentrega) and set the amount.
-   * Looks for the recaudo toggle/checkbox and the amount field.
+   * Handle recaudo (COD) via radio buttons.
+   * Portal uses: pago_contra_entrega S/N + flete_contra_entrega S/N
+   * Flete is always N.
    */
-  private async enableCOD(amount: number): Promise<void> {
+  private async handleRecaudo(esRecaudo: boolean): Promise<void> {
     if (!this.page) return
 
-    console.log(`${LOG_PREFIX} Enabling COD with amount: ${amount}`)
+    console.log(`${LOG_PREFIX} Setting recaudo: ${esRecaudo ? 'SI' : 'NO'}`)
 
     try {
-      // Look for the recaudo checkbox/toggle
-      // The portal may use a checkbox, switch, or select for COD
-      const codCheckbox = this.page.locator(
-        'input[name="recaudo_contraentrega"], input[name="es_recaudo"], input[type="checkbox"][name*="recaudo"]'
-      ).first()
-
-      const codCheckboxVisible = await codCheckbox.isVisible().catch(() => false)
-
-      if (codCheckboxVisible) {
-        const isChecked = await codCheckbox.isChecked().catch(() => false)
-        if (!isChecked) {
-          await codCheckbox.click()
-          await this.page.waitForTimeout(500) // Wait for COD fields to appear
-        }
+      // Pago contra entrega radio button
+      if (esRecaudo) {
+        await this.page.click('input[name="pago_contra_entrega"][value="S"]')
       } else {
-        // Fallback: Try clicking a label or button that toggles COD
-        const codToggle = this.page.locator(
-          'label:has-text("recaudo"), label:has-text("contraentrega"), label:has-text("COD")'
-        ).first()
-        const toggleVisible = await codToggle.isVisible().catch(() => false)
-        if (toggleVisible) {
-          await codToggle.click()
-          await this.page.waitForTimeout(500)
-        }
+        await this.page.click('input[name="pago_contra_entrega"][value="N"]')
       }
+      await this.page.waitForTimeout(500)
 
-      // Set the COD amount
-      await this.fillField('valor_recaudo', String(amount))
-      console.log(`${LOG_PREFIX} COD enabled with amount: ${amount}`)
+      // Flete contra entrega: always NO
+      await this.page.click('input[name="flete_contra_entrega"][value="N"]')
+      await this.page.waitForTimeout(300)
+
+      console.log(`${LOG_PREFIX} Recaudo set: pago=${esRecaudo ? 'S' : 'N'}, flete=N`)
     } catch (err) {
-      console.error(`${LOG_PREFIX} Failed to enable COD:`, err)
+      console.error(`${LOG_PREFIX} Failed to set recaudo:`, err)
     }
   }
 
@@ -539,6 +550,96 @@ export class CoordinadoraAdapter {
     }
 
     return null
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pedido Number Management
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get the last pedido number by reading the Coordinadora pedidos table.
+   * Navigates to /panel/pedidos, reads MuiDataGrid links, finds the max.
+   * Falls back to file-based tracking if the table read fails.
+   */
+  async getLastPedidoNumber(): Promise<number> {
+    if (!this.page) {
+      return this.getLastKnownPedido()
+    }
+
+    console.log(`${LOG_PREFIX} Getting last pedido number from portal`)
+
+    try {
+      // Navigate to the pedidos page
+      await this.page.goto('https://ff.coordinadora.com/panel/pedidos', {
+        waitUntil: 'networkidle',
+        timeout: 30000,
+      })
+
+      // Wait for MuiDataGrid to appear
+      await this.page.waitForSelector('.MuiDataGrid-root', { timeout: 10000 })
+      await this.page.waitForTimeout(2000)
+
+      // Read all links in DataGrid cells (pedido numbers are links)
+      const links = await this.page.$$('.MuiDataGrid-cell a')
+
+      let maxNumber = 0
+
+      // Check first 20 links for pedido numbers
+      for (const link of links.slice(0, 20)) {
+        const text = await link.textContent()
+        const num = parseInt(text?.trim() || '', 10)
+        if (!isNaN(num) && num > maxNumber && num > 1000) {
+          maxNumber = num
+        }
+      }
+
+      if (maxNumber > 0) {
+        console.log(`${LOG_PREFIX} Last pedido number from portal: ${maxNumber}`)
+        return maxNumber
+      }
+
+      // Fallback to file
+      console.log(`${LOG_PREFIX} No pedido numbers found in portal, using file fallback`)
+      return this.getLastKnownPedido()
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Failed to read pedido numbers from portal:`, err)
+      return this.getLastKnownPedido()
+    }
+  }
+
+  /**
+   * Read last known pedido number from file (fallback).
+   */
+  private getLastKnownPedido(): number {
+    const filePath = path.join(process.cwd(), 'storage', '.ultimo-pedido.txt')
+    try {
+      if (fs.existsSync(filePath)) {
+        const num = parseInt(fs.readFileSync(filePath, 'utf-8').trim(), 10)
+        if (!isNaN(num) && num > 1000) {
+          console.log(`${LOG_PREFIX} Last known pedido from file: ${num}`)
+          return num
+        }
+      }
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Failed to read .ultimo-pedido.txt:`, err)
+    }
+    // Default fallback
+    console.log(`${LOG_PREFIX} Using default fallback pedido number: 9640`)
+    return 9640
+  }
+
+  /**
+   * Save last pedido number to file for persistence across restarts.
+   */
+  private saveLastPedido(num: number): void {
+    const filePath = path.join(process.cwd(), 'storage', '.ultimo-pedido.txt')
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true })
+      fs.writeFileSync(filePath, String(num))
+      console.log(`${LOG_PREFIX} Saved last pedido number: ${num}`)
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Failed to save .ultimo-pedido.txt:`, err)
+    }
   }
 
   // ---------------------------------------------------------------------------

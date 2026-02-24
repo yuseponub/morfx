@@ -42,5 +42,7 @@ CREATE POLICY "wa_webhook_events_member_select"
   USING (is_workspace_member(workspace_id));
 
 -- INSERT/UPDATE via service role (admin client desde webhook handler)
+GRANT ALL ON whatsapp_webhook_events TO service_role;
+GRANT SELECT ON whatsapp_webhook_events TO authenticated;
 
 COMMENT ON TABLE whatsapp_webhook_events IS 'Raw WhatsApp webhook payloads stored before processing for resilience and replay';

@@ -388,11 +388,12 @@ async function executeCreateOrder(
   if (!contactId) throw new Error('No contactId available in trigger context')
 
   // Copy products from trigger context only when copyProducts toggle is enabled
+  // Use discounted_price (post-discount) when available, fallback to price (pre-discount)
   const products = params.copyProducts && Array.isArray(context.products)
-    ? (context.products as Array<{ sku: string; title: string; quantity: number; price: string }>).map(p => ({
+    ? (context.products as Array<{ sku: string; title: string; quantity: number; price: string; discounted_price?: string }>).map(p => ({
         sku: p.sku || '',
         title: p.title,
-        unitPrice: parseFloat(p.price) || 0,
+        unitPrice: parseFloat(p.discounted_price || p.price) || 0,
         quantity: p.quantity,
       }))
     : undefined

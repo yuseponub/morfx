@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
 Plan: 4 of 4 complete (01 + 02 + 03 + 04)
 Status: Phase complete
-Last activity: 2026-02-24 — Completed resilience-v2-01-PLAN.md (Retry Columns Migration + Regla 5)
+Last activity: 2026-02-24 — Completed resilience-v2-02-PLAN.md (Conditional HTTP Response + Replay Export)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
 
@@ -62,14 +62,14 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Phone Resilience (2 plans) — COMPLETE
 - Bulk Actions for Orders (1/2 plans) — IN PROGRESS
 - Order Notes System (2/2 plans) — COMPLETE
-- WhatsApp Webhook Resilience v2 (1/3 plans) — IN PROGRESS (migration applied, awaiting prod deploy)
+- WhatsApp Webhook Resilience v2 (2/3 plans) — IN PROGRESS (handler + route modified, replay script pending)
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 38 (34 milestone + 4 standalone)
-- Total plans completed: 197
+- Total plans completed: 198
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -156,6 +156,12 @@ Resilience v2 decisions (Plan 01):
 - Partial index for replay queries: only indexes failed rows with retry_count < 3
 - Regla 5 added to CLAUDE.md: migration must be applied in production before deploying dependent code
 
+Resilience v2 decisions (Plan 02):
+- processWebhook swallows errors when stored=true (ACK for replay)
+- processWebhook re-throws only when eventId=null (no safety net)
+- replayWebhookPayload intentionally duplicates inner processing loop (different responsibilities)
+- updateWhatsAppWebhookEvent uses Record<string, unknown> for conditional field updates
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -176,6 +182,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed resilience-v2-01-PLAN.md (Retry Columns Migration + Regla 5)
+Stopped at: Completed resilience-v2-02-PLAN.md (Conditional HTTP Response + Replay Export)
 Resume file: None
-Next: Apply migration in production, then proceed to resilience-v2-02-PLAN.md
+Next: Execute resilience-v2-03-PLAN.md (Replay Script + Dead Letter)

@@ -399,10 +399,14 @@ export class SomnioOrchestrator {
       )
     }
 
-    // Combine and process all templates
+    // Combine and process all templates (async: paraphrases repeated intents)
     const allTemplates: ProcessedTemplate[] = []
     for (const selection of templateMap.values()) {
-      const processed = this.templateManager.processTemplates(selection.templates, context)
+      const processed = await this.templateManager.processTemplates(
+        selection.templates,
+        context,
+        selection.isRepeatedVisit
+      )
       allTemplates.push(...processed)
     }
 

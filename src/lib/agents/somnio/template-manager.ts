@@ -16,10 +16,21 @@ import type {
 } from '../types'
 import { isValidTemplateContentType, isValidTemplatePriority, isValidTemplateVisitType } from '../types'
 import { substituteVariables, type VariableContext } from './variable-substitutor'
+import { paraphraseTemplate } from './template-paraphraser'
 
 // ============================================================================
 // Types
 // ============================================================================
+
+/** Maximum templates for a repeated intent visit (top 2 by priority) */
+const REPEATED_INTENT_MAX_TEMPLATES = 2
+
+/** Priority rank for sorting: lower = higher priority */
+const PRIORITY_RANK: Record<string, number> = {
+  CORE: 0,
+  COMPLEMENTARIA: 1,
+  OPCIONAL: 2,
+}
 
 /**
  * Result of template selection for an intent.
@@ -31,6 +42,8 @@ export interface TemplateSelection {
   visitType: TemplateVisitType
   /** Template IDs that were already sent (for tracking) */
   alreadySent: string[]
+  /** Whether this is a repeated visit (intent seen before in this conversation) */
+  isRepeatedVisit: boolean
 }
 
 /**
@@ -104,56 +117,79 @@ export class TemplateManager {
     // Load all templates for this agent
     const allTemplates = await this.loadTemplates(agentId)
 
-    // Determine visit type
+    // Phase 34: Always use primera_vez (siguientes rows deleted in migration)
     const isFirst = this.isFirstVisit(intent, intentsVistos)
-    const visitType: TemplateVisitType = isFirst ? 'primera_vez' : 'siguientes'
+    const isRepeatedVisit = !isFirst
 
-    // Filter templates for this intent and visit type
+    // Filter templates for this intent — always primera_vez
     let templates = allTemplates.filter(
-      t => t.intent === intent && t.visit_type === visitType
+      t => t.intent === intent && t.visit_type === 'primera_vez'
     )
 
-    // Fallback: if no 'siguientes' templates, use 'primera_vez'
-    if (templates.length === 0 && visitType === 'siguientes') {
-      templates = allTemplates.filter(
-        t => t.intent === intent && t.visit_type === 'primera_vez'
-      )
-    }
-
     // Filter out already sent templates
-    const templatesNotSent = templates.filter(t => !templatesSent.includes(t.id))
+    templates = templates.filter(t => !templatesSent.includes(t.id))
 
     // Sort by orden
-    templatesNotSent.sort((a, b) => a.orden - b.orden)
+    templates.sort((a, b) => a.orden - b.orden)
+
+    // Phase 34: For repeated intents, cap at top 2 by priority (CORE first)
+    if (isRepeatedVisit && templates.length > REPEATED_INTENT_MAX_TEMPLATES) {
+      // Sort by priority rank (CORE=0 < COMP=1 < OPC=2), then by orden
+      const byPriority = [...templates].sort((a, b) => {
+        const rankDiff =
+          (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2)
+        if (rankDiff !== 0) return rankDiff
+        return a.orden - b.orden
+      })
+      templates = byPriority.slice(0, REPEATED_INTENT_MAX_TEMPLATES)
+    }
 
     return {
-      templates: templatesNotSent,
-      visitType,
+      templates,
+      visitType: 'primera_vez',
       alreadySent: templatesSent,
+      isRepeatedVisit,
     }
   }
 
   /**
-   * Process templates with variable substitution.
+   * Process templates with variable substitution and optional paraphrasing.
    *
    * Applies context values to {{variable}} patterns in template content.
+   * When isRepeated=true, paraphrases each template's content via Claude
+   * AFTER variable substitution to keep all factual data intact.
    *
    * @param templates - Templates to process
    * @param context - Variable context for substitution
+   * @param isRepeated - Whether this is a repeated intent visit (triggers paraphrasing)
    * @returns ProcessedTemplates ready for sending
    */
-  processTemplates(
+  async processTemplates(
     templates: AgentTemplate[],
-    context: VariableContext
-  ): ProcessedTemplate[] {
-    return templates.map(template => ({
-      id: template.id,
-      content: substituteVariables(template.content, context),
-      contentType: template.content_type,
-      delaySeconds: template.delay_s,
-      orden: template.orden,
-      priority: template.priority ?? 'CORE',
-    }))
+    context: VariableContext,
+    isRepeated: boolean = false
+  ): Promise<ProcessedTemplate[]> {
+    const processed: ProcessedTemplate[] = []
+
+    for (const template of templates) {
+      let content = substituteVariables(template.content, context)
+
+      // Phase 34: Paraphrase content for repeated intents
+      if (isRepeated) {
+        content = await paraphraseTemplate(content)
+      }
+
+      processed.push({
+        id: template.id,
+        content,
+        contentType: template.content_type,
+        delaySeconds: template.delay_s,
+        orden: template.orden,
+        priority: template.priority ?? 'CORE',
+      })
+    }
+
+    return processed
   }
 
   /**

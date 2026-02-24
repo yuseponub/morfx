@@ -34,6 +34,7 @@ export function VariableMapper({
   onChange,
 }: VariableMapperProps) {
   const [customValues, setCustomValues] = useState<Record<string, string>>({})
+  const [customMode, setCustomMode] = useState<Record<string, boolean>>({})
 
   // Extract variables like {{1}}, {{2}} from body
   const variables = templateBody.match(/\{\{(\d+)\}\}/g) || []
@@ -50,9 +51,10 @@ export function VariableMapper({
 
   const handleChange = (varNum: string, value: string) => {
     if (value === 'custom') {
-      // Keep custom selection, actual value comes from input
+      setCustomMode({ ...customMode, [varNum]: true })
       onChange({ ...mapping, [varNum]: customValues[varNum] || '' })
     } else {
+      setCustomMode({ ...customMode, [varNum]: false })
       onChange({ ...mapping, [varNum]: value })
     }
   }
@@ -68,6 +70,7 @@ export function VariableMapper({
   }
 
   const isCustom = (varNum: string) => {
+    if (customMode[varNum]) return true
     const value = mapping[varNum]
     return (
       value !== undefined &&

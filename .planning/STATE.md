@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 31 of 35 (Pre-Send Check + Interruption + Pending Merge)
-Plan: 4 of 4 complete (01 + 02 + 03 + 04)
-Status: Phase complete
+Phase: 32 of 35 (Media Processing)
+Plan: 1 of 3 complete (01)
+Status: In progress
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-28 — Completed robot-coordinadora-hardening phase (verified)
+Last activity: 2026-02-24 — Completed 32-01-PLAN.md (foundation types + reaction mapper)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 43% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [########░░] 50% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -49,7 +49,7 @@ All 9 phases + 5 inserted phases completed:
 | 29 | Inngest Migration + Character Delays | COMPLETE (4/4 plans) |
 | 30 | Message Classification + Silence Timer | COMPLETE (3/3 plans) |
 | 31 | Pre-Send Check + Interruption + Pending Merge | COMPLETE (4/4 plans) |
-| 32 | Media Processing | Not started |
+| 32 | Media Processing | IN PROGRESS (1/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | Not started |
 | 34 | No-Repetition System | Not started |
 | 35 | Flujo Ofi Inter | Not started |
@@ -190,6 +190,11 @@ Robot Coordinadora Hardening decisions (Plan 01):
 - Error items are re-processable (not terminal) to support retry scenarios; only success is terminal
 - Auto-completion logic moved to SQL (prevents application-level race on status transition)
 
+Phase 32 decisions (Plan 01):
+- Heart emoji mapped with and without variation selector U+FE0F for WhatsApp client compatibility
+- ReactionAction as intermediate type before conversion to MediaGateResult (separation of concerns)
+- Inngest event media fields are optional for backward compatibility with existing text-only flow
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -199,6 +204,7 @@ Robot Coordinadora Hardening decisions (Plan 01):
 - Configure Inngest env vars (INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY)
 - Set USE_INNGEST_PROCESSING=true in Vercel to enable async agent processing
 - Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway
+- Set OPENAI_API_KEY env var in Vercel for Whisper audio transcription (Phase 32)
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
@@ -210,6 +216,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-24 COT
-Stopped at: Completed hardening-03 (server actions hardening) — all 5 hardening plans now complete
+Stopped at: Completed 32-01-PLAN.md (foundation types + reaction mapper + openai install)
 Resume file: None
-Next: Phase 32 Media Processing
+Next: Phase 32 Plan 02 (media gate + audio transcriber + sticker interpreter)

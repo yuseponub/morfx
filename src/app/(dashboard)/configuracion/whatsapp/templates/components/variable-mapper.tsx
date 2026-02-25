@@ -4,7 +4,10 @@ import { useState } from 'react'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -16,17 +19,21 @@ interface VariableMapperProps {
   onChange: (mapping: Record<string, string>) => void
 }
 
-const AVAILABLE_FIELDS = [
-  { value: 'contact.name', label: 'Nombre del contacto' },
-  { value: 'contact.phone', label: 'Telefono del contacto' },
-  { value: 'contact.email', label: 'Email del contacto' },
-  { value: 'contact.city', label: 'Ciudad del contacto' },
+const CONTACT_FIELDS = [
+  { value: 'contact.name', label: 'Nombre' },
+  { value: 'contact.phone', label: 'Telefono' },
+  { value: 'contact.email', label: 'Email' },
+  { value: 'contact.city', label: 'Ciudad' },
+]
+
+const ORDER_FIELDS = [
   { value: 'order.id', label: 'ID del pedido' },
-  { value: 'order.total', label: 'Total del pedido' },
+  { value: 'order.total', label: 'Total' },
   { value: 'order.tracking_number', label: 'Numero de guia' },
   { value: 'order.carrier', label: 'Transportadora' },
-  { value: 'custom', label: 'Valor personalizado...' },
 ]
+
+const AVAILABLE_FIELDS = [...CONTACT_FIELDS, ...ORDER_FIELDS, { value: 'custom', label: 'Valor personalizado...' }]
 
 export function VariableMapper({
   templateBody,
@@ -108,11 +115,25 @@ export function VariableMapper({
                   <SelectValue placeholder="Seleccionar campo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_FIELDS.map((field) => (
-                    <SelectItem key={field.value} value={field.value}>
-                      {field.label}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>Pedido</SelectLabel>
+                    {ORDER_FIELDS.map((field) => (
+                      <SelectItem key={field.value} value={field.value}>
+                        {field.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Contacto</SelectLabel>
+                    {CONTACT_FIELDS.map((field) => (
+                      <SelectItem key={field.value} value={field.value}>
+                        {field.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectItem value="custom">Valor personalizado...</SelectItem>
                 </SelectContent>
               </Select>
               {isCustomValue && (

@@ -26,10 +26,12 @@ import { IntentDetector, type IntentDetectionResult } from '../intent-detector'
 import { SomnioOrchestrator } from './somnio-orchestrator'
 import { IngestManager, type IngestState } from './ingest-manager'
 import { MessageClassifier } from './message-classifier'
-import { mergeExtractedData, hasCriticalData } from './data-extractor'
+import { mergeExtractedData, hasCriticalData, isDataComplete } from './data-extractor'
 import { classifyMessage } from './message-category-classifier'
 import { logDisambiguation } from './log-disambiguation'
 import { somnioAgentConfig } from './config'
+import { detectOfiInterMention, isCollectingDataMode } from './constants'
+import { isRemoteMunicipality } from './normalizers'
 import { agentRegistry } from '../registry'
 import type { AgentSessionLike } from '../engine/types'
 import type { ModelTokenEntry, IntentResult } from '../types'
@@ -214,9 +216,9 @@ export class SomnioAgent {
       let justCompletedIngest = false
       const timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }> = []
 
-      // 3. Check ingest mode (if collecting_data AND not a timer-forced call)
+      // 3. Check ingest mode (if collecting_data/collecting_data_inter AND not a timer-forced call)
       // Timer-forced calls have no customer message to classify
-      if (currentMode === 'collecting_data' && !input.forceIntent) {
+      if (isCollectingDataMode(currentMode) && !input.forceIntent) {
         const ingestResult = await this.handleIngestMode(
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )
@@ -233,9 +235,9 @@ export class SomnioAgent {
         if (ingestResult.timerSignal) timerSignals.push(ingestResult.timerSignal)
       }
 
-      // 4. Check implicit yes (if NOT collecting_data AND NOT ofrecer_promos AND not timer-forced)
+      // 4. Check implicit yes (if NOT in a collecting mode AND NOT ofrecer_promos AND not timer-forced)
       // Timer-forced calls have no customer message to classify
-      if (currentMode !== 'collecting_data' && currentMode !== 'ofrecer_promos' && !input.forceIntent) {
+      if (!isCollectingDataMode(currentMode) && currentMode !== 'ofrecer_promos' && !input.forceIntent) {
         const implicitResult = await this.checkImplicitYes(
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )
@@ -250,6 +252,61 @@ export class SomnioAgent {
         if (implicitResult.updatedData) currentData = implicitResult.updatedData
         if (implicitResult.updatedIngestStatus !== undefined) currentIngestStatus = implicitResult.updatedIngestStatus
         if (implicitResult.timerSignal) timerSignals.push(implicitResult.timerSignal)
+      }
+
+      // 4.5 Ofi Inter Detection (Route 1: direct mention, Route 3: remote municipality)
+      // Only check when NOT already in ofi inter mode, NOT timer-forced, and NOT just completed ingest
+      if (!input.forceIntent && !justCompletedIngest && currentMode !== 'collecting_data_inter') {
+        // Route 1: Direct mention ("ofi inter", "recojo en oficina", etc.)
+        if (detectOfiInterMention(input.message)) {
+          // Transition to collecting_data_inter immediately and send confirmation question
+          // Per CONTEXT.md: "mencion directa domina (confirma inmediatamente)"
+          currentMode = 'collecting_data_inter'
+          return {
+            success: true,
+            messages: ['Claro! Deseas recibir tu pedido en una oficina de Interrapidisimo?'],
+            stateUpdates: {
+              newMode: 'collecting_data_inter',
+              newIntentsVistos: input.session.state.intents_vistos?.map(i => i.intent) ?? [],
+              newTemplatesEnviados: input.session.state.templates_enviados ?? [],
+              newDatosCapturados: currentData,
+              newPackSeleccionado: input.session.state.pack_seleccionado,
+              newIngestStatus: currentIngestStatus,
+            },
+            shouldCreateOrder: false,
+            timerSignals: isCollectingDataMode(previousMode) ? [] : [{ type: 'start' as const }],
+            totalTokens,
+            tokenDetails,
+            tools: [],
+          }
+        }
+
+        // Route 3: Remote municipality detection
+        // Check if the message asks about shipping to a remote municipality
+        const cityMatch = input.message.match(/(?:envian?\s+a\s+|llegan?\s+a\s+|hacen\s+envios?\s+a\s+)(.+)/i)
+        if (cityMatch) {
+          const mentionedCity = cityMatch[1].trim().replace(/[?!.]+$/, '')
+          if (isRemoteMunicipality(mentionedCity)) {
+            // Ask about delivery preference -- don't change mode yet, wait for answer
+            return {
+              success: true,
+              messages: ['Claro que si! Deseas envio a domicilio o recoger en oficina de transportadora?'],
+              stateUpdates: {
+                newMode: currentMode,
+                newIntentsVistos: input.session.state.intents_vistos?.map(i => i.intent) ?? [],
+                newTemplatesEnviados: input.session.state.templates_enviados ?? [],
+                newDatosCapturados: { ...currentData, ciudad: mentionedCity },
+                newPackSeleccionado: input.session.state.pack_seleccionado,
+                newIngestStatus: currentIngestStatus,
+              },
+              shouldCreateOrder: false,
+              timerSignals: [],
+              totalTokens,
+              tokenDetails,
+              tools: [],
+            }
+          }
+        }
       }
 
       // 5. Detect intent (or force)
@@ -475,14 +532,14 @@ export class SomnioAgent {
 
       // 11. Timer signal decisions
 
-      // 11a. Start timer on transition to collecting_data (no prior signal)
+      // 11a. Start timer on transition to a collecting mode (no prior signal)
       // The normal orchestration flow (captura_datos_si_compra intent) transitions
       // to collecting_data but never emitted a timerSignal. handleIngestMode and
       // checkImplicitYes handle their own signals; this covers the remaining path.
       if (
         timerSignals.length === 0 &&
-        newMode === 'collecting_data' &&
-        currentMode !== 'collecting_data'
+        isCollectingDataMode(newMode) &&
+        !isCollectingDataMode(currentMode)
       ) {
         timerSignals.push({ type: 'start' })
         // Initialize ingestStatus so debug panel shows "Activo"
@@ -621,18 +678,19 @@ export class SomnioAgent {
       ),
     }
 
-    // Route through IngestManager
+    // Route through IngestManager (pass mode for mode-aware completion)
     const ingestResult = await this.ingestManager.handleMessage({
       sessionId: input.session.id,
       message: input.message,
       ingestState,
       existingData: currentData,
       conversationHistory: input.history,
+      mode: currentMode,
     })
 
     // Build updated ingest status for debug visibility
     const newIngestStatus = {
-      active: currentMode === 'collecting_data',
+      active: isCollectingDataMode(currentMode),
       startedAt: ingestStatusTyped?.startedAt ?? new Date().toISOString(),
       firstDataAt: ingestResult.extractedData && Object.keys(ingestResult.extractedData.normalized).length > 0
         ? (ingestStatusTyped?.firstDataAt ?? new Date().toISOString())
@@ -693,7 +751,7 @@ export class SomnioAgent {
       }
     }
 
-    // Handle complete (all 8 fields) - transition to ofrecer_promos
+    // Handle complete (all fields for mode) - transition to ofrecer_promos
     // Return result signaling mode change instead of mutating state
     if (ingestResult.action === 'complete') {
       return {
@@ -709,6 +767,32 @@ export class SomnioAgent {
         // processMessage will then ADD a 'start' signal for the promo timer (level 3).
         // This is step 1 of a two-step signal. See processMessage step 11b for step 2.
         timerSignal: { type: 'cancel', reason: 'ingest_complete' },
+      }
+    }
+
+    // Handle ask_ofi_inter (Route 2: municipio arrived without address)
+    // IngestManager detected city was extracted without direccion/barrio -- ask delivery preference
+    if (ingestResult.action === 'ask_ofi_inter') {
+      const silentData = ingestResult.mergedData ?? currentData
+      return {
+        handled: true,
+        earlyReturn: {
+          success: true,
+          messages: ['Deseas envio a domicilio o recoger en oficina de transportadora?'],
+          stateUpdates: {
+            newMode: currentMode, // Stay in collecting_data -- answer determines mode
+            newIntentsVistos: input.session.state.intents_vistos?.map(i => i.intent) ?? [],
+            newTemplatesEnviados: input.session.state.templates_enviados ?? [],
+            newDatosCapturados: silentData,
+            newPackSeleccionado: input.session.state.pack_seleccionado,
+            newIngestStatus: newIngestStatus,
+          },
+          shouldCreateOrder: false,
+          timerSignals: ingestResult.shouldEmitTimerStart ? [{ type: 'start' as const }] : [],
+          totalTokens,
+          tokenDetails: [...tokenDetails],
+          tools: [...(tools as unknown[])],
+        },
       }
     }
 
@@ -774,9 +858,11 @@ export class SomnioAgent {
       return { handled: false }
     }
 
-    // Check if all 8 fields are complete after extraction
+    // Check if all fields are complete after extraction (mode-aware)
+    // Implicit yes always uses 'collecting_data' mode (ofi inter is only triggered
+    // explicitly via Routes 1-3, not via implicit yes detection)
     const mergedData = ingestResult.mergedData ?? currentData
-    const allFieldsComplete = hasCriticalData(mergedData)
+    const allFieldsComplete = hasCriticalData(mergedData) // Always normal mode for implicit yes
 
     // Build ingest status
     const ingestStatusTyped = currentIngestStatus as {

@@ -63,8 +63,9 @@ export interface IngestResult {
    * - 'silent': No response, just accumulate data
    * - 'respond': Generate and send a response (question or mixto)
    * - 'complete': All data collected, transition to ofrecer_promos
+   * - 'ask_ofi_inter': Municipio arrived without address, ask about delivery preference (Route 2)
    */
-  action: 'silent' | 'respond' | 'complete'
+  action: 'silent' | 'respond' | 'complete' | 'ask_ofi_inter'
 
   /** The classification from MessageClassifier */
   classification: ClassificationResult
@@ -99,6 +100,8 @@ export interface HandleMessageInput {
   existingData: Record<string, string>
   /** Conversation history for context */
   conversationHistory: ClaudeMessage[]
+  /** Current session mode (collecting_data or collecting_data_inter) */
+  mode?: string
 }
 
 // ============================================================================

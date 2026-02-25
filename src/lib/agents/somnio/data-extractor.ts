@@ -17,7 +17,11 @@ import {
   inferDepartamento,
   detectNegation,
 } from './normalizers'
-import { CRITICAL_FIELDS } from './constants'
+import {
+  CRITICAL_FIELDS,
+  OFI_INTER_CRITICAL_FIELDS,
+  OFI_INTER_ADDITIONAL_FIELDS,
+} from './constants'
 
 const logger = createModuleLogger('data-extractor')
 
@@ -38,6 +42,7 @@ export interface ExtractedData {
   departamento?: string
   barrio?: string
   correo?: string
+  cedula_recoge?: string
   indicaciones_extra?: string
 }
 
@@ -451,4 +456,53 @@ export function getFieldCounts(
   }
 
   return { critical, additional, total: critical + additional }
+}
+
+// ============================================================================
+// Ofi Inter Completion Checks (Phase 35)
+// ============================================================================
+
+/**
+ * Check if all critical data is present for ofi inter mode.
+ * Requires 4 critical fields (nombre, telefono, ciudad, departamento)
+ * plus at least 2 additional fields (from apellido, cedula_recoge, correo).
+ * cedula_recoge is optional, so minimum is 6 total (4 critical + 2 additional).
+ *
+ * @param data - Collected data to check
+ * @returns True if ofi inter data requirements are met
+ */
+export function hasCriticalDataInter(data: Record<string, string>): boolean {
+  // First check all 4 ofi inter critical fields
+  for (const field of OFI_INTER_CRITICAL_FIELDS) {
+    if (!data[field] || data[field].trim() === '') {
+      return false
+    }
+  }
+
+  // Count additional fields (including N/A as "answered")
+  let additionalCount = 0
+  for (const field of OFI_INTER_ADDITIONAL_FIELDS) {
+    if (data[field] && data[field].trim() !== '') {
+      additionalCount++
+    }
+  }
+
+  // Need at least 2 additional fields (6 total = 4 critical + 2 additional)
+  return additionalCount >= 2
+}
+
+/**
+ * Mode-aware data completion check.
+ * Dispatches to the correct completion function based on the current session mode.
+ * Plan 02 will update callers to use this instead of hasCriticalData directly.
+ *
+ * @param data - Collected data to check
+ * @param mode - Current session mode ('collecting_data' or 'collecting_data_inter')
+ * @returns True if data is complete for the given mode
+ */
+export function isDataComplete(data: Record<string, string>, mode: string): boolean {
+  if (mode === 'collecting_data_inter') {
+    return hasCriticalDataInter(data)
+  }
+  return hasCriticalData(data)
 }

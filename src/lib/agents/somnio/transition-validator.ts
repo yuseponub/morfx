@@ -13,7 +13,13 @@
  */
 
 import type { IntentRecord } from '../types'
-import { CRITICAL_FIELDS, MIN_FIELDS_FOR_AUTO_PROMO } from './constants'
+import {
+  CRITICAL_FIELDS,
+  MIN_FIELDS_FOR_AUTO_PROMO,
+  MIN_FIELDS_FOR_AUTO_PROMO_INTER,
+  OFI_INTER_CRITICAL_FIELDS,
+  isCollectingDataMode,
+} from './constants'
 
 // ============================================================================
 // Types
@@ -279,6 +285,86 @@ export class TransitionValidator {
       }
     }
     return true
+  }
+
+  // ============================================================================
+  // Mode-Aware Methods (Phase 35 - Ofi Inter)
+  // ============================================================================
+
+  /**
+   * Mode-aware auto-trigger check.
+   * Dispatches to the correct field threshold based on the current session mode.
+   * Plan 02 will wire callers to use this instead of checkAutoTriggers.
+   *
+   * @param intentsVistos - History of intents seen
+   * @param datosCapturados - Customer data captured
+   * @param mode - Current session mode
+   * @returns Intent to auto-trigger, or null if none
+   */
+  checkAutoTriggersForMode(
+    intentsVistos: IntentRecord[],
+    datosCapturados: Record<string, string>,
+    mode: string
+  ): string | null {
+    // Auto-triggers only in collecting modes
+    if (!isCollectingDataMode(mode)) {
+      return null
+    }
+
+    // Only auto-trigger ofrecer_promos if not already seen
+    if (this.hasSeenIntent('ofrecer_promos', intentsVistos)) {
+      return null
+    }
+
+    const fieldCount = this.countFields(datosCapturados)
+
+    if (mode === 'collecting_data_inter') {
+      // Ofi inter: 6 fields threshold (4 critical + 2 additional)
+      if (fieldCount >= MIN_FIELDS_FOR_AUTO_PROMO_INTER) {
+        return 'ofrecer_promos'
+      }
+    } else {
+      // Normal mode: 8 fields threshold (5 critical + 3 additional)
+      if (fieldCount >= MIN_FIELDS_FOR_AUTO_PROMO) {
+        return 'ofrecer_promos'
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Mode-aware timer-based proactive promo check.
+   * Plan 02 will wire callers to use this instead of shouldTriggerTimerPromo.
+   *
+   * @param intentsVistos - History of intents seen
+   * @param datosCapturados - Customer data captured
+   * @param mode - Current session mode
+   * @returns True if timer-based promo should trigger
+   */
+  shouldTriggerTimerPromoForMode(
+    intentsVistos: IntentRecord[],
+    datosCapturados: Record<string, string>,
+    mode: string
+  ): boolean {
+    // Already seen ofrecer_promos
+    if (this.hasSeenIntent('ofrecer_promos', intentsVistos)) {
+      return false
+    }
+
+    if (mode === 'collecting_data_inter') {
+      // Ofi inter: check OFI_INTER_CRITICAL_FIELDS (4 fields, no direccion)
+      for (const field of OFI_INTER_CRITICAL_FIELDS) {
+        const value = datosCapturados[field]
+        if (!value || value.trim() === '' || value === 'N/A') {
+          return false
+        }
+      }
+      return true
+    }
+
+    // Normal mode: check CRITICAL_FIELDS (5 fields)
+    return this.hasCriticalFields(datosCapturados)
   }
 
   /**

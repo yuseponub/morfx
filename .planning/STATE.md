@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 35 of 36 (Flujo Ofi Inter) -- IN PROGRESS
-Plan: 1 of 3 complete (01)
-Status: Plan 01 complete -- ofi inter foundation (dead code, no behavioral changes)
+Plan: 2 of 3 complete (01, 02)
+Status: Plan 02 complete -- ofi inter detection routes wired into agent pipeline
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-25 — Completed 35-01-PLAN.md (ofi inter foundation)
+Last activity: 2026-02-25 — Completed 35-02-PLAN.md (agent pipeline integration)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 90% v4.0
 
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 | 32 | Media Processing | COMPLETE (3/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans, verified 8/8) |
 | 34 | No-Repetition System | COMPLETE (4/4 plans) |
-| 35 | Flujo Ofi Inter | IN PROGRESS (1/3 plans) |
+| 35 | Flujo Ofi Inter | IN PROGRESS (2/3 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 211
+- Total plans completed: 212
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -252,6 +252,14 @@ Phase 35 decisions (Plan 01):
 - New mode-aware methods added alongside existing ones for backward compatibility
 - CONFIRMATORY_MODES includes collecting_data_inter (RESPONDIBLE, not SILENCIOSO)
 
+Phase 35 decisions (Plan 02):
+- Route 1 transitions immediately to collecting_data_inter (direct mention dominates)
+- Route 3 saves city but does NOT change mode (waits for customer answer)
+- Route 2 only fires in collecting_data mode (not collecting_data_inter)
+- Implicit yes always uses normal mode hasCriticalData (ofi inter only via explicit Routes 1-3)
+- IngestResult action union extended with ask_ofi_inter for Route 2
+- checkAutoTriggersForMode replaces checkAutoTriggers in orchestrator for mode-aware auto-trigger
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -273,6 +281,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25 COT
-Stopped at: Completed 35-01-PLAN.md (ofi inter foundation)
+Stopped at: Completed 35-02-PLAN.md (agent pipeline integration)
 Resume file: None
-Next: 35-02-PLAN.md (Agent Pipeline Integration)
+Next: 35-03-PLAN.md (OrderCreator + Prompts + Integration)

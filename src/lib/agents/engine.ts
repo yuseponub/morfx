@@ -44,6 +44,7 @@ import type {
 import { executeToolFromAgent } from '@/lib/tools/executor'
 import type { ToolExecutionResult } from '@/lib/tools/types'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { isCollectingDataMode } from './somnio/constants'
 
 const logger = createModuleLogger('agent-engine')
 
@@ -409,8 +410,8 @@ export class AgentEngine {
       // Dynamic import to avoid circular dependency
       const { inngest } = await import('@/inngest/client')
 
-      // Emit collecting_data.started when transitioning TO collecting_data
-      if (newMode === 'collecting_data' && previousMode !== 'collecting_data') {
+      // Emit collecting_data.started when transitioning TO any collecting mode
+      if (isCollectingDataMode(newMode) && !isCollectingDataMode(previousMode)) {
         await inngest.send({
           name: 'agent/collecting_data.started',
           data: {

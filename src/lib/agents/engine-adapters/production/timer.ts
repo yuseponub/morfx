@@ -19,6 +19,7 @@
 
 import type { TimerAdapter, AgentSessionLike } from '../../engine/types'
 import type { TimerSignal } from '@/lib/sandbox/types'
+import { isCollectingDataMode } from '../../somnio/constants'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('production-timer-adapter')
@@ -112,7 +113,7 @@ export class ProductionTimerAdapter implements TimerAdapter {
     try {
       const { inngest } = await import('@/inngest/client')
 
-      if (newMode === 'collecting_data' && previousMode !== 'collecting_data') {
+      if (isCollectingDataMode(newMode) && !isCollectingDataMode(previousMode)) {
         const durationMs = await this.getDuration(0) // L0: sin datos
         await inngest.send({
           name: 'agent/collecting_data.started',

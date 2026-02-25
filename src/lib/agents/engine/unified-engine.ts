@@ -15,6 +15,7 @@
  */
 
 import { SomnioAgent } from '../somnio/somnio-agent'
+import { isCollectingDataMode } from '../somnio/constants'
 import { VersionConflictError } from '../errors'
 import { composeBlock, type PrioritizedTemplate } from '../somnio/block-composer'
 import { NoRepetitionFilter } from '../somnio/no-repetition-filter'
@@ -140,26 +141,26 @@ export class UnifiedEngine {
         await this.adapters.timer.onIngestCompleted(session.id, 'all_fields')
       }
 
-      // 3. Ingest start → start data collection timer (ONLY for collecting_data mode)
+      // 3. Ingest start → start data collection timer (ONLY for collecting_data modes)
       //    Skip if also cancelling (two-step cancel+start → promos via onModeTransition)
-      //    Skip if mode is NOT collecting_data (e.g., forceIntent ofrecer_promos uses onModeTransition)
+      //    Skip if mode is NOT a collecting mode (e.g., forceIntent ofrecer_promos uses onModeTransition)
       const effectiveMode = newMode || session.current_mode
       if (
         hasIngestStart &&
         !hasIngestCancel &&
-        effectiveMode === 'collecting_data' &&
+        isCollectingDataMode(effectiveMode) &&
         this.adapters.timer.onIngestStarted
       ) {
         const hasPartialData = Object.keys(agentOutput.stateUpdates.newDatosCapturados).length > 0
         await this.adapters.timer.onIngestStarted(session, hasPartialData)
       }
 
-      // 4. Mode transition → only for ofrecer_promos (collecting_data is handled by ingest hooks above)
+      // 4. Mode transition → only for non-collecting modes (collecting_data is handled by ingest hooks above)
       //    This covers both: direct transition to promos AND two-step cancel+start pattern
       if (
         this.adapters.timer.onModeTransition &&
         modeChanged &&
-        newMode !== 'collecting_data'
+        !isCollectingDataMode(newMode)
       ) {
         await this.adapters.timer.onModeTransition(
           session.id,

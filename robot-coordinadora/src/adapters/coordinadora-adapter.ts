@@ -371,57 +371,45 @@ export class CoordinadoraAdapter {
           break
         }
 
-        // Find the next-page button: it's the ">" arrow after the "X-Y de Z" text
-        // Try multiple selectors to be robust against portal changes
-        const nextButton = this.page.locator(
-          'button:has(svg):right-of(:text("de")):nth-match(button, 2), ' +
-          'button[aria-label*="next" i], ' +
-          'button[aria-label*="Next" i], ' +
-          'button[aria-label*="siguiente" i]'
-        ).first()
-
-        // Fallback: find pagination buttons near the "de N" text
+        // Find the next-page button by anchoring to the pagination text "X-Y de Z"
+        // The pagination area has: "1-10 de 534" <button>◀</button> <button>▶</button>
         let foundNext = false
         try {
-          if (await nextButton.isVisible({ timeout: 2000 })) {
-            const isDisabled = await nextButton.isDisabled()
+          // Locate the pagination text (e.g. "1-10 de 534")
+          const paginationText = this.page.locator('text=/\\d+.*de\\s+\\d+/').first()
+          // Go up to the parent container and find buttons within it
+          const paginationContainer = paginationText.locator('..').first()
+          const paginationButtons = paginationContainer.locator('button')
+          const buttonCount = await paginationButtons.count()
+
+          console.log(`${LOG_PREFIX} Pagination: found ${buttonCount} buttons in pagination area`)
+
+          if (buttonCount >= 2) {
+            // The last button in the pagination area is ">" (next page)
+            const nextBtn = paginationButtons.nth(buttonCount - 1)
+            const isDisabled = await nextBtn.isDisabled().catch(() => true)
             if (!isDisabled) {
-              await nextButton.click()
+              // Read current pagination text to verify page actually changes
+              const beforeText = await paginationText.textContent()
+              await nextBtn.click()
               await this.page.waitForTimeout(2000)
-              foundNext = true
-            }
-          }
-        } catch {
-          // Selector didn't match, try fallback
-        }
-
-        // Fallback: find the last enabled button in the pagination area
-        if (!foundNext) {
-          try {
-            // The pagination shows: < [disabled on page 1] and > [enabled]
-            // On the last page: < [enabled] and > [disabled]
-            // Find the container with "de" text and grab the second button (>)
-            const paginationButtons = this.page.locator('button:has(svg)').filter({
-              has: this.page.locator('svg'),
-            })
-            const count = await paginationButtons.count()
-            // The last two buttons in the page are typically < and >
-            if (count >= 2) {
-              const lastButton = paginationButtons.nth(count - 1)
-              const isDisabled = await lastButton.isDisabled().catch(() => true)
-              if (!isDisabled) {
-                await lastButton.click()
-                await this.page.waitForTimeout(2000)
+              const afterText = await paginationText.textContent()
+              if (afterText !== beforeText) {
                 foundNext = true
+                console.log(`${LOG_PREFIX} Navigated: ${beforeText} -> ${afterText}`)
+              } else {
+                console.log(`${LOG_PREFIX} Click did not change page (${beforeText})`)
               }
+            } else {
+              console.log(`${LOG_PREFIX} Next button is disabled (last page)`)
             }
-          } catch {
-            // Give up on pagination
           }
+        } catch (err) {
+          console.log(`${LOG_PREFIX} Pagination navigation failed: ${err}`)
         }
 
         if (!foundNext) {
-          console.log(`${LOG_PREFIX} No more pages (could not find or click next button)`)
+          console.log(`${LOG_PREFIX} No more pages`)
           break
         }
       }

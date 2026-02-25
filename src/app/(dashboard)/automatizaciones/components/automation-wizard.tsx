@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { createAutomation, updateAutomation } from '@/app/actions/automations'
 import type { AutomationFormData, TriggerType } from '@/lib/automations/types'
-import type { PipelineWithStages } from '@/lib/orders/types'
+import type { PipelineWithStages, Product } from '@/lib/orders/types'
 import type { Tag } from '@/lib/types/database'
 import type { Template } from '@/lib/whatsapp/types'
 import { TriggerStep } from './trigger-step'
@@ -26,6 +26,7 @@ export interface WizardProps {
   pipelines: PipelineWithStages[]
   tags: Tag[]
   templates?: Template[]
+  products?: Product[]
 }
 
 const defaultFormData: AutomationFormData = {
@@ -47,7 +48,7 @@ const STEPS = [
 // Component
 // ============================================================================
 
-export function AutomationWizard({ initialData, pipelines, tags, templates = [] }: WizardProps) {
+export function AutomationWizard({ initialData, pipelines, tags, templates = [], products = [] }: WizardProps) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<AutomationFormData>(
@@ -214,6 +215,7 @@ export function AutomationWizard({ initialData, pipelines, tags, templates = [] 
             tags={tags}
             templates={templates}
             triggerType={formData.trigger_type}
+            products={products}
           />
         )}
       </div>

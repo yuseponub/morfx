@@ -5,6 +5,7 @@ import { getAutomation } from '@/app/actions/automations'
 import { getPipelines } from '@/app/actions/pipelines'
 import { getTags } from '@/app/actions/tags'
 import { getTemplates } from '@/app/actions/templates'
+import { getActiveProducts } from '@/app/actions/products'
 import type { AutomationFormData } from '@/lib/automations/types'
 
 interface EditPageProps {
@@ -24,11 +25,12 @@ export default async function EditarAutomatizacionPage({ params }: EditPageProps
     )
   }
 
-  const [automation, pipelines, tags, templates] = await Promise.all([
+  const [automation, pipelines, tags, templates, products] = await Promise.all([
     getAutomation(id),
     getPipelines(),
     getTags(),
     getTemplates(),
+    getActiveProducts(),
   ])
 
   const approvedTemplates = templates.filter(t => t.status === 'APPROVED')
@@ -60,6 +62,7 @@ export default async function EditarAutomatizacionPage({ params }: EditPageProps
         pipelines={pipelines}
         tags={tags}
         templates={approvedTemplates}
+        products={products}
       />
     </div></div>
   )

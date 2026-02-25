@@ -8,7 +8,7 @@ import type {
   DelayConfig,
   TriggerType,
 } from '@/lib/automations/types'
-import type { PipelineWithStages } from '@/lib/orders/types'
+import type { PipelineWithStages, Product } from '@/lib/orders/types'
 import type { Tag } from '@/lib/types/database'
 import type { Template } from '@/lib/whatsapp/types'
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,6 +62,7 @@ interface ActionsStepProps {
   tags: Tag[]
   templates?: Template[]
   triggerType: TriggerType
+  products?: Product[]
 }
 
 type CatalogAction = (typeof ACTION_CATALOG)[number]
@@ -981,6 +982,7 @@ function ActionCard({
   templates,
   triggerType,
   twilioWarning,
+  products,
 }: {
   action: AutomationAction
   index: number
@@ -994,6 +996,7 @@ function ActionCard({
   templates: Template[]
   triggerType: TriggerType
   twilioWarning: boolean
+  products: Product[]
 }) {
   const catalogEntry = ACTION_CATALOG.find((a) => a.type === action.type)
   if (!catalogEntry) return null
@@ -1256,7 +1259,7 @@ function ActionSelector({
 // Main Component
 // ============================================================================
 
-export function ActionsStep({ formData, onChange, pipelines, tags, templates = [], triggerType }: ActionsStepProps) {
+export function ActionsStep({ formData, onChange, pipelines, tags, templates = [], triggerType, products = [] }: ActionsStepProps) {
   const actions = formData.actions
   const atLimit = actions.length >= MAX_ACTIONS_PER_AUTOMATION
   const [twilioWarning, setTwilioWarning] = useState(false)
@@ -1345,6 +1348,7 @@ export function ActionsStep({ formData, onChange, pipelines, tags, templates = [
               templates={templates}
               triggerType={triggerType}
               twilioWarning={twilioWarning}
+              products={products}
             />
           ))}
 

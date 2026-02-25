@@ -59,6 +59,8 @@ export function TemplateForm() {
   const [variableMapping, setVariableMapping] = useState<
     Record<string, string>
   >({})
+  const [bodyExamples, setBodyExamples] = useState<Record<string, string>>({})
+  const [headerExamples, setHeaderExamples] = useState<Record<string, string>>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,11 +71,29 @@ export function TemplateForm() {
       const components: TemplateComponent[] = []
 
       if (headerText.trim()) {
-        components.push({ type: 'HEADER', format: 'TEXT', text: headerText })
+        const headerVarNums = [...new Set(
+          (headerText.match(/\{\{(\d+)\}\}/g) || []).map(v => v.replace(/[{}]/g, ''))
+        )]
+        const headerComponent: TemplateComponent = { type: 'HEADER', format: 'TEXT', text: headerText }
+        if (headerVarNums.length > 0) {
+          headerComponent.example = {
+            header_text: headerVarNums.map(num => headerExamples[num] || `ejemplo_${num}`)
+          }
+        }
+        components.push(headerComponent)
       }
 
       if (bodyText.trim()) {
-        components.push({ type: 'BODY', text: bodyText })
+        const bodyVarNums = [...new Set(
+          (bodyText.match(/\{\{(\d+)\}\}/g) || []).map(v => v.replace(/[{}]/g, ''))
+        )]
+        const bodyComponent: TemplateComponent = { type: 'BODY', text: bodyText }
+        if (bodyVarNums.length > 0) {
+          bodyComponent.example = {
+            body_text: [bodyVarNums.map(num => bodyExamples[num] || `ejemplo_${num}`)]
+          }
+        }
+        components.push(bodyComponent)
       } else {
         toast.error('El cuerpo del mensaje es requerido')
         setLoading(false)
@@ -238,6 +258,64 @@ export function TemplateForm() {
           </CardContent>
         </Card>
       )}
+
+      {(() => {
+        const bVars = [...new Set((bodyText.match(/\{\{(\d+)\}\}/g) || []).map(v => v.replace(/[{}]/g, '')))]
+        const hVars = [...new Set((headerText.match(/\{\{(\d+)\}\}/g) || []).map(v => v.replace(/[{}]/g, '')))]
+        if (bVars.length === 0 && hVars.length === 0) return null
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Valores de Ejemplo</CardTitle>
+              <CardDescription>
+                Meta requiere ejemplos para aprobar el template. Escribe un valor
+                realista para cada variable. Solo se usan para la revision de Meta,
+                no se envian a los clientes.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {hVars.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Encabezado</p>
+                  {hVars.map(num => (
+                    <div key={`h-${num}`} className="flex items-center gap-3">
+                      <span className="text-sm font-mono bg-muted px-2 py-1 rounded min-w-[60px] text-center">
+                        {`{{${num}}}`}
+                      </span>
+                      <Input
+                        placeholder={`Ej: valor para {{${num}}}`}
+                        value={headerExamples[num] || ''}
+                        onChange={(e) => setHeaderExamples({ ...headerExamples, [num]: e.target.value })}
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {bVars.length > 0 && (
+                <div className="space-y-2">
+                  {hVars.length > 0 && (
+                    <p className="text-xs font-medium text-muted-foreground uppercase">Cuerpo</p>
+                  )}
+                  {bVars.map(num => (
+                    <div key={`b-${num}`} className="flex items-center gap-3">
+                      <span className="text-sm font-mono bg-muted px-2 py-1 rounded min-w-[60px] text-center">
+                        {`{{${num}}}`}
+                      </span>
+                      <Input
+                        placeholder={`Ej: valor para {{${num}}}`}
+                        value={bodyExamples[num] || ''}
+                        onChange={(e) => setBodyExamples({ ...bodyExamples, [num]: e.target.value })}
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       <Card className="border-yellow-200 bg-yellow-50">
         <CardContent className="pt-6">

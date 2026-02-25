@@ -45,7 +45,7 @@ export interface ContactData {
   nombre: string
   apellido?: string
   telefono: string
-  direccion: string
+  direccion?: string
   ciudad: string
   departamento: string
   barrio?: string
@@ -116,7 +116,8 @@ export class OrderCreator {
     data: ContactData,
     pack: PackSelection,
     sessionId: string,
-    priceOverride?: number
+    priceOverride?: number,
+    ofiInterOptions?: { isOfiInter: boolean; cedulaRecoge?: string }
   ): Promise<OrderCreationResult> {
     // Ensure tool registry is initialized (may not be in Inngest/serverless context)
     initializeTools()
@@ -131,6 +132,7 @@ export class OrderCreator {
         ciudad: data.ciudad,
         sessionId,
         timerTriggered: priceOverride !== undefined,
+        isOfiInter: ofiInterOptions?.isOfiInter ?? false,
       },
       'Starting contact and order creation'
     )
@@ -149,14 +151,27 @@ export class OrderCreator {
         }
       }
 
-      // Step 2: Create order
+      // Step 2: Build shipping address and notes based on ofi inter mode
+      const isOfiInter = ofiInterOptions?.isOfiInter ?? false
+      const shippingAddress = isOfiInter
+        ? `OFICINA INTER - ${data.ciudad}, ${data.departamento}`
+        : this.buildShippingAddress(data)
+
+      const ofiInterNotes = isOfiInter
+        ? `OFI INTER | Cedula recoge: ${ofiInterOptions?.cedulaRecoge || 'No proporcionada'}`
+        : undefined
+      const notes = ofiInterNotes
+        ? (data.indicaciones_extra ? `${ofiInterNotes} | ${data.indicaciones_extra}` : ofiInterNotes)
+        : data.indicaciones_extra
+
+      // Step 3: Create order
       const { orderId } = await this.createOrder(
         {
           contactId,
           pack,
           price: effectivePrice,
-          shippingAddress: this.buildShippingAddress(data),
-          notes: data.indicaciones_extra,
+          shippingAddress,
+          notes,
         },
         sessionId
       )

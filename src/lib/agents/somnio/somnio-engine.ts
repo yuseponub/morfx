@@ -29,6 +29,7 @@ import { MessageSequencer, type MessageSequence, type MessageToSend } from './me
 import { OrderCreator, type ContactData, type OrderCreationResult } from './order-creator'
 import { somnioAgentConfig } from './config'
 import { mergeExtractedData, hasCriticalData } from './data-extractor'
+import { isCollectingDataMode } from './constants'
 import { IngestManager, type IngestState, type IngestResult } from './ingest-manager'
 import { MessageClassifier } from './message-classifier'
 import { createModuleLogger } from '@/lib/audit/logger'
@@ -156,7 +157,7 @@ export class SomnioEngine {
 
       // 3. Check for "implicit yes" - datos sent outside collecting_data
       const currentMode = session.current_mode
-      if (currentMode !== 'collecting_data') {
+      if (!isCollectingDataMode(currentMode)) {
         const implicitYesResult = await this.checkImplicitYes(
           input.messageContent,
           session,
@@ -169,7 +170,7 @@ export class SomnioEngine {
       }
 
       // 4. Handle ingest mode (collecting_data with silent accumulation)
-      if (currentMode === 'collecting_data') {
+      if (isCollectingDataMode(currentMode)) {
         const ingestResult = await this.handleIngestMode(
           input.messageContent,
           session,
@@ -273,9 +274,12 @@ export class SomnioEngine {
         const datosCapturados = updatedState.datos_capturados
         const packSeleccionado = updatedState.pack_seleccionado
 
-        if (packSeleccionado && this.hasRequiredContactData(datosCapturados)) {
+        const isOfiInter = session.current_mode === 'collecting_data_inter' ||
+          orchestratorResult.nextMode === 'collecting_data_inter'
+
+        if (packSeleccionado && this.hasRequiredContactData(datosCapturados, isOfiInter)) {
           logger.info(
-            { pack: packSeleccionado, sessionId: session.id },
+            { pack: packSeleccionado, sessionId: session.id, isOfiInter },
             'Creating order via OrderCreator'
           )
 
@@ -295,7 +299,9 @@ export class SomnioEngine {
           orderResult = await this.orderCreator.createContactAndOrder(
             contactData,
             packSeleccionado,
-            session.id
+            session.id,
+            undefined,
+            isOfiInter ? { isOfiInter: true, cedulaRecoge: datosCapturados.cedula_recoge } : undefined
           )
 
           if (orderResult.success) {
@@ -500,9 +506,12 @@ export class SomnioEngine {
 
   /**
    * Check if captured data has required fields for order creation.
+   * Mode-aware: ofi inter orders don't require direccion.
    */
-  private hasRequiredContactData(data: Record<string, string>): boolean {
-    const required = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
+  private hasRequiredContactData(data: Record<string, string>, isOfiInter?: boolean): boolean {
+    const required = isOfiInter
+      ? ['nombre', 'telefono', 'ciudad', 'departamento']
+      : ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
     return required.every((field) => {
       const value = data[field]
       return value && value.trim().length > 0 && value !== 'N/A'

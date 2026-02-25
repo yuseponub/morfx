@@ -106,6 +106,7 @@ ADICIONALES:
 7. barrio - Barrio de entrega (si lo proporciona)
 8. correo - Email del cliente (si lo proporciona, o "N/A" si dice que no tiene)
 9. indicaciones_extra - Referencias, apto, edificio, instrucciones de entrega
+10. cedula_recoge - Cedula de quien recoge en oficina (solo para envios ofi inter, puede ser de otra persona)
 
 ## Instrucciones
 
@@ -114,6 +115,7 @@ ADICIONALES:
 3. Si el cliente dice que NO tiene algo (ej: "no tengo correo"), marca ese campo como "N/A"
 4. Solo incluye campos que realmente esten en el mensaje
 5. No inventes datos que no esten explicitamente mencionados
+6. Si el cliente menciona una cedula o documento de identidad en el contexto de recogida en oficina, extraerla como cedula_recoge
 
 ## Formato de Respuesta
 
@@ -158,6 +160,17 @@ Respuesta:
   "confidence": {
     "telefono": 98,
     "correo": 95
+  }
+}
+
+Mensaje: "mi cedula es 1234567890"
+Respuesta:
+{
+  "extracted": {
+    "cedula_recoge": "1234567890"
+  },
+  "confidence": {
+    "cedula_recoge": 90
   }
 }
 

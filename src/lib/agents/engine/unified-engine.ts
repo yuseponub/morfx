@@ -194,6 +194,12 @@ export class UnifiedEngine {
       if (agentOutput.shouldCreateOrder && agentOutput.orderData) {
         const orderMode = this.config.crmModes?.find(m => m.agentId === 'order-manager')?.mode
         console.log(`[ENGINE-ORDER] Creating order... orderMode=${orderMode} datosCapturados=${JSON.stringify(agentOutput.orderData.datosCapturados)}`)
+
+        // Determine ofi inter status from session mode or state updates
+        const isOfiInter = agentOutput.stateUpdates.newMode === 'collecting_data_inter' ||
+          session.current_mode === 'collecting_data_inter'
+        const cedulaRecoge = agentOutput.stateUpdates.newDatosCapturados?.cedula_recoge
+
         orderResult = await this.adapters.orders.createOrder(
           {
             datosCapturados: agentOutput.orderData.datosCapturados,
@@ -201,6 +207,8 @@ export class UnifiedEngine {
             workspaceId: this.config.workspaceId,
             sessionId: session.id,
             valorOverride: agentOutput.orderData.valorOverride,
+            isOfiInter,
+            cedulaRecoge,
           },
           orderMode
         )

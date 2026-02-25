@@ -10,6 +10,7 @@
 
 import type { OrdersAdapter } from '../../engine/types'
 import { OrderCreator, type ContactData } from '../../somnio/order-creator'
+import { isCollectingDataMode } from '../../somnio/constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { initializeTools } from '@/lib/tools/init'
@@ -39,6 +40,8 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
       workspaceId: string
       sessionId: string
       valorOverride?: number
+      isOfiInter?: boolean
+      cedulaRecoge?: string
     },
     _mode?: 'dry-run' | 'live'
   ): Promise<{
@@ -65,8 +68,10 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
       }
     }
 
-    if (!this.hasRequiredContactData(data.datosCapturados)) {
-      const required = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
+    if (!this.hasRequiredContactData(data.datosCapturados, data.isOfiInter)) {
+      const required = data.isOfiInter
+        ? ['nombre', 'telefono', 'ciudad', 'departamento']
+        : ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
       const missing = required.filter((f) => {
         const v = data.datosCapturados[f]
         return !v || v.trim().length === 0 || v === 'N/A'
@@ -118,8 +123,15 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
       const product = this.orderCreator.mapPackToProduct(effectivePack)
       const effectivePrice = isTimerOrder ? (data.valorOverride ?? 0) : product.price
 
-      // Build shipping address
-      const shippingAddress = this.buildShippingAddress(contactData)
+      // Build shipping address (ofi inter uses special format)
+      const shippingAddress = data.isOfiInter
+        ? `OFICINA INTER - ${contactData.ciudad}, ${contactData.departamento}`
+        : this.buildShippingAddress(contactData)
+
+      // Build description (ofi inter stores cedula and flag)
+      const ofiInterDescription = data.isOfiInter
+        ? `OFI INTER | Cedula recoge: ${data.cedulaRecoge || 'No proporcionada'}`
+        : undefined
 
       // Get default pipeline for workspace
       const supabase = createAdminClient()
@@ -175,7 +187,9 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
         shippingAddress,
         shippingCity: contactData.ciudad || null,
         shippingDepartment: contactData.departamento || null,
-        description: contactData.indicaciones_extra,
+        description: ofiInterDescription
+          ? (contactData.indicaciones_extra ? `${ofiInterDescription} | ${contactData.indicaciones_extra}` : ofiInterDescription)
+          : contactData.indicaciones_extra,
         products: [
           {
             sku: product.productName.substring(0, 50).toUpperCase().replace(/\s+/g, '-'),
@@ -269,9 +283,12 @@ export class ProductionOrdersAdapter implements OrdersAdapter {
 
   /**
    * Check if captured data has required fields for order creation.
+   * Mode-aware: ofi inter orders don't require direccion.
    */
-  private hasRequiredContactData(data: Record<string, string>): boolean {
-    const required = ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
+  private hasRequiredContactData(data: Record<string, string>, isOfiInter?: boolean): boolean {
+    const required = isOfiInter
+      ? ['nombre', 'telefono', 'ciudad', 'departamento']
+      : ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
     return required.every((field) => {
       const value = data[field]
       return value && value.trim().length > 0 && value !== 'N/A'

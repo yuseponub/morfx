@@ -335,6 +335,10 @@ export interface OrdersAdapter {
       sessionId: string
       /** Price override for timer-triggered orders (valor 0) */
       valorOverride?: number
+      /** Whether this is an ofi inter (office pickup) order. Phase 35. */
+      isOfiInter?: boolean
+      /** Cedula of person who will pick up at office. Phase 35. */
+      cedulaRecoge?: string
     },
     mode?: 'dry-run' | 'live'
   ): Promise<{

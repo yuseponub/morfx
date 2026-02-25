@@ -371,6 +371,69 @@ async function executeUpdateField(
 }
 
 /**
+ * Resolve conditional product mapping to a CRM catalog product.
+ *
+ * Uses numeric normalization for matching: parseFloat("109994.80") === parseFloat("109994.8").
+ * Falls back to string comparison when values are not numeric.
+ *
+ * @returns Array with single matched product (CRM catalog price), or empty array if no match.
+ */
+async function resolveConditionalProducts(
+  config: {
+    source: string
+    mappings: Array<{ when: string; productId: string; quantity?: number }>
+    defaultProductId?: string | null
+    defaultQuantity?: number
+  },
+  workspaceId: string
+): Promise<Array<{ productId: string; sku: string; title: string; unitPrice: number; quantity: number }>> {
+  // Find matching mapping using numeric normalization
+  const match = config.mappings.find(m => {
+    const sourceNum = parseFloat(config.source)
+    const whenNum = parseFloat(m.when)
+    // If both are valid numbers, compare numerically (handles "109994.80" vs "109994.8")
+    if (!isNaN(sourceNum) && !isNaN(whenNum)) {
+      return sourceNum === whenNum
+    }
+    // Fallback: string comparison
+    return String(config.source) === String(m.when)
+  })
+
+  // Determine productId: matched mapping takes precedence, then defaultProductId
+  const productId = match?.productId ?? config.defaultProductId
+  if (!productId) return []
+
+  // Determine quantity
+  const quantity = match?.quantity ?? config.defaultQuantity ?? 1
+
+  // Fetch product from CRM catalog
+  const supabase = createAdminClient()
+  const { data: product, error } = await supabase
+    .from('products')
+    .select('id, sku, title, price')
+    .eq('id', productId)
+    .eq('workspace_id', workspaceId)
+    .eq('is_active', true)
+    .single()
+
+  if (error || !product) {
+    console.warn(
+      `[action-executor] resolveConditionalProducts: product ${productId} not found in workspace ${workspaceId}`,
+      error?.message
+    )
+    return []
+  }
+
+  return [{
+    productId: product.id,
+    sku: product.sku,
+    title: product.title,
+    unitPrice: Number(product.price),
+    quantity,
+  }]
+}
+
+/**
  * Create a new order in a pipeline.
  * Delegates to domain/orders.createOrder.
  */
@@ -387,16 +450,34 @@ async function executeCreateOrder(
   if (!pipelineId) throw new Error('pipelineId is required for create_order')
   if (!contactId) throw new Error('No contactId available in trigger context')
 
-  // Copy products from trigger context only when copyProducts toggle is enabled
-  // Use discounted_price (post-discount) when available, fallback to price (pre-discount)
-  const products = params.copyProducts && Array.isArray(context.products)
-    ? (context.products as Array<{ sku: string; title: string; quantity: number; price: string; discounted_price?: string }>).map(p => ({
-        sku: p.sku || '',
-        title: p.title,
-        unitPrice: parseFloat(p.discounted_price || p.price) || 0,
-        quantity: p.quantity,
-      }))
-    : undefined
+  // Product resolution: 3 mutually exclusive modes
+  // Mode 3 (productMappings) > Mode 2 (copyProducts) > Mode 1 (no products)
+  let products: Array<{ productId?: string | null; sku: string; title: string; unitPrice: number; quantity: number }> | undefined
+
+  if (params.productMappings && typeof params.productMappings === 'object') {
+    // Mode 3: Conditional product mapping (takes precedence)
+    products = await resolveConditionalProducts(
+      params.productMappings as {
+        source: string
+        mappings: Array<{ when: string; productId: string; quantity?: number }>
+        defaultProductId?: string | null
+        defaultQuantity?: number
+      },
+      workspaceId
+    )
+    // Empty array means no match — treat as undefined for domain layer
+    if (products.length === 0) products = undefined
+  } else if (params.copyProducts && Array.isArray(context.products)) {
+    // Mode 2: Copy from trigger (existing behavior)
+    // Use discounted_price (post-discount) when available, fallback to price (pre-discount)
+    products = (context.products as Array<{ sku: string; title: string; quantity: number; price: string; discounted_price?: string }>).map(p => ({
+      sku: p.sku || '',
+      title: p.title,
+      unitPrice: parseFloat(p.discounted_price || p.price) || 0,
+      quantity: p.quantity,
+    }))
+  }
+  // Mode 1: No products (products remains undefined)
 
   // Use explicit params if provided, fallback to trigger context
   const description = params.description

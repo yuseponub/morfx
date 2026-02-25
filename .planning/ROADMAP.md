@@ -284,7 +284,7 @@ Plans:
 - [x] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [x] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
 - [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
-- [ ] **Phase 36: Documentacion del Agente** - Documentar arquitectura, proceso de creacion y patrones de Somnio para replicar en futuros agentes
+- [ ] **Phase 36: Shopify Product Conditional Assignment** - Conditional mapping from Shopify order data to CRM catalog products in create_order automation action
 
 ---
 
@@ -467,23 +467,28 @@ Plans:
 
 ---
 
-### Phase 36: Documentacion del Agente
+### Phase 36: Shopify Product Conditional Assignment
 
-**Goal:** Documentar completamente como se construyo Somnio -- arquitectura, decisiones, patrones, intents, templates, engine, adapters -- para que crear un nuevo agente en el futuro sea un proceso guiado en vez de desde cero.
+**Goal:** Add a conditional product mapping mode to the "Create Order" automation action, so Shopify orders map to CRM catalog products with CRM prices instead of copying raw Shopify line items.
 
-**Dependencies:** None (runs in parallel with Phases 29-35, can start immediately)
+**Dependencies:** None (action executor and automation builder already exist)
 
-**Requirements:** DOC-01
+**Requirements:** From 36-CONTEXT.md (user-defined)
 
-**Risk:** LOW (documentation only, no code changes)
+**Risk:** MEDIUM (touches action executor which is production-critical, and automation builder UI)
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 36-01-PLAN.md — Backend: resolveConditionalProducts helper + 3-mode executeCreateOrder + ACTION_CATALOG update
+- [ ] 36-02-PLAN.md — Frontend: products data threading + ProductMappingEditor UI in automation wizard
 
 **Success Criteria:**
-1. Existe un documento que describe la arquitectura completa de Somnio: UnifiedEngine, adapters, tool registry, session state, intent detection, template selection, ingest system
-2. El proceso de creacion de un agente nuevo esta documentado paso a paso: que archivos crear, que configurar, como registrar intents/templates, como conectar al WhatsApp pipeline
-3. Las decisiones clave estan documentadas con el "por que" (no solo el "que"): por que plantillas y no IA generativa, por que ports/adapters, por que clasificacion post-intent
-4. Un desarrollador (humano o agente IA) puede seguir la documentacion para crear un agente CRM basico sin leer el codigo de Somnio
+1. The "Create Order" action has a new product assignment mode: "Conditional Product Mapping"
+2. Users can select a variable source (e.g., shopify.total) and define conditional rules mapping values to CRM catalog products
+3. When conditions match, the CRM order gets the CRM product at CRM catalog price (not Shopify price)
+4. Architecture supports N products per order and configurable quantity in the future (starts with 1 product, qty 1)
+5. Existing copyProducts and no-products modes continue working unchanged
 
 ---
 
@@ -538,4 +543,4 @@ Next: Execute `/gsd:execute-phase 35`
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-04 (Phase 35 planned: 3 plans in 3 waves)*
+*Last updated: 2026-03-04 (Phase 36 planned: 2 plans in 2 waves)*

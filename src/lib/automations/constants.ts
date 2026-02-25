@@ -261,6 +261,7 @@ export const ACTION_CATALOG = [
       { name: 'carrier', label: 'Transportadora', type: 'text', required: false, supportsVariables: true, optional: true },
       { name: 'trackingNumber', label: 'Numero de guia', type: 'text', required: false, supportsVariables: true, optional: true },
       { name: 'copyProducts', label: 'Copiar productos del trigger', type: 'boolean', required: false, optional: true },
+      { name: 'productMappings', label: 'Asignar producto por condicion', type: 'product_mapping', required: false, optional: true },
       { name: 'copyTags', label: 'Copiar tags del trigger', type: 'boolean', required: false, optional: true },
     ],
   },

@@ -333,9 +333,10 @@ export class CoordinadoraAdapter {
   // ---------------------------------------------------------------------------
 
   /**
-   * Navigate to the Coordinadora pedidos page and read the pedido->guide table.
+   * Navigate to the Coordinadora pedidos page and look up guides.
+   * Uses the portal's search bar ("Numero de pedido") to find each pedido
+   * individually, then reads the guide number from the result row.
    * Returns a Map of pedidoNumber -> guideNumber.
-   * Sets rows-per-page to max (100) and paginates through all pages.
    */
   async buscarGuiasPorPedidos(pedidoNumbers: string[]): Promise<Map<string, string>> {
     if (!this.page) {
@@ -345,7 +346,6 @@ export class CoordinadoraAdapter {
     console.log(`${LOG_PREFIX} Looking up guides for ${pedidoNumbers.length} pedidos`)
 
     const guiaMap = new Map<string, string>()
-    const targetPedidos = new Set(pedidoNumbers.map(p => p.trim()))
 
     try {
       // Navigate to the pedidos list page
@@ -354,107 +354,79 @@ export class CoordinadoraAdapter {
         timeout: 30000,
       })
 
-      // Wait for MuiDataGrid to render
-      await this.page.waitForSelector('.MuiDataGrid-root', {
-        state: 'visible',
-        timeout: 15000,
-      })
+      // Wait for table to render
+      await this.page.waitForTimeout(3000)
 
-      await this.page.waitForTimeout(2000)
-
-      // Set rows per page to maximum (100) to minimize pagination
-      try {
-        const rowsPerPageSelect = this.page.locator('.MuiTablePagination-select, [aria-label="Rows per page"]').first()
-        if (await rowsPerPageSelect.isVisible({ timeout: 3000 })) {
-          await rowsPerPageSelect.click()
-          await this.page.waitForTimeout(500)
-
-          // Pick the largest option available (usually 100)
-          const options = this.page.locator('.MuiMenuItem-root, [role="option"]')
-          const optionCount = await options.count()
-          if (optionCount > 0) {
-            // Click the last option (largest number)
-            await options.nth(optionCount - 1).click()
-            await this.page.waitForTimeout(2000) // Wait for table reload
-            console.log(`${LOG_PREFIX} Set rows per page to max`)
+      // Search each pedido individually using the search bar
+      for (const pedidoNumber of pedidoNumbers) {
+        try {
+          const guia = await this.searchPedidoForGuide(pedidoNumber)
+          if (guia) {
+            guiaMap.set(pedidoNumber, guia)
+            console.log(`${LOG_PREFIX} Found guide: pedido ${pedidoNumber} -> guia ${guia}`)
+          } else {
+            console.log(`${LOG_PREFIX} No guide for pedido ${pedidoNumber}`)
           }
+        } catch (err) {
+          console.error(`${LOG_PREFIX} Error searching pedido ${pedidoNumber}:`, err)
+          await this.takeScreenshot(`buscar-guia-error-${pedidoNumber}`)
         }
-      } catch (err) {
-        console.log(`${LOG_PREFIX} Could not change rows per page, continuing with default`)
-      }
-
-      // Paginate through all pages reading rows
-      const MAX_PAGES = 20 // Safety limit
-      for (let pageNum = 0; pageNum < MAX_PAGES; pageNum++) {
-        // Read rows from current page
-        const rowsFound = await this.readGuideRowsFromCurrentPage(targetPedidos, guiaMap)
-        console.log(`${LOG_PREFIX} Page ${pageNum + 1}: read ${rowsFound} rows, found ${guiaMap.size}/${pedidoNumbers.length} guides so far`)
-
-        // Stop if we found all pedidos
-        if (guiaMap.size >= targetPedidos.size) {
-          console.log(`${LOG_PREFIX} All pedidos found, stopping pagination`)
-          break
-        }
-
-        // Try to go to next page
-        const nextButton = this.page.locator('[aria-label="Go to next page"], button[title="Go to next page"]').first()
-        const isNextDisabled = await nextButton.isDisabled().catch(() => true)
-
-        if (isNextDisabled) {
-          console.log(`${LOG_PREFIX} No more pages`)
-          break
-        }
-
-        await nextButton.click()
-        await this.page.waitForTimeout(2000) // Wait for page load
-      }
-
-      // Take diagnostic screenshot if some pedidos were not found
-      if (guiaMap.size < targetPedidos.size) {
-        const missing = [...targetPedidos].filter(p => !guiaMap.has(p))
-        console.log(`${LOG_PREFIX} Missing pedidos: ${missing.join(', ')}`)
-        await this.takeScreenshot('buscar-guias-missing')
       }
 
       console.log(`${LOG_PREFIX} Found guides for ${guiaMap.size}/${pedidoNumbers.length} pedidos`)
       return guiaMap
     } catch (err) {
-      console.error(`${LOG_PREFIX} Error reading pedidos table:`, err)
+      console.error(`${LOG_PREFIX} Error in guide lookup:`, err)
       await this.takeScreenshot('buscar-guias-error')
       throw err
     }
   }
 
   /**
-   * Read guide data from the currently visible MuiDataGrid page.
-   * Populates guiaMap with any matching pedido->guide pairs found.
-   * Returns the number of rows read.
+   * Search for a specific pedido using the portal's search bar and read its guide.
+   * The portal has a search input with placeholder "Escriba y presione enter para buscar"
+   * and a dropdown defaulting to "Numero de pedido".
+   * Returns the guide number if found, null otherwise.
    */
-  private async readGuideRowsFromCurrentPage(
-    targetPedidos: Set<string>,
-    guiaMap: Map<string, string>
-  ): Promise<number> {
-    if (!this.page) return 0
+  private async searchPedidoForGuide(pedidoNumber: string): Promise<string | null> {
+    if (!this.page) return null
 
-    const rows = await this.page.locator('.MuiDataGrid-row, [role="row"]').all()
+    // Find the search input
+    const searchInput = this.page.locator('input[placeholder*="Escriba"], input[placeholder*="buscar"]').first()
+    await searchInput.waitFor({ state: 'visible', timeout: 5000 })
+
+    // Clear and type the pedido number, then press Enter
+    await searchInput.click()
+    await searchInput.fill('')
+    await searchInput.fill(pedidoNumber)
+    await this.page.keyboard.press('Enter')
+
+    // Wait for table to reload with search results
+    await this.page.waitForTimeout(2000)
+
+    // Read the first result row
+    const rows = await this.page.locator('table tbody tr, .MuiDataGrid-row, [role="row"]:not([role="row"]:first-child)').all()
 
     for (const row of rows) {
-      const cells = await row.locator('.MuiDataGrid-cell, [role="cell"]').all()
+      const cells = await row.locator('td, .MuiDataGrid-cell, [role="cell"]').all()
       if (cells.length < 2) continue
 
-      // Column 0 = pedido number, Column 1 = guide number
       const pedidoText = (await cells[0].textContent())?.trim() || ''
       const guiaText = (await cells[1].textContent())?.trim() || ''
 
-      if (!pedidoText) continue
-
-      if (targetPedidos.has(pedidoText) && guiaText && guiaText !== '-' && guiaText !== 'N/A') {
-        guiaMap.set(pedidoText, guiaText)
-        console.log(`${LOG_PREFIX} Found guide: pedido ${pedidoText} -> guia ${guiaText}`)
+      // Verify the result matches our search
+      if (pedidoText === pedidoNumber && guiaText && guiaText !== '-' && guiaText !== 'N/A' && guiaText !== '') {
+        return guiaText
       }
     }
 
-    return rows.length
+    // Clear search to reset for next query
+    await searchInput.click()
+    await searchInput.fill('')
+    await this.page.keyboard.press('Enter')
+    await this.page.waitForTimeout(1000)
+
+    return null
   }
 
   // ---------------------------------------------------------------------------

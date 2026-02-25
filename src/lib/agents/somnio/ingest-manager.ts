@@ -28,7 +28,7 @@
 
 import { MessageClassifier } from './message-classifier'
 import type { MessageClassification, ClassificationResult } from './message-classifier'
-import { DataExtractor, hasCriticalData, mergeExtractedData } from './data-extractor'
+import { DataExtractor, hasCriticalData, isDataComplete, mergeExtractedData } from './data-extractor'
 import type { ExtractedData, ExtractionResult } from './data-extractor'
 import type { ClaudeMessage } from '@/lib/agents/types'
 import { createModuleLogger } from '@/lib/audit/logger'
@@ -178,6 +178,7 @@ export class IngestManager {
     classification: ClassificationResult
   ): Promise<IngestResult> {
     const { sessionId, message, ingestState, existingData, conversationHistory } = input
+    const mode = input.mode ?? 'collecting_data'
 
     // Extract data from message
     const extractedData = await this.dataExtractor.extract(
@@ -193,8 +194,28 @@ export class IngestManager {
     const isFirstData = !ingestState.firstDataAt
     const shouldEmitTimerStart = isFirstData
 
-    // Check if all 8 fields are now complete
-    const isComplete = hasCriticalData(mergedData)
+    // Route 2: If municipio just arrived without direccion in normal mode, ask about ofi inter
+    // Only trigger in collecting_data mode (NOT collecting_data_inter -- already in ofi inter)
+    if (mode === 'collecting_data') {
+      const justExtractedCiudad = !!(extractedData.normalized.ciudad)
+      const hasDireccion = !!(mergedData.direccion && mergedData.direccion.trim() !== '' && mergedData.direccion !== 'N/A')
+      const hasBarrio = !!(mergedData.barrio && mergedData.barrio.trim() !== '' && mergedData.barrio !== 'N/A')
+
+      if (justExtractedCiudad && !hasDireccion && !hasBarrio) {
+        // Municipio arrived without address -- ask about delivery preference
+        return {
+          action: 'ask_ofi_inter',
+          classification,
+          extractedData,
+          mergedData,
+          shouldEmitTimerStart: isFirstData,
+          timerDuration: '6m',
+        }
+      }
+    }
+
+    // Check if all fields are now complete (mode-aware)
+    const isComplete = isDataComplete(mergedData, mode)
 
     logger.info(
       {
@@ -203,6 +224,7 @@ export class IngestManager {
         isFirstData,
         isComplete,
         totalFields: Object.keys(mergedData).length,
+        mode,
       },
       'Datos processed for ingest'
     )
@@ -249,6 +271,7 @@ export class IngestManager {
     classification: ClassificationResult
   ): Promise<IngestResult> {
     const { sessionId, message, ingestState, existingData, conversationHistory } = input
+    const mode = input.mode ?? 'collecting_data'
 
     // Extract data from message
     const extractedData = await this.dataExtractor.extract(
@@ -264,8 +287,27 @@ export class IngestManager {
     const isFirstData = !ingestState.firstDataAt && Object.keys(extractedData.normalized).length > 0
     const shouldEmitTimerStart = isFirstData
 
-    // Check if all 8 fields are now complete
-    const isComplete = hasCriticalData(mergedData)
+    // Route 2: If municipio just arrived without direccion in normal mode, ask about ofi inter
+    if (mode === 'collecting_data') {
+      const justExtractedCiudad = !!(extractedData.normalized.ciudad)
+      const hasDireccion = !!(mergedData.direccion && mergedData.direccion.trim() !== '' && mergedData.direccion !== 'N/A')
+      const hasBarrio = !!(mergedData.barrio && mergedData.barrio.trim() !== '' && mergedData.barrio !== 'N/A')
+
+      if (justExtractedCiudad && !hasDireccion && !hasBarrio) {
+        // Municipio arrived without address -- ask about delivery preference
+        return {
+          action: 'ask_ofi_inter',
+          classification,
+          extractedData,
+          mergedData,
+          shouldEmitTimerStart: isFirstData,
+          timerDuration: '6m',
+        }
+      }
+    }
+
+    // Check if all fields are now complete (mode-aware)
+    const isComplete = isDataComplete(mergedData, mode)
 
     logger.info(
       {
@@ -273,6 +315,7 @@ export class IngestManager {
         extractedFields: Object.keys(extractedData.normalized),
         isFirstData,
         isComplete,
+        mode,
       },
       'Mixto processed - extracting and responding'
     )

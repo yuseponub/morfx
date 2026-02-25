@@ -31,6 +31,7 @@ import { DataExtractor, mergeExtractedData, type ExtractedData } from './data-ex
 import { TemplateManager, type ProcessedTemplate } from './template-manager'
 import { TransitionValidator, type TransitionResult } from './transition-validator'
 import { somnioAgentConfig, SOMNIO_TRANSITIONS, type SomnioState } from './config'
+import { isCollectingDataMode } from './constants'
 import { isCombinationIntent, splitCombinationIntent } from './intents'
 import type { VariableContext } from './variable-substitutor'
 
@@ -185,11 +186,12 @@ export class SomnioOrchestrator {
     )
 
     // =========================================================================
-    // Step 1: Check auto-triggers (before processing intent)
+    // Step 1: Check auto-triggers (before processing intent, mode-aware)
     // =========================================================================
-    const autoTrigger = this.transitionValidator.checkAutoTriggers(
+    const autoTrigger = this.transitionValidator.checkAutoTriggersForMode(
       state.intents_vistos,
-      state.datos_capturados
+      state.datos_capturados,
+      currentMode
     )
 
     if (autoTrigger) {
@@ -227,12 +229,12 @@ export class SomnioOrchestrator {
     }
 
     // =========================================================================
-    // Step 3: Handle collecting_data mode - extract data from message
+    // Step 3: Handle collecting data modes - extract data from message
     // =========================================================================
     let extractedData: ExtractedData | undefined
     let shouldExtractData = false
 
-    if (currentMode === 'collecting_data') {
+    if (isCollectingDataMode(currentMode)) {
       shouldExtractData = true
       const extraction = await this.handleCollectingDataMode(
         session,

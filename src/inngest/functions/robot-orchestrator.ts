@@ -21,7 +21,8 @@ import { getOrdersForOcrMatching, getOrdersForGuideGeneration, moveOrderToStage,
 import { normalizeOrdersForGuide, normalizedToEnvia } from '@/lib/pdf/normalize-order-data'
 import { generateGuidesPdf } from '@/lib/pdf/generate-guide-pdf'
 import { generateEnviaExcel } from '@/lib/pdf/generate-envia-excel'
-import { emitRobotOcrCompleted } from '@/lib/automations/trigger-emitter'
+import { emitRobotOcrCompleted, emitRobotGuideGenCompleted } from '@/lib/automations/trigger-emitter'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { OcrItemResult, OrderForMatching } from '@/lib/ocr/types'
 
 // ============================================================================
@@ -803,7 +804,53 @@ const pdfGuideOrchestrator = inngest.createFunction(
       }
     })
 
-    // Step 6: Move orders to destination stage (if configured)
+    // Step 6: Emit automation triggers per successful order
+    await step.run('emit-triggers', async () => {
+      const supabase = createAdminClient()
+      const normalizedMap = new Map(normalized.map((n) => [n.orderId, n]))
+
+      for (const item of items) {
+        const norm = normalizedMap.get(item.orderId)
+        if (!norm) continue
+
+        try {
+          const { data: order } = await supabase
+            .from('orders')
+            .select(`
+              id, name, total_value, description,
+              shipping_address, shipping_city, shipping_department,
+              contacts:contact_id (id, name, phone, email)
+            `)
+            .eq('id', item.orderId)
+            .eq('workspace_id', workspaceId)
+            .single()
+
+          if (order) {
+            const contact = Array.isArray(order.contacts) ? order.contacts[0] : order.contacts
+            await emitRobotGuideGenCompleted({
+              workspaceId,
+              orderId: order.id,
+              orderName: order.name || order.description || undefined,
+              carrier: carrierType === 'inter' ? 'INTER RAPIDISIMO' : 'BOGOTA',
+              contactId: contact?.id ?? null,
+              contactName: contact?.name ?? undefined,
+              contactPhone: contact?.phone ?? undefined,
+              contactEmail: contact?.email ?? undefined,
+              orderValue: order.total_value ?? undefined,
+              shippingCity: order.shipping_city ?? undefined,
+              shippingAddress: order.shipping_address ?? undefined,
+              shippingDepartment: order.shipping_department ?? undefined,
+              documentUrl: downloadUrl,
+              carrierType,
+            })
+          }
+        } catch (err) {
+          console.error(`[pdf-guide-orchestrator] Trigger emission failed for order ${item.orderId}:`, err)
+        }
+      }
+    })
+
+    // Step 7: Move orders to destination stage (if configured)
     if (destStageId) {
       await step.run('move-orders', async () => {
         for (const item of items) {
@@ -960,7 +1007,53 @@ const excelGuideOrchestrator = inngest.createFunction(
       }
     })
 
-    // Step 6: Move orders to destination stage (if configured)
+    // Step 6: Emit automation triggers per successful order
+    await step.run('emit-triggers', async () => {
+      const supabase = createAdminClient()
+      const normalizedMap = new Map(normalized.map((n) => [n.orderId, n]))
+
+      for (const item of items) {
+        const norm = normalizedMap.get(item.orderId)
+        if (!norm) continue
+
+        try {
+          const { data: order } = await supabase
+            .from('orders')
+            .select(`
+              id, name, total_value, description,
+              shipping_address, shipping_city, shipping_department,
+              contacts:contact_id (id, name, phone, email)
+            `)
+            .eq('id', item.orderId)
+            .eq('workspace_id', workspaceId)
+            .single()
+
+          if (order) {
+            const contact = Array.isArray(order.contacts) ? order.contacts[0] : order.contacts
+            await emitRobotGuideGenCompleted({
+              workspaceId,
+              orderId: order.id,
+              orderName: order.name || order.description || undefined,
+              carrier: 'ENVIA',
+              contactId: contact?.id ?? null,
+              contactName: contact?.name ?? undefined,
+              contactPhone: contact?.phone ?? undefined,
+              contactEmail: contact?.email ?? undefined,
+              orderValue: order.total_value ?? undefined,
+              shippingCity: order.shipping_city ?? undefined,
+              shippingAddress: order.shipping_address ?? undefined,
+              shippingDepartment: order.shipping_department ?? undefined,
+              documentUrl: downloadUrl,
+              carrierType: 'envia',
+            })
+          }
+        } catch (err) {
+          console.error(`[excel-guide-orchestrator] Trigger emission failed for order ${item.orderId}:`, err)
+        }
+      }
+    })
+
+    // Step 7: Move orders to destination stage (if configured)
     if (destStageId) {
       await step.run('move-orders', async () => {
         for (const item of items) {

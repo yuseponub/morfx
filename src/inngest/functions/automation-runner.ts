@@ -50,6 +50,8 @@ const EVENT_TO_TRIGGER: Record<string, TriggerType> = {
   'automation/robot.ocr.completed': 'robot.ocr.completed',
   // Robot Guide Lookup triggers (buscar guias coord)
   'automation/robot.guide_lookup.completed': 'robot.guide_lookup.completed',
+  // Robot Guide Generation triggers (generar guias inter/bogota/envia)
+  'automation/robot.guide_gen.completed': 'robot.guide_gen.completed',
 }
 
 // ============================================================================
@@ -136,6 +138,7 @@ function matchesTriggerConfig(
     case 'robot.coord.completed':
     case 'robot.ocr.completed':
     case 'robot.guide_lookup.completed':
+    case 'robot.guide_gen.completed':
       return true
 
     default:
@@ -390,7 +393,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
 
       // Context enrichment: load full order + contact data for order/tag triggers
       const needsOrderEnrichment =
-        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed' || triggerType === 'robot.ocr.completed' || triggerType === 'robot.guide_lookup.completed') &&
+        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed' || triggerType === 'robot.ocr.completed' || triggerType === 'robot.guide_lookup.completed' || triggerType === 'robot.guide_gen.completed') &&
         eventData.orderId
       const needsTagOrderEnrichment =
         (triggerType === 'tag.assigned' || triggerType === 'tag.removed') &&
@@ -682,6 +685,12 @@ const robotGuideLookupCompletedRunner = createAutomationRunner(
   'automation/robot.guide_lookup.completed'
 )
 
+// Robot Guide Generation runner (generar guias inter/bogota/envia)
+const robotGuideGenCompletedRunner = createAutomationRunner(
+  'robot.guide_gen.completed',
+  'automation/robot.guide_gen.completed'
+)
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -707,4 +716,5 @@ export const automationFunctions = [
   robotCoordCompletedRunner,
   robotOcrCompletedRunner,
   robotGuideLookupCompletedRunner,
+  robotGuideGenCompletedRunner,
 ]

@@ -29,6 +29,7 @@ export type TriggerType =
   | 'robot.coord.completed'
   | 'robot.ocr.completed'
   | 'robot.guide_lookup.completed'
+  | 'robot.guide_gen.completed'
 
 /**
  * Trigger configuration — stored in trigger_config JSONB column.

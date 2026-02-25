@@ -535,3 +535,35 @@ export async function emitRobotGuideLookupCompleted(data: {
     data.workspaceId
   )
 }
+
+/**
+ * Emit when the guide generation robot (PDF/Excel) successfully processes an order.
+ * Fires per-order so automations run individually per generated guide.
+ */
+export async function emitRobotGuideGenCompleted(data: {
+  workspaceId: string
+  orderId: string
+  orderName?: string
+  carrier: string
+  contactId: string | null
+  contactName?: string
+  contactPhone?: string
+  contactEmail?: string
+  orderValue?: number
+  shippingCity?: string
+  shippingAddress?: string
+  shippingDepartment?: string
+  documentUrl: string
+  carrierType: string
+  cascadeDepth?: number
+}): Promise<void> {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('robot.guide_gen.completed', data.workspaceId, depth)) return
+
+  await sendEvent(
+    'automation/robot.guide_gen.completed',
+    { ...data, cascadeDepth: depth },
+    'robot.guide_gen.completed',
+    data.workspaceId
+  )
+}

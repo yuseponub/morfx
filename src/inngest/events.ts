@@ -473,6 +473,26 @@ export type AutomationEvents = {
       cascadeDepth: number
     }
   }
+  // Robot Guide Generation completion trigger (generar guias inter/bogota/envia)
+  'automation/robot.guide_gen.completed': {
+    data: {
+      workspaceId: string
+      orderId: string
+      orderName?: string
+      carrier: string
+      contactId: string | null
+      contactName?: string
+      contactPhone?: string
+      contactEmail?: string
+      orderValue?: number
+      shippingCity?: string
+      shippingAddress?: string
+      shippingDepartment?: string
+      documentUrl: string
+      carrierType: string
+      cascadeDepth: number
+    }
+  }
 }
 
 // ============================================================================

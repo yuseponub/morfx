@@ -181,6 +181,21 @@ export const TRIGGER_CATALOG = [
       'contacto.nombre', 'contacto.telefono', 'contacto.email',
     ],
   },
+  // Robot Guide Generation trigger (generar guias inter/bogota/envia)
+  {
+    type: 'robot.guide_gen.completed',
+    label: 'Generacion de guias completada',
+    category: 'Logistica',
+    description: 'Se dispara cuando se genera exitosamente la guia PDF/Excel de una orden (Inter, Bogota, Envia)',
+    configFields: [],
+    variables: [
+      'orden.id', 'orden.nombre',
+      'orden.carrier',
+      'orden.ciudad_envio', 'orden.direccion_envio', 'orden.departamento_envio',
+      'contacto.nombre', 'contacto.telefono', 'contacto.email',
+      'guia.document_url', 'guia.carrier_type',
+    ],
+  },
 ] as const
 
 // ============================================================================
@@ -520,6 +535,20 @@ export const VARIABLE_CATALOG = {
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'contacto.telefono', label: 'Telefono del contacto' },
     { path: 'contacto.email', label: 'Email del contacto' },
+  ],
+  // Robot Guide Generation trigger (generar guias inter/bogota/envia)
+  'robot.guide_gen.completed': [
+    { path: 'orden.id', label: 'ID de la orden' },
+    { path: 'orden.nombre', label: 'Nombre/referencia de la orden' },
+    { path: 'orden.carrier', label: 'Transportadora (Inter/Bogota/Envia)' },
+    { path: 'orden.ciudad_envio', label: 'Ciudad de envio' },
+    { path: 'orden.direccion_envio', label: 'Direccion de envio' },
+    { path: 'orden.departamento_envio', label: 'Departamento de envio' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
+    { path: 'contacto.email', label: 'Email del contacto' },
+    { path: 'guia.document_url', label: 'URL del documento PDF/Excel' },
+    { path: 'guia.carrier_type', label: 'Tipo de transportadora (inter/bogota/envia)' },
   ],
 } as const
 

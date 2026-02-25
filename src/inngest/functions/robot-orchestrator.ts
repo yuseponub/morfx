@@ -17,7 +17,7 @@ import { inngest } from '../client'
 import { updateJobStatus, updateJobItemResult } from '@/lib/domain/robot-jobs'
 import { extractGuideData } from '@/lib/ocr/extract-guide-data'
 import { matchGuideToOrder } from '@/lib/ocr/match-guide-to-order'
-import { getOrdersForOcrMatching, getOrdersForGuideGeneration, moveOrderToStage, updateOrder } from '@/lib/domain/orders'
+import { getOrdersForOcrMatching, getOrdersForGuideGeneration, updateOrder } from '@/lib/domain/orders'
 import { normalizeOrdersForGuide, normalizedToEnvia } from '@/lib/pdf/normalize-order-data'
 import { generateGuidesPdf } from '@/lib/pdf/generate-guide-pdf'
 import { generateEnviaExcel } from '@/lib/pdf/generate-envia-excel'
@@ -702,7 +702,7 @@ const pdfGuideOrchestrator = inngest.createFunction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   { event: 'robot/pdf-guide.submitted' as any },
   async ({ event, step }) => {
-    const { jobId, workspaceId, carrierType, sourceStageId, destStageId, items } = event.data
+    const { jobId, workspaceId, carrierType, sourceStageId, items } = event.data
     const ctx = { workspaceId, source: 'inngest-orchestrator' as const }
     const carrierLabel = carrierType === 'inter' ? 'Inter Rapidisimo' : 'Bogota'
 
@@ -850,20 +850,6 @@ const pdfGuideOrchestrator = inngest.createFunction(
       }
     })
 
-    // Step 7: Move orders to destination stage (if configured)
-    if (destStageId) {
-      await step.run('move-orders', async () => {
-        for (const item of items) {
-          try {
-            await moveOrderToStage(ctx, { orderId: item.orderId, newStageId: destStageId })
-          } catch (err) {
-            console.error(`[pdf-guide-orchestrator] Failed to move order ${item.orderId}:`, err)
-            // Don't fail the job for stage move errors
-          }
-        }
-      })
-    }
-
     console.log(`[pdf-guide-orchestrator] Job ${jobId} completed: ${items.length} orders for ${carrierLabel}`)
 
     return { status: 'completed', jobId, downloadUrl, carrierType, totalOrders: items.length }
@@ -913,7 +899,7 @@ const excelGuideOrchestrator = inngest.createFunction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   { event: 'robot/excel-guide.submitted' as any },
   async ({ event, step }) => {
-    const { jobId, workspaceId, sourceStageId, destStageId, items } = event.data
+    const { jobId, workspaceId, sourceStageId, items } = event.data
     const ctx = { workspaceId, source: 'inngest-orchestrator' as const }
 
     console.log(`[excel-guide-orchestrator] Starting job ${jobId} with ${items.length} orders`)
@@ -1052,20 +1038,6 @@ const excelGuideOrchestrator = inngest.createFunction(
         }
       }
     })
-
-    // Step 7: Move orders to destination stage (if configured)
-    if (destStageId) {
-      await step.run('move-orders', async () => {
-        for (const item of items) {
-          try {
-            await moveOrderToStage(ctx, { orderId: item.orderId, newStageId: destStageId })
-          } catch (err) {
-            console.error(`[excel-guide-orchestrator] Failed to move order ${item.orderId}:`, err)
-            // Don't fail the job for stage move errors
-          }
-        }
-      })
-    }
 
     console.log(`[excel-guide-orchestrator] Job ${jobId} completed: ${items.length} orders for Envia`)
 

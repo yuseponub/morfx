@@ -179,15 +179,14 @@ export async function updateGuideLookupConfig(params: {
  * Each carrier type maps to its own column prefix on the same config row
  * (carrier='coordinadora') to keep all logistics config in a single row per workspace.
  *
- * - inter  -> pdf_inter_pipeline_id / pdf_inter_stage_id / pdf_inter_dest_stage_id
- * - bogota -> pdf_bogota_pipeline_id / pdf_bogota_stage_id / pdf_bogota_dest_stage_id
- * - envia  -> pdf_envia_pipeline_id / pdf_envia_stage_id / pdf_envia_dest_stage_id
+ * - inter  -> pdf_inter_pipeline_id / pdf_inter_stage_id
+ * - bogota -> pdf_bogota_pipeline_id / pdf_bogota_stage_id
+ * - envia  -> pdf_envia_pipeline_id / pdf_envia_stage_id
  */
 export async function updateGuideGenConfig(params: {
   carrierType: 'inter' | 'bogota' | 'envia'
   pipelineId: string | null
   stageId: string | null
-  destStageId: string | null
 }): Promise<ActionResult<CarrierConfig>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -213,30 +212,24 @@ export async function updateGuideGenConfig(params: {
   type UpsertFields = {
     pdfInterPipelineId?: string | null
     pdfInterStageId?: string | null
-    pdfInterDestStageId?: string | null
     pdfBogotaPipelineId?: string | null
     pdfBogotaStageId?: string | null
-    pdfBogotaDestStageId?: string | null
     pdfEnviaPipelineId?: string | null
     pdfEnviaStageId?: string | null
-    pdfEnviaDestStageId?: string | null
   }
 
   const fieldMap: Record<'inter' | 'bogota' | 'envia', UpsertFields> = {
     inter: {
       pdfInterPipelineId: params.pipelineId,
       pdfInterStageId: params.stageId,
-      pdfInterDestStageId: params.destStageId,
     },
     bogota: {
       pdfBogotaPipelineId: params.pipelineId,
       pdfBogotaStageId: params.stageId,
-      pdfBogotaDestStageId: params.destStageId,
     },
     envia: {
       pdfEnviaPipelineId: params.pipelineId,
       pdfEnviaStageId: params.stageId,
-      pdfEnviaDestStageId: params.destStageId,
     },
   }
 

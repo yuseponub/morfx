@@ -35,10 +35,8 @@ interface GuideGenCardProps {
   carrierType: 'inter' | 'bogota' | 'envia'
   pipelineId: string | null
   stageId: string | null
-  destStageId: string | null
   onPipelineChange: (value: string) => void
   onStageChange: (value: string) => void
-  onDestStageChange: (value: string) => void
   pipelines: PipelineWithStages[]
   isPending: boolean
   onSave: () => void
@@ -54,10 +52,8 @@ function GuideGenCard({
   description,
   pipelineId,
   stageId,
-  destStageId,
   onPipelineChange,
   onStageChange,
-  onDestStageChange,
   pipelines,
   isPending,
   onSave,
@@ -131,36 +127,6 @@ function GuideGenCard({
             </Select>
           </div>
 
-          {/* Destination Stage Select */}
-          <div className="space-y-2">
-            <Label>Etapa destino (despues de generar)</Label>
-            <Select
-              value={destStageId ?? undefined}
-              onValueChange={onDestStageChange}
-              disabled={!pipelineId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={
-                  pipelineId
-                    ? 'Seleccionar etapa destino...'
-                    : 'Primero selecciona un pipeline'
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {availableStages.map(stage => (
-                  <SelectItem key={stage.id} value={stage.id}>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: stage.color }}
-                      />
-                      {stage.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         <div className="flex justify-end mt-4">
@@ -213,9 +179,6 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
   const [interStageId, setInterStageId] = useState<string | null>(
     config?.pdf_inter_stage_id ?? null
   )
-  const [interDestStageId, setInterDestStageId] = useState<string | null>(
-    config?.pdf_inter_dest_stage_id ?? null
-  )
 
   // Bogota config
   const [bogotaPipelineId, setBogotaPipelineId] = useState<string | null>(
@@ -224,9 +187,6 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
   const [bogotaStageId, setBogotaStageId] = useState<string | null>(
     config?.pdf_bogota_stage_id ?? null
   )
-  const [bogotaDestStageId, setBogotaDestStageId] = useState<string | null>(
-    config?.pdf_bogota_dest_stage_id ?? null
-  )
 
   // Envia config
   const [enviaPipelineId, setEnviaPipelineId] = useState<string | null>(
@@ -234,9 +194,6 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
   )
   const [enviaStageId, setEnviaStageId] = useState<string | null>(
     config?.pdf_envia_stage_id ?? null
-  )
-  const [enviaDestStageId, setEnviaDestStageId] = useState<string | null>(
-    config?.pdf_envia_dest_stage_id ?? null
   )
 
   // Get stages for the selected pipelines (Coordinadora + OCR)
@@ -329,13 +286,11 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
       startTransition(async () => {
         const pipelineMap = { inter: interPipelineId, bogota: bogotaPipelineId, envia: enviaPipelineId }
         const stageMap = { inter: interStageId, bogota: bogotaStageId, envia: enviaStageId }
-        const destMap = { inter: interDestStageId, bogota: bogotaDestStageId, envia: enviaDestStageId }
 
         const result = await updateGuideGenConfig({
           carrierType,
           pipelineId: pipelineMap[carrierType],
           stageId: stageMap[carrierType],
-          destStageId: destMap[carrierType],
         })
 
         if ('error' in result) {
@@ -601,10 +556,8 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
         carrierType="inter"
         pipelineId={interPipelineId}
         stageId={interStageId}
-        destStageId={interDestStageId}
-        onPipelineChange={(value) => { setInterPipelineId(value); setInterStageId(null); setInterDestStageId(null) }}
+        onPipelineChange={(value) => { setInterPipelineId(value); setInterStageId(null) }}
         onStageChange={setInterStageId}
-        onDestStageChange={setInterDestStageId}
         pipelines={pipelines}
         isPending={isPending}
         onSave={handleSaveGuideGen('inter', 'Inter Rapidisimo')}
@@ -618,10 +571,8 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
         carrierType="bogota"
         pipelineId={bogotaPipelineId}
         stageId={bogotaStageId}
-        destStageId={bogotaDestStageId}
-        onPipelineChange={(value) => { setBogotaPipelineId(value); setBogotaStageId(null); setBogotaDestStageId(null) }}
+        onPipelineChange={(value) => { setBogotaPipelineId(value); setBogotaStageId(null) }}
         onStageChange={setBogotaStageId}
-        onDestStageChange={setBogotaDestStageId}
         pipelines={pipelines}
         isPending={isPending}
         onSave={handleSaveGuideGen('bogota', 'Bogota')}
@@ -635,10 +586,8 @@ export function LogisticsConfigForm({ config, pipelines }: LogisticsConfigFormPr
         carrierType="envia"
         pipelineId={enviaPipelineId}
         stageId={enviaStageId}
-        destStageId={enviaDestStageId}
-        onPipelineChange={(value) => { setEnviaPipelineId(value); setEnviaStageId(null); setEnviaDestStageId(null) }}
+        onPipelineChange={(value) => { setEnviaPipelineId(value); setEnviaStageId(null) }}
         onStageChange={setEnviaStageId}
-        onDestStageChange={setEnviaDestStageId}
         pipelines={pipelines}
         isPending={isPending}
         onSave={handleSaveGuideGen('envia', 'Envia')}

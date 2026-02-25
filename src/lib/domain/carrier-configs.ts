@@ -54,13 +54,10 @@ export interface UpsertCarrierConfigParams {
   // Guide generation stage configs (Phase 28)
   pdfInterPipelineId?: string | null
   pdfInterStageId?: string | null
-  pdfInterDestStageId?: string | null
   pdfBogotaPipelineId?: string | null
   pdfBogotaStageId?: string | null
-  pdfBogotaDestStageId?: string | null
   pdfEnviaPipelineId?: string | null
   pdfEnviaStageId?: string | null
-  pdfEnviaDestStageId?: string | null
   isEnabled?: boolean
 }
 
@@ -145,13 +142,10 @@ export async function upsertCarrierConfig(
         guide_lookup_stage_id: params.guideLookupStageId ?? null,
         pdf_inter_pipeline_id: params.pdfInterPipelineId ?? null,
         pdf_inter_stage_id: params.pdfInterStageId ?? null,
-        pdf_inter_dest_stage_id: params.pdfInterDestStageId ?? null,
         pdf_bogota_pipeline_id: params.pdfBogotaPipelineId ?? null,
         pdf_bogota_stage_id: params.pdfBogotaStageId ?? null,
-        pdf_bogota_dest_stage_id: params.pdfBogotaDestStageId ?? null,
         pdf_envia_pipeline_id: params.pdfEnviaPipelineId ?? null,
         pdf_envia_stage_id: params.pdfEnviaStageId ?? null,
-        pdf_envia_dest_stage_id: params.pdfEnviaDestStageId ?? null,
         is_enabled: params.isEnabled ?? false,
         created_at: now,
         updated_at: now,
@@ -184,13 +178,10 @@ export async function upsertCarrierConfig(
     // Guide generation stage configs (Phase 28)
     if (params.pdfInterPipelineId !== undefined) updates.pdf_inter_pipeline_id = params.pdfInterPipelineId
     if (params.pdfInterStageId !== undefined) updates.pdf_inter_stage_id = params.pdfInterStageId
-    if (params.pdfInterDestStageId !== undefined) updates.pdf_inter_dest_stage_id = params.pdfInterDestStageId
     if (params.pdfBogotaPipelineId !== undefined) updates.pdf_bogota_pipeline_id = params.pdfBogotaPipelineId
     if (params.pdfBogotaStageId !== undefined) updates.pdf_bogota_stage_id = params.pdfBogotaStageId
-    if (params.pdfBogotaDestStageId !== undefined) updates.pdf_bogota_dest_stage_id = params.pdfBogotaDestStageId
     if (params.pdfEnviaPipelineId !== undefined) updates.pdf_envia_pipeline_id = params.pdfEnviaPipelineId
     if (params.pdfEnviaStageId !== undefined) updates.pdf_envia_stage_id = params.pdfEnviaStageId
-    if (params.pdfEnviaDestStageId !== undefined) updates.pdf_envia_dest_stage_id = params.pdfEnviaDestStageId
     if (params.isEnabled !== undefined) updates.is_enabled = params.isEnabled
 
     const { data, error } = await supabase
@@ -378,12 +369,12 @@ export async function getGuideLookupStage(
  * destStageId may be null (optional post-generation stage move).
  *
  * Used by "generar guias inter/bogota" and "generar excel envia" commands
- * to know which stage to pull orders from and where to move them after.
+ * to know which stage to pull orders from.
  */
 export async function getGuideGenStage(
   ctx: DomainContext,
   carrierType: 'inter' | 'bogota' | 'envia'
-): Promise<DomainResult<{ pipelineId: string; stageId: string; destStageId: string | null } | null>> {
+): Promise<DomainResult<{ pipelineId: string; stageId: string } | null>> {
   try {
     const configResult = await getCarrierConfig(ctx, 'coordinadora')
 
@@ -399,23 +390,19 @@ export async function getGuideGenStage(
     const config = configResult.data
     let pipelineId: string | null
     let stageId: string | null
-    let destStageId: string | null
 
     switch (carrierType) {
       case 'inter':
         pipelineId = config.pdf_inter_pipeline_id
         stageId = config.pdf_inter_stage_id
-        destStageId = config.pdf_inter_dest_stage_id
         break
       case 'bogota':
         pipelineId = config.pdf_bogota_pipeline_id
         stageId = config.pdf_bogota_stage_id
-        destStageId = config.pdf_bogota_dest_stage_id
         break
       case 'envia':
         pipelineId = config.pdf_envia_pipeline_id
         stageId = config.pdf_envia_stage_id
-        destStageId = config.pdf_envia_dest_stage_id
         break
     }
 
@@ -428,7 +415,6 @@ export async function getGuideGenStage(
       data: {
         pipelineId,
         stageId,
-        destStageId: destStageId ?? null,
       },
     }
   } catch (err) {

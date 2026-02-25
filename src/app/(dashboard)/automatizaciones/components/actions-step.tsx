@@ -45,6 +45,7 @@ import {
   Phone,
   Info,
   GitBranch,
+  Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VariablePicker } from './variable-picker'
@@ -356,6 +357,177 @@ function TemplateVarRow({
           value={data.default ?? ''}
           onChange={(e) => onChangeConditional({ ...data, default: e.target.value })}
         />
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Product Mapping Editor (for create_order conditional product assignment)
+// ============================================================================
+
+interface ProductMappingConfig {
+  source: string
+  mappings: Array<{ when: string; productId: string; quantity: number }>
+  defaultProductId?: string | null
+  defaultQuantity?: number
+}
+
+function ProductMappingEditor({
+  config,
+  onChange,
+  products,
+  triggerType,
+}: {
+  config: ProductMappingConfig
+  onChange: (config: ProductMappingConfig) => void
+  products: Product[]
+  triggerType: TriggerType
+}) {
+  return (
+    <div className="space-y-2 rounded-md border bg-muted/30 p-2">
+      {/* Source variable */}
+      <div className="flex items-center gap-2">
+        <Label className="text-[10px] w-24 shrink-0">Variable fuente</Label>
+        <div className="flex-1 relative">
+          <Input
+            className="h-7 text-xs pr-8"
+            placeholder="Ej: {{shopify.total}}"
+            value={config.source}
+            onChange={(e) => onChange({ ...config, source: e.target.value })}
+          />
+          <div className="absolute right-0 top-0 h-7 flex items-center">
+            <VariablePicker
+              triggerType={triggerType}
+              onInsert={(variable) => onChange({ ...config, source: (config.source ?? '') + variable })}
+              className="h-7 w-7 p-0"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mapping rows */}
+      <div className="space-y-1">
+        <Label className="text-[10px]">Si el valor es... entonces asignar:</Label>
+        {config.mappings.map((m, i) => (
+          <div key={i} className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <Input
+                className="h-7 text-xs flex-1"
+                placeholder="Si es..."
+                value={m.when}
+                onChange={(e) => {
+                  const newMappings = [...config.mappings]
+                  newMappings[i] = { ...m, when: e.target.value }
+                  onChange({ ...config, mappings: newMappings })
+                }}
+              />
+              <span className="text-[10px] text-muted-foreground shrink-0">&rarr;</span>
+              <Select
+                value={m.productId || ''}
+                onValueChange={(val) => {
+                  const newMappings = [...config.mappings]
+                  newMappings[i] = { ...m, productId: val }
+                  onChange({ ...config, mappings: newMappings })
+                }}
+              >
+                <SelectTrigger className="h-7 text-xs flex-1">
+                  <SelectValue placeholder="Seleccionar producto..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.title} (${p.price.toLocaleString()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                onClick={() => {
+                  const newMappings = config.mappings.filter((_, j) => j !== i)
+                  onChange({
+                    ...config,
+                    mappings: newMappings.length
+                      ? newMappings
+                      : [{ when: '', productId: '', quantity: 1 }],
+                  })
+                }}
+              >
+                <Trash2 className="size-3" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-1.5 ml-0 pl-0">
+              <span className="text-[10px] text-muted-foreground w-10 shrink-0 text-right">Cant:</span>
+              <Input
+                type="number"
+                className="h-6 text-xs w-16"
+                min={1}
+                value={m.quantity}
+                onChange={(e) => {
+                  const newMappings = [...config.mappings]
+                  newMappings[i] = { ...m, quantity: Math.max(1, parseInt(e.target.value) || 1) }
+                  onChange({ ...config, mappings: newMappings })
+                }}
+              />
+            </div>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 text-[10px]"
+          onClick={() =>
+            onChange({
+              ...config,
+              mappings: [...config.mappings, { when: '', productId: '', quantity: 1 }],
+            })
+          }
+        >
+          <Plus className="size-3 mr-1" />
+          Agregar condicion
+        </Button>
+      </div>
+
+      {/* Default product */}
+      <div className="space-y-1">
+        <Label className="text-[10px]">Producto por defecto</Label>
+        <Select
+          value={config.defaultProductId ?? '__none'}
+          onValueChange={(val) =>
+            onChange({ ...config, defaultProductId: val === '__none' ? null : val })
+          }
+        >
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue placeholder="Ninguno" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">Ninguno</SelectItem>
+            {products.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.title} (${p.price.toLocaleString()})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {config.defaultProductId && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground w-10 shrink-0 text-right">Cant:</span>
+            <Input
+              type="number"
+              className="h-6 text-xs w-16"
+              min={1}
+              value={config.defaultQuantity ?? 1}
+              onChange={(e) =>
+                onChange({ ...config, defaultQuantity: Math.max(1, parseInt(e.target.value) || 1) })
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1090,64 +1262,144 @@ function ActionCard({
 
         {/* Params */}
         <div className="space-y-3 border-t pt-3">
-          {/* Required / always-visible params */}
-          {catalogEntry.params
-            .filter((p) => !('optional' in p && (p as { optional?: boolean }).optional))
-            .map((param) => (
-              <ActionParamField
-                key={param.name}
-                param={param}
-                value={action.params[param.name]}
-                onChange={(val) => updateParam(param.name, val)}
-                pipelines={pipelines}
-                tags={tags}
-                templates={templates}
-                triggerType={triggerType}
-                allParams={action.params}
-                helpText={actionHelpTexts[param.name]}
-              />
-            ))}
+          {/* Product mode section (create_order only) */}
+          {action.type === 'create_order' && (() => {
+            type ProductMode = 'none' | 'copy' | 'conditional'
+            const currentMode: ProductMode = action.params.productMappings
+              ? 'conditional'
+              : action.params.copyProducts
+                ? 'copy'
+                : 'none'
 
-          {/* Active optional params */}
-          {activeOptionals.map((paramName) => {
-            const param = catalogEntry.params.find((p) => p.name === paramName)
-            if (!param) return null
+            function setProductMode(mode: ProductMode) {
+              const newParams = { ...action.params }
+              if (mode === 'none') {
+                newParams.copyProducts = false
+                delete newParams.productMappings
+              } else if (mode === 'copy') {
+                newParams.copyProducts = true
+                delete newParams.productMappings
+              } else {
+                newParams.copyProducts = false
+                newParams.productMappings = {
+                  source: '',
+                  mappings: [{ when: '', productId: '', quantity: 1 }],
+                  defaultProductId: null,
+                  defaultQuantity: 1,
+                }
+              }
+              onUpdate({ ...action, params: newParams })
+            }
+
+            const PRODUCT_MODES: Array<{ value: ProductMode; label: string }> = [
+              { value: 'none', label: 'Sin productos' },
+              { value: 'copy', label: 'Copiar del trigger' },
+              { value: 'conditional', label: 'Asignar por condicion' },
+            ]
+
             return (
-              <div key={param.name} className="flex items-start gap-2">
-                <div className="flex-1">
-                  <ActionParamField
-                    param={param}
-                    value={action.params[param.name]}
-                    onChange={(val) => updateParam(param.name, val)}
-                    pipelines={pipelines}
-                    tags={tags}
-                    templates={templates}
-                    triggerType={triggerType}
-                    allParams={action.params}
-                    helpText={actionHelpTexts[param.name]}
-                  />
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Package className="size-3.5 text-indigo-500" />
+                  <Label className="text-xs font-medium">Productos</Label>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 mt-6 text-muted-foreground hover:text-destructive shrink-0"
-                  title="Quitar campo"
-                  onClick={() => {
-                    setActiveOptionals((prev) => prev.filter((n) => n !== paramName))
-                    updateParam(paramName, undefined)
-                  }}
-                >
-                  <Trash2 className="size-3" />
-                </Button>
+                <div className="flex gap-1">
+                  {PRODUCT_MODES.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => setProductMode(m.value)}
+                      className={cn(
+                        'px-2.5 py-1 text-[11px] rounded-md transition-colors font-medium',
+                        currentMode === m.value
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                {currentMode === 'conditional' && (
+                  <ProductMappingEditor
+                    config={action.params.productMappings as ProductMappingConfig}
+                    onChange={(cfg) => updateParam('productMappings', cfg)}
+                    products={products}
+                    triggerType={triggerType}
+                  />
+                )}
               </div>
             )
-          })}
+          })()}
+
+          {/* Required / always-visible params */}
+          {(() => {
+            const hiddenParams = action.type === 'create_order' ? ['copyProducts', 'productMappings'] : []
+            return catalogEntry.params
+              .filter((p) => !('optional' in p && (p as { optional?: boolean }).optional))
+              .filter((p) => !hiddenParams.includes(p.name))
+              .map((param) => (
+                <ActionParamField
+                  key={param.name}
+                  param={param}
+                  value={action.params[param.name]}
+                  onChange={(val) => updateParam(param.name, val)}
+                  pipelines={pipelines}
+                  tags={tags}
+                  templates={templates}
+                  triggerType={triggerType}
+                  allParams={action.params}
+                  helpText={actionHelpTexts[param.name]}
+                />
+              ))
+          })()}
+
+          {/* Active optional params */}
+          {(() => {
+            const hiddenParams = action.type === 'create_order' ? ['copyProducts', 'productMappings'] : []
+            return activeOptionals
+              .filter((paramName) => !hiddenParams.includes(paramName))
+              .map((paramName) => {
+                const param = catalogEntry.params.find((p) => p.name === paramName)
+                if (!param) return null
+                return (
+                  <div key={param.name} className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <ActionParamField
+                        param={param}
+                        value={action.params[param.name]}
+                        onChange={(val) => updateParam(param.name, val)}
+                        pipelines={pipelines}
+                        tags={tags}
+                        templates={templates}
+                        triggerType={triggerType}
+                        allParams={action.params}
+                        helpText={actionHelpTexts[param.name]}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 mt-6 text-muted-foreground hover:text-destructive shrink-0"
+                      title="Quitar campo"
+                      onClick={() => {
+                        setActiveOptionals((prev) => prev.filter((n) => n !== paramName))
+                        updateParam(paramName, undefined)
+                      }}
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                )
+              })
+          })()}
 
           {/* "Add field" dropdown for remaining optional params */}
           {(() => {
+            const hiddenParams = action.type === 'create_order' ? ['copyProducts', 'productMappings'] : []
             const optionalParams = catalogEntry.params.filter(
-              (p) => 'optional' in p && (p as { optional?: boolean }).optional && !activeOptionals.includes(p.name)
+              (p) => 'optional' in p && (p as { optional?: boolean }).optional && !activeOptionals.includes(p.name) && !hiddenParams.includes(p.name)
             )
             if (optionalParams.length === 0) return null
             return (

@@ -62,7 +62,7 @@ export const HANDOFF_INTENTS = new Set([
 
 /** Modes where "ok", "si", "jaja" are confirmations (RESPONDIBLE, not SILENCIOSO) */
 export const CONFIRMATORY_MODES = new Set([
-  'resumen', 'collecting_data', 'confirmado'
+  'resumen', 'collecting_data', 'collecting_data_inter', 'confirmado'
 ])
 
 /**
@@ -91,3 +91,76 @@ export const BLOCK_MAX_TEMPLATES = 3
 
 /** Maximum number of intents that can be addressed in a single block */
 export const BLOCK_MAX_INTENTS = 3
+
+// ============================================================================
+// Ofi Inter Constants (Phase 35)
+// ============================================================================
+
+/**
+ * Critical fields for ofi inter mode (4 fields -- no direccion/barrio).
+ * Minimum viable data for an office pickup order.
+ */
+export const OFI_INTER_CRITICAL_FIELDS = [
+  'nombre',
+  'telefono',
+  'ciudad',
+  'departamento',
+] as const
+
+/**
+ * Additional fields for ofi inter mode.
+ * cedula_recoge is OPTIONAL -- customer can decline.
+ */
+export const OFI_INTER_ADDITIONAL_FIELDS = [
+  'apellido',
+  'cedula_recoge',
+  'correo',
+] as const
+
+/** Number of total fields needed to auto-trigger ofrecer_promos in ofi inter mode (4 critical + 2 additional) */
+export const MIN_FIELDS_FOR_AUTO_PROMO_INTER = 6
+
+/**
+ * Patterns that detect ofi inter (office pickup) mentions in customer messages.
+ * Route 1: Direct mention detection -- highest priority, triggers immediately.
+ */
+export const OFI_INTER_PATTERNS: RegExp[] = [
+  // Direct mentions
+  /\bofi\s*inter\b/i,
+  /\boficina\s*(de\s+)?inter(rapidisimo)?\b/i,
+  /\breco[gj]o?\s*en\s*inter\b/i,
+  /\brecoger?\s*en\s*inter\b/i,
+  // Variations (from CONTEXT.md)
+  /\bquiero\s+ir\s+a\s+recoger\b/i,
+  /\bpuedo\s+pasar\s+a\s+buscar\b/i,
+  /\bno\s+necesito\s+domicilio\b/i,
+  /\benvi[ae]\s+a\s+la\s+oficina\b/i,
+  /\brecoger\s+en\s+(la\s+)?oficina\b/i,
+  /\brecojo\s+en\s+(la\s+)?oficina\b/i,
+  /\brecoger\s+en\s+(la\s+)?transportadora\b/i,
+]
+
+/**
+ * Detect if a message mentions ofi inter (office pickup at Interrapidisimo).
+ * Tests the message against all OFI_INTER_PATTERNS.
+ *
+ * @param message - Raw customer message
+ * @returns True if ofi inter mention detected
+ */
+export function detectOfiInterMention(message: string): boolean {
+  if (!message || typeof message !== 'string') return false
+  const normalized = message.toLowerCase().trim()
+  return OFI_INTER_PATTERNS.some(pattern => pattern.test(normalized))
+}
+
+/**
+ * Check if a session mode is a data-collection mode.
+ * Used by timer system, ingest logic, and anywhere that needs to check
+ * if the agent is currently collecting customer data (regardless of delivery type).
+ *
+ * @param mode - Current session mode/state
+ * @returns True if mode is collecting_data or collecting_data_inter
+ */
+export function isCollectingDataMode(mode: string): boolean {
+  return mode === 'collecting_data' || mode === 'collecting_data_inter'
+}

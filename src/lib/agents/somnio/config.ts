@@ -18,15 +18,16 @@ import { INTENT_DETECTOR_PROMPT, ORCHESTRATOR_PROMPT } from './prompts'
  * All possible states for the Somnio agent state machine
  */
 export const SOMNIO_STATES = [
-  'bienvenida',        // First contact, greeting (Phase 30)
-  'conversacion',      // Initial state, answering questions
-  'collecting_data',   // Capturing customer data for order
-  'ofrecer_promos',    // Showing pack options
-  'resumen',           // Customer chose a pack, showing summary
-  'confirmado',        // Purchase confirmed, creating order
-  'pedido_sinpack',    // Timer L3: promos timeout, order created with valor 0 (no pack)
-  'pedido_pendiente',  // Timer L4: pack timeout, order created with selected pack valor 0
-  'handoff',           // Handed off to human
+  'bienvenida',            // First contact, greeting (Phase 30)
+  'conversacion',          // Initial state, answering questions
+  'collecting_data',       // Capturing customer data for order
+  'collecting_data_inter', // Ofi inter: collecting data for office pickup (Phase 35)
+  'ofrecer_promos',        // Showing pack options
+  'resumen',               // Customer chose a pack, showing summary
+  'confirmado',            // Purchase confirmed, creating order
+  'pedido_sinpack',        // Timer L3: promos timeout, order created with valor 0 (no pack)
+  'pedido_pendiente',      // Timer L4: pack timeout, order created with selected pack valor 0
+  'handoff',               // Handed off to human
 ] as const
 
 export type SomnioState = (typeof SOMNIO_STATES)[number]
@@ -40,14 +41,17 @@ export type SomnioState = (typeof SOMNIO_STATES)[number]
  * Defines which states can transition to which other states.
  */
 export const SOMNIO_TRANSITIONS: StateTransitions = {
-  // From bienvenida: first contact, can move to conversacion, collecting_data, or handoff
-  bienvenida: ['conversacion', 'collecting_data', 'handoff'],
+  // From bienvenida: first contact, can move to conversacion, collecting_data, collecting_data_inter, or handoff
+  bienvenida: ['conversacion', 'collecting_data', 'collecting_data_inter', 'handoff'],
 
-  // From conversacion: can stay or start collecting data or handoff
-  conversacion: ['conversacion', 'collecting_data', 'handoff'],
+  // From conversacion: can stay or start collecting data (normal or ofi inter) or handoff
+  conversacion: ['conversacion', 'collecting_data', 'collecting_data_inter', 'handoff'],
 
-  // From collecting_data: stay, offer promos when ready, or handoff
-  collecting_data: ['collecting_data', 'ofrecer_promos', 'handoff'],
+  // From collecting_data: stay, switch to ofi inter, offer promos when ready, or handoff
+  collecting_data: ['collecting_data', 'collecting_data_inter', 'ofrecer_promos', 'handoff'],
+
+  // From collecting_data_inter: stay, switch back to normal, offer promos when ready, or handoff (bidirectional)
+  collecting_data_inter: ['collecting_data_inter', 'collecting_data', 'ofrecer_promos', 'handoff'],
 
   // From ofrecer_promos: customer picks a pack, timer creates order without pack, or handoff
   ofrecer_promos: ['resumen', 'pedido_sinpack', 'handoff'],

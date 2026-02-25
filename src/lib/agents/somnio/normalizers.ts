@@ -434,6 +434,62 @@ export function inferDepartamento(city: string): string | null {
   return null
 }
 
+// ============================================================================
+// Remote Municipality Detection (Phase 35)
+// ============================================================================
+
+/**
+ * Curated list of municipalities where office pickup (ofi inter) is common.
+ * Normalized to lowercase, accent-stripped for matching.
+ * Maintained manually based on business experience.
+ *
+ * Includes department capitals of remote departments where home delivery
+ * is uncommon or unreliable.
+ */
+export const REMOTE_MUNICIPALITIES = new Set([
+  // Remote department capitals (accent-stripped)
+  'leticia',
+  'mitu',
+  'inirida',
+  'puerto carreno',
+  'san jose del guaviare',
+  'mocoa',
+  'quibdo',
+  'florencia',
+  'yopal',
+  'arauca',
+  'riohacha',
+])
+
+/**
+ * Strip accents from a string for normalized comparison.
+ */
+function stripAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+/**
+ * Check if a city is in the curated list of remote municipalities
+ * where office pickup (ofi inter) is common.
+ *
+ * @param city - City name (raw or normalized)
+ * @returns True if the city is in the remote municipalities list
+ *
+ * @example
+ * isRemoteMunicipality("Leticia") // true
+ * isRemoteMunicipality("Mitú")    // true (accent-stripped match)
+ * isRemoteMunicipality("Bogota")  // false
+ */
+export function isRemoteMunicipality(city: string): boolean {
+  if (!city || typeof city !== 'string') return false
+  const normalized = stripAccents(city.trim().toLowerCase())
+  return REMOTE_MUNICIPALITIES.has(normalized)
+}
+
+// ============================================================================
+// Negation Detection
+// ============================================================================
+
 /**
  * Detect if the input contains a negation for a specific field.
  *

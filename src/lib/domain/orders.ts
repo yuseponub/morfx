@@ -1093,7 +1093,6 @@ export async function getOrdersPendingGuide(
       .eq('workspace_id', ctx.workspaceId)
       .eq('stage_id', stageId)
       .not('tracking_number', 'is', null)
-      .is('carrier_guide_number', null)
 
     if (error) {
       return { success: false, error: `Error obteniendo pedidos pendientes de guia: ${error.message}` }

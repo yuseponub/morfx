@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 34 of 36 (No-Repetition System) -- COMPLETE (verified 5/5, feature-flagged)
-Plan: 4 of 4 complete (01, 02, 03, 04)
-Status: Phase complete -- USE_NO_REPETITION=true activates no-rep system
+Phase: 35 of 36 (Flujo Ofi Inter) -- IN PROGRESS
+Plan: 1 of 3 complete (01)
+Status: Plan 01 complete -- ofi inter foundation (dead code, no behavioral changes)
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-03-03 — Phase 34 complete with USE_NO_REPETITION feature flag
+Last activity: 2026-02-25 — Completed 35-01-PLAN.md (ofi inter foundation)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 86% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 90% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -52,7 +52,7 @@ All 9 phases + 5 inserted phases completed:
 | 32 | Media Processing | COMPLETE (3/3 plans) |
 | 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans, verified 8/8) |
 | 34 | No-Repetition System | COMPLETE (4/4 plans) |
-| 35 | Flujo Ofi Inter | Not started |
+| 35 | Flujo Ofi Inter | IN PROGRESS (1/3 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -71,7 +71,7 @@ All 9 phases + 5 inserted phases completed:
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 210
+- Total plans completed: 211
 - Total execution time: ~30 days (2026-01-26 to 2026-02-25)
 
 ## Accumulated Context
@@ -245,6 +245,13 @@ Phase 34 decisions (Plan 04):
 - Empty filtered block sends nothing, clears stale pending, logs the event
 - Interruption slicing uses filteredBlock (not composed.block) for accurate pending storage
 
+Phase 35 decisions (Plan 01):
+- OFI_INTER_CRITICAL_FIELDS uses 'ciudad' not 'municipio' (reuses existing field, zero schema changes)
+- REMOTE_MUNICIPALITIES stored as accent-stripped Set for O(1) lookup
+- hasCriticalDataInter requires 4 critical + 2 additional = 6 minimum (cedula optional)
+- New mode-aware methods added alongside existing ones for backward compatibility
+- CONFIRMATORY_MODES includes collecting_data_inter (RESPONDIBLE, not SILENCIOSO)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -265,7 +272,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-03 COT
-Stopped at: Phase 34 complete with feature flag -- pushed to Vercel
+Last session: 2026-02-25 COT
+Stopped at: Completed 35-01-PLAN.md (ofi inter foundation)
 Resume file: None
-Next: Phase 35 (Flujo Ofi Inter)
+Next: 35-02-PLAN.md (Agent Pipeline Integration)

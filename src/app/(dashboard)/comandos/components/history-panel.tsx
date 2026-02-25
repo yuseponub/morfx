@@ -58,20 +58,23 @@ function formatDate(dateStr: string): string {
 
 export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
+  const [expandedJobType, setExpandedJobType] = useState<string | null>(null)
   const [expandedItems, setExpandedItems] = useState<RobotJobItem[]>([])
   const [isLoadingItems, setIsLoadingItems] = useState(false)
 
   const handleToggleExpand = useCallback(
-    async (jobId: string) => {
+    async (jobId: string, jobType: string | null) => {
       if (expandedJobId === jobId) {
         // Collapse
         setExpandedJobId(null)
+        setExpandedJobType(null)
         setExpandedItems([])
         return
       }
 
       // Expand - fetch items
       setExpandedJobId(jobId)
+      setExpandedJobType(jobType)
       setIsLoadingItems(true)
 
       try {
@@ -116,7 +119,7 @@ export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
                 <div key={job.id}>
                   {/* Job row (collapsed) */}
                   <button
-                    onClick={() => handleToggleExpand(job.id)}
+                    onClick={() => handleToggleExpand(job.id, job.job_type ?? null)}
                     className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -164,46 +167,17 @@ export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
                         <p className="text-xs text-muted-foreground">Sin items</p>
                       ) : (
                         <div className="space-y-1.5">
-                          {expandedItems.map(item => (
-                            <div
-                              key={item.id}
-                              className={cn(
-                                'flex items-center gap-2 text-xs',
-                                item.status === 'success'
-                                  ? 'text-green-700 dark:text-green-400'
-                                  : item.status === 'error'
-                                    ? 'text-red-700 dark:text-red-400'
-                                    : 'text-muted-foreground'
-                              )}
-                            >
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'text-[10px] px-1.5',
-                                  item.status === 'success'
-                                    ? 'border-green-200 dark:border-green-800'
-                                    : item.status === 'error'
-                                      ? 'border-red-200 dark:border-red-800'
-                                      : ''
-                                )}
-                              >
-                                {item.status}
-                              </Badge>
-                              <span className="font-mono truncate">
-                                {item.order_id?.slice(0, 8) ?? 'imagen'}
-                              </span>
-                              {item.tracking_number && (
-                                <span className="text-muted-foreground">
-                                  #{item.tracking_number}
-                                </span>
-                              )}
-                              {item.error_message && (
-                                <span className="text-muted-foreground truncate">
-                                  {item.error_message}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                          {expandedItems.map(item => {
+                            const meta = (item.value_sent ?? {}) as Record<string, unknown>
+                            return (
+                              <ExpandedItemRow
+                                key={item.id}
+                                item={item}
+                                meta={meta}
+                                jobType={expandedJobType}
+                              />
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -214,6 +188,142 @@ export function HistoryPanel({ history, onRefresh }: HistoryPanelProps) {
           </div>
         )}
       </ScrollArea>
+    </div>
+  )
+}
+
+// ---- Expanded item row (rich details based on job type) ----
+
+function ExpandedItemRow({
+  item,
+  meta,
+  jobType,
+}: {
+  item: RobotJobItem
+  meta: Record<string, unknown>
+  jobType: string | null
+}) {
+  const contactName = (meta.contactName as string | null) ?? null
+  const statusColor = item.status === 'success'
+    ? 'text-green-700 dark:text-green-400'
+    : item.status === 'error'
+      ? 'text-red-700 dark:text-red-400'
+      : 'text-muted-foreground'
+  const borderColor = item.status === 'success'
+    ? 'border-green-200 dark:border-green-800'
+    : item.status === 'error'
+      ? 'border-red-200 dark:border-red-800'
+      : ''
+
+  // create_shipment: nombre, pedido#, ciudad, valor
+  if (jobType === 'create_shipment') {
+    const city = (meta.city as string | null) ?? null
+    const dept = (meta.department as string | null) ?? null
+    const totalValue = (meta.totalValue as number) ?? 0
+    return (
+      <div className={cn('text-xs space-y-0.5 border-l-2 pl-2', borderColor, statusColor)}>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
+            {item.status}
+          </Badge>
+          <span className="font-medium">{contactName || 'Sin nombre'}</span>
+          {item.tracking_number && (
+            <span className="font-mono text-muted-foreground">#{item.tracking_number}</span>
+          )}
+        </div>
+        <div className="pl-2 text-muted-foreground">
+          {[city, dept].filter(Boolean).join(', ')}
+          {totalValue > 0 && ` - $${totalValue.toLocaleString('es-CO')}`}
+        </div>
+        {item.error_message && (
+          <div className="pl-2 text-red-600 dark:text-red-400 truncate">{item.error_message}</div>
+        )}
+      </div>
+    )
+  }
+
+  // guide_lookup: nombre, pedido# -> guia#
+  if (jobType === 'guide_lookup') {
+    const pedidoNumber = (meta.pedidoNumber as string) ?? ''
+    return (
+      <div className={cn('text-xs space-y-0.5 border-l-2 pl-2', borderColor, statusColor)}>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
+            {item.status}
+          </Badge>
+          <span className="font-medium">{contactName || 'Sin nombre'}</span>
+        </div>
+        <div className="pl-2 text-muted-foreground">
+          Pedido: {pedidoNumber}
+          {item.status === 'success' && item.tracking_number && (
+            <> &rarr; Guia: {item.tracking_number}</>
+          )}
+        </div>
+        {item.error_message && (
+          <div className="pl-2 text-red-600 dark:text-red-400 truncate">{item.error_message}</div>
+        )}
+      </div>
+    )
+  }
+
+  // ocr_guide_read: categoria OCR
+  if (jobType === 'ocr_guide_read') {
+    const ocrCategory = (meta.ocrCategory as string) ?? 'unknown'
+    const guideNumber = (meta.guideNumber as string | null) ?? null
+    const orderName = (meta.orderName as string | null) ?? null
+    return (
+      <div className={cn('text-xs space-y-0.5 border-l-2 pl-2', borderColor, statusColor)}>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
+            {item.status}
+          </Badge>
+          {guideNumber && <span className="font-mono">#{guideNumber}</span>}
+          {orderName && <span>&rarr; {orderName}</span>}
+          {!guideNumber && !orderName && <span>imagen</span>}
+        </div>
+        <div className="pl-2 text-muted-foreground">
+          {ocrCategory.replace(/_/g, ' ')}
+        </div>
+      </div>
+    )
+  }
+
+  // pdf/excel: nombre, valor
+  if (jobType?.startsWith('pdf_guide_') || jobType === 'excel_guide_envia') {
+    const totalValue = (meta.totalValue as number) ?? 0
+    return (
+      <div className={cn('text-xs space-y-0.5 border-l-2 pl-2', borderColor, statusColor)}>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
+            {item.status}
+          </Badge>
+          <span className="font-medium">{contactName || item.order_id?.slice(0, 8) || 'item'}</span>
+          {totalValue > 0 && (
+            <span className="text-muted-foreground">${totalValue.toLocaleString('es-CO')}</span>
+          )}
+        </div>
+        {item.error_message && (
+          <div className="pl-2 text-red-600 dark:text-red-400 truncate">{item.error_message}</div>
+        )}
+      </div>
+    )
+  }
+
+  // Fallback for unknown job types
+  return (
+    <div className={cn('flex items-center gap-2 text-xs', statusColor)}>
+      <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
+        {item.status}
+      </Badge>
+      <span className="font-mono truncate">
+        {contactName || (item.order_id?.slice(0, 8) ?? 'item')}
+      </span>
+      {item.tracking_number && (
+        <span className="text-muted-foreground">#{item.tracking_number}</span>
+      )}
+      {item.error_message && (
+        <span className="text-muted-foreground truncate">{item.error_message}</span>
+      )}
     </div>
   )
 }

@@ -95,6 +95,38 @@ export type CommandMessage =
       carrierName: string
       timestamp: string
     }
+  | {
+      type: 'shipment_result'
+      successItems: Array<{
+        contactName: string | null
+        trackingNumber: string
+        address: string | null
+        city: string | null
+        department: string | null
+        phone: string | null
+        totalValue: number
+      }>
+      errorItems: Array<{
+        contactName: string | null
+        phone: string | null
+        errorMessage: string
+      }>
+      timestamp: string
+    }
+  | {
+      type: 'guide_lookup_result'
+      total: number
+      updatedItems: Array<{
+        contactName: string | null
+        pedidoNumber: string
+        guideNumber: string
+      }>
+      pendingItems: Array<{
+        contactName: string | null
+        pedidoNumber: string
+      }>
+      timestamp: string
+    }
   | { type: 'error'; text: string; timestamp: string }
   | { type: 'help'; timestamp: string }
 
@@ -287,9 +319,88 @@ export function ComandosLayout() {
           ocrFailed,
           timestamp: now(),
         })
-      // THIRD: Default -> shipment/guide result
+      // THIRD: create_shipment -> rich shipment result
+      } else if (activeJobType === 'create_shipment') {
+        const successItems: Array<{
+          contactName: string | null
+          trackingNumber: string
+          address: string | null
+          city: string | null
+          department: string | null
+          phone: string | null
+          totalValue: number
+        }> = []
+        const errorItems: Array<{
+          contactName: string | null
+          phone: string | null
+          errorMessage: string
+        }> = []
+
+        for (const item of items) {
+          const meta = (item.value_sent ?? {}) as Record<string, unknown>
+          if (item.status === 'success') {
+            successItems.push({
+              contactName: (meta.contactName as string | null) ?? null,
+              trackingNumber: item.tracking_number ?? '',
+              address: (meta.address as string | null) ?? null,
+              city: (meta.city as string | null) ?? null,
+              department: (meta.department as string | null) ?? null,
+              phone: (meta.phone as string | null) ?? null,
+              totalValue: (meta.totalValue as number) ?? 0,
+            })
+          } else if (item.status === 'error') {
+            errorItems.push({
+              contactName: (meta.contactName as string | null) ?? null,
+              phone: (meta.phone as string | null) ?? null,
+              errorMessage: item.error_message ?? 'Error desconocido',
+            })
+          }
+        }
+
+        addMessage({
+          type: 'shipment_result',
+          successItems,
+          errorItems,
+          timestamp: now(),
+        })
+      // FOURTH: guide_lookup -> rich guide result
+      } else if (activeJobType === 'guide_lookup') {
+        const updatedItems: Array<{
+          contactName: string | null
+          pedidoNumber: string
+          guideNumber: string
+        }> = []
+        const pendingItems: Array<{
+          contactName: string | null
+          pedidoNumber: string
+        }> = []
+
+        for (const item of items) {
+          const meta = (item.value_sent ?? {}) as Record<string, unknown>
+          const pedidoNumber = (meta.pedidoNumber as string) ?? ''
+          if (item.status === 'success' && item.tracking_number) {
+            updatedItems.push({
+              contactName: (meta.contactName as string | null) ?? null,
+              pedidoNumber,
+              guideNumber: item.tracking_number,
+            })
+          } else {
+            pendingItems.push({
+              contactName: (meta.contactName as string | null) ?? null,
+              pedidoNumber,
+            })
+          }
+        }
+
+        addMessage({
+          type: 'guide_lookup_result',
+          total: items.length,
+          updatedItems,
+          pendingItems,
+          timestamp: now(),
+        })
+      // FIFTH: Fallback for unknown job types
       } else {
-        // Existing result message for shipment/guide jobs
         const details = items
           .filter(item => item.order_id != null)
           .map(item => ({

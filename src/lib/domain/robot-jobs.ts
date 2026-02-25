@@ -66,6 +66,8 @@ export interface CreateRobotJobParams {
   orderIds: string[]
   /** Optional idempotency key to prevent duplicate jobs. */
   idempotencyKey?: string
+  /** Per-order metadata snapshot to store in value_sent at creation time. */
+  itemMetadata?: Record<string, Record<string, unknown>>
 }
 
 export interface UpdateJobItemResultParams {
@@ -275,10 +277,11 @@ export async function createRobotJob(
       return { success: false, error: `Error creando job: ${jobError?.message}` }
     }
 
-    // Insert robot_job_items (one per order)
+    // Insert robot_job_items (one per order, with optional metadata snapshot)
     const itemsToInsert = params.orderIds.map((orderId) => ({
       job_id: job.id,
       order_id: orderId,
+      value_sent: params.itemMetadata?.[orderId] ?? null,
     }))
 
     const { data: items, error: itemsError } = await supabase
@@ -352,19 +355,24 @@ export async function updateJobItemResult(
     }
     // Note: error items proceed to update (retry scenario)
 
-    // Update item with result
+    // Update item with result (preserve value_sent if not explicitly provided)
     const now = new Date().toISOString()
+    const updateData: Record<string, unknown> = {
+      status: params.status,
+      tracking_number: params.trackingNumber ?? null,
+      validated_city: params.validatedCity ?? null,
+      error_type: params.status === 'error' ? (params.errorType ?? 'unknown') : null,
+      error_message: params.status === 'error' ? (params.errorMessage ?? null) : null,
+      completed_at: now,
+    }
+    // Only overwrite value_sent if explicitly provided (preserves creation-time metadata)
+    if (params.valueSent !== undefined) {
+      updateData.value_sent = params.valueSent
+    }
+
     const { error: updateError } = await supabase
       .from('robot_job_items')
-      .update({
-        status: params.status,
-        tracking_number: params.trackingNumber ?? null,
-        validated_city: params.validatedCity ?? null,
-        value_sent: params.valueSent ?? null,
-        error_type: params.status === 'error' ? (params.errorType ?? 'unknown') : null,
-        error_message: params.status === 'error' ? (params.errorMessage ?? null) : null,
-        completed_at: now,
-      })
+      .update(updateData)
       .eq('id', params.itemId)
 
     if (updateError) {

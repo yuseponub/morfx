@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { ChevronRight, AlertCircle, HelpCircle, CheckCircle2, AlertTriangle, XCircle, Download } from 'lucide-react'
+import { ChevronRight, AlertCircle, HelpCircle, CheckCircle2, AlertTriangle, XCircle, Download, MapPin, Phone, DollarSign } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -201,6 +201,120 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               {message.ocrFailed.map((item, idx) => (
                 <div key={idx} className="text-xs pl-6 text-muted-foreground">
                   {item.fileName}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+
+    case 'shipment_result':
+      return (
+        <div className="pl-6 space-y-3">
+          {message.successItems.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {message.successItems.length} pedido(s) creado(s)
+              </div>
+              {message.successItems.map((item, idx) => (
+                <div key={idx} className="pl-6 text-xs space-y-0.5 border-l-2 border-green-200 dark:border-green-800 ml-2">
+                  <div className="font-medium">
+                    #{item.trackingNumber} - {item.contactName || 'Sin nombre'}
+                  </div>
+                  {item.address && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span>{item.address}</span>
+                    </div>
+                  )}
+                  {(item.city || item.department) && (
+                    <div className="text-muted-foreground pl-4">
+                      {[item.city, item.department].filter(Boolean).join(' (')}
+                      {item.department ? ')' : ''}
+                    </div>
+                  )}
+                  {item.phone && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      <span>{item.phone}</span>
+                    </div>
+                  )}
+                  {item.totalValue > 0 && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <DollarSign className="h-3 w-3 shrink-0" />
+                      <span>${item.totalValue.toLocaleString('es-CO')}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {message.errorItems.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
+                <XCircle className="h-4 w-4" />
+                {message.errorItems.length} error(es) del robot
+              </div>
+              {message.errorItems.map((item, idx) => (
+                <div key={idx} className="pl-6 text-xs space-y-0.5 border-l-2 border-red-200 dark:border-red-800 ml-2">
+                  <div className="font-medium">{item.contactName || 'Sin nombre'}</div>
+                  {item.phone && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      <span>{item.phone}</span>
+                    </div>
+                  )}
+                  <div className="text-red-600 dark:text-red-400">{item.errorMessage}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+
+    case 'guide_lookup_result':
+      return (
+        <div className="pl-6 space-y-3">
+          <div className="text-sm font-medium">
+            Guias Coordinadora - Resumen
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span>Total: {message.total}</span>
+            <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-200 dark:border-green-800">
+              Con guia: {message.updatedItems.length}
+            </Badge>
+            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800">
+              Sin guia: {message.pendingItems.length}
+            </Badge>
+          </div>
+
+          {message.updatedItems.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-medium text-green-700 dark:text-green-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {message.updatedItems.length} actualizada(s)
+              </div>
+              {message.updatedItems.map((item, idx) => (
+                <div key={idx} className="text-xs pl-6 space-y-0.5">
+                  <div>{item.contactName || 'Sin nombre'}</div>
+                  <div className="text-muted-foreground">
+                    Pedido: {item.pedidoNumber} &rarr; Guia: {item.guideNumber}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {message.pendingItems.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {message.pendingItems.length} pendiente(s)
+              </div>
+              {message.pendingItems.map((item, idx) => (
+                <div key={idx} className="text-xs pl-6 text-muted-foreground">
+                  {item.contactName || 'Sin nombre'} - Pedido: {item.pedidoNumber}
                 </div>
               ))}
             </div>

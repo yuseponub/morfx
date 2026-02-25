@@ -247,9 +247,22 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
       }
     }
 
-    // 7. Create robot job (only for valid orders)
+    // 7. Create robot job (only for valid orders) with metadata snapshot
     const validOrderIds = validCityResults.map((r) => r.orderId!).filter(Boolean)
-    const jobResult = await createRobotJob(ctx, { orderIds: validOrderIds })
+    const itemMetadata: Record<string, Record<string, unknown>> = {}
+    for (const order of orders) {
+      if (validOrderIds.includes(order.id)) {
+        itemMetadata[order.id] = {
+          contactName: order.contact_name,
+          address: order.shipping_address,
+          city: order.shipping_city,
+          department: order.shipping_department,
+          phone: order.contact_phone,
+          totalValue: order.total_value,
+        }
+      }
+    }
+    const jobResult = await createRobotJob(ctx, { orderIds: validOrderIds, itemMetadata })
     if (!jobResult.success || !jobResult.data) {
       return { success: false, error: jobResult.error || 'Error creando job' }
     }
@@ -372,11 +385,19 @@ export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGui
       return { success: false, error: 'No hay ordenes pendientes de guia en la etapa de despacho' }
     }
 
-    // 6. Create robot job (job_type: 'guide_lookup')
+    // 6. Create robot job (job_type: 'guide_lookup') with metadata snapshot
+    const itemMetadata: Record<string, Record<string, unknown>> = {}
+    for (const order of orders) {
+      itemMetadata[order.id] = {
+        contactName: order.contact_name,
+        pedidoNumber: order.tracking_number,
+      }
+    }
     const jobResult = await createRobotJob(ctx, {
       orderIds: orders.map(o => o.id),
       carrier: 'coordinadora',
       jobType: 'guide_lookup',
+      itemMetadata,
     })
     if (!jobResult.success || !jobResult.data) {
       return { success: false, error: jobResult.error || 'Error creando job' }
@@ -648,9 +669,16 @@ export async function executeGenerarGuiasInter(): Promise<CommandResult<GuideGen
       return { success: false, error: 'No hay pedidos en la etapa de generacion Inter' }
     }
 
-    // 5. Create robot job
+    // 5. Create robot job with metadata snapshot
     const orderIds = orders.map(o => o.id)
-    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'inter', jobType: 'pdf_guide_inter' })
+    const itemMetadata: Record<string, Record<string, unknown>> = {}
+    for (const order of orders) {
+      itemMetadata[order.id] = {
+        contactName: order.contact_name || null,
+        totalValue: order.total_value,
+      }
+    }
+    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'inter', jobType: 'pdf_guide_inter', itemMetadata })
     if (!jobResult.success || !jobResult.data) {
       return { success: false, error: jobResult.error || 'Error creando job' }
     }
@@ -749,9 +777,16 @@ export async function executeGenerarGuiasBogota(): Promise<CommandResult<GuideGe
       return { success: false, error: 'No hay pedidos en la etapa de generacion Bogota' }
     }
 
-    // 5. Create robot job
+    // 5. Create robot job with metadata snapshot
     const orderIds = orders.map(o => o.id)
-    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'bogota', jobType: 'pdf_guide_bogota' })
+    const itemMetadata: Record<string, Record<string, unknown>> = {}
+    for (const order of orders) {
+      itemMetadata[order.id] = {
+        contactName: order.contact_name || null,
+        totalValue: order.total_value,
+      }
+    }
+    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'bogota', jobType: 'pdf_guide_bogota', itemMetadata })
     if (!jobResult.success || !jobResult.data) {
       return { success: false, error: jobResult.error || 'Error creando job' }
     }
@@ -850,9 +885,16 @@ export async function executeGenerarExcelEnvia(): Promise<CommandResult<GuideGen
       return { success: false, error: 'No hay pedidos en la etapa de generacion Envia' }
     }
 
-    // 5. Create robot job
+    // 5. Create robot job with metadata snapshot
     const orderIds = orders.map(o => o.id)
-    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'envia', jobType: 'excel_guide_envia' })
+    const itemMetadata: Record<string, Record<string, unknown>> = {}
+    for (const order of orders) {
+      itemMetadata[order.id] = {
+        contactName: order.contact_name || null,
+        totalValue: order.total_value,
+      }
+    }
+    const jobResult = await createRobotJob(ctx, { orderIds, carrier: 'envia', jobType: 'excel_guide_envia', itemMetadata })
     if (!jobResult.success || !jobResult.data) {
       return { success: false, error: jobResult.error || 'Error creando job' }
     }

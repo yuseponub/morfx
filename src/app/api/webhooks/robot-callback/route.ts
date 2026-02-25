@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { updateJobItemResult } from '@/lib/domain/robot-jobs'
-import { emitRobotCoordCompleted } from '@/lib/automations/trigger-emitter'
+import { emitRobotCoordCompleted, emitRobotGuideLookupCompleted } from '@/lib/automations/trigger-emitter'
 import { inngest } from '@/inngest/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -195,6 +195,46 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       // Trigger emission failure should NOT fail the callback
       console.error(`[robot-callback] Trigger emission failed for item ${itemId}:`, err)
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 5b. On success: fire automation trigger (robot.guide_lookup.completed)
+  //     Same pattern as create_shipment but for guide_lookup jobs.
+  // ------------------------------------------------------------------
+  if (status === 'success' && validatedTrackingNumber && parentJob?.job_type === 'guide_lookup') {
+    try {
+      const { data: order } = await supabase
+        .from('orders')
+        .select(`
+          id, name, total_value, description,
+          shipping_address, shipping_city, shipping_department,
+          contacts:contact_id (id, name, phone, email)
+        `)
+        .eq('id', item.order_id)
+        .eq('workspace_id', workspaceId)
+        .single()
+
+      if (order) {
+        const contact = Array.isArray(order.contacts) ? order.contacts[0] : order.contacts
+        await emitRobotGuideLookupCompleted({
+          workspaceId,
+          orderId: order.id,
+          orderName: order.name || order.description || undefined,
+          trackingNumber: validatedTrackingNumber,
+          carrier: 'COORDINADORA',
+          contactId: contact?.id ?? null,
+          contactName: contact?.name ?? undefined,
+          contactPhone: contact?.phone ?? undefined,
+          contactEmail: contact?.email ?? undefined,
+          orderValue: order.total_value ?? undefined,
+          shippingCity: order.shipping_city ?? undefined,
+          shippingAddress: order.shipping_address ?? undefined,
+          shippingDepartment: order.shipping_department ?? undefined,
+        })
+      }
+    } catch (err) {
+      console.error(`[robot-callback] Guide lookup trigger emission failed for item ${itemId}:`, err)
     }
   }
 

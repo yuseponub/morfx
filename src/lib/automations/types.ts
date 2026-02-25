@@ -28,6 +28,7 @@ export type TriggerType =
   | 'shopify.order_updated'
   | 'robot.coord.completed'
   | 'robot.ocr.completed'
+  | 'robot.guide_lookup.completed'
 
 /**
  * Trigger configuration — stored in trigger_config JSONB column.

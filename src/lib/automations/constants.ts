@@ -167,6 +167,20 @@ export const TRIGGER_CATALOG = [
       'contacto.nombre', 'contacto.telefono',
     ],
   },
+  // Robot Guide Lookup trigger (buscar guias coord)
+  {
+    type: 'robot.guide_lookup.completed',
+    label: 'Busqueda de guias completada',
+    category: 'Logistica',
+    description: 'Se dispara cuando el robot encuentra exitosamente la guia de una orden en Coordinadora',
+    configFields: [],
+    variables: [
+      'orden.id', 'orden.nombre',
+      'orden.tracking_number', 'orden.carrier',
+      'orden.ciudad_envio', 'orden.direccion_envio', 'orden.departamento_envio',
+      'contacto.nombre', 'contacto.telefono', 'contacto.email',
+    ],
+  },
 ] as const
 
 // ============================================================================
@@ -493,6 +507,19 @@ export const VARIABLE_CATALOG = {
     { path: 'orden.ciudad_envio', label: 'Ciudad de envio' },
     { path: 'contacto.nombre', label: 'Nombre del contacto' },
     { path: 'contacto.telefono', label: 'Telefono del contacto' },
+  ],
+  // Robot Guide Lookup trigger (buscar guias coord)
+  'robot.guide_lookup.completed': [
+    { path: 'orden.id', label: 'ID de la orden' },
+    { path: 'orden.nombre', label: 'Nombre/referencia de la orden' },
+    { path: 'orden.tracking_number', label: 'Numero de guia Coordinadora' },
+    { path: 'orden.carrier', label: 'Transportadora' },
+    { path: 'orden.ciudad_envio', label: 'Ciudad de envio' },
+    { path: 'orden.direccion_envio', label: 'Direccion de envio' },
+    { path: 'orden.departamento_envio', label: 'Departamento de envio' },
+    { path: 'contacto.nombre', label: 'Nombre del contacto' },
+    { path: 'contacto.telefono', label: 'Telefono del contacto' },
+    { path: 'contacto.email', label: 'Email del contacto' },
   ],
 } as const
 

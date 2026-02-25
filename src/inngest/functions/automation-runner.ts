@@ -48,6 +48,8 @@ const EVENT_TO_TRIGGER: Record<string, TriggerType> = {
   'automation/robot.coord.completed': 'robot.coord.completed',
   // Robot OCR triggers (Phase 27: Robot OCR de Guias)
   'automation/robot.ocr.completed': 'robot.ocr.completed',
+  // Robot Guide Lookup triggers (buscar guias coord)
+  'automation/robot.guide_lookup.completed': 'robot.guide_lookup.completed',
 }
 
 // ============================================================================
@@ -133,6 +135,7 @@ function matchesTriggerConfig(
     // Robot triggers have no config filters (Phase 23, Phase 27)
     case 'robot.coord.completed':
     case 'robot.ocr.completed':
+    case 'robot.guide_lookup.completed':
       return true
 
     default:
@@ -387,7 +390,7 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
 
       // Context enrichment: load full order + contact data for order/tag triggers
       const needsOrderEnrichment =
-        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed' || triggerType === 'robot.ocr.completed') &&
+        (triggerType === 'order.created' || triggerType === 'order.stage_changed' || triggerType === 'robot.coord.completed' || triggerType === 'robot.ocr.completed' || triggerType === 'robot.guide_lookup.completed') &&
         eventData.orderId
       const needsTagOrderEnrichment =
         (triggerType === 'tag.assigned' || triggerType === 'tag.removed') &&
@@ -673,6 +676,12 @@ const robotOcrCompletedRunner = createAutomationRunner(
   'automation/robot.ocr.completed'
 )
 
+// Robot Guide Lookup runner (buscar guias coord)
+const robotGuideLookupCompletedRunner = createAutomationRunner(
+  'robot.guide_lookup.completed',
+  'automation/robot.guide_lookup.completed'
+)
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -697,4 +706,5 @@ export const automationFunctions = [
   shopifyOrderUpdatedRunner,
   robotCoordCompletedRunner,
   robotOcrCompletedRunner,
+  robotGuideLookupCompletedRunner,
 ]

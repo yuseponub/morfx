@@ -504,3 +504,34 @@ export async function emitRobotOcrCompleted(data: {
     data.workspaceId
   )
 }
+
+/**
+ * Emit when the guide lookup robot successfully finds a guide for an order.
+ * Fires per-order so automations run individually per found guide.
+ */
+export async function emitRobotGuideLookupCompleted(data: {
+  workspaceId: string
+  orderId: string
+  orderName?: string
+  trackingNumber: string
+  carrier: string
+  contactId: string | null
+  contactName?: string
+  contactPhone?: string
+  contactEmail?: string
+  orderValue?: number
+  shippingCity?: string
+  shippingAddress?: string
+  shippingDepartment?: string
+  cascadeDepth?: number
+}): Promise<void> {
+  const depth = data.cascadeDepth ?? 0
+  if (isCascadeSuppressed('robot.guide_lookup.completed', data.workspaceId, depth)) return
+
+  await sendEvent(
+    'automation/robot.guide_lookup.completed',
+    { ...data, cascadeDepth: depth },
+    'robot.guide_lookup.completed',
+    data.workspaceId
+  )
+}

@@ -25,7 +25,7 @@ interface CommandOutputProps {
 const HELP_COMMANDS = [
   { cmd: 'subir ordenes coord', desc: 'Subir ordenes pendientes a Coordinadora' },
   { cmd: 'buscar guias coord', desc: 'Buscar guias asignadas por Coordinadora' },
-  { cmd: 'leer guias', desc: 'Leer guias de envio por OCR (adjuntar fotos)' },
+  { cmd: 'leer guias', desc: 'Leer guias de envio por OCR (adjuntar fotos primero)' },
   { cmd: 'generar guias inter', desc: 'Generar guias PDF para Interrapidisimo' },
   { cmd: 'generar guias bogota', desc: 'Generar guias PDF para envios Bogota' },
   { cmd: 'generar excel envia', desc: 'Generar archivo Excel para carga masiva Envia' },

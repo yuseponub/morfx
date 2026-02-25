@@ -10,9 +10,19 @@
  */
 
 import { useState, useCallback, useRef, type KeyboardEvent } from 'react'
-import { Send, Upload, Activity, HelpCircle, Image as ImageIcon, Paperclip, FileText, FileSpreadsheet } from 'lucide-react'
+import { Send, Upload, Activity, HelpCircle, Image as ImageIcon, Paperclip, FileText, FileSpreadsheet, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+
+// Confirmation descriptions for each command
+const COMMAND_CONFIRMATIONS: Record<string, string> = {
+  'subir ordenes coord': 'Vas a subir todas las ordenes pendientes a la plataforma de COORDINADORA.',
+  'buscar guias coord': 'Vas a buscar las guias asignadas por COORDINADORA para las ordenes pendientes.',
+  'leer guias': 'Vas a leer las guias de envio adjuntas usando reconocimiento OCR.',
+  'generar guias inter': 'Vas a generar el PDF de guias para todas las ordenes de INTERRAPIDISIMO.',
+  'generar guias bogota': 'Vas a generar el PDF de guias para todas las ordenes de BOGOTA.',
+  'generar excel envia': 'Vas a generar el archivo Excel de carga masiva para ENVIA.',
+}
 
 interface CommandInputProps {
   onCommand: (input: string) => void
@@ -24,7 +34,7 @@ interface CommandInputProps {
 
 export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFileCount }: CommandInputProps) {
   const [inputValue, setInputValue] = useState('')
-  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [pendingCommand, setPendingCommand] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = useCallback(() => {
@@ -44,19 +54,23 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
     [handleSubmit]
   )
 
-  const handleSubirOrdenes = useCallback(() => {
-    if (showConfirmation) {
-      // Already showing confirmation, execute
-      onCommand('subir ordenes coord')
-      setShowConfirmation(false)
+  const handleCommandWithConfirmation = useCallback((command: string) => {
+    setPendingCommand(command)
+  }, [])
+
+  const handleConfirm = useCallback(() => {
+    if (!pendingCommand) return
+    // Special case: "leer guias" button opens file picker, not direct command
+    if (pendingCommand === 'leer guias') {
+      fileInputRef.current?.click()
     } else {
-      // Show confirmation
-      setShowConfirmation(true)
+      onCommand(pendingCommand)
     }
-  }, [showConfirmation, onCommand])
+    setPendingCommand(null)
+  }, [pendingCommand, onCommand])
 
   const handleCancelConfirmation = useCallback(() => {
-    setShowConfirmation(false)
+    setPendingCommand(null)
   }, [])
 
   // ---- File handling (file picker only, drag-and-drop handled by CommandPanel) ----
@@ -83,90 +97,20 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
 
   return (
     <div className="border-t bg-card p-3 space-y-3">
-      {/* Quick-action chips */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {!showConfirmation ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSubirOrdenes}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              Subir ordenes
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <ImageIcon className="h-3.5 w-3.5" />
-              Leer guias
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCommand('generar guias inter')}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Guias Inter
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCommand('generar guias bogota')}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Guias Bogota
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCommand('generar excel envia')}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              Excel Envia
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCommand('estado')}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              Estado
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onCommand('ayuda')}
-              disabled={isDisabled}
-              className="gap-1.5"
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-              Ayuda
-            </Button>
-          </>
-        ) : (
+      {/* Quick-action chips / Confirmation */}
+      {pendingCommand ? (
+        <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950/40 p-4 space-y-3">
+          <p className="text-base font-semibold text-foreground">
+            {COMMAND_CONFIRMATIONS[pendingCommand]}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Deseas confirmar?
+          </p>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Subir todas las ordenes pendientes a Coordinadora?
-            </span>
             <Button
               variant="default"
               size="sm"
-              onClick={handleSubirOrdenes}
+              onClick={handleConfirm}
               disabled={isDisabled}
             >
               Confirmar
@@ -179,8 +123,91 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
               Cancelar
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCommandWithConfirmation('subir ordenes coord')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Subir ordenes
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCommandWithConfirmation('buscar guias coord')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Buscar Guias Coord
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCommandWithConfirmation('leer guias')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Leer Guias OCR
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCommandWithConfirmation('generar guias inter')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Guias Inter
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCommandWithConfirmation('generar guias bogota')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Guias Bogota
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleCommandWithConfirmation('generar excel envia')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Excel Envia
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onCommand('estado')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <Activity className="h-3.5 w-3.5" />
+            Estado
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onCommand('ayuda')}
+            disabled={isDisabled}
+            className="gap-1.5"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            Ayuda
+          </Button>
+        </div>
+      )}
 
       {/* Staged files indicator */}
       {stagedFileCount > 0 && (
@@ -206,7 +233,7 @@ export function CommandInput({ onCommand, onFilesSelected, isDisabled, stagedFil
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isDisabled ? 'Job en progreso...' : stagedFileCount > 0 ? 'Escribe "leer guias" para procesar...' : 'Escribe un comando...'}
+          placeholder={isDisabled ? 'Job en progreso...' : stagedFileCount > 0 ? 'Escribe "leer guias" o usa el boton "Leer Guias OCR"...' : 'Escribe un comando...'}
           disabled={isDisabled}
           className="flex-1"
         />

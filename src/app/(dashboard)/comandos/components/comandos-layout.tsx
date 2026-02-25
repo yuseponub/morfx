@@ -458,7 +458,7 @@ export function ComandosLayout() {
         if (stagedFiles.length === 0) {
           addMessage({
             type: 'error',
-            text: 'Adjunta fotos de guias primero (arrastra o usa el boton "Leer guias").',
+            text: 'Adjunta fotos de guias primero (arrastra o usa el boton "Leer Guias OCR").',
             timestamp: now(),
           })
           return

@@ -203,7 +203,7 @@ function ExpandedItemRow({
   meta: Record<string, unknown>
   jobType: string | null
 }) {
-  const contactName = (meta.contactName as string | null) ?? null
+  const orderName = (meta.orderName as string | null) ?? null
   const statusColor = item.status === 'success'
     ? 'text-green-700 dark:text-green-400'
     : item.status === 'error'
@@ -226,7 +226,7 @@ function ExpandedItemRow({
           <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
             {item.status}
           </Badge>
-          <span className="font-medium">{contactName || 'Sin nombre'}</span>
+          <span className="font-medium">{orderName || 'Sin nombre'}</span>
           {item.tracking_number && (
             <span className="font-mono text-muted-foreground">#{item.tracking_number}</span>
           )}
@@ -251,7 +251,7 @@ function ExpandedItemRow({
           <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
             {item.status}
           </Badge>
-          <span className="font-medium">{contactName || 'Sin nombre'}</span>
+          <span className="font-medium">{orderName || 'Sin nombre'}</span>
         </div>
         <div className="pl-2 text-muted-foreground">
           Pedido: {pedidoNumber}
@@ -270,7 +270,9 @@ function ExpandedItemRow({
   if (jobType === 'ocr_guide_read') {
     const ocrCategory = (meta.ocrCategory as string) ?? 'unknown'
     const guideNumber = (meta.guideNumber as string | null) ?? null
-    const orderName = (meta.orderName as string | null) ?? null
+    const ocrOrderName = (meta.orderName as string | null)
+      ?? (meta.suggestedOrderName as string | null) ?? null
+    const displayName = ocrOrderName
     return (
       <div className={cn('text-xs space-y-0.5 border-l-2 pl-2', borderColor, statusColor)}>
         <div className="flex items-center gap-2">
@@ -278,8 +280,8 @@ function ExpandedItemRow({
             {item.status}
           </Badge>
           {guideNumber && <span className="font-mono">#{guideNumber}</span>}
-          {orderName && <span>&rarr; {orderName}</span>}
-          {!guideNumber && !orderName && <span>imagen</span>}
+          {displayName && <span>&rarr; {displayName}</span>}
+          {!guideNumber && !displayName && <span>imagen</span>}
         </div>
         <div className="pl-2 text-muted-foreground">
           {ocrCategory.replace(/_/g, ' ')}
@@ -297,7 +299,7 @@ function ExpandedItemRow({
           <Badge variant="outline" className={cn('text-[10px] px-1.5', borderColor)}>
             {item.status}
           </Badge>
-          <span className="font-medium">{contactName || item.order_id?.slice(0, 8) || 'item'}</span>
+          <span className="font-medium">{orderName || item.order_id?.slice(0, 8) || 'item'}</span>
           {totalValue > 0 && (
             <span className="text-muted-foreground">${totalValue.toLocaleString('es-CO')}</span>
           )}
@@ -316,7 +318,7 @@ function ExpandedItemRow({
         {item.status}
       </Badge>
       <span className="font-mono truncate">
-        {contactName || (item.order_id?.slice(0, 8) ?? 'item')}
+        {orderName || (item.order_id?.slice(0, 8) ?? 'item')}
       </span>
       {item.tracking_number && (
         <span className="text-muted-foreground">#{item.tracking_number}</span>

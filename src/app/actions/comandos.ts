@@ -253,7 +253,7 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
     for (const order of orders) {
       if (validOrderIds.includes(order.id)) {
         itemMetadata[order.id] = {
-          contactName: order.contact_name,
+          orderName: order.name,
           address: order.shipping_address,
           city: order.shipping_city,
           department: order.shipping_department,
@@ -389,7 +389,7 @@ export async function executeBuscarGuiasCoord(): Promise<CommandResult<BuscarGui
     const itemMetadata: Record<string, Record<string, unknown>> = {}
     for (const order of orders) {
       itemMetadata[order.id] = {
-        contactName: order.contact_name,
+        orderName: order.name,
         pedidoNumber: order.tracking_number,
       }
     }
@@ -674,7 +674,7 @@ export async function executeGenerarGuiasInter(): Promise<CommandResult<GuideGen
     const itemMetadata: Record<string, Record<string, unknown>> = {}
     for (const order of orders) {
       itemMetadata[order.id] = {
-        contactName: order.contact_name || null,
+        orderName: order.name || null,
         totalValue: order.total_value,
       }
     }
@@ -782,7 +782,7 @@ export async function executeGenerarGuiasBogota(): Promise<CommandResult<GuideGe
     const itemMetadata: Record<string, Record<string, unknown>> = {}
     for (const order of orders) {
       itemMetadata[order.id] = {
-        contactName: order.contact_name || null,
+        orderName: order.name || null,
         totalValue: order.total_value,
       }
     }
@@ -890,7 +890,7 @@ export async function executeGenerarExcelEnvia(): Promise<CommandResult<GuideGen
     const itemMetadata: Record<string, Record<string, unknown>> = {}
     for (const order of orders) {
       itemMetadata[order.id] = {
-        contactName: order.contact_name || null,
+        orderName: order.name || null,
         totalValue: order.total_value,
       }
     }

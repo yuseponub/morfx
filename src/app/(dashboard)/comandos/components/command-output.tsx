@@ -220,7 +220,7 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               {message.successItems.map((item, idx) => (
                 <div key={idx} className="pl-6 text-xs space-y-0.5 border-l-2 border-green-200 dark:border-green-800 ml-2">
                   <div className="font-medium">
-                    #{item.trackingNumber} - {item.contactName || 'Sin nombre'}
+                    #{item.trackingNumber} - {item.orderName || 'Sin nombre'}
                   </div>
                   {item.address && (
                     <div className="flex items-center gap-1 text-muted-foreground">
@@ -258,7 +258,7 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               </div>
               {message.errorItems.map((item, idx) => (
                 <div key={idx} className="pl-6 text-xs space-y-0.5 border-l-2 border-red-200 dark:border-red-800 ml-2">
-                  <div className="font-medium">{item.contactName || 'Sin nombre'}</div>
+                  <div className="font-medium">{item.orderName || 'Sin nombre'}</div>
                   {item.phone && (
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Phone className="h-3 w-3 shrink-0" />
@@ -297,7 +297,7 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               </div>
               {message.updatedItems.map((item, idx) => (
                 <div key={idx} className="text-xs pl-6 space-y-0.5">
-                  <div>{item.contactName || 'Sin nombre'}</div>
+                  <div>{item.orderName || 'Sin nombre'}</div>
                   <div className="text-muted-foreground">
                     Pedido: {item.pedidoNumber} &rarr; Guia: {item.guideNumber}
                   </div>
@@ -314,7 +314,7 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               </div>
               {message.pendingItems.map((item, idx) => (
                 <div key={idx} className="text-xs pl-6 text-muted-foreground">
-                  {item.contactName || 'Sin nombre'} - Pedido: {item.pedidoNumber}
+                  {item.orderName || 'Sin nombre'} - Pedido: {item.pedidoNumber}
                 </div>
               ))}
             </div>

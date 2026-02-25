@@ -98,7 +98,7 @@ export type CommandMessage =
   | {
       type: 'shipment_result'
       successItems: Array<{
-        contactName: string | null
+        orderName: string | null
         trackingNumber: string
         address: string | null
         city: string | null
@@ -107,7 +107,7 @@ export type CommandMessage =
         totalValue: number
       }>
       errorItems: Array<{
-        contactName: string | null
+        orderName: string | null
         phone: string | null
         errorMessage: string
       }>
@@ -117,12 +117,12 @@ export type CommandMessage =
       type: 'guide_lookup_result'
       total: number
       updatedItems: Array<{
-        contactName: string | null
+        orderName: string | null
         pedidoNumber: string
         guideNumber: string
       }>
       pendingItems: Array<{
-        contactName: string | null
+        orderName: string | null
         pedidoNumber: string
       }>
       timestamp: string
@@ -322,7 +322,7 @@ export function ComandosLayout() {
       // THIRD: create_shipment -> rich shipment result
       } else if (activeJobType === 'create_shipment') {
         const successItems: Array<{
-          contactName: string | null
+          orderName: string | null
           trackingNumber: string
           address: string | null
           city: string | null
@@ -331,7 +331,7 @@ export function ComandosLayout() {
           totalValue: number
         }> = []
         const errorItems: Array<{
-          contactName: string | null
+          orderName: string | null
           phone: string | null
           errorMessage: string
         }> = []
@@ -340,7 +340,7 @@ export function ComandosLayout() {
           const meta = (item.value_sent ?? {}) as Record<string, unknown>
           if (item.status === 'success') {
             successItems.push({
-              contactName: (meta.contactName as string | null) ?? null,
+              orderName: (meta.orderName as string | null) ?? null,
               trackingNumber: item.tracking_number ?? '',
               address: (meta.address as string | null) ?? null,
               city: (meta.city as string | null) ?? null,
@@ -350,7 +350,7 @@ export function ComandosLayout() {
             })
           } else if (item.status === 'error') {
             errorItems.push({
-              contactName: (meta.contactName as string | null) ?? null,
+              orderName: (meta.orderName as string | null) ?? null,
               phone: (meta.phone as string | null) ?? null,
               errorMessage: item.error_message ?? 'Error desconocido',
             })
@@ -366,12 +366,12 @@ export function ComandosLayout() {
       // FOURTH: guide_lookup -> rich guide result
       } else if (activeJobType === 'guide_lookup') {
         const updatedItems: Array<{
-          contactName: string | null
+          orderName: string | null
           pedidoNumber: string
           guideNumber: string
         }> = []
         const pendingItems: Array<{
-          contactName: string | null
+          orderName: string | null
           pedidoNumber: string
         }> = []
 
@@ -380,13 +380,13 @@ export function ComandosLayout() {
           const pedidoNumber = (meta.pedidoNumber as string) ?? ''
           if (item.status === 'success' && item.tracking_number) {
             updatedItems.push({
-              contactName: (meta.contactName as string | null) ?? null,
+              orderName: (meta.orderName as string | null) ?? null,
               pedidoNumber,
               guideNumber: item.tracking_number,
             })
           } else {
             pendingItems.push({
-              contactName: (meta.contactName as string | null) ?? null,
+              orderName: (meta.orderName as string | null) ?? null,
               pedidoNumber,
             })
           }

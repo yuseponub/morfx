@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Phase 35 Flujo Ofi Inter (v4.0 Comportamiento Humano)
+**Current focus:** Phase 36 Shopify Product Conditional Assignment (v4.0)
 
 ## Current Position
 
-Phase: 35 of 36 (Flujo Ofi Inter) -- IN PROGRESS
-Plan: 2 of 3 complete (01, 02)
-Status: Plan 02 complete -- ofi inter detection routes wired into agent pipeline
+Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
+Plan: 1 of 2 complete (01)
+Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
 Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-25 — Completed 35-02-PLAN.md (agent pipeline integration)
+Last activity: 2026-02-25 — Completed 36-01-PLAN.md (conditional product mapping backend)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 90% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -53,6 +53,7 @@ All 9 phases + 5 inserted phases completed:
 | 33 | Confidence Routing + Disambiguation Log | COMPLETE (2/2 plans, verified 8/8) |
 | 34 | No-Repetition System | COMPLETE (4/4 plans) |
 | 35 | Flujo Ofi Inter | IN PROGRESS (2/3 plans) |
+| 36 | Shopify Product Conditional | IN PROGRESS (1/2 plans) |
 
 ### Standalone Work (between v2.0 and v3.0)
 
@@ -260,6 +261,13 @@ Phase 35 decisions (Plan 02):
 - IngestResult action union extended with ask_ofi_inter for Route 2
 - checkAutoTriggersForMode replaces checkAutoTriggers in orchestrator for mode-aware auto-trigger
 
+Phase 36 decisions (Plan 01):
+- productMappings takes precedence over copyProducts when both present (3-mode priority)
+- Numeric normalization via parseFloat for decimal comparison (109994.80 vs 109994.8)
+- Product not found returns empty array (graceful degradation, no throw)
+- Empty match result treated as undefined (no products) for domain layer
+- product_mapping param type registered in ACTION_CATALOG for custom UI in Plan 02
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -281,6 +289,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25 COT
-Stopped at: Completed 35-02-PLAN.md (agent pipeline integration)
+Stopped at: Completed 36-01-PLAN.md (conditional product mapping backend)
 Resume file: None
-Next: 35-03-PLAN.md (OrderCreator + Prompts + Integration)
+Next: 36-02-PLAN.md (product mapping UI for automation builder)

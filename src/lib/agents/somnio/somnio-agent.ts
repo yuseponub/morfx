@@ -470,7 +470,7 @@ export class SomnioAgent {
       // 5.5 Classify message category (Phase 30)
       // Skip classification for timer-forced calls (no customer message to classify)
       if (!input.forceIntent && !justCompletedIngest) {
-        const classification = classifyMessage(
+        let classification = classifyMessage(
           intent.intent,
           intent.confidence,
           currentMode,
@@ -494,28 +494,40 @@ export class SomnioAgent {
         }
 
         // SILENCIOSO: return early with no messages, signal silence for timer
+        // EXCEPTION: If the last bot message was a purchase offer question,
+        // treat acknowledgments ("si", "dale", "bueno") as purchase confirmation
+        // instead of silence. The intent is already correctly detected (e.g. captura_datos_si_compra).
         if (classification.category === 'SILENCIOSO') {
-          return {
-            success: true,
-            messages: [],
-            stateUpdates: {
-              newMode: currentMode,
-              newIntentsVistos: newIntentsVistos,
-              newTemplatesEnviados: input.session.state.templates_enviados ?? [],
-              newDatosCapturados: currentData,
-              newPackSeleccionado: input.session.state.pack_seleccionado,
-              newIngestStatus: currentIngestStatus,
-            },
-            shouldCreateOrder: false,
-            timerSignals: [],
-            silenceDetected: true,
-            totalTokens,
-            tokenDetails,
-            intentInfo,
-            tools: [],
-            classification: debugClassification,
-            ofiInter: debugOfiInter,
-            ingestDetails: debugIngestDetails,
+          const isResponseToOffer = isAcknowledgmentResponseToOffer(input.history)
+          if (!isResponseToOffer) {
+            return {
+              success: true,
+              messages: [],
+              stateUpdates: {
+                newMode: currentMode,
+                newIntentsVistos: newIntentsVistos,
+                newTemplatesEnviados: input.session.state.templates_enviados ?? [],
+                newDatosCapturados: currentData,
+                newPackSeleccionado: input.session.state.pack_seleccionado,
+                newIngestStatus: currentIngestStatus,
+              },
+              shouldCreateOrder: false,
+              timerSignals: [],
+              silenceDetected: true,
+              totalTokens,
+              tokenDetails,
+              intentInfo,
+              tools: [],
+              classification: debugClassification,
+              ofiInter: debugOfiInter,
+              ingestDetails: debugIngestDetails,
+            }
+          }
+          // Override: acknowledgment IS a response to offer → continue as RESPONDIBLE
+          classification = { category: 'RESPONDIBLE', reason: 'acknowledgment_response_to_offer' }
+          if (debugClassification) {
+            debugClassification.category = 'RESPONDIBLE'
+            debugClassification.reason = 'acknowledgment_response_to_offer'
           }
         }
 
@@ -1129,4 +1141,35 @@ export class SomnioAgent {
       debugImplicitYes: { triggered: true, dataFound: true, modeTransition: 'collecting_data' },
     }
   }
+}
+
+// ============================================================================
+// Helper: Detect if an acknowledgment is a response to a purchase offer
+// ============================================================================
+
+/** Patterns that indicate the bot asked a purchase/offer question */
+const OFFER_QUESTION_PATTERNS = [
+  /deseas?\s+(adquirir|comprar|ordenar|pedir|llevar)/i,
+  /quieres?\s+(adquirir|comprar|ordenar|pedir|llevar)/i,
+  /te\s+(gustaria|interesa)/i,
+  /lo\s+(quieres|deseas|llevas)/i,
+  /\?(.*)(adquirir|comprar|interesa|llevar)/i,
+]
+
+/**
+ * Check if the last assistant messages contain a purchase offer question.
+ * When true, an acknowledgment like "si" should be treated as a purchase
+ * confirmation, not as silence.
+ */
+function isAcknowledgmentResponseToOffer(
+  history: { role: string; content: string }[]
+): boolean {
+  // Look at the last 3 assistant messages (templates come as separate messages)
+  const recentAssistant = history
+    .filter(m => m.role === 'assistant')
+    .slice(-3)
+
+  return recentAssistant.some(m =>
+    OFFER_QUESTION_PATTERNS.some(pattern => pattern.test(m.content))
+  )
 }

@@ -14,15 +14,15 @@ autonomous: true
 
 must_haves:
   truths:
-    - "Bloques tab shows template selection, block composition, no-rep filter, send loop, and paraphrasing"
+    - "Bloques tab shows template selection, block composition, no-rep filter, and send loop (paraphrasing deferred — no data pipeline)"
     - "Ingest tab no longer has timer controls (sliders, presets, toggle)"
     - "Ingest tab shows extraction details per turn, implicit yes detection, and ofi inter Route 2"
     - "Config tab has timer controls (toggle, presets, 5 sliders) migrated from Ingest"
-    - "Estado tab shows legible templates_enviados, intents_vistos timeline, and pending_templates"
+    - "Estado tab shows legible templates_enviados and intents_vistos timeline (pending_templates deferred — SandboxState lacks the field)"
     - "All tabs handle undefined/empty data gracefully"
   artifacts:
     - path: "src/app/(dashboard)/sandbox/components/debug-panel/bloques-tab.tsx"
-      provides: "Bloques tab with 5 sections: template selection, block composition, no-rep, send loop, paraphrasing"
+      provides: "Bloques tab with 4 sections: template selection, block composition, no-rep, send loop (paraphrasing deferred)"
     - path: "src/app/(dashboard)/sandbox/components/debug-panel/ingest-tab.tsx"
       provides: "Updated Ingest tab without timer controls, with extraction details + implicit yes + ofi inter R2"
     - path: "src/app/(dashboard)/sandbox/components/debug-panel/config-tab.tsx"
@@ -78,7 +78,7 @@ Output: Bloques tab functional, Ingest simplified, Config gains timer controls, 
 
   **Props:** `{ debugTurns: DebugTurn[] }`
 
-  **5 Sections:**
+  **4 Sections** (paraphrasing deferred — no recordParaphrasing() or engine capture exists yet):
 
   1. **Template Selection** — from `turn.templateSelection`:
      ```
@@ -110,9 +110,10 @@ Output: Bloques tab functional, Ingest simplified, Config gains timer controls, 
      Summary: "Interrupted: yes/no, {n} pending saved".
      If undefined, show "No send data".
 
-  5. **Paraphrasing** — from `turn.paraphrasing`:
-     Only shown if data exists. For each template: side-by-side original vs paraphrased text (truncated).
-     If undefined, skip section entirely (don't show empty state for this).
+  NOTE: Paraphrasing section is DEFERRED. No `recordParaphrasing()` method exists in the
+  DebugAdapter interface, and no engine capture is specified. The `paraphrasing` field on
+  DebugTurn has been removed. This will be added in a future phase when the paraphrasing
+  feature is instrumented in the agent pipeline.
 
   **Implementation notes:**
   - Find the latest turn that has blockComposition or templateSelection data: `const relevantTurns = debugTurns.filter(t => t.blockComposition || t.templateSelection)`
@@ -132,7 +133,7 @@ Output: Bloques tab functional, Ingest simplified, Config gains timer controls, 
      ```
   </action>
   <verify>Run `npx tsc --noEmit`. Verify bloques-tab.tsx exports BloquesTab. Verify PanelContainer imports and routes to it.</verify>
-  <done>Bloques tab created with 5 sections (template selection, block composition, no-rep filter, send loop, paraphrasing). Wired into PanelContainer. Handles missing data gracefully.</done>
+  <done>Bloques tab created with 4 sections (template selection, block composition, no-rep filter, send loop). Paraphrasing deferred. Wired into PanelContainer. Handles missing data gracefully.</done>
 </task>
 
 <task type="auto">

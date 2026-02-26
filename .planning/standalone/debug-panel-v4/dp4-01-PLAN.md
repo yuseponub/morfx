@@ -14,7 +14,7 @@ autonomous: true
 
 must_haves:
   truths:
-    - "DebugTurn type has 12 new optional fields for all v4.0 agent features"
+    - "DebugTurn type has 11 new optional fields for all v4.0 agent features (paraphrasing deferred)"
     - "DebugAdapter interface has ~11 new record methods"
     - "SandboxDebugAdapter implements all new record methods and includes them in getDebugTurn()"
     - "ProductionDebugAdapter has no-op stubs for all new methods"
@@ -22,7 +22,7 @@ must_haves:
     - "TypeScript compilation succeeds with no errors"
   artifacts:
     - path: "src/lib/sandbox/types.ts"
-      provides: "Extended DebugTurn with classification, blockComposition, noRepetition, ofiInter, preSendCheck, timerSignals, templateSelection, transitionValidation, orchestration, ingestDetails, disambiguationLog, paraphrasing"
+      provides: "Extended DebugTurn with classification, blockComposition, noRepetition, ofiInter, preSendCheck, timerSignals, templateSelection, transitionValidation, orchestration, ingestDetails, disambiguationLog (paraphrasing deferred — no data pipeline yet)"
       contains: "DebugPanelTabId.*pipeline.*classify.*bloques"
     - path: "src/lib/agents/engine/types.ts"
       provides: "Extended DebugAdapter interface with 11 new record methods"
@@ -187,10 +187,9 @@ Output: Extended types, both adapters updated, agent output extended with debug 
        historyTurns?: number
      }
 
-     /** Paraphrasing debug info */
-     export interface DebugParaphrasing {
-       templates: { templateId: string; original: string; paraphrased: string }[]
-     }
+     // NOTE: DebugParaphrasing DEFERRED — no recordParaphrasing() method or
+     // engine capture exists yet. Will be added when paraphrasing feature is
+     // instrumented in the agent pipeline.
      ```
 
   3. **Extend DebugTurn** — Add 12 new optional fields to the existing interface:
@@ -213,14 +212,14 @@ Output: Extended types, both adapters updated, agent output extended with debug 
        orchestration?: DebugOrchestration
        ingestDetails?: DebugIngestDetails
        disambiguationLog?: DebugDisambiguationLog
-       paraphrasing?: DebugParaphrasing
+       // paraphrasing?: DebugParaphrasing — DEFERRED (no data pipeline)
      }
      ```
 
   All new fields are optional (`?:`) so existing sessions load without crashing (backward compatible).
   </action>
   <verify>Run `npx tsc --noEmit` — should compile with no errors. The only expected issue may be from tab-bar.tsx or panel-container.tsx referencing old 'intent' tab ID — this is expected and will be fixed in Plan 03.</verify>
-  <done>DebugTurn has 12 new optional fields. DebugPanelTabId includes pipeline, classify, bloques (no intent). 12 new debug sub-types exported.</done>
+  <done>DebugTurn has 11 new optional fields (paraphrasing deferred). DebugPanelTabId includes pipeline, classify, bloques (no intent). 11 new debug sub-types exported.</done>
 </task>
 
 <task type="auto">
@@ -404,6 +403,7 @@ Output: Extended types, both adapters updated, agent output extended with debug 
   1. **Classification data** — After `classifyMessage()` (or equivalent Gate 4 logic) returns the message category, add the result to the output object. Find where `classifyMessage()` is called and capture its return (category + reason + rulesChecked). Set `output.classification = { category, reason, rulesChecked }`.
 
   2. **Ofi Inter data** — After Route 1 and Route 3 detection blocks, capture results. Initialize `output.ofiInter = { route1: { detected: false }, route2: { detected: false }, route3: { detected: false } }` at the start of processMessage, then update each route's `detected`/`pattern`/`city`/`isRemote` as the gates execute.
+     **Route 2 specifically:** Route 2 comes from IngestManager (not from gate 3). If `ingestResult.action === 'ask_ofi_inter'`, set `output.ofiInter.route2 = { detected: true, city: ingestResult.mergedData?.ciudad }`. This happens inside `handleIngestMode()` result handling.
 
   3. **Ingest details** — After `handleIngestMode()` or `checkImplicitYes()` returns, capture classification + extractedFields + action. Set `output.ingestDetails = { ... }`.
 
@@ -429,7 +429,7 @@ Output: Extended types, both adapters updated, agent output extended with debug 
 
 <verification>
 1. `npx tsc --noEmit` compiles (note: tab-bar.tsx and panel-container.tsx may have errors due to removed 'intent' tab ID — this is expected and fixed in Plan 03)
-2. DebugTurn in types.ts has 12 new optional fields
+2. DebugTurn in types.ts has 11 new optional fields (paraphrasing deferred)
 3. DebugAdapter interface has 15 methods total (4 existing + 11 new)
 4. SandboxDebugAdapter has 15 record methods, all included in getDebugTurn(), all reset in reset()
 5. ProductionDebugAdapter has 15 no-op methods

@@ -64,9 +64,96 @@ Output: Working 8-tab system with new defaults, Classify tab functional, Intent 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Update tab infrastructure (debug-tabs, tab-bar, panel-container)</name>
+  <name>Task 1: Create Classify tab component</name>
+  <files>src/app/(dashboard)/sandbox/components/debug-panel/classify-tab.tsx</files>
+  <action>
+  Create `classify-tab.tsx` in the debug-panel directory. This tab replaces Intent and adds: message category classification, ofi inter detection, and disambiguation log.
+
+  **Structure:** The tab shows ONE section per turn (like intent-tab.tsx), iterating over debugTurns that have intent data. Within each turn entry, show 4 sections:
+
+  **1. Intent Section** (migrated from intent-tab.tsx with same styling):
+  - Intent name badge (colored by confidence level)
+  - Confidence bar with percentage (reuse `getConfidenceColor` helper from intent-tab.tsx)
+  - Alternatives list (if present)
+  - Reasoning text (if present)
+
+  **2. Category Section** (NEW):
+  - Category badge with color: green for RESPONDIBLE, yellow for SILENCIOSO, red for HANDOFF
+  - Reason text
+  - Rules checked grid (4 items: Rule 1 HANDOFF_INTENTS, Rule 1.5 confidence<80%, Rule 2 acknowledgment, Rule 3 default) — each shows a check mark or X
+
+  **3. Ofi Inter Section** (NEW, only shown if ofiInter data exists):
+  - Route 1: "Mencion directa" — detected/no + pattern matched
+  - Route 3: "Municipio remoto" — detected/no + city + isRemote flag
+  - (Route 2 is shown in Ingest tab since it comes from IngestManager)
+
+  **4. Disambiguation Log Section** (NEW, only shown if disambiguationLog exists and logged=true):
+  - Expandable section (collapsed by default)
+  - Top intents table with intent + confidence
+  - Templates sent count
+  - Pending count
+  - History turns captured
+
+  **Implementation pattern:**
+  ```tsx
+  'use client'
+
+  import { useState } from 'react'
+  import { Target, Shield, MapPin, AlertTriangle, ChevronDown, ChevronRight, Check, X as XIcon } from 'lucide-react'
+  import { Badge } from '@/components/ui/badge'
+  import { Progress } from '@/components/ui/progress'
+  import { cn } from '@/lib/utils'
+  import { format } from 'date-fns'
+  import type { DebugTurn } from '@/lib/sandbox/types'
+
+  interface ClassifyTabProps {
+    debugTurns: DebugTurn[]
+  }
+
+  // Reuse confidence color logic from intent-tab.tsx
+  function getConfidenceColor(confidence: number): string {
+    if (confidence >= 85) return 'text-green-600 dark:text-green-400'
+    if (confidence >= 60) return 'text-yellow-600 dark:text-yellow-400'
+    if (confidence >= 40) return 'text-orange-600 dark:text-orange-400'
+    return 'text-red-600 dark:text-red-400'
+  }
+
+  function getConfidenceBadge(confidence: number): 'default' | 'secondary' | 'destructive' {
+    if (confidence >= 85) return 'default'
+    if (confidence >= 60) return 'secondary'
+    return 'destructive'
+  }
+
+  function getCategoryColor(category: string) {
+    switch (category) {
+      case 'RESPONDIBLE': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-300'
+      case 'SILENCIOSO': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-300'
+      case 'HANDOFF': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  export function ClassifyTab({ debugTurns }: ClassifyTabProps) { ... }
+  ```
+
+  The component iterates `debugTurns.filter(t => t.intent)`, same as intent-tab.tsx. For each turn, render the 4 sections. Handle gracefully: if `turn.classification` is undefined (old sessions), skip the Category section. If `turn.ofiInter` is undefined, skip Ofi Inter section. If `turn.disambiguationLog` is undefined or `logged=false`, skip Disambiguation section.
+
+  **Styling notes:**
+  - Use consistent spacing: `space-y-3` between sections within a turn card
+  - Category badge: larger than intent badge, prominent
+  - Rules checked: 2x2 grid of small items, each with Check or X icon
+  - Keep it compact — this tab needs to fit in 1/3 of the panel width
+  </action>
+  <verify>Run `npx tsc --noEmit` — classify-tab.tsx itself should compile (it only imports from types and shadcn). Verify the file exports ClassifyTab. It should handle turns without classification gracefully.</verify>
+  <done>Classify tab created with 4 sections: Intent (migrated), Category (new), Ofi Inter (new), Disambiguation (new). Handles undefined debug fields gracefully. Exported as ClassifyTab.</done>
+</task>
+
+<task type="auto">
+  <name>Task 2: Update tab infrastructure (debug-tabs, tab-bar, panel-container) + delete intent-tab</name>
   <files>src/app/(dashboard)/sandbox/components/debug-panel/debug-tabs.tsx, src/app/(dashboard)/sandbox/components/debug-panel/tab-bar.tsx, src/app/(dashboard)/sandbox/components/debug-panel/panel-container.tsx</files>
   <action>
+  **IMPORTANT:** This task runs AFTER Task 1 (classify-tab.tsx must exist before panel-container.tsx can import it).
+
   All three files must be updated together to avoid type mismatches.
 
   **A. Update debug-tabs.tsx:**
@@ -148,95 +235,10 @@ Output: Working 8-tab system with new defaults, Classify tab functional, Intent 
        ```
 
   **D. Delete intent-tab.tsx:**
-  Delete the file `src/app/(dashboard)/sandbox/components/debug-panel/intent-tab.tsx`. It is fully replaced by classify-tab.tsx.
+  Delete the file `src/app/(dashboard)/sandbox/components/debug-panel/intent-tab.tsx`. It is fully replaced by classify-tab.tsx (created in Task 1).
   </action>
-  <verify>Run `npx tsc --noEmit` — should compile (classify-tab.tsx must exist first, see Task 2). Verify `intent-tab.tsx` is deleted. Verify TAB_ICONS has exactly 8 keys.</verify>
+  <verify>Run `npx tsc --noEmit` — should compile (classify-tab.tsx exists from Task 1). Verify `intent-tab.tsx` is deleted. Verify TAB_ICONS has exactly 8 keys.</verify>
   <done>Tab system updated: 8 tabs registered, 3 visible by default (Pipeline/Classify/Bloques), Intent removed entirely, Pipeline and Bloques have placeholders.</done>
-</task>
-
-<task type="auto">
-  <name>Task 2: Create Classify tab component</name>
-  <files>src/app/(dashboard)/sandbox/components/debug-panel/classify-tab.tsx</files>
-  <action>
-  Create `classify-tab.tsx` in the debug-panel directory. This tab replaces Intent and adds: message category classification, ofi inter detection, and disambiguation log.
-
-  **Structure:** The tab shows ONE section per turn (like intent-tab.tsx), iterating over debugTurns that have intent data. Within each turn entry, show 4 sections:
-
-  **1. Intent Section** (migrated from intent-tab.tsx with same styling):
-  - Intent name badge (colored by confidence level)
-  - Confidence bar with percentage (reuse `getConfidenceColor` helper from intent-tab.tsx)
-  - Alternatives list (if present)
-  - Reasoning text (if present)
-
-  **2. Category Section** (NEW):
-  - Category badge with color: green for RESPONDIBLE, yellow for SILENCIOSO, red for HANDOFF
-  - Reason text
-  - Rules checked grid (4 items: Rule 1 HANDOFF_INTENTS, Rule 1.5 confidence<80%, Rule 2 acknowledgment, Rule 3 default) — each shows a check mark or X
-
-  **3. Ofi Inter Section** (NEW, only shown if ofiInter data exists):
-  - Route 1: "Mencion directa" — detected/no + pattern matched
-  - Route 3: "Municipio remoto" — detected/no + city + isRemote flag
-  - (Route 2 is shown in Ingest tab since it comes from IngestManager)
-
-  **4. Disambiguation Log Section** (NEW, only shown if disambiguationLog exists and logged=true):
-  - Expandable section (collapsed by default)
-  - Top intents table with intent + confidence
-  - Templates sent count
-  - Pending count
-  - History turns captured
-
-  **Implementation pattern:**
-  ```tsx
-  'use client'
-
-  import { useState } from 'react'
-  import { Target, Shield, MapPin, AlertTriangle, ChevronDown, ChevronRight, Check, X as XIcon } from 'lucide-react'
-  import { Badge } from '@/components/ui/badge'
-  import { Progress } from '@/components/ui/progress'
-  import { cn } from '@/lib/utils'
-  import { format } from 'date-fns'
-  import type { DebugTurn } from '@/lib/sandbox/types'
-
-  interface ClassifyTabProps {
-    debugTurns: DebugTurn[]
-  }
-
-  // Reuse confidence color logic from intent-tab.tsx
-  function getConfidenceColor(confidence: number): string {
-    if (confidence >= 85) return 'text-green-600 dark:text-green-400'
-    if (confidence >= 60) return 'text-yellow-600 dark:text-yellow-400'
-    if (confidence >= 40) return 'text-orange-600 dark:text-orange-400'
-    return 'text-red-600 dark:text-red-400'
-  }
-
-  function getConfidenceBadge(confidence: number): 'default' | 'secondary' | 'destructive' {
-    if (confidence >= 85) return 'default'
-    if (confidence >= 60) return 'secondary'
-    return 'destructive'
-  }
-
-  function getCategoryColor(category: string) {
-    switch (category) {
-      case 'RESPONDIBLE': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-300'
-      case 'SILENCIOSO': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-300'
-      case 'HANDOFF': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  export function ClassifyTab({ debugTurns }: ClassifyTabProps) { ... }
-  ```
-
-  The component iterates `debugTurns.filter(t => t.intent)`, same as intent-tab.tsx. For each turn, render the 4 sections. Handle gracefully: if `turn.classification` is undefined (old sessions), skip the Category section. If `turn.ofiInter` is undefined, skip Ofi Inter section. If `turn.disambiguationLog` is undefined or `logged=false`, skip Disambiguation section.
-
-  **Styling notes:**
-  - Use consistent spacing: `space-y-3` between sections within a turn card
-  - Category badge: larger than intent badge, prominent
-  - Rules checked: 2x2 grid of small items, each with Check or X icon
-  - Keep it compact — this tab needs to fit in 1/3 of the panel width
-  </action>
-  <verify>Run `npx tsc --noEmit` — should compile. The classify-tab.tsx file should export ClassifyTab. It should handle turns without classification gracefully.</verify>
-  <done>Classify tab created with 4 sections: Intent (migrated), Category (new), Ofi Inter (new), Disambiguation (new). Handles undefined debug fields gracefully. Exported as ClassifyTab.</done>
 </task>
 
 </tasks>

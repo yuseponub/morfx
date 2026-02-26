@@ -92,7 +92,7 @@ Output: unified-engine.ts has ~11 new record calls at precise pipeline points.
 
   **Guard every call with an `if` check** so production (where these fields are undefined) doesn't crash. Timer signals use `?? []` fallback since the adapter expects an array.
   </action>
-  <verify>Search for `recordClassification` in unified-engine.ts — should find exactly 1 occurrence. Count total `this.adapters.debug.record` calls — should be ~15 (4 existing + 8 new from agentOutput + 3 from pipeline in Task 2).</verify>
+  <verify>Search for `recordClassification` in unified-engine.ts — should find exactly 1 occurrence. Count total `this.adapters.debug.record` calls — should be ~12 after this task (4 existing + 8 new from agentOutput). Task 2 will add 3 more pipeline-event calls for a total of ~15.</verify>
   <done>8 new record calls for agent-sourced debug data are placed after existing debug section, all guarded by undefined checks.</done>
 </task>
 

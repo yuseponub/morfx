@@ -384,6 +384,52 @@ export interface DebugAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recordState(state: any): void
 
+  // Debug Panel v4.0 record methods (standalone/debug-panel-v4)
+
+  /** Record message category classification (RESPONDIBLE/SILENCIOSO/HANDOFF). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordClassification(info: any): void
+
+  /** Record block composition result (new + pending, composed block, overflow). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordBlockComposition(info: any): void
+
+  /** Record no-repetition filter result (per-template levels, summary). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordNoRepetition(info: any): void
+
+  /** Record ofi inter detection result (routes 1-3). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordOfiInter(info: any): void
+
+  /** Record pre-send check result (per-template, interruption). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordPreSendCheck(info: any): void
+
+  /** Record timer signals emitted during turn. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordTimerSignals(signals: any[]): void
+
+  /** Record template selection info (intent, visit type, counts). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordTemplateSelection(info: any): void
+
+  /** Record transition validation result. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordTransitionValidation(info: any): void
+
+  /** Record orchestration result (mode transition, order, template count). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordOrchestration(info: any): void
+
+  /** Record ingest details (classification, extraction, implicit yes). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordIngestDetails(info: any): void
+
+  /** Record disambiguation log info. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recordDisambiguationLog(info: any): void
+
   /** Get the accumulated debug turn. Sandbox returns DebugTurn; production returns undefined. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getDebugTurn(turnNumber: number): any | undefined

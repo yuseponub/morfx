@@ -38,15 +38,15 @@ export interface ClassificationResult {
 /**
  * Classify a customer message into one of three categories:
  *
- * - HANDOFF: Intent is in HANDOFF_INTENTS (asesor, queja, cancelar, no_interesa, fallback).
- *   Agent stops processing and transfers to human.
- *
  * - SILENCIOSO: Message is an acknowledgment (ok, jaja, thumbs-up) in a non-confirmatory
  *   mode (conversacion, bienvenida). Bot stays silent, silence timer starts.
- *   NOTE: Rule 2 checks the raw message text, NOT the intent name. IntentDetector
- *   classifies "ok" as various intents depending on context (could be compra_confirmada,
- *   could be fallback). The acknowledgment check uses actual text to catch bare
- *   acknowledgments regardless of intent classification. Rule 2 does NOT check confidence.
+ *   Evaluated FIRST because IntentDetector may classify acknowledgments as "fallback"
+ *   which would incorrectly trigger HANDOFF if checked later.
+ *   NOTE: Checks raw message text, NOT the intent name. Patterns are anchored (^...$)
+ *   so they only match single-word/emoji messages — never phrases like "quiero un asesor".
+ *
+ * - HANDOFF: Intent is in HANDOFF_INTENTS (asesor, queja, cancelar, no_interesa, fallback).
+ *   Agent stops processing and transfers to human.
  *
  * - RESPONDIBLE: Everything else. Bot proceeds to orchestrator for normal response.
  *
@@ -61,6 +61,20 @@ export function classifyMessage(
   currentMode: string,
   message: string
 ): ClassificationResult {
+  // Rule 0 — SILENCIOSO: acknowledgment in non-confirmatory mode
+  // Must run BEFORE handoff check: IntentDetector classifies "jaja"/"ok" as fallback,
+  // which is in HANDOFF_INTENTS. Acknowledgment patterns are anchored (^...$) so they
+  // never intercept real handoff phrases.
+  // In confirmatory modes (resumen, collecting_data, confirmado), "ok" and "si" are
+  // meaningful confirmations that must reach the orchestrator.
+  if (!CONFIRMATORY_MODES.has(currentMode)) {
+    const trimmed = message.trim()
+    const isAcknowledgment = ACKNOWLEDGMENT_PATTERNS.some(pattern => pattern.test(trimmed))
+    if (isAcknowledgment) {
+      return { category: 'SILENCIOSO', reason: 'acknowledgment_non_confirmatory' }
+    }
+  }
+
   // Rule 1 — HANDOFF: intent is a handoff trigger
   if (HANDOFF_INTENTS.has(intent)) {
     return { category: 'HANDOFF', reason: `handoff_intent:${intent}` }
@@ -75,18 +89,6 @@ export function classifyMessage(
     return { category: 'HANDOFF', reason: `low_confidence:${confidence}` }
   }
 
-  // Rule 2 — SILENCIOSO: acknowledgment in non-confirmatory mode
-  // Only applies when mode is NOT confirmatory (resumen, collecting_data, confirmado).
-  // In confirmatory modes, "ok" and "si" are meaningful confirmations that must reach
-  // the orchestrator.
-  if (!CONFIRMATORY_MODES.has(currentMode)) {
-    const trimmed = message.trim()
-    const isAcknowledgment = ACKNOWLEDGMENT_PATTERNS.some(pattern => pattern.test(trimmed))
-    if (isAcknowledgment) {
-      return { category: 'SILENCIOSO', reason: 'acknowledgment_non_confirmatory' }
-    }
-  }
-
-  // Rule 3 — RESPONDIBLE: default
+  // Rule 2 — RESPONDIBLE: default
   return { category: 'RESPONDIBLE', reason: 'default_respondible' }
 }

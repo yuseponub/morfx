@@ -58,6 +58,104 @@ export interface TokenInfo {
   timestamp: string
 }
 
+// ============================================================================
+// Debug Panel v4.0 Types (standalone/debug-panel-v4)
+// ============================================================================
+
+/** Message category classification result */
+export interface DebugClassification {
+  category: 'RESPONDIBLE' | 'SILENCIOSO' | 'HANDOFF'
+  reason: string
+  rulesChecked: { rule1: boolean; rule1_5: boolean; rule2: boolean; rule3: boolean }
+  confidenceThreshold?: number
+}
+
+/** Block composition debug info */
+export interface DebugBlockComposition {
+  newTemplates: { id: string; intent: string; priority: string }[]
+  pendingFromPrev: { id: string; priority: string }[]
+  composedBlock: { id: string; name: string; priority: string; status: 'sent' | 'dropped' | 'pending' }[]
+  overflow: { pending: number; dropped: number }
+}
+
+/** No-repetition filter debug info */
+export interface DebugNoRepetition {
+  enabled: boolean
+  perTemplate: {
+    templateId: string
+    templateName: string
+    level1: 'pass' | 'filtered' | null
+    level2: 'ENVIAR' | 'NO_ENVIAR' | 'PARCIAL' | null
+    level3: 'ENVIAR' | 'NO_ENVIAR' | null
+    result: 'sent' | 'filtered'
+    filteredAtLevel?: 1 | 2 | 3
+  }[]
+  summary: { surviving: number; filtered: number }
+}
+
+/** Ofi Inter detection debug info */
+export interface DebugOfiInter {
+  route1: { detected: boolean; pattern?: string }
+  route2: { detected: boolean; city?: string }
+  route3: { detected: boolean; city?: string; isRemote?: boolean }
+}
+
+/** Pre-send check debug info */
+export interface DebugPreSendCheck {
+  perTemplate: { index: number; checkResult: 'ok' | 'interrupted'; newMessageFound?: boolean }[]
+  interrupted: boolean
+  pendingSaved: number
+}
+
+/** Template selection debug info */
+export interface DebugTemplateSelection {
+  intent: string
+  visitType: 'primera_vez' | 'siguientes'
+  loadedCount: number
+  alreadySentCount: number
+  selectedCount: number
+  isRepeated: boolean
+  cappedByNoRep: boolean
+}
+
+/** Transition validation debug info */
+export interface DebugTransitionValidation {
+  allowed: boolean
+  reason?: string
+  autoTrigger?: string
+}
+
+/** Orchestration debug info */
+export interface DebugOrchestration {
+  nextMode: string
+  previousMode: string
+  modeChanged: boolean
+  shouldCreateOrder: boolean
+  templatesCount: number
+}
+
+/** Ingest details debug info */
+export interface DebugIngestDetails {
+  classification?: 'datos' | 'pregunta' | 'mixto' | 'irrelevante'
+  classificationConfidence?: number
+  extractedFields?: { field: string; value: string }[]
+  action?: 'silent' | 'respond' | 'complete' | 'ask_ofi_inter'
+  implicitYes?: { triggered: boolean; dataFound: boolean; modeTransition?: string }
+}
+
+/** Disambiguation log debug info */
+export interface DebugDisambiguationLog {
+  logged: boolean
+  topIntents?: { intent: string; confidence: number }[]
+  templatesSent?: number
+  pendingCount?: number
+  historyTurns?: number
+}
+
+// NOTE: DebugParaphrasing DEFERRED — no recordParaphrasing() method or
+// engine capture exists yet. Will be added when paraphrasing feature is
+// instrumented in the agent pipeline.
+
 /**
  * Debug information for a single turn
  */
@@ -67,6 +165,19 @@ export interface DebugTurn {
   tools: ToolExecution[]
   tokens: TokenInfo
   stateAfter: SandboxState
+  // Debug Panel v4.0 fields
+  classification?: DebugClassification
+  blockComposition?: DebugBlockComposition
+  noRepetition?: DebugNoRepetition
+  ofiInter?: DebugOfiInter
+  preSendCheck?: DebugPreSendCheck
+  timerSignals?: { type: 'start' | 'reevaluate' | 'cancel'; reason?: string }[]
+  templateSelection?: DebugTemplateSelection
+  transitionValidation?: DebugTransitionValidation
+  orchestration?: DebugOrchestration
+  ingestDetails?: DebugIngestDetails
+  disambiguationLog?: DebugDisambiguationLog
+  // paraphrasing?: DebugParaphrasing — DEFERRED (no data pipeline)
 }
 
 /**
@@ -201,7 +312,7 @@ export interface IngestTimelineEntry {
 // ============================================================================
 
 /** Available debug panel tab IDs */
-export type DebugPanelTabId = 'tools' | 'state' | 'intent' | 'tokens' | 'ingest' | 'config'
+export type DebugPanelTabId = 'pipeline' | 'classify' | 'bloques' | 'tools' | 'state' | 'tokens' | 'ingest' | 'config'
 
 /** Response speed preset for sandbox message delays */
 export type ResponseSpeedPreset = 'real' | 'rapido' | 'instantaneo'

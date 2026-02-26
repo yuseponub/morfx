@@ -2,29 +2,24 @@
 
 /**
  * Ingest Tab Component
- * Phase 15.7: Ingest Timer Pluggable - Plan 02
+ * Debug Panel v4.0: standalone/debug-panel-v4 (dp4-05)
  *
- * Shows ingest status, classification timeline, and 5-level timer configuration.
- * Provides visibility into the silent data accumulation process during collecting_data mode.
+ * Shows ingest status, classification timeline, and extraction details.
+ * Timer DISPLAY stays here (countdown + pause), but timer CONTROLS
+ * (toggle, presets, sliders) have been migrated to Config tab.
  *
- * Timer controls:
- * - Toggle to enable/disable timer simulation
- * - 3 presets (Real / Rapido / Instantaneo) set all 5 levels simultaneously
- * - 5 independent sliders for fine-tuning each level
- * - Countdown display showing remaining time + level name
- * - Pause/Resume button for active timer
+ * New sections (v4.0):
+ * - Extraction Details: per-turn classification + extracted fields
+ * - Implicit Yes: detection status per turn
+ * - Ofi Inter Ruta 2: city without address detection
  */
 
-import { Activity, ChevronDown, ChevronRight, Clock, Code, Database, Pause, Play, Tag, Timer, Zap } from 'lucide-react'
+import { Activity, ChevronDown, ChevronRight, Clock, Code, Database, MapPin, Pause, Play, Search, Sparkles, Tag, Timer } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Slider } from '@/components/ui/slider'
-import { Switch } from '@/components/ui/switch'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { TIMER_PRESETS, TIMER_LEVELS, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
-import type { SandboxState, IngestTimelineEntry, TimerState, TimerConfig, TimerPreset } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, IngestTimelineEntry, TimerState } from '@/lib/sandbox/types'
 
 // ============================================================================
 // Classification Colors
@@ -60,21 +55,23 @@ function getClassificationBadgeVariant(classification: string): 'default' | 'sec
   }
 }
 
-// ============================================================================
-// Helper: Format seconds to readable string
-// ============================================================================
-
-function formatSeconds(seconds: number): string {
-  if (seconds === 0) return '0s'
-  if (seconds < 60) return `${seconds}s`
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  if (secs === 0) return `${mins}min`
-  return `${mins}min ${secs}s`
+function getActionColor(action: string): string {
+  switch (action) {
+    case 'silent':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+    case 'respond':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+    case 'complete':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+    case 'ask_ofi_inter':
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+  }
 }
 
 // ============================================================================
-// Timer Display (replaces old TimerCountdown)
+// Timer Display (countdown badge + pause, stays in Ingest)
 // ============================================================================
 
 function TimerDisplay({ timerState, onPause }: { timerState: TimerState; onPause: () => void }) {
@@ -106,7 +103,7 @@ function TimerDisplay({ timerState, onPause }: { timerState: TimerState; onPause
 }
 
 // ============================================================================
-// Status Grid (updated with timer display)
+// Status Grid (with timer display)
 // ============================================================================
 
 function StatusGrid({
@@ -166,7 +163,7 @@ function StatusGrid({
           )}
         </div>
 
-        {/* Timer countdown (Phase 15.7) */}
+        {/* Timer countdown */}
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">Timer</div>
           <TimerDisplay timerState={timerState} onPause={onTimerPause} />
@@ -258,126 +255,6 @@ function Timeline({ entries }: { entries: IngestTimelineEntry[] }) {
 }
 
 // ============================================================================
-// Timer Controls V2 (5-level configuration)
-// ============================================================================
-
-/** Slider range config per level: min/max/step in seconds */
-const SLIDER_CONFIG: Record<number, { min: number; max: number; step: number }> = {
-  0: { min: 0, max: 900, step: 10 },
-  1: { min: 0, max: 600, step: 10 },
-  2: { min: 0, max: 300, step: 5 },
-  3: { min: 0, max: 900, step: 10 },
-  4: { min: 0, max: 900, step: 10 },
-}
-
-function TimerControlsV2({
-  timerEnabled,
-  timerConfig,
-  onTimerToggle,
-  onTimerConfigChange,
-}: {
-  timerEnabled: boolean
-  timerConfig: TimerConfig
-  onTimerToggle: (enabled: boolean) => void
-  onTimerConfigChange: (config: TimerConfig) => void
-}) {
-  // Detect current preset from config values
-  const detectPreset = (config: TimerConfig): TimerPreset | null => {
-    for (const [key, presetConfig] of Object.entries(TIMER_PRESETS)) {
-      const matches = Object.keys(presetConfig.levels).every(
-        k => presetConfig.levels[Number(k)] === config.levels[Number(k)]
-      )
-      if (matches) return key as TimerPreset
-    }
-    return null
-  }
-
-  const currentPreset = detectPreset(timerConfig)
-
-  const handlePresetChange = (value: string) => {
-    if (!value) return
-    const preset = value as TimerPreset
-    onTimerConfigChange(TIMER_PRESETS[preset])
-  }
-
-  const handleLevelChange = (levelId: number, seconds: number) => {
-    onTimerConfigChange({
-      levels: { ...timerConfig.levels, [levelId]: seconds },
-    })
-  }
-
-  return (
-    <div className="border rounded-lg p-3 space-y-3">
-      {/* Header with toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Timer Simulacion</span>
-        </div>
-        <Switch
-          size="sm"
-          checked={timerEnabled}
-          onCheckedChange={onTimerToggle}
-        />
-      </div>
-
-      {timerEnabled && (
-        <>
-          {/* Preset buttons */}
-          <div>
-            <div className="text-xs text-muted-foreground mb-1.5">Preset</div>
-            <ToggleGroup
-              type="single"
-              value={currentPreset ?? ''}
-              onValueChange={handlePresetChange}
-              size="sm"
-              className="gap-1"
-            >
-              {Object.entries(TIMER_PRESETS).map(([key]) => (
-                <ToggleGroupItem
-                  key={key}
-                  value={key}
-                  className="text-xs px-3"
-                >
-                  <span className="capitalize">{key}</span>
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-
-          {/* 5 sliders - one per timer level */}
-          <div className="space-y-2.5">
-            {TIMER_LEVELS.map((level) => {
-              const sliderConf = SLIDER_CONFIG[level.id]
-              const currentValue = timerConfig.levels[level.id] ?? level.defaultDurationS
-              return (
-                <div key={level.id} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      L{level.id}: {level.name}
-                    </span>
-                    <span className="text-xs font-mono font-medium">
-                      {formatSeconds(currentValue)}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[currentValue]}
-                    onValueChange={(val) => handleLevelChange(level.id, val[0])}
-                    min={sliderConf.min}
-                    max={sliderConf.max}
-                    step={sliderConf.step}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
 // Ingest State JSON Viewer
 // ============================================================================
 
@@ -417,26 +294,181 @@ function IngestStateViewer({ state }: { state: SandboxState }) {
 }
 
 // ============================================================================
+// NEW: Extraction Details Section (v4.0)
+// ============================================================================
+
+function ExtractionDetailsSection({ debugTurns }: { debugTurns: DebugTurn[] }) {
+  const turnsWithIngest = debugTurns.filter(t => t.ingestDetails)
+
+  if (turnsWithIngest.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+        <Search className="h-3.5 w-3.5" />
+        Extraction Details ({turnsWithIngest.length} turnos)
+      </div>
+
+      <div className="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
+        {turnsWithIngest.map((turn) => {
+          const d = turn.ingestDetails!
+          return (
+            <div key={turn.turnNumber} className="border rounded-lg p-2.5 space-y-1.5">
+              {/* Header: turn number + classification badge + action */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">T{turn.turnNumber}</span>
+                <div className="flex items-center gap-1.5">
+                  {d.classification && (
+                    <Badge
+                      className={cn('text-xs', getClassificationColor(d.classification))}
+                      variant="outline"
+                    >
+                      {d.classification}
+                      {d.classificationConfidence !== undefined && (
+                        <span className="ml-1 opacity-70">{d.classificationConfidence}%</span>
+                      )}
+                    </Badge>
+                  )}
+                  {d.action && (
+                    <Badge
+                      className={cn('text-xs', getActionColor(d.action))}
+                      variant="outline"
+                    >
+                      {d.action}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Extracted fields as tags */}
+              {d.extractedFields && d.extractedFields.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {d.extractedFields.map((f, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs py-0">
+                      {f.field}: {f.value}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// NEW: Implicit Yes Section (v4.0)
+// ============================================================================
+
+function ImplicitYesSection({ debugTurns }: { debugTurns: DebugTurn[] }) {
+  const turnsWithImplicitYes = debugTurns.filter(t => t.ingestDetails?.implicitYes)
+
+  if (turnsWithImplicitYes.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+        <Sparkles className="h-3.5 w-3.5" />
+        Implicit Yes
+      </div>
+
+      <div className="space-y-1.5">
+        {turnsWithImplicitYes.map((turn) => {
+          const iy = turn.ingestDetails!.implicitYes!
+          return (
+            <div key={turn.turnNumber} className="border rounded-lg p-2.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">T{turn.turnNumber}</span>
+                <Badge
+                  variant={iy.triggered ? 'default' : 'outline'}
+                  className="text-xs"
+                >
+                  {iy.triggered ? 'Triggered' : 'Not triggered'}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>Data found: {iy.dataFound ? (
+                  <span className="text-green-600 dark:text-green-400 font-medium">si</span>
+                ) : (
+                  <span>no</span>
+                )}</span>
+                {iy.modeTransition && (
+                  <span>Transicion: <span className="font-medium">{iy.modeTransition}</span></span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// NEW: Ofi Inter Ruta 2 Section (v4.0)
+// ============================================================================
+
+function OfiInterRoute2Section({ debugTurns }: { debugTurns: DebugTurn[] }) {
+  const turnsWithR2 = debugTurns.filter(t => t.ingestDetails?.action === 'ask_ofi_inter')
+
+  if (turnsWithR2.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+        <MapPin className="h-3.5 w-3.5" />
+        Ofi Inter Ruta 2
+      </div>
+
+      <div className="space-y-1.5">
+        {turnsWithR2.map((turn) => {
+          const d = turn.ingestDetails!
+          // Try to find city from extracted fields
+          const cityField = d.extractedFields?.find(f => f.field === 'ciudad')
+          return (
+            <div key={turn.turnNumber} className="border rounded-lg p-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">T{turn.turnNumber}</span>
+                <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300">
+                  Ciudad sin direccion detectada
+                </Badge>
+              </div>
+              {cityField && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Ciudad: <span className="font-medium">{cityField.value}</span>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // Main IngestTab Component
 // ============================================================================
 
 interface IngestTabProps {
   state: SandboxState
+  debugTurns: DebugTurn[]
   timerState: TimerState
-  timerEnabled: boolean
-  timerConfig: TimerConfig
-  onTimerToggle: (enabled: boolean) => void
-  onTimerConfigChange: (config: TimerConfig) => void
   onTimerPause: () => void
 }
 
 export function IngestTab({
   state,
+  debugTurns,
   timerState,
-  timerEnabled,
-  timerConfig,
-  onTimerToggle,
-  onTimerConfigChange,
   onTimerPause,
 }: IngestTabProps) {
   const timeline = state.ingestStatus?.timeline ?? []
@@ -452,13 +484,14 @@ export function IngestTab({
       {/* Section 3: Classification timeline */}
       <Timeline entries={timeline} />
 
-      {/* Section 4: Timer controls (5 levels, 3 presets) */}
-      <TimerControlsV2
-        timerEnabled={timerEnabled}
-        timerConfig={timerConfig}
-        onTimerToggle={onTimerToggle}
-        onTimerConfigChange={onTimerConfigChange}
-      />
+      {/* Section 4: Extraction Details (v4.0) */}
+      <ExtractionDetailsSection debugTurns={debugTurns} />
+
+      {/* Section 5: Implicit Yes (v4.0) */}
+      <ImplicitYesSection debugTurns={debugTurns} />
+
+      {/* Section 6: Ofi Inter Ruta 2 (v4.0) */}
+      <OfiInterRoute2Section debugTurns={debugTurns} />
     </div>
   )
 }

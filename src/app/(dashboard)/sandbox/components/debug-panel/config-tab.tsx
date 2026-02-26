@@ -2,13 +2,18 @@
 
 /**
  * Config Tab Component
- * Sandbox bot configuration: response speed presets.
+ * Sandbox bot configuration: response speed presets + timer controls.
+ *
+ * Timer controls migrated from Ingest tab (Debug Panel v4.0, dp4-05).
  */
 
 import { Zap, Clock, Timer } from 'lucide-react'
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
-import type { ResponseSpeedPreset } from '@/lib/sandbox/types'
+import { TIMER_PRESETS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
+import type { ResponseSpeedPreset, TimerConfig, TimerPreset } from '@/lib/sandbox/types'
 
 // ============================================================================
 // Speed Presets
@@ -54,16 +59,161 @@ export function getMessageDelay(preset: ResponseSpeedPreset): number {
 }
 
 // ============================================================================
-// Component
+// Timer Controls Helpers (migrated from ingest-tab.tsx)
+// ============================================================================
+
+function formatSeconds(seconds: number): string {
+  if (seconds === 0) return '0s'
+  if (seconds < 60) return `${seconds}s`
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  if (secs === 0) return `${mins}min`
+  return `${mins}min ${secs}s`
+}
+
+/** Slider range config per level: min/max/step in seconds */
+const SLIDER_CONFIG: Record<number, { min: number; max: number; step: number }> = {
+  0: { min: 0, max: 900, step: 10 },
+  1: { min: 0, max: 600, step: 10 },
+  2: { min: 0, max: 300, step: 5 },
+  3: { min: 0, max: 900, step: 10 },
+  4: { min: 0, max: 900, step: 10 },
+}
+
+// ============================================================================
+// Timer Controls Component (migrated from ingest-tab.tsx)
+// ============================================================================
+
+function TimerControlsV2({
+  timerEnabled,
+  timerConfig,
+  onTimerToggle,
+  onTimerConfigChange,
+}: {
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
+}) {
+  const detectPreset = (config: TimerConfig): TimerPreset | null => {
+    for (const [key, presetConfig] of Object.entries(TIMER_PRESETS)) {
+      const matches = Object.keys(presetConfig.levels).every(
+        k => presetConfig.levels[Number(k)] === config.levels[Number(k)]
+      )
+      if (matches) return key as TimerPreset
+    }
+    return null
+  }
+
+  const currentPreset = detectPreset(timerConfig)
+
+  const handlePresetChange = (value: string) => {
+    if (!value) return
+    const preset = value as TimerPreset
+    onTimerConfigChange(TIMER_PRESETS[preset])
+  }
+
+  const handleLevelChange = (levelId: number, seconds: number) => {
+    onTimerConfigChange({
+      levels: { ...timerConfig.levels, [levelId]: seconds },
+    })
+  }
+
+  return (
+    <div className="border rounded-lg p-3 space-y-3">
+      {/* Header with toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Timer Simulacion</span>
+        </div>
+        <Switch
+          size="sm"
+          checked={timerEnabled}
+          onCheckedChange={onTimerToggle}
+        />
+      </div>
+
+      {timerEnabled && (
+        <>
+          {/* Preset buttons */}
+          <div>
+            <div className="text-xs text-muted-foreground mb-1.5">Preset</div>
+            <ToggleGroup
+              type="single"
+              value={currentPreset ?? ''}
+              onValueChange={handlePresetChange}
+              size="sm"
+              className="gap-1"
+            >
+              {Object.entries(TIMER_PRESETS).map(([key]) => (
+                <ToggleGroupItem
+                  key={key}
+                  value={key}
+                  className="text-xs px-3"
+                >
+                  <span className="capitalize">{key}</span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+
+          {/* 5 sliders - one per timer level */}
+          <div className="space-y-2.5">
+            {TIMER_LEVELS.map((level) => {
+              const sliderConf = SLIDER_CONFIG[level.id]
+              const currentValue = timerConfig.levels[level.id] ?? level.defaultDurationS
+              return (
+                <div key={level.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      L{level.id}: {level.name}
+                    </span>
+                    <span className="text-xs font-mono font-medium">
+                      {formatSeconds(currentValue)}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[currentValue]}
+                    onValueChange={(val) => handleLevelChange(level.id, val[0])}
+                    min={sliderConf.min}
+                    max={sliderConf.max}
+                    step={sliderConf.step}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Main Component
 // ============================================================================
 
 interface ConfigTabProps {
   agentName: string
   responseSpeed: ResponseSpeedPreset
   onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
+  // Timer controls (migrated from Ingest, dp4-05)
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
 }
 
-export function ConfigTab({ agentName, responseSpeed, onResponseSpeedChange }: ConfigTabProps) {
+export function ConfigTab({
+  agentName,
+  responseSpeed,
+  onResponseSpeedChange,
+  timerEnabled,
+  timerConfig,
+  onTimerToggle,
+  onTimerConfigChange,
+}: ConfigTabProps) {
   return (
     <div className="space-y-4">
       <div>
@@ -111,6 +261,14 @@ export function ConfigTab({ agentName, responseSpeed, onResponseSpeedChange }: C
           {SPEED_PRESETS[responseSpeed].description}
         </p>
       </div>
+
+      {/* Timer Controls (migrated from Ingest tab) */}
+      <TimerControlsV2
+        timerEnabled={timerEnabled}
+        timerConfig={timerConfig}
+        onTimerToggle={onTimerToggle}
+        onTimerConfigChange={onTimerConfigChange}
+      />
     </div>
   )
 }

@@ -40,11 +40,7 @@ interface PanelContainerProps {
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
   switch (id) {
     case 'pipeline':
-      return (
-        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-          Pipeline tab — coming in Plan 04
-        </div>
-      )
+      return <PipelineTab debugTurns={props.debugTurns} />
     case 'classify':
       return <ClassifyTab debugTurns={props.debugTurns} />
     case 'bloques':
@@ -59,16 +55,23 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
       return (
         <IngestTab
           state={props.state}
+          debugTurns={props.debugTurns}
           timerState={props.timerState}
-          timerEnabled={props.timerEnabled}
-          timerConfig={props.timerConfig}
-          onTimerToggle={props.onTimerToggle}
-          onTimerConfigChange={props.onTimerConfigChange}
           onTimerPause={props.onTimerPause}
         />
       )
     case 'config':
-      return <ConfigTab agentName={props.agentName} responseSpeed={props.responseSpeed} onResponseSpeedChange={props.onResponseSpeedChange} />
+      return (
+        <ConfigTab
+          agentName={props.agentName}
+          responseSpeed={props.responseSpeed}
+          onResponseSpeedChange={props.onResponseSpeedChange}
+          timerEnabled={props.timerEnabled}
+          timerConfig={props.timerConfig}
+          onTimerToggle={props.onTimerToggle}
+          onTimerConfigChange={props.onTimerConfigChange}
+        />
+      )
     default:
       return null
   }

@@ -11,7 +11,7 @@
 import { cn } from '@/lib/utils'
 import { ToolsTab } from './tools-tab'
 import { StateTab } from './state-tab'
-import { IntentTab } from './intent-tab'
+import { ClassifyTab } from './classify-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
@@ -37,12 +37,24 @@ interface PanelContainerProps {
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
   switch (id) {
+    case 'pipeline':
+      return (
+        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+          Pipeline tab — coming in Plan 04
+        </div>
+      )
+    case 'classify':
+      return <ClassifyTab debugTurns={props.debugTurns} />
+    case 'bloques':
+      return (
+        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+          Bloques tab — coming in Plan 05
+        </div>
+      )
     case 'tools':
       return <ToolsTab debugTurns={props.debugTurns} />
     case 'state':
       return <StateTab state={props.state} onStateEdit={props.onStateEdit} />
-    case 'intent':
-      return <IntentTab debugTurns={props.debugTurns} />
     case 'tokens':
       return <TokensTab debugTurns={props.debugTurns} totalTokens={props.totalTokens} />
     case 'ingest':

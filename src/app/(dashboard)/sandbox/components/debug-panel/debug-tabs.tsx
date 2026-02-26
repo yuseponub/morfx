@@ -14,11 +14,13 @@ import { PanelContainer } from './panel-container'
 import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, ResponseSpeedPreset, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 const DEFAULT_TABS: DebugPanelTab[] = [
-  { id: 'tools', label: 'Tools', visible: true },
-  { id: 'state', label: 'Estado', visible: true },
-  { id: 'intent', label: 'Intent', visible: false },
+  { id: 'pipeline', label: 'Pipeline', visible: true },
+  { id: 'classify', label: 'Classify', visible: true },
+  { id: 'bloques', label: 'Bloques', visible: true },
+  { id: 'tools', label: 'Tools', visible: false },
+  { id: 'state', label: 'Estado', visible: false },
   { id: 'tokens', label: 'Tokens', visible: false },
-  { id: 'ingest', label: 'Ingest', visible: true },
+  { id: 'ingest', label: 'Ingest', visible: false },
   { id: 'config', label: 'Config', visible: false },
 ]
 

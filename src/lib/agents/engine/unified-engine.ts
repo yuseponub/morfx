@@ -286,6 +286,18 @@ export class UnifiedEngine {
         // 3. Compose block (merges new + pending per priority rules)
         const composed = composeBlock(newByIntent, pending)
 
+        // Debug Panel v4.0: record block composition
+        this.adapters.debug.recordBlockComposition({
+          newTemplates: prioritizedNew.map(t => ({ id: t.templateId, intent: t.intent, priority: t.priority })),
+          pendingFromPrev: pending.map(t => ({ id: t.templateId, priority: t.priority })),
+          composedBlock: [
+            ...composed.block.map(t => ({ id: t.templateId, name: t.content?.substring(0, 50) ?? t.templateId, priority: t.priority, status: 'sent' as const })),
+            ...composed.pending.map(t => ({ id: t.templateId, name: t.content?.substring(0, 50) ?? t.templateId, priority: t.priority, status: 'pending' as const })),
+            ...composed.dropped.map(t => ({ id: t.templateId, name: t.content?.substring(0, 50) ?? t.templateId, priority: t.priority, status: 'dropped' as const })),
+          ],
+          overflow: { pending: composed.pending.length, dropped: composed.dropped.length },
+        })
+
         // ================================================================
         // PHASE 34: No-Repetition Filter (between compose and send)
         // Feature flag: USE_NO_REPETITION=true to enable (disabled by default)
@@ -323,11 +335,39 @@ export class UnifiedEngine {
                 ` L3=${filterResult.filtered.filter(f => f.level === 3).length})`
               )
             }
+
+            // Debug Panel v4.0: record no-repetition filter result
+            this.adapters.debug.recordNoRepetition({
+              enabled: true,
+              perTemplate: [
+                ...filterResult.surviving.map(t => ({
+                  templateId: t.templateId,
+                  templateName: t.content?.substring(0, 50) ?? t.templateId,
+                  level1: 'pass' as const,
+                  level2: null as string | null,
+                  level3: null as string | null,
+                  result: 'sent' as const,
+                })),
+                ...filterResult.filtered.map(f => ({
+                  templateId: f.template.templateId,
+                  templateName: f.template.content?.substring(0, 50) ?? f.template.templateId,
+                  level1: f.level === 1 ? 'filtered' as const : 'pass' as const,
+                  level2: f.level === 2 ? ('NO_ENVIAR' as string | null) : (f.level === 3 ? ('PARCIAL' as string | null) : null),
+                  level3: f.level === 3 ? ('NO_ENVIAR' as string | null) : null,
+                  result: 'filtered' as const,
+                  filteredAtLevel: f.level as 1 | 2 | 3,
+                })),
+              ],
+              summary: { surviving: filterResult.surviving.length, filtered: filterResult.filtered.length },
+            })
           } catch (noRepError) {
             // Fail-open: if the entire no-rep pipeline crashes, send the full block
             console.error('[ENGINE] No-rep filter crashed, sending full block (fail-open):', noRepError)
             filteredBlock = composed.block
           }
+        } else {
+          // Debug Panel v4.0: record no-repetition as disabled
+          this.adapters.debug.recordNoRepetition({ enabled: false, perTemplate: [], summary: { surviving: 0, filtered: 0 } })
         }
 
         // ================================================================
@@ -362,6 +402,17 @@ export class UnifiedEngine {
             triggerTimestamp: input.messageTimestamp,
           })
           messagesSent = sendResult.messagesSent
+
+          // Debug Panel v4.0: record pre-send check results
+          this.adapters.debug.recordPreSendCheck({
+            perTemplate: filteredBlock.map((_, idx) => ({
+              index: idx,
+              checkResult: (idx < sendResult.messagesSent) ? 'ok' as const : 'interrupted' as const,
+              newMessageFound: (idx >= sendResult.messagesSent && sendResult.interrupted) ? true : undefined,
+            })),
+            interrupted: sendResult.interrupted ?? false,
+            pendingSaved: sendResult.interrupted ? (filteredBlock.length - sendResult.messagesSent) : 0,
+          })
 
           // Track sent content for assistant turn (only templates that were actually sent)
           sentMessageContents = filteredBlock

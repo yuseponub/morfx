@@ -11,18 +11,71 @@
  * The editor modifies the object in-place, so we need to clone before passing.
  */
 
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import JsonViewEditor from '@uiw/react-json-view/editor'
 import { darkTheme } from '@uiw/react-json-view/dark'
 import { lightTheme } from '@uiw/react-json-view/light'
 import { useTheme } from 'next-themes'
 import { Info } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import type { SandboxState } from '@/lib/sandbox/types'
 
 interface StateTabProps {
   state: SandboxState
   onStateEdit: (newState: SandboxState) => void
 }
+
+// ============================================================================
+// Legible State Views (Debug Panel v4.0, dp4-05)
+// ============================================================================
+
+function LegibleState({ state }: { state: SandboxState }) {
+  return (
+    <div className="space-y-3">
+      {/* Intents vistos timeline */}
+      <div className="border rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Intents Vistos
+        </h4>
+        {state.intentsVistos.length === 0 ? (
+          <span className="text-xs text-muted-foreground">Ningun intent detectado</span>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1">
+            {state.intentsVistos.map((intent, idx) => (
+              <Fragment key={idx}>
+                {idx > 0 && <span className="text-muted-foreground text-xs">&#8594;</span>}
+                <Badge variant="outline" className="text-xs">{intent}</Badge>
+              </Fragment>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Templates enviados */}
+      <div className="border rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Templates Enviados
+          <Badge variant="secondary" className="ml-2 text-xs">{state.templatesEnviados.length}</Badge>
+        </h4>
+        {state.templatesEnviados.length === 0 ? (
+          <span className="text-xs text-muted-foreground">Ningun template enviado</span>
+        ) : (
+          <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+            {state.templatesEnviados.map((id, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs font-mono">
+                {id.length > 20 ? `${id.substring(0, 20)}...` : id}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export function StateTab({ state, onStateEdit }: StateTabProps) {
   const { theme, systemTheme } = useTheme()
@@ -48,6 +101,9 @@ export function StateTab({ state, onStateEdit }: StateTabProps) {
           Los cambios se aplican inmediatamente.
         </p>
       </div>
+
+      {/* Legible state views (v4.0) */}
+      <LegibleState state={state} />
 
       <div className="rounded-lg border overflow-hidden">
         <JsonViewEditor

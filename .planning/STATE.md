@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
 Plan: 1 of 2 complete (01)
 Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
-Standalone: Robot Coordinadora Hardening — COMPLETE (5/5 plans, verified 14/14 must-haves)
-Last activity: 2026-02-25 — Completed 36-01-PLAN.md (conditional product mapping backend)
+Standalone: Debug Panel v4.0 — IN PROGRESS (1/5 plans)
+Last activity: 2026-02-26 — Completed dp4-01-PLAN.md (data pipeline foundation)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -66,14 +66,15 @@ All 9 phases + 5 inserted phases completed:
 - Order Notes System (2/2 plans) — COMPLETE
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
+- Debug Panel v4.0 (1/5 plans) — IN PROGRESS
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 212
-- Total execution time: ~30 days (2026-01-26 to 2026-02-25)
+- Total plans completed: 213
+- Total execution time: ~31 days (2026-01-26 to 2026-02-26)
 
 ## Accumulated Context
 
@@ -268,6 +269,15 @@ Phase 36 decisions (Plan 01):
 - Empty match result treated as undefined (no products) for domain layer
 - product_mapping param type registered in ACTION_CATALOG for custom UI in Plan 02
 
+Debug Panel v4.0 decisions (Plan 01):
+- Debug data flows through SomnioAgentOutput (not separate channels) per RESEARCH.md
+- All new DebugTurn fields optional for backward compatibility with saved sessions
+- rulesChecked re-evaluates all 4 classifier rules for debug visibility
+- Template selection reconstructed from orchestrator result (no internal exposure)
+- Transition validation inferred from orchestrator result (allowed = has response/templates)
+- Ofi Inter Route 2 captured in handleIngestMode ask_ofi_inter early return
+- DebugParaphrasing DEFERRED (no engine capture exists yet)
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -288,7 +298,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-25 COT
-Stopped at: Completed 36-01-PLAN.md (conditional product mapping backend)
+Last session: 2026-02-26 COT
+Stopped at: Completed dp4-01-PLAN.md (data pipeline foundation for Debug Panel v4.0)
 Resume file: None
-Next: 36-02-PLAN.md (product mapping UI for automation builder)
+Next: dp4-02-PLAN.md (engine instrumentation — add recordX() calls at correct pipeline points)

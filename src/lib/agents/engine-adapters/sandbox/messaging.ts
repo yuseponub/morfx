@@ -15,7 +15,7 @@ export class SandboxMessagingAdapter implements MessagingAdapter {
    * No-op: sandbox does not send real messages.
    * Messages are returned via EngineOutput.messages for frontend rendering.
    */
-  async send(_params: {
+  async send(params: {
     sessionId: string
     conversationId: string
     messages: string[]
@@ -26,6 +26,8 @@ export class SandboxMessagingAdapter implements MessagingAdapter {
     phoneNumber?: string
     triggerTimestamp?: string
   }): Promise<{ messagesSent: number; interrupted?: boolean; interruptedAtIndex?: number }> {
-    return { messagesSent: 0 }
+    // Return template count so post-send tracking (templates_enviados) works correctly
+    const count = params.templates?.length ?? params.messages.length
+    return { messagesSent: count }
   }
 }

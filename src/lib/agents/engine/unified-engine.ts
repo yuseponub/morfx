@@ -471,6 +471,31 @@ export class UnifiedEngine {
         timestamp: new Date().toISOString(),
       })
 
+      // Debug Panel v4.0: record agent pipeline data
+      if (agentOutput.classification) {
+        this.adapters.debug.recordClassification(agentOutput.classification)
+      }
+      if (agentOutput.ofiInter) {
+        this.adapters.debug.recordOfiInter(agentOutput.ofiInter)
+      }
+      if (agentOutput.ingestDetails) {
+        this.adapters.debug.recordIngestDetails(agentOutput.ingestDetails)
+      }
+      if (agentOutput.templateSelection) {
+        this.adapters.debug.recordTemplateSelection(agentOutput.templateSelection)
+      }
+      if (agentOutput.transitionValidation) {
+        this.adapters.debug.recordTransitionValidation(agentOutput.transitionValidation)
+      }
+      if (agentOutput.orchestration) {
+        this.adapters.debug.recordOrchestration(agentOutput.orchestration)
+      }
+      if (agentOutput.disambiguationLog) {
+        this.adapters.debug.recordDisambiguationLog(agentOutput.disambiguationLog)
+      }
+      // Timer signals always present (may be empty array)
+      this.adapters.debug.recordTimerSignals(agentOutput.timerSignals ?? [])
+
       // Build new sandbox state for debug stateAfter snapshot
       // The storage adapter already has the updated state internally
       const storageAdapter = this.adapters.storage as { getState?: () => unknown }

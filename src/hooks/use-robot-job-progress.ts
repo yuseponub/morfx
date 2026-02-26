@@ -15,7 +15,7 @@
 //   4. Cleanup removes channel on unmount / jobId change
 // ============================================================================
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getJobStatus } from '@/app/actions/comandos'
 import type { RobotJob, RobotJobItem } from '@/lib/domain/robot-jobs'
@@ -137,6 +137,54 @@ export function useRobotJobProgress(jobId: string | null): {
       supabase.removeChannel(channel)
     }
   }, [jobId])
+
+  // ---- Polling fallback (covers Realtime missed events) ----
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const jobStatusRef = useRef<string | null>(null)
+
+  // Keep ref in sync with job state (avoids stale closure in setInterval)
+  useEffect(() => {
+    jobStatusRef.current = job?.status ?? null
+  }, [job?.status])
+
+  useEffect(() => {
+    // Clear any previous interval
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+
+    if (!jobId) return
+
+    pollingRef.current = setInterval(async () => {
+      // Stop polling if job already complete
+      if (jobStatusRef.current === 'completed' || jobStatusRef.current === 'failed') {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current)
+          pollingRef.current = null
+        }
+        return
+      }
+
+      try {
+        const result = await getJobStatus()
+        if (result.success && result.data) {
+          setJob(result.data.job ?? null)
+          setItems(result.data.items ?? [])
+        }
+      } catch (err) {
+        // Silently ignore — next interval will retry
+        console.warn('[useRobotJobProgress] Polling error:', err)
+      }
+    }, 5000)
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [jobId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Computed values ----
   const successCount = useMemo(

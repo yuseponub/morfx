@@ -30,7 +30,14 @@ import { mergeExtractedData, hasCriticalData, isDataComplete } from './data-extr
 import { classifyMessage } from './message-category-classifier'
 import { logDisambiguation } from './log-disambiguation'
 import { somnioAgentConfig } from './config'
-import { detectOfiInterMention, isCollectingDataMode } from './constants'
+import {
+  detectOfiInterMention,
+  isCollectingDataMode,
+  HANDOFF_INTENTS,
+  LOW_CONFIDENCE_THRESHOLD,
+  CONFIRMATORY_MODES,
+  ACKNOWLEDGMENT_PATTERNS,
+} from './constants'
 import { isRemoteMunicipality } from './normalizers'
 import { agentRegistry } from '../registry'
 import type { AgentSessionLike } from '../engine/types'
@@ -108,6 +115,63 @@ export interface SomnioAgentOutput {
   tools: unknown[]
   /** Error details if processing failed */
   error?: { code: string; message: string }
+
+  // ====================================================================
+  // Debug Panel v4.0 fields (captured by SandboxDebugAdapter, ignored by production)
+  // ====================================================================
+  /** Message category classification */
+  classification?: {
+    category: 'RESPONDIBLE' | 'SILENCIOSO' | 'HANDOFF'
+    reason: string
+    rulesChecked: { rule1: boolean; rule1_5: boolean; rule2: boolean; rule3: boolean }
+    confidenceThreshold?: number
+  }
+  /** Ofi Inter detection result (routes 1-3) */
+  ofiInter?: {
+    route1: { detected: boolean; pattern?: string }
+    route2: { detected: boolean; city?: string }
+    route3: { detected: boolean; city?: string; isRemote?: boolean }
+  }
+  /** Ingest details (classification, extraction, implicit yes) */
+  ingestDetails?: {
+    classification?: 'datos' | 'pregunta' | 'mixto' | 'irrelevante'
+    classificationConfidence?: number
+    extractedFields?: { field: string; value: string }[]
+    action?: 'silent' | 'respond' | 'complete' | 'ask_ofi_inter'
+    implicitYes?: { triggered: boolean; dataFound: boolean; modeTransition?: string }
+  }
+  /** Template selection info */
+  templateSelection?: {
+    intent: string
+    visitType: 'primera_vez' | 'siguientes'
+    loadedCount: number
+    alreadySentCount: number
+    selectedCount: number
+    isRepeated: boolean
+    cappedByNoRep: boolean
+  }
+  /** Transition validation result */
+  transitionValidation?: {
+    allowed: boolean
+    reason?: string
+    autoTrigger?: string
+  }
+  /** Orchestration result */
+  orchestration?: {
+    nextMode: string
+    previousMode: string
+    modeChanged: boolean
+    shouldCreateOrder: boolean
+    templatesCount: number
+  }
+  /** Disambiguation log info */
+  disambiguationLog?: {
+    logged: boolean
+    topIntents?: { intent: string; confidence: number }[]
+    templatesSent?: number
+    pendingCount?: number
+    historyTurns?: number
+  }
 }
 
 // ============================================================================
@@ -131,6 +195,8 @@ interface IngestModeResult {
   updatedIngestStatus?: unknown
   /** Timer signal generated during ingest handling */
   timerSignal?: { type: 'start' | 'reevaluate' | 'cancel'; reason?: string }
+  /** Debug Panel v4.0: ingest details for debug output */
+  debugIngestDetails?: SomnioAgentOutput['ingestDetails']
 }
 
 /**
@@ -150,6 +216,8 @@ interface ImplicitYesResult {
   updatedIngestStatus?: unknown
   /** Timer signal generated during implicit yes handling */
   timerSignal?: { type: 'start' | 'reevaluate' | 'cancel'; reason?: string }
+  /** Debug Panel v4.0: implicit yes detection info */
+  debugImplicitYes?: { triggered: boolean; dataFound: boolean; modeTransition?: string }
 }
 
 // ============================================================================
@@ -216,6 +284,12 @@ export class SomnioAgent {
       let justCompletedIngest = false
       const timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }> = []
 
+      // Debug Panel v4.0: tracking variables for debug output
+      let debugOfiInter: SomnioAgentOutput['ofiInter'] = undefined
+      let debugIngestDetails: SomnioAgentOutput['ingestDetails'] = undefined
+      let debugClassification: SomnioAgentOutput['classification'] = undefined
+      let debugDisambiguationLog: SomnioAgentOutput['disambiguationLog'] = undefined
+
       // 3. Check ingest mode (if collecting_data/collecting_data_inter AND not a timer-forced call)
       // Timer-forced calls have no customer message to classify
       if (isCollectingDataMode(currentMode) && !input.forceIntent) {
@@ -223,7 +297,14 @@ export class SomnioAgent {
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )
 
+        // Debug Panel v4.0: capture ingest details from the result
+        if (ingestResult.debugIngestDetails) {
+          debugIngestDetails = ingestResult.debugIngestDetails
+        }
+
         if (ingestResult.handled && ingestResult.earlyReturn) {
+          // Attach debug data to early return
+          ingestResult.earlyReturn.ingestDetails = debugIngestDetails
           return ingestResult.earlyReturn
         }
         if (ingestResult.modeChanged) {
@@ -242,7 +323,17 @@ export class SomnioAgent {
           input, currentMode, currentData, currentIngestStatus, totalTokens, tokenDetails, tools
         )
 
+        // Debug Panel v4.0: capture implicit yes details
+        if (implicitResult.debugImplicitYes) {
+          debugIngestDetails = {
+            ...debugIngestDetails,
+            implicitYes: implicitResult.debugImplicitYes,
+          }
+        }
+
         if (implicitResult.handled && implicitResult.earlyReturn) {
+          // Attach debug data to early return
+          implicitResult.earlyReturn.ingestDetails = debugIngestDetails
           return implicitResult.earlyReturn
         }
         if (implicitResult.modeChanged) {
@@ -258,7 +349,14 @@ export class SomnioAgent {
       // Only check when NOT already in ofi inter mode, NOT timer-forced, and NOT just completed ingest
       if (!input.forceIntent && !justCompletedIngest && currentMode !== 'collecting_data_inter') {
         // Route 1: Direct mention ("ofi inter", "recojo en oficina", etc.)
-        if (detectOfiInterMention(input.message)) {
+        const route1Detected = detectOfiInterMention(input.message)
+        if (route1Detected) {
+          // Debug Panel v4.0: capture ofi inter detection
+          debugOfiInter = {
+            route1: { detected: true, pattern: input.message.trim() },
+            route2: { detected: false },
+            route3: { detected: false },
+          }
           // Transition to collecting_data_inter immediately and send confirmation question
           // Per CONTEXT.md: "mencion directa domina (confirma inmediatamente)"
           currentMode = 'collecting_data_inter'
@@ -278,6 +376,8 @@ export class SomnioAgent {
             totalTokens,
             tokenDetails,
             tools: [],
+            ofiInter: debugOfiInter,
+            ingestDetails: debugIngestDetails,
           }
         }
 
@@ -286,7 +386,14 @@ export class SomnioAgent {
         const cityMatch = input.message.match(/(?:envian?\s+a\s+|llegan?\s+a\s+|hacen\s+envios?\s+a\s+)(.+)/i)
         if (cityMatch) {
           const mentionedCity = cityMatch[1].trim().replace(/[?!.]+$/, '')
-          if (isRemoteMunicipality(mentionedCity)) {
+          const isRemote = isRemoteMunicipality(mentionedCity)
+          if (isRemote) {
+            // Debug Panel v4.0: capture ofi inter Route 3
+            debugOfiInter = {
+              route1: { detected: false },
+              route2: { detected: false },
+              route3: { detected: true, city: mentionedCity, isRemote: true },
+            }
             // Ask about delivery preference -- don't change mode yet, wait for answer
             return {
               success: true,
@@ -304,6 +411,8 @@ export class SomnioAgent {
               totalTokens,
               tokenDetails,
               tools: [],
+              ofiInter: debugOfiInter,
+              ingestDetails: debugIngestDetails,
             }
           }
         }
@@ -368,6 +477,22 @@ export class SomnioAgent {
           input.message
         )
 
+        // Debug Panel v4.0: build rulesChecked for classification debug
+        const trimmed = input.message.trim()
+        const isAcknowledgment = !CONFIRMATORY_MODES.has(currentMode) &&
+          ACKNOWLEDGMENT_PATTERNS.some(pattern => pattern.test(trimmed))
+        debugClassification = {
+          category: classification.category,
+          reason: classification.reason,
+          rulesChecked: {
+            rule1: HANDOFF_INTENTS.has(intent.intent),
+            rule1_5: intent.confidence < LOW_CONFIDENCE_THRESHOLD,
+            rule2: isAcknowledgment,
+            rule3: classification.category === 'RESPONDIBLE',
+          },
+          confidenceThreshold: LOW_CONFIDENCE_THRESHOLD,
+        }
+
         // SILENCIOSO: return early with no messages, signal silence for timer
         if (classification.category === 'SILENCIOSO') {
           return {
@@ -388,6 +513,9 @@ export class SomnioAgent {
             tokenDetails,
             intentInfo,
             tools: [],
+            classification: debugClassification,
+            ofiInter: debugOfiInter,
+            ingestDetails: debugIngestDetails,
           }
         }
 
@@ -398,6 +526,18 @@ export class SomnioAgent {
           // Log disambiguation context for low-confidence handoffs (Phase 33)
           // Fire-and-forget: handoff proceeds regardless of log success
           if (classification.reason.startsWith('low_confidence:')) {
+            // Debug Panel v4.0: capture disambiguation log
+            debugDisambiguationLog = {
+              logged: true,
+              topIntents: [
+                { intent: intent.intent, confidence: intent.confidence },
+                ...(intent.alternatives ?? []).map(a => ({ intent: a.intent, confidence: a.confidence })),
+              ],
+              templatesSent: (input.session.state.templates_enviados ?? []).length,
+              pendingCount: (((input.session.state as unknown as Record<string, unknown>).pending_templates as unknown[]) ?? []).length,
+              historyTurns: input.history.slice(-10).length,
+            }
+
             logDisambiguation({
               workspaceId: input.session.workspace_id,
               sessionId: input.session.id,
@@ -436,6 +576,10 @@ export class SomnioAgent {
             tokenDetails,
             intentInfo,
             tools: [],
+            classification: debugClassification,
+            ofiInter: debugOfiInter,
+            ingestDetails: debugIngestDetails,
+            disambiguationLog: debugDisambiguationLog,
           }
         }
 
@@ -590,6 +734,39 @@ export class SomnioAgent {
       const shouldCreateOrder = orchestratorResult.shouldCreateOrder === true
 
       // 14. Return SomnioAgentOutput
+      // Debug Panel v4.0: build orchestration debug info
+      const debugOrchestration: SomnioAgentOutput['orchestration'] = {
+        nextMode: newMode,
+        previousMode,
+        modeChanged: newMode !== previousMode,
+        shouldCreateOrder,
+        templatesCount: orchestratorResult.templates?.length ?? 0,
+      }
+
+      // Debug Panel v4.0: build template selection debug info from orchestrator result
+      const debugTemplateSelection: SomnioAgentOutput['templateSelection'] = orchestratorResult.templates
+        ? {
+            intent: intent.intent,
+            visitType: intentsVistosBeforeCurrent.includes(intent.intent) ? 'siguientes' : 'primera_vez',
+            loadedCount: orchestratorResult.templates.length, // Best available: selected count
+            alreadySentCount: (input.session.state.templates_enviados ?? []).length,
+            selectedCount: orchestratorResult.templates.length,
+            isRepeated: intentsVistosBeforeCurrent.includes(intent.intent),
+            cappedByNoRep: false, // Engine determines this, not agent
+          }
+        : undefined
+
+      // Debug Panel v4.0: build transition validation debug info
+      // The orchestrator's result implicitly tells us if the transition was allowed
+      // (if it returned templates, the transition was valid)
+      const debugTransitionValidation: SomnioAgentOutput['transitionValidation'] = {
+        allowed: orchestratorResult.response !== undefined || (orchestratorResult.templates?.length ?? 0) > 0,
+        reason: orchestratorResult.nextMode !== currentMode
+          ? `mode_transition:${currentMode}->${orchestratorResult.nextMode}`
+          : undefined,
+        autoTrigger: justCompletedIngest ? 'ingest_complete' : undefined,
+      }
+
       return {
         success: true,
         messages: messages.length > 0 ? messages : ['[No response generated]'],
@@ -616,6 +793,14 @@ export class SomnioAgent {
         tokenDetails,
         intentInfo,
         tools,
+        // Debug Panel v4.0 fields
+        classification: debugClassification,
+        ofiInter: debugOfiInter,
+        ingestDetails: debugIngestDetails,
+        templateSelection: debugTemplateSelection,
+        transitionValidation: debugTransitionValidation,
+        orchestration: debugOrchestration,
+        disambiguationLog: debugDisambiguationLog,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -688,6 +873,18 @@ export class SomnioAgent {
       mode: currentMode,
     })
 
+    // Debug Panel v4.0: build ingest details from result
+    const extractedNormalized = ingestResult.extractedData?.normalized ?? {}
+    const debugIngestDetails: SomnioAgentOutput['ingestDetails'] = {
+      classification: ingestResult.classification.classification,
+      classificationConfidence: ingestResult.classification.confidence,
+      extractedFields: Object.entries(extractedNormalized).map(([field, value]) => ({
+        field,
+        value: String(value),
+      })),
+      action: ingestResult.action as 'silent' | 'respond' | 'complete' | 'ask_ofi_inter',
+    }
+
     // Build updated ingest status for debug visibility
     const newIngestStatus = {
       active: isCollectingDataMode(currentMode),
@@ -748,6 +945,7 @@ export class SomnioAgent {
           tokenDetails: [...tokenDetails],
           tools: [...(tools as unknown[])],
         },
+        debugIngestDetails,
       }
     }
 
@@ -767,6 +965,7 @@ export class SomnioAgent {
         // processMessage will then ADD a 'start' signal for the promo timer (level 3).
         // This is step 1 of a two-step signal. See processMessage step 11b for step 2.
         timerSignal: { type: 'cancel', reason: 'ingest_complete' },
+        debugIngestDetails,
       }
     }
 
@@ -774,6 +973,12 @@ export class SomnioAgent {
     // IngestManager detected city was extracted without direccion/barrio -- ask delivery preference
     if (ingestResult.action === 'ask_ofi_inter') {
       const silentData = ingestResult.mergedData ?? currentData
+      // Debug Panel v4.0: capture Route 2 ofi inter in earlyReturn
+      const ofiInterRoute2: SomnioAgentOutput['ofiInter'] = {
+        route1: { detected: false },
+        route2: { detected: true, city: ingestResult.mergedData?.ciudad },
+        route3: { detected: false },
+      }
       return {
         handled: true,
         earlyReturn: {
@@ -792,13 +997,15 @@ export class SomnioAgent {
           totalTokens,
           tokenDetails: [...tokenDetails],
           tools: [...(tools as unknown[])],
+          ofiInter: ofiInterRoute2,
         },
+        debugIngestDetails,
       }
     }
 
     // For 'respond' (pregunta or mixto), continue normal flow
     // No early return, no mode change — just pass through
-    return { handled: false }
+    return { handled: false, debugIngestDetails }
   }
 
   // ============================================================================
@@ -831,7 +1038,10 @@ export class SomnioAgent {
       classification.classification !== 'datos' &&
       classification.classification !== 'mixto'
     ) {
-      return { handled: false }
+      return {
+        handled: false,
+        debugImplicitYes: { triggered: false, dataFound: false },
+      }
     }
 
     // Build ingest state for the implicit yes
@@ -855,7 +1065,10 @@ export class SomnioAgent {
     // Fall through to normal intent detection which has full history context
     const extractedFields = Object.keys(ingestResult.extractedData?.normalized ?? {})
     if (extractedFields.length === 0) {
-      return { handled: false }
+      return {
+        handled: false,
+        debugImplicitYes: { triggered: true, dataFound: false },
+      }
     }
 
     // Check if all fields are complete after extraction (mode-aware)
@@ -901,6 +1114,7 @@ export class SomnioAgent {
         updatedData: mergedData,
         updatedIngestStatus: newIngestStatus,
         // No timer signal here — processMessage step 11b handles start for promos
+        debugImplicitYes: { triggered: true, dataFound: true, modeTransition: 'ofrecer_promos' },
       }
     }
 
@@ -912,6 +1126,7 @@ export class SomnioAgent {
       updatedData: mergedData,
       updatedIngestStatus: newIngestStatus,
       timerSignal: { type: 'start' as const },
+      debugImplicitYes: { triggered: true, dataFound: true, modeTransition: 'collecting_data' },
     }
   }
 }

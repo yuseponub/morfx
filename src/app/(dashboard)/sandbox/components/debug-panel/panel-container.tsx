@@ -17,7 +17,7 @@ import { BloquesTab } from './bloques-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
-import type { DebugPanelTabId, DebugTurn, SandboxState, ResponseSpeedPreset, TimerState, TimerConfig } from '@/lib/sandbox/types'
+import type { DebugPanelTabId, DebugTurn, SandboxState, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
   visiblePanels: DebugPanelTabId[]
@@ -26,8 +26,8 @@ interface PanelContainerProps {
   onStateEdit: (newState: SandboxState) => void
   totalTokens: number
   agentName: string
-  responseSpeed: ResponseSpeedPreset
-  onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
+  responseDelayMs: number
+  onResponseDelayChange: (delayMs: number) => void
   // Timer props (Phase 15.7)
   timerState: TimerState
   timerEnabled: boolean
@@ -64,8 +64,8 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
       return (
         <ConfigTab
           agentName={props.agentName}
-          responseSpeed={props.responseSpeed}
-          onResponseSpeedChange={props.onResponseSpeedChange}
+          responseDelayMs={props.responseDelayMs}
+          onResponseDelayChange={props.onResponseDelayChange}
           timerEnabled={props.timerEnabled}
           timerConfig={props.timerConfig}
           onTimerToggle={props.onTimerToggle}

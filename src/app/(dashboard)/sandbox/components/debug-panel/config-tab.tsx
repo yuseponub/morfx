@@ -2,7 +2,10 @@
 
 /**
  * Config Tab Component
- * Sandbox bot configuration: response speed presets + timer controls.
+ * Sandbox bot configuration: response delay slider + timer controls.
+ *
+ * The slider controls the average response delay for bot messages.
+ * Delay is proportional to message length via calculateCharDelay().
  *
  * Timer controls migrated from Ingest tab (Debug Panel v4.0, dp4-05).
  */
@@ -13,50 +16,25 @@ import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { TIMER_PRESETS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
-import type { ResponseSpeedPreset, TimerConfig, TimerPreset } from '@/lib/sandbox/types'
+import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
+import type { TimerConfig, TimerPreset } from '@/lib/sandbox/types'
 
 // ============================================================================
-// Speed Presets
+// Response Delay Constants
 // ============================================================================
 
-interface SpeedPresetConfig {
-  label: string
-  description: string
-  icon: typeof Clock
-  minMs: number
-  maxMs: number
-}
+/** Average template length in characters (based on somnio templates analysis) */
+export const AVG_TEMPLATE_CHARS = 85
 
-export const SPEED_PRESETS: Record<ResponseSpeedPreset, SpeedPresetConfig> = {
-  real: {
-    label: 'Real',
-    description: '2-6s entre mensajes',
-    icon: Clock,
-    minMs: 2000,
-    maxMs: 6000,
-  },
-  rapido: {
-    label: 'Rapido',
-    description: '0.5-1s entre mensajes',
-    icon: Timer,
-    minMs: 500,
-    maxMs: 1000,
-  },
-  instantaneo: {
-    label: 'Instantaneo',
-    description: 'Sin delay',
-    icon: Zap,
-    minMs: 0,
-    maxMs: 0,
-  },
-}
+/** Default delay = calculateCharDelay for average template (~8000ms) */
+export const DEFAULT_DELAY_MS = calculateCharDelay(AVG_TEMPLATE_CHARS)
 
-/** Calculate delay in ms based on preset */
-export function getMessageDelay(preset: ResponseSpeedPreset): number {
-  const config = SPEED_PRESETS[preset]
-  if (config.maxMs === 0) return 0
-  return config.minMs + Math.random() * (config.maxMs - config.minMs)
-}
+/** Quick-set button presets */
+const DELAY_SHORTCUTS = [
+  { label: 'Instantaneo', icon: Zap, delayMs: 0 },
+  { label: 'Rapido', icon: Timer, delayMs: 3000 },
+  { label: 'Real', icon: Clock, delayMs: DEFAULT_DELAY_MS },
+] as const
 
 // ============================================================================
 // Timer Controls Helpers (migrated from ingest-tab.tsx)
@@ -196,8 +174,8 @@ function TimerControlsV2({
 
 interface ConfigTabProps {
   agentName: string
-  responseSpeed: ResponseSpeedPreset
-  onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
+  responseDelayMs: number
+  onResponseDelayChange: (delayMs: number) => void
   // Timer controls (migrated from Ingest, dp4-05)
   timerEnabled: boolean
   timerConfig: TimerConfig
@@ -207,13 +185,20 @@ interface ConfigTabProps {
 
 export function ConfigTab({
   agentName,
-  responseSpeed,
-  onResponseSpeedChange,
+  responseDelayMs,
+  onResponseDelayChange,
   timerEnabled,
   timerConfig,
   onTimerToggle,
   onTimerConfigChange,
 }: ConfigTabProps) {
+  const displaySeconds = (responseDelayMs / 1000).toFixed(1)
+
+  // Detect which shortcut is active (tolerance 50ms)
+  const activeShortcut = DELAY_SHORTCUTS.find(
+    s => Math.abs(s.delayMs - responseDelayMs) < 50
+  )
+
   return (
     <div className="space-y-4">
       <div>
@@ -223,42 +208,53 @@ export function ConfigTab({
         <p className="text-sm font-medium">{agentName}</p>
       </div>
 
-      {/* Response Speed */}
+      {/* Response Delay Slider */}
       <div className="space-y-2">
         <label className="text-xs font-medium text-muted-foreground">
           Velocidad de respuesta
         </label>
 
-        <ToggleGroup
-          type="single"
-          value={responseSpeed}
-          onValueChange={(val) => {
-            if (val) onResponseSpeedChange(val as ResponseSpeedPreset)
-          }}
-          className="justify-start gap-1"
-        >
-          {(Object.entries(SPEED_PRESETS) as [ResponseSpeedPreset, SpeedPresetConfig][]).map(
-            ([key, config]) => {
-              const Icon = config.icon
-              return (
-                <ToggleGroupItem
-                  key={key}
-                  value={key}
-                  className={cn(
-                    'text-xs px-3 py-1.5 h-auto gap-1.5',
-                    responseSpeed === key && 'border-primary'
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {config.label}
-                </ToggleGroupItem>
-              )
-            }
-          )}
-        </ToggleGroup>
+        {/* Quick-set buttons */}
+        <div className="flex gap-1">
+          {DELAY_SHORTCUTS.map((shortcut) => {
+            const Icon = shortcut.icon
+            const isActive = activeShortcut?.label === shortcut.label
+            return (
+              <button
+                key={shortcut.label}
+                onClick={() => onResponseDelayChange(shortcut.delayMs)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background hover:bg-muted border-border'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {shortcut.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Slider */}
+        <Slider
+          value={[responseDelayMs]}
+          onValueChange={(val) => onResponseDelayChange(val[0])}
+          min={0}
+          max={15000}
+          step={500}
+        />
+
+        {/* Labels */}
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">0s</span>
+          <span className="text-xs font-mono font-medium">{displaySeconds}s</span>
+          <span className="text-[11px] text-muted-foreground">15s</span>
+        </div>
 
         <p className="text-[11px] text-muted-foreground">
-          {SPEED_PRESETS[responseSpeed].description}
+          Plantilla promedio: ~{AVG_TEMPLATE_CHARS} chars
         </p>
       </div>
 

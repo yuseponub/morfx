@@ -11,7 +11,7 @@
 import { useState, useCallback } from 'react'
 import { TabBar } from './tab-bar'
 import { PanelContainer } from './panel-container'
-import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, ResponseSpeedPreset, TimerState, TimerConfig } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'pipeline', label: 'Pipeline', visible: true },
@@ -32,8 +32,8 @@ interface DebugTabsProps {
   onStateEdit: (newState: SandboxState) => void
   totalTokens: number
   agentName: string
-  responseSpeed: ResponseSpeedPreset
-  onResponseSpeedChange: (speed: ResponseSpeedPreset) => void
+  responseDelayMs: number
+  onResponseDelayChange: (delayMs: number) => void
   // Timer props (Phase 15.7)
   timerState: TimerState
   timerEnabled: boolean
@@ -49,8 +49,8 @@ export function DebugTabs({
   onStateEdit,
   totalTokens,
   agentName,
-  responseSpeed,
-  onResponseSpeedChange,
+  responseDelayMs,
+  onResponseDelayChange,
   timerState,
   timerEnabled,
   timerConfig,
@@ -105,8 +105,8 @@ export function DebugTabs({
           onStateEdit={onStateEdit}
           totalTokens={totalTokens}
           agentName={agentName}
-          responseSpeed={responseSpeed}
-          onResponseSpeedChange={onResponseSpeedChange}
+          responseDelayMs={responseDelayMs}
+          onResponseDelayChange={onResponseDelayChange}
           timerState={timerState}
           timerEnabled={timerEnabled}
           timerConfig={timerConfig}

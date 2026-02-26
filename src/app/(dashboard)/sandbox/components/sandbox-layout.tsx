@@ -13,9 +13,10 @@ import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, ResponseSpeedPreset, TimerState, TimerConfig, TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
 import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
-import { getMessageDelay } from './debug-panel/config-tab'
+import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
+import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
 
@@ -49,7 +50,7 @@ export function SandboxLayout() {
   const [debugTurns, setDebugTurns] = useState<DebugTurn[]>([])
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
-  const [responseSpeed, setResponseSpeed] = useState<ResponseSpeedPreset>('real')
+  const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
   // Timer state (Phase 15.7)
   const [timerState, setTimerState] = useState<TimerState>({
@@ -411,8 +412,10 @@ export function SandboxLayout() {
       // 6. Hide typing and add response messages with delays
       if (result.success && result.messages.length > 0) {
         for (let i = 0; i < result.messages.length; i++) {
-          // Configurable delay between messages (via Config tab preset)
-          const delay = getMessageDelay(responseSpeed)
+          // Proportional delay based on message length and slider setting
+          const baseDelay = calculateCharDelay(AVG_TEMPLATE_CHARS)
+          const multiplier = baseDelay > 0 ? responseDelayMs / baseDelay : 0
+          const delay = calculateCharDelay(result.messages[i].length) * multiplier
           if (delay > 0) {
             await new Promise(resolve => setTimeout(resolve, delay))
           }
@@ -475,7 +478,7 @@ export function SandboxLayout() {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [responseSpeed, timerConfig, startTimerForLevel])
+  }, [responseDelayMs, timerConfig, startTimerForLevel])
 
   // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {
@@ -552,8 +555,8 @@ export function SandboxLayout() {
               onStateEdit={handleStateEdit}
               totalTokens={totalTokens}
               agentName={AGENT_NAMES[agentId] ?? agentId}
-              responseSpeed={responseSpeed}
-              onResponseSpeedChange={setResponseSpeed}
+              responseDelayMs={responseDelayMs}
+              onResponseDelayChange={setResponseDelayMs}
               timerState={timerState}
               timerEnabled={timerEnabled}
               timerConfig={timerConfig}

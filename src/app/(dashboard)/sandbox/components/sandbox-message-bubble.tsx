@@ -45,7 +45,8 @@ function MessageContent({ content }: { content: string }) {
             />
           )
         }
-        const trimmed = part.trim()
+        // Strip leading pipe separator (image templates use "URL|caption" format)
+        const trimmed = part.replace(/^\|/, '').trim()
         if (!trimmed) return null
         return <p key={i} className="whitespace-pre-line break-words">{trimmed}</p>
       })}

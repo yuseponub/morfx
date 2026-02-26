@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
 Plan: 1 of 2 complete (01)
 Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
-Standalone: Debug Panel v4.0 — IN PROGRESS (3/5 plans, dp4-01+02+03 complete)
-Last activity: 2026-02-26 — Completed dp4-02-PLAN.md (engine instrumentation)
+Standalone: Debug Panel v4.0 — IN PROGRESS (4/5 plans, dp4-01+02+03+04 complete)
+Last activity: 2026-02-26 — Completed dp4-04-PLAN.md (Pipeline tab)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -66,14 +66,14 @@ All 9 phases + 5 inserted phases completed:
 - Order Notes System (2/2 plans) — COMPLETE
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
-- Debug Panel v4.0 (3/5 plans) — IN PROGRESS
+- Debug Panel v4.0 (4/5 plans) — IN PROGRESS
 - Quick fixes: 6 completed
 
 ## Performance Metrics
 
 **Overall:**
 - Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 213
+- Total plans completed: 214
 - Total execution time: ~31 days (2026-01-26 to 2026-02-26)
 
 ## Accumulated Context
@@ -284,6 +284,13 @@ Debug Panel v4.0 decisions (Plan 02):
 - No-rep disabled path records { enabled: false } explicitly for frontend "off" vs "no data" distinction
 - Timer signals always recorded with ?? [] fallback for consistent debug output
 
+Debug Panel v4.0 decisions (Plan 04):
+- Turn chip flags use unicode characters for compact inline display
+- PipelineStep uses -- prefix for skipped steps instead of block characters
+- Claude call estimator is heuristic: counts intent + classifier + extractor + per-template L2/L3
+- Auto-select latest turn via useEffect on debugTurns.length change
+- Safe index clamping prevents out-of-bounds on session reset
+
 ### Pending Todos
 
 - Configure SMTP in Supabase for production email sending
@@ -305,6 +312,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26 COT
-Stopped at: Completed dp4-02-PLAN.md (engine instrumentation for Debug Panel v4.0)
+Stopped at: Completed dp4-04-PLAN.md (Pipeline tab for Debug Panel v4.0)
 Resume file: None
-Next: dp4-04-PLAN.md (Pipeline tab) or dp4-05-PLAN.md (Bloques tab)
+Next: dp4-05-PLAN.md (Bloques tab) — last remaining plan for Debug Panel v4.0

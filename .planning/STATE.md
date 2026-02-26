@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
 Plan: 1 of 2 complete (01)
 Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
-Standalone: Debug Panel v4.0 — IN PROGRESS (1/5 plans)
-Last activity: 2026-02-26 — Completed dp4-01-PLAN.md (data pipeline foundation)
+Standalone: Debug Panel v4.0 — IN PROGRESS (2/5 plans)
+Last activity: 2026-02-26 — Completed dp4-03-PLAN.md (tab infrastructure + Classify tab)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -299,6 +299,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26 COT
-Stopped at: Completed dp4-01-PLAN.md (data pipeline foundation for Debug Panel v4.0)
+Stopped at: Completed dp4-03-PLAN.md (tab infrastructure + Classify tab for Debug Panel v4.0)
 Resume file: None
-Next: dp4-02-PLAN.md (engine instrumentation — add recordX() calls at correct pipeline points)
+Next: dp4-04-PLAN.md (Pipeline tab implementation) or dp4-02-PLAN.md (engine instrumentation)

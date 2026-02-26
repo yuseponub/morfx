@@ -98,6 +98,7 @@ NO incluye: cambios al agente, cambios al engine, nuevos features del bot, ni ca
 - Badges/chips en el chat panel junto a cada mensaje del bot (indicadores rápidos en el chat) — posible mejora futura
 - State diff (antes vs después por turno) en Estado tab — descartado por el usuario, reconsiderar si surge necesidad
 - Export de sesión de debug para análisis offline
+- **Standalone phase: Docs Cleanup** — Mover ARCHITECTURE.md a `docs/architecture/` reemplazando la documentación vieja del agente. Hacer después de completar Debug Panel v4.0 cuando todo esté verificado.
 
 </deferred>
 

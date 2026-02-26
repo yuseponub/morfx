@@ -9,9 +9,11 @@
  */
 
 import { cn } from '@/lib/utils'
+import { PipelineTab } from './pipeline-tab'
 import { ToolsTab } from './tools-tab'
 import { StateTab } from './state-tab'
 import { ClassifyTab } from './classify-tab'
+import { BloquesTab } from './bloques-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
@@ -46,11 +48,7 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
     case 'classify':
       return <ClassifyTab debugTurns={props.debugTurns} />
     case 'bloques':
-      return (
-        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-          Bloques tab — coming in Plan 05
-        </div>
-      )
+      return <BloquesTab debugTurns={props.debugTurns} />
     case 'tools':
       return <ToolsTab debugTurns={props.debugTurns} />
     case 'state':

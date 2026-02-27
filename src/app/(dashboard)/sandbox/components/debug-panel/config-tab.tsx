@@ -181,6 +181,9 @@ interface ConfigTabProps {
   timerConfig: TimerConfig
   onTimerToggle: (enabled: boolean) => void
   onTimerConfigChange: (config: TimerConfig) => void
+  // Silence retake timer
+  silenceDurationMs: number
+  onSilenceDurationChange: (ms: number) => void
 }
 
 export function ConfigTab({
@@ -191,6 +194,8 @@ export function ConfigTab({
   timerConfig,
   onTimerToggle,
   onTimerConfigChange,
+  silenceDurationMs,
+  onSilenceDurationChange,
 }: ConfigTabProps) {
   const displaySeconds = (responseDelayMs / 1000).toFixed(1)
 
@@ -265,6 +270,28 @@ export function ConfigTab({
         onTimerToggle={onTimerToggle}
         onTimerConfigChange={onTimerConfigChange}
       />
+
+      {/* Silence Retake Timer */}
+      <div className="space-y-3">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Silence Retake Timer
+        </label>
+        <Slider
+          value={[silenceDurationMs / 1000]}
+          onValueChange={([v]) => onSilenceDurationChange(v * 1000)}
+          min={10}
+          max={300}
+          step={5}
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">10s</span>
+          <span className="text-xs font-mono font-medium">{(silenceDurationMs / 1000).toFixed(0)}s</span>
+          <span className="text-[11px] text-muted-foreground">300s</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Tiempo antes de enviar mensaje de retoma tras clasificación SILENCIOSO
+        </p>
+      </div>
     </div>
   )
 }

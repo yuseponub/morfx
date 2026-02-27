@@ -72,6 +72,8 @@ export function SandboxLayout() {
   })
   const silenceIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [silenceDurationMs, setSilenceDurationMs] = useState(SILENCE_RETAKE_DURATION_MS)
+  const silenceDurationRef = useRef(SILENCE_RETAKE_DURATION_MS)
 
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
@@ -114,6 +116,10 @@ export function SandboxLayout() {
   useEffect(() => {
     workspaceRef.current = workspace
   }, [workspace])
+
+  useEffect(() => {
+    silenceDurationRef.current = silenceDurationMs
+  }, [silenceDurationMs])
 
   const timerEnabledRef = useRef(true)
   useEffect(() => {
@@ -389,12 +395,13 @@ export function SandboxLayout() {
     if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
 
     const startTime = Date.now()
-    setSilenceTimerState({ active: true, remainingMs: SILENCE_RETAKE_DURATION_MS, status: 'waiting' })
+    const duration = silenceDurationRef.current
+    setSilenceTimerState({ active: true, remainingMs: duration, status: 'waiting' })
 
     // Tick every 1s
     silenceIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime
-      const remaining = Math.max(0, SILENCE_RETAKE_DURATION_MS - elapsed)
+      const remaining = Math.max(0, duration - elapsed)
       setSilenceTimerState(prev => prev.status === 'waiting' ? { ...prev, remainingMs: remaining } : prev)
     }, 1000)
 
@@ -412,7 +419,7 @@ export function SandboxLayout() {
       }
       setMessages(prev => [...prev, retakeMessage])
       setSilenceTimerState({ active: false, remainingMs: 0, status: 'expired' })
-    }, SILENCE_RETAKE_DURATION_MS)
+    }, duration)
   }, [])
 
   // Cleanup silence timer on unmount
@@ -644,6 +651,8 @@ export function SandboxLayout() {
               onTimerConfigChange={handleTimerConfigChange}
               onTimerPause={handleTimerPause}
               silenceTimerState={silenceTimerState}
+              silenceDurationMs={silenceDurationMs}
+              onSilenceDurationChange={setSilenceDurationMs}
             />
           }
         />

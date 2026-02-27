@@ -37,6 +37,8 @@ interface PanelContainerProps {
   onTimerPause: () => void
   // Silence retake timer (Phase 30)
   silenceTimerState: SilenceTimerState
+  silenceDurationMs: number
+  onSilenceDurationChange: (ms: number) => void
 }
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
@@ -73,6 +75,8 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
           timerConfig={props.timerConfig}
           onTimerToggle={props.onTimerToggle}
           onTimerConfigChange={props.onTimerConfigChange}
+          silenceDurationMs={props.silenceDurationMs}
+          onSilenceDurationChange={props.onSilenceDurationChange}
         />
       )
     default:

@@ -43,6 +43,8 @@ interface DebugTabsProps {
   onTimerPause: () => void
   // Silence retake timer (Phase 30)
   silenceTimerState: SilenceTimerState
+  silenceDurationMs: number
+  onSilenceDurationChange: (ms: number) => void
 }
 
 export function DebugTabs({
@@ -60,6 +62,8 @@ export function DebugTabs({
   onTimerConfigChange,
   onTimerPause,
   silenceTimerState,
+  silenceDurationMs,
+  onSilenceDurationChange,
 }: DebugTabsProps) {
   const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
 
@@ -117,6 +121,8 @@ export function DebugTabs({
           onTimerConfigChange={onTimerConfigChange}
           onTimerPause={onTimerPause}
           silenceTimerState={silenceTimerState}
+          silenceDurationMs={silenceDurationMs}
+          onSilenceDurationChange={onSilenceDurationChange}
         />
       </div>
     </div>

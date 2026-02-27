@@ -16,7 +16,7 @@ import { DebugTabs } from './debug-panel'
 import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction, SilenceTimerState } from '@/lib/sandbox/types'
 import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
-import { SILENCE_RETAKE_MESSAGE, SILENCE_RETAKE_DURATION_MS } from '@/lib/agents/somnio/constants'
+import { SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DURATION_MS } from '@/lib/agents/somnio/constants'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
@@ -405,19 +405,33 @@ export function SandboxLayout() {
       setSilenceTimerState(prev => prev.status === 'waiting' ? { ...prev, remainingMs: remaining } : prev)
     }, 1000)
 
-    // On expiration: inject retake message
+    // On expiration: inject retake message (conditional)
     silenceTimeoutRef.current = setTimeout(() => {
       if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
       silenceIntervalRef.current = null
       silenceTimeoutRef.current = null
 
-      const retakeMessage: SandboxMessage = {
-        id: `msg-${Date.now()}-silence-retake`,
-        role: 'assistant',
-        content: SILENCE_RETAKE_MESSAGE,
-        timestamp: new Date().toISOString(),
+      // Check if the full pitch was already sent in this conversation
+      const msgs = messagesRef.current
+      const fullAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.includes(SILENCE_RETAKE_FULL))
+      const shortAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.includes(SILENCE_RETAKE_SHORT))
+
+      // Pick retake message: full if not sent, short if full sent, nothing if both sent
+      const retakeContent = !fullAlreadySent
+        ? SILENCE_RETAKE_FULL
+        : !shortAlreadySent
+          ? SILENCE_RETAKE_SHORT
+          : null
+
+      if (retakeContent) {
+        const retakeMessage: SandboxMessage = {
+          id: `msg-${Date.now()}-silence-retake`,
+          role: 'assistant',
+          content: retakeContent,
+          timestamp: new Date().toISOString(),
+        }
+        setMessages(prev => [...prev, retakeMessage])
       }
-      setMessages(prev => [...prev, retakeMessage])
       setSilenceTimerState({ active: false, remainingMs: 0, status: 'expired' })
     }, duration)
   }, [])

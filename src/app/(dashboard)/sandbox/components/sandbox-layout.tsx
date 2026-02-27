@@ -75,6 +75,9 @@ export function SandboxLayout() {
   const [silenceDurationMs, setSilenceDurationMs] = useState(SILENCE_RETAKE_DURATION_MS)
   const silenceDurationRef = useRef(SILENCE_RETAKE_DURATION_MS)
 
+  // Retake template content (fetched from DB on mount — includes image URL if applicable)
+  const retakeTemplateRef = useRef<string | null>(null)
+
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
 
@@ -83,7 +86,13 @@ export function SandboxLayout() {
   const crmAgentsRef = useRef<CrmAgentState[]>([])
   const workspaceRef = useRef(workspace)
 
-  // Load CRM agents from registry on mount
+  // Load CRM agents and retake template on mount
+  useEffect(() => {
+    fetch('/api/sandbox/retake-template')
+      .then(res => res.json())
+      .then(({ content }) => { retakeTemplateRef.current = content })
+      .catch(err => console.error('[Sandbox] Failed to load retake template:', err))
+  }, [])
   useEffect(() => {
     fetch('/api/sandbox/crm-agents')
       .then(res => res.json())
@@ -416,9 +425,9 @@ export function SandboxLayout() {
       const fullAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.toLowerCase().includes(SILENCE_RETAKE_DETECT))
       const shortAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.toLowerCase().includes(SILENCE_RETAKE_SHORT.toLowerCase()))
 
-      // Pick retake message: full if not sent, short if full sent, nothing if both sent
+      // Pick retake message: DB template (with image) if not sent, short text if full sent, nothing if both sent
       const retakeContent = !fullAlreadySent
-        ? SILENCE_RETAKE_FULL
+        ? (retakeTemplateRef.current ?? SILENCE_RETAKE_FULL)
         : !shortAlreadySent
           ? SILENCE_RETAKE_SHORT
           : null

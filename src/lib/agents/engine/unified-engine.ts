@@ -583,6 +583,7 @@ export class UnifiedEngine {
         sessionId: session.id,
         messagesSent,
         response: agentOutput.messages.join('\n'),
+        silenceDetected: !!agentOutput.silenceDetected,
         error: agentOutput.error,
       }
     } catch (error) {

@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
         ? { code: engineOutput.error.code, message: engineOutput.error.message }
         : undefined,
       timerSignal: engineOutput.timerSignal,
+      silenceDetected: engineOutput.silenceDetected,
     }
 
     return NextResponse.json(result)

@@ -83,6 +83,16 @@ export const ACKNOWLEDGMENT_PATTERNS = [
 export const LOW_CONFIDENCE_THRESHOLD = 80
 
 // ============================================================================
+// Silence Retake Constants (Phase 30)
+// ============================================================================
+
+/** Retake message sent after 90s of silence. Warm redirect to sale. */
+export const SILENCE_RETAKE_MESSAGE = 'Por cierto, te cuento que tenemos promociones especiales hoy! Te gustaria conocerlas? 😊'
+
+/** Duration of the silence retake timer in milliseconds */
+export const SILENCE_RETAKE_DURATION_MS = 90_000
+
+// ============================================================================
 // Block Composition Constants (Phase 31)
 // ============================================================================
 

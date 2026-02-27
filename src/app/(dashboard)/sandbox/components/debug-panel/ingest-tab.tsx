@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { format } from 'date-fns'
-import type { DebugTurn, SandboxState, IngestTimelineEntry, TimerState } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, IngestTimelineEntry, TimerState, SilenceTimerState } from '@/lib/sandbox/types'
 
 // ============================================================================
 // Classification Colors
@@ -186,6 +186,64 @@ function StatusGrid({
       )}
     </div>
   )
+}
+
+// ============================================================================
+// Silence Retake Timer Display (Phase 30 sandbox)
+// ============================================================================
+
+function SilenceTimerDisplay({ state }: { state: SilenceTimerState }) {
+  if (state.status === 'idle') return null
+
+  if (state.status === 'waiting') {
+    const totalSeconds = Math.ceil(state.remainingMs / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    const display = `${minutes}:${seconds.toString().padStart(2, '0')}`
+
+    return (
+      <div className="border border-orange-300 dark:border-orange-700 rounded-lg p-3 bg-orange-50 dark:bg-orange-950/30">
+        <div className="flex items-center gap-2">
+          <Timer className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+            Silencio {display}
+          </span>
+          <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse ml-auto" />
+        </div>
+        <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+          Esperando respuesta del cliente... Si no responde, se enviara mensaje de retoma.
+        </p>
+      </div>
+    )
+  }
+
+  if (state.status === 'cancelled') {
+    return (
+      <div className="border border-yellow-300 dark:border-yellow-700 rounded-lg p-2.5 bg-yellow-50 dark:bg-yellow-950/30">
+        <div className="flex items-center gap-2">
+          <Timer className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />
+          <span className="text-xs font-medium text-yellow-700 dark:text-yellow-300">
+            Timer cancelado por mensaje del cliente
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (state.status === 'expired') {
+    return (
+      <div className="border border-red-300 dark:border-red-700 rounded-lg p-2.5 bg-red-50 dark:bg-red-950/30">
+        <div className="flex items-center gap-2">
+          <Timer className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+          <span className="text-xs font-medium text-red-700 dark:text-red-300">
+            Retoma enviada
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return null
 }
 
 // ============================================================================
@@ -463,6 +521,7 @@ interface IngestTabProps {
   debugTurns: DebugTurn[]
   timerState: TimerState
   onTimerPause: () => void
+  silenceTimerState: SilenceTimerState
 }
 
 export function IngestTab({
@@ -470,6 +529,7 @@ export function IngestTab({
   debugTurns,
   timerState,
   onTimerPause,
+  silenceTimerState,
 }: IngestTabProps) {
   const timeline = state.ingestStatus?.timeline ?? []
 
@@ -477,6 +537,9 @@ export function IngestTab({
     <div className="space-y-4">
       {/* Section 1: Status grid with timer display */}
       <StatusGrid state={state} timerState={timerState} onTimerPause={onTimerPause} />
+
+      {/* Section 1.5: Silence retake timer (Phase 30) */}
+      <SilenceTimerDisplay state={silenceTimerState} />
 
       {/* Section 2: Ingest state JSON snapshot */}
       <IngestStateViewer state={state} />

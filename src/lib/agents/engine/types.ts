@@ -122,6 +122,8 @@ export interface EngineOutput {
   messagesSent?: number
   /** Response text (production backward compat with SomnioEngineResult.response) */
   response?: string
+  /** Whether a SILENCIOSO classification was detected (sandbox: drives silence retake timer) */
+  silenceDetected?: boolean
   /** Error details if processing failed */
   error?: {
     code: string

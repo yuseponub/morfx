@@ -259,6 +259,8 @@ export interface SandboxEngineResult {
   error?: { code: string; message: string }
   /** Timer control signal from SandboxEngine (Phase 15.7) */
   timerSignal?: TimerSignal
+  /** Whether a SILENCIOSO classification was detected (drives silence retake timer) */
+  silenceDetected?: boolean
 }
 
 // ============================================================================
@@ -393,3 +395,17 @@ export interface TimerLevelConfig {
  * Timer speed preset name.
  */
 export type TimerPreset = 'real' | 'rapido' | 'instantaneo'
+
+// ============================================================================
+// Silence Retake Timer Types (Phase 30 sandbox)
+// ============================================================================
+
+/**
+ * State of the silence retake timer (90s countdown in sandbox).
+ * Displayed in the Ingest tab of the debug panel.
+ */
+export interface SilenceTimerState {
+  active: boolean
+  remainingMs: number
+  status: 'idle' | 'waiting' | 'cancelled' | 'expired'
+}

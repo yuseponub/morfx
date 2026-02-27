@@ -18,12 +18,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/ingest-timer'
 import type { TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
-import { TIMER_MINIMUM_FIELDS } from '@/lib/agents/somnio/constants'
+import { TIMER_MINIMUM_FIELDS, SILENCE_RETAKE_MESSAGE } from '@/lib/agents/somnio/constants'
 
 const logger = createModuleLogger('agent-timers')
-
-/** Retake message sent after 90s of silence. Warm redirect to sale. */
-const SILENCE_RETAKE_MESSAGE = 'Por cierto, te cuento que tenemos promociones especiales hoy! Te gustaria conocerlas? 😊'
 
 // Lazy SessionManager
 let _sessionManager: SessionManager | null = null

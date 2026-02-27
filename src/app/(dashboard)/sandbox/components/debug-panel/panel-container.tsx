@@ -17,7 +17,7 @@ import { BloquesTab } from './bloques-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
-import type { DebugPanelTabId, DebugTurn, SandboxState, TimerState, TimerConfig } from '@/lib/sandbox/types'
+import type { DebugPanelTabId, DebugTurn, SandboxState, TimerState, TimerConfig, SilenceTimerState } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
   visiblePanels: DebugPanelTabId[]
@@ -35,6 +35,8 @@ interface PanelContainerProps {
   onTimerToggle: (enabled: boolean) => void
   onTimerConfigChange: (config: TimerConfig) => void
   onTimerPause: () => void
+  // Silence retake timer (Phase 30)
+  silenceTimerState: SilenceTimerState
 }
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
@@ -58,6 +60,7 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
           debugTurns={props.debugTurns}
           timerState={props.timerState}
           onTimerPause={props.onTimerPause}
+          silenceTimerState={props.silenceTimerState}
         />
       )
     case 'config':

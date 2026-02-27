@@ -13,9 +13,10 @@ import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction, SilenceTimerState } from '@/lib/sandbox/types'
 import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
+import { SILENCE_RETAKE_MESSAGE, SILENCE_RETAKE_DURATION_MS } from '@/lib/agents/somnio/constants'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
@@ -64,6 +65,13 @@ export function SandboxLayout() {
   const [timerConfig, setTimerConfig] = useState<TimerConfig>(TIMER_DEFAULTS)
   const simulatorRef = useRef<IngestTimerSimulator | null>(null)
   const stateRef = useRef<SandboxState>(INITIAL_STATE)
+
+  // Silence retake timer state (Phase 30 sandbox)
+  const [silenceTimerState, setSilenceTimerState] = useState<SilenceTimerState>({
+    active: false, remainingMs: 0, status: 'idle'
+  })
+  const silenceIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
@@ -354,6 +362,67 @@ export function SandboxLayout() {
     setTimerState(prev => ({ ...prev, paused: !prev.paused }))
   }, [timerState.paused])
 
+  // ============================================================================
+  // Silence Retake Timer (Phase 30 sandbox)
+  // ============================================================================
+
+  const cancelSilenceTimer = useCallback((immediate?: boolean) => {
+    if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
+    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
+    silenceIntervalRef.current = null
+    silenceTimeoutRef.current = null
+
+    if (immediate) {
+      setSilenceTimerState({ active: false, remainingMs: 0, status: 'idle' })
+    } else {
+      setSilenceTimerState({ active: false, remainingMs: 0, status: 'cancelled' })
+      // Return to idle after 3s
+      setTimeout(() => {
+        setSilenceTimerState(prev => prev.status === 'cancelled' ? { active: false, remainingMs: 0, status: 'idle' } : prev)
+      }, 3000)
+    }
+  }, [])
+
+  const startSilenceTimer = useCallback(() => {
+    // Cancel any previous silence timer
+    if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
+    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
+
+    const startTime = Date.now()
+    setSilenceTimerState({ active: true, remainingMs: SILENCE_RETAKE_DURATION_MS, status: 'waiting' })
+
+    // Tick every 1s
+    silenceIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, SILENCE_RETAKE_DURATION_MS - elapsed)
+      setSilenceTimerState(prev => prev.status === 'waiting' ? { ...prev, remainingMs: remaining } : prev)
+    }, 1000)
+
+    // On expiration: inject retake message
+    silenceTimeoutRef.current = setTimeout(() => {
+      if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
+      silenceIntervalRef.current = null
+      silenceTimeoutRef.current = null
+
+      const retakeMessage: SandboxMessage = {
+        id: `msg-${Date.now()}-silence-retake`,
+        role: 'assistant',
+        content: SILENCE_RETAKE_MESSAGE,
+        timestamp: new Date().toISOString(),
+      }
+      setMessages(prev => [...prev, retakeMessage])
+      setSilenceTimerState({ active: false, remainingMs: 0, status: 'expired' })
+    }, SILENCE_RETAKE_DURATION_MS)
+  }, [])
+
+  // Cleanup silence timer on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
+    }
+  }, [])
+
   // CRM agent toggle handler
   const handleCrmAgentToggle = useCallback((agentId: string, enabled: boolean) => {
     setCrmAgents(prev => prev.map(a =>
@@ -379,10 +448,15 @@ export function SandboxLayout() {
     }
     setMessages(prev => [...prev, userMessage])
 
-    // 2. Show typing indicator
+    // 2. Cancel silence timer if active (customer replied)
+    if (silenceTimerState.active) {
+      cancelSilenceTimer()
+    }
+
+    // 3. Show typing indicator
     setIsTyping(true)
 
-    // 3. Build history for API (use ref to avoid stale closure in async callback)
+    // 4. Build history for API (use ref to avoid stale closure in async callback)
     const history = messagesRef.current.map(m => ({ role: m.role, content: m.content }))
     history.push({ role: 'user', content })
 
@@ -474,11 +548,15 @@ export function SandboxLayout() {
           setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
         }
       }
+      // 9. Start silence retake timer if SILENCIOSO detected (Phase 30)
+      if (result.silenceDetected) {
+        startSilenceTimer()
+      }
     } catch (error) {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [responseDelayMs, timerConfig, startTimerForLevel])
+  }, [responseDelayMs, timerConfig, startTimerForLevel, silenceTimerState.active, cancelSilenceTimer, startSilenceTimer])
 
   // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {
@@ -490,8 +568,10 @@ export function SandboxLayout() {
     // Stop timer on reset (Phase 15.7)
     simulatorRef.current?.stop()
     setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+    // Stop silence timer on reset
+    cancelSilenceTimer(true)
     // Keep timer enabled across resets (default: on)
-  }, [])
+  }, [cancelSilenceTimer])
 
   // Handle new session (same as reset but through controls)
   const handleNewSession = useCallback(() => {
@@ -563,6 +643,7 @@ export function SandboxLayout() {
               onTimerToggle={handleTimerToggle}
               onTimerConfigChange={handleTimerConfigChange}
               onTimerPause={handleTimerPause}
+              silenceTimerState={silenceTimerState}
             />
           }
         />

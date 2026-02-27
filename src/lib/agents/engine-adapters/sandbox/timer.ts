@@ -16,6 +16,7 @@ import type { TimerSignal } from '@/lib/sandbox/types'
 
 export class SandboxTimerAdapter implements TimerAdapter {
   private lastSignal: TimerSignal | null = null
+  private silenceDetected = false
 
   /**
    * Store as lastSignal (overwrites previous).
@@ -36,9 +37,25 @@ export class SandboxTimerAdapter implements TimerAdapter {
   }
 
   /**
+   * Called by UnifiedEngine when SomnioAgent returns silenceDetected=true.
+   * Stores the flag for EngineOutput propagation to frontend.
+   */
+  async onSilenceDetected(): Promise<void> {
+    this.silenceDetected = true
+  }
+
+  /**
+   * Check if silence was detected this turn.
+   */
+  getSilenceDetected(): boolean {
+    return this.silenceDetected
+  }
+
+  /**
    * Reset signal state (for reuse between turns).
    */
   reset(): void {
     this.lastSignal = null
+    this.silenceDetected = false
   }
 }

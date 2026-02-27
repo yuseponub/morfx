@@ -284,7 +284,9 @@ export class UnifiedEngine {
         newByIntent.set(intent, prioritizedNew)
 
         // 3. Compose block (merges new + pending per priority rules)
-        const composed = composeBlock(newByIntent, pending)
+        // Exception: hola+x combos skip the 3-template cap (greeting + all x templates)
+        const isHolaCombo = intent.startsWith('hola+')
+        const composed = composeBlock(newByIntent, pending, isHolaCombo ? Infinity : undefined)
 
         // Debug Panel v4.0: record block composition
         this.adapters.debug.recordBlockComposition({

@@ -401,6 +401,15 @@ export class SomnioOrchestrator {
       )
     }
 
+    // For hola+x combos: only keep first template from hola (greeting only)
+    const isHolaCombo = isCombinationIntent(intent) && splitCombinationIntent(intent)[0] === 'hola'
+    if (isHolaCombo) {
+      const holaSelection = templateMap.get('hola')
+      if (holaSelection && holaSelection.templates.length > 1) {
+        holaSelection.templates = [holaSelection.templates[0]]
+      }
+    }
+
     // Combine and process all templates (async: paraphrases repeated intents)
     const allTemplates: ProcessedTemplate[] = []
     for (const selection of templateMap.values()) {

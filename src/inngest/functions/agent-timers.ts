@@ -13,7 +13,7 @@
 
 import { inngest } from '../client'
 import { SessionManager } from '@/lib/agents/session-manager'
-import { sendTextMessage } from '@/lib/whatsapp/api'
+import { sendTextMessage, sendMediaMessage } from '@/lib/whatsapp/api'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/ingest-timer'
@@ -628,22 +628,54 @@ export const silenceTimer = inngest.createFunction(
       const fullAlreadySent = sentBodies.some(b => b.includes(SILENCE_RETAKE_DETECT))
       const shortAlreadySent = sentBodies.some(b => b.includes(SILENCE_RETAKE_SHORT.toLowerCase()))
 
-      const retakeContent = !fullAlreadySent
-        ? SILENCE_RETAKE_FULL
-        : !shortAlreadySent
-          ? SILENCE_RETAKE_SHORT
-          : null
-
-      if (!retakeContent) {
+      if (fullAlreadySent && shortAlreadySent) {
         logger.info({ sessionId, conversationId }, 'Silence retake: both messages already sent, skipping')
         return { status: 'skipped', action: 'already_sent', pendingSent }
       }
 
-      const retakeSent = await sendWhatsAppMessage(workspaceId, conversationId, retakeContent)
+      let retakeSent = false
+
+      if (!fullAlreadySent) {
+        // Fetch the actual hola template from DB (may include image)
+        const { data: holaTemplates } = await supabase
+          .from('agent_templates')
+          .select('content, content_type')
+          .eq('agent_id', 'somnio-sales-v1')
+          .eq('intent', 'hola')
+          .eq('visit_type', 'primera_vez')
+          .order('orden', { ascending: true })
+
+        const retakeTemplate = (holaTemplates ?? []).find((t: { content: string }) =>
+          t.content.toLowerCase().includes('deseas adquirir')
+        )
+
+        if (retakeTemplate && retakeTemplate.content_type === 'imagen') {
+          // Send as image (format: "URL" or "URL|caption")
+          const pipeIdx = retakeTemplate.content.indexOf('|')
+          const mediaUrl = pipeIdx > 0 ? retakeTemplate.content.slice(0, pipeIdx) : retakeTemplate.content
+          const caption = pipeIdx > 0 ? retakeTemplate.content.slice(pipeIdx + 1) : undefined
+          const apiKey = await getWhatsAppApiKey(workspaceId)
+          const phone = await getConversationPhone(conversationId)
+          if (apiKey && phone) {
+            try {
+              await sendMediaMessage(apiKey, phone, 'image', mediaUrl, caption)
+              retakeSent = true
+            } catch (err) {
+              logger.error({ err, conversationId }, 'Failed to send retake image')
+            }
+          }
+        } else {
+          // Fallback to text
+          retakeSent = await sendWhatsAppMessage(workspaceId, conversationId, retakeTemplate?.content ?? SILENCE_RETAKE_FULL)
+        }
+      } else {
+        // Full already sent, send short version
+        retakeSent = await sendWhatsAppMessage(workspaceId, conversationId, SILENCE_RETAKE_SHORT)
+      }
 
       if (retakeSent) {
         logger.info(
-          { sessionId, conversationId, pendingSent, pendingTotal: pendingTemplates.length, retakeContent },
+          { sessionId, conversationId, pendingSent, pendingTotal: pendingTemplates.length, fullAlreadySent },
           'Silence retake: pending templates + retake message sent'
         )
         return { status: 'timeout', action: 'retake_sent', pendingSent }

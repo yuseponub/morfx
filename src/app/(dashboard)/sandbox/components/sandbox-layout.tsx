@@ -16,7 +16,7 @@ import { DebugTabs } from './debug-panel'
 import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction, SilenceTimerState } from '@/lib/sandbox/types'
 import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
-import { SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DURATION_MS } from '@/lib/agents/somnio/constants'
+import { SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DETECT, SILENCE_RETAKE_DURATION_MS } from '@/lib/agents/somnio/constants'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
@@ -411,10 +411,10 @@ export function SandboxLayout() {
       silenceIntervalRef.current = null
       silenceTimeoutRef.current = null
 
-      // Check if the full pitch was already sent in this conversation
+      // Check if the full pitch was already sent (case-insensitive substring to avoid encoding issues)
       const msgs = messagesRef.current
-      const fullAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.includes(SILENCE_RETAKE_FULL))
-      const shortAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.includes(SILENCE_RETAKE_SHORT))
+      const fullAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.toLowerCase().includes(SILENCE_RETAKE_DETECT))
+      const shortAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.toLowerCase().includes(SILENCE_RETAKE_SHORT.toLowerCase()))
 
       // Pick retake message: full if not sent, short if full sent, nothing if both sent
       const retakeContent = !fullAlreadySent

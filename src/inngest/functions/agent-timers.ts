@@ -18,7 +18,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/ingest-timer'
 import type { TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
-import { TIMER_MINIMUM_FIELDS, SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT } from '@/lib/agents/somnio/constants'
+import { TIMER_MINIMUM_FIELDS, SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DETECT } from '@/lib/agents/somnio/constants'
 
 const logger = createModuleLogger('agent-timers')
 
@@ -624,9 +624,9 @@ export const silenceTimer = inngest.createFunction(
         .eq('conversation_id', conversationId)
         .eq('direction', 'outbound')
 
-      const sentBodies = (outboundMsgs ?? []).map(m => m.body ?? '')
-      const fullAlreadySent = sentBodies.some(b => b.includes(SILENCE_RETAKE_FULL))
-      const shortAlreadySent = sentBodies.some(b => b.includes(SILENCE_RETAKE_SHORT))
+      const sentBodies = (outboundMsgs ?? []).map(m => (m.body ?? '').toLowerCase())
+      const fullAlreadySent = sentBodies.some(b => b.includes(SILENCE_RETAKE_DETECT))
+      const shortAlreadySent = sentBodies.some(b => b.includes(SILENCE_RETAKE_SHORT.toLowerCase()))
 
       const retakeContent = !fullAlreadySent
         ? SILENCE_RETAKE_FULL

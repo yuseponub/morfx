@@ -90,10 +90,10 @@ export const LOW_CONFIDENCE_THRESHOLD = 80
 export const SILENCE_RETAKE_FULL = '¿Deseas adquirir tu ELIXIR DEL SUEÑO?'
 
 /** Retake message: short version (when full pitch was already sent) */
-export const SILENCE_RETAKE_SHORT = 'Deseas adquirirlo?'
+export const SILENCE_RETAKE_SHORT = 'Deseas adquirir el tuyo?'
 
-/** @deprecated Use SILENCE_RETAKE_FULL / SILENCE_RETAKE_SHORT instead */
-export const SILENCE_RETAKE_MESSAGE = SILENCE_RETAKE_FULL
+/** Substring to detect if the full pitch was already sent (case-insensitive, avoids ñ/encoding issues) */
+export const SILENCE_RETAKE_DETECT = 'deseas adquirir tu elixir'
 
 /** Duration of the silence retake timer in milliseconds */
 export const SILENCE_RETAKE_DURATION_MS = 90_000

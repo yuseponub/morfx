@@ -126,8 +126,11 @@ export class TemplateManager {
       t => t.intent === intent && t.visit_type === 'primera_vez'
     )
 
-    // Filter out already sent templates
-    templates = templates.filter(t => !templatesSent.includes(t.id))
+    // Filter out already sent templates (by ID and by content)
+    const sentContents = allTemplates
+      .filter(t => templatesSent.includes(t.id))
+      .map(t => t.content)
+    templates = templates.filter(t => !templatesSent.includes(t.id) && !sentContents.includes(t.content))
 
     // Sort by orden
     templates.sort((a, b) => a.orden - b.orden)

@@ -136,9 +136,10 @@ export function ConversationList({
 
       {/* Filters */}
       <div className="p-3 border-b space-y-3">
+        <InboxFilters value={filter} onChange={setFilter} />
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <InboxFilters value={filter} onChange={setFilter} />
+            <SearchInput value={query} onChange={setQuery} />
           </div>
           {/* Sort mode toggle */}
           <Button
@@ -165,7 +166,6 @@ export function ConversationList({
             <Bot className="h-4 w-4" />
           </Button>
         </div>
-        <SearchInput value={query} onChange={setQuery} />
       </div>
 
       {/* Conversation list */}

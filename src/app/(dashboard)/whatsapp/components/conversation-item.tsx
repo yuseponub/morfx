@@ -74,7 +74,7 @@ export function ConversationItem({
     >
       <div className="flex items-start justify-between gap-2">
         {/* Avatar with emoji indicator + Name and unread badge */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Avatar with optional emoji indicator (Callbell style) */}
           <div className="relative flex-shrink-0">
             {/* Avatar circle with initials */}
@@ -106,7 +106,7 @@ export function ConversationItem({
           {/* Name and unread badge */}
           <div className="flex items-center gap-2 min-w-0">
             <span className={cn(
-              'font-medium truncate',
+              'text-sm font-medium truncate',
               !conversation.is_read && 'font-semibold'
             )}>
               {displayName}

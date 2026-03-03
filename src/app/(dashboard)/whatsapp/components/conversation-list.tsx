@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Bot, Plus } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { useConversations } from '@/hooks/use-conversations'
 import { InboxFilters } from './filters/inbox-filters'
@@ -152,7 +153,7 @@ export function ConversationList({
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
         {isLoading && !initialConversations.length ? (
           <div className="flex items-center justify-center h-32">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -204,7 +205,7 @@ export function ConversationList({
             })}
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Results count when searching or filtering */}
       {(hasQuery || agentFilter === 'agent-attended') && filteredConversations.length > 0 && (

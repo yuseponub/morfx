@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { RelativeTime } from '@/components/ui/relative-time'
 import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
-import type { ConversationSort } from '@/hooks/use-conversations'
 
 /**
  * Get initials from a name (up to 2 characters).
@@ -29,8 +28,6 @@ interface ConversationItemProps {
   orders?: OrderSummary[]
   /** Show client activation badge on avatar */
   showClientBadge?: boolean
-  /** Current sort mode — determines which timestamp to display */
-  sortMode?: ConversationSort
 }
 
 /**
@@ -43,19 +40,13 @@ export function ConversationItem({
   onSelect,
   orders = [],
   showClientBadge = false,
-  sortMode = 'last_message',
 }: ConversationItemProps) {
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
 
-  // Timestamp synced with sort mode:
-  // - last_message: show last_message_at (gray, no icon)
-  // - last_customer_message: show last_customer_message_at (blue + User icon), fallback to last_message_at
-  const isCustomerSort = sortMode === 'last_customer_message'
-  const timerDate = isCustomerSort
-    ? (conversation.last_customer_message_at || conversation.last_message_at)
-    : conversation.last_message_at
-  const isCustomerTimer = isCustomerSort && !!conversation.last_customer_message_at
+  // Always show last_customer_message_at (blue + User icon), fallback to last_message_at
+  const timerDate = conversation.last_customer_message_at || conversation.last_message_at
+  const isCustomerTimer = !!conversation.last_customer_message_at
 
   // Combine tags: conversation tags first, then contact tags (marked as inherited)
   const conversationTags = conversation.tags || []

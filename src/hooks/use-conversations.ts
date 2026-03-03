@@ -138,7 +138,7 @@ export function useConversations({
   const [filter, setFilter] = useState<ConversationFilter>('all')
   const [isLoading, setIsLoading] = useState(!initialConversations.length)
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
-  const [sortMode, setSortMode] = useState<ConversationSort>('last_message')
+  const [sortMode, setSortMode] = useState<ConversationSort>('last_customer_message')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // ---- Refs for avoiding stale closures in realtime callbacks ----
@@ -192,11 +192,6 @@ export function useConversations({
         sortBy?: 'last_message' | 'last_customer_message'
       } = {}
 
-      // Pass sort mode to server action
-      if (sortMode !== 'last_message') {
-        filterParams.sortBy = sortMode
-      }
-
       switch (filter) {
         case 'archived':
           filterParams = { status: 'archived' }
@@ -215,6 +210,9 @@ export function useConversations({
         default: // 'all'
           filterParams = { status: 'active' }
       }
+
+      // Pass sort mode to server action (after switch to avoid overwrite)
+      filterParams.sortBy = sortMode
 
       const data = await getConversations(filterParams)
       setConversations(data)

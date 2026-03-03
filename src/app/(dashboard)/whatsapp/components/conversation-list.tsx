@@ -141,17 +141,17 @@ export function ConversationList({
           <div className="flex-1">
             <SearchInput value={query} onChange={setQuery} />
           </div>
-          {/* Sort mode toggle */}
+          {/* Sort mode toggle: default=last_customer_message, toggled=last_message */}
           <Button
-            variant={sortMode === 'last_customer_message' ? 'default' : 'ghost'}
+            variant={sortMode === 'last_message' ? 'default' : 'ghost'}
             size="icon"
             className="h-8 w-8 flex-shrink-0"
             onClick={() => setSortMode(prev =>
-              prev === 'last_message' ? 'last_customer_message' : 'last_message'
+              prev === 'last_customer_message' ? 'last_message' : 'last_customer_message'
             )}
-            title={sortMode === 'last_customer_message'
-              ? 'Ordenando por último mensaje del cliente'
-              : 'Ordenar por último mensaje del cliente'}
+            title={sortMode === 'last_message'
+              ? 'Ordenando por última interacción'
+              : 'Ordenar por última interacción'}
           >
             <UserRoundSearch className="h-4 w-4" />
           </Button>
@@ -216,7 +216,6 @@ export function ConversationList({
                   }}
                   orders={contactOrders}
                   showClientBadge={!!showClientBadge}
-                  sortMode={sortMode}
                 />
               )
             })}

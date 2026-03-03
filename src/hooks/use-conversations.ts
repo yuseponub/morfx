@@ -154,6 +154,10 @@ export function useConversations({
   // Safety-net debounced full refetch timer
   const safetyRefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Ref for scheduleSafetyRefetch — avoids including it in realtime useEffect deps
+  // which caused channel teardown/recreation on every filter or currentUserId change
+  const scheduleSafetyRefetchRef = useRef<() => void>(() => {})
+
   // Get current user ID for 'mine' filter
   useEffect(() => {
     const supabase = createClient()
@@ -259,6 +263,9 @@ export function useConversations({
     }, 30_000)
   }, [fetchConversations])
 
+  // Keep ref in sync — used by realtime handlers to avoid stale closure
+  useEffect(() => { scheduleSafetyRefetchRef.current = scheduleSafetyRefetch }, [scheduleSafetyRefetch])
+
   // ============================================================================
   // Consolidated Realtime Channel
   // Single channel with 4 .on() listeners replaces 4 separate channels
@@ -334,7 +341,7 @@ export function useConversations({
 
               return sortByLastMessage(updated)
             })
-            scheduleSafetyRefetch()
+            scheduleSafetyRefetchRef.current()
           } else if (eventType === 'INSERT') {
             // New conversation — need contact + tag join data, fetch just this one
             const conv = await getConversation(newRow.id)
@@ -345,10 +352,10 @@ export function useConversations({
                 return sortByLastMessage([conv, ...prev])
               })
             }
-            scheduleSafetyRefetch()
+            scheduleSafetyRefetchRef.current()
           } else if (eventType === 'DELETE') {
             setConversations(prev => prev.filter(c => c.id !== oldRow.id))
-            scheduleSafetyRefetch()
+            scheduleSafetyRefetchRef.current()
           }
         }
       )
@@ -374,7 +381,7 @@ export function useConversations({
           setConversations(prev =>
             prev.map(c => c.id === convId ? { ...c, tags } : c)
           )
-          scheduleSafetyRefetch()
+          scheduleSafetyRefetchRef.current()
         }
       )
       // ---- contact_tags table: debounced full refetch (rare event) ----
@@ -396,7 +403,7 @@ export function useConversations({
 
           // Contact tag changes are rare — trigger debounced full refetch
           // This is simpler and acceptable for an infrequent event
-          scheduleSafetyRefetch()
+          scheduleSafetyRefetchRef.current()
         }
       )
       // ---- contacts table: is_client changes ----
@@ -458,13 +465,14 @@ export function useConversations({
         if (err) console.error('Realtime inbox channel error:', err)
       })
 
-    // Cleanup on unmount or workspaceId change
+    // Cleanup on unmount or workspaceId change only
     return () => {
-      console.log('[realtime:inbox] Tearing down channel (workspaceId or scheduleSafetyRefetch changed)')
+      console.log('[realtime:inbox] Tearing down channel (unmount or workspaceId changed)')
       supabase.removeChannel(channel)
       if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
     }
-  }, [workspaceId, scheduleSafetyRefetch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId])
 
   // Memoized Fuse instance
   const fuse = useMemo(

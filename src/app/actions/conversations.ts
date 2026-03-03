@@ -43,6 +43,11 @@ export async function getConversations(
   // Build query with contact join (tags come through contact) and conversation tags
   // Note: address/city omitted from list query (only used in ContactPanel detail view)
   // Tags select only id, name, color (the 3 fields actually rendered)
+  // Determine sort column based on sortBy filter
+  const sortColumn = filters?.sortBy === 'last_customer_message'
+    ? 'last_customer_message_at'
+    : 'last_message_at'
+
   let query = supabase
     .from('conversations')
     .select(`
@@ -51,7 +56,7 @@ export async function getConversations(
       conversation_tags:conversation_tags(tag:tags(id, name, color))
     `)
     .eq('workspace_id', workspaceId)
-    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order(sortColumn, { ascending: false, nullsFirst: false })
 
   // Apply filters
   if (filters?.status) {

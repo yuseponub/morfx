@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Bot, Plus } from 'lucide-react'
+import { Bot, Plus, UserRoundSearch } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { useConversations } from '@/hooks/use-conversations'
@@ -54,6 +54,8 @@ export function ConversationList({
     refreshOrders,
     getConversationById,
     markAsReadLocally,
+    sortMode,
+    setSortMode,
   } = useConversations({
     workspaceId,
     initialConversations,
@@ -138,6 +140,20 @@ export function ConversationList({
           <div className="flex-1">
             <InboxFilters value={filter} onChange={setFilter} />
           </div>
+          {/* Sort mode toggle */}
+          <Button
+            variant={sortMode === 'last_customer_message' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={() => setSortMode(prev =>
+              prev === 'last_message' ? 'last_customer_message' : 'last_message'
+            )}
+            title={sortMode === 'last_customer_message'
+              ? 'Ordenando por último mensaje del cliente'
+              : 'Ordenar por último mensaje del cliente'}
+          >
+            <UserRoundSearch className="h-4 w-4" />
+          </Button>
           {/* Agent filter toggle */}
           <Button
             variant={agentFilter === 'agent-attended' ? 'default' : 'ghost'}
@@ -200,6 +216,7 @@ export function ConversationList({
                   }}
                   orders={contactOrders}
                   showClientBadge={!!showClientBadge}
+                  sortMode={sortMode}
                 />
               )
             })}

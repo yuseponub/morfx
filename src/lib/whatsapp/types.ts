@@ -526,6 +526,7 @@ export interface ConversationFilters {
   assigned_to?: string | null  // null = unassigned
   tag_ids?: string[]
   window_status?: WindowStatus
+  sortBy?: 'last_message' | 'last_customer_message'
 }
 
 // ============================================================================

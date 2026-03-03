@@ -37,6 +37,7 @@ import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types
  * - 'archived': Only archived conversations
  */
 export type ConversationFilter = 'all' | 'unread' | 'mine' | 'unassigned' | 'archived'
+export type ConversationSort = 'last_message' | 'last_customer_message'
 
 interface UseConversationsOptions {
   workspaceId: string
@@ -70,6 +71,10 @@ interface UseConversationsReturn {
   getConversationById: (id: string) => ConversationWithDetails | undefined
   /** Optimistically mark a conversation as read in local state */
   markAsReadLocally: (conversationId: string) => void
+  /** Current sort mode */
+  sortMode: ConversationSort
+  /** Update sort mode */
+  setSortMode: React.Dispatch<React.SetStateAction<ConversationSort>>
 }
 
 // ============================================================================
@@ -96,10 +101,11 @@ const conversationSearchOptions: IFuseOptions<ConversationWithDetails> = {
 // Helpers
 // ============================================================================
 
-/** Sort conversations by last_message_at descending (newest first) */
-function sortByLastMessage(convs: ConversationWithDetails[]): ConversationWithDetails[] {
+/** Sort conversations by the given sort mode descending (newest first) */
+function sortConversations(convs: ConversationWithDetails[], mode: ConversationSort): ConversationWithDetails[] {
+  const field = mode === 'last_customer_message' ? 'last_customer_message_at' : 'last_message_at'
   return [...convs].sort((a, b) =>
-    new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+    new Date(b[field] || 0).getTime() - new Date(a[field] || 0).getTime()
   )
 }
 
@@ -132,6 +138,7 @@ export function useConversations({
   const [filter, setFilter] = useState<ConversationFilter>('all')
   const [isLoading, setIsLoading] = useState(!initialConversations.length)
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
+  const [sortMode, setSortMode] = useState<ConversationSort>('last_message')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // ---- Refs for avoiding stale closures in realtime callbacks ----
@@ -139,6 +146,10 @@ export function useConversations({
   // Track latest conversations state (used by realtime handlers)
   const conversationsRef = useRef<ConversationWithDetails[]>(conversations)
   useEffect(() => { conversationsRef.current = conversations }, [conversations])
+
+  // Track latest sort mode (used by realtime handlers to re-sort)
+  const sortModeRef = useRef<ConversationSort>(sortMode)
+  useEffect(() => { sortModeRef.current = sortMode }, [sortMode])
 
   // Track contact IDs for orders refresh (used by orders handler)
   const contactIdsRef = useRef<string[]>([])
@@ -178,7 +189,13 @@ export function useConversations({
         status?: 'active' | 'archived'
         is_read?: boolean
         assigned_to?: string | null
+        sortBy?: 'last_message' | 'last_customer_message'
       } = {}
+
+      // Pass sort mode to server action
+      if (sortMode !== 'last_message') {
+        filterParams.sortBy = sortMode
+      }
 
       switch (filter) {
         case 'archived':
@@ -206,7 +223,7 @@ export function useConversations({
     } finally {
       setIsLoading(false)
     }
-  }, [filter, currentUserId])
+  }, [filter, currentUserId, sortMode])
 
   // Initial fetch
   useEffect(() => {
@@ -315,7 +332,7 @@ export function useConversations({
                 ),
               } as ConversationWithDetails
 
-              return sortByLastMessage(updated)
+              return sortConversations(updated, sortModeRef.current)
             })
             scheduleSafetyRefetchRef.current()
           } else if (eventType === 'INSERT') {
@@ -325,7 +342,7 @@ export function useConversations({
               setConversations(prev => {
                 // Avoid duplicates (in case safety refetch already added it)
                 if (prev.some(c => c.id === conv.id)) return prev
-                return sortByLastMessage([conv, ...prev])
+                return sortConversations([conv, ...prev], sortModeRef.current)
               })
             }
             scheduleSafetyRefetchRef.current()
@@ -489,5 +506,7 @@ export function useConversations({
     refreshOrders,
     getConversationById,
     markAsReadLocally,
+    sortMode,
+    setSortMode,
   }
 }

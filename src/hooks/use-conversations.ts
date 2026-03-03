@@ -384,28 +384,11 @@ export function useConversations({
           scheduleSafetyRefetchRef.current()
         }
       )
-      // ---- contact_tags table: debounced full refetch (rare event) ----
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'contact_tags',
-        },
-        (payload) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const contactId = (payload.new as any)?.contact_id || (payload.old as any)?.contact_id
-          if (!contactId) return
-
-          // Only process if any conversation in our list has this contact
-          const hasAffected = conversationsRef.current.some(c => c.contact?.id === contactId)
-          if (!hasAffected) return
-
-          // Contact tag changes are rare — trigger debounced full refetch
-          // This is simpler and acceptable for an infrequent event
-          scheduleSafetyRefetchRef.current()
-        }
-      )
+      // ---- contact_tags removed: table not in supabase_realtime publication ----
+      // Orphan binding caused positional ID mismatch in Phoenix protocol,
+      // corrupting event delivery for ALL bindings on this channel.
+      // Contact tags still load on initial fetch and conversation selection.
+      // To restore: first run ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags;
       // ---- contacts table: is_client changes ----
       .on(
         'postgres_changes',

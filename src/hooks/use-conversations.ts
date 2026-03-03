@@ -266,6 +266,7 @@ export function useConversations({
   useEffect(() => {
     if (!workspaceId) return
 
+    console.log('[realtime:inbox] Setting up channel for workspace:', workspaceId)
     const supabase = createClient()
 
     const channel = supabase
@@ -286,14 +287,40 @@ export function useConversations({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const oldRow = payload.old as Record<string, any>
 
+          // --- DEBUG: Log every conversations event ---
+          console.log(`[realtime:inbox] conversations ${eventType}`, {
+            id: newRow.id,
+            unread_count: newRow.unread_count,
+            is_read: newRow.is_read,
+            last_message_preview: newRow.last_message_preview?.slice(0, 30),
+            has_unread_count_key: 'unread_count' in newRow,
+            payload_keys: Object.keys(newRow),
+            old_unread_count: oldRow.unread_count,
+            old_is_read: oldRow.is_read,
+          })
+
           if (eventType === 'UPDATE') {
             // Surgical update: spread flat columns from payload onto existing conversation
             // Preserves join data (contact, tags, contactTags) which aren't in the payload
             setConversations(prev => {
               const idx = prev.findIndex(c => c.id === newRow.id)
-              if (idx === -1) return prev // Not in our list (filtered out by status/assignment)
+              if (idx === -1) {
+                console.warn('[realtime:inbox] UPDATE skipped — conversation not in local state:', newRow.id)
+                return prev
+              }
 
               const existing = prev[idx]
+
+              // --- DEBUG: Log before/after for unread_count ---
+              console.log('[realtime:inbox] surgical update unread_count:', {
+                id: newRow.id,
+                existing_unread: existing.unread_count,
+                existing_is_read: existing.is_read,
+                payload_unread: newRow.unread_count,
+                payload_is_read: newRow.is_read,
+                will_change: existing.unread_count !== newRow.unread_count,
+              })
+
               const updated = [...prev]
               updated[idx] = {
                 ...existing,
@@ -427,11 +454,13 @@ export function useConversations({
         }
       )
       .subscribe((status, err) => {
+        console.log('[realtime:inbox] channel status:', status, err || '')
         if (err) console.error('Realtime inbox channel error:', err)
       })
 
     // Cleanup on unmount or workspaceId change
     return () => {
+      console.log('[realtime:inbox] Tearing down channel (workspaceId or scheduleSafetyRefetch changed)')
       supabase.removeChannel(channel)
       if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
     }

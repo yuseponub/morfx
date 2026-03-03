@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getJobStatus } from '@/app/actions/comandos'
+import { getJobStatus, getJobById } from '@/app/actions/comandos'
 import type { RobotJob, RobotJobItem } from '@/lib/domain/robot-jobs'
 
 // ============================================================================
@@ -167,7 +167,7 @@ export function useRobotJobProgress(jobId: string | null): {
       }
 
       try {
-        const result = await getJobStatus()
+        const result = await getJobById(jobId)
         if (result.success && result.data) {
           setJob(result.data.job ?? null)
           setItems(result.data.items ?? [])

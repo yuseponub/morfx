@@ -968,6 +968,31 @@ export async function getJobStatus(jobType?: string): Promise<CommandResult<GetJ
 }
 
 // ============================================================================
+// getJobById
+// ============================================================================
+
+/**
+ * Fetch a specific job by ID with all its items.
+ * Unlike getJobStatus, this works for ANY job status (including completed/failed).
+ * Used by the polling fallback in useRobotJobProgress.
+ */
+export async function getJobById(jobId: string): Promise<CommandResult<GetJobWithItemsResult | null>> {
+  try {
+    const auth = await getAuthContext()
+    if ('error' in auth) return { success: false, error: auth.error }
+
+    const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+    const result = await getJobWithItems(ctx, jobId)
+
+    if (!result.success) return { success: false, error: result.error! }
+    return { success: true, data: result.data }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
 // getCommandHistory
 // ============================================================================
 

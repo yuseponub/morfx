@@ -354,16 +354,16 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
               <AlertTriangle className="h-4 w-4 shrink-0" />
               {message.title}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {message.items.map((item, idx) => (
-                <div key={idx} className="text-xs font-mono">
-                  <span className="text-yellow-800 dark:text-yellow-300">
-                    {item.orderName || 'Sin nombre'}:
-                  </span>{' '}
-                  <span className="text-muted-foreground">municipio=</span>
-                  <span className="font-bold text-yellow-700 dark:text-yellow-300">{item.resolvedCity}</span>{' '}
-                  <span className="text-muted-foreground">dpto={item.department}</span>{' '}
-                  <span className="text-muted-foreground italic">(original: &quot;{item.originalCity}&quot;)</span>
+                <div key={idx} className="text-xs">
+                  <span className="font-semibold text-yellow-800 dark:text-yellow-300">
+                    {item.orderName || 'Sin nombre'}
+                  </span>
+                  <span className="text-muted-foreground">{' — '}</span>
+                  <span className="text-muted-foreground italic">&quot;{item.originalCity}&quot;</span>
+                  <span className="text-muted-foreground">{' → '}</span>
+                  <span className="font-bold text-yellow-700 dark:text-yellow-300">{item.resolvedCity}</span>
                 </div>
               ))}
             </div>

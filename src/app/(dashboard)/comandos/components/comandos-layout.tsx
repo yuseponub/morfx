@@ -532,7 +532,7 @@ export function ComandosLayout() {
         if (data.aiResolvedOrders && data.aiResolvedOrders.length > 0) {
           addMessage({
             type: 'warning',
-            title: 'Ciudades corregidas automaticamente — Corregir en Shopify:',
+            title: 'Ciudades corregidas por IA — Corregir en el CRM para la proxima vez:',
             items: data.aiResolvedOrders.map(o => ({
               orderName: o.orderName,
               originalCity: o.originalCity,

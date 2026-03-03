@@ -19,7 +19,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { getCarrierCredentials, getDispatchStage, getGuideLookupStage, getOcrStage, getGuideGenStage } from '@/lib/domain/carrier-configs'
-import { validateCities, type CityValidationItem } from '@/lib/domain/carrier-coverage'
+import { validateCities, resolveCitiesWithAI, type CityValidationItem } from '@/lib/domain/carrier-coverage'
 import {
   createRobotJob,
   createOcrRobotJob,
@@ -75,6 +75,13 @@ interface SubirOrdenesResult {
   validCount: number
   invalidCount: number
   invalidOrders: Array<{ orderId: string; orderName: string | null; reason: string }>
+  aiResolvedOrders: Array<{
+    orderId: string
+    orderName: string | null
+    originalCity: string
+    resolvedCity: string
+    department: string
+  }>
 }
 
 // ============================================================================
@@ -217,7 +224,38 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
 
     // Separate valid and invalid orders
     const validCityResults = cityResults.filter((r) => r.isValid)
-    const invalidCityResults = cityResults.filter((r) => !r.isValid)
+    let invalidCityResults = cityResults.filter((r) => !r.isValid)
+
+    // 6b. AI resolution for invalid cities
+    const aiResolvedOrders: SubirOrdenesResult['aiResolvedOrders'] = []
+    if (invalidCityResults.length > 0) {
+      const aiResult = await resolveCitiesWithAI(ctx, invalidCityResults)
+
+      // Merge resolved into valid list
+      for (const resolved of aiResult.resolved) {
+        validCityResults.push({
+          city: resolved.resolvedCityName,
+          department: resolved.departmentAbbrev,
+          orderId: resolved.orderId,
+          isValid: true,
+          coordinadoraCity: resolved.coordinadoraCity,
+          supportsCod: resolved.supportsCod,
+          departmentAbbrev: resolved.departmentAbbrev,
+        })
+
+        const order = orders.find(o => o.id === resolved.orderId)
+        aiResolvedOrders.push({
+          orderId: resolved.orderId,
+          orderName: order?.name ?? null,
+          originalCity: resolved.originalCity,
+          resolvedCity: resolved.coordinadoraCity,
+          department: resolved.departmentAbbrev,
+        })
+      }
+
+      // Update invalid list to only those still unresolved
+      invalidCityResults = aiResult.stillInvalid
+    }
 
     // Build invalid orders report
     const invalidOrders = invalidCityResults.map((r) => {
@@ -243,6 +281,7 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
           validCount: 0,
           invalidCount: invalidCityResults.length,
           invalidOrders,
+          aiResolvedOrders,
         },
       }
     }
@@ -319,6 +358,7 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
         validCount: validCityResults.length,
         invalidCount: invalidCityResults.length,
         invalidOrders,
+        aiResolvedOrders,
       },
     }
   } catch (err) {

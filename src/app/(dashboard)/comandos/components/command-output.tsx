@@ -346,6 +346,31 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
         </div>
       )
 
+    case 'warning':
+      return (
+        <div className="pl-6">
+          <div className="border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30 rounded-r-md p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {message.title}
+            </div>
+            <div className="space-y-1">
+              {message.items.map((item, idx) => (
+                <div key={idx} className="text-xs font-mono">
+                  <span className="text-yellow-800 dark:text-yellow-300">
+                    {item.orderName || 'Sin nombre'}:
+                  </span>{' '}
+                  <span className="text-muted-foreground">municipio=</span>
+                  <span className="font-bold text-yellow-700 dark:text-yellow-300">{item.resolvedCity}</span>{' '}
+                  <span className="text-muted-foreground">dpto={item.department}</span>{' '}
+                  <span className="text-muted-foreground italic">(original: &quot;{item.originalCity}&quot;)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )
+
     case 'help':
       return (
         <div className="pl-6 space-y-2">

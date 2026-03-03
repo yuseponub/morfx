@@ -6,6 +6,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeText, mapDepartmentToAbbrev } from '@/lib/logistics/constants'
+import Anthropic from '@anthropic-ai/sdk'
 import type { DomainContext, DomainResult } from './types'
 
 // ============================================================================
@@ -48,6 +49,20 @@ export interface CoverageStats {
   totalCities: number
   codCities: number
   activeCities: number
+}
+
+export interface AIResolvedCity {
+  orderId: string
+  originalCity: string
+  resolvedCityName: string        // normalizado (e.g. "CHIGORODO")
+  coordinadoraCity: string         // formato Coordinadora (e.g. "CHIGORODO (ANT)")
+  departmentAbbrev: string
+  supportsCod: boolean
+}
+
+export interface ResolveCitiesWithAIResult {
+  resolved: AIResolvedCity[]
+  stillInvalid: CityValidationItem[]
 }
 
 // ============================================================================
@@ -213,6 +228,191 @@ export async function validateCities(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// resolveCitiesWithAI -- fuzzy city matching via Claude AI
+// ============================================================================
+
+/**
+ * Attempt to resolve invalid cities using Claude AI before rejecting them.
+ * Groups invalids by department, fetches coverage cities for each dept,
+ * asks Claude to fuzzy-match, and validates Claude's answers against the DB.
+ *
+ * Fallback: if Claude API fails or returns garbage, all invalids stay invalid
+ * (same behavior as before this feature existed).
+ */
+export async function resolveCitiesWithAI(
+  _ctx: DomainContext,
+  invalidItems: CityValidationItem[],
+  carrier?: string
+): Promise<ResolveCitiesWithAIResult> {
+  // Only attempt resolution for items that have a valid departmentAbbrev
+  // (if dept itself is unrecognized, Claude can't help)
+  const resolvable = invalidItems.filter(i => i.departmentAbbrev !== null)
+  const unresolvable = invalidItems.filter(i => i.departmentAbbrev === null)
+
+  if (resolvable.length === 0) {
+    return { resolved: [], stillInvalid: invalidItems }
+  }
+
+  try {
+    const supabase = createAdminClient()
+    const carrierName = carrier || 'coordinadora'
+
+    // Group resolvable items by department abbreviation
+    const byDept = new Map<string, CityValidationItem[]>()
+    for (const item of resolvable) {
+      const dept = item.departmentAbbrev!
+      const list = byDept.get(dept) || []
+      list.push(item)
+      byDept.set(dept, list)
+    }
+
+    // For each department, fetch its coverage cities
+    const deptCoverageMap = new Map<string, Array<{ city_name: string; city_coordinadora: string; supports_cod: boolean }>>()
+    for (const dept of byDept.keys()) {
+      const { data: rows, error } = await supabase
+        .from('carrier_coverage')
+        .select('city_name, city_coordinadora, supports_cod')
+        .eq('carrier', carrierName)
+        .eq('department_abbrev', dept)
+        .eq('is_active', true)
+        .limit(5000)
+
+      if (error || !rows) continue
+      deptCoverageMap.set(dept, rows)
+    }
+
+    // Build a single prompt with all departments
+    const promptParts: string[] = []
+    for (const [dept, items] of byDept.entries()) {
+      const coverageCities = deptCoverageMap.get(dept)
+      if (!coverageCities || coverageCities.length === 0) continue
+
+      const cityNames = coverageCities.map(c => c.city_name)
+      const citiesToResolve = items.map(i => ({
+        orderId: i.orderId,
+        rawCity: i.city,
+      }))
+
+      promptParts.push(
+        `Departamento: ${dept}\n` +
+        `Ciudades en cobertura: ${JSON.stringify(cityNames)}\n` +
+        `Ciudades a resolver: ${JSON.stringify(citiesToResolve)}`
+      )
+    }
+
+    if (promptParts.length === 0) {
+      return { resolved: [], stillInvalid: invalidItems }
+    }
+
+    const prompt = `Eres un asistente de resolucion de ciudades colombianas para el sistema de envios de Coordinadora.
+
+Te doy ciudades que NO hicieron match exacto contra la base de datos de cobertura.
+Tu trabajo es intentar encontrar la ciudad correcta en la lista de cobertura.
+
+Casos comunes que debes manejar:
+- Departamento concatenado en el nombre de ciudad: "Chigorodo Antioquia" -> buscar "CHIGORODO"
+- Nombre parcial o incompleto: "Ariguani" -> buscar "SAN JOSE DE ARIGUANI" o similar
+- Errores ortograficos menores: "Sanata Marta" -> "SANTA MARTA"
+- Abreviaturas: "Bga" -> "BUCARAMANGA"
+
+REGLAS ESTRICTAS:
+1. SOLO puedes matchear contra las ciudades de la lista de cobertura del departamento correspondiente
+2. Si no hay match logico, devuelve null — NUNCA inventes un nombre de ciudad
+3. El matchedCityName DEBE ser EXACTAMENTE igual a uno de los nombres en la lista de cobertura
+4. Cada resultado debe tener orderId (string) y matchedCityName (string | null)
+
+${promptParts.join('\n\n')}
+
+Responde UNICAMENTE con un JSON array valido. Ejemplo:
+[{"orderId": "abc123", "matchedCityName": "CHIGORODO"}, {"orderId": "def456", "matchedCityName": null}]
+
+IMPORTANTE: Responde SOLO con el JSON array. Sin explicaciones, sin markdown.`
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    // Extract text
+    const text = response.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+
+    // Parse JSON (with regex fallback for markdown fences)
+    let parsed: Array<{ orderId: string; matchedCityName: string | null }>
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) {
+        console.warn('[carrier-coverage] AI response was not valid JSON:', text.slice(0, 300))
+        return { resolved: [], stillInvalid: invalidItems }
+      }
+      parsed = JSON.parse(jsonMatch[0])
+    }
+
+    if (!Array.isArray(parsed)) {
+      return { resolved: [], stillInvalid: invalidItems }
+    }
+
+    // Build a lookup of all coverage by dept+city_name for anti-hallucination validation
+    const coverageLookup = new Map<string, { city_coordinadora: string; supports_cod: boolean }>()
+    for (const [dept, cities] of deptCoverageMap.entries()) {
+      for (const c of cities) {
+        coverageLookup.set(`${c.city_name}|${dept}`, {
+          city_coordinadora: c.city_coordinadora,
+          supports_cod: c.supports_cod ?? false,
+        })
+      }
+    }
+
+    const resolved: AIResolvedCity[] = []
+    const resolvedOrderIds = new Set<string>()
+
+    for (const match of parsed) {
+      if (!match.orderId || !match.matchedCityName) continue
+
+      const item = resolvable.find(i => i.orderId === match.orderId)
+      if (!item) continue
+
+      // Anti-hallucination: verify matchedCityName actually exists in coverage
+      const key = `${match.matchedCityName}|${item.departmentAbbrev}`
+      const coverage = coverageLookup.get(key)
+      if (!coverage) {
+        console.warn(`[carrier-coverage] AI hallucination rejected: "${match.matchedCityName}" not in ${item.departmentAbbrev} coverage`)
+        continue
+      }
+
+      resolved.push({
+        orderId: match.orderId,
+        originalCity: item.city,
+        resolvedCityName: match.matchedCityName,
+        coordinadoraCity: coverage.city_coordinadora,
+        departmentAbbrev: item.departmentAbbrev!,
+        supportsCod: coverage.supports_cod,
+      })
+      resolvedOrderIds.add(match.orderId)
+    }
+
+    // Items that weren't resolved stay invalid
+    const stillInvalid = [
+      ...unresolvable,
+      ...resolvable.filter(i => !resolvedOrderIds.has(i.orderId || '')),
+    ]
+
+    console.log(`[carrier-coverage] AI resolved ${resolved.length}/${resolvable.length} cities`)
+    return { resolved, stillInvalid }
+  } catch (err) {
+    // Claude API failure = graceful fallback — all invalids stay invalid
+    console.error('[carrier-coverage] resolveCitiesWithAI error:', err)
+    return { resolved: [], stillInvalid: invalidItems }
   }
 }
 

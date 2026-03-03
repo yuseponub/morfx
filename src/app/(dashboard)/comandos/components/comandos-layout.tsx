@@ -127,6 +127,17 @@ export type CommandMessage =
       }>
       timestamp: string
     }
+  | {
+      type: 'warning'
+      title: string
+      items: Array<{
+        orderName: string | null
+        originalCity: string
+        resolvedCity: string
+        department: string
+      }>
+      timestamp: string
+    }
   | { type: 'error'; text: string; timestamp: string }
   | { type: 'help'; timestamp: string }
 
@@ -517,6 +528,20 @@ export function ComandosLayout() {
           text: `Job creado: ${data.validCount} ordenes validas de ${data.totalOrders} total.${data.invalidCount > 0 ? ` ${data.invalidCount} invalidas.` : ''}`,
           timestamp: now(),
         })
+
+        if (data.aiResolvedOrders && data.aiResolvedOrders.length > 0) {
+          addMessage({
+            type: 'warning',
+            title: 'Ciudades corregidas automaticamente — Corregir en Shopify:',
+            items: data.aiResolvedOrders.map(o => ({
+              orderName: o.orderName,
+              originalCity: o.originalCity,
+              resolvedCity: o.resolvedCity,
+              department: o.department,
+            })),
+            timestamp: now(),
+          })
+        }
 
         if (data.invalidOrders.length > 0) {
           const invalidText = data.invalidOrders

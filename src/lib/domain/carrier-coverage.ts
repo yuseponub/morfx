@@ -135,11 +135,14 @@ export async function validateCities(
 
   try {
     // Fetch ALL active coverage entries for this carrier in a single query
+    // NOTE: Supabase default limit is 1000 rows. Coverage has ~1489 cities,
+    // so we MUST set an explicit limit to avoid silently dropping cities.
     const { data: coverageRows, error } = await supabase
       .from('carrier_coverage')
       .select('city_name, department_abbrev, city_coordinadora, supports_cod')
       .eq('carrier', carrier)
       .eq('is_active', true)
+      .limit(5000)
 
     if (error) {
       return { success: false, error: `Error cargando cobertura: ${error.message}` }

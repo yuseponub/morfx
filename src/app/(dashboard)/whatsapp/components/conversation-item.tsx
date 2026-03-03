@@ -112,7 +112,7 @@ export function ConversationItem({
               {displayName}
             </span>
             {conversation.unread_count > 0 && (
-              <span className="flex-shrink-0 inline-flex items-center justify-center h-5 min-w-5 px-1.5 text-xs font-semibold text-white bg-primary rounded-full">
+              <span className="flex-shrink-0 inline-flex items-center justify-center h-[22px] min-w-[22px] px-1.5 text-xs font-semibold text-white bg-primary rounded-full">
                 {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
               </span>
             )}

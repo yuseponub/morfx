@@ -27,7 +27,7 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
 
   // Fetch initial conversations and client config in parallel
   const [initialConversations, clientConfig] = await Promise.all([
-    getConversations({ status: 'active' }),
+    getConversations({ status: 'active', sortBy: 'last_customer_message' }),
     getClientActivationSettings(),
   ])
 

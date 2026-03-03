@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns'
 
 interface RelativeTimeProps {
   date: string | null
@@ -11,8 +10,22 @@ interface RelativeTimeProps {
   refreshInterval?: number
 }
 
+/** Short relative time: "hace 3 min", "hace 1h", "hace 2h", "hace 5 días" */
+function shortTimeAgo(date: Date): string {
+  const now = new Date()
+  const mins = differenceInMinutes(now, date)
+  if (mins < 1) return 'ahora'
+  if (mins < 60) return `hace ${mins} min`
+  const hours = differenceInHours(now, date)
+  if (hours === 1) return 'hace 1 hora'
+  if (hours < 24) return `hace ${hours}h`
+  const days = differenceInDays(now, date)
+  if (days === 1) return 'hace 1 día'
+  return `hace ${days} días`
+}
+
 /**
- * Displays a relative time string (e.g., "hace 5 min") that auto-refreshes.
+ * Displays a short relative time string (e.g., "hace 5 min") that auto-refreshes.
  * Uses suppressHydrationWarning to handle SSR/client time mismatch without error.
  */
 export function RelativeTime({ date, className, refreshInterval = 60_000 }: RelativeTimeProps) {
@@ -29,11 +42,7 @@ export function RelativeTime({ date, className, refreshInterval = 60_000 }: Rela
 
   if (!date) return null
 
-  // Render empty text on server/before mount, fill after mount
-  // This keeps DOM structure identical (span always exists) preventing hydration mismatch
-  const text = mounted
-    ? formatDistanceToNow(new Date(date), { addSuffix: true, locale: es })
-    : ''
+  const text = mounted ? shortTimeAgo(new Date(date)) : ''
 
   return <span className={className} suppressHydrationWarning>{text}</span>
 }

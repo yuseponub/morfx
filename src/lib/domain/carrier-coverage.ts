@@ -58,6 +58,7 @@ export interface AIResolvedCity {
   coordinadoraCity: string         // formato Coordinadora (e.g. "CHIGORODO (ANT)")
   departmentAbbrev: string
   supportsCod: boolean
+  reason: string                   // explicacion del problema detectado
 }
 
 export interface ResolveCitiesWithAIResult {
@@ -323,12 +324,19 @@ REGLAS ESTRICTAS:
 1. SOLO puedes matchear contra las ciudades de la lista de cobertura del departamento correspondiente
 2. Si no hay match logico, devuelve null — NUNCA inventes un nombre de ciudad
 3. El matchedCityName DEBE ser EXACTAMENTE igual a uno de los nombres en la lista de cobertura
-4. Cada resultado debe tener orderId (string) y matchedCityName (string | null)
+4. Cada resultado debe tener orderId, matchedCityName, y reason
+
+El campo "reason" debe explicar en espanol claro y corto QUE problema tenia el dato original. Ejemplos:
+- "El departamento estaba pegado al nombre de la ciudad"
+- "El nombre estaba incompleto, faltaba 'San Jose de'"
+- "Error de ortografia: faltaba una letra"
+- "Nombre abreviado"
+Si matchedCityName es null, reason debe explicar por que no se pudo resolver.
 
 ${promptParts.join('\n\n')}
 
 Responde UNICAMENTE con un JSON array valido. Ejemplo:
-[{"orderId": "abc123", "matchedCityName": "CHIGORODO"}, {"orderId": "def456", "matchedCityName": null}]
+[{"orderId": "abc123", "matchedCityName": "CHIGORODO", "reason": "El departamento estaba pegado al nombre de la ciudad"}, {"orderId": "def456", "matchedCityName": null, "reason": "No se encontro ninguna ciudad similar"}]
 
 IMPORTANTE: Responde SOLO con el JSON array. Sin explicaciones, sin markdown.`
 
@@ -346,7 +354,7 @@ IMPORTANTE: Responde SOLO con el JSON array. Sin explicaciones, sin markdown.`
       .join('')
 
     // Parse JSON (with regex fallback for markdown fences)
-    let parsed: Array<{ orderId: string; matchedCityName: string | null }>
+    let parsed: Array<{ orderId: string; matchedCityName: string | null; reason?: string }>
     try {
       parsed = JSON.parse(text)
     } catch {
@@ -397,6 +405,7 @@ IMPORTANTE: Responde SOLO con el JSON array. Sin explicaciones, sin markdown.`
         coordinadoraCity: coverage.city_coordinadora,
         departmentAbbrev: item.departmentAbbrev!,
         supportsCod: coverage.supports_cod,
+        reason: match.reason || 'Ciudad corregida por IA',
       })
       resolvedOrderIds.add(match.orderId)
     }

@@ -135,6 +135,7 @@ export type CommandMessage =
         originalCity: string
         resolvedCity: string
         department: string
+        reason: string
       }>
       timestamp: string
     }
@@ -538,6 +539,7 @@ export function ComandosLayout() {
               originalCity: o.originalCity,
               resolvedCity: o.resolvedCity,
               department: o.department,
+              reason: o.reason,
             })),
             timestamp: now(),
           })

@@ -81,6 +81,7 @@ interface SubirOrdenesResult {
     originalCity: string
     resolvedCity: string
     department: string
+    reason: string
   }>
 }
 
@@ -250,6 +251,7 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
           originalCity: resolved.originalCity,
           resolvedCity: resolved.coordinadoraCity,
           department: resolved.departmentAbbrev,
+          reason: resolved.reason,
         })
       }
 

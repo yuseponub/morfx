@@ -82,11 +82,12 @@ export class SomnioV2Engine {
           },
           stateAfter: newState,
           // V2 classification for debug panel (Classify tab)
-          classification: output.classificationInfo ? {
-            category: (output.classificationInfo.category === 'datos' || output.classificationInfo.category === 'irrelevante')
-              ? 'SILENCIOSO'
-              : output.silenceDetected ? 'SILENCIOSO' : 'RESPONDIBLE',
-            reason: output.decisionInfo?.reason ?? '',
+          // Uses the DECISION action (Capa 3), not Claude's category (Capa 1)
+          classification: output.decisionInfo ? {
+            category: output.decisionInfo.action === 'silence' ? 'SILENCIOSO'
+              : output.decisionInfo.action === 'handoff' ? 'HANDOFF'
+              : 'RESPONDIBLE',
+            reason: output.decisionInfo.reason,
             rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
           } : undefined,
           // V2 orchestration info for Pipeline tab

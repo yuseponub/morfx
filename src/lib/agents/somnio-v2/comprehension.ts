@@ -12,6 +12,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { MessageAnalysisSchema, type MessageAnalysis } from './comprehension-schema'
 import { buildSystemPrompt } from './comprehension-prompt'
+import { V2_INTENTS } from './constants'
+
+const V2_INTENTS_SET = new Set<string>(V2_INTENTS)
 
 // ============================================================================
 // Client Singleton
@@ -38,6 +41,10 @@ export interface ComprehensionResult {
 /**
  * Analyze a customer message using Claude structured output.
  *
+ * Uses messages.create() instead of messages.parse() so we can
+ * safeParse + sanitize Claude's output when it returns values
+ * outside the strict enum (e.g., "agradecimiento" for "ok").
+ *
  * @param message - Current customer message
  * @param history - Conversation history (last N turns)
  * @param existingData - Already captured customer data (for context)
@@ -60,7 +67,8 @@ export async function comprehend(
     { role: 'user', content: message },
   ]
 
-  const response = await anthropic.messages.parse({
+  // Use create() instead of parse() for manual safeParse control
+  const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     system: [{
@@ -72,14 +80,64 @@ export async function comprehend(
     output_config: { format: zodOutputFormat(MessageAnalysisSchema) },
   })
 
-  if (!response.parsed_output) {
-    throw new Error('[Comprehension] Failed to parse structured output from Claude')
-  }
-
   const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
 
-  return {
-    analysis: response.parsed_output,
-    tokensUsed,
+  // Extract raw JSON from response
+  const textBlock = response.content.find(b => b.type === 'text')
+  if (!textBlock || textBlock.type !== 'text') {
+    throw new Error('[Comprehension] No text content in Claude response')
   }
+
+  const analysis = parseAnalysis(textBlock.text)
+
+  return { analysis, tokensUsed }
+}
+
+// ============================================================================
+// Resilient Parsing
+// ============================================================================
+
+/**
+ * Parse Claude's raw JSON into a validated MessageAnalysis.
+ *
+ * Strategy:
+ * 1. Try strict safeParse — works ~95% of the time
+ * 2. On failure, sanitize known issues (invalid enum values → 'otro')
+ * 3. Re-parse after sanitization
+ * 4. If still fails, throw with useful error
+ */
+function parseAnalysis(rawText: string): MessageAnalysis {
+  let raw: Record<string, unknown>
+  try {
+    raw = JSON.parse(rawText)
+  } catch {
+    throw new Error(`[Comprehension] Invalid JSON from Claude: ${rawText.slice(0, 200)}`)
+  }
+
+  // 1. Try strict parse
+  const strict = MessageAnalysisSchema.safeParse(raw)
+  if (strict.success) return strict.data
+
+  // 2. Sanitize known failure: intent values outside enum
+  const intent = raw.intent as Record<string, unknown> | undefined
+  if (intent) {
+    if (typeof intent.primary === 'string' && !V2_INTENTS_SET.has(intent.primary)) {
+      console.warn(`[Comprehension] Unknown intent.primary="${intent.primary}", falling back to "otro"`)
+      intent.primary = 'otro'
+    }
+    if (typeof intent.secondary === 'string' && intent.secondary !== 'ninguno' && !V2_INTENTS_SET.has(intent.secondary)) {
+      console.warn(`[Comprehension] Unknown intent.secondary="${intent.secondary}", falling back to "ninguno"`)
+      intent.secondary = 'ninguno'
+    }
+  }
+
+  // 3. Re-parse after sanitization
+  const sanitized = MessageAnalysisSchema.safeParse(raw)
+  if (sanitized.success) return sanitized.data
+
+  // 4. Still fails — throw with details
+  const issues = sanitized.error.issues.slice(0, 5).map(i =>
+    `- ${i.path.join('.')}: ${i.message}`
+  ).join('\n')
+  throw new Error(`[Comprehension] Failed to parse after sanitization:\n${issues}`)
 }

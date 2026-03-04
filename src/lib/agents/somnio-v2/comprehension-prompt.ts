@@ -47,6 +47,7 @@ REGLAS DE INTENT:
 - seleccion_pack: cuando el cliente elige un pack especifico ("el de 2", "quiero el triple")
 - confirmar: cuando ACEPTA un resumen/pedido previamente mostrado ("si confirmo", "dale", "proceder")
 - is_acknowledgment: true SOLO para respuestas cortas sin contenido sustancial DESPUES de que el bot hablo (ok, si, gracias, jaja, emojis solos). NUNCA marcar saludos (hola, buenos dias, buenas) como acknowledgment — un saludo es un intent real
+- Para reconocimientos puros (ok, si, gracias, jaja, emojis solos), usa "otro" como primary intent y marca is_acknowledgment=true. NUNCA inventes intents fuera de la lista — si no encaja, usa "otro"
 - quiero_comprar: cuando expresa intencion de compra sin elegir pack especifico ("lo quiero", "quiero comprar")
 - datos: NO es un intent — los datos se extraen en extracted_fields sin importar el intent
 

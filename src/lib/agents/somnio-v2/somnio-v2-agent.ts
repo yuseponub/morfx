@@ -1,74 +1,212 @@
 /**
- * Somnio Sales Agent v2 - Skeleton
+ * Somnio Sales Agent v2 — Main Agent
  *
- * New architecture: state-driven decisions instead of intent-based transitions.
- * This is a placeholder that will be built incrementally.
+ * Processes customer messages through the 4-layer pipeline:
+ * 1. Comprehension (Claude AI) → structured analysis
+ * 2. State (deterministic) → merge data, compute fase
+ * 3. Decision (rules) → what to do next
+ * 4. Response (templates) → what to say
  *
- * Key differences from v1:
- * - Intents are ONLY what the client wants (hola, precio, promos, queja...)
- * - Pack selection is a captured DATA FIELD, not an intent
- * - resumen_Nx, ofrecer_promos, compra_confirmada are AGENT ACTIONS, not intents
- * - Decisions based on business state (what data do we have + what's missing)
- *
- * Architecture layers:
- * 1. Comprehension (Claude AI): intent + data extraction
- * 2. Business State (deterministic): what we have, what's missing
- * 3. Decision Engine (rules): what to do next based on state
- * 4. Response (templates from DB): what to say
+ * Only used in sandbox. V1 agent is untouched.
  */
 
-// V2 agent has its own types — NOT coupled to v1 SomnioAgentInput/Output
+import { comprehend } from './comprehension'
+import { mergeAnalysis, computarFase } from './state'
+import { decide } from './decision'
+import { respondBasic } from './response'
+import type { AgentState, V2AgentInput, V2AgentOutput } from './types'
+import { V2_META_PREFIX } from './constants'
 
-export interface V2AgentInput {
-  message: string
-  currentMode: string
-  intentsVistos: string[]
-  templatesEnviados: string[]
-  datosCapturados: Record<string, string>
-  packSeleccionado: string | null
-  history: { role: 'user' | 'assistant'; content: string }[]
-  turnNumber: number
-}
+// ============================================================================
+// State Serialization (datosCapturados ↔ AgentState)
+// ============================================================================
 
-export interface V2AgentOutput {
-  success: boolean
-  messages: string[]
-  newMode?: string
-  intentsVistos: string[]
-  templatesEnviados: string[]
-  datosCapturados: Record<string, string>
-  packSeleccionado: string | null
-  intentInfo: {
-    intent: string
-    confidence: number
-    reasoning?: string
-    timestamp: string
+/**
+ * Reconstruct AgentState from flat datosCapturados.
+ * v2 metadata stored with _v2: prefix.
+ */
+function inputToState(input: V2AgentInput): AgentState {
+  const dc = input.datosCapturados
+
+  // Extract real data fields (no _v2: prefix)
+  const datos = {
+    nombre: dc.nombre ?? null,
+    apellido: dc.apellido ?? null,
+    telefono: dc.telefono ?? null,
+    ciudad: dc.ciudad ?? null,
+    departamento: dc.departamento ?? null,
+    direccion: dc.direccion ?? null,
+    barrio: dc.barrio ?? null,
+    correo: dc.correo ?? null,
+    indicaciones_extra: dc.indicaciones_extra ?? null,
+    cedula_recoge: dc.cedula_recoge ?? null,
   }
-  totalTokens: number
-  silenceDetected: boolean
+
+  // Extract v2 metadata
+  const mostradoRaw = dc[`${V2_META_PREFIX}mostrado`] ?? ''
+  const negacionesRaw = dc[`${V2_META_PREFIX}negaciones`]
+  const ofiInter = dc[`${V2_META_PREFIX}ofiInter`] === 'true'
+  const confirmado = dc[`${V2_META_PREFIX}confirmado`] === 'true'
+  const turnCount = parseInt(dc[`${V2_META_PREFIX}turnCount`] ?? '0', 10)
+
+  let negaciones = { correo: false, telefono: false, barrio: false }
+  if (negacionesRaw) {
+    try {
+      negaciones = JSON.parse(negacionesRaw)
+    } catch { /* use defaults */ }
+  }
+
+  return {
+    datos,
+    pack: (input.packSeleccionado as '1x' | '2x' | '3x') ?? null,
+    ofiInter,
+    confirmado,
+    negaciones,
+    mostrado: new Set(mostradoRaw ? mostradoRaw.split(',') : []),
+    templatesEnviados: input.templatesEnviados,
+    intentsVistos: input.intentsVistos,
+    turnCount,
+  }
 }
+
+/**
+ * Serialize AgentState back to flat datosCapturados + packSeleccionado.
+ */
+function stateToOutput(state: AgentState): {
+  datosCapturados: Record<string, string>
+  packSeleccionado: string | null
+} {
+  const dc: Record<string, string> = {}
+
+  // Serialize real data fields
+  for (const [key, value] of Object.entries(state.datos)) {
+    if (value !== null && value.trim() !== '') {
+      dc[key] = value
+    }
+  }
+
+  // Serialize v2 metadata
+  if (state.mostrado.size > 0) {
+    dc[`${V2_META_PREFIX}mostrado`] = Array.from(state.mostrado).join(',')
+  }
+  dc[`${V2_META_PREFIX}negaciones`] = JSON.stringify(state.negaciones)
+  dc[`${V2_META_PREFIX}ofiInter`] = String(state.ofiInter)
+  dc[`${V2_META_PREFIX}confirmado`] = String(state.confirmado)
+  dc[`${V2_META_PREFIX}turnCount`] = String(state.turnCount)
+
+  return {
+    datosCapturados: dc,
+    packSeleccionado: state.pack,
+  }
+}
+
+// ============================================================================
+// Agent Class
+// ============================================================================
 
 export class SomnioV2Agent {
   /**
    * Process a customer message through the v2 pipeline.
-   * For now, returns a placeholder response.
    */
   async processMessage(input: V2AgentInput): Promise<V2AgentOutput> {
+    // Reconstruct state from input
+    const state = inputToState(input)
+
+    // Filter out _v2: metadata keys from existingData passed to comprehension
+    const existingData: Record<string, string> = {}
+    for (const [k, v] of Object.entries(input.datosCapturados)) {
+      if (!k.startsWith(V2_META_PREFIX)) {
+        existingData[k] = v
+      }
+    }
+
+    // ====== CAPA 1: Comprehension ======
+    const { analysis, tokensUsed } = await comprehend(
+      input.message,
+      input.history,
+      existingData,
+    )
+
+    // ====== CAPA 2: State ======
+    const updatedState = mergeAnalysis(state, analysis)
+
+    // ====== CAPA 3: Decision ======
+    const decision = decide(analysis, updatedState)
+
+    // ====== CAPA 4: Response ======
+    let messages: string[] = []
+    let silenceDetected = false
+    let newMode: string | undefined
+
+    if (decision.action === 'silence') {
+      silenceDetected = true
+      newMode = input.currentMode // keep current mode
+    } else if (decision.action === 'handoff') {
+      newMode = 'handed_off'
+      messages = ['[Transferido a asesor humano]']
+    } else if (decision.action === 'respond' || decision.action === 'create_order') {
+      const responseResult = await respondBasic(
+        decision,
+        updatedState,
+        input.workspaceId,
+      )
+
+      messages = responseResult.messages
+
+      // Apply mostrado updates
+      for (const update of responseResult.mostradoUpdates) {
+        updatedState.mostrado.add(update)
+      }
+
+      // Track sent templates
+      updatedState.templatesEnviados.push(...responseResult.sent)
+
+      // Handle create_order
+      if (decision.action === 'create_order') {
+        updatedState.confirmado = true
+        newMode = 'confirmado'
+      }
+
+      // Fallback if no templates found
+      if (messages.length === 0) {
+        messages = [buildFallbackMessage(analysis.intent.primary)]
+      }
+    }
+
+    // Serialize state back
+    const { datosCapturados, packSeleccionado } = stateToOutput(updatedState)
+
     return {
       success: true,
-      messages: [`[Somnio v2] Recibido: "${input.message}". Agente en construcción.`],
-      intentsVistos: input.intentsVistos,
-      templatesEnviados: input.templatesEnviados,
-      datosCapturados: input.datosCapturados,
-      packSeleccionado: input.packSeleccionado,
+      messages,
+      newMode,
+      intentsVistos: updatedState.intentsVistos,
+      templatesEnviados: updatedState.templatesEnviados,
+      datosCapturados,
+      packSeleccionado,
       intentInfo: {
-        intent: 'v2-skeleton',
-        confidence: 100,
-        reasoning: 'Agente v2 en construcción — no procesa aún',
+        intent: analysis.intent.primary,
+        confidence: analysis.intent.confidence,
+        reasoning: analysis.intent.reasoning,
         timestamp: new Date().toISOString(),
       },
-      totalTokens: 0,
-      silenceDetected: false,
+      totalTokens: tokensUsed,
+      silenceDetected,
     }
   }
+}
+
+// ============================================================================
+// Fallback
+// ============================================================================
+
+function buildFallbackMessage(intent: string): string {
+  const fallbacks: Record<string, string> = {
+    saludo: 'Hola! Bienvenido a Somnio. ¿En que te puedo ayudar?',
+    precio: 'Nuestros precios son: 1 frasco $77,900 | 2 frascos $109,900 | 3 frascos $139,900. Envio gratis!',
+    promociones: '¡Tenemos estas promociones!\n1 frasco (1x): $77,900\n2 frascos (2x): $109,900\n3 frascos (3x): $139,900\n¿Cual te interesa?',
+    pedir_datos: 'Para procesar tu pedido necesito tus datos: nombre, telefono, ciudad, direccion.',
+    confirmacion_orden: '¡Tu pedido ha sido creado! Te contactaremos pronto.',
+  }
+  return fallbacks[intent] ?? 'Gracias por tu mensaje. ¿En que te puedo ayudar?'
 }

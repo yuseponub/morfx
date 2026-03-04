@@ -3,7 +3,9 @@
  *
  * Thin engine for sandbox-only v2 agent testing.
  * Does NOT reuse UnifiedEngine (that's tightly coupled to SomnioAgent v1).
- * This will evolve as the v2 architecture takes shape.
+ *
+ * Handles bidirectional mapping: SandboxState ↔ AgentState
+ * via _v2: prefixed keys in datosCapturados.
  */
 
 import { SomnioV2Agent } from './somnio-v2-agent'
@@ -51,6 +53,7 @@ export class SomnioV2Engine {
         packSeleccionado: input.state.packSeleccionado ?? null,
         history: input.history,
         turnNumber: input.turnNumber,
+        workspaceId: input.workspaceId,
       })
 
       return {
@@ -71,6 +74,7 @@ export class SomnioV2Engine {
         silenceDetected: output.silenceDetected,
       }
     } catch (error) {
+      console.error('[SomnioV2Engine] Error:', error)
       return {
         success: false,
         messages: [],

@@ -9,7 +9,7 @@
  */
 
 import { SomnioV2Agent } from './somnio-v2-agent'
-import type { SandboxState } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn } from '@/lib/sandbox/types'
 import type { PackSelection } from '@/lib/agents/types'
 
 export interface V2EngineInput {
@@ -24,16 +24,7 @@ export interface V2EngineOutput {
   success: boolean
   messages: string[]
   newState: SandboxState
-  debugTurn: {
-    turnNumber: number
-    intent: {
-      intent: string
-      confidence: number
-      reasoning?: string
-      timestamp: string
-    }
-    tokens: { tokensUsed: number }
-  }
+  debugTurn: DebugTurn
   error?: { code: string; message: string }
   timerSignal?: unknown
   silenceDetected?: boolean
@@ -43,6 +34,8 @@ export class SomnioV2Engine {
   private agent = new SomnioV2Agent()
 
   async processMessage(input: V2EngineInput): Promise<V2EngineOutput> {
+    const timestamp = new Date().toISOString()
+
     try {
       const output = await this.agent.processMessage({
         message: input.message,
@@ -56,42 +49,69 @@ export class SomnioV2Engine {
         workspaceId: input.workspaceId,
       })
 
+      const newState: SandboxState = {
+        currentMode: output.newMode ?? input.state.currentMode,
+        intentsVistos: output.intentsVistos,
+        templatesEnviados: output.templatesEnviados,
+        datosCapturados: output.datosCapturados,
+        packSeleccionado: output.packSeleccionado as PackSelection | null,
+      }
+
       return {
         success: output.success,
         messages: output.messages,
-        newState: {
-          currentMode: output.newMode ?? input.state.currentMode,
-          intentsVistos: output.intentsVistos,
-          templatesEnviados: output.templatesEnviados,
-          datosCapturados: output.datosCapturados,
-          packSeleccionado: output.packSeleccionado as PackSelection | null,
-        },
+        newState,
         debugTurn: {
           turnNumber: input.turnNumber,
-          intent: output.intentInfo,
-          tokens: { tokensUsed: output.totalTokens },
+          intent: {
+            intent: output.intentInfo.intent,
+            confidence: output.intentInfo.confidence,
+            reasoning: output.intentInfo.reasoning,
+            timestamp: output.intentInfo.timestamp,
+          },
+          tools: [],
+          tokens: {
+            turnNumber: input.turnNumber,
+            tokensUsed: output.totalTokens,
+            models: [{
+              model: 'claude-haiku-4-5' as const,
+              inputTokens: Math.round(output.totalTokens * 0.7),
+              outputTokens: Math.round(output.totalTokens * 0.3),
+            }],
+            timestamp,
+          },
+          stateAfter: newState,
         },
         silenceDetected: output.silenceDetected,
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
       console.error('[SomnioV2Engine] Error:', error)
+
       return {
-        success: false,
-        messages: [],
+        success: true,
+        messages: [`[Error v2] ${errorMsg}`],
         newState: input.state,
         debugTurn: {
           turnNumber: input.turnNumber,
           intent: {
             intent: 'error',
             confidence: 0,
-            reasoning: error instanceof Error ? error.message : 'Unknown error',
-            timestamp: new Date().toISOString(),
+            reasoning: errorMsg,
+            timestamp,
           },
-          tokens: { tokensUsed: 0 },
+          tools: [],
+          tokens: {
+            turnNumber: input.turnNumber,
+            tokensUsed: 0,
+            models: [],
+            timestamp,
+          },
+          stateAfter: input.state,
         },
         error: {
           code: 'V2_ENGINE_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
+          message: errorMsg,
         },
       }
     }

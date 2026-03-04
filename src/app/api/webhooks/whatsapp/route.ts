@@ -5,6 +5,7 @@
 
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { processWebhook } from '@/lib/whatsapp/webhook-handler'
 import type { WebhookPayload } from '@/lib/whatsapp/types'
 
@@ -34,6 +35,37 @@ function verifyWhatsAppHmac(body: string, signature: string, secret: string): bo
   } catch {
     return false // Length mismatch
   }
+}
+
+// ============================================================================
+// MULTI-WORKSPACE ROUTING
+// Resolves workspace from phone_number_id, falls back to env var
+// ============================================================================
+
+/**
+ * Resolve workspace ID from the inbound phone_number_id.
+ * 1. Looks up workspaces.settings->>'whatsapp_phone_number_id' in DB
+ * 2. Falls back to WHATSAPP_DEFAULT_WORKSPACE_ID env var (existing behavior)
+ * This guarantees Somnio keeps working even without settings populated.
+ */
+async function resolveWorkspaceId(phoneNumberId: string): Promise<string | null> {
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('workspaces')
+      .select('id')
+      .eq('settings->>whatsapp_phone_number_id', phoneNumberId)
+      .single()
+
+    if (data?.id) {
+      return data.id
+    }
+  } catch {
+    // Lookup failed or no match — fall through to env var fallback
+  }
+
+  // Fallback: existing single-workspace behavior
+  return process.env.WHATSAPP_DEFAULT_WORKSPACE_ID || null
 }
 
 // ============================================================================
@@ -122,10 +154,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 })
   }
 
-  // Get workspace ID from environment
-  const workspaceId = process.env.WHATSAPP_DEFAULT_WORKSPACE_ID
+  // Resolve workspace: DB lookup by phone_number_id, fallback to env var
+  const workspaceId = await resolveWorkspaceId(phoneNumberId)
   if (!workspaceId) {
-    console.error('WHATSAPP_DEFAULT_WORKSPACE_ID not configured')
+    console.error('No workspace found for phone_number_id:', phoneNumberId)
     return NextResponse.json({ received: true }, { status: 200 })
   }
 

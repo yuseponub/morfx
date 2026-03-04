@@ -9,6 +9,7 @@ export interface Workspace {
   slug: string
   business_type: string | null
   owner_id: string
+  settings: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }

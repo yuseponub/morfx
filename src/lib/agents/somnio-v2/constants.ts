@@ -62,6 +62,27 @@ export const HANDOFF_INTENTS_V2: ReadonlySet<V2Intent> = new Set([
   'otro',
 ])
 
+/**
+ * Intents that should NEVER be silenced even if is_acknowledgment=true.
+ * Greetings and substantive intents always deserve a response.
+ */
+export const NEVER_SILENCE_INTENTS: ReadonlySet<V2Intent> = new Set([
+  'saludo',
+  'precio',
+  'promociones',
+  'quiero_comprar',
+  'seleccion_pack',
+  'confirmar',
+  'como_se_toma',
+  'pago',
+  'envio',
+  'contenido',
+  'registro_sanitario',
+  'ubicacion',
+  'efectos',
+  'efectividad',
+])
+
 /** Intents that indicate product interest (used for fase computation) */
 export const INTEREST_INTENTS_V2: ReadonlySet<V2Intent> = new Set([
   'precio',

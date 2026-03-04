@@ -19,7 +19,7 @@
 
 import type { MessageAnalysis } from './comprehension-schema'
 import type { AgentState, Decision } from './types'
-import { ESCAPE_INTENTS_V2, LOW_CONFIDENCE_THRESHOLD, PACK_PRICES } from './constants'
+import { ESCAPE_INTENTS_V2, NEVER_SILENCE_INTENTS, LOW_CONFIDENCE_THRESHOLD, PACK_PRICES } from './constants'
 import { computarFase, datosCompletos, camposFaltantes } from './state'
 
 // ============================================================================
@@ -67,7 +67,7 @@ export function decide(analysis: MessageAnalysis, state: AgentState): Decision {
   // ================================================================
   // R3: Acknowledgment → silence (with exceptions)
   // ================================================================
-  if (analysis.classification.is_acknowledgment) {
+  if (analysis.classification.is_acknowledgment && !NEVER_SILENCE_INTENTS.has(intent)) {
     // Exception: positive ack after resumen → treat as confirmation (R5)
     if (fase === 'resumen_mostrado' && isPositiveAck(analysis)) {
       return decideConfirmacion(state)

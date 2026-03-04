@@ -151,4 +151,16 @@ export interface V2AgentOutput {
   }
   totalTokens: number
   silenceDetected: boolean
+  /** V2 decision info for debug panel */
+  decisionInfo?: {
+    action: string
+    reason: string
+    templateIntents?: string[]
+  }
+  /** Classification from Capa 1 for debug panel */
+  classificationInfo?: {
+    category: string
+    sentiment: string
+    is_acknowledgment: boolean
+  }
 }

@@ -81,6 +81,22 @@ export class SomnioV2Engine {
             timestamp,
           },
           stateAfter: newState,
+          // V2 classification for debug panel (Classify tab)
+          classification: output.classificationInfo ? {
+            category: (output.classificationInfo.category === 'datos' || output.classificationInfo.category === 'irrelevante')
+              ? 'SILENCIOSO'
+              : output.silenceDetected ? 'SILENCIOSO' : 'RESPONDIBLE',
+            reason: output.decisionInfo?.reason ?? '',
+            rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
+          } : undefined,
+          // V2 orchestration info for Pipeline tab
+          orchestration: output.decisionInfo ? {
+            nextMode: output.newMode ?? input.state.currentMode,
+            previousMode: input.state.currentMode,
+            modeChanged: !!output.newMode && output.newMode !== input.state.currentMode,
+            shouldCreateOrder: output.decisionInfo.action === 'create_order',
+            templatesCount: output.messages.length,
+          } : undefined,
         },
         silenceDetected: output.silenceDetected,
       }

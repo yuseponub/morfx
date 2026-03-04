@@ -192,6 +192,16 @@ export class SomnioV2Agent {
       },
       totalTokens: tokensUsed,
       silenceDetected,
+      decisionInfo: {
+        action: decision.action,
+        reason: decision.reason,
+        templateIntents: decision.templateIntents,
+      },
+      classificationInfo: {
+        category: analysis.classification.category,
+        sentiment: analysis.classification.sentiment,
+        is_acknowledgment: analysis.classification.is_acknowledgment,
+      },
     }
   }
 }

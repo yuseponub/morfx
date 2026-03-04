@@ -41,6 +41,7 @@ const DEFAULT_AGENT_ID = 'somnio-sales-v1'
 
 const AGENT_NAMES: Record<string, string> = {
   'somnio-sales-v1': 'Somnio Sales Agent',
+  'somnio-sales-v2': 'Somnio Sales Agent v2',
 }
 
 export function SandboxLayout() {
@@ -83,6 +84,7 @@ export function SandboxLayout() {
 
   // CRM agent state - initialized from registry via API
   const [crmAgents, setCrmAgents] = useState<CrmAgentState[]>([])
+  const agentIdRef = useRef<string>(getLastAgentId() ?? DEFAULT_AGENT_ID)
   const crmAgentsRef = useRef<CrmAgentState[]>([])
   const workspaceRef = useRef(workspace)
 
@@ -125,6 +127,9 @@ export function SandboxLayout() {
   useEffect(() => {
     workspaceRef.current = workspace
   }, [workspace])
+  useEffect(() => {
+    agentIdRef.current = agentId
+  }, [agentId])
 
   useEffect(() => {
     silenceDurationRef.current = silenceDurationMs
@@ -182,6 +187,7 @@ export function SandboxLayout() {
                 history,
                 turnNumber: currentDebugTurns.length + 1,
                 forceIntent: 'ofrecer_promos',
+                agentId: agentIdRef.current,
               }),
             })
             const result = await response.json()
@@ -244,6 +250,7 @@ export function SandboxLayout() {
               crmAgents: enabledCrmAgents,
               workspaceId: workspaceRef.current?.id,
               forceIntent: level === 3 ? 'timer_sinpack' : 'timer_pendiente',
+              agentId: agentIdRef.current,
             }),
           })
           const result = await response.json()
@@ -508,6 +515,7 @@ export function SandboxLayout() {
           turnNumber,
           crmAgents: enabledCrmAgents,
           workspaceId: workspaceRef.current?.id,
+          agentId: agentIdRef.current,
         }),
       })
 

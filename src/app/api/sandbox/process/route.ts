@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { UnifiedEngine } from '@/lib/agents/engine/unified-engine'
 import { createSandboxAdapters } from '@/lib/agents/engine-adapters/sandbox'
+import { SomnioV2Engine } from '@/lib/agents/somnio-v2/engine-v2'
 import type { SandboxState } from '@/lib/sandbox/types'
 import { initializeTools } from '@/lib/tools/init'
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent } = body as {
+    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId } = body as {
       message: string
       state: SandboxState
       history: { role: 'user' | 'assistant'; content: string }[]
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
       crmAgents?: { agentId: string; mode: 'dry-run' | 'live' }[]
       workspaceId?: string
       forceIntent?: string
+      agentId?: string
     }
 
     if (!message || !state) {
@@ -70,6 +72,25 @@ export async function POST(request: NextRequest) {
         )
       }
     }
+
+    // ================================================================
+    // V2 Agent: separate engine, completely isolated from v1
+    // ================================================================
+    if (agentId === 'somnio-sales-v2') {
+      const v2Engine = new SomnioV2Engine()
+      const v2Result = await v2Engine.processMessage({
+        message,
+        state,
+        history: history ?? [],
+        turnNumber: turnNumber ?? 1,
+        workspaceId: workspaceId ?? 'sandbox-workspace',
+      })
+      return NextResponse.json(v2Result)
+    }
+
+    // ================================================================
+    // V1 Agent: existing UnifiedEngine (unchanged)
+    // ================================================================
 
     // Create per-request adapters with the incoming sandbox state
     const adapters = createSandboxAdapters({

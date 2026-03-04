@@ -122,8 +122,10 @@ function buildPedidoInputFromOrder(
     apellidos = parts.slice(1).join(' ')
   }
 
-  // Sum product quantities, minimum 1
-  const unidades = order.products.reduce((sum, p) => sum + (p.quantity || 0), 0) || 1
+  // Derive shipping units from rounded total value (Coordinadora physical boxes)
+  const totalConIva = Math.floor((order.total_value || 0) / 100) * 100
+  const unidadesPorValor: Record<number, number> = { 77900: 1, 109900: 2, 139900: 3 }
+  const unidades = unidadesPorValor[totalConIva] ?? 1
 
   return {
     // Identificacion: use custom field, or phone (10 digits without 57) as fallback

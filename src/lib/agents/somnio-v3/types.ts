@@ -1,0 +1,184 @@
+/**
+ * Somnio Sales Agent v3 — Type Definitions
+ *
+ * 3-concept architecture: Intents (client) / Actions (bot) / Signals (system)
+ * Gates computed every turn, never stored.
+ */
+
+// ============================================================================
+// Agent State
+// ============================================================================
+
+export interface DatosCliente {
+  nombre: string | null
+  apellido: string | null
+  telefono: string | null
+  ciudad: string | null
+  departamento: string | null
+  direccion: string | null
+  barrio: string | null
+  correo: string | null
+  indicaciones_extra: string | null
+  cedula_recoge: string | null
+}
+
+export interface Negaciones {
+  correo: boolean
+  telefono: boolean
+  barrio: boolean
+}
+
+export interface AgentState {
+  datos: DatosCliente
+  pack: '1x' | '2x' | '3x' | null
+  ofiInter: boolean
+  negaciones: Negaciones
+
+  /** History tracking */
+  intentsVistos: string[]
+  accionesEjecutadas: string[]
+  templatesMostrados: string[]
+
+  /** Timing */
+  enCapturaSilenciosa: boolean
+  turnCount: number
+}
+
+// ============================================================================
+// Gates (computed every turn, never stored)
+// ============================================================================
+
+export interface Gates {
+  datosOk: boolean
+  packElegido: boolean
+}
+
+// ============================================================================
+// Decision (Capa 6 output)
+// ============================================================================
+
+export type DecisionAction =
+  | 'respond'
+  | 'silence'
+  | 'handoff'
+  | 'create_order'
+
+export interface Decision {
+  action: DecisionAction
+  templateIntents?: string[]
+  extraContext?: Record<string, string>
+  timerSignal?: TimerSignal
+  reason: string
+  /** Enter silent capture mode after this decision */
+  enterCaptura?: boolean
+}
+
+// ============================================================================
+// Timer Signals
+// ============================================================================
+
+export interface TimerSignal {
+  type: 'start' | 'cancel' | 'reevaluate'
+  level?: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'silence'
+  reason?: string
+}
+
+// ============================================================================
+// Ingest Result (Capa 4 output)
+// ============================================================================
+
+export type IngestAction =
+  | 'silent'          // Accumulate data, don't respond
+  | 'respond'         // Continue to decision engine
+  | 'ask_ofi_inter'   // Ask about delivery preference
+
+export interface IngestResult {
+  action: IngestAction
+  timerSignal?: TimerSignal
+  /** Override decision with auto-trigger */
+  autoTrigger?: 'ofrecer_promos' | 'mostrar_confirmacion'
+}
+
+// ============================================================================
+// Response Result (Capa 7 output)
+// ============================================================================
+
+export interface ProcessedMessage {
+  templateId: string
+  content: string
+  contentType: 'texto' | 'imagen'
+  delayMs: number
+  priority: 'CORE' | 'COMPLEMENTARIA' | 'OPCIONAL'
+}
+
+export interface ResponseResult {
+  messages: ProcessedMessage[]
+  templateIdsSent: string[]
+  mostradoUpdates: string[]
+}
+
+// ============================================================================
+// V3 Agent Input/Output (interface with UnifiedEngine)
+// ============================================================================
+
+export interface V3AgentInput {
+  message: string
+  history: { role: 'user' | 'assistant'; content: string }[]
+  /** Serialized state from session_state */
+  currentMode: string
+  intentsVistos: string[]
+  templatesEnviados: string[]
+  datosCapturados: Record<string, string>
+  packSeleccionado: string | null
+  turnNumber: number
+  workspaceId: string
+}
+
+export interface V3AgentOutput {
+  success: boolean
+  messages: string[]
+  templates?: ProcessedMessage[]
+  newMode?: string
+
+  /** State updates for persistence */
+  intentsVistos: string[]
+  templatesEnviados: string[]
+  datosCapturados: Record<string, string>
+  packSeleccionado: string | null
+
+  intentInfo: {
+    intent: string
+    confidence: number
+    secondary?: string
+    reasoning?: string
+    timestamp: string
+  }
+
+  totalTokens: number
+  silenceDetected: boolean
+  shouldCreateOrder: boolean
+  orderData?: {
+    datosCapturados: Record<string, string>
+    packSeleccionado: string | null
+    valorOverride?: number
+  }
+
+  timerSignals: TimerSignal[]
+
+  /** Debug info */
+  decisionInfo?: {
+    action: string
+    reason: string
+    templateIntents?: string[]
+    gates?: Gates
+  }
+  classificationInfo?: {
+    category: string
+    sentiment: string
+    is_acknowledgment: boolean
+  }
+  ingestInfo?: {
+    action: string
+    autoTrigger?: string
+  }
+}

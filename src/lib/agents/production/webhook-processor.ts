@@ -86,10 +86,10 @@ export async function processMessageWithAgent(
     return { success: true }
   }
 
-  // 1b. Check if conversation has "WPP" or "P/W" tag (bot should stop)
-  const hasSkipTag = await conversationHasAnyTag(conversationId, workspaceId, ['WPP', 'P/W'])
+  // 1b. Check if conversation has "WPP", "P/W", or "RECO" tag (bot should stop)
+  const hasSkipTag = await conversationHasAnyTag(conversationId, workspaceId, ['WPP', 'P/W', 'RECO'])
   if (hasSkipTag) {
-    logger.info({ conversationId }, 'Conversation has WPP or P/W tag, skipping agent')
+    logger.info({ conversationId }, 'Conversation has WPP, P/W, or RECO tag, skipping agent')
     return { success: true }
   }
 

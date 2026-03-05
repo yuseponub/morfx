@@ -1013,6 +1013,7 @@ export interface OrderForDispatch {
   total_value: number
   products: Array<{ quantity: number }>
   custom_fields: Record<string, unknown>
+  tags: string[]
 }
 
 /**
@@ -1038,6 +1039,25 @@ export async function getOrdersByStage(
       return { success: false, error: `Error obteniendo pedidos: ${error.message}` }
     }
 
+    // Batch-fetch tags for all order IDs (same pattern as getOrdersForGuideGeneration)
+    const orderIds = (data ?? []).map((o) => o.id)
+    const { data: orderTags } = orderIds.length > 0
+      ? await supabase
+          .from('order_tags')
+          .select('order_id, tags(name)')
+          .in('order_id', orderIds)
+      : { data: [] as Array<{ order_id: string; tags: { name: string } | null }> }
+
+    const tagsByOrderId = new Map<string, string[]>()
+    for (const ot of orderTags ?? []) {
+      const tag = (ot.tags as unknown as { name: string } | null)?.name
+      if (tag) {
+        const existing = tagsByOrderId.get(ot.order_id) ?? []
+        existing.push(tag)
+        tagsByOrderId.set(ot.order_id, existing)
+      }
+    }
+
     const mappedOrders: OrderForDispatch[] = (data ?? []).map((row) => {
       const contact = row.contacts as unknown as { name: string; phone: string; email: string } | null
       const products = (row.order_products as unknown as Array<{ quantity: number }>) ?? []
@@ -1055,6 +1075,7 @@ export async function getOrdersByStage(
         total_value: row.total_value ?? 0,
         products: products.map((p) => ({ quantity: p.quantity })),
         custom_fields: (row.custom_fields as Record<string, unknown>) ?? {},
+        tags: tagsByOrderId.get(row.id) ?? [],
       }
     })
 

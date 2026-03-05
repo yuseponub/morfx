@@ -127,6 +127,9 @@ function buildPedidoInputFromOrder(
   const unidadesPorValor: Record<number, number> = { 77900: 1, 109900: 2, 139900: 3 }
   const unidades = unidadesPorValor[totalConIva] ?? 1
 
+  // P/A (pago anticipado): no cobrar al destinatario, pero unidades se calcula igual
+  const esPagoAnticipado = order.tags.some(t => t.toUpperCase() === 'P/A')
+
   return {
     // Identificacion: use custom field, or phone (10 digits without 57) as fallback
     identificacion: (order.custom_fields?.identificacion as string)
@@ -141,9 +144,9 @@ function buildPedidoInputFromOrder(
     email: order.contact_email || 'sin@email.com',
     referencia: 'AA1',
     unidades,
-    totalConIva: order.total_value || 0,
+    totalConIva: esPagoAnticipado ? 0 : (order.total_value || 0),
     valorDeclarado: 55000,
-    esRecaudoContraentrega: (order.total_value || 0) > 0,
+    esRecaudoContraentrega: esPagoAnticipado ? false : (order.total_value || 0) > 0,
     peso: 0.08,
     alto: 5,
     largo: 5,

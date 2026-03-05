@@ -13,7 +13,7 @@ Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
 Plan: 1 of 2 complete (01)
 Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
-Last activity: 2026-02-26 — Completed dp4-05-PLAN.md (Bloques tab + tab improvements)
+Last activity: 2026-03-05 — Quick 007: Soporte tag P/A en subir ordenes Coordinadora
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -67,7 +67,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 6 completed
+- Quick fixes: 7 completed
 
 ## Performance Metrics
 
@@ -311,13 +311,19 @@ Debug Panel v4.0 decisions (Plan 05):
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 007 | Soporte tag P/A en subir ordenes Coordinadora | 2026-03-05 | 622dadb | [007-pago-anticipado-coordinadora](./quick/007-pago-anticipado-coordinadora/) |
+
 ### Blockers/Concerns
 
 None.
 
 ## Session Continuity
 
-Last session: 2026-02-26 COT
-Stopped at: Completed dp4-05-PLAN.md (Bloques tab + tab improvements — Debug Panel v4.0 COMPLETE)
+Last session: 2026-03-05 COT
+Stopped at: Quick 007 — Soporte tag P/A en subir ordenes Coordinadora
 Resume file: None
 Next: Phase 35 Plan 03 or Phase 36 Plan 02

@@ -693,6 +693,8 @@ export function SandboxLayout() {
                 onTimerConfigChange={handleTimerConfigChange}
                 silenceDurationMs={silenceDurationMs}
                 onSilenceDurationChange={setSilenceDurationMs}
+                timerState={timerState}
+                silenceTimerState={silenceTimerState}
               />
             ) : (
               <DebugTabs

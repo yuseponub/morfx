@@ -15,7 +15,7 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Brain, Database, Zap, Coins, AlertTriangle, Settings, Code } from 'lucide-react'
+import { ChevronDown, ChevronRight, Brain, Database, Zap, Coins, AlertTriangle, Settings, Code, Timer } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useTheme } from 'next-themes'
 import JsonView from '@uiw/react-json-view'
@@ -45,6 +45,9 @@ interface DebugV3Props {
   onTimerConfigChange: (config: TimerConfig) => void
   silenceDurationMs: number
   onSilenceDurationChange: (ms: number) => void
+  // Timer live state
+  timerState: TimerState
+  silenceTimerState: SilenceTimerState
 }
 
 // ============================================================================
@@ -396,6 +399,112 @@ function InterrupcionesSection({
 }
 
 // ============================================================================
+// Ingest & Timers Section
+// ============================================================================
+
+function formatTimer(ms: number): string {
+  const totalSecs = Math.ceil(ms / 1000)
+  const mins = Math.floor(totalSecs / 60)
+  const secs = totalSecs % 60
+  if (mins === 0) return `${secs}s`
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+function IngestTimersSection({
+  turn,
+  state,
+  timerState,
+  silenceTimerState,
+}: {
+  turn: DebugTurn | undefined
+  state: SandboxState
+  timerState: TimerState
+  silenceTimerState: SilenceTimerState
+}) {
+  const ingest = turn?.ingestDetails as any
+  const enCaptura = (state.datosCapturados?.['_v3:enCapturaSilenciosa'] ?? 'false') === 'true'
+
+  return (
+    <div className="space-y-3 text-xs">
+      {/* Ingest status */}
+      <div className="space-y-1.5">
+        <span className="font-medium">Ingest</span>
+        <div className="flex gap-2 flex-wrap">
+          <Badge variant={enCaptura ? 'default' : 'secondary'} className="text-[10px]">
+            Captura: {enCaptura ? 'ACTIVA' : 'inactiva'}
+          </Badge>
+          {ingest && (
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${
+                ingest.action === 'silent' ? 'border-yellow-500 text-yellow-700'
+                  : ingest.action === 'respond' ? 'border-green-500 text-green-700'
+                    : 'border-blue-500 text-blue-700'
+              }`}
+            >
+              {ingest.action}
+            </Badge>
+          )}
+          {ingest?.autoTrigger && (
+            <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-700">
+              auto: {ingest.autoTrigger}
+            </Badge>
+          )}
+        </div>
+        {!ingest && !turn && (
+          <p className="text-muted-foreground">Sin datos todavia</p>
+        )}
+        {turn && !ingest && (
+          <p className="text-muted-foreground">Ingest no ejecutado este turno</p>
+        )}
+      </div>
+
+      {/* Ingest Timer */}
+      <div className="space-y-1.5">
+        <span className="font-medium">Timer Ingest</span>
+        {timerState.active ? (
+          <div className={`flex items-center gap-2 p-2 rounded border ${timerState.paused ? 'border-gray-400 bg-gray-50 dark:bg-gray-900' : 'border-amber-400 bg-amber-50 dark:bg-amber-950'}`}>
+            <span className={`w-2 h-2 rounded-full ${timerState.paused ? 'bg-gray-400' : 'bg-amber-500 animate-pulse'}`} />
+            <span className="font-mono font-medium">{formatTimer(timerState.remainingMs)}</span>
+            <span className="text-muted-foreground">
+              {timerState.levelName} ({timerState.paused ? 'pausado' : 'activo'})
+            </span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">Inactivo</p>
+        )}
+      </div>
+
+      {/* Silence Retake Timer */}
+      <div className="space-y-1.5">
+        <span className="font-medium">Timer Silencio</span>
+        {silenceTimerState.active ? (
+          <div className={`flex items-center gap-2 p-2 rounded border ${
+            silenceTimerState.status === 'expired' ? 'border-red-400 bg-red-50 dark:bg-red-950'
+              : silenceTimerState.status === 'cancelled' ? 'border-gray-400 bg-gray-50 dark:bg-gray-900'
+                : 'border-orange-400 bg-orange-50 dark:bg-orange-950'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              silenceTimerState.status === 'waiting' ? 'bg-orange-500 animate-pulse'
+                : silenceTimerState.status === 'expired' ? 'bg-red-500'
+                  : 'bg-gray-400'
+            }`} />
+            <span className="font-mono font-medium">{formatTimer(silenceTimerState.remainingMs)}</span>
+            <span className="text-muted-foreground">
+              {silenceTimerState.status === 'waiting' ? 'esperando retoma'
+                : silenceTimerState.status === 'expired' ? 'retoma enviada'
+                  : 'cancelado'}
+            </span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">Inactivo</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // Turn Selector
 // ============================================================================
 
@@ -497,6 +606,8 @@ export function DebugV3({
   onTimerConfigChange,
   silenceDurationMs,
   onSilenceDurationChange,
+  timerState,
+  silenceTimerState,
 }: DebugV3Props) {
   const [selectedTurnIdx, setSelectedTurnIdx] = useState(-1)
 
@@ -559,6 +670,26 @@ export function DebugV3({
           defaultOpen={false}
         >
           <StateSection state={state} turn={selectedTurn} />
+        </Section>
+
+        <Section
+          title="Ingest & Timers"
+          icon={<Timer className="h-3.5 w-3.5" />}
+          defaultOpen={false}
+          badge={
+            timerState.active || silenceTimerState.active
+              ? <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700 animate-pulse">
+                  {timerState.active ? formatTimer(timerState.remainingMs) : formatTimer(silenceTimerState.remainingMs)}
+                </Badge>
+              : undefined
+          }
+        >
+          <IngestTimersSection
+            turn={selectedTurn}
+            state={state}
+            timerState={timerState}
+            silenceTimerState={silenceTimerState}
+          />
         </Section>
 
         <Section

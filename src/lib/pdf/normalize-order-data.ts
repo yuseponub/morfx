@@ -42,7 +42,7 @@ Reglas:
 1. Telefono: quitar prefijo 57, +57, 057 al inicio. Dejar solo 10 digitos. Si no hay telefono valido, dejar "0000000000".
 2. Ciudad: formatear como "CIUDAD (DEPTO_ABREV)". Ejemplo: "bucaramanga, santander" -> "BUCARAMANGA (STDER)". Todo en MAYUSCULAS.
    Abreviaturas comunes: STDER=Santander, ANT=Antioquia, VLL=Valle, CUN=Cundinamarca, BOL=Bolivar, ATL=Atlantico, BOY=Boyaca, CAL=Caldas, CES=Cesar, COR=Cordoba, HUI=Huila, MAG=Magdalena, NAR=Narino, NDS=Norte de Santander, QUI=Quindio, RIS=Risaralda, SUC=Sucre, TOL=Tolima, MET=Meta, CAQ=Caqueta, CAS=Casanare, PUT=Putumayo, ARA=Arauca, GUA=Guaviare, GUJ=Guajira, AMA=Amazonas, VCH=Vaupes, VID=Vichada, CHO=Choco, SPE=San Andres, BOG=Bogota.
-3. Unidades: calcular por precio total: $77,900=1, $109,900=2, $139,900=3. Si no coincide exactamente, redondear al mas cercano (divide total entre 77900 y redondea arriba, minimo 1).
+3. Unidades: primero redondear el precio total a la centena inferior (Math.floor(total/100)*100). Luego mapear: 77900=1, 109900=2, 139900=3. Si no coincide con ninguno, dividir entre 77900 y redondear arriba (minimo 1).
 4. Nombres: todo en MAYUSCULAS. Separar en nombre (primer token) y apellido (resto).
 5. pagoAnticipado: true si los tags incluyen "P/A". De lo contrario false.
 6. valorCobrar: formato colombiano con punto como separador de miles. Ejemplo: 77900 -> "$77.900". Si pagoAnticipado es true, valorCobrar debe ser "$0".

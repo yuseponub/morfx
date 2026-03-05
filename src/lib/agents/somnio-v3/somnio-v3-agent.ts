@@ -47,10 +47,16 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     // ------------------------------------------------------------------
     // C2: Comprehension
     // ------------------------------------------------------------------
+    const recentBotMessages = input.history
+      .filter(h => h.role === 'assistant')
+      .slice(-2)
+      .map(h => h.content)
+
     const { analysis, tokensUsed } = await comprehend(
       input.message,
       input.history,
       input.datosCapturados,
+      recentBotMessages,
     )
 
     // ------------------------------------------------------------------

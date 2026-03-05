@@ -5,10 +5,22 @@
  * Includes product info, extraction rules, and existing data context.
  */
 
-export function buildSystemPrompt(existingData: Record<string, string>): string {
+export function buildSystemPrompt(existingData: Record<string, string>, recentBotMessages: string[] = []): string {
   const dataSection = Object.keys(existingData).length > 0
     ? `\nDATOS YA CAPTURADOS (no re-extraer si ya estan):\n${JSON.stringify(existingData, null, 2)}`
     : '\nDATOS YA CAPTURADOS: Ninguno aun.'
+
+  const botContextSection = recentBotMessages.length > 0
+    ? `\nULTIMOS MENSAJES DEL BOT (para contexto de respuestas cortas del cliente):
+${recentBotMessages.map((m, i) => `[${i + 1}] "${m}"`).join('\n')}
+
+REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale", "asi es", "claro", "listo") o negativo ("no", "ahora no", "dejame pensarlo"), analiza los ultimos mensajes del bot para entender A QUE esta respondiendo el cliente:
+- Si el bot pregunto sobre compra/adquisicion ("deseas adquirirlo?", "te gustaria llevarlo?") y el cliente dice "si" → intent = quiero_comprar, is_acknowledgment = false
+- Si el bot mostro un resumen/confirmacion y el cliente dice "si" → intent = confirmar, is_acknowledgment = false
+- Si el bot ofrecio opciones de pack y el cliente dice "si" o "ese" → intent = seleccion_pack, is_acknowledgment = false
+- Si el bot hizo una pregunta informativa y el cliente responde "si" → responde segun el contexto, is_acknowledgment = false
+- Si no hay pregunta clara en los mensajes del bot → intent = otro, is_acknowledgment = true (ack pasivo)`
+    : ''
 
   return `Eres un analizador de mensajes para un agente de ventas de Somnio (suplemento natural para dormir).
 
@@ -68,5 +80,5 @@ REGLAS DE CLASIFICACION:
   - irrelevante: reconocimientos vacios (ok, gracias, emojis) sin contenido sustancial
 - Si el cliente envia su nombre y pregunta el precio, es "mixto"
 - Si solo envia "Jose Lopez, 3001234567, Bogota", es "datos"
-${dataSection}`
+${dataSection}${botContextSection}`
 }

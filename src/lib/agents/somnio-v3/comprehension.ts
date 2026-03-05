@@ -50,6 +50,7 @@ export async function comprehend(
   message: string,
   history: { role: 'user' | 'assistant'; content: string }[],
   existingData: Record<string, string>,
+  recentBotMessages: string[] = [],
 ): Promise<ComprehensionResult> {
   const anthropic = getClient()
 
@@ -66,7 +67,7 @@ export async function comprehend(
     max_tokens: 1024,
     system: [{
       type: 'text',
-      text: buildSystemPrompt(existingData),
+      text: buildSystemPrompt(existingData, recentBotMessages),
       cache_control: { type: 'ephemeral' },
     }],
     messages,

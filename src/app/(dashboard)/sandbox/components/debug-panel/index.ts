@@ -4,6 +4,7 @@
  */
 
 export { DebugTabs } from './debug-tabs'
+export { DebugV3 } from './debug-v3'
 export { ToolsTab } from './tools-tab'
 export { StateTab } from './state-tab'
 export { ClassifyTab } from './classify-tab'

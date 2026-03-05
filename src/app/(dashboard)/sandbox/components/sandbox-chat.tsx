@@ -21,6 +21,8 @@ interface SandboxChatProps {
   onSendMessage: (content: string) => void
   agentId: string
   currentMode: string
+  /** Override for input disabled state. When undefined, falls back to isTyping. */
+  inputDisabled?: boolean
 }
 
 export function SandboxChat({
@@ -28,6 +30,7 @@ export function SandboxChat({
   isTyping,
   onSendMessage,
   currentMode,
+  inputDisabled,
 }: SandboxChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -79,7 +82,7 @@ export function SandboxChat({
       {/* Input area */}
       <SandboxInput
         onSend={onSendMessage}
-        disabled={isTyping}
+        disabled={inputDisabled ?? isTyping}
         placeholder="Escribe como cliente..."
       />
     </div>

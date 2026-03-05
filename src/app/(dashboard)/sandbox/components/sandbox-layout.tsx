@@ -12,7 +12,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
-import { DebugTabs } from './debug-panel'
+import { DebugTabs, DebugV3 } from './debug-panel'
 import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction, SilenceTimerState } from '@/lib/sandbox/types'
 import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
@@ -53,6 +53,7 @@ export function SandboxLayout() {
   const [debugTurns, setDebugTurns] = useState<DebugTurn[]>([])
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
+  const [queuedMessages, setQueuedMessages] = useState<string[]>([])
   const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
   // Timer state (Phase 15.7)
@@ -486,6 +487,12 @@ export function SandboxLayout() {
     }
     setMessages(prev => [...prev, userMessage])
 
+    // 1b. V3 interruption: if already processing, queue the message
+    if (isTyping && agentIdRef.current === 'somnio-sales-v3') {
+      setQueuedMessages(prev => [...prev, content])
+      return
+    }
+
     // 2. Cancel silence timer if active (customer replied)
     if (silenceTimerState.active) {
       cancelSilenceTimer()
@@ -544,6 +551,7 @@ export function SandboxLayout() {
       }
 
       setIsTyping(false)
+      setQueuedMessages([])
 
       // 7. Update state and debug info
       setState(result.newState)
@@ -595,7 +603,7 @@ export function SandboxLayout() {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [responseDelayMs, timerConfig, startTimerForLevel, silenceTimerState.active, cancelSilenceTimer, startSilenceTimer])
+  }, [responseDelayMs, timerConfig, startTimerForLevel, silenceTimerState.active, cancelSilenceTimer, startSilenceTimer, isTyping])
 
   // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {
@@ -604,6 +612,7 @@ export function SandboxLayout() {
     setDebugTurns([])
     setTotalTokens(0)
     setIsTyping(false)
+    setQueuedMessages([])
     // Stop timer on reset (Phase 15.7)
     simulatorRef.current?.stop()
     setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
@@ -665,27 +674,38 @@ export function SandboxLayout() {
               onSendMessage={handleSendMessage}
               agentId={agentId}
               currentMode={state.currentMode}
+              inputDisabled={agentId === 'somnio-sales-v3' ? false : isTyping}
             />
           }
           rightPanel={
-            <DebugTabs
-              debugTurns={debugTurns}
-              state={state}
-              onStateEdit={handleStateEdit}
-              totalTokens={totalTokens}
-              agentName={AGENT_NAMES[agentId] ?? agentId}
-              responseDelayMs={responseDelayMs}
-              onResponseDelayChange={setResponseDelayMs}
-              timerState={timerState}
-              timerEnabled={timerEnabled}
-              timerConfig={timerConfig}
-              onTimerToggle={handleTimerToggle}
-              onTimerConfigChange={handleTimerConfigChange}
-              onTimerPause={handleTimerPause}
-              silenceTimerState={silenceTimerState}
-              silenceDurationMs={silenceDurationMs}
-              onSilenceDurationChange={setSilenceDurationMs}
-            />
+            agentId === 'somnio-sales-v3' ? (
+              <DebugV3
+                debugTurns={debugTurns}
+                state={state}
+                totalTokens={totalTokens}
+                queuedMessages={queuedMessages}
+                isProcessing={isTyping}
+              />
+            ) : (
+              <DebugTabs
+                debugTurns={debugTurns}
+                state={state}
+                onStateEdit={handleStateEdit}
+                totalTokens={totalTokens}
+                agentName={AGENT_NAMES[agentId] ?? agentId}
+                responseDelayMs={responseDelayMs}
+                onResponseDelayChange={setResponseDelayMs}
+                timerState={timerState}
+                timerEnabled={timerEnabled}
+                timerConfig={timerConfig}
+                onTimerToggle={handleTimerToggle}
+                onTimerConfigChange={handleTimerConfigChange}
+                onTimerPause={handleTimerPause}
+                silenceTimerState={silenceTimerState}
+                silenceDurationMs={silenceDurationMs}
+                onSilenceDurationChange={setSilenceDurationMs}
+              />
+            )
           }
         />
       </div>

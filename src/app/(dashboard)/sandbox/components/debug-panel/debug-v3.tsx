@@ -15,8 +15,12 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Brain, Database, Zap, Coins, AlertTriangle, Settings } from 'lucide-react'
+import { ChevronDown, ChevronRight, Brain, Database, Zap, Coins, AlertTriangle, Settings, Code } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { useTheme } from 'next-themes'
+import JsonView from '@uiw/react-json-view'
+import { darkTheme } from '@uiw/react-json-view/dark'
+import { lightTheme } from '@uiw/react-json-view/light'
 import { ConfigTab } from './config-tab'
 import type { DebugTurn, SandboxState, TimerState, TimerConfig, SilenceTimerState } from '@/lib/sandbox/types'
 
@@ -435,6 +439,47 @@ function TurnSelector({
 }
 
 // ============================================================================
+// Contexto Raw Section
+// ============================================================================
+
+function ContextoRawSection({ state, turn }: { state: SandboxState; turn: DebugTurn | undefined }) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
+  // Build full context object the bot sees
+  const fullContext = {
+    currentMode: state.currentMode,
+    datosCapturados: state.datosCapturados ?? {},
+    packSeleccionado: state.packSeleccionado,
+    intentsVistos: state.intentsVistos ?? [],
+    templatesEnviados: state.templatesEnviados ?? [],
+    // Last turn debug data (if available)
+    ...(turn ? {
+      _lastTurn: {
+        turnNumber: turn.turnNumber,
+        intent: turn.intent,
+        classification: turn.classification,
+        orchestration: turn.orchestration,
+        ingestDetails: turn.ingestDetails,
+        stateAfter: turn.stateAfter,
+      },
+    } : {}),
+  }
+
+  return (
+    <div className="max-h-[400px] overflow-auto rounded border">
+      <JsonView
+        value={fullContext}
+        style={isDark ? darkTheme : lightTheme}
+        collapsed={2}
+        displayDataTypes={false}
+        displayObjectSize={false}
+      />
+    </div>
+  )
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -481,7 +526,7 @@ export function DebugV3({
         <Section
           title="Pipeline"
           icon={<Zap className="h-3.5 w-3.5" />}
-          defaultOpen={true}
+          defaultOpen={false}
           badge={
             selectedTurn?.classification
               ? <Badge
@@ -503,7 +548,7 @@ export function DebugV3({
         <Section
           title="Intent & Decision"
           icon={<Brain className="h-3.5 w-3.5" />}
-          defaultOpen={true}
+          defaultOpen={false}
         >
           <IntentDecisionSection turn={selectedTurn} />
         </Section>
@@ -511,9 +556,17 @@ export function DebugV3({
         <Section
           title="Estado"
           icon={<Database className="h-3.5 w-3.5" />}
-          defaultOpen={true}
+          defaultOpen={false}
         >
           <StateSection state={state} turn={selectedTurn} />
+        </Section>
+
+        <Section
+          title="Contexto Raw"
+          icon={<Code className="h-3.5 w-3.5" />}
+          defaultOpen={false}
+        >
+          <ContextoRawSection state={state} turn={selectedTurn} />
         </Section>
 
         <Section

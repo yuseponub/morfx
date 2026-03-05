@@ -685,6 +685,14 @@ export function SandboxLayout() {
                 totalTokens={totalTokens}
                 queuedMessages={queuedMessages}
                 isProcessing={isTyping}
+                responseDelayMs={responseDelayMs}
+                onResponseDelayChange={setResponseDelayMs}
+                timerEnabled={timerEnabled}
+                timerConfig={timerConfig}
+                onTimerToggle={handleTimerToggle}
+                onTimerConfigChange={handleTimerConfigChange}
+                silenceDurationMs={silenceDurationMs}
+                onSilenceDurationChange={setSilenceDurationMs}
               />
             ) : (
               <DebugTabs

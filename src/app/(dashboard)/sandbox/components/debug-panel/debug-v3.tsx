@@ -15,9 +15,10 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Brain, Database, Zap, Coins, AlertTriangle } from 'lucide-react'
+import { ChevronDown, ChevronRight, Brain, Database, Zap, Coins, AlertTriangle, Settings } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import type { DebugTurn, SandboxState } from '@/lib/sandbox/types'
+import { ConfigTab } from './config-tab'
+import type { DebugTurn, SandboxState, TimerState, TimerConfig, SilenceTimerState } from '@/lib/sandbox/types'
 
 // ============================================================================
 // Types
@@ -31,6 +32,15 @@ interface DebugV3Props {
   queuedMessages: string[]
   /** Whether bot is currently processing */
   isProcessing: boolean
+  // Config controls (shared with v1)
+  responseDelayMs: number
+  onResponseDelayChange: (delayMs: number) => void
+  timerEnabled: boolean
+  timerConfig: TimerConfig
+  onTimerToggle: (enabled: boolean) => void
+  onTimerConfigChange: (config: TimerConfig) => void
+  silenceDurationMs: number
+  onSilenceDurationChange: (ms: number) => void
 }
 
 // ============================================================================
@@ -434,6 +444,14 @@ export function DebugV3({
   totalTokens,
   queuedMessages,
   isProcessing,
+  responseDelayMs,
+  onResponseDelayChange,
+  timerEnabled,
+  timerConfig,
+  onTimerToggle,
+  onTimerConfigChange,
+  silenceDurationMs,
+  onSilenceDurationChange,
 }: DebugV3Props) {
   const [selectedTurnIdx, setSelectedTurnIdx] = useState(-1)
 
@@ -524,6 +542,24 @@ export function DebugV3({
           <InterrupcionesSection
             queuedMessages={queuedMessages}
             isProcessing={isProcessing}
+          />
+        </Section>
+
+        <Section
+          title="Config"
+          icon={<Settings className="h-3.5 w-3.5" />}
+          defaultOpen={false}
+        >
+          <ConfigTab
+            agentName="Somnio Sales Agent v3"
+            responseDelayMs={responseDelayMs}
+            onResponseDelayChange={onResponseDelayChange}
+            timerEnabled={timerEnabled}
+            timerConfig={timerConfig}
+            onTimerToggle={onTimerToggle}
+            onTimerConfigChange={onTimerConfigChange}
+            silenceDurationMs={silenceDurationMs}
+            onSilenceDurationChange={onSilenceDurationChange}
           />
         </Section>
       </div>

@@ -170,10 +170,11 @@ export async function generateGuidesPdf(
 
     // --- Price (large, centered) ---
     if (order.pagoAnticipado) {
+      const uLabel = order.unidades === 1 ? 'unidad' : 'unidades'
       doc
-        .fontSize(22)
+        .fontSize(20)
         .font('Helvetica-Bold')
-        .text('PAGO ANTICIPADO', MARGIN, y, {
+        .text(`$0 - Pago Anticipado ${order.unidades} ${uLabel}`, MARGIN, y, {
           align: 'center',
           width: CONTENT_W,
         })

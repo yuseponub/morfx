@@ -96,8 +96,10 @@ function buildFallbackOrder(order: GuideGenOrder): NormalizedOrder {
     .join(' ')
     .toUpperCase() || 'SIN CIUDAD'
 
-  // Unit calculation
-  const unidades = Math.max(1, Math.ceil(order.totalValue / 77900))
+  // Unit calculation (round to nearest hundred first, then map)
+  const roundedValue = Math.floor(order.totalValue / 100) * 100
+  const unidadesPorValor: Record<number, number> = { 77900: 1, 109900: 2, 139900: 3 }
+  const unidades = unidadesPorValor[roundedValue] ?? Math.max(1, Math.ceil(order.totalValue / 77900))
 
   // Check pago anticipado (tag "P/A")
   const pagoAnticipado = order.tags.some((t) => t.toUpperCase() === 'P/A')

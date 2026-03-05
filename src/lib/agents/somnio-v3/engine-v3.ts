@@ -7,7 +7,7 @@
  */
 
 import { processMessage } from './somnio-v3-agent'
-import type { SandboxState, DebugTurn } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn, DebugIngestDetails } from '@/lib/sandbox/types'
 import type { PackSelection } from '@/lib/agents/types'
 
 export interface V3EngineInput {
@@ -83,6 +83,10 @@ export class SomnioV3Engine {
               : 'RESPONDIBLE',
             reason: output.decisionInfo.reason,
             rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
+          } : output.ingestInfo?.action === 'silent' ? {
+            category: 'SILENCIOSO' as const,
+            reason: 'Ingest: captura silenciosa',
+            rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
           } : undefined,
           orchestration: output.decisionInfo ? {
             nextMode: output.newMode ?? input.state.currentMode,
@@ -91,6 +95,10 @@ export class SomnioV3Engine {
             shouldCreateOrder: output.shouldCreateOrder,
             templatesCount: output.messages.length,
           } : undefined,
+          ingestDetails: output.ingestInfo ? {
+            action: output.ingestInfo.action as DebugIngestDetails['action'],
+            autoTrigger: output.ingestInfo.autoTrigger,
+          } as DebugIngestDetails & { autoTrigger?: string } : undefined,
         },
         silenceDetected: output.silenceDetected,
       }

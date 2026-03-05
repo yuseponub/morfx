@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server'
 import { UnifiedEngine } from '@/lib/agents/engine/unified-engine'
 import { createSandboxAdapters } from '@/lib/agents/engine-adapters/sandbox'
 import { SomnioV2Engine } from '@/lib/agents/somnio-v2/engine-v2'
+import { SomnioV3Engine } from '@/lib/agents/somnio-v3/engine-v3'
 import type { SandboxState } from '@/lib/sandbox/types'
 import { initializeTools } from '@/lib/tools/init'
 
@@ -86,6 +87,21 @@ export async function POST(request: NextRequest) {
         workspaceId: workspaceId ?? 'sandbox-workspace',
       })
       return NextResponse.json(v2Result)
+    }
+
+    // ================================================================
+    // V3 Agent: separate engine, completely isolated from v1/v2
+    // ================================================================
+    if (agentId === 'somnio-sales-v3') {
+      const v3Engine = new SomnioV3Engine()
+      const v3Result = await v3Engine.processMessage({
+        message,
+        state,
+        history: history ?? [],
+        turnNumber: turnNumber ?? 1,
+        workspaceId: workspaceId ?? 'sandbox-workspace',
+      })
+      return NextResponse.json(v3Result)
     }
 
     // ================================================================

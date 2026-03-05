@@ -44,6 +44,7 @@ import type { SandboxMessage, SandboxState, DebugTurn, SavedSandboxSession, CrmA
 const AVAILABLE_AGENTS = [
   { id: 'somnio-sales-v1', name: 'Somnio Sales Agent v1' },
   { id: 'somnio-sales-v2', name: 'Somnio Sales Agent v2' },
+  { id: 'somnio-sales-v3', name: 'Somnio Sales Agent v3' },
 ]
 
 interface SandboxHeaderProps {

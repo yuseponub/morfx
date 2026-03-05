@@ -42,6 +42,7 @@ const DEFAULT_AGENT_ID = 'somnio-sales-v1'
 const AGENT_NAMES: Record<string, string> = {
   'somnio-sales-v1': 'Somnio Sales Agent v1',
   'somnio-sales-v2': 'Somnio Sales Agent v2',
+  'somnio-sales-v3': 'Somnio Sales Agent v3',
 }
 
 export function SandboxLayout() {

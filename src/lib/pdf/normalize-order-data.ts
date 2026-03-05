@@ -44,7 +44,7 @@ Reglas:
    Abreviaturas comunes: STDER=Santander, ANT=Antioquia, VLL=Valle, CUN=Cundinamarca, BOL=Bolivar, ATL=Atlantico, BOY=Boyaca, CAL=Caldas, CES=Cesar, COR=Cordoba, HUI=Huila, MAG=Magdalena, NAR=Narino, NDS=Norte de Santander, QUI=Quindio, RIS=Risaralda, SUC=Sucre, TOL=Tolima, MET=Meta, CAQ=Caqueta, CAS=Casanare, PUT=Putumayo, ARA=Arauca, GUA=Guaviare, GUJ=Guajira, AMA=Amazonas, VCH=Vaupes, VID=Vichada, CHO=Choco, SPE=San Andres, BOG=Bogota.
 3. Unidades: calcular por precio total: $77,900=1, $109,900=2, $139,900=3. Si no coincide exactamente, redondear al mas cercano (divide total entre 77900 y redondea arriba, minimo 1).
 4. Nombres: todo en MAYUSCULAS. Separar en nombre (primer token) y apellido (resto).
-5. pagoAnticipado: true si el nombre del pedido contiene "&" o si los tags incluyen "PAGO ANTICIPADO". De lo contrario false.
+5. pagoAnticipado: true si los tags incluyen "P/A". De lo contrario false.
 6. valorCobrar: formato colombiano con punto como separador de miles. Ejemplo: 77900 -> "$77.900". Si pagoAnticipado es true, valorCobrar debe ser "$0".
 7. barrio: extraer del campo direccion si es posible (a veces aparece despues de un guion o coma). Si no es identificable, dejar vacio "".
 8. direccion: la direccion completa SIN el barrio (si lo extrajiste).
@@ -99,10 +99,8 @@ function buildFallbackOrder(order: GuideGenOrder): NormalizedOrder {
   // Unit calculation
   const unidades = Math.max(1, Math.ceil(order.totalValue / 77900))
 
-  // Check pago anticipado
-  const pagoAnticipado =
-    (order.name?.includes('&') ?? false) ||
-    order.tags.some((t) => t.toUpperCase() === 'PAGO ANTICIPADO')
+  // Check pago anticipado (tag "P/A")
+  const pagoAnticipado = order.tags.some((t) => t.toUpperCase() === 'P/A')
 
   const valorNumerico = pagoAnticipado ? 0 : order.totalValue
   const valorCobrar = pagoAnticipado

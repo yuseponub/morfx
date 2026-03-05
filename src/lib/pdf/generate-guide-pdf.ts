@@ -172,12 +172,13 @@ export async function generateGuidesPdf(
     if (order.pagoAnticipado) {
       const uLabel = order.unidades === 1 ? 'unidad' : 'unidades'
       doc
-        .fontSize(20)
+        .fontSize(14)
         .font('Helvetica-Bold')
         .text(`$0 - Pago Anticipado ${order.unidades} ${uLabel}`, MARGIN, y, {
           align: 'center',
           width: CONTENT_W,
         })
+      y += 28
     } else {
       doc
         .fontSize(26)
@@ -186,8 +187,8 @@ export async function generateGuidesPdf(
           align: 'center',
           width: CONTENT_W,
         })
+      y += 34
     }
-    y += 34
 
     // --- Separator 4 ---
     drawSeparator(doc, y)

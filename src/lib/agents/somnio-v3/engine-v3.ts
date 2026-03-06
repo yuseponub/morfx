@@ -53,10 +53,16 @@ export class SomnioV3Engine {
         packSeleccionado: output.packSeleccionado as PackSelection | null,
       }
 
+      // Pick the last timer signal (most relevant — decision overrides ingest)
+      const lastTimerSignal = output.timerSignals.length > 0
+        ? output.timerSignals[output.timerSignals.length - 1]
+        : undefined
+
       return {
         success: output.success,
         messages: output.messages,
         newState,
+        timerSignal: lastTimerSignal,
         debugTurn: {
           turnNumber: input.turnNumber,
           intent: {

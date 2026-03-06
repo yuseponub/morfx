@@ -38,7 +38,7 @@ export interface AgentState {
 
   /** History tracking */
   intentsVistos: string[]
-  accionesEjecutadas: string[]
+  accionesEjecutadas: AccionRegistrada[]
   templatesMostrados: string[]
 
   /** Timing */
@@ -134,6 +134,7 @@ export interface V3AgentInput {
   turnNumber: number
   workspaceId: string
   forceIntent?: string
+  systemEvent?: SystemEvent
 }
 
 export interface V3AgentOutput {

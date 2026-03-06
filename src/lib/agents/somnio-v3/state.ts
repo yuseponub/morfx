@@ -18,7 +18,7 @@ import {
   PACK_PRICES,
   V3_META_PREFIX,
 } from './constants'
-import type { AgentState, DatosCliente, Gates } from './types'
+import type { AccionRegistrada, AgentState, DatosCliente, Gates, TipoAccion } from './types'
 import type { MessageAnalysis } from './comprehension-schema'
 
 // ============================================================================
@@ -283,10 +283,27 @@ export function deserializeState(
   state.enCapturaSilenciosa = datosCapturados[`${V3_META_PREFIX}enCaptura`] === 'true'
   state.turnCount = parseInt(datosCapturados[`${V3_META_PREFIX}turnCount`] || '0', 10)
 
-  // Restore acciones ejecutadas
+  // Restore acciones ejecutadas (backward compatible: string[] -> AccionRegistrada[])
   try {
     const raw = datosCapturados[`${V3_META_PREFIX}accionesEjecutadas`]
-    if (raw) state.accionesEjecutadas = JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 0) {
+          state.accionesEjecutadas = []
+        } else if (typeof parsed[0] === 'string') {
+          // OLD FORMAT: string[] -> convert to AccionRegistrada[]
+          state.accionesEjecutadas = parsed.map((tipo: string) => ({
+            tipo: tipo as TipoAccion,
+            turno: 0,
+            origen: 'bot' as const,
+          }))
+        } else {
+          // NEW FORMAT: AccionRegistrada[]
+          state.accionesEjecutadas = parsed
+        }
+      }
+    }
   } catch { /* keep default */ }
 
   // Restore templates mostrados from metadata (if present)
@@ -301,4 +318,13 @@ export function deserializeState(
   state.negaciones.barrio = datosCapturados[`${V3_META_PREFIX}neg_barrio`] === 'true'
 
   return state
+}
+
+// ============================================================================
+// Action Helpers
+// ============================================================================
+
+/** Check if an action type has been executed */
+export function hasAction(acciones: AccionRegistrada[], tipo: TipoAccion): boolean {
+  return acciones.some(a => a.tipo === tipo)
 }

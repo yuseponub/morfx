@@ -20,7 +20,7 @@
 
 import type { AgentState, Gates, IngestResult, TimerSignal } from './types'
 import type { MessageAnalysis } from './comprehension-schema'
-import { camposLlenos } from './state'
+import { camposLlenos, hasAction } from './state'
 import { CRITICAL_FIELDS_NORMAL } from './constants'
 
 // ============================================================================
@@ -167,7 +167,7 @@ function shouldAskOfiInter(state: AgentState, prevState: AgentState): boolean {
  * Check if promos have been shown in this conversation.
  */
 function promosMostradas(state: AgentState): boolean {
-  return state.accionesEjecutadas.includes('ofrecer_promos') ||
+  return hasAction(state.accionesEjecutadas, 'ofrecer_promos') ||
     state.templatesMostrados.some(t =>
       t.includes('ofrecer_promos') || t.includes('promociones')
     )

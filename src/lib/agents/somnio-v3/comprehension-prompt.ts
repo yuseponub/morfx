@@ -38,6 +38,7 @@ REGLAS DE EXTRACCION:
 - Telefono: normalizar a formato 573XXXXXXXXX (si tiene 10 digitos, agregar 57)
 - Ciudad: normalizar a proper case (bogota -> Bogota)
 - Pack: "el de 2", "quiero el doble", "2 frascos" -> 2x. "el de 3", "el triple" -> 3x. "uno solo", "1 frasco" -> 1x
+- IMPORTANTE: Extraer pack en extracted_fields SOLO cuando hay intencion EXPLICITA de compra/seleccion ("quiero el de 2", "dame 2", "me llevo el triple"). NO extraer pack cuando solo pregunta precio ("cuanto vale 2", "cuanto cuesta el de 3")
 - ofi_inter: true si menciona recoger en oficina/transportadora Inter
 - Si el cliente niega un dato ("no tengo correo"), marca la negacion correspondiente
 
@@ -45,9 +46,10 @@ REGLAS DE INTENT:
 - primary: el intent principal del mensaje
 - secondary: solo si hay DOS intenciones claras (ej: "Hola, cuanto cuesta?" = saludo + precio)
 - secondary = "ninguno" si solo hay un intent
-- seleccion_pack: cuando el cliente elige un pack especifico ("el de 2", "quiero el triple")
+- seleccion_pack: cuando el cliente elige un pack especifico CON INTENCION DE COMPRA ("quiero el de 2", "dame el triple", "me llevo 2 frascos"). NUNCA usar para preguntas de precio
 - confirmar: cuando ACEPTA un resumen/pedido previamente mostrado ("si confirmo", "dale", "proceder")
 - quiero_comprar: cuando expresa intencion de compra sin elegir pack especifico ("lo quiero", "quiero comprar")
+- REGLA PRECIO vs SELECCION: "cuanto vale 2", "cuanto cuesta el de 3", "precio del combo" = promociones (pregunta sobre precios de packs). "cuanto vale" o "cuanto vale 1" sin referencia a combo = precio. "quiero el de 2", "dame 3", "me llevo el doble" = seleccion_pack (compra explicita)
 - rechazar: cuando rechaza algo ofrecido ("dejame pensarlo", "ahora no", "no por ahora")
 - is_acknowledgment: true SOLO para respuestas cortas sin contenido sustancial (ok, si, gracias, jaja, emojis solos). NUNCA marcar saludos como acknowledgment
 - Para reconocimientos puros (ok, si, gracias, emojis solos), usa "otro" como primary intent y marca is_acknowledgment=true

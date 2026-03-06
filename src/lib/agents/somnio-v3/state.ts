@@ -87,8 +87,9 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): Age
     }
   }
 
-  // 2. Pack selection
-  if (fields.pack) {
+  // 2. Pack selection — only apply when intent shows purchase intent
+  const packIntents = new Set(['seleccion_pack', 'quiero_comprar'])
+  if (fields.pack && (packIntents.has(analysis.intent.primary) || packIntents.has(analysis.intent.secondary))) {
     updated.pack = fields.pack
   }
 

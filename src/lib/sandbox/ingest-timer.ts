@@ -309,30 +309,12 @@ export class IngestTimerSimulator {
       return
     }
 
-    // Level changed - calculate elapsed and start new timer
-    const elapsed = this.getElapsedMs()
+    // Level changed - start new timer with full duration
+    // Each level is an independent countdown; elapsed from the previous
+    // level does NOT carry over (that caused premature expiration).
     const newDurationS = config.levels[newLevel] ?? TIMER_LEVELS[newLevel]?.defaultDurationS ?? 60
     const newDurationMs = newDurationS * 1000
-    const adjustedDuration = Math.max(0, newDurationMs - elapsed)
-
-    if (adjustedDuration <= 0) {
-      // EARLY EXPIRATION: The new level's duration has already been exceeded
-      // by the elapsed time from the previous level. This happens when a
-      // level transition occurs after the new level's full duration has passed
-      // (e.g., user was on L0 for 600s, transitions to L1 with 360s duration).
-      // We fire immediately since the deadline has already passed.
-      // Reason: duration_exceeded (adjustedDuration <= 0)
-      const levelConfig = TIMER_LEVELS.find((l) => l.id === newLevel)
-      if (levelConfig) {
-        this.currentLevel = newLevel
-        this.stop()
-        this.onExpire(newLevel, levelConfig.buildAction(context))
-      }
-      return
-    }
-
-    // Start new timer with adjusted duration
-    this.start(newLevel, adjustedDuration)
+    this.start(newLevel, newDurationMs)
   }
 
   /**

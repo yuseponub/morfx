@@ -565,7 +565,7 @@ export function SandboxLayout() {
         if (signal.type === 'start') {
           // Build eval context from new state
           const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
-            k => result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
+            k => !k.startsWith('_v3:') && result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
           )
           const ctx: TimerEvalContext = {
             fieldsCollected,
@@ -575,13 +575,12 @@ export function SandboxLayout() {
             promosOffered: result.newState.intentsVistos.includes('ofrecer_promos'),
           }
           const level = simulatorRef.current?.evaluateLevel(ctx)
-          console.log('[Timer Debug] signal:', signal, 'fieldsCollected:', fieldsCollected, 'ctx:', ctx, 'evaluatedLevel:', level)
           if (level !== null && level !== undefined) {
             startTimerForLevel(level)
           }
         } else if (signal.type === 'reevaluate') {
           const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
-            k => result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
+            k => !k.startsWith('_v3:') && result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
           )
           const ctx: TimerEvalContext = {
             fieldsCollected,

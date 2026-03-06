@@ -3,6 +3,8 @@
  *
  * 3-concept architecture: Intents (client) / Actions (bot) / Signals (system)
  * Gates computed every turn, never stored.
+ *
+ * State machine types: TipoAccion, AccionRegistrada, Phase, SystemEvent
  */
 
 // ============================================================================
@@ -184,3 +186,51 @@ export interface V3AgentOutput {
     autoTrigger?: string
   }
 }
+
+// ============================================================================
+// State Machine Types (sm-01)
+// ============================================================================
+
+export type TipoAccion =
+  | 'ofrecer_promos'
+  | 'mostrar_confirmacion'
+  | 'pedir_datos'
+  | 'crear_orden'
+  | 'handoff'
+  | 'ask_ofi_inter'
+  | 'silence'
+  | 'rechazar'
+  | 'no_interesa'
+  | 'cambio'
+
+export interface AccionRegistrada {
+  tipo: TipoAccion
+  turno: number
+  origen: 'bot' | 'timer' | 'auto_trigger' | 'ingest'
+}
+
+export type Phase =
+  | 'initial'
+  | 'capturing_data'
+  | 'promos_shown'
+  | 'confirming'
+  | 'order_created'
+  | 'closed'
+
+export type SystemEvent =
+  | { type: 'timer_expired'; level: 2 | 3 | 4 }
+  | { type: 'ingest_complete'; result: 'datos_completos' | 'ciudad_sin_direccion' }
+  | { type: 'readiness_check'; ready_for: 'promos' | 'confirmacion' }
+
+export interface TransitionResult {
+  action: TipoAccion
+  templateIntents?: string[]
+  extraContext?: Record<string, string>
+  timerSignal?: TimerSignal
+  enterCaptura?: boolean
+  reason: string
+}
+
+export type GuardResult =
+  | { blocked: true; decision: Decision }
+  | { blocked: false }

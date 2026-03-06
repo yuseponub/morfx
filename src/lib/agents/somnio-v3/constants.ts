@@ -206,3 +206,17 @@ export const OFI_INTER_PATTERNS: RegExp[] = [
 // ============================================================================
 
 export const V3_META_PREFIX = '_v3:'
+
+// ============================================================================
+// State Machine Constants (sm-01)
+// ============================================================================
+
+export const TIPO_ACCION = [
+  'ofrecer_promos', 'mostrar_confirmacion', 'pedir_datos', 'crear_orden',
+  'handoff', 'ask_ofi_inter', 'silence', 'rechazar', 'no_interesa', 'cambio',
+] as const
+
+export const SIGNIFICANT_ACTIONS: ReadonlySet<string> = new Set([
+  'pedir_datos', 'ofrecer_promos', 'mostrar_confirmacion',
+  'crear_orden', 'handoff', 'rechazar', 'no_interesa',
+])

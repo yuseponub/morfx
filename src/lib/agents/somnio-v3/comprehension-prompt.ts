@@ -53,7 +53,7 @@ REGLAS DE INTENT:
 - rechazar: cuando rechaza algo ofrecido ("dejame pensarlo", "ahora no", "no por ahora")
 - is_acknowledgment: true SOLO para respuestas cortas sin contenido sustancial (ok, si, gracias, jaja, emojis solos). NUNCA marcar saludos como acknowledgment
 - Para reconocimientos puros (ok, si, gracias, emojis solos), usa "otro" como primary intent y marca is_acknowledgment=true
-- datos: NO es un intent. Los datos se extraen en extracted_fields sin importar el intent
+- datos: cuando el mensaje contiene SOLO informacion personal (nombre, telefono, direccion, etc.) sin pregunta ni intencion de compra. Ej: "Jose Romero, 3001234567, Bogota, calle 1 #2-3"
 
 CONTEXTO DE INTENTS:
 - saludo: saludos ("hola", "buenos dias", "buenas")
@@ -67,6 +67,7 @@ CONTEXTO DE INTENTS:
 - ubicacion: donde estan ("desde donde envian?", "tienen tienda?")
 - efectos: efectos secundarios ("tiene contraindicaciones?")
 - efectividad: si funciona ("si sirve?", "funciona de verdad?")
+- datos: el mensaje contiene SOLO datos personales sin pregunta ("Jose Romero, 3001234567, Bogota")
 - asesor: quiere hablar con humano ("quiero hablar con alguien", "paseme con un asesor")
 - queja: tiene queja ("tengo un problema", "quiero poner una queja")
 - cancelar: quiere cancelar ("quiero cancelar mi pedido")

@@ -23,7 +23,8 @@ export const V3_INTENTS = [
   'efectos',
   'efectividad',
 
-  // Client actions (4)
+  // Client actions (5)
+  'datos',
   'quiero_comprar',
   'seleccion_pack',
   'confirmar',

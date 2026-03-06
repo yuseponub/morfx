@@ -13,8 +13,8 @@ Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
 Plan: 1 of 2 complete (01)
 Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
-Standalone: v3-state-machine — IN PROGRESS (2/4 plans)
-Last activity: 2026-03-06 — Completed sm-02: Decision engine rewrite + ingest/response refactor
+Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
+Last activity: 2026-03-06 — Completed sm-03: Pipeline integration (single action registration, SystemEvent routing)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -325,7 +325,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05 COT
-Stopped at: Quick 007 — Soporte tag P/A en subir ordenes Coordinadora
+Last session: 2026-03-06 COT
+Stopped at: Completed sm-03 — Pipeline integration (single action registration, SystemEvent routing)
 Resume file: None
-Next: Phase 35 Plan 03 or Phase 36 Plan 02
+Next: sm-04 (testing) or Phase 35 Plan 03 or Phase 36 Plan 02

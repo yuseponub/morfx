@@ -575,6 +575,7 @@ export function SandboxLayout() {
             promosOffered: result.newState.intentsVistos.includes('ofrecer_promos'),
           }
           const level = simulatorRef.current?.evaluateLevel(ctx)
+          console.log('[Timer Debug] signal:', signal, 'fieldsCollected:', fieldsCollected, 'ctx:', ctx, 'evaluatedLevel:', level)
           if (level !== null && level !== undefined) {
             startTimerForLevel(level)
           }

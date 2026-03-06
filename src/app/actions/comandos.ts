@@ -230,7 +230,7 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
     const { results: cityResults } = validationResult.data!
 
     // Separate valid and invalid orders
-    const validCityResults = cityResults.filter((r) => r.isValid)
+    let validCityResults = cityResults.filter((r) => r.isValid)
     let invalidCityResults = cityResults.filter((r) => !r.isValid)
 
     // 6b. AI resolution for invalid cities
@@ -265,29 +265,56 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
       invalidCityResults = aiResult.stillInvalid
     }
 
-    // Build invalid orders report
-    const invalidOrders = invalidCityResults.map((r) => {
-      const order = orders.find((o) => o.id === r.orderId)
-      return {
-        orderId: r.orderId || '',
-        orderName: order?.name ?? null,
-        reason: !r.city && !r.department
-          ? 'Ciudad y departamento vacios'
-          : !r.departmentAbbrev
-            ? `Departamento no reconocido: "${r.department}"`
-            : `Ciudad no encontrada en cobertura: "${r.city}" (${r.department})`,
+    // 6c. COD city validation: reject COD orders to non-COD cities
+    const codRejected: Array<{ orderId: string; orderName: string | null; reason: string }> = []
+    const afterCodFilter: CityValidationItem[] = []
+
+    for (const cityResult of validCityResults) {
+      const order = orders.find(o => o.id === cityResult.orderId)
+      if (!order) { afterCodFilter.push(cityResult); continue }
+
+      const esPagoAnticipado = order.tags.some(t => t.toUpperCase() === 'P/A')
+      const wouldBeCod = !esPagoAnticipado && (order.total_value || 0) > 0
+
+      if (wouldBeCod && !cityResult.supportsCod) {
+        codRejected.push({
+          orderId: order.id,
+          orderName: order.name ?? null,
+          reason: `Ciudad ${cityResult.coordinadoraCity} no soporta recaudo contra-entrega (COD). Use pago anticipado (tag P/A) o elija otra transportadora.`,
+        })
+      } else {
+        afterCodFilter.push(cityResult)
       }
-    })
+    }
+
+    validCityResults = afterCodFilter
+
+    // Build invalid orders report (city validation + COD validation)
+    const invalidOrders = [
+      ...invalidCityResults.map((r) => {
+        const order = orders.find((o) => o.id === r.orderId)
+        return {
+          orderId: r.orderId || '',
+          orderName: order?.name ?? null,
+          reason: !r.city && !r.department
+            ? 'Ciudad y departamento vacios'
+            : !r.departmentAbbrev
+              ? `Departamento no reconocido: "${r.department}"`
+              : `Ciudad no encontrada en cobertura: "${r.city}" (${r.department})`,
+        }
+      }),
+      ...codRejected,
+    ]
 
     if (validCityResults.length === 0) {
       return {
         success: false,
-        error: 'Todas las ordenes tienen ciudades invalidas',
+        error: 'Ninguna orden paso la validacion de ciudad/COD',
         data: {
           jobId: '',
           totalOrders: orders.length,
           validCount: 0,
-          invalidCount: invalidCityResults.length,
+          invalidCount: invalidOrders.length,
           invalidOrders,
           aiResolvedOrders,
         },
@@ -364,7 +391,7 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
         jobId: jobResult.data.jobId,
         totalOrders: orders.length,
         validCount: validCityResults.length,
-        invalidCount: invalidCityResults.length,
+        invalidCount: invalidOrders.length,
         invalidOrders,
         aiResolvedOrders,
       },

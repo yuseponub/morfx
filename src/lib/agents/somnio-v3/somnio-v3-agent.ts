@@ -13,11 +13,13 @@
  */
 
 import { comprehend } from './comprehension'
-import { mergeAnalysis, computeGates, serializeState, deserializeState } from './state'
+import { mergeAnalysis, computeGates, serializeState, deserializeState, hasAction } from './state'
 import { evaluateIngest } from './ingest'
-import { decide } from './decision'
+import { decide, transitionToDecision } from './decision'
 import { composeResponse } from './response'
-import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal } from './types'
+import { derivePhase } from './phase'
+import { resolveTransition, systemEventToKey } from './transitions'
+import type { AgentState, Decision, V3AgentInput, V3AgentOutput, TimerSignal, SystemEvent, TipoAccion, AccionRegistrada } from './types'
 
 // ============================================================================
 // Main Processing Function
@@ -50,8 +52,36 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     let analysis: Awaited<ReturnType<typeof comprehend>>['analysis']
     let tokensUsed: number
 
-    if (input.forceIntent) {
-      // Timer expiration — synthetic analysis, no Claude call
+    // Translate forceIntent -> SystemEvent (backward compat layer)
+    let systemEvent: SystemEvent | undefined = input.systemEvent
+    if (!systemEvent && input.forceIntent) {
+      switch (input.forceIntent) {
+        case 'ofrecer_promos':
+          systemEvent = { type: 'timer_expired', level: 2 }
+          break
+        case 'timer_sinpack':
+          systemEvent = { type: 'timer_expired', level: 3 }
+          break
+        case 'timer_pendiente':
+          systemEvent = { type: 'timer_expired', level: 4 }
+          break
+        default:
+          // Unknown forceIntent — treat as synthetic analysis for backward compat
+          break
+      }
+    }
+
+    // If we have a system event, skip comprehension
+    if (systemEvent) {
+      analysis = {
+        intent: { primary: 'otro' as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `systemEvent: ${systemEvent.type}` },
+        extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
+        classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const, is_acknowledgment: false },
+        negations: { correo: false, telefono: false, barrio: false },
+      }
+      tokensUsed = 0
+    } else if (input.forceIntent) {
+      // Legacy forceIntent that didn't map to a system event — synthetic analysis with intent
       analysis = {
         intent: { primary: input.forceIntent as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `forceIntent: ${input.forceIntent}` },
         extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
@@ -128,9 +158,24 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     }
 
     // ------------------------------------------------------------------
-    // C6: Decision Engine
+    // C6: Decision Engine (with SystemEvent routing)
     // ------------------------------------------------------------------
-    const decision = decide(analysis, mergedState, gates, ingestResult)
+    let decision: Decision
+    if (systemEvent) {
+      // Input-level system event (timer expired) -> transition table lookup
+      const phase = derivePhase(mergedState.accionesEjecutadas)
+      const eventKey = systemEventToKey(systemEvent)
+      const result = resolveTransition(phase, eventKey, mergedState, gates)
+      if (result) {
+        decision = transitionToDecision(result.action, result.output)
+      } else {
+        // Fallback: unknown system event
+        decision = { action: 'respond', templateIntents: ['otro'], reason: `Unknown system event: ${eventKey}` }
+      }
+    } else {
+      // Normal flow: C6 Decision Engine (which internally handles ingest systemEvent)
+      decision = decide(analysis, mergedState, gates, ingestResult)
+    }
 
     if (decision.timerSignal) {
       timerSignals.push(decision.timerSignal)
@@ -282,7 +327,9 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       },
       ingestInfo: {
         action: ingestResult.action,
-        autoTrigger: ingestResult.autoTrigger,
+        systemEvent: ingestResult.systemEvent
+          ? { type: ingestResult.systemEvent.type, ...ingestResult.systemEvent }
+          : undefined,
       },
     }
   } catch (error) {

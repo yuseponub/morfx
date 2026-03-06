@@ -49,7 +49,8 @@ export function evaluateIngest(
   // ------------------------------------------------------------------
   if (!state.ofiInter && shouldAskOfiInter(state, prevState)) {
     return {
-      action: 'ask_ofi_inter',
+      action: 'respond',
+      systemEvent: { type: 'ingest_complete', result: 'ciudad_sin_direccion' },
     }
   }
 
@@ -57,19 +58,11 @@ export function evaluateIngest(
   // Auto-triggers: require datosCompletos (criticos + barrio/negacion)
   // datosOk alone triggers Level 2 timer (2min window for extras)
   // ------------------------------------------------------------------
-  if (gates.datosCompletos && gates.packElegido && !promosMostradas(state)) {
+  if (gates.datosCompletos && !promosMostradas(state)) {
     return {
       action: 'respond',
-      autoTrigger: 'mostrar_confirmacion',
-      timerSignal: { type: 'cancel', reason: 'datos completos + pack → confirmacion' },
-    }
-  }
-
-  if (gates.datosCompletos && !gates.packElegido && !promosMostradas(state)) {
-    return {
-      action: 'respond',
-      autoTrigger: 'ofrecer_promos',
-      timerSignal: { type: 'cancel', reason: 'datos completos → promos' },
+      systemEvent: { type: 'ingest_complete', result: 'datos_completos' },
+      timerSignal: { type: 'cancel', reason: 'datos completos → system event' },
     }
   }
 

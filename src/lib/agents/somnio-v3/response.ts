@@ -134,24 +134,9 @@ export async function composeResponse(
     templateIdsSent.push(t.templateId)
   }
 
-  // 6. Track what was shown
-  const mostradoUpdates: string[] = []
-  for (const v3Intent of templateIntents) {
-    if (v3Intent === 'promociones' || v3Intent === 'quiero_comprar') {
-      mostradoUpdates.push('ofrecer_promos')
-    }
-    if (v3Intent.startsWith('resumen')) {
-      mostradoUpdates.push('mostrar_confirmacion')
-    }
-    if (v3Intent === 'pedir_datos') {
-      mostradoUpdates.push('pedir_datos')
-    }
-  }
-
   return {
     messages,
     templateIdsSent,
-    mostradoUpdates,
   }
 }
 
@@ -163,6 +148,5 @@ function emptyResult(): ResponseResult {
   return {
     messages: [],
     templateIdsSent: [],
-    mostradoUpdates: [],
   }
 }

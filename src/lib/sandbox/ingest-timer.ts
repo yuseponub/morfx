@@ -75,7 +75,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
     name: 'Sin datos',
     defaultDurationS: 600, // 10 min
     evaluate: (ctx: TimerEvalContext): boolean =>
-      ctx.currentMode === 'collecting_data' && ctx.totalFields === 0,
+      (ctx.currentMode === 'collecting_data' || ctx.currentMode === 'captura' || ctx.currentMode === 'captura_inter') && ctx.totalFields === 0,
     buildAction: (): TimerAction => ({
       type: 'send_message',
       message:
@@ -87,7 +87,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
     name: 'Datos parciales',
     defaultDurationS: 360, // 6 min
     evaluate: (ctx: TimerEvalContext): boolean => {
-      if (ctx.currentMode !== 'collecting_data') return false
+      if (ctx.currentMode !== 'collecting_data' && ctx.currentMode !== 'captura' && ctx.currentMode !== 'captura_inter') return false
       if (ctx.totalFields === 0) return false
       const hasAllMinimum = TIMER_MINIMUM_FIELDS.every((f) =>
         ctx.fieldsCollected.includes(f)
@@ -109,7 +109,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
     name: 'Datos minimos',
     defaultDurationS: 120, // 2 min
     evaluate: (ctx: TimerEvalContext): boolean => {
-      if (ctx.currentMode !== 'collecting_data') return false
+      if (ctx.currentMode !== 'collecting_data' && ctx.currentMode !== 'captura' && ctx.currentMode !== 'captura_inter') return false
       return TIMER_MINIMUM_FIELDS.every((f) =>
         ctx.fieldsCollected.includes(f)
       )
@@ -125,7 +125,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
     name: 'Promos sin respuesta',
     defaultDurationS: 600, // 10 min
     evaluate: (ctx: TimerEvalContext): boolean =>
-      ctx.currentMode === 'ofrecer_promos' && !ctx.packSeleccionado,
+      (ctx.currentMode === 'ofrecer_promos' || ctx.currentMode === 'promos') && !ctx.packSeleccionado,
     buildAction: (): TimerAction => ({
       type: 'create_order',
       message:
@@ -138,7 +138,7 @@ export const TIMER_LEVELS: TimerLevelConfig[] = [
     name: 'Pack sin confirmar',
     defaultDurationS: 600, // 10 min
     evaluate: (ctx: TimerEvalContext): boolean =>
-      ctx.currentMode === 'resumen' && !!ctx.packSeleccionado,
+      (ctx.currentMode === 'resumen' || ctx.currentMode === 'confirmacion') && !!ctx.packSeleccionado,
     buildAction: (ctx: TimerEvalContext): TimerAction => ({
       type: 'create_order',
       message:

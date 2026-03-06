@@ -8,6 +8,8 @@ files_modified:
   - src/lib/agents/somnio-v3/somnio-v3-agent.ts
   - src/lib/agents/somnio-v3/state.ts
   - src/lib/agents/somnio-v3/types.ts
+  - src/lib/agents/somnio-v3/engine-v3.ts
+  - src/lib/agents/somnio-v3/engine-adapter.ts
 autonomous: true
 
 must_haves:
@@ -18,6 +20,7 @@ must_haves:
     - "computeMode() still works as compatibility layer for sandbox timer logic"
     - "Old string[] format in existing sessions auto-migrates to AccionRegistrada[] on deserialize"
     - "forceIntent from V3AgentInput is translated to SystemEvent at pipeline entry"
+    - "engine-v3.ts and engine-adapter.ts compile with systemEvent instead of autoTrigger"
   artifacts:
     - path: "src/lib/agents/somnio-v3/somnio-v3-agent.ts"
       provides: "Refactored pipeline with single action registration and SystemEvent handling"
@@ -28,6 +31,12 @@ must_haves:
     - path: "src/lib/agents/somnio-v3/types.ts"
       provides: "AgentState.accionesEjecutadas typed as AccionRegistrada[]"
       contains: "accionesEjecutadas: AccionRegistrada[]"
+    - path: "src/lib/agents/somnio-v3/engine-v3.ts"
+      provides: "Debug output using systemEvent instead of autoTrigger"
+      contains: "systemEvent"
+    - path: "src/lib/agents/somnio-v3/engine-adapter.ts"
+      provides: "Adapter mapping using systemEvent instead of autoTrigger"
+      contains: "systemEvent"
   key_links:
     - from: "src/lib/agents/somnio-v3/somnio-v3-agent.ts"
       to: "src/lib/agents/somnio-v3/transitions.ts"
@@ -41,14 +50,18 @@ must_haves:
       to: "src/lib/agents/somnio-v3/types.ts"
       via: "AccionRegistrada type for serialize/deserialize"
       pattern: "AccionRegistrada"
+    - from: "src/lib/agents/somnio-v3/engine-v3.ts"
+      to: "src/lib/agents/somnio-v3/types.ts"
+      via: "V3AgentOutput.ingestInfo.systemEvent"
+      pattern: "systemEvent"
 ---
 
 <objective>
-Wire the pipeline together: single action registration, SystemEvent second-pass, backward-compatible serialization, and forceIntent translation.
+Wire the pipeline together: single action registration, SystemEvent second-pass, backward-compatible serialization, forceIntent translation, and engine file updates.
 
-Purpose: This is the integration plan that makes everything compile and work end-to-end. After this plan, the v3 agent in sandbox uses the state machine instead of the waterfall, existing sessions auto-migrate, and the sandbox timer system still works through computeMode compatibility.
+Purpose: This is the integration plan that makes everything compile and work end-to-end. After this plan, the v3 agent in sandbox uses the state machine instead of the waterfall, existing sessions auto-migrate, and the sandbox timer system still works through computeMode compatibility. Also updates engine-v3.ts and engine-adapter.ts to use the new systemEvent field instead of autoTrigger.
 
-Output: Working v3 sandbox agent with state machine decision engine.
+Output: Working v3 sandbox agent with state machine decision engine. Full project compiles.
 </objective>
 
 <execution_context>
@@ -65,6 +78,7 @@ Output: Working v3 sandbox agent with state machine decision engine.
 @src/lib/agents/somnio-v3/state.ts
 @src/lib/agents/somnio-v3/types.ts
 @src/lib/agents/somnio-v3/engine-v3.ts
+@src/lib/agents/somnio-v3/engine-adapter.ts
 </context>
 
 <tasks>
@@ -152,10 +166,10 @@ Output: Working v3 sandbox agent with state machine decision engine.
 </task>
 
 <task type="auto">
-  <name>Task 2: Refactor somnio-v3-agent.ts pipeline</name>
+  <name>Task 2: Refactor somnio-v3-agent.ts pipeline — routing and SystemEvent handling</name>
   <files>src/lib/agents/somnio-v3/somnio-v3-agent.ts</files>
   <action>
-  This is the critical integration task. Refactor `processMessage()` to:
+  This task handles forceIntent translation, SystemEvent routing, and the decision flow changes.
 
   **1. Add new imports:**
   ```typescript
@@ -208,38 +222,14 @@ Output: Working v3 sandbox agent with state machine decision engine.
   }
   ```
 
-  **3. Handle SystemEvent BEFORE decision engine (after ingest, replaces autoTrigger shortcut):**
+  **3. Handle SystemEvent BEFORE decision engine (after ingest):**
 
-  After ingest evaluation, if ingest returns a systemEvent OR we have a systemEvent from input:
+  After ingest evaluation, route system events through transition table:
 
   ```typescript
   // Determine effective system event: input systemEvent OR ingest systemEvent
   const effectiveEvent = systemEvent ?? ingestResult.systemEvent
 
-  if (effectiveEvent) {
-    // Route system event through transition table
-    const phase = derivePhase(mergedState.accionesEjecutadas)
-    const eventKey = systemEventToKey(effectiveEvent)
-    const result = resolveTransition(phase, eventKey, mergedState, gates)
-
-    if (result) {
-      const decision = transitionToDecision(result.action, result.output)
-      // Register action + compose response + return (same flow as normal decision below)
-      // ... see below for action registration
-    }
-  }
-  ```
-
-  Actually, simpler approach: merge the system event into the decision flow. After computing the effective event, if it exists, pass it into `decide()` somehow. BUT `decide()` already handles ingestResult.systemEvent internally (from Plan 02). So the flow is:
-
-  - If `systemEvent` from input (timer/forceIntent): the pipeline should route it through the transition table DIRECTLY (skip comprehension + ingest). This is the timer path.
-  - If `ingestResult.systemEvent` exists: the `decide()` function already handles it (Plan 02 added this logic at the top of decide()).
-
-  So the actual change for input system events is:
-
-  After translating forceIntent to systemEvent, if we have an input-level systemEvent, we need to skip the normal decision flow and go directly to the transition table:
-
-  ```typescript
   // Handle input-level system event (timer expired)
   let decision: Decision
   if (systemEvent) {
@@ -258,7 +248,26 @@ Output: Working v3 sandbox agent with state machine decision engine.
   }
   ```
 
-  **4. Remove the 3 old action write points and add single registration:**
+  **4. Update ingestInfo in output:**
+
+  Replace `autoTrigger: ingestResult.autoTrigger` with `systemEvent: ingestResult.systemEvent ? { type: ingestResult.systemEvent.type, ...ingestResult.systemEvent } : undefined`.
+
+  IMPORTANT: Do NOT change the V3AgentOutput interface shape. The `newMode`, `intentsVistos`, `templatesEnviados`, `datosCapturados`, `packSeleccionado` fields must remain the same for engine-v3.ts compatibility.
+  </action>
+  <verify>Check that somnio-v3-agent.ts compiles with no internal errors (excluding engine files if still pending). Verify forceIntent translation covers all 3 timer levels.</verify>
+  <done>
+  - forceIntent translated to SystemEvent at pipeline entry
+  - Input-level system events skip comprehension and go to transition table
+  - Ingest system events handled by decide() internally
+  - ingestInfo output uses systemEvent instead of autoTrigger
+  </done>
+</task>
+
+<task type="auto">
+  <name>Task 3: Single action registration + computeMode + engine files</name>
+  <files>src/lib/agents/somnio-v3/somnio-v3-agent.ts, src/lib/agents/somnio-v3/engine-v3.ts, src/lib/agents/somnio-v3/engine-adapter.ts</files>
+  <action>
+  **somnio-v3-agent.ts — Action registration refactor:**
 
   REMOVE write point 1 (lines 147-156): the `if (decision.action === 'respond' && decision.templateIntents)` block that pushes ofrecer_promos/mostrar_confirmacion.
 
@@ -306,9 +315,7 @@ Output: Working v3 sandbox agent with state machine decision engine.
   }
   ```
 
-  **5. Keep computeMode() as compatibility layer:**
-
-  Update `computeMode()` to work with AccionRegistrada[] instead of string[]:
+  **Update computeMode() to work with AccionRegistrada[]:**
   ```typescript
   function computeMode(state: AgentState): string {
     if (hasAction(state.accionesEjecutadas, 'crear_orden')) return 'orden_creada'
@@ -322,27 +329,56 @@ Output: Working v3 sandbox agent with state machine decision engine.
   }
   ```
 
-  **6. Update ingestInfo in output:**
+  **Update all remaining `accionesEjecutadas.includes('...')` references** in somnio-v3-agent.ts with `hasAction()` calls. Specifically lines 235, 320-322 (in computeMode, already covered above) and any others that grep reveals.
 
-  Replace `autoTrigger: ingestResult.autoTrigger` with `systemEvent: ingestResult.systemEvent ? { type: ingestResult.systemEvent.type, ...ingestResult.systemEvent } : undefined`.
+  **engine-v3.ts — Update autoTrigger references:**
 
-  **7. Also update all references to `mergedState.accionesEjecutadas.includes('...')` or `.push('...')` with the new AccionRegistrada format** — these are in the old write points being removed, plus `computeMode` being updated.
+  Find the debug output section (lines ~108-109) that references `output.ingestInfo.autoTrigger` and update to use `systemEvent`:
 
-  IMPORTANT: Do NOT change the V3AgentOutput interface shape. The `newMode`, `intentsVistos`, `templatesEnviados`, `datosCapturados`, `packSeleccionado` fields must remain the same for engine-v3.ts compatibility.
+  OLD:
+  ```typescript
+  autoTrigger: output.ingestInfo.autoTrigger,
+  } as DebugIngestDetails & { autoTrigger?: string } : undefined,
+  ```
+
+  NEW:
+  ```typescript
+  systemEvent: output.ingestInfo.systemEvent,
+  } as DebugIngestDetails & { systemEvent?: { type: string; [k: string]: unknown } } : undefined,
+  ```
+
+  Search for ALL other `autoTrigger` references in engine-v3.ts and replace with `systemEvent`.
+
+  **engine-adapter.ts — Update autoTrigger references:**
+
+  Find line ~163 that references `v3.ingestInfo.autoTrigger` and update:
+
+  OLD:
+  ```typescript
+  autoTrigger: v3.ingestInfo.autoTrigger,
+  ```
+
+  NEW:
+  ```typescript
+  systemEvent: v3.ingestInfo.systemEvent,
+  ```
+
+  Search for ALL other `autoTrigger` references in engine-adapter.ts and replace with `systemEvent`.
   </action>
   <verify>
   Run `npx tsc --noEmit` from project root — ALL files should compile now (the full project).
-  Test with sandbox if possible: open sandbox, select v3 agent, send a message.
+  Run `grep -rn 'autoTrigger' src/lib/agents/somnio-v3/` — should return ZERO matches.
+  Run `grep -rn 'mostradoUpdates' src/lib/agents/somnio-v3/` — should return ZERO matches.
+  Run `grep -c 'accionesEjecutadas.push' src/lib/agents/somnio-v3/somnio-v3-agent.ts` — should return exactly 1.
   </verify>
   <done>
   - Single action registration point after response composition
-  - forceIntent translated to SystemEvent at pipeline entry
-  - Input-level system events skip comprehension and go to transition table
-  - Ingest system events handled by decide() internally
   - computeMode uses hasAction helper with AccionRegistrada[]
-  - Old write points 1 and 3 removed, write point 2 (mostradoUpdates in response.ts) already removed in Plan 02
-  - V3AgentOutput interface unchanged
-  - Full project compiles
+  - Old write points 1 and 3 removed
+  - engine-v3.ts uses systemEvent instead of autoTrigger in debug output
+  - engine-adapter.ts uses systemEvent instead of autoTrigger in adapter mapping
+  - Full project compiles with zero errors
+  - Zero references to autoTrigger or mostradoUpdates remain in v3 module
   </done>
 </task>
 
@@ -354,7 +390,8 @@ Output: Working v3 sandbox agent with state machine decision engine.
 - `grep -r 'mostradoUpdates' src/lib/agents/somnio-v3/` returns zero matches (fully removed)
 - `grep -c 'accionesEjecutadas.push' src/lib/agents/somnio-v3/somnio-v3-agent.ts` returns exactly 1 (single registration point)
 - computeMode still returns correct mode strings for sandbox timer compatibility
-- engine-v3.ts compiles without changes (V3AgentInput/V3AgentOutput backward compatible)
+- engine-v3.ts compiles and uses systemEvent in debug output
+- engine-adapter.ts compiles and maps systemEvent correctly
 </verification>
 
 <success_criteria>
@@ -364,6 +401,7 @@ Output: Working v3 sandbox agent with state machine decision engine.
 - Old sessions deserialize correctly (string[] auto-migrates to AccionRegistrada[])
 - computeMode compatibility layer works for sandbox timer system
 - No references to autoTrigger or mostradoUpdates remain in v3 module
+- engine-v3.ts and engine-adapter.ts fully updated
 </success_criteria>
 
 <output>

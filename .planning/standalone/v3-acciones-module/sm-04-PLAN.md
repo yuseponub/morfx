@@ -6,12 +6,15 @@ wave: 4
 depends_on: ["sm-03"]
 files_modified:
   - src/lib/agents/somnio-v3/ingest.ts
+  - src/lib/agents/somnio-v3/decision.ts
+  - src/lib/agents/somnio-v3/somnio-v3-agent.ts
   - src/lib/agents/somnio-v3/transitions.ts
 autonomous: false
 
 must_haves:
   truths:
     - "Ingest promosMostradas check uses hasAction with AccionRegistrada[]"
+    - "No .includes() calls remain on accionesEjecutadas in ANY v3 file"
     - "Sandbox conversation flows through all phases correctly"
     - "Timer L2/L3/L4 transitions work via system events"
     - "Old conversations with string[] accionesEjecutadas auto-migrate"
@@ -20,9 +23,9 @@ must_haves:
 ---
 
 <objective>
-Fix remaining AccionRegistrada[] references in ingest.ts and verify the full sandbox flow.
+Fix ALL remaining AccionRegistrada[] references across v3 files and verify the full sandbox flow.
 
-Purpose: ingest.ts still uses `state.accionesEjecutadas.includes('ofrecer_promos')` (string check) which breaks with AccionRegistrada[]. Also the transitions.ts `promosMostradas` checks in ingest need updating. After fixing, verify the complete flow in sandbox.
+Purpose: After Plan 03 changes accionesEjecutadas from string[] to AccionRegistrada[], ANY file that still calls `.includes('...')` on that array will silently break (always return false, since objects !== strings). This plan sweeps ALL v3 files to find and fix these remnants, then verifies the complete flow in sandbox.
 
 Output: Fully working v3 sandbox agent with state machine.
 </objective>
@@ -35,20 +38,29 @@ Output: Fully working v3 sandbox agent with state machine.
 <context>
 @.planning/standalone/v3-acciones-module/sm-03-SUMMARY.md
 @src/lib/agents/somnio-v3/ingest.ts
+@src/lib/agents/somnio-v3/decision.ts
+@src/lib/agents/somnio-v3/somnio-v3-agent.ts
 @src/lib/agents/somnio-v3/state.ts
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Fix AccionRegistrada[] usage in ingest.ts</name>
-  <files>src/lib/agents/somnio-v3/ingest.ts</files>
+  <name>Task 1: Fix ALL .includes() remnants on accionesEjecutadas across ALL v3 files</name>
+  <files>src/lib/agents/somnio-v3/ingest.ts, src/lib/agents/somnio-v3/decision.ts, src/lib/agents/somnio-v3/somnio-v3-agent.ts</files>
   <action>
-  Update `promosMostradas()` helper in ingest.ts to use `hasAction` from state.ts instead of `.includes()`:
+  First, run a comprehensive grep to find ALL remaining `.includes()` calls on accionesEjecutadas:
 
+  ```bash
+  grep -rn 'accionesEjecutadas\.includes' src/lib/agents/somnio-v3/*.ts
+  ```
+
+  Fix EVERY match found. Known locations from analysis:
+
+  **ingest.ts — `promosMostradas()` helper (line ~177):**
+  Update to use `hasAction` from state.ts instead of `.includes()`:
   ```typescript
   import { camposLlenos, hasAction } from './state'
-  import type { AccionRegistrada } from './types'
 
   function promosMostradas(state: AgentState): boolean {
     return hasAction(state.accionesEjecutadas, 'ofrecer_promos') ||
@@ -58,16 +70,37 @@ Output: Fully working v3 sandbox agent with state machine.
   }
   ```
 
-  Since `AgentState.accionesEjecutadas` is now `AccionRegistrada[]`, the old `.includes('ofrecer_promos')` string check would fail silently (always false). This is the only remaining breakage from the type change.
+  **decision.ts — `hasShownPromos()` (line ~278) and `hasShownResumen()` (line ~283):**
+  These helpers use `state.accionesEjecutadas.includes('ofrecer_promos')` and `state.accionesEjecutadas.includes('mostrar_confirmacion')`. Plan 02 rewrites decision.ts completely, but if any `.includes()` remnants survive in helper functions that were kept (like fallback checks), fix them:
+  ```typescript
+  import { hasAction } from './state'
 
-  Verify there are no other `.includes()` or string-based checks on `accionesEjecutadas` in the v3 module:
-  ```bash
-  grep -n 'accionesEjecutadas.includes' src/lib/agents/somnio-v3/*.ts
+  // Replace:  state.accionesEjecutadas.includes('ofrecer_promos')
+  // With:     hasAction(state.accionesEjecutadas, 'ofrecer_promos')
+
+  // Replace:  state.accionesEjecutadas.includes('mostrar_confirmacion')
+  // With:     hasAction(state.accionesEjecutadas, 'mostrar_confirmacion')
   ```
-  If any remain (e.g., in decision.ts old helpers), they should already be removed by Plan 02. If not, fix them here.
+
+  **somnio-v3-agent.ts — `computeMode()` and action push guard (lines ~235, 320-322):**
+  These SHOULD already be fixed by Plan 03, but verify. If any `.includes()` calls remain:
+  - Line ~235: `if (!mergedState.accionesEjecutadas.includes(action))` — replace with `if (!hasAction(mergedState.accionesEjecutadas, action as TipoAccion))`
+  - Lines 320-322: `computeMode` — should already use `hasAction()` from Plan 03
+
+  **ANY OTHER v3 file** — also grep for indirect patterns:
+  ```bash
+  grep -rn 'accionesEjecutadas\.' src/lib/agents/somnio-v3/*.ts | grep -v 'push\|length\|map\|some\|forEach\|slice\|spread\|AccionRegistrada'
+  ```
+  Any pattern that treats accionesEjecutadas elements as strings (indexOf, find with string comparison, etc.) must be updated.
+
+  After fixing all matches, verify with:
+  ```bash
+  grep -rn 'accionesEjecutadas\.includes' src/lib/agents/somnio-v3/*.ts
+  ```
+  This MUST return zero matches.
   </action>
-  <verify>`npx tsc --noEmit` passes. `grep -n 'accionesEjecutadas.includes' src/lib/agents/somnio-v3/*.ts` returns zero matches.</verify>
-  <done>All string-based checks on accionesEjecutadas replaced with hasAction() calls.</done>
+  <verify>`npx tsc --noEmit` passes. `grep -rn 'accionesEjecutadas.includes' src/lib/agents/somnio-v3/*.ts` returns zero matches. Also grep for any other string-based access patterns: `grep -rn 'accionesEjecutadas\.\(indexOf\|find.*===.*['"'"']\)' src/lib/agents/somnio-v3/*.ts` should return zero.</verify>
+  <done>All string-based checks on accionesEjecutadas replaced with hasAction() calls across ALL v3 files — ingest.ts, decision.ts, somnio-v3-agent.ts, and any others found by grep.</done>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
@@ -100,7 +133,7 @@ Output: Fully working v3 sandbox agent with state machine.
 
 <verification>
 - Full project compiles: `npx tsc --noEmit`
-- No string-based accionesEjecutadas checks remain in v3 module
+- No string-based accionesEjecutadas checks remain in ANY v3 file
 - Sandbox flow works end-to-end
 - Timer system events work correctly
 - Debug panel shows new format (AccionRegistrada objects, system events)

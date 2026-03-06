@@ -47,7 +47,7 @@ Rewrite the decision engine to use the state machine and refactor ingest/respons
 
 Purpose: This is the core behavior change. decision.ts gets rewritten from R0-R9 waterfall to guards + phase derivation + transition table lookup. ingest.ts stops returning autoTrigger strings and returns SystemEvent objects instead. response.ts drops mostradoUpdates (action registration moves to single point in Plan 03).
 
-Output: 3 files rewritten/refactored. Note: somnio-v3-agent.ts will NOT compile after this plan because it still references the old interfaces. Plan 03 fixes that.
+Output: 3 files rewritten/refactored. Note: somnio-v3-agent.ts, engine-v3.ts, and engine-adapter.ts will NOT compile after this plan because they still reference the old interfaces (autoTrigger, mostradoUpdates, ask_ofi_inter). Plan 03 fixes all three.
 </objective>
 
 <execution_context>
@@ -183,7 +183,12 @@ Output: 3 files rewritten/refactored. Note: somnio-v3-agent.ts will NOT compile 
 
   Keep the `isPositiveAck` helper in decision.ts since it's needed for ack sub-type detection. Rename it private if desired.
   </action>
-  <verify>The file should compile in isolation (`npx tsc --noEmit src/lib/agents/somnio-v3/decision.ts` will fail because somnio-v3-agent.ts is broken, but decision.ts itself should have no internal errors). Check that guards, phase, and transitions imports resolve.</verify>
+  <verify>Run `npx tsc --noEmit`. Expected compile errors ONLY in these files (because they still reference old autoTrigger/mostradoUpdates interfaces):
+  - `src/lib/agents/somnio-v3/somnio-v3-agent.ts` — references autoTrigger, mostradoUpdates, ask_ofi_inter action
+  - `src/lib/agents/somnio-v3/engine-v3.ts` — references autoTrigger in debug output
+  - `src/lib/agents/somnio-v3/engine-adapter.ts` — references autoTrigger in adapter mapping
+
+  decision.ts, ingest.ts, response.ts, and types.ts themselves should have NO internal errors. If errors appear in any other files, investigate — they indicate an unintended breaking change.</verify>
   <done>
   - decision.ts uses checkGuards -> derivePhase -> resolveTransition flow
   - No R0-R9 waterfall code remains
@@ -279,7 +284,7 @@ Output: 3 files rewritten/refactored. Note: somnio-v3-agent.ts will NOT compile 
   }
   ```
   </action>
-  <verify>Check that ingest.ts and response.ts have no internal type errors. The project will NOT fully compile yet because somnio-v3-agent.ts still references the old interfaces (autoTrigger, mostradoUpdates, ask_ofi_inter). This is expected — Plan 03 fixes it.</verify>
+  <verify>Check that ingest.ts and response.ts have no internal type errors. The project will NOT fully compile yet because somnio-v3-agent.ts, engine-v3.ts, and engine-adapter.ts still reference the old interfaces (autoTrigger, mostradoUpdates, ask_ofi_inter). This is expected — Plan 03 fixes them.</verify>
   <done>
   - ingest.ts emits SystemEvent objects instead of autoTrigger strings
   - ingest.ts collapses two autoTrigger cases into one ingest_complete event
@@ -296,7 +301,7 @@ Output: 3 files rewritten/refactored. Note: somnio-v3-agent.ts will NOT compile 
 - decision.ts has NO R0-R9 code — only guard check, phase derivation, transition lookup, fallback
 - ingest.ts returns SystemEvent, not autoTrigger strings
 - response.ts returns only messages + templateIdsSent
-- Note: `npx tsc --noEmit` will show errors in somnio-v3-agent.ts because it still uses old interfaces — this is EXPECTED and fixed in Plan 03
+- Note: `npx tsc --noEmit` will show errors in somnio-v3-agent.ts, engine-v3.ts, and engine-adapter.ts because they still use old interfaces — this is EXPECTED and fixed in Plan 03
 </verification>
 
 <success_criteria>

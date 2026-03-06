@@ -54,9 +54,10 @@ export function evaluateIngest(
   }
 
   // ------------------------------------------------------------------
-  // Auto-triggers (regardless of captura mode)
+  // Auto-triggers: require datosCompletos (criticos + barrio/negacion)
+  // datosOk alone triggers Level 2 timer (2min window for extras)
   // ------------------------------------------------------------------
-  if (gates.datosOk && gates.packElegido && !promosMostradas(state)) {
+  if (gates.datosCompletos && gates.packElegido && !promosMostradas(state)) {
     return {
       action: 'respond',
       autoTrigger: 'mostrar_confirmacion',
@@ -64,7 +65,7 @@ export function evaluateIngest(
     }
   }
 
-  if (gates.datosOk && !gates.packElegido && !promosMostradas(state)) {
+  if (gates.datosCompletos && !gates.packElegido && !promosMostradas(state)) {
     return {
       action: 'respond',
       autoTrigger: 'ofrecer_promos',

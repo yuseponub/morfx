@@ -45,19 +45,35 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     const prevState = { ...state, datos: { ...state.datos } }
 
     // ------------------------------------------------------------------
-    // C2: Comprehension
+    // C2: Comprehension (skip if forceIntent from timer)
     // ------------------------------------------------------------------
-    const recentBotMessages = input.history
-      .filter(h => h.role === 'assistant')
-      .slice(-2)
-      .map(h => h.content)
+    let analysis: Awaited<ReturnType<typeof comprehend>>['analysis']
+    let tokensUsed: number
 
-    const { analysis, tokensUsed } = await comprehend(
-      input.message,
-      input.history,
-      input.datosCapturados,
-      recentBotMessages,
-    )
+    if (input.forceIntent) {
+      // Timer expiration — synthetic analysis, no Claude call
+      analysis = {
+        intent: { primary: input.forceIntent as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `forceIntent: ${input.forceIntent}` },
+        extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
+        classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const, is_acknowledgment: false },
+        negations: { correo: false, telefono: false, barrio: false },
+      }
+      tokensUsed = 0
+    } else {
+      const recentBotMessages = input.history
+        .filter(h => h.role === 'assistant')
+        .slice(-2)
+        .map(h => h.content)
+
+      const result = await comprehend(
+        input.message,
+        input.history,
+        input.datosCapturados,
+        recentBotMessages,
+      )
+      analysis = result.analysis
+      tokensUsed = result.tokensUsed
+    }
 
     // ------------------------------------------------------------------
     // C3: State Merge

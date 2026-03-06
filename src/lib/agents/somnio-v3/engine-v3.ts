@@ -16,6 +16,7 @@ export interface V3EngineInput {
   history: { role: 'user' | 'assistant'; content: string }[]
   turnNumber: number
   workspaceId: string
+  forceIntent?: string
 }
 
 export interface V3EngineOutput {
@@ -43,6 +44,7 @@ export class SomnioV3Engine {
         history: input.history,
         turnNumber: input.turnNumber,
         workspaceId: input.workspaceId,
+        forceIntent: input.forceIntent,
       })
 
       const newState: SandboxState = {

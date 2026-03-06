@@ -325,7 +325,7 @@ export function SandboxLayout() {
     simulator.setContextProvider(() => {
       const s = stateRef.current
       const fieldsCollected = Object.keys(s.datosCapturados).filter(
-        k => s.datosCapturados[k] && s.datosCapturados[k] !== 'N/A'
+        k => !k.startsWith('_v3:') && s.datosCapturados[k] && s.datosCapturados[k] !== 'N/A'
       )
       return {
         fieldsCollected,

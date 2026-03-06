@@ -50,6 +50,7 @@ export interface AgentState {
 
 export interface Gates {
   datosOk: boolean
+  datosCompletos: boolean
   packElegido: boolean
 }
 
@@ -132,6 +133,7 @@ export interface V3AgentInput {
   packSeleccionado: string | null
   turnNumber: number
   workspaceId: string
+  forceIntent?: string
 }
 
 export interface V3AgentOutput {

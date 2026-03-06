@@ -136,7 +136,8 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): Age
  */
 export function computeGates(state: AgentState): Gates {
   return {
-    datosOk: datosCompletos(state),
+    datosOk: datosCriticosOk(state),
+    datosCompletos: datosCriticosOk(state) && datosExtrasOk(state),
     packElegido: state.pack !== null,
   }
 }
@@ -144,12 +145,22 @@ export function computeGates(state: AgentState): Gates {
 /**
  * All critical fields filled? Mode-aware (normal vs ofi inter).
  */
-export function datosCompletos(state: AgentState): boolean {
+export function datosCriticosOk(state: AgentState): boolean {
   const fields = state.ofiInter ? CRITICAL_FIELDS_OFI_INTER : CRITICAL_FIELDS_NORMAL
   return fields.every(f => {
     const val = state.datos[f as keyof DatosCliente]
     return val !== null && val.trim() !== ''
   })
+}
+
+/**
+ * Extra fields (barrio) present or negated?
+ * In ofiInter mode, barrio is irrelevant → always true.
+ */
+export function datosExtrasOk(state: AgentState): boolean {
+  if (state.ofiInter) return true
+  const barrioPresent = state.datos.barrio !== null && state.datos.barrio.trim() !== ''
+  return barrioPresent || state.negaciones.barrio
 }
 
 /**

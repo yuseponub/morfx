@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         history: history ?? [],
         turnNumber: turnNumber ?? 1,
         workspaceId: workspaceId ?? 'sandbox-workspace',
+        forceIntent,
       })
       return NextResponse.json(v3Result)
     }

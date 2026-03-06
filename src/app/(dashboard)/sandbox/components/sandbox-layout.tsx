@@ -565,7 +565,7 @@ export function SandboxLayout() {
         if (signal.type === 'start') {
           // Build eval context from new state
           const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
-            k => !k.startsWith('_v3:') && result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
+            k => result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
           )
           const ctx: TimerEvalContext = {
             fieldsCollected,
@@ -580,7 +580,7 @@ export function SandboxLayout() {
           }
         } else if (signal.type === 'reevaluate') {
           const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
-            k => !k.startsWith('_v3:') && result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
+            k => result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
           )
           const ctx: TimerEvalContext = {
             fieldsCollected,

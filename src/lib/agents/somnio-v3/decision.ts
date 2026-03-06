@@ -2,30 +2,30 @@
  * Somnio Sales Agent v3 — Decision Engine (Capa 6)
  *
  * Pure rules engine. No AI, no network calls.
- * Priority-ordered rules that produce a Decision from analysis + state + gates.
+ * Uses state machine: guards -> phase derivation -> transition table -> fallback.
  *
- * Rules (R0-R9):
- * R0: Low confidence + otro → handoff
- * R1: Escape intents → handoff
- * R2: no_interesa → respond + close
- * R3: Acknowledgment → silence (with exceptions)
- * R4: rechazar → respond farewell
- * R5: confirmar + datosOk + packElegido → create_order
- * R6: seleccion_pack → confirmacion or pedir datos
- * R7: quiero_comprar → promos or pedir datos
- * R8: datosOk + packElegido + promos mostradas → auto confirmacion
- * R9: Default → templates for intent
+ * Flow:
+ * 1. System event from ingest? -> transition table lookup
+ * 2. Guards (R0: low confidence, R1: escape) -> block if matched
+ * 3. Derive phase from accionesEjecutadas
+ * 4. Acknowledgment? -> sub-type routing via transition table
+ * 5. Intent -> transition table lookup
+ * 6. Fallback (R9) -> respond with intent templates
  */
 
 import type { MessageAnalysis } from './comprehension-schema'
-import type { AgentState, Decision, Gates, IngestResult } from './types'
-import {
-  ESCAPE_INTENTS,
-  NEVER_SILENCE_INTENTS,
-  LOW_CONFIDENCE_THRESHOLD,
-  PACK_PRICES,
-} from './constants'
-import { camposFaltantes, buildResumenContext } from './state'
+import type {
+  AgentState,
+  Decision,
+  DecisionAction,
+  Gates,
+  IngestResult,
+  TipoAccion,
+} from './types'
+import { NEVER_SILENCE_INTENTS } from './constants'
+import { checkGuards } from './guards'
+import { derivePhase } from './phase'
+import { resolveTransition, systemEventToKey, type TransitionOutput } from './transitions'
 
 // ============================================================================
 // Main Decision Function
@@ -38,184 +38,75 @@ export function decide(
   ingestResult: IngestResult,
 ): Decision {
   const intent = analysis.intent.primary
-  const confidence = analysis.intent.confidence
 
   // ------------------------------------------------------------------
-  // Ingest auto-triggers take priority (from Capa 4)
+  // 1. System event from ingest takes priority
   // ------------------------------------------------------------------
-  if (ingestResult.autoTrigger === 'ofrecer_promos') {
-    return {
-      action: 'respond',
-      templateIntents: ['promociones'],
-      timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas, esperando pack' },
-      enterCaptura: false,
-      reason: 'Auto-trigger: datosOk → ofrecer promos',
+  if (ingestResult.systemEvent) {
+    const key = systemEventToKey(ingestResult.systemEvent)
+    const phase = derivePhase(state.accionesEjecutadas)
+    const match = resolveTransition(phase, key, state, gates)
+    if (match) {
+      return transitionToDecision(match.action, match.output)
     }
-  }
-
-  if (ingestResult.autoTrigger === 'mostrar_confirmacion') {
-    return {
-      action: 'respond',
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
-      reason: 'Auto-trigger: datosOk + pack → confirmacion',
-    }
+    // No match for system event — log warning and fall through
+    console.warn(`[decision] No transition for system event: ${key} in phase ${phase}`)
   }
 
   // ------------------------------------------------------------------
-  // Ingest ask_ofi_inter
+  // 2. Guards (R0: low confidence + otro, R1: escape intents)
   // ------------------------------------------------------------------
-  if (ingestResult.action === 'ask_ofi_inter') {
-    return {
-      action: 'respond',
-      templateIntents: ['ask_ofi_inter'],
-      reason: 'Ciudad sin direccion → preguntar ofi inter',
-    }
+  const guardResult = checkGuards(analysis)
+  if (guardResult.blocked) {
+    return guardResult.decision
   }
 
-  // ================================================================
-  // R0: Low confidence + otro → handoff
-  // ================================================================
-  if (confidence < LOW_CONFIDENCE_THRESHOLD && intent === 'otro') {
-    return {
-      action: 'handoff',
-      timerSignal: { type: 'cancel', reason: 'handoff por baja confianza' },
-      reason: `Confidence ${confidence}% + intent=otro`,
-    }
-  }
+  // ------------------------------------------------------------------
+  // 3. Derive phase from accionesEjecutadas
+  // ------------------------------------------------------------------
+  const phase = derivePhase(state.accionesEjecutadas)
 
-  // ================================================================
-  // R1: Escape intents → handoff
-  // ================================================================
-  if (ESCAPE_INTENTS.has(intent)) {
-    return {
-      action: 'handoff',
-      timerSignal: { type: 'cancel', reason: `escape: ${intent}` },
-      reason: `Escape intent: ${intent}`,
-    }
-  }
-
-  // ================================================================
-  // R2: no_interesa → respond + close
-  // ================================================================
-  if (intent === 'no_interesa') {
-    return {
-      action: 'respond',
-      templateIntents: ['no_interesa'],
-      timerSignal: { type: 'cancel', reason: 'no interesa' },
-      reason: 'Cliente no interesado',
-    }
-  }
-
-  // ================================================================
-  // R3: Acknowledgment → silence (with exceptions)
-  // ================================================================
+  // ------------------------------------------------------------------
+  // 4. Acknowledgment special case
+  // ------------------------------------------------------------------
   if (analysis.classification.is_acknowledgment && !NEVER_SILENCE_INTENTS.has(intent)) {
-    // Exception: positive ack after promos → treat as interest (don't silence)
-    if (hasShownPromos(state) && !gates.packElegido) {
-      // Fall through to R9 — respond to keep conversation going
+    // Determine ack sub-type
+    if (phase === 'confirming' && isPositiveAck(analysis)) {
+      // Positive ack in confirming -> treat as confirmation
+      const match = resolveTransition(phase, 'acknowledgment_positive', state, gates)
+      if (match) {
+        return transitionToDecision(match.action, match.output)
+      }
     }
-    // Exception: after confirmacion shown → treat as confirmation
-    else if (hasShownResumen(state) && isPositiveAck(analysis)) {
-      return decideConfirmacion(state, gates)
-    }
-    else {
-      return {
-        action: 'silence',
-        timerSignal: { type: 'start', level: 'silence', reason: 'ack sin contexto confirmatorio' },
-        reason: 'Acknowledgment sin contexto confirmatorio',
+
+    if (phase === 'promos_shown' && !gates.packElegido) {
+      // Ack in promos_shown without pack -> fall through to R9
+      // (keep conversation going)
+    } else {
+      // Default acknowledgment -> silence
+      const match = resolveTransition(phase, 'acknowledgment', state, gates)
+      if (match) {
+        // If match returns empty templateIntents, it's the promos_shown exception -> fall through to R9
+        if (match.output.templateIntents.length === 0 && match.action === 'silence') {
+          // Fall through to R9
+        } else {
+          return transitionToDecision(match.action, match.output)
+        }
       }
     }
   }
 
-  // ================================================================
-  // R4: rechazar → farewell
-  // ================================================================
-  if (intent === 'rechazar') {
-    return {
-      action: 'respond',
-      templateIntents: ['rechazar'],
-      timerSignal: { type: 'cancel', reason: 'rechazo' },
-      reason: 'Cliente rechazo',
-    }
+  // ------------------------------------------------------------------
+  // 5. Intent -> transition table lookup
+  // ------------------------------------------------------------------
+  const match = resolveTransition(phase, intent, state, gates)
+  if (match) {
+    return transitionToDecision(match.action, match.output)
   }
 
-  // ================================================================
-  // R5: confirmar + datosOk + packElegido → create order
-  // ================================================================
-  if (intent === 'confirmar') {
-    return decideConfirmacion(state, gates)
-  }
-
-  // ================================================================
-  // R6: seleccion_pack → confirmacion or pedir datos
-  // ================================================================
-  if (intent === 'seleccion_pack') {
-    if (gates.datosOk) {
-      return {
-        action: 'respond',
-        templateIntents: [getResumenIntent(state.pack!)],
-        extraContext: buildResumenContext(state),
-        timerSignal: { type: 'start', level: 'L4', reason: 'pack elegido, esperando confirmacion' },
-        reason: `Pack=${state.pack} + datosOk → resumen`,
-      }
-    }
-    return {
-      action: 'respond',
-      templateIntents: ['pedir_datos'],
-      extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
-      enterCaptura: true,
-      timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada (tiene pack, faltan datos)' },
-      reason: `Pack=${state.pack} pero faltan: ${camposFaltantes(state).join(', ')}`,
-    }
-  }
-
-  // ================================================================
-  // R7: quiero_comprar → promos or pedir datos
-  // ================================================================
-  if (intent === 'quiero_comprar') {
-    if (gates.datosOk && !hasShownPromos(state)) {
-      return {
-        action: 'respond',
-        templateIntents: ['promociones'],
-        timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas' },
-        reason: 'Quiere comprar + datosOk → promos',
-      }
-    }
-    if (!gates.datosOk) {
-      return {
-        action: 'respond',
-        templateIntents: ['pedir_datos'],
-        extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
-        enterCaptura: true,
-        timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada por quiero_comprar' },
-        reason: 'Quiere comprar, faltan datos',
-      }
-    }
-    // datosOk + promos ya mostradas → fall through to R9
-  }
-
-  // ================================================================
-  // R8: datosOk + packElegido + promos mostradas → auto confirmacion
-  // ================================================================
-  if (
-    gates.datosOk &&
-    gates.packElegido &&
-    hasShownPromos(state) &&
-    !hasShownResumen(state)
-  ) {
-    return {
-      action: 'respond',
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
-      timerSignal: { type: 'start', level: 'L4', reason: 'auto-resumen' },
-      reason: 'Auto-resumen: datos completos + pack + promos vistas',
-    }
-  }
-
-  // ================================================================
-  // R9: Default → respond with intent templates
-  // ================================================================
+  // ------------------------------------------------------------------
+  // 6. Fallback (R9) -> respond with intent templates
+  // ------------------------------------------------------------------
   const intentsAResponder: string[] = [intent]
   if (analysis.intent.secondary !== 'ninguno') {
     intentsAResponder.push(analysis.intent.secondary)
@@ -229,33 +120,28 @@ export function decide(
 }
 
 // ============================================================================
-// Sub-decisions
+// Transition -> Decision Converter
 // ============================================================================
 
-function decideConfirmacion(state: AgentState, gates: Gates): Decision {
-  if (!gates.datosOk) {
-    return {
-      action: 'respond',
-      templateIntents: ['pedir_datos'],
-      extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
-      enterCaptura: true,
-      reason: 'Confirmo pero faltan datos',
-    }
-  }
-  if (!gates.packElegido) {
-    return {
-      action: 'respond',
-      templateIntents: ['promociones'],
-      timerSignal: { type: 'start', level: 'L3', reason: 'confirmo sin pack → promos' },
-      reason: 'Confirmo pero no ha elegido pack',
-    }
-  }
+/**
+ * Convert a TransitionOutput (from the transition table) to a Decision.
+ * Maps TipoAccion to DecisionAction (only 4 values: respond, silence, handoff, create_order).
+ * Exported for use in Plan 03 (system event second-pass in agent orchestrator).
+ */
+export function transitionToDecision(action: TipoAccion, output: TransitionOutput): Decision {
+  const decisionAction: DecisionAction =
+    action === 'crear_orden' ? 'create_order'
+    : action === 'handoff' ? 'handoff'
+    : action === 'silence' ? 'silence'
+    : 'respond'
+
   return {
-    action: 'create_order',
-    templateIntents: ['confirmacion_orden'],
-    extraContext: buildResumenContext(state),
-    timerSignal: { type: 'cancel', reason: 'orden creada' },
-    reason: 'Confirmacion con datos completos + pack',
+    action: decisionAction,
+    templateIntents: output.templateIntents.length > 0 ? output.templateIntents : undefined,
+    extraContext: output.extraContext,
+    timerSignal: output.timerSignal,
+    enterCaptura: output.enterCaptura,
+    reason: output.reason,
   }
 }
 
@@ -263,23 +149,9 @@ function decideConfirmacion(state: AgentState, gates: Gates): Decision {
 // Helpers
 // ============================================================================
 
-function getResumenIntent(pack: '1x' | '2x' | '3x'): string {
-  return `resumen_${pack}`
-}
-
 function isPositiveAck(analysis: MessageAnalysis): boolean {
   return (
     analysis.classification.sentiment === 'positivo' ||
     analysis.intent.primary === 'confirmar'
   )
-}
-
-function hasShownPromos(state: AgentState): boolean {
-  return state.accionesEjecutadas.includes('ofrecer_promos') ||
-    state.intentsVistos.includes('promociones')
-}
-
-function hasShownResumen(state: AgentState): boolean {
-  return state.accionesEjecutadas.includes('mostrar_confirmacion') ||
-    state.templatesMostrados.some(t => t.includes('resumen'))
 }

@@ -93,13 +93,12 @@ export interface TimerSignal {
 export type IngestAction =
   | 'silent'          // Accumulate data, don't respond
   | 'respond'         // Continue to decision engine
-  | 'ask_ofi_inter'   // Ask about delivery preference
 
 export interface IngestResult {
   action: IngestAction
   timerSignal?: TimerSignal
-  /** Override decision with auto-trigger */
-  autoTrigger?: 'ofrecer_promos' | 'mostrar_confirmacion'
+  /** System event emitted by ingest (replaces autoTrigger) */
+  systemEvent?: SystemEvent
 }
 
 // ============================================================================
@@ -117,7 +116,6 @@ export interface ProcessedMessage {
 export interface ResponseResult {
   messages: ProcessedMessage[]
   templateIdsSent: string[]
-  mostradoUpdates: string[]
 }
 
 // ============================================================================
@@ -183,7 +181,7 @@ export interface V3AgentOutput {
   }
   ingestInfo?: {
     action: string
-    autoTrigger?: string
+    systemEvent?: { type: string; [k: string]: unknown }
   }
 }
 

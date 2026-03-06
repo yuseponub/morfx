@@ -97,7 +97,7 @@ export type IngestAction =
 export interface IngestResult {
   action: IngestAction
   timerSignal?: TimerSignal
-  /** System event emitted by ingest (replaces autoTrigger) */
+  /** System event emitted by ingest */
   systemEvent?: SystemEvent
 }
 

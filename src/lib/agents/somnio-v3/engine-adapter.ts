@@ -160,7 +160,7 @@ function adaptOutput(v3: V3AgentOutput): EngineCompatibleOutput {
       ? {
           classification: v3.classificationInfo?.category,
           action: v3.ingestInfo.action,
-          autoTrigger: v3.ingestInfo.autoTrigger,
+          systemEvent: v3.ingestInfo.systemEvent,
         }
       : undefined,
   }

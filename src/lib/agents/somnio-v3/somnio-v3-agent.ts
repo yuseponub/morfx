@@ -188,18 +188,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       mergedState.enCapturaSilenciosa = false
     }
 
-    // Track action
-    if (decision.action === 'respond' && decision.templateIntents) {
-      for (const ti of decision.templateIntents) {
-        if (ti === 'promociones' || ti === 'quiero_comprar') {
-          mergedState.accionesEjecutadas.push('ofrecer_promos')
-        }
-        if (ti.startsWith('resumen')) {
-          mergedState.accionesEjecutadas.push('mostrar_confirmacion')
-        }
-      }
-    }
-
     // Handle silence decision
     if (decision.action === 'silence') {
       const serialized = serializeState(mergedState)
@@ -276,10 +264,17 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         mergedState.templatesMostrados.push(tid)
       }
     }
-    for (const action of responseResult.mostradoUpdates) {
-      if (!mergedState.accionesEjecutadas.includes(action)) {
-        mergedState.accionesEjecutadas.push(action)
-      }
+
+    // Register action (SINGLE registration point — D3)
+    const actionToRegister = determineAction(decision, systemEvent, ingestResult)
+    if (actionToRegister) {
+      mergedState.accionesEjecutadas.push({
+        tipo: actionToRegister,
+        turno: mergedState.turnCount,
+        origen: systemEvent ? 'timer'
+              : ingestResult.systemEvent ? 'ingest'
+              : 'bot',
+      })
     }
 
     // ------------------------------------------------------------------
@@ -328,7 +323,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       ingestInfo: {
         action: ingestResult.action,
         systemEvent: ingestResult.systemEvent
-          ? { type: ingestResult.systemEvent.type, ...ingestResult.systemEvent }
+          ? { ...ingestResult.systemEvent }
           : undefined,
       },
     }
@@ -364,12 +359,43 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
  * Maps v3 internal state to engine-compatible mode names.
  */
 function computeMode(state: AgentState): string {
-  if (state.accionesEjecutadas.includes('crear_orden')) return 'orden_creada'
-  if (state.accionesEjecutadas.includes('mostrar_confirmacion')) return 'confirmacion'
-  if (state.accionesEjecutadas.includes('ofrecer_promos')) return 'promos'
+  if (hasAction(state.accionesEjecutadas, 'crear_orden')) return 'orden_creada'
+  if (hasAction(state.accionesEjecutadas, 'mostrar_confirmacion')) return 'confirmacion'
+  if (hasAction(state.accionesEjecutadas, 'ofrecer_promos')) return 'promos'
   if (state.enCapturaSilenciosa) {
     return state.ofiInter ? 'captura_inter' : 'captura'
   }
   if (state.turnCount === 0) return 'nuevo'
   return 'conversacion'
+}
+
+// ============================================================================
+// Action Determination
+// ============================================================================
+
+/**
+ * Determine which action to register based on the decision.
+ * Returns null if no meaningful action to register (e.g., generic responses).
+ */
+function determineAction(
+  decision: Decision,
+  systemEvent: SystemEvent | undefined,
+  ingestResult: { systemEvent?: SystemEvent },
+): TipoAccion | null {
+  if (decision.action === 'create_order') return 'crear_orden'
+  if (decision.action === 'handoff') return 'handoff'
+  if (decision.action === 'silence') return 'silence'
+
+  // For 'respond' decisions, determine from templateIntents
+  const ti = decision.templateIntents ?? []
+  if (ti.includes('promociones') || ti.includes('quiero_comprar')) return 'ofrecer_promos'
+  if (ti.some(t => t.startsWith('resumen'))) return 'mostrar_confirmacion'
+  if (ti.includes('pedir_datos') || ti.includes('captura_datos_si_compra')) return 'pedir_datos'
+  if (ti.includes('ask_ofi_inter')) return 'ask_ofi_inter'
+  if (ti.includes('no_interesa')) return 'no_interesa'
+  if (ti.includes('rechazar') || ti.includes('no_confirmado')) return 'rechazar'
+  if (ti.includes('confirmacion_orden')) return 'crear_orden'
+
+  // R9 fallback (saludo, precio, etc.) — no action to register
+  return null
 }

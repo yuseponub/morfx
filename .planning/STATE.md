@@ -14,7 +14,7 @@ Plan: 1 of 2 complete (01)
 Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
-Last activity: 2026-03-06 — Completed sm-03: Pipeline integration (single action registration, SystemEvent routing)
+Last activity: 2026-03-07 — Completed quick-010: Filtro por etiqueta en inbox WhatsApp
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 

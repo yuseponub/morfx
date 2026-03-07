@@ -1,9 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Bot, Plus, UserRoundSearch } from 'lucide-react'
+import { Bot, Plus, Tag, UserRoundSearch } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { getTagsForScope } from '@/app/actions/tags'
+import { cn } from '@/lib/utils'
 import { useConversations } from '@/hooks/use-conversations'
 import { InboxFilters } from './filters/inbox-filters'
 import { SearchInput } from './filters/search-input'
@@ -40,6 +47,9 @@ export function ConversationList({
 }: ConversationListProps) {
   const [showNewModal, setShowNewModal] = useState(false)
   const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [tagFilterOpen, setTagFilterOpen] = useState(false)
+  const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string; color: string }>>([])
 
   const {
     conversations,
@@ -65,6 +75,12 @@ export function ConversationList({
   useEffect(() => {
     onRefreshOrdersReady?.(refreshOrders)
   }, [onRefreshOrdersReady, refreshOrders])
+
+  // Load whatsapp-scope tags when filter popover opens
+  useEffect(() => {
+    if (!tagFilterOpen) return
+    getTagsForScope('whatsapp').then(setAvailableTags).catch(console.error)
+  }, [tagFilterOpen])
 
   // Sync selected conversation when realtime updates arrive
   // This ensures the chat header shows current window status
@@ -100,13 +116,17 @@ export function ConversationList({
     onSelect(conversationId)
   }
 
-  // Apply agent filter after existing search/filter logic
+  // Apply agent + tag filters after existing search/filter logic
   const filteredConversations = useMemo(() => {
-    if (agentFilter === 'all') return conversations
-    // Show conversations where agent is explicitly enabled (true)
-    // agent_conversational !== false means: true or null (inheriting global)
-    return conversations.filter(c => c.agent_conversational !== false)
-  }, [conversations, agentFilter])
+    let result = conversations
+    if (agentFilter === 'agent-attended') {
+      result = result.filter(c => c.agent_conversational !== false)
+    }
+    if (tagFilter) {
+      result = result.filter(c => c.tags?.some(t => t.id === tagFilter))
+    }
+    return result
+  }, [conversations, agentFilter, tagFilter])
 
   return (
     <div className="flex flex-col h-full">
@@ -165,6 +185,50 @@ export function ConversationList({
           >
             <Bot className="h-4 w-4" />
           </Button>
+          {/* Tag filter */}
+          <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={tagFilter ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                title={tagFilter
+                  ? `Filtrando: ${availableTags.find(t => t.id === tagFilter)?.name || 'tag'}`
+                  : 'Filtrar por etiqueta'}
+              >
+                <Tag className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-2" align="start">
+              <div className="space-y-1">
+                {tagFilter && (
+                  <button
+                    onClick={() => { setTagFilter(null); setTagFilterOpen(false) }}
+                    className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
+                  >
+                    Quitar filtro
+                  </button>
+                )}
+                {availableTags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-2 py-1.5">Sin etiquetas</p>
+                ) : (
+                  availableTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => { setTagFilter(tag.id); setTagFilterOpen(false) }}
+                      className={cn(
+                        "w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2",
+                        tagFilter === tag.id && "bg-accent font-medium"
+                      )}
+                    >
+                      <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                      {tag.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -177,7 +241,9 @@ export function ConversationList({
         ) : filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <p className="text-muted-foreground">
-              {agentFilter === 'agent-attended'
+              {tagFilter
+                ? 'No hay conversaciones con esta etiqueta'
+                : agentFilter === 'agent-attended'
                 ? 'No hay conversaciones con agente activo'
                 : hasQuery
                   ? 'No se encontraron conversaciones'
@@ -224,7 +290,7 @@ export function ConversationList({
       </ScrollArea>
 
       {/* Results count when searching or filtering */}
-      {(hasQuery || agentFilter === 'agent-attended') && filteredConversations.length > 0 && (
+      {(hasQuery || agentFilter === 'agent-attended' || tagFilter) && filteredConversations.length > 0 && (
         <div className="p-2 border-t text-xs text-muted-foreground text-center">
           {filteredConversations.length} resultado{filteredConversations.length !== 1 && 's'}
         </div>

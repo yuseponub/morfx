@@ -17,7 +17,7 @@ interface SearchInputProps {
 export function SearchInput({
   value,
   onChange,
-  placeholder = 'Buscar conversaciones...',
+  placeholder = 'Buscar...',
 }: SearchInputProps) {
   const [localValue, setLocalValue] = useState(value)
 

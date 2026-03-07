@@ -68,7 +68,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 8 completed
+- Quick fixes: 9 completed
 
 ## Performance Metrics
 
@@ -319,6 +319,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 007 | Soporte tag P/A en subir ordenes Coordinadora | 2026-03-05 | 622dadb | [007-pago-anticipado-coordinadora](./quick/007-pago-anticipado-coordinadora/) |
 | 008 | Validacion COD en robot Coordinadora | 2026-03-06 | 91a544c | [008-validacion-cod-coordinadora](./quick/008-validacion-cod-coordinadora/) |
 | 009 | accionesEjecutadas como campo propio en sandbox v3 | 2026-03-07 | 263fca8 | [009-acciones-ejecutadas-campo-propio-sandbox-v3](./quick/009-acciones-ejecutadas-campo-propio-sandbox-v3/) |
+| 010 | Filtro por etiqueta en inbox WhatsApp | 2026-03-07 | e45c03f | [010-filtro-tag-inbox-whatsapp](./quick/010-filtro-tag-inbox-whatsapp/) |
 
 ### Blockers/Concerns
 
@@ -327,6 +328,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07 COT
-Stopped at: Completed quick-009 — accionesEjecutadas como campo propio en sandbox v3
+Stopped at: Completed quick-010 — Filtro por etiqueta en inbox WhatsApp
 Resume file: None
 Next: sm-04 (testing) or Phase 35 Plan 03 or Phase 36 Plan 02

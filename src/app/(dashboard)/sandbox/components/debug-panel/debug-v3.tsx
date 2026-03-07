@@ -577,6 +577,7 @@ function ContextoRawSection({ state, turn }: { state: SandboxState; turn: DebugT
     packSeleccionado: state.packSeleccionado,
     intentsVistos: state.intentsVistos ?? [],
     templatesEnviados: state.templatesEnviados ?? [],
+    accionesEjecutadas: state.accionesEjecutadas ?? [],
     // Last turn debug data (if available)
     ...(turn ? {
       _lastTurn: {

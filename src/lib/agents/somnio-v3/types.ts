@@ -168,9 +168,6 @@ export interface V3AgentOutput {
 
   timerSignals: TimerSignal[]
 
-  /** Acciones ejecutadas (exposed as top-level field for sandbox state) */
-  accionesEjecutadas?: AccionRegistrada[]
-
   /** Debug info */
   decisionInfo?: {
     action: string

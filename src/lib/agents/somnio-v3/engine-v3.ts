@@ -53,7 +53,6 @@ export class SomnioV3Engine {
         templatesEnviados: output.templatesEnviados,
         datosCapturados: output.datosCapturados,
         packSeleccionado: output.packSeleccionado as PackSelection | null,
-        accionesEjecutadas: output.accionesEjecutadas,
       }
 
       // Pick the last timer signal (most relevant — decision overrides ingest)

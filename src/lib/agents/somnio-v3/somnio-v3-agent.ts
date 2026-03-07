@@ -154,7 +154,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         ingestInfo: {
           action: 'silent',
         },
-        accionesEjecutadas: mergedState.accionesEjecutadas,
       }
     }
 
@@ -221,7 +220,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           sentiment: analysis.classification.sentiment,
           is_acknowledgment: analysis.classification.is_acknowledgment,
         },
-        accionesEjecutadas: mergedState.accionesEjecutadas,
       }
     }
 
@@ -252,7 +250,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           reason: decision.reason,
           gates,
         },
-        accionesEjecutadas: mergedState.accionesEjecutadas,
       }
     }
 
@@ -329,7 +326,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           ? { ...ingestResult.systemEvent }
           : undefined,
       },
-      accionesEjecutadas: mergedState.accionesEjecutadas,
     }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)

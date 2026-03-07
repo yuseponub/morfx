@@ -110,7 +110,7 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
       name: 'Ingest',
       status: turn.ingestDetails ? 'ok' : 'skip',
       detail: turn.ingestDetails
-        ? `${(turn.ingestDetails as any).action ?? '?'}${(turn.ingestDetails as any).systemEvent ? ` → ${(turn.ingestDetails as any).systemEvent.type}` : ''}`
+        ? `${(turn.ingestDetails as any).action ?? '?'}${(turn.ingestDetails as any).autoTrigger ? ` → ${(turn.ingestDetails as any).autoTrigger}` : ''}`
         : null,
     },
     {
@@ -223,29 +223,6 @@ function StateSection({ state, turn }: { state: SandboxState; turn: DebugTurn | 
           )
         })}
       </div>
-
-      {/* Acciones Ejecutadas */}
-      {(state.accionesEjecutadas?.length ?? 0) > 0 && (
-        <div className="space-y-1.5">
-          <span className="font-medium text-xs">Acciones Ejecutadas</span>
-          <div className="flex flex-wrap gap-1">
-            {state.accionesEjecutadas!.map((a, idx) => (
-              <Badge
-                key={idx}
-                variant="outline"
-                className={`text-[10px] ${
-                  a.tipo === 'crear_orden' ? 'border-green-500 text-green-700'
-                    : a.tipo === 'handoff' ? 'border-red-500 text-red-700'
-                      : a.tipo === 'ofrecer_promos' || a.tipo === 'mostrar_confirmacion' ? 'border-blue-500 text-blue-700'
-                        : 'border-gray-400'
-                }`}
-              >
-                {a.tipo} <span className="opacity-50 ml-0.5">t{a.turno}</span>
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Templates enviados count */}
       <div className="text-xs text-muted-foreground">
@@ -468,9 +445,9 @@ function IngestTimersSection({
               {ingest.action}
             </Badge>
           )}
-          {ingest?.systemEvent && (
+          {ingest?.autoTrigger && (
             <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-700">
-              event: {ingest.systemEvent.type}
+              auto: {ingest.autoTrigger}
             </Badge>
           )}
         </div>

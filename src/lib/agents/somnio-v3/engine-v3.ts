@@ -41,6 +41,7 @@ export class SomnioV3Engine {
         templatesEnviados: input.state.templatesEnviados ?? [],
         datosCapturados: input.state.datosCapturados ?? {},
         packSeleccionado: input.state.packSeleccionado ?? null,
+        accionesEjecutadas: input.state.accionesEjecutadas ?? [],
         history: input.history,
         turnNumber: input.turnNumber,
         workspaceId: input.workspaceId,
@@ -53,7 +54,12 @@ export class SomnioV3Engine {
         templatesEnviados: output.templatesEnviados,
         datosCapturados: output.datosCapturados,
         packSeleccionado: output.packSeleccionado as PackSelection | null,
+        accionesEjecutadas: output.accionesEjecutadas,
       }
+
+      // Clean stale _v3: keys from datosCapturados (now flow as own fields)
+      delete newState.datosCapturados['_v3:accionesEjecutadas']
+      delete newState.datosCapturados['_v3:templatesMostrados']
 
       // Pick the last timer signal (most relevant — decision overrides ingest)
       const lastTimerSignal = output.timerSignals.length > 0
@@ -106,7 +112,7 @@ export class SomnioV3Engine {
           ingestDetails: output.ingestInfo ? {
             action: output.ingestInfo.action as DebugIngestDetails['action'],
             systemEvent: output.ingestInfo.systemEvent,
-          } as DebugIngestDetails & { systemEvent?: { type: string; [k: string]: unknown } } : undefined,
+          } satisfies DebugIngestDetails : undefined,
         },
         silenceDetected: output.silenceDetected,
       }

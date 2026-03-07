@@ -63,6 +63,7 @@ export class SandboxEngine {
       templatesEnviados: [],
       datosCapturados: {},
       packSeleccionado: null,
+      accionesEjecutadas: [],
       ingestStatus: undefined,
     }
   }
@@ -285,6 +286,7 @@ export class SandboxEngine {
           ? mergeExtractedData(currentState.datosCapturados, orchestratorResult.stateUpdates.datosCapturados)
           : currentState.datosCapturados,
         packSeleccionado: orchestratorResult.stateUpdates?.packSeleccionado ?? currentState.packSeleccionado,
+        accionesEjecutadas: currentState.accionesEjecutadas ?? [],
         ingestStatus: currentState.ingestStatus,
       }
 

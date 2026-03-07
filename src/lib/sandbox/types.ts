@@ -8,6 +8,7 @@
 
 import type { IntentResult, SessionState, ToolCallRecord, PackSelection, ModelTokenEntry } from '@/lib/agents/types'
 import type { MessageClassification } from '@/lib/agents/somnio/message-classifier'
+import type { AccionRegistrada } from '@/lib/agents/somnio-v3/types'
 
 /**
  * Message in sandbox conversation
@@ -141,6 +142,7 @@ export interface DebugIngestDetails {
   extractedFields?: { field: string; value: string }[]
   action?: 'silent' | 'respond' | 'complete' | 'ask_ofi_inter'
   implicitYes?: { triggered: boolean; dataFound: boolean; modeTransition?: string }
+  systemEvent?: { type: string; [k: string]: unknown }
 }
 
 /** Disambiguation log debug info */
@@ -213,6 +215,8 @@ export interface SandboxState {
   templatesEnviados: string[]
   datosCapturados: Record<string, string>
   packSeleccionado: PackSelection | null
+  /** Acciones ejecutadas as first-class field (quick-009) */
+  accionesEjecutadas: AccionRegistrada[]
   /** Ingest tracking for debug visibility (Phase 15.5) */
   ingestStatus?: IngestStatus
 }

@@ -55,6 +55,7 @@ export class SomnioV2Engine {
         templatesEnviados: output.templatesEnviados,
         datosCapturados: output.datosCapturados,
         packSeleccionado: output.packSeleccionado as PackSelection | null,
+        accionesEjecutadas: [],
       }
 
       return {

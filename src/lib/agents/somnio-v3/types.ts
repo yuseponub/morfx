@@ -131,6 +131,8 @@ export interface V3AgentInput {
   templatesEnviados: string[]
   datosCapturados: Record<string, string>
   packSeleccionado: string | null
+  /** Acciones ejecutadas as first-class field (quick-009) */
+  accionesEjecutadas?: AccionRegistrada[]
   turnNumber: number
   workspaceId: string
   forceIntent?: string
@@ -148,6 +150,8 @@ export interface V3AgentOutput {
   templatesEnviados: string[]
   datosCapturados: Record<string, string>
   packSeleccionado: string | null
+  /** Acciones ejecutadas as first-class field (quick-009) */
+  accionesEjecutadas: AccionRegistrada[]
 
   intentInfo: {
     intent: string

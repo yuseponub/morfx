@@ -43,6 +43,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       input.packSeleccionado,
       input.intentsVistos,
       input.templatesEnviados,
+      input.accionesEjecutadas ?? [],
     )
     const prevState = { ...state, datos: { ...state.datos } }
 
@@ -135,6 +136,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         templatesEnviados: serialized.templatesEnviados,
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
+        accionesEjecutadas: serialized.accionesEjecutadas,
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -199,6 +201,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         templatesEnviados: serialized.templatesEnviados,
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
+        accionesEjecutadas: serialized.accionesEjecutadas,
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -234,6 +237,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         templatesEnviados: serialized.templatesEnviados,
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
+        accionesEjecutadas: serialized.accionesEjecutadas,
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -292,6 +296,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       templatesEnviados: serialized.templatesEnviados,
       datosCapturados: serialized.datosCapturados,
       packSeleccionado: serialized.packSeleccionado,
+      accionesEjecutadas: serialized.accionesEjecutadas,
       intentInfo: {
         intent: analysis.intent.primary,
         confidence: analysis.intent.confidence,
@@ -337,6 +342,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       templatesEnviados: input.templatesEnviados,
       datosCapturados: input.datosCapturados,
       packSeleccionado: input.packSeleccionado,
+      accionesEjecutadas: input.accionesEjecutadas ?? [],
       intentInfo: {
         intent: 'otro',
         confidence: 0,

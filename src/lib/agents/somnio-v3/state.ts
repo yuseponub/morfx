@@ -222,6 +222,7 @@ export function serializeState(state: AgentState): {
   packSeleccionado: string | null
   intentsVistos: string[]
   templatesEnviados: string[]
+  accionesEjecutadas: AccionRegistrada[]
 } {
   const datosCapturados: Record<string, string> = {}
 
@@ -234,8 +235,8 @@ export function serializeState(state: AgentState): {
   datosCapturados[`${V3_META_PREFIX}ofiInter`] = String(state.ofiInter)
   datosCapturados[`${V3_META_PREFIX}enCaptura`] = String(state.enCapturaSilenciosa)
   datosCapturados[`${V3_META_PREFIX}turnCount`] = String(state.turnCount)
-  datosCapturados[`${V3_META_PREFIX}accionesEjecutadas`] = JSON.stringify(state.accionesEjecutadas)
-  datosCapturados[`${V3_META_PREFIX}templatesMostrados`] = JSON.stringify(state.templatesMostrados)
+  // NOTE: accionesEjecutadas now flows as its own field (quick-009), not inside datosCapturados
+  // NOTE: templatesMostrados already flows via templatesEnviados
 
   // Negations
   if (state.negaciones.correo) datosCapturados[`${V3_META_PREFIX}neg_correo`] = 'true'
@@ -247,6 +248,7 @@ export function serializeState(state: AgentState): {
     packSeleccionado: state.pack,
     intentsVistos: state.intentsVistos,
     templatesEnviados: state.templatesMostrados,
+    accionesEjecutadas: state.accionesEjecutadas,
   }
 }
 
@@ -258,6 +260,7 @@ export function deserializeState(
   packSeleccionado: string | null,
   intentsVistos: string[],
   templatesEnviados: string[],
+  accionesEjecutadas: AccionRegistrada[] = [],
 ): AgentState {
   const state = createInitialState()
 
@@ -283,34 +286,33 @@ export function deserializeState(
   state.enCapturaSilenciosa = datosCapturados[`${V3_META_PREFIX}enCaptura`] === 'true'
   state.turnCount = parseInt(datosCapturados[`${V3_META_PREFIX}turnCount`] || '0', 10)
 
-  // Restore acciones ejecutadas (backward compatible: string[] -> AccionRegistrada[])
-  try {
-    const raw = datosCapturados[`${V3_META_PREFIX}accionesEjecutadas`]
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) {
-        if (parsed.length === 0) {
-          state.accionesEjecutadas = []
-        } else if (typeof parsed[0] === 'string') {
-          // OLD FORMAT: string[] -> convert to AccionRegistrada[]
-          state.accionesEjecutadas = parsed.map((tipo: string) => ({
-            tipo: tipo as TipoAccion,
-            turno: 0,
-            origen: 'bot' as const,
-          }))
-        } else {
-          // NEW FORMAT: AccionRegistrada[]
-          state.accionesEjecutadas = parsed
+  // Restore acciones ejecutadas: prefer first-class parameter, fallback to datosCapturados (backward compat)
+  if (accionesEjecutadas.length > 0) {
+    state.accionesEjecutadas = accionesEjecutadas
+  } else {
+    // Backward compat: parse from datosCapturados if field not passed (production sessions with old format)
+    try {
+      const raw = datosCapturados[`${V3_META_PREFIX}accionesEjecutadas`]
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          if (parsed.length === 0) {
+            state.accionesEjecutadas = []
+          } else if (typeof parsed[0] === 'string') {
+            // OLD FORMAT: string[] -> convert to AccionRegistrada[]
+            state.accionesEjecutadas = parsed.map((tipo: string) => ({
+              tipo: tipo as TipoAccion,
+              turno: 0,
+              origen: 'bot' as const,
+            }))
+          } else {
+            // NEW FORMAT: AccionRegistrada[]
+            state.accionesEjecutadas = parsed
+          }
         }
       }
-    }
-  } catch { /* keep default */ }
-
-  // Restore templates mostrados from metadata (if present)
-  try {
-    const raw = datosCapturados[`${V3_META_PREFIX}templatesMostrados`]
-    if (raw) state.templatesMostrados = JSON.parse(raw)
-  } catch { /* keep default */ }
+    } catch { /* keep default */ }
+  }
 
   // Restore negations
   state.negaciones.correo = datosCapturados[`${V3_META_PREFIX}neg_correo`] === 'true'

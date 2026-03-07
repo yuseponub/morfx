@@ -191,6 +191,9 @@ export class CoordinadoraAdapter {
     // Wait for the form to be ready (matching old robot: 3 seconds)
     await this.page.waitForTimeout(3000)
 
+    // Detect and dismiss SweetAlert "Error de conexión" that intermittently blocks the form
+    await this.dismissConnectionErrorAlert()
+
     // Verify key field is visible
     await this.page.waitForSelector('input[name="identificacion_destinatario"]', {
       state: 'visible',
@@ -198,6 +201,68 @@ export class CoordinadoraAdapter {
     })
 
     console.log(`${LOG_PREFIX} Form ready`)
+  }
+
+  /**
+   * Detect and dismiss the intermittent SweetAlert "Error de conexión" modal.
+   * If found, clicks "Volver a intentar" or closes it, then re-navigates to a clean form.
+   */
+  private async dismissConnectionErrorAlert(): Promise<void> {
+    if (!this.page) return
+
+    try {
+      const swalPopup = this.page.locator('.swal2-popup')
+      const swalVisible = await swalPopup.isVisible().catch(() => false)
+
+      if (!swalVisible) return
+
+      const swalText = await this.page.locator('.swal2-html-container, .swal2-content, .swal2-title')
+        .first().textContent().catch(() => '')
+
+      console.log(`${LOG_PREFIX} SweetAlert detected on form load: "${swalText}"`)
+      await this.takeScreenshot('connection-error-alert')
+
+      if (swalText && (swalText.includes('conexión') || swalText.includes('conexion') || swalText.includes('actualiza'))) {
+        // Try "Volver a intentar" button first, then fallback to confirm button
+        const retryBtn = this.page.locator('.swal2-confirm:has-text("intentar"), .swal2-confirm:has-text("Volver"), button:has-text("Volver a intentar")')
+        const retryExists = await retryBtn.count().catch(() => 0)
+
+        if (retryExists > 0) {
+          await retryBtn.first().click()
+          console.log(`${LOG_PREFIX} Clicked "Volver a intentar"`)
+        } else {
+          // Fallback: click any confirm/close button
+          await this.page.locator('.swal2-confirm, .swal2-close').first().click().catch(() => {})
+          console.log(`${LOG_PREFIX} Closed connection error alert`)
+        }
+
+        await this.page.waitForTimeout(2000)
+
+        // Re-navigate to get a clean form
+        console.log(`${LOG_PREFIX} Re-navigating to form after connection error`)
+        await this.page.goto(
+          'https://ff.coordinadora.com/panel/agregar_pedidos/coordinadora',
+          { waitUntil: 'domcontentloaded', timeout: 30000 }
+        )
+        await this.page.waitForTimeout(3000)
+
+        // Check if the alert reappeared
+        const stillVisible = await this.page.locator('.swal2-popup').isVisible().catch(() => false)
+        if (stillVisible) {
+          console.error(`${LOG_PREFIX} Connection error persists after retry`)
+          await this.takeScreenshot('connection-error-persistent')
+          // Close it so we can at least try
+          await this.page.locator('.swal2-confirm, .swal2-close').first().click().catch(() => {})
+          await this.page.waitForTimeout(1000)
+        }
+      } else {
+        // Unknown swal on load — just close it
+        await this.page.locator('.swal2-confirm, .swal2-close').first().click().catch(() => {})
+        await this.page.waitForTimeout(500)
+      }
+    } catch (err) {
+      console.error(`${LOG_PREFIX} Error handling connection alert:`, err)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -521,7 +586,30 @@ export class CoordinadoraAdapter {
       await this.page.keyboard.press('Enter')
       await this.page.waitForTimeout(500)
 
-      console.log(`${LOG_PREFIX} City autocomplete filled: ${city}`)
+      // Verify the city was actually selected (not left empty)
+      const selectedValue = await cityInput.inputValue().catch(() => '')
+      if (!selectedValue || selectedValue.trim().length < 3) {
+        console.log(`${LOG_PREFIX} City input empty after first attempt, retrying...`)
+        await cityInput.click()
+        await cityInput.fill('')
+        await this.page.waitForTimeout(300)
+        await cityInput.fill(city)
+        await this.page.waitForTimeout(2500) // longer wait for dropdown
+        await this.page.keyboard.press('ArrowDown')
+        await this.page.waitForTimeout(300)
+        await this.page.keyboard.press('Enter')
+        await this.page.waitForTimeout(500)
+
+        const retryValue = await cityInput.inputValue().catch(() => '')
+        if (!retryValue || retryValue.trim().length < 3) {
+          console.error(`${LOG_PREFIX} City autocomplete FAILED after retry. Value: "${retryValue}"`)
+          await this.takeScreenshot('city-autocomplete-failed')
+        } else {
+          console.log(`${LOG_PREFIX} City autocomplete filled on retry: ${retryValue}`)
+        }
+      } else {
+        console.log(`${LOG_PREFIX} City autocomplete filled: ${selectedValue}`)
+      }
     } catch (err) {
       console.error(`${LOG_PREFIX} Failed to fill city autocomplete:`, err)
     }
@@ -529,8 +617,8 @@ export class CoordinadoraAdapter {
 
   /**
    * Handle recaudo (COD) via radio buttons.
-   * Portal uses: pago_contra_entrega S/N + flete_contra_entrega S/N
-   * Flete is always N.
+   * Portal uses: pago_contra_entrega S/N + flete_contra_entrega S/N (flete may no longer exist).
+   * Checks existence and disabled state before clicking to handle portal changes gracefully.
    */
   private async handleRecaudo(esRecaudo: boolean): Promise<void> {
     if (!this.page) return
@@ -541,28 +629,41 @@ export class CoordinadoraAdapter {
       // Pago contra entrega radio button
       const pagoValue = esRecaudo ? 'S' : 'N'
       const pagoRadio = this.page.locator(`input[name="pago_contra_entrega"][value="${pagoValue}"]`)
-      const pagoChecked = await pagoRadio.isChecked().catch(() => false)
-      if (!pagoChecked) {
-        await pagoRadio.click({ timeout: 5000 })
-        console.log(`${LOG_PREFIX} Clicked pago_contra_entrega=${pagoValue}`)
+      const pagoExists = await pagoRadio.count().catch(() => 0)
+
+      if (pagoExists > 0) {
+        const pagoChecked = await pagoRadio.isChecked().catch(() => false)
+        const pagoDisabled = await pagoRadio.isDisabled().catch(() => false)
+        if (!pagoChecked && !pagoDisabled) {
+          await pagoRadio.click({ timeout: 5000 })
+          console.log(`${LOG_PREFIX} Clicked pago_contra_entrega=${pagoValue}`)
+        } else {
+          console.log(`${LOG_PREFIX} pago_contra_entrega=${pagoValue} skip (checked=${pagoChecked}, disabled=${pagoDisabled})`)
+        }
       } else {
-        console.log(`${LOG_PREFIX} pago_contra_entrega=${pagoValue} already checked`)
+        console.log(`${LOG_PREFIX} pago_contra_entrega field not found, skipping`)
       }
       await this.page.waitForTimeout(500)
 
-      // Flete contra entrega: always NO (may be auto-checked + disabled)
+      // Flete contra entrega: always NO (may no longer exist on portal)
       const fleteRadio = this.page.locator('input[name="flete_contra_entrega"][value="N"]')
-      const fleteChecked = await fleteRadio.isChecked().catch(() => false)
-      const fleteDisabled = await fleteRadio.isDisabled().catch(() => false)
-      if (!fleteChecked && !fleteDisabled) {
-        await fleteRadio.click({ timeout: 5000 })
-        console.log(`${LOG_PREFIX} Clicked flete_contra_entrega=N`)
+      const fleteExists = await fleteRadio.count().catch(() => 0)
+
+      if (fleteExists > 0) {
+        const fleteChecked = await fleteRadio.isChecked().catch(() => false)
+        const fleteDisabled = await fleteRadio.isDisabled().catch(() => false)
+        if (!fleteChecked && !fleteDisabled) {
+          await fleteRadio.click({ timeout: 5000 })
+          console.log(`${LOG_PREFIX} Clicked flete_contra_entrega=N`)
+        } else {
+          console.log(`${LOG_PREFIX} flete_contra_entrega=N skip (checked=${fleteChecked}, disabled=${fleteDisabled})`)
+        }
       } else {
-        console.log(`${LOG_PREFIX} flete_contra_entrega=N already set (checked=${fleteChecked}, disabled=${fleteDisabled})`)
+        console.log(`${LOG_PREFIX} flete_contra_entrega field not found, skipping`)
       }
       await this.page.waitForTimeout(300)
 
-      console.log(`${LOG_PREFIX} Recaudo set: pago=${pagoValue}, flete=N`)
+      console.log(`${LOG_PREFIX} Recaudo handling complete`)
     } catch (err) {
       console.error(`${LOG_PREFIX} Failed to set recaudo:`, err)
     }

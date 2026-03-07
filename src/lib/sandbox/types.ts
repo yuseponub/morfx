@@ -215,6 +215,8 @@ export interface SandboxState {
   packSeleccionado: PackSelection | null
   /** Ingest tracking for debug visibility (Phase 15.5) */
   ingestStatus?: IngestStatus
+  /** Acciones ejecutadas by v3 state machine (typed objects, not strings) */
+  accionesEjecutadas?: Array<{ tipo: string; turno: number; origen: string }>
 }
 
 /**

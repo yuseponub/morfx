@@ -51,6 +51,26 @@ function LegibleState({ state }: { state: SandboxState }) {
         )}
       </div>
 
+      {/* Acciones Ejecutadas */}
+      {(state.accionesEjecutadas?.length ?? 0) > 0 && (
+        <div className="border rounded-lg p-3">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Acciones Ejecutadas
+            <Badge variant="secondary" className="ml-2 text-xs">{state.accionesEjecutadas!.length}</Badge>
+          </h4>
+          <div className="flex flex-wrap items-center gap-1">
+            {state.accionesEjecutadas!.map((a, idx) => (
+              <Fragment key={idx}>
+                {idx > 0 && <span className="text-muted-foreground text-xs">&#8594;</span>}
+                <Badge variant="outline" className="text-xs">
+                  {a.tipo} <span className="text-muted-foreground ml-0.5">t{a.turno}</span>
+                </Badge>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Templates enviados */}
       <div className="border rounded-lg p-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">

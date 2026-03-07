@@ -28,6 +28,7 @@ const INITIAL_STATE: SandboxState = {
   templatesEnviados: [],
   datosCapturados: {},
   packSeleccionado: null,
+  accionesEjecutadas: [],
 }
 
 // Dynamic import for split panel (Allotment has no SSR support)

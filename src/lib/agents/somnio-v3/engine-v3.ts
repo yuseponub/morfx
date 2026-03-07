@@ -107,7 +107,7 @@ export class SomnioV3Engine {
           ingestDetails: output.ingestInfo ? {
             action: output.ingestInfo.action as DebugIngestDetails['action'],
             systemEvent: output.ingestInfo.systemEvent,
-          } as DebugIngestDetails & { systemEvent?: { type: string; [k: string]: unknown } } : undefined,
+          } satisfies DebugIngestDetails : undefined,
         },
         silenceDetected: output.silenceDetected,
       }

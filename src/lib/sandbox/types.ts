@@ -140,6 +140,8 @@ export interface DebugIngestDetails {
   classificationConfidence?: number
   extractedFields?: { field: string; value: string }[]
   action?: 'silent' | 'respond' | 'complete' | 'ask_ofi_inter'
+  /** System event emitted by v3 ingest (replaces autoTrigger for v3) */
+  systemEvent?: { type: string; [k: string]: unknown }
   implicitYes?: { triggered: boolean; dataFound: boolean; modeTransition?: string }
 }
 

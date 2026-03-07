@@ -11,8 +11,9 @@
  * - ProductionStorageAdapter (session persistence)
  */
 
-import type { V3AgentInput, V3AgentOutput } from './types'
+import type { AccionRegistrada, V3AgentInput, V3AgentOutput } from './types'
 import { processMessage } from './somnio-v3-agent'
+import { V3_META_PREFIX } from './constants'
 
 /**
  * SomnioAgentOutput-compatible interface.
@@ -81,6 +82,9 @@ export async function processMessageV3Compatible(params: {
   templatesEnviados: string[]
   packSeleccionado: string | null
 }): Promise<EngineCompatibleOutput> {
+  // Extract accionesEjecutadas from datosCapturados (production stores it there)
+  const accionesEjecutadas = extractAccionesFromDatos(params.datosCapturados)
+
   const input: V3AgentInput = {
     message: params.message,
     history: params.history,
@@ -89,6 +93,7 @@ export async function processMessageV3Compatible(params: {
     templatesEnviados: params.templatesEnviados,
     datosCapturados: params.datosCapturados,
     packSeleccionado: params.packSeleccionado,
+    accionesEjecutadas,
     turnNumber: params.turnNumber,
     workspaceId: params.workspaceId,
   }
@@ -102,6 +107,14 @@ export async function processMessageV3Compatible(params: {
  * Convert V3AgentOutput to engine-compatible format.
  */
 function adaptOutput(v3: V3AgentOutput): EngineCompatibleOutput {
+  // Write accionesEjecutadas back into datosCapturados for production persistence
+  const datosWithAcciones = { ...v3.datosCapturados }
+  if (v3.accionesEjecutadas.length > 0) {
+    datosWithAcciones[`${V3_META_PREFIX}accionesEjecutadas`] = JSON.stringify(v3.accionesEjecutadas)
+  } else {
+    delete datosWithAcciones[`${V3_META_PREFIX}accionesEjecutadas`]
+  }
+
   return {
     success: v3.success,
     messages: v3.messages,
@@ -118,7 +131,7 @@ function adaptOutput(v3: V3AgentOutput): EngineCompatibleOutput {
       newMode: v3.newMode,
       newIntentsVistos: v3.intentsVistos,
       newTemplatesEnviados: v3.templatesEnviados,
-      newDatosCapturados: v3.datosCapturados,
+      newDatosCapturados: datosWithAcciones,
       newPackSeleccionado: v3.packSeleccionado,
     },
     shouldCreateOrder: v3.shouldCreateOrder,
@@ -163,5 +176,25 @@ function adaptOutput(v3: V3AgentOutput): EngineCompatibleOutput {
           systemEvent: v3.ingestInfo.systemEvent,
         }
       : undefined,
+  }
+}
+
+/**
+ * Extract accionesEjecutadas from datosCapturados (production backward compat).
+ * Handles both old string[] and new AccionRegistrada[] formats.
+ */
+function extractAccionesFromDatos(datos: Record<string, string>): AccionRegistrada[] {
+  const raw = datos[`${V3_META_PREFIX}accionesEjecutadas`]
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    if (parsed.length === 0) return []
+    if (typeof parsed[0] === 'string') {
+      return parsed.map((tipo: string) => ({ tipo: tipo as AccionRegistrada['tipo'], turno: 0, origen: 'bot' as const }))
+    }
+    return parsed
+  } catch {
+    return []
   }
 }

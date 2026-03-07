@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useContext, useMemo, useEffect } from 'react'
+import { createContext, useContext, useMemo, useEffect, useRef } from 'react'
 import type { WorkspaceWithRole } from '@/lib/types/database'
+import { setWorkspaceCookie } from '@/app/actions/workspace'
 import {
   hasPermission,
   hasAllPermissions,
@@ -52,17 +53,19 @@ export function WorkspaceProvider({
   workspaces,
 }: WorkspaceProviderProps) {
   // Auto-set cookie if workspace exists but cookie doesn't
-  // This fixes the bug where UI shows workspace but queries fail
+  // Uses server action for reliable cookie setting (document.cookie fails for some users)
+  const cookieSetRef = useRef(false)
   useEffect(() => {
-    if (workspace) {
+    if (workspace && !cookieSetRef.current) {
       const existingCookie = document.cookie
         .split('; ')
         .find(row => row.startsWith('morfx_workspace='))
 
       if (!existingCookie) {
-        document.cookie = `morfx_workspace=${workspace.id}; path=/; max-age=31536000`
-        // Refresh to apply the cookie to server queries
-        window.location.reload()
+        cookieSetRef.current = true
+        setWorkspaceCookie(workspace.id).then(() => {
+          window.location.reload()
+        })
       }
     }
   }, [workspace])

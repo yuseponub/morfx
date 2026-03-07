@@ -1,9 +1,22 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CreateWorkspaceInput, Workspace, WorkspaceWithRole } from '@/lib/types/database'
+
+/**
+ * Set the active workspace cookie from the server side.
+ * More reliable than document.cookie for new users.
+ */
+export async function setWorkspaceCookie(workspaceId: string) {
+  const cookieStore = await cookies()
+  cookieStore.set('morfx_workspace', workspaceId, {
+    path: '/',
+    maxAge: 31536000,
+  })
+}
 
 export async function createWorkspace(input: CreateWorkspaceInput) {
   const supabase = await createClient()

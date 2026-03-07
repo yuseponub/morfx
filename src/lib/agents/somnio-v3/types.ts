@@ -68,6 +68,8 @@ export type DecisionAction =
 
 export interface Decision {
   action: DecisionAction
+  /** Original TipoAccion from transition table (carried through, not reverse-engineered) */
+  tipoAccion?: TipoAccion
   templateIntents?: string[]
   extraContext?: Record<string, string>
   timerSignal?: TimerSignal

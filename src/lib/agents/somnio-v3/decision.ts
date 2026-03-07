@@ -137,6 +137,7 @@ export function transitionToDecision(action: TipoAccion, output: TransitionOutpu
 
   return {
     action: decisionAction,
+    tipoAccion: action,
     templateIntents: output.templateIntents.length > 0 ? output.templateIntents : undefined,
     extraContext: output.extraContext,
     timerSignal: output.timerSignal,

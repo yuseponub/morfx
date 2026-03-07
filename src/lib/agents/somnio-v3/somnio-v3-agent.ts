@@ -270,7 +270,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     }
 
     // Register action (SINGLE registration point — D3)
-    const actionToRegister = determineAction(decision, systemEvent, ingestResult)
+    const actionToRegister = determineAction(decision)
     if (actionToRegister) {
       mergedState.accionesEjecutadas.push({
         tipo: actionToRegister,
@@ -381,27 +381,8 @@ function computeMode(state: AgentState): string {
 
 /**
  * Determine which action to register based on the decision.
- * Returns null if no meaningful action to register (e.g., generic responses).
+ * Returns null for R9 fallback (saludo, precio, etc.) where no transition matched.
  */
-function determineAction(
-  decision: Decision,
-  systemEvent: SystemEvent | undefined,
-  ingestResult: { systemEvent?: SystemEvent },
-): TipoAccion | null {
-  if (decision.action === 'create_order') return 'crear_orden'
-  if (decision.action === 'handoff') return 'handoff'
-  if (decision.action === 'silence') return 'silence'
-
-  // For 'respond' decisions, determine from templateIntents
-  const ti = decision.templateIntents ?? []
-  if (ti.includes('promociones') || ti.includes('quiero_comprar')) return 'ofrecer_promos'
-  if (ti.some(t => t.startsWith('resumen'))) return 'mostrar_confirmacion'
-  if (ti.includes('pedir_datos') || ti.includes('captura_datos_si_compra')) return 'pedir_datos'
-  if (ti.includes('ask_ofi_inter')) return 'ask_ofi_inter'
-  if (ti.includes('no_interesa')) return 'no_interesa'
-  if (ti.includes('rechazar') || ti.includes('no_confirmado')) return 'rechazar'
-  if (ti.includes('confirmacion_orden')) return 'crear_orden'
-
-  // R9 fallback (saludo, precio, etc.) — no action to register
-  return null
+function determineAction(decision: Decision): TipoAccion | null {
+  return decision.tipoAccion ?? null
 }

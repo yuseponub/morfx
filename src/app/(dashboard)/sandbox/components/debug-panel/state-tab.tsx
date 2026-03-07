@@ -69,6 +69,25 @@ function LegibleState({ state }: { state: SandboxState }) {
           </div>
         )}
       </div>
+
+      {/* Acciones Ejecutadas */}
+      <div className="border rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Acciones Ejecutadas
+          <Badge variant="secondary" className="ml-2 text-xs">{state.accionesEjecutadas?.length ?? 0}</Badge>
+        </h4>
+        {(state.accionesEjecutadas?.length ?? 0) === 0 ? (
+          <span className="text-xs text-muted-foreground">Ninguna accion ejecutada</span>
+        ) : (
+          <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+            {state.accionesEjecutadas.map((accion, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs">
+                {accion.tipo} (T{accion.turno}, {accion.origen})
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

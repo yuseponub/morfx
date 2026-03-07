@@ -110,7 +110,7 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
       name: 'Ingest',
       status: turn.ingestDetails ? 'ok' : 'skip',
       detail: turn.ingestDetails
-        ? `${(turn.ingestDetails as any).action ?? '?'}${(turn.ingestDetails as any).autoTrigger ? ` → ${(turn.ingestDetails as any).autoTrigger}` : ''}`
+        ? `${(turn.ingestDetails as any).action ?? '?'}${(turn.ingestDetails as any).systemEvent ? ` → ${(turn.ingestDetails as any).systemEvent.type}` : ''}`
         : null,
     },
     {
@@ -227,8 +227,23 @@ function StateSection({ state, turn }: { state: SandboxState; turn: DebugTurn | 
       {/* Templates enviados count */}
       <div className="text-xs text-muted-foreground">
         Templates mostrados: {state.templatesEnviados?.length ?? 0} |
-        Intents vistos: {state.intentsVistos?.length ?? 0}
+        Intents vistos: {state.intentsVistos?.length ?? 0} |
+        Acciones ejecutadas: {state.accionesEjecutadas?.length ?? 0}
       </div>
+
+      {/* Acciones ejecutadas detail */}
+      {(state.accionesEjecutadas?.length ?? 0) > 0 && (
+        <div className="space-y-1">
+          <span className="text-xs font-medium">Acciones Ejecutadas:</span>
+          <div className="flex flex-wrap gap-1">
+            {state.accionesEjecutadas.map((accion, idx) => (
+              <Badge key={idx} variant="outline" className="text-[10px]">
+                {accion.tipo} <span className="text-muted-foreground ml-1">T{accion.turno} {accion.origen}</span>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -445,9 +460,9 @@ function IngestTimersSection({
               {ingest.action}
             </Badge>
           )}
-          {ingest?.autoTrigger && (
+          {ingest?.systemEvent && (
             <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-700">
-              auto: {ingest.autoTrigger}
+              event: {ingest.systemEvent.type}
             </Badge>
           )}
         </div>

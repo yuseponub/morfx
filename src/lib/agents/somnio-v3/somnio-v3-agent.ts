@@ -350,7 +350,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       silenceDetected: false,
       shouldCreateOrder: false,
       timerSignals: [],
-      accionesEjecutadas: [],
     }
   }
 }

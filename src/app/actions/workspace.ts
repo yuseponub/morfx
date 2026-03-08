@@ -8,14 +8,49 @@ import type { CreateWorkspaceInput, Workspace, WorkspaceWithRole } from '@/lib/t
 
 /**
  * Set the active workspace cookie from the server side.
- * More reliable than document.cookie for new users.
+ * httpOnly: false so document.cookie can read it (prevents infinite reload).
  */
 export async function setWorkspaceCookie(workspaceId: string) {
   const cookieStore = await cookies()
   cookieStore.set('morfx_workspace', workspaceId, {
     path: '/',
     maxAge: 31536000,
+    httpOnly: false,
   })
+}
+
+/**
+ * Get the active workspace ID from cookie, with DB fallback for new users.
+ * If no cookie exists, looks up the user's first workspace membership.
+ */
+export async function getActiveWorkspaceId(): Promise<string | null> {
+  const cookieStore = await cookies()
+  const fromCookie = cookieStore.get('morfx_workspace')?.value
+  if (fromCookie) return fromCookie
+
+  // Fallback: look up user's first workspace
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', user.id)
+    .limit(1)
+    .single()
+
+  if (data?.workspace_id) {
+    // Set the cookie for future requests
+    cookieStore.set('morfx_workspace', data.workspace_id, {
+      path: '/',
+      maxAge: 31536000,
+      httpOnly: false,
+    })
+    return data.workspace_id
+  }
+
+  return null
 }
 
 export async function createWorkspace(input: CreateWorkspaceInput) {

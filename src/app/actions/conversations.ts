@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import {
   assignConversation as domainAssignConversation,
   archiveConversation as domainArchiveConversation,
@@ -34,8 +35,7 @@ export async function getConversations(
     return []
   }
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  const workspaceId = await getActiveWorkspaceId()
   if (!workspaceId) {
     return []
   }

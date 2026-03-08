@@ -107,10 +107,15 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
   const { badgeCount: taskBadgeCount } = useTaskBadge()
   const { failureCount: automationFailureCount } = useAutomationBadge()
 
-  // Filter nav items based on user role (hide adminOnly items for agents)
+  // Filter nav items based on user role and workspace settings
   const userRole = currentWorkspace?.role
   const isManager = userRole === 'owner' || userRole === 'admin'
-  const filteredNavItems = navItems.filter(item => !item.adminOnly || isManager)
+  const hiddenModules = (currentWorkspace?.settings as Record<string, unknown> | null)?.hidden_modules as string[] | undefined
+  const filteredNavItems = navItems.filter(item => {
+    if (item.adminOnly && !isManager) return false
+    if (hiddenModules?.includes(item.href)) return false
+    return true
+  })
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card">

@@ -118,6 +118,7 @@ export async function getUserWorkspaces(): Promise<WorkspaceWithRole[]> {
         slug,
         business_type,
         owner_id,
+        settings,
         created_at,
         updated_at
       )

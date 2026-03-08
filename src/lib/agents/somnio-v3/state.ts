@@ -22,6 +22,18 @@ import type { AccionRegistrada, AgentState, DatosCliente, Gates, TipoAccion } fr
 import type { MessageAnalysis } from './comprehension-schema'
 
 // ============================================================================
+// State Changes (output of mergeAnalysis)
+// ============================================================================
+
+export interface StateChanges {
+  newFields: string[]           // campos que pasaron de null/vacio a valor
+  filled: number                // total campos criticos llenos
+  criticalComplete: boolean     // todos los criticos llenos + extras ok
+  ciudadJustArrived: boolean    // ciudad paso de null a valor
+  hasNewData: boolean           // al menos 1 campo nuevo
+}
+
+// ============================================================================
 // Factory
 // ============================================================================
 
@@ -63,7 +75,7 @@ export function createInitialState(): AgentState {
  * Never overwrites existing non-null data with null.
  * Returns a new state object (immutable).
  */
-export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): AgentState {
+export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { state: AgentState; changes: StateChanges } {
   const updated: AgentState = {
     ...state,
     datos: { ...state.datos },
@@ -80,9 +92,15 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): Age
     'direccion', 'barrio', 'correo', 'indicaciones_extra', 'cedula_recoge',
   ]
 
+  const newFields: string[] = []
   for (const key of dataKeys) {
     const value = fields[key]
     if (value !== null && value !== undefined && value.trim() !== '') {
+      // Track if this is a NEW field (was null/empty, now has value)
+      const prev = updated.datos[key]
+      if (prev === null || !prev?.trim()) {
+        newFields.push(key)
+      }
       updated.datos[key] = value
     }
   }
@@ -124,7 +142,23 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): Age
   // 7. Increment turn
   updated.turnCount++
 
-  return updated
+  // 8. Compute state changes
+  const criticalFields = state.ofiInter ? CRITICAL_FIELDS_OFI_INTER : CRITICAL_FIELDS_NORMAL
+  const filled = criticalFields.filter(f => {
+    const val = updated.datos[f as keyof DatosCliente]
+    return val !== null && val.trim() !== ''
+  }).length
+
+  return {
+    state: updated,
+    changes: {
+      newFields,
+      filled,
+      criticalComplete: filled === criticalFields.length && datosExtrasOk(updated),
+      ciudadJustArrived: newFields.includes('ciudad'),
+      hasNewData: newFields.length > 0,
+    },
+  }
 }
 
 // ============================================================================

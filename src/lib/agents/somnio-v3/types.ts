@@ -89,23 +89,6 @@ export interface TimerSignal {
 }
 
 // ============================================================================
-// Ingest Result (Capa 4 output)
-// ============================================================================
-
-/**
- * Ingest action type. Two-track architecture: ingest always returns 'respond'.
- * 'silent' kept in union for backward compat with sandbox types (DebugIngestDetails).
- */
-export type IngestAction = 'respond' | 'silent'
-
-export interface IngestResult {
-  action: IngestAction
-  timerSignal?: TimerSignal
-  /** System event emitted by ingest */
-  systemEvent?: SystemEvent
-}
-
-// ============================================================================
 // Response Result (Capa 7 output)
 // ============================================================================
 

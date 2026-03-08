@@ -19,9 +19,17 @@ import type {
   Decision,
   DecisionAction,
   Gates,
-  IngestResult,
+  SystemEvent,
+  TimerSignal,
   TipoAccion,
 } from './types'
+
+/** @deprecated Inline type for backward compat — IngestResult removed from types.ts */
+interface IngestResult {
+  action: 'respond' | 'silent'
+  timerSignal?: TimerSignal
+  systemEvent?: SystemEvent
+}
 import { NEVER_SILENCE_INTENTS } from './constants'
 import { checkGuards } from './guards'
 import { derivePhase } from './phase'

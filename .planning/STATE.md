@@ -321,6 +321,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 008 | Validacion COD en robot Coordinadora | 2026-03-06 | 91a544c | [008-validacion-cod-coordinadora](./quick/008-validacion-cod-coordinadora/) |
 | 009 | accionesEjecutadas como campo propio en sandbox v3 | 2026-03-07 | 263fca8 | [009-acciones-ejecutadas-campo-propio-sandbox-v3](./quick/009-acciones-ejecutadas-campo-propio-sandbox-v3/) |
 | 010 | Filtro por etiqueta en inbox WhatsApp | 2026-03-07 | e45c03f | [010-filtro-tag-inbox-whatsapp](./quick/010-filtro-tag-inbox-whatsapp/) |
+| 011 | Debug panel cleanup post two-track refactor | 2026-03-08 | f7039b8 | [011-debug-panel-cleanup-two-track](./quick/011-debug-panel-cleanup-two-track/) |
 
 ### Blockers/Concerns
 

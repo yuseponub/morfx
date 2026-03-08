@@ -94,8 +94,7 @@ export interface TimerSignal {
 
 /**
  * Ingest action type. Two-track architecture: ingest always returns 'respond'.
- * 'silent' kept in union for backward compat with somnio-v3-agent.ts until Plan 02 replaces pipeline.
- * @deprecated The 'silent' value is never returned by evaluateIngest() after tt-01.
+ * 'silent' kept in union for backward compat with sandbox types (DebugIngestDetails).
  */
 export type IngestAction = 'respond' | 'silent'
 
@@ -203,6 +202,18 @@ export interface V3AgentOutput {
     reason: string
     templateIntents?: string[]
     gates?: Gates
+  }
+  /** Two-track debug: sales track output */
+  salesTrackInfo?: {
+    accion?: TipoAccion
+    reason: string
+    enterCaptura?: boolean
+  }
+  /** Two-track debug: response track output */
+  responseTrackInfo?: {
+    salesTemplateIntents: string[]
+    infoTemplateIntents: string[]
+    totalMessages: number
   }
   classificationInfo?: {
     category: string

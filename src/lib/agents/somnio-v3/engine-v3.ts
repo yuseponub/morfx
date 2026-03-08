@@ -97,10 +97,6 @@ export class SomnioV3Engine {
               : 'RESPONDIBLE',
             reason: output.decisionInfo.reason,
             rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
-          } : output.ingestInfo?.action === 'silent' ? {
-            category: 'SILENCIOSO' as const,
-            reason: 'Ingest: captura silenciosa',
-            rulesChecked: { rule1: false, rule1_5: false, rule2: false, rule3: false },
           } : undefined,
           orchestration: output.decisionInfo ? {
             nextMode: output.newMode ?? input.state.currentMode,
@@ -113,6 +109,16 @@ export class SomnioV3Engine {
             action: output.ingestInfo.action as DebugIngestDetails['action'],
             systemEvent: output.ingestInfo.systemEvent,
           } satisfies DebugIngestDetails : undefined,
+          salesTrack: output.salesTrackInfo ? {
+            accion: output.salesTrackInfo.accion,
+            reason: output.salesTrackInfo.reason,
+            enterCaptura: output.salesTrackInfo.enterCaptura,
+          } : undefined,
+          responseTrack: output.responseTrackInfo ? {
+            salesIntents: output.responseTrackInfo.salesTemplateIntents,
+            infoIntents: output.responseTrackInfo.infoTemplateIntents,
+            totalMessages: output.responseTrackInfo.totalMessages,
+          } : undefined,
         },
         silenceDetected: output.silenceDetected,
       }

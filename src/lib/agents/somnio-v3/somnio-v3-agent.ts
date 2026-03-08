@@ -1,13 +1,14 @@
 /**
  * Somnio Sales Agent v3 — Main Agent Pipeline
  *
- * Orchestrates the complete 11-layer pipeline (minus interruption):
+ * Two-track architecture:
  * C2: Comprehension (Claude Haiku)
  * C3: State Merge
- * C4: Ingest Logic
  * C5: Compute Gates
- * C6: Decision Engine
- * C7: Response Composition
+ * Guards: R0 (low confidence), R1 (escape intents)
+ * C4: Ingest Logic (system events + timer signals, no silent cut)
+ * Sales Track: WHAT TO DO (pure state machine)
+ * Response Track: WHAT TO SAY (template engine)
  *
  * Layers C0, C0.5, C8-C11 are handled by the engine/adapters.
  */
@@ -15,11 +16,11 @@
 import { comprehend } from './comprehension'
 import { mergeAnalysis, computeGates, serializeState, deserializeState, hasAction } from './state'
 import { evaluateIngest } from './ingest'
-import { decide, transitionToDecision } from './decision'
-import { composeResponse } from './response'
+import { resolveSalesTrack } from './sales-track'
+import { resolveResponseTrack } from './response-track'
+import { checkGuards } from './guards'
 import { derivePhase } from './phase'
-import { resolveTransition, systemEventToKey } from './transitions'
-import type { AgentState, Decision, V3AgentInput, V3AgentOutput, TimerSignal, SystemEvent, TipoAccion, AccionRegistrada } from './types'
+import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, SystemEvent, TipoAccion, AccionRegistrada } from './types'
 
 // ============================================================================
 // Main Processing Function
@@ -112,12 +113,12 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     const mergedState = mergeAnalysis(state, analysis)
 
     // ------------------------------------------------------------------
-    // C5: Compute Gates (before ingest, needed for auto-triggers)
+    // C5: Compute Gates
     // ------------------------------------------------------------------
     const gates = computeGates(mergedState)
 
     // ------------------------------------------------------------------
-    // C4: Ingest Logic
+    // C4: Ingest Logic (system events + timer signals, NO silent cut)
     // ------------------------------------------------------------------
     const ingestResult = evaluateIngest(analysis, mergedState, gates, prevState)
 
@@ -125,155 +126,94 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       timerSignals.push(ingestResult.timerSignal)
     }
 
-    // If ingest says silent → return without responding
-    if (ingestResult.action === 'silent') {
-      const serialized = serializeState(mergedState)
-      return {
-        success: true,
-        messages: [],
-        newMode: computeMode(mergedState),
-        intentsVistos: serialized.intentsVistos,
-        templatesEnviados: serialized.templatesEnviados,
-        datosCapturados: serialized.datosCapturados,
-        packSeleccionado: serialized.packSeleccionado,
-        accionesEjecutadas: serialized.accionesEjecutadas,
-        intentInfo: {
-          intent: analysis.intent.primary,
-          confidence: analysis.intent.confidence,
-          secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
-          reasoning: analysis.intent.reasoning,
-          timestamp: new Date().toISOString(),
-        },
-        totalTokens: tokensUsed,
-        silenceDetected: false,
-        shouldCreateOrder: false,
-        timerSignals,
-        classificationInfo: {
-          category: analysis.classification.category,
-          sentiment: analysis.classification.sentiment,
-          is_acknowledgment: analysis.classification.is_acknowledgment,
-        },
-        ingestInfo: {
-          action: 'silent',
-        },
+    // ------------------------------------------------------------------
+    // GUARDS (R0, R1) — run BEFORE tracks
+    // Skip guards for system events (timers don't need confidence/escape checks)
+    // ------------------------------------------------------------------
+    if (!systemEvent && !ingestResult.systemEvent) {
+      const guardResult = checkGuards(analysis)
+      if (guardResult.blocked) {
+        if (guardResult.decision.timerSignal) {
+          timerSignals.push(guardResult.decision.timerSignal)
+        }
+        const serialized = serializeState(mergedState)
+        return {
+          success: true,
+          messages: [],
+          newMode: 'handoff',
+          intentsVistos: serialized.intentsVistos,
+          templatesEnviados: serialized.templatesEnviados,
+          datosCapturados: serialized.datosCapturados,
+          packSeleccionado: serialized.packSeleccionado,
+          accionesEjecutadas: serialized.accionesEjecutadas,
+          intentInfo: {
+            intent: analysis.intent.primary,
+            confidence: analysis.intent.confidence,
+            secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+            reasoning: analysis.intent.reasoning,
+            timestamp: new Date().toISOString(),
+          },
+          totalTokens: tokensUsed,
+          silenceDetected: false,
+          shouldCreateOrder: false,
+          timerSignals,
+          decisionInfo: {
+            action: 'handoff',
+            reason: guardResult.decision.reason,
+            gates,
+          },
+          classificationInfo: {
+            category: analysis.classification.category,
+            sentiment: analysis.classification.sentiment,
+            is_acknowledgment: analysis.classification.is_acknowledgment,
+          },
+        }
       }
     }
 
     // ------------------------------------------------------------------
-    // C6: Decision Engine (with SystemEvent routing)
+    // SALES TRACK — WHAT TO DO
     // ------------------------------------------------------------------
-    let decision: Decision
-    if (systemEvent) {
-      // Input-level system event (timer expired) -> transition table lookup
-      const phase = derivePhase(mergedState.accionesEjecutadas)
-      const eventKey = systemEventToKey(systemEvent)
-      const result = resolveTransition(phase, eventKey, mergedState, gates)
-      if (result) {
-        decision = transitionToDecision(result.action, result.output)
-      } else {
-        // Fallback: unknown system event
-        decision = { action: 'respond', templateIntents: ['otro'], reason: `Unknown system event: ${eventKey}` }
-      }
-    } else {
-      // Normal flow: C6 Decision Engine (which internally handles ingest systemEvent)
-      decision = decide(analysis, mergedState, gates, ingestResult)
+    const phase = derivePhase(mergedState.accionesEjecutadas)
+    const salesResult = resolveSalesTrack({
+      phase,
+      intent: analysis.intent.primary,
+      isAcknowledgment: analysis.classification.is_acknowledgment,
+      sentiment: analysis.classification.sentiment,
+      state: mergedState,
+      gates,
+      systemEvent,
+      ingestSystemEvent: ingestResult.systemEvent,
+    })
+
+    if (salesResult.timerSignal) {
+      timerSignals.push(salesResult.timerSignal)
     }
 
-    if (decision.timerSignal) {
-      timerSignals.push(decision.timerSignal)
-    }
+    // Apply captura mode from sales track
+    if (salesResult.enterCaptura === true) mergedState.enCapturaSilenciosa = true
+    else if (salesResult.enterCaptura === false) mergedState.enCapturaSilenciosa = false
 
-    // Update captura mode based on decision
-    if (decision.enterCaptura === true) {
-      mergedState.enCapturaSilenciosa = true
-    } else if (decision.enterCaptura === false) {
-      mergedState.enCapturaSilenciosa = false
-    }
-
-    // Handle silence decision
-    if (decision.action === 'silence') {
-      const serialized = serializeState(mergedState)
-      return {
-        success: true,
-        messages: [],
-        newMode: computeMode(mergedState),
-        intentsVistos: serialized.intentsVistos,
-        templatesEnviados: serialized.templatesEnviados,
-        datosCapturados: serialized.datosCapturados,
-        packSeleccionado: serialized.packSeleccionado,
-        accionesEjecutadas: serialized.accionesEjecutadas,
-        intentInfo: {
-          intent: analysis.intent.primary,
-          confidence: analysis.intent.confidence,
-          secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
-          reasoning: analysis.intent.reasoning,
-          timestamp: new Date().toISOString(),
-        },
-        totalTokens: tokensUsed,
-        silenceDetected: true,
-        shouldCreateOrder: false,
-        timerSignals,
-        decisionInfo: {
-          action: decision.action,
-          reason: decision.reason,
-          gates,
-        },
-        classificationInfo: {
-          category: analysis.classification.category,
-          sentiment: analysis.classification.sentiment,
-          is_acknowledgment: analysis.classification.is_acknowledgment,
-        },
-      }
-    }
-
-    // Handle handoff decision
-    if (decision.action === 'handoff') {
-      const serialized = serializeState(mergedState)
-      return {
-        success: true,
-        messages: [],
-        newMode: 'handoff',
-        intentsVistos: serialized.intentsVistos,
-        templatesEnviados: serialized.templatesEnviados,
-        datosCapturados: serialized.datosCapturados,
-        packSeleccionado: serialized.packSeleccionado,
-        accionesEjecutadas: serialized.accionesEjecutadas,
-        intentInfo: {
-          intent: analysis.intent.primary,
-          confidence: analysis.intent.confidence,
-          secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
-          reasoning: analysis.intent.reasoning,
-          timestamp: new Date().toISOString(),
-        },
-        totalTokens: tokensUsed,
-        silenceDetected: false,
-        shouldCreateOrder: false,
-        timerSignals,
-        decisionInfo: {
-          action: 'handoff',
-          reason: decision.reason,
-          gates,
-        },
-      }
-    }
+    // Check for order creation
+    const isCreateOrder = salesResult.accion === 'crear_orden'
 
     // ------------------------------------------------------------------
-    // C7: Response Composition
+    // RESPONSE TRACK — WHAT TO SAY
     // ------------------------------------------------------------------
-    const responseResult = await composeResponse(decision, mergedState, input.workspaceId)
+    const responseResult = await resolveResponseTrack({
+      salesAction: salesResult.accion,
+      intent: analysis.intent.primary,
+      secondaryIntent: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+      state: mergedState,
+      workspaceId: input.workspaceId,
+    })
 
-    // Update templates mostrados
-    for (const tid of responseResult.templateIdsSent) {
-      if (!mergedState.templatesMostrados.includes(tid)) {
-        mergedState.templatesMostrados.push(tid)
-      }
-    }
-
+    // ------------------------------------------------------------------
     // Register action (SINGLE registration point — D3)
-    const actionToRegister = determineAction(decision)
-    if (actionToRegister) {
+    // ------------------------------------------------------------------
+    if (salesResult.accion && salesResult.accion !== 'silence') {
       mergedState.accionesEjecutadas.push({
-        tipo: actionToRegister,
+        tipo: salesResult.accion,
         turno: mergedState.turnCount,
         origen: systemEvent ? 'timer'
               : ingestResult.systemEvent ? 'ingest'
@@ -281,11 +221,72 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       })
     }
 
+    // Update templatesMostrados
+    for (const tid of responseResult.templateIdsSent) {
+      if (!mergedState.templatesMostrados.includes(tid)) {
+        mergedState.templatesMostrados.push(tid)
+      }
+    }
+
     // ------------------------------------------------------------------
-    // Build output
+    // NATURAL SILENCE: response track produced 0 messages
+    // ------------------------------------------------------------------
+    if (responseResult.messages.length === 0) {
+      const serialized = serializeState(mergedState)
+      return {
+        success: true,
+        messages: [],
+        newMode: computeMode(mergedState),
+        intentsVistos: serialized.intentsVistos,
+        templatesEnviados: serialized.templatesEnviados,
+        datosCapturados: serialized.datosCapturados,
+        packSeleccionado: serialized.packSeleccionado,
+        accionesEjecutadas: serialized.accionesEjecutadas,
+        intentInfo: {
+          intent: analysis.intent.primary,
+          confidence: analysis.intent.confidence,
+          secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+          reasoning: analysis.intent.reasoning,
+          timestamp: new Date().toISOString(),
+        },
+        totalTokens: tokensUsed,
+        silenceDetected: !salesResult.accion,
+        shouldCreateOrder: false,
+        timerSignals,
+        decisionInfo: {
+          action: 'silence',
+          reason: salesResult.reason,
+          templateIntents: [...responseResult.salesTemplateIntents, ...responseResult.infoTemplateIntents],
+          gates,
+        },
+        salesTrackInfo: {
+          accion: salesResult.accion,
+          reason: salesResult.reason,
+          enterCaptura: salesResult.enterCaptura,
+        },
+        responseTrackInfo: {
+          salesTemplateIntents: responseResult.salesTemplateIntents,
+          infoTemplateIntents: responseResult.infoTemplateIntents,
+          totalMessages: 0,
+        },
+        classificationInfo: {
+          category: analysis.classification.category,
+          sentiment: analysis.classification.sentiment,
+          is_acknowledgment: analysis.classification.is_acknowledgment,
+        },
+        ingestInfo: {
+          action: ingestResult.action,
+          systemEvent: ingestResult.systemEvent
+            ? { ...ingestResult.systemEvent }
+            : undefined,
+        },
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Build output (has messages)
     // ------------------------------------------------------------------
     const serialized = serializeState(mergedState)
-    const shouldCreateOrder = decision.action === 'create_order'
 
     return {
       success: true,
@@ -306,8 +307,8 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       },
       totalTokens: tokensUsed,
       silenceDetected: false,
-      shouldCreateOrder,
-      orderData: shouldCreateOrder
+      shouldCreateOrder: isCreateOrder,
+      orderData: isCreateOrder
         ? {
             datosCapturados: serialized.datosCapturados,
             packSeleccionado: serialized.packSeleccionado,
@@ -315,10 +316,22 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         : undefined,
       timerSignals,
       decisionInfo: {
-        action: decision.action,
-        reason: decision.reason,
-        templateIntents: decision.templateIntents,
+        action: responseResult.messages.length === 0 ? 'silence'
+          : isCreateOrder ? 'create_order'
+          : 'respond',
+        reason: salesResult.reason,
+        templateIntents: [...responseResult.salesTemplateIntents, ...responseResult.infoTemplateIntents],
         gates,
+      },
+      salesTrackInfo: {
+        accion: salesResult.accion,
+        reason: salesResult.reason,
+        enterCaptura: salesResult.enterCaptura,
+      },
+      responseTrackInfo: {
+        salesTemplateIntents: responseResult.salesTemplateIntents,
+        infoTemplateIntents: responseResult.infoTemplateIntents,
+        totalMessages: responseResult.messages.length,
       },
       classificationInfo: {
         category: analysis.classification.category,
@@ -373,16 +386,4 @@ function computeMode(state: AgentState): string {
   }
   if (state.turnCount === 0) return 'nuevo'
   return 'conversacion'
-}
-
-// ============================================================================
-// Action Determination
-// ============================================================================
-
-/**
- * Determine which action to register based on the decision.
- * Returns null for R9 fallback (saludo, precio, etc.) where no transition matched.
- */
-function determineAction(decision: Decision): TipoAccion | null {
-  return decision.tipoAccion ?? null
 }

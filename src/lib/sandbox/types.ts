@@ -180,6 +180,9 @@ export interface DebugTurn {
   ingestDetails?: DebugIngestDetails
   disambiguationLog?: DebugDisambiguationLog
   // paraphrasing?: DebugParaphrasing — DEFERRED (no data pipeline)
+  /** Two-track decision debug (tt-02) */
+  salesTrack?: { accion?: string; reason: string; enterCaptura?: boolean }
+  responseTrack?: { salesIntents: string[]; infoIntents: string[]; totalMessages: number }
 }
 
 /**

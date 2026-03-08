@@ -9,7 +9,7 @@
  * Sections:
  * 1. Pipeline — C2→C3→C4→C5→C6→C7 with status per layer
  * 2. State — datos grid + gates + pack + mode
- * 3. Intent & Decision — comprehension output + decision rule
+ * 3. Intent — comprehension output + classification
  * 4. Tokens — simple counter
  * 5. Interrupciones — queued messages during processing (future)
  */
@@ -236,21 +236,6 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
         </div>
       </div>
 
-      {/* Result */}
-      {turn.orchestration && (
-        <div className="flex items-start gap-2 text-xs py-1">
-          <Badge variant="default" className="shrink-0 text-[10px] px-1.5 py-0 font-mono">
-            OUT
-          </Badge>
-          <div className="min-w-0">
-            <span className="font-medium">Result</span>
-            <p className="text-muted-foreground truncate">
-              {(turn.orchestration as any).templatesCount ?? 0} templates | mode: {(turn.orchestration as any).nextMode ?? '?'}
-              {(turn.orchestration as any).shouldCreateOrder ? ' | CREAR ORDEN' : ''}
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -348,7 +333,6 @@ function IntentDecisionSection({ turn }: { turn: DebugTurn | undefined }) {
 
   const intent = turn.intent
   const classification = turn.classification as any
-  const orchestration = turn.orchestration as any
 
   return (
     <div className="space-y-2 text-xs">
@@ -403,27 +387,6 @@ function IntentDecisionSection({ turn }: { turn: DebugTurn | undefined }) {
         </div>
       )}
 
-      {/* Decision / Orchestration */}
-      {orchestration && (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Decision:</span>
-            {orchestration.modeChanged && (
-              <Badge variant="outline" className="text-[10px] border-blue-500">
-                {orchestration.previousMode} → {orchestration.nextMode}
-              </Badge>
-            )}
-            {!orchestration.modeChanged && (
-              <span className="text-muted-foreground">mode: {orchestration.nextMode}</span>
-            )}
-          </div>
-          {orchestration.shouldCreateOrder && (
-            <Badge variant="default" className="text-[10px] bg-green-600">
-              CREAR ORDEN
-            </Badge>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -539,18 +502,6 @@ function IngestTimersSection({
           <Badge variant={enCaptura ? 'default' : 'secondary'} className="text-[10px]">
             Captura: {enCaptura ? 'ACTIVA' : 'inactiva'}
           </Badge>
-          {ingest && (
-            <Badge
-              variant="outline"
-              className={`text-[10px] ${
-                ingest.action === 'silent' ? 'border-yellow-500 text-yellow-700'
-                  : ingest.action === 'respond' ? 'border-green-500 text-green-700'
-                    : 'border-blue-500 text-blue-700'
-              }`}
-            >
-              {ingest.action}
-            </Badge>
-          )}
           {ingest?.systemEvent && (
             <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-700">
               event: {ingest.systemEvent.type}
@@ -675,7 +626,8 @@ function ContextoRawSection({ state, turn }: { state: SandboxState; turn: DebugT
         turnNumber: turn.turnNumber,
         intent: turn.intent,
         classification: turn.classification,
-        orchestration: turn.orchestration,
+        salesTrack: turn.salesTrack,
+        responseTrack: turn.responseTrack,
         ingestDetails: turn.ingestDetails,
         stateAfter: turn.stateAfter,
       },
@@ -746,25 +698,22 @@ export function DebugV3({
           icon={<Zap className="h-3.5 w-3.5" />}
           defaultOpen={false}
           badge={
-            selectedTurn?.classification
-              ? <Badge
-                  variant="outline"
-                  className={`text-[10px] ${
-                    (selectedTurn.classification as any).category === 'RESPONDIBLE' ? 'border-green-500'
-                      : (selectedTurn.classification as any).category === 'SILENCIOSO' ? 'border-yellow-500'
-                        : 'border-red-500'
-                  }`}
-                >
-                  {(selectedTurn.classification as any).category}
-                </Badge>
-              : undefined
+            selectedTurn?.salesTrack?.accion
+              ? <Badge variant="outline" className="text-[10px] border-green-500">{selectedTurn.salesTrack.accion}</Badge>
+              : selectedTurn?.responseTrack && selectedTurn.responseTrack.totalMessages > 0
+                ? <Badge variant="outline" className="text-[10px] border-blue-500">info</Badge>
+                : selectedTurn?.salesTrack || selectedTurn?.responseTrack
+                  ? <Badge variant="outline" className="text-[10px] border-yellow-500">silencio</Badge>
+                  : selectedTurn?.classification
+                    ? <Badge variant="outline" className={`text-[10px] ${(selectedTurn.classification as any).category === 'RESPONDIBLE' ? 'border-green-500' : (selectedTurn.classification as any).category === 'SILENCIOSO' ? 'border-yellow-500' : 'border-red-500'}`}>{(selectedTurn.classification as any).category}</Badge>
+                    : undefined
           }
         >
           <PipelineSection turn={selectedTurn} />
         </Section>
 
         <Section
-          title="Intent & Decision"
+          title="Intent"
           icon={<Brain className="h-3.5 w-3.5" />}
           defaultOpen={false}
         >

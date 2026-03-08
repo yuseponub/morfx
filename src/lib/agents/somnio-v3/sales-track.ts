@@ -7,7 +7,7 @@
  *
  * Flow:
  * 1. System event (timer expired) -> transition table lookup
- * 2. Ingest system event (datos_completos, ciudad_sin_direccion) -> transition table lookup
+ * 2. Auto-triggers por cambios de datos (absorbe logica de ingest)
  * 3. Acknowledgment routing -> sub-type transitions
  * 4. Intent -> transition table lookup
  * 5. Fallback -> no accion (response track handles informational)
@@ -19,7 +19,10 @@ import type {
   Phase,
   SalesTrackOutput,
   SystemEvent,
+  TimerSignal,
 } from './types'
+import { hasAction } from './state'
+import type { StateChanges } from './state'
 import { resolveTransition, systemEventToKey } from './transitions'
 
 // ============================================================================
@@ -33,10 +36,21 @@ export function resolveSalesTrack(input: {
   sentiment: string
   state: AgentState
   gates: Gates
+  changes: StateChanges
+  category: string
   systemEvent?: SystemEvent
-  ingestSystemEvent?: SystemEvent
 }): SalesTrackOutput {
-  const { phase, intent, isAcknowledgment, sentiment, state, gates, systemEvent, ingestSystemEvent } = input
+  const { phase, intent, isAcknowledgment, sentiment, state, gates, changes, systemEvent } = input
+
+  // Timer signal from data changes (computed early, used as fallback)
+  let dataTimerSignal: TimerSignal | undefined
+  if (state.enCapturaSilenciosa && changes.hasNewData) {
+    if (changes.criticalComplete) {
+      dataTimerSignal = { type: 'reevaluate', level: 'L2', reason: `criticos completos (${changes.filled} campos)` }
+    } else if (changes.filled > 0) {
+      dataTimerSignal = { type: 'start', level: 'L1', reason: `datos parciales (${changes.filled} campos)` }
+    }
+  }
 
   // ------------------------------------------------------------------
   // 1. System event from input (timer expired) takes priority
@@ -56,10 +70,12 @@ export function resolveSalesTrack(input: {
   }
 
   // ------------------------------------------------------------------
-  // 2. System event from ingest (datos_completos, ciudad_sin_direccion)
+  // 2. Auto-triggers por cambios de datos (absorbe logica de ingest)
   // ------------------------------------------------------------------
-  if (ingestSystemEvent) {
-    const key = systemEventToKey(ingestSystemEvent)
+
+  // Ofi inter detection: ciudad llego sin direccion (solo modo normal)
+  if (!state.ofiInter && changes.ciudadJustArrived && !state.datos.direccion && !state.datos.barrio) {
+    const key = systemEventToKey({ type: 'ingest_complete', result: 'ciudad_sin_direccion' })
     const match = resolveTransition(phase, key, state, gates)
     if (match) {
       return {
@@ -69,7 +85,27 @@ export function resolveSalesTrack(input: {
         reason: match.output.reason,
       }
     }
-    console.warn(`[sales-track] No transition for ingest event: ${key} in phase ${phase}`)
+    // Fallback if no transition found
+    return {
+      accion: 'ask_ofi_inter',
+      reason: 'Ciudad sin direccion -> preguntar ofi inter',
+    }
+  }
+
+  // Datos completos auto-trigger (criticos + extras ok, promos no mostradas)
+  if (changes.criticalComplete && !promosMostradas(state)) {
+    const ev: SystemEvent = { type: 'ingest_complete', result: 'datos_completos' }
+    const key = systemEventToKey(ev)
+    const match = resolveTransition(phase, key, state, gates)
+    if (match) {
+      return {
+        accion: match.action,
+        enterCaptura: match.output.enterCaptura,
+        timerSignal: match.output.timerSignal
+          ?? { type: 'cancel', reason: 'datos completos -> system event' },
+        reason: match.output.reason,
+      }
+    }
   }
 
   // ------------------------------------------------------------------
@@ -91,11 +127,11 @@ export function resolveSalesTrack(input: {
 
     // Ack in promos_shown without pack -> fall through (no accion)
     if (phase === 'promos_shown' && !gates.packElegido) {
-      return { reason: 'Ack en promos sin pack - fall through' }
+      return { reason: 'Ack en promos sin pack - fall through', timerSignal: dataTimerSignal }
     }
 
     // Default ack -> no accion (natural silence if intent is not informational)
-    return { reason: 'Ack sin contexto confirmatorio' }
+    return { reason: 'Ack sin contexto confirmatorio', timerSignal: dataTimerSignal }
   }
 
   // ------------------------------------------------------------------
@@ -106,7 +142,7 @@ export function resolveSalesTrack(input: {
     return {
       accion: match.action,
       enterCaptura: match.output.enterCaptura,
-      timerSignal: match.output.timerSignal,
+      timerSignal: match.output.timerSignal ?? dataTimerSignal,
       reason: match.output.reason,
     }
   }
@@ -114,7 +150,10 @@ export function resolveSalesTrack(input: {
   // ------------------------------------------------------------------
   // 5. No match (fallback) -> no accion, response track handles informational
   // ------------------------------------------------------------------
-  return { reason: 'No transition - response track handles informational' }
+  return {
+    reason: 'No transition - response track handles informational',
+    timerSignal: dataTimerSignal,
+  }
 }
 
 // ============================================================================
@@ -123,4 +162,14 @@ export function resolveSalesTrack(input: {
 
 function isPositiveAck(sentiment: string, intent: string): boolean {
   return sentiment === 'positivo' || intent === 'confirmar'
+}
+
+/**
+ * Check if promos have been shown in this conversation.
+ */
+function promosMostradas(state: AgentState): boolean {
+  return hasAction(state.accionesEjecutadas, 'ofrecer_promos') ||
+    state.templatesMostrados.some(t =>
+      t.includes('ofrecer_promos') || t.includes('promociones')
+    )
 }

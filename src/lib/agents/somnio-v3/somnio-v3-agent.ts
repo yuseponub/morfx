@@ -3,19 +3,18 @@
  *
  * Two-track architecture:
  * C2: Comprehension (Claude Haiku)
- * C3: State Merge
+ * C3: State Merge + StateChanges
  * C5: Compute Gates
  * Guards: R0 (low confidence), R1 (escape intents)
- * C4: Ingest Logic (system events + timer signals, no silent cut)
- * Sales Track: WHAT TO DO (pure state machine)
+ * Sales Track: WHAT TO DO (pure state machine, absorbs ingest logic)
  * Response Track: WHAT TO SAY (template engine)
+ * Catch-all: retoma timer when 0 messages + 0 timers
  *
  * Layers C0, C0.5, C8-C11 are handled by the engine/adapters.
  */
 
 import { comprehend } from './comprehension'
 import { mergeAnalysis, computeGates, serializeState, deserializeState, hasAction } from './state'
-import { evaluateIngest } from './ingest'
 import { resolveSalesTrack } from './sales-track'
 import { resolveResponseTrack } from './response-track'
 import { checkGuards } from './guards'
@@ -46,8 +45,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       input.templatesEnviados,
       input.accionesEjecutadas ?? [],
     )
-    const prevState = { ...state, datos: { ...state.datos } }
-
     // ------------------------------------------------------------------
     // C2: Comprehension (skip if forceIntent from timer)
     // ------------------------------------------------------------------
@@ -110,7 +107,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     // ------------------------------------------------------------------
     // C3: State Merge
     // ------------------------------------------------------------------
-    const mergedState = mergeAnalysis(state, analysis)
+    const { state: mergedState, changes } = mergeAnalysis(state, analysis)
 
     // ------------------------------------------------------------------
     // C5: Compute Gates
@@ -118,19 +115,10 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     const gates = computeGates(mergedState)
 
     // ------------------------------------------------------------------
-    // C4: Ingest Logic (system events + timer signals, NO silent cut)
-    // ------------------------------------------------------------------
-    const ingestResult = evaluateIngest(analysis, mergedState, gates, prevState)
-
-    if (ingestResult.timerSignal) {
-      timerSignals.push(ingestResult.timerSignal)
-    }
-
-    // ------------------------------------------------------------------
     // GUARDS (R0, R1) — run BEFORE tracks
     // Skip guards for system events (timers don't need confidence/escape checks)
     // ------------------------------------------------------------------
-    if (!systemEvent && !ingestResult.systemEvent) {
+    if (!systemEvent) {
       const guardResult = checkGuards(analysis)
       if (guardResult.blocked) {
         if (guardResult.decision.timerSignal) {
@@ -154,7 +142,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
             timestamp: new Date().toISOString(),
           },
           totalTokens: tokensUsed,
-          silenceDetected: false,
+          silenceDetected: timerSignals.some(s => s.level === 'silence'),
           shouldCreateOrder: false,
           timerSignals,
           decisionInfo: {
@@ -182,8 +170,9 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       sentiment: analysis.classification.sentiment,
       state: mergedState,
       gates,
+      changes,
+      category: analysis.classification.category,
       systemEvent,
-      ingestSystemEvent: ingestResult.systemEvent,
     })
 
     if (salesResult.timerSignal) {
@@ -215,9 +204,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       mergedState.accionesEjecutadas.push({
         tipo: salesResult.accion,
         turno: mergedState.turnCount,
-        origen: systemEvent ? 'timer'
-              : ingestResult.systemEvent ? 'ingest'
-              : 'bot',
+        origen: systemEvent ? 'timer' : 'bot',
       })
     }
 
@@ -226,6 +213,13 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       if (!mergedState.templatesMostrados.includes(tid)) {
         mergedState.templatesMostrados.push(tid)
       }
+    }
+
+    // ------------------------------------------------------------------
+    // RETOMA CATCH-ALL: si 0 mensajes producidos y nadie vigila, activar retoma
+    // ------------------------------------------------------------------
+    if (responseResult.messages.length === 0 && timerSignals.length === 0) {
+      timerSignals.push({ type: 'start', level: 'silence', reason: 'silencio sin timer activo' })
     }
 
     // ------------------------------------------------------------------
@@ -250,7 +244,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           timestamp: new Date().toISOString(),
         },
         totalTokens: tokensUsed,
-        silenceDetected: !salesResult.accion,
+        silenceDetected: timerSignals.some(s => s.level === 'silence'),
         shouldCreateOrder: false,
         timerSignals,
         decisionInfo: {
@@ -273,12 +267,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           category: analysis.classification.category,
           sentiment: analysis.classification.sentiment,
           is_acknowledgment: analysis.classification.is_acknowledgment,
-        },
-        ingestInfo: {
-          action: ingestResult.action,
-          systemEvent: ingestResult.systemEvent
-            ? { ...ingestResult.systemEvent }
-            : undefined,
         },
       }
     }
@@ -306,7 +294,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         timestamp: new Date().toISOString(),
       },
       totalTokens: tokensUsed,
-      silenceDetected: false,
+      silenceDetected: timerSignals.some(s => s.level === 'silence'),
       shouldCreateOrder: isCreateOrder,
       orderData: isCreateOrder
         ? {
@@ -337,12 +325,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         category: analysis.classification.category,
         sentiment: analysis.classification.sentiment,
         is_acknowledgment: analysis.classification.is_acknowledgment,
-      },
-      ingestInfo: {
-        action: ingestResult.action,
-        systemEvent: ingestResult.systemEvent
-          ? { ...ingestResult.systemEvent }
-          : undefined,
       },
     }
   } catch (error) {

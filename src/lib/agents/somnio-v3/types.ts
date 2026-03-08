@@ -92,9 +92,12 @@ export interface TimerSignal {
 // Ingest Result (Capa 4 output)
 // ============================================================================
 
-export type IngestAction =
-  | 'silent'          // Accumulate data, don't respond
-  | 'respond'         // Continue to decision engine
+/**
+ * Ingest action type. Two-track architecture: ingest always returns 'respond'.
+ * 'silent' kept in union for backward compat with somnio-v3-agent.ts until Plan 02 replaces pipeline.
+ * @deprecated The 'silent' value is never returned by evaluateIngest() after tt-01.
+ */
+export type IngestAction = 'respond' | 'silent'
 
 export interface IngestResult {
   action: IngestAction
@@ -118,6 +121,26 @@ export interface ProcessedMessage {
 export interface ResponseResult {
   messages: ProcessedMessage[]
   templateIdsSent: string[]
+}
+
+// ============================================================================
+// Two-Track Decision Types (tt-01)
+// ============================================================================
+
+/** Sales track output — WHAT TO DO (pure state machine, no templates) */
+export interface SalesTrackOutput {
+  accion?: TipoAccion
+  enterCaptura?: boolean
+  timerSignal?: TimerSignal
+  reason: string
+}
+
+/** Response track output — WHAT TO SAY (template engine) */
+export interface ResponseTrackOutput {
+  messages: ProcessedMessage[]
+  templateIdsSent: string[]
+  salesTemplateIntents: string[]   // templates from sales action
+  infoTemplateIntents: string[]    // templates from informational intent
 }
 
 // ============================================================================

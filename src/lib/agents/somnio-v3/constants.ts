@@ -52,6 +52,7 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
   'cancelar',
 ])
 
+/** @deprecated Use INFORMATIONAL_INTENTS instead. Kept for backward compat with decision.ts until Plan 02. */
 export const NEVER_SILENCE_INTENTS: ReadonlySet<string> = new Set([
   'saludo',
   'precio',
@@ -68,6 +69,24 @@ export const NEVER_SILENCE_INTENTS: ReadonlySet<string> = new Set([
   'efectos',
   'efectividad',
 ])
+
+// ============================================================================
+// Two-Track Decision Constants (tt-01)
+// ============================================================================
+
+/** Intents that the response track always answers (informational questions). */
+export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
+  'saludo', 'precio', 'promociones', 'contenido', 'como_se_toma',
+  'pago', 'envio', 'registro_sanitario', 'ubicacion', 'efectos', 'efectividad',
+])
+
+/** Maps sales track accion to template intents. Dynamic actions (mostrar_confirmacion, cambio, crear_orden, pedir_datos) handled in response-track. */
+export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
+  ofrecer_promos: ['promociones'],
+  no_interesa: ['no_interesa'],
+  rechazar: ['rechazar'],
+  ask_ofi_inter: ['ask_ofi_inter'],
+}
 
 // ============================================================================
 // Critical Fields

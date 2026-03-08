@@ -4,11 +4,11 @@
  * Controls silent data accumulation during captura mode.
  * Determines whether to respond, stay silent, or auto-trigger next phase.
  *
- * Rules:
- * - datos → silent (accumulate, no response)
+ * Rules (two-track: all paths return 'respond', silence is natural absence of output):
+ * - datos → respond (accumulate + continue to decision engine)
  * - pregunta → respond (continue to decision engine)
  * - mixto → respond (data already merged in Capa 3)
- * - irrelevante → silent (no effect on timer)
+ * - irrelevante → respond (continue to decision engine)
  *
  * Auto-triggers:
  * - datosOk + !packElegido → OFRECER_PROMOS
@@ -78,10 +78,10 @@ export function evaluateIngest(
   // ------------------------------------------------------------------
   switch (category) {
     case 'datos': {
-      // Silent accumulation — don't respond, reevaluate timer
+      // Data accumulation — continue to decision engine (two-track: silence is natural absence of output)
       const timerSignal = evaluateTimerLevel(state, prevState)
       return {
-        action: 'silent',
+        action: 'respond',
         timerSignal,
       }
     }
@@ -101,8 +101,8 @@ export function evaluateIngest(
     }
 
     case 'irrelevante': {
-      // No effect — don't respond, don't touch timer
-      return { action: 'silent' }
+      // No effect — continue to decision engine (two-track: silence is natural absence of output)
+      return { action: 'respond' }
     }
 
     default:

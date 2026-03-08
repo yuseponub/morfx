@@ -41,12 +41,17 @@ export async function getActiveWorkspaceId(): Promise<string | null> {
     .single()
 
   if (data?.workspace_id) {
-    // Set the cookie for future requests
-    cookieStore.set('morfx_workspace', data.workspace_id, {
-      path: '/',
-      maxAge: 31536000,
-      httpOnly: false,
-    })
+    // Set the cookie for future requests (try/catch: .set() throws in Server Components)
+    try {
+      cookieStore.set('morfx_workspace', data.workspace_id, {
+        path: '/',
+        maxAge: 31536000,
+        httpOnly: false,
+      })
+    } catch {
+      // Called from Server Component — cookie can't be set here,
+      // WorkspaceProvider will handle it on the client side
+    }
     return data.workspace_id
   }
 

@@ -1,9 +1,8 @@
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { WorkspaceProvider } from '@/components/providers/workspace-provider'
-import { getUserWorkspaces } from '@/app/actions/workspace'
+import { getUserWorkspaces, getActiveWorkspaceId } from '@/app/actions/workspace'
 
 export default async function DashboardLayout({
   children,
@@ -17,15 +16,14 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  // Fetch user's workspaces
-  const workspaces = await getUserWorkspaces()
-
-  // Get selected workspace from cookie
-  const cookieStore = await cookies()
-  const selectedWorkspaceId = cookieStore.get('morfx_workspace')?.value
+  // Fetch user's workspaces and resolve active workspace in parallel
+  const [workspaces, activeWorkspaceId] = await Promise.all([
+    getUserWorkspaces(),
+    getActiveWorkspaceId(),
+  ])
 
   // Find selected workspace or use first one
-  let currentWorkspace = workspaces.find(w => w.id === selectedWorkspaceId) || null
+  let currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || null
   if (!currentWorkspace && workspaces.length > 0) {
     currentWorkspace = workspaces[0]
   }

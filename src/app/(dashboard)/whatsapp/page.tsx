@@ -1,7 +1,7 @@
-import { cookies } from 'next/headers'
 import { InboxLayout } from './components/inbox-layout'
 import { getConversations } from '@/app/actions/conversations'
 import { getClientActivationSettings } from '@/app/actions/client-activation'
+import { getActiveWorkspaceId } from '@/app/actions/workspace'
 
 interface WhatsAppPageProps {
   searchParams: Promise<{ phone?: string }>
@@ -10,9 +10,8 @@ interface WhatsAppPageProps {
 export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) {
   const { phone } = await searchParams
 
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  // Get workspace from cookie or DB fallback (for new users without cookie)
+  const workspaceId = await getActiveWorkspaceId()
 
   if (!workspaceId) {
     return (

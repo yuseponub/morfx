@@ -92,6 +92,9 @@ function Section({
 function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
   if (!turn) return <p className="text-xs text-muted-foreground">Sin datos todavia</p>
 
+  const salesTrack = turn.salesTrack
+  const responseTrack = turn.responseTrack
+
   const layers = [
     {
       id: 'C2',
@@ -106,35 +109,27 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
       detail: null,
     },
     {
+      id: 'C5',
+      name: 'Gates',
+      status: 'ok',
+      detail: turn.stateAfter
+        ? `pack: ${turn.stateAfter.packSeleccionado ?? 'ninguno'} | mode: ${turn.stateAfter.currentMode}`
+        : null,
+    },
+    {
+      id: 'GD',
+      name: 'Guards',
+      status: turn.classification?.category === 'HANDOFF' ? 'blocked' : 'ok',
+      detail: turn.classification?.category === 'HANDOFF'
+        ? `BLOCKED: ${turn.classification.reason}`
+        : 'passed',
+    },
+    {
       id: 'C4',
       name: 'Ingest',
       status: turn.ingestDetails ? 'ok' : 'skip',
       detail: turn.ingestDetails
-        ? `${(turn.ingestDetails as any).action ?? '?'}${(turn.ingestDetails as any).systemEvent ? ` → ${(turn.ingestDetails as any).systemEvent.type}` : ''}`
-        : null,
-    },
-    {
-      id: 'C5',
-      name: 'Gates',
-      status: 'ok',
-      detail: turn.orchestration
-        ? `datosOk: ${(turn.orchestration as any).shouldCreateOrder ? 'si' : '?'} | pack: ${turn.stateAfter?.packSeleccionado ? 'si' : 'no'}`
-        : null,
-    },
-    {
-      id: 'C6',
-      name: 'Decision',
-      status: turn.classification ? 'ok' : 'skip',
-      detail: turn.classification
-        ? `${(turn.classification as any).category} — ${(turn.classification as any).reason?.slice(0, 60) ?? ''}`
-        : null,
-    },
-    {
-      id: 'C7',
-      name: 'Response',
-      status: turn.orchestration ? 'ok' : 'skip',
-      detail: turn.orchestration
-        ? `${(turn.orchestration as any).templatesCount ?? 0} templates | mode: ${(turn.orchestration as any).nextMode ?? '?'}`
+        ? `${(turn.ingestDetails as any).action ?? 'respond'}${(turn.ingestDetails as any).systemEvent ? ` → ${(turn.ingestDetails as any).systemEvent.type}` : ''}`
         : null,
     },
   ]
@@ -147,7 +142,7 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
           className={`flex items-start gap-2 text-xs py-1 ${layer.status === 'skip' ? 'opacity-40' : ''}`}
         >
           <Badge
-            variant={layer.status === 'ok' ? 'default' : 'secondary'}
+            variant={layer.status === 'ok' ? 'default' : layer.status === 'blocked' ? 'destructive' : 'secondary'}
             className="shrink-0 text-[10px] px-1.5 py-0 font-mono"
           >
             {layer.id}
@@ -160,6 +155,102 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
           </div>
         </div>
       ))}
+
+      {/* Sales Track */}
+      <div className="flex items-start gap-2 text-xs py-1">
+        <Badge
+          variant={salesTrack?.accion ? 'default' : 'secondary'}
+          className="shrink-0 text-[10px] px-1.5 py-0 font-mono"
+        >
+          ST
+        </Badge>
+        <div className="min-w-0">
+          <span className="font-medium">Sales Track</span>
+          {salesTrack ? (
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1 flex-wrap">
+                {salesTrack.accion ? (
+                  <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-green-600">
+                    {salesTrack.accion}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    sin accion
+                  </Badge>
+                )}
+                {salesTrack.enterCaptura === true && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-500 text-amber-700">
+                    +captura
+                  </Badge>
+                )}
+                {salesTrack.enterCaptura === false && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0 border-blue-500 text-blue-700">
+                    -captura
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground truncate">{salesTrack.reason}</p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">—</p>
+          )}
+        </div>
+      </div>
+
+      {/* Response Track */}
+      <div className="flex items-start gap-2 text-xs py-1">
+        <Badge
+          variant={responseTrack && responseTrack.totalMessages > 0 ? 'default' : 'secondary'}
+          className="shrink-0 text-[10px] px-1.5 py-0 font-mono"
+        >
+          RT
+        </Badge>
+        <div className="min-w-0">
+          <span className="font-medium">Response Track</span>
+          {responseTrack ? (
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1 flex-wrap">
+                {responseTrack.salesIntents.map((intent) => (
+                  <Badge key={`s-${intent}`} variant="default" className="text-[10px] px-1 py-0 bg-blue-600">
+                    CORE: {intent}
+                  </Badge>
+                ))}
+                {responseTrack.infoIntents.map((intent) => (
+                  <Badge key={`i-${intent}`} variant="outline" className="text-[10px] px-1 py-0 border-purple-500 text-purple-700">
+                    COMP: {intent}
+                  </Badge>
+                ))}
+                {responseTrack.totalMessages === 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-amber-700">
+                    Silencio natural
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground">
+                {responseTrack.totalMessages} mensaje{responseTrack.totalMessages !== 1 ? 's' : ''}
+              </p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">—</p>
+          )}
+        </div>
+      </div>
+
+      {/* Result */}
+      {turn.orchestration && (
+        <div className="flex items-start gap-2 text-xs py-1">
+          <Badge variant="default" className="shrink-0 text-[10px] px-1.5 py-0 font-mono">
+            OUT
+          </Badge>
+          <div className="min-w-0">
+            <span className="font-medium">Result</span>
+            <p className="text-muted-foreground truncate">
+              {(turn.orchestration as any).templatesCount ?? 0} templates | mode: {(turn.orchestration as any).nextMode ?? '?'}
+              {(turn.orchestration as any).shouldCreateOrder ? ' | CREAR ORDEN' : ''}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

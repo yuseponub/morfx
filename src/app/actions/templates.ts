@@ -191,8 +191,14 @@ export async function createTemplate(params: {
     return { error: 'Error al crear el template' }
   }
 
-  // Submit to 360dialog (async, don't block)
-  const apiKey = process.env.WHATSAPP_API_KEY
+  // Get workspace-specific API key (fallback to env var)
+  const { data: wsSettings } = await supabase
+    .from('workspace_settings')
+    .select('settings')
+    .eq('workspace_id', workspaceId)
+    .single()
+  const apiKey = (wsSettings?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined
+    || process.env.WHATSAPP_API_KEY
   if (apiKey) {
     try {
       await createTemplate360(apiKey, {
@@ -310,8 +316,14 @@ export async function deleteTemplate(id: string): Promise<ActionResult> {
     return { error: 'Template no encontrado' }
   }
 
-  // Delete from 360dialog if it was submitted
-  const apiKey = process.env.WHATSAPP_API_KEY
+  // Get workspace-specific API key
+  const { data: wsSettings2 } = await supabase
+    .from('workspace_settings')
+    .select('settings')
+    .eq('workspace_id', workspaceId)
+    .single()
+  const apiKey = (wsSettings2?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined
+    || process.env.WHATSAPP_API_KEY
   if (apiKey && template.submitted_at) {
     try {
       await deleteTemplate360(apiKey, template.name)
@@ -361,7 +373,13 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
     return { error: 'No hay workspace seleccionado' }
   }
 
-  const apiKey = process.env.WHATSAPP_API_KEY
+  const { data: wsSettings3 } = await supabase
+    .from('workspace_settings')
+    .select('settings')
+    .eq('workspace_id', workspaceId)
+    .single()
+  const apiKey = (wsSettings3?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined
+    || process.env.WHATSAPP_API_KEY
   if (!apiKey) {
     return { error: 'API key de WhatsApp no configurada' }
   }

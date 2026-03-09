@@ -7,7 +7,7 @@
  *
  * Flow:
  * 1. System event (timer expired) -> transition table lookup
- * 2. Auto-triggers por cambios de datos (absorbe logica de ingest)
+ * 2. Auto-triggers por cambios de datos
  * 3. Acknowledgment routing -> sub-type transitions
  * 4. Intent -> transition table lookup
  * 5. Fallback -> no accion (response track handles informational)
@@ -70,12 +70,12 @@ export function resolveSalesTrack(input: {
   }
 
   // ------------------------------------------------------------------
-  // 2. Auto-triggers por cambios de datos (absorbe logica de ingest)
+  // 2. Auto-triggers por cambios de datos
   // ------------------------------------------------------------------
 
   // Ofi inter detection: ciudad llego sin direccion (solo modo normal)
   if (!state.ofiInter && changes.ciudadJustArrived && !state.datos.direccion && !state.datos.barrio) {
-    const key = systemEventToKey({ type: 'ingest_complete', result: 'ciudad_sin_direccion' })
+    const key = systemEventToKey({ type: 'auto', result: 'ciudad_sin_direccion' })
     const match = resolveTransition(phase, key, state, gates)
     if (match) {
       return {
@@ -85,24 +85,18 @@ export function resolveSalesTrack(input: {
         reason: match.output.reason,
       }
     }
-    // Fallback if no transition found
-    return {
-      accion: 'ask_ofi_inter',
-      reason: 'Ciudad sin direccion -> preguntar ofi inter',
-    }
   }
 
   // Datos completos auto-trigger (criticos + extras ok, promos no mostradas)
   if (changes.criticalComplete && !promosMostradas(state)) {
-    const ev: SystemEvent = { type: 'ingest_complete', result: 'datos_completos' }
+    const ev: SystemEvent = { type: 'auto', result: 'datos_completos' }
     const key = systemEventToKey(ev)
     const match = resolveTransition(phase, key, state, gates)
     if (match) {
       return {
         accion: match.action,
         enterCaptura: match.output.enterCaptura,
-        timerSignal: match.output.timerSignal
-          ?? { type: 'cancel', reason: 'datos completos -> system event' },
+        timerSignal: match.output.timerSignal,
         reason: match.output.reason,
       }
     }

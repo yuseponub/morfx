@@ -6,7 +6,7 @@
  * C3: State Merge + StateChanges
  * C5: Compute Gates
  * Guards: R0 (low confidence), R1 (escape intents)
- * Sales Track: WHAT TO DO (pure state machine, absorbs ingest logic)
+ * Sales Track: WHAT TO DO (pure state machine)
  * Response Track: WHAT TO SAY (template engine)
  *
  * Layers C0, C0.5, C8-C11 are handled by the engine/adapters.

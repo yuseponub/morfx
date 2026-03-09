@@ -201,10 +201,6 @@ export interface V3AgentOutput {
     sentiment: string
     is_acknowledgment: boolean
   }
-  ingestInfo?: {
-    action: string
-    systemEvent?: { type: string; [k: string]: unknown }
-  }
 }
 
 // ============================================================================
@@ -226,7 +222,7 @@ export type TipoAccion =
 export interface AccionRegistrada {
   tipo: TipoAccion
   turno: number
-  origen: 'bot' | 'timer' | 'auto_trigger' | 'ingest'
+  origen: 'bot' | 'timer' | 'auto_trigger'
 }
 
 export type Phase =
@@ -239,17 +235,7 @@ export type Phase =
 
 export type SystemEvent =
   | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 }
-  | { type: 'ingest_complete'; result: 'datos_completos' | 'ciudad_sin_direccion' }
-  | { type: 'readiness_check'; ready_for: 'promos' | 'confirmacion' }
-
-export interface TransitionResult {
-  action: TipoAccion
-  templateIntents?: string[]
-  extraContext?: Record<string, string>
-  timerSignal?: TimerSignal
-  enterCaptura?: boolean
-  reason: string
-}
+  | { type: 'auto'; result: 'datos_completos' | 'ciudad_sin_direccion' }
 
 export type GuardResult =
   | { blocked: true; decision: Decision }

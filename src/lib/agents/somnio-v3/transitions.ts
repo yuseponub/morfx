@@ -198,9 +198,9 @@ export const TRANSITIONS: TransitionEntry[] = [
 
   // ======== System Event transitions ========
 
-  // Ingest auto-trigger: datos completos, no pack -> ofrecer_promos
+  // Auto-trigger: datos completos, no pack -> ofrecer_promos
   {
-    phase: 'capturing_data', on: 'ingest_complete:datos_completos', action: 'ofrecer_promos',
+    phase: 'capturing_data', on: 'auto:datos_completos', action: 'ofrecer_promos',
     condition: (_, gates) => !gates.packElegido,
     resolve: () => ({
       templateIntents: ['promociones'],
@@ -209,44 +209,24 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Ingest auto-trigger: datos completos + pack -> mostrar_confirmacion
+  // Auto-trigger: datos completos + pack -> mostrar_confirmacion
   {
-    phase: 'capturing_data', on: 'ingest_complete:datos_completos', action: 'mostrar_confirmacion',
+    phase: 'capturing_data', on: 'auto:datos_completos', action: 'mostrar_confirmacion',
     condition: (_, gates) => gates.packElegido,
     resolve: (state) => ({
       templateIntents: [getResumenIntent(state.pack!)],
       extraContext: buildResumenContext(state),
+      timerSignal: { type: 'start', level: 'L4', reason: 'datos completos + pack -> confirmacion' },
       reason: 'Auto-trigger: datosOk + pack -> confirmacion',
     }),
   },
 
-  // Ingest: ciudad sin direccion -> ask_ofi_inter
+  // Auto-trigger: ciudad sin direccion -> ask_ofi_inter
   {
-    phase: '*', on: 'ingest_complete:ciudad_sin_direccion', action: 'ask_ofi_inter',
+    phase: '*', on: 'auto:ciudad_sin_direccion', action: 'ask_ofi_inter',
     resolve: () => ({
       templateIntents: ['ask_ofi_inter'],
       reason: 'Ciudad sin direccion -> preguntar ofi inter',
-    }),
-  },
-
-  // Readiness check: ready for promos
-  {
-    phase: '*', on: 'readiness_check:promos', action: 'ofrecer_promos',
-    resolve: () => ({
-      templateIntents: ['promociones'],
-      timerSignal: { type: 'start', level: 'L3', reason: 'readiness -> promos' },
-      reason: 'Readiness check: datos ok -> ofrecer promos',
-    }),
-  },
-
-  // Readiness check: ready for confirmacion
-  {
-    phase: '*', on: 'readiness_check:confirmacion', action: 'mostrar_confirmacion',
-    resolve: (state) => ({
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
-      timerSignal: { type: 'start', level: 'L4', reason: 'readiness -> confirmacion' },
-      reason: 'Readiness check: datos ok + pack -> confirmacion',
     }),
   },
 
@@ -387,10 +367,8 @@ export function systemEventToKey(event: { type: string; [k: string]: unknown }):
   switch (event.type) {
     case 'timer_expired':
       return `timer_expired:${event.level}`
-    case 'ingest_complete':
-      return `ingest_complete:${event.result}`
-    case 'readiness_check':
-      return `readiness_check:${event.ready_for}`
+    case 'auto':
+      return `auto:${event.result}`
     default:
       return event.type
   }

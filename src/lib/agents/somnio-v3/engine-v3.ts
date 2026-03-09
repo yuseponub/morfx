@@ -7,7 +7,7 @@
  */
 
 import { processMessage } from './somnio-v3-agent'
-import type { SandboxState, DebugTurn, DebugIngestDetails } from '@/lib/sandbox/types'
+import type { SandboxState, DebugTurn } from '@/lib/sandbox/types'
 import type { PackSelection } from '@/lib/agents/types'
 import type { SystemEvent } from './types'
 
@@ -61,7 +61,7 @@ export class SomnioV3Engine {
       delete newState.datosCapturados['_v3:accionesEjecutadas']
       delete newState.datosCapturados['_v3:templatesMostrados']
 
-      // Pick the last timer signal (most relevant — decision overrides ingest)
+      // Pick the last timer signal (most relevant)
       const lastTimerSignal = output.timerSignals.length > 0
         ? output.timerSignals[output.timerSignals.length - 1]
         : undefined
@@ -105,10 +105,6 @@ export class SomnioV3Engine {
             shouldCreateOrder: output.shouldCreateOrder,
             templatesCount: output.messages.length,
           } : undefined,
-          ingestDetails: output.ingestInfo ? {
-            action: output.ingestInfo.action as DebugIngestDetails['action'],
-            systemEvent: output.ingestInfo.systemEvent,
-          } satisfies DebugIngestDetails : undefined,
           salesTrack: output.salesTrackInfo ? {
             accion: output.salesTrackInfo.accion,
             reason: output.salesTrackInfo.reason,

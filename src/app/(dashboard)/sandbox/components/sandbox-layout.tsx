@@ -6,6 +6,12 @@
  *
  * Complete layout with chat, debug panel, session management,
  * and CRM agent state management.
+ *
+ * Timer refactored to pure countdown (quick-013):
+ * - Timer expires -> sends systemEvent to pipeline
+ * - Pipeline decides what to do and say
+ * - No hardcoded messages from frontend
+ * - Silence detection starts countdown at L0 via main timer
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -13,10 +19,9 @@ import dynamic from 'next/dynamic'
 import { SandboxHeader } from './sandbox-header'
 import { SandboxChat } from './sandbox-chat'
 import { DebugTabs, DebugV3 } from './debug-panel'
-import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig, TimerEvalContext, TimerAction, SilenceTimerState } from '@/lib/sandbox/types'
-import { IngestTimerSimulator, TIMER_DEFAULTS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
+import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, SandboxEngineResult, CrmAgentState, CrmExecutionMode, TimerState, TimerConfig } from '@/lib/sandbox/types'
+import { IngestTimerSimulator, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
-import { SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DETECT, SILENCE_RETAKE_DURATION_MS } from '@/lib/agents/somnio/constants'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
@@ -57,7 +62,7 @@ export function SandboxLayout() {
   const [queuedMessages, setQueuedMessages] = useState<string[]>([])
   const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
-  // Timer state (Phase 15.7)
+  // Timer state (Phase 15.7, simplified quick-013)
   const [timerState, setTimerState] = useState<TimerState>({
     active: false,
     level: null,
@@ -70,18 +75,6 @@ export function SandboxLayout() {
   const simulatorRef = useRef<IngestTimerSimulator | null>(null)
   const stateRef = useRef<SandboxState>(INITIAL_STATE)
 
-  // Silence retake timer state (Phase 30 sandbox)
-  const [silenceTimerState, setSilenceTimerState] = useState<SilenceTimerState>({
-    active: false, remainingMs: 0, status: 'idle'
-  })
-  const silenceIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [silenceDurationMs, setSilenceDurationMs] = useState(SILENCE_RETAKE_DURATION_MS)
-  const silenceDurationRef = useRef(SILENCE_RETAKE_DURATION_MS)
-
-  // Retake template content (fetched from DB on mount — includes image URL if applicable)
-  const retakeTemplateRef = useRef<string | null>(null)
-
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
 
@@ -91,13 +84,7 @@ export function SandboxLayout() {
   const crmAgentsRef = useRef<CrmAgentState[]>([])
   const workspaceRef = useRef(workspace)
 
-  // Load CRM agents and retake template on mount
-  useEffect(() => {
-    fetch('/api/sandbox/retake-template')
-      .then(res => res.json())
-      .then(({ content }) => { retakeTemplateRef.current = content })
-      .catch(err => console.error('[Sandbox] Failed to load retake template:', err))
-  }, [])
+  // Load CRM agents on mount
   useEffect(() => {
     fetch('/api/sandbox/crm-agents')
       .then(res => res.json())
@@ -106,7 +93,7 @@ export function SandboxLayout() {
   }, [])
 
   // ============================================================================
-  // Timer Lifecycle (Phase 15.7)
+  // Timer Lifecycle (pure countdown — quick-013)
   // ============================================================================
 
   // Keep refs in sync for timer callbacks (avoids stale closures)
@@ -134,168 +121,105 @@ export function SandboxLayout() {
     agentIdRef.current = agentId
   }, [agentId])
 
-  useEffect(() => {
-    silenceDurationRef.current = silenceDurationMs
-  }, [silenceDurationMs])
-
   const timerEnabledRef = useRef(true)
   useEffect(() => {
     timerEnabledRef.current = timerEnabled
   }, [timerEnabled])
 
   // Ref to hold latest handleTimerExpire to avoid stale closures in simulator
-  const timerExpireRef = useRef<(level: number, action: TimerAction) => void>(() => {})
+  const timerExpireRef = useRef<(level: number) => void>(() => {})
 
   // Helper: start timer at a specific level
   const startTimerForLevel = useCallback((level: number) => {
-    const durationS = timerConfig.levels[level] ?? TIMER_DEFAULTS.levels[level]
+    const durationS = timerConfig.levels[level] ?? TIMER_DEFAULTS.levels[level] ?? 60
     const durationMs = durationS * 1000
     simulatorRef.current?.start(level, durationMs)
   }, [timerConfig])
 
-  // Handle timer expiration: inject message, handle transitions, chain timers
-  const handleTimerExpire = useCallback((level: number, action: TimerAction) => {
-    // 1. Inject message into chat (if action has one)
-    if (action.message) {
-      const timerMessage: SandboxMessage = {
-        id: `msg-${Date.now()}-timer`,
-        role: 'assistant',
-        content: action.message,
-        timestamp: new Date().toISOString(),
+  // Helper: process timer signal from pipeline response
+  const processTimerSignal = useCallback((signal: { type: string; level?: string; reason?: string }) => {
+    if (signal.type === 'start' && signal.level) {
+      const levelNum = parseInt(signal.level.replace('L', ''), 10)
+      if (!isNaN(levelNum)) {
+        startTimerForLevel(levelNum)
       }
-      setMessages(prev => [...prev, timerMessage])
-    }
-
-    // 2. Handle mode transition (level 2: silent transition to ofrecer_promos)
-    if (action.type === 'transition_mode' && action.targetMode) {
-      setState(prev => ({ ...prev, currentMode: action.targetMode! }))
-
-      // Level 2: transition to ofrecer_promos + trigger engine to send promo templates
-      if (level === 2) {
-        const triggerPromos = async () => {
-          const currentMessages = messagesRef.current
-          const currentDebugTurns = debugTurnsRef.current
-          const currentState = stateRef.current
-          const updatedState = { ...currentState, currentMode: action.targetMode! }
-          const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
-
-          try {
-            setIsTyping(true)
-            const response = await fetch('/api/sandbox/process', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message: '[timer: datos mínimos completos]',
-                state: updatedState,
-                history,
-                turnNumber: currentDebugTurns.length + 1,
-                forceIntent: 'ofrecer_promos',
-                agentId: agentIdRef.current,
-              }),
-            })
-            const result = await response.json()
-            setIsTyping(false)
-
-            if (result.success && result.messages?.length > 0) {
-              for (const msg of result.messages) {
-                const assistantMsg: SandboxMessage = {
-                  id: `msg-${Date.now()}-timer-promo-${Math.random().toString(36).slice(2, 7)}`,
-                  role: 'assistant' as const,
-                  content: msg,
-                  timestamp: new Date().toISOString(),
-                }
-                setMessages(prev => [...prev, assistantMsg])
-                await new Promise(r => setTimeout(r, 2000))
-              }
-            }
-
-            // Update state and debug from engine response
-            if (result.newState) {
-              setState(result.newState)
-            }
-            if (result.debugTurn) {
-              setDebugTurns(prev => [...prev, result.debugTurn])
-              setTotalTokens(prev => prev + (result.debugTurn.tokens?.tokensUsed ?? 0))
-            }
-          } catch (err) {
-            setIsTyping(false)
-            console.error('[Timer L2] Failed to trigger ofrecer_promos:', err)
-          }
-
-          // Chain to level 3 after promos sent
-          startTimerForLevel(3)
-        }
-        setTimeout(() => { triggerPromos() }, 200)
+    } else if (signal.type === 'reevaluate' && signal.level) {
+      // Reevaluate = restart at the specified level (pipeline already decided the level)
+      const levelNum = parseInt(signal.level.replace('L', ''), 10)
+      if (!isNaN(levelNum)) {
+        startTimerForLevel(levelNum)
       }
+    } else if (signal.type === 'cancel') {
+      simulatorRef.current?.stop()
+      setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
     }
-
-    // 3. Handle order creation (levels 3, 4) via CRM orchestrator
-    if (action.type === 'create_order') {
-      const triggerOrderCreation = async () => {
-        const currentMessages = messagesRef.current
-        const currentDebugTurns = debugTurnsRef.current
-        const currentState = stateRef.current
-        const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
-        const enabledCrmAgents = crmAgentsRef.current
-          .filter(a => a.enabled)
-          .map(a => ({ agentId: a.agentId, mode: a.mode }))
-
-        try {
-          setIsTyping(true)
-          const response = await fetch('/api/sandbox/process', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: `[timer: ${level === 3 ? 'promos sin respuesta' : 'pack sin confirmar'}]`,
-              state: currentState,
-              history,
-              turnNumber: currentDebugTurns.length + 1,
-              crmAgents: enabledCrmAgents,
-              workspaceId: workspaceRef.current?.id,
-              forceIntent: level === 3 ? 'timer_sinpack' : 'timer_pendiente',
-              agentId: agentIdRef.current,
-            }),
-          })
-          const result = await response.json()
-          setIsTyping(false)
-
-          if (result.success && result.messages?.length > 0) {
-            for (const msg of result.messages) {
-              const assistantMsg: SandboxMessage = {
-                id: `msg-${Date.now()}-timer-order-${Math.random().toString(36).slice(2, 7)}`,
-                role: 'assistant' as const,
-                content: msg,
-                timestamp: new Date().toISOString(),
-              }
-              setMessages(prev => [...prev, assistantMsg])
-              await new Promise(r => setTimeout(r, 2000))
-            }
-          }
-
-          if (result.newState) {
-            setState(result.newState)
-          }
-          if (result.debugTurn) {
-            setDebugTurns(prev => [...prev, result.debugTurn])
-            setTotalTokens(prev => prev + (result.debugTurn.tokens?.tokensUsed ?? 0))
-          }
-        } catch (err) {
-          setIsTyping(false)
-          console.error(`[Timer L${level}] Failed to create order:`, err)
-        }
-      }
-      setTimeout(() => { triggerOrderCreation() }, 200)
-    }
-
-    // 4. Reset timer state display (timer has expired)
-    setTimerState({
-      active: false,
-      level: null,
-      levelName: '',
-      remainingMs: 0,
-      paused: false,
-    })
   }, [startTimerForLevel])
+
+  // Handle timer expiration: send systemEvent to pipeline, display result
+  const handleTimerExpire = useCallback(async (level: number) => {
+    // Reset timer display immediately
+    setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+
+    // Send systemEvent to pipeline — pipeline decides what to do and say
+    const currentMessages = messagesRef.current
+    const currentDebugTurns = debugTurnsRef.current
+    const currentState = stateRef.current
+    const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
+    const enabledCrmAgents = crmAgentsRef.current
+      .filter(a => a.enabled)
+      .map(a => ({ agentId: a.agentId, mode: a.mode }))
+
+    try {
+      setIsTyping(true)
+      const response = await fetch('/api/sandbox/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `[timer expired: level ${level}]`,
+          state: currentState,
+          history,
+          turnNumber: currentDebugTurns.length + 1,
+          systemEvent: { type: 'timer_expired', level },
+          agentId: agentIdRef.current,
+          crmAgents: enabledCrmAgents,
+          workspaceId: workspaceRef.current?.id,
+        }),
+      })
+      const result = await response.json()
+      setIsTyping(false)
+
+      // Display messages from pipeline
+      if (result.success && result.messages?.length > 0) {
+        for (const msg of result.messages) {
+          const assistantMsg: SandboxMessage = {
+            id: `msg-${Date.now()}-timer-${Math.random().toString(36).slice(2, 7)}`,
+            role: 'assistant' as const,
+            content: msg,
+            timestamp: new Date().toISOString(),
+          }
+          setMessages(prev => [...prev, assistantMsg])
+          if (result.messages.length > 1) {
+            await new Promise(r => setTimeout(r, 2000))
+          }
+        }
+      }
+
+      // Update state and debug from pipeline response
+      if (result.newState) setState(result.newState)
+      if (result.debugTurn) {
+        setDebugTurns(prev => [...prev, result.debugTurn])
+        setTotalTokens(prev => prev + (result.debugTurn.tokens?.tokensUsed ?? 0))
+      }
+
+      // Process next timer signal from pipeline (e.g., L2 -> start L3)
+      if (timerEnabledRef.current && result.timerSignal) {
+        processTimerSignal(result.timerSignal)
+      }
+    } catch (err) {
+      setIsTyping(false)
+      console.error(`[Timer L${level}] Failed to process timer expiry:`, err)
+    }
+  }, [processTimerSignal])
 
   // Keep ref up-to-date with latest handleTimerExpire
   useEffect(() => {
@@ -307,36 +231,19 @@ export function SandboxLayout() {
     const simulator = new IngestTimerSimulator(
       // onTick: update timer display state
       (remainingMs, level) => {
-        const levelConfig = TIMER_LEVELS.find(l => l.id === level)
         setTimerState(prev => ({
           active: true,
           level,
-          levelName: levelConfig?.name ?? '',
+          levelName: '', // levelName comes from getState() in simulator
           remainingMs,
           paused: prev.paused,
         }))
       },
       // onExpire: delegate to ref (avoids stale closure)
-      (level, action) => {
-        timerExpireRef.current(level, action)
+      (level) => {
+        timerExpireRef.current(level)
       }
     )
-    // Provide real context at expiration time (Phase 15.7 fix)
-    // Uses stateRef to avoid stale closure - always reads latest state
-    simulator.setContextProvider(() => {
-      const s = stateRef.current
-      const fieldsCollected = Object.keys(s.datosCapturados).filter(
-        k => !k.startsWith('_v3:') && s.datosCapturados[k] && s.datosCapturados[k] !== 'N/A'
-      )
-      return {
-        fieldsCollected,
-        totalFields: fieldsCollected.length,
-        currentMode: s.currentMode,
-        packSeleccionado: s.packSeleccionado ?? null,
-        promosOffered: s.intentsVistos.includes('ofrecer_promos'),
-      }
-    })
-
     simulatorRef.current = simulator
     return () => simulator.destroy()
   }, [])
@@ -351,31 +258,15 @@ export function SandboxLayout() {
     }
   }, [timerState])
 
-  // Timer toggle handler
+  // Timer toggle handler (simplified — no evaluateLevel)
   const handleTimerToggle = useCallback((enabled: boolean) => {
     setTimerEnabled(enabled)
     if (!enabled) {
       simulatorRef.current?.stop()
       setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
-    } else {
-      // Retroactively start timer for current state (catches missed signals)
-      const s = stateRef.current
-      const fieldsCollected = Object.keys(s.datosCapturados).filter(
-        k => s.datosCapturados[k] && s.datosCapturados[k] !== 'N/A'
-      )
-      const ctx: TimerEvalContext = {
-        fieldsCollected,
-        totalFields: fieldsCollected.length,
-        currentMode: s.currentMode,
-        packSeleccionado: s.packSeleccionado ?? null,
-        promosOffered: s.intentsVistos.includes('ofrecer_promos'),
-      }
-      const level = simulatorRef.current?.evaluateLevel(ctx)
-      if (level !== null && level !== undefined) {
-        startTimerForLevel(level)
-      }
     }
-  }, [startTimerForLevel])
+    // When re-enabled, next pipeline response will start timer via timerSignal
+  }, [])
 
   // Timer pause/resume handler
   const handleTimerPause = useCallback(() => {
@@ -386,82 +277,6 @@ export function SandboxLayout() {
     }
     setTimerState(prev => ({ ...prev, paused: !prev.paused }))
   }, [timerState.paused])
-
-  // ============================================================================
-  // Silence Retake Timer (Phase 30 sandbox)
-  // ============================================================================
-
-  const cancelSilenceTimer = useCallback((immediate?: boolean) => {
-    if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
-    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
-    silenceIntervalRef.current = null
-    silenceTimeoutRef.current = null
-
-    if (immediate) {
-      setSilenceTimerState({ active: false, remainingMs: 0, status: 'idle' })
-    } else {
-      setSilenceTimerState({ active: false, remainingMs: 0, status: 'cancelled' })
-      // Return to idle after 3s
-      setTimeout(() => {
-        setSilenceTimerState(prev => prev.status === 'cancelled' ? { active: false, remainingMs: 0, status: 'idle' } : prev)
-      }, 3000)
-    }
-  }, [])
-
-  const startSilenceTimer = useCallback(() => {
-    // Cancel any previous silence timer
-    if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
-    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
-
-    const startTime = Date.now()
-    const duration = silenceDurationRef.current
-    setSilenceTimerState({ active: true, remainingMs: duration, status: 'waiting' })
-
-    // Tick every 1s
-    silenceIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime
-      const remaining = Math.max(0, duration - elapsed)
-      setSilenceTimerState(prev => prev.status === 'waiting' ? { ...prev, remainingMs: remaining } : prev)
-    }, 1000)
-
-    // On expiration: inject retake message (conditional)
-    silenceTimeoutRef.current = setTimeout(() => {
-      if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
-      silenceIntervalRef.current = null
-      silenceTimeoutRef.current = null
-
-      // Check if the full pitch was already sent (case-insensitive substring to avoid encoding issues)
-      const msgs = messagesRef.current
-      const fullAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.toLowerCase().includes(SILENCE_RETAKE_DETECT))
-      const shortAlreadySent = msgs.some(m => m.role === 'assistant' && m.content.toLowerCase().includes(SILENCE_RETAKE_SHORT.toLowerCase()))
-
-      // Pick retake message: DB template (with image) if not sent, short text if full sent, nothing if both sent
-      const retakeContent = !fullAlreadySent
-        ? (retakeTemplateRef.current ?? SILENCE_RETAKE_FULL)
-        : !shortAlreadySent
-          ? SILENCE_RETAKE_SHORT
-          : null
-
-      if (retakeContent) {
-        const retakeMessage: SandboxMessage = {
-          id: `msg-${Date.now()}-silence-retake`,
-          role: 'assistant',
-          content: retakeContent,
-          timestamp: new Date().toISOString(),
-        }
-        setMessages(prev => [...prev, retakeMessage])
-      }
-      setSilenceTimerState({ active: false, remainingMs: 0, status: 'expired' })
-    }, duration)
-  }, [])
-
-  // Cleanup silence timer on unmount
-  useEffect(() => {
-    return () => {
-      if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
-      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current)
-    }
-  }, [])
 
   // CRM agent toggle handler
   const handleCrmAgentToggle = useCallback((agentId: string, enabled: boolean) => {
@@ -494,15 +309,10 @@ export function SandboxLayout() {
       return
     }
 
-    // 2. Cancel silence timer if active (customer replied)
-    if (silenceTimerState.active) {
-      cancelSilenceTimer()
-    }
-
-    // 3. Show typing indicator
+    // 2. Show typing indicator
     setIsTyping(true)
 
-    // 4. Build history for API (use ref to avoid stale closure in async callback)
+    // 3. Build history for API (use ref to avoid stale closure in async callback)
     const history = messagesRef.current.map(m => ({ role: m.role, content: m.content }))
     history.push({ role: 'user', content })
 
@@ -559,52 +369,21 @@ export function SandboxLayout() {
       setDebugTurns(prev => [...prev, result.debugTurn])
       setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
 
-      // 8. Process timer signals from SandboxEngine (Phase 15.7)
-      // Use ref to avoid stale closure (timerEnabled may be outdated after message delays)
+      // 8. Process timer signals from pipeline (quick-013: simplified)
       if (timerEnabledRef.current && result.timerSignal) {
-        const signal = result.timerSignal
-        if (signal.type === 'start') {
-          // Build eval context from new state
-          const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
-            k => !k.startsWith('_v3:') && result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
-          )
-          const ctx: TimerEvalContext = {
-            fieldsCollected,
-            totalFields: fieldsCollected.length,
-            currentMode: result.newState.currentMode,
-            packSeleccionado: result.newState.packSeleccionado ?? null,
-            promosOffered: result.newState.intentsVistos.includes('ofrecer_promos'),
-          }
-          const level = simulatorRef.current?.evaluateLevel(ctx)
-          if (level !== null && level !== undefined) {
-            startTimerForLevel(level)
-          }
-        } else if (signal.type === 'reevaluate') {
-          const fieldsCollected = Object.keys(result.newState.datosCapturados).filter(
-            k => !k.startsWith('_v3:') && result.newState.datosCapturados[k] && result.newState.datosCapturados[k] !== 'N/A'
-          )
-          const ctx: TimerEvalContext = {
-            fieldsCollected,
-            totalFields: fieldsCollected.length,
-            currentMode: result.newState.currentMode,
-            packSeleccionado: result.newState.packSeleccionado ?? null,
-            promosOffered: result.newState.intentsVistos.includes('ofrecer_promos'),
-          }
-          simulatorRef.current?.reevaluateLevel(ctx, timerConfig)
-        } else if (signal.type === 'cancel') {
-          simulatorRef.current?.stop()
-          setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
-        }
+        processTimerSignal(result.timerSignal)
       }
-      // 9. Start silence retake timer if SILENCIOSO detected (Phase 30)
-      if (result.silenceDetected) {
-        startSilenceTimer()
+
+      // 9. Handle silence detection: start countdown at L0 via main timer
+      if (result.silenceDetected && timerEnabledRef.current) {
+        const silenceDuration = timerConfig.levels[0] ?? 600
+        simulatorRef.current?.start(0, silenceDuration * 1000)
       }
     } catch (error) {
       setIsTyping(false)
       console.error('[Sandbox] Error processing message:', error)
     }
-  }, [responseDelayMs, timerConfig, startTimerForLevel, silenceTimerState.active, cancelSilenceTimer, startSilenceTimer, isTyping])
+  }, [responseDelayMs, timerConfig, processTimerSignal, isTyping])
 
   // Handle session reset (preserves CRM agent selection, stops timer)
   const handleReset = useCallback(() => {
@@ -614,13 +393,10 @@ export function SandboxLayout() {
     setTotalTokens(0)
     setIsTyping(false)
     setQueuedMessages([])
-    // Stop timer on reset (Phase 15.7)
+    // Stop timer on reset
     simulatorRef.current?.stop()
     setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
-    // Stop silence timer on reset
-    cancelSilenceTimer(true)
-    // Keep timer enabled across resets (default: on)
-  }, [cancelSilenceTimer])
+  }, [])
 
   // Handle new session (same as reset but through controls)
   const handleNewSession = useCallback(() => {
@@ -692,10 +468,7 @@ export function SandboxLayout() {
                 timerConfig={timerConfig}
                 onTimerToggle={handleTimerToggle}
                 onTimerConfigChange={handleTimerConfigChange}
-                silenceDurationMs={silenceDurationMs}
-                onSilenceDurationChange={setSilenceDurationMs}
                 timerState={timerState}
-                silenceTimerState={silenceTimerState}
               />
             ) : (
               <DebugTabs
@@ -712,9 +485,6 @@ export function SandboxLayout() {
                 onTimerToggle={handleTimerToggle}
                 onTimerConfigChange={handleTimerConfigChange}
                 onTimerPause={handleTimerPause}
-                silenceTimerState={silenceTimerState}
-                silenceDurationMs={silenceDurationMs}
-                onSilenceDurationChange={setSilenceDurationMs}
               />
             )
           }

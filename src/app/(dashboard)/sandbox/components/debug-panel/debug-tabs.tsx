@@ -11,7 +11,7 @@
 import { useState, useCallback } from 'react'
 import { TabBar } from './tab-bar'
 import { PanelContainer } from './panel-container'
-import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, TimerState, TimerConfig, SilenceTimerState } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, DebugPanelTab, DebugPanelTabId, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'pipeline', label: 'Pipeline', visible: true },
@@ -41,10 +41,6 @@ interface DebugTabsProps {
   onTimerToggle: (enabled: boolean) => void
   onTimerConfigChange: (config: TimerConfig) => void
   onTimerPause: () => void
-  // Silence retake timer (Phase 30)
-  silenceTimerState: SilenceTimerState
-  silenceDurationMs: number
-  onSilenceDurationChange: (ms: number) => void
 }
 
 export function DebugTabs({
@@ -61,9 +57,6 @@ export function DebugTabs({
   onTimerToggle,
   onTimerConfigChange,
   onTimerPause,
-  silenceTimerState,
-  silenceDurationMs,
-  onSilenceDurationChange,
 }: DebugTabsProps) {
   const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
 
@@ -120,9 +113,6 @@ export function DebugTabs({
           onTimerToggle={onTimerToggle}
           onTimerConfigChange={onTimerConfigChange}
           onTimerPause={onTimerPause}
-          silenceTimerState={silenceTimerState}
-          silenceDurationMs={silenceDurationMs}
-          onSilenceDurationChange={onSilenceDurationChange}
         />
       </div>
     </div>

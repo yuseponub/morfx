@@ -22,7 +22,7 @@ import JsonView from '@uiw/react-json-view'
 import { darkTheme } from '@uiw/react-json-view/dark'
 import { lightTheme } from '@uiw/react-json-view/light'
 import { ConfigTab } from './config-tab'
-import type { DebugTurn, SandboxState, TimerState, TimerConfig, SilenceTimerState } from '@/lib/sandbox/types'
+import type { DebugTurn, SandboxState, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 // ============================================================================
 // Types
@@ -43,11 +43,8 @@ interface DebugV3Props {
   timerConfig: TimerConfig
   onTimerToggle: (enabled: boolean) => void
   onTimerConfigChange: (config: TimerConfig) => void
-  silenceDurationMs: number
-  onSilenceDurationChange: (ms: number) => void
   // Timer live state
   timerState: TimerState
-  silenceTimerState: SilenceTimerState
 }
 
 // ============================================================================
@@ -498,12 +495,10 @@ function IngestTimersSection({
   turn,
   state,
   timerState,
-  silenceTimerState,
 }: {
   turn: DebugTurn | undefined
   state: SandboxState
   timerState: TimerState
-  silenceTimerState: SilenceTimerState
 }) {
   const ingest = turn?.ingestDetails as any
   const enCaptura = (state.datosCapturados?.['_v3:enCapturaSilenciosa'] ?? 'false') === 'true'
@@ -547,31 +542,6 @@ function IngestTimersSection({
         )}
       </div>
 
-      {/* Silence Retake Timer */}
-      <div className="space-y-1.5">
-        <span className="font-medium">Timer Silencio</span>
-        {silenceTimerState.active ? (
-          <div className={`flex items-center gap-2 p-2 rounded border ${
-            silenceTimerState.status === 'expired' ? 'border-red-400 bg-red-50 dark:bg-red-950'
-              : silenceTimerState.status === 'cancelled' ? 'border-gray-400 bg-gray-50 dark:bg-gray-900'
-                : 'border-orange-400 bg-orange-50 dark:bg-orange-950'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${
-              silenceTimerState.status === 'waiting' ? 'bg-orange-500 animate-pulse'
-                : silenceTimerState.status === 'expired' ? 'bg-red-500'
-                  : 'bg-gray-400'
-            }`} />
-            <span className="font-mono font-medium">{formatTimer(silenceTimerState.remainingMs)}</span>
-            <span className="text-muted-foreground">
-              {silenceTimerState.status === 'waiting' ? 'esperando retoma'
-                : silenceTimerState.status === 'expired' ? 'retoma enviada'
-                  : 'cancelado'}
-            </span>
-          </div>
-        ) : (
-          <p className="text-muted-foreground">Inactivo</p>
-        )}
-      </div>
     </div>
   )
 }
@@ -678,10 +648,7 @@ export function DebugV3({
   timerConfig,
   onTimerToggle,
   onTimerConfigChange,
-  silenceDurationMs,
-  onSilenceDurationChange,
   timerState,
-  silenceTimerState,
 }: DebugV3Props) {
   const [selectedTurnIdx, setSelectedTurnIdx] = useState(-1)
 
@@ -748,9 +715,9 @@ export function DebugV3({
           icon={<Timer className="h-3.5 w-3.5" />}
           defaultOpen={false}
           badge={
-            timerState.active || silenceTimerState.active
+            timerState.active
               ? <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700 animate-pulse">
-                  {timerState.active ? formatTimer(timerState.remainingMs) : formatTimer(silenceTimerState.remainingMs)}
+                  {formatTimer(timerState.remainingMs)}
                 </Badge>
               : undefined
           }
@@ -759,7 +726,6 @@ export function DebugV3({
             turn={selectedTurn}
             state={state}
             timerState={timerState}
-            silenceTimerState={silenceTimerState}
           />
         </Section>
 
@@ -813,8 +779,6 @@ export function DebugV3({
             timerConfig={timerConfig}
             onTimerToggle={onTimerToggle}
             onTimerConfigChange={onTimerConfigChange}
-            silenceDurationMs={silenceDurationMs}
-            onSilenceDurationChange={onSilenceDurationChange}
           />
         </Section>
       </div>

@@ -246,84 +246,91 @@ export class GoDentistAdapter {
     }
   }
 
+  /**
+   * Find the sucursal combo by locating the hidden #idsucursalgrid field
+   * and finding the nearby visible text input (the ExtJS combo).
+   * ExtJS ext-comp-XXXX IDs are dynamic and change between sessions.
+   */
+  private async getSucursalComboInputId(): Promise<string | null> {
+    if (!this.page) return null
+
+    const comboId = await this.page.evaluate(() => {
+      const hidden = document.getElementById('idsucursalgrid')
+      if (!hidden) return null
+      // Walk up to find the container that holds both the hidden + visible input
+      let parent = hidden.parentElement
+      for (let i = 0; i < 5 && parent; i++) {
+        const textInputs = parent.querySelectorAll('input[type="text"]')
+        for (const inp of textInputs) {
+          if (inp.id && inp.id !== 'idsucursalgrid') {
+            return inp.id
+          }
+        }
+        parent = parent.parentElement
+      }
+      return null
+    })
+
+    console.log(`[GoDentist] Sucursal combo input ID: ${comboId}`)
+    return comboId
+  }
+
+  private async openComboDropdown(inputId: string): Promise<void> {
+    if (!this.page) return
+    const trigger = this.page.locator(`#${inputId}`).locator('..').locator('.x-form-trigger')
+    const triggerExists = await trigger.count()
+    if (triggerExists > 0) {
+      await trigger.click()
+    } else {
+      await this.page.locator(`#${inputId}`).click()
+    }
+    await this.page.waitForTimeout(1000)
+  }
+
   private async discoverSucursales(): Promise<Sucursal[]> {
     if (!this.page) return []
 
     try {
-      // The sucursal combo is #ext-comp-1051 — it's an ExtJS ComboBox
-      const comboInput = this.page.locator('#ext-comp-1051')
-      const exists = await comboInput.count()
-      if (exists === 0) {
-        console.error('[GoDentist] Sucursal combo #ext-comp-1051 not found')
+      const comboId = await this.getSucursalComboInputId()
+      if (!comboId) {
+        console.error('[GoDentist] Could not find sucursal combo input via #idsucursalgrid')
         return []
       }
 
-      // Click the trigger arrow to open dropdown
-      const trigger = this.page.locator('#ext-comp-1051').locator('..').locator('.x-form-trigger')
-      const triggerExists = await trigger.count()
-      if (triggerExists > 0) {
-        await trigger.click()
-      } else {
-        await comboInput.click()
-      }
-
-      await this.page.waitForTimeout(1000)
+      await this.openComboDropdown(comboId)
       await this.takeScreenshot('sucursal-dropdown-open')
 
-      // Dump the DOM of the dropdown for diagnosis
-      const dropdownDiag = await this.page.evaluate(() => {
-        // ExtJS dropdowns are absolutely positioned divs that just appeared
-        // Look for any visible floating element with list items
-        const allDivs = document.querySelectorAll('div[style*="visibility: visible"], div.x-layer, div.x-combo-list, div.list-ct')
-        const results: Array<{ className: string; id: string; innerHTML: string }> = []
-        allDivs.forEach(d => {
-          if ((d as HTMLElement).offsetHeight > 0 && d.innerHTML.length > 10) {
-            results.push({
-              className: d.className,
-              id: d.id,
-              innerHTML: d.innerHTML.substring(0, 2000),
-            })
-          }
-        })
-        return results
-      })
-      console.log(`[GoDentist] DROPDOWN DOM DIAG (${dropdownDiag.length} visible containers):`)
-      for (const d of dropdownDiag) {
-        console.log(`  id="${d.id}" class="${d.className}" html=${d.innerHTML.substring(0, 500)}`)
+      // .x-combo-list-item is correct (confirmed from logs), but multiple
+      // combo dropdowns exist in DOM (hora, sucursal, etc). Use :visible.
+      const items = this.page.locator('.x-combo-list-item:visible')
+      const count = await items.count()
+      console.log(`[GoDentist] Visible dropdown items: ${count}`)
+
+      if (count === 0) {
+        // Debug: log all items including hidden
+        const allItems = this.page.locator('.x-combo-list-item')
+        const allCount = await allItems.count()
+        console.log(`[GoDentist] Total items (incl hidden): ${allCount}`)
+        for (let i = 0; i < Math.min(allCount, 10); i++) {
+          const text = (await allItems.nth(i).textContent())?.trim() || ''
+          const visible = await allItems.nth(i).isVisible()
+          console.log(`[GoDentist]   [${i}] "${text}" visible=${visible}`)
+        }
+        await this.page.keyboard.press('Escape')
+        return []
       }
 
-      // Try multiple selectors to find dropdown items
-      const selectors = [
-        '.x-combo-list-item',
-        '.x-combo-list .x-combo-list-inner div',
-        '.x-list-plain li',
-        '.x-boundlist-item',
-        '.x-layer div[class*="item"]',
-        '.x-layer .x-combo-list-inner div',
-      ]
-
-      for (const sel of selectors) {
-        const items = this.page.locator(sel)
-        const count = await items.count()
-        console.log(`[GoDentist] Selector "${sel}": ${count} items`)
-
-        if (count > 0) {
-          const sucursales: Sucursal[] = []
-          for (let i = 0; i < count; i++) {
-            const text = (await items.nth(i).textContent())?.trim() || ''
-            if (text && !text.toLowerCase().includes('seleccione')) {
-              sucursales.push({ value: text, label: text })
-            }
-          }
-          await this.page.keyboard.press('Escape')
-          await this.page.waitForTimeout(300)
-          return sucursales
+      const sucursales: Sucursal[] = []
+      for (let i = 0; i < count; i++) {
+        const text = (await items.nth(i).textContent())?.trim() || ''
+        if (text) {
+          sucursales.push({ value: text, label: text })
         }
       }
 
-      // Nothing found — close and return empty
       await this.page.keyboard.press('Escape')
-      return []
+      await this.page.waitForTimeout(300)
+      return sucursales
     } catch (err) {
       console.error('[GoDentist] Error discovering sucursales:', err)
       return []
@@ -333,32 +340,20 @@ export class GoDentistAdapter {
   private async selectSucursal(sucursal: Sucursal): Promise<void> {
     if (!this.page) return
 
-    // Open the dropdown
-    const trigger = this.page.locator('#ext-comp-1051').locator('..').locator('.x-form-trigger')
-    const triggerExists = await trigger.count()
+    const comboId = await this.getSucursalComboInputId()
+    if (!comboId) return
 
-    if (triggerExists > 0) {
-      await trigger.click()
-    } else {
-      await this.page.locator('#ext-comp-1051').click()
-    }
+    await this.openComboDropdown(comboId)
 
-    await this.page.waitForTimeout(800)
-
-    // Click the matching item
-    const item = this.page.locator(`.x-combo-list-item:has-text("${sucursal.label}")`)
+    // Click the visible matching item
+    const item = this.page.locator(`.x-combo-list-item:visible:has-text("${sucursal.label}")`)
     const exists = await item.count()
     if (exists > 0) {
       await item.click()
       console.log(`[GoDentist] Sucursal selected: ${sucursal.label}`)
     } else {
-      // Fallback: set value directly
-      await this.page.evaluate((label) => {
-        const input = document.getElementById('ext-comp-1051') as HTMLInputElement
-        if (input) input.value = label
-      }, sucursal.label)
       await this.page.keyboard.press('Escape')
-      console.log(`[GoDentist] Sucursal set via JS: ${sucursal.label}`)
+      console.log(`[GoDentist] Sucursal item not found: ${sucursal.label}`)
     }
 
     await this.page.waitForTimeout(500)

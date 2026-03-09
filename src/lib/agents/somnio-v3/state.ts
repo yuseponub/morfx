@@ -198,13 +198,6 @@ export function datosExtrasOk(state: AgentState): boolean {
 }
 
 /**
- * At least one data field present?
- */
-export function tieneDatosParciales(state: AgentState): boolean {
-  return Object.values(state.datos).some(v => v !== null && v.trim() !== '')
-}
-
-/**
  * List of critical fields still missing.
  */
 export function camposFaltantes(state: AgentState): string[] {
@@ -213,17 +206,6 @@ export function camposFaltantes(state: AgentState): string[] {
     const val = state.datos[f as keyof DatosCliente]
     return !val || val.trim() === ''
   })
-}
-
-/**
- * Count of critical fields filled.
- */
-export function camposLlenos(state: AgentState): number {
-  const fields = state.ofiInter ? CRITICAL_FIELDS_OFI_INTER : CRITICAL_FIELDS_NORMAL
-  return fields.filter(f => {
-    const val = state.datos[f as keyof DatosCliente]
-    return val !== null && val.trim() !== ''
-  }).length
 }
 
 // ============================================================================

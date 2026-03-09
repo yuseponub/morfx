@@ -31,7 +31,7 @@ export const somnioV3Config: AgentConfig = {
 
   orchestrator: {
     model: CLAUDE_MODELS.HAIKU,
-    systemPrompt: 'PLACEHOLDER — v3 uses decision.ts directly',
+    systemPrompt: 'PLACEHOLDER — v3 uses sales-track.ts + response-track.ts directly',
     maxTokens: 512,
   },
 

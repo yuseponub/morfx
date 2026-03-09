@@ -40,8 +40,6 @@ export const V3_INTENTS = [
   'otro',
 ] as const
 
-export type V3Intent = (typeof V3_INTENTS)[number]
-
 // ============================================================================
 // Intent Categories
 // ============================================================================
@@ -50,24 +48,6 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
   'asesor',
   'queja',
   'cancelar',
-])
-
-/** @deprecated Use INFORMATIONAL_INTENTS instead. Kept for backward compat with decision.ts until Plan 02. */
-export const NEVER_SILENCE_INTENTS: ReadonlySet<string> = new Set([
-  'saludo',
-  'precio',
-  'promociones',
-  'quiero_comprar',
-  'seleccion_pack',
-  'confirmar',
-  'contenido',
-  'como_se_toma',
-  'pago',
-  'envio',
-  'registro_sanitario',
-  'ubicacion',
-  'efectos',
-  'efectividad',
 ])
 
 // ============================================================================
@@ -109,20 +89,6 @@ export const CRITICAL_FIELDS_OFI_INTER = [
   'telefono',
   'ciudad',
   'departamento',
-] as const
-
-/** All data fields that can be extracted */
-export const ALL_DATA_FIELDS = [
-  'nombre',
-  'apellido',
-  'telefono',
-  'ciudad',
-  'departamento',
-  'direccion',
-  'barrio',
-  'correo',
-  'indicaciones_extra',
-  'cedula_recoge',
 ] as const
 
 // ============================================================================
@@ -174,53 +140,6 @@ export const V3_TO_V1_INTENT_MAP: Record<string, string[]> = {
 }
 
 // ============================================================================
-// Acknowledgment Patterns
-// ============================================================================
-
-export const ACK_PATTERNS: RegExp[] = [
-  /^o+k+\.?$/i,
-  /^va+le+\.?$/i,
-  /^li+sto+\.?$/i,
-  /^si+\.?$/i,
-  /^sí+\.?$/i,
-  /^bueno\.?$/i,
-  /^dale\.?$/i,
-  /^genial\.?$/i,
-  /^perfecto\.?$/i,
-  /^bien\.?$/i,
-  /^claro\.?$/i,
-  /^gra+cia+s\.?$/i,
-  /^grax\.?$/i,
-  /^ty\.?$/i,
-  /^ja+\.?$/i,
-  /^je+\.?$/i,
-  /^👍+$/,
-  /^👌+$/,
-  /^🤣+$/,
-  /^😂+$/,
-  /^😊+$/,
-  /^🙏+$/,
-  /^💪+$/,
-  /^❤️*$/,
-  /^🔥+$/,
-]
-
-// ============================================================================
-// Ofi Inter Detection Patterns
-// ============================================================================
-
-export const OFI_INTER_PATTERNS: RegExp[] = [
-  /\bofi\s*inter\b/i,
-  /\boficina\s*(de\s+)?inter/i,
-  /\boficina\s+interrapidisimo/i,
-  /\bquiero\s+ir\s+a\s+recoger/i,
-  /\bpuedo\s+pasar\s+a\s+buscar/i,
-  /\brecojo?\s+en\s+(oficina|inter)/i,
-  /\bno\s+necesito\s+domicilio/i,
-  /\bprefiero\s+recoger/i,
-]
-
-// ============================================================================
 // State Metadata Prefix
 // ============================================================================
 
@@ -229,11 +148,6 @@ export const V3_META_PREFIX = '_v3:'
 // ============================================================================
 // State Machine Constants (sm-01)
 // ============================================================================
-
-export const TIPO_ACCION = [
-  'ofrecer_promos', 'mostrar_confirmacion', 'pedir_datos', 'crear_orden',
-  'handoff', 'ask_ofi_inter', 'silence', 'rechazar', 'no_interesa', 'cambio',
-] as const
 
 export const SIGNIFICANT_ACTIONS: ReadonlySet<string> = new Set([
   'pedir_datos', 'ofrecer_promos', 'mostrar_confirmacion',

@@ -84,7 +84,7 @@ export interface Decision {
 
 export interface TimerSignal {
   type: 'start' | 'cancel' | 'reevaluate'
-  level?: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'silence'
+  level?: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5'
   reason?: string
 }
 
@@ -239,7 +239,7 @@ export type Phase =
   | 'closed'
 
 export type SystemEvent =
-  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 }
+  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 }
   | { type: 'ingest_complete'; result: 'datos_completos' | 'ciudad_sin_direccion' }
   | { type: 'readiness_check'; ready_for: 'promos' | 'confirmacion' }
 

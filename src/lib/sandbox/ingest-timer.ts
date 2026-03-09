@@ -11,7 +11,7 @@
  * 2 - Datos minimos: 120s default
  * 3 - Promos sin respuesta: 600s default
  * 4 - Pack sin confirmar: 600s default
- * 5 - Silencio: uses L0 duration
+ * 5 - Silencio: 90s default
  */
 
 import type { TimerConfig, TimerState, TimerPreset } from './types'
@@ -34,13 +34,13 @@ const LEVEL_NAMES: Record<number, string> = {
 // ============================================================================
 
 export const TIMER_DEFAULTS: TimerConfig = {
-  levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600 },
+  levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90 },
 }
 
 export const TIMER_PRESETS: Record<TimerPreset, TimerConfig> = {
-  real: { levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600 } },
-  rapido: { levels: { 0: 60, 1: 30, 2: 10, 3: 60, 4: 60 } },
-  instantaneo: { levels: { 0: 2, 1: 2, 2: 1, 3: 2, 4: 2 } },
+  real: { levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90 } },
+  rapido: { levels: { 0: 60, 1: 30, 2: 10, 3: 60, 4: 60, 5: 9 } },
+  instantaneo: { levels: { 0: 2, 1: 2, 2: 1, 3: 2, 4: 2, 5: 1 } },
 }
 
 // ============================================================================

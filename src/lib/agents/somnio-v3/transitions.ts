@@ -81,7 +81,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: '*', on: 'acknowledgment', action: 'silence',
     resolve: () => ({
       templateIntents: [],
-      timerSignal: { type: 'start', level: 'silence', reason: 'ack sin contexto confirmatorio' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'ack sin contexto confirmatorio' },
       reason: 'Acknowledgment sin contexto confirmatorio',
     }),
   },
@@ -302,6 +302,15 @@ export const TRANSITIONS: TransitionEntry[] = [
       extraContext: buildResumenContext(state),
       timerSignal: { type: 'cancel', reason: 'timer L4 -> orden' },
       reason: 'Timer L4 expired -> crear orden',
+    }),
+  },
+
+  // Timer expired L5 -> retoma inicial (silence in initial phase)
+  {
+    phase: 'initial', on: 'timer_expired:5', action: 'pedir_datos',
+    resolve: () => ({
+      templateIntents: ['retoma_inicial'],
+      reason: 'Timer L5 expired en initial -> retoma inicial',
     }),
   },
 

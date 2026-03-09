@@ -69,7 +69,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 12 completed
+- Quick fixes: 13 completed
 
 ## Performance Metrics
 
@@ -323,6 +323,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 010 | Filtro por etiqueta en inbox WhatsApp | 2026-03-07 | e45c03f | [010-filtro-tag-inbox-whatsapp](./quick/010-filtro-tag-inbox-whatsapp/) |
 | 011 | Debug panel cleanup post two-track refactor | 2026-03-08 | f7039b8 | [011-debug-panel-cleanup-two-track](./quick/011-debug-panel-cleanup-two-track/) |
 | 012 | Eliminar ingest y unificar timers en sales track | 2026-03-08 | 1d2c1f9 | [012-eliminar-ingest-unificar-timers](./quick/012-eliminar-ingest-unificar-timers/) |
+| 013 | Refactor sandbox timer countdown only | 2026-03-09 | fe78256 | [013-refactor-sandbox-timer-countdown-only](./quick/013-refactor-sandbox-timer-countdown-only/) |
 
 ### Blockers/Concerns
 

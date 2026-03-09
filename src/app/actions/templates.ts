@@ -192,13 +192,12 @@ export async function createTemplate(params: {
   }
 
   // Get workspace-specific API key (fallback to env var)
-  const { data: wsSettings } = await supabase
-    .from('workspace_settings')
+  const { data: wsData } = await supabase
+    .from('workspaces')
     .select('settings')
-    .eq('workspace_id', workspaceId)
+    .eq('id', workspaceId)
     .single()
-  const apiKey = (wsSettings?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined
-    || process.env.WHATSAPP_API_KEY
+  const apiKey = wsData?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (apiKey) {
     try {
       await createTemplate360(apiKey, {
@@ -317,13 +316,12 @@ export async function deleteTemplate(id: string): Promise<ActionResult> {
   }
 
   // Get workspace-specific API key
-  const { data: wsSettings2 } = await supabase
-    .from('workspace_settings')
+  const { data: wsData2 } = await supabase
+    .from('workspaces')
     .select('settings')
-    .eq('workspace_id', workspaceId)
+    .eq('id', workspaceId)
     .single()
-  const apiKey = (wsSettings2?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined
-    || process.env.WHATSAPP_API_KEY
+  const apiKey = wsData2?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (apiKey && template.submitted_at) {
     try {
       await deleteTemplate360(apiKey, template.name)
@@ -373,13 +371,12 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
     return { error: 'No hay workspace seleccionado' }
   }
 
-  const { data: wsSettings3 } = await supabase
-    .from('workspace_settings')
+  const { data: wsData3 } = await supabase
+    .from('workspaces')
     .select('settings')
-    .eq('workspace_id', workspaceId)
+    .eq('id', workspaceId)
     .single()
-  const apiKey = (wsSettings3?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined
-    || process.env.WHATSAPP_API_KEY
+  const apiKey = wsData3?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (!apiKey) {
     return { error: 'API key de WhatsApp no configurada' }
   }

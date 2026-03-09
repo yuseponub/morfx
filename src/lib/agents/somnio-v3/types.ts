@@ -240,7 +240,7 @@ export type Phase =
   | 'closed'
 
 export type SystemEvent =
-  | { type: 'timer_expired'; level: 2 | 3 | 4 }
+  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 }
   | { type: 'ingest_complete'; result: 'datos_completos' | 'ciudad_sin_direccion' }
   | { type: 'readiness_check'; ready_for: 'promos' | 'confirmacion' }
 

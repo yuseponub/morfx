@@ -250,6 +250,28 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
+  // Timer expired L0 -> pedir_datos (retoma sin datos)
+  {
+    phase: 'capturing_data', on: 'timer_expired:0', action: 'pedir_datos',
+    resolve: () => ({
+      templateIntents: ['retoma_datos'],
+      timerSignal: { type: 'start', level: 'L0', reason: 'retoma L0 -> re-pedir datos' },
+      reason: 'Timer L0 expired -> retoma sin datos',
+    }),
+  },
+  // Timer expired L1 -> pedir_datos (retoma datos parciales)
+  {
+    phase: 'capturing_data', on: 'timer_expired:1', action: 'pedir_datos',
+    resolve: (state) => {
+      const missing = camposFaltantes(state)
+      return {
+        templateIntents: ['retoma_datos_parciales'],
+        extraContext: { campos_faltantes: missing.join(', ') },
+        timerSignal: { type: 'start', level: 'L1', reason: 'retoma L1 -> re-pedir datos parciales' },
+        reason: 'Timer L1 expired -> retoma datos parciales',
+      }
+    },
+  },
   // Timer expired L2 -> ofrecer_promos
   {
     phase: 'capturing_data', on: 'timer_expired:2', action: 'ofrecer_promos',

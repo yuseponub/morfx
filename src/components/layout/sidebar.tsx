@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal } from 'lucide-react'
+import { Building2, MessageSquare, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -83,6 +83,11 @@ const navItems: NavItem[] = [
     href: '/agentes',
     label: 'Agentes',
     icon: Bot,
+  },
+  {
+    href: '/confirmaciones',
+    label: 'Confirmaciones',
+    icon: CalendarCheck,
   },
   {
     href: '/settings/workspace/members',

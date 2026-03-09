@@ -16,6 +16,7 @@ import { createSandboxAdapters } from '@/lib/agents/engine-adapters/sandbox'
 import { SomnioV2Engine } from '@/lib/agents/somnio-v2/engine-v2'
 import { SomnioV3Engine } from '@/lib/agents/somnio-v3/engine-v3'
 import type { SandboxState } from '@/lib/sandbox/types'
+import type { SystemEvent } from '@/lib/agents/somnio-v3/types'
 import { initializeTools } from '@/lib/tools/init'
 
 // Import somnio module to trigger agent registration
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId } = body as {
+    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId, systemEvent } = body as {
       message: string
       state: SandboxState
       history: { role: 'user' | 'assistant'; content: string }[]
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
       workspaceId?: string
       forceIntent?: string
       agentId?: string
+      systemEvent?: SystemEvent
     }
 
     if (!message || !state) {
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
         turnNumber: turnNumber ?? 1,
         workspaceId: workspaceId ?? 'sandbox-workspace',
         forceIntent,
+        systemEvent,
       })
       return NextResponse.json(v3Result)
     }

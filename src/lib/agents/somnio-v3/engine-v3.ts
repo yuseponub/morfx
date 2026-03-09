@@ -9,6 +9,7 @@
 import { processMessage } from './somnio-v3-agent'
 import type { SandboxState, DebugTurn, DebugIngestDetails } from '@/lib/sandbox/types'
 import type { PackSelection } from '@/lib/agents/types'
+import type { SystemEvent } from './types'
 
 export interface V3EngineInput {
   message: string
@@ -17,6 +18,7 @@ export interface V3EngineInput {
   turnNumber: number
   workspaceId: string
   forceIntent?: string
+  systemEvent?: SystemEvent
 }
 
 export interface V3EngineOutput {
@@ -46,6 +48,7 @@ export class SomnioV3Engine {
         turnNumber: input.turnNumber,
         workspaceId: input.workspaceId,
         forceIntent: input.forceIntent,
+        systemEvent: input.systemEvent,
       })
 
       const newState: SandboxState = {

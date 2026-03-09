@@ -408,12 +408,16 @@ export class GoDentistAdapter {
       for (let i = 0; i < rowCount; i++) {
         const row = rows.nth(i)
         const cells = await row.locator('td').allTextContents()
-        const cleanCells = cells.map(c => c.trim()).filter(c => c.length > 0)
+        const rawCells = cells.map(c => c.trim())
+        const cleanCells = rawCells.filter(c => c.length > 0)
 
         if (cleanCells.length < 3) continue // Skip separator/empty rows
 
-        // Table headers: Hora | Paciente | Estado | Teléfono | Doctor | Tipo | E | C | Comentarios
-        // Parse based on known column structure
+        // Table headers: Hora(0) | Paciente(1) | Estado(2) | Teléfono(3) | Doctor(4) | Tipo(5) | E(6) | C(7) | Comentarios(8)
+        // Extract estado from raw positional index (before filtering empties)
+        const estado = rawCells[2] || ''
+
+        // Parse other fields with heuristics (existing logic)
         let hora = ''
         let nombre = ''
         let telefono = ''
@@ -443,7 +447,7 @@ export class GoDentistAdapter {
         }
 
         if (nombre && telefono) {
-          appointments.push({ nombre, telefono, hora, sucursal })
+          appointments.push({ nombre, telefono, hora, sucursal, estado })
         }
       }
     } catch (err) {

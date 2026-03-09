@@ -10,6 +10,7 @@ export interface Appointment {
   telefono: string
   hora: string
   sucursal: string
+  estado: string
 }
 
 // ── Request / Response contracts ──

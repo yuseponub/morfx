@@ -367,8 +367,16 @@ export interface TimerConfig {
 }
 
 /**
- * Action to execute when a timer level expires.
+ * Timer speed preset name.
  */
+export type TimerPreset = 'real' | 'rapido' | 'instantaneo'
+
+// ============================================================================
+// Legacy Timer Types (used by production agent-timers.ts only)
+// Sandbox no longer uses these — sandbox timer is pure countdown (quick-013)
+// ============================================================================
+
+/** @deprecated Production only — sandbox uses systemEvent pipeline */
 export interface TimerAction {
   type: 'send_message' | 'transition_mode' | 'create_order'
   message?: string
@@ -376,9 +384,7 @@ export interface TimerAction {
   orderConfig?: { valor: number; pack?: string }
 }
 
-/**
- * Context for evaluating which timer level applies.
- */
+/** @deprecated Production only — sandbox uses systemEvent pipeline */
 export interface TimerEvalContext {
   fieldsCollected: string[]
   totalFields: number
@@ -387,32 +393,11 @@ export interface TimerEvalContext {
   promosOffered: boolean
 }
 
-/**
- * Configuration for a single timer level.
- */
+/** @deprecated Production only — sandbox uses systemEvent pipeline */
 export interface TimerLevelConfig {
   id: number
   name: string
   defaultDurationS: number
   evaluate: (ctx: TimerEvalContext) => boolean
   buildAction: (ctx: TimerEvalContext) => TimerAction
-}
-
-/**
- * Timer speed preset name.
- */
-export type TimerPreset = 'real' | 'rapido' | 'instantaneo'
-
-// ============================================================================
-// Silence Retake Timer Types (Phase 30 sandbox)
-// ============================================================================
-
-/**
- * State of the silence retake timer (90s countdown in sandbox).
- * Displayed in the Ingest tab of the debug panel.
- */
-export interface SilenceTimerState {
-  active: boolean
-  remainingMs: number
-  status: 'idle' | 'waiting' | 'cancelled' | 'expired'
 }

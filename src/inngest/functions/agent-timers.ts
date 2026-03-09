@@ -16,7 +16,7 @@ import { SessionManager } from '@/lib/agents/session-manager'
 import { sendTextMessage, sendMediaMessage } from '@/lib/whatsapp/api'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
-import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/ingest-timer'
+import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/timer-levels-legacy'
 import type { TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
 import { TIMER_MINIMUM_FIELDS, SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DETECT } from '@/lib/agents/somnio/constants'
 

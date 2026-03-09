@@ -15,7 +15,7 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
-import { TIMER_PRESETS, TIMER_LEVELS } from '@/lib/sandbox/ingest-timer'
+import { TIMER_PRESETS, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
 import type { TimerConfig, TimerPreset } from '@/lib/sandbox/types'
 
@@ -48,6 +48,15 @@ function formatSeconds(seconds: number): string {
   if (secs === 0) return `${mins}min`
   return `${mins}min ${secs}s`
 }
+
+/** Timer level display info (name only, no evaluate/buildAction) */
+const TIMER_LEVEL_INFO = [
+  { id: 0, name: 'Sin datos' },
+  { id: 1, name: 'Datos parciales' },
+  { id: 2, name: 'Datos minimos' },
+  { id: 3, name: 'Promos sin respuesta' },
+  { id: 4, name: 'Pack sin confirmar' },
+]
 
 /** Slider range config per level: min/max/step in seconds */
 const SLIDER_CONFIG: Record<number, { min: number; max: number; step: number }> = {
@@ -138,9 +147,9 @@ function TimerControlsV2({
 
           {/* 5 sliders - one per timer level */}
           <div className="space-y-2.5">
-            {TIMER_LEVELS.map((level) => {
+            {TIMER_LEVEL_INFO.map((level) => {
               const sliderConf = SLIDER_CONFIG[level.id]
-              const currentValue = timerConfig.levels[level.id] ?? level.defaultDurationS
+              const currentValue = timerConfig.levels[level.id] ?? TIMER_DEFAULTS.levels[level.id] ?? 60
               return (
                 <div key={level.id} className="space-y-1">
                   <div className="flex items-center justify-between">

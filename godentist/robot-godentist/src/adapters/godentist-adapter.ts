@@ -229,20 +229,52 @@ export class GoDentistAdapter {
 
   private async setHour(hour: string): Promise<void> {
     if (!this.page) return
-    // Set both the hidden field and the visible combo
-    await this.page.evaluate((h) => {
-      const hidden = document.getElementById('idhoras') as HTMLInputElement
-      if (hidden) hidden.value = h
-    }, hour)
 
-    // Click and type in the visible hour field
-    const hourInput = this.page.locator('#ext-comp-1089')
-    const exists = await hourInput.count()
-    if (exists > 0) {
+    // Find the visible combo input near #idhoras (same pattern as sucursal combo)
+    const comboId = await this.page.evaluate(() => {
+      const hidden = document.getElementById('idhoras')
+      if (!hidden) return null
+      let parent = hidden.parentElement
+      for (let i = 0; i < 5 && parent; i++) {
+        const textInputs = parent.querySelectorAll('input[type="text"]')
+        for (const inp of textInputs) {
+          if (inp.id && inp.id !== 'idhoras') {
+            return inp.id
+          }
+        }
+        parent = parent.parentElement
+      }
+      return null
+    })
+
+    console.log(`[GoDentist] Hour combo input ID: ${comboId}`)
+
+    if (comboId) {
+      // Set hidden field value
+      await this.page.evaluate((h) => {
+        const hidden = document.getElementById('idhoras') as HTMLInputElement
+        if (hidden) hidden.value = h
+      }, hour)
+
+      // Open dropdown, select the matching item
+      const hourInput = this.page.locator(`#${comboId}`)
       await hourInput.click({ clickCount: 3 })
       await hourInput.fill(hour)
-      await hourInput.press('Tab')
-      console.log(`[GoDentist] Hour set: ${hour}`)
+      await this.page.waitForTimeout(500)
+
+      // Try to click the matching dropdown item
+      const dropdownItem = this.page.locator(`.x-combo-list-item:visible`).filter({ hasText: hour })
+      const itemCount = await dropdownItem.count()
+      if (itemCount > 0) {
+        await dropdownItem.first().click()
+        console.log(`[GoDentist] Hour selected from dropdown: ${hour}`)
+      } else {
+        // Fallback: press Tab to commit typed value
+        await hourInput.press('Tab')
+        console.log(`[GoDentist] Hour typed (no dropdown match): ${hour}`)
+      }
+    } else {
+      console.warn('[GoDentist] Could not find hour combo input near #idhoras')
     }
   }
 

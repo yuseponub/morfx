@@ -15,7 +15,7 @@ Status: Plan 01 complete -- conditional product mapping backend (resolveConditio
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-09 — Completed quick-013: Refactor sandbox timer to countdown-only
+Last activity: 2026-03-09 — Completed quick-014: Unificar silence como L5 y eliminar catch-all
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -69,7 +69,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 13 completed
+- Quick fixes: 14 completed
 
 ## Performance Metrics
 
@@ -324,6 +324,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 011 | Debug panel cleanup post two-track refactor | 2026-03-08 | f7039b8 | [011-debug-panel-cleanup-two-track](./quick/011-debug-panel-cleanup-two-track/) |
 | 012 | Eliminar ingest y unificar timers en sales track | 2026-03-08 | 1d2c1f9 | [012-eliminar-ingest-unificar-timers](./quick/012-eliminar-ingest-unificar-timers/) |
 | 013 | Refactor sandbox timer countdown only | 2026-03-09 | fe78256 | [013-refactor-sandbox-timer-countdown-only](./quick/013-refactor-sandbox-timer-countdown-only/) |
+| 014 | Unificar silence L5 y eliminar catch-all | 2026-03-09 | 6c3ffb4 | [014-unificar-silence-l5-eliminar-catchall](./quick/014-unificar-silence-l5-eliminar-catchall/) |
 
 ### Blockers/Concerns
 
@@ -331,7 +332,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07 COT
-Stopped at: Completed quick-010 — Filtro por etiqueta en inbox WhatsApp
+Last session: 2026-03-09 COT
+Stopped at: Completed quick-014 — Unificar silence L5 y eliminar catch-all
 Resume file: None
 Next: sm-04 (testing) or Phase 35 Plan 03 or Phase 36 Plan 02

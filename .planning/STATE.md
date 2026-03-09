@@ -15,7 +15,7 @@ Status: Plan 01 complete -- conditional product mapping backend (resolveConditio
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-08 — Completed quick-011: Debug panel cleanup for two-track architecture
+Last activity: 2026-03-08 — Completed quick-012: Eliminar ingest.ts y unificar timers
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -69,7 +69,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 9 completed
+- Quick fixes: 12 completed
 
 ## Performance Metrics
 

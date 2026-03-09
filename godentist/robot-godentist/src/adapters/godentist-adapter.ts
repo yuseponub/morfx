@@ -174,6 +174,7 @@ export class GoDentistAdapter {
 
     // Step 2: Set hour to 6:00 am (earliest)
     await this.setHour('6:00 am')
+    await this.takeScreenshot('after-set-hour')
 
     // Step 3: Discover sucursales from the ExtJS combo
     const sucursales = await this.discoverSucursales()

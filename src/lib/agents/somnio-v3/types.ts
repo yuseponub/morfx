@@ -142,7 +142,6 @@ export interface V3AgentInput {
   accionesEjecutadas?: AccionRegistrada[]
   turnNumber: number
   workspaceId: string
-  forceIntent?: string
   systemEvent?: SystemEvent
 }
 

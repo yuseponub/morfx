@@ -17,7 +17,6 @@ export interface V3EngineInput {
   history: { role: 'user' | 'assistant'; content: string }[]
   turnNumber: number
   workspaceId: string
-  forceIntent?: string
   systemEvent?: SystemEvent
 }
 
@@ -47,7 +46,6 @@ export class SomnioV3Engine {
         history: input.history,
         turnNumber: input.turnNumber,
         workspaceId: input.workspaceId,
-        forceIntent: input.forceIntent,
         systemEvent: input.systemEvent,
       })
 

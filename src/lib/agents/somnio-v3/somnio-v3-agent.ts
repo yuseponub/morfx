@@ -46,43 +46,17 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       input.accionesEjecutadas ?? [],
     )
     // ------------------------------------------------------------------
-    // C2: Comprehension (skip if forceIntent from timer)
+    // C2: Comprehension (skip if systemEvent from timer)
     // ------------------------------------------------------------------
     let analysis: Awaited<ReturnType<typeof comprehend>>['analysis']
     let tokensUsed: number
 
-    // Translate forceIntent -> SystemEvent (backward compat layer)
-    let systemEvent: SystemEvent | undefined = input.systemEvent
-    if (!systemEvent && input.forceIntent) {
-      switch (input.forceIntent) {
-        case 'ofrecer_promos':
-          systemEvent = { type: 'timer_expired', level: 2 }
-          break
-        case 'timer_sinpack':
-          systemEvent = { type: 'timer_expired', level: 3 }
-          break
-        case 'timer_pendiente':
-          systemEvent = { type: 'timer_expired', level: 4 }
-          break
-        default:
-          // Unknown forceIntent — treat as synthetic analysis for backward compat
-          break
-      }
-    }
+    const systemEvent: SystemEvent | undefined = input.systemEvent
 
     // If we have a system event, skip comprehension
     if (systemEvent) {
       analysis = {
         intent: { primary: 'otro' as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `systemEvent: ${systemEvent.type}` },
-        extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
-        classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const, is_acknowledgment: false },
-        negations: { correo: false, telefono: false, barrio: false },
-      }
-      tokensUsed = 0
-    } else if (input.forceIntent) {
-      // Legacy forceIntent that didn't map to a system event — synthetic analysis with intent
-      analysis = {
-        intent: { primary: input.forceIntent as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `forceIntent: ${input.forceIntent}` },
         extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
         classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const, is_acknowledgment: false },
         negations: { correo: false, telefono: false, barrio: false },

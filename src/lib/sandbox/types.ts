@@ -173,7 +173,7 @@ export interface DebugTurn {
   noRepetition?: DebugNoRepetition
   ofiInter?: DebugOfiInter
   preSendCheck?: DebugPreSendCheck
-  timerSignals?: { type: 'start' | 'reevaluate' | 'cancel'; reason?: string }[]
+  timerSignals?: { type: 'start' | 'reevaluate' | 'cancel'; level?: string; reason?: string }[]
   templateSelection?: DebugTemplateSelection
   transitionValidation?: DebugTransitionValidation
   orchestration?: DebugOrchestration

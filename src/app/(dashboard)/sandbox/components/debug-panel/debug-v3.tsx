@@ -94,6 +94,7 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
 
   const salesTrack = turn.salesTrack
   const responseTrack = turn.responseTrack
+  const timerSignals = turn.timerSignals
 
   const layers = [
     {
@@ -188,6 +189,20 @@ function PipelineSection({ turn }: { turn: DebugTurn | undefined }) {
                     -captura
                   </Badge>
                 )}
+                {timerSignals && timerSignals.length > 0 && timerSignals.map((s, i) => (
+                  <Badge
+                    key={i}
+                    variant="outline"
+                    className={`text-[10px] px-1 py-0 ${
+                      s.type === 'cancel' ? 'border-red-500 text-red-700'
+                        : s.type === 'reevaluate' ? 'border-yellow-500 text-yellow-700'
+                        : s.level === 'silence' ? 'border-orange-500 text-orange-700'
+                        : 'border-cyan-500 text-cyan-700'
+                    }`}
+                  >
+                    {s.type === 'cancel' ? 'cancel' : `${s.level ?? 'timer'}`}
+                  </Badge>
+                ))}
               </div>
               <p className="text-muted-foreground truncate">{salesTrack.reason}</p>
             </div>

@@ -119,6 +119,11 @@ export class SomnioV3Engine {
             infoIntents: output.responseTrackInfo.infoTemplateIntents,
             totalMessages: output.responseTrackInfo.totalMessages,
           } : undefined,
+          timerSignals: output.timerSignals.map(s => ({
+            type: s.type,
+            level: s.level,
+            reason: s.reason,
+          })),
         },
         silenceDetected: output.silenceDetected,
       }

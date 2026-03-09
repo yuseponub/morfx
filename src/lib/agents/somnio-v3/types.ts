@@ -168,7 +168,6 @@ export interface V3AgentOutput {
   }
 
   totalTokens: number
-  silenceDetected: boolean
   shouldCreateOrder: boolean
   orderData?: {
     datosCapturados: Record<string, string>

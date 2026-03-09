@@ -266,8 +266,6 @@ export interface SandboxEngineResult {
   error?: { code: string; message: string }
   /** Timer control signal from SandboxEngine (Phase 15.7) */
   timerSignal?: TimerSignal
-  /** Whether a SILENCIOSO classification was detected (drives silence retake timer) */
-  silenceDetected?: boolean
 }
 
 // ============================================================================

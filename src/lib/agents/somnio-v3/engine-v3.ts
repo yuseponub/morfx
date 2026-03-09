@@ -27,7 +27,6 @@ export interface V3EngineOutput {
   debugTurn: DebugTurn
   error?: { code: string; message: string }
   timerSignal?: unknown
-  silenceDetected?: boolean
 }
 
 export class SomnioV3Engine {
@@ -93,7 +92,7 @@ export class SomnioV3Engine {
           },
           stateAfter: newState,
           classification: output.decisionInfo ? {
-            category: output.silenceDetected ? 'SILENCIOSO'
+            category: output.timerSignals.some(s => s.level === 'L5') ? 'SILENCIOSO'
               : output.newMode === 'handoff' ? 'HANDOFF'
               : 'RESPONDIBLE',
             reason: output.decisionInfo.reason,
@@ -126,7 +125,6 @@ export class SomnioV3Engine {
             reason: s.reason,
           })),
         },
-        silenceDetected: output.silenceDetected,
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error'

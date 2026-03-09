@@ -8,7 +8,6 @@
  * Guards: R0 (low confidence), R1 (escape intents)
  * Sales Track: WHAT TO DO (pure state machine, absorbs ingest logic)
  * Response Track: WHAT TO SAY (template engine)
- * Catch-all: retoma timer when 0 messages + 0 timers
  *
  * Layers C0, C0.5, C8-C11 are handled by the engine/adapters.
  */
@@ -116,7 +115,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
             timestamp: new Date().toISOString(),
           },
           totalTokens: tokensUsed,
-          silenceDetected: timerSignals.some(s => s.level === 'silence'),
+
           shouldCreateOrder: false,
           timerSignals,
           decisionInfo: {
@@ -190,13 +189,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     }
 
     // ------------------------------------------------------------------
-    // RETOMA CATCH-ALL: si 0 mensajes producidos y nadie vigila, activar retoma
-    // ------------------------------------------------------------------
-    if (responseResult.messages.length === 0 && timerSignals.length === 0) {
-      timerSignals.push({ type: 'start', level: 'silence', reason: 'silencio sin timer activo' })
-    }
-
-    // ------------------------------------------------------------------
     // NATURAL SILENCE: response track produced 0 messages
     // ------------------------------------------------------------------
     if (responseResult.messages.length === 0) {
@@ -218,7 +210,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           timestamp: new Date().toISOString(),
         },
         totalTokens: tokensUsed,
-        silenceDetected: timerSignals.some(s => s.level === 'silence'),
         shouldCreateOrder: false,
         timerSignals,
         decisionInfo: {
@@ -268,7 +259,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         timestamp: new Date().toISOString(),
       },
       totalTokens: tokensUsed,
-      silenceDetected: timerSignals.some(s => s.level === 'silence'),
       shouldCreateOrder: isCreateOrder,
       orderData: isCreateOrder
         ? {
@@ -318,7 +308,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         timestamp: new Date().toISOString(),
       },
       totalTokens: 0,
-      silenceDetected: false,
       shouldCreateOrder: false,
       timerSignals: [],
     }

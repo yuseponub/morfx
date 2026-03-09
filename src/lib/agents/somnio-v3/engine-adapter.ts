@@ -45,7 +45,6 @@ export interface EngineCompatibleOutput {
     valorOverride?: number
   }
   timerSignals: Array<{ type: 'start' | 'reevaluate' | 'cancel'; reason?: string }>
-  silenceDetected?: boolean
   totalTokens: number
   tokenDetails: Array<{ model: string; inputTokens: number; outputTokens: number }>
   intentInfo?: {
@@ -146,7 +145,6 @@ function adaptOutput(v3: V3AgentOutput): EngineCompatibleOutput {
       type: s.type,
       reason: s.reason ?? s.level,
     })),
-    silenceDetected: v3.silenceDetected,
     totalTokens: v3.totalTokens,
     tokenDetails: [{
       model: 'claude-haiku-4-5',
@@ -164,7 +162,7 @@ function adaptOutput(v3: V3AgentOutput): EngineCompatibleOutput {
     tools: [],
     classification: v3.classificationInfo
       ? {
-          category: v3.silenceDetected ? 'SILENCIOSO' : (v3.newMode === 'handoff' ? 'HANDOFF' : 'RESPONDIBLE'),
+          category: v3.timerSignals.some(s => s.level === 'L5') ? 'SILENCIOSO' : (v3.newMode === 'handoff' ? 'HANDOFF' : 'RESPONDIBLE'),
           reason: v3.decisionInfo?.reason ?? '',
           rulesChecked: { rule1: true, rule1_5: true, rule2: true, rule3: true },
         }

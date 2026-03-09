@@ -11,7 +11,7 @@
  * - Timer expires -> sends systemEvent to pipeline
  * - Pipeline decides what to do and say
  * - No hardcoded messages from frontend
- * - Silence detection starts countdown at L0 via main timer
+ * - Silence is L5 via transition table (quick-014)
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -372,12 +372,6 @@ export function SandboxLayout() {
       // 8. Process timer signals from pipeline (quick-013: simplified)
       if (timerEnabledRef.current && result.timerSignal) {
         processTimerSignal(result.timerSignal)
-      }
-
-      // 9. Handle silence detection: start countdown at L0 via main timer
-      if (result.silenceDetected && timerEnabledRef.current) {
-        const silenceDuration = timerConfig.levels[0] ?? 600
-        simulatorRef.current?.start(0, silenceDuration * 1000)
       }
     } catch (error) {
       setIsTyping(false)

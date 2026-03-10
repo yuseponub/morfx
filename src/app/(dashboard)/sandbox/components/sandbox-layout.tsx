@@ -141,6 +141,9 @@ export function SandboxLayout() {
     if (signal.type === 'start' && signal.level) {
       const levelNum = parseInt(signal.level.replace('L', ''), 10)
       if (!isNaN(levelNum)) {
+        // Don't restart if already running at same level (accumulate data without resetting countdown)
+        const current = simulatorRef.current?.getState()
+        if (current?.active && current.level === levelNum) return
         startTimerForLevel(levelNum)
       }
     } else if (signal.type === 'reevaluate' && signal.level) {

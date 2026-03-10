@@ -15,7 +15,7 @@ Status: Plan 01 complete -- conditional product mapping backend (resolveConditio
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-09 — Completed quick-015: Cleanup v3 pipeline dead code and legacy naming
+Last activity: 2026-03-10 — Completed quick-016: Eliminar ack routing, comprehension como autoridad unica
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 

@@ -69,7 +69,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 15 completed
+- Quick fixes: 16 completed
 
 ## Performance Metrics
 
@@ -326,6 +326,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 013 | Refactor sandbox timer countdown only | 2026-03-09 | fe78256 | [013-refactor-sandbox-timer-countdown-only](./quick/013-refactor-sandbox-timer-countdown-only/) |
 | 014 | Unificar silence L5 y eliminar catch-all | 2026-03-09 | 6c3ffb4 | [014-unificar-silence-l5-eliminar-catchall](./quick/014-unificar-silence-l5-eliminar-catchall/) |
 | 015 | Cleanup v3 pipeline dead code y legacy naming | 2026-03-09 | 6b71677 | [015-cleanup-v3-pipeline-codigo-muerto-legacy](./quick/015-cleanup-v3-pipeline-codigo-muerto-legacy/) |
+| 016 | Eliminar ack routing, comprehension como autoridad unica | 2026-03-10 | 63dbc76 | [016-eliminar-ack-routing-comprehension-autoridad](./quick/016-eliminar-ack-routing-comprehension-autoridad/) |
 
 ### Blockers/Concerns
 
@@ -333,7 +334,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09 COT
-Stopped at: Completed quick-015 — Cleanup v3 pipeline dead code and legacy naming
+Last session: 2026-03-10 COT
+Stopped at: Completed quick-016 — Eliminar ack routing, comprehension como autoridad unica
 Resume file: None
 Next: sm-04 (testing) or Phase 35 Plan 03 or Phase 36 Plan 02

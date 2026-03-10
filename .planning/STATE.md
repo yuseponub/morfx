@@ -69,7 +69,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 17 completed
+- Quick fixes: 18 completed
 
 ## Performance Metrics
 
@@ -328,6 +328,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 015 | Cleanup v3 pipeline dead code y legacy naming | 2026-03-09 | 6b71677 | [015-cleanup-v3-pipeline-codigo-muerto-legacy](./quick/015-cleanup-v3-pipeline-codigo-muerto-legacy/) |
 | 016 | Eliminar ack routing, comprehension como autoridad unica | 2026-03-10 | 63dbc76 | [016-eliminar-ack-routing-comprehension-autoridad](./quick/016-eliminar-ack-routing-comprehension-autoridad/) |
 | 017 | Accion retoma para L5 en initial con template retoma_inicial | 2026-03-10 | f34aa99 | [017-accion-retoma-l5-initial-template-retoma](./quick/017-accion-retoma-l5-initial-template-retoma/) |
+| 018 | Eliminar templateIntents decorativos de transitions.ts | 2026-03-10 | a8a3208 | [018-eliminar-templateintents-decorativos-transitions](./quick/018-eliminar-templateintents-decorativos-transitions/) |
 
 ### Blockers/Concerns
 
@@ -336,6 +337,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-10 COT
-Stopped at: Completed quick-017 — Accion retoma para L5 en initial con template retoma_inicial
+Stopped at: Completed quick-018 — Eliminar templateIntents decorativos de transitions.ts
 Resume file: None
 Next: sm-04 (testing) or Phase 35 Plan 03 or Phase 36 Plan 02

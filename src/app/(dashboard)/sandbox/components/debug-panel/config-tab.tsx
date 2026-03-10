@@ -56,6 +56,7 @@ const TIMER_LEVEL_INFO = [
   { id: 2, name: 'Datos minimos' },
   { id: 3, name: 'Promos sin respuesta' },
   { id: 4, name: 'Pack sin confirmar' },
+  { id: 5, name: 'Ack sin contexto' },
 ]
 
 /** Slider range config per level: min/max/step in seconds */
@@ -65,6 +66,7 @@ const SLIDER_CONFIG: Record<number, { min: number; max: number; step: number }> 
   2: { min: 0, max: 300, step: 5 },
   3: { min: 0, max: 900, step: 10 },
   4: { min: 0, max: 900, step: 10 },
+  5: { min: 0, max: 180, step: 5 },
 }
 
 // ============================================================================

@@ -15,7 +15,7 @@ Status: Plan 01 complete -- conditional product mapping backend (resolveConditio
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-10 — Completed quick-017: Accion retoma para L5 en initial con template retoma_inicial
+Last activity: 2026-03-10 — Completed quick-018: Eliminar templateIntents decorativos de transitions.ts
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 

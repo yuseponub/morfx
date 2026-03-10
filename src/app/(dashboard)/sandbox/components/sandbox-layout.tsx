@@ -237,7 +237,7 @@ export function SandboxLayout() {
         setTimerState(prev => ({
           active: true,
           level,
-          levelName: '', // levelName comes from getState() in simulator
+          levelName: simulatorRef.current?.getState().levelName ?? '',
           remainingMs,
           paused: prev.paused,
         }))

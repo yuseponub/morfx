@@ -8,7 +8,7 @@
  * First match wins (array order matters for same phase+on with different conditions).
  */
 import type { AgentState, Gates, Phase, TipoAccion, TimerSignal } from './types'
-import { camposFaltantes, buildResumenContext } from './state'
+import { camposFaltantes } from './state'
 
 export interface TransitionEntry {
   phase: Phase | '*'
@@ -19,16 +19,9 @@ export interface TransitionEntry {
 }
 
 export interface TransitionOutput {
-  templateIntents: string[]
-  extraContext?: Record<string, string>
   timerSignal?: TimerSignal
   enterCaptura?: boolean
   reason: string
-}
-
-// Helper to build resumen intent from pack
-function getResumenIntent(pack: '1x' | '2x' | '3x'): string {
-  return `resumen_${pack}`
 }
 
 export const TRANSITIONS: TransitionEntry[] = [
@@ -38,7 +31,6 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: '*', on: 'no_interesa', action: 'no_interesa',
     resolve: () => ({
-      templateIntents: ['no_interesa'],
       timerSignal: { type: 'cancel', reason: 'no interesa' },
       reason: 'Cliente no interesado',
     }),
@@ -48,7 +40,6 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: '*', on: 'rechazar', action: 'rechazar',
     resolve: () => ({
-      templateIntents: ['rechazar'],
       timerSignal: { type: 'cancel', reason: 'rechazo' },
       reason: 'Cliente rechazo',
     }),
@@ -60,7 +51,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'promos_shown', on: 'acknowledgment', action: 'silence',
     condition: (_, gates) => !gates.packElegido,
     resolve: () => ({
-      templateIntents: [],  // fallback to R9-style response handled by caller
       reason: 'Ack en promos_shown sin pack -> fall through to default',
     }),
   },
@@ -69,7 +59,6 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: '*', on: 'acknowledgment', action: 'silence',
     resolve: () => ({
-      templateIntents: [],
       timerSignal: { type: 'start', level: 'L5', reason: 'ack sin contexto confirmatorio' },
       reason: 'Acknowledgment sin contexto confirmatorio',
     }),
@@ -81,9 +70,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'initial', on: 'quiero_comprar', action: 'pedir_datos',
     condition: (_, gates) => !gates.datosOk,
-    resolve: (state) => ({
-      templateIntents: ['pedir_datos'],
-      extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
+    resolve: () => ({
       enterCaptura: true,
       timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada por quiero_comprar' },
       reason: 'Quiere comprar, faltan datos',
@@ -95,7 +82,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'initial', on: 'quiero_comprar', action: 'ofrecer_promos',
     condition: (_, gates) => gates.datosOk,
     resolve: () => ({
-      templateIntents: ['promociones'],
       timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas' },
       reason: 'Quiere comprar + datosOk -> promos',
     }),
@@ -106,7 +92,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'capturing_data', on: 'quiero_comprar', action: 'ofrecer_promos',
     condition: (_, gates) => gates.datosOk,
     resolve: () => ({
-      templateIntents: ['promociones'],
       timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas' },
       reason: 'Quiere comprar + datosOk -> promos',
     }),
@@ -116,9 +101,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_data', on: 'quiero_comprar', action: 'pedir_datos',
     condition: (_, gates) => !gates.datosOk,
-    resolve: (state) => ({
-      templateIntents: ['pedir_datos'],
-      extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
+    resolve: () => ({
       enterCaptura: true,
       timerSignal: { type: 'start', level: 'L0', reason: 'captura re-iniciada' },
       reason: 'Quiere comprar, aun faltan datos',
@@ -130,8 +113,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: '*', on: 'seleccion_pack', action: 'mostrar_confirmacion',
     condition: (_, gates) => gates.datosOk,
     resolve: (state) => ({
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
       timerSignal: { type: 'start', level: 'L4', reason: 'pack elegido, esperando confirmacion' },
       reason: `Pack=${state.pack} + datosOk -> resumen`,
     }),
@@ -142,8 +123,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: '*', on: 'seleccion_pack', action: 'pedir_datos',
     condition: (_, gates) => !gates.datosOk,
     resolve: (state) => ({
-      templateIntents: ['pedir_datos'],
-      extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
       enterCaptura: true,
       timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada (tiene pack, faltan datos)' },
       reason: `Pack=${state.pack} pero faltan: ${camposFaltantes(state).join(', ')}`,
@@ -154,9 +133,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: '*', on: 'confirmar', action: 'crear_orden',
     condition: (_, gates) => gates.datosOk && gates.packElegido,
-    resolve: (state) => ({
-      templateIntents: ['confirmacion_orden'],
-      extraContext: buildResumenContext(state),
+    resolve: () => ({
       timerSignal: { type: 'cancel', reason: 'orden creada' },
       reason: 'Confirmacion con datos completos + pack',
     }),
@@ -167,7 +144,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: '*', on: 'confirmar', action: 'ofrecer_promos',
     condition: (_, gates) => !gates.packElegido,
     resolve: () => ({
-      templateIntents: ['promociones'],
       timerSignal: { type: 'start', level: 'L3', reason: 'confirmo sin pack -> promos' },
       reason: 'Confirmo pero no ha elegido pack',
     }),
@@ -177,9 +153,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: '*', on: 'confirmar', action: 'pedir_datos',
     condition: (_, gates) => !gates.datosOk,
-    resolve: (state) => ({
-      templateIntents: ['pedir_datos'],
-      extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
+    resolve: () => ({
       enterCaptura: true,
       reason: 'Confirmo pero faltan datos',
     }),
@@ -192,7 +166,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'capturing_data', on: 'auto:datos_completos', action: 'ofrecer_promos',
     condition: (_, gates) => !gates.packElegido,
     resolve: () => ({
-      templateIntents: ['promociones'],
       timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas, esperando pack' },
       reason: 'Auto-trigger: datosOk -> ofrecer promos',
     }),
@@ -202,9 +175,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_data', on: 'auto:datos_completos', action: 'mostrar_confirmacion',
     condition: (_, gates) => gates.packElegido,
-    resolve: (state) => ({
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
+    resolve: () => ({
       timerSignal: { type: 'start', level: 'L4', reason: 'datos completos + pack -> confirmacion' },
       reason: 'Auto-trigger: datosOk + pack -> confirmacion',
     }),
@@ -214,7 +185,6 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: '*', on: 'auto:ciudad_sin_direccion', action: 'ask_ofi_inter',
     resolve: () => ({
-      templateIntents: ['ask_ofi_inter'],
       reason: 'Ciudad sin direccion -> preguntar ofi inter',
     }),
   },
@@ -223,27 +193,20 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_data', on: 'timer_expired:0', action: 'pedir_datos',
     resolve: () => ({
-      templateIntents: ['retoma_datos'],
       reason: 'Timer L0 expired -> retoma sin datos (proximo dato reactiva timer)',
     }),
   },
   // Timer expired L1 -> pedir_datos (retoma datos parciales)
   {
     phase: 'capturing_data', on: 'timer_expired:1', action: 'pedir_datos',
-    resolve: (state) => {
-      const missing = camposFaltantes(state)
-      return {
-        templateIntents: ['retoma_datos_parciales'],
-        extraContext: { campos_faltantes: missing.join(', ') },
-        reason: 'Timer L1 expired -> retoma datos parciales (proximo dato reactiva timer)',
-      }
-    },
+    resolve: () => ({
+      reason: 'Timer L1 expired -> retoma datos parciales (proximo dato reactiva timer)',
+    }),
   },
   // Timer expired L2 -> ofrecer_promos
   {
     phase: 'capturing_data', on: 'timer_expired:2', action: 'ofrecer_promos',
     resolve: () => ({
-      templateIntents: ['promociones'],
       timerSignal: { type: 'start', level: 'L3', reason: 'timer L2 -> promos' },
       enterCaptura: false,
       reason: 'Timer L2 expired -> ofrecer promos',
@@ -253,9 +216,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   // Timer expired L3 -> crear_orden
   {
     phase: 'promos_shown', on: 'timer_expired:3', action: 'crear_orden',
-    resolve: (state) => ({
-      templateIntents: ['confirmacion_orden'],
-      extraContext: buildResumenContext(state),
+    resolve: () => ({
       timerSignal: { type: 'cancel', reason: 'timer L3 -> orden' },
       reason: 'Timer L3 expired -> crear orden',
     }),
@@ -264,9 +225,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   // Timer expired L4 -> crear_orden
   {
     phase: 'confirming', on: 'timer_expired:4', action: 'crear_orden',
-    resolve: (state) => ({
-      templateIntents: ['confirmacion_orden'],
-      extraContext: buildResumenContext(state),
+    resolve: () => ({
       timerSignal: { type: 'cancel', reason: 'timer L4 -> orden' },
       reason: 'Timer L4 expired -> crear orden',
     }),
@@ -276,7 +235,6 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'initial', on: 'timer_expired:5', action: 'retoma',
     resolve: () => ({
-      templateIntents: ['retoma_inicial'],
       reason: 'Timer L5 expired en initial -> retoma inicial',
     }),
   },
@@ -284,9 +242,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   // ======== Retroceso (D7: cambio) ========
   {
     phase: 'confirming', on: 'seleccion_pack', action: 'cambio',
-    resolve: (state) => ({
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
+    resolve: () => ({
       timerSignal: { type: 'start', level: 'L4', reason: 'cambio de pack en confirming' },
       reason: 'Cambio de pack en fase confirming',
     }),
@@ -294,9 +250,7 @@ export const TRANSITIONS: TransitionEntry[] = [
 
   {
     phase: 'confirming', on: 'datos', action: 'cambio',
-    resolve: (state) => ({
-      templateIntents: [getResumenIntent(state.pack!)],
-      extraContext: buildResumenContext(state),
+    resolve: () => ({
       timerSignal: { type: 'start', level: 'L4', reason: 'cambio de datos en confirming' },
       reason: 'Cambio de datos en fase confirming',
     }),
@@ -306,7 +260,6 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'closed', on: '*', action: 'silence',
     resolve: () => ({
-      templateIntents: [],
       reason: 'Fase closed -> fallback (no action)',
     }),
   },

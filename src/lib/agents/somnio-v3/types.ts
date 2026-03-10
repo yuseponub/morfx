@@ -217,6 +217,7 @@ export type TipoAccion =
   | 'rechazar'
   | 'no_interesa'
   | 'cambio'
+  | 'retoma'
 
 export interface AccionRegistrada {
   tipo: TipoAccion

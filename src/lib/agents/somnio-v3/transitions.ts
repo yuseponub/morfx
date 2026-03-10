@@ -274,7 +274,7 @@ export const TRANSITIONS: TransitionEntry[] = [
 
   // Timer expired L5 -> retoma inicial (silence in initial phase)
   {
-    phase: 'initial', on: 'timer_expired:5', action: 'pedir_datos',
+    phase: 'initial', on: 'timer_expired:5', action: 'retoma',
     resolve: () => ({
       templateIntents: ['retoma_inicial'],
       reason: 'Timer L5 expired en initial -> retoma inicial',

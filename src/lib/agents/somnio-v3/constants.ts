@@ -69,6 +69,7 @@ export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
   no_interesa: ['no_interesa'],
   rechazar: ['rechazar'],
   ask_ofi_inter: ['ask_ofi_inter'],
+  retoma: ['retoma_inicial'],
 }
 
 // ============================================================================
@@ -140,6 +141,8 @@ export const V3_TO_V1_INTENT_MAP: Record<string, string[]> = {
   ask_ofi_inter: ['ask_ofi_inter'],
 
   otro: ['fallback'],
+
+  retoma_inicial: ['retoma_inicial'],
 }
 
 // ============================================================================

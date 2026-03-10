@@ -57,7 +57,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       analysis = {
         intent: { primary: 'otro' as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `systemEvent: ${systemEvent.type}` },
         extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
-        classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const, is_acknowledgment: false },
+        classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const },
         negations: { correo: false, telefono: false, barrio: false },
       }
       tokensUsed = 0
@@ -126,7 +126,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
           classificationInfo: {
             category: analysis.classification.category,
             sentiment: analysis.classification.sentiment,
-            is_acknowledgment: analysis.classification.is_acknowledgment,
           },
         }
       }
@@ -139,8 +138,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     const salesResult = resolveSalesTrack({
       phase,
       intent: analysis.intent.primary,
-      isAcknowledgment: analysis.classification.is_acknowledgment,
-      sentiment: analysis.classification.sentiment,
       state: mergedState,
       gates,
       changes,
@@ -231,7 +228,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
         classificationInfo: {
           category: analysis.classification.category,
           sentiment: analysis.classification.sentiment,
-          is_acknowledgment: analysis.classification.is_acknowledgment,
         },
       }
     }
@@ -288,7 +284,6 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       classificationInfo: {
         category: analysis.classification.category,
         sentiment: analysis.classification.sentiment,
-        is_acknowledgment: analysis.classification.is_acknowledgment,
       },
     }
   } catch (error) {

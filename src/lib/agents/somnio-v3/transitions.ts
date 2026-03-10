@@ -54,18 +54,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // R3: acknowledgment — phase-specific exceptions handled before generic
-  // Positive ack in confirming -> crear_orden (R3 exception 2)
-  {
-    phase: 'confirming', on: 'acknowledgment_positive', action: 'crear_orden',
-    resolve: (state) => ({
-      templateIntents: ['confirmacion_orden'],
-      extraContext: buildResumenContext(state),
-      timerSignal: { type: 'cancel', reason: 'ack positivo en confirming = orden' },
-      reason: 'Ack positivo en fase confirming -> crear orden',
-    }),
-  },
-
+  // R3: acknowledgment — handled via transition table (comprehension sends confirmar for positive acks in confirming)
   // Ack in promos_shown without pack -> fallback (R3 exception 1: keep conversation going)
   {
     phase: 'promos_shown', on: 'acknowledgment', action: 'silence',

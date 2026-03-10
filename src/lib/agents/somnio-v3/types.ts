@@ -199,7 +199,6 @@ export interface V3AgentOutput {
   classificationInfo?: {
     category: string
     sentiment: string
-    is_acknowledgment: boolean
   }
 }
 

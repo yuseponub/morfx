@@ -57,9 +57,6 @@ export const MessageAnalysisSchema = z.object({
       'irrelevante: acknowledgments (ok, gracias, emojis) without content.'
     ),
     sentiment: z.enum(['positivo', 'neutro', 'negativo']),
-    is_acknowledgment: z.boolean().describe(
-      'true if message is only ok/si/gracias/jaja/emoji without substantive content'
-    ),
   }),
 
   negations: z.object({

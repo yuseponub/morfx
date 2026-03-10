@@ -15,11 +15,11 @@ export function buildSystemPrompt(existingData: Record<string, string>, recentBo
 ${recentBotMessages.map((m, i) => `[${i + 1}] "${m}"`).join('\n')}
 
 REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale", "asi es", "claro", "listo") o negativo ("no", "ahora no", "dejame pensarlo"), analiza los ultimos mensajes del bot para entender A QUE esta respondiendo el cliente:
-- Si el bot pregunto sobre compra/adquisicion ("deseas adquirirlo?", "te gustaria llevarlo?") y el cliente dice "si" → intent = quiero_comprar, is_acknowledgment = false
-- Si el bot mostro un resumen/confirmacion y el cliente dice "si" → intent = confirmar, is_acknowledgment = false
-- Si el bot ofrecio opciones de pack y el cliente dice "si" o "ese" → intent = seleccion_pack, is_acknowledgment = false
-- Si el bot hizo una pregunta informativa y el cliente responde "si" → responde segun el contexto, is_acknowledgment = false
-- Si no hay pregunta clara en los mensajes del bot → intent = otro, is_acknowledgment = true (ack pasivo)`
+- Si el bot pregunto sobre compra/adquisicion ("deseas adquirirlo?", "te gustaria llevarlo?") y el cliente dice "si" → intent = quiero_comprar
+- Si el bot mostro un resumen/confirmacion y el cliente dice "si" → intent = confirmar
+- Si el bot ofrecio opciones de pack y el cliente dice "si" o "ese" → intent = seleccion_pack
+- Si el bot hizo una pregunta informativa y el cliente responde "si" → responde segun el contexto
+- Si no hay pregunta clara en los mensajes del bot → intent = acknowledgment`
     : ''
 
   return `Eres un analizador de mensajes para un agente de ventas de Somnio (suplemento natural para dormir).
@@ -51,8 +51,7 @@ REGLAS DE INTENT:
 - quiero_comprar: cuando expresa intencion de compra sin elegir pack especifico ("lo quiero", "quiero comprar")
 - REGLA PRECIO vs SELECCION: "cuanto vale 2", "cuanto cuesta el de 3", "precio del combo" = promociones (pregunta sobre precios de packs). "cuanto vale" o "cuanto vale 1" sin referencia a combo = precio. "quiero el de 2", "dame 3", "me llevo el doble" = seleccion_pack (compra explicita)
 - rechazar: cuando rechaza algo ofrecido ("dejame pensarlo", "ahora no", "no por ahora")
-- is_acknowledgment: true SOLO para respuestas cortas sin contenido sustancial (ok, si, gracias, jaja, emojis solos). NUNCA marcar saludos como acknowledgment
-- Para reconocimientos puros (ok, si, gracias, emojis solos), usa "otro" como primary intent y marca is_acknowledgment=true
+- acknowledgment: reconocimientos puros sin contenido sustancial (ok, si, gracias, jaja, emojis solos). NUNCA usar para saludos. Si hay contexto claro del bot (pregunta sobre compra, confirmacion), usar el intent correspondiente (quiero_comprar, confirmar, seleccion_pack)
 - datos: cuando el mensaje contiene SOLO informacion personal (nombre, telefono, direccion, etc.) sin pregunta ni intencion de compra. Ej: "Jose Romero, 3001234567, Bogota, calle 1 #2-3"
 
 CONTEXTO DE INTENTS:
@@ -73,6 +72,7 @@ CONTEXTO DE INTENTS:
 - cancelar: quiere cancelar ("quiero cancelar mi pedido")
 - no_interesa: no le interesa ("no me interesa", "no gracias")
 - rechazar: rechaza algo ofrecido ("dejame pensarlo", "ahora no")
+- acknowledgment: reconocimiento puro sin contenido (ok, si, gracias, jaja, emojis solos)
 - otro: no se puede clasificar claramente
 
 REGLAS DE CLASIFICACION:
@@ -80,7 +80,7 @@ REGLAS DE CLASIFICACION:
   - datos: el mensaje contiene SOLO informacion personal (nombre, telefono, direccion, etc.)
   - pregunta: el mensaje requiere una respuesta informativa
   - mixto: contiene datos personales Y una pregunta
-  - irrelevante: reconocimientos vacios (ok, gracias, emojis) sin contenido sustancial
+  - irrelevante: mensajes sin contenido sustancial que no requieren respuesta informativa
 - Si el cliente envia su nombre y pregunta el precio, es "mixto"
 - Si solo envia "Jose Lopez, 3001234567, Bogota", es "datos"
 ${dataSection}${botContextSection}`

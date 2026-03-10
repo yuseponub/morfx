@@ -6,7 +6,7 @@
  */
 
 // ============================================================================
-// V3 Intents (20 total — only REAL client intents)
+// V3 Intents (21 total — only REAL client intents)
 // ============================================================================
 
 export const V3_INTENTS = [
@@ -35,6 +35,9 @@ export const V3_INTENTS = [
   'queja',
   'cancelar',
   'no_interesa',
+
+  // Acknowledgment (1)
+  'acknowledgment',
 
   // Fallback (1)
   'otro',

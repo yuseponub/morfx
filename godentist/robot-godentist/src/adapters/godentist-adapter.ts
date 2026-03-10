@@ -499,9 +499,20 @@ export class GoDentistAdapter {
 
         if (cleanCells.length < 3) continue // Skip separator/empty rows
 
-        // Table headers: Hora(0) | Paciente(1) | Estado(2) | Teléfono(3) | Doctor(4) | Tipo(5) | E(6) | C(7) | Comentarios(8)
-        // Extract estado from raw positional index (before filtering empties)
-        const estado = rawCells[2] || ''
+        // Log first row's raw cells to diagnose column positions
+        if (i === 0) {
+          console.log(`[GoDentist] Row 0 raw cells (${rawCells.length}):`, JSON.stringify(rawCells))
+        }
+
+        // Find estado: look for known estado values in rawCells
+        let estado = ''
+        const estadoKeywords = ['confirmada', 'cancelada', 'pendiente', 'no asistió', 'asistió', 'atendido', 'en espera']
+        for (const cell of rawCells) {
+          if (cell && estadoKeywords.some(k => cell.toLowerCase().includes(k))) {
+            estado = cell
+            break
+          }
+        }
 
         // Parse other fields with heuristics (existing logic)
         let hora = ''

@@ -182,6 +182,22 @@ export async function resolveResponseTrack(input: {
 }
 
 // ============================================================================
+// Field Labels (human-readable for retoma_datos_parciales)
+// ============================================================================
+
+const FIELD_LABELS: Record<string, string> = {
+  nombre: 'Nombre',
+  apellido: 'Apellido',
+  telefono: 'Telefono',
+  ciudad: 'Ciudad',
+  departamento: 'Departamento',
+  direccion: 'Direccion completa',
+  barrio: 'Barrio',
+  correo: 'Correo electronico',
+  cedula_recoge: 'Cedula',
+}
+
+// ============================================================================
 // Sales Action -> Template Resolution
 // ============================================================================
 
@@ -212,6 +228,15 @@ function resolveSalesActionTemplates(
       return {
         intents: ['pedir_datos'],
         extraContext: { campos_faltantes: camposFaltantes(state).join(', ') },
+      }
+    }
+
+    case 'retoma_datos_parciales': {
+      const faltantes = camposFaltantes(state)
+      const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
+      return {
+        intents: ['retoma_datos_parciales'],
+        extraContext: { campos_faltantes: labels.map(l => `- ${l}`).join('\n') },
       }
     }
 

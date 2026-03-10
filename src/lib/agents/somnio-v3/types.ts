@@ -218,6 +218,8 @@ export type TipoAccion =
   | 'no_interesa'
   | 'cambio'
   | 'retoma'
+  | 'retoma_datos'
+  | 'retoma_datos_parciales'
 
 export interface AccionRegistrada {
   tipo: TipoAccion

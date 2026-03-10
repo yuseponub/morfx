@@ -189,16 +189,16 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Timer expired L0 -> pedir_datos (retoma sin datos)
+  // Timer expired L0 -> retoma_datos (retoma sin datos)
   {
-    phase: 'capturing_data', on: 'timer_expired:0', action: 'pedir_datos',
+    phase: 'capturing_data', on: 'timer_expired:0', action: 'retoma_datos',
     resolve: () => ({
-      reason: 'Timer L0 expired -> retoma sin datos (proximo dato reactiva timer)',
+      reason: 'Timer L0 expired -> retoma datos (proximo dato reactiva timer)',
     }),
   },
-  // Timer expired L1 -> pedir_datos (retoma datos parciales)
+  // Timer expired L1 -> retoma_datos_parciales
   {
-    phase: 'capturing_data', on: 'timer_expired:1', action: 'pedir_datos',
+    phase: 'capturing_data', on: 'timer_expired:1', action: 'retoma_datos_parciales',
     resolve: () => ({
       reason: 'Timer L1 expired -> retoma datos parciales (proximo dato reactiva timer)',
     }),

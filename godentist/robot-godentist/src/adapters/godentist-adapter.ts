@@ -231,12 +231,55 @@ export class GoDentistAdapter {
   private async setHour(hour: string): Promise<void> {
     if (!this.page) return
 
-    // Find the visible combo input near #idhoras (same pattern as sucursal combo)
+    // Diagnose the #idhoras element and surrounding DOM
+    const diagnosis = await this.page.evaluate(() => {
+      const el = document.getElementById('idhoras')
+      if (!el) return { found: false }
+
+      const info: Record<string, unknown> = {
+        found: true,
+        tagName: el.tagName,
+        type: (el as HTMLInputElement).type,
+        value: (el as HTMLInputElement).value,
+        className: el.className,
+        parentHTML: el.parentElement?.innerHTML?.substring(0, 500),
+      }
+
+      // Look for ALL inputs near #idhoras
+      let parent = el.parentElement
+      const nearbyInputs: string[] = []
+      for (let i = 0; i < 8 && parent; i++) {
+        const inputs = parent.querySelectorAll('input')
+        inputs.forEach(inp => {
+          nearbyInputs.push(`${inp.tagName}#${inp.id} type=${inp.type} value="${inp.value}"`)
+        })
+        if (nearbyInputs.length > 1) break
+        parent = parent.parentElement
+      }
+      info.nearbyInputs = nearbyInputs
+
+      // Look for the Hora label and its associated input
+      const labels = document.querySelectorAll('label')
+      for (const label of labels) {
+        if (label.textContent?.includes('Hora')) {
+          const forId = label.getAttribute('for')
+          info.horaLabelFor = forId
+          info.horaLabelHTML = label.outerHTML
+        }
+      }
+
+      return info
+    })
+
+    console.log(`[GoDentist] Hour diagnosis:`, JSON.stringify(diagnosis, null, 2))
+
+    // Strategy: find the visible hour combo by looking for the trigger button near #idhoras
     const comboId = await this.page.evaluate(() => {
       const hidden = document.getElementById('idhoras')
       if (!hidden) return null
+      // Walk up to find a .x-form-field-wrap that contains both hidden + visible
       let parent = hidden.parentElement
-      for (let i = 0; i < 5 && parent; i++) {
+      for (let i = 0; i < 8 && parent; i++) {
         const textInputs = parent.querySelectorAll('input[type="text"]')
         for (const inp of textInputs) {
           if (inp.id && inp.id !== 'idhoras') {
@@ -251,31 +294,41 @@ export class GoDentistAdapter {
     console.log(`[GoDentist] Hour combo input ID: ${comboId}`)
 
     if (comboId) {
-      // Set hidden field value
-      await this.page.evaluate((h) => {
-        const hidden = document.getElementById('idhoras') as HTMLInputElement
-        if (hidden) hidden.value = h
-      }, hour)
-
-      // Open dropdown, select the matching item
       const hourInput = this.page.locator(`#${comboId}`)
-      await hourInput.click({ clickCount: 3 })
-      await hourInput.fill(hour)
-      await this.page.waitForTimeout(500)
 
-      // Try to click the matching dropdown item
-      const dropdownItem = this.page.locator(`.x-combo-list-item:visible`).filter({ hasText: hour })
-      const itemCount = await dropdownItem.count()
-      if (itemCount > 0) {
-        await dropdownItem.first().click()
-        console.log(`[GoDentist] Hour selected from dropdown: ${hour}`)
+      // Open the dropdown via the trigger arrow
+      const trigger = hourInput.locator('..').locator('.x-form-trigger')
+      const triggerCount = await trigger.count()
+      if (triggerCount > 0) {
+        await trigger.click()
+        await this.page.waitForTimeout(1000)
+
+        // Log available options
+        const options = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+        console.log(`[GoDentist] Hour dropdown options (${options.length}):`, options.slice(0, 10))
+
+        // Find and click the earliest hour option
+        if (options.length > 0) {
+          await this.page.locator('.x-combo-list-item:visible').first().click()
+          console.log(`[GoDentist] Hour selected: first option "${options[0]}"`)
+        }
       } else {
-        // Fallback: press Tab to commit typed value
+        // No trigger, try typing
+        await hourInput.click({ clickCount: 3 })
+        await hourInput.fill(hour)
         await hourInput.press('Tab')
-        console.log(`[GoDentist] Hour typed (no dropdown match): ${hour}`)
+        console.log(`[GoDentist] Hour typed: ${hour}`)
       }
     } else {
-      console.warn('[GoDentist] Could not find hour combo input near #idhoras')
+      // Last resort: just set the hidden field directly and hope it works
+      console.warn('[GoDentist] No visible hour combo found, setting hidden field directly')
+      await this.page.evaluate((h) => {
+        const hidden = document.getElementById('idhoras') as HTMLInputElement
+        if (hidden) {
+          hidden.value = h
+          hidden.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+      }, hour)
     }
   }
 

@@ -15,7 +15,7 @@ Status: Plan 01 complete -- conditional product mapping backend (resolveConditio
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-11 — Completed quick-021: Consistencia datosCriticos/datosCompletos
+Last activity: 2026-03-11 — Completed quick-022: crear_orden_sin_promo/sin_confirmar + crmAction
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -69,7 +69,7 @@ All 9 phases + 5 inserted phases completed:
 - WhatsApp Webhook Resilience v2 (3/3 plans) — COMPLETE
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
-- Quick fixes: 19 completed
+- Quick fixes: 20 completed
 
 ## Performance Metrics
 
@@ -332,6 +332,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 019 | Acciones retoma_datos (L0) y retoma_datos_parciales (L1) con templates dedicados | 2026-03-10 | 5afff86 | [019-retoma-datos-l0-l1-templates](./quick/019-retoma-datos-l0-l1-templates/) |
 | 020 | Separar system events del pipeline + fix camposFaltantes barrio | 2026-03-10 | 9ae89ee | [020-system-event-separation](./quick/020-system-event-separation/) |
 | 021 | Consistencia datosCriticos/datosCompletos (rename + correo en extras) | 2026-03-11 | 30c7738 | [021-consistencia-datos-criticos-completos](./quick/021-consistencia-datos-criticos-completos/) |
+| 022 | crear_orden_sin_promo/sin_confirmar + crmAction flag | 2026-03-11 | 601a646 | [022-crear-orden-sin-promo-confirmar-crmaction](./quick/022-crear-orden-sin-promo-confirmar-crmaction/) |
 
 ### Blockers/Concerns
 
@@ -340,6 +341,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-11 COT
-Stopped at: Completed quick-021 — Consistencia datosCriticos/datosCompletos
+Stopped at: Completed quick-022 — crear_orden_sin_promo/sin_confirmar + crmAction
 Resume file: None
-Next: sm-04 (testing) or Phase 35 Plan 03 or Phase 36 Plan 02
+Next: Apply migration 20260311000000_pendiente_templates.sql, then push to Vercel

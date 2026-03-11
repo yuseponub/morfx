@@ -14,16 +14,32 @@ import {
 
 type Phase = 'idle' | 'scraping' | 'preview' | 'sending' | 'done'
 
+const ALL_SUCURSALES = ['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS']
+
 export function ConfirmacionesPanel() {
   const [phase, setPhase] = useState<Phase>('idle')
-  const [appointments, setAppointments] = useState<GodentistAppointment[]>([])
+  const [allAppointments, setAllAppointments] = useState<GodentistAppointment[]>([])
+  const [activeSucursales, setActiveSucursales] = useState<Set<string>>(new Set(ALL_SUCURSALES))
   const [date, setDate] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [result, setResult] = useState<SendResult | null>(null)
   const [error, setError] = useState('')
 
+  // Filtered by active sucursales
+  const appointments = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
   const cancelledCount = appointments.filter(a => a.estado.toLowerCase().includes('cancelada')).length
   const validCount = selected.size
+
+  function toggleSucursal(suc: string) {
+    setActiveSucursales(prev => {
+      const next = new Set(prev)
+      if (next.has(suc)) next.delete(suc)
+      else next.add(suc)
+      return next
+    })
+    // Recalculate selected based on new filter
+    setSelected(new Set())
+  }
 
   async function handleScrape() {
     setPhase('scraping')
@@ -38,12 +54,13 @@ export function ConfirmacionesPanel() {
     }
 
     const apts = res.data.appointments
-    setAppointments(apts)
+    setAllAppointments(apts)
     setDate(res.data.date)
 
-    // Auto-select non-cancelled appointments
+    // Auto-select non-cancelled appointments from active sucursales
     const sel = new Set<number>()
-    apts.forEach((a, i) => {
+    const filtered = apts.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
+    filtered.forEach((a, i) => {
       if (!a.estado.toLowerCase().includes('cancelada')) sel.add(i)
     })
     setSelected(sel)
@@ -75,6 +92,7 @@ export function ConfirmacionesPanel() {
 
     const toSend = appointments.filter((_, i) => selected.has(i))
     const res = await sendConfirmations(toSend, date)
+    console.log(`[Confirmaciones] Sending ${toSend.length} appointments from ${activeSucursales.size} sucursales`)
 
     if (res.error || !res.data) {
       setError(res.error || 'Error desconocido')
@@ -88,7 +106,7 @@ export function ConfirmacionesPanel() {
 
   function handleReset() {
     setPhase('idle')
-    setAppointments([])
+    setAllAppointments([])
     setDate('')
     setSelected(new Set())
     setResult(null)
@@ -105,6 +123,29 @@ export function ConfirmacionesPanel() {
         </Card>
       )}
 
+      {/* Sucursal filter */}
+      {(phase === 'idle' || phase === 'scraping' || phase === 'preview') && (
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium mb-2">Sucursales</p>
+            <div className="flex flex-wrap gap-3">
+              {ALL_SUCURSALES.map(suc => (
+                <label key={suc} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={activeSucursales.has(suc)}
+                    onChange={() => toggleSucursal(suc)}
+                    className="rounded"
+                    disabled={phase === 'scraping'}
+                  />
+                  {suc}
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Phase: idle or scraping */}
       {(phase === 'idle' || phase === 'scraping') && (
         <Card>
@@ -116,7 +157,7 @@ export function ConfirmacionesPanel() {
               <Button
                 size="lg"
                 onClick={handleScrape}
-                disabled={phase === 'scraping'}
+                disabled={phase === 'scraping' || activeSucursales.size === 0}
               >
                 {phase === 'scraping' ? (
                   <>

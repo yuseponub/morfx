@@ -213,6 +213,8 @@ export type TipoAccion =
   | 'mostrar_confirmacion'
   | 'pedir_datos'
   | 'crear_orden'
+  | 'crear_orden_sin_promo'
+  | 'crear_orden_sin_confirmar'
   | 'handoff'
   | 'ask_ofi_inter'
   | 'silence'
@@ -227,6 +229,7 @@ export interface AccionRegistrada {
   tipo: TipoAccion
   turno: number
   origen: 'bot' | 'timer' | 'auto_trigger'
+  crmAction?: boolean
 }
 
 export type Phase =

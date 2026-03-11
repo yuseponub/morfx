@@ -213,21 +213,21 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Timer expired L3 -> crear_orden
+  // Timer expired L3 -> crear_orden_sin_promo (pending promo selection)
   {
-    phase: 'promos_shown', on: 'timer_expired:3', action: 'crear_orden',
+    phase: 'promos_shown', on: 'timer_expired:3', action: 'crear_orden_sin_promo',
     resolve: () => ({
-      timerSignal: { type: 'cancel', reason: 'timer L3 -> orden' },
-      reason: 'Timer L3 expired -> crear orden',
+      timerSignal: { type: 'cancel', reason: 'timer L3 -> orden sin promo' },
+      reason: 'Timer L3 expired -> crear orden sin promo',
     }),
   },
 
-  // Timer expired L4 -> crear_orden
+  // Timer expired L4 -> crear_orden_sin_confirmar (pending confirmation)
   {
-    phase: 'confirming', on: 'timer_expired:4', action: 'crear_orden',
+    phase: 'confirming', on: 'timer_expired:4', action: 'crear_orden_sin_confirmar',
     resolve: () => ({
-      timerSignal: { type: 'cancel', reason: 'timer L4 -> orden' },
-      reason: 'Timer L4 expired -> crear orden',
+      timerSignal: { type: 'cancel', reason: 'timer L4 -> orden sin confirmar' },
+      reason: 'Timer L4 expired -> crear orden sin confirmar',
     }),
   },
 

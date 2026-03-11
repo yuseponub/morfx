@@ -224,6 +224,18 @@ function resolveSalesActionTemplates(
       }
     }
 
+    case 'crear_orden_sin_promo': {
+      return {
+        intents: ['pendiente_promo'],
+      }
+    }
+
+    case 'crear_orden_sin_confirmar': {
+      return {
+        intents: ['pendiente_confirmacion'],
+      }
+    }
+
     case 'pedir_datos': {
       return {
         intents: ['pedir_datos'],

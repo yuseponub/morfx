@@ -21,7 +21,10 @@ export function derivePhase(acciones: (string | AccionRegistrada)[]): Phase {
       case 'pedir_datos':          return 'capturing_data'
       case 'ofrecer_promos':       return 'promos_shown'
       case 'mostrar_confirmacion': return 'confirming'
-      case 'crear_orden':          return 'order_created'
+      case 'crear_orden':
+      case 'crear_orden_sin_promo':
+      case 'crear_orden_sin_confirmar':
+                                   return 'order_created'
       case 'handoff':
       case 'rechazar':
       case 'no_interesa':          return 'closed'

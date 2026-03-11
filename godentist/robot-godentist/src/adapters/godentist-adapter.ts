@@ -45,9 +45,18 @@ export class GoDentistAdapter {
 
   async close(): Promise<void> {
     try {
-      if (this.page) await this.page.close()
-      if (this.context) await this.context.close()
-      if (this.browser) await this.browser.close()
+      // Clear cookies before closing to avoid stale session on next run
+      if (this.context) {
+        await this.context.clearCookies().catch(() => {})
+      }
+      // Delete saved cookies file
+      const cookiesPath = path.join(SESSIONS_DIR, `${this.workspaceId}-cookies.json`)
+      if (fs.existsSync(cookiesPath)) {
+        fs.unlinkSync(cookiesPath)
+      }
+      if (this.page) await this.page.close().catch(() => {})
+      if (this.context) await this.context.close().catch(() => {})
+      if (this.browser) await this.browser.close().catch(() => {})
     } catch (err) {
       console.error('[GoDentist] Error closing browser:', err)
     }

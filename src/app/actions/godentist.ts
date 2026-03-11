@@ -83,7 +83,18 @@ function sleep(ms: number): Promise<void> {
 
 // ── Server Actions ──
 
-export async function scrapeAppointments(sucursales?: string[]): Promise<{ error?: string; data?: ScrapeResult }> {
+export interface ScrapeHistoryEntry {
+  id: string
+  scraped_date: string
+  sucursales: string[]
+  appointments: GodentistAppointment[]
+  total_appointments: number
+  send_results: SendResult | null
+  sent_at: string | null
+  created_at: string
+}
+
+export async function scrapeAppointments(sucursales?: string[]): Promise<{ error?: string; data?: ScrapeResult; historyId?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
@@ -109,7 +120,22 @@ export async function scrapeAppointments(sucursales?: string[]): Promise<{ error
     }
 
     const data: ScrapeResult = await res.json()
-    return { data }
+
+    // Save to history
+    const admin = createAdminClient()
+    const { data: historyRow } = await admin
+      .from('godentist_scrape_history')
+      .insert({
+        workspace_id: workspaceId,
+        scraped_date: data.date,
+        sucursales: sucursales || ['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS'],
+        appointments: data.appointments,
+        total_appointments: data.appointments.length,
+      })
+      .select('id')
+      .single()
+
+    return { data, historyId: historyRow?.id }
   } catch (err) {
     return { error: `Error conectando al robot: ${err instanceof Error ? err.message : String(err)}` }
   }
@@ -117,7 +143,8 @@ export async function scrapeAppointments(sucursales?: string[]): Promise<{ error
 
 export async function sendConfirmations(
   appointments: GodentistAppointment[],
-  date: string
+  date: string,
+  historyId?: string
 ): Promise<{ error?: string; data?: SendResult }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -246,7 +273,54 @@ export async function sendConfirmations(
     await sleep(SEND_DELAY_MS)
   }
 
+  // Save send results to history
+  if (historyId) {
+    const admin = createAdminClient()
+    await admin
+      .from('godentist_scrape_history')
+      .update({
+        send_results: result as unknown as Record<string, unknown>,
+        sent_at: new Date().toISOString(),
+      })
+      .eq('id', historyId)
+  }
+
   return { data: result }
+}
+
+// ── History Actions ──
+
+export async function getScrapeHistory(): Promise<{ error?: string; data?: ScrapeHistoryEntry[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('godentist_scrape_history')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  if (error) return { error: error.message }
+
+  return {
+    data: (data || []).map(row => ({
+      id: row.id,
+      scraped_date: row.scraped_date,
+      sucursales: row.sucursales,
+      appointments: row.appointments as unknown as GodentistAppointment[],
+      total_appointments: row.total_appointments,
+      send_results: row.send_results as unknown as SendResult | null,
+      sent_at: row.sent_at,
+      created_at: row.created_at,
+    })),
+  }
 }
 
 // ── Contact Helper ──

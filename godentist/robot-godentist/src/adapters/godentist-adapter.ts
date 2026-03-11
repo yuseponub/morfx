@@ -195,7 +195,7 @@ export class GoDentistAdapter {
       await this.clickBuscar()
       await this.page.waitForTimeout(3000)
       const currentSucursal = await this.page.$eval('#ext-comp-1051', el => (el as HTMLInputElement).value).catch(() => 'Desconocida')
-      const appointments = await this.extractAppointments(currentSucursal)
+      const appointments = await this.extractAllPages(currentSucursal)
       allAppointments.push(...appointments)
       if (appointments.length === 0) {
         errors.push('No se pudieron descubrir sucursales ni extraer citas')
@@ -212,9 +212,9 @@ export class GoDentistAdapter {
         await this.page.waitForTimeout(3000)
         await this.takeScreenshot(`citas-${sucursal.label.replace(/\s+/g, '-').toLowerCase()}`)
 
-        const appointments = await this.extractAppointments(sucursal.label)
+        const appointments = await this.extractAllPages(sucursal.label)
         allAppointments.push(...appointments)
-        console.log(`[GoDentist] ${sucursal.label}: ${appointments.length} citas`)
+        console.log(`[GoDentist] ${sucursal.label}: ${appointments.length} citas (todas las páginas)`)
       } catch (err) {
         const msg = `Error en ${sucursal.label}: ${err instanceof Error ? err.message : String(err)}`
         console.error(`[GoDentist] ${msg}`)
@@ -483,6 +483,112 @@ export class GoDentistAdapter {
       // Fallback: press Enter on date field to trigger reload
       console.log('[GoDentist] No Buscar button found, pressing Enter on date field')
       await this.page.locator('#df_fecha').press('Enter')
+    }
+  }
+
+  // ── Pagination ──
+
+  /**
+   * Extract appointments from ALL pages for a sucursal.
+   * Loops through ExtJS PagingToolbar until the last page.
+   */
+  private async extractAllPages(sucursal: string): Promise<Appointment[]> {
+    if (!this.page) return []
+
+    const allAppointments: Appointment[] = []
+    let pageNum = 1
+    const MAX_PAGES = 20 // Safety limit
+
+    while (pageNum <= MAX_PAGES) {
+      // Extract current page
+      const pageAppointments = await this.extractAppointments(sucursal)
+      allAppointments.push(...pageAppointments)
+      console.log(`[GoDentist] ${sucursal} page ${pageNum}: ${pageAppointments.length} citas`)
+
+      // Check if there's a next page
+      const hasNext = await this.hasNextPage()
+      if (!hasNext) {
+        console.log(`[GoDentist] ${sucursal}: no more pages after page ${pageNum}`)
+        break
+      }
+
+      // Click next page
+      await this.clickNextPage()
+      await this.page.waitForTimeout(2000)
+      pageNum++
+    }
+
+    return allAppointments
+  }
+
+  /**
+   * Check if the "next page" button exists and is enabled.
+   * ExtJS paging toolbar: button with .x-tbar-page-next icon, disabled = .x-item-disabled on parent.
+   */
+  private async hasNextPage(): Promise<boolean> {
+    if (!this.page) return false
+
+    return await this.page.evaluate(() => {
+      // Find the next-page button by its icon class
+      const nextIcon = document.querySelector('.x-tbar-page-next')
+      if (!nextIcon) return false
+
+      // Walk up to the button/table element that holds the disabled class
+      let el: Element | null = nextIcon
+      for (let i = 0; i < 5 && el; i++) {
+        if (el.classList.contains('x-item-disabled')) return false
+        if (el.classList.contains('x-btn')) break
+        el = el.parentElement
+      }
+
+      // Also check: if the "Displaying" text shows we're on the last page
+      // e.g. "Displaying 21 - 30 of 30" means last page
+      const displayEl = document.querySelector('.x-paging-info')
+        || document.querySelector('.x-toolbar-text')
+      if (displayEl) {
+        const text = displayEl.textContent || ''
+        const match = text.match(/(\d+)\s*-\s*(\d+)\s+.*?(\d+)/)
+        if (match) {
+          const end = parseInt(match[2])
+          const total = parseInt(match[3])
+          if (end >= total) return false
+        }
+      }
+
+      return true
+    })
+  }
+
+  /**
+   * Click the "next page" button in the ExtJS PagingToolbar.
+   */
+  private async clickNextPage(): Promise<void> {
+    if (!this.page) return
+
+    // Click the button that contains the .x-tbar-page-next icon
+    const clicked = await this.page.evaluate(() => {
+      const nextIcon = document.querySelector('.x-tbar-page-next')
+      if (!nextIcon) return false
+
+      // Walk up to clickable button element
+      let el: Element | null = nextIcon
+      for (let i = 0; i < 5 && el; i++) {
+        if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
+          (el as HTMLElement).click()
+          return true
+        }
+        el = el.parentElement
+      }
+
+      // Fallback: click the icon itself
+      (nextIcon as HTMLElement).click()
+      return true
+    })
+
+    if (clicked) {
+      console.log('[GoDentist] Clicked next page')
+    } else {
+      console.warn('[GoDentist] Could not find next page button')
     }
   }
 

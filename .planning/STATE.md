@@ -330,6 +330,7 @@ Debug Panel v4.0 decisions (Plan 05):
 | 017 | Accion retoma para L5 en initial con template retoma_inicial | 2026-03-10 | f34aa99 | [017-accion-retoma-l5-initial-template-retoma](./quick/017-accion-retoma-l5-initial-template-retoma/) |
 | 018 | Eliminar templateIntents decorativos de transitions.ts | 2026-03-10 | a8a3208 | [018-eliminar-templateintents-decorativos-transitions](./quick/018-eliminar-templateintents-decorativos-transitions/) |
 | 019 | Acciones retoma_datos (L0) y retoma_datos_parciales (L1) con templates dedicados | 2026-03-10 | 5afff86 | [019-retoma-datos-l0-l1-templates](./quick/019-retoma-datos-l0-l1-templates/) |
+| 020 | Separar system events del pipeline + fix camposFaltantes barrio | 2026-03-10 | 9ae89ee | [020-system-event-separation](./quick/020-system-event-separation/) |
 
 ### Blockers/Concerns
 

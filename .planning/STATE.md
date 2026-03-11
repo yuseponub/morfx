@@ -15,7 +15,8 @@ Status: Plan 01 complete -- conditional product mapping backend (resolveConditio
 Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
 Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-11 — Completed quick-022: crear_orden_sin_promo/sin_confirmar + crmAction
+Standalone: Robot GoDentist Integration — IN PROGRESS (3/4 plans)
+Last activity: 2026-03-11 — Completed standalone-robot-godentist-03: confirm appointment endpoint
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -341,6 +342,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-11 COT
-Stopped at: Completed quick-022 — crear_orden_sin_promo/sin_confirmar + crmAction
+Stopped at: Completed standalone-robot-godentist-03 — confirm appointment endpoint + adapter
 Resume file: None
-Next: Apply migration 20260311000000_pendiente_templates.sql, then push to Vercel
+Next: Execute standalone-robot-godentist-04 (MorfX integration) or push robot to Railway

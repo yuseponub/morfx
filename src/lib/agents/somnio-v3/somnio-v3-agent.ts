@@ -18,7 +18,7 @@ import { resolveSalesTrack } from './sales-track'
 import { resolveResponseTrack } from './response-track'
 import { checkGuards } from './guards'
 import { derivePhase } from './phase'
-import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, SystemEvent, TipoAccion, AccionRegistrada } from './types'
+import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, TipoAccion, AccionRegistrada } from './types'
 
 // ============================================================================
 // Main Processing Function
@@ -31,12 +31,119 @@ import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, SystemEvent,
  * @returns V3AgentOutput with response, state updates, signals
  */
 export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput> {
+  if (input.systemEvent && input.systemEvent.type === 'timer_expired') {
+    return processSystemEvent(input, input.systemEvent)
+  }
+  return processUserMessage(input)
+}
+
+// ============================================================================
+// System Event Path (timers — no comprehension, no mergeAnalysis, no guards)
+// ============================================================================
+
+async function processSystemEvent(
+  input: V3AgentInput,
+  systemEvent: { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 },
+): Promise<V3AgentOutput> {
+  const timerSignals: TimerSignal[] = []
+
+  // Restore state from session
+  const state = deserializeState(
+    input.datosCapturados,
+    input.packSeleccionado,
+    input.intentsVistos,
+    input.templatesEnviados,
+    input.accionesEjecutadas ?? [],
+  )
+
+  // Compute phase + gates directly from state (NO mergeAnalysis, NO turnCount++)
+  const phase = derivePhase(state.accionesEjecutadas)
+  const gates = computeGates(state)
+
+  // Sales track with timer event
+  const salesResult = resolveSalesTrack({
+    phase,
+    state,
+    gates,
+    event: { type: 'timer_expired', level: systemEvent.level },
+  })
+
+  if (salesResult.timerSignal) {
+    timerSignals.push(salesResult.timerSignal)
+  }
+
+  // Apply captura mode from sales track
+  if (salesResult.enterCaptura === true) state.enCapturaSilenciosa = true
+  else if (salesResult.enterCaptura === false) state.enCapturaSilenciosa = false
+
+  // Response track — NO intent (system events don't have intents)
+  const responseResult = await resolveResponseTrack({
+    salesAction: salesResult.accion,
+    state,
+    workspaceId: input.workspaceId,
+  })
+
+  // Register action with origen: 'timer'
+  if (salesResult.accion && salesResult.accion !== 'silence') {
+    state.accionesEjecutadas.push({
+      tipo: salesResult.accion,
+      turno: state.turnCount,
+      origen: 'timer',
+    })
+  }
+
+  // Update templatesMostrados
+  for (const tid of responseResult.templateIdsSent) {
+    if (!state.templatesMostrados.includes(tid)) {
+      state.templatesMostrados.push(tid)
+    }
+  }
+
+  // Serialize state — intentsVistos and turnCount UNCHANGED
+  const serialized = serializeState(state)
+
+  return {
+    success: true,
+    messages: responseResult.messages.map(m => m.content),
+    templates: responseResult.messages.length > 0 ? responseResult.messages : undefined,
+    newMode: computeMode(state),
+    intentsVistos: serialized.intentsVistos,
+    templatesEnviados: serialized.templatesEnviados,
+    datosCapturados: serialized.datosCapturados,
+    packSeleccionado: serialized.packSeleccionado,
+    accionesEjecutadas: serialized.accionesEjecutadas,
+    // intentInfo intentionally omitted — system events have no intent
+    totalTokens: 0,
+    shouldCreateOrder: false,
+    timerSignals,
+    decisionInfo: {
+      action: responseResult.messages.length === 0 ? 'silence' : 'respond',
+      reason: salesResult.reason,
+      gates,
+    },
+    salesTrackInfo: {
+      accion: salesResult.accion,
+      reason: salesResult.reason,
+      enterCaptura: salesResult.enterCaptura,
+    },
+    responseTrackInfo: {
+      salesTemplateIntents: responseResult.salesTemplateIntents,
+      infoTemplateIntents: responseResult.infoTemplateIntents,
+      totalMessages: responseResult.messages.length,
+    },
+    // classificationInfo intentionally omitted — no analysis ran
+  }
+}
+
+// ============================================================================
+// User Message Path (real comprehension, mergeAnalysis, guards)
+// ============================================================================
+
+async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
   const timerSignals: TimerSignal[] = []
 
   try {
-    // ------------------------------------------------------------------
     // Restore state from session
-    // ------------------------------------------------------------------
     const state = deserializeState(
       input.datosCapturados,
       input.packSeleccionado,
@@ -44,105 +151,76 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       input.templatesEnviados,
       input.accionesEjecutadas ?? [],
     )
-    // ------------------------------------------------------------------
-    // C2: Comprehension (skip if systemEvent from timer)
-    // ------------------------------------------------------------------
-    let analysis: Awaited<ReturnType<typeof comprehend>>['analysis']
-    let tokensUsed: number
 
-    const systemEvent: SystemEvent | undefined = input.systemEvent
+    // C2: Comprehension (always real — this is a user message)
+    const recentBotMessages = input.history
+      .filter(h => h.role === 'assistant')
+      .slice(-2)
+      .map(h => h.content)
 
-    // If we have a system event, skip comprehension
-    if (systemEvent) {
-      analysis = {
-        intent: { primary: 'otro' as any, secondary: 'ninguno' as const, confidence: 100, reasoning: `systemEvent: ${systemEvent.type}` },
-        extracted_fields: { nombre: null, apellido: null, telefono: null, ciudad: null, departamento: null, direccion: null, barrio: null, correo: null, indicaciones_extra: null, cedula_recoge: null, pack: null, ofi_inter: null },
-        classification: { category: 'irrelevante' as const, sentiment: 'neutro' as const },
-        negations: { correo: false, telefono: false, barrio: false },
-      }
-      tokensUsed = 0
-    } else {
-      const recentBotMessages = input.history
-        .filter(h => h.role === 'assistant')
-        .slice(-2)
-        .map(h => h.content)
+    const { analysis, tokensUsed } = await comprehend(
+      input.message,
+      input.history,
+      input.datosCapturados,
+      recentBotMessages,
+    )
 
-      const result = await comprehend(
-        input.message,
-        input.history,
-        input.datosCapturados,
-        recentBotMessages,
-      )
-      analysis = result.analysis
-      tokensUsed = result.tokensUsed
-    }
-
-    // ------------------------------------------------------------------
-    // C3: State Merge
-    // ------------------------------------------------------------------
+    // C3: State Merge (pushes real intent, increments turnCount)
     const { state: mergedState, changes } = mergeAnalysis(state, analysis)
 
-    // ------------------------------------------------------------------
     // C5: Compute Gates
-    // ------------------------------------------------------------------
     const gates = computeGates(mergedState)
 
-    // ------------------------------------------------------------------
-    // GUARDS (R0, R1) — run BEFORE tracks
-    // Skip guards for system events (timers don't need confidence/escape checks)
-    // ------------------------------------------------------------------
-    if (!systemEvent) {
-      const guardResult = checkGuards(analysis)
-      if (guardResult.blocked) {
-        if (guardResult.decision.timerSignal) {
-          timerSignals.push(guardResult.decision.timerSignal)
-        }
-        const serialized = serializeState(mergedState)
-        return {
-          success: true,
-          messages: [],
-          newMode: 'handoff',
-          intentsVistos: serialized.intentsVistos,
-          templatesEnviados: serialized.templatesEnviados,
-          datosCapturados: serialized.datosCapturados,
-          packSeleccionado: serialized.packSeleccionado,
-          accionesEjecutadas: serialized.accionesEjecutadas,
-          intentInfo: {
-            intent: analysis.intent.primary,
-            confidence: analysis.intent.confidence,
-            secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
-            reasoning: analysis.intent.reasoning,
-            timestamp: new Date().toISOString(),
-          },
-          totalTokens: tokensUsed,
-
-          shouldCreateOrder: false,
-          timerSignals,
-          decisionInfo: {
-            action: 'handoff',
-            reason: guardResult.decision.reason,
-            gates,
-          },
-          classificationInfo: {
-            category: analysis.classification.category,
-            sentiment: analysis.classification.sentiment,
-          },
-        }
+    // GUARDS (R0, R1) — always run for user messages
+    const guardResult = checkGuards(analysis)
+    if (guardResult.blocked) {
+      if (guardResult.decision.timerSignal) {
+        timerSignals.push(guardResult.decision.timerSignal)
+      }
+      const serialized = serializeState(mergedState)
+      return {
+        success: true,
+        messages: [],
+        newMode: 'handoff',
+        intentsVistos: serialized.intentsVistos,
+        templatesEnviados: serialized.templatesEnviados,
+        datosCapturados: serialized.datosCapturados,
+        packSeleccionado: serialized.packSeleccionado,
+        accionesEjecutadas: serialized.accionesEjecutadas,
+        intentInfo: {
+          intent: analysis.intent.primary,
+          confidence: analysis.intent.confidence,
+          secondary: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+          reasoning: analysis.intent.reasoning,
+          timestamp: new Date().toISOString(),
+        },
+        totalTokens: tokensUsed,
+        shouldCreateOrder: false,
+        timerSignals,
+        decisionInfo: {
+          action: 'handoff',
+          reason: guardResult.decision.reason,
+          gates,
+        },
+        classificationInfo: {
+          category: analysis.classification.category,
+          sentiment: analysis.classification.sentiment,
+        },
       }
     }
 
-    // ------------------------------------------------------------------
     // SALES TRACK — WHAT TO DO
-    // ------------------------------------------------------------------
     const phase = derivePhase(mergedState.accionesEjecutadas)
     const salesResult = resolveSalesTrack({
       phase,
-      intent: analysis.intent.primary,
       state: mergedState,
       gates,
-      changes,
-      category: analysis.classification.category,
-      systemEvent,
+      event: {
+        type: 'user_message',
+        intent: analysis.intent.primary,
+        category: analysis.classification.category,
+        changes,
+      },
     })
 
     if (salesResult.timerSignal) {
@@ -156,9 +234,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
     // Check for order creation
     const isCreateOrder = salesResult.accion === 'crear_orden'
 
-    // ------------------------------------------------------------------
     // RESPONSE TRACK — WHAT TO SAY
-    // ------------------------------------------------------------------
     const responseResult = await resolveResponseTrack({
       salesAction: salesResult.accion,
       intent: analysis.intent.primary,
@@ -167,14 +243,12 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       workspaceId: input.workspaceId,
     })
 
-    // ------------------------------------------------------------------
     // Register action (SINGLE registration point — D3)
-    // ------------------------------------------------------------------
     if (salesResult.accion && salesResult.accion !== 'silence') {
       mergedState.accionesEjecutadas.push({
         tipo: salesResult.accion,
         turno: mergedState.turnCount,
-        origen: systemEvent ? 'timer' : 'bot',
+        origen: 'bot',
       })
     }
 
@@ -185,9 +259,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       }
     }
 
-    // ------------------------------------------------------------------
     // NATURAL SILENCE: response track produced 0 messages
-    // ------------------------------------------------------------------
     if (responseResult.messages.length === 0) {
       const serialized = serializeState(mergedState)
       return {
@@ -232,9 +304,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       }
     }
 
-    // ------------------------------------------------------------------
     // Build output (has messages)
-    // ------------------------------------------------------------------
     const serialized = serializeState(mergedState)
 
     return {
@@ -297,11 +367,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
       datosCapturados: input.datosCapturados,
       packSeleccionado: input.packSeleccionado,
       accionesEjecutadas: input.accionesEjecutadas ?? [],
-      intentInfo: {
-        intent: 'otro',
-        confidence: 0,
-        timestamp: new Date().toISOString(),
-      },
+      // intentInfo omitted — error state has no real intent
       totalTokens: 0,
       shouldCreateOrder: false,
       timerSignals: [],

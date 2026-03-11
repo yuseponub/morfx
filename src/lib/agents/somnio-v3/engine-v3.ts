@@ -73,11 +73,16 @@ export class SomnioV3Engine {
         timerSignal: lastTimerSignal,
         debugTurn: {
           turnNumber: input.turnNumber,
-          intent: {
+          intent: output.intentInfo ? {
             intent: output.intentInfo.intent,
             confidence: output.intentInfo.confidence,
             reasoning: output.intentInfo.reasoning,
             timestamp: output.intentInfo.timestamp,
+          } : {
+            intent: 'system_event',
+            confidence: 0,
+            reasoning: 'Timer event - no comprehension',
+            timestamp,
           },
           tools: [],
           tokens: {

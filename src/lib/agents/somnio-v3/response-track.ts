@@ -28,7 +28,7 @@ import type { AgentState, ProcessedMessage, ResponseTrackOutput, TipoAccion } fr
 
 export async function resolveResponseTrack(input: {
   salesAction?: TipoAccion
-  intent: string
+  intent?: string
   secondaryIntent?: string
   state: AgentState
   workspaceId: string
@@ -52,7 +52,7 @@ export async function resolveResponseTrack(input: {
   // ------------------------------------------------------------------
   const infoTemplateIntents: string[] = []
 
-  if (INFORMATIONAL_INTENTS.has(intent)) {
+  if (intent && INFORMATIONAL_INTENTS.has(intent)) {
     infoTemplateIntents.push(intent)
   }
   if (secondaryIntent && INFORMATIONAL_INTENTS.has(secondaryIntent)) {

@@ -116,8 +116,10 @@ async function processSystemEvent(
     accionesEjecutadas: serialized.accionesEjecutadas,
     // intentInfo intentionally omitted — system events have no intent
     totalTokens: 0,
-    shouldCreateOrder: !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion),
-    orderData: (!!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion))
+    shouldCreateOrder: !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion)
+      && !state.accionesEjecutadas.some(a => typeof a !== 'string' && a.crmAction),
+    orderData: (!!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion)
+      && !state.accionesEjecutadas.some(a => typeof a !== 'string' && a.crmAction))
       ? {
           datosCapturados: serialized.datosCapturados,
           packSeleccionado: serialized.packSeleccionado,
@@ -239,8 +241,9 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     if (salesResult.enterCaptura === true) mergedState.enCapturaSilenciosa = true
     else if (salesResult.enterCaptura === false) mergedState.enCapturaSilenciosa = false
 
-    // Check for order creation
-    const isCreateOrder = !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion)
+    // Check for order creation (skip if CRM already touched — prevents duplicate orders)
+    const hasPriorOrder = mergedState.accionesEjecutadas.some(a => typeof a !== 'string' && a.crmAction)
+    const isCreateOrder = !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion) && !hasPriorOrder
 
     // RESPONSE TRACK — WHAT TO SAY
     const responseResult = await resolveResponseTrack({

@@ -2,7 +2,7 @@ import express from 'express'
 import * as fs from 'fs'
 import * as path from 'path'
 import { GoDentistAdapter } from '../adapters/godentist-adapter.js'
-import type { ScrapeAppointmentsRequest, ScrapeAppointmentsResponse, HealthResponse } from '../types/index.js'
+import type { ScrapeAppointmentsRequest, ScrapeAppointmentsResponse, HealthResponse, ConfirmAppointmentRequest, ConfirmAppointmentResponse } from '../types/index.js'
 
 const ARTIFACTS_DIR = path.resolve('storage/artifacts')
 
@@ -74,6 +74,68 @@ export function createServer() {
         success: false,
         error: err instanceof Error ? err.message : 'Unknown error',
       })
+    } finally {
+      await adapter.close()
+      activeJob = null
+    }
+  })
+
+  // ── Confirm Appointment ──
+  app.post('/api/confirm-appointment', async (req, res) => {
+    const body = req.body as ConfirmAppointmentRequest
+
+    // Validate request
+    if (!body.workspaceId) {
+      res.status(400).json({ success: false, error: 'workspaceId is required', patientName: '', screenshots: [] })
+      return
+    }
+    if (!body.credentials?.username || !body.credentials?.password) {
+      res.status(400).json({ success: false, error: 'credentials (username, password) are required', patientName: '', screenshots: [] })
+      return
+    }
+    if (!body.patientName) {
+      res.status(400).json({ success: false, error: 'patientName is required', patientName: '', screenshots: [] })
+      return
+    }
+    if (!body.date) {
+      res.status(400).json({ success: false, error: 'date is required (DD-MM-YYYY format)', patientName: '', screenshots: [] })
+      return
+    }
+    if (!body.sucursal) {
+      res.status(400).json({ success: false, error: 'sucursal is required', patientName: '', screenshots: [] })
+      return
+    }
+
+    // Prevent concurrent jobs
+    if (activeJob) {
+      res.status(409).json({ success: false, error: 'Another job is in progress', patientName: body.patientName, screenshots: [] })
+      return
+    }
+
+    activeJob = body.workspaceId
+
+    const adapter = new GoDentistAdapter(body.credentials, body.workspaceId)
+
+    try {
+      await adapter.init()
+
+      const loginOk = await adapter.login()
+      if (!loginOk) {
+        res.status(401).json({ success: false, error: 'Login failed. Check credentials.', patientName: body.patientName, screenshots: [] })
+        return
+      }
+
+      const result: ConfirmAppointmentResponse = await adapter.confirmAppointment(body.patientName, body.date, body.sucursal)
+      res.json(result)
+    } catch (err) {
+      console.error('[Server] Confirm appointment error:', err)
+      await adapter.takeScreenshot('server-confirm-error')
+      res.status(500).json({
+        success: false,
+        patientName: body.patientName,
+        error: err instanceof Error ? err.message : 'Unknown error',
+        screenshots: ['server-confirm-error'],
+      } satisfies ConfirmAppointmentResponse)
     } finally {
       await adapter.close()
       activeJob = null

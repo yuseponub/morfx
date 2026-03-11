@@ -4,8 +4,10 @@
  * 3-concept architecture: Intents (client) / Actions (bot) / Signals (system)
  * Gates computed every turn, never stored.
  *
- * State machine types: TipoAccion, AccionRegistrada, Phase, SystemEvent
+ * State machine types: TipoAccion, AccionRegistrada, Phase, SystemEvent, SalesEvent
  */
+
+import type { StateChanges } from './state'
 
 // ============================================================================
 // Agent State
@@ -159,7 +161,7 @@ export interface V3AgentOutput {
   /** Acciones ejecutadas as first-class field (quick-009) */
   accionesEjecutadas: AccionRegistrada[]
 
-  intentInfo: {
+  intentInfo?: {
     intent: string
     confidence: number
     secondary?: string
@@ -238,6 +240,11 @@ export type Phase =
 export type SystemEvent =
   | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 }
   | { type: 'auto'; result: 'datos_completos' | 'ciudad_sin_direccion' }
+
+/** Discriminated union for sales track events — compiler-enforced separation */
+export type SalesEvent =
+  | { type: 'user_message'; intent: string; category: string; changes: StateChanges }
+  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 }
 
 export type GuardResult =
   | { blocked: true; decision: Decision }

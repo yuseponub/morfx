@@ -16,6 +16,7 @@ import type {
   AgentState,
   Gates,
   Phase,
+  SalesEvent,
   SalesTrackOutput,
   SystemEvent,
   TimerSignal,
@@ -30,30 +31,17 @@ import { resolveTransition, systemEventToKey } from './transitions'
 
 export function resolveSalesTrack(input: {
   phase: Phase
-  intent: string
   state: AgentState
   gates: Gates
-  changes: StateChanges
-  category: string
-  systemEvent?: SystemEvent
+  event: SalesEvent
 }): SalesTrackOutput {
-  const { phase, intent, state, gates, changes, systemEvent } = input
-
-  // Timer signal from data changes (computed early, used as fallback)
-  let dataTimerSignal: TimerSignal | undefined
-  if (state.enCapturaSilenciosa && changes.hasNewData) {
-    if (changes.criticalComplete) {
-      dataTimerSignal = { type: 'reevaluate', level: 'L2', reason: `criticos completos (${changes.filled} campos)` }
-    } else if (changes.filled > 0) {
-      dataTimerSignal = { type: 'start', level: 'L1', reason: `datos parciales (${changes.filled} campos)` }
-    }
-  }
+  const { phase, state, gates, event } = input
 
   // ------------------------------------------------------------------
-  // 1. System event from input (timer expired) takes priority
+  // 1. Timer expired event — early return, no data changes
   // ------------------------------------------------------------------
-  if (systemEvent) {
-    const key = systemEventToKey(systemEvent)
+  if (event.type === 'timer_expired') {
+    const key = systemEventToKey({ type: 'timer_expired', level: event.level })
     const match = resolveTransition(phase, key, state, gates)
     if (match) {
       return {
@@ -63,7 +51,23 @@ export function resolveSalesTrack(input: {
         reason: match.output.reason,
       }
     }
-    console.warn(`[sales-track] No transition for system event: ${key} in phase ${phase}`)
+    console.warn(`[sales-track] No transition for timer_expired:${event.level} in phase ${phase}`)
+    return { reason: `No transition for timer_expired:${event.level}` }
+  }
+
+  // ------------------------------------------------------------------
+  // From here, TypeScript knows event.type === 'user_message'
+  // ------------------------------------------------------------------
+  const { intent, category, changes } = event
+
+  // Timer signal from data changes (computed early, used as fallback)
+  let dataTimerSignal: TimerSignal | undefined
+  if (state.enCapturaSilenciosa && changes.hasNewData) {
+    if (changes.criticalComplete) {
+      dataTimerSignal = { type: 'reevaluate', level: 'L2', reason: `criticos completos (${changes.filled} campos)` }
+    } else if (changes.filled > 0) {
+      dataTimerSignal = { type: 'start', level: 'L1', reason: `datos parciales (${changes.filled} campos)` }
+    }
   }
 
   // ------------------------------------------------------------------

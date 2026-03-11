@@ -202,10 +202,20 @@ export function datosExtrasOk(state: AgentState): boolean {
  */
 export function camposFaltantes(state: AgentState): string[] {
   const fields = state.ofiInter ? CRITICAL_FIELDS_OFI_INTER : CRITICAL_FIELDS_NORMAL
-  return fields.filter(f => {
+  const missing: string[] = fields.filter(f => {
     const val = state.datos[f as keyof DatosCliente]
     return !val || val.trim() === ''
   })
+
+  // Include barrio if missing and not negated (required for datosExtrasOk)
+  if (!state.ofiInter) {
+    const barrioPresent = state.datos.barrio !== null && state.datos.barrio?.trim() !== ''
+    if (!barrioPresent && !state.negaciones.barrio) {
+      missing.push('barrio')
+    }
+  }
+
+  return missing
 }
 
 // ============================================================================

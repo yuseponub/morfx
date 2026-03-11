@@ -43,6 +43,7 @@ export function ConfirmacionesPanel() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyView, setHistoryView] = useState<HistoryView>('list')
   const [selectedEntry, setSelectedEntry] = useState<ScrapeHistoryEntry | null>(null)
+  const [detailSelected, setDetailSelected] = useState<Set<number>>(new Set())
 
   // Filtered appointments
   const sucursalFiltered = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
@@ -450,7 +451,7 @@ export function ConfirmacionesPanel() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => { setSelectedEntry(entry); setHistoryView('detail') }}
+                            onClick={() => { setSelectedEntry(entry); setDetailSelected(new Set()); setHistoryView('detail') }}
                           >
                             <Eye className="mr-1 h-3 w-3" />
                             Ver
@@ -473,58 +474,34 @@ export function ConfirmacionesPanel() {
           )}
 
           {historyView === 'detail' && selectedEntry && (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm" onClick={() => { setHistoryView('list'); setSelectedEntry(null) }}>
-                    &larr; Volver
-                  </Button>
-                  <Badge variant="secondary">Fecha: {selectedEntry.scraped_date}</Badge>
-                  <Badge variant="outline">{selectedEntry.total_appointments} citas</Badge>
-                </div>
-                <Button size="sm" onClick={() => handleLoadFromHistory(selectedEntry)}>
-                  <Send className="mr-1 h-3 w-3" />
-                  Reenviar seleccion
-                </Button>
-              </div>
-
-              {/* Send results if exists */}
-              {selectedEntry.send_results && (
-                <>
-                  <p className="text-sm font-medium">Resultados del envio ({new Date(selectedEntry.sent_at!).toLocaleString('es-CO', { timeZone: 'America/Bogota' })})</p>
-                  <SendResultCards result={selectedEntry.send_results} />
-
-                  {selectedEntry.send_results.failed > 0 && (
-                    <Card className="border-destructive">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Envios fallidos</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-1 text-sm">
-                          {selectedEntry.send_results.details
-                            .filter(d => d.status === 'failed')
-                            .map((d, i) => (
-                              <li key={i} className="text-destructive">
-                                {d.nombre} ({d.telefono}): {d.error}
-                              </li>
-                            ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  )}
-                </>
-              )}
-
-              {/* All appointments table */}
-              <p className="text-sm font-medium">Citas scrapeadas</p>
-              <AppointmentsTable
-                appointments={selectedEntry.appointments}
-                selected={new Set()}
-                toggleSelect={() => {}}
-                toggleAll={() => {}}
-                selectable={false}
-              />
-            </>
+            <HistoryDetail
+              entry={selectedEntry}
+              detailSelected={detailSelected}
+              setDetailSelected={setDetailSelected}
+              onBack={() => { setHistoryView('list'); setSelectedEntry(null); setDetailSelected(new Set()) }}
+              onResend={(apts) => {
+                // Load only selected appointments into preview
+                setAllAppointments(apts)
+                setDate(selectedEntry.scraped_date)
+                setHistoryId(selectedEntry.id)
+                setActiveSucursales(new Set(selectedEntry.sucursales))
+                const sel = new Set<number>()
+                apts.forEach((a, i) => {
+                  if (!a.estado.toLowerCase().includes('cancelada')) sel.add(i)
+                })
+                setSelected(sel)
+                setSearchName('')
+                setFilterSucursal('all')
+                setFilterEstado('all')
+                setResult(null)
+                setError('')
+                setPhase('preview')
+                setTab('scrape')
+                setHistoryView('list')
+                setSelectedEntry(null)
+                setDetailSelected(new Set())
+              }}
+            />
           )}
         </>
       )}
@@ -611,6 +588,184 @@ function AppointmentsTable({
         </table>
       </div>
     </Card>
+  )
+}
+
+function HistoryDetail({
+  entry,
+  detailSelected,
+  setDetailSelected,
+  onBack,
+  onResend,
+}: {
+  entry: ScrapeHistoryEntry
+  detailSelected: Set<number>
+  setDetailSelected: (s: Set<number>) => void
+  onBack: () => void
+  onResend: (apts: GodentistAppointment[]) => void
+}) {
+  const [searchName, setSearchName] = useState('')
+  const [filterSucursal, setFilterSucursal] = useState('all')
+  const [filterEstado, setFilterEstado] = useState('all')
+
+  const filtered = useMemo(() => {
+    let list = entry.appointments
+    if (searchName.trim()) {
+      const q = searchName.toLowerCase()
+      list = list.filter(a => a.nombre.toLowerCase().includes(q))
+    }
+    if (filterSucursal !== 'all') {
+      list = list.filter(a => a.sucursal.toUpperCase() === filterSucursal)
+    }
+    if (filterEstado !== 'all') {
+      if (filterEstado === 'cancelada') list = list.filter(a => a.estado.toLowerCase().includes('cancelada'))
+      else if (filterEstado === 'no-cancelada') list = list.filter(a => !a.estado.toLowerCase().includes('cancelada'))
+      else if (filterEstado === 'confirmada') list = list.filter(a => a.estado.toLowerCase().includes('confirmada'))
+    }
+    return list
+  }, [entry.appointments, searchName, filterSucursal, filterEstado])
+
+  const uniqueSucursales = useMemo(() => {
+    const set = new Set(entry.appointments.map(a => a.sucursal.toUpperCase()))
+    return Array.from(set).sort()
+  }, [entry.appointments])
+
+  // Map filtered indices back to original indices for selection
+  const filteredOriginalIndices = useMemo(() => {
+    return filtered.map(apt => entry.appointments.indexOf(apt))
+  }, [filtered, entry.appointments])
+
+  function toggleDetailSelect(filteredIdx: number) {
+    const origIdx = filteredOriginalIndices[filteredIdx]
+    const next = new Set(detailSelected)
+    if (next.has(origIdx)) next.delete(origIdx)
+    else next.add(origIdx)
+    setDetailSelected(next)
+  }
+
+  function toggleDetailAll() {
+    const allSelected = filteredOriginalIndices.every(i => detailSelected.has(i))
+    const next = new Set(detailSelected)
+    if (allSelected) {
+      filteredOriginalIndices.forEach(i => next.delete(i))
+    } else {
+      filteredOriginalIndices.forEach(i => next.add(i))
+    }
+    setDetailSelected(next)
+  }
+
+  // Build selected set relative to filtered list for AppointmentsTable
+  const filteredSelected = useMemo(() => {
+    const set = new Set<number>()
+    filteredOriginalIndices.forEach((origIdx, filteredIdx) => {
+      if (detailSelected.has(origIdx)) set.add(filteredIdx)
+    })
+    return set
+  }, [filteredOriginalIndices, detailSelected])
+
+  function handleResendSelected() {
+    const selectedApts = entry.appointments.filter((_, i) => detailSelected.has(i))
+    onResend(selectedApts)
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            &larr; Volver
+          </Button>
+          <Badge variant="secondary">Fecha: {entry.scraped_date}</Badge>
+          <Badge variant="outline">{entry.total_appointments} citas</Badge>
+          {detailSelected.size > 0 && (
+            <Badge variant="default">{detailSelected.size} seleccionadas</Badge>
+          )}
+        </div>
+        <Button size="sm" onClick={handleResendSelected} disabled={detailSelected.size === 0}>
+          <Send className="mr-1 h-3 w-3" />
+          Reenviar seleccion ({detailSelected.size})
+        </Button>
+      </div>
+
+      {/* Send results if exists */}
+      {entry.send_results && (
+        <>
+          <p className="text-sm font-medium">Resultados del envio ({new Date(entry.sent_at!).toLocaleString('es-CO', { timeZone: 'America/Bogota' })})</p>
+          <SendResultCards result={entry.send_results} />
+
+          {entry.send_results.failed > 0 && (
+            <Card className="border-destructive">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Envios fallidos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-1 text-sm">
+                  {entry.send_results.details
+                    .filter(d => d.status === 'failed')
+                    .map((d, i) => (
+                      <li key={i} className="text-destructive">
+                        {d.nombre} ({d.telefono}): {d.error}
+                      </li>
+                    ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Buscar por nombre..."
+              value={searchName}
+              onChange={e => setSearchName(e.target.value)}
+              className="w-64"
+            />
+            <select
+              value={filterSucursal}
+              onChange={e => setFilterSucursal(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">Todas las sucursales</option>
+              {uniqueSucursales.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <select
+              value={filterEstado}
+              onChange={e => setFilterEstado(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">Todos los estados</option>
+              <option value="no-cancelada">No canceladas</option>
+              <option value="cancelada">Canceladas</option>
+              <option value="confirmada">Confirmadas</option>
+            </select>
+            {(searchName || filterSucursal !== 'all' || filterEstado !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setSearchName(''); setFilterSucursal('all'); setFilterEstado('all') }}
+              >
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <p className="text-sm font-medium">Citas scrapeadas</p>
+      <AppointmentsTable
+        appointments={filtered}
+        selected={filteredSelected}
+        toggleSelect={toggleDetailSelect}
+        toggleAll={toggleDetailAll}
+        selectable
+      />
+    </>
   )
 }
 

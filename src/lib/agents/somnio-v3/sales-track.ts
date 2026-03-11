@@ -66,8 +66,8 @@ export function resolveSalesTrack(input: {
     if (changes.datosCriticosJustCompleted && !changes.datosCompletosJustCompleted) {
       // Criticos completos, faltan extras -> L2 (2 min gracia para extras)
       dataTimerSignal = { type: 'start', level: 'L2', reason: 'criticos completos, esperando extras' }
-    } else if (changes.filled > 0 && !changes.datosCriticosJustCompleted) {
-      // Datos parciales -> L1
+    } else if (changes.filled > 0 && !changes.datosCriticosJustCompleted && !gates.datosCriticos) {
+      // Datos parciales (criticos aun incompletos) -> L1
       dataTimerSignal = { type: 'start', level: 'L1', reason: `datos parciales (${changes.filled} campos)` }
     }
   }

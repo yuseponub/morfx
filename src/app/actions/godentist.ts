@@ -3,8 +3,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { sendTemplateMessage } from '@/lib/domain/messages'
-import { findOrCreateConversation } from '@/lib/domain/conversations'
+import { findOrCreateConversation, linkContactToConversation } from '@/lib/domain/conversations'
 import { assignTag } from '@/lib/domain/tags'
+import { createContact } from '@/lib/domain/contacts'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // ── Types ──
 
@@ -156,10 +158,16 @@ export async function sendConfirmations(
     const renderedText = `¡Hola, ${nombreTitleCase}! ☺️ Te esperamos en godentist®️ ${sucursalTitleCase} el ${fechaFormateada} a las ${apt.hora}. 📍Dirección: ${address} Llega 5 minutos antes con tu documento para el registro.`
 
     try {
-      // Find or create conversation for this phone number
+      const tagName = SUCURSAL_TAGS[apt.sucursal.toUpperCase()]
+
+      // Step 1: Find or create contact
+      const contactId = await findOrCreateContact(domainCtx, phone, nombreTitleCase, tagName)
+
+      // Step 2: Find or create conversation, link contact
       const convResult = await findOrCreateConversation(domainCtx, {
         phone,
         profileName: nombreTitleCase,
+        contactId: contactId || undefined,
       })
 
       if (!convResult.success || !convResult.data) {
@@ -173,9 +181,26 @@ export async function sendConfirmations(
         continue
       }
 
-      // Send template via domain layer (sends + stores in DB)
+      const conversationId = convResult.data.conversationId
+
+      // Step 3: Link contact to conversation (if contact exists and conv already existed)
+      if (contactId && !convResult.data.created) {
+        await linkContactToConversation(domainCtx, { conversationId, contactId })
+          .catch(err => console.error(`[godentist] Link contact error: ${err}`))
+      }
+
+      // Step 4: Assign tag to conversation too
+      if (tagName) {
+        await assignTag(domainCtx, {
+          entityType: 'conversation',
+          entityId: conversationId,
+          tagName,
+        }).catch(err => console.error(`[godentist] Conv tag error: ${err}`))
+      }
+
+      // Step 5: Send template via domain layer (sends + stores in DB)
       const sendResult = await sendTemplateMessage(domainCtx, {
-        conversationId: convResult.data.conversationId,
+        conversationId,
         contactPhone: phone,
         templateName: TEMPLATE_NAME,
         templateLanguage: 'es',
@@ -196,15 +221,6 @@ export async function sendConfirmations(
       })
 
       if (sendResult.success) {
-        // Assign sucursal tag to conversation
-        const tagName = SUCURSAL_TAGS[apt.sucursal.toUpperCase()]
-        if (tagName) {
-          await assignTag(domainCtx, {
-            entityType: 'conversation',
-            entityId: convResult.data.conversationId,
-            tagName,
-          }).catch(err => console.error(`[godentist] Tag assign error: ${err}`))
-        }
         result.sent++
         result.details.push({ nombre: apt.nombre, telefono: apt.telefono, status: 'sent' })
       } else {
@@ -231,4 +247,62 @@ export async function sendConfirmations(
   }
 
   return { data: result }
+}
+
+// ── Contact Helper ──
+
+/**
+ * Find contact by phone or create a new one with the given name and tag.
+ * Returns contactId or null if both create and lookup fail.
+ */
+async function findOrCreateContact(
+  ctx: { workspaceId: string; source: string },
+  phone: string,
+  name: string,
+  tagName?: string
+): Promise<string | null> {
+  // Try to create
+  const createResult = await createContact(ctx, {
+    name,
+    phone,
+    tags: tagName ? [tagName] : undefined,
+  })
+
+  if (createResult.success && createResult.data) {
+    return createResult.data.contactId
+  }
+
+  // If duplicate (already exists), find the existing contact and assign tag
+  if (createResult.error?.includes('Ya existe')) {
+    const supabase = createAdminClient()
+    const { data: existing } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('phone', phone)
+      .single()
+
+    if (existing) {
+      // Update name
+      await supabase
+        .from('contacts')
+        .update({ name })
+        .eq('id', existing.id)
+        .eq('workspace_id', ctx.workspaceId)
+
+      // Assign tag if provided
+      if (tagName) {
+        await assignTag(ctx, {
+          entityType: 'contact',
+          entityId: existing.id,
+          tagName,
+        }).catch(err => console.error(`[godentist] Contact tag error: ${err}`))
+      }
+
+      return existing.id
+    }
+  }
+
+  console.error(`[godentist] findOrCreateContact failed: ${createResult.error}`)
+  return null
 }

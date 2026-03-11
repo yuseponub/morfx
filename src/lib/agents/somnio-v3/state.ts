@@ -2,7 +2,7 @@
  * Somnio Sales Agent v3 — State Management (Capa 3 + Capa 5)
  *
  * Capa 3: mergeAnalysis — merge comprehension data into state
- * Capa 5: computeGates — compute datosOk/packElegido (never stored)
+ * Capa 5: computeGates — compute datosCriticos/datosCompletos/packElegido (never stored)
  *
  * Uses normalizers from v1 (imported, not copied).
  */
@@ -28,9 +28,10 @@ import type { MessageAnalysis } from './comprehension-schema'
 export interface StateChanges {
   newFields: string[]           // campos que pasaron de null/vacio a valor
   filled: number                // total campos criticos llenos
-  criticalComplete: boolean     // todos los criticos llenos + extras ok
-  ciudadJustArrived: boolean    // ciudad paso de null a valor
   hasNewData: boolean           // al menos 1 campo nuevo
+  ciudadJustArrived: boolean    // ciudad paso de null a valor
+  datosCriticosJustCompleted: boolean    // criticos: false->true this turn
+  datosCompletosJustCompleted: boolean   // completos: false->true this turn
 }
 
 // ============================================================================
@@ -84,6 +85,10 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
     accionesEjecutadas: [...state.accionesEjecutadas],
     templatesMostrados: [...state.templatesMostrados],
   }
+
+  // Capture pre-merge gate state for "just completed" detection
+  const criticosBefore = datosCriticosOk(state)
+  const completosBefore = datosCriticosOk(state) && extrasOk(state)
 
   // 1. Merge extracted data fields
   const fields = analysis.extracted_fields
@@ -149,14 +154,19 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
     return val !== null && val.trim() !== ''
   }).length
 
+  // Post-merge gate state for "just completed" detection
+  const criticosAfter = datosCriticosOk(updated)
+  const completosAfter = datosCriticosOk(updated) && extrasOk(updated)
+
   return {
     state: updated,
     changes: {
       newFields,
       filled,
-      criticalComplete: filled === criticalFields.length && datosExtrasOk(updated),
-      ciudadJustArrived: newFields.includes('ciudad'),
       hasNewData: newFields.length > 0,
+      ciudadJustArrived: newFields.includes('ciudad'),
+      datosCriticosJustCompleted: !criticosBefore && criticosAfter,
+      datosCompletosJustCompleted: !completosBefore && completosAfter,
     },
   }
 }
@@ -170,8 +180,8 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
  */
 export function computeGates(state: AgentState): Gates {
   return {
-    datosOk: datosCriticosOk(state),
-    datosCompletos: datosCriticosOk(state) && datosExtrasOk(state),
+    datosCriticos: datosCriticosOk(state),
+    datosCompletos: datosCriticosOk(state) && extrasOk(state),
     packElegido: state.pack !== null,
   }
 }
@@ -188,13 +198,14 @@ export function datosCriticosOk(state: AgentState): boolean {
 }
 
 /**
- * Extra fields (barrio) present or negated?
- * In ofiInter mode, barrio is irrelevant → always true.
+ * Extra fields (correo + barrio) present or negated?
+ * In ofiInter mode, extras are irrelevant → always true.
  */
-export function datosExtrasOk(state: AgentState): boolean {
+function extrasOk(state: AgentState): boolean {
   if (state.ofiInter) return true
-  const barrioPresent = state.datos.barrio !== null && state.datos.barrio.trim() !== ''
-  return barrioPresent || state.negaciones.barrio
+  const correoOk = (state.datos.correo !== null && state.datos.correo.trim() !== '') || state.negaciones.correo
+  const barrioOk = (state.datos.barrio !== null && state.datos.barrio.trim() !== '') || state.negaciones.barrio
+  return correoOk && barrioOk
 }
 
 /**
@@ -207,11 +218,15 @@ export function camposFaltantes(state: AgentState): string[] {
     return !val || val.trim() === ''
   })
 
-  // Include barrio if missing and not negated (required for datosExtrasOk)
+  // Include barrio and correo if missing and not negated (required for datosCompletos)
   if (!state.ofiInter) {
     const barrioPresent = state.datos.barrio !== null && state.datos.barrio?.trim() !== ''
     if (!barrioPresent && !state.negaciones.barrio) {
       missing.push('barrio')
+    }
+    const correoPresent = state.datos.correo !== null && state.datos.correo?.trim() !== ''
+    if (!correoPresent && !state.negaciones.correo) {
+      missing.push('correo')
     }
   }
 

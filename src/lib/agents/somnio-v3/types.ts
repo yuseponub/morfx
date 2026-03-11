@@ -53,7 +53,7 @@ export interface AgentState {
 // ============================================================================
 
 export interface Gates {
-  datosOk: boolean
+  datosCriticos: boolean
   datosCompletos: boolean
   packElegido: boolean
 }

@@ -141,6 +141,8 @@ export async function sendConfirmations(
     const address = SUCURSAL_ADDRESSES[apt.sucursal.toUpperCase()] || apt.sucursal
     const nombreTitleCase = toTitleCase(apt.nombre)
     const sucursalTitleCase = toTitleCase(apt.sucursal)
+    // Normalize phone: ensure +57 prefix to match WhatsApp format
+    const phone = apt.telefono.startsWith('+') ? apt.telefono : `+${apt.telefono}`
 
     // Rendered text for DB storage (what the client sees)
     const renderedText = `¡Hola, ${nombreTitleCase}! ☺️ Te esperamos en godentist®️ ${sucursalTitleCase} el ${fechaFormateada} a las ${apt.hora}. 📍Dirección: ${address} Llega 5 minutos antes con tu documento para el registro.`
@@ -148,7 +150,7 @@ export async function sendConfirmations(
     try {
       // Find or create conversation for this phone number
       const convResult = await findOrCreateConversation(domainCtx, {
-        phone: apt.telefono,
+        phone,
         profileName: nombreTitleCase,
       })
 
@@ -166,7 +168,7 @@ export async function sendConfirmations(
       // Send template via domain layer (sends + stores in DB)
       const sendResult = await sendTemplateMessage(domainCtx, {
         conversationId: convResult.data.conversationId,
-        contactPhone: apt.telefono,
+        contactPhone: phone,
         templateName: TEMPLATE_NAME,
         templateLanguage: 'es',
         components: [

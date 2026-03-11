@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { sendTemplateMessage } from '@/lib/domain/messages'
 import { findOrCreateConversation } from '@/lib/domain/conversations'
+import { assignTag } from '@/lib/domain/tags'
 
 // ── Types ──
 
@@ -47,6 +48,13 @@ const SUCURSAL_ADDRESSES: Record<string, string> = {
   'JUMBO EL BOSQUE': 'Autopista Floridablanca # 24-26; CC Jumbo El Bosque, Floridablanca; Local 2030',
   'FLORIDABLANCA': 'Calle 4 # 3-06 Edificio Florida Plaza Condominio Local 1',
   'MEJORAS PUBLICAS': 'Calle 41 # 27-63 Edificio Ó41 Centro Empresarial Oficina 1002',
+}
+
+const SUCURSAL_TAGS: Record<string, string> = {
+  'CABECERA': 'CAB',
+  'FLORIDABLANCA': 'FLO',
+  'JUMBO EL BOSQUE': 'JUM',
+  'MEJORAS PUBLICAS': 'MEJ',
 }
 
 // ── Helpers ──
@@ -188,6 +196,15 @@ export async function sendConfirmations(
       })
 
       if (sendResult.success) {
+        // Assign sucursal tag to conversation
+        const tagName = SUCURSAL_TAGS[apt.sucursal.toUpperCase()]
+        if (tagName) {
+          await assignTag(domainCtx, {
+            entityType: 'conversation',
+            entityId: convResult.data.conversationId,
+            tagName,
+          }).catch(err => console.error(`[godentist] Tag assign error: ${err}`))
+        }
         result.sent++
         result.details.push({ nombre: apt.nombre, telefono: apt.telefono, status: 'sent' })
       } else {

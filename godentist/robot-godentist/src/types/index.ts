@@ -33,3 +33,21 @@ export interface HealthResponse {
   uptime: number
   timestamp: string
 }
+
+// ── Confirm Appointment ──
+export interface ConfirmAppointmentRequest {
+  workspaceId: string
+  credentials: Credentials
+  patientName: string    // Full name to search in grid (case-insensitive match)
+  date: string           // DD-MM-YYYY format for the date filter
+  sucursal: string       // Sucursal name to select in combo
+}
+
+export interface ConfirmAppointmentResponse {
+  success: boolean
+  patientName: string
+  previousEstado?: string
+  newEstado?: string
+  error?: string
+  screenshots: string[]  // List of screenshot filenames taken during process
+}

@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { Credentials, Appointment } from '../types/index.js'
+import type { Credentials, Appointment, ConfirmAppointmentResponse } from '../types/index.js'
 
 const STORAGE_DIR = path.resolve('storage')
 const SESSIONS_DIR = path.join(STORAGE_DIR, 'sessions')
@@ -225,6 +225,391 @@ export class GoDentistAdapter {
     }
 
     return { date: dateLabel, appointments: allAppointments, errors }
+  }
+
+  // ── Confirm Appointment ──
+
+  async confirmAppointment(patientName: string, date: string, sucursal: string): Promise<ConfirmAppointmentResponse> {
+    if (!this.page) throw new Error('Browser not initialized')
+
+    const screenshots: string[] = []
+    const takeAndTrack = async (name: string) => {
+      await this.takeScreenshot(name)
+      screenshots.push(name)
+    }
+
+    try {
+      // Navigate to appointments page
+      console.log(`[GoDentist] confirmAppointment: navigating to appointments page`)
+      await this.page.goto(APPOINTMENTS_URL, { waitUntil: 'networkidle', timeout: 30000 })
+      await this.page.waitForTimeout(2000)
+
+      // Set date filter
+      await this.setDate(date)
+
+      // Select sucursal
+      const sucursalObj: Sucursal = { value: sucursal, label: sucursal }
+      await this.selectSucursal(sucursalObj)
+
+      // Click search
+      await this.clickBuscar()
+      await this.page.waitForTimeout(3000)
+      await takeAndTrack('confirm-grid-loaded')
+
+      // Search for patient across all pages
+      const result = await this.findPatientRow(patientName, screenshots)
+      if (!result) {
+        await takeAndTrack('confirm-patient-not-found')
+        return {
+          success: false,
+          patientName,
+          error: 'Paciente no encontrado en la tabla',
+          screenshots,
+        }
+      }
+
+      const { rowIndex, estadoText, estadoCellIndex } = result
+      console.log(`[GoDentist] Found patient "${patientName}" at row ${rowIndex}, estado="${estadoText}", cell index=${estadoCellIndex}`)
+      await takeAndTrack('confirm-row-found')
+
+      // If already confirmed, no action needed
+      if (estadoText.toLowerCase().includes('confirmada')) {
+        console.log(`[GoDentist] Patient already confirmed`)
+        return {
+          success: true,
+          patientName,
+          previousEstado: estadoText,
+          newEstado: estadoText,
+          screenshots,
+        }
+      }
+
+      // Try to change estado
+      const changed = await this.tryChangeEstado(rowIndex, estadoCellIndex, screenshots)
+      if (changed) {
+        await takeAndTrack('confirm-success')
+        return {
+          success: true,
+          patientName,
+          previousEstado: estadoText,
+          newEstado: 'Confirmada',
+          screenshots,
+        }
+      }
+
+      await takeAndTrack('confirm-estado-change-failed')
+      return {
+        success: false,
+        patientName,
+        previousEstado: estadoText,
+        error: 'No se pudo encontrar mecanismo para cambiar estado',
+        screenshots,
+      }
+    } catch (err) {
+      console.error('[GoDentist] confirmAppointment error:', err)
+      await takeAndTrack('confirm-error')
+      return {
+        success: false,
+        patientName,
+        error: err instanceof Error ? err.message : String(err),
+        screenshots,
+      }
+    }
+  }
+
+  /**
+   * Search all pages for a patient row by name.
+   * Returns row index, estado text, and estado cell index, or null if not found.
+   */
+  private async findPatientRow(
+    patientName: string,
+    screenshots: string[]
+  ): Promise<{ rowIndex: number; estadoText: string; estadoCellIndex: number } | null> {
+    if (!this.page) return null
+
+    const estadoKeywords = ['confirmada', 'cancelada', 'pendiente', 'no asistió', 'asistió', 'atendido', 'en espera', 'sin confirmar']
+    const totalPages = await this.getTotalPages()
+    const pagesToCheck = totalPages > 0 ? totalPages : 1
+
+    for (let pageNum = 1; pageNum <= pagesToCheck; pageNum++) {
+      console.log(`[GoDentist] Searching page ${pageNum}/${pagesToCheck} for "${patientName}"`)
+
+      try {
+        await this.page.waitForSelector('table', { timeout: 10000 })
+      } catch {
+        console.log('[GoDentist] No table found on page')
+        break
+      }
+
+      const rows = this.page.locator('table tbody tr')
+      const rowCount = await rows.count()
+
+      for (let i = 0; i < rowCount; i++) {
+        const row = rows.nth(i)
+        const cells = await row.locator('td').allTextContents()
+        const rawCells = cells.map(c => c.trim())
+
+        // Check if any cell matches the patient name (case-insensitive)
+        const nameMatch = rawCells.some(cell =>
+          cell.toLowerCase().includes(patientName.toLowerCase()) ||
+          patientName.toLowerCase().includes(cell.toLowerCase()) && cell.length > 3
+        )
+
+        if (!nameMatch) continue
+
+        // Find estado cell index
+        let estadoText = ''
+        let estadoCellIndex = -1
+        for (let j = 0; j < rawCells.length; j++) {
+          if (rawCells[j] && estadoKeywords.some(k => rawCells[j].toLowerCase().includes(k))) {
+            estadoText = rawCells[j]
+            estadoCellIndex = j
+            break
+          }
+        }
+
+        return { rowIndex: i, estadoText, estadoCellIndex }
+      }
+
+      // If not last page, go to next
+      if (pageNum < pagesToCheck) {
+        await this.clickNextPage()
+        await this.page.waitForTimeout(2000)
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Try multiple strategies to change the Estado cell to "Confirmada".
+   * Takes diagnostic screenshots at each step.
+   */
+  private async tryChangeEstado(
+    rowIndex: number,
+    estadoCellIndex: number,
+    screenshots: string[]
+  ): Promise<boolean> {
+    if (!this.page) return false
+
+    const takeAndTrack = async (name: string) => {
+      await this.takeScreenshot(name)
+      screenshots.push(name)
+    }
+
+    const row = this.page.locator('table tbody tr').nth(rowIndex)
+    const estadoCell = row.locator('td').nth(estadoCellIndex)
+
+    // Strategy 1: Click on the estado cell text
+    console.log('[GoDentist] Strategy 1: Click estado cell')
+    try {
+      await estadoCell.click()
+      await this.page.waitForTimeout(1500)
+      await takeAndTrack('confirm-after-estado-click')
+
+      if (await this.checkAndSelectConfirmada()) {
+        return true
+      }
+    } catch (err) {
+      console.log(`[GoDentist] Strategy 1 failed: ${err}`)
+    }
+
+    // Strategy 2: Look for dropdown trigger within/near the estado cell
+    console.log('[GoDentist] Strategy 2: Look for dropdown trigger near estado cell')
+    try {
+      const trigger = estadoCell.locator('.x-form-trigger, img, .x-grid3-col-estado img')
+      const triggerCount = await trigger.count()
+      if (triggerCount > 0) {
+        await trigger.first().click()
+        await this.page.waitForTimeout(1500)
+        await takeAndTrack('confirm-after-trigger-click')
+
+        if (await this.checkAndSelectConfirmada()) {
+          return true
+        }
+      } else {
+        console.log('[GoDentist] No trigger found in estado cell')
+      }
+    } catch (err) {
+      console.log(`[GoDentist] Strategy 2 failed: ${err}`)
+    }
+
+    // Strategy 3: Look for edit icon/button in the row
+    console.log('[GoDentist] Strategy 3: Look for edit button in row')
+    try {
+      const editBtn = row.locator('button, a, .x-btn, [class*="edit"], [class*="pencil"], img[src*="edit"]')
+      const editCount = await editBtn.count()
+      if (editCount > 0) {
+        for (let k = 0; k < editCount; k++) {
+          console.log(`[GoDentist] Trying edit element ${k}`)
+          await editBtn.nth(k).click()
+          await this.page.waitForTimeout(1500)
+          await takeAndTrack(`confirm-after-edit-click-${k}`)
+
+          if (await this.checkAndSelectConfirmada()) {
+            return true
+          }
+
+          // Escape any opened dialog/editor
+          await this.page.keyboard.press('Escape')
+          await this.page.waitForTimeout(500)
+        }
+      } else {
+        console.log('[GoDentist] No edit elements found in row')
+      }
+    } catch (err) {
+      console.log(`[GoDentist] Strategy 3 failed: ${err}`)
+    }
+
+    // Strategy 4: Double-click on the estado cell (ExtJS RowEditor pattern)
+    console.log('[GoDentist] Strategy 4: Double-click estado cell')
+    try {
+      await estadoCell.dblclick()
+      await this.page.waitForTimeout(1500)
+      await takeAndTrack('confirm-after-dblclick')
+
+      if (await this.checkAndSelectConfirmada()) {
+        return true
+      }
+
+      // Check if a row editor appeared with form fields
+      const editors = this.page.locator('.x-grid-editor input, .x-editor input, .x-form-field:visible')
+      const editorCount = await editors.count()
+      if (editorCount > 0) {
+        console.log(`[GoDentist] Found ${editorCount} editor fields after double-click`)
+        await takeAndTrack('confirm-editor-fields')
+      }
+
+      await this.page.keyboard.press('Escape')
+      await this.page.waitForTimeout(500)
+    } catch (err) {
+      console.log(`[GoDentist] Strategy 4 failed: ${err}`)
+    }
+
+    // Strategy 5: Right-click context menu
+    console.log('[GoDentist] Strategy 5: Right-click for context menu')
+    try {
+      await estadoCell.click({ button: 'right' })
+      await this.page.waitForTimeout(1500)
+      await takeAndTrack('confirm-after-rightclick')
+
+      // Check for context menu with "Confirmada" option
+      const menuItem = this.page.locator('.x-menu-item:visible, .x-menu-list-item:visible')
+      const menuCount = await menuItem.count()
+      if (menuCount > 0) {
+        console.log(`[GoDentist] Context menu has ${menuCount} items`)
+        const menuTexts = await menuItem.allTextContents()
+        console.log(`[GoDentist] Menu items: ${JSON.stringify(menuTexts)}`)
+
+        for (let m = 0; m < menuCount; m++) {
+          const text = (await menuItem.nth(m).textContent())?.trim().toLowerCase() || ''
+          if (text.includes('confirmada') || text.includes('confirmar')) {
+            await menuItem.nth(m).click()
+            await this.page.waitForTimeout(1500)
+            await takeAndTrack('confirm-after-menu-select')
+            return true
+          }
+        }
+      }
+
+      await this.page.keyboard.press('Escape')
+      await this.page.waitForTimeout(500)
+    } catch (err) {
+      console.log(`[GoDentist] Strategy 5 failed: ${err}`)
+    }
+
+    // Strategy 6: Look for any combo/select visible on the page after clicking the row
+    console.log('[GoDentist] Strategy 6: Click row then look for any visible combo')
+    try {
+      await row.click()
+      await this.page.waitForTimeout(1000)
+
+      // Check for any action buttons that appeared
+      const actionBtns = this.page.locator('button:visible:has-text("Confirmar"), a:visible:has-text("Confirmar"), .x-btn:visible:has-text("Confirmar")')
+      const actionCount = await actionBtns.count()
+      if (actionCount > 0) {
+        await actionBtns.first().click()
+        await this.page.waitForTimeout(1500)
+        await takeAndTrack('confirm-after-confirmar-btn')
+        return true
+      }
+    } catch (err) {
+      console.log(`[GoDentist] Strategy 6 failed: ${err}`)
+    }
+
+    // Log full DOM state of the row for debugging
+    try {
+      const rowHTML = await row.evaluate(el => el.innerHTML)
+      console.log(`[GoDentist] Row HTML for debugging: ${rowHTML.substring(0, 2000)}`)
+    } catch {
+      // ignore
+    }
+
+    return false
+  }
+
+  /**
+   * Check if a dropdown/combo appeared with "Confirmada" option visible and click it.
+   */
+  private async checkAndSelectConfirmada(): Promise<boolean> {
+    if (!this.page) return false
+
+    // Check for visible combo list items
+    const comboItems = this.page.locator('.x-combo-list-item:visible')
+    const comboCount = await comboItems.count()
+    if (comboCount > 0) {
+      const texts = await comboItems.allTextContents()
+      console.log(`[GoDentist] Combo dropdown appeared with ${comboCount} items: ${JSON.stringify(texts)}`)
+
+      for (let i = 0; i < comboCount; i++) {
+        const text = (await comboItems.nth(i).textContent())?.trim().toLowerCase() || ''
+        if (text.includes('confirmada')) {
+          await comboItems.nth(i).click()
+          await this.page.waitForTimeout(1500)
+          console.log('[GoDentist] Selected "Confirmada" from dropdown')
+          return true
+        }
+      }
+    }
+
+    // Check for select/option elements
+    const selects = this.page.locator('select:visible')
+    const selectCount = await selects.count()
+    if (selectCount > 0) {
+      for (let i = 0; i < selectCount; i++) {
+        const options = await selects.nth(i).locator('option').allTextContents()
+        console.log(`[GoDentist] Select ${i} options: ${JSON.stringify(options)}`)
+
+        for (const opt of options) {
+          if (opt.trim().toLowerCase().includes('confirmada')) {
+            await selects.nth(i).selectOption({ label: opt.trim() })
+            await this.page.waitForTimeout(1500)
+            console.log('[GoDentist] Selected "Confirmada" from select element')
+            return true
+          }
+        }
+      }
+    }
+
+    // Check for list items in any menu
+    const menuItems = this.page.locator('.x-menu-item:visible, .x-list-item:visible, [role="option"]:visible')
+    const menuCount = await menuItems.count()
+    if (menuCount > 0) {
+      const texts = await menuItems.allTextContents()
+      console.log(`[GoDentist] Menu/list items found: ${JSON.stringify(texts)}`)
+
+      for (let i = 0; i < menuCount; i++) {
+        const text = (await menuItems.nth(i).textContent())?.trim().toLowerCase() || ''
+        if (text.includes('confirmada')) {
+          await menuItems.nth(i).click()
+          await this.page.waitForTimeout(1500)
+          console.log('[GoDentist] Selected "Confirmada" from menu')
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   // ── ExtJS Form Controls ──

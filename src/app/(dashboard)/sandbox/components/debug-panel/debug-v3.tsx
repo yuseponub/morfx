@@ -271,15 +271,15 @@ function StateSection({ state, turn }: { state: SandboxState; turn: DebugTurn | 
   const criticalInter = ['nombre', 'apellido', 'telefono', 'ciudad', 'departamento']
   const fields = ofiInter ? criticalInter : criticalNormal
   const filledCount = fields.filter(f => datos[f] && datos[f] !== '').length
-  const datosOk = filledCount === fields.length
+  const datosCriticos = filledCount === fields.length
   const packElegido = !!state.packSeleccionado
 
   return (
     <div className="space-y-3">
       {/* Gates bar */}
       <div className="flex gap-2">
-        <Badge variant={datosOk ? 'default' : 'secondary'} className="text-xs">
-          datosOk: {datosOk ? 'SI' : `NO (${filledCount}/${fields.length})`}
+        <Badge variant={datosCriticos ? 'default' : 'secondary'} className="text-xs">
+          datosCriticos: {datosCriticos ? 'SI' : `NO (${filledCount}/${fields.length})`}
         </Badge>
         <Badge variant={packElegido ? 'default' : 'secondary'} className="text-xs">
           pack: {state.packSeleccionado ?? 'ninguno'}

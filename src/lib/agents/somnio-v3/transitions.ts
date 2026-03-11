@@ -69,7 +69,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   // initial + quiero_comprar -> pedir_datos (datos will be needed)
   {
     phase: 'initial', on: 'quiero_comprar', action: 'pedir_datos',
-    condition: (_, gates) => !gates.datosOk,
+    condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       enterCaptura: true,
       timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada por quiero_comprar' },
@@ -77,30 +77,30 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // initial + quiero_comprar + datosOk -> ofrecer_promos
+  // initial + quiero_comprar + datosCriticos -> ofrecer_promos
   {
     phase: 'initial', on: 'quiero_comprar', action: 'ofrecer_promos',
-    condition: (_, gates) => gates.datosOk,
+    condition: (_, gates) => gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas' },
-      reason: 'Quiere comprar + datosOk -> promos',
+      reason: 'Quiere comprar + datosCriticos -> promos',
     }),
   },
 
-  // capturing_data + quiero_comprar + datosOk -> ofrecer_promos
+  // capturing_data + quiero_comprar + datosCriticos -> ofrecer_promos
   {
     phase: 'capturing_data', on: 'quiero_comprar', action: 'ofrecer_promos',
-    condition: (_, gates) => gates.datosOk,
+    condition: (_, gates) => gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas' },
-      reason: 'Quiere comprar + datosOk -> promos',
+      reason: 'Quiere comprar + datosCriticos -> promos',
     }),
   },
 
-  // capturing_data + quiero_comprar + !datosOk -> pedir_datos
+  // capturing_data + quiero_comprar + !datosCriticos -> pedir_datos
   {
     phase: 'capturing_data', on: 'quiero_comprar', action: 'pedir_datos',
-    condition: (_, gates) => !gates.datosOk,
+    condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       enterCaptura: true,
       timerSignal: { type: 'start', level: 'L0', reason: 'captura re-iniciada' },
@@ -108,20 +108,20 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // seleccion_pack + datosOk -> mostrar_confirmacion
+  // seleccion_pack + datosCriticos -> mostrar_confirmacion
   {
     phase: '*', on: 'seleccion_pack', action: 'mostrar_confirmacion',
-    condition: (_, gates) => gates.datosOk,
+    condition: (_, gates) => gates.datosCriticos,
     resolve: (state) => ({
       timerSignal: { type: 'start', level: 'L4', reason: 'pack elegido, esperando confirmacion' },
-      reason: `Pack=${state.pack} + datosOk -> resumen`,
+      reason: `Pack=${state.pack} + datosCriticos -> resumen`,
     }),
   },
 
-  // seleccion_pack + !datosOk -> pedir_datos
+  // seleccion_pack + !datosCriticos -> pedir_datos
   {
     phase: '*', on: 'seleccion_pack', action: 'pedir_datos',
-    condition: (_, gates) => !gates.datosOk,
+    condition: (_, gates) => !gates.datosCriticos,
     resolve: (state) => ({
       enterCaptura: true,
       timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada (tiene pack, faltan datos)' },
@@ -129,10 +129,10 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // confirmar + datosOk + packElegido -> crear_orden (R5)
+  // confirmar + datosCriticos + packElegido -> crear_orden (R5)
   {
     phase: '*', on: 'confirmar', action: 'crear_orden',
-    condition: (_, gates) => gates.datosOk && gates.packElegido,
+    condition: (_, gates) => gates.datosCriticos && gates.packElegido,
     resolve: () => ({
       timerSignal: { type: 'cancel', reason: 'orden creada' },
       reason: 'Confirmacion con datos completos + pack',
@@ -149,10 +149,10 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // confirmar + !datosOk -> pedir_datos
+  // confirmar + !datosCriticos -> pedir_datos
   {
     phase: '*', on: 'confirmar', action: 'pedir_datos',
-    condition: (_, gates) => !gates.datosOk,
+    condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       enterCaptura: true,
       reason: 'Confirmo pero faltan datos',
@@ -167,7 +167,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     condition: (_, gates) => !gates.packElegido,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas, esperando pack' },
-      reason: 'Auto-trigger: datosOk -> ofrecer promos',
+      reason: 'Auto-trigger: datosCriticos -> ofrecer promos',
     }),
   },
 
@@ -177,7 +177,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     condition: (_, gates) => gates.packElegido,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L4', reason: 'datos completos + pack -> confirmacion' },
-      reason: 'Auto-trigger: datosOk + pack -> confirmacion',
+      reason: 'Auto-trigger: datosCriticos + pack -> confirmacion',
     }),
   },
 

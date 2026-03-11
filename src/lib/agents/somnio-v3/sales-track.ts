@@ -63,9 +63,11 @@ export function resolveSalesTrack(input: {
   // Timer signal from data changes (computed early, used as fallback)
   let dataTimerSignal: TimerSignal | undefined
   if (state.enCapturaSilenciosa && changes.hasNewData) {
-    if (changes.criticalComplete) {
-      dataTimerSignal = { type: 'reevaluate', level: 'L2', reason: `criticos completos (${changes.filled} campos)` }
-    } else if (changes.filled > 0) {
+    if (changes.datosCriticosJustCompleted && !changes.datosCompletosJustCompleted) {
+      // Criticos completos, faltan extras -> L2 (2 min gracia para extras)
+      dataTimerSignal = { type: 'start', level: 'L2', reason: 'criticos completos, esperando extras' }
+    } else if (changes.filled > 0 && !changes.datosCriticosJustCompleted) {
+      // Datos parciales -> L1
       dataTimerSignal = { type: 'start', level: 'L1', reason: `datos parciales (${changes.filled} campos)` }
     }
   }
@@ -88,8 +90,8 @@ export function resolveSalesTrack(input: {
     }
   }
 
-  // Datos completos auto-trigger (criticos + extras ok, promos no mostradas)
-  if (changes.criticalComplete && !promosMostradas(state)) {
+  // Datos completos auto-trigger: completos just completed -> ofrecer_promos de una
+  if (changes.datosCompletosJustCompleted && !promosMostradas(state)) {
     const ev: SystemEvent = { type: 'auto', result: 'datos_completos' }
     const key = systemEventToKey(ev)
     const match = resolveTransition(phase, key, state, gates)

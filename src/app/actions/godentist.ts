@@ -2,7 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
-import { sendTemplateMessage } from '@/lib/whatsapp/api'
+import { sendTemplateMessage } from '@/lib/domain/messages'
+import { findOrCreateConversation } from '@/lib/domain/conversations'
 
 // ── Types ──
 
@@ -126,6 +127,7 @@ export async function sendConfirmations(
   if (!apiKey) return { error: 'API key de WhatsApp no configurada' }
 
   const fechaFormateada = formatDateSpanish(date)
+  const domainCtx = { workspaceId, source: 'server-action' }
   const result: SendResult = { total: appointments.length, sent: 0, failed: 0, excluded: 0, details: [] }
 
   for (const apt of appointments) {
@@ -137,22 +139,64 @@ export async function sendConfirmations(
     }
 
     const address = SUCURSAL_ADDRESSES[apt.sucursal.toUpperCase()] || apt.sucursal
+    const nombreTitleCase = toTitleCase(apt.nombre)
+    const sucursalTitleCase = toTitleCase(apt.sucursal)
+
+    // Rendered text for DB storage (what the client sees)
+    const renderedText = `¡Hola, ${nombreTitleCase}! ☺️ Te esperamos en godentist®️ ${sucursalTitleCase} el ${fechaFormateada} a las ${apt.hora}. 📍Dirección: ${address} Llega 5 minutos antes con tu documento para el registro.`
 
     try {
-      await sendTemplateMessage(apiKey, apt.telefono, TEMPLATE_NAME, 'es', [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: toTitleCase(apt.nombre) },
-            { type: 'text', text: toTitleCase(apt.sucursal) },
-            { type: 'text', text: fechaFormateada },
-            { type: 'text', text: apt.hora },
-            { type: 'text', text: address },
-          ],
-        },
-      ])
-      result.sent++
-      result.details.push({ nombre: apt.nombre, telefono: apt.telefono, status: 'sent' })
+      // Find or create conversation for this phone number
+      const convResult = await findOrCreateConversation(domainCtx, {
+        phone: apt.telefono,
+        profileName: nombreTitleCase,
+      })
+
+      if (!convResult.success || !convResult.data) {
+        result.failed++
+        result.details.push({
+          nombre: apt.nombre,
+          telefono: apt.telefono,
+          status: 'failed',
+          error: convResult.error || 'No se pudo crear conversación',
+        })
+        continue
+      }
+
+      // Send template via domain layer (sends + stores in DB)
+      const sendResult = await sendTemplateMessage(domainCtx, {
+        conversationId: convResult.data.conversationId,
+        contactPhone: apt.telefono,
+        templateName: TEMPLATE_NAME,
+        templateLanguage: 'es',
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: nombreTitleCase },
+              { type: 'text', text: sucursalTitleCase },
+              { type: 'text', text: fechaFormateada },
+              { type: 'text', text: apt.hora },
+              { type: 'text', text: address },
+            ],
+          },
+        ],
+        renderedText,
+        apiKey,
+      })
+
+      if (sendResult.success) {
+        result.sent++
+        result.details.push({ nombre: apt.nombre, telefono: apt.telefono, status: 'sent' })
+      } else {
+        result.failed++
+        result.details.push({
+          nombre: apt.nombre,
+          telefono: apt.telefono,
+          status: 'failed',
+          error: sendResult.error || 'Error desconocido al enviar',
+        })
+      }
     } catch (err) {
       result.failed++
       result.details.push({

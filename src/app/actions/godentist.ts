@@ -123,17 +123,21 @@ export async function scrapeAppointments(sucursales?: string[]): Promise<{ error
 
     // Save to history
     const admin = createAdminClient()
-    const { data: historyRow } = await admin
+    const { data: historyRow, error: historyError } = await admin
       .from('godentist_scrape_history')
       .insert({
         workspace_id: workspaceId,
         scraped_date: data.date,
         sucursales: sucursales || ['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS'],
-        appointments: data.appointments,
+        appointments: data.appointments as unknown as Record<string, unknown>,
         total_appointments: data.appointments.length,
       })
       .select('id')
       .single()
+
+    if (historyError) {
+      console.error('[godentist] History insert failed:', historyError.message, historyError.code, historyError.details)
+    }
 
     return { data, historyId: historyRow?.id }
   } catch (err) {

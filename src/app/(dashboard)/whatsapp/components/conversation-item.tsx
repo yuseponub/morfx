@@ -155,20 +155,10 @@ export function ConversationItem({
           <TagBadge key={`conv-${tag.id}`} tag={tag} size="sm" />
         ))}
 
-        {/* Contact tags (inherited) - shown with opacity to distinguish */}
-        {contactTags.slice(0, 2).map((tag) => (
-          <TagBadge
-            key={`contact-${tag.id}`}
-            tag={tag}
-            size="sm"
-            className="opacity-60"
-          />
-        ))}
-
         {/* Overflow indicator */}
-        {(conversationTags.length + contactTags.length) > 4 && (
+        {conversationTags.length > 2 && (
           <span className="text-xs text-muted-foreground">
-            +{conversationTags.length + contactTags.length - 4}
+            +{conversationTags.length - 2}
           </span>
         )}
       </div>

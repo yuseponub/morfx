@@ -18,6 +18,7 @@ import { resolveSalesTrack } from './sales-track'
 import { resolveResponseTrack } from './response-track'
 import { checkGuards } from './guards'
 import { derivePhase } from './phase'
+import { CRM_ACTIONS, CREATE_ORDER_ACTIONS } from './constants'
 import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, TipoAccion, AccionRegistrada } from './types'
 
 // ============================================================================
@@ -89,6 +90,7 @@ async function processSystemEvent(
       tipo: salesResult.accion,
       turno: state.turnCount,
       origen: 'timer',
+      ...(CRM_ACTIONS.has(salesResult.accion) && { crmAction: true }),
     })
   }
 
@@ -114,7 +116,13 @@ async function processSystemEvent(
     accionesEjecutadas: serialized.accionesEjecutadas,
     // intentInfo intentionally omitted — system events have no intent
     totalTokens: 0,
-    shouldCreateOrder: false,
+    shouldCreateOrder: !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion),
+    orderData: (!!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion))
+      ? {
+          datosCapturados: serialized.datosCapturados,
+          packSeleccionado: serialized.packSeleccionado,
+        }
+      : undefined,
     timerSignals,
     decisionInfo: {
       action: responseResult.messages.length === 0 ? 'silence' : 'respond',
@@ -232,7 +240,7 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     else if (salesResult.enterCaptura === false) mergedState.enCapturaSilenciosa = false
 
     // Check for order creation
-    const isCreateOrder = salesResult.accion === 'crear_orden'
+    const isCreateOrder = !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion)
 
     // RESPONSE TRACK — WHAT TO SAY
     const responseResult = await resolveResponseTrack({
@@ -249,6 +257,7 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
         tipo: salesResult.accion,
         turno: mergedState.turnCount,
         origen: 'bot',
+        ...(CRM_ACTIONS.has(salesResult.accion) && { crmAction: true }),
       })
     }
 
@@ -384,7 +393,10 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
  * Maps v3 internal state to engine-compatible mode names.
  */
 function computeMode(state: AgentState): string {
-  if (hasAction(state.accionesEjecutadas, 'crear_orden')) return 'orden_creada'
+  if (state.accionesEjecutadas.some(a => {
+    const tipo = typeof a === 'string' ? a : a.tipo
+    return CREATE_ORDER_ACTIONS.has(tipo)
+  })) return 'orden_creada'
   if (hasAction(state.accionesEjecutadas, 'mostrar_confirmacion')) return 'confirmacion'
   if (hasAction(state.accionesEjecutadas, 'ofrecer_promos')) return 'promos'
   if (state.enCapturaSilenciosa) {

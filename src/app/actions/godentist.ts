@@ -122,24 +122,34 @@ export async function scrapeAppointments(sucursales?: string[]): Promise<{ error
     const data: ScrapeResult = await res.json()
 
     // Save to history
-    const admin = createAdminClient()
-    const { data: historyRow, error: historyError } = await admin
-      .from('godentist_scrape_history')
-      .insert({
+    let savedHistoryId: string | undefined
+    try {
+      const admin = createAdminClient()
+      const insertPayload = {
         workspace_id: workspaceId,
         scraped_date: data.date,
         sucursales: sucursales || ['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS'],
-        appointments: data.appointments as unknown as Record<string, unknown>,
+        appointments: JSON.parse(JSON.stringify(data.appointments)),
         total_appointments: data.appointments.length,
-      })
-      .select('id')
-      .single()
+      }
+      console.log('[godentist] Saving history, workspace:', workspaceId, 'date:', data.date, 'count:', data.appointments.length)
+      const { data: historyRow, error: historyError } = await admin
+        .from('godentist_scrape_history')
+        .insert(insertPayload)
+        .select('id')
+        .single()
 
-    if (historyError) {
-      console.error('[godentist] History insert failed:', historyError.message, historyError.code, historyError.details)
+      if (historyError) {
+        console.error('[godentist] History insert FAILED:', JSON.stringify(historyError))
+      } else {
+        savedHistoryId = historyRow?.id
+        console.log('[godentist] History saved:', savedHistoryId)
+      }
+    } catch (histErr) {
+      console.error('[godentist] History save threw:', histErr)
     }
 
-    return { data, historyId: historyRow?.id }
+    return { data, historyId: savedHistoryId }
   } catch (err) {
     return { error: `Error conectando al robot: ${err instanceof Error ? err.message : String(err)}` }
   }

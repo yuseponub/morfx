@@ -72,7 +72,7 @@ function sleep(ms: number): Promise<void> {
 
 // ── Server Actions ──
 
-export async function scrapeAppointments(): Promise<{ error?: string; data?: ScrapeResult }> {
+export async function scrapeAppointments(sucursales?: string[]): Promise<{ error?: string; data?: ScrapeResult }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
@@ -88,6 +88,7 @@ export async function scrapeAppointments(): Promise<{ error?: string; data?: Scr
       body: JSON.stringify({
         workspaceId,
         credentials: { username: 'JROMERO', password: '123456' },
+        ...(sucursales?.length ? { sucursales } : {}),
       }),
     })
 

@@ -17,6 +17,7 @@ export interface Appointment {
 export interface ScrapeAppointmentsRequest {
   workspaceId: string
   credentials: Credentials
+  sucursales?: string[]  // Filter: only scrape these sucursales (if omitted, scrape all)
 }
 
 export interface ScrapeAppointmentsResponse {

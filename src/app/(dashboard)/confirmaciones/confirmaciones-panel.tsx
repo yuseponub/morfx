@@ -46,7 +46,7 @@ export function ConfirmacionesPanel() {
     setError('')
     setResult(null)
 
-    const res = await scrapeAppointments()
+    const res = await scrapeAppointments(Array.from(activeSucursales))
     if (res.error || !res.data) {
       setError(res.error || 'Error desconocido')
       setPhase('idle')

@@ -162,7 +162,7 @@ export class GoDentistAdapter {
 
   // ── Scrape All Sucursales ──
 
-  async scrapeAppointments(): Promise<{ date: string; appointments: Appointment[]; errors: string[] }> {
+  async scrapeAppointments(filterSucursales?: string[]): Promise<{ date: string; appointments: Appointment[]; errors: string[] }> {
     if (!this.page) throw new Error('Browser not initialized')
 
     const targetDate = this.getNextWorkingDay()
@@ -170,6 +170,9 @@ export class GoDentistAdapter {
     const dateLabel = this.formatDateYYYY_MM_DD(targetDate)
 
     console.log(`[GoDentist] Target date: ${dateLabel} (${dateStr})`)
+    if (filterSucursales?.length) {
+      console.log(`[GoDentist] Filtering sucursales: ${filterSucursales.join(', ')}`)
+    }
 
     const allAppointments: Appointment[] = []
     const errors: string[] = []
@@ -186,20 +189,19 @@ export class GoDentistAdapter {
     await this.takeScreenshot('after-set-hour')
 
     // Step 3: Discover sucursales from the ExtJS combo
-    const sucursales = await this.discoverSucursales()
+    let sucursales = await this.discoverSucursales()
     console.log(`[GoDentist] Found ${sucursales.length} sucursales: ${sucursales.map(s => s.label).join(', ')}`)
 
+    // Apply sucursal filter if provided
+    if (filterSucursales?.length && sucursales.length > 0) {
+      const filterSet = new Set(filterSucursales.map(s => s.toUpperCase()))
+      sucursales = sucursales.filter(s => filterSet.has(s.label.toUpperCase()))
+      console.log(`[GoDentist] After filter: ${sucursales.length} sucursales: ${sucursales.map(s => s.label).join(', ')}`)
+    }
+
     if (sucursales.length === 0) {
-      // If we can't discover, just scrape current view
-      console.log('[GoDentist] No sucursales discovered, scraping current view...')
-      await this.clickBuscar()
-      await this.page.waitForTimeout(3000)
-      const currentSucursal = await this.page.$eval('#ext-comp-1051', el => (el as HTMLInputElement).value).catch(() => 'Desconocida')
-      const appointments = await this.extractAllPages(currentSucursal)
-      allAppointments.push(...appointments)
-      if (appointments.length === 0) {
-        errors.push('No se pudieron descubrir sucursales ni extraer citas')
-      }
+      console.log('[GoDentist] No sucursales to scrape')
+      errors.push('No se encontraron sucursales para scrappear')
       return { date: dateLabel, appointments: allAppointments, errors }
     }
 
@@ -490,72 +492,72 @@ export class GoDentistAdapter {
 
   /**
    * Extract appointments from ALL pages for a sucursal.
-   * Loops through ExtJS PagingToolbar until the last page.
+   * Reads total page count from ExtJS PagingToolbar "of X" text,
+   * then navigates exactly that many pages.
    */
   private async extractAllPages(sucursal: string): Promise<Appointment[]> {
     if (!this.page) return []
 
     const allAppointments: Appointment[] = []
-    let pageNum = 1
-    const MAX_PAGES = 20 // Safety limit
 
-    while (pageNum <= MAX_PAGES) {
-      // Extract current page
+    // Read total pages from the paging toolbar
+    const totalPages = await this.getTotalPages()
+    console.log(`[GoDentist] ${sucursal}: ${totalPages} total page(s)`)
+
+    if (totalPages <= 0) {
+      // No paging info found, just extract current page
+      const pageAppointments = await this.extractAppointments(sucursal)
+      return pageAppointments
+    }
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       const pageAppointments = await this.extractAppointments(sucursal)
       allAppointments.push(...pageAppointments)
-      console.log(`[GoDentist] ${sucursal} page ${pageNum}: ${pageAppointments.length} citas`)
+      console.log(`[GoDentist] ${sucursal} page ${pageNum}/${totalPages}: ${pageAppointments.length} citas`)
 
-      // Check if there's a next page
-      const hasNext = await this.hasNextPage()
-      if (!hasNext) {
-        console.log(`[GoDentist] ${sucursal}: no more pages after page ${pageNum}`)
-        break
+      // If not last page, click next
+      if (pageNum < totalPages) {
+        await this.clickNextPage()
+        await this.page.waitForTimeout(2000)
       }
-
-      // Click next page
-      await this.clickNextPage()
-      await this.page.waitForTimeout(2000)
-      pageNum++
     }
 
     return allAppointments
   }
 
   /**
-   * Check if the "next page" button exists and is enabled.
-   * ExtJS paging toolbar: button with .x-tbar-page-next icon, disabled = .x-item-disabled on parent.
+   * Read total page count from the ExtJS PagingToolbar.
+   * The toolbar has: [first] [prev] [input: pageNum] "of X" [next] [last] ... "Displaying A - B of C"
+   * We look for the "of X" text next to the page input.
    */
-  private async hasNextPage(): Promise<boolean> {
-    if (!this.page) return false
+  private async getTotalPages(): Promise<number> {
+    if (!this.page) return 0
 
     return await this.page.evaluate(() => {
-      // Find the next-page button by its icon class
-      const nextIcon = document.querySelector('.x-tbar-page-next')
-      if (!nextIcon) return false
-
-      // Walk up to the button/table element that holds the disabled class
-      let el: Element | null = nextIcon
-      for (let i = 0; i < 5 && el; i++) {
-        if (el.classList.contains('x-item-disabled')) return false
-        if (el.classList.contains('x-btn')) break
-        el = el.parentElement
-      }
-
-      // Also check: if the "Displaying" text shows we're on the last page
-      // e.g. "Displaying 21 - 30 of 30" means last page
-      const displayEl = document.querySelector('.x-paging-info')
-        || document.querySelector('.x-toolbar-text')
-      if (displayEl) {
-        const text = displayEl.textContent || ''
-        const match = text.match(/(\d+)\s*-\s*(\d+)\s+.*?(\d+)/)
+      // Strategy 1: Find all text nodes in the paging toolbar that say "of X"
+      // The paging toolbar contains a <div class="x-toolbar-ct"> with items
+      const allElements = document.querySelectorAll('.xtb-text, .x-toolbar-text, td')
+      for (const el of allElements) {
+        const text = (el.textContent || '').trim()
+        // Match "of 5" or "de 5" pattern
+        const match = text.match(/^(?:of|de)\s+(\d+)$/i)
         if (match) {
-          const end = parseInt(match[2])
-          const total = parseInt(match[3])
-          if (end >= total) return false
+          return parseInt(match[1])
         }
       }
 
-      return true
+      // Strategy 2: Find the "Displaying X - Y of Z" text and calculate pages
+      for (const el of allElements) {
+        const text = (el.textContent || '').trim()
+        const match = text.match(/(\d+)\s*-\s*(\d+)\s+(?:of|de)\s+(\d+)/i)
+        if (match) {
+          const perPage = parseInt(match[2]) - parseInt(match[1]) + 1
+          const total = parseInt(match[3])
+          if (perPage > 0) return Math.ceil(total / perPage)
+        }
+      }
+
+      return 0
     })
   }
 
@@ -565,24 +567,14 @@ export class GoDentistAdapter {
   private async clickNextPage(): Promise<void> {
     if (!this.page) return
 
-    // Click the button that contains the .x-tbar-page-next icon
     const clicked = await this.page.evaluate(() => {
-      const nextIcon = document.querySelector('.x-tbar-page-next')
-      if (!nextIcon) return false
-
-      // Walk up to clickable button element
-      let el: Element | null = nextIcon
-      for (let i = 0; i < 5 && el; i++) {
-        if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
-          (el as HTMLElement).click()
-          return true
-        }
-        el = el.parentElement
+      // The next button has a <button> with class x-tbar-page-next inside a <table>
+      const nextBtn = document.querySelector('button.x-tbar-page-next') as HTMLElement
+      if (nextBtn) {
+        nextBtn.click()
+        return true
       }
-
-      // Fallback: click the icon itself
-      (nextIcon as HTMLElement).click()
-      return true
+      return false
     })
 
     if (clicked) {

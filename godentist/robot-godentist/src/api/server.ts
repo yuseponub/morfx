@@ -56,7 +56,7 @@ export function createServer() {
         return
       }
 
-      const result = await adapter.scrapeAppointments()
+      const result = await adapter.scrapeAppointments(body.sucursales)
 
       const response: ScrapeAppointmentsResponse = {
         success: true,

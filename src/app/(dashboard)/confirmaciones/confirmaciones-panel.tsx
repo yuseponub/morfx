@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Loader2, Search, Send, CheckCircle2, XCircle, Ban } from 'lucide-react'
 import {
   scrapeAppointments,
@@ -24,9 +25,45 @@ export function ConfirmacionesPanel() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [result, setResult] = useState<SendResult | null>(null)
   const [error, setError] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [filterSucursal, setFilterSucursal] = useState<string>('all')
+  const [filterEstado, setFilterEstado] = useState<string>('all')
 
-  // Filtered by active sucursales
-  const appointments = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
+  // Filtered by active sucursales (scrape filter)
+  const sucursalFiltered = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
+
+  // UI filters (name, sucursal, estado) applied on top
+  const appointments = useMemo(() => {
+    let filtered = sucursalFiltered
+    if (searchName.trim()) {
+      const q = searchName.toLowerCase()
+      filtered = filtered.filter(a => a.nombre.toLowerCase().includes(q))
+    }
+    if (filterSucursal !== 'all') {
+      filtered = filtered.filter(a => a.sucursal.toUpperCase() === filterSucursal)
+    }
+    if (filterEstado !== 'all') {
+      if (filterEstado === 'cancelada') {
+        filtered = filtered.filter(a => a.estado.toLowerCase().includes('cancelada'))
+      } else {
+        filtered = filtered.filter(a => !a.estado.toLowerCase().includes('cancelada'))
+      }
+    }
+    return filtered
+  }, [sucursalFiltered, searchName, filterSucursal, filterEstado])
+
+  // Unique estados for filter dropdown
+  const uniqueEstados = useMemo(() => {
+    const set = new Set(sucursalFiltered.map(a => a.estado || 'Sin estado'))
+    return Array.from(set).sort()
+  }, [sucursalFiltered])
+
+  // Unique sucursales present in results
+  const uniqueSucursales = useMemo(() => {
+    const set = new Set(sucursalFiltered.map(a => a.sucursal.toUpperCase()))
+    return Array.from(set).sort()
+  }, [sucursalFiltered])
+
   const cancelledCount = appointments.filter(a => a.estado.toLowerCase().includes('cancelada')).length
   const validCount = selected.size
 
@@ -111,6 +148,9 @@ export function ConfirmacionesPanel() {
     setSelected(new Set())
     setResult(null)
     setError('')
+    setSearchName('')
+    setFilterSucursal('all')
+    setFilterEstado('all')
   }
 
   return (
@@ -198,6 +238,48 @@ export function ConfirmacionesPanel() {
               </Button>
             </div>
           </div>
+
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Input
+                  placeholder="Buscar por nombre..."
+                  value={searchName}
+                  onChange={e => setSearchName(e.target.value)}
+                  className="w-64"
+                />
+                <select
+                  value={filterSucursal}
+                  onChange={e => setFilterSucursal(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="all">Todas las sucursales</option>
+                  {uniqueSucursales.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterEstado}
+                  onChange={e => setFilterEstado(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="no-cancelada">No canceladas</option>
+                  <option value="cancelada">Canceladas</option>
+                </select>
+                {(searchName || filterSucursal !== 'all' || filterEstado !== 'all') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setSearchName(''); setFilterSucursal('all'); setFilterEstado('all') }}
+                  >
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <div className="overflow-x-auto">

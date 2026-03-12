@@ -7,6 +7,7 @@ import { findOrCreateConversation, linkContactToConversation } from '@/lib/domai
 import { assignTag } from '@/lib/domain/tags'
 import { createContact } from '@/lib/domain/contacts'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { inngest } from '@/inngest/client'
 
 // ── Types ──
 
@@ -94,7 +95,7 @@ export interface ScrapeHistoryEntry {
   created_at: string
 }
 
-export async function scrapeAppointments(sucursales?: string[]): Promise<{ error?: string; data?: ScrapeResult; historyId?: string }> {
+export async function scrapeAppointments(sucursales?: string[], targetDate?: string): Promise<{ error?: string; data?: ScrapeResult; historyId?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
@@ -111,6 +112,7 @@ export async function scrapeAppointments(sucursales?: string[]): Promise<{ error
         workspaceId,
         credentials: { username: 'JROMERO', password: '123456' },
         ...(sucursales?.length ? { sucursales } : {}),
+        ...(targetDate ? { targetDate } : {}),
       }),
     })
 
@@ -497,6 +499,222 @@ export async function confirmAppointment(
   } catch (err) {
     return { error: `Error conectando al robot: ${err instanceof Error ? err.message : String(err)}` }
   }
+}
+
+// ── Reminder Helpers ──
+
+function parseHora(hora: string): { hours: number; minutes: number } {
+  // Handle "8:00 AM", "2:30 PM", "14:30" formats
+  const match = hora.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+  if (!match) return { hours: 8, minutes: 0 } // fallback
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const period = match[3]?.toUpperCase()
+  if (period === 'PM' && hours < 12) hours += 12
+  if (period === 'AM' && hours === 12) hours = 0
+  return { hours, minutes }
+}
+
+function calculateScheduledAt(fechaCita: string, hora: string): Date {
+  const { hours, minutes } = parseHora(hora)
+  // fechaCita is YYYY-MM-DD, hora is appointment time in Colombia
+  const [y, m, d] = fechaCita.split('-').map(Number)
+  // Colombia is UTC-5: add 5 hours to get UTC equivalent
+  const citaUtc = new Date(Date.UTC(y, m - 1, d, hours + 5, minutes))
+  // Subtract 1 hour for reminder (send 1h before appointment)
+  const reminderUtc = new Date(citaUtc.getTime() - 60 * 60 * 1000)
+  return reminderUtc
+}
+
+// ── Reminder Server Actions ──
+
+export interface ScheduleResult {
+  total: number
+  scheduled: number
+  skipped: number
+  details: Array<{
+    nombre: string
+    telefono: string
+    status: 'scheduled' | 'skipped'
+    reason?: string
+    scheduledAt?: string
+  }>
+}
+
+export async function scheduleReminders(
+  appointments: GodentistAppointment[],
+  fechaCita: string,
+  historyId?: string
+): Promise<{ error?: string; data?: ScheduleResult }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const now = new Date()
+  const fifteenMinFromNow = new Date(now.getTime() + 15 * 60 * 1000)
+
+  const result: ScheduleResult = { total: appointments.length, scheduled: 0, skipped: 0, details: [] }
+
+  for (const apt of appointments) {
+    // Skip cancelled appointments
+    if (apt.estado.toLowerCase().includes('cancelada')) {
+      result.skipped++
+      result.details.push({
+        nombre: apt.nombre,
+        telefono: apt.telefono,
+        status: 'skipped',
+        reason: 'Cita cancelada',
+      })
+      continue
+    }
+
+    const scheduledAt = calculateScheduledAt(fechaCita, apt.hora)
+
+    // If scheduledAt is too close or already past
+    if (scheduledAt < fifteenMinFromNow) {
+      result.skipped++
+      result.details.push({
+        nombre: apt.nombre,
+        telefono: apt.telefono,
+        status: 'skipped',
+        reason: 'Hora de envio ya paso o es muy pronto',
+      })
+      continue
+    }
+
+    try {
+      // Insert reminder row
+      const { data: reminderRow, error: insertError } = await admin
+        .from('godentist_scheduled_reminders')
+        .insert({
+          workspace_id: workspaceId,
+          nombre: apt.nombre,
+          telefono: apt.telefono,
+          hora_cita: apt.hora,
+          sucursal: apt.sucursal,
+          fecha_cita: fechaCita,
+          scheduled_at: scheduledAt.toISOString(),
+          status: 'pending',
+          ...(historyId ? { scrape_history_id: historyId } : {}),
+        })
+        .select('id')
+        .single()
+
+      if (insertError || !reminderRow) {
+        result.skipped++
+        result.details.push({
+          nombre: apt.nombre,
+          telefono: apt.telefono,
+          status: 'skipped',
+          reason: `Error al guardar: ${insertError?.message || 'unknown'}`,
+        })
+        continue
+      }
+
+      // Send Inngest event
+      const eventResult = await (inngest as any).send({
+        name: 'godentist/reminder.send',
+        data: {
+          reminderId: reminderRow.id,
+          workspaceId,
+          nombre: apt.nombre,
+          telefono: apt.telefono,
+          hora: apt.hora,
+          sucursal: apt.sucursal,
+          fechaCita,
+          scheduledAt: scheduledAt.toISOString(),
+        },
+      })
+
+      // Update inngest_event_id if available
+      const eventId = eventResult?.ids?.[0] || reminderRow.id
+      await admin
+        .from('godentist_scheduled_reminders')
+        .update({ inngest_event_id: eventId })
+        .eq('id', reminderRow.id)
+
+      result.scheduled++
+      result.details.push({
+        nombre: apt.nombre,
+        telefono: apt.telefono,
+        status: 'scheduled',
+        scheduledAt: scheduledAt.toISOString(),
+      })
+    } catch (err) {
+      result.skipped++
+      result.details.push({
+        nombre: apt.nombre,
+        telefono: apt.telefono,
+        status: 'skipped',
+        reason: `Error: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    }
+  }
+
+  return { data: result }
+}
+
+export interface ScheduledReminderEntry {
+  id: string
+  nombre: string
+  telefono: string
+  hora_cita: string
+  sucursal: string
+  fecha_cita: string
+  scheduled_at: string
+  status: string
+  error: string | null
+  sent_at: string | null
+  created_at: string
+}
+
+export async function getScheduledReminders(): Promise<{ error?: string; data?: ScheduledReminderEntry[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('godentist_scheduled_reminders')
+    .select('id, nombre, telefono, hora_cita, sucursal, fecha_cita, scheduled_at, status, error, sent_at, created_at')
+    .eq('workspace_id', workspaceId)
+    .order('scheduled_at', { ascending: false })
+    .limit(50)
+
+  if (error) return { error: error.message }
+
+  return { data: data as ScheduledReminderEntry[] }
+}
+
+export async function cancelScheduledReminder(reminderId: string): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const { error, count } = await admin
+    .from('godentist_scheduled_reminders')
+    .update({ status: 'cancelled' })
+    .eq('id', reminderId)
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'pending')
+
+  if (error) return { error: error.message }
+
+  return { success: true }
 }
 
 // ── Contact Helper ──

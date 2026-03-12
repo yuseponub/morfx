@@ -44,6 +44,7 @@ export interface SendResult {
 
 const ROBOT_URL = 'https://godentist-production.up.railway.app'
 const TEMPLATE_NAME = 'confirmacion_asist_godentist'
+const TEMPLATE_CONFIRMACION_CITA = 'confirmacion_cita'
 const SEND_DELAY_MS = 500
 
 const SUCURSAL_ADDRESSES: Record<string, string> = {
@@ -262,6 +263,19 @@ export async function sendConfirmations(
         renderedText,
         apiKey,
       })
+
+      // Step 6: Send confirmacion_cita template (no variables)
+      if (sendResult.success) {
+        await sendTemplateMessage(domainCtx, {
+          conversationId,
+          contactPhone: phone,
+          templateName: TEMPLATE_CONFIRMACION_CITA,
+          templateLanguage: 'es',
+          components: [],
+          renderedText: '',
+          apiKey,
+        }).catch(err => console.error(`[godentist] confirmacion_cita error: ${err}`))
+      }
 
       if (sendResult.success) {
         result.sent++

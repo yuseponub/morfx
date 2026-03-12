@@ -5,21 +5,37 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Loader2, Search, Send, CheckCircle2, XCircle, Ban, History, Clock, Eye, RotateCcw } from 'lucide-react'
+import { Loader2, Search, Send, CheckCircle2, XCircle, Ban, History, Clock, Eye, RotateCcw, Calendar } from 'lucide-react'
 import {
   scrapeAppointments,
   sendConfirmations,
   getScrapeHistory,
+  scheduleReminders,
+  getScheduledReminders,
+  cancelScheduledReminder,
   type GodentistAppointment,
   type SendResult,
   type ScrapeHistoryEntry,
+  type ScheduleResult,
+  type ScheduledReminderEntry,
 } from '@/app/actions/godentist'
 
 type Phase = 'idle' | 'scraping' | 'preview' | 'sending' | 'done'
-type Tab = 'scrape' | 'history'
+type Tab = 'scrape' | 'history' | 'programacion'
 type HistoryView = 'list' | 'detail'
+type DateMode = 'auto' | 'today' | 'tomorrow' | 'custom'
 
 const ALL_SUCURSALES = ['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS']
+
+function getColombiaToday(): string {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' })
+}
+
+function getColombiaTomorrow(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' })
+}
 
 export function ConfirmacionesPanel() {
   // Tab state
@@ -38,12 +54,22 @@ export function ConfirmacionesPanel() {
   const [filterSucursal, setFilterSucursal] = useState<string>('all')
   const [filterEstado, setFilterEstado] = useState<string>('all')
 
+  // Date picker state
+  const [scrapeDate, setScrapeDate] = useState<string>('')
+  const [dateMode, setDateMode] = useState<DateMode>('auto')
+  const [scheduleResult, setScheduleResult] = useState<ScheduleResult | null>(null)
+
   // History state
   const [history, setHistory] = useState<ScrapeHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyView, setHistoryView] = useState<HistoryView>('list')
   const [selectedEntry, setSelectedEntry] = useState<ScrapeHistoryEntry | null>(null)
   const [detailSelected, setDetailSelected] = useState<Set<number>>(new Set())
+
+  // Programacion state
+  const [reminders, setReminders] = useState<ScheduledReminderEntry[]>([])
+  const [remindersLoading, setRemindersLoading] = useState(false)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   // Filtered appointments
   const sucursalFiltered = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
@@ -84,11 +110,34 @@ export function ConfirmacionesPanel() {
     }
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load reminders when switching to programacion tab
+  useEffect(() => {
+    if (tab === 'programacion') {
+      loadReminders()
+    }
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadHistory() {
     setHistoryLoading(true)
     const res = await getScrapeHistory()
     if (res.data) setHistory(res.data)
     setHistoryLoading(false)
+  }
+
+  async function loadReminders() {
+    setRemindersLoading(true)
+    const res = await getScheduledReminders()
+    if (res.data) setReminders(res.data)
+    setRemindersLoading(false)
+  }
+
+  async function handleCancelReminder(id: string) {
+    setCancellingId(id)
+    const res = await cancelScheduledReminder(id)
+    if (res.success) {
+      setReminders(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled' } : r))
+    }
+    setCancellingId(null)
   }
 
   function toggleSucursal(suc: string) {
@@ -101,12 +150,25 @@ export function ConfirmacionesPanel() {
     setSelected(new Set())
   }
 
+  function handleDateMode(mode: DateMode) {
+    setDateMode(mode)
+    if (mode === 'today') {
+      setScrapeDate(getColombiaToday())
+    } else if (mode === 'tomorrow') {
+      setScrapeDate(getColombiaTomorrow())
+    } else if (mode === 'auto') {
+      setScrapeDate('')
+    }
+    // 'custom' keeps whatever was in scrapeDate or waits for input
+  }
+
   async function handleScrape() {
     setPhase('scraping')
     setError('')
     setResult(null)
+    setScheduleResult(null)
 
-    const res = await scrapeAppointments(Array.from(activeSucursales))
+    const res = await scrapeAppointments(Array.from(activeSucursales), scrapeDate || undefined)
     if (res.error || !res.data) {
       setError(res.error || 'Error desconocido')
       setPhase('idle')
@@ -126,6 +188,25 @@ export function ConfirmacionesPanel() {
     })
     setSelected(sel)
     setPhase('preview')
+  }
+
+  async function handleSchedule() {
+    setPhase('sending')
+    setError('')
+
+    const toSchedule = appointments.filter((_, i) => selected.has(i))
+    // Use scrapeDate if set, otherwise fall back to the date returned from scrape response
+    const fechaCita = scrapeDate || date
+    const res = await scheduleReminders(toSchedule, fechaCita, historyId)
+
+    if (res.error || !res.data) {
+      setError(res.error || 'Error desconocido')
+      setPhase('preview')
+      return
+    }
+
+    setScheduleResult(res.data)
+    setPhase('done')
   }
 
   function toggleSelect(index: number) {
@@ -171,10 +252,13 @@ export function ConfirmacionesPanel() {
     setHistoryId(undefined)
     setSelected(new Set())
     setResult(null)
+    setScheduleResult(null)
     setError('')
     setSearchName('')
     setFilterSucursal('all')
     setFilterEstado('all')
+    setScrapeDate('')
+    setDateMode('auto')
   }
 
   /** Load a history entry into the preview phase for re-sending */
@@ -195,10 +279,14 @@ export function ConfirmacionesPanel() {
     setFilterSucursal('all')
     setFilterEstado('all')
     setResult(null)
+    setScheduleResult(null)
     setError('')
     setPhase('preview')
     setTab('scrape')
   }
+
+  const pendingReminders = reminders.filter(r => r.status === 'pending')
+  const historyReminders = reminders.filter(r => r.status !== 'pending')
 
   return (
     <div className="space-y-4">
@@ -220,17 +308,80 @@ export function ConfirmacionesPanel() {
           <History className="mr-2 h-4 w-4" />
           Historial
         </Button>
+        <Button
+          variant={tab === 'programacion' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setTab('programacion')}
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Programacion
+        </Button>
       </div>
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* TAB: SCRAPE                                 */}
-      {/* ═══════════════════════════════════════════ */}
+      {/* =============================================== */}
+      {/* TAB: SCRAPE                                     */}
+      {/* =============================================== */}
       {tab === 'scrape' && (
         <>
           {error && (
             <Card className="border-destructive">
               <CardContent className="pt-4">
                 <p className="text-sm text-destructive">{error}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Date picker - only in idle phase */}
+          {phase === 'idle' && (
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium mb-2">
+                  <Calendar className="inline h-4 w-4 mr-1" />
+                  Fecha del scrape
+                </p>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <Button
+                    variant={dateMode === 'auto' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleDateMode('auto')}
+                  >
+                    Por defecto
+                  </Button>
+                  <Button
+                    variant={dateMode === 'today' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleDateMode('today')}
+                  >
+                    Hoy
+                  </Button>
+                  <Button
+                    variant={dateMode === 'tomorrow' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleDateMode('tomorrow')}
+                  >
+                    Manana
+                  </Button>
+                  <Button
+                    variant={dateMode === 'custom' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleDateMode('custom')}
+                  >
+                    Otra fecha
+                  </Button>
+                </div>
+                {dateMode === 'custom' && (
+                  <input
+                    type="date"
+                    value={scrapeDate}
+                    onChange={e => setScrapeDate(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                )}
+                {scrapeDate ? (
+                  <Badge variant="secondary" className="mt-1">Fecha seleccionada: {scrapeDate}</Badge>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Se usara el proximo dia habil (por defecto)</p>
+                )}
               </CardContent>
             </Card>
           )}
@@ -294,7 +445,7 @@ export function ConfirmacionesPanel() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3 flex-wrap">
                   <Badge variant="secondary">{appointments.length} citas</Badge>
-                  <Badge variant="default">{validCount} para enviar</Badge>
+                  <Badge variant="default">{validCount} seleccionadas</Badge>
                   {cancelledCount > 0 && (
                     <Badge variant="destructive">{cancelledCount} canceladas</Badge>
                   )}
@@ -307,6 +458,10 @@ export function ConfirmacionesPanel() {
                   <Button onClick={handleSend} disabled={validCount === 0}>
                     <Send className="mr-2 h-4 w-4" />
                     Enviar confirmaciones ({validCount})
+                  </Button>
+                  <Button onClick={handleSchedule} disabled={validCount === 0} variant="secondary">
+                    <Clock className="mr-2 h-4 w-4" />
+                    Programar recordatorios ({validCount})
                   </Button>
                 </div>
               </div>
@@ -371,14 +526,14 @@ export function ConfirmacionesPanel() {
                 <div className="flex flex-col items-center gap-4">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-muted-foreground">
-                    Enviando confirmaciones... esto puede tomar unos minutos.
+                    Procesando... esto puede tomar unos minutos.
                   </p>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Phase: done */}
+          {/* Phase: done - Send result */}
           {phase === 'done' && result && (
             <>
               <SendResultCards result={result} />
@@ -387,18 +542,76 @@ export function ConfirmacionesPanel() {
               </Button>
             </>
           )}
+
+          {/* Phase: done - Schedule result */}
+          {phase === 'done' && scheduleResult && (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Programados</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span className="text-2xl font-bold">{scheduleResult.scheduled}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Omitidos</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-2xl font-bold">{scheduleResult.skipped}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Detail list */}
+              {scheduleResult.details.length > 0 && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <ul className="space-y-1 text-sm">
+                      {scheduleResult.details.map((d, i) => (
+                        <li key={i} className={d.status === 'scheduled' ? 'text-green-600' : 'text-muted-foreground'}>
+                          {d.nombre} ({d.telefono}):{' '}
+                          {d.status === 'scheduled'
+                            ? `Programado para ${new Date(d.scheduledAt!).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`
+                            : d.reason || 'Omitido'}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex gap-2">
+                <Button onClick={handleReset} variant="outline">
+                  Volver al inicio
+                </Button>
+                <Button onClick={() => { setTab('programacion'); setPhase('idle') }}>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Ver programacion
+                </Button>
+              </div>
+            </>
+          )}
         </>
       )}
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* TAB: HISTORY                                */}
-      {/* ═══════════════════════════════════════════ */}
+      {/* =============================================== */}
+      {/* TAB: HISTORY                                    */}
+      {/* =============================================== */}
       {tab === 'history' && (
         <>
           {historyView === 'list' && (
             <>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Últimos 20 scrapes</p>
+                <p className="text-sm text-muted-foreground">Ultimos 20 scrapes</p>
                 <Button variant="outline" size="sm" onClick={loadHistory} disabled={historyLoading}>
                   {historyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                 </Button>
@@ -415,7 +628,7 @@ export function ConfirmacionesPanel() {
               {!historyLoading && history.length === 0 && (
                 <Card>
                   <CardContent className="pt-6 text-center text-muted-foreground text-sm">
-                    No hay historial aún.
+                    No hay historial aun.
                   </CardContent>
                 </Card>
               )}
@@ -494,6 +707,7 @@ export function ConfirmacionesPanel() {
                 setFilterSucursal('all')
                 setFilterEstado('all')
                 setResult(null)
+                setScheduleResult(null)
                 setError('')
                 setPhase('preview')
                 setTab('scrape')
@@ -505,11 +719,144 @@ export function ConfirmacionesPanel() {
           )}
         </>
       )}
+
+      {/* =============================================== */}
+      {/* TAB: PROGRAMACION                               */}
+      {/* =============================================== */}
+      {tab === 'programacion' && (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Recordatorios programados</p>
+            <Button variant="outline" size="sm" onClick={loadReminders} disabled={remindersLoading}>
+              {remindersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {remindersLoading && reminders.length === 0 && (
+            <Card>
+              <CardContent className="pt-6 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pendientes section */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium">Pendientes</p>
+              {pendingReminders.length > 0 && (
+                <Badge variant="default">{pendingReminders.length} pendientes</Badge>
+              )}
+            </div>
+            {pendingReminders.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center text-muted-foreground text-sm">
+                  No hay recordatorios pendientes
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="p-3 text-left">Nombre</th>
+                        <th className="p-3 text-left">Telefono</th>
+                        <th className="p-3 text-left">Hora cita</th>
+                        <th className="p-3 text-left">Hora envio</th>
+                        <th className="p-3 text-left">Sucursal</th>
+                        <th className="p-3 text-left w-24">Accion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingReminders.map(r => (
+                        <tr key={r.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3 font-medium">{r.nombre}</td>
+                          <td className="p-3 font-mono text-xs">{r.telefono}</td>
+                          <td className="p-3">{r.hora_cita}</td>
+                          <td className="p-3 text-xs">
+                            {new Date(r.scheduled_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
+                          </td>
+                          <td className="p-3">{r.sucursal}</td>
+                          <td className="p-3">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleCancelReminder(r.id)}
+                              disabled={cancellingId === r.id}
+                            >
+                              {cancellingId === r.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                'Cancelar'
+                              )}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {/* Historial section */}
+          <div>
+            <p className="text-sm font-medium mb-2">Historial de recordatorios</p>
+            {historyReminders.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center text-muted-foreground text-sm">
+                  No hay historial de recordatorios
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="p-3 text-left">Nombre</th>
+                        <th className="p-3 text-left">Telefono</th>
+                        <th className="p-3 text-left">Sucursal</th>
+                        <th className="p-3 text-left">Estado</th>
+                        <th className="p-3 text-left">Fecha envio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyReminders.map(r => (
+                        <tr key={r.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3 font-medium">{r.nombre}</td>
+                          <td className="p-3 font-mono text-xs">{r.telefono}</td>
+                          <td className="p-3">{r.sucursal}</td>
+                          <td className="p-3">
+                            <Badge
+                              variant={r.status === 'sent' ? 'default' : r.status === 'failed' ? 'destructive' : 'secondary'}
+                              className={r.status === 'sent' ? 'bg-green-600' : ''}
+                            >
+                              {r.status === 'sent' ? 'Enviado' : r.status === 'failed' ? 'Fallido' : r.status === 'cancelled' ? 'Cancelado' : r.status}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-xs">
+                            {r.sent_at
+                              ? new Date(r.sent_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
+                              : new Date(r.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
-// ── Shared Components ──
+// -- Shared Components --
 
 function AppointmentsTable({
   appointments,

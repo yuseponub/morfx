@@ -224,6 +224,7 @@ export type TipoAccion =
   | 'retoma'
   | 'retoma_datos'
   | 'retoma_datos_parciales'
+  | 'pedir_datos_quiero_comprar_implicito'
 
 export interface AccionRegistrada {
   tipo: TipoAccion

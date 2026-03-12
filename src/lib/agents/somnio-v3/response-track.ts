@@ -243,6 +243,15 @@ function resolveSalesActionTemplates(
       }
     }
 
+    case 'pedir_datos_quiero_comprar_implicito': {
+      const faltantes = camposFaltantes(state)
+      const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
+      return {
+        intents: ['pedir_datos_quiero_comprar_implicito'],
+        extraContext: { campos_faltantes: labels.map(l => `- ${l}`).join('\n') },
+      }
+    }
+
     case 'retoma_datos_parciales': {
       const faltantes = camposFaltantes(state)
       const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)

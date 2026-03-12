@@ -66,6 +66,27 @@ export const TRANSITIONS: TransitionEntry[] = [
 
   // ======== Phase-specific transitions ========
 
+  // initial + datos + !datosCriticos -> pedir_datos_quiero_comprar_implicito (client sent data spontaneously)
+  {
+    phase: 'initial', on: 'datos', action: 'pedir_datos_quiero_comprar_implicito',
+    condition: (_, gates) => !gates.datosCriticos,
+    resolve: () => ({
+      enterCaptura: true,
+      timerSignal: { type: 'start', level: 'L1', reason: 'datos espontaneos, parciales' },
+      reason: 'Datos en initial sin quiero_comprar, faltan criticos',
+    }),
+  },
+
+  // initial + datos + datosCriticos -> ofrecer_promos (client sent enough data to skip capture)
+  {
+    phase: 'initial', on: 'datos', action: 'ofrecer_promos',
+    condition: (_, gates) => gates.datosCriticos,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L3', reason: 'datos espontaneos + criticos completos -> promos' },
+      reason: 'Datos en initial + datosCriticos -> promos',
+    }),
+  },
+
   // initial + quiero_comprar -> pedir_datos (datos will be needed)
   {
     phase: 'initial', on: 'quiero_comprar', action: 'pedir_datos',

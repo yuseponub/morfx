@@ -72,6 +72,7 @@ export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
   retoma: ['retoma_inicial'],
   retoma_datos: ['retoma_datos'],
   retoma_datos_parciales: ['retoma_datos_parciales'],
+  pedir_datos_quiero_comprar_implicito: ['pedir_datos_quiero_comprar_implicito'],
 }
 
 // ============================================================================
@@ -147,6 +148,7 @@ export const V3_TO_V1_INTENT_MAP: Record<string, string[]> = {
   retoma_inicial: ['retoma_inicial'],
   retoma_datos: ['retoma_datos'],
   retoma_datos_parciales: ['retoma_datos_parciales'],
+  pedir_datos_quiero_comprar_implicito: ['pedir_datos_quiero_comprar_implicito'],
 
   pendiente_promo: ['pendiente_promo'],
   pendiente_confirmacion: ['pendiente_confirmacion'],

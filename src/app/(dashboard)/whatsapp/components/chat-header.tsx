@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, Bot, Check, ExternalLink, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
+import { Archive, ArchiveRestore, Bot, CalendarCheck, Check, ExternalLink, Loader2, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +19,11 @@ import { AssignDropdown } from './assign-dropdown'
 import { ConversationTagInput } from './conversation-tag-input'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
 import { toggleConversationAgent, getConversationAgentStatus } from '@/app/actions/agent-config'
+import { confirmAppointment, getAppointmentForContact } from '@/app/actions/godentist'
 import { toast } from 'sonner'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+
+const GODENTIST_WORKSPACE_ID = '36a74890-aad6-4804-838c-57904b1c9328'
 
 interface ChatHeaderProps {
   conversation: ConversationWithDetails
@@ -47,6 +50,13 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
   const [agentConversational, setAgentConversational] = useState<boolean | null>(null)
   const [agentCrm, setAgentCrm] = useState<boolean | null>(null)
 
+  // GoDentist appointment confirmation
+  const [appointmentInfo, setAppointmentInfo] = useState<{
+    nombre: string; hora: string; sucursal: string; estado: string; scraped_date: string
+  } | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [appointmentLoading, setAppointmentLoading] = useState(false)
+
   // Load agent status when conversation changes
   useEffect(() => {
     let cancelled = false
@@ -63,6 +73,20 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
 
     return () => { cancelled = true }
   }, [conversation.id])
+
+  // Load GoDentist appointment info
+  useEffect(() => {
+    if (conversation.workspace_id !== GODENTIST_WORKSPACE_ID) return
+    const phone = conversation.contact?.phone || conversation.phone
+    if (!phone) return
+    setAppointmentLoading(true)
+    setAppointmentInfo(null)
+    getAppointmentForContact(phone).then(result => {
+      if ('data' in result && result.data) setAppointmentInfo(result.data)
+      else setAppointmentInfo(null)
+      setAppointmentLoading(false)
+    })
+  }, [conversation.id, conversation.workspace_id])
 
   // Toggle agent with optimistic update + error rollback
   const handleToggleAgent = async (type: 'conversational' | 'crm', newValue: boolean) => {
@@ -129,6 +153,21 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
       toast.error(result.error)
     } else {
       toast.success('Conversacion desarchivada')
+    }
+  }
+
+  const handleConfirmAppointment = async () => {
+    const phone = conversation.contact?.phone || conversation.phone
+    const name = conversation.contact?.name || conversation.profile_name || ''
+    if (!phone || !name) return
+    setIsConfirming(true)
+    const result = await confirmAppointment(phone, name)
+    setIsConfirming(false)
+    if (result.success) {
+      toast.success('Cita confirmada exitosamente en el portal')
+      setAppointmentInfo(prev => prev ? { ...prev, estado: 'Confirmada' } : null)
+    } else {
+      toast.error(result.error || 'Error al confirmar cita')
     }
   }
 
@@ -201,6 +240,30 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
                 />
               </div>
             </div>
+          )}
+
+          {/* GoDentist: Confirm appointment button */}
+          {conversation.workspace_id === GODENTIST_WORKSPACE_ID && !appointmentLoading && appointmentInfo && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              disabled={isConfirming || appointmentInfo.estado.toLowerCase().includes('confirmada')}
+              onClick={handleConfirmAppointment}
+              title={`Confirmar cita: ${appointmentInfo.nombre} - ${appointmentInfo.hora} - ${appointmentInfo.sucursal}`}
+            >
+              {isConfirming ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CalendarCheck className="h-3.5 w-3.5" />
+              )}
+              {isConfirming
+                ? 'Confirmando...'
+                : appointmentInfo.estado.toLowerCase().includes('confirmada')
+                  ? 'Confirmada'
+                  : 'Confirmar cita'
+              }
+            </Button>
           )}
 
           {/* Assignment dropdown */}

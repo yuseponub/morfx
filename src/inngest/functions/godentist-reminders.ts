@@ -25,7 +25,7 @@ import type { DomainContext } from '@/lib/domain/types'
 // Constants
 // ============================================================================
 
-const TEMPLATE_NAME = 'recordatorio_cita_godentist'
+const TEMPLATE_NAME = 'cita_hoy'
 
 const SUCURSAL_ADDRESSES: Record<string, string> = {
   'CABECERA': 'Calle 52 # 31-32 Edificio Elsita Piso 1',

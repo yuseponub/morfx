@@ -522,6 +522,12 @@ Plans:
   - [x] dp4-03-PLAN.md — Tab infrastructure + Classify tab + delete Intent tab
   - [x] dp4-04-PLAN.md — Pipeline tab (turn navigation + 11 expandable steps)
   - [x] dp4-05-PLAN.md — Bloques tab + Ingest/Estado/Config updates
+- [x] **Robot GoDentist Integration** — Scrape appointments, send WhatsApp confirmations, confirm appointments in Dentos portal from chat (4 plans)
+  Plans:
+  - [x] 01-PLAN.md — Robot: agregar campo estado al scraping
+  - [x] 02-PLAN.md — MorfX: pantalla de confirmaciones GoDentist
+  - [x] 03-PLAN.md — Robot: POST /api/confirm-appointment endpoint
+  - [x] 04-PLAN.md — MorfX: "Confirmar cita" button in WhatsApp chat header
 - [ ] **v3 Two-Track Decision** — Separate sales track (state machine) from response track (template engine) to fix premature silence cut bug (2 plans)
   Plans:
   - [ ] tt-01-PLAN.md — Types + constants + ingest simplification + sales-track.ts + response-track.ts
@@ -537,8 +543,8 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-34 complete) | Phase 35 Next | — |
-| Standalone | 11 phases | 43 | 8 complete, 3 in progress | |
-| **Total** | **52 phases** | **219+ plans** | | |
+| Standalone | 12 phases | 47 | 9 complete, 3 in progress | |
+| **Total** | **53 phases** | **223+ plans** | | |
 
 ### Current Phase
 
@@ -554,4 +560,4 @@ Next: Execute `/gsd:execute-phase 35`
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-08 (Standalone v3 Two-Track Decision planned: 2 plans in 2 waves)*
+*Last updated: 2026-03-11 (Standalone Robot GoDentist Integration complete: 4 plans)*

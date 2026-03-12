@@ -388,6 +388,11 @@ export class GoDentistAdapter {
    * Try multiple strategies to change the Estado cell to "Confirmada".
    * Takes diagnostic screenshots at each step.
    */
+  /**
+   * Try to change the Estado to "Confirmada" by opening the modal dialog.
+   * The Dentos portal uses onclick="mostrarVentanaEstadosCita(ID)" which opens
+   * an ExtJS x-window modal with a <select> for Estado and Guardar/Cerrar buttons.
+   */
   private async tryChangeEstado(
     rowIndex: number,
     estadoCellIndex: number,
@@ -403,296 +408,123 @@ export class GoDentistAdapter {
     const row = this.page.locator('table tbody tr').nth(rowIndex)
     const estadoCell = row.locator('td').nth(estadoCellIndex)
 
-    // Strategy 1: Click on the estado cell text
-    console.log('[GoDentist] Strategy 1: Click estado cell')
+    // Step 1: Click the estado cell to open the modal via mostrarVentanaEstadosCita()
+    console.log('[GoDentist] Clicking estado cell to open modal...')
     try {
-      await estadoCell.click()
-      await this.page.waitForTimeout(1500)
+      await estadoCell.click({ timeout: 5000 })
+      await this.page.waitForTimeout(2000)
       await takeAndTrack('confirm-after-estado-click')
-
-      if (await this.checkAndSelectConfirmada()) {
-        return true
-      }
     } catch (err) {
-      console.log(`[GoDentist] Strategy 1 failed: ${err}`)
+      console.log(`[GoDentist] Click estado cell failed: ${err}`)
+      return false
     }
 
-    // Strategy 2: Look for dropdown trigger within/near the estado cell
-    console.log('[GoDentist] Strategy 2: Look for dropdown trigger near estado cell')
-    try {
-      const trigger = estadoCell.locator('.x-form-trigger, img, .x-grid3-col-estado img')
-      const triggerCount = await trigger.count()
-      if (triggerCount > 0) {
-        await trigger.first().click()
-        await this.page.waitForTimeout(1500)
-        await takeAndTrack('confirm-after-trigger-click')
+    // Step 2: Detect the x-window modal
+    const modal = this.page.locator('.x-window:visible')
+    const modalCount = await modal.count()
+    console.log(`[GoDentist] Visible x-window modals: ${modalCount}`)
 
-        if (await this.checkAndSelectConfirmada()) {
+    if (modalCount === 0) {
+      console.log('[GoDentist] No modal opened after clicking estado cell')
+      return false
+    }
+
+    // Step 3: Find and interact with the Estado select inside the modal
+    try {
+      // Dump modal contents for debugging
+      const modalInfo = await this.page.evaluate(() => {
+        const win = document.querySelector('.x-window') as HTMLElement
+        if (!win || win.offsetParent === null) return null
+        const selects = win.querySelectorAll('select')
+        return {
+          selectCount: selects.length,
+          selects: Array.from(selects).map(s => ({
+            id: s.id,
+            name: s.name,
+            value: s.value,
+            options: Array.from(s.options).map(o => ({ value: o.value, text: o.text.trim() })),
+          })),
+          buttons: Array.from(win.querySelectorAll('button, input[type="button"]')).map(b => ({
+            text: (b as HTMLElement).textContent?.trim(),
+            value: (b as HTMLInputElement).value,
+            id: b.id,
+          })),
+        }
+      })
+      console.log(`[GoDentist] Modal contents:`, JSON.stringify(modalInfo, null, 2))
+
+      if (!modalInfo || modalInfo.selectCount === 0) {
+        console.log('[GoDentist] No select elements in modal')
+        await takeAndTrack('confirm-modal-no-select')
+        return false
+      }
+
+      // Find the Estado select (has options like "Sin confirmar", "Confirmada")
+      for (const selectInfo of modalInfo.selects) {
+        const confirmadaOpt = selectInfo.options.find(o =>
+          o.text.toLowerCase() === 'confirmada'
+        )
+        if (!confirmadaOpt) continue
+
+        console.log(`[GoDentist] Found Estado select: #${selectInfo.id}, changing to "${confirmadaOpt.text}"`)
+
+        // Use page.evaluate to change the select value directly (most reliable)
+        await this.page.evaluate(({ selId, val }) => {
+          const sel = document.getElementById(selId) as HTMLSelectElement
+          if (sel) {
+            sel.value = val
+            sel.dispatchEvent(new Event('change', { bubbles: true }))
+          }
+        }, { selId: selectInfo.id, val: confirmadaOpt.value })
+
+        await this.page.waitForTimeout(500)
+        await takeAndTrack('confirm-estado-selected')
+
+        // Step 4: Click Guardar
+        const guardarBtn = modal.locator('button:has-text("Guardar"), input[value="Guardar"]')
+        const guardarCount = await guardarBtn.count()
+        console.log(`[GoDentist] Guardar buttons in modal: ${guardarCount}`)
+
+        if (guardarCount > 0) {
+          await guardarBtn.first().click()
+          console.log('[GoDentist] Clicked Guardar')
+          await this.page.waitForTimeout(2000)
+          await takeAndTrack('confirm-after-guardar')
           return true
         }
-      } else {
-        console.log('[GoDentist] No trigger found in estado cell')
-      }
-    } catch (err) {
-      console.log(`[GoDentist] Strategy 2 failed: ${err}`)
-    }
 
-    // Strategy 3: Look for edit icon/button in the row
-    console.log('[GoDentist] Strategy 3: Look for edit button in row')
-    try {
-      const editBtn = row.locator('button, a, .x-btn, [class*="edit"], [class*="pencil"], img[src*="edit"]')
-      const editCount = await editBtn.count()
-      if (editCount > 0) {
-        for (let k = 0; k < editCount; k++) {
-          console.log(`[GoDentist] Trying edit element ${k}`)
-          await editBtn.nth(k).click()
-          await this.page.waitForTimeout(1500)
-          await takeAndTrack(`confirm-after-edit-click-${k}`)
-
-          if (await this.checkAndSelectConfirmada()) {
-            return true
-          }
-
-          // Escape any opened dialog/editor
-          await this.page.keyboard.press('Escape')
-          await this.page.waitForTimeout(500)
-        }
-      } else {
-        console.log('[GoDentist] No edit elements found in row')
-      }
-    } catch (err) {
-      console.log(`[GoDentist] Strategy 3 failed: ${err}`)
-    }
-
-    // Strategy 4: Double-click on the estado cell (ExtJS RowEditor pattern)
-    console.log('[GoDentist] Strategy 4: Double-click estado cell')
-    try {
-      await estadoCell.dblclick()
-      await this.page.waitForTimeout(1500)
-      await takeAndTrack('confirm-after-dblclick')
-
-      if (await this.checkAndSelectConfirmada()) {
-        return true
-      }
-
-      // Check if a row editor appeared with form fields
-      const editors = this.page.locator('.x-grid-editor input, .x-editor input, .x-form-field:visible')
-      const editorCount = await editors.count()
-      if (editorCount > 0) {
-        console.log(`[GoDentist] Found ${editorCount} editor fields after double-click`)
-        await takeAndTrack('confirm-editor-fields')
-      }
-
-      await this.page.keyboard.press('Escape')
-      await this.page.waitForTimeout(500)
-    } catch (err) {
-      console.log(`[GoDentist] Strategy 4 failed: ${err}`)
-    }
-
-    // Strategy 5: Right-click context menu
-    console.log('[GoDentist] Strategy 5: Right-click for context menu')
-    try {
-      await estadoCell.click({ button: 'right' })
-      await this.page.waitForTimeout(1500)
-      await takeAndTrack('confirm-after-rightclick')
-
-      // Check for context menu with "Confirmada" option
-      const menuItem = this.page.locator('.x-menu-item:visible, .x-menu-list-item:visible')
-      const menuCount = await menuItem.count()
-      if (menuCount > 0) {
-        console.log(`[GoDentist] Context menu has ${menuCount} items`)
-        const menuTexts = await menuItem.allTextContents()
-        console.log(`[GoDentist] Menu items: ${JSON.stringify(menuTexts)}`)
-
-        for (let m = 0; m < menuCount; m++) {
-          const text = (await menuItem.nth(m).textContent())?.trim().toLowerCase() || ''
-          if (text.includes('confirmada') || text.includes('confirmar')) {
-            await menuItem.nth(m).click()
-            await this.page.waitForTimeout(1500)
-            await takeAndTrack('confirm-after-menu-select')
-            return true
-          }
-        }
-      }
-
-      await this.page.keyboard.press('Escape')
-      await this.page.waitForTimeout(500)
-    } catch (err) {
-      console.log(`[GoDentist] Strategy 5 failed: ${err}`)
-    }
-
-    // Strategy 6: Look for any combo/select visible on the page after clicking the row
-    console.log('[GoDentist] Strategy 6: Click row then look for any visible combo')
-    try {
-      await row.click()
-      await this.page.waitForTimeout(1000)
-
-      // Check for any action buttons that appeared
-      const actionBtns = this.page.locator('button:visible:has-text("Confirmar"), a:visible:has-text("Confirmar"), .x-btn:visible:has-text("Confirmar")')
-      const actionCount = await actionBtns.count()
-      if (actionCount > 0) {
-        await actionBtns.first().click()
-        await this.page.waitForTimeout(1500)
-        await takeAndTrack('confirm-after-confirmar-btn')
-        return true
-      }
-    } catch (err) {
-      console.log(`[GoDentist] Strategy 6 failed: ${err}`)
-    }
-
-    // Log full DOM state of the row for debugging
-    try {
-      const rowHTML = await row.evaluate(el => el.innerHTML)
-      console.log(`[GoDentist] Row HTML for debugging: ${rowHTML.substring(0, 2000)}`)
-    } catch {
-      // ignore
-    }
-
-    return false
-  }
-
-  /**
-   * Check if a dropdown/combo or modal dialog appeared where we can select "Confirmada".
-   * The Dentos portal opens a modal with a "Estado" combo + "Guardar" button.
-   */
-  private async checkAndSelectConfirmada(): Promise<boolean> {
-    if (!this.page) return false
-
-    // Pattern A: Modal dialog with Estado combo + Guardar button
-    // The modal has a select/combo labeled "Estado:" and a "Guardar" button
-    console.log('[GoDentist] Checking for modal dialog with Estado combo...')
-    try {
-      // Dump all visible form elements for debugging
-      const formDiag = await this.page.evaluate(() => {
-        const result: Record<string, unknown> = {}
-        // All visible selects
-        const selects = document.querySelectorAll('select')
-        result.selects = Array.from(selects).map((s, i) => ({
-          i,
-          id: s.id,
-          name: s.name,
-          visible: s.offsetParent !== null,
-          options: Array.from(s.options).map(o => o.text.trim()),
-          value: s.value,
-        }))
-        // All visible buttons
-        const buttons = document.querySelectorAll('button, input[type="button"]')
-        result.buttons = Array.from(buttons).map(b => ({
-          tag: b.tagName,
-          text: (b as HTMLElement).textContent?.trim().substring(0, 30),
-          value: (b as HTMLInputElement).value?.substring(0, 30),
-          visible: (b as HTMLElement).offsetParent !== null,
-        }))
-        // Any window/dialog
-        const windows = document.querySelectorAll('.x-window:visible, .x-window, [class*="modal"], [class*="dialog"]')
-        result.windows = Array.from(windows).map(w => ({
-          className: w.className.substring(0, 100),
-          visible: (w as HTMLElement).offsetParent !== null,
-          html: w.innerHTML.substring(0, 500),
-        }))
-        return result
-      })
-      console.log(`[GoDentist] Form diagnostics:`, JSON.stringify(formDiag, null, 2))
-
-      // Look for a visible modal/window with "Guardar" button
-      const guardarBtn = this.page.locator('button:visible:has-text("Guardar"), input[type="button"]:visible[value="Guardar"]')
-      const guardarCount = await guardarBtn.count()
-
-      if (guardarCount > 0) {
-        console.log(`[GoDentist] Found "Guardar" button — modal dialog detected`)
-
-        // Find the Estado select/combo in the modal
-        // Try native <select> first
-        const selects = this.page.locator('select:visible')
-        const selectCount = await selects.count()
-        console.log(`[GoDentist] Modal has ${selectCount} visible select elements`)
-
-        for (let i = 0; i < selectCount; i++) {
-          const options = await selects.nth(i).locator('option').allTextContents()
-          console.log(`[GoDentist] Select ${i} options: ${JSON.stringify(options)}`)
-
-          // Find the select that has estado-related options
-          const hasConfirmada = options.some(o => o.trim().toLowerCase().includes('confirmada'))
-          const hasSinConfirmar = options.some(o => o.trim().toLowerCase().includes('sin confirmar'))
-
-          if (hasConfirmada || hasSinConfirmar) {
-            // Find the "Confirmada" option text (exact label for selectOption)
-            const confirmadaLabel = options.find(o => o.trim().toLowerCase() === 'confirmada')
-              || options.find(o => o.trim().toLowerCase().includes('confirmada'))
-
-            if (confirmadaLabel) {
-              await selects.nth(i).selectOption({ label: confirmadaLabel.trim() })
-              console.log(`[GoDentist] Selected "${confirmadaLabel.trim()}" in Estado combo`)
-              await this.page.waitForTimeout(500)
-
-              // Click Guardar
-              await guardarBtn.first().click()
-              console.log('[GoDentist] Clicked "Guardar"')
-              await this.page.waitForTimeout(2000)
+        // Fallback: click by evaluating the button
+        const clicked = await this.page.evaluate(() => {
+          const btns = document.querySelectorAll('.x-window button, .x-window input[type="button"]')
+          for (const btn of btns) {
+            const text = (btn as HTMLElement).textContent?.trim() || (btn as HTMLInputElement).value?.trim() || ''
+            if (text.toLowerCase().includes('guardar')) {
+              (btn as HTMLElement).click()
               return true
             }
           }
-        }
+          return false
+        })
 
-        // Try ExtJS combo (hidden input + visible text input + trigger)
-        const comboTriggers = this.page.locator('.x-form-trigger:visible')
-        const triggerCount = await comboTriggers.count()
-        console.log(`[GoDentist] Modal has ${triggerCount} visible combo triggers`)
-
-        for (let i = 0; i < triggerCount; i++) {
-          await comboTriggers.nth(i).click()
-          await this.page.waitForTimeout(1000)
-
-          const comboItems = this.page.locator('.x-combo-list-item:visible')
-          const itemCount = await comboItems.count()
-          if (itemCount > 0) {
-            const texts = await comboItems.allTextContents()
-            console.log(`[GoDentist] Trigger ${i} dropdown: ${JSON.stringify(texts)}`)
-
-            for (let j = 0; j < itemCount; j++) {
-              const text = (await comboItems.nth(j).textContent())?.trim().toLowerCase() || ''
-              if (text.includes('confirmada') && !text.includes('sin confirmar')) {
-                await comboItems.nth(j).click()
-                console.log('[GoDentist] Selected "Confirmada" from ExtJS combo in modal')
-                await this.page.waitForTimeout(500)
-
-                // Click Guardar
-                await guardarBtn.first().click()
-                console.log('[GoDentist] Clicked "Guardar"')
-                await this.page.waitForTimeout(2000)
-                return true
-              }
-            }
-          }
-
-          // Close dropdown if nothing matched
-          await this.page.keyboard.press('Escape')
-          await this.page.waitForTimeout(300)
-        }
-      }
-    } catch (err) {
-      console.log(`[GoDentist] Modal pattern check failed: ${err}`)
-    }
-
-    // Pattern B: Inline combo list items (original approach)
-    const comboItems = this.page.locator('.x-combo-list-item:visible')
-    const comboCount = await comboItems.count()
-    if (comboCount > 0) {
-      const texts = await comboItems.allTextContents()
-      console.log(`[GoDentist] Inline combo dropdown: ${JSON.stringify(texts)}`)
-
-      for (let i = 0; i < comboCount; i++) {
-        const text = (await comboItems.nth(i).textContent())?.trim().toLowerCase() || ''
-        if (text.includes('confirmada') && !text.includes('sin confirmar')) {
-          await comboItems.nth(i).click()
-          await this.page.waitForTimeout(1500)
-          console.log('[GoDentist] Selected "Confirmada" from inline dropdown')
+        if (clicked) {
+          console.log('[GoDentist] Clicked Guardar via evaluate')
+          await this.page.waitForTimeout(2000)
+          await takeAndTrack('confirm-after-guardar')
           return true
         }
-      }
-    }
 
-    return false
+        console.log('[GoDentist] Could not find Guardar button')
+        await takeAndTrack('confirm-no-guardar')
+        return false
+      }
+
+      console.log('[GoDentist] No select with "Confirmada" option found in modal')
+      return false
+    } catch (err) {
+      console.error(`[GoDentist] Modal interaction failed: ${err}`)
+      await takeAndTrack('confirm-modal-error')
+      return false
+    }
   }
 
   // ── ExtJS Form Controls ──

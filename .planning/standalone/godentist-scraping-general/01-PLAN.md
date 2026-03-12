@@ -12,16 +12,14 @@ files_modified:
   - src/inngest/events.ts
   - src/inngest/functions/godentist-reminders.ts
   - src/app/api/inngest/route.ts
-  - src/app/actions/godentist.ts
-autonomous: true
+autonomous: false
 
 must_haves:
   truths:
-    - "Robot accepts optional targetDate and scrapes that date instead of auto-calculated next working day"
-    - "Scheduled reminders are persisted in DB with correct scheduled_at timestamps"
-    - "Inngest function sleeps until scheduled_at then sends WhatsApp template"
-    - "Cancelled reminders are not sent (status checked before send)"
-    - "Server actions exist for scheduling, listing, and cancelling reminders"
+    - "Host can scrape appointments for any chosen date, not just the next working day"
+    - "Reminders table exists in production before any code references it"
+    - "Inngest function wakes at the right time and delivers WhatsApp reminder"
+    - "If a reminder is cancelled before send time, no message is sent"
   artifacts:
     - path: "godentist/robot-godentist/src/types/index.ts"
       provides: "targetDate field in ScrapeAppointmentsRequest"
@@ -35,14 +33,7 @@ must_haves:
     - path: "src/inngest/functions/godentist-reminders.ts"
       provides: "Inngest function that sleeps until scheduled_at and sends template"
       contains: "sleepUntil"
-    - path: "src/app/actions/godentist.ts"
-      provides: "scheduleReminders, getScheduledReminders, cancelScheduledReminder server actions"
-      contains: "scheduleReminders"
   key_links:
-    - from: "src/app/actions/godentist.ts"
-      to: "src/inngest/client.ts"
-      via: "inngest.send for godentist/reminder.send event"
-      pattern: "inngest\\.send.*godentist/reminder"
     - from: "src/inngest/functions/godentist-reminders.ts"
       to: "src/lib/domain/messages"
       via: "sendTemplateMessage for WhatsApp delivery"
@@ -54,10 +45,10 @@ must_haves:
 ---
 
 <objective>
-Build the complete backend for GoDentist scraping general: robot targetDate support, DB migration for scheduled reminders, Inngest reminder function, and all server actions.
+Build the backend foundation for GoDentist scraping general: robot targetDate support, DB migration for scheduled reminders, and the Inngest reminder function.
 
-Purpose: Enable date-flexible scraping and automated reminder scheduling so the host can scrape any date and program WhatsApp reminders 1h before each appointment.
-Output: Robot accepts targetDate, new DB table exists, Inngest function sends reminders at scheduled time, server actions ready for UI consumption.
+Purpose: Enable date-flexible scraping and the sleep-until-send Inngest function that powers automated WhatsApp reminders.
+Output: Robot accepts targetDate, migration ready, Inngest function registered and ready.
 </objective>
 
 <execution_context>
@@ -74,13 +65,12 @@ Output: Robot accepts targetDate, new DB table exists, Inngest function sends re
 @src/inngest/client.ts
 @src/app/api/inngest/route.ts
 @src/inngest/functions/agent-timers.ts
-@src/app/actions/godentist.ts
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Robot targetDate + DB migration + Inngest event type</name>
+  <name>Task 1: Robot targetDate support + DB migration + Inngest event type</name>
   <files>
     godentist/robot-godentist/src/types/index.ts
     godentist/robot-godentist/src/adapters/godentist-adapter.ts
@@ -113,7 +103,6 @@ Output: Robot accepts targetDate, new DB table exists, Inngest function sends re
       ```typescript
       const result = await adapter.scrapeAppointments(body.sucursales, body.targetDate)
       ```
-    - Add `targetDate` to the `ScrapeAppointmentsRequest` type import (already in types)
 
     **4. DB migration** (`supabase/migrations/20260312100000_godentist_scheduled_reminders.sql`):
     ```sql
@@ -189,12 +178,25 @@ Output: Robot accepts targetDate, new DB table exists, Inngest function sends re
   </done>
 </task>
 
+<task type="checkpoint:human-verify" gate="blocking">
+  <what-built>DB migration file for godentist_scheduled_reminders table</what-built>
+  <how-to-verify>
+    **Regla 5 compliance: migration must be applied BEFORE deploying code that references the table.**
+
+    1. Apply the migration in production Supabase:
+       - File: `supabase/migrations/20260312100000_godentist_scheduled_reminders.sql`
+       - Go to Supabase Dashboard -> SQL Editor -> paste and run
+    2. Verify the table `godentist_scheduled_reminders` exists with correct columns
+    3. Verify both indexes were created
+  </how-to-verify>
+  <resume-signal>Type "applied" once migration is live in production, or describe issues</resume-signal>
+</task>
+
 <task type="auto">
-  <name>Task 2: Inngest reminder function + server actions</name>
+  <name>Task 2: Inngest reminder function + route registration</name>
   <files>
     src/inngest/functions/godentist-reminders.ts
     src/app/api/inngest/route.ts
-    src/app/actions/godentist.ts
   </files>
   <action>
     **1. Inngest function** (`src/inngest/functions/godentist-reminders.ts`):
@@ -328,7 +330,7 @@ Output: Robot accepts targetDate, new DB table exists, Inngest function sends re
           const apiKey = wsData?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
           if (!apiKey) throw new Error('WhatsApp API key not configured')
 
-          const renderedText = `¡Hola, ${nombreTitleCase}! Te recordamos tu cita en godentist ${sucursalTitleCase} hoy ${fechaFormateada} a las ${horaCita}. Direccion: ${address}. Te esperamos!`
+          const renderedText = `Hola, ${nombreTitleCase}! Te recordamos tu cita en godentist ${sucursalTitleCase} hoy ${fechaFormateada} a las ${horaCita}. Direccion: ${address}. Te esperamos!`
 
           const result = await sendTemplateMessage(domainCtx, {
             conversationId,
@@ -380,125 +382,14 @@ Output: Robot accepts targetDate, new DB table exists, Inngest function sends re
     **2. Register in Inngest route** (`src/app/api/inngest/route.ts`):
     - Import `godentistReminderFunctions` from `@/inngest/functions/godentist-reminders`
     - Add `...godentistReminderFunctions` to the `functions` array in `serve()`
-
-    **3. Server actions** (`src/app/actions/godentist.ts`):
-
-    **3a. Modify `scrapeAppointments`** to accept optional `targetDate`:
-    - Change signature: `scrapeAppointments(sucursales?: string[], targetDate?: string)`
-    - Pass `targetDate` in the fetch body to robot:
-      ```typescript
-      body: JSON.stringify({
-        workspaceId,
-        credentials: { username: 'JROMERO', password: '123456' },
-        ...(sucursales?.length ? { sucursales } : {}),
-        ...(targetDate ? { targetDate } : {}),
-      }),
-      ```
-
-    **3b. Add `scheduleReminders` server action:**
-    ```typescript
-    export interface ScheduleResult {
-      total: number
-      scheduled: number
-      skipped: number
-      details: Array<{
-        nombre: string
-        telefono: string
-        status: 'scheduled' | 'skipped'
-        reason?: string
-        scheduledAt?: string
-      }>
-    }
-
-    export async function scheduleReminders(
-      appointments: GodentistAppointment[],
-      fechaCita: string,  // YYYY-MM-DD
-      historyId?: string
-    ): Promise<{ error?: string; data?: ScheduleResult }> {
-    ```
-    - Auth + workspace check (same pattern as sendConfirmations)
-    - Import `inngest` from `@/inngest/client`
-    - For each appointment:
-      - Parse `apt.hora` (format like "8:00 AM" or "14:30") into hours/minutes
-      - Calculate `scheduledAt` = fechaCita at (hora_cita - 1 hour) in America/Bogota timezone
-      - Validation: if `scheduledAt` < now + 15 minutes, skip with reason "Hora de envio ya paso o es muy pronto"
-      - Insert into `godentist_scheduled_reminders` table
-      - Send Inngest event `godentist/reminder.send` with all appointment data
-      - Store the returned event ID (from inngest.send) if available, otherwise use reminder ID
-    - Update inngest_event_id on the reminder row after sending
-    - Return ScheduleResult with counts
-
-    **Important for hora parsing:** The appointment hora from GoDentist portal comes as "8:00 AM", "2:30 PM" etc. Parse carefully:
-    ```typescript
-    function parseHora(hora: string): { hours: number; minutes: number } {
-      // Handle "8:00 AM", "2:30 PM", "14:30" formats
-      const match = hora.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
-      if (!match) return { hours: 8, minutes: 0 }  // fallback
-      let hours = parseInt(match[1], 10)
-      const minutes = parseInt(match[2], 10)
-      const period = match[3]?.toUpperCase()
-      if (period === 'PM' && hours < 12) hours += 12
-      if (period === 'AM' && hours === 12) hours = 0
-      return { hours, minutes }
-    }
-
-    function calculateScheduledAt(fechaCita: string, hora: string): Date {
-      const { hours, minutes } = parseHora(hora)
-      // Create date in Colombia timezone
-      // fechaCita is YYYY-MM-DD
-      const [y, m, d] = fechaCita.split('-').map(Number)
-      // Build ISO string for Colombia time, then subtract 1 hour
-      // Colombia is UTC-5, so we add 5 hours to get UTC
-      const citaUtc = new Date(Date.UTC(y, m - 1, d, hours + 5, minutes))
-      // Subtract 1 hour for reminder
-      const reminderUtc = new Date(citaUtc.getTime() - 60 * 60 * 1000)
-      return reminderUtc
-    }
-    ```
-
-    **3c. Add `getScheduledReminders` server action:**
-    ```typescript
-    export interface ScheduledReminderEntry {
-      id: string
-      nombre: string
-      telefono: string
-      hora_cita: string
-      sucursal: string
-      fecha_cita: string
-      scheduled_at: string
-      status: string
-      error: string | null
-      sent_at: string | null
-      created_at: string
-    }
-
-    export async function getScheduledReminders(): Promise<{ error?: string; data?: ScheduledReminderEntry[] }>
-    ```
-    - Auth + workspace check
-    - Query `godentist_scheduled_reminders` WHERE workspace_id, ordered by scheduled_at DESC, limit 50
-    - Return all fields
-
-    **3d. Add `cancelScheduledReminder` server action:**
-    ```typescript
-    export async function cancelScheduledReminder(reminderId: string): Promise<{ error?: string; success?: boolean }>
-    ```
-    - Auth + workspace check
-    - Update status to 'cancelled' WHERE id = reminderId AND workspace_id AND status = 'pending'
-    - Return success (the Inngest function checks status before sending, so marking cancelled is sufficient)
-
-    **IMPORTANT:** Use `await (inngest as any).send(...)` pattern for type assertion (established pattern in this codebase for custom event types).
   </action>
   <verify>
     - `npx tsc --noEmit` passes
-    - All new server actions are exported from godentist.ts
-    - Inngest function is registered in route.ts
-    - New ScheduledReminderEntry and ScheduleResult types are exported
+    - Inngest function is registered in route.ts (grep for godentistReminderFunctions)
   </verify>
   <done>
     Inngest godentist-reminder-send function uses step.sleepUntil then sends template (checking cancelled status first).
-    Server actions scheduleReminders, getScheduledReminders, cancelScheduledReminder all work with proper auth/workspace checks.
-    scrapeAppointments passes optional targetDate to robot.
-    Inngest route serves the new function.
+    Function registered in Inngest serve() route.
   </done>
 </task>
 
@@ -506,18 +397,17 @@ Output: Robot accepts targetDate, new DB table exists, Inngest function sends re
 
 <verification>
 1. `npx tsc --noEmit` passes in both main project and robot-godentist
-2. All new types and server actions are properly exported
+2. All new types are properly exported
 3. Inngest function registered in serve() route
 4. Migration SQL is valid and creates the correct table
+5. Migration applied in production BEFORE code deploy (checkpoint gate)
 </verification>
 
 <success_criteria>
 - Robot scrapeAppointments accepts targetDate param (YYYY-MM-DD)
-- godentist_scheduled_reminders table migration ready to apply
+- godentist_scheduled_reminders table migration ready and applied
 - Inngest function sleeps until scheduled_at, checks status, sends template
-- scheduleReminders calculates correct send time (1h before appointment, Colombia TZ)
-- cancelScheduledReminder marks as cancelled (Inngest function skips cancelled)
-- getScheduledReminders returns list for workspace
+- Cancelled reminders are skipped by Inngest function
 </success_criteria>
 
 <output>

@@ -5,32 +5,34 @@ type: execute
 wave: 2
 depends_on: ["01"]
 files_modified:
-  - src/app/(dashboard)/confirmaciones/confirmaciones-panel.tsx
-autonomous: false
+  - src/app/actions/godentist.ts
+autonomous: true
 
 must_haves:
   truths:
-    - "Host can select any date (today, tomorrow, or calendar) before scraping"
-    - "After scrape preview, host chooses between sending confirmations or scheduling reminders"
-    - "Programacion tab shows pending reminders with cancel button"
-    - "Programacion tab shows history of sent/failed/cancelled reminders"
-    - "All timestamps in the UI display in Colombia timezone"
+    - "Host can schedule reminders for scraped appointments and see confirmation counts"
+    - "Host can list all scheduled reminders for the workspace"
+    - "Host can cancel a pending reminder before it fires"
   artifacts:
-    - path: "src/app/(dashboard)/confirmaciones/confirmaciones-panel.tsx"
-      provides: "Date picker, action selector, Programacion tab, timezone fix"
-      min_lines: 900
+    - path: "src/app/actions/godentist.ts"
+      provides: "scheduleReminders, getScheduledReminders, cancelScheduledReminder server actions"
+      exports: ["scheduleReminders", "getScheduledReminders", "cancelScheduledReminder"]
   key_links:
-    - from: "src/app/(dashboard)/confirmaciones/confirmaciones-panel.tsx"
-      to: "src/app/actions/godentist.ts"
-      via: "imports scheduleReminders, getScheduledReminders, cancelScheduledReminder"
-      pattern: "import.*scheduleReminders.*from.*godentist"
+    - from: "src/app/actions/godentist.ts"
+      to: "src/inngest/client.ts"
+      via: "inngest.send for godentist/reminder.send event"
+      pattern: "inngest\\.send.*godentist/reminder"
+    - from: "src/app/actions/godentist.ts"
+      to: "supabase godentist_scheduled_reminders table"
+      via: "createAdminClient insert/select/update"
+      pattern: "godentist_scheduled_reminders"
 ---
 
 <objective>
-Add date picker, post-scrape action selector (confirm vs schedule reminders), new Programacion tab, and fix timezone display across the entire confirmaciones panel.
+Create all server actions for GoDentist reminder scheduling: schedule reminders with timezone-aware send-time calculation, list reminders, and cancel pending reminders.
 
-Purpose: The host can scrape any date, choose what to do with results (send now or schedule later), and manage scheduled reminders from a dedicated tab.
-Output: Complete UI for the GoDentist scraping general feature.
+Purpose: Wire the Inngest function (Plan 01) to the UI (Plan 03) through server actions that handle timezone math, validation, and DB operations.
+Output: Three server actions ready for UI consumption, plus targetDate passthrough in scrapeAppointments.
 </objective>
 
 <execution_context>
@@ -41,188 +43,146 @@ Output: Complete UI for the GoDentist scraping general feature.
 <context>
 @.planning/standalone/godentist-scraping-general/CONTEXT.md
 @.planning/standalone/godentist-scraping-general/01-SUMMARY.md
-@src/app/(dashboard)/confirmaciones/confirmaciones-panel.tsx
 @src/app/actions/godentist.ts
+@src/inngest/client.ts
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Date picker + action selector + Programacion tab + timezone fix</name>
-  <files>src/app/(dashboard)/confirmaciones/confirmaciones-panel.tsx</files>
+  <name>Task 1: Server actions for reminder scheduling, listing, and cancellation</name>
+  <files>src/app/actions/godentist.ts</files>
   <action>
-    Modify the existing `confirmaciones-panel.tsx`. This is a single large component file (~811 lines). Changes are additive to existing functionality.
+    Modify `src/app/actions/godentist.ts` to add three new server actions and update one existing one.
 
-    **1. New imports:**
-    - Add imports from godentist.ts: `scheduleReminders`, `getScheduledReminders`, `cancelScheduledReminder`, `type ScheduledReminderEntry`, `type ScheduleResult`
-    - Add `Calendar` icon from lucide-react
-    - Keep all existing imports
+    **1. Modify `scrapeAppointments`** to accept optional `targetDate`:
+    - Change signature: `scrapeAppointments(sucursales?: string[], targetDate?: string)`
+    - Pass `targetDate` in the fetch body to robot:
+      ```typescript
+      body: JSON.stringify({
+        workspaceId,
+        credentials: { username: 'JROMERO', password: '123456' },
+        ...(sucursales?.length ? { sucursales } : {}),
+        ...(targetDate ? { targetDate } : {}),
+      }),
+      ```
 
-    **2. Extend Tab type:**
+    **2. Add hora parsing helpers** (file-level, not exported):
     ```typescript
-    type Tab = 'scrape' | 'history' | 'programacion'
+    function parseHora(hora: string): { hours: number; minutes: number } {
+      // Handle "8:00 AM", "2:30 PM", "14:30" formats
+      const match = hora.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+      if (!match) return { hours: 8, minutes: 0 }  // fallback
+      let hours = parseInt(match[1], 10)
+      const minutes = parseInt(match[2], 10)
+      const period = match[3]?.toUpperCase()
+      if (period === 'PM' && hours < 12) hours += 12
+      if (period === 'AM' && hours === 12) hours = 0
+      return { hours, minutes }
+    }
+
+    function calculateScheduledAt(fechaCita: string, hora: string): Date {
+      const { hours, minutes } = parseHora(hora)
+      // fechaCita is YYYY-MM-DD, hora is appointment time in Colombia
+      const [y, m, d] = fechaCita.split('-').map(Number)
+      // Colombia is UTC-5: add 5 hours to get UTC equivalent
+      const citaUtc = new Date(Date.UTC(y, m - 1, d, hours + 5, minutes))
+      // Subtract 1 hour for reminder (send 1h before appointment)
+      const reminderUtc = new Date(citaUtc.getTime() - 60 * 60 * 1000)
+      return reminderUtc
+    }
     ```
 
-    **3. Date picker state (add to existing state):**
+    **3. Add `scheduleReminders` server action:**
     ```typescript
-    const [scrapeDate, setScrapeDate] = useState<string>('')  // YYYY-MM-DD or empty for auto
+    export interface ScheduleResult {
+      total: number
+      scheduled: number
+      skipped: number
+      details: Array<{
+        nombre: string
+        telefono: string
+        status: 'scheduled' | 'skipped'
+        reason?: string
+        scheduledAt?: string
+      }>
+    }
+
+    export async function scheduleReminders(
+      appointments: GodentistAppointment[],
+      fechaCita: string,  // YYYY-MM-DD
+      historyId?: string
+    ): Promise<{ error?: string; data?: ScheduleResult }>
     ```
+    - Auth + workspace check (same pattern as sendConfirmations)
+    - Import `inngest` from `@/inngest/client`
+    - For each appointment:
+      - Calculate `scheduledAt` using `calculateScheduledAt(fechaCita, apt.hora)`
+      - Validation: if `scheduledAt` < now + 15 minutes, skip with reason "Hora de envio ya paso o es muy pronto"
+      - Insert into `godentist_scheduled_reminders` table
+      - Send Inngest event `godentist/reminder.send` with all appointment data
+      - Store the returned event ID (from inngest.send) if available, otherwise use reminder ID
+    - Update inngest_event_id on the reminder row after sending
+    - Return ScheduleResult with counts
 
-    **4. Date picker UI** - Add BEFORE the sucursal toggle chips and the "Obtener citas" button, when `phase === 'idle'`:
-    - Section with label "Fecha del scrape"
-    - Three quick buttons: "Hoy", "Manana", "Otra fecha"
-    - When "Hoy" clicked: set scrapeDate to today (Colombia time)
-    - When "Manana" clicked: set scrapeDate to tomorrow (Colombia time)
-    - When "Otra fecha" clicked: show an `<input type="date">` field
-    - Helper to get today in Colombia:
-      ```typescript
-      function getColombiaToday(): string {
-        return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' })
-      }
-      function getColombiaTomorrow(): string {
-        const d = new Date()
-        d.setDate(d.getDate() + 1)
-        return d.toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' })
-      }
-      ```
-    - Show selected date as a badge/label below the buttons
-    - If no date selected (empty), show text: "Se usara el proximo dia habil (por defecto)"
-
-    **5. Modify handleScrape** to pass scrapeDate:
+    **4. Add `getScheduledReminders` server action:**
     ```typescript
-    const res = await scrapeAppointments(Array.from(activeSucursales), scrapeDate || undefined)
+    export interface ScheduledReminderEntry {
+      id: string
+      nombre: string
+      telefono: string
+      hora_cita: string
+      sucursal: string
+      fecha_cita: string
+      scheduled_at: string
+      status: string
+      error: string | null
+      sent_at: string | null
+      created_at: string
+    }
+
+    export async function getScheduledReminders(): Promise<{ error?: string; data?: ScheduledReminderEntry[] }>
     ```
+    - Auth + workspace check
+    - Query `godentist_scheduled_reminders` WHERE workspace_id, ordered by scheduled_at DESC, limit 50
+    - Return all fields
 
-    **6. Action selector UI** - In the `phase === 'preview'` section, REPLACE the single "Enviar confirmaciones" button with an action choice:
-    - Two buttons side by side:
-      - "Enviar confirmaciones" (Send icon) - existing behavior
-      - "Programar recordatorios" (Clock icon) - new behavior
-    - Both buttons show the count of selected appointments
-    - "Enviar confirmaciones" calls existing `handleSend()`
-    - "Programar recordatorios" calls new `handleSchedule()`:
-      ```typescript
-      async function handleSchedule() {
-        setPhase('sending')  // reuse sending state for loading
-        setError('')
+    **5. Add `cancelScheduledReminder` server action:**
+    ```typescript
+    export async function cancelScheduledReminder(reminderId: string): Promise<{ error?: string; success?: boolean }>
+    ```
+    - Auth + workspace check
+    - Update status to 'cancelled' WHERE id = reminderId AND workspace_id AND status = 'pending'
+    - Return success (the Inngest function checks status before sending, so marking cancelled is sufficient)
 
-        const toSchedule = appointments.filter((_, i) => selected.has(i))
-        const res = await scheduleReminders(toSchedule, date, historyId)
-
-        if (res.error || !res.data) {
-          setError(res.error || 'Error desconocido')
-          setPhase('preview')
-          return
-        }
-
-        setScheduleResult(res.data)
-        setPhase('done')
-      }
-      ```
-    - Add state: `const [scheduleResult, setScheduleResult] = useState<ScheduleResult | null>(null)`
-    - In `phase === 'done'`, check if `scheduleResult` exists (show schedule summary) or `result` exists (show send summary)
-    - Schedule summary shows: X programados, Y omitidos (con razon)
-    - Add "Ver programacion" button in schedule done state that switches to programacion tab
-
-    **7. Programacion tab content:**
-    - Add new state:
-      ```typescript
-      const [reminders, setReminders] = useState<ScheduledReminderEntry[]>([])
-      const [remindersLoading, setRemindersLoading] = useState(false)
-      const [cancellingId, setCancellingId] = useState<string | null>(null)
-      ```
-    - Load reminders when tab switches to 'programacion' (same pattern as history tab)
-    - Split into two sections:
-      **a. Pendientes** (status === 'pending'):
-      - Table/card list with columns: Nombre, Telefono, Hora cita, Hora envio, Sucursal
-      - Each row has a "Cancelar" button (red, small)
-      - "Hora envio" shows `scheduled_at` formatted in Colombia timezone: `new Date(r.scheduled_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })`
-      - Cancel handler:
-        ```typescript
-        async function handleCancelReminder(id: string) {
-          setCancellingId(id)
-          const res = await cancelScheduledReminder(id)
-          if (res.success) {
-            setReminders(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled' } : r))
-          }
-          setCancellingId(null)
-        }
-        ```
-      - Show count badge "N pendientes"
-      **b. Historial** (status !== 'pending'):
-      - Table/card list with: Nombre, Telefono, Sucursal, Estado (badge: sent=green, failed=red, cancelled=gray), Fecha envio
-      - No actions, read-only
-      - Badge colors: sent -> green, failed -> red/destructive, cancelled -> gray/secondary
-    - Empty states: "No hay recordatorios programados" / "No hay historial de recordatorios"
-    - Refresh button at top of tab
-
-    **8. Tab navigation update:**
-    - Add "Programacion" tab button alongside "Nuevo scrape" and "Historial"
-    - Use Clock icon for Programacion tab
-
-    **9. Timezone fix** (R5 from CONTEXT.md):
-    - In the history tab, find all `created_at` and `sent_at` displays
-    - Replace raw date display with: `new Date(entry.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })`
-    - Same for `sent_at`: `new Date(entry.sent_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })`
-    - Verify scraped_date display (already YYYY-MM-DD string, no conversion needed)
-
-    **10. Reset function update:**
-    - Add `setScheduleResult(null)` to `handleReset()`
-    - Add `setScrapeDate('')` to `handleReset()`
-
-    **Styling guidelines:**
-    - Use existing shadcn/ui components (Button, Card, Badge, Input)
-    - Tailwind classes consistent with existing panel style
-    - Quick date buttons: `variant="outline"` with `variant="default"` for selected
-    - Action buttons: primary color for both, icons differentiate
-    - Status badges match existing pattern (green for success, red for error)
+    **IMPORTANT:** Use `await (inngest as any).send(...)` pattern for type assertion (established pattern in this codebase for custom event types).
   </action>
   <verify>
     - `npx tsc --noEmit` passes
-    - No React key warnings in the component
-    - Component renders without errors in dev server (port 3020)
+    - All new server actions are exported from godentist.ts
+    - New ScheduledReminderEntry and ScheduleResult types are exported
+    - grep confirms: scheduleReminders, getScheduledReminders, cancelScheduledReminder all exported
   </verify>
   <done>
-    Date picker with Hoy/Manana/calendar appears before scrape button.
-    After scrape, two action buttons: "Enviar confirmaciones" and "Programar recordatorios".
-    Programacion tab shows pending reminders with cancel, and history of executed reminders.
-    All timestamps display in Colombia timezone.
+    Server actions scheduleReminders, getScheduledReminders, cancelScheduledReminder all work with proper auth/workspace checks.
+    scrapeAppointments passes optional targetDate to robot.
+    Timezone math correctly calculates send time as 1h before appointment in Colombia time.
   </done>
-</task>
-
-<task type="checkpoint:human-verify" gate="blocking">
-  <what-built>Complete GoDentist scraping general feature: date picker, action selector, scheduling via Inngest, Programacion tab</what-built>
-  <how-to-verify>
-    1. Go to /confirmaciones
-    2. Verify date picker appears with "Hoy", "Manana", and calendar option
-    3. Select a date and click "Obtener citas" -- verify robot scrapes for that date
-    4. In preview, verify two action buttons appear: "Enviar confirmaciones" and "Programar recordatorios"
-    5. Select some appointments and click "Programar recordatorios"
-    6. Verify scheduling result shows (count programmed, count skipped with reason)
-    7. Switch to "Programacion" tab -- verify pending reminders appear with cancel button
-    8. Cancel one reminder -- verify it moves to history section as "cancelled"
-    9. Check timestamps in History tab -- should show Colombia timezone
-    10. NOTE: Template recordatorio_cita_godentist must exist in WhatsApp Business for actual sends to work. Scheduling works regardless.
-  </how-to-verify>
-  <resume-signal>Type "approved" or describe issues</resume-signal>
 </task>
 
 </tasks>
 
 <verification>
 1. `npx tsc --noEmit` passes
-2. Date picker correctly calculates today/tomorrow in Colombia timezone
-3. Action selector shows both options after scrape
-4. Programacion tab loads and displays reminders
-5. Cancel button updates status to cancelled
-6. All timestamps in Colombia timezone
+2. All server actions exported and follow auth/workspace pattern
+3. calculateScheduledAt correctly converts Colombia time to UTC
 </verification>
 
 <success_criteria>
-- Host selects date before scrape (or uses default)
-- Host chooses action: send confirmations OR schedule reminders
-- Scheduling calculates correct send time (1h before, validation >= now + 15min)
-- Programacion tab shows pending (with cancel) and history (read-only)
-- All timestamps in America/Bogota timezone
+- scheduleReminders calculates correct send time (1h before appointment, Colombia TZ)
+- Appointments too close to now (< 15min) are skipped with explanation
+- cancelScheduledReminder marks as cancelled (Inngest function skips cancelled)
+- getScheduledReminders returns list for workspace ordered by scheduled_at DESC
 </success_criteria>
 
 <output>

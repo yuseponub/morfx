@@ -230,13 +230,13 @@ export async function sendConfirmations(
           .catch(err => console.error(`[godentist] Link contact error: ${err}`))
       }
 
-      // Step 4: Assign tag to conversation too
-      if (tagName) {
+      // Step 4: Assign tag to contact (contact is source of truth for tags)
+      if (tagName && contactId) {
         await assignTag(domainCtx, {
-          entityType: 'conversation',
-          entityId: conversationId,
+          entityType: 'contact',
+          entityId: contactId,
           tagName,
-        }).catch(err => console.error(`[godentist] Conv tag error: ${err}`))
+        }).catch(err => console.error(`[godentist] Contact tag error: ${err}`))
       }
 
       // Step 5: Send template via domain layer (sends + stores in DB)

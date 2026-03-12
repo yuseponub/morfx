@@ -24,13 +24,13 @@ import type { DomainContext, DomainResult } from './types'
 // ============================================================================
 
 export interface AssignTagParams {
-  entityType: 'contact' | 'order' | 'conversation'
+  entityType: 'contact' | 'order'
   entityId: string
   tagName: string
 }
 
 export interface RemoveTagParams {
-  entityType: 'contact' | 'order' | 'conversation'
+  entityType: 'contact' | 'order'
   entityId: string
   tagName: string
 }
@@ -81,7 +81,6 @@ export async function assignTag(
     const junctionMap = {
       contact: { table: 'contact_tags', fk: 'contact_id' },
       order: { table: 'order_tags', fk: 'order_id' },
-      conversation: { table: 'conversation_tags', fk: 'conversation_id' },
     } as const
     const { table: junctionTable, fk: fkColumn } = junctionMap[params.entityType]
 
@@ -92,11 +91,6 @@ export async function assignTag(
 
     if (linkError && linkError.code !== '23505') {
       return { success: false, error: `Error al asignar etiqueta: ${linkError.message}` }
-    }
-
-    // Conversations: no trigger emission, just return success
-    if (params.entityType === 'conversation') {
-      return { success: true, data: { tagId: tag.id } }
     }
 
     // Step 4: Fetch contactId + contact info for rich trigger context
@@ -204,7 +198,6 @@ export async function removeTag(
     const junctionMap = {
       contact: { table: 'contact_tags', fk: 'contact_id' },
       order: { table: 'order_tags', fk: 'order_id' },
-      conversation: { table: 'conversation_tags', fk: 'conversation_id' },
     } as const
     const { table: junctionTable, fk: fkColumn } = junctionMap[params.entityType]
 
@@ -217,11 +210,6 @@ export async function removeTag(
 
     if (deleteError) {
       return { success: false, error: `Error al quitar etiqueta: ${deleteError.message}` }
-    }
-
-    // Conversations: no trigger emission, just return success
-    if (params.entityType === 'conversation') {
-      return { success: true, data: { tagId: tag.id } }
     }
 
     // Step 4: Fetch contactId + contact info for trigger context

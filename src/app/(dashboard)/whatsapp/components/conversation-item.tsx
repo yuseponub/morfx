@@ -48,9 +48,8 @@ export function ConversationItem({
   const timerDate = conversation.last_customer_message_at || conversation.last_message_at
   const isCustomerTimer = !!conversation.last_customer_message_at
 
-  // Combine tags: conversation tags first, then contact tags (marked as inherited)
+  // Tags from linked contact (source of truth)
   const conversationTags = conversation.tags || []
-  const contactTags = conversation.contactTags || []
 
   // Get primary order emoji for avatar indicator
   // Try to find first order with emoji (even if closed, if it has order_state configured)

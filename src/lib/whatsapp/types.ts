@@ -218,9 +218,8 @@ export interface ReactionContent {
 
 /**
  * Conversation with contact details for UI display.
- * Tags are split into two sources:
- * - tags: Direct conversation tags (applied to the conversation)
- * - contactTags: Inherited from linked contact (read-only in conversation context)
+ * Tags come from the linked contact (source of truth).
+ * conversation_tags is deprecated — contact is the single source for tags.
  */
 export interface ConversationWithDetails extends Conversation {
   contact: {
@@ -231,14 +230,8 @@ export interface ConversationWithDetails extends Conversation {
     city: string | null
     is_client?: boolean
   } | null
-  /** Direct tags applied to this conversation */
+  /** Tags from linked contact (source of truth) */
   tags: Array<{
-    id: string
-    name: string
-    color: string
-  }>
-  /** Inherited tags from linked contact (read-only display) */
-  contactTags: Array<{
     id: string
     name: string
     color: string

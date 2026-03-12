@@ -159,32 +159,15 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
                   </div>
                 )}
 
-                {/* Tags section - dual display */}
-                {(conversation.tags.length > 0 || (conversation.contactTags && conversation.contactTags.length > 0)) && (
-                  <div className="pt-2 space-y-2">
-                    {/* Conversation-specific tags */}
-                    {conversation.tags.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Etiquetas de chat</p>
-                        <div className="flex flex-wrap gap-1">
-                          {conversation.tags.map((tag) => (
-                            <TagBadge key={tag.id} tag={tag} size="sm" />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Contact inherited tags */}
-                    {conversation.contactTags && conversation.contactTags.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Etiquetas de contacto</p>
-                        <div className="flex flex-wrap gap-1">
-                          {conversation.contactTags.map((tag) => (
-                            <TagBadge key={tag.id} tag={tag} size="sm" />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {/* Tags section - from linked contact (source of truth) */}
+                {conversation.tags.length > 0 && (
+                  <div className="pt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Etiquetas</p>
+                    <div className="flex flex-wrap gap-1">
+                      {conversation.tags.map((tag) => (
+                        <TagBadge key={tag.id} tag={tag} size="sm" />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

@@ -24,6 +24,8 @@ import { toast } from 'sonner'
 interface ConversationTagInputProps {
   /** Conversation ID to manage tags for */
   conversationId: string
+  /** Contact ID linked to this conversation (null = no contact linked) */
+  contactId: string | null
   /** Currently applied tags */
   currentTags: Array<{ id: string; name: string; color: string }>
   /** Callback when tags change */
@@ -35,16 +37,19 @@ interface ConversationTagInputProps {
 }
 
 /**
- * Tag input for managing conversation-specific tags.
+ * Tag input for managing contact tags via conversation.
  * Shows only tags with applies_to = 'whatsapp' or 'both'.
+ * When no contact is linked (contactId=null), shows disabled state.
  */
 export function ConversationTagInput({
   conversationId,
+  contactId,
   currentTags,
   onTagsChange,
   disabled = false,
   compact = false,
 }: ConversationTagInputProps) {
+  const isDisabled = disabled || !contactId
   const [open, setOpen] = useState(false)
   const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string; color: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -103,11 +108,15 @@ export function ConversationTagInput({
   if (compact) {
     return (
       <div className="flex items-center gap-1">
+        {/* No contact linked message */}
+        {!contactId && currentTags.length === 0 && (
+          <span className="text-xs text-muted-foreground">Vincular contacto primero</span>
+        )}
         {/* Current tags as small badges */}
         {currentTags.slice(0, 3).map((tag) => (
           <div key={tag.id} className="group relative">
             <TagBadge tag={tag} size="sm" />
-            {!disabled && (
+            {!isDisabled && (
               <button
                 onClick={() => handleRemoveTag(tag.id)}
                 className="absolute -top-1 -right-1 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
@@ -123,7 +132,7 @@ export function ConversationTagInput({
         )}
 
         {/* Add tag button */}
-        {!disabled && (
+        {!isDisabled && (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -175,7 +184,7 @@ export function ConversationTagInput({
           {currentTags.map((tag) => (
             <div key={tag.id} className="group relative inline-flex">
               <TagBadge tag={tag} size="sm" />
-              {!disabled && (
+              {!isDisabled && (
                 <button
                   onClick={() => handleRemoveTag(tag.id)}
                   className="absolute -top-1 -right-1 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
@@ -190,7 +199,7 @@ export function ConversationTagInput({
       )}
 
       {/* Add tag popover */}
-      {!disabled && (
+      {!isDisabled && (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button

@@ -56,6 +56,7 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
   } | null>(null)
   const [isConfirming, setIsConfirming] = useState(false)
   const [appointmentLoading, setAppointmentLoading] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   // Load agent status when conversation changes
   useEffect(() => {
@@ -160,6 +161,7 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
     const phone = conversation.contact?.phone || conversation.phone
     const name = conversation.contact?.name || conversation.profile_name || ''
     if (!phone || !name) return
+    setShowConfirmDialog(false)
     setIsConfirming(true)
     const result = await confirmAppointment(phone, name)
     setIsConfirming(false)
@@ -209,6 +211,7 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
           <div className="flex items-center gap-2 ml-2">
             <ConversationTagInput
               conversationId={conversation.id}
+              contactId={conversation.contact_id}
               currentTags={conversation.tags || []}
               onTagsChange={handleTagsChange}
               compact
@@ -249,7 +252,7 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
               size="sm"
               className="h-8 gap-1 text-xs"
               disabled={isConfirming || appointmentInfo.estado.toLowerCase().includes('confirmada')}
-              onClick={handleConfirmAppointment}
+              onClick={() => setShowConfirmDialog(true)}
               title={`Confirmar cita: ${appointmentInfo.nombre} - ${appointmentInfo.hora} - ${appointmentInfo.sucursal}`}
             >
               {isConfirming ? (
@@ -352,6 +355,36 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
 
       {/* Window indicator (only shows when <2h remaining or closed) */}
       <WindowIndicator lastCustomerMessageAt={conversation.last_customer_message_at} />
+
+      {/* Confirm appointment dialog */}
+      {appointmentInfo && (
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirmar cita</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <p className="text-sm">
+                ¿Deseas confirmar la cita en el portal de GoDentist?
+              </p>
+              <div className="rounded-md border p-3 space-y-1 text-sm">
+                <p><span className="font-medium">Paciente:</span> {appointmentInfo.nombre}</p>
+                <p><span className="font-medium">Hora:</span> {appointmentInfo.hora}</p>
+                <p><span className="font-medium">Sucursal:</span> {appointmentInfo.sucursal}</p>
+                <p><span className="font-medium">Estado actual:</span> {appointmentInfo.estado}</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmAppointment}>
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Edit name dialog */}
       <Dialog open={isEditingName} onOpenChange={setIsEditingName}>

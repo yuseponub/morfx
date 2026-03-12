@@ -599,7 +599,6 @@ export async function scheduleReminders(
 
   const admin = createAdminClient()
   const now = new Date()
-  const fifteenMinFromNow = new Date(now.getTime() + 15 * 60 * 1000)
 
   const result: ScheduleResult = { total: appointments.length, scheduled: 0, skipped: 0, details: [] }
 
@@ -616,19 +615,29 @@ export async function scheduleReminders(
       continue
     }
 
-    const scheduledAt = calculateScheduledAt(fechaCita, apt.hora)
+    // Calculate appointment time in UTC for comparison
+    const { hours, minutes } = parseHora(apt.hora)
+    const [y, m, d] = fechaCita.split('-').map(Number)
+    const citaUtc = new Date(Date.UTC(y, m - 1, d, hours + 5, minutes))
+    const minUntilCita = (citaUtc.getTime() - now.getTime()) / (60 * 1000)
 
-    // If scheduledAt is too close or already past
-    if (scheduledAt < fifteenMinFromNow) {
+    // Rule: reject if less than 45 min before appointment
+    if (minUntilCita < 45) {
       result.skipped++
       result.details.push({
         nombre: apt.nombre,
         telefono: apt.telefono,
         status: 'skipped',
-        reason: 'Hora de envio ya paso o es muy pronto',
+        reason: 'Faltan menos de 45 min para la cita',
       })
       continue
     }
+
+    // If 45-60 min before appointment → send immediately (now + 10s buffer)
+    // If >60 min → send 1h before appointment (as before)
+    const scheduledAt = minUntilCita <= 60
+      ? new Date(now.getTime() + 10 * 1000) // send immediately
+      : new Date(citaUtc.getTime() - 60 * 60 * 1000) // 1h before
 
     try {
       // Insert reminder row

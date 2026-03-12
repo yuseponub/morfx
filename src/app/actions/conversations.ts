@@ -40,7 +40,7 @@ export async function getConversations(
     return []
   }
 
-  // Build query with contact join (tags come through contact) and conversation tags
+  // Build query with contact join (tags come through contact — source of truth)
   // Note: address/city omitted from list query (only used in ContactPanel detail view)
   // Tags select only id, name, color (the 3 fields actually rendered)
   // Determine sort column based on sortBy filter
@@ -52,8 +52,7 @@ export async function getConversations(
     .from('conversations')
     .select(`
       *,
-      contact:contacts!left(id, name, phone, is_client, tags:contact_tags(tag:tags(id, name, color))),
-      conversation_tags:conversation_tags(tag:tags(id, name, color))
+      contact:contacts!left(id, name, phone, is_client, tags:contact_tags(tag:tags(id, name, color)))
     `)
     .eq('workspace_id', workspaceId)
     .order(sortColumn, { ascending: false, nullsFirst: false })
@@ -84,13 +83,9 @@ export async function getConversations(
 
   // Transform and apply client-side filters
   let conversations = (data || []).map((conv) => {
-    // Get tags from linked contact (inherited tags)
+    // Get tags from linked contact (source of truth)
     const contactTagsData = conv.contact?.tags || []
     const inheritedTags = contactTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
-
-    // Get conversation-specific tags (direct tags)
-    const convTagsData = conv.conversation_tags || []
-    const conversationTags = convTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
 
     // Remove nested tags from contact object
     const contact = conv.contact ? { ...conv.contact, tags: undefined } : null
@@ -98,9 +93,7 @@ export async function getConversations(
     return {
       ...conv,
       contact,
-      tags: conversationTags,      // Direct conversation tags
-      contactTags: inheritedTags,  // Inherited from contact (for display)
-      conversation_tags: undefined, // Clean up raw data
+      tags: inheritedTags,
       assigned_name: null, // TODO: fetch from profiles if needed
     }
   }) as ConversationWithDetails[]
@@ -144,8 +137,7 @@ export async function getConversation(
     .from('conversations')
     .select(`
       *,
-      contact:contacts(id, name, phone, email, city, address, is_client, tags:contact_tags(tag:tags(*))),
-      conversation_tags:conversation_tags(tag:tags(*))
+      contact:contacts(id, name, phone, email, city, address, is_client, tags:contact_tags(tag:tags(*)))
     `)
     .eq('id', id)
     .single()
@@ -155,13 +147,9 @@ export async function getConversation(
     return null
   }
 
-  // Transform tags from contact (inherited tags)
+  // Transform tags from contact (source of truth)
   const contactTagsData = data.contact?.tags || []
   const inheritedTags = contactTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
-
-  // Get conversation-specific tags (direct tags)
-  const convTagsData = data.conversation_tags || []
-  const conversationTags = convTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
 
   // Remove nested tags from contact object
   const contact = data.contact ? { ...data.contact, tags: undefined } : null
@@ -169,9 +157,7 @@ export async function getConversation(
   return {
     ...data,
     contact,
-    tags: conversationTags,      // Direct conversation tags
-    contactTags: inheritedTags,  // Inherited from contact (for display)
-    conversation_tags: undefined, // Clean up raw data
+    tags: inheritedTags,
     assigned_name: null,
   } as ConversationWithDetails
 }
@@ -613,11 +599,14 @@ export async function startNewConversation(params: {
 
 // ============================================================================
 // CONVERSATION TAG OPERATIONS
+// Delegates to contact tags — contact is the source of truth.
+// Function signatures preserved for backward compatibility.
 // ============================================================================
 
 /**
- * Add a tag to a conversation.
- * Validates that the tag scope allows WhatsApp usage.
+ * Add a tag to a conversation's linked contact.
+ * Delegates to addTagToContact — contact is the source of truth for tags.
+ * Signature preserved for backward compatibility with UI callers.
  */
 export async function addTagToConversation(
   conversationId: string,
@@ -630,42 +619,33 @@ export async function addTagToConversation(
     return { error: 'No autenticado' }
   }
 
-  // Validate tag exists and check scope
-  const { data: tag, error: tagError } = await supabase
-    .from('tags')
-    .select('id, applies_to')
-    .eq('id', tagId)
+  // Fetch contact_id from conversation
+  const { data: conv, error: convError } = await supabase
+    .from('conversations')
+    .select('contact_id')
+    .eq('id', conversationId)
     .single()
 
-  if (tagError || !tag) {
-    return { error: 'Etiqueta no encontrada' }
+  if (convError || !conv) {
+    return { error: 'Conversacion no encontrada' }
   }
 
-  // Check tag scope - 'orders' only tags cannot be added to conversations
-  if (tag.applies_to === 'orders') {
-    return { error: 'Esta etiqueta solo aplica a pedidos' }
+  if (!conv.contact_id) {
+    return { error: 'Esta conversacion no tiene contacto vinculado' }
   }
 
-  // Insert the tag association
-  const { error } = await supabase
-    .from('conversation_tags')
-    .insert({ conversation_id: conversationId, tag_id: tagId })
-
-  if (error) {
-    // Handle duplicate (tag already added) - not an error
-    if (error.code === '23505') {
-      return { success: true, data: undefined }
-    }
-    console.error('Error adding tag to conversation:', error)
-    return { error: 'Error al agregar la etiqueta' }
-  }
+  // Delegate to contact tag operation
+  const { addTagToContact } = await import('@/app/actions/contacts')
+  const result = await addTagToContact(conv.contact_id, tagId)
 
   revalidatePath('/whatsapp')
-  return { success: true, data: undefined }
+  return result
 }
 
 /**
- * Remove a tag from a conversation.
+ * Remove a tag from a conversation's linked contact.
+ * Delegates to removeTagFromContact — contact is the source of truth for tags.
+ * Signature preserved for backward compatibility with UI callers.
  */
 export async function removeTagFromConversation(
   conversationId: string,
@@ -678,23 +658,32 @@ export async function removeTagFromConversation(
     return { error: 'No autenticado' }
   }
 
-  const { error } = await supabase
-    .from('conversation_tags')
-    .delete()
-    .eq('conversation_id', conversationId)
-    .eq('tag_id', tagId)
+  // Fetch contact_id from conversation
+  const { data: conv, error: convError } = await supabase
+    .from('conversations')
+    .select('contact_id')
+    .eq('id', conversationId)
+    .single()
 
-  if (error) {
-    console.error('Error removing tag from conversation:', error)
-    return { error: 'Error al quitar la etiqueta' }
+  if (convError || !conv) {
+    return { error: 'Conversacion no encontrada' }
   }
 
+  if (!conv.contact_id) {
+    return { error: 'Esta conversacion no tiene contacto vinculado' }
+  }
+
+  // Delegate to contact tag operation
+  const { removeTagFromContact } = await import('@/app/actions/contacts')
+  const result = await removeTagFromContact(conv.contact_id, tagId)
+
   revalidatePath('/whatsapp')
-  return { success: true, data: undefined }
+  return result
 }
 
 /**
- * Get tags for a specific conversation (conversation-specific only, not contact tags).
+ * Get tags for a conversation via its linked contact.
+ * Contact is the source of truth for tags.
  */
 export async function getConversationTags(
   conversationId: string
@@ -706,10 +695,22 @@ export async function getConversationTags(
     return []
   }
 
+  // Fetch contact_id from conversation
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select('contact_id')
+    .eq('id', conversationId)
+    .single()
+
+  if (!conv?.contact_id) {
+    return []
+  }
+
+  // Query contact_tags
   const { data, error } = await supabase
-    .from('conversation_tags')
+    .from('contact_tags')
     .select('tag:tags(id, name, color)')
-    .eq('conversation_id', conversationId)
+    .eq('contact_id', conv.contact_id)
 
   if (error) {
     console.error('Error fetching conversation tags:', error)

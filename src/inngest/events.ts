@@ -646,10 +646,38 @@ export type RobotEvents = {
   }
 }
 
+// ============================================================================
+// GoDentist Events (Standalone: Scraping General)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot).
+ * GoDentist reminder events for scheduled WhatsApp appointment reminders.
+ * Emitted when reminders are scheduled after scraping appointments.
+ * Consumed by godentist-reminder-send Inngest function.
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents
+export type GodentistEvents = {
+  /**
+   * Emitted to schedule a WhatsApp reminder for a GoDentist appointment.
+   * The Inngest function sleeps until scheduledAt, then sends the template.
+   */
+  'godentist/reminder.send': {
+    data: {
+      reminderId: string
+      workspaceId: string
+      nombre: string
+      telefono: string
+      horaCita: string
+      sucursal: string
+      fechaCita: string
+      scheduledAt: string  // ISO timestamp
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents
 
 /**
  * Type helper for extracting event data by name

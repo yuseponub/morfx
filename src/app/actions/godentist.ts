@@ -337,6 +337,168 @@ export async function getScrapeHistory(): Promise<{ error?: string; data?: Scrap
   }
 }
 
+// ── Confirm Appointment Actions ──
+
+function normalizePhone(phone: string): string {
+  return phone.replace(/^\+/, '')
+}
+
+function convertDateToRobotFormat(yyyymmdd: string): string {
+  const [year, month, day] = yyyymmdd.split('-')
+  return `${day}-${month}-${year}`
+}
+
+export interface ConfirmAppointmentResult {
+  error?: string
+  success?: boolean
+  data?: {
+    patientName: string
+    previousEstado?: string
+    newEstado?: string
+    screenshots?: string[]
+  }
+}
+
+export interface AppointmentInfoResult {
+  error?: string
+  data?: {
+    nombre: string
+    hora: string
+    sucursal: string
+    estado: string
+    scraped_date: string
+  } | null
+}
+
+export async function getAppointmentForContact(contactPhone: string): Promise<AppointmentInfoResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const { data: latestScrape, error: scrapeError } = await admin
+    .from('godentist_scrape_history')
+    .select('appointments, scraped_date')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (scrapeError || !latestScrape) {
+    return { data: null }
+  }
+
+  const appointments = latestScrape.appointments as unknown as GodentistAppointment[]
+  const normalizedInput = normalizePhone(contactPhone)
+
+  const match = appointments.find(apt =>
+    normalizePhone(apt.telefono) === normalizedInput
+  )
+
+  if (!match) return { data: null }
+
+  return {
+    data: {
+      nombre: match.nombre,
+      hora: match.hora,
+      sucursal: match.sucursal,
+      estado: match.estado,
+      scraped_date: latestScrape.scraped_date,
+    },
+  }
+}
+
+export async function confirmAppointment(
+  contactPhone: string,
+  contactName: string
+): Promise<ConfirmAppointmentResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const { data: latestScrape, error: scrapeError } = await admin
+    .from('godentist_scrape_history')
+    .select('appointments, scraped_date')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (scrapeError || !latestScrape) {
+    return { error: 'No se encontro historial de scrape reciente' }
+  }
+
+  const appointments = latestScrape.appointments as unknown as GodentistAppointment[]
+  const normalizedInput = normalizePhone(contactPhone)
+
+  const appointment = appointments.find(apt =>
+    normalizePhone(apt.telefono) === normalizedInput
+  )
+
+  if (!appointment) {
+    return { error: 'No se encontro cita para este contacto en el ultimo scrape' }
+  }
+
+  const estadoLower = appointment.estado.toLowerCase()
+  if (estadoLower.includes('confirmada')) {
+    return { error: 'La cita ya esta confirmada' }
+  }
+  if (estadoLower.includes('cancelada')) {
+    return { error: 'La cita esta cancelada' }
+  }
+
+  const ddmmyyyy = convertDateToRobotFormat(latestScrape.scraped_date)
+
+  try {
+    const res = await fetch(`${ROBOT_URL}/api/confirm-appointment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId,
+        credentials: { username: 'JROMERO', password: '123456' },
+        patientName: appointment.nombre,
+        date: ddmmyyyy,
+        sucursal: appointment.sucursal,
+      }),
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      return { error: `Robot error (${res.status}): ${text}` }
+    }
+
+    const body = await res.json()
+
+    if (body.success) {
+      return {
+        success: true,
+        data: {
+          patientName: appointment.nombre,
+          previousEstado: appointment.estado,
+          newEstado: body.newEstado || 'Confirmada',
+          screenshots: body.screenshots,
+        },
+      }
+    }
+
+    return {
+      error: body.error || 'Error desconocido',
+      data: body.screenshots ? { patientName: appointment.nombre, screenshots: body.screenshots } : undefined,
+    }
+  } catch (err) {
+    return { error: `Error conectando al robot: ${err instanceof Error ? err.message : String(err)}` }
+  }
+}
+
 // ── Contact Helper ──
 
 /**

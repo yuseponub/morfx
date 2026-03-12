@@ -443,27 +443,35 @@ export async function confirmAppointment(
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
   const admin = createAdminClient()
-  const { data: latestScrape, error: scrapeError } = await admin
+  const { data: scrapes, error: scrapeError } = await admin
     .from('godentist_scrape_history')
     .select('appointments, scraped_date')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+    .limit(10)
 
-  if (scrapeError || !latestScrape) {
+  if (scrapeError || !scrapes?.length) {
     return { error: 'No se encontro historial de scrape reciente' }
   }
 
-  const appointments = latestScrape.appointments as unknown as GodentistAppointment[]
   const normalizedInput = normalizePhone(contactPhone)
+  let appointment: GodentistAppointment | undefined
+  let scrapedDate: string = ''
 
-  const appointment = appointments.find(apt =>
-    normalizePhone(apt.telefono) === normalizedInput
-  )
+  for (const scrape of scrapes) {
+    const appointments = scrape.appointments as unknown as GodentistAppointment[]
+    const match = appointments.find(apt =>
+      normalizePhone(apt.telefono) === normalizedInput
+    )
+    if (match) {
+      appointment = match
+      scrapedDate = scrape.scraped_date
+      break
+    }
+  }
 
   if (!appointment) {
-    return { error: 'No se encontro cita para este contacto en el ultimo scrape' }
+    return { error: 'No se encontro cita para este contacto en los scrapes recientes' }
   }
 
   const estadoLower = appointment.estado.toLowerCase()
@@ -474,7 +482,7 @@ export async function confirmAppointment(
     return { error: 'La cita esta cancelada' }
   }
 
-  const ddmmyyyy = convertDateToRobotFormat(latestScrape.scraped_date)
+  const ddmmyyyy = convertDateToRobotFormat(scrapedDate)
 
   try {
     const res = await fetch(`${ROBOT_URL}/api/confirm-appointment`, {

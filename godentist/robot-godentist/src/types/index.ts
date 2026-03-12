@@ -18,6 +18,7 @@ export interface ScrapeAppointmentsRequest {
   workspaceId: string
   credentials: Credentials
   sucursales?: string[]  // Filter: only scrape these sucursales (if omitted, scrape all)
+  targetDate?: string    // YYYY-MM-DD format: scrape this specific date (if omitted, next working day)
 }
 
 export interface ScrapeAppointmentsResponse {

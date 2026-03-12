@@ -162,12 +162,19 @@ export class GoDentistAdapter {
 
   // ── Scrape All Sucursales ──
 
-  async scrapeAppointments(filterSucursales?: string[]): Promise<{ date: string; appointments: Appointment[]; errors: string[] }> {
+  async scrapeAppointments(filterSucursales?: string[], targetDate?: string): Promise<{ date: string; appointments: Appointment[]; errors: string[] }> {
     if (!this.page) throw new Error('Browser not initialized')
 
-    const targetDate = this.getNextWorkingDay()
-    const dateStr = this.formatDateDD_MM_YYYY(targetDate)
-    const dateLabel = this.formatDateYYYY_MM_DD(targetDate)
+    let target: Date
+    if (targetDate) {
+      // Parse YYYY-MM-DD into Date object
+      const [y, m, d] = targetDate.split('-').map(Number)
+      target = new Date(y, m - 1, d)
+    } else {
+      target = this.getNextWorkingDay()
+    }
+    const dateStr = this.formatDateDD_MM_YYYY(target)
+    const dateLabel = this.formatDateYYYY_MM_DD(target)
 
     console.log(`[GoDentist] Target date: ${dateLabel} (${dateStr})`)
     if (filterSucursales?.length) {

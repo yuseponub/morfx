@@ -73,6 +73,7 @@ export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
   retoma_datos: ['retoma_datos'],
   retoma_datos_parciales: ['retoma_datos_parciales'],
   pedir_datos_quiero_comprar_implicito: ['pedir_datos_quiero_comprar_implicito'],
+  retoma_datos_implicito: ['retoma_datos_implicito'],
 }
 
 // ============================================================================
@@ -149,6 +150,7 @@ export const V3_TO_V1_INTENT_MAP: Record<string, string[]> = {
   retoma_datos: ['retoma_datos'],
   retoma_datos_parciales: ['retoma_datos_parciales'],
   pedir_datos_quiero_comprar_implicito: ['pedir_datos_quiero_comprar_implicito'],
+  retoma_datos_implicito: ['retoma_datos_implicito'],
 
   pendiente_promo: ['pendiente_promo'],
   pendiente_confirmacion: ['pendiente_confirmacion'],
@@ -165,7 +167,7 @@ export const V3_META_PREFIX = '_v3:'
 // ============================================================================
 
 export const SIGNIFICANT_ACTIONS: ReadonlySet<string> = new Set([
-  'pedir_datos', 'ofrecer_promos', 'mostrar_confirmacion',
+  'pedir_datos', 'pedir_datos_quiero_comprar_implicito', 'ofrecer_promos', 'mostrar_confirmacion',
   'crear_orden', 'crear_orden_sin_promo', 'crear_orden_sin_confirmar',
   'handoff', 'rechazar', 'no_interesa',
 ])

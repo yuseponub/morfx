@@ -18,7 +18,9 @@ export function derivePhase(acciones: (string | AccionRegistrada)[]): Phase {
     if (!SIGNIFICANT_ACTIONS.has(tipo)) continue
 
     switch (tipo) {
-      case 'pedir_datos':          return 'capturing_data'
+      case 'pedir_datos':
+      case 'pedir_datos_quiero_comprar_implicito':
+                                   return 'capturing_data'
       case 'ofrecer_promos':       return 'promos_shown'
       case 'mostrar_confirmacion': return 'confirming'
       case 'crear_orden':

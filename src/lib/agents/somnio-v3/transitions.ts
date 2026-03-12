@@ -72,7 +72,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       enterCaptura: true,
-      timerSignal: { type: 'start', level: 'L1', reason: 'datos espontaneos, parciales' },
+      timerSignal: { type: 'start', level: 'L6', reason: 'datos espontaneos, esperando resto' },
       reason: 'Datos en initial sin quiero_comprar, faltan criticos',
     }),
   },
@@ -249,6 +249,14 @@ export const TRANSITIONS: TransitionEntry[] = [
     resolve: () => ({
       timerSignal: { type: 'cancel', reason: 'timer L4 -> orden sin confirmar' },
       reason: 'Timer L4 expired -> crear orden sin confirmar',
+    }),
+  },
+
+  // Timer expired L6 -> retoma_datos_implicito (post pedir_datos_quiero_comprar_implicito, 6 min)
+  {
+    phase: 'capturing_data', on: 'timer_expired:6', action: 'retoma_datos_implicito',
+    resolve: () => ({
+      reason: 'Timer L6 expired -> retoma datos implicito (ya pidio faltantes, re-engage suave)',
     }),
   },
 

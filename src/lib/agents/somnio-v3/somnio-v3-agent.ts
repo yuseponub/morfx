@@ -44,7 +44,7 @@ export async function processMessage(input: V3AgentInput): Promise<V3AgentOutput
 
 async function processSystemEvent(
   input: V3AgentInput,
-  systemEvent: { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 },
+  systemEvent: { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 },
 ): Promise<V3AgentOutput> {
   const timerSignals: TimerSignal[] = []
 

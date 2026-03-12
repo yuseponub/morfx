@@ -247,6 +247,9 @@ export class GoDentistAdapter {
       // Set date filter
       await this.setDate(date)
 
+      // Set hour to earliest so all appointments are visible
+      await this.setHour('6:00 am')
+
       // Select sucursal
       const sucursalObj: Sucursal = { value: sucursal, label: sucursal }
       await this.selectSucursal(sucursalObj)

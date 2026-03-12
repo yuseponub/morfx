@@ -272,7 +272,7 @@ export async function sendConfirmations(
           templateName: TEMPLATE_CONFIRMACION_CITA,
           templateLanguage: 'es',
           components: [],
-          renderedText: '',
+          renderedText: '¿Deseas confirmar tu cita?',
           apiKey,
         }).catch(err => console.error(`[godentist] confirmacion_cita error: ${err}`))
       }

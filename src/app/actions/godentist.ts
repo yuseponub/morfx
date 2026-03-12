@@ -396,36 +396,38 @@ export async function getAppointmentForContact(contactPhone: string): Promise<Ap
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
   const admin = createAdminClient()
-  const { data: latestScrape, error: scrapeError } = await admin
+  const { data: scrapes, error: scrapeError } = await admin
     .from('godentist_scrape_history')
     .select('appointments, scraped_date')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+    .limit(10)
 
-  if (scrapeError || !latestScrape) {
+  if (scrapeError || !scrapes?.length) {
     return { data: null }
   }
 
-  const appointments = latestScrape.appointments as unknown as GodentistAppointment[]
   const normalizedInput = normalizePhone(contactPhone)
 
-  const match = appointments.find(apt =>
-    normalizePhone(apt.telefono) === normalizedInput
-  )
-
-  if (!match) return { data: null }
-
-  return {
-    data: {
-      nombre: match.nombre,
-      hora: match.hora,
-      sucursal: match.sucursal,
-      estado: match.estado,
-      scraped_date: latestScrape.scraped_date,
-    },
+  for (const scrape of scrapes) {
+    const appointments = scrape.appointments as unknown as GodentistAppointment[]
+    const match = appointments.find(apt =>
+      normalizePhone(apt.telefono) === normalizedInput
+    )
+    if (match) {
+      return {
+        data: {
+          nombre: match.nombre,
+          hora: match.hora,
+          sucursal: match.sucursal,
+          estado: match.estado,
+          scraped_date: scrape.scraped_date,
+        },
+      }
+    }
   }
+
+  return { data: null }
 }
 
 export async function confirmAppointment(

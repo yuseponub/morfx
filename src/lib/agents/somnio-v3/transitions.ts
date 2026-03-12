@@ -241,14 +241,6 @@ export const TRANSITIONS: TransitionEntry[] = [
 
   // ======== Retroceso (D7: cambio) ========
   {
-    phase: 'confirming', on: 'seleccion_pack', action: 'cambio',
-    resolve: () => ({
-      timerSignal: { type: 'start', level: 'L4', reason: 'cambio de pack en confirming' },
-      reason: 'Cambio de pack en fase confirming',
-    }),
-  },
-
-  {
     phase: 'confirming', on: 'datos', action: 'cambio',
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L4', reason: 'cambio de datos en confirming' },

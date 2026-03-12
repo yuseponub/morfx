@@ -27,6 +27,7 @@ const LEVEL_NAMES: Record<number, string> = {
   3: 'Promos sin respuesta',
   4: 'Pack sin confirmar',
   5: 'Silencio',
+  6: 'Datos implicitos',
 }
 
 // ============================================================================
@@ -34,13 +35,13 @@ const LEVEL_NAMES: Record<number, string> = {
 // ============================================================================
 
 export const TIMER_DEFAULTS: TimerConfig = {
-  levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90 },
+  levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90, 6: 360 },
 }
 
 export const TIMER_PRESETS: Record<TimerPreset, TimerConfig> = {
-  real: { levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90 } },
-  rapido: { levels: { 0: 60, 1: 30, 2: 10, 3: 60, 4: 60, 5: 9 } },
-  instantaneo: { levels: { 0: 2, 1: 2, 2: 1, 3: 2, 4: 2, 5: 1 } },
+  real: { levels: { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90, 6: 360 } },
+  rapido: { levels: { 0: 60, 1: 30, 2: 10, 3: 60, 4: 60, 5: 9, 6: 30 } },
+  instantaneo: { levels: { 0: 2, 1: 2, 2: 1, 3: 2, 4: 2, 5: 1, 6: 2 } },
 }
 
 // ============================================================================

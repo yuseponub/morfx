@@ -532,6 +532,10 @@ Plans:
   Plans:
   - [x] 01-PLAN.md — Backend: types, domain, webhook processor, server actions use contact_tags
   - [x] 02-PLAN.md — Frontend: unified tag UI, disabled state for no-contact, realtime on contact_tags
+- [ ] **GoDentist Scraping General** — Date picker, action selector (confirm/schedule), Inngest reminder scheduling, Programacion tab (2 plans)
+  Plans:
+  - [ ] 01-PLAN.md — Robot targetDate + DB migration + Inngest reminder function + server actions
+  - [ ] 02-PLAN.md — UI: date picker, action selector, Programacion tab, timezone fix
 - [ ] **v3 Two-Track Decision** — Separate sales track (state machine) from response track (template engine) to fix premature silence cut bug (2 plans)
   Plans:
   - [ ] tt-01-PLAN.md — Types + constants + ingest simplification + sales-track.ts + response-track.ts
@@ -547,8 +551,8 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-34 complete) | Phase 35 Next | — |
-| Standalone | 13 phases | 49 | 10 complete, 3 in progress | |
-| **Total** | **53 phases** | **223+ plans** | | |
+| Standalone | 14 phases | 51 | 10 complete, 4 in progress | |
+| **Total** | **54 phases** | **225+ plans** | | |
 
 ### Current Phase
 
@@ -564,4 +568,4 @@ Next: Execute `/gsd:execute-phase 35`
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-12 (Standalone Conversation Tags to Contact complete: 2 plans)*
+*Last updated: 2026-03-12 (Standalone GoDentist Scraping General planned: 2 plans)*

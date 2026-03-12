@@ -562,6 +562,38 @@ export class GoDentistAdapter {
     // The modal has a select/combo labeled "Estado:" and a "Guardar" button
     console.log('[GoDentist] Checking for modal dialog with Estado combo...')
     try {
+      // Dump all visible form elements for debugging
+      const formDiag = await this.page.evaluate(() => {
+        const result: Record<string, unknown> = {}
+        // All visible selects
+        const selects = document.querySelectorAll('select')
+        result.selects = Array.from(selects).map((s, i) => ({
+          i,
+          id: s.id,
+          name: s.name,
+          visible: s.offsetParent !== null,
+          options: Array.from(s.options).map(o => o.text.trim()),
+          value: s.value,
+        }))
+        // All visible buttons
+        const buttons = document.querySelectorAll('button, input[type="button"]')
+        result.buttons = Array.from(buttons).map(b => ({
+          tag: b.tagName,
+          text: (b as HTMLElement).textContent?.trim().substring(0, 30),
+          value: (b as HTMLInputElement).value?.substring(0, 30),
+          visible: (b as HTMLElement).offsetParent !== null,
+        }))
+        // Any window/dialog
+        const windows = document.querySelectorAll('.x-window:visible, .x-window, [class*="modal"], [class*="dialog"]')
+        result.windows = Array.from(windows).map(w => ({
+          className: w.className.substring(0, 100),
+          visible: (w as HTMLElement).offsetParent !== null,
+          html: w.innerHTML.substring(0, 500),
+        }))
+        return result
+      })
+      console.log(`[GoDentist] Form diagnostics:`, JSON.stringify(formDiag, null, 2))
+
       // Look for a visible modal/window with "Guardar" button
       const guardarBtn = this.page.locator('button:visible:has-text("Guardar"), input[type="button"]:visible[value="Guardar"]')
       const guardarCount = await guardarBtn.count()

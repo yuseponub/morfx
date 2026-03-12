@@ -59,6 +59,9 @@ export function ConfirmacionesPanel() {
   const [dateMode, setDateMode] = useState<DateMode>('auto')
   const [scheduleResult, setScheduleResult] = useState<ScheduleResult | null>(null)
 
+  // Confirmation state
+  const [confirmAction, setConfirmAction] = useState<'send' | 'schedule' | null>(null)
+
   // History state
   const [history, setHistory] = useState<ScrapeHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -259,6 +262,7 @@ export function ConfirmacionesPanel() {
     setFilterEstado('all')
     setScrapeDate('')
     setDateMode('auto')
+    setConfirmAction(null)
   }
 
   /** Load a history entry into the preview phase for re-sending */
@@ -455,16 +459,58 @@ export function ConfirmacionesPanel() {
                   <Button variant="outline" onClick={handleReset}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleSend} disabled={validCount === 0}>
-                    <Send className="mr-2 h-4 w-4" />
-                    Enviar confirmaciones ({validCount})
-                  </Button>
-                  <Button onClick={handleSchedule} disabled={validCount === 0} variant="secondary">
-                    <Clock className="mr-2 h-4 w-4" />
-                    Programar recordatorios ({validCount})
-                  </Button>
+                  {!confirmAction && (
+                    <>
+                      <Button onClick={() => setConfirmAction('send')} disabled={validCount === 0}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Enviar confirmaciones ({validCount})
+                      </Button>
+                      <Button onClick={() => setConfirmAction('schedule')} disabled={validCount === 0} variant="secondary">
+                        <Clock className="mr-2 h-4 w-4" />
+                        Programar recordatorios ({validCount})
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
+
+              {/* Confirmation step */}
+              {confirmAction && (
+                <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-medium">
+                          {confirmAction === 'send'
+                            ? `¿Enviar confirmaciones a ${validCount} pacientes ahora?`
+                            : `¿Programar recordatorios para ${validCount} pacientes?`}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {confirmAction === 'send'
+                            ? 'Se enviará el template de confirmación por WhatsApp inmediatamente.'
+                            : 'Se programará un recordatorio 1h antes de cada cita vía WhatsApp.'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button variant="outline" size="sm" onClick={() => setConfirmAction(null)}>
+                          No, volver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={confirmAction === 'send' ? 'default' : 'secondary'}
+                          onClick={() => {
+                            setConfirmAction(null)
+                            if (confirmAction === 'send') handleSend()
+                            else handleSchedule()
+                          }}
+                        >
+                          {confirmAction === 'send' ? 'Sí, enviar' : 'Sí, programar'}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Filters */}
               <Card>

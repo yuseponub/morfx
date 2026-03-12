@@ -345,13 +345,6 @@ export function ConfirmacionesPanel() {
                 </p>
                 <div className="flex flex-wrap gap-2 mb-2">
                   <Button
-                    variant={dateMode === 'auto' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleDateMode('auto')}
-                  >
-                    Por defecto
-                  </Button>
-                  <Button
                     variant={dateMode === 'today' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => handleDateMode('today')}
@@ -363,7 +356,14 @@ export function ConfirmacionesPanel() {
                     size="sm"
                     onClick={() => handleDateMode('tomorrow')}
                   >
-                    Manana
+                    Mañana
+                  </Button>
+                  <Button
+                    variant={dateMode === 'auto' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleDateMode('auto')}
+                  >
+                    Próximo día hábil
                   </Button>
                   <Button
                     variant={dateMode === 'custom' ? 'default' : 'outline'}

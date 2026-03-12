@@ -296,7 +296,7 @@ export async function processMessageWithAgent(
       const tagCtx = { workspaceId, source: 'adapter' as const }
       await assignTag(tagCtx, {
         entityType: 'contact',
-        entityId: result.contactId,
+        entityId: result.contactId!,
         tagName: 'WPP',
       })
       logger.info({ contactId: result.contactId }, 'Tagged contact with WPP after order creation')

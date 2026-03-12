@@ -289,19 +289,19 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 10. Tag conversation with "WPP" if order was created
+  // 10. Tag contact with "WPP" if order was created
   if (result.success && result.orderCreated) {
     try {
       const { assignTag } = await import('@/lib/domain/tags')
       const tagCtx = { workspaceId, source: 'adapter' as const }
       await assignTag(tagCtx, {
-        entityType: 'conversation',
-        entityId: conversationId,
+        entityType: 'contact',
+        entityId: result.contactId,
         tagName: 'WPP',
       })
-      logger.info({ conversationId }, 'Tagged conversation with WPP after order creation')
+      logger.info({ contactId: result.contactId }, 'Tagged contact with WPP after order creation')
     } catch (tagError) {
-      logger.warn({ err: tagError, conversationId }, 'Failed to tag conversation with WPP')
+      logger.warn({ err: tagError, contactId: result.contactId }, 'Failed to tag contact with WPP')
     }
   }
 

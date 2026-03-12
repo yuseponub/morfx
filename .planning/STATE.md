@@ -17,7 +17,8 @@ Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
 Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
 Standalone: Robot GoDentist Integration — COMPLETE (4/4 plans)
 Standalone: Conversation Tags to Contact — COMPLETE (2/2 plans)
-Last activity: 2026-03-12 — Completed standalone-conversation-tags-to-contact-02: UI + realtime
+Standalone: GoDentist Scraping General — IN PROGRESS (1/2 plans)
+Last activity: 2026-03-12 — Completed godentist-scraping-general-01: backend foundation
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -73,6 +74,7 @@ All 9 phases + 5 inserted phases completed:
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
 - Robot GoDentist Integration (4/4 plans) — COMPLETE
 - Conversation Tags to Contact (2/2 plans) — COMPLETE
+- GoDentist Scraping General (1/2 plans) — IN PROGRESS
 - Quick fixes: 22 completed
 
 ## Performance Metrics

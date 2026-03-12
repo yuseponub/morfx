@@ -157,20 +157,29 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
     }
   }
 
-  const handleConfirmAppointment = async () => {
+  const handleConfirmAppointment = () => {
     const phone = conversation.contact?.phone || conversation.phone
     const name = conversation.contact?.name || conversation.profile_name || ''
     if (!phone || !name) return
     setShowConfirmDialog(false)
     setIsConfirming(true)
-    const result = await confirmAppointment(phone, name)
-    setIsConfirming(false)
-    if (result.success) {
-      toast.success('Cita confirmada exitosamente en el portal')
-      setAppointmentInfo(prev => prev ? { ...prev, estado: 'Confirmada' } : null)
-    } else {
-      toast.error(result.error || 'Error al confirmar cita')
-    }
+    setAppointmentInfo(prev => prev ? { ...prev, estado: 'Confirmada' } : null)
+
+    const patientName = appointmentInfo?.nombre || name
+    confirmAppointment(phone, name)
+      .then(result => {
+        if (result.success) {
+          toast.success(`Cita de ${patientName} confirmada en el portal`)
+        } else {
+          toast.error(result.error || 'Error al confirmar cita')
+        }
+      })
+      .catch(() => {
+        toast.error(`Error al confirmar cita de ${patientName}`)
+      })
+      .finally(() => {
+        setIsConfirming(false)
+      })
   }
 
   const isArchived = conversation.status === 'archived'

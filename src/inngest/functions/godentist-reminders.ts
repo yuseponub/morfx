@@ -18,7 +18,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendTemplateMessage } from '@/lib/domain/messages'
 import { findOrCreateConversation, linkContactToConversation } from '@/lib/domain/conversations'
 import { createContact } from '@/lib/domain/contacts'
-import { assignTag } from '@/lib/domain/tags'
+import { assignTag, removeTag } from '@/lib/domain/tags'
 import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
@@ -235,7 +235,38 @@ const godentistReminderSend = inngest.createFunction(
 )
 
 // ============================================================================
+// Inngest Function: GoDentist Tag Removal (48h expiry)
+// ============================================================================
+
+const godentistTagRemove = inngest.createFunction(
+  {
+    id: 'godentist-tag-remove',
+    name: 'GoDentist: Remove Temporary Tag',
+    retries: 3,
+  },
+  { event: 'godentist/tag.remove_scheduled' },
+  async ({ event, step }) => {
+    const { workspaceId, contactId, tagName, removeAt } = event.data
+
+    // Sleep until removal time
+    await step.sleepUntil('wait-until-remove', new Date(removeAt))
+
+    // Remove the tag
+    const result = await step.run('remove-tag', async () => {
+      const ctx: DomainContext = { workspaceId, source: 'inngest-godentist' }
+      return removeTag(ctx, {
+        entityType: 'contact',
+        entityId: contactId,
+        tagName,
+      })
+    })
+
+    return { removed: result.success, tagName, contactId }
+  }
+)
+
+// ============================================================================
 // Export
 // ============================================================================
 
-export const godentistReminderFunctions = [godentistReminderSend]
+export const godentistReminderFunctions = [godentistReminderSend, godentistTagRemove]

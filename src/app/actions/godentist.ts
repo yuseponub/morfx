@@ -481,6 +481,35 @@ export async function confirmAppointment(
     const body = await res.json()
 
     if (body.success) {
+      // Assign temporary tag "C" to contact and schedule removal in 48h
+      const phone = contactPhone.startsWith('+') ? contactPhone : `+${contactPhone}`
+      const { data: contact } = await admin
+        .from('contacts')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('phone', phone)
+        .single()
+
+      if (contact) {
+        const domainCtx = { workspaceId, source: 'server-action' }
+        await assignTag(domainCtx, {
+          entityType: 'contact',
+          entityId: contact.id,
+          tagName: 'C',
+        }).catch(err => console.error('[godentist] Tag C assign error:', err))
+
+        // Schedule tag removal in 48h via Inngest
+        await (inngest.send as any)({
+          name: 'godentist/tag.remove_scheduled',
+          data: {
+            workspaceId,
+            contactId: contact.id,
+            tagName: 'C',
+            removeAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+          },
+        }).catch((err: Error) => console.error('[godentist] Inngest tag removal schedule error:', err))
+      }
+
       return {
         success: true,
         data: {

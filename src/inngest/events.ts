@@ -672,6 +672,19 @@ export type GodentistEvents = {
       scheduledAt: string  // ISO timestamp
     }
   }
+
+  /**
+   * Emitted to schedule removal of a temporary tag after a delay.
+   * Used for "C" (Confirmada) tag that expires after 48h.
+   */
+  'godentist/tag.remove_scheduled': {
+    data: {
+      workspaceId: string
+      contactId: string
+      tagName: string
+      removeAt: string  // ISO timestamp
+    }
+  }
 }
 
 /**

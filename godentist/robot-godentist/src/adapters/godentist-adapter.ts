@@ -552,61 +552,109 @@ export class GoDentistAdapter {
   }
 
   /**
-   * Check if a dropdown/combo appeared with "Confirmada" option visible and click it.
+   * Check if a dropdown/combo or modal dialog appeared where we can select "Confirmada".
+   * The Dentos portal opens a modal with a "Estado" combo + "Guardar" button.
    */
   private async checkAndSelectConfirmada(): Promise<boolean> {
     if (!this.page) return false
 
-    // Check for visible combo list items
+    // Pattern A: Modal dialog with Estado combo + Guardar button
+    // The modal has a select/combo labeled "Estado:" and a "Guardar" button
+    console.log('[GoDentist] Checking for modal dialog with Estado combo...')
+    try {
+      // Look for a visible modal/window with "Guardar" button
+      const guardarBtn = this.page.locator('button:visible:has-text("Guardar"), input[type="button"]:visible[value="Guardar"]')
+      const guardarCount = await guardarBtn.count()
+
+      if (guardarCount > 0) {
+        console.log(`[GoDentist] Found "Guardar" button — modal dialog detected`)
+
+        // Find the Estado select/combo in the modal
+        // Try native <select> first
+        const selects = this.page.locator('select:visible')
+        const selectCount = await selects.count()
+        console.log(`[GoDentist] Modal has ${selectCount} visible select elements`)
+
+        for (let i = 0; i < selectCount; i++) {
+          const options = await selects.nth(i).locator('option').allTextContents()
+          console.log(`[GoDentist] Select ${i} options: ${JSON.stringify(options)}`)
+
+          // Find the select that has estado-related options
+          const hasConfirmada = options.some(o => o.trim().toLowerCase().includes('confirmada'))
+          const hasSinConfirmar = options.some(o => o.trim().toLowerCase().includes('sin confirmar'))
+
+          if (hasConfirmada || hasSinConfirmar) {
+            // Find the "Confirmada" option text (exact label for selectOption)
+            const confirmadaLabel = options.find(o => o.trim().toLowerCase() === 'confirmada')
+              || options.find(o => o.trim().toLowerCase().includes('confirmada'))
+
+            if (confirmadaLabel) {
+              await selects.nth(i).selectOption({ label: confirmadaLabel.trim() })
+              console.log(`[GoDentist] Selected "${confirmadaLabel.trim()}" in Estado combo`)
+              await this.page.waitForTimeout(500)
+
+              // Click Guardar
+              await guardarBtn.first().click()
+              console.log('[GoDentist] Clicked "Guardar"')
+              await this.page.waitForTimeout(2000)
+              return true
+            }
+          }
+        }
+
+        // Try ExtJS combo (hidden input + visible text input + trigger)
+        const comboTriggers = this.page.locator('.x-form-trigger:visible')
+        const triggerCount = await comboTriggers.count()
+        console.log(`[GoDentist] Modal has ${triggerCount} visible combo triggers`)
+
+        for (let i = 0; i < triggerCount; i++) {
+          await comboTriggers.nth(i).click()
+          await this.page.waitForTimeout(1000)
+
+          const comboItems = this.page.locator('.x-combo-list-item:visible')
+          const itemCount = await comboItems.count()
+          if (itemCount > 0) {
+            const texts = await comboItems.allTextContents()
+            console.log(`[GoDentist] Trigger ${i} dropdown: ${JSON.stringify(texts)}`)
+
+            for (let j = 0; j < itemCount; j++) {
+              const text = (await comboItems.nth(j).textContent())?.trim().toLowerCase() || ''
+              if (text.includes('confirmada') && !text.includes('sin confirmar')) {
+                await comboItems.nth(j).click()
+                console.log('[GoDentist] Selected "Confirmada" from ExtJS combo in modal')
+                await this.page.waitForTimeout(500)
+
+                // Click Guardar
+                await guardarBtn.first().click()
+                console.log('[GoDentist] Clicked "Guardar"')
+                await this.page.waitForTimeout(2000)
+                return true
+              }
+            }
+          }
+
+          // Close dropdown if nothing matched
+          await this.page.keyboard.press('Escape')
+          await this.page.waitForTimeout(300)
+        }
+      }
+    } catch (err) {
+      console.log(`[GoDentist] Modal pattern check failed: ${err}`)
+    }
+
+    // Pattern B: Inline combo list items (original approach)
     const comboItems = this.page.locator('.x-combo-list-item:visible')
     const comboCount = await comboItems.count()
     if (comboCount > 0) {
       const texts = await comboItems.allTextContents()
-      console.log(`[GoDentist] Combo dropdown appeared with ${comboCount} items: ${JSON.stringify(texts)}`)
+      console.log(`[GoDentist] Inline combo dropdown: ${JSON.stringify(texts)}`)
 
       for (let i = 0; i < comboCount; i++) {
         const text = (await comboItems.nth(i).textContent())?.trim().toLowerCase() || ''
-        if (text.includes('confirmada')) {
+        if (text.includes('confirmada') && !text.includes('sin confirmar')) {
           await comboItems.nth(i).click()
           await this.page.waitForTimeout(1500)
-          console.log('[GoDentist] Selected "Confirmada" from dropdown')
-          return true
-        }
-      }
-    }
-
-    // Check for select/option elements
-    const selects = this.page.locator('select:visible')
-    const selectCount = await selects.count()
-    if (selectCount > 0) {
-      for (let i = 0; i < selectCount; i++) {
-        const options = await selects.nth(i).locator('option').allTextContents()
-        console.log(`[GoDentist] Select ${i} options: ${JSON.stringify(options)}`)
-
-        for (const opt of options) {
-          if (opt.trim().toLowerCase().includes('confirmada')) {
-            await selects.nth(i).selectOption({ label: opt.trim() })
-            await this.page.waitForTimeout(1500)
-            console.log('[GoDentist] Selected "Confirmada" from select element')
-            return true
-          }
-        }
-      }
-    }
-
-    // Check for list items in any menu
-    const menuItems = this.page.locator('.x-menu-item:visible, .x-list-item:visible, [role="option"]:visible')
-    const menuCount = await menuItems.count()
-    if (menuCount > 0) {
-      const texts = await menuItems.allTextContents()
-      console.log(`[GoDentist] Menu/list items found: ${JSON.stringify(texts)}`)
-
-      for (let i = 0; i < menuCount; i++) {
-        const text = (await menuItems.nth(i).textContent())?.trim().toLowerCase() || ''
-        if (text.includes('confirmada')) {
-          await menuItems.nth(i).click()
-          await this.page.waitForTimeout(1500)
-          console.log('[GoDentist] Selected "Confirmada" from menu')
+          console.log('[GoDentist] Selected "Confirmada" from inline dropdown')
           return true
         }
       }

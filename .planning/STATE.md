@@ -72,13 +72,14 @@ All 9 phases + 5 inserted phases completed:
 - Robot Coordinadora Hardening (5/5 plans) — COMPLETE
 - Debug Panel v4.0 (5/5 plans) — COMPLETE
 - Robot GoDentist Integration (4/4 plans) — COMPLETE
+- Conversation Tags to Contact (2/2 plans) — COMPLETE
 - Quick fixes: 22 completed
 
 ## Performance Metrics
 
 **Overall:**
-- Total phases completed: 41 (36 milestone + 5 standalone)
-- Total plans completed: 215
+- Total phases completed: 42 (36 milestone + 6 standalone)
+- Total plans completed: 217
 - Total execution time: ~31 days (2026-01-26 to 2026-02-26)
 
 ## Accumulated Context
@@ -302,8 +303,17 @@ Debug Panel v4.0 decisions (Plan 05):
 - No-rep Level badges use single-char abbreviations (P/F/E/N/~) for compact table columns
 - pending_templates display skipped (SandboxState lacks the field)
 
+Conversation Tags to Contact decisions:
+- addTagToConversation/removeTagFromConversation delegate to contact actions via dynamic import (preserves signatures)
+- godentist.ts changed from entityType 'conversation' to 'contact' (only remaining caller)
+- getTagsForContact server action for efficient realtime refetch by contactId
+- contact_tags requires ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags for realtime events
+- contacts.ts getContactConversations still queries conversation_tags (out of scope, future cleanup)
+- conversation-tag-input shows "Vincular contacto primero" when contactId is null
+
 ### Pending Todos
 
+- Run ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags in Supabase SQL editor
 - Configure SMTP in Supabase for production email sending
 - Set USE_NO_REPETITION=true in Vercel env vars when ready to activate no-repetition system (Phase 34)
 - Configure 360dialog webhook URL and env vars

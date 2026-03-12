@@ -722,3 +722,33 @@ export async function getConversationTags(
     .map((item: any) => item.tag)
     .filter((tag): tag is { id: string; name: string; color: string } => tag !== null)
 }
+
+/**
+ * Get tags for a specific contact by contactId.
+ * Used by realtime hook when contact_tags table changes.
+ */
+export async function getTagsForContact(
+  contactId: string
+): Promise<Array<{ id: string; name: string; color: string }>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('contact_tags')
+    .select('tag:tags(id, name, color)')
+    .eq('contact_id', contactId)
+
+  if (error) {
+    console.error('Error fetching contact tags:', error)
+    return []
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data || [])
+    .map((item: any) => item.tag)
+    .filter((tag): tag is { id: string; name: string; color: string } => tag !== null)
+}

@@ -13,14 +13,14 @@
 // PERFORMANCE (standalone/whatsapp-performance plan 01):
 // - 1 consolidated realtime channel (down from 4)
 // - Surgical state updates on conversation UPDATE (no full refetch)
-// - Targeted tag fetch on conversation_tags change (not full list refetch)
+// - Targeted tag fetch on contact_tags change (not full list refetch)
 // - Debounced safety-net full refetch as eventual consistency backup
 // ============================================================================
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Fuse, { IFuseOptions } from 'fuse.js'
 import { createClient } from '@/lib/supabase/client'
-import { getConversations, getConversation, getConversationTags } from '@/app/actions/conversations'
+import { getConversations, getConversation, getTagsForContact } from '@/app/actions/conversations'
 import { getOrdersForContacts } from '@/app/actions/whatsapp'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 
@@ -310,7 +310,7 @@ export function useConversations({
 
           if (eventType === 'UPDATE') {
             // Surgical update: spread flat columns from payload onto existing conversation
-            // Preserves join data (contact, tags, contactTags) which aren't in the payload
+            // Preserves join data (contact, tags) which aren't in the payload
             setConversations(prev => {
               const idx = prev.findIndex(c => c.id === newRow.id)
               if (idx === -1) {
@@ -325,7 +325,7 @@ export function useConversations({
                 // Only spread flat conversation columns, preserving join data
                 ...Object.fromEntries(
                   Object.entries(newRow).filter(([key]) =>
-                    key !== 'contact' && key !== 'tags' && key !== 'contactTags' && key !== 'conversation_tags'
+                    key !== 'contact' && key !== 'tags'
                   )
                 ),
               } as ConversationWithDetails
@@ -350,36 +350,35 @@ export function useConversations({
           }
         }
       )
-      // ---- conversation_tags table: targeted tag fetch ----
+      // ---- contact_tags table: targeted tag fetch ----
+      // NOTE: Requires ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags;
+      // Without this, realtime events won't fire. Tags still load on initial fetch.
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'conversation_tags',
+          table: 'contact_tags',
         },
         async (payload) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const convId = (payload.new as any)?.conversation_id || (payload.old as any)?.conversation_id
-          if (!convId) return
+          const contactId = (payload.new as any)?.contact_id || (payload.old as any)?.contact_id
+          if (!contactId) return
 
-          // Only process if this conversation is in our list
-          const isOurs = conversationsRef.current.some(c => c.id === convId)
-          if (!isOurs) return
+          // Find conversations linked to this contact
+          const affected = conversationsRef.current.filter(c => c.contact_id === contactId)
+          if (affected.length === 0) return
 
-          // Fetch only the tags for this specific conversation
-          const tags = await getConversationTags(convId)
+          // Fetch updated tags for this contact
+          const tags = await getTagsForContact(contactId)
+
+          // Update all conversations linked to this contact
           setConversations(prev =>
-            prev.map(c => c.id === convId ? { ...c, tags } : c)
+            prev.map(c => c.contact_id === contactId ? { ...c, tags } : c)
           )
           scheduleSafetyRefetchRef.current()
         }
       )
-      // ---- contact_tags removed: table not in supabase_realtime publication ----
-      // Orphan binding caused positional ID mismatch in Phoenix protocol,
-      // corrupting event delivery for ALL bindings on this channel.
-      // Contact tags still load on initial fetch and conversation selection.
-      // To restore: first run ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags;
       // ---- contacts table: is_client changes ----
       .on(
         'postgres_changes',

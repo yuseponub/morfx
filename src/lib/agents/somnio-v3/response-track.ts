@@ -204,7 +204,7 @@ const FIELD_LABELS: Record<string, string> = {
   direccion: 'Direccion completa',
   barrio: 'Barrio',
   correo: 'Correo electronico',
-  cedula_recoge: 'Cedula',
+  cedula_recoge: 'Cedula de quien recoge en oficina',
 }
 
 // ============================================================================

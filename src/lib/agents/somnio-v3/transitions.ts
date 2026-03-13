@@ -75,7 +75,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !_state.datos.direccion,
     resolve: () => ({
       enterCaptura: true,
-      timerSignal: { type: 'start', level: 'L1', reason: 'ofi inter confirmado, esperando faltantes' },
+      timerSignal: { type: 'start', level: 'L7', reason: 'ofi inter confirmado, 2min para datos faltantes' },
       reason: 'Ofi inter detectado en initial sin direccion → confirmar + pedir faltantes',
     }),
     description: 'Ofi inter detectado en initial sin direccion → confirmar + pedir faltantes',
@@ -86,7 +86,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'capturing_data', on: 'datos', action: 'confirmar_ofi_inter',
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !_state.datos.direccion,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'ofi inter confirmado, esperando faltantes' },
+      timerSignal: { type: 'start', level: 'L7', reason: 'ofi inter confirmado, 2min para datos faltantes' },
       reason: 'Ofi inter detectado durante captura sin direccion → confirmar',
     }),
     description: 'Ofi inter detectado durante captura sin direccion → confirmar',
@@ -97,7 +97,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'capturing_data', on: 'datos', action: 'confirmar_cambio_ofi_inter',
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !!_state.datos.direccion,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'cambio a ofi inter, direccion cancelada' },
+      timerSignal: { type: 'start', level: 'L7', reason: 'cambio a ofi inter, 2min para datos faltantes' },
       reason: 'Ofi inter detectado pero ya tenia direccion → cancelar direccion + confirmar',
     }),
     description: 'Ofi inter cambio tardio en capturing_data',
@@ -108,7 +108,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'promos_shown', on: 'datos', action: 'confirmar_cambio_ofi_inter',
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !!_state.datos.direccion,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'cambio a ofi inter en promos' },
+      timerSignal: { type: 'start', level: 'L7', reason: 'cambio a ofi inter en promos, 2min para datos faltantes' },
       reason: 'Ofi inter cambio tardio en promos_shown',
     }),
     description: 'Ofi inter cambio tardio en promos_shown',
@@ -119,7 +119,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'confirming', on: 'datos', action: 'confirmar_cambio_ofi_inter',
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !!_state.datos.direccion,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'cambio a ofi inter en confirming' },
+      timerSignal: { type: 'start', level: 'L7', reason: 'cambio a ofi inter en confirming, 2min para datos faltantes' },
       reason: 'Ofi inter cambio tardio en confirming',
     }),
     description: 'Ofi inter cambio tardio en confirming',
@@ -344,6 +344,15 @@ export const TRANSITIONS: TransitionEntry[] = [
       timerSignal: { type: 'cancel', reason: 'timer L4 -> orden sin confirmar' },
       reason: 'Timer L4 expired -> crear orden sin confirmar',
     }),
+  },
+
+  // Timer expired L7 -> retoma_datos_parciales (ofi inter confirmado, 2 min sin datos faltantes)
+  {
+    phase: 'capturing_data', on: 'timer_expired:7', action: 'retoma_datos_parciales',
+    resolve: () => ({
+      reason: 'Timer L7 expired -> retoma datos parciales ofi inter (2min sin respuesta)',
+    }),
+    description: 'L7 ofi inter: 2min sin datos faltantes → retoma parciales',
   },
 
   // Timer expired L6 -> retoma_datos_implicito (post pedir_datos_quiero_comprar_implicito, 6 min)

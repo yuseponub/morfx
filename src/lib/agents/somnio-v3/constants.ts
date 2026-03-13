@@ -102,6 +102,16 @@ export const CRITICAL_FIELDS_OFI_INTER = [
 ] as const
 
 // ============================================================================
+// Extra Fields (per mode — checked after critical fields)
+// ============================================================================
+
+/** Normal mode extras: barrio + correo (can be negated) */
+export const EXTRAS_NORMAL = ['barrio', 'correo'] as const
+
+/** Ofi Inter mode extras: cedula_recoge (required) + correo (can be negated) */
+export const EXTRAS_OFI_INTER = ['cedula_recoge', 'correo'] as const
+
+// ============================================================================
 // Capital Cities (for L1 conditional logic in ofi-inter)
 // ============================================================================
 

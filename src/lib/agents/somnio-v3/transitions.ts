@@ -350,9 +350,21 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_data', on: 'timer_expired:7', action: 'retoma_ofi_inter',
     resolve: () => ({
-      reason: 'Timer L7 expired -> confirmar oficina + pedir faltantes',
+      timerSignal: { type: 'start', level: 'L8', reason: 'gracia para extras ofi inter post-retoma' },
+      reason: 'Timer L7 expired -> confirmar oficina + pedir faltantes + L8 gracia',
     }),
-    description: 'L7 ofi inter: 2min debounce → confirmar oficina + pedir faltantes',
+    description: 'L7 ofi inter: 2min debounce → confirmar oficina + pedir faltantes → L8 gracia',
+  },
+
+  // Timer expired L8 -> ofrecer_promos (L2 de ofi inter: extras no llegaron, avanzar a promos)
+  {
+    phase: 'capturing_data', on: 'timer_expired:8', action: 'ofrecer_promos',
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L3', reason: 'timer L8 -> promos' },
+      enterCaptura: false,
+      reason: 'Timer L8 expired -> ofrecer promos (extras ofi inter no llegaron)',
+    }),
+    description: 'L8 ofi inter: gracia extras expirada → ofrecer promos',
   },
 
   // Timer expired L6 -> retoma_datos_implicito (post pedir_datos_quiero_comprar_implicito, 6 min)

@@ -64,8 +64,18 @@ export function resolveSalesTrack(input: {
   let dataTimerSignal: TimerSignal | undefined
   if (state.enCapturaSilenciosa && changes.hasNewData) {
     if (changes.datosCriticosJustCompleted && !changes.datosCompletosJustCompleted) {
-      // Criticos completos, faltan extras -> L2 (2 min gracia para extras)
-      dataTimerSignal = { type: 'start', level: 'L2', reason: 'criticos completos, esperando extras' }
+      if (state.ofiInter) {
+        // Ofi inter: criticos completos, faltan extras (cedula/correo)
+        // Solo activar L8 si retoma_ofi_inter ya se ejecuto (L7 ya expiro)
+        // Si L7 sigue corriendo, dejarlo — retoma iniciara L8 al expirar
+        if (hasAction(state.accionesEjecutadas, 'retoma_ofi_inter')) {
+          dataTimerSignal = { type: 'start', level: 'L8', reason: 'criticos ofi inter completos post-retoma, esperando extras' }
+        }
+        // else: L7 still running, don't override
+      } else {
+        // Normal: L2 (2 min gracia para extras)
+        dataTimerSignal = { type: 'start', level: 'L2', reason: 'criticos completos, esperando extras' }
+      }
     } else if (changes.filled > 0 && !changes.datosCriticosJustCompleted && !gates.datosCriticos) {
       // Datos parciales (criticos aun incompletos) -> L1
       dataTimerSignal = { type: 'start', level: 'L1', reason: `datos parciales (${changes.filled} campos)` }

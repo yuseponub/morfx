@@ -59,6 +59,7 @@ const TIMER_LEVEL_INFO = [
   { id: 5, name: 'Ack sin contexto' },
   { id: 6, name: 'Datos implicitos' },
   { id: 7, name: 'Ofi inter confirmado' },
+  { id: 8, name: 'Extras ofi inter' },
 ]
 
 /** Slider range config per level: min/max/step in seconds */
@@ -71,6 +72,7 @@ const SLIDER_CONFIG: Record<number, { min: number; max: number; step: number }> 
   5: { min: 0, max: 180, step: 5 },
   6: { min: 0, max: 600, step: 10 },
   7: { min: 0, max: 300, step: 5 },
+  8: { min: 0, max: 300, step: 5 },
 }
 
 // ============================================================================

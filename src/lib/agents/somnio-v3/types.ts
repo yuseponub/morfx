@@ -86,7 +86,7 @@ export interface Decision {
 
 export interface TimerSignal {
   type: 'start' | 'cancel' | 'reevaluate'
-  level?: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6' | 'L7'
+  level?: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6' | 'L7' | 'L8'
   reason?: string
 }
 
@@ -247,13 +247,13 @@ export type Phase =
   | 'closed'
 
 export type SystemEvent =
-  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }
+  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 }
   | { type: 'auto'; result: 'datos_completos' }
 
 /** Discriminated union for sales track events — compiler-enforced separation */
 export type SalesEvent =
   | { type: 'user_message'; intent: string; category: string; changes: StateChanges }
-  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 }
+  | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 }
 
 export type GuardResult =
   | { blocked: true; decision: Decision }

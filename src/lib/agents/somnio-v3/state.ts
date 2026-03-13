@@ -15,6 +15,8 @@ import {
 import {
   CRITICAL_FIELDS_NORMAL,
   CRITICAL_FIELDS_OFI_INTER,
+  EXTRAS_NORMAL,
+  EXTRAS_OFI_INTER,
   PACK_PRICES,
   V3_META_PREFIX,
 } from './constants'
@@ -213,46 +215,40 @@ export function datosCriticosOk(state: AgentState): boolean {
 }
 
 /**
- * Extra fields (correo + barrio) present or negated?
- * In ofiInter mode, extras are irrelevant → always true.
+ * Extra fields present or negated? Mode-aware.
+ * Normal: barrio + correo (both can be negated)
+ * Ofi Inter: cedula_recoge (required, no negation) + correo (can be negated)
  */
 function extrasOk(state: AgentState): boolean {
-  if (state.ofiInter) return true
+  if (state.ofiInter) {
+    const cedulaOk = state.datos.cedula_recoge !== null && state.datos.cedula_recoge.trim() !== ''
+    const correoOk = (state.datos.correo !== null && state.datos.correo.trim() !== '') || state.negaciones.correo
+    return cedulaOk && correoOk
+  }
   const correoOk = (state.datos.correo !== null && state.datos.correo.trim() !== '') || state.negaciones.correo
   const barrioOk = (state.datos.barrio !== null && state.datos.barrio.trim() !== '') || state.negaciones.barrio
   return correoOk && barrioOk
 }
 
 /**
- * List of critical fields still missing.
+ * List of critical + extra fields still missing. Mode-aware.
  */
 export function camposFaltantes(state: AgentState): string[] {
-  const fields = state.ofiInter ? CRITICAL_FIELDS_OFI_INTER : CRITICAL_FIELDS_NORMAL
-  const missing: string[] = fields.filter(f => {
+  const criticals = state.ofiInter ? CRITICAL_FIELDS_OFI_INTER : CRITICAL_FIELDS_NORMAL
+  const extras = state.ofiInter ? EXTRAS_OFI_INTER : EXTRAS_NORMAL
+
+  const missing: string[] = criticals.filter(f => {
     const val = state.datos[f as keyof DatosCliente]
     return !val || val.trim() === ''
   })
 
-  // Include extras based on mode
-  if (state.ofiInter) {
-    // Ofi inter: pedir cedula_recoge y correo como extras (no barrio)
-    if (!state.datos.cedula_recoge || !state.datos.cedula_recoge.trim()) {
-      missing.push('cedula_recoge')
-    }
-    const correoPresent = state.datos.correo !== null && state.datos.correo?.trim() !== ''
-    if (!correoPresent && !state.negaciones.correo) {
-      missing.push('correo')
-    }
-  } else {
-    // Normal: pedir barrio y correo si no negados
-    const barrioPresent = state.datos.barrio !== null && state.datos.barrio?.trim() !== ''
-    if (!barrioPresent && !state.negaciones.barrio) {
-      missing.push('barrio')
-    }
-    const correoPresent = state.datos.correo !== null && state.datos.correo?.trim() !== ''
-    if (!correoPresent && !state.negaciones.correo) {
-      missing.push('correo')
-    }
+  for (const extra of extras) {
+    const val = state.datos[extra as keyof DatosCliente]
+    const present = val !== null && val.trim() !== ''
+    if (present) continue
+    // cedula_recoge has no negation — always required for ofi inter
+    const negated = extra !== 'cedula_recoge' && state.negaciones[extra as keyof typeof state.negaciones]
+    if (!negated) missing.push(extra)
   }
 
   return missing

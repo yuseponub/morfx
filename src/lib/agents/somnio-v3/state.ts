@@ -235,9 +235,13 @@ export function camposFaltantes(state: AgentState): string[] {
 
   // Include extras based on mode
   if (state.ofiInter) {
-    // Ofi inter: pedir cedula_recoge como extra (no barrio/correo)
+    // Ofi inter: pedir cedula_recoge y correo como extras (no barrio)
     if (!state.datos.cedula_recoge || !state.datos.cedula_recoge.trim()) {
       missing.push('cedula_recoge')
+    }
+    const correoPresent = state.datos.correo !== null && state.datos.correo?.trim() !== ''
+    if (!correoPresent && !state.negaciones.correo) {
+      missing.push('correo')
     }
   } else {
     // Normal: pedir barrio y correo si no negados

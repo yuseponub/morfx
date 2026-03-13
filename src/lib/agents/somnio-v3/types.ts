@@ -217,6 +217,8 @@ export type TipoAccion =
   | 'crear_orden_sin_confirmar'
   | 'handoff'
   | 'ask_ofi_inter'
+  | 'confirmar_ofi_inter'
+  | 'confirmar_cambio_ofi_inter'
   | 'silence'
   | 'rechazar'
   | 'no_interesa'

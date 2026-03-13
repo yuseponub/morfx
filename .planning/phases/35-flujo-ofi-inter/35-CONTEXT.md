@@ -15,6 +15,26 @@ Detectar y manejar entrega en oficina de Interrapidisimo dentro del agente conve
 <decisions>
 ## Implementation Decisions
 
+### PRINCIPIO RECTOR: State-Driven Agent
+
+Somnio v3 es un **agente state-driven puro**. Toda la logica de ofi inter DEBE fluir a traves del state machine existente, no como codigo ad-hoc.
+
+**Esto significa:**
+- Deteccion → comprehension (extrae señales) → state merge (actualiza `ofiInter`, computa `ofiInterJustSet`)
+- Decisiones → transition table entries en `transitions.ts` (phase + event + condition → action)
+- Respuestas → response track resuelve templates a partir de la accion del sales track
+- Gates → `datosCriticos`/`datosCompletos` recalculan automaticamente segun `ofiInter`
+- Timers → señales de timer en las transiciones, no logica especial fuera de la tabla
+- L1 condicional → condicion en la transicion `timer_expired:1` en `capturing_data`, no un auto-trigger separado
+
+**PROHIBIDO:**
+- Codigo especial fuera del pipeline comprehension → state → gates → sales track → response track
+- Auto-triggers ad-hoc (el anterior `ciudad_sin_direccion` se elimina precisamente por esto)
+- Logica de ofi inter en el agent main (`somnio-v3-agent.ts`) — todo pasa por la tabla de transiciones
+- Acciones que no esten registradas en la transition table
+
+**El test acido:** Si un nuevo developer lee solo `transitions.ts`, debe poder entender COMPLETAMENTE como ofi inter funciona en el state machine.
+
 ### Concepto fundamental: dos cosas distintas
 
 - **Transportadora Inter**: El carrier de envio (siempre es Inter para Somnio) — NO activa ofiInter

@@ -165,6 +165,13 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
   const mencionaInter = fields.menciona_inter === true && !updated.ofiInter
     // Solo si NO se activo ofiInter (entrega_oficina tiene prioridad)
 
+  // T8: Limpiar direccion/barrio cuando ofiInterJustSet + tenia direccion previa
+  // La direccion anterior ya no aplica si el cliente elige oficina
+  if (ofiInterJustSet && updated.datos.direccion) {
+    updated.datos.direccion = null
+    updated.datos.barrio = null
+  }
+
   return {
     state: updated,
     changes: {

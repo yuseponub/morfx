@@ -248,6 +248,7 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     // RESPONSE TRACK — WHAT TO SAY
     const responseResult = await resolveResponseTrack({
       salesAction: salesResult.accion,
+      secondarySalesAction: salesResult.secondarySalesAction,
       intent: analysis.intent.primary,
       secondaryIntent: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
       state: mergedState,

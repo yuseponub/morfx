@@ -114,6 +114,7 @@ export interface ResponseResult {
 /** Sales track output — WHAT TO DO (pure state machine, no templates) */
 export interface SalesTrackOutput {
   accion?: TipoAccion
+  secondarySalesAction?: TipoAccion
   enterCaptura?: boolean
   timerSignal?: TimerSignal
   reason: string
@@ -246,7 +247,7 @@ export type Phase =
 
 export type SystemEvent =
   | { type: 'timer_expired'; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 }
-  | { type: 'auto'; result: 'datos_completos' | 'ciudad_sin_direccion' }
+  | { type: 'auto'; result: 'datos_completos' }
 
 /** Discriminated union for sales track events — compiler-enforced separation */
 export type SalesEvent =

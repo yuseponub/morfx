@@ -20,6 +20,8 @@ export function derivePhase(acciones: (string | AccionRegistrada)[]): Phase {
     switch (tipo) {
       case 'pedir_datos':
       case 'pedir_datos_quiero_comprar_implicito':
+      case 'confirmar_ofi_inter':
+      case 'confirmar_cambio_ofi_inter':
                                    return 'capturing_data'
       case 'ofrecer_promos':       return 'promos_shown'
       case 'mostrar_confirmacion': return 'confirming'

@@ -69,6 +69,8 @@ export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
   no_interesa: ['no_interesa'],
   rechazar: ['rechazar'],
   ask_ofi_inter: ['ask_ofi_inter'],
+  confirmar_ofi_inter: ['confirmar_ofi_inter'],
+  confirmar_cambio_ofi_inter: ['confirmar_cambio_ofi_inter'],
   retoma: ['retoma_inicial'],
   retoma_datos: ['retoma_datos'],
   retoma_datos_parciales: ['retoma_datos_parciales'],
@@ -154,6 +156,8 @@ export const V3_TO_V1_INTENT_MAP: Record<string, string[]> = {
   resumen_3x: ['resumen_3x'],
 
   ask_ofi_inter: ['ask_ofi_inter'],
+  confirmar_ofi_inter: ['confirmar_ofi_inter'],
+  confirmar_cambio_ofi_inter: ['confirmar_cambio_ofi_inter'],
 
   otro: ['fallback'],
 
@@ -180,6 +184,7 @@ export const V3_META_PREFIX = '_v3:'
 export const SIGNIFICANT_ACTIONS: ReadonlySet<string> = new Set([
   'pedir_datos', 'pedir_datos_quiero_comprar_implicito', 'ofrecer_promos', 'mostrar_confirmacion',
   'crear_orden', 'crear_orden_sin_promo', 'crear_orden_sin_confirmar',
+  'confirmar_ofi_inter', 'confirmar_cambio_ofi_inter',
   'handoff', 'rechazar', 'no_interesa',
 ])
 

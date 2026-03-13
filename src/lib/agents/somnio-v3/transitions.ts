@@ -8,14 +8,17 @@
  * First match wins (array order matters for same phase+on with different conditions).
  */
 import type { AgentState, Gates, Phase, TipoAccion, TimerSignal } from './types'
+import type { StateChanges } from './state'
 import { camposFaltantes } from './state'
+import { CAPITAL_CITIES } from './constants'
 
 export interface TransitionEntry {
   phase: Phase | '*'
   on: string   // intent name OR system event type (e.g., 'timer_expired:2')
   action: TipoAccion
-  condition?: (state: AgentState, gates: Gates) => boolean
+  condition?: (state: AgentState, gates: Gates, changes?: StateChanges) => boolean
   resolve: (state: AgentState, gates: Gates) => TransitionOutput
+  description?: string
 }
 
 export interface TransitionOutput {
@@ -62,6 +65,105 @@ export const TRANSITIONS: TransitionEntry[] = [
       timerSignal: { type: 'start', level: 'L5', reason: 'ack sin contexto confirmatorio' },
       reason: 'Acknowledgment sin contexto confirmatorio',
     }),
+  },
+
+  // ======== Ofi Inter transitions (MUST be before generic datos transitions — first match wins) ========
+
+  // Señal 1: ofiInterJustSet sin direccion previa → confirmar oficina (initial)
+  {
+    phase: 'initial', on: 'datos', action: 'confirmar_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !_state.datos.direccion,
+    resolve: () => ({
+      enterCaptura: true,
+      timerSignal: { type: 'start', level: 'L1', reason: 'ofi inter confirmado, esperando faltantes' },
+      reason: 'Ofi inter detectado en initial sin direccion → confirmar + pedir faltantes',
+    }),
+    description: 'Ofi inter detectado en initial sin direccion → confirmar + pedir faltantes',
+  },
+
+  // Señal 1: ofiInterJustSet sin direccion previa → confirmar oficina (capturing_data)
+  {
+    phase: 'capturing_data', on: 'datos', action: 'confirmar_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !_state.datos.direccion,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L1', reason: 'ofi inter confirmado, esperando faltantes' },
+      reason: 'Ofi inter detectado durante captura sin direccion → confirmar',
+    }),
+    description: 'Ofi inter detectado durante captura sin direccion → confirmar',
+  },
+
+  // Señal 1: ofiInterJustSet CON direccion previa → cambio tardio (capturing_data)
+  {
+    phase: 'capturing_data', on: 'datos', action: 'confirmar_cambio_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !!_state.datos.direccion,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L1', reason: 'cambio a ofi inter, direccion cancelada' },
+      reason: 'Ofi inter detectado pero ya tenia direccion → cancelar direccion + confirmar',
+    }),
+    description: 'Ofi inter cambio tardio en capturing_data',
+  },
+
+  // Señal 1: ofiInterJustSet CON direccion previa → cambio tardio (promos_shown)
+  {
+    phase: 'promos_shown', on: 'datos', action: 'confirmar_cambio_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !!_state.datos.direccion,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L1', reason: 'cambio a ofi inter en promos' },
+      reason: 'Ofi inter cambio tardio en promos_shown',
+    }),
+    description: 'Ofi inter cambio tardio en promos_shown',
+  },
+
+  // Señal 1: ofiInterJustSet CON direccion previa → cambio tardio (confirming)
+  {
+    phase: 'confirming', on: 'datos', action: 'confirmar_cambio_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !!_state.datos.direccion,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L1', reason: 'cambio a ofi inter en confirming' },
+      reason: 'Ofi inter cambio tardio en confirming',
+    }),
+    description: 'Ofi inter cambio tardio en confirming',
+  },
+
+  // Señal 2: mencionaInter → preguntar domicilio vs oficina (initial)
+  {
+    phase: 'initial', on: 'datos', action: 'ask_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.mencionaInter,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L5', reason: 'mencion ambigua inter en initial' },
+      reason: 'Mencion ambigua de Inter en initial → preguntar',
+    }),
+    description: 'Mencion ambigua de Inter en initial → preguntar',
+  },
+
+  // Señal 2: mencionaInter → preguntar domicilio vs oficina (capturing_data)
+  {
+    phase: 'capturing_data', on: 'datos', action: 'ask_ofi_inter',
+    condition: (_state, _gates, changes) => !!changes?.mencionaInter,
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L1', reason: 'mencion ambigua inter en captura' },
+      reason: 'Mencion ambigua de Inter durante captura → preguntar',
+    }),
+    description: 'Mencion ambigua de Inter durante captura → preguntar',
+  },
+
+  // Señal 3: L1 condicional — timer expira + ciudad + !direccion + !capital → ask ofi inter
+  {
+    phase: 'capturing_data', on: 'timer_expired:1', action: 'ask_ofi_inter',
+    condition: (state) => {
+      if (state.ofiInter) return false // ya es ofi inter
+      if (!state.datos.ciudad) return false
+      if (state.datos.direccion) return false
+      const normalizedCity = state.datos.ciudad
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      return !CAPITAL_CITIES.includes(normalizedCity as typeof CAPITAL_CITIES[number])
+    },
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L1', reason: 'L1 condicional: pregunta ofi inter' },
+      reason: 'L1 condicional: ciudad no-capital sin direccion → preguntar ofi inter',
+    }),
+    description: 'L1 condicional: ciudad no-capital sin direccion → preguntar ofi inter',
   },
 
   // ======== Phase-specific transitions ========
@@ -202,14 +304,6 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Auto-trigger: ciudad sin direccion -> ask_ofi_inter
-  {
-    phase: '*', on: 'auto:ciudad_sin_direccion', action: 'ask_ofi_inter',
-    resolve: () => ({
-      reason: 'Ciudad sin direccion -> preguntar ofi inter',
-    }),
-  },
-
   // Timer expired L0 -> retoma_datos (retoma sin datos)
   {
     phase: 'capturing_data', on: 'timer_expired:0', action: 'retoma_datos',
@@ -300,6 +394,7 @@ export function resolveTransition(
   on: string,
   state: AgentState,
   gates: Gates,
+  changes?: StateChanges,
 ): { action: TipoAccion; output: TransitionOutput } | null {
   for (const entry of TRANSITIONS) {
     // Phase match: specific phase or wildcard
@@ -308,8 +403,8 @@ export function resolveTransition(
     // On match: specific on or wildcard
     if (entry.on !== '*' && entry.on !== on) continue
 
-    // Condition check
-    if (entry.condition && !entry.condition(state, gates)) continue
+    // Condition check (passes changes for ofi inter signal-based transitions)
+    if (entry.condition && !entry.condition(state, gates, changes)) continue
 
     return {
       action: entry.action,

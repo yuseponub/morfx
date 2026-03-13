@@ -28,12 +28,13 @@ import type { AgentState, ProcessedMessage, ResponseTrackOutput, TipoAccion } fr
 
 export async function resolveResponseTrack(input: {
   salesAction?: TipoAccion
+  secondarySalesAction?: TipoAccion
   intent?: string
   secondaryIntent?: string
   state: AgentState
   workspaceId: string
 }): Promise<ResponseTrackOutput> {
-  const { salesAction, intent, secondaryIntent, state, workspaceId } = input
+  const { salesAction, secondarySalesAction, intent, secondaryIntent, state, workspaceId } = input
 
   // ------------------------------------------------------------------
   // 1. Sales action templates
@@ -45,6 +46,15 @@ export async function resolveResponseTrack(input: {
     const resolved = resolveSalesActionTemplates(salesAction, state)
     salesTemplateIntents.push(...resolved.intents)
     extraContext = resolved.extraContext
+  }
+
+  // Secondary sales action (e.g., ask_ofi_inter alongside main action)
+  if (secondarySalesAction) {
+    const secondaryResolved = resolveSalesActionTemplates(secondarySalesAction, state)
+    salesTemplateIntents.push(...secondaryResolved.intents)
+    if (secondaryResolved.extraContext) {
+      extraContext = { ...extraContext, ...secondaryResolved.extraContext }
+    }
   }
 
   // ------------------------------------------------------------------
@@ -233,6 +243,29 @@ function resolveSalesActionTemplates(
     case 'crear_orden_sin_confirmar': {
       return {
         intents: ['pendiente_confirmacion'],
+      }
+    }
+
+    case 'confirmar_ofi_inter': {
+      const faltantes = camposFaltantes(state)
+      const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
+      return {
+        intents: ['confirmar_ofi_inter'],
+        extraContext: {
+          ciudad: state.datos.ciudad ?? '',
+          campos_faltantes: labels.map(l => `- ${l}`).join('\n'),
+        },
+      }
+    }
+
+    case 'confirmar_cambio_ofi_inter': {
+      const faltantes = camposFaltantes(state)
+      const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
+      return {
+        intents: ['confirmar_cambio_ofi_inter'],
+        extraContext: {
+          campos_faltantes: labels.map(l => `- ${l}`).join('\n'),
+        },
       }
     }
 

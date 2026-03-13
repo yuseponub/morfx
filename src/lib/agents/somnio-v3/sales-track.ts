@@ -83,7 +83,7 @@ export function resolveSalesTrack(input: {
   if (changes.datosCompletosJustCompleted && !promosMostradas(state)) {
     const ev: SystemEvent = { type: 'auto', result: 'datos_completos' }
     const key = systemEventToKey(ev)
-    const match = resolveTransition(phase, key, state, gates)
+    const match = resolveTransition(phase, key, state, gates, changes)
     if (match) {
       return {
         accion: match.action,
@@ -95,12 +95,18 @@ export function resolveSalesTrack(input: {
   }
 
   // ------------------------------------------------------------------
-  // 3. Intent -> transition table lookup
+  // 3. Intent -> transition table lookup (pass changes for ofi inter signals)
   // ------------------------------------------------------------------
-  const match = resolveTransition(phase, intent, state, gates)
+  const match = resolveTransition(phase, intent, state, gates, changes)
   if (match) {
+    // T9: mencionaInter + main action is NOT ask_ofi_inter → add as secondary
+    const secondarySalesAction = (changes.mencionaInter && match.action !== 'ask_ofi_inter')
+      ? 'ask_ofi_inter' as const
+      : undefined
+
     return {
       accion: match.action,
+      secondarySalesAction,
       enterCaptura: match.output.enterCaptura,
       timerSignal: match.output.timerSignal ?? dataTimerSignal,
       reason: match.output.reason,
@@ -110,7 +116,11 @@ export function resolveSalesTrack(input: {
   // ------------------------------------------------------------------
   // 4. No match (fallback) -> no accion, response track handles informational
   // ------------------------------------------------------------------
+  // Even without a main match, mencionaInter can trigger ask_ofi_inter as secondary
+  const fallbackSecondary = changes.mencionaInter ? 'ask_ofi_inter' as const : undefined
+
   return {
+    secondarySalesAction: fallbackSecondary,
     reason: 'No transition - response track handles informational',
     timerSignal: dataTimerSignal,
   }

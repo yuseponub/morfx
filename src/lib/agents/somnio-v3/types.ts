@@ -30,6 +30,7 @@ export interface Negaciones {
   correo: boolean
   telefono: boolean
   barrio: boolean
+  cedula_recoge: boolean
 }
 
 export interface AgentState {

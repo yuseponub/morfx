@@ -72,6 +72,7 @@ export const MessageAnalysisSchema = z.object({
     correo: z.boolean().describe('"no tengo correo", "no tengo email" -> true'),
     telefono: z.boolean().describe('"no tengo celular" -> true'),
     barrio: z.boolean().describe('"no se el barrio", "no conozco el barrio" -> true'),
+    cedula_recoge: z.boolean().describe('"no quiero dar cedula", "no tengo cedula", "prefiero no dar cedula" -> true'),
   }),
 })
 

@@ -346,25 +346,50 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Timer expired L7 -> retoma_ofi_inter (confirma oficina + pide faltantes despues de 2min debounce)
+  // Timer expired L7 + solo falta correo → silence + L8 (no molestar por solo correo)
+  {
+    phase: 'capturing_data', on: 'timer_expired:7', action: 'silence',
+    condition: (state) => {
+      const faltantes = camposFaltantes(state)
+      return faltantes.length === 1 && faltantes[0] === 'correo'
+    },
+    resolve: () => ({
+      timerSignal: { type: 'start', level: 'L8', reason: 'solo falta correo, no molestar' },
+      reason: 'L7 expired pero solo falta correo → silencio + L8',
+    }),
+    description: 'L7 ofi inter: solo falta correo → no retoma, silencio + L8',
+  },
+
+  // Timer expired L7 -> retoma_ofi_inter (confirma oficina + pide faltantes + L8 gracia)
   {
     phase: 'capturing_data', on: 'timer_expired:7', action: 'retoma_ofi_inter',
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L8', reason: 'gracia para extras ofi inter post-retoma' },
       reason: 'Timer L7 expired -> confirmar oficina + pedir faltantes + L8 gracia',
     }),
-    description: 'L7 ofi inter: 2min debounce → confirmar oficina + pedir faltantes → L8 gracia',
+    description: 'L7 ofi inter: confirmar oficina + pedir faltantes → L8 gracia',
   },
 
-  // Timer expired L8 -> ofrecer_promos (L2 de ofi inter: extras no llegaron, avanzar a promos)
+  // Timer expired L8 + criticos completos → ofrecer_promos (avanzar, extras no llegaron)
   {
     phase: 'capturing_data', on: 'timer_expired:8', action: 'ofrecer_promos',
+    condition: (_, gates) => gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L3', reason: 'timer L8 -> promos' },
       enterCaptura: false,
-      reason: 'Timer L8 expired -> ofrecer promos (extras ofi inter no llegaron)',
+      reason: 'Timer L8 expired + criticos completos -> ofrecer promos',
     }),
-    description: 'L8 ofi inter: gracia extras expirada → ofrecer promos',
+    description: 'L8 ofi inter: criticos OK, extras no llegaron → promos',
+  },
+
+  // Timer expired L8 + criticos incompletos → retoma_datos_parciales (pedir lo que falta)
+  {
+    phase: 'capturing_data', on: 'timer_expired:8', action: 'retoma_datos_parciales',
+    condition: (_, gates) => !gates.datosCriticos,
+    resolve: () => ({
+      reason: 'Timer L8 expired pero criticos incompletos -> retoma datos parciales',
+    }),
+    description: 'L8 ofi inter: criticos faltan → retoma datos parciales',
   },
 
   // Timer expired L6 -> retoma_datos_implicito (post pedir_datos_quiero_comprar_implicito, 6 min)

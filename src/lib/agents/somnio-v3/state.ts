@@ -61,6 +61,7 @@ export function createInitialState(): AgentState {
       correo: false,
       telefono: false,
       barrio: false,
+      cedula_recoge: false,
     },
     intentsVistos: [],
     accionesEjecutadas: [],
@@ -129,6 +130,7 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
   if (analysis.negations.correo) updated.negaciones.correo = true
   if (analysis.negations.telefono) updated.negaciones.telefono = true
   if (analysis.negations.barrio) updated.negaciones.barrio = true
+  if (analysis.negations.cedula_recoge) updated.negaciones.cedula_recoge = true
 
   // 5. Normalize data
   if (updated.datos.telefono) {
@@ -221,7 +223,7 @@ export function datosCriticosOk(state: AgentState): boolean {
  */
 function extrasOk(state: AgentState): boolean {
   if (state.ofiInter) {
-    const cedulaOk = state.datos.cedula_recoge !== null && state.datos.cedula_recoge.trim() !== ''
+    const cedulaOk = (state.datos.cedula_recoge !== null && state.datos.cedula_recoge.trim() !== '') || state.negaciones.cedula_recoge
     const correoOk = (state.datos.correo !== null && state.datos.correo.trim() !== '') || state.negaciones.correo
     return cedulaOk && correoOk
   }
@@ -246,8 +248,7 @@ export function camposFaltantes(state: AgentState): string[] {
     const val = state.datos[extra as keyof DatosCliente]
     const present = val !== null && val.trim() !== ''
     if (present) continue
-    // cedula_recoge has no negation — always required for ofi inter
-    const negated = extra !== 'cedula_recoge' && state.negaciones[extra as keyof typeof state.negaciones]
+    const negated = state.negaciones[extra as keyof typeof state.negaciones]
     if (!negated) missing.push(extra)
   }
 
@@ -304,6 +305,7 @@ export function serializeState(state: AgentState): {
   if (state.negaciones.correo) datosCapturados[`${V3_META_PREFIX}neg_correo`] = 'true'
   if (state.negaciones.telefono) datosCapturados[`${V3_META_PREFIX}neg_telefono`] = 'true'
   if (state.negaciones.barrio) datosCapturados[`${V3_META_PREFIX}neg_barrio`] = 'true'
+  if (state.negaciones.cedula_recoge) datosCapturados[`${V3_META_PREFIX}neg_cedula_recoge`] = 'true'
 
   return {
     datosCapturados,
@@ -380,6 +382,7 @@ export function deserializeState(
   state.negaciones.correo = datosCapturados[`${V3_META_PREFIX}neg_correo`] === 'true'
   state.negaciones.telefono = datosCapturados[`${V3_META_PREFIX}neg_telefono`] === 'true'
   state.negaciones.barrio = datosCapturados[`${V3_META_PREFIX}neg_barrio`] === 'true'
+  state.negaciones.cedula_recoge = datosCapturados[`${V3_META_PREFIX}neg_cedula_recoge`] === 'true'
 
   return state
 }

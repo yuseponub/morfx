@@ -1,76 +1,155 @@
 # Phase 35: Flujo Ofi Inter - Context
 
-**Gathered:** 2026-03-04
+**Gathered:** 2026-03-13 (rewrite — v3 architecture)
 **Status:** Ready for planning
 
 <domain>
 ## Phase Boundary
 
-Detectar cuando un cliente quiere recogida en oficina de Interrapidisimo (en vez de envio a domicilio) y recolectar los campos de datos bifurcados correctos dentro del flujo de conversacion existente de Somnio. Solo aplica a Interrapidisimo (hardcoded, no generico para otros carriers).
+Detectar y manejar entrega en oficina de Interrapidisimo dentro del agente conversacional Somnio v3 (state machine two-track: sales track + response track). Tres señales de deteccion, confirmacion obligatoria en casos ambiguos, campos bifurcados, y cedula como campo extra (no critico). Solo aplica a Interrapidisimo (hardcoded).
+
+**Arquitectura target:** v3 — `transitions.ts`, `sales-track.ts`, `response-track.ts`, `state.ts`, `comprehension-schema.ts`
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
-### Rutas de deteccion
+### Concepto fundamental: dos cosas distintas
 
-- **Ruta 1 - Mencion directa:** Reconocer frases explicitas ("ofi inter", "oficina inter", "recojo en inter") Y variaciones ("quiero ir a recoger", "puedo pasar a buscar", "no necesito domicilio", "envia a la oficina"). Esta ruta domina: confirma inmediatamente sin esperar a ingest.
-- **Ruta 2 - Municipio sin direccion via ingest:** Cuando ingest acumula municipio aislado (sin direccion/barrio ni otros datos de envio normales), al momento de pedir direccion el agente primero pregunta: "Deseas envio a domicilio o recoger en oficina de transportadora?" Solo se dispara si llego municipio sin otros datos de envio.
-- **Ruta 3 - Municipio remoto (lista curada):** Cuando el cliente pregunta "envian a X?" y el municipio esta en una lista curada de municipios donde ofi inter es comun, responder: "Claro que si! Deseas envio a domicilio o recoger en oficina de transportadora?" La lista curada se mantiene manual basada en experiencia del negocio.
-- **Prioridad:** Mencion directa domina (confirma inmediatamente). Las otras 2 rutas esperan al flujo normal.
-- Si municipio + direccion llegan juntos, se asume domicilio automatico sin preguntar.
+- **Transportadora Inter**: El carrier de envio (siempre es Inter para Somnio) — NO activa ofiInter
+- **Entrega en oficina**: Cliente recoge en oficina Inter en vez de domicilio — SI activa ofiInter
+- Cuando un cliente dice "interrapidisimo" puede significar cualquiera de las dos. El bot DEBE distinguir.
 
-### Flujo de confirmacion
+### Tres señales de deteccion
 
-- Cuando ofi inter es confirmado, conservar todos los datos compatibles ya recolectados (nombre, apellido, telefono, etc.). Solo cambiar el set de campos faltantes.
-- Si el cliente dice NO a ofi inter, continuar flujo normal sin interrupcion: "Perfecto, entonces necesito tu direccion completa"
-- El cliente puede cambiar de opinion en cualquier momento (ej: confirmo ofi inter pero luego dice "mejor a domicilio"). El flujo se adapta conservando datos compatibles.
-- Solo aplica a Interrapidisimo. Si en el futuro se agregan otros carriers, seria otra fase.
+**Señal 1 — Oficina explicita (directo, sin preguntar):**
+- Cliente dice claramente que quiere oficina: "oficina de interrapidisimo", "recoger en oficina/sede", "no hay nomenclatura enviar a oficina", carrier usado COMO direccion sin calle real
+- Variantes ortograficas reales: interrapidisimo, interrapidicimo, interapidisimo, intirrapicimo, rapidisimo, interrapid, iterrapidisimo
+- → `state.ofiInter = true` inmediato, sin preguntar
+- → `ofiInterJustSet = true` en StateChanges para que el sales track reaccione
+
+**Señal 2 — Mencion ambigua de Inter (PREGUNTAR):**
+- Cliente menciona "inter"/"interrapidisimo" pero SIN decir "oficina"/"recoger"/"sede"
+- Ej: "lo envian por interrapidisimo?", "interrapidisimo" suelto, incluso si ya dio direccion completa
+- → El bot PREGUNTA: "Deseas recibirlo en tu domicilio o prefieres recogerlo en oficina de Inter?"
+- → Si dice oficina → Señal 1 flow
+- → Si dice domicilio → flujo normal sin cambios
+
+**Señal 3 — L1 condicional (timer-based, para municipios no capitales):**
+- Timer L1 expira (datos parciales) en capturing_data
+- Condicion: ciudad presente + direccion ausente + ciudad NO es capital (lista de 20)
+- → `ask_ofi_inter`: "Tienes alguna direccion o te enviamos a oficina de Inter?"
+- → Si dice oficina → Señal 1 flow
+- → Si da direccion → flujo normal
+- **barrio se ignora completamente** en esta logica de deteccion
+
+**ELIMINADO: auto-trigger `ciudad_sin_direccion`** — reemplazado por L1 condicional. Ya no se pregunta inmediatamente cuando llega ciudad sin direccion; se espera al timer L1 para dar tiempo al cliente de enviar direccion naturalmente.
+
+### 20 ciudades capitales (excluidas de L1 condicional)
+
+Solo estas ciudades se consideran "capitales" para efectos de L1 condicional. Las capitales de departamentos remotos (Arauca, Amazonas, Casanare, Choco, Guainia, Guaviare, La Guajira, Putumayo, San Andres, Vaupes, Vichada, Caqueta) NO se incluyen porque alli es comun pedir ofi inter incluso en la capital.
+
+```
+Medellín, Barranquilla, Cartagena, Tunja, Manizales, Popayán,
+Valledupar, Montería, Bogotá, Neiva, Santa Marta, Villavicencio,
+Pasto, Cúcuta, Armenia, Pereira, Bucaramanga, Sincelejo, Ibagué, Cali
+```
+
+### Comprehension: campo `entrega_oficina`
+
+- Reemplaza el actual `ofi_inter: boolean` en comprehension-schema.ts
+- `entrega_oficina: boolean | null`:
+  - **true**: señales claras de oficina (Señal 1)
+  - **null**: no mencionado
+- Separar la deteccion de "menciona inter" (Señal 2) — el comprehension puede extraer otro campo o el prompt puede instruir distincion
+
+### State: ofiInter como modificador, no como fase
+
+- `ofiInter` es un boolean en AgentState (ya existe)
+- Las fases NO cambian: initial → capturing_data → promos_shown → confirming → order_created
+- `ofiInter = true` modifica los campos criticos, nada mas
+- El mode reportado (`computeMode`) puede diferenciar: `captura_inter` vs `captura` (ya existe)
+
+### StateChanges: ofiInterJustSet
+
+- Nuevo campo `ofiInterJustSet: boolean` en StateChanges
+- true cuando `ofiInter` pasa de false a true en este turno
+- Permite al sales track disparar `confirmar_ofi_inter` o `confirmar_cambio_ofi_inter`
 
 ### Campos bifurcados
 
-- **Flujo normal (8 campos):** nombre, apellido, telefono, direccion, barrio, municipio, departamento, correo
-- **Flujo ofi inter (7 campos):** nombre, apellido, telefono, cedula de quien recoge, municipio, departamento, correo (sin direccion/barrio, con cedula)
-- **Cedula de quien recoge:** Puede ser de otra persona (no necesariamente el cliente). El agente pregunta pero el campo es OPCIONAL -- si el cliente no quiere dar la cedula, el flujo continua sin ella.
-- **Almacenamiento:** Cedula y flag ofi inter se almacenan en el campo "descripcion" de orders (investigar nombre exacto de la columna)
-- **Resumen:** No cambia -- el resumen actual no incluye direccion, asi que es irrelevante.
+- **Flujo normal (6 criticos):** nombre, apellido, telefono, direccion, ciudad, departamento
+- **Flujo ofi inter (5 criticos):** nombre, apellido, telefono, ciudad, departamento
+- **cedula_recoge: campo EXTRA (como correo/barrio)** — se pide, se intenta capturar, pero si el cliente no la da, se puede despachar sin ella. NO bloquea la orden.
+- `camposFaltantes()` incluye cedula cuando `ofiInter=true`, junto con correo como extras
+- Los mecanismos existentes (retoma_datos, retoma_datos_parciales, `{{campos_faltantes}}`) piden cedula automaticamente
 
-### Estado de sesion
+### Acciones del sales track
 
-- Crear estado `collecting_data_inter` que se comporta igual que `collecting_data` en cuanto a duracion y transiciones, pero indica flujo ofi inter activo (diferentes campos faltantes).
-- Al confirmar ofi inter, transicionar a `collecting_data_inter`.
-- Si el cliente cambia de opinion, transicionar de vuelta a `collecting_data` (o viceversa).
+| Accion | Cuando | Proposito |
+|--------|--------|-----------|
+| `confirmar_ofi_inter` (NUEVA) | ofiInterJustSet + en capturing_data | Reconocer oficina + pedir campos faltantes |
+| `confirmar_cambio_ofi_inter` (NUEVA) | ofiInterJustSet + ya tenia direccion (cambio tardio) | Cancelar direccion + confirmar oficina + pedir cedula si falta |
+| `ask_ofi_inter` (MANTENER) | L1 condicional + mencion ambigua de Inter | Preguntar domicilio vs oficina |
+| `pedir_datos` (SIN CAMBIO) | flujo normal | Template fijo con lista de campos |
+
+### Flujo de datos cuando ofiInterJustSet
+
+```
+Comprehension detecta entrega_oficina/menciona_inter
+  ↓
+State Merge: ofiInter=true, ofiInterJustSet=true
+  ↓
+Gates recalculan (CRITICAL_FIELDS cambian)
+  ↓
+Sales Track detecta ofiInterJustSet:
+  ├─ confirmar_ofi_inter (si estaba en captura normal)
+  └─ confirmar_cambio_ofi_inter (si ya tenia direccion)
+  ↓
+Response Track: template con acknowledgment + {{campos_faltantes}}
+  ↓
+Captura continua → datosCriticos → promos → confirmacion → orden
+```
+
+### Impacto en orden/CRM
+
+- Ya implementado: `order-creator.ts` genera shipping address como `"OFICINA INTER - ciudad, depto"` cuando `isOfiInter=true`
+- cedula_recoge se guarda en notas de la orden
+- Sin cambios necesarios en order creation
 
 ### Claude's Discretion
 
-- Frases exactas de deteccion para variaciones (basado en patrones de conversacion reales)
-- Lista inicial de municipios remotos curados
-- Mensajes de confirmacion y transicion del agente
-- Implementacion tecnica del switch de campos en ingest
-- Como adaptar el ingest classifier para distinguir datos ofi inter vs normal
+- Templates/mensajes exactos para cada accion (se discutiran despues)
+- Implementacion tecnica de la distincion "menciona_inter" vs "entrega_oficina" en comprehension
+- Como manejar el cambio de opinion inverso (ofi inter → domicilio)
+- Normalizacion de nombres de ciudades para matching contra lista de capitales
 
 </decisions>
 
 <specifics>
 ## Specific Ideas
 
-- Ruta municipio remoto: responder "Claro que si! Deseas envio a domicilio o recoger en oficina de transportadora?" (no asumir ofi inter, dar opcion)
-- Mencion directa es la unica ruta que "asume" inmediatamente (pero igual confirma)
-- Cedula es opcional: "puedes seguir el flujo si decides no dar la cedula"
-- Estado `collecting_data_inter` como mecanismo para trackear el modo activo
+- Variantes ortograficas reales de clientes colombianos: interrapidisimo, interrapidicimo, interapidisimo, intirrapicimo, rapidisimo, interrapid, iterrapidisimo
+- "La dirección es interrapidisimo" = cliente usa Inter COMO direccion → oficina
+- "centro oficina [ciudad]" = oficina pickup
+- "Principal Servientrega" = intent de oficina pero carrier equivocado → corregir a Inter
+- Clientes rurales frecuentemente no tienen nomenclatura → ofi inter es comun
+- cedula_recoge puede ser de otra persona ("la persona que vaya a reclamar")
+- Algunos clientes confirman ofi inter pero luego dicen "con el teléfono y nombre siempre llega" → no dan cedula, y esta bien
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-- Flujo generico para multiples transportadoras (no solo Inter) -- futura fase
-- UI/dashboard para gestionar lista curada de municipios remotos -- futura fase
+- Flujo generico para multiples transportadoras (no solo Inter) — futura fase
+- UI/dashboard para gestionar lista curada de capitales — futura fase
+- Templates exactos para cada accion ofi inter — se discutiran en planning
 
 </deferred>
 
 ---
 
 *Phase: 35-flujo-ofi-inter*
-*Context gathered: 2026-03-04*
+*Context gathered: 2026-03-13 (v3 rewrite)*

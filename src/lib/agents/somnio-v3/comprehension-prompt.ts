@@ -39,8 +39,25 @@ REGLAS DE EXTRACCION:
 - Ciudad: normalizar a proper case (bogota -> Bogota)
 - Pack: "el de 2", "quiero el doble", "2 frascos" -> 2x. "el de 3", "el triple" -> 3x. "uno solo", "1 frasco" -> 1x
 - IMPORTANTE: Extraer pack en extracted_fields SOLO cuando hay intencion EXPLICITA de compra/seleccion ("quiero el de 2", "dame 2", "me llevo el triple"). NO extraer pack cuando solo pregunta precio ("cuanto vale 2", "cuanto cuesta el de 3")
-- ofi_inter: true si menciona recoger en oficina/transportadora Inter
 - Si el cliente niega un dato ("no tengo correo"), marca la negacion correspondiente
+
+## Reglas entrega_oficina vs menciona_inter
+
+entrega_oficina = true CUANDO:
+- "oficina de interrapidisimo/inter", "recoger en oficina", "sede principal"
+- "no hay nomenclatura, enviar a oficina"
+- Usa el nombre del carrier COMO dirección (sin calle/carrera real)
+- "centro oficina [ciudad]"
+- "Principal Servientrega" (Somnio solo usa Inter, misma intención)
+- Variantes ortográficas: interrapidisimo, interrapidicimo, interapidisimo, intirrapicimo, rapidisimo, interrapid, iterrapidisimo
+
+menciona_inter = true CUANDO:
+- Menciona "inter"/"interrapidisimo" (o variantes) SIN decir "oficina"/"recoger"/"sede"
+- "lo envían por interrapidisimo?", "interrapidisimo" suelto
+- Incluso si ya dio dirección completa
+
+REGLA: Si dice "oficina" + "inter" → entrega_oficina. Si solo "inter" → menciona_inter.
+NUNCA ambos true simultáneamente. En duda → menciona_inter (preguntar es más seguro).
 
 REGLAS DE INTENT:
 - primary: el intent principal del mensaje

@@ -43,9 +43,18 @@ export const MessageAnalysisSchema = z.object({
       'Selected pack. "el de 2", "quiero dos" -> 2x. ' +
       '"el individual" -> 1x. "el triple" -> 3x.'
     ),
-    ofi_inter: z.boolean().nullable().describe(
-      'true if mentions picking up at Inter office. ' +
-      '"ofi inter", "recojo en oficina", "prefiero recoger"'
+    entrega_oficina: z.boolean().nullable().describe(
+      'true SOLO si señal CLARA de pickup en oficina: "oficina de inter", "recoger en oficina/sede", ' +
+      '"no hay nomenclatura enviar a oficina", carrier usado COMO dirección sin calle real, ' +
+      '"centro oficina [ciudad]", "sede principal". ' +
+      'Variantes: interrapidisimo, interrapidicimo, interapidisimo, intirrapicimo, rapidisimo, interrapid, iterrapidisimo. ' +
+      'Si dice "oficina" + "inter" → true. Si SOLO dice "inter" sin oficina → false (usar menciona_inter).'
+    ),
+    menciona_inter: z.boolean().nullable().describe(
+      'true si menciona "inter"/"interrapidisimo" (o variantes) SIN señal clara de oficina/recoger/sede. ' +
+      'Ej: "lo envian por interrapidisimo?", "interrapidisimo" suelto. ' +
+      'NUNCA true si entrega_oficina es true — son mutuamente excluyentes. ' +
+      'En caso de duda, preferir menciona_inter (preguntar es más seguro).'
     ),
   }),
 

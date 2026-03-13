@@ -283,7 +283,7 @@ Plans:
 - [x] **Phase 32: Media Processing** - Audio transcription (Whisper), image/video handoff, sticker Vision, reaction mapping
 - [x] **Phase 33: Confidence Routing + Disambiguation Log** - 2-band threshold, disambiguation_log table, human review interface
 - [x] **Phase 34: No-Repetition System** - 3-level dedup (ID lookup, minifrase Haiku, full context), paraphrasing repeated intents
-- [ ] **Phase 35: Flujo Ofi Inter** - Office pickup detection, mandatory confirmation, bifurcated data fields, ingest integration
+- [x] **Phase 35: Flujo Ofi Inter** - Office pickup detection (v1 agent only — v3 reimplemented as standalone v3-ofi-inter)
 - [ ] **Phase 36: Shopify Product Conditional Assignment** - Conditional mapping from Shopify order data to CRM catalog products in create_order automation action
 
 ---
@@ -540,6 +540,8 @@ Plans:
   Plans:
   - [ ] tt-01-PLAN.md — Types + constants + ingest simplification + sales-track.ts + response-track.ts
   - [ ] tt-02-PLAN.md — Pipeline rewire + debug panel update + verification
+- [ ] **v3 Ofi Inter** — Office pickup detection in v3 state-driven agent (3 detection signals, L1 conditional, bifurcated fields)
+  Plans: TBD
 
 ## Progress
 
@@ -550,13 +552,13 @@ Plans:
 | v1.0 MVP | 1-11 (+4 inserted) | 51 | Complete | 2026-02-04 |
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
-| v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-34 complete) | Phase 35 Next | — |
+| v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-36) | Phase 36 in progress | — |
 | Standalone | 14 phases | 51 | 10 complete, 4 in progress | |
 | **Total** | **54 phases** | **225+ plans** | | |
 
 ### Current Phase
 
-Phase 35: Flujo Ofi Inter — 3 plans, 3 waves (sequential)
+Phase 36: Shopify Product Conditional — 2 plans (1 complete)
 Next: Execute `/gsd:execute-phase 35`
 
 ---

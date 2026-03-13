@@ -100,6 +100,17 @@ export const CRITICAL_FIELDS_OFI_INTER = [
 ] as const
 
 // ============================================================================
+// Capital Cities (for L1 conditional logic in ofi-inter)
+// ============================================================================
+
+/** Capitales departamentales — normalized sin acentos, lowercase para matching */
+export const CAPITAL_CITIES = [
+  'medellin', 'barranquilla', 'cartagena', 'tunja', 'manizales', 'popayan',
+  'valledupar', 'monteria', 'bogota', 'neiva', 'santa marta', 'villavicencio',
+  'pasto', 'cucuta', 'armenia', 'pereira', 'bucaramanga', 'sincelejo', 'ibague', 'cali',
+] as const
+
+// ============================================================================
 // Thresholds
 // ============================================================================
 

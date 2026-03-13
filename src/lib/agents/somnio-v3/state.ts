@@ -226,8 +226,14 @@ export function camposFaltantes(state: AgentState): string[] {
     return !val || val.trim() === ''
   })
 
-  // Include barrio and correo if missing and not negated (required for datosCompletos)
-  if (!state.ofiInter) {
+  // Include extras based on mode
+  if (state.ofiInter) {
+    // Ofi inter: pedir cedula_recoge como extra (no barrio/correo)
+    if (!state.datos.cedula_recoge || !state.datos.cedula_recoge.trim()) {
+      missing.push('cedula_recoge')
+    }
+  } else {
+    // Normal: pedir barrio y correo si no negados
     const barrioPresent = state.datos.barrio !== null && state.datos.barrio?.trim() !== ''
     if (!barrioPresent && !state.negaciones.barrio) {
       missing.push('barrio')

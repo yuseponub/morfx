@@ -76,19 +76,8 @@ export function resolveSalesTrack(input: {
   // 2. Auto-triggers por cambios de datos
   // ------------------------------------------------------------------
 
-  // Ofi inter detection: ciudad llego sin direccion (solo modo normal)
-  if (!state.ofiInter && changes.ciudadJustArrived && !state.datos.direccion && !state.datos.barrio) {
-    const key = systemEventToKey({ type: 'auto', result: 'ciudad_sin_direccion' })
-    const match = resolveTransition(phase, key, state, gates)
-    if (match) {
-      return {
-        accion: match.action,
-        enterCaptura: match.output.enterCaptura,
-        timerSignal: match.output.timerSignal,
-        reason: match.output.reason,
-      }
-    }
-  }
+  // NOTE: ciudad_sin_direccion auto-trigger removed (ofi-inter-01).
+  // Plan 02 replaces with ofiInterJustSet/mencionaInter signal-based triggers.
 
   // Datos completos auto-trigger: completos just completed -> ofrecer_promos de una
   if (changes.datosCompletosJustCompleted && !promosMostradas(state)) {

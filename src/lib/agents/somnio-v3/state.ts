@@ -29,7 +29,8 @@ export interface StateChanges {
   newFields: string[]           // campos que pasaron de null/vacio a valor
   filled: number                // total campos criticos llenos
   hasNewData: boolean           // al menos 1 campo nuevo
-  ciudadJustArrived: boolean    // ciudad paso de null a valor
+  ofiInterJustSet: boolean      // ofiInter paso de false->true este turno (Senal 1)
+  mencionaInter: boolean         // cliente menciono inter sin oficina (Senal 2)
   datosCriticosJustCompleted: boolean    // criticos: false->true this turn
   datosCompletosJustCompleted: boolean   // completos: false->true this turn
 }
@@ -116,8 +117,9 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
     updated.pack = fields.pack
   }
 
-  // 3. Ofi Inter
-  if (fields.ofi_inter === true) {
+  // 3. Ofi Inter — read entrega_oficina (new bifurcated field)
+  const prevOfiInter = updated.ofiInter
+  if (fields.entrega_oficina === true) {
     updated.ofiInter = true
   }
 
@@ -158,13 +160,19 @@ export function mergeAnalysis(state: AgentState, analysis: MessageAnalysis): { s
   const criticosAfter = datosCriticosOk(updated)
   const completosAfter = datosCriticosOk(updated) && extrasOk(updated)
 
+  // Compute ofi-inter signals
+  const ofiInterJustSet = !prevOfiInter && updated.ofiInter  // false->true este turno
+  const mencionaInter = fields.menciona_inter === true && !updated.ofiInter
+    // Solo si NO se activo ofiInter (entrega_oficina tiene prioridad)
+
   return {
     state: updated,
     changes: {
       newFields,
       filled,
       hasNewData: newFields.length > 0,
-      ciudadJustArrived: newFields.includes('ciudad'),
+      ofiInterJustSet,
+      mencionaInter,
       datosCriticosJustCompleted: !criticosBefore && criticosAfter,
       datosCompletosJustCompleted: !completosBefore && completosAfter,
     },

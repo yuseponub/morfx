@@ -227,6 +227,7 @@ export type TipoAccion =
   | 'retoma'
   | 'retoma_datos'
   | 'retoma_datos_parciales'
+  | 'retoma_ofi_inter'
   | 'pedir_datos_quiero_comprar_implicito'
   | 'retoma_datos_implicito'
 

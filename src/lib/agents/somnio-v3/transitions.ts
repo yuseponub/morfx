@@ -71,25 +71,25 @@ export const TRANSITIONS: TransitionEntry[] = [
 
   // Señal 1: ofiInterJustSet sin direccion previa → confirmar oficina (initial)
   {
-    phase: 'initial', on: 'datos', action: 'confirmar_ofi_inter',
+    phase: 'initial', on: 'datos', action: 'silence',
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !_state.datos.direccion,
     resolve: () => ({
       enterCaptura: true,
-      timerSignal: { type: 'start', level: 'L7', reason: 'ofi inter confirmado, 2min para datos faltantes' },
-      reason: 'Ofi inter detectado en initial sin direccion → confirmar + pedir faltantes',
+      timerSignal: { type: 'start', level: 'L7', reason: 'ofi inter detectado, debounce 2min' },
+      reason: 'Ofi inter detectado en initial → silencio + L7 debounce',
     }),
-    description: 'Ofi inter detectado en initial sin direccion → confirmar + pedir faltantes',
+    description: 'Ofi inter detectado en initial sin direccion → silencio + L7 debounce',
   },
 
   // Señal 1: ofiInterJustSet sin direccion previa → confirmar oficina (capturing_data)
   {
-    phase: 'capturing_data', on: 'datos', action: 'confirmar_ofi_inter',
+    phase: 'capturing_data', on: 'datos', action: 'silence',
     condition: (_state, _gates, changes) => !!changes?.ofiInterJustSet && !_state.datos.direccion,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L7', reason: 'ofi inter confirmado, 2min para datos faltantes' },
-      reason: 'Ofi inter detectado durante captura sin direccion → confirmar',
+      timerSignal: { type: 'start', level: 'L7', reason: 'ofi inter detectado, debounce 2min' },
+      reason: 'Ofi inter detectado durante captura → silencio + L7 debounce',
     }),
-    description: 'Ofi inter detectado durante captura sin direccion → confirmar',
+    description: 'Ofi inter detectado durante captura sin direccion → silencio + L7 debounce',
   },
 
   // Señal 1: ofiInterJustSet CON direccion previa → cambio tardio (capturing_data)
@@ -346,13 +346,13 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Timer expired L7 -> retoma_datos_parciales (ofi inter confirmado, 2 min sin datos faltantes)
+  // Timer expired L7 -> retoma_ofi_inter (confirma oficina + pide faltantes despues de 2min debounce)
   {
-    phase: 'capturing_data', on: 'timer_expired:7', action: 'retoma_datos_parciales',
+    phase: 'capturing_data', on: 'timer_expired:7', action: 'retoma_ofi_inter',
     resolve: () => ({
-      reason: 'Timer L7 expired -> retoma datos parciales ofi inter (2min sin respuesta)',
+      reason: 'Timer L7 expired -> confirmar oficina + pedir faltantes',
     }),
-    description: 'L7 ofi inter: 2min sin datos faltantes → retoma parciales',
+    description: 'L7 ofi inter: 2min debounce → confirmar oficina + pedir faltantes',
   },
 
   // Timer expired L6 -> retoma_datos_implicito (post pedir_datos_quiero_comprar_implicito, 6 min)

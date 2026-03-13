@@ -246,7 +246,7 @@ function resolveSalesActionTemplates(
       }
     }
 
-    case 'confirmar_ofi_inter': {
+    case 'retoma_ofi_inter': {
       const faltantes = camposFaltantes(state)
       const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
       return {

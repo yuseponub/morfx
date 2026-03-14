@@ -593,41 +593,50 @@ function TurnSelector({
 // Contexto Raw Section
 // ============================================================================
 
-function ContextoRawSection({ state, turn }: { state: SandboxState; turn: DebugTurn | undefined }) {
+function ContextoRawSection({ state, turn, isHistorical }: { state: SandboxState; turn: DebugTurn | undefined; isHistorical: boolean }) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
 
+  // Use stateAfter from the selected turn if viewing history, otherwise live state
+  const displayState = isHistorical && turn?.stateAfter ? turn.stateAfter : state
+
   // Build full context object the bot sees
   const fullContext = {
-    currentMode: state.currentMode,
-    datosCapturados: state.datosCapturados ?? {},
-    packSeleccionado: state.packSeleccionado,
-    intentsVistos: state.intentsVistos ?? [],
-    templatesEnviados: state.templatesEnviados ?? [],
-    accionesEjecutadas: state.accionesEjecutadas ?? [],
-    // Last turn debug data (if available)
+    currentMode: displayState.currentMode,
+    datosCapturados: displayState.datosCapturados ?? {},
+    packSeleccionado: displayState.packSeleccionado,
+    intentsVistos: displayState.intentsVistos ?? [],
+    templatesEnviados: displayState.templatesEnviados ?? [],
+    accionesEjecutadas: displayState.accionesEjecutadas ?? [],
+    // Turn debug data (if available)
     ...(turn ? {
-      _lastTurn: {
+      _turnDebug: {
         turnNumber: turn.turnNumber,
         intent: turn.intent,
         classification: turn.classification,
         salesTrack: turn.salesTrack,
         responseTrack: turn.responseTrack,
         ingestDetails: turn.ingestDetails,
-        stateAfter: turn.stateAfter,
       },
     } : {}),
   }
 
   return (
-    <div className="max-h-[400px] overflow-auto rounded border">
-      <JsonView
-        value={fullContext}
-        style={isDark ? darkTheme : lightTheme}
-        collapsed={2}
-        displayDataTypes={false}
-        displayObjectSize={false}
-      />
+    <div className="space-y-1">
+      {isHistorical && (
+        <p className="text-[10px] text-amber-600 font-medium">
+          Estado al final del turno #{turn?.turnNumber}
+        </p>
+      )}
+      <div className="max-h-[400px] overflow-auto rounded border">
+        <JsonView
+          value={fullContext}
+          style={isDark ? darkTheme : lightTheme}
+          collapsed={2}
+          displayDataTypes={false}
+          displayObjectSize={false}
+        />
+      </div>
     </div>
   )
 }
@@ -734,7 +743,7 @@ export function DebugV3({
           icon={<Code className="h-3.5 w-3.5" />}
           defaultOpen={false}
         >
-          <ContextoRawSection state={state} turn={selectedTurn} />
+          <ContextoRawSection state={state} turn={selectedTurn} isHistorical={effectiveTurnIdx < debugTurns.length - 1} />
         </Section>
 
         <Section

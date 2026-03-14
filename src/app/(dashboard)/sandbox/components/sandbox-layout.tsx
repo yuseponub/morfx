@@ -435,7 +435,8 @@ export function SandboxLayout() {
       if (queued.length > 0) {
         // Take the LAST message only (most recent user intent)
         const lastQueued = queued[queued.length - 1]
-        // isTyping is false here, so the recursive call will go through the normal path
+        // Sync stateRef immediately — useEffect won't run until re-render, but recursive call needs current state
+        stateRef.current = result.newState
         handleSendMessage(lastQueued, { skipAddUser: true })
         return // Skip timer processing — the recursive call will handle it
       }

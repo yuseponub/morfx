@@ -60,6 +60,7 @@ export function SandboxLayout() {
   const [totalTokens, setTotalTokens] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
   const [queuedMessages, setQueuedMessages] = useState<string[]>([])
+  const queuedMessagesRef = useRef<string[]>([])
   const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
   // Timer state (Phase 15.7, simplified quick-013)
@@ -120,6 +121,11 @@ export function SandboxLayout() {
   useEffect(() => {
     agentIdRef.current = agentId
   }, [agentId])
+
+  // Keep queuedMessagesRef in sync (for async delay loop to check interruption)
+  useEffect(() => {
+    queuedMessagesRef.current = queuedMessages
+  }, [queuedMessages])
 
   const timerEnabledRef = useRef(true)
   useEffect(() => {
@@ -308,7 +314,11 @@ export function SandboxLayout() {
 
     // 1b. V3 interruption: if already processing, queue the message
     if (isTyping && agentIdRef.current === 'somnio-sales-v3') {
-      setQueuedMessages(prev => [...prev, content])
+      setQueuedMessages(prev => {
+        const next = [...prev, content]
+        queuedMessagesRef.current = next // Immediate visibility for async delay loop
+        return next
+      })
       return
     }
 
@@ -344,6 +354,15 @@ export function SandboxLayout() {
       const result: SandboxEngineResult = await response.json()
 
       // 6. Hide typing and add response messages with delays
+      // PROD-TRANSLATE: En produccion, el check pre-envio se hace en
+      // ProductionMessagingAdapter.hasNewInboundMessage() (src/lib/agents/engine-adapters/production/messaging.ts:62-74)
+      // consultando la DB con .gt('timestamp', triggerTimestamp). El equivalente aqui es
+      // queuedMessagesRef.current.length > 0.
+      // IMPORTANTE: El check de produccion actual NO maneja errores del query (lineas 67-73 no destructuran error).
+      // Cuando se traduzca, destructurar { count, error }, retry 1 vez si error, y fail-safe
+      // (asumir interrupcion si el query falla, porque es mejor NO enviar que enviar duplicado).
+      let interrupted = false
+      let interruptedAtIndex = -1
       if (result.success && result.messages.length > 0) {
         for (let i = 0; i < result.messages.length; i++) {
           // Proportional delay based on message length and slider setting
@@ -352,6 +371,23 @@ export function SandboxLayout() {
           const delay = calculateCharDelay(result.messages[i].length) * multiplier
           if (delay > 0) {
             await new Promise(resolve => setTimeout(resolve, delay))
+          }
+
+          // Check for interruption: user sent a message during the delay
+          if (queuedMessagesRef.current.length > 0) {
+            interrupted = true
+            interruptedAtIndex = i
+            console.log(`[Sandbox V3] Template sequence interrupted at index ${i}/${result.messages.length} by user message`)
+
+            // Add system note about interruption
+            const systemNote: SandboxMessage = {
+              id: `msg-${Date.now()}-system-interrupt`,
+              role: 'assistant',
+              content: `[SANDBOX: Secuencia interrumpida - ${result.messages.length - i} template(s) no enviado(s)]`,
+              timestamp: new Date().toISOString(),
+            }
+            setMessages(prev => [...prev, systemNote])
+            break
           }
 
           const assistantMessage: SandboxMessage = {
@@ -364,13 +400,43 @@ export function SandboxLayout() {
         }
       }
 
+      // Populate preSendCheck in debugTurn when interruption occurs
+      // PROD-TRANSLATE: En produccion, el DebugAdapter.recordPreSendCheck() registra el resultado
+      // real del query a la DB. Aqui lo construimos manualmente porque el check es un ref, no un query.
+      if (interrupted && result.debugTurn) {
+        result.debugTurn.preSendCheck = {
+          perTemplate: result.messages.map((_, idx) => ({
+            index: idx,
+            checkResult: idx < interruptedAtIndex ? 'ok' as const : 'interrupted' as const,
+            newMessageFound: idx === interruptedAtIndex,
+          })),
+          interrupted: true,
+          pendingSaved: result.messages.length - interruptedAtIndex,
+        }
+      }
+
       setIsTyping(false)
-      setQueuedMessages([])
 
       // 7. Update state and debug info
       setState(result.newState)
       setDebugTurns(prev => [...prev, result.debugTurn])
       setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
+
+      // Process queued messages instead of discarding them
+      // PROD-TRANSLATE: En produccion, los mensajes interrumpidos se guardan como "pending templates"
+      // en la sesion y el nuevo mensaje inbound se procesa por el webhook como un nuevo ciclo completo.
+      // No hay recursion — el webhook crea un nuevo Inngest job. Aqui simulamos eso con recursion
+      // porque el sandbox es un loop de UI sin webhook ni cola de jobs.
+      const queued = queuedMessagesRef.current
+      setQueuedMessages([])
+      queuedMessagesRef.current = []
+      if (queued.length > 0) {
+        // Take the LAST message only (most recent user intent)
+        const lastQueued = queued[queued.length - 1]
+        // isTyping is false here, so the recursive call will go through the normal path
+        handleSendMessage(lastQueued)
+        return // Skip timer processing — the recursive call will handle it
+      }
 
       // 8. Process timer signals from pipeline (quick-013: simplified)
       if (timerEnabledRef.current && result.timerSignal) {
@@ -390,6 +456,7 @@ export function SandboxLayout() {
     setTotalTokens(0)
     setIsTyping(false)
     setQueuedMessages([])
+    queuedMessagesRef.current = []
     // Stop timer on reset
     simulatorRef.current?.stop()
     setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })

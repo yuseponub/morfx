@@ -147,11 +147,12 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Mencion ambigua de Inter durante captura → preguntar',
   },
 
-  // Señal 3: L1 condicional — timer expira + ciudad + !direccion + !capital → ask ofi inter
+  // Señal 3: L1 condicional — timer expira + ciudad + !direccion + !capital → ask ofi inter (una sola vez)
   {
     phase: 'capturing_data', on: 'timer_expired:1', action: 'ask_ofi_inter',
     condition: (state) => {
       if (state.ofiInter) return false // ya es ofi inter
+      if (state.accionesEjecutadas.some(a => (typeof a === 'string' ? a : a.tipo) === 'ask_ofi_inter')) return false // ya pregunto
       if (!state.datos.ciudad) return false
       if (state.datos.direccion) return false
       const normalizedCity = state.datos.ciudad
@@ -160,10 +161,9 @@ export const TRANSITIONS: TransitionEntry[] = [
       return !CAPITAL_CITIES.includes(normalizedCity as typeof CAPITAL_CITIES[number])
     },
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'L1 condicional: pregunta ofi inter' },
       reason: 'L1 condicional: ciudad no-capital sin direccion → preguntar ofi inter',
     }),
-    description: 'L1 condicional: ciudad no-capital sin direccion → preguntar ofi inter',
+    description: 'L1 condicional: ciudad no-capital sin direccion → preguntar ofi inter (una vez)',
   },
 
   // ======== Phase-specific transitions ========
@@ -382,14 +382,14 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'L8 ofi inter: criticos OK, extras no llegaron → promos',
   },
 
-  // Timer expired L8 + criticos incompletos → retoma_datos_parciales (pedir lo que falta)
+  // Timer expired L8 + criticos incompletos → silence (L7 ya pidio, no insistir)
   {
-    phase: 'capturing_data', on: 'timer_expired:8', action: 'retoma_datos_parciales',
+    phase: 'capturing_data', on: 'timer_expired:8', action: 'silence',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
-      reason: 'Timer L8 expired pero criticos incompletos -> retoma datos parciales',
+      reason: 'Timer L8 expired + criticos incompletos -> silence (L7 ya pidio)',
     }),
-    description: 'L8 ofi inter: criticos faltan → retoma datos parciales',
+    description: 'L8 ofi inter: criticos faltan → silence (L7 ya retomo)',
   },
 
   // Timer expired L6 -> retoma_datos_implicito (post pedir_datos_quiero_comprar_implicito, 6 min)

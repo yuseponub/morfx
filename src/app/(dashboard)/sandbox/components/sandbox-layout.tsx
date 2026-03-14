@@ -302,15 +302,17 @@ export function SandboxLayout() {
   }, [])
 
   // Handle message send via API route
-  const handleSendMessage = useCallback(async (content: string) => {
-    // 1. Add user message immediately
-    const userMessage: SandboxMessage = {
-      id: `msg-${Date.now()}-user`,
-      role: 'user',
-      content,
-      timestamp: new Date().toISOString(),
+  const handleSendMessage = useCallback(async (content: string, { skipAddUser = false } = {}) => {
+    // 1. Add user message immediately (skip if recursive call from interruption — already in chat)
+    if (!skipAddUser) {
+      const userMessage: SandboxMessage = {
+        id: `msg-${Date.now()}-user`,
+        role: 'user',
+        content,
+        timestamp: new Date().toISOString(),
+      }
+      setMessages(prev => [...prev, userMessage])
     }
-    setMessages(prev => [...prev, userMessage])
 
     // 1b. V3 interruption: if already processing, queue the message
     if (isTyping && agentIdRef.current === 'somnio-sales-v3') {
@@ -434,7 +436,7 @@ export function SandboxLayout() {
         // Take the LAST message only (most recent user intent)
         const lastQueued = queued[queued.length - 1]
         // isTyping is false here, so the recursive call will go through the normal path
-        handleSendMessage(lastQueued)
+        handleSendMessage(lastQueued, { skipAddUser: true })
         return // Skip timer processing — the recursive call will handle it
       }
 

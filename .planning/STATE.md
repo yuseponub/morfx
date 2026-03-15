@@ -19,7 +19,7 @@ Standalone: Robot GoDentist Integration — COMPLETE (4/4 plans)
 Standalone: Conversation Tags to Contact — COMPLETE (2/2 plans)
 Standalone: GoDentist Scraping General — COMPLETE (2/2 plans)
 Standalone: v3-ofi-inter — IN PROGRESS (1/2 plans)
-Last activity: 2026-03-14 — Completed quick-023: sandbox template interruption v3
+Last activity: 2026-03-15 — Completed quick-024: sandbox message accumulation v3
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -77,7 +77,7 @@ All 9 phases + 5 inserted phases completed:
 - Conversation Tags to Contact (2/2 plans) — COMPLETE
 - GoDentist Scraping General (2/2 plans) — COMPLETE
 - v3-ofi-inter (1/2 plans) — IN PROGRESS
-- Quick fixes: 23 completed
+- Quick fixes: 24 completed
 
 ## Performance Metrics
 
@@ -351,6 +351,7 @@ Conversation Tags to Contact decisions:
 | 021 | Consistencia datosCriticos/datosCompletos (rename + correo en extras) | 2026-03-11 | 30c7738 | [021-consistencia-datos-criticos-completos](./quick/021-consistencia-datos-criticos-completos/) |
 | 022 | crear_orden_sin_promo/sin_confirmar + crmAction flag | 2026-03-11 | 601a646 | [022-crear-orden-sin-promo-confirmar-crmaction](./quick/022-crear-orden-sin-promo-confirmar-crmaction/) |
 | 023 | Sandbox template interruption v3 (pre-send check frontend) | 2026-03-14 | 511e9f6 | [023-sandbox-template-interruption-v3](./quick/023-sandbox-template-interruption-v3/) |
+| 024 | Sandbox message accumulation v3 (two-path post-interruption) | 2026-03-15 | 7b14a9e | [024-sandbox-message-accumulation-v3](./quick/024-sandbox-message-accumulation-v3/) |
 
 ### Blockers/Concerns
 
@@ -358,7 +359,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-14 COT
-Stopped at: Completed quick-023 (sandbox template interruption v3)
+Last session: 2026-03-15 COT
+Stopped at: Completed quick-024 (sandbox message accumulation v3)
 Resume file: None
 Next: v3-ofi-inter-02 (transitions, sales-track triggers, response-track templates)

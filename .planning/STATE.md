@@ -352,6 +352,7 @@ Conversation Tags to Contact decisions:
 | 022 | crear_orden_sin_promo/sin_confirmar + crmAction flag | 2026-03-11 | 601a646 | [022-crear-orden-sin-promo-confirmar-crmaction](./quick/022-crear-orden-sin-promo-confirmar-crmaction/) |
 | 023 | Sandbox template interruption v3 (pre-send check frontend) | 2026-03-14 | 511e9f6 | [023-sandbox-template-interruption-v3](./quick/023-sandbox-template-interruption-v3/) |
 | 024 | Sandbox message accumulation v3 (two-path post-interruption) | 2026-03-15 | 7b14a9e | [024-sandbox-message-accumulation-v3](./quick/024-sandbox-message-accumulation-v3/) |
+| 025 | Independizar templates v3 de v1 | 2026-03-15 | cf8249d | [025-independizar-templates-v3-de-v1](./quick/025-independizar-templates-v3-de-v1/) |
 
 ### Blockers/Concerns
 

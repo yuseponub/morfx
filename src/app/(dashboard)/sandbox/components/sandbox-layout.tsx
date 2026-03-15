@@ -421,11 +421,6 @@ export function SandboxLayout() {
 
       setIsTyping(false)
 
-      // 7. Update state and debug info
-      setState(result.newState)
-      setDebugTurns(prev => [...prev, result.debugTurn])
-      setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
-
       // Process queued messages instead of discarding them
       // PROD-TRANSLATE: En produccion, antes de procesar templates en el Inngest job,
       // consultar si hay mensajes mas recientes. Si sentCount === 0 y hay mensajes nuevos,
@@ -434,29 +429,42 @@ export function SandboxLayout() {
       const queued = queuedMessagesRef.current
       setQueuedMessages([])
       queuedMessagesRef.current = []
-      if (queued.length > 0) {
-        // Sync stateRef immediately — useEffect won't run until re-render, but recursive call needs current state
-        stateRef.current = result.newState
 
-        if (interrupted && interruptedAtIndex === 0) {
-          // Path A: No templates were sent — combine original + queued as one turn
-          // This simulates production behavior where multiple fast messages before agent
-          // responds are treated as a single combined input
-          const combinedContent = [content, ...queued].join('\n')
-          const accumulationNote: SandboxMessage = {
-            id: `msg-${Date.now()}-system-accumulate`,
-            role: 'assistant',
-            content: `[SANDBOX: Mensajes acumulados - ${queued.length + 1} mensaje(s) combinado(s)]`,
-            timestamp: new Date().toISOString(),
-          }
-          setMessages(prev => [...prev, accumulationNote])
-          handleSendMessage(combinedContent, { skipAddUser: true })
-        } else {
-          // Path B: At least 1 template was sent (interruptedAtIndex > 0) or no interruption
-          // Take the LAST message only (most recent user intent)
-          const lastQueued = queued[queued.length - 1]
-          handleSendMessage(lastQueued, { skipAddUser: true })
+      if (queued.length > 0 && interrupted && interruptedAtIndex === 0) {
+        // Path A: No templates were sent — combine original + queued as one turn
+        // DO NOT save result.newState: the interrupted turn generated template IDs and intents
+        // that were never actually sent. Saving them would pollute templatesMostrados/intentsVistos
+        // and cause the no-rep system to filter templates the user never saw.
+        // The accumulated turn will re-process everything from the clean pre-interruption state.
+        // PROD-TRANSLATE: En produccion, si sentCount === 0 al detectar interrupcion, NO guardar
+        // templates_enviados del turno interrumpido. El nuevo Inngest job re-procesa desde el estado
+        // previo. Solo guardar templates_enviados cuando realmente se enviaron por WhatsApp.
+        setDebugTurns(prev => [...prev, result.debugTurn]) // Debug info still useful
+        setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
+
+        const combinedContent = [content, ...queued].join('\n')
+        const accumulationNote: SandboxMessage = {
+          id: `msg-${Date.now()}-system-accumulate`,
+          role: 'assistant',
+          content: `[SANDBOX: Mensajes acumulados - ${queued.length + 1} mensaje(s) combinado(s)]`,
+          timestamp: new Date().toISOString(),
         }
+        setMessages(prev => [...prev, accumulationNote])
+        handleSendMessage(combinedContent, { skipAddUser: true })
+        return // Skip timer processing — the recursive call will handle it
+      }
+
+      // 7. Update state and debug info (only when NOT accumulating — state is clean)
+      setState(result.newState)
+      setDebugTurns(prev => [...prev, result.debugTurn])
+      setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
+
+      if (queued.length > 0) {
+        // Path B: At least 1 template was sent (interruptedAtIndex > 0) or no interruption
+        // Intent considered resolved — process new message independently
+        stateRef.current = result.newState
+        const lastQueued = queued[queued.length - 1]
+        handleSendMessage(lastQueued, { skipAddUser: true })
         return // Skip timer processing — the recursive call will handle it
       }
 

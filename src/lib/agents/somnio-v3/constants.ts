@@ -139,49 +139,6 @@ export const PACK_PRICES: Record<string, string> = {
 }
 
 // ============================================================================
-// V3 -> V1 Template Intent Mapping
-// ============================================================================
-
-export const V3_TO_V1_INTENT_MAP: Record<string, string[]> = {
-  saludo: ['hola'],
-  precio: ['precio'],
-  promociones: ['ofrecer_promos'],
-  contenido: ['contenido_envase'],
-  como_se_toma: ['como_se_toma'],
-  pago: ['modopago'],
-  envio: ['envio'],
-  registro_sanitario: ['invima'],
-  ubicacion: ['ubicacion'],
-  efectos: ['contraindicaciones'],
-  efectividad: ['sisirve'],
-
-  quiero_comprar: ['ofrecer_promos'],
-  pedir_datos: ['captura_datos_si_compra'],
-  confirmacion_orden: ['compra_confirmada'],
-  rechazar: ['no_confirmado'],
-  no_interesa: ['no_interesa'],
-
-  resumen_1x: ['resumen_1x'],
-  resumen_2x: ['resumen_2x'],
-  resumen_3x: ['resumen_3x'],
-
-  ask_ofi_inter: ['ask_ofi_inter'],
-  confirmar_ofi_inter: ['confirmar_ofi_inter'],
-  confirmar_cambio_ofi_inter: ['confirmar_cambio_ofi_inter'],
-
-  otro: ['fallback'],
-
-  retoma_inicial: ['retoma_inicial'],
-  retoma_datos: ['retoma_datos'],
-  retoma_datos_parciales: ['retoma_datos_parciales'],
-  pedir_datos_quiero_comprar_implicito: ['pedir_datos_quiero_comprar_implicito'],
-  retoma_datos_implicito: ['retoma_datos_implicito'],
-
-  pendiente_promo: ['pendiente_promo'],
-  pendiente_confirmacion: ['pendiente_confirmacion'],
-}
-
-// ============================================================================
 // State Metadata Prefix
 // ============================================================================
 

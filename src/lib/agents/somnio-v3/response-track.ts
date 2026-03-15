@@ -14,7 +14,6 @@ import { TemplateManager } from '@/lib/agents/somnio/template-manager'
 import { composeBlock, type PrioritizedTemplate } from '@/lib/agents/somnio/block-composer'
 import type { IntentRecord } from '@/lib/agents/types'
 import {
-  V3_TO_V1_INTENT_MAP,
   INFORMATIONAL_INTENTS,
   ACTION_TEMPLATE_MAP,
 } from './constants'
@@ -75,7 +74,11 @@ export async function resolveResponseTrack(input: {
   // ------------------------------------------------------------------
   // 3. Combine both sources
   // ------------------------------------------------------------------
-  const allIntents = [...salesTemplateIntents, ...infoTemplateIntents]
+  // Saludo should appear before sales action in the conversation
+  const saludoFirst = infoTemplateIntents.includes('saludo')
+  const allIntents = saludoFirst
+    ? [...infoTemplateIntents, ...salesTemplateIntents]
+    : [...salesTemplateIntents, ...infoTemplateIntents]
 
   if (allIntents.length === 0) {
     // Natural silence: no sales action + non-informational intent
@@ -85,17 +88,6 @@ export async function resolveResponseTrack(input: {
   // ------------------------------------------------------------------
   // 4. Load and process templates
   // ------------------------------------------------------------------
-  // Map v3 intents to v1 DB names
-  const v1Intents: string[] = []
-  for (const v3Intent of allIntents) {
-    const mapped = V3_TO_V1_INTENT_MAP[v3Intent]
-    if (mapped) {
-      v1Intents.push(...mapped)
-    } else {
-      v1Intents.push(v3Intent)
-    }
-  }
-
   const templateManager = new TemplateManager(workspaceId)
 
   const intentsVistos: IntentRecord[] = state.intentsVistos.map((intentName, i) => ({
@@ -104,24 +96,12 @@ export async function resolveResponseTrack(input: {
     timestamp: new Date().toISOString(),
   }))
 
-  // Try v3 templates first
-  let selectionMap = await templateManager.getTemplatesForIntents(
+  const selectionMap = await templateManager.getTemplatesForIntents(
     SOMNIO_V3_AGENT_ID,
-    v1Intents,
+    allIntents,
     intentsVistos,
     state.templatesMostrados,
   )
-
-  // Fallback to v1 templates if v3 has none
-  const hasAnyTemplates = Array.from(selectionMap.values()).some(s => s.templates.length > 0)
-  if (!hasAnyTemplates) {
-    selectionMap = await templateManager.getTemplatesForIntents(
-      'somnio-sales-v1',
-      v1Intents,
-      intentsVistos,
-      state.templatesMostrados,
-    )
-  }
 
   // Process templates with variable substitution
   const variableContext: Record<string, string | undefined> = {

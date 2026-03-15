@@ -381,11 +381,13 @@ export function SandboxLayout() {
             interruptedAtIndex = i
             console.log(`[Sandbox V3] Template sequence interrupted at index ${i}/${result.messages.length} by user message`)
 
-            // Add system note about interruption
+            // Add system note about interruption (differentiate accumulation vs interruption)
             const systemNote: SandboxMessage = {
               id: `msg-${Date.now()}-system-interrupt`,
               role: 'assistant',
-              content: `[SANDBOX: Secuencia interrumpida - ${result.messages.length - i} template(s) no enviado(s)]`,
+              content: interruptedAtIndex === 0
+                ? `[SANDBOX: Secuencia interrumpida antes de enviar - acumulando mensajes]`
+                : `[SANDBOX: Secuencia interrumpida - ${result.messages.length - i} template(s) no enviado(s)]`,
               timestamp: new Date().toISOString(),
             }
             setMessages(prev => [...prev, systemNote])
@@ -425,19 +427,36 @@ export function SandboxLayout() {
       setTotalTokens(prev => prev + (result.debugTurn?.tokens?.tokensUsed ?? 0))
 
       // Process queued messages instead of discarding them
-      // PROD-TRANSLATE: En produccion, los mensajes interrumpidos se guardan como "pending templates"
-      // en la sesion y el nuevo mensaje inbound se procesa por el webhook como un nuevo ciclo completo.
-      // No hay recursion — el webhook crea un nuevo Inngest job. Aqui simulamos eso con recursion
-      // porque el sandbox es un loop de UI sin webhook ni cola de jobs.
+      // PROD-TRANSLATE: En produccion, antes de procesar templates en el Inngest job,
+      // consultar si hay mensajes mas recientes. Si sentCount === 0 y hay mensajes nuevos,
+      // combinar todos los mensajes pendientes y re-procesar como un solo turno.
+      // Si sentCount > 0, procesar el mensaje nuevo como turno independiente.
       const queued = queuedMessagesRef.current
       setQueuedMessages([])
       queuedMessagesRef.current = []
       if (queued.length > 0) {
-        // Take the LAST message only (most recent user intent)
-        const lastQueued = queued[queued.length - 1]
         // Sync stateRef immediately — useEffect won't run until re-render, but recursive call needs current state
         stateRef.current = result.newState
-        handleSendMessage(lastQueued, { skipAddUser: true })
+
+        if (interrupted && interruptedAtIndex === 0) {
+          // Path A: No templates were sent — combine original + queued as one turn
+          // This simulates production behavior where multiple fast messages before agent
+          // responds are treated as a single combined input
+          const combinedContent = [content, ...queued].join('\n')
+          const accumulationNote: SandboxMessage = {
+            id: `msg-${Date.now()}-system-accumulate`,
+            role: 'assistant',
+            content: `[SANDBOX: Mensajes acumulados - ${queued.length + 1} mensaje(s) combinado(s)]`,
+            timestamp: new Date().toISOString(),
+          }
+          setMessages(prev => [...prev, accumulationNote])
+          handleSendMessage(combinedContent, { skipAddUser: true })
+        } else {
+          // Path B: At least 1 template was sent (interruptedAtIndex > 0) or no interruption
+          // Take the LAST message only (most recent user intent)
+          const lastQueued = queued[queued.length - 1]
+          handleSendMessage(lastQueued, { skipAddUser: true })
+        }
         return // Skip timer processing — the recursive call will handle it
       }
 

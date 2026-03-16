@@ -23,6 +23,7 @@ import { taskOverdueCron } from '@/inngest/functions/task-overdue-cron'
 import { robotOrchestratorFunctions } from '@/inngest/functions/robot-orchestrator'
 import { godentistReminderFunctions } from '@/inngest/functions/godentist-reminders'
 import { v3TimerFunctions } from '@/inngest/functions/agent-timers-v3'
+import { smsDeliveryFunctions } from '@/inngest/functions/sms-delivery-check'
 
 /**
  * Serve all Inngest functions.
@@ -40,6 +41,7 @@ import { v3TimerFunctions } from '@/inngest/functions/agent-timers-v3'
  * - ocr-guide-orchestrator: OCR guide extraction + matching + order update (Phase 27)
  * - godentist-reminder-send: Sleep until scheduled time, send WhatsApp reminder (Standalone: Scraping General)
  * - v3-timer: V3 agent timer — generic L0-L8 via systemEvent (Quick-028)
+ * - sms-delivery-check: 2-stage SMS delivery verification via Onurix (Standalone: SMS Module)
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -50,6 +52,7 @@ export const { GET, POST, PUT } = serve({
     ...robotOrchestratorFunctions,
     ...godentistReminderFunctions,
     ...v3TimerFunctions,
+    ...smsDeliveryFunctions,
     taskOverdueCron,
   ],
 })

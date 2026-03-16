@@ -22,6 +22,8 @@ import {
   sendMediaMessage as send360Media,
   sendTemplateMessage as send360Template,
 } from '@/lib/whatsapp/api'
+import { getChannelSender } from '@/lib/channels/registry'
+import type { ChannelType } from '@/lib/channels/types'
 import {
   emitWhatsAppMessageReceived,
   emitWhatsAppKeywordMatch,
@@ -36,8 +38,10 @@ export interface SendTextMessageParams {
   conversationId: string
   contactPhone: string
   messageBody: string
-  /** The workspace's 360dialog API key — caller must resolve this */
+  /** The workspace's 360dialog API key or ManyChat API key — caller must resolve this */
   apiKey: string
+  /** Channel type — defaults to 'whatsapp' for backward compatibility */
+  channel?: ChannelType
 }
 
 export interface SendMediaMessageParams {
@@ -47,8 +51,10 @@ export interface SendMediaMessageParams {
   mediaType: 'image' | 'video' | 'audio' | 'document'
   caption?: string
   filename?: string
-  /** The workspace's 360dialog API key — caller must resolve this */
+  /** The workspace's 360dialog API key or ManyChat API key — caller must resolve this */
   apiKey: string
+  /** Channel type — defaults to 'whatsapp' for backward compatibility */
+  channel?: ChannelType
 }
 
 export interface SendTemplateMessageParams {
@@ -117,9 +123,23 @@ export async function sendTextMessage(
   const supabase = createAdminClient()
 
   try {
-    // 1. Send via 360dialog API
-    const response = await send360Text(params.apiKey, params.contactPhone, params.messageBody)
-    const wamid = response.messages?.[0]?.id
+    const channel = params.channel || 'whatsapp'
+    let wamid: string | undefined
+
+    // 1. Send via the appropriate channel API
+    if (channel === 'whatsapp') {
+      // Direct 360dialog call (existing path, zero change)
+      const response = await send360Text(params.apiKey, params.contactPhone, params.messageBody)
+      wamid = response.messages?.[0]?.id
+    } else {
+      // Facebook/Instagram via ManyChat (or future channels)
+      const sender = getChannelSender(channel)
+      const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
+      if (!result.success) {
+        return { success: false, error: result.error || 'Error al enviar por canal' }
+      }
+      wamid = result.externalMessageId
+    }
 
     // 2. Store message in DB
     const { data: message, error: insertError } = await supabase
@@ -186,16 +206,36 @@ export async function sendMediaMessage(
   const supabase = createAdminClient()
 
   try {
-    // 1. Send via 360dialog API
-    const response = await send360Media(
-      params.apiKey,
-      params.contactPhone,
-      params.mediaType,
-      params.mediaUrl,
-      params.caption,
-      params.filename
-    )
-    const wamid = response.messages?.[0]?.id
+    const channel = params.channel || 'whatsapp'
+    let wamid: string | undefined
+
+    // 1. Send via the appropriate channel API
+    if (channel === 'whatsapp') {
+      // Direct 360dialog call (existing path, zero change)
+      const response = await send360Media(
+        params.apiKey,
+        params.contactPhone,
+        params.mediaType,
+        params.mediaUrl,
+        params.caption,
+        params.filename
+      )
+      wamid = response.messages?.[0]?.id
+    } else {
+      // Facebook/Instagram via ManyChat — only images supported for now
+      if (params.mediaType === 'image') {
+        const sender = getChannelSender(channel)
+        const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
+        if (!result.success) {
+          return { success: false, error: result.error || 'Error al enviar media por canal' }
+        }
+        wamid = result.externalMessageId
+      } else {
+        // Other media types not yet supported on ManyChat — log and skip
+        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}'`)
+        return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
+      }
+    }
 
     // 2. Store message in DB
     const content: Record<string, unknown> = {

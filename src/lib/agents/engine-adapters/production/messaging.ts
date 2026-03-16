@@ -15,6 +15,7 @@ import type { MessagingAdapter } from '../../engine/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendTextMessage as domainSendTextMessage, sendMediaMessage as domainSendMediaMessage } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
+import type { ChannelType } from '@/lib/channels/types'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
 
@@ -28,11 +29,14 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Get WhatsApp API key from workspace settings, fallback to env var.
+ * Get channel credentials from workspace settings.
+ * For WhatsApp: returns 360dialog API key
+ * For Facebook/Instagram: returns ManyChat API key
  */
-async function getWhatsAppApiKey(
-  workspaceId: string
-): Promise<string | null> {
+async function getChannelCredentials(
+  workspaceId: string,
+  channel: ChannelType
+): Promise<{ apiKey: string | null; channel: ChannelType }> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('workspaces')
@@ -42,7 +46,19 @@ async function getWhatsAppApiKey(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const settings = data?.settings as any
-  return settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY || null
+
+  if (channel === 'facebook' || channel === 'instagram') {
+    return {
+      apiKey: settings?.manychat_api_key || null,
+      channel,
+    }
+  }
+
+  // Default: WhatsApp via 360dialog
+  return {
+    apiKey: settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY || null,
+    channel: 'whatsapp',
+  }
 }
 
 export class ProductionMessagingAdapter implements MessagingAdapter {
@@ -112,12 +128,27 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
     const wsId = params.workspaceId || this.workspaceId
     const convId = params.conversationId || this.conversationId
 
-    // Get API key once for all messages
-    const apiKey = await getWhatsAppApiKey(wsId)
-    if (!apiKey) {
-      logger.error({ workspaceId: wsId }, 'WhatsApp API key not configured')
+    // Lookup conversation channel to route to correct API
+    const supabase = createAdminClient()
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('channel, external_subscriber_id')
+      .eq('id', convId)
+      .single()
+    const channel: ChannelType = (conv?.channel as ChannelType) || 'whatsapp'
+
+    // Get credentials for this channel
+    const creds = await getChannelCredentials(wsId, channel)
+    if (!creds.apiKey) {
+      logger.error({ workspaceId: wsId, channel }, 'Channel API key not configured')
       return { messagesSent: 0 }
     }
+    const apiKey = creds.apiKey
+
+    // For FB/IG, use external_subscriber_id instead of phone
+    const recipientId = (channel !== 'whatsapp' && conv?.external_subscriber_id)
+      ? conv.external_subscriber_id
+      : phone
 
     const ctx: DomainContext = { workspaceId: wsId, source: 'adapter' }
     let sentCount = 0
@@ -159,18 +190,20 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
           const caption = pipeIdx > 0 ? template.content.slice(pipeIdx + 1) : undefined
           result = await domainSendMediaMessage(ctx, {
             conversationId: convId,
-            contactPhone: phone,
+            contactPhone: recipientId,
             mediaUrl,
             mediaType: 'image',
             caption,
             apiKey,
+            channel,
           })
         } else {
           result = await domainSendTextMessage(ctx, {
             conversationId: convId,
-            contactPhone: phone,
+            contactPhone: recipientId,
             messageBody: template.content,
             apiKey,
+            channel,
           })
         }
 
@@ -178,7 +211,7 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
           sentCount++
           logger.debug(
             { messageId: result.data?.messageId, position: i + 1, total: templates.length, contentType: template.contentType },
-            'WhatsApp message sent via domain'
+            `Message sent via domain (${channel})`
           )
         } else {
           logger.warn(
@@ -190,7 +223,7 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
         const errMsg = sendError instanceof Error ? sendError.message : String(sendError)
         logger.error(
           { error: errMsg, phone, position: i + 1 },
-          'Failed to send WhatsApp message via domain'
+          `Failed to send message via domain (${channel})`
         )
         // Continue with next message even if this one failed
       }

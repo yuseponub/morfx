@@ -43,6 +43,10 @@ export interface FindOrCreateConversationParams {
   contactId?: string | null
   whatsappAccountId?: string | null
   profileName?: string
+  /** Channel type — defaults to 'whatsapp' for backward compatibility */
+  channel?: 'whatsapp' | 'facebook' | 'instagram'
+  /** ManyChat subscriber ID (for FB/IG conversations) */
+  externalSubscriberId?: string
 }
 
 // ============================================================================
@@ -240,12 +244,15 @@ export async function findOrCreateConversation(
 ): Promise<DomainResult<FindOrCreateConversationResult>> {
   const supabase = createAdminClient()
 
-  // Try to find existing conversation
+  const channel = params.channel || 'whatsapp'
+
+  // Try to find existing conversation (unique by workspace + phone + channel)
   const { data: existing } = await supabase
     .from('conversations')
     .select('id, profile_name')
     .eq('workspace_id', ctx.workspaceId)
     .eq('phone', params.phone)
+    .eq('channel', channel)
     .single()
 
   if (existing) {
@@ -268,6 +275,8 @@ export async function findOrCreateConversation(
       phone_number_id: params.whatsappAccountId || '',
       profile_name: params.profileName || null,
       contact_id: params.contactId || null,
+      channel,
+      ...(params.externalSubscriberId ? { external_subscriber_id: params.externalSubscriberId } : {}),
     })
     .select('id')
     .single()
@@ -280,6 +289,7 @@ export async function findOrCreateConversation(
         .select('id')
         .eq('workspace_id', ctx.workspaceId)
         .eq('phone', params.phone)
+        .eq('channel', channel)
         .single()
 
       if (retry) {

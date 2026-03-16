@@ -29,7 +29,7 @@ export default async function SuperAdminLayout({
       <header className="border-b bg-card">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
+            <Link href="/sms">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver

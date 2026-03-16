@@ -338,12 +338,11 @@ export const ACTION_CATALOG = [
   {
     type: 'send_sms',
     label: 'Enviar SMS',
-    category: 'Twilio',
-    description: 'Envia un mensaje SMS al contacto via Twilio',
+    category: 'SMS',
+    description: 'Envia un mensaje SMS al contacto',
     params: [
       { name: 'body', label: 'Mensaje', type: 'textarea', required: true, supportsVariables: true },
       { name: 'to', label: 'Telefono destino (opcional)', type: 'text', required: false, supportsVariables: true },
-      { name: 'mediaUrl', label: 'URL de media (MMS)', type: 'text', required: false },
     ],
   },
 ] as const

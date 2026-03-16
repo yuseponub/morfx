@@ -25,6 +25,8 @@ export default async function SmsPage() {
     getSMSMetrics(),
   ])
 
+  const isSuperAdmin = user.email === 'joseromerorincon041100@gmail.com'
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="container py-6 px-6">
@@ -35,7 +37,7 @@ export default async function SmsPage() {
           </p>
         </div>
 
-        <SmsDashboard initialConfig={config} initialMetrics={metrics} />
+        <SmsDashboard initialConfig={config} initialMetrics={metrics} isSuperAdmin={isSuperAdmin} />
       </div>
     </div>
   )

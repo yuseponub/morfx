@@ -331,13 +331,13 @@ async function processIncomingMessage(
           // Inline fallback only for text -- media requires Inngest for async processing
           console.error('Inngest send failed, falling back to inline:', inngestError instanceof Error ? inngestError.message : inngestError)
           if (msg.type === 'text') {
-            await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+            await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone, messageTimestamp)
           }
         }
       } else {
         // Inline path: only for text (media requires Inngest for async processing)
         if (msg.type === 'text') {
-          await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone)
+          await processAgentInline(supabase, conversationId, contactId, normalizedContent, workspaceId, phone, messageTimestamp)
         }
       }
     }
@@ -365,6 +365,7 @@ async function processAgentInline(
   messageContent: string,
   workspaceId: string,
   phone: string,
+  messageTimestamp?: string,
 ): Promise<void> {
   try {
     const { processMessageWithAgent } = await import(
@@ -376,6 +377,7 @@ async function processAgentInline(
       messageContent,
       workspaceId,
       phone,
+      messageTimestamp,
     })
 
     // If agent failed, write error to conversation so we can diagnose

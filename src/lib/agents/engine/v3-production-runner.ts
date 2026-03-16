@@ -183,6 +183,61 @@ export class V3ProductionRunner {
       let messagesSent = 0
       let sentMessageContents: string[] = []
 
+      // 5h-pre. Load and send pending templates from previous interrupted block
+      if (this.adapters.storage.getPendingTemplates) {
+        try {
+          const pending = await this.adapters.storage.getPendingTemplates(session.id)
+          if (pending && pending.length > 0) {
+            console.log(`[V3-RUNNER] Sending ${pending.length} pending templates from interrupted block`)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const pendingAsProcessed: ProcessedMessage[] = pending.map((p: any) => ({
+              templateId: p.templateId,
+              content: p.content,
+              contentType: (p.contentType === 'template' ? 'texto' : p.contentType) as 'texto' | 'imagen',
+              priority: p.priority ?? 'CORE',
+              delayMs: 0,
+            }))
+
+            const pendingSendResult = await this.adapters.messaging.send({
+              sessionId: session.id,
+              conversationId: input.conversationId,
+              messages: pendingAsProcessed.map(t => t.content),
+              templates: pendingAsProcessed.map(t => ({
+                id: t.templateId,
+                content: t.content,
+                contentType: t.contentType,
+                delaySeconds: 0,
+              })),
+              workspaceId: this.config.workspaceId,
+              contactId: input.contactId,
+              phoneNumber: input.phoneNumber,
+              triggerTimestamp: input.messageTimestamp,
+            })
+
+            messagesSent += pendingSendResult.messagesSent
+            sentMessageContents.push(
+              ...pendingAsProcessed.slice(0, pendingSendResult.messagesSent).map(t => t.content)
+            )
+
+            // Clear pending after sending (or if interrupted again, save remaining)
+            if (pendingSendResult.interrupted) {
+              const sentIdx = pendingSendResult.interruptedAtIndex ?? pendingSendResult.messagesSent
+              const stillPending = pendingAsProcessed.slice(sentIdx)
+              if (stillPending.length > 0 && this.adapters.storage.savePendingTemplates) {
+                await this.adapters.storage.savePendingTemplates(session.id, stillPending as any)
+              }
+            } else if (this.adapters.storage.clearPendingTemplates) {
+              await this.adapters.storage.clearPendingTemplates(session.id)
+            }
+          }
+        } catch (pendingError) {
+          console.error('[V3-RUNNER] Failed to send pending templates (fail-open):', pendingError)
+          if (this.adapters.storage.clearPendingTemplates) {
+            await this.adapters.storage.clearPendingTemplates(session.id)
+          }
+        }
+      }
+
       if (output.templates && output.templates.length > 0) {
         let templatesToSend: ProcessedMessage[] = output.templates
 

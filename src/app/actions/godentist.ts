@@ -315,6 +315,39 @@ export async function sendConfirmations(
       .eq('id', historyId)
   }
 
+  // Schedule 2pm followup check (only if sent before 2pm Colombia time)
+  if (historyId && result.sent > 0) {
+    try {
+      // Calculate 2pm Colombia today = 19:00 UTC same day
+      // Get current Colombia date/hour
+      const nowColombia = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+      const colombiaHour = nowColombia.getHours()
+
+      if (colombiaHour < 14) {
+        // Build 2pm Colombia today in UTC: take today's date in Colombia, set to 19:00 UTC
+        const todayColombia = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' })
+        const [y, m, d] = todayColombia.split('-').map(Number)
+        // 2pm Colombia = 19:00 UTC (Colombia is UTC-5, no DST)
+        const scheduledAt = new Date(Date.UTC(y, m - 1, d, 19, 0, 0)).toISOString()
+
+        await (inngest.send as any)({
+          name: 'godentist/followup.check',
+          data: {
+            historyId,
+            workspaceId,
+            scheduledAt,
+          },
+        })
+        console.log(`[godentist] Followup check scheduled for ${scheduledAt}`)
+      } else {
+        console.log(`[godentist] Skipping followup — sent after 2pm Colombia (hour=${colombiaHour})`)
+      }
+    } catch (err) {
+      console.error('[godentist] Failed to schedule followup:', err)
+      // Non-blocking — confirmations were already sent successfully
+    }
+  }
+
   return { data: result }
 }
 

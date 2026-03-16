@@ -266,7 +266,225 @@ const godentistTagRemove = inngest.createFunction(
 )
 
 // ============================================================================
+// Types (local — avoid importing from server action files)
+// ============================================================================
+
+/**
+ * Shape of send_results stored in godentist_scrape_history.
+ * Matches the output of the scrape+send server action.
+ */
+interface SendResult {
+  total: number
+  sent: number
+  failed: number
+  excluded: number
+  details: Array<{
+    nombre: string
+    telefono: string
+    status: string
+    error?: string
+  }>
+}
+
+/**
+ * Shape of a scraped appointment stored in godentist_scrape_history.appointments.
+ */
+interface ScrapedAppointment {
+  nombre: string
+  telefono: string
+  hora: string
+  sucursal: string
+  estado: string
+}
+
+// ============================================================================
+// Inngest Function: GoDentist 2PM Followup Check
+// ============================================================================
+
+const godentistFollowupCheck = inngest.createFunction(
+  {
+    id: 'godentist-followup-check',
+    name: 'GoDentist: 2PM Followup Check',
+    retries: 2,
+  },
+  { event: 'godentist/followup.check' },
+  async ({ event, step }) => {
+    const { historyId, workspaceId, scheduledAt } = event.data
+
+    // Step 1: Sleep until 2pm Colombia time
+    await step.sleepUntil('wait-until-2pm', new Date(scheduledAt))
+
+    // Step 2: Load history entry and get patients with status='sent'
+    const patients = await step.run('load-sent-patients', async () => {
+      const admin = createAdminClient()
+      const { data } = await admin
+        .from('godentist_scrape_history')
+        .select('send_results, scraped_date')
+        .eq('id', historyId)
+        .single()
+
+      if (!data?.send_results) return []
+
+      const sendResults = data.send_results as unknown as SendResult
+      // Only patients with status='sent' (skip excluded/failed)
+      return sendResults.details
+        .filter(d => d.status === 'sent')
+        .map(d => ({
+          nombre: d.nombre,
+          telefono: d.telefono,
+          scrapedDate: data.scraped_date,
+        }))
+    })
+
+    if (!patients || patients.length === 0) {
+      return { skipped: true, reason: 'no sent patients found' }
+    }
+
+    // Step 3: Check each patient for inbound messages and send ultimatum if no response
+    const followupResults = await step.run('check-and-send-ultimatums', async () => {
+      const admin = createAdminClient()
+      const domainCtx: DomainContext = { workspaceId, source: 'inngest-godentist' }
+      const results: Array<{
+        nombre: string
+        telefono: string
+        status: 'sent' | 'skipped' | 'failed'
+        reason?: string
+      }> = []
+
+      // Get workspace API key
+      const { data: wsData } = await admin
+        .from('workspaces')
+        .select('settings')
+        .eq('id', workspaceId)
+        .single()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const settings = wsData?.settings as any
+      const apiKey = settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+      if (!apiKey) throw new Error('WhatsApp API key not configured')
+
+      // Fetch sent_at and appointments ONCE (outside loop)
+      const { data: history } = await admin
+        .from('godentist_scrape_history')
+        .select('sent_at, appointments')
+        .eq('id', historyId)
+        .single()
+
+      if (!history?.sent_at) {
+        return [{ nombre: 'N/A', telefono: 'N/A', status: 'failed' as const, reason: 'no sent_at timestamp' }]
+      }
+
+      const sentAt = history.sent_at
+      const appointments = (history.appointments as unknown as ScrapedAppointment[]) || []
+
+      for (const patient of patients) {
+        const phone = patient.telefono.startsWith('+') ? patient.telefono : `+${patient.telefono}`
+
+        // Find conversation by phone
+        const { data: conv } = await admin
+          .from('conversations')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .eq('phone', phone)
+          .single()
+
+        if (!conv) {
+          results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'failed', reason: 'no conversation found' })
+          continue
+        }
+
+        // Check for inbound messages after sent_at
+        const { data: inboundMessages } = await admin
+          .from('messages')
+          .select('id')
+          .eq('conversation_id', conv.id)
+          .eq('direction', 'inbound')
+          .gt('created_at', sentAt)
+          .limit(1)
+
+        if (inboundMessages && inboundMessages.length > 0) {
+          // Patient responded — skip
+          results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: 'patient responded' })
+          continue
+        }
+
+        // Find matching appointment for hora
+        const matchedApt = appointments.find(a => a.telefono === patient.telefono)
+
+        if (!matchedApt) {
+          results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'failed', reason: 'appointment not found in history' })
+          continue
+        }
+
+        // Skip cancelled appointments
+        if (matchedApt.estado.toLowerCase().includes('cancelada')) {
+          results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: 'cancelled appointment' })
+          continue
+        }
+
+        // Format: "MARTES 17 de marzo a las 2:30 PM"
+        const dateStr = formatDateSpanish(patient.scrapedDate)
+        const dayUpper = dateStr.split(' ')[0].toUpperCase()
+        const dateFormatted = dayUpper + dateStr.substring(dateStr.indexOf(' ')) + ' a las ' + matchedApt.hora
+
+        const nombreTC = toTitleCase(patient.nombre)
+
+        try {
+          const sendResult = await sendTemplateMessage(domainCtx, {
+            conversationId: conv.id,
+            contactPhone: phone,
+            templateName: 'conservacion_cita',
+            templateLanguage: 'es',
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: nombreTC },
+                  { type: 'text', text: dateFormatted },
+                ],
+              },
+            ],
+            renderedText: `Hola ${nombreTC}, te contactamos nuevamente de godentist, responde este mensaje para CONFIRMAR tu cita del dia ${dateFormatted}. Para que puedas CONSERVAR tu espacio.`,
+            apiKey,
+          })
+
+          if (sendResult.success) {
+            results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'sent' })
+          } else {
+            results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'failed', reason: sendResult.error || 'send failed' })
+          }
+        } catch (err) {
+          results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'failed', reason: err instanceof Error ? err.message : String(err) })
+        }
+
+        // Rate limit between sends
+        await new Promise(r => setTimeout(r, 500))
+      }
+
+      return results
+    })
+
+    // Step 4: Save followup results to history
+    await step.run('save-followup-results', async () => {
+      const admin = createAdminClient()
+      await admin
+        .from('godentist_scrape_history')
+        .update({
+          followup_results: followupResults as unknown as Record<string, unknown>,
+          followup_sent_at: new Date().toISOString(),
+        })
+        .eq('id', historyId)
+    })
+
+    const sent = followupResults.filter(r => r.status === 'sent').length
+    const skipped = followupResults.filter(r => r.status === 'skipped').length
+    const failed = followupResults.filter(r => r.status === 'failed').length
+
+    return { historyId, sent, skipped, failed, total: followupResults.length }
+  }
+)
+
+// ============================================================================
 // Export
 // ============================================================================
 
-export const godentistReminderFunctions = [godentistReminderSend, godentistTagRemove]
+export const godentistReminderFunctions = [godentistReminderSend, godentistTagRemove, godentistFollowupCheck]

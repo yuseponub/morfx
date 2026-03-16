@@ -11,13 +11,11 @@
  * - No MessageClassifier — v3 uses comprehension + sales-track for silence
  * - No forceIntent — v3 uses systemEvent for timer-triggered processing
  *
- * Flow:
- * 1. Get session via storage adapter
- * 2. Get history via storage adapter (or use provided history)
- * 3. Map session state → V3AgentInput
- * 4. Call v3 processMessage()
- * 5. Route V3AgentOutput → adapter calls (storage, timer, messaging, orders, debug)
- * 6. Build and return EngineOutput
+ * Interruption handling (mirrors sandbox Path A / Path B):
+ * - Path A (0 templates sent): discard turn, rollback intents_vistos, save pending
+ *   message → next turn combines both messages into one comprehension call
+ * - Path B (1+ templates sent): save only actually-sent IDs to templates_enviados,
+ *   save unsent as pending_templates for next turn to send first
  */
 
 import { VersionConflictError } from '../errors'
@@ -58,15 +56,33 @@ export class V3ProductionRunner {
         (this.adapters.timer as any).setSessionId(session.id)
       }
 
+      // 1c. Detect pending message from previous 0-send interruption (Path A accumulation)
+      const currentDatos = session.state.datos_capturados ?? {}
+      const pendingUserMessage = currentDatos['_v3:pendingUserMessage'] as string | undefined
+      const effectiveMessage = pendingUserMessage
+        ? `${pendingUserMessage}\n${input.message}`
+        : input.message
+
+      if (pendingUserMessage) {
+        console.log(`[V3-RUNNER] Path A accumulation: combining pending="${pendingUserMessage}" + new="${input.message}"`)
+      }
+
       // 2. Get history (production reads from DB)
       const history = input.history.length > 0
         ? input.history
         : await this.adapters.storage.getHistory(session.id)
 
-      console.log(`[V3-RUNNER] msg="${input.message}" sessionId=${session.id} historyLen=${history.length}`)
+      console.log(`[V3-RUNNER] msg="${effectiveMessage}" sessionId=${session.id} historyLen=${history.length}`)
 
       // 3. Build V3AgentInput from session state
       const turnNumber = input.turnNumber ?? (history.length + 1)
+
+      // Snapshot pre-process state for potential Path A rollback
+      const inputIntentsVistos = [...(session.state.intents_vistos ?? [])]
+      const inputTemplatesEnviados = session.state.templates_enviados ?? []
+      const inputDatosCapturados = { ...currentDatos }
+      // Remove pending message from datos so pipeline doesn't see it
+      delete inputDatosCapturados['_v3:pendingUserMessage']
 
       // Read acciones_ejecutadas: prefer dedicated column (new), fallback to _v3: key in datos_capturados
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,17 +97,17 @@ export class V3ProductionRunner {
 
       // V3 expects intentsVistos as string[], production stores IntentRecord[]
       // Extract just the intent names
-      const intentsVistos: string[] = (session.state.intents_vistos ?? []).map(
+      const intentsVistos: string[] = inputIntentsVistos.map(
         (r: { intent: string } | string) => typeof r === 'string' ? r : r.intent
       )
 
       const v3Input: V3AgentInput = {
-        message: input.message,
+        message: effectiveMessage,
         history,
         currentMode: session.current_mode,
         intentsVistos,
-        templatesEnviados: session.state.templates_enviados ?? [],
-        datosCapturados: session.state.datos_capturados ?? {},
+        templatesEnviados: inputTemplatesEnviados,
+        datosCapturados: inputDatosCapturados,
         packSeleccionado: session.state.pack_seleccionado as string | null,
         accionesEjecutadas,
         turnNumber,
@@ -104,88 +120,25 @@ export class V3ProductionRunner {
       const output: V3AgentOutput = await processMessage(v3Input)
 
       // 5. Route output to adapters
+      // NOTE: State save is DEFERRED until after messaging to support Path A rollback.
 
-      // 5a. Storage — save state (EXCLUDING templates_enviados — saved post-send with only actually-sent IDs)
-      const inputTemplatesEnviados = session.state.templates_enviados ?? []
-      await this.adapters.storage.saveState(session.id, {
-        datos_capturados: output.datosCapturados,
-        intents_vistos: output.intentsVistos,
-        pack_seleccionado: output.packSeleccionado,
-        acciones_ejecutadas: output.accionesEjecutadas,
-      })
-
-      // 5b. Storage — update mode (with optimistic locking)
-      if (output.newMode && output.newMode !== session.current_mode) {
-        await this.adapters.storage.updateMode(session.id, session.version, output.newMode)
-      }
-
-      // 5c. Storage — add user turn
-      await this.adapters.storage.addTurn({
-        sessionId: session.id,
-        turnNumber,
-        role: 'user',
-        content: input.message,
-        intentDetected: output.intentInfo?.intent,
-        confidence: output.intentInfo?.confidence,
-        tokensUsed: output.totalTokens,
-      })
-
-      // 5d. Storage — add intent seen
-      if (output.intentInfo?.intent) {
-        await this.adapters.storage.addIntentSeen(session.id, output.intentInfo.intent)
-      }
-
-      // 5e. Storage — handoff
-      if (output.newMode === 'handoff') {
-        await this.adapters.storage.handoff(session.id, session.version)
-        if (this.adapters.storage.clearPendingTemplates) {
-          await this.adapters.storage.clearPendingTemplates(session.id)
-        }
-      }
-
-      // 5f. Timer — lifecycle hooks + signals
+      // 5f. Timer — cancel active timers (customer sent a message, always do this)
       if (this.adapters.timer.onCustomerMessage) {
         await this.adapters.timer.onCustomerMessage(session.id, input.conversationId, input.message)
       }
 
-      if (output.newMode && output.newMode !== session.current_mode && this.adapters.timer.onModeTransition) {
-        await this.adapters.timer.onModeTransition(session.id, session.current_mode, output.newMode, input.conversationId)
-      }
-
-      for (const signal of output.timerSignals) {
-        this.adapters.timer.signal(signal)
-      }
-
-      // 5g. Orders — create if needed
+      // 5g. Orders — create if needed (deferred to after send decision for Path A)
       let orderResult: { success: boolean; orderId?: string; contactId?: string } | undefined
 
-      if (output.shouldCreateOrder && output.orderData) {
-        const isOfiInter = output.datosCapturados['_v3:ofiInter'] === 'true'
-        const cedulaRecoge = output.datosCapturados.cedula_recoge
-
-        console.log(`[V3-RUNNER] Creating order... isOfiInter=${isOfiInter} pack=${output.orderData.packSeleccionado}`)
-
-        orderResult = await this.adapters.orders.createOrder({
-          datosCapturados: output.orderData.datosCapturados,
-          packSeleccionado: output.orderData.packSeleccionado,
-          workspaceId: this.config.workspaceId,
-          sessionId: session.id,
-          valorOverride: output.orderData.valorOverride,
-          isOfiInter,
-          cedulaRecoge,
-        })
-
-        console.log(`[V3-RUNNER] Order result: success=${orderResult.success} orderId=${orderResult.orderId}`)
-      }
-
-      // 5h. Messaging — send templates (with no-rep filter)
-      // V3 templates come pre-composed from response-track. NO extra block composition.
-      // CRITICAL: templates_enviados is saved ONLY after send, with ONLY actually-sent IDs.
+      // ================================================================
+      // 5h. MESSAGING — send templates with interruption handling
+      // ================================================================
       let messagesSent = 0
       let sentMessageContents: string[] = []
       const actuallySentIds: string[] = []
+      let wasInterruptedWithZeroSends = false
 
-      // 5h-pre. Load and send pending templates from previous interrupted block
+      // 5h-pre. Load and send pending templates from previous interrupted block (Path B)
       if (this.adapters.storage.getPendingTemplates) {
         try {
           const pending = await this.adapters.storage.getPendingTemplates(session.id)
@@ -216,7 +169,6 @@ export class V3ProductionRunner {
               triggerTimestamp: input.messageTimestamp,
             })
 
-            // Track actually-sent pending template IDs
             const pendingSentIds = pendingAsProcessed
               .slice(0, pendingSendResult.messagesSent)
               .map(t => t.templateId)
@@ -228,7 +180,6 @@ export class V3ProductionRunner {
               ...pendingAsProcessed.slice(0, pendingSendResult.messagesSent).map(t => t.content)
             )
 
-            // Clear pending after sending (or if interrupted again, save remaining)
             if (pendingSendResult.interrupted) {
               const sentIdx = pendingSendResult.interruptedAtIndex ?? pendingSendResult.messagesSent
               const stillPending = pendingAsProcessed.slice(sentIdx)
@@ -247,6 +198,7 @@ export class V3ProductionRunner {
         }
       }
 
+      // 5h-main. Send new templates from this turn's pipeline output
       if (output.templates && output.templates.length > 0) {
         let templatesToSend: ProcessedMessage[] = output.templates
 
@@ -267,7 +219,6 @@ export class V3ProductionRunner {
 
             const noRepFilter = new NoRepetitionFilter(this.config.workspaceId)
 
-            // Map ProcessedMessage to PrioritizedTemplate shape for filterBlock
             const blockForFilter = templatesToSend.map(t => ({
               templateId: t.templateId,
               content: t.content,
@@ -284,7 +235,6 @@ export class V3ProductionRunner {
               inputTemplatesEnviados,
             )
 
-            // Map surviving back to original ProcessedMessage objects
             const survivingIds = new Set(filterResult.surviving.map(s => s.templateId))
             templatesToSend = templatesToSend.filter(t => survivingIds.has(t.templateId))
 
@@ -294,7 +244,6 @@ export class V3ProductionRunner {
               )
             }
           } catch (noRepError) {
-            // Fail-open: send full block on error
             console.error('[V3-RUNNER] No-rep filter crashed, sending full block (fail-open):', noRepError)
             templatesToSend = output.templates
           }
@@ -317,27 +266,35 @@ export class V3ProductionRunner {
             phoneNumber: input.phoneNumber,
             triggerTimestamp: input.messageTimestamp,
           })
+
           messagesSent += sendResult.messagesSent
           sentMessageContents.push(
             ...templatesToSend.slice(0, sendResult.messagesSent).map(t => t.content)
           )
 
-          // Track actually-sent template IDs
           const sentIds = templatesToSend
             .slice(0, sendResult.messagesSent)
             .map(t => t.templateId)
             .filter((id): id is string => id != null && id.length > 0)
           actuallySentIds.push(...sentIds)
 
-          // Handle interruption — pending templates
+          // Interruption handling
           if (sendResult.interrupted) {
-            const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
-            const unsent = templatesToSend.slice(sentIndex)
-            if (unsent.length > 0 && this.adapters.storage.savePendingTemplates) {
-              await this.adapters.storage.savePendingTemplates(session.id, unsent)
+            if (sendResult.messagesSent === 0) {
+              // PATH A: 0 templates sent — discard turn, save pending message
+              wasInterruptedWithZeroSends = true
+              console.log(`[V3-RUNNER] Path A: 0 sends, discarding turn, saving pending message`)
+            } else {
+              // PATH B: partial send — save unsent as pending_templates
+              const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
+              const unsent = templatesToSend.slice(sentIndex)
+              if (unsent.length > 0 && this.adapters.storage.savePendingTemplates) {
+                await this.adapters.storage.savePendingTemplates(session.id, unsent)
+                console.log(`[V3-RUNNER] Path B: ${sendResult.messagesSent} sent, ${unsent.length} saved as pending`)
+              }
             }
           } else {
-            // Clear stale pending
+            // No interruption — clear stale pending
             if (this.adapters.storage.clearPendingTemplates) {
               await this.adapters.storage.clearPendingTemplates(session.id)
             }
@@ -357,34 +314,125 @@ export class V3ProductionRunner {
         sentMessageContents.push(...output.messages)
       }
 
-      // 5h-post: Save templates_enviados with ONLY actually-sent IDs
-      if (actuallySentIds.length > 0) {
-        const updatedTemplatesEnviados = [...inputTemplatesEnviados, ...actuallySentIds]
-        await this.adapters.storage.saveState(session.id, {
-          templates_enviados: updatedTemplatesEnviados,
-        })
-        console.log(`[V3-RUNNER] templates_enviados updated: +${actuallySentIds.length} sent (total: ${updatedTemplatesEnviados.length})`)
-      }
+      // ================================================================
+      // 5-post. POST-SEND: State save + turns (Path A vs Path B decision)
+      // ================================================================
 
-      // 5i. Assistant turn recording (post-send)
-      const assistantContent = sentMessageContents
-        .filter(m => m.trim().length > 0)
-        .join('\n')
-      if (assistantContent.trim()) {
-        try {
-          await this.adapters.storage.addTurn({
-            sessionId: session.id,
-            turnNumber: turnNumber + 1,
-            role: 'assistant',
-            content: assistantContent,
+      if (wasInterruptedWithZeroSends) {
+        // PATH A: Rollback intents_vistos, save pending message, skip turns
+        // The turn is discarded — next message will combine and re-process
+        await this.adapters.storage.saveState(session.id, {
+          intents_vistos: inputIntentsVistos,
+          datos_capturados: {
+            ...inputDatosCapturados,
+            '_v3:pendingUserMessage': input.message,
+          },
+          // Keep other fields from pipeline (pack, acciones) — harmless and avoids data loss
+          pack_seleccionado: output.packSeleccionado,
+          acciones_ejecutadas: output.accionesEjecutadas,
+        })
+        // Clear pending_templates on Path A (no partial send to resume)
+        if (this.adapters.storage.clearPendingTemplates) {
+          await this.adapters.storage.clearPendingTemplates(session.id)
+        }
+        console.log(`[V3-RUNNER] Path A: state rolled back, pending="${input.message}"`)
+      } else {
+        // PATH B / Normal: Save full state + turns
+
+        // Save state (excluding templates_enviados, handled below)
+        await this.adapters.storage.saveState(session.id, {
+          datos_capturados: output.datosCapturados,
+          intents_vistos: output.intentsVistos,
+          pack_seleccionado: output.packSeleccionado,
+          acciones_ejecutadas: output.accionesEjecutadas,
+        })
+
+        // Save templates_enviados with ONLY actually-sent IDs
+        if (actuallySentIds.length > 0) {
+          const updatedTemplatesEnviados = [...inputTemplatesEnviados, ...actuallySentIds]
+          await this.adapters.storage.saveState(session.id, {
+            templates_enviados: updatedTemplatesEnviados,
           })
-          console.log(`[V3-RUNNER] Assistant turn saved (${assistantContent.length} chars)`)
-        } catch (turnError) {
-          console.error('[V3-RUNNER] Failed to save assistant turn:', turnError)
+          console.log(`[V3-RUNNER] templates_enviados: +${actuallySentIds.length} (total: ${updatedTemplatesEnviados.length})`)
+        }
+
+        // Update mode (with optimistic locking)
+        if (output.newMode && output.newMode !== session.current_mode) {
+          await this.adapters.storage.updateMode(session.id, session.version, output.newMode)
+        }
+
+        // Timer signals (only on committed turns)
+        if (output.newMode && output.newMode !== session.current_mode && this.adapters.timer.onModeTransition) {
+          await this.adapters.timer.onModeTransition(session.id, session.current_mode, output.newMode, input.conversationId)
+        }
+        for (const signal of output.timerSignals) {
+          this.adapters.timer.signal(signal)
+        }
+
+        // User turn
+        await this.adapters.storage.addTurn({
+          sessionId: session.id,
+          turnNumber,
+          role: 'user',
+          content: effectiveMessage,
+          intentDetected: output.intentInfo?.intent,
+          confidence: output.intentInfo?.confidence,
+          tokensUsed: output.totalTokens,
+        })
+
+        // Add intent seen
+        if (output.intentInfo?.intent) {
+          await this.adapters.storage.addIntentSeen(session.id, output.intentInfo.intent)
+        }
+
+        // Handoff
+        if (output.newMode === 'handoff') {
+          await this.adapters.storage.handoff(session.id, session.version)
+          if (this.adapters.storage.clearPendingTemplates) {
+            await this.adapters.storage.clearPendingTemplates(session.id)
+          }
+        }
+
+        // Orders (only on committed turns)
+        if (output.shouldCreateOrder && output.orderData) {
+          const isOfiInter = output.datosCapturados['_v3:ofiInter'] === 'true'
+          const cedulaRecoge = output.datosCapturados.cedula_recoge
+
+          console.log(`[V3-RUNNER] Creating order... isOfiInter=${isOfiInter} pack=${output.orderData.packSeleccionado}`)
+
+          orderResult = await this.adapters.orders.createOrder({
+            datosCapturados: output.orderData.datosCapturados,
+            packSeleccionado: output.orderData.packSeleccionado,
+            workspaceId: this.config.workspaceId,
+            sessionId: session.id,
+            valorOverride: output.orderData.valorOverride,
+            isOfiInter,
+            cedulaRecoge,
+          })
+
+          console.log(`[V3-RUNNER] Order result: success=${orderResult.success} orderId=${orderResult.orderId}`)
+        }
+
+        // Assistant turn recording (post-send)
+        const assistantContent = sentMessageContents
+          .filter(m => m.trim().length > 0)
+          .join('\n')
+        if (assistantContent.trim()) {
+          try {
+            await this.adapters.storage.addTurn({
+              sessionId: session.id,
+              turnNumber: turnNumber + 1,
+              role: 'assistant',
+              content: assistantContent,
+            })
+            console.log(`[V3-RUNNER] Assistant turn saved (${assistantContent.length} chars)`)
+          } catch (turnError) {
+            console.error('[V3-RUNNER] Failed to save assistant turn:', turnError)
+          }
         }
       }
 
-      // 5j. Debug adapter — record intent, tokens, classification, sales track
+      // 5j. Debug adapter — always record (even on Path A, useful for diagnostics)
       this.adapters.debug.recordIntent(output.intentInfo)
       this.adapters.debug.recordTokens({
         turnNumber,
@@ -399,7 +447,7 @@ export class V3ProductionRunner {
       return {
         success: output.success,
         messages: output.messages,
-        newMode: output.newMode,
+        newMode: wasInterruptedWithZeroSends ? undefined : output.newMode,
         tokensUsed: output.totalTokens,
         sessionId: session.id,
         messagesSent,

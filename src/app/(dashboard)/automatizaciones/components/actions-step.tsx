@@ -1252,11 +1252,11 @@ function ActionCard({
 
         <p className="text-xs text-muted-foreground">{catalogEntry.description}</p>
 
-        {/* Twilio not configured warning */}
-        {twilioWarning && catalogEntry.category === 'Twilio' && (
+        {/* SMS not configured warning */}
+        {twilioWarning && catalogEntry.category === 'SMS' && (
           <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
             <AlertTriangle className="size-3.5 shrink-0" />
-            Twilio no configurado. Configura tus credenciales en Configuracion &gt; Integraciones antes de usar esta accion.
+            SMS no configurado. Configura las credenciales SMS antes de usar esta accion.
           </div>
         )}
 
@@ -1516,10 +1516,10 @@ export function ActionsStep({ formData, onChange, pipelines, tags, templates = [
   const atLimit = actions.length >= MAX_ACTIONS_PER_AUTOMATION
   const [twilioWarning, setTwilioWarning] = useState(false)
 
-  // Check Twilio configuration when a Twilio action is present
+  // Check SMS configuration when an SMS action is present
   const hasTwilioAction = actions.some((a) => {
     const entry = ACTION_CATALOG.find((c) => c.type === a.type)
-    return entry?.category === 'Twilio'
+    return entry?.category === 'SMS'
   })
 
   useEffect(() => {

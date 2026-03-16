@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Building2, DollarSign, Settings, ArrowLeft } from 'lucide-react'
+import { Building2, DollarSign, MessageSquareText, Settings, ArrowLeft } from 'lucide-react'
 
 export default async function SuperAdminLayout({
   children
@@ -66,6 +66,13 @@ export default async function SuperAdminLayout({
             >
               <DollarSign className="h-4 w-4" />
               Costos
+            </Link>
+            <Link
+              href="/super-admin/sms"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
+            >
+              <MessageSquareText className="h-4 w-4" />
+              SMS
             </Link>
           </nav>
         </div>

@@ -22,6 +22,16 @@ export interface ManyChatSubscriberInfo {
 }
 
 /**
+ * Build JSON body with subscriber_id as a raw integer (no Number() conversion).
+ * Facebook PSIDs can exceed Number.MAX_SAFE_INTEGER, so we manually construct
+ * the JSON string to preserve the exact integer value.
+ */
+function buildSendContentBody(subscriberId: string, data: object): string {
+  const dataJson = JSON.stringify(data)
+  return `{"subscriber_id":${subscriberId},"data":${dataJson}}`
+}
+
+/**
  * Send a text message to a ManyChat subscriber.
  */
 export async function sendText(
@@ -35,15 +45,12 @@ export async function sendText(
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      subscriber_id: Number(subscriberId),
-      data: {
-        version: 'v2',
-        content: {
-          messages: [{ type: 'text', text }],
-          actions: [],
-          quick_replies: [],
-        },
+    body: buildSendContentBody(subscriberId, {
+      version: 'v2',
+      content: {
+        messages: [{ type: 'text', text }],
+        actions: [],
+        quick_replies: [],
       },
     }),
   })
@@ -71,15 +78,12 @@ export async function sendImage(
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      subscriber_id: Number(subscriberId),
-      data: {
-        version: 'v2',
-        content: {
-          messages: [{ type: 'image', url: imageUrl, buttons: [] }],
-          actions: [],
-          quick_replies: [],
-        },
+    body: buildSendContentBody(subscriberId, {
+      version: 'v2',
+      content: {
+        messages: [{ type: 'image', url: imageUrl, buttons: [] }],
+        actions: [],
+        quick_replies: [],
       },
     }),
   })

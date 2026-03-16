@@ -685,6 +685,20 @@ export type GodentistEvents = {
       removeAt: string  // ISO timestamp
     }
   }
+
+  /**
+   * Emitted after morning confirmations to schedule a 2pm followup check.
+   * The Inngest function sleeps until scheduledAt, checks for patient responses,
+   * and sends conservacion_cita template to non-responders.
+   */
+  'godentist/followup.check': {
+    data: {
+      historyId: string
+      workspaceId: string
+      /** ISO timestamp of when to run the check (2pm Colombia = 19:00 UTC) */
+      scheduledAt: string
+    }
+  }
 }
 
 // ============================================================================

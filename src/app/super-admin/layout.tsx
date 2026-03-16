@@ -20,7 +20,7 @@ export default async function SuperAdminLayout({
   const MORFX_OWNER_ID = process.env.MORFX_OWNER_USER_ID
 
   if (!MORFX_OWNER_ID || user.id !== MORFX_OWNER_ID) {
-    redirect('/dashboard')  // Unauthorized - redirect to normal dashboard
+    redirect('/crm/pedidos')  // Unauthorized - redirect to CRM
   }
 
   return (

@@ -40,6 +40,13 @@ export interface SendResult {
   }>
 }
 
+export interface FollowupResult {
+  nombre: string
+  telefono: string
+  status: 'sent' | 'skipped' | 'failed'
+  reason?: string
+}
+
 // ── Constants ──
 
 const ROBOT_URL = 'https://godentist-production.up.railway.app'
@@ -93,6 +100,8 @@ export interface ScrapeHistoryEntry {
   total_appointments: number
   send_results: SendResult | null
   sent_at: string | null
+  followup_results: FollowupResult[] | null
+  followup_sent_at: string | null
   created_at: string
 }
 
@@ -381,6 +390,8 @@ export async function getScrapeHistory(): Promise<{ error?: string; data?: Scrap
       total_appointments: row.total_appointments,
       send_results: row.send_results as unknown as SendResult | null,
       sent_at: row.sent_at,
+      followup_results: (row.followup_results as unknown as FollowupResult[]) || null,
+      followup_sent_at: row.followup_sent_at,
       created_at: row.created_at,
     })),
   }

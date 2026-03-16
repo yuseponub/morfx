@@ -21,7 +21,8 @@ export const V3_INTENTS = [
   'envio',
   'registro_sanitario',
   'ubicacion',
-  'efectos',
+  'contraindicaciones',
+  'dependencia',
   'efectividad',
 
   // Client actions (5)
@@ -61,7 +62,7 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
 /** Intents that the response track always answers (informational questions). */
 export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
   'saludo', 'precio', 'promociones', 'contenido', 'formula', 'como_se_toma',
-  'pago', 'envio', 'registro_sanitario', 'ubicacion', 'efectos', 'efectividad',
+  'pago', 'envio', 'registro_sanitario', 'ubicacion', 'contraindicaciones', 'dependencia', 'efectividad',
 ])
 
 /** Maps sales track accion to template intents. Dynamic actions (mostrar_confirmacion, cambio, crear_orden, pedir_datos) handled in response-track. */

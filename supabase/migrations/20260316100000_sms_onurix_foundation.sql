@@ -45,9 +45,9 @@ END $$;
 -- Drop NOT NULL constraint on provider_message_id (Onurix may not always have one at insert time)
 ALTER TABLE sms_messages ALTER COLUMN provider_message_id DROP NOT NULL;
 
--- Drop the old unique constraint (if it exists by index name)
+-- Drop the old unique constraint (must drop constraint first, then index)
+ALTER TABLE sms_messages DROP CONSTRAINT IF EXISTS sms_messages_twilio_sid_key;
 DROP INDEX IF EXISTS idx_sms_messages_twilio_sid;
-DROP INDEX IF EXISTS sms_messages_twilio_sid_key;
 
 -- Add provider column
 DO $$

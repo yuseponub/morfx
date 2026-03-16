@@ -105,10 +105,10 @@ export class V3ProductionRunner {
 
       // 5. Route output to adapters
 
-      // 5a. Storage — save state
+      // 5a. Storage — save state (EXCLUDING templates_enviados — saved post-send with only actually-sent IDs)
+      const inputTemplatesEnviados = session.state.templates_enviados ?? []
       await this.adapters.storage.saveState(session.id, {
         datos_capturados: output.datosCapturados,
-        templates_enviados: output.templatesEnviados,
         intents_vistos: output.intentsVistos,
         pack_seleccionado: output.packSeleccionado,
         acciones_ejecutadas: output.accionesEjecutadas,
@@ -180,8 +180,10 @@ export class V3ProductionRunner {
 
       // 5h. Messaging — send templates (with no-rep filter)
       // V3 templates come pre-composed from response-track. NO extra block composition.
+      // CRITICAL: templates_enviados is saved ONLY after send, with ONLY actually-sent IDs.
       let messagesSent = 0
       let sentMessageContents: string[] = []
+      const actuallySentIds: string[] = []
 
       // 5h-pre. Load and send pending templates from previous interrupted block
       if (this.adapters.storage.getPendingTemplates) {
@@ -213,6 +215,13 @@ export class V3ProductionRunner {
               phoneNumber: input.phoneNumber,
               triggerTimestamp: input.messageTimestamp,
             })
+
+            // Track actually-sent pending template IDs
+            const pendingSentIds = pendingAsProcessed
+              .slice(0, pendingSendResult.messagesSent)
+              .map(t => t.templateId)
+              .filter((id): id is string => id != null && id.length > 0)
+            actuallySentIds.push(...pendingSentIds)
 
             messagesSent += pendingSendResult.messagesSent
             sentMessageContents.push(
@@ -250,7 +259,7 @@ export class V3ProductionRunner {
             const registry = await buildOutboundRegistry(
               input.conversationId,
               session.id,
-              output.templatesEnviados,
+              inputTemplatesEnviados,
             )
 
             const { generateMinifrases } = await import('../somnio/minifrase-generator')
@@ -272,7 +281,7 @@ export class V3ProductionRunner {
             const filterResult = await noRepFilter.filterBlock(
               blockForFilter,
               registry,
-              output.templatesEnviados,
+              inputTemplatesEnviados,
             )
 
             // Map surviving back to original ProcessedMessage objects
@@ -308,36 +317,24 @@ export class V3ProductionRunner {
             phoneNumber: input.phoneNumber,
             triggerTimestamp: input.messageTimestamp,
           })
-          messagesSent = sendResult.messagesSent
-          sentMessageContents = templatesToSend
-            .slice(0, sendResult.messagesSent)
-            .map(t => t.content)
+          messagesSent += sendResult.messagesSent
+          sentMessageContents.push(
+            ...templatesToSend.slice(0, sendResult.messagesSent).map(t => t.content)
+          )
 
-          // Post-send: append sent template IDs to templates_enviados
-          const sentTemplateIds = templatesToSend
+          // Track actually-sent template IDs
+          const sentIds = templatesToSend
             .slice(0, sendResult.messagesSent)
             .map(t => t.templateId)
             .filter((id): id is string => id != null && id.length > 0)
-
-          if (sentTemplateIds.length > 0) {
-            const updatedTemplatesEnviados = [...output.templatesEnviados, ...sentTemplateIds]
-            await this.adapters.storage.saveState(session.id, {
-              templates_enviados: updatedTemplatesEnviados,
-            })
-          }
+          actuallySentIds.push(...sentIds)
 
           // Handle interruption — pending templates
           if (sendResult.interrupted) {
             const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
-            if (sendResult.messagesSent === 0) {
-              if (this.adapters.storage.clearPendingTemplates) {
-                await this.adapters.storage.clearPendingTemplates(session.id)
-              }
-            } else {
-              const unsent = templatesToSend.slice(sentIndex)
-              if (unsent.length > 0 && this.adapters.storage.savePendingTemplates) {
-                await this.adapters.storage.savePendingTemplates(session.id, unsent)
-              }
+            const unsent = templatesToSend.slice(sentIndex)
+            if (unsent.length > 0 && this.adapters.storage.savePendingTemplates) {
+              await this.adapters.storage.savePendingTemplates(session.id, unsent)
             }
           } else {
             // Clear stale pending
@@ -356,8 +353,17 @@ export class V3ProductionRunner {
           contactId: input.contactId,
           phoneNumber: input.phoneNumber,
         })
-        messagesSent = sendResult.messagesSent
-        sentMessageContents = output.messages
+        messagesSent += sendResult.messagesSent
+        sentMessageContents.push(...output.messages)
+      }
+
+      // 5h-post: Save templates_enviados with ONLY actually-sent IDs
+      if (actuallySentIds.length > 0) {
+        const updatedTemplatesEnviados = [...inputTemplatesEnviados, ...actuallySentIds]
+        await this.adapters.storage.saveState(session.id, {
+          templates_enviados: updatedTemplatesEnviados,
+        })
+        console.log(`[V3-RUNNER] templates_enviados updated: +${actuallySentIds.length} sent (total: ${updatedTemplatesEnviados.length})`)
       }
 
       // 5i. Assistant turn recording (post-send)

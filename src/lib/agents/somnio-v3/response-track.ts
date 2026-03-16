@@ -74,11 +74,8 @@ export async function resolveResponseTrack(input: {
   // ------------------------------------------------------------------
   // 3. Combine both sources
   // ------------------------------------------------------------------
-  // Saludo should appear before sales action in the conversation
-  const saludoFirst = infoTemplateIntents.includes('saludo')
-  const allIntents = saludoFirst
-    ? [...infoTemplateIntents, ...salesTemplateIntents]
-    : [...salesTemplateIntents, ...infoTemplateIntents]
+  const allIntents = [...salesTemplateIntents, ...infoTemplateIntents]
+  const hasSaludoCombined = infoTemplateIntents.includes('saludo') && allIntents.length > 1
 
   if (allIntents.length === 0) {
     // Natural silence: no sales action + non-informational intent
@@ -136,7 +133,7 @@ export async function resolveResponseTrack(input: {
     }
   }
 
-  // Compose block (max 3 templates)
+  // Compose block
   const byIntent = new Map<string, PrioritizedTemplate[]>()
   for (const t of allProcessed) {
     const existing = byIntent.get(t.intent) ?? []
@@ -144,7 +141,28 @@ export async function resolveResponseTrack(input: {
     byIntent.set(t.intent, existing)
   }
 
-  const composed = composeBlock(byIntent, [])
+  let finalBlock: PrioritizedTemplate[]
+
+  if (hasSaludoCombined) {
+    // Saludo combined path: saludo CORE first, then all templates from other intent(s)
+    const saludoTemplates = byIntent.get('saludo') ?? []
+    const saludoCORE = saludoTemplates
+      .filter(t => t.priority === 'CORE')
+      .sort((a, b) => a.orden - b.orden)[0]
+
+    const nonSaludoByIntent = new Map<string, PrioritizedTemplate[]>()
+    for (const [k, v] of byIntent) {
+      if (k !== 'saludo') nonSaludoByIntent.set(k, v)
+    }
+
+    // Pass non-saludo intents through block composer (uncapped for combined saludo)
+    const composed = composeBlock(nonSaludoByIntent, [], 10)
+    finalBlock = saludoCORE ? [saludoCORE, ...composed.block] : composed.block
+  } else {
+    // Normal path: block composer with standard max 3
+    const composed = composeBlock(byIntent, [])
+    finalBlock = composed.block
+  }
 
   // ------------------------------------------------------------------
   // 5. Build response
@@ -152,7 +170,7 @@ export async function resolveResponseTrack(input: {
   const messages: ProcessedMessage[] = []
   const templateIdsSent: string[] = []
 
-  for (const t of composed.block) {
+  for (const t of finalBlock) {
     messages.push({
       templateId: t.templateId,
       content: t.content,

@@ -53,6 +53,11 @@ export class V3ProductionRunner {
         ? await this.adapters.storage.getSession(input.sessionId)
         : await this.adapters.storage.getOrCreateSession(input.conversationId, input.contactId)
 
+      // 1b. Set sessionId on V3 timer adapter (needs session for Inngest events)
+      if ('setSessionId' in this.adapters.timer && typeof (this.adapters.timer as any).setSessionId === 'function') {
+        (this.adapters.timer as any).setSessionId(session.id)
+      }
+
       // 2. Get history (production reads from DB)
       const history = input.history.length > 0
         ? input.history

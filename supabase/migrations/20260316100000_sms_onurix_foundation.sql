@@ -31,6 +31,10 @@ CREATE POLICY sms_workspace_config_select ON sms_workspace_config
 -- 3. Migrate sms_messages table for Onurix support
 -- ============================================================================
 
+-- Drop the old unique constraint FIRST (before rename)
+ALTER TABLE sms_messages DROP CONSTRAINT IF EXISTS sms_messages_twilio_sid_key;
+DROP INDEX IF EXISTS idx_sms_messages_twilio_sid;
+
 -- Rename twilio_sid -> provider_message_id
 DO $$
 BEGIN
@@ -44,10 +48,6 @@ END $$;
 
 -- Drop NOT NULL constraint on provider_message_id (Onurix may not always have one at insert time)
 ALTER TABLE sms_messages ALTER COLUMN provider_message_id DROP NOT NULL;
-
--- Drop the old unique constraint (must drop constraint first, then index)
-ALTER TABLE sms_messages DROP CONSTRAINT IF EXISTS sms_messages_twilio_sid_key;
-DROP INDEX IF EXISTS idx_sms_messages_twilio_sid;
 
 -- Add provider column
 DO $$

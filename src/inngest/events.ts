@@ -687,10 +687,51 @@ export type GodentistEvents = {
   }
 }
 
+// ============================================================================
+// V3 Timer Events (Quick-028: V3 Production Timer System)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot + godentist).
+ * V3 agent timer events for the new sales-track timer signal system.
+ * V3 uses a single generic timer function (L0-L8) instead of V1's 5 specialized functions.
+ *
+ * Flow: V3 sales-track emits TimerSignal → V3ProductionTimerAdapter → inngest.send → v3Timer function
+ * Cancellation: agent/customer.message with matching sessionId (shared with V1)
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents
+export type V3TimerEvents = {
+  /**
+   * Emitted by V3ProductionTimerAdapter when sales-track emits a 'start' signal.
+   * Triggers the generic v3-timer Inngest function which sleeps, then calls v3 processMessage
+   * with systemEvent { type: 'timer_expired', level }.
+   */
+  'agent/v3.timer.started': {
+    data: {
+      sessionId: string
+      conversationId: string
+      workspaceId: string
+      level: number          // 0-8
+      timerDurationMs: number // duration from V3_TIMER_DURATIONS
+      phoneNumber: string
+      contactId: string
+    }
+  }
+
+  /**
+   * Emitted for logging/tracking purposes when a v3 timer is cancelled.
+   * NOT used for actual cancellation (that's via agent/customer.message waitForEvent match).
+   */
+  'agent/v3.timer.cancelled': {
+    data: {
+      sessionId: string
+      reason: string          // 'customer_replied' | 'ingest_complete' | etc
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist + v3 timer).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents
 
 /**
  * Type helper for extracting event data by name

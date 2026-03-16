@@ -166,3 +166,29 @@ export const CRM_ACTIONS: ReadonlySet<string> = new Set([
 export const CREATE_ORDER_ACTIONS: ReadonlySet<string> = new Set([
   'crear_orden', 'crear_orden_sin_promo', 'crear_orden_sin_confirmar',
 ])
+
+// ============================================================================
+// V3 Timer Durations (Quick-028: V3 Production Timer System)
+// ============================================================================
+
+/**
+ * Timer durations per preset per level (in SECONDS).
+ * Values are IDENTICAL to TIMER_PRESETS in src/lib/sandbox/ingest-timer.ts.
+ * Duplicated intentionally — zero imports in constants.ts (project rule).
+ *
+ * Levels:
+ * 0 - Sin datos (600s)
+ * 1 - Datos parciales (360s)
+ * 2 - Datos minimos (120s)
+ * 3 - Promos sin respuesta (600s)
+ * 4 - Pack sin confirmar (600s)
+ * 5 - Silencio (90s)
+ * 6 - Datos implicitos (360s)
+ * 7 - Ofi inter confirmado (120s)
+ * 8 - Extras ofi inter (120s)
+ */
+export const V3_TIMER_DURATIONS: Record<string, Record<number, number>> = {
+  real:         { 0: 600, 1: 360, 2: 120, 3: 600, 4: 600, 5: 90, 6: 360, 7: 120, 8: 120 },
+  rapido:       { 0:  60, 1:  30, 2:  10, 3:  60, 4:  60, 5:   9, 6:  30, 7:  10, 8:  10 },
+  instantaneo:  { 0:   2, 1:   2, 2:   1, 3:   2, 4:   2, 5:   1, 6:   2, 7:   1, 8:   1 },
+}

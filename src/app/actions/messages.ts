@@ -108,10 +108,10 @@ export async function sendMessage(
     return { error: 'No hay workspace seleccionado' }
   }
 
-  // Get conversation with 24h window info
+  // Get conversation with 24h window info + channel
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
-    .select('id, phone, phone_number_id, last_customer_message_at, status')
+    .select('id, phone, phone_number_id, last_customer_message_at, status, channel, external_subscriber_id')
     .eq('id', conversationId)
     .eq('workspace_id', workspaceId)
     .single()
@@ -120,39 +120,57 @@ export async function sendMessage(
     return { error: 'Conversacion no encontrada' }
   }
 
-  // Check 24h window
-  if (!conversation.last_customer_message_at) {
-    return { error: 'Ventana de 24h cerrada. Usa un template.' }
+  const channel = (conversation.channel || 'whatsapp') as 'whatsapp' | 'facebook' | 'instagram'
+
+  // Check 24h window (WhatsApp only — FB/IG don't have this restriction via ManyChat)
+  if (channel === 'whatsapp') {
+    if (!conversation.last_customer_message_at) {
+      return { error: 'Ventana de 24h cerrada. Usa un template.' }
+    }
+
+    const hoursSinceCustomerMessage = differenceInHours(
+      new Date(),
+      new Date(conversation.last_customer_message_at)
+    )
+
+    if (hoursSinceCustomerMessage >= 24) {
+      return { error: 'Ventana de 24h cerrada. Usa un template.' }
+    }
   }
 
-  const hoursSinceCustomerMessage = differenceInHours(
-    new Date(),
-    new Date(conversation.last_customer_message_at)
-  )
-
-  if (hoursSinceCustomerMessage >= 24) {
-    return { error: 'Ventana de 24h cerrada. Usa un template.' }
-  }
-
-  // Get workspace settings for API key
+  // Get workspace settings for API key (channel-aware)
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
     .select('settings')
     .eq('id', workspaceId)
     .single()
 
-  const apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-  if (!apiKey) {
-    return { error: 'API key de WhatsApp no configurada' }
+  let apiKey: string | undefined
+  if (channel === 'facebook' || channel === 'instagram') {
+    apiKey = workspaceSettings?.settings?.manychat_api_key
+    if (!apiKey) {
+      return { error: 'API key de ManyChat no configurada' }
+    }
+  } else {
+    apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+    if (!apiKey) {
+      return { error: 'API key de WhatsApp no configurada' }
+    }
   }
+
+  // For FB/IG, use external_subscriber_id as the recipient
+  const recipientId = (channel !== 'whatsapp' && conversation.external_subscriber_id)
+    ? conversation.external_subscriber_id
+    : conversation.phone
 
   // Delegate to domain
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainSendTextMessage(ctx, {
     conversationId,
-    contactPhone: conversation.phone,
+    contactPhone: recipientId,
     messageBody: text,
     apiKey,
+    channel,
   })
 
   if (!result.success) {
@@ -196,10 +214,10 @@ export async function sendMediaMessage(
     return { error: 'No hay workspace seleccionado' }
   }
 
-  // Get conversation with 24h window info
+  // Get conversation with 24h window info + channel
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
-    .select('id, phone, phone_number_id, last_customer_message_at, status')
+    .select('id, phone, phone_number_id, last_customer_message_at, status, channel, external_subscriber_id')
     .eq('id', conversationId)
     .eq('workspace_id', workspaceId)
     .single()
@@ -208,18 +226,22 @@ export async function sendMediaMessage(
     return { error: 'Conversacion no encontrada' }
   }
 
-  // Check 24h window
-  if (!conversation.last_customer_message_at) {
-    return { error: 'Ventana de 24h cerrada. Usa un template.' }
-  }
+  const channel = (conversation.channel || 'whatsapp') as 'whatsapp' | 'facebook' | 'instagram'
 
-  const hoursSinceCustomerMessage = differenceInHours(
-    new Date(),
-    new Date(conversation.last_customer_message_at)
-  )
+  // Check 24h window (WhatsApp only)
+  if (channel === 'whatsapp') {
+    if (!conversation.last_customer_message_at) {
+      return { error: 'Ventana de 24h cerrada. Usa un template.' }
+    }
 
-  if (hoursSinceCustomerMessage >= 24) {
-    return { error: 'Ventana de 24h cerrada. Usa un template.' }
+    const hoursSinceCustomerMessage = differenceInHours(
+      new Date(),
+      new Date(conversation.last_customer_message_at)
+    )
+
+    if (hoursSinceCustomerMessage >= 24) {
+      return { error: 'Ventana de 24h cerrada. Usa un template.' }
+    }
   }
 
   // Determine media type from MIME type
@@ -232,17 +254,30 @@ export async function sendMediaMessage(
     mediaType = 'audio'
   }
 
-  // Get workspace settings for API key
+  // Get workspace settings for API key (channel-aware)
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
     .select('settings')
     .eq('id', workspaceId)
     .single()
 
-  const apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-  if (!apiKey) {
-    return { error: 'API key de WhatsApp no configurada' }
+  let apiKey: string | undefined
+  if (channel === 'facebook' || channel === 'instagram') {
+    apiKey = workspaceSettings?.settings?.manychat_api_key
+    if (!apiKey) {
+      return { error: 'API key de ManyChat no configurada' }
+    }
+  } else {
+    apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+    if (!apiKey) {
+      return { error: 'API key de WhatsApp no configurada' }
+    }
   }
+
+  // For FB/IG, use external_subscriber_id as the recipient
+  const recipientId = (channel !== 'whatsapp' && conversation.external_subscriber_id)
+    ? conversation.external_subscriber_id
+    : conversation.phone
 
   try {
     // Upload to Supabase Storage (adapter concern — stays in server action)
@@ -275,12 +310,13 @@ export async function sendMediaMessage(
     const ctx: DomainContext = { workspaceId, source: 'server-action' }
     const result = await domainSendMediaMessage(ctx, {
       conversationId,
-      contactPhone: conversation.phone,
+      contactPhone: recipientId,
       mediaUrl,
       mediaType,
       caption,
       filename: mediaType === 'document' ? fileName : undefined,
       apiKey,
+      channel,
     })
 
     if (!result.success) {

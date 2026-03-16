@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Bot, Check, User } from 'lucide-react'
+import { Bot, Check, User, MessageCircle } from 'lucide-react'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
 import { RelativeTime } from '@/components/ui/relative-time'
@@ -101,8 +101,30 @@ export function ConversationItem({
             )}
           </div>
 
-          {/* Name and unread badge */}
+          {/* Name, channel icon, and unread badge */}
           <div className="flex items-center gap-2 min-w-0">
+            {/* Channel icon */}
+            {conversation.channel === 'facebook' && (
+              <span title="Facebook Messenger">
+                <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 text-blue-600" />
+              </span>
+            )}
+            {conversation.channel === 'instagram' && (
+              <span title="Instagram" className="flex-shrink-0">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig-gradient)" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="5" stroke="url(#ig-gradient)" strokeWidth="2" />
+                  <circle cx="18" cy="6" r="1.5" fill="url(#ig-gradient)" />
+                  <defs>
+                    <linearGradient id="ig-gradient" x1="2" y1="22" x2="22" y2="2" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#FD1D1D" />
+                      <stop offset="0.5" stopColor="#E1306C" />
+                      <stop offset="1" stopColor="#C13584" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
+            )}
             <span className={cn(
               'text-sm font-medium truncate',
               !conversation.is_read && 'font-semibold'

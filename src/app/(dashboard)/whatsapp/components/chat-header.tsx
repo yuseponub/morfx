@@ -209,11 +209,19 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
             ) : (
               <p className="font-medium truncate">{displayName}</p>
             )}
-            {(conversation.contact || conversation.profile_name) && (
-              <p className="text-xs text-muted-foreground truncate">
-                {conversation.phone}
-              </p>
-            )}
+            <div className="flex items-center gap-1.5">
+              {(conversation.contact || conversation.profile_name) && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {conversation.phone}
+                </p>
+              )}
+              {conversation.channel === 'facebook' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium flex-shrink-0">FB</span>
+              )}
+              {conversation.channel === 'instagram' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-700 font-medium flex-shrink-0">IG</span>
+              )}
+            </div>
           </div>
 
           {/* Tag management - inline in header */}

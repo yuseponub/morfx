@@ -49,6 +49,8 @@ export interface Conversation {
   phone_number_id: string          // 360dialog phone number ID
   profile_name: string | null      // WhatsApp profile name
   status: ConversationStatus
+  channel: 'whatsapp' | 'facebook' | 'instagram'  // Multi-channel support
+  external_subscriber_id: string | null  // ManyChat subscriber ID (FB/IG)
   is_read: boolean
   unread_count: number
   last_customer_message_at: string | null  // For 24h window

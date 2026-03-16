@@ -10,11 +10,12 @@
 // ============================================================================
 
 export const V3_INTENTS = [
-  // Informational (11)
+  // Informational (12)
   'saludo',
   'precio',
   'promociones',
   'contenido',
+  'formula',
   'como_se_toma',
   'pago',
   'envio',
@@ -59,7 +60,7 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
 
 /** Intents that the response track always answers (informational questions). */
 export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
-  'saludo', 'precio', 'promociones', 'contenido', 'como_se_toma',
+  'saludo', 'precio', 'promociones', 'contenido', 'formula', 'como_se_toma',
   'pago', 'envio', 'registro_sanitario', 'ubicacion', 'efectos', 'efectividad',
 ])
 

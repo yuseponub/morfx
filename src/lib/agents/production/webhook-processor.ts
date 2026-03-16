@@ -171,19 +171,14 @@ export async function processMessageWithAgent(
     logger.warn({ error: typingError }, 'Failed to broadcast typing start')
   }
 
-  // 6. Process message through UnifiedEngine (with production adapters)
+  // 6. Process message through agent engine (v1 or v3, routed by conversational_agent_id)
   let result: SomnioEngineResult
   try {
-    // Import barrel to trigger agent self-registration
-    await import('../somnio')
-
-    // Dynamic imports for UnifiedEngine and production adapter factory
-    const { UnifiedEngine } = await import('../engine/unified-engine')
-    const { createProductionAdapters } = await import('../engine-adapters/production')
-
-    // Load agent config for response speed
+    // Load agent config for response speed and agent routing
     const agentConfig = await getWorkspaceAgentConfig(workspaceId)
+    const agentId = agentConfig?.conversational_agent_id ?? 'somnio-sales-v1'
 
+    const { createProductionAdapters } = await import('../engine-adapters/production')
     const adapters = createProductionAdapters({
       workspaceId,
       conversationId,
@@ -191,18 +186,43 @@ export async function processMessageWithAgent(
       responseSpeed: agentConfig?.response_speed,
     })
 
-    const engine = new UnifiedEngine(adapters, { workspaceId })
+    let engineOutput: EngineOutput
 
-    const engineOutput: EngineOutput = await engine.processMessage({
-      sessionId: '', // Production: storage adapter uses getOrCreateSession via conversationId
-      conversationId,
-      contactId: contactId!,
-      message: messageContent,
-      workspaceId,
-      history: [], // Production: storage adapter reads history from DB
-      phoneNumber: phone,
-      messageTimestamp: input.messageTimestamp,  // Phase 31: for pre-send check
-    })
+    if (agentId === 'somnio-sales-v3') {
+      // V3 path — uses V3ProductionRunner
+      await import('../somnio-v3')
+      const { V3ProductionRunner } = await import('../engine/v3-production-runner')
+      const runner = new V3ProductionRunner(adapters, { workspaceId })
+
+      engineOutput = await runner.processMessage({
+        sessionId: '',
+        conversationId,
+        contactId: contactId!,
+        message: messageContent,
+        workspaceId,
+        history: [],
+        phoneNumber: phone,
+        messageTimestamp: input.messageTimestamp,
+      })
+
+      logger.info({ conversationId, agentId }, 'V3 agent processing complete')
+    } else {
+      // V1 path — unchanged (default)
+      await import('../somnio')
+      const { UnifiedEngine } = await import('../engine/unified-engine')
+      const engine = new UnifiedEngine(adapters, { workspaceId })
+
+      engineOutput = await engine.processMessage({
+        sessionId: '',
+        conversationId,
+        contactId: contactId!,
+        message: messageContent,
+        workspaceId,
+        history: [],
+        phoneNumber: phone,
+        messageTimestamp: input.messageTimestamp,
+      })
+    }
 
     // Map EngineOutput to SomnioEngineResult for backward compatibility
     result = {

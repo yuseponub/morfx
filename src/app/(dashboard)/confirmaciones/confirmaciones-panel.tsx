@@ -18,6 +18,7 @@ import {
   type ScrapeHistoryEntry,
   type ScheduleResult,
   type ScheduledReminderEntry,
+  type FollowupResult,
 } from '@/app/actions/godentist'
 
 type Phase = 'idle' | 'scraping' | 'preview' | 'sending' | 'done'
@@ -705,6 +706,11 @@ export function ConfirmacionesPanel() {
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground">No enviado</Badge>
                           )}
+                          {entry.followup_sent_at && (
+                            <Badge variant="outline" className="text-xs">
+                              Seguimiento: {entry.followup_results?.filter(r => r.status === 'sent').length || 0} enviados
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -1104,6 +1110,61 @@ function HistoryDetail({
               </CardContent>
             </Card>
           )}
+        </>
+      )}
+
+      {/* Followup results (2pm ultimatum) */}
+      {entry.followup_results && entry.followup_results.length > 0 && (
+        <>
+          <p className="text-sm font-medium mt-4">
+            Seguimiento 2PM ({new Date(entry.followup_sent_at!).toLocaleString('es-CO', { timeZone: 'America/Bogota' })})
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <Card>
+              <CardContent className="pt-4 text-center">
+                <p className="text-2xl font-bold text-green-600">
+                  {entry.followup_results.filter(r => r.status === 'sent').length}
+                </p>
+                <p className="text-xs text-muted-foreground">Ultimatum enviado</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 text-center">
+                <p className="text-2xl font-bold text-blue-600">
+                  {entry.followup_results.filter(r => r.status === 'skipped').length}
+                </p>
+                <p className="text-xs text-muted-foreground">Ya respondieron</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 text-center">
+                <p className="text-2xl font-bold text-red-600">
+                  {entry.followup_results.filter(r => r.status === 'failed').length}
+                </p>
+                <p className="text-xs text-muted-foreground">Fallidos</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Detail list */}
+          <Card>
+            <CardContent className="pt-4">
+              <ul className="space-y-1 text-sm">
+                {entry.followup_results.map((r, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    {r.status === 'sent' && <Send className="h-3 w-3 text-green-600" />}
+                    {r.status === 'skipped' && <CheckCircle2 className="h-3 w-3 text-blue-600" />}
+                    {r.status === 'failed' && <XCircle className="h-3 w-3 text-red-600" />}
+                    <span>{r.nombre}</span>
+                    <span className="text-muted-foreground">({r.telefono})</span>
+                    {r.reason && (
+                      <span className="text-xs text-muted-foreground italic">— {r.reason}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </>
       )}
 

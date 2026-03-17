@@ -779,7 +779,7 @@ export interface ScheduledReminderEntry {
   created_at: string
 }
 
-export async function getScheduledReminders(): Promise<{ error?: string; data?: ScheduledReminderEntry[] }> {
+export async function getScheduledReminders(fechaCita?: string): Promise<{ error?: string; data?: ScheduledReminderEntry[] }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
@@ -789,12 +789,19 @@ export async function getScheduledReminders(): Promise<{ error?: string; data?: 
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
   const admin = createAdminClient()
-  const { data, error } = await admin
+  let query = admin
     .from('godentist_scheduled_reminders')
     .select('id, nombre, telefono, hora_cita, sucursal, fecha_cita, scheduled_at, status, error, sent_at, created_at')
     .eq('workspace_id', workspaceId)
-    .order('scheduled_at', { ascending: false })
-    .limit(50)
+
+  // Filter by date if provided, otherwise show today
+  if (fechaCita) {
+    query = query.eq('fecha_cita', fechaCita)
+  }
+
+  const { data, error } = await query
+    .order('scheduled_at', { ascending: true })
+    .limit(500)
 
   if (error) return { error: error.message }
 

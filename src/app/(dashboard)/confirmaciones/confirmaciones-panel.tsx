@@ -75,6 +75,10 @@ export function ConfirmacionesPanel() {
   const [reminders, setReminders] = useState<ScheduledReminderEntry[]>([])
   const [remindersLoading, setRemindersLoading] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [reminderDate, setReminderDate] = useState<string>(getColombiaToday())
+  const [reminderPage, setReminderPage] = useState(0)
+  const [historyReminderPage, setHistoryReminderPage] = useState(0)
+  const REMINDERS_PER_PAGE = 30
 
   // Filtered appointments
   const sucursalFiltered = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
@@ -115,12 +119,12 @@ export function ConfirmacionesPanel() {
     }
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load reminders when switching to programacion tab
+  // Load reminders when switching to programacion tab or changing date
   useEffect(() => {
     if (tab === 'programacion') {
       loadReminders()
     }
-  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, reminderDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadHistory() {
     setHistoryLoading(true)
@@ -131,7 +135,8 @@ export function ConfirmacionesPanel() {
 
   async function loadReminders() {
     setRemindersLoading(true)
-    const res = await getScheduledReminders()
+    setReminderPage(0)
+    const res = await getScheduledReminders(reminderDate || undefined)
     if (res.data) setReminders(res.data)
     setRemindersLoading(false)
   }
@@ -293,6 +298,16 @@ export function ConfirmacionesPanel() {
 
   const pendingReminders = reminders.filter(r => r.status === 'pending')
   const historyReminders = reminders.filter(r => r.status !== 'pending')
+  const totalReminderPages = Math.ceil(pendingReminders.length / REMINDERS_PER_PAGE)
+  const paginatedPending = pendingReminders.slice(
+    reminderPage * REMINDERS_PER_PAGE,
+    (reminderPage + 1) * REMINDERS_PER_PAGE
+  )
+  const totalHistoryPages = Math.ceil(historyReminders.length / REMINDERS_PER_PAGE)
+  const paginatedHistory = historyReminders.slice(
+    historyReminderPage * REMINDERS_PER_PAGE,
+    (historyReminderPage + 1) * REMINDERS_PER_PAGE
+  )
 
   return (
     <div className="space-y-4">
@@ -779,7 +794,16 @@ export function ConfirmacionesPanel() {
       {tab === 'programacion' && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Recordatorios programados</p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground">Recordatorios programados</p>
+              <input
+                type="date"
+                value={reminderDate}
+                onChange={(e) => setReminderDate(e.target.value)}
+                className="text-xs border rounded px-2 py-1"
+              />
+              <Badge variant="outline">{reminders.length} total</Badge>
+            </div>
             <Button variant="outline" size="sm" onClick={loadReminders} disabled={remindersLoading}>
               {remindersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
             </Button>
@@ -822,7 +846,7 @@ export function ConfirmacionesPanel() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingReminders.map(r => (
+                      {paginatedPending.map(r => (
                         <tr key={r.id} className="border-b hover:bg-muted/30">
                           <td className="p-3 font-medium">{r.nombre}</td>
                           <td className="p-3 font-mono text-xs">{r.telefono}</td>
@@ -850,6 +874,21 @@ export function ConfirmacionesPanel() {
                     </tbody>
                   </table>
                 </div>
+                {totalReminderPages > 1 && (
+                  <div className="flex items-center justify-between p-3 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Pagina {reminderPage + 1} de {totalReminderPages} ({pendingReminders.length} pendientes)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setReminderPage(p => p - 1)} disabled={reminderPage === 0}>
+                        Anterior
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setReminderPage(p => p + 1)} disabled={reminderPage >= totalReminderPages - 1}>
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             )}
           </div>
@@ -877,7 +916,7 @@ export function ConfirmacionesPanel() {
                       </tr>
                     </thead>
                     <tbody>
-                      {historyReminders.map(r => (
+                      {paginatedHistory.map(r => (
                         <tr key={r.id} className="border-b hover:bg-muted/30">
                           <td className="p-3 font-medium">{r.nombre}</td>
                           <td className="p-3 font-mono text-xs">{r.telefono}</td>
@@ -900,6 +939,21 @@ export function ConfirmacionesPanel() {
                     </tbody>
                   </table>
                 </div>
+                {totalHistoryPages > 1 && (
+                  <div className="flex items-center justify-between p-3 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Pagina {historyReminderPage + 1} de {totalHistoryPages} ({historyReminders.length} registros)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setHistoryReminderPage(p => p - 1)} disabled={historyReminderPage === 0}>
+                        Anterior
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setHistoryReminderPage(p => p + 1)} disabled={historyReminderPage >= totalHistoryPages - 1}>
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             )}
           </div>

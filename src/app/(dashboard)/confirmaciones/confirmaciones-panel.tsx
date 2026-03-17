@@ -10,6 +10,7 @@ import {
   scrapeAppointments,
   sendConfirmations,
   getScrapeHistory,
+  getFollowupPreview,
   scheduleReminders,
   getScheduledReminders,
   cancelScheduledReminder,
@@ -1007,6 +1008,20 @@ function HistoryDetail({
   const [filterSucursal, setFilterSucursal] = useState('all')
   const [filterEstado, setFilterEstado] = useState('all')
 
+  // Followup preview (before 2pm results arrive)
+  const [followupPreview, setFollowupPreview] = useState<FollowupResult[] | null>(null)
+  const [followupPreviewLoading, setFollowupPreviewLoading] = useState(false)
+
+  useEffect(() => {
+    if (entry.sent_at && !entry.followup_results) {
+      setFollowupPreviewLoading(true)
+      getFollowupPreview(entry.id).then(res => {
+        if (res.data) setFollowupPreview(res.data)
+        setFollowupPreviewLoading(false)
+      })
+    }
+  }, [entry.id, entry.sent_at, entry.followup_results])
+
   const filtered = useMemo(() => {
     let list = entry.appointments
     if (searchName.trim()) {
@@ -1113,7 +1128,75 @@ function HistoryDetail({
         </>
       )}
 
-      {/* Followup results (2pm ultimatum) */}
+      {/* Followup preview (before 2pm — live status) */}
+      {entry.sent_at && !entry.followup_results && (
+        <>
+          <div className="flex items-center gap-2 mt-4">
+            <p className="text-sm font-medium">
+              Seguimiento 2PM (preview en vivo)
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={followupPreviewLoading}
+              onClick={() => {
+                setFollowupPreviewLoading(true)
+                getFollowupPreview(entry.id).then(res => {
+                  if (res.data) setFollowupPreview(res.data)
+                  setFollowupPreviewLoading(false)
+                })
+              }}
+            >
+              {followupPreviewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+            </Button>
+          </div>
+          {followupPreviewLoading && !followupPreview && (
+            <p className="text-xs text-muted-foreground">Cargando preview...</p>
+          )}
+          {followupPreview && followupPreview.length > 0 && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Card>
+                  <CardContent className="pt-4 text-center">
+                    <p className="text-2xl font-bold text-orange-600">
+                      {followupPreview.filter(r => r.status === 'sent').length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Recibirían seguimiento</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 text-center">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {followupPreview.filter(r => r.status === 'skipped').length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Ya respondieron</p>
+                  </CardContent>
+                </Card>
+              </div>
+              <Card>
+                <CardContent className="pt-4">
+                  <ul className="space-y-1 text-sm">
+                    {followupPreview.map((r, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        {r.status === 'sent' && <Clock className="h-3 w-3 text-orange-600" />}
+                        {r.status === 'skipped' && <CheckCircle2 className="h-3 w-3 text-blue-600" />}
+                        {r.status === 'failed' && <XCircle className="h-3 w-3 text-red-600" />}
+                        <span>{r.nombre}</span>
+                        <span className="text-muted-foreground">({r.telefono})</span>
+                        {r.reason && (
+                          <span className="text-xs text-muted-foreground italic">— {r.reason}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Followup results (2pm ultimatum — final) */}
       {entry.followup_results && entry.followup_results.length > 0 && (
         <>
           <p className="text-sm font-medium mt-4">

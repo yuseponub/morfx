@@ -823,6 +823,70 @@ export async function cancelScheduledReminder(reminderId: string): Promise<{ err
   return { success: true }
 }
 
+// ── Followup Preview ──
+
+export async function getFollowupPreview(historyId: string): Promise<{ error?: string; data?: FollowupResult[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+  const { data: history } = await admin
+    .from('godentist_scrape_history')
+    .select('send_results, sent_at, appointments')
+    .eq('id', historyId)
+    .eq('workspace_id', workspaceId)
+    .single()
+
+  if (!history?.send_results || !history?.sent_at) {
+    return { error: 'No hay resultados de envío' }
+  }
+
+  const sendResults = history.send_results as unknown as SendResult
+  const sentAt = history.sent_at
+  const sentPatients = sendResults.details.filter(d => d.status === 'sent')
+
+  const results: FollowupResult[] = []
+
+  for (const patient of sentPatients) {
+    const phone = patient.telefono.startsWith('+') ? patient.telefono : `+${patient.telefono}`
+
+    // Find conversation
+    const { data: conv } = await admin
+      .from('conversations')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('phone', phone)
+      .single()
+
+    if (!conv) {
+      results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'failed', reason: 'sin conversación' })
+      continue
+    }
+
+    // Check inbound messages after sent_at
+    const { data: inbound } = await admin
+      .from('messages')
+      .select('id')
+      .eq('conversation_id', conv.id)
+      .eq('direction', 'inbound')
+      .gt('created_at', sentAt)
+      .limit(1)
+
+    if (inbound && inbound.length > 0) {
+      results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: 'ya respondió' })
+    } else {
+      results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'sent', reason: 'pendiente de seguimiento' })
+    }
+  }
+
+  return { data: results }
+}
+
 // ── Contact Helper ──
 
 /**

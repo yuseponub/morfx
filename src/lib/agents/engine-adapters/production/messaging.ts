@@ -158,7 +158,8 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
 
       // Apply character-based delay (human-like typing simulation)
       // Skip entirely if responseSpeed is 0 (instantaneo preset)
-      if (this.responseSpeed > 0) {
+      // Skip for non-WhatsApp channels (ManyChat adds its own latency)
+      if (this.responseSpeed > 0 && channel === 'whatsapp') {
         const delayMs = calculateCharDelay(template.content.length) * this.responseSpeed
         await sleep(delayMs)
       }

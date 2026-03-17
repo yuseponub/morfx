@@ -19,16 +19,19 @@ const orderSearchOptions: IFuseOptions<OrderWithDetails> = {
   // Search these fields with weights (higher = more important)
   keys: [
     { name: 'contact.name', weight: 2 },       // Nombre del contacto (mas importante)
+    { name: 'name', weight: 1.8 },             // Nombre/numero del pedido
     { name: 'contact.phone', weight: 1.5 },    // Telefono del contacto
+    { name: 'tracking_number', weight: 1.5 },  // Numero de guia/tracking
     { name: 'products.title', weight: 1 },     // Nombres de productos
     { name: 'products.sku', weight: 1 },       // SKUs de productos
-    { name: 'tracking_number', weight: 1.5 },  // Numero de guia/tracking
-    { name: 'contact.city', weight: 0.8 },     // Ciudad
+    { name: 'shipping_city', weight: 0.8 },    // Ciudad de envio
+    { name: 'contact.city', weight: 0.8 },     // Ciudad del contacto
+    { name: 'shipping_address', weight: 0.5 }, // Direccion de envio
     { name: 'description', weight: 0.5 },      // Notas/descripcion
     { name: 'carrier', weight: 0.5 },          // Transportadora
   ],
   // Fuzzy matching configuration
-  threshold: 0.4,           // 0 = exact match, 1 = match anything
+  threshold: 0.3,           // 0 = exact match, 1 = match anything (0.3 = tolerante a typos)
   distance: 100,            // How close match must be to search location
   ignoreLocation: true,     // Search entire string, not just start
   minMatchCharLength: 2,    // Ignore single character matches

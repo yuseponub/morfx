@@ -487,22 +487,23 @@ export function OrdersView({
   // Group orders by stage for Kanban
   const ordersByStage: OrdersByStage = React.useMemo(() => {
     if (viewMode === 'kanban' && kanbanInitialized) {
-      // Use paginated per-stage data
+      // When searching, use filteredOrders (Fuse.js on ALL orders) to search across all
+      // pedidos, not just the ~20 loaded per stage in kanban pagination
+      if (searchQuery.trim()) {
+        const grouped: OrdersByStage = {}
+        for (const stage of stages) {
+          grouped[stage.id] = filteredOrders
+            .filter((o) => o.stage_id === stage.id)
+            .sort((a, b) => compareOrders(a, b, sortField, sortDirection))
+        }
+        return grouped
+      }
+
+      // No search — use paginated per-stage data
       const grouped: OrdersByStage = {}
       for (const stage of stages) {
         let stageOrders = kanbanOrders[stage.id] || []
 
-        // Apply client-side filters on loaded orders
-        if (searchQuery.trim()) {
-          const lowerQuery = searchQuery.toLowerCase()
-          stageOrders = stageOrders.filter(o =>
-            o.contact?.name?.toLowerCase().includes(lowerQuery) ||
-            o.contact?.phone?.includes(lowerQuery) ||
-            o.products?.some(p => p.title.toLowerCase().includes(lowerQuery)) ||
-            o.tracking_number?.toLowerCase().includes(lowerQuery) ||
-            o.description?.toLowerCase().includes(lowerQuery)
-          )
-        }
         if (selectedTagIds.length > 0) {
           stageOrders = stageOrders.filter(o => {
             const orderTagIds = o.tags.map(t => t.id)

@@ -158,10 +158,15 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
 
       // Apply character-based delay (human-like typing simulation)
       // Skip entirely if responseSpeed is 0 (instantaneo preset)
-      // Skip for non-WhatsApp channels (ManyChat adds its own latency)
-      if (this.responseSpeed > 0 && channel === 'whatsapp') {
-        const delayMs = calculateCharDelay(template.content.length) * this.responseSpeed
-        await sleep(delayMs)
+      // For FB/IG: first template gets fixed 2s delay (ManyChat adds its own latency),
+      // subsequent templates keep normal character-based delay
+      if (this.responseSpeed > 0) {
+        if (channel !== 'whatsapp' && i === 0) {
+          await sleep(2000)
+        } else {
+          const delayMs = calculateCharDelay(template.content.length) * this.responseSpeed
+          await sleep(delayMs)
+        }
       }
 
       // Phase 31: Pre-send check — query DB for new inbound messages after trigger

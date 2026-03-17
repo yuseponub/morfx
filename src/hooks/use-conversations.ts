@@ -283,7 +283,7 @@ export function useConversations({
 
   // ============================================================================
   // Consolidated Realtime Channel
-  // Single channel with 4 .on() listeners replaces 4 separate channels
+  // Single channel with 3 .on() listeners (contact_tags removed — orphan binding fix)
   // ============================================================================
   useEffect(() => {
     if (!workspaceId) return
@@ -350,35 +350,13 @@ export function useConversations({
           }
         }
       )
-      // ---- contact_tags table: targeted tag fetch ----
-      // NOTE: Requires ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags;
-      // Without this, realtime events won't fire. Tags still load on initial fetch.
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'contact_tags',
-        },
-        async (payload) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const contactId = (payload.new as any)?.contact_id || (payload.old as any)?.contact_id
-          if (!contactId) return
-
-          // Find conversations linked to this contact
-          const affected = conversationsRef.current.filter(c => c.contact_id === contactId)
-          if (affected.length === 0) return
-
-          // Fetch updated tags for this contact
-          const tags = await getTagsForContact(contactId)
-
-          // Update all conversations linked to this contact
-          setConversations(prev =>
-            prev.map(c => c.contact_id === contactId ? { ...c, tags } : c)
-          )
-          scheduleSafetyRefetchRef.current()
-        }
-      )
+      // NOTE: contact_tags listener removed — it was never added to supabase_realtime
+      // publication, creating an orphan binding that broke positional matching in the
+      // Phoenix protocol and silently killed ALL events on this channel (including
+      // conversations updates = badge, preview, sort). Tags still load on initial fetch
+      // and via the 30s safety refetch. To re-enable, first run:
+      //   ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags;
+      // then restore the .on() listener here.
       // ---- contacts table: is_client changes ----
       .on(
         'postgres_changes',

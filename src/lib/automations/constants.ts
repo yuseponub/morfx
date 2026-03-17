@@ -337,9 +337,20 @@ export const ACTION_CATALOG = [
   },
   {
     type: 'send_sms',
+    label: 'Enviar SMS (Twilio)',
+    category: 'Twilio',
+    description: 'Envia un mensaje SMS via Twilio',
+    params: [
+      { name: 'body', label: 'Mensaje', type: 'textarea', required: true, supportsVariables: true },
+      { name: 'to', label: 'Telefono destino (opcional)', type: 'text', required: false, supportsVariables: true },
+      { name: 'mediaUrl', label: 'URL de media (opcional)', type: 'text', required: false },
+    ],
+  },
+  {
+    type: 'send_sms_onurix',
     label: 'Enviar SMS',
     category: 'SMS',
-    description: 'Envia un mensaje SMS al contacto',
+    description: 'Envia un mensaje SMS al contacto (Onurix - $97 COP)',
     params: [
       { name: 'body', label: 'Mensaje', type: 'textarea', required: true, supportsVariables: true },
       { name: 'to', label: 'Telefono destino (opcional)', type: 'text', required: false, supportsVariables: true },

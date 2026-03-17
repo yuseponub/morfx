@@ -14,6 +14,7 @@ import { resolveVariables, resolveVariablesInObject, buildTriggerContext } from 
 import { WEBHOOK_TIMEOUT_MS } from './constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendSMS as domainSendSMS } from '@/lib/domain/sms'
+import { getTwilioConfig, createTwilioClient } from '@/lib/twilio/client'
 import {
   createOrder as domainCreateOrder,
   duplicateOrder as domainDuplicateOrder,
@@ -161,7 +162,9 @@ async function executeByType(
     case 'create_task':
       return executeCreateTask(params, context, workspaceId, cascadeDepth)
     case 'send_sms':
-      return executeSendSms(params, context, workspaceId)
+      return executeSendSmsTwilio(params, context, workspaceId)
+    case 'send_sms_onurix':
+      return executeSendSmsOnurix(params, context, workspaceId)
     case 'webhook':
       return executeWebhook(params)
     default: {
@@ -1018,13 +1021,64 @@ async function executeCreateTask(
  * balance pre-check, Onurix API call, message logging, balance deduction,
  * and Inngest delivery verification event emission.
  */
-async function executeSendSms(
+async function executeSendSmsTwilio(
   params: Record<string, unknown>,
   context: TriggerContext,
   workspaceId: string
 ): Promise<unknown> {
   const body = String(params.body || '')
   if (!body) throw new Error('body is required for send_sms')
+
+  const to = params.to ? String(params.to) : context.contactPhone
+  if (!to) throw new Error('No phone number available for SMS — set "to" param or ensure trigger has contactPhone')
+
+  const twilioConfig = await getTwilioConfig(workspaceId)
+  const client = createTwilioClient(twilioConfig)
+
+  const statusCallbackUrl = process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/status`
+    : undefined
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const messageParams: Record<string, any> = {
+    body,
+    from: twilioConfig.phone_number,
+    to,
+    ...(statusCallbackUrl && { statusCallback: statusCallbackUrl }),
+  }
+
+  if (params.mediaUrl) {
+    messageParams.mediaUrl = [String(params.mediaUrl)]
+  }
+
+  const message = await client.messages.create(messageParams)
+
+  const supabase = createAdminClient()
+  await supabase.from('sms_messages').insert({
+    workspace_id: workspaceId,
+    provider_message_id: message.sid,
+    provider: 'twilio',
+    from_number: twilioConfig.phone_number,
+    to_number: to,
+    body,
+    status: message.status,
+    direction: 'outbound',
+    price: message.price ? Math.abs(parseFloat(message.price)) : null,
+    price_unit: message.priceUnit || 'USD',
+    segments: message.numSegments ? parseInt(message.numSegments) : 1,
+    media_url: params.mediaUrl ? String(params.mediaUrl) : null,
+  })
+
+  return { messageSid: message.sid, status: message.status, to, sent: true }
+}
+
+async function executeSendSmsOnurix(
+  params: Record<string, unknown>,
+  context: TriggerContext,
+  workspaceId: string
+): Promise<unknown> {
+  const body = String(params.body || '')
+  if (!body) throw new Error('body is required for send_sms_onurix')
 
   const to = params.to ? String(params.to) : context.contactPhone
   if (!to) throw new Error('No phone number available for SMS — set "to" param or ensure trigger has contactPhone')

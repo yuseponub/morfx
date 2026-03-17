@@ -95,6 +95,7 @@ export type ActionType =
   | 'create_task'
   | 'webhook'
   | 'send_sms'
+  | 'send_sms_onurix'
 
 /**
  * Optional delay before an action executes.

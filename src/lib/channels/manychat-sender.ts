@@ -14,18 +14,26 @@ export const manychatSender: ChannelSender = {
       return { success: true }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
+      console.error('[manychat-sender] sendText failed:', msg)
       return { success: false, error: msg }
     }
   },
 
-  async sendImage(apiKey: string, to: string, imageUrl: string, _caption?: string): Promise<ChannelSendResult> {
+  async sendImage(apiKey: string, to: string, imageUrl: string, caption?: string): Promise<ChannelSendResult> {
     try {
-      // ManyChat image API doesn't support captions in the same message
-      // If caption is needed, send image + text separately
+      // Send image first
       await mcSendImage(apiKey, to, imageUrl)
+
+      // ManyChat doesn't support image+caption in one message
+      // Send caption as a separate text message if provided
+      if (caption) {
+        await mcSendText(apiKey, to, caption)
+      }
+
       return { success: true }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
+      console.error('[manychat-sender] sendImage failed:', msg, { imageUrl, to })
       return { success: false, error: msg }
     }
   },

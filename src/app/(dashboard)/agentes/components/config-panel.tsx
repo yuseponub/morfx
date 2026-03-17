@@ -45,6 +45,7 @@ const SPEED_PRESETS: SpeedPreset[] = [
 
 const AVAILABLE_AGENTS = [
   { id: 'somnio-sales-v1', name: 'Somnio Sales v1', description: 'Agente de ventas para Somnio. Captura datos, ofrece promos y crea ordenes.' },
+  { id: 'somnio-sales-v3', name: 'Somnio Sales v3', description: 'Agente conversacional v3. Pipeline modular con comprehension, sales-track y response-track.' },
 ]
 
 const CRM_AGENTS = [

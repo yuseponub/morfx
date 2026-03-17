@@ -37,6 +37,7 @@ const SPEED_PRESETS: { value: number; label: string; description: string }[] = [
 
 const AVAILABLE_AGENTS = [
   { id: 'somnio-sales-v1', name: 'Somnio Sales v1' },
+  { id: 'somnio-sales-v3', name: 'Somnio Sales v3' },
 ]
 
 const CRM_AGENTS = [

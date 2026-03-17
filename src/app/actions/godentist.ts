@@ -730,7 +730,7 @@ export async function scheduleReminders(
           workspaceId,
           nombre: apt.nombre,
           telefono: apt.telefono,
-          hora: apt.hora,
+          horaCita: apt.hora,
           sucursal: apt.sucursal,
           fechaCita,
           scheduledAt: scheduledAt.toISOString(),

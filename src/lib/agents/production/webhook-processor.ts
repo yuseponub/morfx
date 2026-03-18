@@ -184,6 +184,8 @@ export async function processMessageWithAgent(
       conversationId,
       phoneNumber: phone,
       responseSpeed: agentConfig?.response_speed,
+      agentId,
+      contactId: contactId!,
     })
 
     let engineOutput: EngineOutput

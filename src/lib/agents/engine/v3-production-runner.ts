@@ -362,12 +362,9 @@ export class V3ProductionRunner {
           await this.adapters.storage.updateMode(session.id, session.version, output.newMode)
         }
 
-        // Timer signals (only on committed turns)
-        if (output.newMode && output.newMode !== session.current_mode && this.adapters.timer.onModeTransition) {
-          await this.adapters.timer.onModeTransition(session.id, session.current_mode, output.newMode, input.conversationId)
-        }
-        for (const signal of output.timerSignals) {
-          this.adapters.timer.signal(signal)
+        // Timer signals (only on committed turns) — V3 uses emitSignals() directly
+        if (output.timerSignals.length > 0 && 'emitSignals' in this.adapters.timer) {
+          await (this.adapters.timer as any).emitSignals(output.timerSignals)
         }
 
         // User turn

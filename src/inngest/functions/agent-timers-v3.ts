@@ -163,7 +163,7 @@ export const v3Timer = inngest.createFunction(
         .single()
       if (conv?.is_agent_enabled === false) {
         logger.info({ conversationId, level }, 'Agent disabled — skipping v3 timer')
-        return { status: 'skipped', action: 'agent_disabled' }
+        return { status: 'skipped' as const, action: 'agent_disabled' }
       }
 
       // b. Read session via SessionManager
@@ -279,15 +279,53 @@ export const v3Timer = inngest.createFunction(
         }
       }
 
-      // h. Return result
+      // h. Return result (include timerSignals for chaining)
       return {
-        status: 'timeout',
+        status: 'timeout' as const,
         action: `timer_L${level}_expired`,
         messagesSent: sentCount,
         newMode: output.newMode,
         shouldCreateOrder: output.shouldCreateOrder,
+        timerSignals: output.timerSignals ?? [],
       }
     })
+
+    // Chain: if the pipeline emitted new timer signals (e.g. L2→L3), fire them
+    if (result.status === 'timeout' && result.timerSignals && result.timerSignals.length > 0) {
+      await step.run('emit-chained-timers', async () => {
+        const { getWorkspaceAgentConfig } = await import('@/lib/agents/production/agent-config')
+        const { V3_TIMER_DURATIONS } = await import('@/lib/agents/somnio-v3/constants')
+        const config = await getWorkspaceAgentConfig(workspaceId)
+        const preset = config?.timer_preset ?? 'real'
+
+        for (const signal of result.timerSignals) {
+          if (signal.type !== 'start' || !signal.level) continue
+          const chainLevel = parseInt(signal.level.replace('L', ''), 10)
+          if (isNaN(chainLevel) || chainLevel < 0 || chainLevel > 8) continue
+
+          const durationSeconds = V3_TIMER_DURATIONS[preset]?.[chainLevel]
+            ?? V3_TIMER_DURATIONS.real[chainLevel]
+
+          await inngest.send({
+            name: 'agent/v3.timer.started',
+            data: {
+              sessionId,
+              conversationId,
+              workspaceId,
+              level: chainLevel,
+              timerDurationMs: durationSeconds * 1000,
+              phoneNumber,
+              contactId,
+            },
+          })
+
+          logger.info(
+            { chainLevel, timerDurationMs: durationSeconds * 1000, preset },
+            `Chained timer L${chainLevel} emitted from L${level}`
+          )
+        }
+      })
+    }
 
     return result
   }

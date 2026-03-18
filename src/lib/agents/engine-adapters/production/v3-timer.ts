@@ -55,65 +55,61 @@ export class V3ProductionTimerAdapter implements TimerAdapter {
   }
 
   /**
-   * Translate V3 timer signals to Inngest events.
-   *
-   * This is the KEY method. V3 sales-track emits signals, the runner calls
-   * adapter.timer.signal(). For 'start' signals, we emit agent/v3.timer.started.
-   *
-   * signal() is sync per interface. We use fire-and-forget pattern with .catch()
-   * for the async inngest.send. This is safe because Inngest events are idempotent
-   * and the runner does not depend on the result.
+   * No-op — kept for TimerAdapter interface compliance.
+   * V3ProductionRunner uses emitSignals() instead.
    */
-  signal(signal: SandboxTimerSignal): void {
-    // V3 runner sends V3TimerSignal (with level as 'L0'-'L8'), but the interface
-    // types it as SandboxTimerSignal. Cast to access v3-specific fields.
-    const v3Signal = signal as unknown as V3TimerSignal
+  signal(_signal: SandboxTimerSignal): void {
+    // No-op: V3 runner calls emitSignals() directly
+  }
 
-    if (v3Signal.type === 'start' && v3Signal.level) {
-      // Parse level string ('L0'-'L8') to number (0-8)
-      const levelNum = parseInt(v3Signal.level.replace('L', ''), 10)
+  /**
+   * Emit V3 timer signals to Inngest — properly awaited.
+   *
+   * Called directly by V3ProductionRunner (not through the generic interface).
+   * For each 'start' signal, emits agent/v3.timer.started with duration
+   * computed from workspace preset.
+   */
+  async emitSignals(signals: V3TimerSignal[]): Promise<void> {
+    for (const signal of signals) {
+      if (signal.type === 'cancel') {
+        logger.debug({ signal, conversationId: this.conversationId }, 'V3 timer cancel signal (handled via customer.message)')
+        continue
+      }
+      if (signal.type === 'reevaluate') {
+        logger.debug({ signal, conversationId: this.conversationId }, 'V3 timer reevaluate signal (no-op in production)')
+        continue
+      }
+      if (signal.type !== 'start' || !signal.level) continue
+
+      const levelNum = parseInt(signal.level.replace('L', ''), 10)
       if (isNaN(levelNum) || levelNum < 0 || levelNum > 8) {
-        logger.warn({ signal: v3Signal }, 'Invalid timer signal level')
-        return
+        logger.warn({ signal }, 'Invalid timer signal level')
+        continue
       }
 
-      // Fire-and-forget: async inngest.send inside sync signal()
-      void (async () => {
-        try {
-          const preset = await this.getPreset()
-          const durationSeconds = V3_TIMER_DURATIONS[preset]?.[levelNum]
-            ?? V3_TIMER_DURATIONS.real[levelNum]
-          const timerDurationMs = durationSeconds * 1000
+      const preset = await this.getPreset()
+      const durationSeconds = V3_TIMER_DURATIONS[preset]?.[levelNum]
+        ?? V3_TIMER_DURATIONS.real[levelNum]
+      const timerDurationMs = durationSeconds * 1000
 
-          const { inngest } = await import('@/inngest/client')
-          await inngest.send({
-            name: 'agent/v3.timer.started',
-            data: {
-              sessionId: this._sessionId,
-              conversationId: this.conversationId,
-              workspaceId: this.workspaceId,
-              level: levelNum,
-              timerDurationMs,
-              phoneNumber: this.phoneNumber,
-              contactId: this.contactId,
-            },
-          })
+      const { inngest } = await import('@/inngest/client')
+      await inngest.send({
+        name: 'agent/v3.timer.started',
+        data: {
+          sessionId: this._sessionId,
+          conversationId: this.conversationId,
+          workspaceId: this.workspaceId,
+          level: levelNum,
+          timerDurationMs,
+          phoneNumber: this.phoneNumber,
+          contactId: this.contactId,
+        },
+      })
 
-          logger.info(
-            { level: levelNum, preset, timerDurationMs, conversationId: this.conversationId },
-            'Emitted agent/v3.timer.started'
-          )
-        } catch (error) {
-          logger.error({ error, signal: v3Signal }, 'Failed to emit v3 timer started event')
-        }
-      })()
-    } else if (v3Signal.type === 'cancel') {
-      // Cancellation works via agent/customer.message waitForEvent match.
-      // No need to emit agent/v3.timer.cancelled — just log for debugging.
-      logger.debug({ signal: v3Signal, conversationId: this.conversationId }, 'V3 timer cancel signal (no-op, handled via customer.message)')
-    } else if (v3Signal.type === 'reevaluate') {
-      // No action needed in production. Log only.
-      logger.debug({ signal: v3Signal, conversationId: this.conversationId }, 'V3 timer reevaluate signal (no-op in production)')
+      logger.info(
+        { level: levelNum, preset, timerDurationMs, conversationId: this.conversationId },
+        'Emitted agent/v3.timer.started'
+      )
     }
   }
 

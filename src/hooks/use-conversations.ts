@@ -308,6 +308,8 @@ export function useConversations({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const oldRow = payload.old as Record<string, any>
 
+          console.log(`[realtime:inbox] conversation ${eventType}`, newRow.id, { unread: newRow.unread_count, is_read: newRow.is_read })
+
           if (eventType === 'UPDATE') {
             // Surgical update: spread flat columns from payload onto existing conversation
             // Preserves join data (contact, tags) which aren't in the payload
@@ -433,7 +435,7 @@ export function useConversations({
         }
       )
       .subscribe((status, err) => {
-        if (err) console.error('[realtime:inbox] channel error:', err)
+        console.log(`[realtime:inbox] status: ${status}`, err || '')
       })
 
     // Cleanup on unmount or workspaceId change only

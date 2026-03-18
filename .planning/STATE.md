@@ -21,7 +21,8 @@ Standalone: GoDentist Scraping General — COMPLETE (2/2 plans)
 Standalone: v3-ofi-inter — IN PROGRESS (1/2 plans)
 Standalone: GoDentist Followup Ultimatum — IN PROGRESS (1/3 plans)
 Standalone: SMS Module — IN PROGRESS (3/4 plans)
-Last activity: 2026-03-16 — Completed sms-module 03: SMS dashboard page with sidebar nav and all components
+Standalone: v3-tiempo-entrega — IN PROGRESS (1/3 plans)
+Last activity: 2026-03-17 — Completed v3-tiempo-entrega 01: delivery_zones table + tiempo_entrega templates
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -365,7 +366,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-16 COT
-Stopped at: Completed sms-module 04-PLAN.md (super-admin SMS page)
+Last session: 2026-03-17 COT
+Stopped at: Completed v3-tiempo-entrega 01-PLAN.md (delivery_zones + templates migrations)
 Resume file: None
-Next: sms-module 03-PLAN.md (client-facing SMS page)
+Next: v3-tiempo-entrega 02-PLAN.md (agent code: constants, comprehension, lookup, response track)

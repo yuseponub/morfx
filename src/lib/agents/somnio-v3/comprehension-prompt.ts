@@ -79,7 +79,9 @@ CONTEXTO DE INTENTS:
 - formula: ingredientes o composicion del producto ("que contiene?", "cual es la formula?", "cuales son los ingredientes?", "de que esta hecho?")
 - como_se_toma: modo de uso ("como se toma?", "dosis?")
 - pago: metodos de pago ("puedo pagar contra entrega?", "aceptan transferencia?")
-- envio: informacion de envio ("hacen envios a Medellin?", "cuanto tarda?")
+- envio: informacion de envio ("hacen envios a Medellin?", "por donde envian?")
+- tiempo_entrega: pregunta sobre tiempos de entrega ("cuanto se demora?", "cuando llega?", "en cuantos dias llega?", "cuanto tarda el envio?")
+- REGLA envio vs tiempo_entrega: Si el cliente pregunta sobre tiempos/dias/demora de entrega, usar tiempo_entrega. Si pregunta sobre logistica general (hacen envios?, envian a X?, por donde envian?), usar envio.
 - registro_sanitario: regulacion ("tiene INVIMA?", "es legal?")
 - ubicacion: donde estan ("desde donde envian?", "tienen tienda?")
 - contraindicaciones: efectos secundarios o contraindicaciones ("tiene contraindicaciones?", "tiene efectos secundarios?", "es seguro?")

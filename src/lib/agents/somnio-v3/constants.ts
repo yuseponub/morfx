@@ -6,11 +6,11 @@
  */
 
 // ============================================================================
-// V3 Intents (21 total — only REAL client intents)
+// V3 Intents (22 total — only REAL client intents)
 // ============================================================================
 
 export const V3_INTENTS = [
-  // Informational (12)
+  // Informational (13)
   'saludo',
   'precio',
   'promociones',
@@ -24,6 +24,7 @@ export const V3_INTENTS = [
   'contraindicaciones',
   'dependencia',
   'efectividad',
+  'tiempo_entrega',
 
   // Client actions (5)
   'datos',
@@ -59,10 +60,11 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
 // Two-Track Decision Constants (tt-01)
 // ============================================================================
 
-/** Intents that the response track always answers (informational questions). */
+/** Intents that the response track always answers (informational questions). 14 total. */
 export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
   'saludo', 'precio', 'promociones', 'contenido', 'formula', 'como_se_toma',
   'pago', 'envio', 'registro_sanitario', 'ubicacion', 'contraindicaciones', 'dependencia', 'efectividad',
+  'tiempo_entrega',
 ])
 
 /** Maps sales track accion to template intents. Dynamic actions (mostrar_confirmacion, cambio, crear_orden, pedir_datos) handled in response-track. */

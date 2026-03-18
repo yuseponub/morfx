@@ -21,6 +21,7 @@ import type {
   SystemEvent,
   TimerSignal,
 } from './types'
+import { INFORMATIONAL_INTENTS } from './constants'
 import { hasAction } from './state'
 import type { StateChanges } from './state'
 import { resolveTransition, systemEventToKey } from './transitions'
@@ -91,17 +92,25 @@ export function resolveSalesTrack(input: {
 
   // Datos completos auto-trigger: completos just completed -> ofrecer_promos de una
   if (changes.datosCompletosJustCompleted && !promosMostradas(state)) {
-    const ev: SystemEvent = { type: 'auto', result: 'datos_completos' }
-    const key = systemEventToKey(ev)
-    const match = resolveTransition(phase, key, state, gates, changes)
-    if (match) {
-      return {
-        accion: match.action,
-        enterCaptura: match.output.enterCaptura,
-        timerSignal: match.output.timerSignal,
-        reason: match.output.reason,
+    // Guard: skip auto-trigger if intent is informational (let response track answer first)
+    const isInformational = event.type === 'user_message' &&
+      event.intent && INFORMATIONAL_INTENTS.has(event.intent)
+
+    if (!isInformational) {
+      const ev: SystemEvent = { type: 'auto', result: 'datos_completos' }
+      const key = systemEventToKey(ev)
+      const match = resolveTransition(phase, key, state, gates, changes)
+      if (match) {
+        return {
+          accion: match.action,
+          enterCaptura: match.output.enterCaptura,
+          timerSignal: match.output.timerSignal,
+          reason: match.output.reason,
+        }
       }
     }
+    // If informational: datosCompletosJustCompleted is consumed this turn,
+    // auto-trigger deferred to next non-informational message
   }
 
   // ------------------------------------------------------------------

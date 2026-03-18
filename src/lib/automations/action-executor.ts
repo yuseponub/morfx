@@ -117,6 +117,19 @@ export async function executeAction(
       cascadeDepth
     )
 
+    // Post-action: create contact review after order is created (close-phone flow)
+    if (action.type === 'create_order' && context.pendingContactReview && context._reviewData) {
+      const orderId = (result as { orderId?: string })?.orderId
+      if (orderId) {
+        const reviewResult = await handlePendingContactReview(
+          workspaceId, orderId, context._reviewData, cascadeDepth
+        )
+        if (reviewResult?.token) {
+          context._reviewToken = reviewResult.token
+        }
+      }
+    }
+
     return {
       success: true,
       result,
@@ -161,16 +174,46 @@ async function executeByType(
     case 'duplicate_order':
       return executeDuplicateOrder(params, context, workspaceId, cascadeDepth)
     case 'send_whatsapp_template':
+      if (context.pendingContactReview) {
+        if (context._reviewToken) {
+          try {
+            await addPendingTemplate(context._reviewToken, {
+              templateName: String(params.templateName || ''),
+              variables: (params.variables || {}) as Record<string, string>,
+              language: String(params.language || 'es'),
+              headerMediaUrl: params.headerMediaUrl ? String(params.headerMediaUrl) : undefined,
+            })
+          } catch (err) {
+            console.error('[action-executor] Failed to store pending template:', err)
+          }
+        } else {
+          console.warn('[action-executor] pendingContactReview=true but _reviewToken is missing — template data NOT stored. Check automation action ordering.')
+        }
+        console.log('[action-executor] Skipping template send — pending contact review')
+        return { skipped: true, reason: 'pending_contact_review' }
+      }
       return executeSendWhatsAppTemplate(params, context, workspaceId)
     case 'send_whatsapp_text':
+      if (context.pendingContactReview) {
+        console.log('[action-executor] Skipping text send — pending contact review')
+        return { skipped: true, reason: 'pending_contact_review' }
+      }
       return executeSendWhatsAppText(params, context, workspaceId)
     case 'send_whatsapp_media':
       return executeSendWhatsAppMedia(params, context, workspaceId)
     case 'create_task':
       return executeCreateTask(params, context, workspaceId, cascadeDepth)
     case 'send_sms':
+      if (context.pendingContactReview) {
+        console.log('[action-executor] Skipping SMS send — pending contact review')
+        return { skipped: true, reason: 'pending_contact_review' }
+      }
       return executeSendSmsTwilio(params, context, workspaceId)
     case 'send_sms_onurix':
+      if (context.pendingContactReview) {
+        console.log('[action-executor] Skipping SMS Onurix send — pending contact review')
+        return { skipped: true, reason: 'pending_contact_review' }
+      }
       return executeSendSmsOnurix(params, context, workspaceId)
     case 'webhook':
       return executeWebhook(params)
@@ -1170,6 +1213,83 @@ async function executeWebhook(
  * Used for external triggers (e.g. Shopify trigger-only mode) that don't
  * resolve contacts before emitting.
  */
+// ============================================================================
+// Contact Review Helper (close-phone flow)
+// ============================================================================
+
+/**
+ * Create contact review record after order is created (close-phone flow).
+ * Tags the order, updates description, and sends host notification.
+ */
+async function handlePendingContactReview(
+  workspaceId: string,
+  orderId: string,
+  reviewData: NonNullable<TriggerContext['_reviewData']>,
+  cascadeDepth: number,
+): Promise<{ token: string } | null> {
+  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth }
+
+  // 1. Create contact_review record (NOW we have the orderId)
+  const reviewResult = await createContactReview(ctx, {
+    contactNewId: reviewData.contactNewId,
+    contactExistingId: reviewData.contactExistingId,
+    orderId,
+    shopifyPhone: reviewData.shopifyPhone,
+    existingPhone: reviewData.existingPhone,
+  })
+
+  if (!reviewResult.success || !reviewResult.data) {
+    console.error('[action-executor] Failed to create contact review:', reviewResult.error)
+    return null
+  }
+
+  const { token } = reviewResult.data
+
+  // 2. Tag order with REVISAR-CONTACTO
+  await domainAddOrderTag(ctx, { orderId, tagName: 'REVISAR-CONTACTO' })
+
+  // 3. Update order description with duplicate info
+  await domainUpdateOrder(ctx, {
+    orderId,
+    description: `POSIBLE DUPLICADO: ${reviewData.existingContactName} tel: ${reviewData.existingPhone}. Tel Shopify: ${reviewData.shopifyPhone}`,
+  })
+
+  // 4. Send WhatsApp notification to host via direct 360dialog API
+  const hostPhone = '+573137549286'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'https://morfx.app')
+
+  try {
+    const supabase = createAdminClient()
+    const { data: workspace } = await supabase
+      .from('workspaces')
+      .select('whatsapp_api_key')
+      .eq('id', workspaceId)
+      .single()
+
+    if (workspace?.whatsapp_api_key) {
+      const { sendTemplateMessage: send360Template } = await import('@/lib/whatsapp/api')
+      await send360Template(workspace.whatsapp_api_key, hostPhone, 'informacion_general', 'es', [
+        { type: 'body', parameters: [
+          { type: 'text', text: 'Admin' },
+          { type: 'text', text: `Posible duplicado detectado. Cliente: ${reviewData.existingContactName}, Tel Shopify: ${reviewData.shopifyPhone}, Tel existente: ${reviewData.existingPhone}. MERGE: ${baseUrl}/contact-review/${token}?action=merge -- IGNORAR: ${baseUrl}/contact-review/${token}?action=ignore` },
+        ]}
+      ])
+      console.log('[action-executor] Sent contact review notification to host via direct API')
+    }
+  } catch (err) {
+    // Non-fatal: review is created, just notification failed
+    console.error('[action-executor] Failed to send host notification:', err)
+  }
+
+  return { token }
+}
+
+// ============================================================================
+// Contact Resolution Helper
+// ============================================================================
+
 interface ResolveContactResult {
   contactId: string
   pendingReview: boolean

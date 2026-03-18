@@ -542,6 +542,11 @@ Plans:
   - [ ] tt-02-PLAN.md — Pipeline rewire + debug panel update + verification
 - [ ] **v3 Ofi Inter** — Office pickup detection in v3 state-driven agent (3 detection signals, L1 conditional, bifurcated fields)
   Plans: TBD
+- [x] **Shopify Contact Resolution** — Close-phone detection in resolveOrCreateContact, review creation, template blocking, host notification, merge/ignore resolution page (3 plans)
+  Plans:
+  - [x] 01-PLAN.md — DB migration (contact_reviews) + phone distance utility + domain CRUD
+  - [x] 02-PLAN.md — resolveOrCreateContact close-phone detection + template blocking + host notification
+  - [x] 03-PLAN.md — API endpoint + confirmation page for merge/ignore resolution
 
 ## Progress
 
@@ -553,8 +558,8 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-36) | Phase 36 in progress | — |
-| Standalone | 14 phases | 51 | 10 complete, 4 in progress | |
-| **Total** | **54 phases** | **225+ plans** | | |
+| Standalone | 15 phases | 54 | 11 complete, 4 in progress | |
+| **Total** | **55 phases** | **228+ plans** | | |
 
 ### Current Phase
 

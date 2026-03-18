@@ -19,6 +19,7 @@ REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale"
 - Si el bot mostro un resumen/confirmacion y el cliente dice "si" → intent = confirmar
 - Si el bot ofrecio opciones de pack y el cliente dice "si" o "ese" → intent = seleccion_pack
 - Si el bot hizo una pregunta informativa y el cliente responde "si" → responde segun el contexto
+- Si el bot pregunto sobre municipio/ubicacion para tiempo de entrega ("en que municipio te encuentras?") y el cliente responde con un nombre de ciudad → intent = tiempo_entrega
 - Si no hay pregunta clara en los mensajes del bot → intent = acknowledgment`
     : ''
 

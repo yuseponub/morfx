@@ -37,6 +37,7 @@ export interface PrioritizedTemplate {
   intent: string;
   orden: number;
   isNew: boolean;
+  delaySeconds: number;  // From DB delay_s column — 0 for CORE, 3 for COMPLEMENTARIA
 }
 
 export interface BlockCompositionResult {

@@ -19,6 +19,7 @@ import {
 } from './constants'
 import { SOMNIO_V3_AGENT_ID } from './config'
 import { buildResumenContext, camposFaltantes } from './state'
+import { lookupDeliveryZone, formatDeliveryTime } from './delivery-zones'
 import type { AgentState, ProcessedMessage, ResponseTrackOutput, TipoAccion } from './types'
 
 // ============================================================================
@@ -42,14 +43,14 @@ export async function resolveResponseTrack(input: {
   let extraContext: Record<string, string> | undefined
 
   if (salesAction) {
-    const resolved = resolveSalesActionTemplates(salesAction, state)
+    const resolved = await resolveSalesActionTemplates(salesAction, state)
     salesTemplateIntents.push(...resolved.intents)
     extraContext = resolved.extraContext
   }
 
   // Secondary sales action (e.g., ask_ofi_inter alongside main action)
   if (secondarySalesAction) {
-    const secondaryResolved = resolveSalesActionTemplates(secondarySalesAction, state)
+    const secondaryResolved = await resolveSalesActionTemplates(secondarySalesAction, state)
     salesTemplateIntents.push(...secondaryResolved.intents)
     if (secondaryResolved.extraContext) {
       extraContext = { ...extraContext, ...secondaryResolved.extraContext }
@@ -60,13 +61,24 @@ export async function resolveResponseTrack(input: {
   // 2. Informational intent templates
   // ------------------------------------------------------------------
   const infoTemplateIntents: string[] = []
+  let infoExtraContext: Record<string, string> | undefined
 
   if (intent && INFORMATIONAL_INTENTS.has(intent)) {
-    infoTemplateIntents.push(intent)
+    if (intent === 'tiempo_entrega') {
+      // Dynamic: resolve to zone-specific template
+      const resolved = await resolveDeliveryTimeTemplates(state)
+      infoTemplateIntents.push(resolved.templateIntent)
+      infoExtraContext = resolved.extraContext
+    } else {
+      infoTemplateIntents.push(intent)
+    }
   }
   if (secondaryIntent && INFORMATIONAL_INTENTS.has(secondaryIntent)) {
-    // Avoid duplicate if secondary is the same as primary
-    if (!infoTemplateIntents.includes(secondaryIntent)) {
+    if (secondaryIntent === 'tiempo_entrega' && !infoTemplateIntents.some(i => i.startsWith('tiempo_entrega'))) {
+      const resolved = await resolveDeliveryTimeTemplates(state)
+      infoTemplateIntents.push(resolved.templateIntent)
+      infoExtraContext = { ...infoExtraContext, ...resolved.extraContext }
+    } else if (secondaryIntent !== 'tiempo_entrega' && !infoTemplateIntents.includes(secondaryIntent)) {
       infoTemplateIntents.push(secondaryIntent)
     }
   }
@@ -106,6 +118,7 @@ export async function resolveResponseTrack(input: {
       Object.entries(state.datos).map(([k, v]) => [k, v ?? undefined])
     ),
     ...extraContext,
+    ...infoExtraContext,
     pack: state.pack ?? undefined,
   }
 
@@ -129,6 +142,7 @@ export async function resolveResponseTrack(input: {
         intent: intentName,
         orden: pt.orden,
         isNew: true,
+        delaySeconds: pt.delaySeconds,
       })
     }
   }
@@ -175,7 +189,7 @@ export async function resolveResponseTrack(input: {
       templateId: t.templateId,
       content: t.content,
       contentType: t.contentType === 'imagen' ? 'imagen' : 'texto',
-      delayMs: 0, // Computed by messaging adapter (char-delay)
+      delayMs: t.delaySeconds * 1000, // Convert seconds to ms (0 for CORE, 3000 for COMPLEMENTARIA)
       priority: t.priority,
     })
     templateIdsSent.push(t.templateId)
@@ -209,10 +223,10 @@ const FIELD_LABELS: Record<string, string> = {
 // Sales Action -> Template Resolution
 // ============================================================================
 
-function resolveSalesActionTemplates(
+async function resolveSalesActionTemplates(
   action: TipoAccion,
   state: AgentState,
-): { intents: string[]; extraContext?: Record<string, string> } {
+): Promise<{ intents: string[]; extraContext?: Record<string, string> }> {
   switch (action) {
     case 'mostrar_confirmacion':
     case 'cambio': {
@@ -226,9 +240,28 @@ function resolveSalesActionTemplates(
     }
 
     case 'crear_orden': {
+      const ciudad = state.datos.ciudad
+      if (ciudad) {
+        const zoneResult = await lookupDeliveryZone(ciudad)
+        const tiempoEstimado = formatDeliveryTime(zoneResult)
+        const templateIntent = zoneResult.zone === 'same_day'
+          ? 'confirmacion_orden_same_day'
+          : 'confirmacion_orden_transportadora'
+        return {
+          intents: [templateIntent],
+          extraContext: {
+            ...buildResumenContext(state),
+            tiempo_estimado: tiempoEstimado,
+          },
+        }
+      }
+      // Fallback if no city (shouldn't happen for crear_orden, but defensive)
       return {
-        intents: ['confirmacion_orden'],
-        extraContext: buildResumenContext(state),
+        intents: ['confirmacion_orden_transportadora'],
+        extraContext: {
+          ...buildResumenContext(state),
+          tiempo_estimado: 'en 2-4 dias habiles',
+        },
       }
     }
 
@@ -306,6 +339,24 @@ function resolveSalesActionTemplates(
 // ============================================================================
 // Helpers
 // ============================================================================
+
+async function resolveDeliveryTimeTemplates(state: AgentState): Promise<{
+  templateIntent: string
+  extraContext?: Record<string, string>
+}> {
+  const ciudad = state.datos.ciudad
+  if (!ciudad) {
+    return { templateIntent: 'tiempo_entrega_sin_ciudad' }
+  }
+
+  const zoneResult = await lookupDeliveryZone(ciudad)
+  const tiempoEstimado = formatDeliveryTime(zoneResult)
+
+  return {
+    templateIntent: `tiempo_entrega_${zoneResult.zone}`,
+    extraContext: { ciudad, tiempo_estimado: tiempoEstimado },
+  }
+}
 
 function emptyResult(): ResponseTrackOutput {
   return {

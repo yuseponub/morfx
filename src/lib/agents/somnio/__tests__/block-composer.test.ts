@@ -22,6 +22,7 @@ function tpl(
     intent: 'default',
     orden: 0,
     isNew: true,
+    delaySeconds: 0,
     ...overrides,
   };
 }

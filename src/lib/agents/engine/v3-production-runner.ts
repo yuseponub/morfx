@@ -227,6 +227,7 @@ export class V3ProductionRunner {
               intent: output.intentInfo?.intent ?? 'unknown',
               orden: 0,
               isNew: true,
+              delaySeconds: 0,
             }))
 
             const filterResult = await noRepFilter.filterBlock(

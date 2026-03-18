@@ -96,6 +96,7 @@ export async function respondBasic(
         intent: intentName,
         orden: pt.orden,
         isNew: true,
+        delaySeconds: pt.delaySeconds,
       })
     }
   }

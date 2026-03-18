@@ -280,6 +280,7 @@ export class UnifiedEngine {
           intent,
           orden: t.orden,
           isNew: true,
+          delaySeconds: 0,
         }))
         newByIntent.set(intent, prioritizedNew)
 

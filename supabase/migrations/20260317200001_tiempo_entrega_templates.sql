@@ -17,7 +17,7 @@ VALUES
 
   -- tiempo_entrega_same_day: dynamic via {{ciudad}} and {{tiempo_estimado}}
   (gen_random_uuid(), 'somnio-sales-v3', NULL, 'tiempo_entrega_same_day', 'primera_vez', 'CORE', 0, 'texto',
-   'Tu pedido estaria llegando a {{ciudad}} {{tiempo_estimado}} Nuestro domiciliario se comunicara contigo para la entrega', 0),
+   'Tu pedido estaria llegando a {{ciudad}} {{tiempo_estimado}}✅ Nuestro domiciliario se comunicaria contigo para la entrega', 0),
 
   -- tiempo_entrega_next_day
   (gen_random_uuid(), 'somnio-sales-v3', NULL, 'tiempo_entrega_next_day', 'primera_vez', 'CORE', 0, 'texto',
@@ -36,7 +36,7 @@ INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, pri
 VALUES
   -- confirmacion_orden_same_day: CORE (domiciliario propio, no tracking guide)
   (gen_random_uuid(), 'somnio-sales-v3', NULL, 'confirmacion_orden_same_day', 'primera_vez', 'CORE', 0, 'texto',
-   'Perfecto! Tu pedido llega {{tiempo_estimado}} Nuestro domiciliario se comunicara contigo para la entrega', 0),
+   'Perfecto! Tu pedido llega {{tiempo_estimado}}✅ Nuestro domiciliario se comunicaria contigo para la entrega', 0),
 
   -- confirmacion_orden_same_day: COMPLEMENTARIA
   (gen_random_uuid(), 'somnio-sales-v3', NULL, 'confirmacion_orden_same_day', 'primera_vez', 'COMPLEMENTARIA', 1, 'texto',

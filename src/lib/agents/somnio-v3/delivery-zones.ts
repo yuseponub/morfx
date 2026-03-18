@@ -130,5 +130,5 @@ function formatSameDayTime(cutoffHour: number, cutoffMinutes: number): string {
     // Saturday after cutoff -> next delivery day is Monday
     return 'el LUNES'
   }
-  return 'MANANA MISMO'
+  return 'MAÑANA'
 }

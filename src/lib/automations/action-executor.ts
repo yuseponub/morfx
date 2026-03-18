@@ -27,6 +27,8 @@ import {
   updateContact as domainUpdateContact,
   createContact as domainCreateContact,
 } from '@/lib/domain/contacts'
+import { findClosePhone } from '@/lib/shopify/phone-distance'
+import { createContactReview, addPendingTemplate } from '@/lib/domain/contact-reviews'
 import {
   updateCustomFieldValues as domainUpdateCustomFieldValues,
 } from '@/lib/domain/custom-fields'
@@ -81,6 +83,7 @@ export async function executeAction(
   try {
     // Resolve contactId from phone/email if missing (e.g. Shopify trigger-only mode)
     // Creates contact automatically if not found
+    // Uses direct property mutation (NOT spread) so changes persist across action calls
     if (!context.contactId && (context.contactPhone || context.contactEmail)) {
       const resolved = await resolveOrCreateContact(
         workspaceId,
@@ -90,7 +93,11 @@ export async function executeAction(
         (context.shippingCity as string) || undefined,
       )
       if (resolved) {
-        context = { ...context, contactId: resolved }
+        context.contactId = resolved.contactId
+        if (resolved.pendingReview) {
+          context.pendingContactReview = true
+          context._reviewData = resolved.reviewData
+        }
       }
     }
 
@@ -1163,13 +1170,25 @@ async function executeWebhook(
  * Used for external triggers (e.g. Shopify trigger-only mode) that don't
  * resolve contacts before emitting.
  */
+interface ResolveContactResult {
+  contactId: string
+  pendingReview: boolean
+  reviewData?: {
+    contactNewId: string
+    contactExistingId: string
+    existingPhone: string
+    existingContactName: string
+    shopifyPhone: string
+  }
+}
+
 async function resolveOrCreateContact(
   workspaceId: string,
   phone?: string,
   email?: string,
   name?: string,
   city?: string,
-): Promise<string | null> {
+): Promise<ResolveContactResult | null> {
   const supabase = createAdminClient()
 
   // Try phone first (highest confidence)
@@ -1181,7 +1200,7 @@ async function resolveOrCreateContact(
       .eq('phone', phone)
       .limit(1)
       .single()
-    if (data) return data.id
+    if (data) return { contactId: data.id, pendingReview: false }
   }
 
   // Fallback to email
@@ -1193,12 +1212,58 @@ async function resolveOrCreateContact(
       .eq('email', email)
       .limit(1)
       .single()
-    if (data) return data.id
+    if (data) return { contactId: data.id, pendingReview: false }
   }
 
-  // No existing contact found — create one via domain layer
+  // No existing contact found — check for close phone before creating
   if (!name && !phone) return null
 
+  // Close phone detection: search for contacts with 1-2 digit difference
+  if (phone && name) {
+    const { data: allContacts } = await supabase
+      .from('contacts')
+      .select('id, name, phone')
+      .eq('workspace_id', workspaceId)
+      .not('phone', 'is', null)
+      .limit(2000)
+
+    if (allContacts && allContacts.length > 0) {
+      const candidates = allContacts
+        .filter((c): c is { id: string; name: string; phone: string } => !!c.phone && !!c.name)
+      const match = findClosePhone(phone, candidates, name)
+
+      if (match) {
+        // Close phone detected — create new contact but flag for review
+        const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: 0 }
+        const result = await domainCreateContact(ctx, {
+          name: name || phone || 'Sin nombre',
+          phone: phone || undefined,
+          email: email || undefined,
+          city: city || undefined,
+        })
+
+        if (result.success && result.data) {
+          console.log(`[action-executor] Close phone detected: created contact ${result.data.contactId} for ${phone}, close to ${match.existingPhone} (${match.contactName})`)
+          return {
+            contactId: result.data.contactId,
+            pendingReview: true,
+            reviewData: {
+              contactNewId: result.data.contactId,
+              contactExistingId: match.contactId,
+              existingPhone: match.existingPhone,
+              existingContactName: match.contactName,
+              shopifyPhone: phone,
+            },
+          }
+        }
+
+        console.error(`[action-executor] Failed to auto-create contact (close phone): ${result.error}`)
+        return null
+      }
+    }
+  }
+
+  // No close phone match — create contact normally
   const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: 0 }
   const result = await domainCreateContact(ctx, {
     name: name || phone || 'Sin nombre',
@@ -1209,7 +1274,7 @@ async function resolveOrCreateContact(
 
   if (result.success && result.data) {
     console.log(`[action-executor] Auto-created contact ${result.data.contactId} for ${phone || email}`)
-    return result.data.contactId
+    return { contactId: result.data.contactId, pendingReview: false }
   }
 
   console.error(`[action-executor] Failed to auto-create contact: ${result.error}`)

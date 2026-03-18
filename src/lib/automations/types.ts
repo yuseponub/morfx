@@ -235,6 +235,19 @@ export interface TriggerContext {
   // Task context
   taskId?: string
   taskTitle?: string
+  // Contact review (close-phone detection)
+  /** Set when close-phone match detected — blocks template/text/SMS actions */
+  pendingContactReview?: boolean
+  /** Token of the contact_review record (for storing skipped templates) */
+  _reviewToken?: string
+  /** Close-phone match data for post-order-creation processing */
+  _reviewData?: {
+    contactNewId: string
+    contactExistingId: string
+    existingPhone: string
+    existingContactName: string
+    shopifyPhone: string
+  }
   // Generic extension
   [key: string]: unknown
 }

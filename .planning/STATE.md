@@ -22,8 +22,8 @@ Standalone: v3-ofi-inter — IN PROGRESS (1/2 plans)
 Standalone: GoDentist Followup Ultimatum — IN PROGRESS (1/3 plans)
 Standalone: SMS Module — IN PROGRESS (3/4 plans)
 Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
-Standalone: Shopify Contact Resolution — IN PROGRESS (1/3 plans)
-Last activity: 2026-03-18 — Completed v3-tiempo-entrega 02: agent code (constants, comprehension, lookup, sales guard)
+Standalone: Shopify Contact Resolution — IN PROGRESS (2/3 plans)
+Last activity: 2026-03-18 — Completed shopify-contact-resolution 02: close-phone detection + template blocking + review creation
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -82,7 +82,7 @@ All 9 phases + 5 inserted phases completed:
 - GoDentist Scraping General (2/2 plans) — COMPLETE
 - GoDentist Followup Ultimatum (1/3 plans) — IN PROGRESS
 - v3-ofi-inter (1/2 plans) — IN PROGRESS
-- Shopify Contact Resolution (1/3 plans) — IN PROGRESS
+- Shopify Contact Resolution (2/3 plans) — IN PROGRESS
 - Quick fixes: 27 completed
 
 ## Performance Metrics

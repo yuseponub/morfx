@@ -542,6 +542,15 @@ Plans:
   - [ ] tt-02-PLAN.md — Pipeline rewire + debug panel update + verification
 - [ ] **v3 Ofi Inter** — Office pickup detection in v3 state-driven agent (3 detection signals, L1 conditional, bifurcated fields)
   Plans: TBD
+- [x] **Agent GoDentist** — Dental appointment scheduling agent using v3 engine (23 intents, 51 transitions, 73 templates, 7 phases) (7 plans)
+  Plans:
+  - [x] 01-PLAN.md — Types, constants, agent config
+  - [x] 02-PLAN.md — Comprehension schema, prompt, Haiku call
+  - [x] 03-PLAN.md — State merge, gates, guards, phase derivation
+  - [x] 04-PLAN.md — Transition table (51 rules) + sales track
+  - [x] 05-PLAN.md — Response track (template resolution)
+  - [x] 06-PLAN.md — Main pipeline + self-registration entry point
+  - [x] 07-PLAN.md — SQL migration (73 templates)
 - [x] **Shopify Contact Resolution** — Close-phone detection in resolveOrCreateContact, review creation, template blocking, host notification, merge/ignore resolution page (3 plans)
   Plans:
   - [x] 01-PLAN.md — DB migration (contact_reviews) + phone distance utility + domain CRUD

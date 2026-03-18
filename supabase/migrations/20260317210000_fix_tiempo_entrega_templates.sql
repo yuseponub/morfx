@@ -9,9 +9,9 @@ WHERE agent_id = 'somnio-sales-v3'
   AND intent = 'tiempo_entrega_same_day'
   AND priority = 'CORE';
 
--- confirmacion_orden_same_day CORE
+-- confirmacion_orden_same_day CORE (post-confirmacion = "comunicara", not conditional)
 UPDATE agent_templates
-SET content = 'Perfecto! Tu pedido llega {{tiempo_estimado}}✅ Nuestro domiciliario se comunicaria contigo para la entrega'
+SET content = 'Perfecto! Tu pedido llega {{tiempo_estimado}}✅ Nuestro domiciliario se comunicara contigo para la entrega'
 WHERE agent_id = 'somnio-sales-v3'
   AND intent = 'confirmacion_orden_same_day'
   AND priority = 'CORE';

@@ -367,6 +367,89 @@ export async function resolveContactReview(
  * Append a template entry to the pending_templates JSONB array.
  * Used when automation template actions are skipped during review.
  */
+// ============================================================================
+// sendPendingTemplate
+// ============================================================================
+
+/**
+ * Send a single blocked template to the resolved contact.
+ * Uses the direct 360dialog API (no conversation needed).
+ * Reads the contact's phone fresh from DB — after merge, the existing
+ * contact's phone will have been updated to the Shopify phone.
+ */
+export async function sendPendingTemplate(
+  workspaceId: string,
+  contactId: string,
+  template: PendingTemplate,
+): Promise<void> {
+  const supabase = createAdminClient()
+
+  // 1. Get workspace API key
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('whatsapp_api_key')
+    .eq('id', workspaceId)
+    .single()
+
+  if (!workspace?.whatsapp_api_key) {
+    throw new Error('Workspace has no WhatsApp API key')
+  }
+
+  // 2. Get contact phone (fresh read — may have been updated during merge)
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('phone')
+    .eq('id', contactId)
+    .single()
+
+  if (!contact?.phone) {
+    throw new Error('Contact has no phone number')
+  }
+
+  // 3. Build components from stored variables
+  const bodyParams = Object.values(template.variables).map(val => ({
+    type: 'text' as const,
+    text: val,
+  }))
+
+  const components: Array<{
+    type: 'header' | 'body' | 'button'
+    parameters?: Array<{
+      type: 'text' | 'image' | 'document' | 'video'
+      text?: string
+      image?: { link: string }
+      document?: { link: string }
+      video?: { link: string }
+    }>
+  }> = []
+
+  if (bodyParams.length > 0) {
+    components.push({ type: 'body', parameters: bodyParams })
+  }
+  if (template.headerMediaUrl) {
+    components.push({
+      type: 'header',
+      parameters: [{ type: 'image', image: { link: template.headerMediaUrl } }],
+    })
+  }
+
+  // 4. Send via direct 360dialog API (no conversation needed)
+  const { sendTemplateMessage: send360Template } = await import('@/lib/whatsapp/api')
+  await send360Template(
+    workspace.whatsapp_api_key,
+    contact.phone,
+    template.templateName,
+    template.language,
+    components.length > 0 ? components : undefined,
+  )
+
+  console.log(`[contact-reviews] Sent pending template ${template.templateName} to ${contact.phone}`)
+}
+
+// ============================================================================
+// addPendingTemplate
+// ============================================================================
+
 export async function addPendingTemplate(
   token: string,
   templateData: PendingTemplate

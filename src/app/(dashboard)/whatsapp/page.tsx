@@ -4,11 +4,11 @@ import { getClientActivationSettings } from '@/app/actions/client-activation'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 
 interface WhatsAppPageProps {
-  searchParams: Promise<{ phone?: string }>
+  searchParams: Promise<{ phone?: string; c?: string }>
 }
 
 export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) {
-  const { phone } = await searchParams
+  const { phone, c } = await searchParams
 
   // Get workspace from cookie or DB fallback (for new users without cookie)
   const workspaceId = await getActiveWorkspaceId()
@@ -30,10 +30,11 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
     getClientActivationSettings(),
   ])
 
-  // Find conversation by phone if provided
-  const initialSelectedId = phone
-    ? initialConversations.find(c => c.phone.includes(phone) || c.contact?.phone.includes(phone))?.id
-    : undefined
+  // Find conversation by ID or phone if provided
+  const initialSelectedId = c
+    || (phone
+      ? initialConversations.find(conv => conv.phone.includes(phone) || conv.contact?.phone.includes(phone))?.id
+      : undefined)
 
   return (
     <InboxLayout

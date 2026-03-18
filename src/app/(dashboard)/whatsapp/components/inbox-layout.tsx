@@ -54,6 +54,8 @@ export function InboxLayout({
   const handleSelectConversation = useCallback(async (id: string | null, conversation?: ConversationWithDetails) => {
     setSelectedConversationId(id)
     setSelectedConversation(conversation || null)
+    // Sync URL so the link is shareable
+    window.history.replaceState(null, '', id ? `/whatsapp?c=${id}` : '/whatsapp')
     if (id) {
       // Mark as read in background (don't await to keep UI snappy)
       markAsRead(id).catch(console.error)

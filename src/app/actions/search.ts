@@ -99,7 +99,7 @@ export async function getSearchableItems(): Promise<SearchableItem[]> {
       id: conv.id,
       title: contactName || conv.phone,
       subtitle: conv.last_message?.substring(0, 50) || 'Sin mensajes',
-      href: `/whatsapp?chat=${conv.id}`
+      href: `/whatsapp?c=${conv.id}`
     })
   })
 

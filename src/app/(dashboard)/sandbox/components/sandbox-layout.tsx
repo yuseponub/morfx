@@ -25,6 +25,8 @@ import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
 import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
+import { getAgentName } from '@/lib/agents/agent-catalog'
+import { getAgentConfig } from '@/app/actions/agent-config'
 
 // Initial state (matches SandboxEngine.getInitialState())
 const INITIAL_STATE: SandboxState = {
@@ -42,14 +44,8 @@ const SandboxSplitPanel = dynamic(
   { ssr: false, loading: () => <div className="flex-1 flex items-center justify-center text-muted-foreground">Cargando...</div> }
 )
 
-// Initial agent - will be expanded when more agents are registered
+// Fallback agent ID (used only if workspace has no config)
 const DEFAULT_AGENT_ID = 'somnio-sales-v1'
-
-const AGENT_NAMES: Record<string, string> = {
-  'somnio-sales-v1': 'Somnio Sales Agent v1',
-  'somnio-sales-v2': 'Somnio Sales Agent v2',
-  'somnio-sales-v3': 'Somnio Sales Agent v3',
-}
 
 export function SandboxLayout() {
   // Session state
@@ -79,18 +75,33 @@ export function SandboxLayout() {
   // Workspace ID for LIVE mode CRM operations
   const { workspace } = useWorkspace()
 
+  // Workspace configured agent — determines which agent the selector shows
+  const [workspaceAgentId, setWorkspaceAgentId] = useState<string | undefined>(undefined)
+
   // CRM agent state - initialized from registry via API
   const [crmAgents, setCrmAgents] = useState<CrmAgentState[]>([])
   const agentIdRef = useRef<string>(getLastAgentId() ?? DEFAULT_AGENT_ID)
   const crmAgentsRef = useRef<CrmAgentState[]>([])
   const workspaceRef = useRef(workspace)
 
-  // Load CRM agents on mount
+  // Load workspace agent config + CRM agents on mount
   useEffect(() => {
     fetch('/api/sandbox/crm-agents')
       .then(res => res.json())
       .then((agents: CrmAgentState[]) => setCrmAgents(agents))
       .catch(err => console.error('[Sandbox] Failed to load CRM agents:', err))
+
+    getAgentConfig().then(result => {
+      if ('success' in result && result.success) {
+        const configuredId = result.data.conversational_agent_id
+        setWorkspaceAgentId(configuredId)
+        // If no saved session agent, use workspace configured agent
+        if (!getLastAgentId()) {
+          setAgentId(configuredId)
+          agentIdRef.current = configuredId
+        }
+      }
+    })
   }, [])
 
   // ============================================================================
@@ -522,6 +533,7 @@ export function SandboxLayout() {
     <div className="flex flex-col h-full">
       <SandboxHeader
         agentId={agentId}
+        workspaceAgentId={workspaceAgentId}
         onAgentChange={handleAgentChange}
         onReset={handleReset}
         onNewSession={handleNewSession}
@@ -570,7 +582,7 @@ export function SandboxLayout() {
                 state={state}
                 onStateEdit={handleStateEdit}
                 totalTokens={totalTokens}
-                agentName={AGENT_NAMES[agentId] ?? agentId}
+                agentName={getAgentName(agentId)}
                 responseDelayMs={responseDelayMs}
                 onResponseDelayChange={setResponseDelayMs}
                 timerState={timerState}

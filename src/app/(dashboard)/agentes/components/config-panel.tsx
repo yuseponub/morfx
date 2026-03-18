@@ -22,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { getAgentConfig, updateAgentConfig } from '@/app/actions/agent-config'
 import type { AgentConfig } from '@/lib/agents/production/agent-config'
+import { AGENT_CATALOG } from '@/lib/agents/agent-catalog'
 
 // ============================================================================
 // CONSTANTS
@@ -41,11 +42,6 @@ const SPEED_PRESETS: SpeedPreset[] = [
   { value: 1.0, label: 'Real', description: '2-6 seg', detail: 'Delays tal cual vienen en los templates. El agente responde con pausas naturales.' },
   { value: 0.2, label: 'Rapido', description: '0.5-1 seg', detail: 'Delays reducidos al 20%. Respuestas rapidas pero con algo de pausa.' },
   { value: 0.0, label: 'Instantaneo', description: '0 seg', detail: 'Sin delays. Todos los mensajes se envian inmediatamente.' },
-]
-
-const AVAILABLE_AGENTS = [
-  { id: 'somnio-sales-v1', name: 'Somnio Sales v1', description: 'Agente de ventas para Somnio. Captura datos, ofrece promos y crea ordenes.' },
-  { id: 'somnio-sales-v3', name: 'Somnio Sales v3', description: 'Agente conversacional v3. Pipeline modular con comprehension, sales-track y response-track.' },
 ]
 
 const CRM_AGENTS = [
@@ -215,7 +211,7 @@ export function ConfigPanel() {
               <SelectValue placeholder="Seleccionar agente" />
             </SelectTrigger>
             <SelectContent>
-              {AVAILABLE_AGENTS.map((agent) => (
+              {AGENT_CATALOG.map((agent) => (
                 <SelectItem key={agent.id} value={agent.id}>
                   <div className="flex flex-col">
                     <span>{agent.name}</span>
@@ -224,9 +220,9 @@ export function ConfigPanel() {
               ))}
             </SelectContent>
           </Select>
-          {AVAILABLE_AGENTS.find(a => a.id === config.conversational_agent_id) && (
+          {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id) && (
             <p className="text-xs text-muted-foreground mt-2">
-              {AVAILABLE_AGENTS.find(a => a.id === config.conversational_agent_id)?.description}
+              {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id)?.description}
             </p>
           )}
         </CardContent>

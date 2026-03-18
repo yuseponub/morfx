@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getAgentConfig, updateAgentConfig } from '@/app/actions/agent-config'
 import type { AgentConfig } from '@/lib/agents/production/agent-config'
+import { AGENT_CATALOG } from '@/lib/agents/agent-catalog'
 
 interface AgentConfigSliderProps {
   workspaceId: string
@@ -33,11 +34,6 @@ const SPEED_PRESETS: { value: number; label: string; description: string }[] = [
   { value: 1.0, label: 'Real', description: '2-6 seg' },
   { value: 0.2, label: 'Rapido', description: '0.5-1 seg' },
   { value: 0.0, label: 'Instantaneo', description: '0 seg' },
-]
-
-const AVAILABLE_AGENTS = [
-  { id: 'somnio-sales-v1', name: 'Somnio Sales v1' },
-  { id: 'somnio-sales-v3', name: 'Somnio Sales v3' },
 ]
 
 const CRM_AGENTS = [
@@ -213,7 +209,7 @@ export function AgentConfigSlider({ workspaceId, onClose }: AgentConfigSliderPro
               <SelectValue placeholder="Seleccionar agente" />
             </SelectTrigger>
             <SelectContent>
-              {AVAILABLE_AGENTS.map((agent) => (
+              {AGENT_CATALOG.map((agent) => (
                 <SelectItem key={agent.id} value={agent.id}>
                   {agent.name}
                 </SelectItem>

@@ -38,17 +38,12 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { SessionControls } from './session-controls'
 import { setLastAgentId } from '@/lib/sandbox/sandbox-session'
+import { getAgentsForWorkspace } from '@/lib/agents/agent-catalog'
 import type { SandboxMessage, SandboxState, DebugTurn, SavedSandboxSession, CrmAgentState, CrmExecutionMode } from '@/lib/sandbox/types'
-
-// Available agents - will grow as more agents are registered
-const AVAILABLE_AGENTS = [
-  { id: 'somnio-sales-v1', name: 'Somnio Sales Agent v1' },
-  { id: 'somnio-sales-v2', name: 'Somnio Sales Agent v2' },
-  { id: 'somnio-sales-v3', name: 'Somnio Sales Agent v3' },
-]
 
 interface SandboxHeaderProps {
   agentId: string
+  workspaceAgentId?: string
   onAgentChange: (agentId: string) => void
   onReset: () => void
   onNewSession: () => void
@@ -65,6 +60,7 @@ interface SandboxHeaderProps {
 
 export function SandboxHeader({
   agentId,
+  workspaceAgentId,
   onAgentChange,
   onReset,
   onNewSession,
@@ -79,6 +75,7 @@ export function SandboxHeader({
   onCrmAgentModeChange,
 }: SandboxHeaderProps) {
   const [crmPopoverOpen, setCrmPopoverOpen] = useState(false)
+  const availableAgents = getAgentsForWorkspace(workspaceAgentId)
 
   const handleAgentChange = (newAgentId: string) => {
     setLastAgentId(newAgentId)
@@ -98,7 +95,7 @@ export function SandboxHeader({
             <SelectValue placeholder="Seleccionar agente" />
           </SelectTrigger>
           <SelectContent>
-            {AVAILABLE_AGENTS.map(agent => (
+            {availableAgents.map(agent => (
               <SelectItem key={agent.id} value={agent.id}>
                 {agent.name}
               </SelectItem>

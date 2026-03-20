@@ -40,8 +40,9 @@ export async function getConversations(
     return []
   }
 
-  // Step 1: Fetch conversations with contacts (no nested tags — separate batch query)
+  // Build query with contact join (tags come through contact — source of truth)
   // Note: address/city omitted from list query (only used in ContactPanel detail view)
+  // Tags select only id, name, color (the 3 fields actually rendered)
   const sortColumn = filters?.sortBy === 'last_customer_message'
     ? 'last_customer_message_at'
     : 'last_message_at'
@@ -50,7 +51,7 @@ export async function getConversations(
     .from('conversations')
     .select(`
       *,
-      contact:contacts!left(id, name, phone, is_client)
+      contact:contacts!left(id, name, phone, is_client, tags:contact_tags(tag:tags(id, name, color)))
     `)
     .eq('workspace_id', workspaceId)
     .order(sortColumn, { ascending: false, nullsFirst: false })
@@ -79,39 +80,18 @@ export async function getConversations(
     return []
   }
 
-  // Step 2: Batch fetch tags for all contact IDs in a single query
-  const contactIds = [...new Set(
-    (data || []).map(c => c.contact?.id).filter(Boolean)
-  )] as string[]
-
-  let tagsByContact: Record<string, Array<{ id: string; name: string; color: string }>> = {}
-  if (contactIds.length > 0) {
-    const { data: contactTags, error: tagsError } = await supabase
-      .from('contact_tags')
-      .select('contact_id, tag:tags(id, name, color)')
-      .in('contact_id', contactIds)
-
-    if (tagsError) {
-      console.error('Error fetching contact tags batch:', tagsError)
-    }
-
-    // Group by contact_id
-    for (const ct of contactTags || []) {
-      if (!tagsByContact[ct.contact_id]) tagsByContact[ct.contact_id] = []
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tag = ct.tag as any
-      if (tag) tagsByContact[ct.contact_id].push({ id: tag.id, name: tag.name, color: tag.color })
-    }
-  }
-
-  // Step 3: Transform and apply client-side filters
+  // Transform and apply client-side filters
   let conversations = (data || []).map((conv) => {
-    // Get tags from batch lookup (source of truth: contact_tags)
-    const inheritedTags = conv.contact ? (tagsByContact[conv.contact.id] || []) : []
+    // Get tags from linked contact (source of truth)
+    const contactTagsData = conv.contact?.tags || []
+    const inheritedTags = contactTagsData.map((t: { tag: { id: string; name: string; color: string } }) => t.tag) || []
+
+    // Remove nested tags from contact object
+    const contact = conv.contact ? { ...conv.contact, tags: undefined } : null
 
     return {
       ...conv,
-      contact: conv.contact || null,
+      contact,
       tags: inheritedTags,
       assigned_name: null, // TODO: fetch from profiles if needed
     }

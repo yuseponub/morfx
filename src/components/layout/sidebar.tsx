@@ -166,30 +166,23 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
               return (
                 <li key={item.href}>
                   <div className="flex items-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            'flex flex-1 items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                            isActive
-                              ? 'bg-accent text-accent-foreground'
-                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                          )}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="flex-1">{item.label}</span>
-                          {showBadge && (
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
-                              {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
-                            </span>
-                          )}
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        <p>{item.label}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'flex flex-1 items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="flex-1">{item.label}</span>
+                      {showBadge && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
+                          {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
+                        </span>
+                      )}
+                    </Link>
                     {item.subLink && (
                       <Tooltip>
                         <TooltipTrigger asChild>

@@ -85,7 +85,7 @@ All 9 phases + 5 inserted phases completed:
 - v3-ofi-inter (1/2 plans) — IN PROGRESS
 - Shopify Contact Resolution (3/3 plans) — COMPLETE
 - Agent GoDentist (2/7 plans) — IN PROGRESS
-- Quick fixes: 27 completed
+- Quick fixes: 28 completed
 
 ## Performance Metrics
 
@@ -334,6 +334,7 @@ Conversation Tags to Contact decisions:
 - Set USE_INNGEST_PROCESSING=true in Vercel to enable async agent processing
 - Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway
 - Set OPENAI_API_KEY env var in Vercel for Whisper audio transcription (Phase 32)
+- Apply migration `20260319100000_composite_indexes_conversations.sql` in production (composite indexes for inbox queries)
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
@@ -363,6 +364,7 @@ Conversation Tags to Contact decisions:
 | 025 | Independizar templates v3 de v1 | 2026-03-15 | cf8249d | [025-independizar-templates-v3-de-v1](./quick/025-independizar-templates-v3-de-v1/) |
 | 027 | Integrar v3 a produccion - Fase 1 Foundation | 2026-03-16 | 6c087a5 | [027-integrar-v3-a-produccion-fase-1-foundati](./quick/027-integrar-v3-a-produccion-fase-1-foundati/) |
 | 028 | V3 production timer system (fase 2) | 2026-03-16 | 0ada8b0 | [028-v3-production-fase-2-timer-system](./quick/028-v3-production-fase-2-timer-system/) |
+| 029 | Fix WhatsApp inbox: sidebar nav, realtime, query perf | 2026-03-19 | 0d68c56 | [029-fix-whatsapp-inbox-sidebar-realtime-perf](./quick/029-fix-whatsapp-inbox-sidebar-realtime-perf/) |
 
 ### Blockers/Concerns
 
@@ -370,7 +372,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18 COT
-Stopped at: Completed agent-godentist 04-PLAN.md (transition table + sales track)
+Last session: 2026-03-19 COT
+Stopped at: Completed quick-029 (WhatsApp inbox sidebar nav, realtime, query perf)
 Resume file: None
-Next: Agent GoDentist Plan 05 (orchestrator)
+Next: Apply migration 20260319100000 in production, then push code

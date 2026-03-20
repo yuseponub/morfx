@@ -86,10 +86,14 @@ export async function getConversations(
 
   let tagsByContact: Record<string, Array<{ id: string; name: string; color: string }>> = {}
   if (contactIds.length > 0) {
-    const { data: contactTags } = await supabase
+    const { data: contactTags, error: tagsError } = await supabase
       .from('contact_tags')
       .select('contact_id, tag:tags(id, name, color)')
       .in('contact_id', contactIds)
+
+    if (tagsError) {
+      console.error('Error fetching contact tags batch:', tagsError)
+    }
 
     // Group by contact_id
     for (const ct of contactTags || []) {

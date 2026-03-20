@@ -169,6 +169,9 @@ export function useConversations({
   // which caused channel teardown/recreation on every filter or currentUserId change
   const scheduleSafetyRefetchRef = useRef<() => void>(() => {})
 
+  // Ref for fetchConversations — used by reconnect handler to trigger immediate refetch
+  const fetchConversationsRef = useRef<() => void>(() => {})
+
   // Get current user ID for 'mine' filter
   useEffect(() => {
     const supabase = createClient()
@@ -275,11 +278,12 @@ export function useConversations({
     if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
     safetyRefetchTimer.current = setTimeout(() => {
       fetchConversations()
-    }, 30_000)
+    }, 10_000)
   }, [fetchConversations])
 
-  // Keep ref in sync — used by realtime handlers to avoid stale closure
+  // Keep refs in sync — used by realtime handlers to avoid stale closure
   useEffect(() => { scheduleSafetyRefetchRef.current = scheduleSafetyRefetch }, [scheduleSafetyRefetch])
+  useEffect(() => { fetchConversationsRef.current = fetchConversations }, [fetchConversations])
 
   // ============================================================================
   // Consolidated Realtime Channel
@@ -434,9 +438,22 @@ export function useConversations({
           }
         }
       )
-      .subscribe((status, err) => {
-        console.log(`[realtime:inbox] status: ${status}`, err || '')
-      })
+      .subscribe((() => {
+        let previousStatus = ''
+        return (status: string, err?: Error) => {
+          console.log(`[realtime:inbox] status: ${status}`, err || '')
+
+          // Refetch on reconnection (SUBSCRIBED after a drop) or on error
+          if (status === 'CHANNEL_ERROR') {
+            console.log('[realtime:inbox] channel error — scheduling safety refetch')
+            scheduleSafetyRefetchRef.current()
+          } else if (status === 'SUBSCRIBED' && previousStatus && previousStatus !== 'SUBSCRIBED') {
+            console.log('[realtime:inbox] reconnected — refetching all conversations')
+            fetchConversationsRef.current()
+          }
+          previousStatus = status
+        }
+      })())
 
     // Cleanup on unmount or workspaceId change only
     return () => {

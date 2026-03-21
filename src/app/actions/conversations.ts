@@ -40,6 +40,8 @@ export async function getConversations(
     return []
   }
 
+  const startTime = Date.now()
+
   // Build query with contact join (tags come through contact — source of truth)
   // Note: address/city omitted from list query (only used in ContactPanel detail view)
   // Tags select only id, name, color (the 3 fields actually rendered)
@@ -74,10 +76,15 @@ export async function getConversations(
   }
 
   const { data, error } = await query
+  const elapsed = Date.now() - startTime
 
   if (error) {
-    console.error('Error fetching conversations:', error)
+    console.error(`Error fetching conversations (${elapsed}ms):`, error)
     return []
+  }
+
+  if (elapsed > 2000) {
+    console.warn(`[perf] getConversations: ${elapsed}ms (${(data || []).length} conversations)`)
   }
 
   // Transform and apply client-side filters
@@ -177,6 +184,8 @@ export async function getConversationMessages(
     return []
   }
 
+  const startTime = Date.now()
+
   let query = supabase
     .from('messages')
     .select('*')
@@ -189,15 +198,28 @@ export async function getConversationMessages(
     query = query.lt('timestamp', before)
   }
 
-  const { data, error } = await query
+  // Add timeout to prevent infinite spinner
+  const timeoutMs = 15_000
+  const result = await Promise.race([
+    query,
+    new Promise<{ data: null; error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: `Timeout after ${timeoutMs}ms` } }), timeoutMs)
+    ),
+  ])
 
-  if (error) {
-    console.error('Error fetching messages:', error)
+  const elapsed = Date.now() - startTime
+
+  if (result.error) {
+    console.error(`Error fetching messages for ${conversationId} (${elapsed}ms):`, result.error)
     return []
   }
 
+  if (elapsed > 3000) {
+    console.warn(`[perf] getConversationMessages ${conversationId}: ${elapsed}ms (${(result.data || []).length} msgs)`)
+  }
+
   // Return in chronological order (oldest first for chat)
-  return ((data || []) as Message[]).reverse()
+  return ((result.data || []) as Message[]).reverse()
 }
 
 // ============================================================================

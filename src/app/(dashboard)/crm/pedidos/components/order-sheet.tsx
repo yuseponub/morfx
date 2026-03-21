@@ -147,6 +147,7 @@ interface OrderSheetProps {
   onViewOrder?: (order: OrderWithDetails) => void
   currentUserId?: string
   isAdminOrOwner?: boolean
+  availableTags?: Array<{ id: string; name: string; color: string }>
 }
 
 /**
@@ -164,6 +165,7 @@ export function OrderSheet({
   onViewOrder,
   currentUserId,
   isAdminOrOwner,
+  availableTags = [],
 }: OrderSheetProps) {
   const router = useRouter()
   const [isChangingStage, setIsChangingStage] = React.useState(false)
@@ -479,6 +481,7 @@ export function OrderSheet({
               </h3>
               <OrderTagInput
                 orderId={order.id}
+                allTags={availableTags}
                 currentTags={localTags}
                 onTagAdded={(tag) => {
                   setLocalTags(prev => [...prev, tag])

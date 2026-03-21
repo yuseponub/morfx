@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, X, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,13 +17,14 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { TagBadge } from '@/components/contacts/tag-badge'
-import { getTagsForScope } from '@/app/actions/tags'
 import { addOrderTag, removeOrderTag } from '@/app/actions/orders'
 import { toast } from 'sonner'
 
 interface OrderTagInputProps {
   /** Order ID to manage tags for */
   orderId: string
+  /** All available tags for orders scope (pre-fetched at page level) */
+  allTags: Array<{ id: string; name: string; color: string }>
   /** Currently applied tags */
   currentTags: Array<{ id: string; name: string; color: string }>
   /** Callback when a tag is added (receives the added tag) */
@@ -40,39 +41,22 @@ interface OrderTagInputProps {
  */
 export function OrderTagInput({
   orderId,
+  allTags,
   currentTags,
   onTagAdded,
   onTagRemoved,
   disabled = false,
 }: OrderTagInputProps) {
   const [open, setOpen] = useState(false)
-  const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string; color: string }>>([])
-  const [isLoading, setIsLoading] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  // Load available tags (filtered by scope)
-  useEffect(() => {
-    async function loadTags() {
-      setIsLoading(true)
-      try {
-        const tags = await getTagsForScope('orders')
-        setAvailableTags(tags)
-      } catch (error) {
-        console.error('Error loading tags:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadTags()
-  }, [])
-
-  // Filter out already applied tags
-  const unassignedTags = availableTags.filter(
+  // Available = all tags minus already assigned
+  const unassignedTags = allTags.filter(
     tag => !currentTags.some(ct => ct.id === tag.id)
   )
 
   const handleAddTag = (tagId: string) => {
-    const tag = availableTags.find(t => t.id === tagId)
+    const tag = allTags.find(t => t.id === tagId)
     if (!tag) return
 
     startTransition(async () => {
@@ -144,7 +128,7 @@ export function OrderTagInput({
               <CommandInput placeholder="Buscar etiqueta..." />
               <CommandList>
                 <CommandEmpty>
-                  {isLoading ? 'Cargando...' : 'Sin etiquetas disponibles'}
+                  Sin etiquetas disponibles
                 </CommandEmpty>
                 <CommandGroup>
                   {unassignedTags.map((tag) => (

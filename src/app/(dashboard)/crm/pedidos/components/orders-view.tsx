@@ -898,6 +898,7 @@ export function OrdersView({
         onViewOrder={setViewingOrder}
         currentUserId={currentUserId}
         isAdminOrOwner={isAdminOrOwner}
+        availableTags={tags}
       />
 
       {/* Delete confirmation dialog */}

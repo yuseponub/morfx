@@ -5,7 +5,7 @@
 // Real-time message subscription for a conversation
 // ============================================================================
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getConversationMessages } from '@/app/actions/conversations'
 import type { Message, TextContent } from '@/lib/whatsapp/types'
@@ -30,6 +30,8 @@ interface UseMessagesReturn {
   hasMore: boolean
   /** Add an optimistic message for instant text display */
   addOptimisticMessage: (text: string) => void
+  /** Schedule a safety refetch (call after sending a message) */
+  scheduleSafetyRefetch: () => void
 }
 
 // ============================================================================
@@ -39,16 +41,7 @@ interface UseMessagesReturn {
 /**
  * Hook for managing messages with real-time updates.
  * Subscribes to new messages for the active conversation.
- *
- * @param options - Hook configuration
- * @returns Message state and controls
- *
- * @example
- * ```tsx
- * const { messages, isLoading, loadMore, hasMore } = useMessages({
- *   conversationId: selectedId,
- * })
- * ```
+ * Includes safety refetch for unreliable realtime delivery.
  */
 export function useMessages({
   conversationId,
@@ -57,6 +50,11 @@ export function useMessages({
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+
+  // Refs for safety refetch
+  const safetyRefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const conversationIdRef = useRef(conversationId)
+  useEffect(() => { conversationIdRef.current = conversationId }, [conversationId])
 
   // Fetch messages for conversation
   const fetchMessages = useCallback(async () => {
@@ -78,6 +76,42 @@ export function useMessages({
       setIsLoading(false)
     }
   }, [conversationId, limit])
+
+  // Soft refetch: merge new messages without clearing existing ones (no spinner)
+  const softRefetch = useCallback(async () => {
+    if (!conversationIdRef.current) return
+    try {
+      const data = await getConversationMessages(conversationIdRef.current, limit)
+      setMessages(prev => {
+        // Merge: keep all real messages from server, replace optimistic ones
+        const hasOptimistic = prev.some(m => m.id.startsWith('optimistic-'))
+        if (!hasOptimistic && prev.length === data.length) {
+          // No change needed — check if last message IDs match
+          const prevLastId = prev[prev.length - 1]?.id
+          const dataLastId = data[data.length - 1]?.id
+          if (prevLastId === dataLastId) return prev
+        }
+        return data
+      })
+    } catch (error) {
+      console.error('Error in soft refetch:', error)
+    }
+  }, [limit])
+
+  // Schedule a safety refetch after 3 seconds (call after sending a message)
+  const scheduleSafetyRefetch = useCallback(() => {
+    if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
+    safetyRefetchTimer.current = setTimeout(() => {
+      softRefetch()
+    }, 3_000)
+  }, [softRefetch])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
+    }
+  }, [])
 
   // Load more (older) messages
   const loadMore = useCallback(async () => {
@@ -141,6 +175,7 @@ export function useMessages({
     if (!conversationId) return
 
     const supabase = createClient()
+    let previousStatus = ''
 
     // Subscribe to messages for this conversation
     const channel = supabase
@@ -188,7 +223,6 @@ export function useMessages({
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          console.log('Message updated:', payload)
           // Update message in array (for status changes)
           const updatedMessage = payload.new as Message
           setMessages(prev =>
@@ -199,14 +233,25 @@ export function useMessages({
         }
       )
       .subscribe((status, err) => {
-        console.log('Realtime messages status:', status, err || '')
+        console.log(`[realtime:messages] ${conversationId.slice(0, 8)} status: ${status}`, err || '')
+
+        if (status === 'CHANNEL_ERROR') {
+          // On error, schedule a refetch
+          console.log('[realtime:messages] channel error — scheduling refetch')
+          softRefetch()
+        } else if (status === 'SUBSCRIBED' && previousStatus && previousStatus !== 'SUBSCRIBED') {
+          // Reconnected after a drop — immediate refetch
+          console.log('[realtime:messages] reconnected — refetching')
+          softRefetch()
+        }
+        previousStatus = status
       })
 
     // Cleanup on unmount
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [conversationId])
+  }, [conversationId, softRefetch])
 
   return {
     messages,
@@ -214,5 +259,6 @@ export function useMessages({
     loadMore,
     hasMore,
     addOptimisticMessage,
+    scheduleSafetyRefetch,
   }
 }

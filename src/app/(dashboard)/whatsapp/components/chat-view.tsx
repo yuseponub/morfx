@@ -32,7 +32,7 @@ export function ChatView({
   const parentRef = useRef<HTMLDivElement>(null)
   const scrolledToBottomRef = useRef(true)
 
-  const { messages, isLoading, loadMore, hasMore, addOptimisticMessage } = useMessages({
+  const { messages, isLoading, loadMore, hasMore, addOptimisticMessage, scheduleSafetyRefetch } = useMessages({
     conversationId,
     limit: 50,
   })
@@ -264,6 +264,8 @@ export function ChatView({
         onSend={() => {
           // Scroll to bottom after sending
           scrolledToBottomRef.current = true
+          // Safety refetch in case realtime misses the sent message
+          scheduleSafetyRefetch()
         }}
       />
 

@@ -416,11 +416,11 @@ export function useConversations({
           )
         }
       )
-      // ---- orders table: refresh order emojis ----
+      // ---- orders table: refresh order emojis on INSERT and UPDATE (stage changes) ----
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'orders',
           filter: `workspace_id=eq.${workspaceId}`,

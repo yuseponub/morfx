@@ -32,10 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { TagBadge } from '@/components/contacts/tag-badge'
+import { OrderTagInput } from '@/app/(dashboard)/crm/pedidos/components/order-tag-input'
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
 import { getOrder, getPipelines, moveOrderToStage } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
+import { getTagsForScope } from '@/app/actions/tags'
 import { getOrderNotes } from '@/app/actions/order-notes'
 import { toast } from 'sonner'
 import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage, OrderNoteWithUser } from '@/lib/orders/types'
@@ -80,6 +81,8 @@ export function ViewOrderSheet({
   const [products, setProducts] = React.useState<Product[]>([])
   const [stages, setStages] = React.useState<PipelineStage[]>([])
   const [orderNotes, setOrderNotes] = React.useState<OrderNoteWithUser[]>([])
+  const [allTags, setAllTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
+  const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
 
   // Load order notes when sheet opens
   React.useEffect(() => {
@@ -101,20 +104,23 @@ export function ViewOrderSheet({
       setIsLoading(true)
       setIsEditing(false)
       try {
-        const [orderData, pipelinesData, productsData] = await Promise.all([
+        const [orderData, pipelinesData, productsData, tagsData] = await Promise.all([
           getOrder(currentOrderId),
           getPipelines(),
           getActiveProducts(),
+          getTagsForScope('orders'),
         ])
 
         if (orderData) {
           setOrder(orderData)
+          setLocalTags(orderData.tags || [])
           // Get stages for this order's pipeline
           const pipeline = pipelinesData.find(p => p.id === orderData.pipeline_id)
           setStages(pipeline?.stages || [])
         }
         setPipelines(pipelinesData)
         setProducts(productsData)
+        setAllTags(tagsData)
       } catch (error) {
         console.error('Error loading order:', error)
         toast.error('Error al cargar el pedido')
@@ -385,21 +391,26 @@ export function ViewOrderSheet({
                 <Separator />
 
                 {/* Tags */}
-                {order.tags && order.tags.length > 0 && (
-                  <>
-                    <section className="space-y-3">
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        Etiquetas
-                      </h3>
-                      <div className="flex gap-2 flex-wrap">
-                        {order.tags.map((tag) => (
-                          <TagBadge key={tag.id} tag={tag} />
-                        ))}
-                      </div>
-                    </section>
-                    <Separator />
-                  </>
-                )}
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Etiquetas
+                  </h3>
+                  <OrderTagInput
+                    orderId={order.id}
+                    allTags={allTags}
+                    currentTags={localTags}
+                    onTagAdded={(tag) => {
+                      setLocalTags(prev => [...prev, tag])
+                      router.refresh()
+                    }}
+                    onTagRemoved={(tagId) => {
+                      setLocalTags(prev => prev.filter(t => t.id !== tagId))
+                      router.refresh()
+                    }}
+                  />
+                </section>
+
+                <Separator />
 
                 {/* Description */}
                 {order.description && (

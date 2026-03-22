@@ -154,6 +154,18 @@ export async function processMessageWithAgent(
     }
   }
 
+  // 3b. Check if contact is a client (bot should not respond — future client-specific bot)
+  const { data: contactData } = await supabase
+    .from('contacts')
+    .select('is_client')
+    .eq('id', contactId)
+    .single()
+
+  if (contactData?.is_client) {
+    logger.info({ conversationId, contactId }, 'Contact is a client, skipping agent')
+    return { success: true }
+  }
+
   // 4. Record timestamp before processing (for sent_by_agent marking)
   const processingStartedAt = new Date().toISOString()
 

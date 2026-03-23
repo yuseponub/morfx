@@ -220,6 +220,24 @@ export async function processMessageWithAgent(
       })
 
       logger.info({ conversationId, agentId }, 'V3 agent processing complete')
+    } else if (agentId === 'godentist') {
+      // GoDentist path — reuses V3ProductionRunner with godentist processMessage
+      await import('../godentist')
+      const { V3ProductionRunner } = await import('../engine/v3-production-runner')
+      const runner = new V3ProductionRunner(adapters, { workspaceId, agentModule: 'godentist' })
+
+      engineOutput = await runner.processMessage({
+        sessionId: '',
+        conversationId,
+        contactId: contactId!,
+        message: messageContent,
+        workspaceId,
+        history: [],
+        phoneNumber: phone,
+        messageTimestamp: input.messageTimestamp,
+      })
+
+      logger.info({ conversationId, agentId }, 'GoDentist agent processing complete')
     } else {
       // V1 path — unchanged (default)
       await import('../somnio')

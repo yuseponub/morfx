@@ -154,6 +154,8 @@ export interface EngineConfig {
   responseSpeed?: number
   /** CRM agent modes (enable/disable + dry-run/live). Sandbox only for now. */
   crmModes?: Array<{ agentId: string; mode: 'dry-run' | 'live' }>
+  /** Agent module to use for processMessage. Default: 'somnio-v3'. */
+  agentModule?: 'somnio-v3' | 'godentist'
 }
 
 // ============================================================================

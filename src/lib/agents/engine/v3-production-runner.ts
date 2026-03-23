@@ -115,9 +115,16 @@ export class V3ProductionRunner {
         // systemEvent: undefined — only for timers, not user messages
       }
 
-      // 4. Call v3 processMessage
-      const { processMessage } = await import('../somnio-v3/somnio-v3-agent')
-      const output: V3AgentOutput = await processMessage(v3Input)
+      // 4. Call processMessage — route by agentModule
+      let output: V3AgentOutput
+      if (this.config.agentModule === 'godentist') {
+        const { processMessage } = await import('../godentist/godentist-agent')
+        // GoDentist uses same V3AgentInput shape minus packSeleccionado
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else {
+        const { processMessage } = await import('../somnio-v3/somnio-v3-agent')
+        output = await processMessage(v3Input)
+      }
 
       // 5. Route output to adapters
       // NOTE: State save is DEFERRED until after messaging to support Path A rollback.

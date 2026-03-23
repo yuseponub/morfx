@@ -16,6 +16,7 @@
 import { inngest } from '../client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { getWorkspaceAgentConfig } from '@/lib/agents/production/agent-config'
 import type { V3AgentInput, V3AgentOutput, AccionRegistrada } from '@/lib/agents/somnio-v3/types'
 
 const logger = createModuleLogger('agent-timers-v3')
@@ -201,9 +202,18 @@ export const v3Timer = inngest.createFunction(
         systemEvent: { type: 'timer_expired', level: level as 0|1|2|3|4|5|6|7|8 },
       }
 
-      // d. Call v3 processMessage
-      const { processMessage } = await import('@/lib/agents/somnio-v3/somnio-v3-agent')
-      const output: V3AgentOutput = await processMessage(v3Input)
+      // d. Call processMessage — route by workspace agent config
+      const agentConfig = await getWorkspaceAgentConfig(workspaceId)
+      const agentModule = agentConfig?.conversational_agent_id === 'godentist' ? 'godentist' : 'somnio-v3'
+
+      let output: V3AgentOutput
+      if (agentModule === 'godentist') {
+        const { processMessage } = await import('@/lib/agents/godentist/godentist-agent')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else {
+        const { processMessage } = await import('@/lib/agents/somnio-v3/somnio-v3-agent')
+        output = await processMessage(v3Input)
+      }
 
       logger.info(
         {

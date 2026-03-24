@@ -386,6 +386,18 @@ export class GoDentistAdapter {
         try {
           console.log(`[GoDentist] Checking availability for: ${doctorName}`)
 
+          // Ensure the Nueva cita form is still open
+          const formOpen = await this.page.locator('.x-window:visible').count()
+          if (formOpen === 0) {
+            console.log(`[GoDentist] Form closed, re-opening...`)
+            const reopened = await this.clickNuevaCita()
+            if (!reopened) {
+              errors.push('No se pudo re-abrir el formulario de Nueva cita')
+              break
+            }
+            await this.page.waitForTimeout(3000)
+          }
+
           // Select doctor in combo
           const selected = await this.selectDoctorCombo(doctorName)
           if (!selected) {
@@ -486,152 +498,79 @@ export class GoDentistAdapter {
   private async selectDoctorCombo(doctorName: string): Promise<boolean> {
     if (!this.page) return false
 
-    // First: full diagnostic dump of the x-window (returned to Node for Railway logs)
-    const windowDiag = await this.page.evaluate(() => {
-      const windows = document.querySelectorAll('.x-window')
-      const visibleWindows: Array<{ index: number; display: string; visible: boolean; title: string }> = []
-      windows.forEach((w, i) => {
-        const style = getComputedStyle(w)
-        visibleWindows.push({
-          index: i,
-          display: style.display,
-          visible: (w as HTMLElement).offsetParent !== null,
-          title: (w.querySelector('.x-window-header-text') as HTMLElement)?.textContent?.trim() || '',
-        })
-      })
+    // The Doctor combo in Dentos has:
+    // - Hidden input: #iddoctor (holds the value)
+    // - Visible text input: #ext-comp-XXXX (shows the name, dynamic ID)
+    // - Trigger arrow: inside the same wrapper as #iddoctor
+    // The trigger is a sibling of #iddoctor, so we use #iddoctor with openComboDropdown
 
-      // Use the last visible x-window (newest)
-      let win: Element | null = null
-      for (let i = windows.length - 1; i >= 0; i--) {
-        const el = windows[i] as HTMLElement
-        if (el.offsetParent !== null || getComputedStyle(el).display !== 'none') {
-          win = el
-          break
-        }
-      }
-      if (!win) win = windows[windows.length - 1] || null
-
-      if (!win) {
-        return { error: 'No .x-window found', windowCount: 0, visibleWindows }
-      }
-
-      const allLabels = Array.from(win.querySelectorAll('label, .x-form-item-label, div.x-form-item-label')).map(l => ({
-        tag: l.tagName,
-        text: l.textContent?.trim().substring(0, 50),
-        htmlFor: (l as HTMLLabelElement).htmlFor || '',
-        cls: l.className.substring(0, 60),
-      }))
-
-      const allInputs = Array.from(win.querySelectorAll('input')).map(inp => ({
-        id: inp.id,
-        type: inp.type,
-        cls: inp.className.substring(0, 80),
-        value: inp.value.substring(0, 30),
-        visible: inp.offsetParent !== null,
-      }))
-
-      const allTriggers = Array.from(win.querySelectorAll('.x-form-trigger')).map(t => ({
-        cls: t.className,
-        parentId: t.parentElement?.id || '',
-        nearestInputId: t.parentElement?.querySelector('input')?.id || '',
-      }))
-
-      return { windowCount: windows.length, visibleWindows, labels: allLabels, inputs: allInputs, triggers: allTriggers }
-    })
-
-    console.log(`[GoDentist] Window diagnostic:`, JSON.stringify(windowDiag, null, 2))
-
-    if ('error' in windowDiag) {
-      console.warn(`[GoDentist] ${windowDiag.error}`)
-      await this.takeScreenshot('avail-no-doctor-combo')
+    // Verify the x-window is open
+    const windowExists = await this.page.locator('.x-window:visible').count()
+    if (windowExists === 0) {
+      console.warn('[GoDentist] No x-window visible for doctor combo')
       return false
     }
 
-    // Find the doctor combo from the diagnostic data
-    // Strategy 1: Find label with "doctor" text → get its for → resolve to visible input
-    let resolvedComboId: string | null = null
-
-    for (const label of windowDiag.labels || []) {
-      if (!label.text?.toLowerCase().includes('doctor')) continue
-
-      if (label.htmlFor) {
-        // Check if the for-target is a visible text input
-        const targetInput = windowDiag.inputs?.find(i => i.id === label.htmlFor)
-        if (targetInput && targetInput.type === 'text') {
-          resolvedComboId = targetInput.id
-          console.log(`[GoDentist] Doctor combo via label[for] → visible #${resolvedComboId}`)
-          break
-        }
-        // If hidden, find sibling visible text input via triggers
-        const trigger = windowDiag.triggers?.find(t => t.nearestInputId === label.htmlFor)
-        if (trigger) {
-          resolvedComboId = label.htmlFor
-          console.log(`[GoDentist] Doctor combo via label[for] + trigger → #${resolvedComboId}`)
-          break
-        }
-        // Walk inputs to find nearby visible text input
-        for (const inp of windowDiag.inputs || []) {
-          if (inp.id !== label.htmlFor && inp.type === 'text' && inp.visible && inp.cls.includes('x-form-text')) {
-            // Check if this input has a trigger
-            const hasTrigger = windowDiag.triggers?.some(t => t.nearestInputId === inp.id)
-            if (hasTrigger) {
-              resolvedComboId = inp.id
-              console.log(`[GoDentist] Doctor combo via nearby input with trigger → #${resolvedComboId}`)
-              break
-            }
-          }
-        }
-        if (resolvedComboId) break
-      }
-    }
-
-    // Strategy 2: If no label match, find combo by trigger position (Doctor is typically the 5th-7th combo in the form)
-    if (!resolvedComboId && windowDiag.triggers && windowDiag.triggers.length > 0) {
-      console.log(`[GoDentist] No label match, ${windowDiag.triggers.length} triggers found. Listing all combos...`)
-      for (let i = 0; i < windowDiag.triggers.length; i++) {
-        const t = windowDiag.triggers[i]
-        const inp = windowDiag.inputs?.find(input => input.id === t.nearestInputId)
-        console.log(`[GoDentist]   Trigger[${i}]: input=#${t.nearestInputId} value="${inp?.value || ''}"`)
-      }
-    }
-
-    if (!resolvedComboId) {
-      console.warn('[GoDentist] Could not resolve Doctor combo from diagnostic data')
-      await this.takeScreenshot('avail-no-doctor-combo')
-      return false
-    }
-
-    console.log(`[GoDentist] Opening doctor combo #${resolvedComboId}`)
-
-    // Open dropdown using the same pattern as sucursal combo
-    await this.openComboDropdown(resolvedComboId)
-    await this.page.waitForTimeout(1500)
+    // Open the doctor dropdown using the hidden input ID (trigger is its sibling)
+    console.log(`[GoDentist] Opening doctor combo via #iddoctor trigger...`)
+    await this.openComboDropdown('iddoctor')
+    await this.page.waitForTimeout(2000)
+    await this.takeScreenshot('avail-doctor-dropdown')
 
     // Get visible items
     let items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
 
-    // If no visible items, try all items (some ExtJS versions don't use visibility)
+    // If no visible items, try all combo list items
     if (items.length === 0) {
-      console.log('[GoDentist] No visible doctor items, checking all items...')
+      console.log('[GoDentist] No visible doctor items after trigger click, trying all items...')
       const allItems = this.page.locator('.x-combo-list-item')
       const allCount = await allItems.count()
-      console.log(`[GoDentist] Total .x-combo-list-item elements: ${allCount}`)
-      for (let i = 0; i < Math.min(allCount, 20); i++) {
+      console.log(`[GoDentist] Total .x-combo-list-item: ${allCount}`)
+      for (let i = 0; i < Math.min(allCount, 15); i++) {
         const text = (await allItems.nth(i).textContent())?.trim() || ''
         const visible = await allItems.nth(i).isVisible()
         console.log(`[GoDentist]   [${i}] "${text}" visible=${visible}`)
       }
 
-      // Try clicking the input itself to trigger dropdown
-      await this.page.keyboard.press('Escape')
-      await this.page.waitForTimeout(500)
-      await this.page.locator(`#${resolvedComboId}`).click()
-      await this.page.waitForTimeout(1500)
-      items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
-      console.log(`[GoDentist] After input click, visible items: ${items.length}`)
+      // Fallback: try typing into the visible text input to trigger search
+      // Find the visible text input associated with iddoctor
+      const visibleInputId = await this.page.evaluate(() => {
+        const hidden = document.getElementById('iddoctor')
+        if (!hidden) return null
+        let parent = hidden.parentElement
+        for (let i = 0; i < 5 && parent; i++) {
+          const textInputs = parent.querySelectorAll('input[type="text"]')
+          for (const inp of textInputs) {
+            if (inp.id && inp.id !== 'iddoctor') return inp.id
+          }
+          parent = parent.parentElement
+        }
+        return null
+      })
+
+      if (visibleInputId) {
+        console.log(`[GoDentist] Typing doctor name into visible input #${visibleInputId}...`)
+        // Type first few chars of the doctor's last name to trigger search
+        const lastName = doctorName.split(' ').pop() || doctorName
+        await this.page.locator(`#${visibleInputId}`).click()
+        await this.page.waitForTimeout(500)
+        await this.page.locator(`#${visibleInputId}`).fill(lastName.substring(0, 4))
+        await this.page.waitForTimeout(2000)
+        items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+        console.log(`[GoDentist] After typing "${lastName.substring(0, 4)}", visible items: ${items.length}`)
+      }
     }
 
     console.log(`[GoDentist] Doctor dropdown items (${items.length}):`, items.slice(0, 20))
+
+    if (items.length === 0) {
+      console.warn(`[GoDentist] No doctor items found in dropdown`)
+      // Do NOT press Escape here — it closes the x-window
+      // Just click somewhere neutral in the form to close any open dropdown
+      await this.page.locator('.x-window .x-window-header').click().catch(() => {})
+      await this.page.waitForTimeout(500)
+      return false
+    }
 
     // Find matching doctor (case-insensitive partial match)
     const targetIdx = items.findIndex(t =>
@@ -646,10 +585,10 @@ export class GoDentistAdapter {
       return true
     }
 
-    // Close dropdown without selecting
-    await this.page.keyboard.press('Escape')
-    await this.page.waitForTimeout(300)
-    console.warn(`[GoDentist] Doctor "${doctorName}" not found in dropdown. Available: ${items.map(i => i.trim()).join(', ')}`)
+    // Close dropdown by clicking header (NOT Escape — Escape closes the whole window)
+    await this.page.locator('.x-window .x-window-header').click().catch(() => {})
+    await this.page.waitForTimeout(500)
+    console.warn(`[GoDentist] Doctor "${doctorName}" not found. Available: ${items.map(i => i.trim()).join(', ')}`)
     return false
   }
 

@@ -381,6 +381,14 @@ export class GoDentistAdapter {
       await this.page.waitForTimeout(3000)
       await takeAndTrack('avail-nueva-cita-form')
 
+      // Select sucursal in the Nueva cita form (required for correct agenda)
+      const sucursalSelected = await this.selectSucursalInForm(sucursalUpper)
+      if (!sucursalSelected) {
+        console.warn(`[GoDentist] Could not select sucursal ${sucursalUpper} in form, continuing anyway...`)
+      }
+      await this.page.waitForTimeout(2000)
+      await takeAndTrack('avail-sucursal-selected')
+
       // Iterate through each doctor
       for (const doctorName of doctors) {
         try {
@@ -491,6 +499,92 @@ export class GoDentistAdapter {
     console.error('[GoDentist] Could not find "Nueva cita" button')
     await this.takeScreenshot('avail-no-nueva-cita-btn')
     return false
+  }
+
+  /**
+   * Select a sucursal in the "Nueva cita" form's sucursal combo.
+   * The form has a "Sucursal" label with a combo/select. We need to select
+   * the correct sucursal so the "Agenda Disponible" shows the right schedule.
+   */
+  private async selectSucursalInForm(sucursal: string): Promise<boolean> {
+    if (!this.page) return false
+
+    try {
+      // The sucursal field in the Nueva cita form might be:
+      // 1. A native <select> inside .x-window
+      // 2. An ExtJS ComboBox with a hidden input
+
+      // Strategy 1: Native <select> inside the modal
+      const selects = this.page.locator('.x-window select')
+      const selectCount = await selects.count()
+      console.log(`[GoDentist] Form has ${selectCount} native <select> elements`)
+
+      for (let i = 0; i < selectCount; i++) {
+        const options = await selects.nth(i).locator('option').allTextContents()
+        const cleanOptions = options.map(o => o.trim().toUpperCase())
+        console.log(`[GoDentist] Select[${i}] options: ${cleanOptions.join(', ')}`)
+
+        const matchIdx = cleanOptions.findIndex(o => o.includes(sucursal) || sucursal.includes(o))
+        if (matchIdx >= 0) {
+          const optionValues = await selects.nth(i).locator('option').evaluateAll(
+            els => els.map(el => (el as HTMLOptionElement).value)
+          )
+          await selects.nth(i).selectOption(optionValues[matchIdx])
+          console.log(`[GoDentist] Sucursal selected via native <select>: ${cleanOptions[matchIdx]}`)
+          await this.page.waitForTimeout(1000)
+          return true
+        }
+      }
+
+      // Strategy 2: ExtJS combo — look for a trigger near a "Sucursal" label
+      const clicked = await this.page.evaluate((targetSucursal) => {
+        // Find all labels in the x-window
+        const win = document.querySelector('.x-window')
+        if (!win) return false
+
+        const labels = win.querySelectorAll('label, .x-form-item-label')
+        for (const label of labels) {
+          const text = label.textContent?.trim().toLowerCase() || ''
+          if (!text.includes('sucursal')) continue
+
+          // Found sucursal label — find the associated combo
+          const formItem = label.closest('.x-form-item') || label.parentElement
+          if (!formItem) continue
+
+          const trigger = formItem.querySelector('.x-form-trigger') as HTMLElement
+          if (trigger) {
+            trigger.click()
+            return true
+          }
+        }
+        return false
+      }, sucursal)
+
+      if (clicked) {
+        await this.page.waitForTimeout(1500)
+        // Look for dropdown items
+        const items = await this.page.locator('.x-combo-list-item:visible, .x-combo-list-inner div:visible').allTextContents()
+        const cleanItems = items.map(t => t.trim())
+        console.log(`[GoDentist] Sucursal combo items: ${cleanItems.join(', ')}`)
+
+        const targetIdx = cleanItems.findIndex(t => t.toUpperCase().includes(sucursal) || sucursal.includes(t.toUpperCase()))
+        if (targetIdx >= 0) {
+          await this.page.locator('.x-combo-list-inner div').nth(targetIdx).click()
+          console.log(`[GoDentist] Sucursal selected via ExtJS combo: ${cleanItems[targetIdx]}`)
+          await this.page.waitForTimeout(1000)
+          return true
+        }
+
+        // Close dropdown if no match
+        await this.page.keyboard.press('Escape')
+      }
+
+      console.warn(`[GoDentist] Could not find sucursal "${sucursal}" in form`)
+      return false
+    } catch (err) {
+      console.error(`[GoDentist] Error selecting sucursal in form: ${err}`)
+      return false
+    }
   }
 
   /**
@@ -623,50 +717,57 @@ export class GoDentistAdapter {
     const slots: AvailabilitySlot[] = []
 
     try {
-      // Look for "Agenda Disponible" table — it may be inside the modal/form
-      // Try to find a table/grid that appeared after selecting the doctor
-      const tables = this.page.locator('.x-window table tbody tr, .x-grid3-body .x-grid3-row')
-      const rowCount = await tables.count()
-      console.log(`[GoDentist] Agenda table rows: ${rowCount}`)
+      // The "Agenda Disponible" is a grid inside the x-window.
+      // We need to find the specific grid, not form layout tables.
+      // Strategy: dump all grids/tables in the modal and find the one with date/time data.
+      const agendaData = await this.page.evaluate(() => {
+        const win = document.querySelector('.x-window')
+        if (!win) return { rows: [] as string[][] }
+
+        // Find all grid rows (x-grid3) inside the window
+        const gridRows = win.querySelectorAll('.x-grid3-row')
+        if (gridRows.length > 0) {
+          const rows = Array.from(gridRows).map(row => {
+            const cells = row.querySelectorAll('.x-grid3-cell-inner, td')
+            return Array.from(cells).map(c => (c as HTMLElement).textContent?.trim() || '')
+          })
+          return { rows, source: 'x-grid3-row' }
+        }
+
+        // Fallback: find the last table in the window (usually the agenda grid)
+        const tables = win.querySelectorAll('table')
+        // The "Agenda Disponible" table is typically the one with date columns
+        for (let t = tables.length - 1; t >= 0; t--) {
+          const trs = tables[t].querySelectorAll('tbody tr')
+          if (trs.length === 0) continue
+
+          // Check if this table has date-like content
+          const firstRowCells = Array.from(trs[0].querySelectorAll('td')).map(c => (c as HTMLElement).textContent?.trim() || '')
+          const hasDate = firstRowCells.some(c => /\d{4}-\d{2}-\d{2}/.test(c) || /\d{2}[/-]\d{2}[/-]\d{4}/.test(c))
+          const hasTime = firstRowCells.some(c => /\d{1,2}:\d{2}\s*(AM|PM)/i.test(c))
+
+          if (hasDate || hasTime) {
+            const rows = Array.from(trs).map(row => {
+              return Array.from(row.querySelectorAll('td')).map(c => (c as HTMLElement).textContent?.trim() || '')
+            })
+            return { rows, source: `table[${t}]` }
+          }
+        }
+
+        return { rows: [] as string[][], source: 'none' }
+      })
+
+      console.log(`[GoDentist] Agenda source: ${(agendaData as any).source}, rows: ${agendaData.rows.length}`)
+      const rowCount = agendaData.rows.length
 
       if (rowCount === 0) {
-        // Try alternative: look for any grid within the form
-        const altTables = this.page.locator('.x-window .x-grid3-row')
-        const altCount = await altTables.count()
-        console.log(`[GoDentist] Alt grid rows: ${altCount}`)
-
-        if (altCount === 0) {
-          // Dump visible content for debugging
-          const formContent = await this.page.evaluate(() => {
-            const win = document.querySelector('.x-window')
-            if (!win) return 'No x-window found'
-            // Find tables or grids
-            const tables = win.querySelectorAll('table')
-            const grids = win.querySelectorAll('.x-grid3, .x-grid-panel')
-            return {
-              tables: tables.length,
-              grids: grids.length,
-              bodyText: (win as HTMLElement).innerText?.substring(0, 2000),
-            }
-          })
-          console.log(`[GoDentist] Form content debug:`, JSON.stringify(formContent, null, 2))
-          return []
-        }
-
-        // Read alt grid rows
-        for (let i = 0; i < altCount; i++) {
-          const cells = await altTables.nth(i).locator('td, .x-grid3-cell-inner').allTextContents()
-          const cleanCells = cells.map(c => c.trim()).filter(c => c.length > 0)
-          const slot = this.parseAgendaRow(cleanCells, doctorName, targetDate, targetSucursal)
-          if (slot) slots.push(slot)
-        }
-        return slots
+        console.log(`[GoDentist] No agenda rows found for ${doctorName}`)
+        return []
       }
 
-      // Read main table rows
-      for (let i = 0; i < rowCount; i++) {
-        const cells = await tables.nth(i).locator('td, .x-grid3-cell-inner').allTextContents()
-        const cleanCells = cells.map(c => c.trim()).filter(c => c.length > 0)
+      // Parse rows from the evaluate result
+      for (const rowCells of agendaData.rows) {
+        const cleanCells = rowCells.filter(c => c.length > 0)
         const slot = this.parseAgendaRow(cleanCells, doctorName, targetDate, targetSucursal)
         if (slot) slots.push(slot)
       }

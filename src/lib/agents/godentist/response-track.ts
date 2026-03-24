@@ -35,9 +35,10 @@ const SEDE_DISPLAY_NAMES: Record<string, string> = {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  nombre: 'tu nombre completo',
-  telefono: 'tu numero de celular',
-  sede_preferida: 'la sede de tu preferencia (Cabecera, Mejoras Publicas, Floridablanca o Canaveral)',
+  nombre: 'Nombre completo',
+  cedula: 'Número de cédula',
+  telefono: 'Celular',
+  sede_preferida: 'Sede de tu preferencia: Cabecera, Mejoras Públicas, Floridablanca o Cañaveral',
 }
 
 // ============================================================================
@@ -301,7 +302,7 @@ function resolveSalesActionTemplates(
       const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
       return {
         intents: ['pedir_datos_parcial'],
-        extraContext: { campos_faltantes: labels.join(', ') },
+        extraContext: { campos_faltantes: labels.map(l => `- ${l}`).join('\n') },
       }
     }
 
@@ -347,7 +348,7 @@ function resolveSalesActionTemplates(
       const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)
       return {
         intents: ['retoma_datos'],
-        extraContext: { campos_faltantes: labels.join(', ') },
+        extraContext: { campos_faltantes: labels.map(l => `- ${l}`).join('\n') },
       }
     }
 

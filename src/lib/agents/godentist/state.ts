@@ -189,12 +189,14 @@ function datosCriticosOk(state: AgentState): boolean {
  * Also includes fecha_preferida when datosCriticos is met but fecha is missing.
  */
 export function camposFaltantes(state: AgentState): string[] {
-  const missing: string[] = CRITICAL_FIELDS.filter(f => {
+  // Critical fields + cedula (asked for but not gate-blocking)
+  const fieldsToCheck = ['nombre', 'cedula', 'telefono', 'sede_preferida'] as const
+  const missing: string[] = fieldsToCheck.filter(f => {
     const val = state.datos[f as keyof DatosCliente]
     return val === null || typeof val !== 'string' || val.trim() === ''
   })
 
-  // When critical data is complete, also report fecha if missing
+  // When all data fields are complete, also report fecha if missing
   if (missing.length === 0) {
     if (!state.datos.fecha_preferida || state.datos.fecha_preferida.trim() === '') {
       missing.push('fecha_preferida')

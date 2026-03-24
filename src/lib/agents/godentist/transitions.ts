@@ -97,15 +97,15 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 4: quiero_agendar + datosCriticos + fechaElegida -> mostrar_disponibilidad',
   },
 
-  // Rule 5: datos + !datosCriticos -> pedir_datos_parcial (L1)
+  // Rule 5: datos + !datosCriticos -> silence + L1 (timer pide lo faltante)
   {
-    phase: 'initial', on: 'datos', action: 'pedir_datos_parcial',
+    phase: 'initial', on: 'datos', action: 'silence',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L1', reason: 'datos parciales en initial' },
-      reason: 'Datos espontaneos en initial, faltan criticos',
+      reason: 'Datos espontaneos en initial, faltan criticos — L1 pedira lo faltante',
     }),
-    description: 'Rule 5: initial + datos + !datosCriticos -> pedir_datos_parcial',
+    description: 'Rule 5: initial + datos + !datosCriticos -> silence + L1',
   },
 
   // Rule 6: datos + datosCriticos + !fechaElegida -> pedir_fecha (L3)
@@ -130,15 +130,15 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 7: initial + datos + datosCriticos + fechaElegida -> mostrar_disponibilidad',
   },
 
-  // Rule 8: seleccion_sede + !datosCriticos -> pedir_datos_parcial (L1)
+  // Rule 8: seleccion_sede + !datosCriticos -> silence + L1
   {
-    phase: 'initial', on: 'seleccion_sede', action: 'pedir_datos_parcial',
+    phase: 'initial', on: 'seleccion_sede', action: 'silence',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L1', reason: 'sede elegida, faltan datos' },
-      reason: 'Sede elegida en initial, faltan datos criticos',
+      reason: 'Sede elegida en initial, faltan datos criticos — L1 pedira lo faltante',
     }),
-    description: 'Rule 8: initial + seleccion_sede + !datosCriticos -> pedir_datos_parcial',
+    description: 'Rule 8: initial + seleccion_sede + !datosCriticos -> silence + L1',
   },
 
   // Rule 9: seleccion_sede + datosCriticos + !fechaElegida -> pedir_fecha (L3)
@@ -246,15 +246,15 @@ export const TRANSITIONS: TransitionEntry[] = [
   // From `capturing_data` (rules 22-31)
   // ========================================================================
 
-  // Rule 22: datos + !datosCriticos -> pedir_datos_parcial (L1)
+  // Rule 22: datos + !datosCriticos -> silence + L1
   {
-    phase: 'capturing_data', on: 'datos', action: 'pedir_datos_parcial',
+    phase: 'capturing_data', on: 'datos', action: 'silence',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L1', reason: 'datos parciales, faltan criticos' },
-      reason: 'Datos en capturing_data, faltan criticos',
+      reason: 'Datos en capturing_data, faltan criticos — L1 pedira lo faltante',
     }),
-    description: 'Rule 22: capturing_data + datos + !datosCriticos -> pedir_datos_parcial',
+    description: 'Rule 22: capturing_data + datos + !datosCriticos -> silence + L1',
   },
 
   // Rule 23: datos + datosCriticos + !fechaElegida -> pedir_fecha (L3)
@@ -279,15 +279,15 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 24: capturing_data + datos + datosCriticos + fechaElegida -> mostrar_disponibilidad',
   },
 
-  // Rule 25: seleccion_sede + !datosCriticos -> pedir_datos_parcial (L1)
+  // Rule 25: seleccion_sede + !datosCriticos -> silence + L1
   {
-    phase: 'capturing_data', on: 'seleccion_sede', action: 'pedir_datos_parcial',
+    phase: 'capturing_data', on: 'seleccion_sede', action: 'silence',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
       timerSignal: { type: 'start', level: 'L1', reason: 'sede elegida, faltan datos' },
-      reason: 'Sede en capturing_data, faltan criticos',
+      reason: 'Sede en capturing_data, faltan criticos — L1 pedira lo faltante',
     }),
-    description: 'Rule 25: capturing_data + seleccion_sede + !datosCriticos -> pedir_datos_parcial',
+    description: 'Rule 25: capturing_data + seleccion_sede + !datosCriticos -> silence + L1',
   },
 
   // Rule 26: seleccion_sede + datosCriticos + !fechaElegida -> pedir_fecha (L3)

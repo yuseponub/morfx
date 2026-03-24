@@ -1,0 +1,12 @@
+{
+  "name": "voice-input-flotante",
+  "version": "1.0.0",
+  "description": "Widget flotante de voice input para Windows - transcribe voz y escribe donde esta el cursor",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^35.0.0"
+  }
+}

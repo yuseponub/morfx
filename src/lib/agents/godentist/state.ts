@@ -225,12 +225,13 @@ const SEDE_DISPLAY: Record<string, string> = {
 export function buildResumenContext(state: AgentState): Record<string, string> {
   return {
     nombre: state.datos.nombre ?? '',
+    cedula: state.datos.cedula ?? '',
     telefono: state.datos.telefono ?? '',
     sede_preferida: state.datos.sede_preferida
       ? (SEDE_DISPLAY[state.datos.sede_preferida] ?? state.datos.sede_preferida)
       : '',
     servicio_interes: state.datos.servicio_interes ?? '',
-    cedula: state.datos.cedula ?? '',
+    fecha: state.datos.fecha_preferida ?? '',
     fecha_preferida: state.datos.fecha_preferida ?? '',
     preferencia_jornada: state.datos.preferencia_jornada ?? '',
     horario_seleccionado: state.datos.horario_seleccionado ?? '',

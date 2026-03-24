@@ -14,10 +14,18 @@ import { somnioAgentConfig } from '../../somnio/config'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export class ProductionStorageAdapter implements StorageAdapter {
+  private agentId: string
+  private initialMode: string
+
   constructor(
     private sessionManager: SessionManager,
-    private workspaceId: string
-  ) {}
+    private workspaceId: string,
+    agentId?: string,
+    initialMode?: string,
+  ) {
+    this.agentId = agentId ?? somnioAgentConfig.id
+    this.initialMode = initialMode ?? somnioAgentConfig.initialState
+  }
 
   /**
    * Get session by ID from database.
@@ -34,7 +42,7 @@ export class ProductionStorageAdapter implements StorageAdapter {
     // Try to find existing active session
     const existing = await this.sessionManager.getSessionByConversation(
       conversationId,
-      somnioAgentConfig.id
+      this.agentId
     )
 
     if (existing) {
@@ -43,11 +51,11 @@ export class ProductionStorageAdapter implements StorageAdapter {
 
     // Create new session
     const newSession = await this.sessionManager.createSession({
-      agentId: somnioAgentConfig.id,
+      agentId: this.agentId,
       conversationId,
       contactId,
       workspaceId: this.workspaceId,
-      initialMode: somnioAgentConfig.initialState,
+      initialMode: this.initialMode,
     })
 
     return newSession as unknown as AgentSessionLike

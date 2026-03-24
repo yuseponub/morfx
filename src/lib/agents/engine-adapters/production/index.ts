@@ -46,7 +46,8 @@ export function createProductionAdapters(params: CreateProductionAdaptersParams)
   const sessionManager = params.sessionManager ?? new SessionManager()
 
   // Route timer adapter based on agent version
-  const timer = params.agentId === 'somnio-sales-v3'
+  const usesV3Timer = params.agentId === 'somnio-sales-v3' || params.agentId === 'godentist'
+  const timer = usesV3Timer
     ? new V3ProductionTimerAdapter(
         params.workspaceId,
         params.conversationId,
@@ -55,8 +56,20 @@ export function createProductionAdapters(params: CreateProductionAdaptersParams)
       )
     : new ProductionTimerAdapter(params.workspaceId)
 
+  // Resolve agent initial mode
+  const agentInitialModes: Record<string, string> = {
+    'somnio-sales-v1': 'conversacion',
+    'somnio-sales-v3': 'nuevo',
+    'godentist': 'nuevo',
+  }
+
   return {
-    storage: new ProductionStorageAdapter(sessionManager, params.workspaceId),
+    storage: new ProductionStorageAdapter(
+      sessionManager,
+      params.workspaceId,
+      params.agentId,
+      agentInitialModes[params.agentId ?? ''] ?? 'conversacion',
+    ),
     timer,
     messaging: new ProductionMessagingAdapter(
       sessionManager,

@@ -479,51 +479,53 @@ export class GoDentistAdapter {
 
   /**
    * Select a doctor in the "Doctor(a)" ExtJS ComboBox.
-   * Uses the same pattern as selectSucursal: find hidden input, walk up to find
-   * the visible text input + trigger, open dropdown, click matching item.
+   * The label "Doctor(a)" has a `for` attribute pointing to the HIDDEN input.
+   * We need to find the visible text input (sibling) and its trigger arrow.
+   * Same pattern as getSucursalComboInputId: hidden → walk up → find visible text input.
    */
   private async selectDoctorCombo(doctorName: string): Promise<boolean> {
     if (!this.page) return false
 
-    // Strategy 1: Find combo by looking for labels containing "Doctor"
-    const comboInfo = await this.page.evaluate(() => {
-      // Look for labels that mention "Doctor"
-      const labels = document.querySelectorAll('label, .x-form-item-label')
+    // Find the visible text input for the Doctor combo
+    // Strategy: find the hidden input via label[for], then walk up to find sibling text input
+    const comboId = await this.page.evaluate(() => {
+      // Find label containing "Doctor"
+      const labels = document.querySelectorAll('label')
       for (const label of labels) {
         const text = label.textContent?.trim() || ''
-        if (text.toLowerCase().includes('doctor')) {
-          // Found the doctor label — find the associated input
-          const forId = (label as HTMLLabelElement).htmlFor
-          if (forId) {
-            const input = document.getElementById(forId)
-            if (input) return { inputId: forId, strategy: 'label-for' }
-          }
-          // Walk siblings/parents to find the combo input
-          let container = label.parentElement
-          for (let i = 0; i < 5 && container; i++) {
-            const textInputs = container.querySelectorAll('input[type="text"]')
-            for (const inp of textInputs) {
-              if (inp.id && inp.className.includes('x-form-text')) {
-                return { inputId: inp.id, strategy: 'label-sibling' }
-              }
+        if (!text.toLowerCase().includes('doctor')) continue
+
+        const forId = label.htmlFor
+        if (!forId) continue
+
+        const hiddenInput = document.getElementById(forId)
+        if (!hiddenInput) continue
+
+        console.log(`[Doctor] Found hidden input #${forId}, type=${(hiddenInput as HTMLInputElement).type}`)
+
+        // Walk up to find the visible text input (same pattern as getSucursalComboInputId)
+        let parent = hiddenInput.parentElement
+        for (let i = 0; i < 5 && parent; i++) {
+          const textInputs = parent.querySelectorAll('input[type="text"]')
+          for (const inp of textInputs) {
+            if (inp.id && inp.id !== forId) {
+              return inp.id
             }
-            container = container.parentElement
           }
+          parent = parent.parentElement
         }
       }
 
-      // Strategy 2: Find all x-form-text inputs in the visible modal/form
-      // and identify the doctor one by its position or nearby label
-      const modal = document.querySelector('.x-window:visible') || document.querySelector('.x-window')
-      if (modal) {
-        const formItems = modal.querySelectorAll('.x-form-item')
+      // Fallback: look in .x-window for form items with "Doctor" label
+      const win = document.querySelector('.x-window')
+      if (win) {
+        const formItems = win.querySelectorAll('.x-form-item')
         for (const item of formItems) {
-          const labelEl = item.querySelector('label, .x-form-item-label')
-          const labelText = labelEl?.textContent?.trim() || ''
-          if (labelText.toLowerCase().includes('doctor')) {
-            const input = item.querySelector('input.x-form-text')
-            if (input && (input as HTMLElement).id) {
-              return { inputId: (input as HTMLElement).id, strategy: 'form-item' }
+          const lbl = item.querySelector('label')
+          if (lbl && lbl.textContent?.toLowerCase().includes('doctor')) {
+            const inp = item.querySelector('input.x-form-text, input[type="text"]')
+            if (inp && (inp as HTMLElement).id) {
+              return (inp as HTMLElement).id
             }
           }
         }
@@ -532,25 +534,64 @@ export class GoDentistAdapter {
       return null
     })
 
-    if (!comboInfo) {
-      console.warn('[GoDentist] Could not find Doctor combo input')
+    console.log(`[GoDentist] Doctor visible combo input ID: ${comboId}`)
+
+    if (!comboId) {
+      // Diagnostic dump: log all inputs in the window
+      const diag = await this.page.evaluate(() => {
+        const win = document.querySelector('.x-window')
+        if (!win) return 'No .x-window found'
+        const inputs = Array.from(win.querySelectorAll('input')).map(inp => ({
+          id: inp.id,
+          type: inp.type,
+          className: inp.className.substring(0, 80),
+          value: inp.value.substring(0, 50),
+          visible: inp.offsetParent !== null,
+        }))
+        const labels = Array.from(win.querySelectorAll('label')).map(l => ({
+          text: l.textContent?.trim().substring(0, 40),
+          htmlFor: l.htmlFor,
+        }))
+        return { inputs, labels }
+      })
+      console.log(`[GoDentist] Doctor combo diagnostic:`, JSON.stringify(diag, null, 2))
       await this.takeScreenshot('avail-no-doctor-combo')
       return false
     }
 
-    console.log(`[GoDentist] Doctor combo input: #${comboInfo.inputId} (strategy: ${comboInfo.strategy})`)
-
-    // Open the dropdown
-    await this.openComboDropdown(comboInfo.inputId)
-    await this.page.waitForTimeout(1000)
+    // Open dropdown using the same pattern as sucursal combo
+    await this.openComboDropdown(comboId)
+    await this.page.waitForTimeout(1500)
 
     // Get visible items
-    const items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
-    console.log(`[GoDentist] Doctor dropdown items (${items.length}):`, items.slice(0, 10))
+    let items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+
+    // If no visible items, try all items (some ExtJS versions don't use visibility)
+    if (items.length === 0) {
+      console.log('[GoDentist] No visible doctor items, checking all items...')
+      const allItems = this.page.locator('.x-combo-list-item')
+      const allCount = await allItems.count()
+      console.log(`[GoDentist] Total .x-combo-list-item elements: ${allCount}`)
+      for (let i = 0; i < Math.min(allCount, 20); i++) {
+        const text = (await allItems.nth(i).textContent())?.trim() || ''
+        const visible = await allItems.nth(i).isVisible()
+        console.log(`[GoDentist]   [${i}] "${text}" visible=${visible}`)
+      }
+
+      // Try clicking the input itself to trigger dropdown
+      await this.page.keyboard.press('Escape')
+      await this.page.waitForTimeout(500)
+      await this.page.locator(`#${comboId}`).click()
+      await this.page.waitForTimeout(1500)
+      items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+      console.log(`[GoDentist] After input click, visible items: ${items.length}`)
+    }
+
+    console.log(`[GoDentist] Doctor dropdown items (${items.length}):`, items.slice(0, 20))
 
     // Find matching doctor (case-insensitive partial match)
     const targetIdx = items.findIndex(t =>
-      t.toLowerCase().includes(doctorName.toLowerCase()) ||
+      t.trim().toLowerCase().includes(doctorName.toLowerCase()) ||
       doctorName.toLowerCase().includes(t.trim().toLowerCase())
     )
 
@@ -564,7 +605,7 @@ export class GoDentistAdapter {
     // Close dropdown without selecting
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(300)
-    console.warn(`[GoDentist] Doctor "${doctorName}" not found in dropdown`)
+    console.warn(`[GoDentist] Doctor "${doctorName}" not found in dropdown. Available: ${items.map(i => i.trim()).join(', ')}`)
     return false
   }
 

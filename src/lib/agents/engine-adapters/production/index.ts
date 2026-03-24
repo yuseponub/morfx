@@ -53,6 +53,7 @@ export function createProductionAdapters(params: CreateProductionAdaptersParams)
         params.conversationId,
         params.phoneNumber ?? '',
         params.contactId ?? '',
+        params.agentId,
       )
     : new ProductionTimerAdapter(params.workspaceId)
 

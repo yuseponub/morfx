@@ -365,6 +365,7 @@ Conversation Tags to Contact decisions:
 | 027 | Integrar v3 a produccion - Fase 1 Foundation | 2026-03-16 | 6c087a5 | [027-integrar-v3-a-produccion-fase-1-foundati](./quick/027-integrar-v3-a-produccion-fase-1-foundati/) |
 | 028 | V3 production timer system (fase 2) | 2026-03-16 | 0ada8b0 | [028-v3-production-fase-2-timer-system](./quick/028-v3-production-fase-2-timer-system/) |
 | 029 | Fix WhatsApp inbox: sidebar nav, realtime, query perf | 2026-03-19 | 0d68c56 | [029-fix-whatsapp-inbox-sidebar-realtime-perf](./quick/029-fix-whatsapp-inbox-sidebar-realtime-perf/) |
+| 030 | Electron voice input flotante (always-on-top, type-at-cursor) | 2026-03-23 | 05dc508 | [030-electron-voice-input-flotante](./quick/030-electron-voice-input-flotante/) |
 
 ### Blockers/Concerns
 

@@ -14,12 +14,20 @@ import type { TimerAdapter } from '../../engine/types'
 import type { TimerSignal as SandboxTimerSignal } from '@/lib/sandbox/types'
 import type { TimerSignal as V3TimerSignal } from '@/lib/agents/somnio-v3/types'
 import { V3_TIMER_DURATIONS } from '../../somnio-v3/constants'
+import { GD_TIMER_DURATIONS } from '../../godentist/constants'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('v3-production-timer')
 
+/** Timer duration tables by agent module */
+const TIMER_TABLES: Record<string, Record<string, Record<number, number>>> = {
+  'somnio-sales-v3': V3_TIMER_DURATIONS,
+  'godentist': GD_TIMER_DURATIONS,
+}
+
 export class V3ProductionTimerAdapter implements TimerAdapter {
   private presetCache: string | null = null
+  private agentId: string
 
   private _sessionId: string = ''
 
@@ -28,7 +36,10 @@ export class V3ProductionTimerAdapter implements TimerAdapter {
     private conversationId: string,
     private phoneNumber: string,
     private contactId: string,
-  ) {}
+    agentId?: string,
+  ) {
+    this.agentId = agentId ?? 'somnio-sales-v3'
+  }
 
   /**
    * Set the sessionId after session resolution.
@@ -88,7 +99,9 @@ export class V3ProductionTimerAdapter implements TimerAdapter {
       }
 
       const preset = await this.getPreset()
-      const durationSeconds = V3_TIMER_DURATIONS[preset]?.[levelNum]
+      const durations = TIMER_TABLES[this.agentId] ?? V3_TIMER_DURATIONS
+      const durationSeconds = durations[preset]?.[levelNum]
+        ?? durations.real?.[levelNum]
         ?? V3_TIMER_DURATIONS.real[levelNum]
       const timerDurationMs = durationSeconds * 1000
 

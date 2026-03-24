@@ -211,11 +211,28 @@ export function camposFaltantes(state: AgentState): string[] {
 // ============================================================================
 
 /** Human-readable sede names */
+/**
+ * Format YYYY-MM-DD to "Miércoles 26 de marzo" (Colombian Spanish).
+ */
+function formatFechaConDia(fecha: string | null): string {
+  if (!fecha) return ''
+  try {
+    const [y, m, d] = fecha.split('-').map(Number)
+    const date = new Date(y, m - 1, d)
+    const dia = date.toLocaleDateString('es-CO', { weekday: 'long', timeZone: 'America/Bogota' })
+    const mes = date.toLocaleDateString('es-CO', { month: 'long', timeZone: 'America/Bogota' })
+    const diaCapitalized = dia.charAt(0).toUpperCase() + dia.slice(1)
+    return `${diaCapitalized} ${d} de ${mes}`
+  } catch {
+    return fecha
+  }
+}
+
 const SEDE_DISPLAY: Record<string, string> = {
-  cabecera: 'Cabecera',
-  mejoras_publicas: 'Mejoras Publicas',
-  floridablanca: 'Floridablanca',
-  canaveral: 'Canaveral',
+  cabecera: 'Cabecera (Cll 52 #31-32)',
+  mejoras_publicas: 'Mejoras Públicas (Cll 41 #27-63)',
+  floridablanca: 'Floridablanca (Cll 4 #3-06)',
+  canaveral: 'Cañaveral - CC Jumbo El Bosque',
 }
 
 /**
@@ -231,8 +248,8 @@ export function buildResumenContext(state: AgentState): Record<string, string> {
       ? (SEDE_DISPLAY[state.datos.sede_preferida] ?? state.datos.sede_preferida)
       : '',
     servicio_interes: state.datos.servicio_interes ?? '',
-    fecha: state.datos.fecha_preferida ?? '',
-    fecha_preferida: state.datos.fecha_preferida ?? '',
+    fecha: formatFechaConDia(state.datos.fecha_preferida),
+    fecha_preferida: formatFechaConDia(state.datos.fecha_preferida),
     preferencia_jornada: state.datos.preferencia_jornada ?? '',
     horario_seleccionado: state.datos.horario_seleccionado ?? '',
   }

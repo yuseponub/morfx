@@ -57,7 +57,7 @@ REGLAS DE EXTRACCION:
   - "15 de marzo" → 2026-03-15
   - Siempre formato YYYY-MM-DD
 - Jornada: "en la manana", "temprano" → manana. "en la tarde", "en la noche", "despues de mediodia" → tarde
-- Horario: extraer de seleccion de disponibilidad: "el de las 10" → "10:00", "a las 2 de la tarde" → "14:00", "las 3 y media" → "15:30"
+- Horario: extraer de seleccion de disponibilidad en formato 12h con AM/PM: "el de las 10" → "10:00 AM", "a las 2 de la tarde" → "2:00 PM", "las 3 y media" → "3:30 PM", "a las 8" → "8:00 AM". SIEMPRE usar formato "H:MM AM" o "H:MM PM"
 
 ## Mapeo de servicios dentales a enum
 

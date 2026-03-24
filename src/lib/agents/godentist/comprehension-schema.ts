@@ -46,7 +46,7 @@ export const MessageAnalysisSchema = z.object({
       '"en la manana" -> manana, "en la tarde/noche" -> tarde'
     ),
     horario_seleccionado: z.string().nullable().describe(
-      'Selected time slot from availability shown: "el de las 10" -> "10:00"'
+      'Selected time slot in 12h format: "el de las 10" -> "10:00 AM", "a las 2" -> "2:00 PM". Always H:MM AM/PM'
     ),
   }),
 

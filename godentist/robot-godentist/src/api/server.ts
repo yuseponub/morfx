@@ -2,7 +2,7 @@ import express from 'express'
 import * as fs from 'fs'
 import * as path from 'path'
 import { GoDentistAdapter } from '../adapters/godentist-adapter.js'
-import type { ScrapeAppointmentsRequest, ScrapeAppointmentsResponse, HealthResponse, ConfirmAppointmentRequest, ConfirmAppointmentResponse } from '../types/index.js'
+import type { ScrapeAppointmentsRequest, ScrapeAppointmentsResponse, HealthResponse, ConfirmAppointmentRequest, ConfirmAppointmentResponse, CheckAvailabilityRequest } from '../types/index.js'
 
 const ARTIFACTS_DIR = path.resolve('storage/artifacts')
 
@@ -136,6 +136,67 @@ export function createServer() {
         error: err instanceof Error ? err.message : 'Unknown error',
         screenshots: ['server-confirm-error'],
       } satisfies ConfirmAppointmentResponse)
+    } finally {
+      await adapter.close()
+      activeJob = null
+    }
+  })
+
+  // ── Check Availability ──
+  app.post('/api/check-availability', async (req, res) => {
+    const body = req.body as CheckAvailabilityRequest
+
+    // Validate request
+    if (!body.workspaceId) {
+      res.status(400).json({ success: false, error: 'workspaceId is required' })
+      return
+    }
+    if (!body.credentials?.username || !body.credentials?.password) {
+      res.status(400).json({ success: false, error: 'credentials (username, password) are required' })
+      return
+    }
+    if (!body.date) {
+      res.status(400).json({ success: false, error: 'date is required (YYYY-MM-DD format)' })
+      return
+    }
+    if (!body.sucursal) {
+      res.status(400).json({ success: false, error: 'sucursal is required' })
+      return
+    }
+
+    // Prevent concurrent jobs
+    if (activeJob) {
+      res.status(409).json({ success: false, error: 'Another job is in progress' })
+      return
+    }
+
+    activeJob = body.workspaceId
+
+    const adapter = new GoDentistAdapter(body.credentials, body.workspaceId)
+
+    try {
+      await adapter.init()
+
+      const loginOk = await adapter.login()
+      if (!loginOk) {
+        res.status(401).json({ success: false, error: 'Login failed. Check credentials.', date: body.date, sucursal: body.sucursal, slots: [], summary: { manana: [], tarde: [] }, screenshots: [] })
+        return
+      }
+
+      const result = await adapter.checkAvailability(body.date, body.sucursal)
+      res.json(result)
+    } catch (err) {
+      console.error('[Server] Check availability error:', err)
+      await adapter.takeScreenshot('server-availability-error')
+      res.status(500).json({
+        success: false,
+        date: body.date,
+        sucursal: body.sucursal,
+        slots: [],
+        summary: { manana: [], tarde: [] },
+        error: err instanceof Error ? err.message : 'Unknown error',
+        screenshots: ['server-availability-error'],
+      })
     } finally {
       await adapter.close()
       activeJob = null

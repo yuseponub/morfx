@@ -1,7 +1,8 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { Credentials, Appointment, ConfirmAppointmentResponse } from '../types/index.js'
+import type { Credentials, Appointment, ConfirmAppointmentResponse, CheckAvailabilityResponse, AvailabilitySlot } from '../types/index.js'
+import { DOCTOR_PRIORITY } from '../constants/doctors.js'
 
 const STORAGE_DIR = path.resolve('storage')
 const SESSIONS_DIR = path.join(STORAGE_DIR, 'sessions')
@@ -324,6 +325,473 @@ export class GoDentistAdapter {
         error: err instanceof Error ? err.message : String(err),
         screenshots,
       }
+    }
+  }
+
+  // ── Check Availability ──
+
+  async checkAvailability(date: string, sucursal: string): Promise<CheckAvailabilityResponse> {
+    if (!this.page) throw new Error('Browser not initialized')
+
+    const screenshots: string[] = []
+    const takeAndTrack = async (name: string) => {
+      await this.takeScreenshot(name)
+      screenshots.push(name)
+    }
+
+    const slots: AvailabilitySlot[] = []
+    const errors: string[] = []
+
+    // Get doctors for this sucursal
+    const sucursalUpper = sucursal.toUpperCase()
+    const doctors = DOCTOR_PRIORITY[sucursalUpper]
+    if (!doctors || doctors.length === 0) {
+      return {
+        success: false,
+        date,
+        sucursal,
+        slots: [],
+        summary: { manana: [], tarde: [] },
+        errors: [`No hay doctores configurados para la sucursal: ${sucursal}`],
+        screenshots,
+      }
+    }
+
+    console.log(`[GoDentist] checkAvailability: date=${date}, sucursal=${sucursal}, doctors=${doctors.length}`)
+
+    try {
+      // Navigate to appointments page
+      await this.page.goto(APPOINTMENTS_URL, { waitUntil: 'networkidle', timeout: 30000 })
+      await this.page.waitForTimeout(2000)
+      await takeAndTrack('avail-appointments-page')
+
+      // Click "Nueva cita" button
+      const nuevaCitaClicked = await this.clickNuevaCita()
+      if (!nuevaCitaClicked) {
+        return {
+          success: false,
+          date,
+          sucursal,
+          slots: [],
+          summary: { manana: [], tarde: [] },
+          errors: ['No se pudo abrir el formulario de Nueva cita'],
+          screenshots,
+        }
+      }
+      await this.page.waitForTimeout(3000)
+      await takeAndTrack('avail-nueva-cita-form')
+
+      // Iterate through each doctor
+      for (const doctorName of doctors) {
+        try {
+          console.log(`[GoDentist] Checking availability for: ${doctorName}`)
+
+          // Select doctor in combo
+          const selected = await this.selectDoctorCombo(doctorName)
+          if (!selected) {
+            console.warn(`[GoDentist] Could not find doctor: ${doctorName}`)
+            errors.push(`Doctor no encontrado en combo: ${doctorName}`)
+            continue
+          }
+
+          await this.page.waitForTimeout(3000) // Wait for agenda table to load
+          await takeAndTrack(`avail-doctor-${doctorName.replace(/\s+/g, '-').toLowerCase()}`)
+
+          // Read "Agenda Disponible" table
+          const doctorSlots = await this.readAgendaDisponible(doctorName, date, sucursalUpper)
+          slots.push(...doctorSlots)
+          console.log(`[GoDentist] ${doctorName}: ${doctorSlots.length} slots found`)
+
+        } catch (err) {
+          const msg = `Error consultando ${doctorName}: ${err instanceof Error ? err.message : String(err)}`
+          console.error(`[GoDentist] ${msg}`)
+          errors.push(msg)
+          await takeAndTrack(`avail-error-${doctorName.replace(/\s+/g, '-').toLowerCase()}`)
+        }
+      }
+
+      // Close the form without saving
+      await this.closeNuevaCitaForm()
+      await takeAndTrack('avail-form-closed')
+
+    } catch (err) {
+      console.error('[GoDentist] checkAvailability error:', err)
+      await takeAndTrack('avail-error')
+      errors.push(err instanceof Error ? err.message : String(err))
+    }
+
+    // Build summary
+    const summary = this.buildAvailabilitySummary(slots)
+
+    return {
+      success: true,
+      date,
+      sucursal,
+      slots,
+      summary,
+      errors: errors.length > 0 ? errors : undefined,
+      screenshots,
+    }
+  }
+
+  /**
+   * Click the "Nueva cita" button on the appointments page.
+   */
+  private async clickNuevaCita(): Promise<boolean> {
+    if (!this.page) return false
+
+    // Try various selectors for the "Nueva cita" button
+    const btn = await this.page.$('button:has-text("Nueva cita")')
+      || await this.page.$('button:has-text("Nueva Cita")')
+      || await this.page.$('.x-btn:has-text("Nueva cita")')
+      || await this.page.$('.x-btn:has-text("Nueva Cita")')
+      || await this.page.$('a:has-text("Nueva cita")')
+      || await this.page.$('a:has-text("Nueva Cita")')
+
+    if (btn) {
+      await btn.click()
+      console.log('[GoDentist] Clicked "Nueva cita" button')
+      return true
+    }
+
+    // Fallback: evaluate to find any element with "Nueva cita" text
+    const clicked = await this.page.evaluate(() => {
+      const allElements = document.querySelectorAll('button, a, .x-btn, span, td')
+      for (const el of allElements) {
+        const text = (el as HTMLElement).textContent?.trim() || ''
+        if (text.toLowerCase().includes('nueva cita')) {
+          (el as HTMLElement).click()
+          return true
+        }
+      }
+      return false
+    })
+
+    if (clicked) {
+      console.log('[GoDentist] Clicked "Nueva cita" via evaluate')
+      return true
+    }
+
+    console.error('[GoDentist] Could not find "Nueva cita" button')
+    await this.takeScreenshot('avail-no-nueva-cita-btn')
+    return false
+  }
+
+  /**
+   * Select a doctor in the "Doctor(a)" ExtJS ComboBox.
+   * Uses the same pattern as selectSucursal: find hidden input, walk up to find
+   * the visible text input + trigger, open dropdown, click matching item.
+   */
+  private async selectDoctorCombo(doctorName: string): Promise<boolean> {
+    if (!this.page) return false
+
+    // Strategy 1: Find combo by looking for labels containing "Doctor"
+    const comboInfo = await this.page.evaluate(() => {
+      // Look for labels that mention "Doctor"
+      const labels = document.querySelectorAll('label, .x-form-item-label')
+      for (const label of labels) {
+        const text = label.textContent?.trim() || ''
+        if (text.toLowerCase().includes('doctor')) {
+          // Found the doctor label — find the associated input
+          const forId = (label as HTMLLabelElement).htmlFor
+          if (forId) {
+            const input = document.getElementById(forId)
+            if (input) return { inputId: forId, strategy: 'label-for' }
+          }
+          // Walk siblings/parents to find the combo input
+          let container = label.parentElement
+          for (let i = 0; i < 5 && container; i++) {
+            const textInputs = container.querySelectorAll('input[type="text"]')
+            for (const inp of textInputs) {
+              if (inp.id && inp.className.includes('x-form-text')) {
+                return { inputId: inp.id, strategy: 'label-sibling' }
+              }
+            }
+            container = container.parentElement
+          }
+        }
+      }
+
+      // Strategy 2: Find all x-form-text inputs in the visible modal/form
+      // and identify the doctor one by its position or nearby label
+      const modal = document.querySelector('.x-window:visible') || document.querySelector('.x-window')
+      if (modal) {
+        const formItems = modal.querySelectorAll('.x-form-item')
+        for (const item of formItems) {
+          const labelEl = item.querySelector('label, .x-form-item-label')
+          const labelText = labelEl?.textContent?.trim() || ''
+          if (labelText.toLowerCase().includes('doctor')) {
+            const input = item.querySelector('input.x-form-text')
+            if (input && (input as HTMLElement).id) {
+              return { inputId: (input as HTMLElement).id, strategy: 'form-item' }
+            }
+          }
+        }
+      }
+
+      return null
+    })
+
+    if (!comboInfo) {
+      console.warn('[GoDentist] Could not find Doctor combo input')
+      await this.takeScreenshot('avail-no-doctor-combo')
+      return false
+    }
+
+    console.log(`[GoDentist] Doctor combo input: #${comboInfo.inputId} (strategy: ${comboInfo.strategy})`)
+
+    // Open the dropdown
+    await this.openComboDropdown(comboInfo.inputId)
+    await this.page.waitForTimeout(1000)
+
+    // Get visible items
+    const items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+    console.log(`[GoDentist] Doctor dropdown items (${items.length}):`, items.slice(0, 10))
+
+    // Find matching doctor (case-insensitive partial match)
+    const targetIdx = items.findIndex(t =>
+      t.toLowerCase().includes(doctorName.toLowerCase()) ||
+      doctorName.toLowerCase().includes(t.trim().toLowerCase())
+    )
+
+    if (targetIdx >= 0) {
+      await this.page.locator('.x-combo-list-item:visible').nth(targetIdx).click()
+      console.log(`[GoDentist] Doctor selected: ${items[targetIdx].trim()}`)
+      await this.page.waitForTimeout(1000)
+      return true
+    }
+
+    // Close dropdown without selecting
+    await this.page.keyboard.press('Escape')
+    await this.page.waitForTimeout(300)
+    console.warn(`[GoDentist] Doctor "${doctorName}" not found in dropdown`)
+    return false
+  }
+
+  /**
+   * Read the "Agenda Disponible" table that appears after selecting a doctor.
+   * Filters rows by date and sucursal.
+   */
+  private async readAgendaDisponible(
+    doctorName: string,
+    targetDate: string,
+    targetSucursal: string
+  ): Promise<AvailabilitySlot[]> {
+    if (!this.page) return []
+
+    const slots: AvailabilitySlot[] = []
+
+    try {
+      // Look for "Agenda Disponible" table — it may be inside the modal/form
+      // Try to find a table/grid that appeared after selecting the doctor
+      const tables = this.page.locator('.x-window table tbody tr, .x-grid3-body .x-grid3-row')
+      const rowCount = await tables.count()
+      console.log(`[GoDentist] Agenda table rows: ${rowCount}`)
+
+      if (rowCount === 0) {
+        // Try alternative: look for any grid within the form
+        const altTables = this.page.locator('.x-window .x-grid3-row')
+        const altCount = await altTables.count()
+        console.log(`[GoDentist] Alt grid rows: ${altCount}`)
+
+        if (altCount === 0) {
+          // Dump visible content for debugging
+          const formContent = await this.page.evaluate(() => {
+            const win = document.querySelector('.x-window')
+            if (!win) return 'No x-window found'
+            // Find tables or grids
+            const tables = win.querySelectorAll('table')
+            const grids = win.querySelectorAll('.x-grid3, .x-grid-panel')
+            return {
+              tables: tables.length,
+              grids: grids.length,
+              bodyText: (win as HTMLElement).innerText?.substring(0, 2000),
+            }
+          })
+          console.log(`[GoDentist] Form content debug:`, JSON.stringify(formContent, null, 2))
+          return []
+        }
+
+        // Read alt grid rows
+        for (let i = 0; i < altCount; i++) {
+          const cells = await altTables.nth(i).locator('td, .x-grid3-cell-inner').allTextContents()
+          const cleanCells = cells.map(c => c.trim()).filter(c => c.length > 0)
+          const slot = this.parseAgendaRow(cleanCells, doctorName, targetDate, targetSucursal)
+          if (slot) slots.push(slot)
+        }
+        return slots
+      }
+
+      // Read main table rows
+      for (let i = 0; i < rowCount; i++) {
+        const cells = await tables.nth(i).locator('td, .x-grid3-cell-inner').allTextContents()
+        const cleanCells = cells.map(c => c.trim()).filter(c => c.length > 0)
+        const slot = this.parseAgendaRow(cleanCells, doctorName, targetDate, targetSucursal)
+        if (slot) slots.push(slot)
+      }
+    } catch (err) {
+      console.error(`[GoDentist] Error reading agenda for ${doctorName}:`, err)
+    }
+
+    return slots
+  }
+
+  /**
+   * Parse a single row from the Agenda Disponible table.
+   * Expected columns: Día | Fecha | Hora Inicio | Hora Fin | Sucursal
+   * Returns a slot if the row matches the target date and sucursal, null otherwise.
+   */
+  private parseAgendaRow(
+    cells: string[],
+    doctorName: string,
+    targetDate: string,
+    targetSucursal: string
+  ): AvailabilitySlot | null {
+    if (cells.length < 4) return null
+
+    // Log first row for debugging
+    console.log(`[GoDentist] Agenda row cells: ${JSON.stringify(cells)}`)
+
+    // Find date cell (YYYY-MM-DD or DD/MM/YYYY or DD-MM-YYYY)
+    let rowDate = ''
+    let horaInicio = ''
+    let horaFin = ''
+    let rowSucursal = ''
+
+    for (const cell of cells) {
+      // Date: YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(cell)) {
+        rowDate = cell
+        continue
+      }
+      // Date: DD/MM/YYYY or DD-MM-YYYY
+      const dateMatch = cell.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/)
+      if (dateMatch) {
+        rowDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
+        continue
+      }
+      // Time: H:MM AM/PM
+      const timeMatch = cell.match(/^\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?$/)
+      if (timeMatch) {
+        if (!horaInicio) {
+          horaInicio = cell.trim()
+        } else if (!horaFin) {
+          horaFin = cell.trim()
+        }
+        continue
+      }
+      // Sucursal: known names
+      if (['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS'].some(s =>
+        cell.toUpperCase().includes(s)
+      )) {
+        rowSucursal = cell.toUpperCase().trim()
+      }
+    }
+
+    // Filter by date
+    if (rowDate && rowDate !== targetDate) return null
+
+    // Filter by sucursal (if present in the row)
+    if (rowSucursal && !rowSucursal.includes(targetSucursal) && !targetSucursal.includes(rowSucursal)) return null
+
+    // Must have at least hora inicio
+    if (!horaInicio) return null
+
+    // Determine jornada
+    const jornada = this.isBeforeNoon(horaInicio) ? 'manana' : 'tarde'
+
+    // Extract short doctor name for summary
+    const doctorParts = doctorName.split(' ')
+    const shortDoctor = doctorParts.length >= 2
+      ? `${doctorParts[0]} ${doctorParts[doctorParts.length - 2]} ${doctorParts[doctorParts.length - 1]}`
+      : doctorName
+
+    return {
+      doctor: shortDoctor,
+      horaInicio,
+      horaFin: horaFin || '',
+      jornada,
+    }
+  }
+
+  /**
+   * Check if a time string (e.g. "8:00 AM", "2:00 PM") is before noon.
+   */
+  private isBeforeNoon(time: string): boolean {
+    const upper = time.toUpperCase().trim()
+    if (upper.includes('PM')) {
+      const hourMatch = upper.match(/^(\d{1,2}):/)
+      if (hourMatch) {
+        const hour = parseInt(hourMatch[1])
+        return hour === 12 // 12:xx PM is noon, but treat as tarde
+      }
+      return false
+    }
+    if (upper.includes('AM')) {
+      return true
+    }
+    // 24h format fallback
+    const hourMatch = upper.match(/^(\d{1,2}):/)
+    if (hourMatch) {
+      return parseInt(hourMatch[1]) < 12
+    }
+    return true
+  }
+
+  /**
+   * Build a summary grouping slots by jornada.
+   */
+  private buildAvailabilitySummary(slots: AvailabilitySlot[]): { manana: string[]; tarde: string[] } {
+    const manana: string[] = []
+    const tarde: string[] = []
+
+    for (const slot of slots) {
+      const label = slot.horaFin
+        ? `${slot.horaInicio} - ${slot.horaFin} (${slot.doctor})`
+        : `${slot.horaInicio} (${slot.doctor})`
+
+      if (slot.jornada === 'manana') {
+        manana.push(label)
+      } else {
+        tarde.push(label)
+      }
+    }
+
+    return { manana, tarde }
+  }
+
+  /**
+   * Close the "Nueva cita" form/modal without saving.
+   */
+  private async closeNuevaCitaForm(): Promise<void> {
+    if (!this.page) return
+
+    try {
+      // Try clicking the X close button on the x-window
+      const closeBtn = this.page.locator('.x-window .x-tool-close:visible')
+      if (await closeBtn.count() > 0) {
+        await closeBtn.first().click()
+        console.log('[GoDentist] Closed form via X button')
+        await this.page.waitForTimeout(1000)
+        return
+      }
+
+      // Fallback: press Escape
+      await this.page.keyboard.press('Escape')
+      console.log('[GoDentist] Closed form via Escape')
+      await this.page.waitForTimeout(1000)
+
+      // Check if a confirmation dialog appeared ("Desea cerrar sin guardar?")
+      const confirmBtn = await this.page.$('button:has-text("Si")') || await this.page.$('button:has-text("Sí")')
+      if (confirmBtn) {
+        await confirmBtn.click()
+        console.log('[GoDentist] Confirmed close dialog')
+        await this.page.waitForTimeout(1000)
+      }
+    } catch (err) {
+      console.warn(`[GoDentist] Error closing form: ${err}`)
+      // Force close by navigating away
+      await this.page.keyboard.press('Escape')
     }
   }
 

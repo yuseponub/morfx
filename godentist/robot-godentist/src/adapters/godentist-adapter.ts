@@ -517,48 +517,60 @@ export class GoDentistAdapter {
     await this.page.waitForTimeout(2000)
     await this.takeScreenshot('avail-doctor-dropdown')
 
-    // Get visible items
-    let items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+    // Dump all floating overlays to find the correct selector for dropdown items
+    const dropdownDiag = await this.page.evaluate(() => {
+      // Check multiple possible selectors for ExtJS dropdown items
+      const selectors: Record<string, number> = {}
+      const candidates = [
+        '.x-combo-list-item',
+        '.x-combo-list-item:not([style*="display: none"])',
+        '.x-boundlist-item',
+        '.x-list-plain div',
+        '.x-combo-list .x-combo-list-inner div',
+        '.x-layer div',
+        '.x-combo-list-inner div',
+      ]
+      for (const sel of candidates) {
+        try { selectors[sel] = document.querySelectorAll(sel).length } catch { selectors[sel] = -1 }
+      }
 
-    // If no visible items, try all combo list items
+      // Find all visible floating/overlay elements that appeared (x-layer, x-combo-list)
+      const layers = Array.from(document.querySelectorAll('.x-layer, .x-combo-list, .x-combo-list-inner')).map(el => ({
+        tag: el.tagName,
+        cls: el.className.substring(0, 100),
+        visible: (el as HTMLElement).offsetParent !== null || getComputedStyle(el).display !== 'none',
+        childCount: el.children.length,
+        innerHTML: (el as HTMLElement).innerHTML?.substring(0, 500),
+      }))
+
+      return { selectors, layers }
+    })
+    console.log(`[GoDentist] Dropdown diagnostic:`, JSON.stringify(dropdownDiag, null, 2))
+
+    // Try multiple selectors to find doctor items
+    let items: string[] = []
+    let itemSelector = ''
+
+    // Try .x-combo-list-item first (standard ExtJS 3.x)
+    items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
+    if (items.length > 0) { itemSelector = '.x-combo-list-item:visible' }
+
+    // Try without :visible
     if (items.length === 0) {
-      console.log('[GoDentist] No visible doctor items after trigger click, trying all items...')
-      const allItems = this.page.locator('.x-combo-list-item')
-      const allCount = await allItems.count()
-      console.log(`[GoDentist] Total .x-combo-list-item: ${allCount}`)
-      for (let i = 0; i < Math.min(allCount, 15); i++) {
-        const text = (await allItems.nth(i).textContent())?.trim() || ''
-        const visible = await allItems.nth(i).isVisible()
-        console.log(`[GoDentist]   [${i}] "${text}" visible=${visible}`)
-      }
+      items = await this.page.locator('.x-combo-list-item').allTextContents()
+      if (items.length > 0) { itemSelector = '.x-combo-list-item' }
+    }
 
-      // Fallback: try typing into the visible text input to trigger search
-      // Find the visible text input associated with iddoctor
-      const visibleInputId = await this.page.evaluate(() => {
-        const hidden = document.getElementById('iddoctor')
-        if (!hidden) return null
-        let parent = hidden.parentElement
-        for (let i = 0; i < 5 && parent; i++) {
-          const textInputs = parent.querySelectorAll('input[type="text"]')
-          for (const inp of textInputs) {
-            if (inp.id && inp.id !== 'iddoctor') return inp.id
-          }
-          parent = parent.parentElement
-        }
-        return null
-      })
+    // Try .x-combo-list-inner div (some ExtJS combos render items as plain divs)
+    if (items.length === 0) {
+      items = await this.page.locator('.x-combo-list-inner div').allTextContents()
+      if (items.length > 0) { itemSelector = '.x-combo-list-inner div' }
+    }
 
-      if (visibleInputId) {
-        console.log(`[GoDentist] Typing doctor name into visible input #${visibleInputId}...`)
-        // Type first few chars of the doctor's last name to trigger search
-        const lastName = doctorName.split(' ').pop() || doctorName
-        await this.page.locator(`#${visibleInputId}`).click()
-        await this.page.waitForTimeout(500)
-        await this.page.locator(`#${visibleInputId}`).fill(lastName.substring(0, 4))
-        await this.page.waitForTimeout(2000)
-        items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
-        console.log(`[GoDentist] After typing "${lastName.substring(0, 4)}", visible items: ${items.length}`)
-      }
+    // Try .x-boundlist-item (ExtJS 4.x+)
+    if (items.length === 0) {
+      items = await this.page.locator('.x-boundlist-item').allTextContents()
+      if (items.length > 0) { itemSelector = '.x-boundlist-item' }
     }
 
     console.log(`[GoDentist] Doctor dropdown items (${items.length}):`, items.slice(0, 20))
@@ -579,7 +591,8 @@ export class GoDentistAdapter {
     )
 
     if (targetIdx >= 0) {
-      await this.page.locator('.x-combo-list-item:visible').nth(targetIdx).click()
+      console.log(`[GoDentist] Clicking item[${targetIdx}] with selector "${itemSelector}"`)
+      await this.page.locator(itemSelector).nth(targetIdx).click()
       console.log(`[GoDentist] Doctor selected: ${items[targetIdx].trim()}`)
       await this.page.waitForTimeout(1000)
       return true

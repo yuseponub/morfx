@@ -24,7 +24,7 @@ Standalone: SMS Module — IN PROGRESS (3/4 plans)
 Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
 Standalone: Shopify Contact Resolution — COMPLETE (3/3 plans)
 Standalone: Agent GoDentist — COMPLETE (7/7 plans, verified 15/15)
-Last activity: 2026-03-19 — Quick 029: fix sidebar nav, realtime consistency, query performance
+Last activity: 2026-03-23 — Quick 030: Electron voice input flotante (always-on-top widget)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 

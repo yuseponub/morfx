@@ -487,7 +487,6 @@ export class GoDentistAdapter {
     if (!this.page) return false
 
     // Find the visible text input for the Doctor combo
-    // Strategy: find the hidden input via label[for], then walk up to find sibling text input
     const comboId = await this.page.evaluate(() => {
       // Find label containing "Doctor"
       const labels = document.querySelectorAll('label')
@@ -498,18 +497,24 @@ export class GoDentistAdapter {
         const forId = label.htmlFor
         if (!forId) continue
 
-        const hiddenInput = document.getElementById(forId)
-        if (!hiddenInput) continue
+        const targetInput = document.getElementById(forId) as HTMLInputElement | null
+        if (!targetInput) continue
 
-        console.log(`[Doctor] Found hidden input #${forId}, type=${(hiddenInput as HTMLInputElement).type}`)
+        const inputType = targetInput.type
+        const inputClass = targetInput.className
 
-        // Walk up to find the visible text input (same pattern as getSucursalComboInputId)
-        let parent = hiddenInput.parentElement
+        // Case A: label[for] points directly to the visible text input
+        if (inputType === 'text' && inputClass.includes('x-form-text')) {
+          return { comboId: forId, debug: `label-for direct text input #${forId}` }
+        }
+
+        // Case B: label[for] points to a hidden input — walk up to find sibling visible text input
+        let parent = targetInput.parentElement
         for (let i = 0; i < 5 && parent; i++) {
           const textInputs = parent.querySelectorAll('input[type="text"]')
           for (const inp of textInputs) {
-            if (inp.id && inp.id !== forId) {
-              return inp.id
+            if (inp.id && inp.id !== forId && inp.className.includes('x-form-text')) {
+              return { comboId: inp.id, debug: `sibling of hidden #${forId} → visible #${inp.id}` }
             }
           }
           parent = parent.parentElement
@@ -523,44 +528,43 @@ export class GoDentistAdapter {
         for (const item of formItems) {
           const lbl = item.querySelector('label')
           if (lbl && lbl.textContent?.toLowerCase().includes('doctor')) {
-            const inp = item.querySelector('input.x-form-text, input[type="text"]')
-            if (inp && (inp as HTMLElement).id) {
-              return (inp as HTMLElement).id
+            const inp = item.querySelector('input.x-form-text, input[type="text"]') as HTMLElement
+            if (inp?.id) {
+              return { comboId: inp.id, debug: `form-item label match → #${inp.id}` }
             }
           }
         }
       }
 
-      return null
-    })
-
-    console.log(`[GoDentist] Doctor visible combo input ID: ${comboId}`)
-
-    if (!comboId) {
-      // Diagnostic dump: log all inputs in the window
-      const diag = await this.page.evaluate(() => {
-        const win = document.querySelector('.x-window')
-        if (!win) return 'No .x-window found'
-        const inputs = Array.from(win.querySelectorAll('input')).map(inp => ({
-          id: inp.id,
-          type: inp.type,
-          className: inp.className.substring(0, 80),
-          value: inp.value.substring(0, 50),
-          visible: inp.offsetParent !== null,
-        }))
-        const labels = Array.from(win.querySelectorAll('label')).map(l => ({
+      // Diagnostic: dump all labels and inputs in .x-window
+      const diagWin = document.querySelector('.x-window')
+      if (diagWin) {
+        const allLabels = Array.from(diagWin.querySelectorAll('label')).map(l => ({
           text: l.textContent?.trim().substring(0, 40),
           htmlFor: l.htmlFor,
         }))
-        return { inputs, labels }
-      })
-      console.log(`[GoDentist] Doctor combo diagnostic:`, JSON.stringify(diag, null, 2))
+        const allInputs = Array.from(diagWin.querySelectorAll('input')).map(inp => ({
+          id: inp.id, type: inp.type, cls: inp.className.substring(0, 60),
+        }))
+        console.log('[Doctor DIAG] labels:', JSON.stringify(allLabels))
+        console.log('[Doctor DIAG] inputs:', JSON.stringify(allInputs))
+      } else {
+        console.log('[Doctor DIAG] No .x-window found in DOM')
+      }
+
+      return null
+    })
+
+    if (!comboId) {
+      console.warn('[GoDentist] Could not find Doctor combo input (diagnostics logged in browser console)')
       await this.takeScreenshot('avail-no-doctor-combo')
       return false
     }
 
+    console.log(`[GoDentist] Doctor combo: #${comboId.comboId} (${comboId.debug})`)
+
     // Open dropdown using the same pattern as sucursal combo
-    await this.openComboDropdown(comboId)
+    await this.openComboDropdown(comboId.comboId)
     await this.page.waitForTimeout(1500)
 
     // Get visible items
@@ -581,7 +585,7 @@ export class GoDentistAdapter {
       // Try clicking the input itself to trigger dropdown
       await this.page.keyboard.press('Escape')
       await this.page.waitForTimeout(500)
-      await this.page.locator(`#${comboId}`).click()
+      await this.page.locator(`#${comboId.comboId}`).click()
       await this.page.waitForTimeout(1500)
       items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
       console.log(`[GoDentist] After input click, visible items: ${items.length}`)

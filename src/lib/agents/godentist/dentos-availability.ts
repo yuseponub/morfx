@@ -72,27 +72,91 @@ export async function checkDentosAvailability(
       return { success: false, slots: { manana: [], tarde: [] }, error: 'Robot scrape failed' }
     }
 
-    // Format slots WITHOUT doctor names — just "HH:MM AM - HH:MM PM"
-    const manana = data.slots
-      .filter(s => s.jornada === 'manana')
-      .map(s => `${s.horaInicio} - ${s.horaFin}`)
-    const tarde = data.slots
-      .filter(s => s.jornada === 'tarde')
-      .map(s => `${s.horaInicio} - ${s.horaFin}`)
+    // Merge overlapping/adjacent slots into continuous blocks per jornada
+    const mananaSlots = data.slots.filter(s => s.jornada === 'manana')
+    const tardeSlots = data.slots.filter(s => s.jornada === 'tarde')
 
-    // Deduplicate (multiple doctors may have same hours)
-    const uniqueManana = [...new Set(manana)]
-    const uniqueTarde = [...new Set(tarde)]
+    const mergedManana = mergeIntervals(mananaSlots)
+    const mergedTarde = mergeIntervals(tardeSlots)
 
-    console.log(`[dentos-availability] Found ${uniqueManana.length} mañana + ${uniqueTarde.length} tarde slots`)
+    console.log(`[dentos-availability] Merged: ${mergedManana.length} mañana + ${mergedTarde.length} tarde blocks`)
 
     return {
       success: true,
-      slots: { manana: uniqueManana, tarde: uniqueTarde },
+      slots: { manana: mergedManana, tarde: mergedTarde },
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error(`[dentos-availability] Error: ${msg}`)
     return { success: false, slots: { manana: [], tarde: [] }, error: msg }
   }
+}
+
+// ============================================================================
+// Interval Merging — consolidate overlapping/adjacent slots into blocks
+// ============================================================================
+
+/**
+ * Parse "8:00 AM" or "1:30 PM" to minutes since midnight.
+ */
+function parseTimeToMinutes(time: string): number {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return -1
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const period = match[3].toUpperCase()
+  if (period === 'PM' && hours !== 12) hours += 12
+  if (period === 'AM' && hours === 12) hours = 0
+  return hours * 60 + minutes
+}
+
+/**
+ * Convert minutes since midnight back to "H:MM AM/PM" format.
+ */
+function minutesToTime(mins: number): string {
+  let hours = Math.floor(mins / 60)
+  const minutes = mins % 60
+  const period = hours >= 12 ? 'PM' : 'AM'
+  if (hours > 12) hours -= 12
+  if (hours === 0) hours = 12
+  return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`
+}
+
+/**
+ * Merge overlapping/adjacent time intervals into continuous blocks.
+ * Returns formatted strings like "8:00 AM - 12:00 PM".
+ */
+function mergeIntervals(
+  slots: { horaInicio: string; horaFin: string }[]
+): string[] {
+  if (slots.length === 0) return []
+
+  // Convert to [start, end] in minutes
+  const intervals = slots
+    .map(s => ({
+      start: parseTimeToMinutes(s.horaInicio),
+      end: parseTimeToMinutes(s.horaFin),
+    }))
+    .filter(i => i.start >= 0 && i.end >= 0)
+    .sort((a, b) => a.start - b.start)
+
+  if (intervals.length === 0) return []
+
+  // Merge overlapping/adjacent intervals
+  const merged: { start: number; end: number }[] = [intervals[0]]
+
+  for (let i = 1; i < intervals.length; i++) {
+    const current = intervals[i]
+    const last = merged[merged.length - 1]
+
+    // Overlap or adjacent (touching) → extend
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end)
+    } else {
+      merged.push(current)
+    }
+  }
+
+  // Format back to strings
+  return merged.map(m => `${minutesToTime(m.start)} - ${minutesToTime(m.end)}`)
 }

@@ -88,6 +88,8 @@ export async function resolveResponseTrack(input: {
   idioma?: string
   servicioDetectado?: string
   servicioSecundario?: string
+  /** Real availability slots from Dentos robot (replaces placeholders) */
+  availabilitySlots?: { manana: string[]; tarde: string[] }
 }): Promise<ResponseTrackOutput> {
   const {
     salesAction,
@@ -114,7 +116,7 @@ export async function resolveResponseTrack(input: {
   let extraContext: Record<string, string> | undefined
 
   if (salesAction) {
-    const resolved = resolveSalesActionTemplates(salesAction, state)
+    const resolved = resolveSalesActionTemplates(salesAction, state, input.availabilitySlots)
     salesTemplateIntents.push(...resolved.intents)
     extraContext = resolved.extraContext
   }
@@ -292,6 +294,7 @@ export async function resolveResponseTrack(input: {
 function resolveSalesActionTemplates(
   action: TipoAccion,
   state: AgentState,
+  availabilitySlots?: { manana: string[]; tarde: string[] },
 ): { intents: string[]; extraContext?: Record<string, string> } {
   switch (action) {
     case 'pedir_datos':
@@ -313,17 +316,33 @@ function resolveSalesActionTemplates(
       }
 
     case 'mostrar_disponibilidad': {
-      // DEFERRED: Dentos API integration. Use placeholder slots.
       const sedeDisplay = state.datos.sede_preferida
         ? (SEDE_DISPLAY_NAMES[state.datos.sede_preferida] ?? state.datos.sede_preferida)
         : ''
+
+      // Use real slots from Dentos robot if available
+      const slots = availabilitySlots
+      const slotsManana = slots?.manana?.length ? slots.manana.join('\n') : 'No hay disponibilidad'
+      const slotsTarde = slots?.tarde?.length ? slots.tarde.join('\n') : 'No hay disponibilidad'
+
+      // If no availability at all, use sin_disponibilidad template
+      if (!slots?.manana?.length && !slots?.tarde?.length) {
+        return {
+          intents: ['sin_disponibilidad'],
+          extraContext: {
+            fecha: state.datos.fecha_preferida ?? '',
+            sede_preferida: sedeDisplay,
+          },
+        }
+      }
+
       return {
         intents: ['mostrar_disponibilidad'],
         extraContext: {
           fecha: state.datos.fecha_preferida ?? '',
           sede_preferida: sedeDisplay,
-          slots_manana: '(Disponibilidad pendiente)',
-          slots_tarde: '(Disponibilidad pendiente)',
+          slots_manana: slotsManana,
+          slots_tarde: slotsTarde,
         },
       }
     }

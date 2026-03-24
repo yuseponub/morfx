@@ -18,6 +18,7 @@ import { resolveSalesTrack } from './sales-track'
 import { resolveResponseTrack } from './response-track'
 import { checkGuards } from './guards'
 import { derivePhase } from './phase'
+import { checkDentosAvailability } from './dentos-availability'
 import { SCHEDULE_APPOINTMENT_ACTIONS } from './constants'
 import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, AccionRegistrada } from './types'
 import type { StateChanges } from './transitions'
@@ -280,6 +281,22 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     const isScheduleAppointment = !!salesResult.accion
       && SCHEDULE_APPOINTMENT_ACTIONS.has(salesResult.accion)
 
+    // AVAILABILITY LOOKUP — call robot when showing availability
+    let availabilitySlots: { manana: string[]; tarde: string[] } | undefined
+    if (salesResult.accion === 'mostrar_disponibilidad' && mergedState.datos.fecha_preferida && mergedState.datos.sede_preferida) {
+      try {
+        const result = await checkDentosAvailability(
+          mergedState.datos.fecha_preferida,
+          mergedState.datos.sede_preferida,
+        )
+        if (result.success) {
+          availabilitySlots = result.slots
+        }
+      } catch (err) {
+        console.error('[GoDentist] Availability lookup failed (fail-open):', err)
+      }
+    }
+
     // RESPONSE TRACK — WHAT TO SAY
     const responseResult = await resolveResponseTrack({
       salesAction: salesResult.accion,
@@ -289,6 +306,7 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       workspaceId: input.workspaceId,
       idioma: analysis.classification.idioma,
       servicioDetectado: analysis.extracted_fields.servicio_interes ?? undefined,
+      availabilitySlots,
     })
 
     // Register action (SINGLE registration point)

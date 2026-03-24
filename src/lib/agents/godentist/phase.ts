@@ -19,6 +19,7 @@ export function derivePhase(acciones: AccionRegistrada[]): Phase {
 
     switch (tipo) {
       case 'pedir_datos':
+      case 'pedir_datos_con_sede':
       case 'pedir_datos_parcial':     return 'capturing_data'
       case 'pedir_fecha':             return 'capturing_fecha'
       case 'mostrar_disponibilidad':  return 'showing_availability'

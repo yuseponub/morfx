@@ -195,6 +195,7 @@ export interface V3AgentOutput {
 
 export type TipoAccion =
   | 'pedir_datos'
+  | 'pedir_datos_con_sede'
   | 'pedir_datos_parcial'
   | 'pedir_fecha'
   | 'mostrar_disponibilidad'

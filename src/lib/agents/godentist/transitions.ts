@@ -130,15 +130,15 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 7: initial + datos + datosCriticos + fechaElegida -> mostrar_disponibilidad',
   },
 
-  // Rule 8: seleccion_sede + !datosCriticos -> silence + L1
+  // Rule 8: seleccion_sede + !datosCriticos -> pedir_datos_con_sede + L1
   {
-    phase: 'initial', on: 'seleccion_sede', action: 'silence',
+    phase: 'initial', on: 'seleccion_sede', action: 'pedir_datos_con_sede',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'sede elegida, faltan datos' },
-      reason: 'Sede elegida en initial, faltan datos criticos — L1 pedira lo faltante',
+      timerSignal: { type: 'start', level: 'L1', reason: 'sede elegida, pidiendo datos restantes' },
+      reason: 'Sede elegida en initial, pedir datos restantes',
     }),
-    description: 'Rule 8: initial + seleccion_sede + !datosCriticos -> silence + L1',
+    description: 'Rule 8: initial + seleccion_sede + !datosCriticos -> pedir_datos_con_sede + L1',
   },
 
   // Rule 9: seleccion_sede + datosCriticos + !fechaElegida -> pedir_fecha (L3)
@@ -279,15 +279,15 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 24: capturing_data + datos + datosCriticos + fechaElegida -> mostrar_disponibilidad',
   },
 
-  // Rule 25: seleccion_sede + !datosCriticos -> silence + L1
+  // Rule 25: seleccion_sede + !datosCriticos -> pedir_datos_con_sede + L1
   {
-    phase: 'capturing_data', on: 'seleccion_sede', action: 'silence',
+    phase: 'capturing_data', on: 'seleccion_sede', action: 'pedir_datos_con_sede',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'sede elegida, faltan datos' },
-      reason: 'Sede en capturing_data, faltan criticos — L1 pedira lo faltante',
+      timerSignal: { type: 'start', level: 'L1', reason: 'sede elegida, pidiendo datos restantes' },
+      reason: 'Sede en capturing_data, pedir datos restantes',
     }),
-    description: 'Rule 25: capturing_data + seleccion_sede + !datosCriticos -> silence + L1',
+    description: 'Rule 25: capturing_data + seleccion_sede + !datosCriticos -> pedir_datos_con_sede + L1',
   },
 
   // Rule 26: seleccion_sede + datosCriticos + !fechaElegida -> pedir_fecha (L3)

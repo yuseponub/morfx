@@ -448,7 +448,7 @@ function computeMode(state: AgentState): string {
   if (hasAction(state.accionesEjecutadas, 'mostrar_confirmacion')) return 'confirmacion'
   if (hasAction(state.accionesEjecutadas, 'mostrar_disponibilidad')) return 'mostrando_disponibilidad'
   if (hasAction(state.accionesEjecutadas, 'pedir_fecha')) return 'captura_fecha'
-  if (hasAction(state.accionesEjecutadas, 'pedir_datos') || hasAction(state.accionesEjecutadas, 'pedir_datos_parcial')) return 'captura'
+  if (hasAction(state.accionesEjecutadas, 'pedir_datos') || hasAction(state.accionesEjecutadas, 'pedir_datos_con_sede') || hasAction(state.accionesEjecutadas, 'pedir_datos_parcial')) return 'captura'
   if (state.turnCount === 0) return 'nuevo'
   return 'conversacion'
 }

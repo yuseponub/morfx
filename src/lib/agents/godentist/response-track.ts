@@ -300,6 +300,16 @@ function resolveSalesActionTemplates(
     case 'pedir_datos':
       return { intents: ['pedir_datos'] }
 
+    case 'pedir_datos_con_sede': {
+      const sedeDisplay = state.datos.sede_preferida
+        ? (SEDE_DISPLAY_NAMES[state.datos.sede_preferida] ?? state.datos.sede_preferida)
+        : ''
+      return {
+        intents: ['pedir_datos_con_sede'],
+        extraContext: { sede_preferida: sedeDisplay },
+      }
+    }
+
     case 'pedir_datos_parcial': {
       const faltantes = camposFaltantes(state)
       const labels = faltantes.map(f => FIELD_LABELS[f] ?? f)

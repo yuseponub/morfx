@@ -132,6 +132,7 @@ export const CRITICAL_FIELDS = ['nombre', 'telefono', 'sede_preferida'] as const
 /** Maps sales track accion to template intents */
 export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
   pedir_datos: ['pedir_datos'],
+  pedir_datos_con_sede: ['pedir_datos_con_sede'],
   pedir_datos_parcial: ['pedir_datos_parcial'],
   pedir_fecha: ['pedir_fecha'],
   mostrar_disponibilidad: ['mostrar_disponibilidad'],
@@ -153,6 +154,7 @@ export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
 
 export const SIGNIFICANT_ACTIONS: ReadonlySet<string> = new Set([
   'pedir_datos',
+  'pedir_datos_con_sede',
   'pedir_datos_parcial',
   'pedir_fecha',
   'mostrar_disponibilidad',

@@ -204,6 +204,7 @@ export type TipoAccion =
   | 'handoff'
   | 'silence'
   | 'no_interesa'
+  | 'retoma_inicial'
   | 'retoma_datos'
   | 'retoma_fecha'
   | 'retoma_horario'

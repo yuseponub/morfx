@@ -140,6 +140,7 @@ export const ACTION_TEMPLATE_MAP: Record<string, string[]> = {
   invitar_agendar: ['invitar_agendar'],
   handoff: ['handoff'],
   no_interesa: ['no_interesa'],
+  retoma_inicial: ['retoma_inicial'],
   retoma_datos: ['retoma_datos'],
   retoma_fecha: ['retoma_fecha'],
   retoma_horario: ['retoma_horario'],

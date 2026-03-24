@@ -413,13 +413,13 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 30: acknowledgment in capturing_data -> silence + L6',
   },
 
-  // Rule 31a: timer_expired:0 -> retoma_datos (L0 = 8min, no data received yet)
+  // Rule 31a: timer_expired:0 -> retoma_inicial (L0 = 8min, no data received yet)
   {
-    phase: 'capturing_data', on: 'timer_expired:0', action: 'retoma_datos',
+    phase: 'capturing_data', on: 'timer_expired:0', action: 'retoma_inicial',
     resolve: () => ({
-      reason: 'Timer L0 expired -> retoma datos (sin datos recibidos)',
+      reason: 'Timer L0 expired -> retoma inicial (sin datos recibidos)',
     }),
-    description: 'Rule 31a: timer_expired:0 -> retoma_datos',
+    description: 'Rule 31a: timer_expired:0 -> retoma_inicial',
   },
 
   // Rule 31b: timer_expired:1 -> retoma_datos (L1 = 3min, partial data)

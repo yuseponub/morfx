@@ -609,97 +609,76 @@ export class GoDentistAdapter {
       return false
     }
 
+    // Close any open dropdowns first (sucursal combo may still be open)
+    await this.page.locator('.x-window .x-window-header').click().catch(() => {})
+    await this.page.waitForTimeout(500)
+
     // Open the doctor dropdown using the hidden input ID (trigger is its sibling)
     console.log(`[GoDentist] Opening doctor combo via #iddoctor trigger...`)
     await this.openComboDropdown('iddoctor')
     await this.page.waitForTimeout(2000)
     await this.takeScreenshot('avail-doctor-dropdown')
 
-    // Dump all floating overlays to find the correct selector for dropdown items
-    const dropdownDiag = await this.page.evaluate(() => {
-      // Check multiple possible selectors for ExtJS dropdown items
-      const selectors: Record<string, number> = {}
-      const candidates = [
-        '.x-combo-list-item',
-        '.x-combo-list-item:not([style*="display: none"])',
-        '.x-boundlist-item',
-        '.x-list-plain div',
-        '.x-combo-list .x-combo-list-inner div',
-        '.x-layer div',
-        '.x-combo-list-inner div',
-      ]
-      for (const sel of candidates) {
-        try { selectors[sel] = document.querySelectorAll(sel).length } catch { selectors[sel] = -1 }
+    // The doctor dropdown uses custom "search-item" divs (NOT .x-combo-list-item).
+    // The sucursal dropdown uses .x-combo-list-item. We must use the correct selector.
+    // Strategy: find the x-combo-list-inner with >10 children (doctor has 26, sucursal has 4)
+    const doctorItems = await this.page.evaluate(() => {
+      const inners = document.querySelectorAll('.x-combo-list-inner')
+      for (const inner of inners) {
+        // Doctor dropdown has many items (>10), sucursal has only 4
+        if (inner.children.length > 10) {
+          return Array.from(inner.children).map(el => {
+            // Extract text from span inside search-item divs
+            const span = el.querySelector('span')
+            return span?.textContent?.trim() || (el as HTMLElement).textContent?.trim() || ''
+          }).filter(t => t.length > 0)
+        }
       }
-
-      // Find all visible floating/overlay elements that appeared (x-layer, x-combo-list)
-      const layers = Array.from(document.querySelectorAll('.x-layer, .x-combo-list, .x-combo-list-inner')).map(el => ({
-        tag: el.tagName,
-        cls: el.className.substring(0, 100),
-        visible: (el as HTMLElement).offsetParent !== null || getComputedStyle(el).display !== 'none',
-        childCount: el.children.length,
-        innerHTML: (el as HTMLElement).innerHTML?.substring(0, 500),
-      }))
-
-      return { selectors, layers }
+      return [] as string[]
     })
-    console.log(`[GoDentist] Dropdown diagnostic:`, JSON.stringify(dropdownDiag, null, 2))
 
-    // Try multiple selectors to find doctor items
-    let items: string[] = []
-    let itemSelector = ''
+    console.log(`[GoDentist] Doctor dropdown items (${doctorItems.length}):`, doctorItems.slice(0, 10))
 
-    // Try .x-combo-list-item first (standard ExtJS 3.x)
-    items = await this.page.locator('.x-combo-list-item:visible').allTextContents()
-    if (items.length > 0) { itemSelector = '.x-combo-list-item:visible' }
-
-    // Try without :visible
-    if (items.length === 0) {
-      items = await this.page.locator('.x-combo-list-item').allTextContents()
-      if (items.length > 0) { itemSelector = '.x-combo-list-item' }
-    }
-
-    // Try .x-combo-list-inner div (some ExtJS combos render items as plain divs)
-    if (items.length === 0) {
-      items = await this.page.locator('.x-combo-list-inner div').allTextContents()
-      if (items.length > 0) { itemSelector = '.x-combo-list-inner div' }
-    }
-
-    // Try .x-boundlist-item (ExtJS 4.x+)
-    if (items.length === 0) {
-      items = await this.page.locator('.x-boundlist-item').allTextContents()
-      if (items.length > 0) { itemSelector = '.x-boundlist-item' }
-    }
-
-    console.log(`[GoDentist] Doctor dropdown items (${items.length}):`, items.slice(0, 20))
-
-    if (items.length === 0) {
+    if (doctorItems.length === 0) {
       console.warn(`[GoDentist] No doctor items found in dropdown`)
-      // Do NOT press Escape here — it closes the x-window
-      // Just click somewhere neutral in the form to close any open dropdown
       await this.page.locator('.x-window .x-window-header').click().catch(() => {})
       await this.page.waitForTimeout(500)
       return false
     }
 
     // Find matching doctor (case-insensitive partial match)
-    const targetIdx = items.findIndex(t =>
-      t.trim().toLowerCase().includes(doctorName.toLowerCase()) ||
-      doctorName.toLowerCase().includes(t.trim().toLowerCase())
+    const targetIdx = doctorItems.findIndex(t =>
+      t.toLowerCase().includes(doctorName.toLowerCase()) ||
+      doctorName.toLowerCase().includes(t.toLowerCase())
     )
 
     if (targetIdx >= 0) {
-      console.log(`[GoDentist] Clicking item[${targetIdx}] with selector "${itemSelector}"`)
-      await this.page.locator(itemSelector).nth(targetIdx).click()
-      console.log(`[GoDentist] Doctor selected: ${items[targetIdx].trim()}`)
-      await this.page.waitForTimeout(1000)
-      return true
+      // Click the correct item in the doctor dropdown (the one with >10 children)
+      const clicked = await this.page.evaluate((idx) => {
+        const inners = document.querySelectorAll('.x-combo-list-inner')
+        for (const inner of inners) {
+          if (inner.children.length > 10) {
+            const item = inner.children[idx] as HTMLElement
+            if (item) {
+              item.click()
+              return true
+            }
+          }
+        }
+        return false
+      }, targetIdx)
+
+      if (clicked) {
+        console.log(`[GoDentist] Doctor selected: ${doctorItems[targetIdx]}`)
+        await this.page.waitForTimeout(1000)
+        return true
+      }
     }
 
     // Close dropdown by clicking header (NOT Escape — Escape closes the whole window)
     await this.page.locator('.x-window .x-window-header').click().catch(() => {})
     await this.page.waitForTimeout(500)
-    console.warn(`[GoDentist] Doctor "${doctorName}" not found. Available: ${items.map(i => i.trim()).join(', ')}`)
+    console.warn(`[GoDentist] Doctor "${doctorName}" not found. Available: ${doctorItems.join(', ')}`)
     return false
   }
 

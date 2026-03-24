@@ -119,9 +119,24 @@ export async function resolveResponseTrack(input: {
   }
 
   // ------------------------------------------------------------------
+  // 1b. Force saludo on first turn (turnCount === 0) even if client didn't greet
+  // ------------------------------------------------------------------
+  const isFirstTurn = state.turnCount <= 1 && !state.intentsVistos.includes('saludo')
+
+  if (isFirstTurn && intent !== 'saludo') {
+    // Inject saludo as informational so it renders first via combined path
+    // (will be picked up by hasSaludoCombined logic below)
+  }
+
+  // ------------------------------------------------------------------
   // 2. Informational intent templates
   // ------------------------------------------------------------------
   const infoTemplateIntents: string[] = []
+
+  // Inject saludo on first turn
+  if (isFirstTurn && intent !== 'saludo') {
+    infoTemplateIntents.push('saludo')
+  }
 
   if (intent && INFORMATIONAL_INTENTS.has(intent)) {
     if (intent === 'precio_servicio') {
@@ -151,7 +166,7 @@ export async function resolveResponseTrack(input: {
   // 3. Combine both sources
   // ------------------------------------------------------------------
   const allIntents = [...salesTemplateIntents, ...infoTemplateIntents]
-  const hasSaludoCombined = infoTemplateIntents.includes('saludo') && allIntents.length > 1
+  const hasSaludoCombined = infoTemplateIntents.includes('saludo') && (allIntents.length > 1 || salesTemplateIntents.length > 0)
 
   if (allIntents.length === 0) {
     return emptyResult()
@@ -362,11 +377,12 @@ function resolveSalesActionTemplates(
 
 /**
  * Resolve precio_servicio intent to service-specific template intent(s).
- * If service is 'otro_servicio' or null, falls back to invitar_agendar.
+ * If service is unknown/null, returns empty (no fallback to invitar_agendar
+ * to avoid redundant "want to schedule?" when a sales action is already active).
  */
 function resolvePriceServiceTemplates(servicioDetectado?: string): string[] {
   if (!servicioDetectado || servicioDetectado === 'otro_servicio') {
-    return ['invitar_agendar']
+    return []
   }
 
   const templateIntent = SERVICE_TEMPLATE_MAP[servicioDetectado]
@@ -374,8 +390,7 @@ function resolvePriceServiceTemplates(servicioDetectado?: string): string[] {
     return [templateIntent]
   }
 
-  // Unknown service -> generic invitation
-  return ['invitar_agendar']
+  return []
 }
 
 // ============================================================================

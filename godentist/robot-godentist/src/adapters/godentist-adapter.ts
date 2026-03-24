@@ -411,8 +411,12 @@ export class GoDentistAdapter {
 
           // Read "Agenda Disponible" table
           const doctorSlots = await this.readAgendaDisponible(doctorName, date, sucursalUpper)
-          slots.push(...doctorSlots)
-          console.log(`[GoDentist] ${doctorName}: ${doctorSlots.length} slots found`)
+          // Deduplicate slots (ExtJS grid renders 2 <tr> per row)
+          const unique = doctorSlots.filter((slot, i) =>
+            i === 0 || JSON.stringify(slot) !== JSON.stringify(doctorSlots[i - 1])
+          )
+          slots.push(...unique)
+          console.log(`[GoDentist] ${doctorName}: ${unique.length} slots (${doctorSlots.length} raw)`)
 
         } catch (err) {
           const msg = `Error consultando ${doctorName}: ${err instanceof Error ? err.message : String(err)}`

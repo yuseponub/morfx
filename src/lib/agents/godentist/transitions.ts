@@ -64,12 +64,12 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 1: saludo -> silence',
   },
 
-  // Rule 2: quiero_agendar + !datosCriticos -> pedir_datos (L1)
+  // Rule 2: quiero_agendar + !datosCriticos -> pedir_datos (L0 = 8min, no data yet)
   {
     phase: 'initial', on: 'quiero_agendar', action: 'pedir_datos',
     condition: (_, gates) => !gates.datosCriticos,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L1', reason: 'captura iniciada por quiero_agendar' },
+      timerSignal: { type: 'start', level: 'L0', reason: 'captura iniciada por quiero_agendar' },
       reason: 'Quiere agendar, faltan datos criticos',
     }),
     description: 'Rule 2: quiero_agendar + !datosCriticos -> pedir_datos',
@@ -413,13 +413,22 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Rule 30: acknowledgment in capturing_data -> silence + L6',
   },
 
-  // Rule 31: timer_expired:1 -> retoma_datos (no further timer)
+  // Rule 31a: timer_expired:0 -> retoma_datos (L0 = 8min, no data received yet)
+  {
+    phase: 'capturing_data', on: 'timer_expired:0', action: 'retoma_datos',
+    resolve: () => ({
+      reason: 'Timer L0 expired -> retoma datos (sin datos recibidos)',
+    }),
+    description: 'Rule 31a: timer_expired:0 -> retoma_datos',
+  },
+
+  // Rule 31b: timer_expired:1 -> retoma_datos (L1 = 3min, partial data)
   {
     phase: 'capturing_data', on: 'timer_expired:1', action: 'retoma_datos',
     resolve: () => ({
-      reason: 'Timer L1 expired -> retoma datos',
+      reason: 'Timer L1 expired -> retoma datos (datos parciales)',
     }),
-    description: 'Rule 31: timer_expired:1 -> retoma_datos',
+    description: 'Rule 31b: timer_expired:1 -> retoma_datos',
   },
 
   // ========================================================================

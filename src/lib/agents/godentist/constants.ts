@@ -195,7 +195,7 @@ export const GD_META_PREFIX = '_gd:'
  * 6 - Ack / silencio (L6: 90s)
  */
 export const GD_TIMER_DURATIONS: Record<string, Record<number, number>> = {
-  real:         { 0: 480, 1: 180, 2: 120, 3: 120, 4: 120, 5: 180, 6: 90 },
-  rapido:       { 0:  60, 1:  30, 2:  20, 3:  20, 4:  20, 5:  30, 6:  9 },
-  instantaneo:  { 0:   2, 1:   2, 2:   2, 3:   1, 4:   1, 5:   2, 6:  1 },
+  real:         { 0: 480, 1: 180, 2: 300, 3: 300, 4: 120, 5: 180, 6: 90 },
+  rapido:       { 0:  60, 1:  30, 2:  30, 3:  30, 4:  20, 5:  30, 6:  9 },
+  instantaneo:  { 0:   2, 1:   2, 2:   2, 3:   2, 4:   1, 5:   2, 6:  1 },
 }

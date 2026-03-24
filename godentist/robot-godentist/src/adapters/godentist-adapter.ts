@@ -686,16 +686,26 @@ export class GoDentistAdapter {
   ): AvailabilitySlot | null {
     if (cells.length < 4) return null
 
-    // Log first row for debugging
-    console.log(`[GoDentist] Agenda row cells: ${JSON.stringify(cells)}`)
+    // Dentos ExtJS grid duplicates each cell (visible + hidden column).
+    // Deduplicate by removing consecutive identical values.
+    const deduped: string[] = []
+    for (let i = 0; i < cells.length; i++) {
+      if (i === 0 || cells[i] !== cells[i - 1]) {
+        deduped.push(cells[i])
+      }
+    }
 
-    // Find date cell (YYYY-MM-DD or DD/MM/YYYY or DD-MM-YYYY)
+    // Log deduped row for debugging
+    console.log(`[GoDentist] Agenda row cells: ${JSON.stringify(deduped)}`)
+
+    // After dedup, expected columns: Día(0), Fecha(1), HoraInicio(2), HoraFin(3), Sucursal(4)
+    // Use pattern matching on deduped cells
     let rowDate = ''
     let horaInicio = ''
     let horaFin = ''
     let rowSucursal = ''
 
-    for (const cell of cells) {
+    for (const cell of deduped) {
       // Date: YYYY-MM-DD
       if (/^\d{4}-\d{2}-\d{2}$/.test(cell)) {
         rowDate = cell

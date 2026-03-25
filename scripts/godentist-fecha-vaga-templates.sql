@@ -2,49 +2,13 @@
 -- Run this in Supabase SQL editor BEFORE deploying the code change.
 
 -- 1. horarios_generales_sede — shown when robot returns 0 slots for a date
-INSERT INTO agent_templates (
-  agent_id,
-  workspace_id,
-  intent,
-  content,
-  content_type,
-  priority,
-  orden,
-  is_active
-)
-SELECT
-  ac.id,
-  ac.workspace_id,
-  'horarios_generales_sede',
-  E'Para la fecha {{fecha}} no encontramos citas disponibles en {{sede_preferida}}.\n\nNuestro horario de atencion en esa sede es:\n{{horario_general}}\n\nTe gustaria probar con otra fecha mas cercana?',
-  'texto',
-  'CORE',
-  0,
-  true
-FROM agent_configs ac
-WHERE ac.agent_type = 'godentist'
-LIMIT 1;
+INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
+VALUES
+  (gen_random_uuid(), 'godentist', NULL, 'horarios_generales_sede', 'primera_vez', 'CORE', 0, 'texto',
+   E'Para la fecha {{fecha}} no encontramos citas disponibles en {{sede_preferida}}.\n\nNuestro horario de atencion en esa sede es:\n{{horario_general}}\n\nTe gustaria probar con otra fecha mas cercana?', 0);
 
 -- 2. pedir_fecha_con_sugerencia — shown when fecha_vaga exists and we suggest a specific date
-INSERT INTO agent_templates (
-  agent_id,
-  workspace_id,
-  intent,
-  content,
-  content_type,
-  priority,
-  orden,
-  is_active
-)
-SELECT
-  ac.id,
-  ac.workspace_id,
-  'pedir_fecha_con_sugerencia',
-  E'Para {{fecha_vaga}}, te parece el {{fecha_sugerida}}? O si prefieres otra fecha, me dices cual te queda bien',
-  'texto',
-  'CORE',
-  0,
-  true
-FROM agent_configs ac
-WHERE ac.agent_type = 'godentist'
-LIMIT 1;
+INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
+VALUES
+  (gen_random_uuid(), 'godentist', NULL, 'pedir_fecha_con_sugerencia', 'primera_vez', 'CORE', 0, 'texto',
+   E'Para {{fecha_vaga}}, te parece el {{fecha_sugerida}}? O si prefieres otra fecha, me dices cual te queda bien', 0);

@@ -200,11 +200,11 @@ export const GD_META_PREFIX = '_gd:'
 // Real Schedules per Sede (for 0-slot fallback)
 // ============================================================================
 
-export const HORARIOS_GENERALES_SEDE: Record<string, string> = {
-  cabecera: 'Lunes a Viernes 8:00am-12:30pm y 1:30pm-6:30pm. Sabados 8:00am-5:00pm jornada continua',
-  mejoras_publicas: 'Lunes a Viernes 8:30am-12:00pm y 2:00pm-6:30pm. Sabados 8:00am-12:00pm',
-  floridablanca: 'Lunes a Viernes 8:00am-12:00pm y 2:00pm-6:00pm. Sabados 8:00am-12:00pm',
-  canaveral: 'Lunes a Viernes 8:30am-12:00pm y 2:00pm-6:30pm. Sabados 8:00am-12:00pm',
+export const HORARIOS_GENERALES_SEDE: Record<string, { manana: string; tarde: string; sabado_manana: string; sabado_tarde?: string }> = {
+  cabecera: { manana: '8:00 AM - 12:30 PM', tarde: '1:30 PM - 6:30 PM', sabado_manana: '8:00 AM - 5:00 PM (jornada continua)' },
+  mejoras_publicas: { manana: '8:30 AM - 12:00 PM', tarde: '2:00 PM - 6:30 PM', sabado_manana: '8:00 AM - 12:00 PM' },
+  floridablanca: { manana: '8:00 AM - 12:00 PM', tarde: '2:00 PM - 6:00 PM', sabado_manana: '8:00 AM - 12:00 PM' },
+  canaveral: { manana: '8:30 AM - 12:00 PM', tarde: '2:00 PM - 6:30 PM', sabado_manana: '8:00 AM - 12:00 PM' },
 }
 
 // ============================================================================

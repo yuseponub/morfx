@@ -346,16 +346,32 @@ function resolveSalesActionTemplates(
 
       const slots = availabilitySlots
 
-      // 0-slot fallback: show general sede schedules instead of "sin disponibilidad"
+      // 0-slot fallback: show general sede schedules as availability
       if (availabilityFallback || (!slots?.manana?.length && !slots?.tarde?.length)) {
         const sedeKey = state.datos.sede_preferida ?? ''
-        const horarioGeneral = HORARIOS_GENERALES_SEDE[sedeKey] ?? 'Lunes a Viernes 8:00am-6:30pm'
+        const horarios = HORARIOS_GENERALES_SEDE[sedeKey]
+
+        // Determine if date is Saturday to show sabado schedule
+        let isSaturday = false
+        if (state.datos.fecha_preferida) {
+          const [y, m, d] = state.datos.fecha_preferida.split('-').map(Number)
+          isSaturday = new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 6
+        }
+
+        const slotsManana = horarios
+          ? (isSaturday ? (horarios.sabado_manana ?? horarios.manana) : horarios.manana)
+          : '8:00 AM - 12:00 PM'
+        const slotsTarde = horarios
+          ? (isSaturday ? (horarios.sabado_tarde ?? '') : horarios.tarde)
+          : '2:00 PM - 6:30 PM'
+
         return {
-          intents: ['horarios_generales_sede'],
+          intents: ['mostrar_disponibilidad'],
           extraContext: {
             fecha: state.datos.fecha_preferida ?? '',
             sede_preferida: sedeDisplay,
-            horario_general: horarioGeneral,
+            slots_manana: slotsManana,
+            slots_tarde: slotsTarde || 'No hay atención en la tarde',
           },
         }
       }

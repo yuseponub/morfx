@@ -556,6 +556,12 @@ Plans:
   - [x] 01-PLAN.md — DB migration (contact_reviews) + phone distance utility + domain CRUD
   - [x] 02-PLAN.md — resolveOrCreateContact close-phone detection + template blocking + host notification
   - [x] 03-PLAN.md — API endpoint + confirmation page for merge/ignore resolution
+- [x] **Somnio Recompra** — Specialized recompra bot for is_client contacts using v3 architecture fork (4 plans, verified 13/13)
+  Plans:
+  - [x] 01-PLAN.md — Foundation: constants, types, schema, state, phase, guards
+  - [x] 02-PLAN.md — Business logic: comprehension, transitions, sales-track, response-track
+  - [x] 03-PLAN.md — Pipeline: main agent, config, index, sandbox engine
+  - [x] 04-PLAN.md — Integration: webhook routing, production runner, timers, sandbox
 
 ## Progress
 

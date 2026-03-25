@@ -18,6 +18,7 @@ export interface DatosCliente {
   servicio_interes: string | null
   cedula: string | null
   fecha_preferida: string | null
+  fecha_vaga: string | null
   preferencia_jornada: 'manana' | 'tarde' | null
   horario_seleccionado: string | null
 }

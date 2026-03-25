@@ -35,7 +35,12 @@ SEDES:
 - Floridablanca: Cll 4 #3-06
 - Canaveral: CC Jumbo El Bosque
 VALORACION: GRATIS (excepto cirugia maxilofacial $200.000)
-HORARIOS: Lunes a Viernes 8:00am a 6:30pm. Sabados 8:00am a 12:00md (Cabecera hasta 5:00pm sabados). No domingos ni festivos.
+HORARIOS POR SEDE:
+- Cabecera: L-V 8:00am-12:30pm y 1:30pm-6:30pm. Sab 8:00am-5:00pm continua
+- Mejoras Publicas: L-V 8:30am-12:00pm y 2:00pm-6:30pm. Sab 8:00am-12:00pm
+- Floridablanca: L-V 8:00am-12:00pm y 2:00pm-6:00pm. Sab 8:00am-12:00pm
+- Canaveral (Jumbo): L-V 8:30am-12:00pm y 2:00pm-6:30pm. Sab 8:00am-12:00pm
+No domingos ni festivos.
 
 HOY: ${today} (${dayOfWeek})
 
@@ -56,6 +61,8 @@ REGLAS DE EXTRACCION:
   - "la proxima semana" → proximo lunes en YYYY-MM-DD
   - "15 de marzo" → 2026-03-15
   - Siempre formato YYYY-MM-DD
+  - Si la fecha es VAGA (solo mes como "en abril", "para mayo", "en vacaciones", "despues de semana santa") → fecha_preferida = null, fecha_vaga = el mes o referencia temporal
+  - Si es relativa pero concreta ("la proxima semana", "el martes", "manana", "en 3 dias") → fecha_preferida = fecha calculada en YYYY-MM-DD, fecha_vaga = null
 - Jornada: "en la manana", "temprano" → manana. "en la tarde", "en la noche", "despues de mediodia" → tarde
 - Horario: extraer de seleccion de disponibilidad en formato 12h con AM/PM: "el de las 10" → "10:00 AM", "a las 2 de la tarde" → "2:00 PM", "las 3 y media" → "3:30 PM", "a las 8" → "8:00 AM". SIEMPRE usar formato "H:MM AM" o "H:MM PM"
 

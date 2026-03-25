@@ -40,7 +40,13 @@ export const MessageAnalysisSchema = z.object({
     cedula: z.string().nullable(),
     fecha_preferida: z.string().nullable().describe(
       'Normalized date: "manana" -> tomorrow date, "el martes" -> next tuesday date, ' +
-      '"15 de marzo" -> 2026-03-15. Always YYYY-MM-DD format'
+      '"15 de marzo" -> 2026-03-15. Always YYYY-MM-DD format. ' +
+      'Leave null if date is vague (only month name like "en abril") — use fecha_vaga instead.'
+    ),
+    fecha_vaga: z.string().nullable().describe(
+      'If date is vague (only month name like "en abril", "en vacaciones", "para mayo", "despues de semana santa") ' +
+      'put the month/reference here and leave fecha_preferida null. ' +
+      'Do NOT use for concrete relative dates like "la proxima semana", "el martes", "manana" — those go to fecha_preferida.'
     ),
     preferencia_jornada: z.enum(['manana', 'tarde']).nullable().describe(
       '"en la manana" -> manana, "en la tarde/noche" -> tarde'

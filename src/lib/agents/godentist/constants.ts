@@ -196,6 +196,21 @@ export const GD_META_PREFIX = '_gd:'
  * 5 - Esperando confirmacion (L5: 3min)
  * 6 - Ack / silencio (L6: 90s)
  */
+// ============================================================================
+// Real Schedules per Sede (for 0-slot fallback)
+// ============================================================================
+
+export const HORARIOS_GENERALES_SEDE: Record<string, string> = {
+  cabecera: 'Lunes a Viernes 8:00am-12:30pm y 1:30pm-6:30pm. Sabados 8:00am-5:00pm jornada continua',
+  mejoras_publicas: 'Lunes a Viernes 8:30am-12:00pm y 2:00pm-6:30pm. Sabados 8:00am-12:00pm',
+  floridablanca: 'Lunes a Viernes 8:00am-12:00pm y 2:00pm-6:00pm. Sabados 8:00am-12:00pm',
+  canaveral: 'Lunes a Viernes 8:30am-12:00pm y 2:00pm-6:30pm. Sabados 8:00am-12:00pm',
+}
+
+// ============================================================================
+// GoDentist Timer Durations
+// ============================================================================
+
 export const GD_TIMER_DURATIONS: Record<string, Record<number, number>> = {
   real:         { 0: 480, 1: 180, 2: 300, 3: 300, 4: 120, 5: 180, 6: 90 },
   rapido:       { 0:  60, 1:  30, 2:  30, 3:  30, 4:  20, 5:  30, 6:  9 },

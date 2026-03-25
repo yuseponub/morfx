@@ -36,6 +36,7 @@ export function createInitialState(): AgentState {
       servicio_interes: null,
       cedula: null,
       fecha_preferida: null,
+      fecha_vaga: null,
       preferencia_jornada: null,
       horario_seleccionado: null,
     },
@@ -100,12 +101,24 @@ export function mergeAnalysis(
     updated.datos.servicio_interes = fields.servicio_interes
   }
 
-  // fecha_preferida: merge directly
+  // fecha_preferida: merge directly (mutually exclusive with fecha_vaga)
   if (fields.fecha_preferida !== null && fields.fecha_preferida !== undefined && fields.fecha_preferida.trim() !== '') {
     if (updated.datos.fecha_preferida === null || !updated.datos.fecha_preferida.trim()) {
       newFields.push('fecha_preferida')
     }
     updated.datos.fecha_preferida = fields.fecha_preferida
+    // Clear fecha_vaga — they are mutually exclusive
+    updated.datos.fecha_vaga = null
+  }
+
+  // fecha_vaga: merge directly (mutually exclusive with fecha_preferida)
+  if (fields.fecha_vaga !== null && fields.fecha_vaga !== undefined && (fields.fecha_vaga as string).trim() !== '') {
+    if (updated.datos.fecha_vaga === null || !updated.datos.fecha_vaga.trim()) {
+      newFields.push('fecha_vaga')
+    }
+    updated.datos.fecha_vaga = fields.fecha_vaga as string
+    // Clear fecha_preferida — they are mutually exclusive
+    updated.datos.fecha_preferida = null
   }
 
   // preferencia_jornada: merge directly
@@ -250,6 +263,7 @@ export function buildResumenContext(state: AgentState): Record<string, string> {
     servicio_interes: state.datos.servicio_interes ?? '',
     fecha: formatFechaConDia(state.datos.fecha_preferida),
     fecha_preferida: formatFechaConDia(state.datos.fecha_preferida),
+    fecha_vaga: state.datos.fecha_vaga ?? '',
     preferencia_jornada: state.datos.preferencia_jornada ?? '',
     horario_seleccionado: state.datos.horario_seleccionado ?? '',
   }

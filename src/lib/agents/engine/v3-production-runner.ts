@@ -115,11 +115,32 @@ export class V3ProductionRunner {
         // systemEvent: undefined — only for timers, not user messages
       }
 
+      // 3b. Preload data into session state for new sessions (recompra: last order datos)
+      if (this.config.preloadedData && Object.keys(this.config.preloadedData).length > 0 && session.version === 0) {
+        await this.adapters.storage.saveState(session.id, {
+          datos_capturados: { ...this.config.preloadedData },
+        })
+        // Also inject into current v3Input so first processMessage sees it
+        Object.assign(v3Input.datosCapturados, this.config.preloadedData)
+        console.log(`[V3-RUNNER] Preloaded data injected into new session: ${Object.keys(this.config.preloadedData).join(', ')}`)
+      }
+
+      // 3c. Store agent_module in session state for timer routing (read by agent-timers-v3)
+      if (this.config.agentModule && this.config.agentModule !== 'somnio-v3' && session.version === 0) {
+        await this.adapters.storage.saveState(session.id, {
+          '_v3:agent_module': this.config.agentModule,
+        })
+        console.log(`[V3-RUNNER] Stored _v3:agent_module=${this.config.agentModule} in session state`)
+      }
+
       // 4. Call processMessage — route by agentModule
       let output: V3AgentOutput
       if (this.config.agentModule === 'godentist') {
         const { processMessage } = await import('../godentist/godentist-agent')
         // GoDentist uses same V3AgentInput shape minus packSeleccionado
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (this.config.agentModule === 'somnio-recompra') {
+        const { processMessage } = await import('../somnio-recompra/somnio-recompra-agent')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else {
         const { processMessage } = await import('../somnio-v3/somnio-v3-agent')

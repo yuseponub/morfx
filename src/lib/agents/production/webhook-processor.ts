@@ -154,7 +154,7 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 3b. Check if contact is a client (bot should not respond — future client-specific bot)
+  // 3b. Check if contact is a client → route to recompra agent
   const { data: contactData } = await supabase
     .from('contacts')
     .select('is_client')
@@ -162,8 +162,134 @@ export async function processMessageWithAgent(
     .single()
 
   if (contactData?.is_client) {
-    logger.info({ conversationId, contactId }, 'Contact is a client, skipping agent')
-    return { success: true }
+    // Route to recompra agent — client contacts get personalized recompra flow
+    // Tags already filtered at step 1b (WPP, P/W, RECO etc.), so arriving here = safe to process
+    logger.info({ conversationId, contactId }, 'Contact is a client, routing to recompra agent')
+
+    // Load last order data for preloading
+    const lastOrderData = await loadLastOrderData(contactId, workspaceId)
+
+    // Record timestamp before processing (for sent_by_agent marking)
+    const recompraStartedAt = new Date().toISOString()
+
+    // Broadcast typing indicator START
+    try {
+      const channel = supabase.channel(`conversation:${conversationId}`)
+      await channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { isTyping: true, source: 'agent' },
+      })
+      supabase.removeChannel(channel)
+    } catch (typingError) {
+      logger.warn({ error: typingError }, 'Failed to broadcast typing start (recompra)')
+    }
+
+    let recompraResult: SomnioEngineResult
+    try {
+      await import('../somnio-recompra')
+      const { V3ProductionRunner } = await import('../engine/v3-production-runner')
+      const { createProductionAdapters } = await import('../engine-adapters/production')
+
+      const agentConfig = await getWorkspaceAgentConfig(workspaceId)
+      const adapters = createProductionAdapters({
+        workspaceId,
+        conversationId,
+        phoneNumber: phone,
+        responseSpeed: agentConfig?.response_speed,
+        agentId: 'somnio-recompra-v1',
+        contactId: contactId!,
+      })
+
+      const runner = new V3ProductionRunner(adapters, {
+        workspaceId,
+        agentModule: 'somnio-recompra',
+        preloadedData: lastOrderData,
+      })
+
+      const engineOutput = await runner.processMessage({
+        sessionId: '',
+        conversationId,
+        contactId: contactId!,
+        message: messageContent,
+        workspaceId,
+        history: [],
+        phoneNumber: phone,
+        messageTimestamp: input.messageTimestamp,
+      })
+
+      recompraResult = {
+        success: engineOutput.success,
+        response: engineOutput.response,
+        messagesSent: engineOutput.messagesSent,
+        orderCreated: engineOutput.orderCreated,
+        orderId: engineOutput.orderId,
+        contactId: engineOutput.contactId,
+        newMode: engineOutput.newMode,
+        tokensUsed: engineOutput.tokensUsed,
+        sessionId: engineOutput.sessionId,
+        error: engineOutput.error ? {
+          code: engineOutput.error.code,
+          message: engineOutput.error.message,
+          retryable: engineOutput.error.retryable ?? true,
+        } : undefined,
+      } as SomnioEngineResult
+
+      logger.info({ conversationId, contactId }, 'Recompra agent processing complete')
+    } catch (engineError) {
+      const errorMessage = engineError instanceof Error ? engineError.message : 'Unknown recompra error'
+      logger.error({ error: errorMessage, conversationId }, 'Recompra engine processing failed')
+      recompraResult = {
+        success: false,
+        error: { code: 'RECOMPRA_ENGINE_ERROR', message: errorMessage, retryable: true },
+      }
+    } finally {
+      // Broadcast typing indicator STOP
+      try {
+        const channel = supabase.channel(`conversation:${conversationId}`)
+        await channel.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { isTyping: false, source: 'agent' },
+        })
+        supabase.removeChannel(channel)
+      } catch (typingError) {
+        logger.warn({ error: typingError }, 'Failed to broadcast typing stop (recompra)')
+      }
+    }
+
+    // Mark outbound messages as sent_by_agent
+    if (recompraResult.success) {
+      try {
+        await supabase
+          .from('messages')
+          .update({ sent_by_agent: true })
+          .eq('conversation_id', conversationId)
+          .eq('direction', 'outbound')
+          .gte('timestamp', recompraStartedAt)
+      } catch (markError) {
+        logger.warn({ error: markError, conversationId }, 'Failed to mark recompra messages as sent_by_agent')
+      }
+    }
+
+    // Mark inbound messages as processed
+    try {
+      await supabase
+        .from('messages')
+        .update({ processed_by_agent: true })
+        .eq('conversation_id', conversationId)
+        .eq('workspace_id', workspaceId)
+        .eq('direction', 'inbound')
+        .eq('processed_by_agent', false)
+    } catch (markError) {
+      logger.warn({ error: markError, conversationId }, 'Failed to mark recompra messages as processed_by_agent')
+    }
+
+    logger.info(
+      { conversationId, success: recompraResult.success, newMode: recompraResult.newMode, messagesSent: recompraResult.messagesSent },
+      'Recompra agent processing complete (returning)'
+    )
+    return recompraResult
   }
 
   // 4. Record timestamp before processing (for sent_by_agent marking)
@@ -503,4 +629,33 @@ async function conversationHasAnyTag(
     .limit(1)
 
   return (contactTags?.length ?? 0) > 0
+}
+
+/**
+ * Load last order data from a contact for preloading into recompra session.
+ * Fetches the most recent order's shipping details to pre-fill datos_capturados.
+ */
+async function loadLastOrderData(
+  contactId: string,
+  workspaceId: string
+): Promise<Record<string, string>> {
+  const supabase = createAdminClient()
+  const { data: order } = await supabase
+    .from('orders')
+    .select('shipping_name, shipping_last_name, shipping_phone, shipping_address, shipping_city, shipping_department')
+    .eq('contact_id', contactId)
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!order) return {}
+  const result: Record<string, string> = {}
+  if (order.shipping_name) result.nombre = order.shipping_name
+  if (order.shipping_last_name) result.apellido = order.shipping_last_name
+  if (order.shipping_phone) result.telefono = order.shipping_phone
+  if (order.shipping_address) result.direccion = order.shipping_address
+  if (order.shipping_city) result.ciudad = order.shipping_city
+  if (order.shipping_department) result.departamento = order.shipping_department
+  return result
 }

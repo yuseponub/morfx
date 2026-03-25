@@ -24,7 +24,7 @@ Standalone: SMS Module — IN PROGRESS (3/4 plans)
 Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
 Standalone: Shopify Contact Resolution — COMPLETE (3/3 plans)
 Standalone: Agent GoDentist — COMPLETE (7/7 plans, verified 15/15)
-Last activity: 2026-03-23 — Quick 030: Electron voice input flotante (always-on-top widget)
+Last activity: 2026-03-24 — Quick 031: Fix GoDentist fecha_vaga + 0-slot fallback + real schedules
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -85,7 +85,7 @@ All 9 phases + 5 inserted phases completed:
 - v3-ofi-inter (1/2 plans) — IN PROGRESS
 - Shopify Contact Resolution (3/3 plans) — COMPLETE
 - Agent GoDentist (2/7 plans) — IN PROGRESS
-- Quick fixes: 28 completed
+- Quick fixes: 29 completed
 
 ## Performance Metrics
 
@@ -366,6 +366,7 @@ Conversation Tags to Contact decisions:
 | 028 | V3 production timer system (fase 2) | 2026-03-16 | 0ada8b0 | [028-v3-production-fase-2-timer-system](./quick/028-v3-production-fase-2-timer-system/) |
 | 029 | Fix WhatsApp inbox: sidebar nav, realtime, query perf | 2026-03-19 | 0d68c56 | [029-fix-whatsapp-inbox-sidebar-realtime-perf](./quick/029-fix-whatsapp-inbox-sidebar-realtime-perf/) |
 | 030 | Electron voice input flotante (always-on-top, type-at-cursor) | 2026-03-23 | 05dc508 | [030-electron-voice-input-flotante](./quick/030-electron-voice-input-flotante/) |
+| 031 | Fix GoDentist fecha_vaga + 0-slot fallback + real schedules | 2026-03-24 | 1bc41aa | [031-fix-godentist-fecha-vaga-0slots-horarios](./quick/031-fix-godentist-fecha-vaga-0slots-horarios/) |
 
 ### Blockers/Concerns
 
@@ -373,7 +374,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19 COT
-Stopped at: Completed quick-029 (WhatsApp inbox sidebar nav, realtime, query perf)
+Last session: 2026-03-24 COT
+Stopped at: Completed quick-031 (GoDentist fecha_vaga + 0-slot fallback + real schedules)
 Resume file: None
-Next: Apply migration 20260319100000 in production, then push code
+Next: Apply SQL script scripts/godentist-fecha-vaga-templates.sql in production, then push code

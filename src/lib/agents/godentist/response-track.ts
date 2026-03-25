@@ -18,6 +18,7 @@ import type { IntentRecord } from '@/lib/agents/types'
 import {
   INFORMATIONAL_INTENTS,
   ACTION_TEMPLATE_MAP,
+  HORARIOS_GENERALES_SEDE,
 } from './constants'
 import { GODENTIST_AGENT_ID } from './config'
 import { buildResumenContext, camposFaltantes } from './state'
@@ -90,6 +91,8 @@ export async function resolveResponseTrack(input: {
   servicioSecundario?: string
   /** Real availability slots from Dentos robot (replaces placeholders) */
   availabilitySlots?: { manana: string[]; tarde: string[] }
+  /** True when robot returned 0 slots or lookup failed — show general schedules */
+  availabilityFallback?: boolean
 }): Promise<ResponseTrackOutput> {
   const {
     salesAction,
@@ -116,7 +119,7 @@ export async function resolveResponseTrack(input: {
   let extraContext: Record<string, string> | undefined
 
   if (salesAction) {
-    const resolved = resolveSalesActionTemplates(salesAction, state, input.availabilitySlots)
+    const resolved = resolveSalesActionTemplates(salesAction, state, input.availabilitySlots, input.availabilityFallback)
     salesTemplateIntents.push(...resolved.intents)
     extraContext = resolved.extraContext
   }
@@ -295,6 +298,7 @@ function resolveSalesActionTemplates(
   action: TipoAccion,
   state: AgentState,
   availabilitySlots?: { manana: string[]; tarde: string[] },
+  availabilityFallback?: boolean,
 ): { intents: string[]; extraContext?: Record<string, string> } {
   switch (action) {
     case 'pedir_datos':
@@ -319,32 +323,45 @@ function resolveSalesActionTemplates(
       }
     }
 
-    case 'pedir_fecha':
-      return {
-        intents: ['pedir_fecha'],
-        extraContext: { nombre: state.datos.nombre ?? '' },
+    case 'pedir_fecha': {
+      const extraCtx: Record<string, string> = { nombre: state.datos.nombre ?? '' }
+      // If fecha_vaga exists, compute suggestion (first Tuesday of that month)
+      if (state.datos.fecha_vaga) {
+        const suggestion = computeFechaVagaSuggestion(state.datos.fecha_vaga)
+        if (suggestion) {
+          extraCtx.fecha_sugerida = suggestion
+          extraCtx.fecha_vaga = state.datos.fecha_vaga
+        }
       }
+      return {
+        intents: state.datos.fecha_vaga ? ['pedir_fecha_con_sugerencia'] : ['pedir_fecha'],
+        extraContext: extraCtx,
+      }
+    }
 
     case 'mostrar_disponibilidad': {
       const sedeDisplay = state.datos.sede_preferida
         ? (SEDE_DISPLAY_NAMES[state.datos.sede_preferida] ?? state.datos.sede_preferida)
         : ''
 
-      // Use real slots from Dentos robot if available
       const slots = availabilitySlots
-      const slotsManana = slots?.manana?.length ? slots.manana.join('\n') : 'No hay disponibilidad'
-      const slotsTarde = slots?.tarde?.length ? slots.tarde.join('\n') : 'No hay disponibilidad'
 
-      // If no availability at all, use sin_disponibilidad template
-      if (!slots?.manana?.length && !slots?.tarde?.length) {
+      // 0-slot fallback: show general sede schedules instead of "sin disponibilidad"
+      if (availabilityFallback || (!slots?.manana?.length && !slots?.tarde?.length)) {
+        const sedeKey = state.datos.sede_preferida ?? ''
+        const horarioGeneral = HORARIOS_GENERALES_SEDE[sedeKey] ?? 'Lunes a Viernes 8:00am-6:30pm'
         return {
-          intents: ['sin_disponibilidad'],
+          intents: ['horarios_generales_sede'],
           extraContext: {
             fecha: state.datos.fecha_preferida ?? '',
             sede_preferida: sedeDisplay,
+            horario_general: horarioGeneral,
           },
         }
       }
+
+      const slotsManana = slots?.manana?.length ? slots.manana.join('\n') : 'No hay disponibilidad'
+      const slotsTarde = slots?.tarde?.length ? slots.tarde.join('\n') : 'No hay disponibilidad'
 
       return {
         intents: ['mostrar_disponibilidad'],
@@ -488,4 +505,46 @@ function emptyResult(): ResponseTrackOutput {
     salesTemplateIntents: [],
     infoTemplateIntents: [],
   }
+}
+
+// ============================================================================
+// Fecha Vaga Suggestion Helper
+// ============================================================================
+
+/**
+ * Given a vague date reference (month name like "abril", "mayo"),
+ * compute the first Tuesday of that month as a suggestion.
+ * Returns formatted string like "martes 1 de abril" or null if unparseable.
+ */
+function computeFechaVagaSuggestion(fechaVaga: string): string | null {
+  const meses: Record<string, number> = {
+    enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
+    julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
+  }
+
+  const lower = fechaVaga.toLowerCase().trim()
+  let monthIndex: number | null = null
+
+  for (const [name, idx] of Object.entries(meses)) {
+    if (lower.includes(name)) {
+      monthIndex = idx
+      break
+    }
+  }
+
+  if (monthIndex === null) return null
+
+  const now = new Date()
+  let year = now.getFullYear()
+  // If month is in the past this year, use next year
+  if (monthIndex < now.getMonth()) year++
+
+  // Find first Tuesday of that month
+  const firstDay = new Date(year, monthIndex, 1)
+  const dayOfWeek = firstDay.getDay() // 0=Sun, 2=Tue
+  const daysUntilTuesday = (2 - dayOfWeek + 7) % 7
+  const tuesday = new Date(year, monthIndex, 1 + daysUntilTuesday)
+
+  const mesName = Object.entries(meses).find(([, v]) => v === monthIndex)?.[0] ?? ''
+  return `martes ${tuesday.getDate()} de ${mesName}`
 }

@@ -283,6 +283,7 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
 
     // AVAILABILITY LOOKUP — call robot when showing availability
     let availabilitySlots: { manana: string[]; tarde: string[] } | undefined
+    let availabilityFallback = false
     if (salesResult.accion === 'mostrar_disponibilidad' && mergedState.datos.fecha_preferida && mergedState.datos.sede_preferida) {
       try {
         const result = await checkDentosAvailability(
@@ -291,9 +292,15 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
         )
         if (result.success) {
           availabilitySlots = result.slots
+          // Check if 0 slots returned (date too far out)
+          const totalSlots = (result.slots?.manana?.length ?? 0) + (result.slots?.tarde?.length ?? 0)
+          if (totalSlots === 0) {
+            availabilityFallback = true
+          }
         }
       } catch (err) {
         console.error('[GoDentist] Availability lookup failed (fail-open):', err)
+        availabilityFallback = true // fail-open: show general schedules
       }
     }
 
@@ -307,7 +314,14 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       idioma: analysis.classification.idioma,
       servicioDetectado: analysis.extracted_fields.servicio_interes ?? undefined,
       availabilitySlots,
+      availabilityFallback,
     })
+
+    // L4 GUARD: When 0 slots, replace L4 timer with L3 (re-ask for a different date)
+    if (availabilityFallback && timerSignals.length > 0) {
+      timerSignals.length = 0
+      timerSignals.push({ type: 'start', level: 'L3', reason: '0 slots — fallback to general schedules, re-ask date' })
+    }
 
     // Register action (SINGLE registration point)
     if (salesResult.accion && salesResult.accion !== 'silence') {

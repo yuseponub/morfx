@@ -212,7 +212,7 @@ export const HORARIOS_GENERALES_SEDE: Record<string, string> = {
 // ============================================================================
 
 export const GD_TIMER_DURATIONS: Record<string, Record<number, number>> = {
-  real:         { 0: 480, 1: 180, 2: 300, 3: 300, 4: 120, 5: 180, 6: 90 },
+  real:         { 0: 480, 1: 180, 2: 300, 3: 300, 4: 360, 5: 180, 6: 90 },
   rapido:       { 0:  60, 1:  30, 2:  30, 3:  30, 4:  20, 5:  30, 6:  9 },
   instantaneo:  { 0:   2, 1:   2, 2:   2, 3:   2, 4:   1, 5:   2, 6:  1 },
 }

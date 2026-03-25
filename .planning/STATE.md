@@ -24,8 +24,8 @@ Standalone: SMS Module — IN PROGRESS (3/4 plans)
 Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
 Standalone: Shopify Contact Resolution — COMPLETE (3/3 plans)
 Standalone: Agent GoDentist — COMPLETE (7/7 plans, verified 15/15)
-Standalone: Somnio Recompra — IN PROGRESS (3/4 plans)
-Last activity: 2026-03-24 — Completed somnio-recompra 03-PLAN.md (pipeline + config + sandbox engine)
+Standalone: Somnio Recompra — COMPLETE (4/4 plans)
+Last activity: 2026-03-25 — Completed somnio-recompra 04-PLAN.md (production + sandbox integration)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 

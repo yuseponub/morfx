@@ -108,6 +108,23 @@ export async function POST(request: NextRequest) {
     }
 
     // ================================================================
+    // Recompra Agent: separate engine for returning clients
+    // ================================================================
+    if (agentId === 'somnio-recompra-v1') {
+      const { SomnioRecompraEngine } = await import('@/lib/agents/somnio-recompra/engine-recompra')
+      const recompraEngine = new SomnioRecompraEngine()
+      const recompraResult = await recompraEngine.processMessage({
+        message,
+        state,
+        history: history ?? [],
+        turnNumber: turnNumber ?? 1,
+        workspaceId: workspaceId ?? 'sandbox-workspace',
+        systemEvent: systemEvent as any,
+      })
+      return NextResponse.json(recompraResult)
+    }
+
+    // ================================================================
     // V1 Agent: existing UnifiedEngine (unchanged)
     // ================================================================
 

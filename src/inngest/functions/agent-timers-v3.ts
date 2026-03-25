@@ -202,13 +202,25 @@ export const v3Timer = inngest.createFunction(
         systemEvent: { type: 'timer_expired', level: level as 0|1|2|3|4|5|6|7|8 },
       }
 
-      // d. Call processMessage — route by workspace agent config
+      // d. Call processMessage — route by agent module
+      // Check session state first (contact-level routing for recompra),
+      // then fall back to workspace-level config (godentist vs somnio-v3)
       const agentConfig = await getWorkspaceAgentConfig(workspaceId)
-      const agentModule = agentConfig?.conversational_agent_id === 'godentist' ? 'godentist' : 'somnio-v3'
+      let agentModule: 'somnio-v3' | 'godentist' | 'somnio-recompra' = 'somnio-v3'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sessionAgentModule = (session.state as any)?.['_v3:agent_module'] as string | undefined
+      if (sessionAgentModule === 'somnio-recompra') {
+        agentModule = 'somnio-recompra'
+      } else if (agentConfig?.conversational_agent_id === 'godentist') {
+        agentModule = 'godentist'
+      }
 
       let output: V3AgentOutput
       if (agentModule === 'godentist') {
         const { processMessage } = await import('@/lib/agents/godentist/godentist-agent')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (agentModule === 'somnio-recompra') {
+        const { processMessage } = await import('@/lib/agents/somnio-recompra/somnio-recompra-agent')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else {
         const { processMessage } = await import('@/lib/agents/somnio-v3/somnio-v3-agent')

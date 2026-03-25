@@ -43,7 +43,7 @@ export class SomnioRecompraEngine {
         templatesEnviados: input.state.templatesEnviados ?? [],
         datosCapturados: input.state.datosCapturados ?? {},
         packSeleccionado: input.state.packSeleccionado ?? null,
-        accionesEjecutadas: input.state.accionesEjecutadas ?? [],
+        accionesEjecutadas: (input.state.accionesEjecutadas ?? []) as any,
         history: input.history,
         turnNumber: input.turnNumber,
         workspaceId: input.workspaceId,
@@ -56,7 +56,7 @@ export class SomnioRecompraEngine {
         templatesEnviados: output.templatesEnviados,
         datosCapturados: output.datosCapturados,
         packSeleccionado: output.packSeleccionado as PackSelection | null,
-        accionesEjecutadas: output.accionesEjecutadas,
+        accionesEjecutadas: output.accionesEjecutadas as any,
       }
 
       // Clean stale _v3: keys from datosCapturados (now flow as own fields)

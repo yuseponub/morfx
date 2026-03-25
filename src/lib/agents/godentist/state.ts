@@ -231,9 +231,9 @@ function formatFechaConDia(fecha: string | null): string {
   if (!fecha) return ''
   try {
     const [y, m, d] = fecha.split('-').map(Number)
-    const date = new Date(y, m - 1, d)
-    const dia = date.toLocaleDateString('es-CO', { weekday: 'long', timeZone: 'America/Bogota' })
-    const mes = date.toLocaleDateString('es-CO', { month: 'long', timeZone: 'America/Bogota' })
+    const date = new Date(Date.UTC(y, m - 1, d))
+    const dia = date.toLocaleDateString('es-CO', { weekday: 'long', timeZone: 'UTC' })
+    const mes = date.toLocaleDateString('es-CO', { month: 'long', timeZone: 'UTC' })
     const diaCapitalized = dia.charAt(0).toUpperCase() + dia.slice(1)
     return `${diaCapitalized} ${d} de ${mes}`
   } catch {

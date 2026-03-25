@@ -256,14 +256,6 @@ export function useConversations({
       setIsLoadingOrders(true)
       try {
         const orders = await getOrdersForContacts(uniqueContactIds)
-        console.log('[debug:orders] loaded orders for', uniqueContactIds.length, 'contacts, Map size:', orders.size, 'isMap:', orders instanceof Map)
-        // Log first entry to verify order_state data
-        for (const [cid, ords] of orders) {
-          if (ords.length > 0) {
-            console.log('[debug:orders] sample:', cid, ords[0].stage?.name, 'order_state:', JSON.stringify(ords[0].stage?.order_state))
-            break
-          }
-        }
         setOrdersByContact(orders)
       } catch (error) {
         console.error('Error loading orders:', error)

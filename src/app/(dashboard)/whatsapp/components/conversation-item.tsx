@@ -61,10 +61,6 @@ export function ConversationItem({
       break
     }
   }
-  // Debug: log when orders exist but no emoji found
-  if (orders.length > 0 && !primaryEmoji) {
-    console.log('[debug:emoji] no emoji for', displayName, 'orders:', orders.map(o => ({ stage: o.stage?.name, order_state: o.stage?.order_state, is_closed: o.stage?.is_closed })))
-  }
 
   return (
     <button

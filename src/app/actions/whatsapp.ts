@@ -204,55 +204,61 @@ export async function getOrdersForContacts(
     return new Map()
   }
 
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      contact_id,
-      total_value,
-      created_at,
-      updated_at,
-      stage:pipeline_stages(
-        id,
-        name,
-        color,
-        is_closed,
-        order_state_id,
-        order_state:order_states(id, emoji, name)
-      ),
-      pipeline:pipelines(id, name)
-    `)
-    .eq('workspace_id', workspaceId)
-    .in('contact_id', contactIds)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching orders for contacts:', error)
-    return new Map()
-  }
-
-  // Group by contact_id
+  // Batch contact IDs to avoid PostgREST URL length limits (~8KB max)
+  // Each UUID is 36 chars + comma = ~37 chars. 200 IDs ≈ 7.4KB — safe margin.
+  const BATCH_SIZE = 200
   const ordersByContact = new Map<string, OrderSummary[]>()
 
-  for (const order of data || []) {
-    const stage = order.stage as unknown
-    const stageData = Array.isArray(stage) ? stage[0] : stage
-    const pipeline = order.pipeline as unknown
-    const pipelineData = Array.isArray(pipeline) ? pipeline[0] : pipeline
+  for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
+    const batch = contactIds.slice(i, i + BATCH_SIZE)
 
-    if (!stageData || !order.contact_id) continue
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        id,
+        contact_id,
+        total_value,
+        created_at,
+        updated_at,
+        stage:pipeline_stages(
+          id,
+          name,
+          color,
+          is_closed,
+          order_state_id,
+          order_state:order_states(id, emoji, name)
+        ),
+        pipeline:pipelines(id, name)
+      `)
+      .eq('workspace_id', workspaceId)
+      .in('contact_id', batch)
+      .order('created_at', { ascending: false })
 
-    const contactId = order.contact_id as string
-    const existing = ordersByContact.get(contactId) || []
-    existing.push({
-      id: order.id,
-      total_value: order.total_value,
-      stage: stageData as OrderSummary['stage'],
-      pipeline: pipelineData as OrderSummary['pipeline'],
-      created_at: order.created_at,
-      updated_at: order.updated_at,
-    })
-    ordersByContact.set(contactId, existing)
+    if (error) {
+      console.error('Error fetching orders for contacts (batch):', error)
+      continue
+    }
+
+    for (const order of data || []) {
+      const stage = order.stage as unknown
+      const stageData = Array.isArray(stage) ? stage[0] : stage
+      const pipeline = order.pipeline as unknown
+      const pipelineData = Array.isArray(pipeline) ? pipeline[0] : pipeline
+
+      if (!stageData || !order.contact_id) continue
+
+      const contactId = order.contact_id as string
+      const existing = ordersByContact.get(contactId) || []
+      existing.push({
+        id: order.id,
+        total_value: order.total_value,
+        stage: stageData as OrderSummary['stage'],
+        pipeline: pipelineData as OrderSummary['pipeline'],
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+      })
+      ordersByContact.set(contactId, existing)
+    }
   }
 
   return ordersByContact

@@ -25,7 +25,7 @@ Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
 Standalone: Shopify Contact Resolution — COMPLETE (3/3 plans)
 Standalone: Agent GoDentist — COMPLETE (7/7 plans, verified 15/15)
 Standalone: Somnio Recompra — COMPLETE (4/4 plans)
-Last activity: 2026-03-25 — Completed quick-032 (ManyChat multi-workspace webhook for GoDentist)
+Last activity: 2026-03-26 — Completed quick-033 (Tag de cierre por pipeline en estados de pedido)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -337,6 +337,7 @@ Conversation Tags to Contact decisions:
 - Set ROBOT_CALLBACK_SECRET env var in Vercel and Railway
 - Set OPENAI_API_KEY env var in Vercel for Whisper audio transcription (Phase 32)
 - Apply migration `20260319100000_composite_indexes_conversations.sql` in production (composite indexes for inbox queries)
+- Apply migration `20260326_pipeline_closure_tags.sql` in production before pushing code to Vercel
 - Delete deprecated files (SomnioEngine, SandboxEngine, /api/agents/somnio)
 - Complete bulk-actions-orders-002 (integration into table/kanban)
 - Complete CRM Orders Performance plan 003 (virtualization)
@@ -370,6 +371,7 @@ Conversation Tags to Contact decisions:
 | 030 | Electron voice input flotante (always-on-top, type-at-cursor) | 2026-03-23 | 05dc508 | [030-electron-voice-input-flotante](./quick/030-electron-voice-input-flotante/) |
 | 031 | Fix GoDentist fecha_vaga + 0-slot fallback + real schedules | 2026-03-24 | 1bc41aa | [031-fix-godentist-fecha-vaga-0slots-horarios](./quick/031-fix-godentist-fecha-vaga-0slots-horarios/) |
 | 032 | Conectar ManyChat GoDentist Valoraciones (multi-workspace webhook) | 2026-03-25 | 1932ad7 | [032-conectar-manychat-godentist-valoraciones](./quick/032-conectar-manychat-godentist-valoraciones/) |
+| 033 | Tag de cierre por pipeline en estados de pedido | 2026-03-26 | c5f9ec3 | [033-tag-cierre-pipeline-estados-pedido](./quick/033-tag-cierre-pipeline-estados-pedido/) |
 
 ### Blockers/Concerns
 
@@ -377,7 +379,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25 COT
-Stopped at: Completed quick-032 (Conectar ManyChat GoDentist Valoraciones)
+Last session: 2026-03-26 COT
+Stopped at: Completed quick-033 (Tag de cierre por pipeline en estados de pedido)
 Resume file: None
-Next: Execute scripts/setup-godentist-manychat.sql in production, configure ManyChat Flow, push to Vercel
+Next: Apply migration 20260326_pipeline_closure_tags.sql in production, then push to Vercel

@@ -83,6 +83,7 @@ async function sendWhatsAppMessage(
       type: 'text',
       content: { body: message } as unknown as Record<string, unknown>,
       status: 'sent',
+      sent_by_agent: true,
       timestamp: new Date().toISOString(),
     })
     await supabase.from('conversations').update({
@@ -256,6 +257,30 @@ export const v3Timer = inngest.createFunction(
 
           const sent = await sendWhatsAppMessage(workspaceId, conversationId, msg)
           if (sent) sentCount++
+        }
+      }
+
+      // e2. Record assistant turn in agent_turns (so comprehension has timer messages as context)
+      if (sentCount > 0) {
+        const assistantContent = messagesToSend.filter(m => m && m.trim().length > 0).join('\n')
+        if (assistantContent.trim()) {
+          try {
+            const { SessionManager } = await import('@/lib/agents/session-manager')
+            const sm = new SessionManager()
+            const currentTurns = await sm.getTurns(sessionId)
+            const nextTurnNumber = currentTurns.length > 0
+              ? Math.max(...currentTurns.map(t => t.turn_number)) + 1
+              : 1
+            await sm.addTurn({
+              sessionId,
+              turnNumber: nextTurnNumber,
+              role: 'assistant',
+              content: assistantContent,
+            })
+            logger.info({ sessionId, level, chars: assistantContent.length }, 'Timer assistant turn saved')
+          } catch (turnError) {
+            logger.error({ turnError, sessionId, level }, 'Failed to save timer assistant turn')
+          }
         }
       }
 

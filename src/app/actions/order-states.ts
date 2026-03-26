@@ -349,3 +349,130 @@ export async function deleteOrderState(id: string): Promise<ActionResult> {
   revalidatePath('/crm/configuracion/estados-pedido')
   return { success: true, data: undefined }
 }
+
+// ============================================================================
+// Pipeline Closure Tags
+// ============================================================================
+
+export interface ClosureTagConfig {
+  id: string
+  pipeline_id: string
+  pipeline_name: string
+  tag_id: string
+  tag_name: string
+  tag_color: string
+}
+
+/**
+ * Get all closure tag configs for the current workspace.
+ * Joins pipeline name and tag name/color for display.
+ */
+export async function getClosureTagConfigs(): Promise<ClosureTagConfig[]> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('pipeline_closure_tags')
+    .select(`
+      id,
+      pipeline_id,
+      pipeline:pipelines(name),
+      tag_id,
+      tag:tags(name, color)
+    `)
+    .eq('workspace_id', workspaceId)
+
+  if (error) {
+    console.error('Error fetching closure tag configs:', error)
+    return []
+  }
+
+  return (data || []).map((row) => {
+    const pipeline = row.pipeline as unknown as { name: string } | null
+    const tag = row.tag as unknown as { name: string; color: string } | null
+
+    return {
+      id: row.id,
+      pipeline_id: row.pipeline_id,
+      pipeline_name: pipeline?.name || 'Desconocido',
+      tag_id: row.tag_id,
+      tag_name: tag?.name || 'Desconocido',
+      tag_color: tag?.color || '#888888',
+    }
+  })
+}
+
+/**
+ * Add a closure tag config (pipeline + tag rule).
+ */
+export async function addClosureTagConfig(
+  pipelineId: string,
+  tagId: string
+): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { error: 'No hay workspace seleccionado' }
+  }
+
+  const { error } = await supabase
+    .from('pipeline_closure_tags')
+    .insert({
+      workspace_id: workspaceId,
+      pipeline_id: pipelineId,
+      tag_id: tagId,
+    })
+
+  if (error) {
+    if (error.code === '23505') {
+      return { error: 'Esta regla ya existe' }
+    }
+    console.error('Error adding closure tag config:', error)
+    return { error: 'Error al agregar la regla' }
+  }
+
+  revalidatePath('/crm/configuracion/estados-pedido')
+  return { success: true, data: undefined }
+}
+
+/**
+ * Remove a closure tag config by id.
+ */
+export async function removeClosureTagConfig(id: string): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'No autenticado' }
+  }
+
+  const { error } = await supabase
+    .from('pipeline_closure_tags')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error removing closure tag config:', error)
+    return { error: 'Error al eliminar la regla' }
+  }
+
+  revalidatePath('/crm/configuracion/estados-pedido')
+  return { success: true, data: undefined }
+}

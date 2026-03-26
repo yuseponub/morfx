@@ -10,7 +10,7 @@
  * 1. agent/v3.timer.started → settle 5s → waitForEvent(customer.message)
  * 2. If customer replies → return 'responded'
  * 3. If timeout → v3 processMessage with systemEvent { type: 'timer_expired', level }
- * 4. Send templates via WhatsApp, persist state, create order if needed
+ * 4. Send templates via domain layer (WhatsApp/Facebook/Instagram), persist state, create order if needed
  */
 
 import { inngest } from '../client'
@@ -22,78 +22,82 @@ import type { V3AgentInput, V3AgentOutput, AccionRegistrada } from '@/lib/agents
 const logger = createModuleLogger('agent-timers-v3')
 
 // ============================================================================
-// Helper: Get WhatsApp API key from workspace settings
+// Helper: Send message via domain layer (supports WhatsApp + Facebook/Instagram)
 // ============================================================================
 
-async function getWhatsAppApiKey(workspaceId: string): Promise<string | null> {
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('workspaces')
-    .select('settings')
-    .eq('id', workspaceId)
-    .single()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const settings = data?.settings as any
-  return settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY || null
-}
-
-// ============================================================================
-// Helper: Get phone number from conversation
-// ============================================================================
-
-async function getConversationPhone(conversationId: string): Promise<string | null> {
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('conversations')
-    .select('phone')
-    .eq('id', conversationId)
-    .single()
-  return data?.phone ?? null
-}
-
-// ============================================================================
-// Helper: Send WhatsApp message + store in DB
-// ============================================================================
-
-async function sendWhatsAppMessage(
+async function sendTimerMessage(
   workspaceId: string,
   conversationId: string,
   message: string
 ): Promise<boolean> {
-  const apiKey = await getWhatsAppApiKey(workspaceId)
-  if (!apiKey) {
-    logger.error({ workspaceId }, 'No WhatsApp API key')
-    return false
-  }
-  const phone = await getConversationPhone(conversationId)
-  if (!phone) {
-    logger.error({ conversationId }, 'No phone for conversation')
-    return false
-  }
   try {
-    const { sendTextMessage } = await import('@/lib/whatsapp/api')
-    const response = await sendTextMessage(apiKey, phone, message)
-    const wamid = response.messages?.[0]?.id
     const supabase = createAdminClient()
-    await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      workspace_id: workspaceId,
-      wamid,
-      direction: 'outbound',
-      type: 'text',
-      content: { body: message } as unknown as Record<string, unknown>,
-      status: 'sent',
-      sent_by_agent: true,
-      timestamp: new Date().toISOString(),
-    })
-    await supabase.from('conversations').update({
-      last_message_at: new Date().toISOString(),
-      last_message_preview: message.length > 100 ? message.slice(0, 100) + '...' : message,
-    }).eq('id', conversationId)
-    logger.info({ conversationId, wamid }, 'V3 timer WhatsApp message sent')
+
+    // 1. Get conversation channel + recipient info
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('phone, channel, external_subscriber_id')
+      .eq('id', conversationId)
+      .single()
+
+    if (!conv?.phone && !conv?.external_subscriber_id) {
+      logger.error({ conversationId }, 'No phone/subscriber for conversation')
+      return false
+    }
+
+    // 2. Get API key for the correct channel
+    const channel = (conv.channel as 'whatsapp' | 'facebook' | 'instagram') || 'whatsapp'
+    const { data: ws } = await supabase
+      .from('workspaces')
+      .select('settings')
+      .eq('id', workspaceId)
+      .single()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const settings = ws?.settings as any
+    const apiKey = (channel === 'facebook' || channel === 'instagram')
+      ? settings?.manychat_api_key
+      : settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+
+    if (!apiKey) {
+      logger.error({ workspaceId, channel }, 'No API key for channel')
+      return false
+    }
+
+    // 3. Resolve recipient (phone for WhatsApp, external_subscriber_id for FB/IG)
+    const recipientId = (channel !== 'whatsapp' && conv.external_subscriber_id)
+      ? conv.external_subscriber_id
+      : conv.phone!
+
+    // 4. Send via domain layer (handles API call + DB storage + conversation update)
+    const { sendTextMessage: domainSend } = await import('@/lib/domain/messages')
+    const result = await domainSend(
+      { workspaceId, source: 'inngest' },
+      {
+        conversationId,
+        contactPhone: recipientId,
+        messageBody: message,
+        apiKey,
+        channel,
+      }
+    )
+
+    if (!result.success) {
+      logger.error({ conversationId, channel, error: result.error }, 'Domain sendTextMessage failed')
+      return false
+    }
+
+    // 5. Mark as sent_by_agent
+    if (result.data?.messageId) {
+      await supabase
+        .from('messages')
+        .update({ sent_by_agent: true })
+        .eq('id', result.data.messageId)
+    }
+
+    logger.info({ conversationId, channel, messageId: result.data?.messageId }, 'V3 timer message sent')
     return true
   } catch (error) {
-    logger.error({ error, conversationId }, 'Failed to send v3 timer WhatsApp message')
+    logger.error({ error, conversationId }, 'Failed to send v3 timer message')
     return false
   }
 }
@@ -255,7 +259,7 @@ export const v3Timer = inngest.createFunction(
           const delayMs = calculateCharDelay(msg.length)
           await new Promise(resolve => setTimeout(resolve, delayMs))
 
-          const sent = await sendWhatsAppMessage(workspaceId, conversationId, msg)
+          const sent = await sendTimerMessage(workspaceId, conversationId, msg)
           if (sent) sentCount++
         }
       }

@@ -25,7 +25,7 @@ Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
 Standalone: Shopify Contact Resolution — COMPLETE (3/3 plans)
 Standalone: Agent GoDentist — COMPLETE (7/7 plans, verified 15/15)
 Standalone: Somnio Recompra — COMPLETE (4/4 plans)
-Last activity: 2026-03-25 — Completed somnio-recompra 04-PLAN.md (production + sandbox integration)
+Last activity: 2026-03-25 — Completed quick-032 (ManyChat multi-workspace webhook for GoDentist)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
 
@@ -87,7 +87,7 @@ All 9 phases + 5 inserted phases completed:
 - Shopify Contact Resolution (3/3 plans) — COMPLETE
 - Agent GoDentist (2/7 plans) — IN PROGRESS
 - Somnio Recompra (4/4 plans, verified 13/13) — COMPLETE
-- Quick fixes: 29 completed
+- Quick fixes: 30 completed
 
 ## Performance Metrics
 
@@ -369,6 +369,7 @@ Conversation Tags to Contact decisions:
 | 029 | Fix WhatsApp inbox: sidebar nav, realtime, query perf | 2026-03-19 | 0d68c56 | [029-fix-whatsapp-inbox-sidebar-realtime-perf](./quick/029-fix-whatsapp-inbox-sidebar-realtime-perf/) |
 | 030 | Electron voice input flotante (always-on-top, type-at-cursor) | 2026-03-23 | 05dc508 | [030-electron-voice-input-flotante](./quick/030-electron-voice-input-flotante/) |
 | 031 | Fix GoDentist fecha_vaga + 0-slot fallback + real schedules | 2026-03-24 | 1bc41aa | [031-fix-godentist-fecha-vaga-0slots-horarios](./quick/031-fix-godentist-fecha-vaga-0slots-horarios/) |
+| 032 | Conectar ManyChat GoDentist Valoraciones (multi-workspace webhook) | 2026-03-25 | 1932ad7 | [032-conectar-manychat-godentist-valoraciones](./quick/032-conectar-manychat-godentist-valoraciones/) |
 
 ### Blockers/Concerns
 
@@ -376,7 +377,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24 COT
-Stopped at: Completed quick-031 (GoDentist fecha_vaga + 0-slot fallback + real schedules)
+Last session: 2026-03-25 COT
+Stopped at: Completed quick-032 (Conectar ManyChat GoDentist Valoraciones)
 Resume file: None
-Next: Apply SQL script scripts/godentist-fecha-vaga-templates.sql in production, then push code
+Next: Execute scripts/setup-godentist-manychat.sql in production, configure ManyChat Flow, push to Vercel

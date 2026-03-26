@@ -62,7 +62,11 @@ export async function resolveResponseTrack(input: {
   let infoExtraContext: Record<string, string> | undefined
 
   if (intent && INFORMATIONAL_INTENTS.has(intent)) {
-    if (intent === 'tiempo_entrega') {
+    if (intent === 'precio') {
+      // Recompra: precio sends promos (sin "cual deseas?") + modo_pago
+      // No tiempo_efecto_1 (client already knows the product)
+      infoTemplateIntents.push('promociones', 'pago')
+    } else if (intent === 'tiempo_entrega') {
       const resolved = await resolveDeliveryTimeTemplates(state)
       infoTemplateIntents.push(resolved.templateIntent)
       infoExtraContext = resolved.extraContext

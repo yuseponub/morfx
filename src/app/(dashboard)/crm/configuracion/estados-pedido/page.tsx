@@ -1,11 +1,15 @@
-import { getOrderStates } from '@/app/actions/order-states'
+import { getOrderStates, getClosureTagConfigs } from '@/app/actions/order-states'
 import { getPipelines } from '@/app/actions/pipelines'
+import { getTagsForScope } from '@/app/actions/tags'
 import { OrderStateList } from './components/order-state-list'
+import { ClosureTagConfigPanel } from './components/closure-tag-config'
 
 export default async function OrderStatesPage() {
-  const [states, pipelines] = await Promise.all([
+  const [states, pipelines, closureConfigs, orderTags] = await Promise.all([
     getOrderStates(),
     getPipelines(),
+    getClosureTagConfigs(),
+    getTagsForScope('orders'),
   ])
 
   return (
@@ -18,6 +22,14 @@ export default async function OrderStatesPage() {
         </p>
       </div>
       <OrderStateList states={states} pipelines={pipelines} />
+
+      <div className="mt-8">
+        <ClosureTagConfigPanel
+          configs={closureConfigs}
+          pipelines={pipelines}
+          tags={orderTags}
+        />
+      </div>
     </div>
   )
 }

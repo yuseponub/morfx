@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import type { OrderSummary } from '@/lib/whatsapp/types'
 import { getOrderPhase } from '@/lib/orders/stage-phases'
+import { getClosureTagRules, isOrderClosedByTag } from '@/lib/orders/closure-tags'
 
 // ============================================================================
 // ORDERS FOR CONTACT PANEL
@@ -127,7 +128,8 @@ export async function getContactOrders(
         order_state_id,
         order_state:order_states(id, emoji, name)
       ),
-      pipeline:pipelines(id, name)
+      pipeline:pipelines(id, name),
+      order_tags(tag:tags(id))
     `)
     .eq('workspace_id', workspaceId)
     .eq('contact_id', contactId)
@@ -146,11 +148,18 @@ export async function getContactOrders(
     const pipeline = order.pipeline as unknown
     const pipelineData = Array.isArray(pipeline) ? pipeline[0] : pipeline
 
+    // Extract tag IDs from order_tags junction
+    const orderTags = (order.order_tags || []) as unknown as Array<{ tag: { id: string } | null }>
+    const tag_ids = orderTags
+      .map(ot => ot.tag?.id)
+      .filter((id): id is string => id != null)
+
     return {
       id: order.id,
       total_value: order.total_value,
       stage: stageData as OrderSummary['stage'],
       pipeline: pipelineData as OrderSummary['pipeline'],
+      tag_ids,
       created_at: order.created_at,
       updated_at: order.updated_at,
     }
@@ -168,11 +177,18 @@ export async function getActiveContactOrders(
 ): Promise<OrderSummary[]> {
   const orders = await getContactOrders(contactId, limit * 2) // Fetch more to filter
 
-  // Filter out won orders
+  // Fetch closure rules for the workspace
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  const closureRules = workspaceId ? await getClosureTagRules(workspaceId) : []
+
+  // Filter out won orders and orders closed by tag
   return orders
     .filter(order => {
       const phase = getOrderPhase(order.stage.name)
-      return phase !== 'won'
+      if (phase === 'won') return false
+      if (isOrderClosedByTag(order, closureRules)) return false
+      return true
     })
     .slice(0, limit)
 }
@@ -204,6 +220,9 @@ export async function getOrdersForContacts(
     return new Map()
   }
 
+  // Fetch closure rules once for the workspace
+  const closureRules = await getClosureTagRules(workspaceId)
+
   // Batch contact IDs to avoid PostgREST URL length limits (~8KB max)
   // Each UUID is 36 chars + comma = ~37 chars. 200 IDs ≈ 7.4KB — safe margin.
   const BATCH_SIZE = 200
@@ -228,7 +247,8 @@ export async function getOrdersForContacts(
           order_state_id,
           order_state:order_states(id, emoji, name)
         ),
-        pipeline:pipelines(id, name)
+        pipeline:pipelines(id, name),
+        order_tags(tag:tags(id))
       `)
       .eq('workspace_id', workspaceId)
       .in('contact_id', batch)
@@ -247,16 +267,28 @@ export async function getOrdersForContacts(
 
       if (!stageData || !order.contact_id) continue
 
-      const contactId = order.contact_id as string
-      const existing = ordersByContact.get(contactId) || []
-      existing.push({
+      // Extract tag IDs from order_tags junction
+      const orderTags = (order.order_tags || []) as unknown as Array<{ tag: { id: string } | null }>
+      const tag_ids = orderTags
+        .map(ot => ot.tag?.id)
+        .filter((id): id is string => id != null)
+
+      const orderSummary: OrderSummary = {
         id: order.id,
         total_value: order.total_value,
         stage: stageData as OrderSummary['stage'],
         pipeline: pipelineData as OrderSummary['pipeline'],
+        tag_ids,
         created_at: order.created_at,
         updated_at: order.updated_at,
-      })
+      }
+
+      // Skip orders closed by tag rule
+      if (isOrderClosedByTag(orderSummary, closureRules)) continue
+
+      const contactId = order.contact_id as string
+      const existing = ordersByContact.get(contactId) || []
+      existing.push(orderSummary)
       ordersByContact.set(contactId, existing)
     }
   }

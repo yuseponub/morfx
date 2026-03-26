@@ -563,6 +563,8 @@ export interface OrderSummary {
     id: string
     name: string
   }
+  /** Tag IDs from order_tags junction, used for closure tag filtering */
+  tag_ids?: string[]
   created_at: string
   updated_at: string
 }

@@ -6,8 +6,7 @@
 
 const MANYCHAT_API_URL = 'https://api.manychat.com'
 
-/** ManyChat uses /fb/ for Messenger and /ig/ for Instagram */
-export type ManyChatChannel = 'fb' | 'ig'
+// ManyChat uses /fb/ endpoint for BOTH Messenger and Instagram
 
 export interface ManyChatResponse {
   status: string
@@ -40,10 +39,9 @@ function buildSendContentBody(subscriberId: string, data: object): string {
 export async function sendText(
   apiKey: string,
   subscriberId: string,
-  text: string,
-  channel: ManyChatChannel = 'fb'
+  text: string
 ): Promise<ManyChatResponse> {
-  const response = await fetch(`${MANYCHAT_API_URL}/${channel}/sending/sendContent`, {
+  const response = await fetch(`${MANYCHAT_API_URL}/fb/sending/sendContent`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -74,10 +72,9 @@ export async function sendText(
 export async function sendImage(
   apiKey: string,
   subscriberId: string,
-  imageUrl: string,
-  channel: ManyChatChannel = 'fb'
+  imageUrl: string
 ): Promise<ManyChatResponse> {
-  const response = await fetch(`${MANYCHAT_API_URL}/${channel}/sending/sendContent`, {
+  const response = await fetch(`${MANYCHAT_API_URL}/fb/sending/sendContent`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,

@@ -8,7 +8,7 @@
  */
 
 import { normalizePhone } from '@/lib/agents/somnio/normalizers'
-import { CRITICAL_FIELDS, GD_META_PREFIX } from './constants'
+import { CRITICAL_FIELDS, GD_META_PREFIX, isNonWorkingDay } from './constants'
 import type { AccionRegistrada, AgentState, DatosCliente, Gates, TipoAccion } from './types'
 import type { MessageAnalysis } from './comprehension-schema'
 
@@ -102,13 +102,24 @@ export function mergeAnalysis(
   }
 
   // fecha_preferida: merge directly (mutually exclusive with fecha_vaga)
+  // Reject Sundays and Colombian holidays — store as fecha_vaga instead
   if (fields.fecha_preferida !== null && fields.fecha_preferida !== undefined && fields.fecha_preferida.trim() !== '') {
-    if (updated.datos.fecha_preferida === null || !updated.datos.fecha_preferida.trim()) {
-      newFields.push('fecha_preferida')
+    const nonWorking = isNonWorkingDay(fields.fecha_preferida)
+    if (nonWorking) {
+      // Convert to fecha_vaga so the bot can suggest an alternative
+      updated.datos.fecha_vaga = nonWorking === 'domingo'
+        ? `domingo ${fields.fecha_preferida}`
+        : `festivo ${fields.fecha_preferida}`
+      updated.datos.fecha_preferida = null
+      newFields.push('fecha_vaga')
+    } else {
+      if (updated.datos.fecha_preferida === null || !updated.datos.fecha_preferida.trim()) {
+        newFields.push('fecha_preferida')
+      }
+      updated.datos.fecha_preferida = fields.fecha_preferida
+      // Clear fecha_vaga — they are mutually exclusive
+      updated.datos.fecha_vaga = null
     }
-    updated.datos.fecha_preferida = fields.fecha_preferida
-    // Clear fecha_vaga — they are mutually exclusive
-    updated.datos.fecha_vaga = null
   }
 
   // fecha_vaga: merge directly (mutually exclusive with fecha_preferida)

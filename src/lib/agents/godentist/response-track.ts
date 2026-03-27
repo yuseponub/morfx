@@ -19,6 +19,7 @@ import {
   INFORMATIONAL_INTENTS,
   ACTION_TEMPLATE_MAP,
   HORARIOS_GENERALES_SEDE,
+  isNonWorkingDay,
 } from './constants'
 import { GODENTIST_AGENT_ID } from './config'
 import { buildResumenContext, camposFaltantes } from './state'
@@ -325,10 +326,19 @@ function resolveSalesActionTemplates(
 
     case 'pedir_fecha': {
       const extraCtx: Record<string, string> = { nombre: state.datos.nombre ?? '' }
-      // If fecha_vaga exists, compute suggestion (first Tuesday of that month)
+      // If fecha_vaga exists, compute suggestion
       if (state.datos.fecha_vaga) {
+        const isNonWorking = state.datos.fecha_vaga.startsWith('domingo ') || state.datos.fecha_vaga.startsWith('festivo ')
         const suggestion = computeFechaVagaSuggestion(state.datos.fecha_vaga)
-        if (suggestion) {
+        if (isNonWorking && suggestion) {
+          // Sunday/holiday: use specific template
+          extraCtx.fecha_sugerida = suggestion
+          extraCtx.fecha_vaga = formatNonWorkingDate(state.datos.fecha_vaga)
+          return {
+            intents: ['pedir_fecha_no_laboral'],
+            extraContext: extraCtx,
+          }
+        } else if (suggestion) {
           extraCtx.fecha_sugerida = suggestion
           extraCtx.fecha_vaga = state.datos.fecha_vaga
         }
@@ -539,6 +549,27 @@ function computeFechaVagaSuggestion(fechaVaga: string): string | null {
   }
 
   const lower = fechaVaga.toLowerCase().trim()
+
+  // Handle "domingo YYYY-MM-DD" or "festivo YYYY-MM-DD" — suggest next working day
+  const nonWorkingMatch = lower.match(/^(domingo|festivo)\s+(\d{4}-\d{2}-\d{2})$/)
+  if (nonWorkingMatch) {
+    const [, , dateStr] = nonWorkingMatch
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const date = new Date(Date.UTC(y, m - 1, d))
+    // Find next working day (skip Sundays and holidays)
+    for (let i = 1; i <= 7; i++) {
+      const next = new Date(Date.UTC(y, m - 1, d + i))
+      const nextStr = next.toISOString().split('T')[0]
+      if (!isNonWorkingDay(nextStr)) {
+        const dia = next.toLocaleDateString('es-CO', { weekday: 'long', timeZone: 'UTC' })
+        const mes = next.toLocaleDateString('es-CO', { month: 'long', timeZone: 'UTC' })
+        return `${dia} ${next.getUTCDate()} de ${mes}`
+      }
+    }
+    return null
+  }
+
+  // Handle vague month references (original logic)
   let monthIndex: number | null = null
 
   for (const [name, idx] of Object.entries(meses)) {
@@ -563,4 +594,18 @@ function computeFechaVagaSuggestion(fechaVaga: string): string | null {
 
   const mesName = Object.entries(meses).find(([, v]) => v === monthIndex)?.[0] ?? ''
   return `martes ${tuesday.getDate()} de ${mesName}`
+}
+
+/**
+ * Format "domingo 2026-03-29" or "festivo 2026-04-02" to human-readable text.
+ */
+function formatNonWorkingDate(fechaVaga: string): string {
+  const match = fechaVaga.match(/^(domingo|festivo)\s+(\d{4}-\d{2}-\d{2})$/)
+  if (!match) return fechaVaga
+  const [, tipo, dateStr] = match
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const mes = date.toLocaleDateString('es-CO', { month: 'long', timeZone: 'UTC' })
+  const label = tipo === 'domingo' ? 'domingo' : 'festivo'
+  return `${label} ${d} de ${mes}`
 }

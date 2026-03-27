@@ -6,12 +6,12 @@
 
 import type { ChannelType, ChannelSender } from './types'
 import { whatsappSender } from './whatsapp-sender'
-import { manychatSender } from './manychat-sender'
+import { manychatFacebookSender, manychatInstagramSender } from './manychat-sender'
 
 const senders: Record<ChannelType, ChannelSender> = {
   whatsapp: whatsappSender,
-  facebook: manychatSender,
-  instagram: manychatSender,
+  facebook: manychatFacebookSender,
+  instagram: manychatInstagramSender,
 }
 
 /**

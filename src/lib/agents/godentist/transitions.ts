@@ -327,7 +327,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_data', on: 'precio_servicio', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
     description: 'Rule 29: info intent in capturing_data -> silence + reevaluate',
@@ -335,70 +335,70 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_data', on: 'valoracion_costo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'financiacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'ubicacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'horarios', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'urgencia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Urgencia durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'materiales', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'menores', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'seguros_eps', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'garantia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Info pregunta durante captura',
     }),
   },
   {
     phase: 'capturing_data', on: 'saludo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during capture' },
+      timerSignal: { type: 'start', level: 'L1', reason: 'info during capture — restart L1' },
       reason: 'Saludo durante captura',
     }),
   },
@@ -451,7 +451,7 @@ export const TRANSITIONS: TransitionEntry[] = [
     phase: 'capturing_fecha', on: 'datos', action: 'silence',
     condition: (_, gates) => !gates.fechaElegida,
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'datos sin fecha en capturing_fecha' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'datos sin fecha — restart L3' },
       reason: 'Datos en capturing_fecha pero sin fecha',
     }),
     description: 'Rule 33: capturing_fecha + datos + !fechaElegida -> silence + reevaluate',
@@ -461,7 +461,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_fecha', on: 'precio_servicio', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
     description: 'Rule 34: info intent in capturing_fecha -> silence + reevaluate',
@@ -469,70 +469,70 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'capturing_fecha', on: 'valoracion_costo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'financiacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'ubicacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'horarios', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'urgencia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Urgencia durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'materiales', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'menores', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'seguros_eps', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'garantia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Info pregunta durante captura fecha',
     }),
   },
   {
     phase: 'capturing_fecha', on: 'saludo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during fecha capture' },
+      timerSignal: { type: 'start', level: 'L3', reason: 'info during fecha capture — restart L3' },
       reason: 'Saludo durante captura fecha',
     }),
   },
@@ -585,7 +585,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'showing_availability', on: 'precio_servicio', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
     description: 'Rule 39: info intent in showing_availability -> silence + reevaluate',
@@ -593,70 +593,70 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'showing_availability', on: 'valoracion_costo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'financiacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'ubicacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'horarios', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'urgencia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Urgencia durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'materiales', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'menores', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'seguros_eps', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'garantia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Info pregunta durante disponibilidad',
     }),
   },
   {
     phase: 'showing_availability', on: 'saludo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during availability' },
+      timerSignal: { type: 'start', level: 'L4', reason: 'info during availability — restart L4' },
       reason: 'Saludo durante disponibilidad',
     }),
   },
@@ -711,7 +711,7 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'confirming', on: 'precio_servicio', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
     description: 'Rule 44: info intent in confirming -> silence + reevaluate',
@@ -719,70 +719,70 @@ export const TRANSITIONS: TransitionEntry[] = [
   {
     phase: 'confirming', on: 'valoracion_costo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'financiacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'ubicacion', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'horarios', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'urgencia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Urgencia durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'materiales', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'menores', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'seguros_eps', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'garantia', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Info pregunta durante confirmacion',
     }),
   },
   {
     phase: 'confirming', on: 'saludo', action: 'silence',
     resolve: () => ({
-      timerSignal: { type: 'reevaluate', reason: 'info during confirming' },
+      timerSignal: { type: 'start', level: 'L5', reason: 'info during confirming — restart L5' },
       reason: 'Saludo durante confirmacion',
     }),
   },

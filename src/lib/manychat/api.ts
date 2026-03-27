@@ -100,6 +100,34 @@ export async function sendImage(
 }
 
 /**
+ * Trigger a ManyChat Flow for a subscriber.
+ * Used to send Instagram replies via Dynamic Content blocks,
+ * since sendContent only works for Messenger.
+ */
+export async function sendFlow(
+  apiKey: string,
+  subscriberId: string,
+  flowNs: string
+): Promise<ManyChatResponse> {
+  const response = await fetch(`${MANYCHAT_API_URL}/fb/sending/sendFlow`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: `{"subscriber_id":${subscriberId},"flow_ns":"${flowNs}"}`,
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(`ManyChat sendFlow error: ${response.status} - ${JSON.stringify(data)}`)
+  }
+
+  return data as ManyChatResponse
+}
+
+/**
  * Get subscriber information from ManyChat.
  */
 export async function getSubscriberInfo(

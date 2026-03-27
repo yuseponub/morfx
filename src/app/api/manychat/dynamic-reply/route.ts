@@ -28,11 +28,20 @@ function buildDynamicResponse(text: string) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handleRequest(request: NextRequest) {
   try {
-    const body = await request.json()
-    const subscriberId = String(body.subscriber_id)
-    const workspaceId = body.workspace_id
+    // Support both POST (body) and GET (query params) — ManyChat may use either
+    let subscriberId: string
+    let workspaceId: string
+
+    if (request.method === 'POST') {
+      const body = await request.json()
+      subscriberId = String(body.subscriber_id)
+      workspaceId = body.workspace_id
+    } else {
+      subscriberId = request.nextUrl.searchParams.get('subscriber_id') || ''
+      workspaceId = request.nextUrl.searchParams.get('workspace_id') || ''
+    }
 
     if (!subscriberId || !workspaceId) {
       return NextResponse.json(
@@ -84,4 +93,12 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   }
+}
+
+export async function POST(request: NextRequest) {
+  return handleRequest(request)
+}
+
+export async function GET(request: NextRequest) {
+  return handleRequest(request)
 }

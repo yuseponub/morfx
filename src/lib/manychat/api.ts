@@ -181,6 +181,33 @@ export async function removeTag(
 }
 
 /**
+ * Set a custom field value on a ManyChat subscriber.
+ */
+export async function setCustomField(
+  apiKey: string,
+  subscriberId: string,
+  fieldName: string,
+  fieldValue: string
+): Promise<ManyChatResponse> {
+  const response = await fetch(`${MANYCHAT_API_URL}/fb/subscriber/setCustomFieldByName`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: `{"subscriber_id":${subscriberId},"field_name":"${fieldName}","field_value":${JSON.stringify(fieldValue)}}`,
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(`ManyChat setCustomField error: ${response.status} - ${JSON.stringify(data)}`)
+  }
+
+  return data as ManyChatResponse
+}
+
+/**
  * Get subscriber information from ManyChat.
  */
 export async function getSubscriberInfo(

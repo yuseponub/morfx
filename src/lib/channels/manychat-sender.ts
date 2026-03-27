@@ -1,19 +1,23 @@
 // ============================================================================
 // ManyChat Channel Senders
 // Facebook Messenger: uses sendContent API directly
-// Instagram: uses sendFlow + Dynamic Content (sendContent doesn't work for IG)
+// Instagram: uses custom field + tag trigger (sendContent doesn't work for IG)
 //
 // Instagram flow:
-//   1. Save reply to manychat_pending_replies table
-//   2. Call sendFlow API to trigger a ManyChat Flow
-//   3. The Flow's Dynamic Content block calls /api/manychat/dynamic-reply
-//   4. Endpoint returns the pending reply in Dynamic Block v2 format
-//   5. ManyChat sends it to the IG subscriber
+//   1. Set custom field "respuesta" on subscriber with the reply text
+//   2. Remove __api_reply__ tag (in case already applied)
+//   3. Apply __api_reply__ tag → triggers ManyChat Flow
+//   4. Flow sends {{respuesta}} to subscriber via Instagram
 // ============================================================================
 
 import type { ChannelSender, ChannelSendResult } from './types'
-import { sendText as mcSendText, sendImage as mcSendImage, addTag as mcAddTag, removeTag as mcRemoveTag } from '@/lib/manychat/api'
-import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  sendText as mcSendText,
+  sendImage as mcSendImage,
+  addTag as mcAddTag,
+  removeTag as mcRemoveTag,
+  setCustomField as mcSetCustomField,
+} from '@/lib/manychat/api'
 
 // ManyChat tag ID for triggering IG reply flow
 const IG_REPLY_TAG_ID = Number(process.env.MANYCHAT_IG_REPLY_TAG_ID) || 84237825
@@ -49,57 +53,21 @@ export const manychatFacebookSender: ChannelSender = {
 }
 
 /**
- * Find workspace_id for a ManyChat subscriber phone identifier.
- */
-async function findWorkspaceForSubscriber(phone: string): Promise<string | null> {
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('conversations')
-    .select('workspace_id')
-    .eq('phone', phone)
-    .in('channel', ['instagram', 'facebook'])
-    .limit(1)
-    .maybeSingle()
-  return data?.workspace_id || null
-}
-
-/**
- * Instagram sender — saves reply to DB then triggers Flow via sendFlow.
- * The 'to' parameter is the subscriber phone identifier (mc-{subscriberId}).
+ * Instagram sender — sets custom field then applies tag to trigger Flow.
+ * The 'to' parameter may be "mc-{subscriberId}" or just "{subscriberId}".
  */
 export const manychatInstagramSender: ChannelSender = {
   async sendText(apiKey: string, to: string, text: string): Promise<ChannelSendResult> {
     try {
       const subscriberId = to.replace('mc-', '')
-      // 'to' may come as "1939813070" or "mc-1939813070" depending on caller
-      const phoneKey = to.startsWith('mc-') ? to : `mc-${to}`
 
-      const workspaceId = await findWorkspaceForSubscriber(phoneKey)
-      if (!workspaceId) {
-        console.error('[manychat-sender:ig] No conversation found for:', to)
-        return { success: false, error: 'Conversation not found for IG subscriber' }
-      }
+      // 1. Set the reply text as custom field
+      await mcSetCustomField(apiKey, subscriberId, 'respuesta', text)
 
-      const supabase = createAdminClient()
+      // 2. Remove tag first (must transition off→on to trigger flow)
+      try { await mcRemoveTag(apiKey, subscriberId, IG_REPLY_TAG_ID) } catch { /* ignore */ }
 
-      // Save pending reply
-      const { error: insertError } = await supabase
-        .from('manychat_pending_replies')
-        .insert({
-          workspace_id: workspaceId,
-          subscriber_id: subscriberId,
-          reply_text: text,
-          status: 'pending',
-        })
-
-      if (insertError) {
-        console.error('[manychat-sender:ig] Failed to save pending reply:', insertError.message)
-        return { success: false, error: insertError.message }
-      }
-
-      // Trigger the IG reply flow by applying tag (flow triggers on "tag applied")
-      // Remove tag first in case it's already applied (tag must transition from off→on)
-      try { await mcRemoveTag(apiKey, subscriberId, IG_REPLY_TAG_ID) } catch { /* ignore if not applied */ }
+      // 3. Apply tag → triggers the ManyChat Flow that sends {{respuesta}}
       await mcAddTag(apiKey, subscriberId, IG_REPLY_TAG_ID)
 
       return { success: true }
@@ -111,7 +79,7 @@ export const manychatInstagramSender: ChannelSender = {
   },
 
   async sendImage(apiKey: string, to: string, imageUrl: string, caption?: string): Promise<ChannelSendResult> {
-    // Send image URL as text (ManyChat Dynamic Content doesn't support images easily)
+    // Send image URL as text (IG Flow only supports text via custom field)
     const text = caption ? `${caption}\n${imageUrl}` : imageUrl
     return this.sendText(apiKey, to, text)
   },

@@ -49,34 +49,42 @@ export const manychatFacebookSender: ChannelSender = {
 }
 
 /**
+ * Find workspace_id for a ManyChat subscriber phone identifier.
+ */
+async function findWorkspaceForSubscriber(phone: string): Promise<string | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('conversations')
+    .select('workspace_id')
+    .eq('phone', phone)
+    .in('channel', ['instagram', 'facebook'])
+    .limit(1)
+    .maybeSingle()
+  return data?.workspace_id || null
+}
+
+/**
  * Instagram sender — saves reply to DB then triggers Flow via sendFlow.
  * The 'to' parameter is the subscriber phone identifier (mc-{subscriberId}).
- * We extract the raw subscriberId from it.
  */
 export const manychatInstagramSender: ChannelSender = {
   async sendText(apiKey: string, to: string, text: string): Promise<ChannelSendResult> {
     try {
       const subscriberId = to.replace('mc-', '')
-      const supabase = createAdminClient()
 
-      // Get workspace_id from conversation
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('workspace_id')
-        .eq('phone', to)
-        .eq('channel', 'instagram')
-        .limit(1)
-        .single()
-
-      if (!conv) {
+      const workspaceId = await findWorkspaceForSubscriber(to)
+      if (!workspaceId) {
+        console.error('[manychat-sender:ig] No conversation found for:', to)
         return { success: false, error: 'Conversation not found for IG subscriber' }
       }
+
+      const supabase = createAdminClient()
 
       // Save pending reply
       const { error: insertError } = await supabase
         .from('manychat_pending_replies')
         .insert({
-          workspace_id: conv.workspace_id,
+          workspace_id: workspaceId,
           subscriber_id: subscriberId,
           reply_text: text,
           status: 'pending',
@@ -99,11 +107,11 @@ export const manychatInstagramSender: ChannelSender = {
   },
 
   async sendImage(apiKey: string, to: string, imageUrl: string, caption?: string): Promise<ChannelSendResult> {
-    // For now, send image URL as text (ManyChat Dynamic Content doesn't support images easily)
+    // Send image URL as text (ManyChat Dynamic Content doesn't support images easily)
     const text = caption ? `${caption}\n${imageUrl}` : imageUrl
     return this.sendText(apiKey, to, text)
   },
 }
 
-// Backward compat — default to Facebook sender
+// Backward compat
 export const manychatSender = manychatFacebookSender

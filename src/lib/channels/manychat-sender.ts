@@ -71,8 +71,10 @@ export const manychatInstagramSender: ChannelSender = {
   async sendText(apiKey: string, to: string, text: string): Promise<ChannelSendResult> {
     try {
       const subscriberId = to.replace('mc-', '')
+      // 'to' may come as "1939813070" or "mc-1939813070" depending on caller
+      const phoneKey = to.startsWith('mc-') ? to : `mc-${to}`
 
-      const workspaceId = await findWorkspaceForSubscriber(to)
+      const workspaceId = await findWorkspaceForSubscriber(phoneKey)
       if (!workspaceId) {
         console.error('[manychat-sender:ig] No conversation found for:', to)
         return { success: false, error: 'Conversation not found for IG subscriber' }

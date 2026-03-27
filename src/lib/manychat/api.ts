@@ -128,6 +128,59 @@ export async function sendFlow(
 }
 
 /**
+ * Add a tag to a ManyChat subscriber.
+ * Used to trigger flows that have "Tag applied" triggers.
+ */
+export async function addTag(
+  apiKey: string,
+  subscriberId: string,
+  tagId: number
+): Promise<ManyChatResponse> {
+  const response = await fetch(`${MANYCHAT_API_URL}/fb/subscriber/addTag`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: `{"subscriber_id":${subscriberId},"tag_id":${tagId}}`,
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(`ManyChat addTag error: ${response.status} - ${JSON.stringify(data)}`)
+  }
+
+  return data as ManyChatResponse
+}
+
+/**
+ * Remove a tag from a ManyChat subscriber.
+ */
+export async function removeTag(
+  apiKey: string,
+  subscriberId: string,
+  tagId: number
+): Promise<ManyChatResponse> {
+  const response = await fetch(`${MANYCHAT_API_URL}/fb/subscriber/removeTag`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: `{"subscriber_id":${subscriberId},"tag_id":${tagId}}`,
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(`ManyChat removeTag error: ${response.status} - ${JSON.stringify(data)}`)
+  }
+
+  return data as ManyChatResponse
+}
+
+/**
  * Get subscriber information from ManyChat.
  */
 export async function getSubscriberInfo(

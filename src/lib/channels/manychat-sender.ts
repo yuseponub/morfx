@@ -12,11 +12,11 @@
 // ============================================================================
 
 import type { ChannelSender, ChannelSendResult } from './types'
-import { sendText as mcSendText, sendImage as mcSendImage, sendFlow as mcSendFlow } from '@/lib/manychat/api'
+import { sendText as mcSendText, sendImage as mcSendImage, addTag as mcAddTag, removeTag as mcRemoveTag } from '@/lib/manychat/api'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-// Flow namespace for Instagram reply flow in ManyChat
-const IG_REPLY_FLOW_NS = process.env.MANYCHAT_IG_REPLY_FLOW_NS || 'content20260327155049_297156'
+// ManyChat tag ID for triggering IG reply flow
+const IG_REPLY_TAG_ID = Number(process.env.MANYCHAT_IG_REPLY_TAG_ID) || 84237825
 
 /**
  * Facebook Messenger sender — uses sendContent directly.
@@ -97,8 +97,10 @@ export const manychatInstagramSender: ChannelSender = {
         return { success: false, error: insertError.message }
       }
 
-      // Trigger the IG reply flow
-      await mcSendFlow(apiKey, subscriberId, IG_REPLY_FLOW_NS)
+      // Trigger the IG reply flow by applying tag (flow triggers on "tag applied")
+      // Remove tag first in case it's already applied (tag must transition from off→on)
+      try { await mcRemoveTag(apiKey, subscriberId, IG_REPLY_TAG_ID) } catch { /* ignore if not applied */ }
+      await mcAddTag(apiKey, subscriberId, IG_REPLY_TAG_ID)
 
       return { success: true }
     } catch (error) {

@@ -393,18 +393,47 @@ const godentistFollowupCheck = inngest.createFunction(
         }
 
         // Check for inbound messages after sent_at
+        // NOTE: uses `timestamp` (correct UTC from WhatsApp) instead of `created_at`
+        // because messages.created_at DEFAULT has a timezone bug that shifts values -5h
         const { data: inboundMessages } = await admin
           .from('messages')
           .select('id')
           .eq('conversation_id', conv.id)
           .eq('direction', 'inbound')
-          .gt('created_at', sentAt)
+          .gt('timestamp', sentAt)
           .limit(1)
 
         if (inboundMessages && inboundMessages.length > 0) {
           // Patient responded — skip
           results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: 'patient responded' })
           continue
+        }
+
+        // Check contact tags — skip if already confirmed ("C") or cancelled ("CAN")
+        const SKIP_TAGS = ['C', 'CAN']
+        const { data: contact } = await admin
+          .from('contacts')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .eq('phone', phone)
+          .single()
+
+        if (contact) {
+          const { data: contactTags } = await admin
+            .from('contact_tags')
+            .select('tag_id, tags(name)')
+            .eq('contact_id', contact.id)
+
+          const tagNames = (contactTags || [])
+            .map((ct: Record<string, unknown>) => ((ct.tags as Record<string, unknown>)?.name as string) || '')
+            .filter(Boolean)
+
+          const hasSkipTag = tagNames.some((t: string) => SKIP_TAGS.includes(t.toUpperCase()))
+          if (hasSkipTag) {
+            const matched = tagNames.find((t: string) => SKIP_TAGS.includes(t.toUpperCase()))
+            results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: `has tag: ${matched}` })
+            continue
+          }
         }
 
         // Find matching appointment for hora

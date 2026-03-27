@@ -17,6 +17,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ==================== MANYCHAT DYNAMIC CONTENT ====================
+  // ManyChat calls this endpoint from Dynamic Content blocks in Flows
+  if (pathname.startsWith('/api/manychat')) {
+    return NextResponse.next()
+  }
+
   // ==================== TEMP ROUTE (DELETE AFTER USE) ====================
   if (pathname.startsWith('/api/temp-send-agendados')) {
     return NextResponse.next()

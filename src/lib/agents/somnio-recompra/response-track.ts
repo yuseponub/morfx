@@ -113,6 +113,7 @@ export async function resolveResponseTrack(input: {
   )
 
   // Process templates with variable substitution
+  // nombre_saludo is ALWAYS available (recompra has preloaded name)
   const variableContext: Record<string, string | undefined> = {
     ...Object.fromEntries(
       Object.entries(state.datos).map(([k, v]) => [k, v ?? undefined])
@@ -120,6 +121,7 @@ export async function resolveResponseTrack(input: {
     ...extraContext,
     ...infoExtraContext,
     pack: state.pack ?? undefined,
+    nombre_saludo: state.datos.nombre ? getGreeting(state.datos.nombre) : undefined,
   }
 
   const allProcessed: PrioritizedTemplate[] = []

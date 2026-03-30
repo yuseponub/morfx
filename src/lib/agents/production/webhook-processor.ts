@@ -640,22 +640,27 @@ async function loadLastOrderData(
   workspaceId: string
 ): Promise<Record<string, string>> {
   const supabase = createAdminClient()
-  const { data: order } = await supabase
-    .from('orders')
-    .select('shipping_name, shipping_last_name, shipping_phone, shipping_address, shipping_city, shipping_department')
-    .eq('contact_id', contactId)
+
+  // Contact data is the source of truth for client info (name, phone, address, city)
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('name, phone, address, city')
+    .eq('id', contactId)
     .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single()
 
-  if (!order) return {}
+  if (!contact) return {}
   const result: Record<string, string> = {}
-  if (order.shipping_name) result.nombre = order.shipping_name
-  if (order.shipping_last_name) result.apellido = order.shipping_last_name
-  if (order.shipping_phone) result.telefono = order.shipping_phone
-  if (order.shipping_address) result.direccion = order.shipping_address
-  if (order.shipping_city) result.ciudad = order.shipping_city
-  if (order.shipping_department) result.departamento = order.shipping_department
+
+  // Parse name into nombre + apellido
+  if (contact.name) {
+    const parts = contact.name.trim().split(/\s+/)
+    result.nombre = parts[0]
+    if (parts.length > 1) result.apellido = parts.slice(1).join(' ')
+  }
+  if (contact.phone) result.telefono = contact.phone
+  if (contact.address) result.direccion = contact.address
+  if (contact.city) result.ciudad = contact.city
+
   return result
 }

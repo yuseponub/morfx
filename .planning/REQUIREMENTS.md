@@ -1,122 +1,144 @@
-# Requirements: MorfX v4.0 Comportamiento Humano
+# Requirements: MorfX v5.0 Meta Direct Integration
 
 **Estado:** APROBADO
-**Fecha:** 2026-02-23
-**Total:** 29 requirements en 8 categorias
+**Fecha:** 2026-03-31
+**Total:** 27 requirements en 7 categorias
 
-## Milestone v4.0 Requirements
+## Milestone v5.0 Requirements
 
-### Etapa 1: Delays Inteligentes
+### Setup & Foundation
 
-- [ ] **DELAY-01**: Mensajes del bot tienen delay proporcional a caracteres (curva 2s-12s) en vez de delay fijo
-- [ ] **DELAY-02**: Multiplicador de velocidad configurable por workspace (default 1.0, presets: real/rapido/instantaneo)
+- [ ] **SETUP-01**: Meta App creada con productos WhatsApp, Messenger e Instagram habilitados y permisos aprobados por Meta
+- [ ] **SETUP-02**: Tabla `workspace_meta_accounts` con tokens encriptados (AES-256-GCM), WABA ID, phone_number_id, page_id, ig_account_id por workspace
+- [ ] **SETUP-03**: Cliente Graph API v22.0 con version pinned en constante global
+- [ ] **SETUP-04**: Guia paso a paso para el usuario de que hacer en Meta (crear app, configurar productos, business verification, env vars) — entregada ANTES de empezar a codear
 
-### Etapa 2: Clasificacion + Timer Retoma
+### Embedded Signup (Onboarding)
 
-- [x] **CLASS-01**: Mensajes clasificados post-IntentDetector como RESPONDIBLE, SILENCIOSO, o HANDOFF
-- [x] **CLASS-02**: Mensajes SILENCIOSO (ok, jaja, thumbs-up en estados no-confirmatorios) no generan respuesta
-- [x] **CLASS-03**: 6 intents HANDOFF (asesor, queja, cancelar, no_gracias, no_interesa, fallback) apagan el bot y notifican host
-- [x] **CLASS-04**: Timer de retoma 90s para mensajes SILENCIOSO (redirige a venta si no hay respuesta)
+- [ ] **SIGNUP-01**: Boton "Conectar WhatsApp" en settings que abre popup de Meta Embedded Signup v4 — cliente autoriza y MorfX recibe tokens automaticamente
+- [ ] **SIGNUP-02**: Token exchange (code -> BISUAT) y almacenamiento encriptado por workspace
+- [ ] **SIGNUP-03**: Auto-suscripcion a webhooks despues de signup exitoso
+- [ ] **SIGNUP-04**: Boton "Conectar Facebook Page" y "Conectar Instagram" via mismo Embedded Signup v4
 
-### Etapa 3: Sistema de Bloques
+### WhatsApp Cloud API
 
-- [ ] **BLOCK-01**: Webhook migrado a evento Inngest con concurrency 1 por conversacion (procesamiento async)
-- [x] **BLOCK-02**: Check pre-envio antes de cada plantilla -- si hay nuevo inbound, para la secuencia
-- [x] **BLOCK-03**: Plantillas no enviadas se guardan como pendientes con prioridad CORE/COMP/OPC
-- [x] **BLOCK-04**: Pendientes se mergean con siguiente bloque por prioridad (max 3 plantillas por bloque)
-- [x] **BLOCK-05**: No-repeticion Nivel 1: lookup directo por template ID (gratis, 0ms)
-- [x] **BLOCK-06**: No-repeticion Nivel 2: Haiku compara minifrases tematicas (~200ms, ~$0.0003)
-- [x] **BLOCK-07**: No-repeticion Nivel 3: agente lee mensaje completo para cobertura parcial (~1-3s)
-- [x] **BLOCK-08**: Intents repetidos envian top 2 plantillas por prioridad, parafraseadas por Claude
+- [ ] **WA-01**: Enviar mensajes de texto via Cloud API directo (reemplaza 360dialog)
+- [ ] **WA-02**: Enviar media (imagen, video, audio, documento, sticker) via Cloud API
+- [ ] **WA-03**: Enviar templates via Cloud API
+- [ ] **WA-04**: Enviar mensajes interactivos (botones, listas) via Cloud API
+- [ ] **WA-05**: Recibir webhooks de WhatsApp (mensajes + status updates) via endpoint unificado
+- [ ] **WA-06**: Download/upload de media via Meta CDN
+- [ ] **WA-07**: Read receipts via Cloud API
+- [ ] **WA-08**: CRUD de templates via Graph API (crear, listar, eliminar, sync status)
+- [ ] **WA-09**: Template status webhooks (push en vez de polling)
 
-### Etapa 4: Procesamiento de Medios
+### Webhook Infrastructure
 
-- [x] **MEDIA-01**: Audio/voice notes transcritos con Whisper -- 1-2 intents procesados normal, 3+ intents handoff
-- [x] **MEDIA-02**: Imagenes y videos -- handoff directo ("Regalame 1 min" + notificar host)
-- [x] **MEDIA-03**: Stickers interpretados con Claude Vision -- texto procesable o handoff
-- [x] **MEDIA-04**: Reacciones emoji interpretadas como texto -- procesadas o handoff si ambiguas
+- [ ] **HOOK-01**: Endpoint unificado `/api/webhooks/meta` que recibe eventos de WA, FB e IG y rutea al workspace correcto
+- [ ] **HOOK-02**: Verificacion de firma HMAC-SHA256 con App Secret
+- [ ] **HOOK-03**: Respuesta 200 en <5 segundos (inngest.send sin await + mensaje ya en DB como safety net)
+- [ ] **HOOK-04**: Deduplicacion de mensajes por message_id (Meta retries hasta 7 veces)
 
-### Etapa 5: Confidence + Disambiguation
+### Facebook Messenger
 
-- [x] **CONF-01**: Intents con confidence < 80% -- handoff automatico + log en disambiguation_log
-- [x] **CONF-02**: Tabla disambiguation_log registra situacion completa (mensaje, alternativas, contexto, pendientes)
-- [x] **CONF-03**: Interfaz para que humano revise y guie (correct_intent, correct_action, guidance_notes)
+- [ ] **FB-01**: Recibir mensajes de Messenger via webhook unificado
+- [ ] **FB-02**: Enviar texto e imagenes via Graph API (reemplaza ManyChat)
+- [ ] **FB-03**: Resolucion PSID -> contacto en MorfX
+- [ ] **FB-04**: Inbox en MorfX para conversaciones de Messenger (humano + agente IA)
 
-### Etapa 6: Flujo Ofi Inter
+### Instagram DMs
 
-- [ ] **OFINT-01**: Deteccion de intencion ofi inter: cliente dice directamente ("ofi inter", "recojo en inter"), o solo envia municipio sin direccion, o menciona municipio poco comun/lejano
-- [ ] **OFINT-02**: Confirmacion obligatoria: cuando se sospecha ofi inter, el agente SIEMPRE pregunta "Deseas recibir en oficina de Interrapidisimo?" antes de cambiar flujo
-- [ ] **OFINT-03**: Datos bifurcados: si ofi inter -- pedir nombre, apellido, telefono, cedula de quien recoge, municipio, departamento, correo (7 campos, sin direccion/barrio, con cedula)
-- [ ] **OFINT-04**: Integracion con ingest: cuando solo llega municipio, el sistema acumula datos y luego pregunta si quiere ofi inter o envio normal
+- [ ] **IG-01**: Recibir DMs de Instagram via webhook unificado
+- [ ] **IG-02**: Enviar texto e imagenes via Graph API (reemplaza ManyChat workaround)
+- [ ] **IG-03**: Resolucion IG-scoped user ID -> contacto en MorfX
+- [ ] **IG-04**: Inbox en MorfX para conversaciones de Instagram (humano + agente IA)
+- [ ] **IG-05**: UX clara de "ventana expirada" (IG tiene hard 24h, sin templates)
 
-### Documentación
+### Migration & Coexistence
 
-- [ ] **DOC-01**: Documentar arquitectura, proceso de creación y patrones de Somnio para que futuros agentes puedan crearse siguiendo una guía paso a paso
-
-### Infraestructura
-
-- [ ] **INFRA-01**: Campo `processed_by_agent` en tabla messages (boolean, para check pre-envio)
-- [x] **INFRA-02**: Tabla `disambiguation_log` en Supabase
-- [x] **INFRA-03**: Minifrases tematicas definidas manualmente para cada plantilla (~30)
+- [ ] **MIG-01**: Feature flag per-workspace `whatsapp_provider: 'meta_direct' | '360dialog'` para migracion gradual
+- [ ] **MIG-02**: Feature flag per-workspace para FB/IG: `messenger_provider: 'meta_direct' | 'manychat'`
+- [ ] **MIG-03**: Channel sender registry provider-aware (viejo y nuevo coexisten)
 
 ## Contexto Adicional
 
-- **Ofi Inter:** Solo aplica a Interrapidisimo. No hay lista fija de municipios "lejanos" -- es criterio del vendedor (municipio poco conocido). Siempre se confirma antes de asumir ofi inter.
-- **Prioridades CORE/COMP/OPC:** Asignadas por plantilla por intent en DISCUSSION.md. CORE nunca se descarta, OPC primero en caer, max 3 por bloque.
-- **Intents repetidos:** No mas visit_type='siguientes'. Claude parafrasea top 2 plantillas por prioridad.
-- **Diseno completo:** `.planning/standalone/human-behavior/DISCUSSION.md`
+- **Prioridad de canales:** WhatsApp primero, luego Facebook Messenger, luego Instagram DMs (FB e IG casi al mismo nivel)
+- **Migracion gradual:** 360dialog y ManyChat siguen activos hasta corte final. Per-workspace provider selection.
+- **Cada cliente tiene su Meta Business Account** — no necesitan crear una nueva
+- **MorfX sera intermediario de billing** (clientes recargan, MorfX paga a Meta) — wallet system en milestone posterior
+- **Graph API v22.0** es la version actual (enforced desde Sep 2025)
+- **Embedded Signup v4** (Dec 2025) soporta WA + FB + IG en un solo flujo
+- **BISUAT tokens** no expiran pero pueden invalidarse — necesitan health check
+- **Payloads de WA Cloud API son identicos a 360dialog** — la migracion es cambiar URL + auth header
+- **Meta webhook debe responder 200 en <5s** — inngest.send sin await, mensaje en DB como fallback
 
 ## Future Requirements (deferred)
 
-- Encryption de credenciales de portales (actualmente plaintext)
-- Make_call Twilio (diferido a fase futura)
-- Multi-carrier Ofi Inter (solo Interrapidisimo en v4.0)
+- Wallet/billing system completo (alta complejidad, subsistema independiente)
+- Number migration tooling (solo despues de integracion directa estable)
+- WhatsApp Flows / Catalog / Commerce API (baja adopcion LATAM)
+- Voice/video calls (diferente dominio de producto)
+- Meta Business AI integration (Somnio es la capa IA)
+- Persistent menu Messenger / Ice breakers IG (nice-to-have post-launch)
+- Private replies a comentarios IG (no core inbox)
+- Eliminar codigo 360dialog/ManyChat (solo cuando TODOS los workspaces migren)
+- Encryption de credenciales legacy (360dialog keys actualmente plaintext)
 
 ## Out of Scope
 
 | Feature | Razon |
 |---------|-------|
-| IA generativa libre (sin plantillas) | Las plantillas son el core del sistema de venta |
-| Multi-idioma en templates | Solo espanol para mercado LATAM |
-| Dashboard de analytics de agente | Diferido a milestone posterior |
-| A/B testing de plantillas | Complejidad innecesaria en v4.0 |
-| Entrenamiento por feedback loop automatico | disambiguation_log es manual por diseno (v4.0) |
+| Wallet/billing completo | Alta complejidad, subsistema independiente — v6.0 |
+| Number migration automatizado | Solo despues de que integracion directa sea estable en produccion |
+| WhatsApp Flows / Catalog / Commerce | Baja adopcion en LATAM, no relevante para e-commerce COD |
+| Voice/video calls via WA API | Diferente dominio de producto |
+| Meta Business AI | Somnio ES la capa de IA, no integrar la de Meta |
+| Eliminar codigo 360dialog/ManyChat | Solo cuando TODOS los workspaces migren — no en este milestone |
+| WhatsApp Groups API | No CRM value para atencion 1-to-1 |
+| Multi-numero por workspace | Un numero = un workspace. Multiples numeros = multiples workspaces |
 
 ## Traceability
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| DELAY-01 | Phase 29 | Complete |
-| DELAY-02 | Phase 29 | Complete |
-| CLASS-01 | Phase 30 | Complete |
-| CLASS-02 | Phase 30 | Complete |
-| CLASS-03 | Phase 30 | Complete |
-| CLASS-04 | Phase 30 | Complete |
-| BLOCK-01 | Phase 29 | Complete |
-| BLOCK-02 | Phase 31 | Complete |
-| BLOCK-03 | Phase 31 | Complete |
-| BLOCK-04 | Phase 31 | Complete |
-| BLOCK-05 | Phase 34 | Complete |
-| BLOCK-06 | Phase 34 | Complete |
-| BLOCK-07 | Phase 34 | Complete |
-| BLOCK-08 | Phase 34 | Complete |
-| MEDIA-01 | Phase 32 | Complete |
-| MEDIA-02 | Phase 32 | Complete |
-| MEDIA-03 | Phase 32 | Complete |
-| MEDIA-04 | Phase 32 | Complete |
-| CONF-01 | Phase 33 | Complete |
-| CONF-02 | Phase 33 | Complete |
-| CONF-03 | Phase 33 | Complete |
-| OFINT-01 | Phase 35 | Pending |
-| OFINT-02 | Phase 35 | Pending |
-| OFINT-03 | Phase 35 | Pending |
-| OFINT-04 | Phase 35 | Pending |
-| INFRA-01 | Phase 29 | Complete |
-| INFRA-02 | Phase 33 | Complete |
-| INFRA-03 | Phase 34 | Complete |
-| DOC-01 | Phase 36 | Pending |
+| SETUP-01 | — | Pending |
+| SETUP-02 | — | Pending |
+| SETUP-03 | — | Pending |
+| SETUP-04 | — | Pending |
+| SIGNUP-01 | — | Pending |
+| SIGNUP-02 | — | Pending |
+| SIGNUP-03 | — | Pending |
+| SIGNUP-04 | — | Pending |
+| WA-01 | — | Pending |
+| WA-02 | — | Pending |
+| WA-03 | — | Pending |
+| WA-04 | — | Pending |
+| WA-05 | — | Pending |
+| WA-06 | — | Pending |
+| WA-07 | — | Pending |
+| WA-08 | — | Pending |
+| WA-09 | — | Pending |
+| HOOK-01 | — | Pending |
+| HOOK-02 | — | Pending |
+| HOOK-03 | — | Pending |
+| HOOK-04 | — | Pending |
+| FB-01 | — | Pending |
+| FB-02 | — | Pending |
+| FB-03 | — | Pending |
+| FB-04 | — | Pending |
+| IG-01 | — | Pending |
+| IG-02 | — | Pending |
+| IG-03 | — | Pending |
+| IG-04 | — | Pending |
+| IG-05 | — | Pending |
+| MIG-01 | — | Pending |
+| MIG-02 | — | Pending |
+| MIG-03 | — | Pending |
 
-**Coverage:** 29/29 requirements mapped. 3 INFRA requirements distributed into their consuming phases. DOC-01 runs in parallel.
+**Coverage:**
+- v5.0 requirements: 33 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 33
 
 ---
-*Requirements defined: 2026-02-23*
+*Requirements defined: 2026-03-31*

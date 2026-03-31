@@ -51,18 +51,20 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 
 ### Active
 
-#### Current Milestone: v4.0 Comportamiento Humano
+#### Current Milestone: v5.0 Meta Direct Integration
 
-**Goal:** Hacer que Somnio se comporte como un vendedor humano real en WhatsApp — delays inteligentes, clasificación de mensajes, sistema de bloques con interrupción y no-repetición, procesamiento de medios, y confidence thresholds.
+**Goal:** Eliminar intermediarios (360dialog/ManyChat) e integrar directamente con Meta Cloud API para WhatsApp, Facebook Messenger e Instagram. Multi-tenant con Embedded Signup para que cada cliente conecte su cuenta.
 
 **Target features:**
-- Delays inteligentes por caracteres (curva 2s-12s, multiplicador ajustable)
-- Clasificación post-IntentDetector (RESPONDIBLE/SILENCIOSO/HANDOFF) + Timer retoma 90s
-- Sistema de bloques (check pre-envío, interrupción + merge pendientes, no-repetición escalonada 3 niveles)
-- Procesamiento de medios (Audio→Whisper, Imagen/Video→handoff, Sticker→Vision, Reacción→texto)
-- Confidence thresholds (2 bandas: 80%+ responde, <80% handoff+log) + disambiguation_log
-- Prioridades CORE/COMP/OPC por plantilla por intent + intents repetidos parafraseados
-- Migración de webhook a Inngest (concurrency 1 por conversación)
+- Meta App setup + Tech Provider enrollment + App Review
+- Embedded Signup para onboarding de clientes (WA + FB + IG)
+- WhatsApp Cloud API directo (mensajes, templates, media, webhooks)
+- Facebook Messenger directo via Graph API (inbox + agente IA)
+- Instagram DMs directo via Graph API (inbox + agente IA)
+- Webhook unificado para los 3 canales con routing per-workspace
+- Token management (BISUAT per-workspace, encrypted at rest)
+- Migración gradual con feature flag per-workspace (provider selection)
+- Sistema de billing/wallet para conversaciones Meta (futuro, diseño base)
 
 ### Out of Scope
 
@@ -70,7 +72,7 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 |---------|--------|
 | Email como canal | Solo WhatsApp por ahora |
 | SMS como canal de inbox | SMS solo como action de automatizacion (Twilio) |
-| Conexion directa a Meta API | Usar 360dialog como intermediario |
+| Billing/wallet system completo | Diseño base en v5.0, implementación completa en milestone posterior |
 | Inventario | Complejidad adicional, no critico |
 | Pagos/recaudos | Agregar despues de validar CRM+WhatsApp+Agents |
 | Mobile apps nativas | Web responsive primero |
@@ -79,14 +81,14 @@ Si todo lo demas falla, la sincronizacion CRM-WhatsApp + automatizaciones + agen
 
 ## Context
 
-### Current State (v4.0 Starting)
+### Current State (v5.0 Starting)
 
 - **Codebase:** ~92,000 LOC TypeScript across 454+ files
 - **Tech stack:** Next.js 15 (App Router) + React 19 + Supabase + Tailwind + Inngest + AI SDK v6
 - **Architecture:** Domain layer as single source of truth, ports/adapters for agent engine, Inngest for async processing
-- **Milestones shipped:** v1.0 (CRM+WhatsApp) + v2.0 (Agents+Automations) + v3.0 (Logística)
-- **Timeline:** 28 days total (2026-01-26 to 2026-02-23)
-- **Design docs:** `.planning/standalone/human-behavior/` (DISCUSSION.md + RESEARCH.md + ARCHITECTURE-ANALYSIS.md)
+- **Milestones shipped:** v1.0 (CRM+WhatsApp) + v2.0 (Agents+Automations) + v3.0 (Logística) + v4.0 (Comportamiento Humano)
+- **Current integrations:** 360dialog (WhatsApp BSP), ManyChat (FB/IG proxy) — to be replaced
+- **Research docs:** `.planning/research/` (STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md, SUMMARY.md)
 
 ### Codebase Existente
 
@@ -121,7 +123,7 @@ E-commerce y negocios COD en Colombia/LATAM que venden por WhatsApp y necesitan:
 - **Frontend Hosting**: Vercel (optimizado para Next.js)
 - **Async Processing**: Inngest (automation runners, agent timers, webhook routing)
 - **AI**: Claude API via AI SDK v6 (Sonnet for builder, Haiku for classification)
-- **WhatsApp Provider**: 360dialog (zero markup, Partner API)
+- **WhatsApp Provider**: Meta Cloud API direct (migrating from 360dialog)
 - **Multi-tenant**: Row Level Security desde el inicio
 - **Idioma**: Interfaz en espanol (mercado LATAM)
 - **Timezone**: America/Bogota (UTC-5) para toda logica de fechas
@@ -144,6 +146,9 @@ E-commerce y negocios COD en Colombia/LATAM que venden por WhatsApp y necesitan:
 | React Flow para diagramas | Visual preview de automatizaciones, custom nodes | Good |
 | Fire-and-forget abandonado en webhooks | Vercel termina funcion antes de completar send | Good (critical fix) |
 | Two automation contexts (flat vs nested) | TriggerContext para logica, variableContext para templates | Good |
+| Meta Cloud API directo (eliminar 360dialog) | Control total, sin markup BSP, Embedded Signup multi-tenant | — Pending |
+| Eliminar ManyChat (FB/IG directo) | Un solo proveedor (Meta), inbox unificado real | — Pending |
+| Migración gradual con provider flag per-workspace | No romper producción, cortar cuando esté listo | — Pending |
 
 ## Workflow Obligatorio
 
@@ -178,4 +183,4 @@ Despues de completar cada fase, es **OBLIGATORIO** crear un archivo LEARNINGS.md
 **Proposito**: Entrenar agentes de documentacion por modulo para la IA Distribuida.
 
 ---
-*Last updated: 2026-02-23 after v4.0 milestone start*
+*Last updated: 2026-03-31 after v5.0 milestone start*

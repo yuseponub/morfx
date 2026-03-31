@@ -2,32 +2,23 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-23)
+See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Phase 36 Shopify Product Conditional Assignment (v4.0)
+**Current focus:** Milestone v5.0 Meta Direct Integration — Defining requirements
 
 ## Current Position
 
-Phase: 36 of 36 (Shopify Product Conditional Assignment) -- IN PROGRESS
-Plan: 1 of 2 complete (01)
-Status: Plan 01 complete -- conditional product mapping backend (resolveConditionalProducts + 3-mode executeCreateOrder)
-Standalone: Debug Panel v4.0 — COMPLETE (5/5 plans)
-Standalone: v3-state-machine — IN PROGRESS (3/4 plans)
-Standalone: v3-two-track-decision — IN PROGRESS (1/2 plans)
-Standalone: Robot GoDentist Integration — COMPLETE (4/4 plans)
-Standalone: Conversation Tags to Contact — COMPLETE (2/2 plans)
-Standalone: GoDentist Scraping General — COMPLETE (2/2 plans)
-Standalone: v3-ofi-inter — IN PROGRESS (1/2 plans)
-Standalone: GoDentist Followup Ultimatum — IN PROGRESS (1/3 plans)
-Standalone: SMS Module — IN PROGRESS (3/4 plans)
-Standalone: v3-tiempo-entrega — IN PROGRESS (2/3 plans)
-Standalone: Shopify Contact Resolution — COMPLETE (3/3 plans)
-Standalone: Agent GoDentist — COMPLETE (7/7 plans, verified 15/15)
-Standalone: Somnio Recompra — COMPLETE (4/4 plans)
-Last activity: 2026-03-26 — Completed quick-033 (Tag de cierre por pipeline en estados de pedido)
+Phase: Not started (defining requirements for v5.0)
+Plan: —
+Status: Research complete, defining requirements
+Last activity: 2026-03-31 — Milestone v5.0 Meta Direct Integration started
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [----------] 0% v5.0
+
+### Carryover from v4.0
+- Phase 36 (Shopify Product Conditional): IN PROGRESS (1/2 plans)
+- Standalone in progress: v3-state-machine, v3-two-track-decision, v3-ofi-inter, GoDentist Followup Ultimatum, SMS Module, v3-tiempo-entrega
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -379,7 +370,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26 COT
-Stopped at: Completed quick-033 (Tag de cierre por pipeline en estados de pedido)
+Last session: 2026-03-31 COT
+Stopped at: Milestone v5.0 started — research complete, defining requirements
 Resume file: None
-Next: Apply migration 20260326_pipeline_closure_tags.sql in production, then push to Vercel
+Next: Define requirements for v5.0, then create roadmap

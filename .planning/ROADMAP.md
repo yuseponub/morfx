@@ -516,7 +516,11 @@ Plans:
 
 **Risk:** MEDIUM (Meta App Review takes 2-7 business days -- submit immediately)
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 37-01-PLAN.md -- SETUP-04 guide + DB migration + checkpoint (user applies migration and configures Meta App)
+- [ ] 37-02-PLAN.md -- src/lib/meta/ module (Graph API client, AES-256-GCM encryption, credential resolution)
 
 **Success Criteria:**
 1. A step-by-step guide exists that the user can follow to create the Meta App, enable WhatsApp/Messenger/Instagram products, configure business verification, and set environment variables -- before any code is written

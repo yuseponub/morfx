@@ -2,7 +2,7 @@
 
 **Estado:** APROBADO
 **Fecha:** 2026-03-31
-**Total:** 27 requirements en 7 categorias
+**Total:** 33 requirements en 7 categorias
 
 ## Milestone v5.0 Requirements
 
@@ -101,44 +101,45 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SETUP-01 | — | Pending |
-| SETUP-02 | — | Pending |
-| SETUP-03 | — | Pending |
-| SETUP-04 | — | Pending |
-| SIGNUP-01 | — | Pending |
-| SIGNUP-02 | — | Pending |
-| SIGNUP-03 | — | Pending |
-| SIGNUP-04 | — | Pending |
-| WA-01 | — | Pending |
-| WA-02 | — | Pending |
-| WA-03 | — | Pending |
-| WA-04 | — | Pending |
-| WA-05 | — | Pending |
-| WA-06 | — | Pending |
-| WA-07 | — | Pending |
-| WA-08 | — | Pending |
-| WA-09 | — | Pending |
-| HOOK-01 | — | Pending |
-| HOOK-02 | — | Pending |
-| HOOK-03 | — | Pending |
-| HOOK-04 | — | Pending |
-| FB-01 | — | Pending |
-| FB-02 | — | Pending |
-| FB-03 | — | Pending |
-| FB-04 | — | Pending |
-| IG-01 | — | Pending |
-| IG-02 | — | Pending |
-| IG-03 | — | Pending |
-| IG-04 | — | Pending |
-| IG-05 | — | Pending |
-| MIG-01 | — | Pending |
-| MIG-02 | — | Pending |
-| MIG-03 | — | Pending |
+| SETUP-01 | Phase 37 | Pending |
+| SETUP-02 | Phase 37 | Pending |
+| SETUP-03 | Phase 37 | Pending |
+| SETUP-04 | Phase 37 | Pending |
+| SIGNUP-01 | Phase 38 | Pending |
+| SIGNUP-02 | Phase 38 | Pending |
+| SIGNUP-03 | Phase 38 | Pending |
+| SIGNUP-04 | Phase 40 | Pending |
+| WA-01 | Phase 39 | Pending |
+| WA-02 | Phase 39 | Pending |
+| WA-03 | Phase 39 | Pending |
+| WA-04 | Phase 39 | Pending |
+| WA-05 | Phase 38 | Pending |
+| WA-06 | Phase 39 | Pending |
+| WA-07 | Phase 39 | Pending |
+| WA-08 | Phase 39 | Pending |
+| WA-09 | Phase 39 | Pending |
+| HOOK-01 | Phase 38 | Pending |
+| HOOK-02 | Phase 38 | Pending |
+| HOOK-03 | Phase 38 | Pending |
+| HOOK-04 | Phase 38 | Pending |
+| FB-01 | Phase 40 | Pending |
+| FB-02 | Phase 40 | Pending |
+| FB-03 | Phase 40 | Pending |
+| FB-04 | Phase 40 | Pending |
+| IG-01 | Phase 41 | Pending |
+| IG-02 | Phase 41 | Pending |
+| IG-03 | Phase 41 | Pending |
+| IG-04 | Phase 41 | Pending |
+| IG-05 | Phase 41 | Pending |
+| MIG-01 | Phase 39 | Pending |
+| MIG-02 | Phase 40 | Pending |
+| MIG-03 | Phase 39 | Pending |
 
 **Coverage:**
 - v5.0 requirements: 33 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 33
+- Mapped to phases: 33
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-31*
+*Traceability updated: 2026-03-31 (roadmap v5.0 phases 37-41)*

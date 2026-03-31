@@ -2,14 +2,15 @@
 
 ## Overview
 
-MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce COD businesses. Four milestones: v1.0 (CRM + WhatsApp core), v2.0 (Conversational Agents + Automations + Domain Layer + Integration Automations), v3.0 (Logistics robot integration with command chat and pipeline automation), and v4.0 (Human behavior system -- making Somnio feel like a real WhatsApp salesperson).
+MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce COD businesses. Five milestones: v1.0 (CRM + WhatsApp core), v2.0 (Conversational Agents + Automations + Domain Layer + Integration Automations), v3.0 (Logistics robot integration with command chat and pipeline automation), v4.0 (Human behavior system -- making Somnio feel like a real WhatsApp salesperson), and v5.0 (Meta Direct Integration -- eliminating 360dialog and ManyChat intermediaries for WhatsApp, Facebook Messenger and Instagram).
 
 ## Milestones
 
 - **v1.0 MVP** — Phases 1-11 (shipped 2026-02-04)
 - **v2.0 Agentes Conversacionales** — Phases 12-20 (shipped 2026-02-16)
-- **v3.0 Logistica** — Phases 21-28 (in progress)
-- **v4.0 Comportamiento Humano** — Phases 29-36 (planned)
+- **v3.0 Logistica** — Phases 21-28 (shipped 2026-02-24)
+- **v4.0 Comportamiento Humano** — Phases 29-36 (Phase 36 in progress)
+- **v5.0 Meta Direct Integration** — Phases 37-41 (planned)
 
 ## Phases
 
@@ -271,9 +272,8 @@ Plans:
 
 </details>
 
----
-
-### v4.0 Comportamiento Humano (Phases 29-35)
+<details>
+<summary>v4.0 Comportamiento Humano (Phases 29-36) — Phase 36 in progress</summary>
 
 **Milestone Goal:** Hacer que Somnio se comporte como un vendedor humano real en WhatsApp -- delays inteligentes, clasificacion de mensajes, sistema de bloques con interrupcion y no-repeticion, procesamiento de medios, confidence thresholds, y flujo ofi inter.
 
@@ -490,6 +490,124 @@ Plans:
 4. Architecture supports N products per order and configurable quantity in the future (starts with 1 product, qty 1)
 5. Existing copyProducts and no-products modes continue working unchanged
 
+</details>
+
+---
+
+### v5.0 Meta Direct Integration (Phases 37-41)
+
+**Milestone Goal:** Eliminar intermediarios (360dialog para WhatsApp, ManyChat para FB/IG) e integrar directamente con Meta Cloud API. Multi-tenant con Embedded Signup para que cada cliente conecte su cuenta de WhatsApp, Facebook Messenger e Instagram. Migracion gradual con feature flags per-workspace.
+
+- [ ] **Phase 37: Meta App Setup + Foundation** - Meta App config, credentials table, token encryption, Graph API client, step-by-step setup guide
+- [ ] **Phase 38: Embedded Signup + WhatsApp Inbound** - Embedded Signup UI, token exchange, webhook subscription, unified webhook endpoint, WA inbound messages
+- [ ] **Phase 39: WhatsApp Outbound + Templates** - Cloud API sender, media upload/download, templates CRUD, read receipts, provider flag, channel registry
+- [ ] **Phase 40: Facebook Messenger Direct** - FB/IG page connection UI, Messenger webhook handler, FB sender, PSID resolution, Messenger inbox, provider flag
+- [ ] **Phase 41: Instagram Direct** - IG webhook handler, IG sender, IG-scoped user resolution, Instagram inbox, 24h window UX
+
+---
+
+### Phase 37: Meta App Setup + Foundation
+
+**Goal:** The Meta App is registered and approved with all required permissions, the database stores per-workspace encrypted credentials, and a typed Graph API client is ready for all subsequent phases to use.
+
+**Dependencies:** None (foundation phase for v5.0)
+
+**Requirements:** SETUP-01, SETUP-02, SETUP-03, SETUP-04
+
+**Risk:** MEDIUM (Meta App Review takes 2-7 business days -- submit immediately)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. A step-by-step guide exists that the user can follow to create the Meta App, enable WhatsApp/Messenger/Instagram products, configure business verification, and set environment variables -- before any code is written
+2. The Meta App is registered with Tech Provider enrollment and submitted for App Review with whatsapp_business_management + whatsapp_business_messaging + pages_messaging + instagram_manage_messages permissions
+3. A `workspace_meta_accounts` table stores WABA ID, phone_number_id, page_id, ig_account_id, and BISUAT tokens encrypted with AES-256-GCM per workspace -- with unique indexes on phone_number_id, page_id, and ig_account_id for O(1) webhook resolution
+4. A Graph API v22.0 client wrapper exists with the version pinned in a single global constant, accepting per-workspace tokens, and usable by all subsequent phases
+
+---
+
+### Phase 38: Embedded Signup + WhatsApp Inbound
+
+**Goal:** Workspace admins can connect their WhatsApp Business Account via a self-service popup, and incoming WhatsApp messages arrive in MorfX through a secure, deduplicated webhook endpoint.
+
+**Dependencies:** Phase 37 (Meta App approved, credentials table, Graph API client)
+
+**Requirements:** SIGNUP-01, SIGNUP-02, SIGNUP-03, WA-05, HOOK-01, HOOK-02, HOOK-03, HOOK-04
+
+**Risk:** MEDIUM (Embedded Signup has edge cases: phone in review period, failed SMS verification, short-lived token exchange window)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. A "Conectar WhatsApp" button in workspace settings opens the Meta Embedded Signup v4 popup -- after the user authorizes, MorfX automatically receives and stores the access token without manual configuration
+2. The token exchange flow converts the short-lived code to a BISUAT and stores it encrypted in `workspace_meta_accounts`, with the webhook subscription activated automatically
+3. A unified `/api/webhooks/meta` endpoint receives WhatsApp message events, verifies the HMAC-SHA256 signature with the App Secret, and returns 200 in under 5 seconds
+4. Duplicate messages from Meta retries (up to 7x) are detected by message_id and silently acknowledged without creating duplicate records in the database
+5. Incoming WhatsApp messages from connected workspaces appear in the MorfX inbox identically to messages received via 360dialog -- the user sees no difference in the conversation UI
+
+---
+
+### Phase 39: WhatsApp Outbound + Templates
+
+**Goal:** Workspaces connected via Meta direct can send all WhatsApp message types and manage templates through the Cloud API, with a per-workspace feature flag enabling gradual migration from 360dialog.
+
+**Dependencies:** Phase 38 (inbound must work before outbound -- otherwise connected workspaces lose customer messages)
+
+**Requirements:** WA-01, WA-02, WA-03, WA-04, WA-06, WA-07, WA-08, WA-09, MIG-01, MIG-03
+
+**Risk:** LOW (WhatsApp Cloud API payloads are identical to 360dialog -- sender swap is a URL + auth header change)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. From the MorfX inbox, a user can send text, images, videos, audio, documents, stickers, templates, and interactive messages (buttons/lists) via Cloud API -- the recipient receives them identically to messages sent via 360dialog
+2. Media files are uploaded to Meta CDN before sending and downloaded from Meta CDN URLs (with 5-minute expiry handled) when receiving -- stored permanently in Supabase Storage
+3. Templates can be created, listed, deleted, and their approval status synced via Graph API -- template status changes arrive via webhook push (not polling)
+4. A per-workspace `whatsapp_provider` flag (`'meta_direct' | '360dialog'`) determines which sender is used -- the channel registry routes to the correct ChannelSender implementation transparently
+5. Read receipts (blue ticks) are sent via Cloud API when the user opens a conversation
+
+---
+
+### Phase 40: Facebook Messenger Direct
+
+**Goal:** Workspaces can connect their Facebook Page and receive/send Messenger conversations directly through MorfX, replacing the ManyChat workaround with a native inbox that supports both human agents and AI.
+
+**Dependencies:** Phase 38 (webhook infrastructure and Embedded Signup pattern reused)
+
+**Requirements:** SIGNUP-04, FB-01, FB-02, FB-03, FB-04, MIG-02
+
+**Risk:** MEDIUM (Messenger API has different payload format than WhatsApp -- PSID lifecycle and Page Access Token management need careful handling)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. "Conectar Facebook Page" and "Conectar Instagram" buttons appear in workspace settings -- clicking opens the Embedded Signup v4 popup requesting pages_messaging and instagram_manage_messages permissions, and stores the Page token and IG account ID after authorization
+2. Messenger messages received via the unified webhook endpoint are routed to the correct workspace by page_id and appear as conversations in the MorfX inbox with a "Messenger" channel indicator
+3. Users can send text and images to Messenger contacts via Graph API from the MorfX inbox -- the Messenger sender follows the same ChannelSender interface as WhatsApp
+4. Page-Scoped User IDs (PSIDs) from Messenger are resolved to existing MorfX contacts (by matching known identifiers) or create new contacts automatically
+5. A per-workspace `messenger_provider` flag (`'meta_direct' | 'manychat'`) enables gradual migration from ManyChat
+
+---
+
+### Phase 41: Instagram Direct
+
+**Goal:** Workspaces can receive and respond to Instagram DMs directly in MorfX with clear visibility of the 24-hour messaging window, completing the tri-channel (WA + FB + IG) direct integration.
+
+**Dependencies:** Phase 40 (IG connection happens via same Embedded Signup flow as FB, webhook routing pattern reused)
+
+**Requirements:** IG-01, IG-02, IG-03, IG-04, IG-05
+
+**Risk:** MEDIUM (Instagram has strictest limitations: hard 24h window with no templates, 200 msg/hr rate limit, 1000 follower minimum for API access)
+
+**Plans:** TBD
+
+**Success Criteria:**
+1. Instagram DMs received via the unified webhook endpoint are routed to the correct workspace by ig_account_id and appear as conversations in the MorfX inbox with an "Instagram" channel indicator
+2. Users can send text and images to Instagram contacts via Graph API from the MorfX inbox -- unsupported message types (stickers, voice) are handled gracefully with clear error messages
+3. Instagram-scoped user IDs are resolved to existing MorfX contacts or create new contacts automatically, following the same resolution pattern as Messenger PSIDs
+4. The inbox clearly shows the remaining time in the 24-hour messaging window for each Instagram conversation -- when the window expires, the send button is disabled with an explanation that the customer must message first
+5. AI agents (Somnio and others) can respond to Instagram DMs through the same agent routing system used for WhatsApp and Messenger -- with window-aware sending that prevents attempts to message after the 24h expiry
+
 ---
 
 ## Standalone Phases (between milestones)
@@ -573,13 +691,14 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-36) | Phase 36 in progress | — |
+| v5.0 Meta Direct | 37-41 | TBD | Planned | — |
 | Standalone | 15 phases | 54 | 11 complete, 4 in progress | |
-| **Total** | **55 phases** | **228+ plans** | | |
+| **Total** | **60 phases** | **228+ plans** | | |
 
 ### Current Phase
 
 Phase 36: Shopify Product Conditional — 2 plans (1 complete)
-Next: Execute `/gsd:execute-phase 35`
+Next: Complete Phase 36, then `/gsd:plan-phase 37`
 
 ---
 
@@ -590,4 +709,4 @@ Next: Execute `/gsd:execute-phase 35`
 
 ---
 *Roadmap created: 2026-01-26*
-*Last updated: 2026-03-12 (Standalone GoDentist Scraping General planned: 2 plans)*
+*Last updated: 2026-03-31 (v5.0 Meta Direct Integration roadmap: Phases 37-41, 33 requirements mapped)*

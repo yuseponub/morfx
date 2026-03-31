@@ -5,20 +5,30 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v5.0 Meta Direct Integration — Defining requirements
+**Current focus:** Milestone v5.0 Meta Direct Integration — Roadmap created, ready to plan Phase 37
 
 ## Current Position
 
-Phase: Not started (defining requirements for v5.0)
+Phase: 37 (Meta App Setup + Foundation) — not started
 Plan: —
-Status: Research complete, defining requirements
-Last activity: 2026-03-31 — Milestone v5.0 Meta Direct Integration started
+Status: Roadmap created, awaiting plan
+Last activity: 2026-03-31 — v5.0 roadmap created (Phases 37-41, 33 requirements mapped)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [----------] 0% v5.0
 
 ### Carryover from v4.0
 - Phase 36 (Shopify Product Conditional): IN PROGRESS (1/2 plans)
 - Standalone in progress: v3-state-machine, v3-two-track-decision, v3-ofi-inter, GoDentist Followup Ultimatum, SMS Module, v3-tiempo-entrega
+
+### v5.0 Meta Direct Integration (Phases 37-41)
+
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 37 | Meta App Setup + Foundation | SETUP-01, SETUP-02, SETUP-03, SETUP-04 | Pending |
+| 38 | Embedded Signup + WhatsApp Inbound | SIGNUP-01, SIGNUP-02, SIGNUP-03, WA-05, HOOK-01→04 | Pending |
+| 39 | WhatsApp Outbound + Templates | WA-01→04, WA-06→09, MIG-01, MIG-03 | Pending |
+| 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
+| 41 | Instagram Direct | IG-01→05 | Pending |
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -371,6 +381,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-31 COT
-Stopped at: Milestone v5.0 started — research complete, defining requirements
+Stopped at: v5.0 roadmap created (Phases 37-41, 33 requirements)
 Resume file: None
-Next: Define requirements for v5.0, then create roadmap
+Next: `/gsd:plan-phase 37` (Meta App Setup + Foundation)

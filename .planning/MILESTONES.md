@@ -2,29 +2,64 @@
 
 ## Active Milestone
 
-### v3.0 — Logística (Started: 2026-02-20)
+### v5.0 — Meta Direct Integration (Started: 2026-03-31)
 
-**Goal:** Integrar robots de logística al CRM de MorfX, empezando por Coordinadora. Chat de comandos para operaciones, pipeline integration, protección anti-duplicados.
+**Goal:** Eliminar intermediarios (360dialog para WhatsApp, ManyChat para FB/IG) e integrar directamente con Meta Cloud API. Multi-tenant con Embedded Signup para que cada cliente conecte su cuenta de WhatsApp, Facebook Messenger e Instagram. Migracion gradual con feature flags per-workspace.
 
-**Phases:** 21-25 (5 phases, 17 requirements)
+**Phases:** 37-41 (5 phases, 33 requirements)
 
 | Phase | Name | Requirements |
 |-------|------|--------------|
-| 21 | DB + Domain Foundation | DATA-01→04 |
-| 22 | Robot Coordinadora Service | ROBOT-01→05 |
-| 23 | Inngest Orchestrator + Callback API | PIPE-02, PIPE-03 |
-| 24 | Chat de Comandos UI | CHAT-01→04 |
-| 25 | Pipeline Integration + Docs | PIPE-01, DOC-01 |
+| 37 | Meta App Setup + Foundation | SETUP-01, SETUP-02, SETUP-03, SETUP-04 |
+| 38 | Embedded Signup + WhatsApp Inbound | SIGNUP-01, SIGNUP-02, SIGNUP-03, WA-05, HOOK-01→04 |
+| 39 | WhatsApp Outbound + Templates | WA-01→04, WA-06→09, MIG-01, MIG-03 |
+| 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 |
+| 41 | Instagram Direct | IG-01→05 |
 
 **Key architectural decisions:**
-- Playwright runs as separate Docker service on Railway (Vercel incompatible)
-- Inngest orchestrates robot jobs (same pattern as automation runners)
-- Domain layer handles all robot result updates (triggers automations)
-- Anti-duplicate: workspace lock + per-order lock + batch idempotency
+- Zero new npm packages -- native fetch for Graph API, Node.js crypto for HMAC/AES-256-GCM
+- Meta JS SDK loaded via CDN script tag (frontend only, for Embedded Signup popup)
+- New `src/lib/meta/` module alongside existing `src/lib/whatsapp/` and `src/lib/manychat/`
+- Three new ChannelSender implementations registered in existing registry
+- `workspace_meta_accounts` table with encrypted tokens and unique indexes for O(1) webhook resolution
+- Per-workspace provider flags for gradual migration (whatsapp_provider, messenger_provider)
+- Unified `/api/webhooks/meta` endpoint with routing by payload.object type
 
 ---
 
 ## Completed Milestones
+
+### v4.0 — Comportamiento Humano (Shipped: 2026-03-26)
+
+**Delivered:** Human-like behavior for Somnio WhatsApp agent -- intelligent delays, message classification, block system with interruption and no-repetition, media processing, confidence routing, ofi inter flow, and Shopify product conditional mapping.
+
+**Phases completed:** 29-36 (30+ plans total, 8 phases)
+
+**Key accomplishments:**
+- Inngest async processing with concurrency-1 per conversation
+- Character-proportional typing delays (logarithmic curve)
+- 3-category message classification (RESPONDIBLE/SILENCIOSO/HANDOFF)
+- Block system with pre-send check, interruption detection, and priority-based merge
+- Media processing: audio transcription (Whisper), sticker vision (Claude), reaction mapping
+- Confidence routing with disambiguation log for human review
+- 3-level no-repetition system (ID lookup, minifrase Haiku, full context)
+- Ofi Inter office pickup detection with 3 detection paths
+
+---
+
+### v3.0 — Logistica (Shipped: 2026-02-24)
+
+**Delivered:** Robot de logistica Coordinadora integrado al CRM, chat de comandos, pipeline integration, robot lector de guias, robot OCR, robot creador de guias PDF.
+
+**Phases completed:** 21-28 (27 plans total, 8 phases)
+
+**Key accomplishments:**
+- Playwright robot on Railway for Coordinadora portal automation
+- Inngest orchestration for robot jobs with domain-routed callbacks
+- Chat de Comandos UI with real-time progress via Supabase Realtime
+- Guide reader, OCR guide extraction (Claude Vision), PDF guide generation
+
+---
 
 ### MVP v2.0 — Agentes Conversacionales (Shipped: 2026-02-16)
 
@@ -47,8 +82,6 @@
 - 12 days from start to ship (2026-02-04 to 2026-02-16)
 
 **Git range:** `feat(12-01)` to `fix(20)`
-
-**What's next:** v3.0 — Logística
 
 ---
 
@@ -74,8 +107,6 @@
 
 **Git range:** `feat(01-01)` to `feat(11-07)`
 
-**What's next:** MVP v2.0 — Agentes Conversacionales
-
 ---
 
-*Last updated: 2026-02-20 after starting v3.0*
+*Last updated: 2026-03-31 after starting v5.0*

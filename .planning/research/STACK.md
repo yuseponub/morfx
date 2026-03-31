@@ -1,341 +1,664 @@
-# Technology Stack: Human Behavior System (v4.0)
+# Technology Stack: Direct Meta Integration
 
-**Project:** MorfX - Somnio Human Behavior
-**Researched:** 2026-02-23
-**Overall Confidence:** HIGH
+**Project:** MorfX - Replace 360dialog + ManyChat with Direct Meta APIs
+**Researched:** 2026-03-31
+**Overall Confidence:** HIGH (verified with official Meta docs + multiple sources)
+
+---
 
 ## Executive Summary
 
-The Human Behavior system requires **one new npm dependency** (OpenAI SDK for Whisper) and **zero framework changes**. Everything else is achievable with existing stack: Inngest concurrency (already proven in `agent-production.ts`), Claude Vision (already used in OCR module), and Haiku via `@anthropic-ai/sdk` (already in project). The architecture change is moving webhook processing from inline to Inngest-queued, which is a refactor of existing code, not a new technology.
+Direct Meta integration replaces two intermediaries (360dialog, ManyChat) with a single Meta App using Graph API v22.0 (latest stable, enforced since Sep 2025). No new npm libraries are required -- raw HTTP via `fetch` is the correct approach. The Meta JS SDK (loaded via `<script>`) is needed only on the frontend for Embedded Signup. Token management is the hardest part: each workspace gets a Business Integration System User Access Token (BISUAT) that never expires but must be stored encrypted.
 
 ---
 
-## Stack Additions
+## 1. Meta Graph API Version
 
-### 1. OpenAI SDK (NEW - Audio Transcription)
+| Detail | Value | Confidence |
+|--------|-------|------------|
+| Current stable | **v22.0** | HIGH |
+| Base URL | `https://graph.facebook.com/v22.0` | HIGH |
+| Minimum enforced | v22.0 (older versions rejected since Sep 9, 2025) | HIGH |
+| Versioning strategy | Include version in URL path, pin to v22.0 | HIGH |
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `openai` | ^6.22.0 | Whisper API for audio transcription | Only viable server-side transcription API. WhatsApp audios are OGG/Opus, Whisper supports OGG natively. No self-hosting complexity. |
+**Source:** [Meta Graph API Changelog](https://developers.facebook.com/docs/graph-api/changelog/version22.0/)
 
-**Installation:**
-```bash
-npm install openai
-```
-
-**Integration point:** New `src/lib/media/transcribe-audio.ts` module. Called inside Inngest step when audio message arrives.
-
-**Pricing (Whisper-1 model):**
-- **$0.006/min** (~$0.36/hour)
-- WhatsApp voice notes: typically 5-30 seconds = **$0.0005 - $0.003 per audio**
-- Estimated volume: 1-5 audios/day = **$0.02-0.10/month** (negligible)
-- Alternative: `gpt-4o-mini-transcribe` at **$0.003/min** (half price, newer) -- recommend starting with `whisper-1` for proven reliability, can switch later.
-
-**Audio format compatibility:**
-- WhatsApp sends audio as **`audio/ogg; codecs=opus`** (OGG container with Opus codec)
-- Whisper API supports: `flac`, `mp3`, `mp4`, `mpeg`, `mpga`, `m4a`, `ogg`, `wav`, `webm`
-- **OGG is natively supported** -- no transcoding needed
-- File size limit: **25 MB** (WhatsApp voice notes max ~16 MB, so always within limit)
-
-**SDK usage pattern:**
-```typescript
-import OpenAI from 'openai'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-// Audio buffer already available from existing downloadMedia() in whatsapp/api.ts
-const file = new File([audioBuffer], 'audio.ogg', { type: 'audio/ogg' })
-const transcription = await openai.audio.transcriptions.create({
-  model: 'whisper-1',
-  file,
-  language: 'es',  // Force Spanish for better accuracy
-  response_format: 'text',  // Just the text, no timestamps needed
-})
-// transcription = "Hola, quiero saber el precio del producto"
-```
-
-**Latency expectation:** ~1-3 seconds for typical WhatsApp voice note (5-30s audio). Acceptable because the check-before-send delay system (Etapa 3A) absorbs this time naturally.
-
-**Confidence:** HIGH -- Official OpenAI docs confirm OGG support, pricing verified from multiple sources.
+**Recommendation:** Pin to v22.0. Create a constant `META_GRAPH_API_VERSION = 'v22.0'` and `META_BASE_URL = 'https://graph.facebook.com/v22.0'`. Review and bump when Meta releases v23.0.
 
 ---
 
-### 2. Inngest Concurrency (EXISTING - Configuration Change)
+## 2. SDK vs Raw HTTP -- Decision
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `inngest` | ^3.51.0 (current) | Concurrency 1 per conversation for message queuing | Already proven in `agent-production.ts`. The Human Behavior system extends this to ALL message types (not just text). |
+### Recommendation: Raw HTTP (fetch) -- NO SDK
 
-**No version change needed.** Current `inngest@^3.51.0` fully supports the concurrency pattern.
+| Option | Verdict | Rationale |
+|--------|---------|-----------|
+| **Raw fetch** | **USE THIS** | MorfX already uses this pattern for 360dialog. Same payload format (Cloud API IS the Graph API). Zero new dependencies. Full control over error handling. |
+| `whatsapp-cloud-api` npm | SKIP | Thin wrapper, adds dep without value. Last updated irregularly. |
+| `facebook-nodejs-business-sdk` | SKIP | Marketing/Ads-focused. Overkill for messaging. Huge package. |
 
-**Already working in codebase:**
-```typescript
-// src/inngest/functions/agent-production.ts (line 34-38)
-concurrency: [
-  {
-    key: 'event.data.conversationId',
-    limit: 1,
-  },
-],
-```
+**Why raw fetch works perfectly:** The 360dialog API is already a pass-through to Meta's Cloud API. The message payloads (`messaging_product: 'whatsapp'`, `type: 'text'`, etc.) are IDENTICAL. The only change is:
+- URL: `https://waba-v2.360dialog.io/messages` --> `https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages`
+- Auth: `D360-API-KEY: {key}` header --> `Authorization: Bearer {token}` header
 
-**Key Inngest behaviors verified from official docs:**
-1. **Limit = steps, not runs.** `step.sleep()` and `step.waitForEvent()` do NOT count against concurrency. Only actively executing `step.run()` blocks count.
-2. **Queuing is automatic.** When concurrency 1 is reached, new events queue and execute in order when the previous step completes.
-3. **Key expression uses CEL.** Format: `'event.data.conversationId'` -- already working.
-
-**Architecture change:** The webhook handler currently calls `processMessageWithAgent` inline for text messages only (line 250-296 of webhook-handler.ts). Human Behavior changes this to:
-```
-Webhook receives message (any type)
-  -> Save to DB
-  -> inngest.send({ name: 'agent/whatsapp.message_received', data: { ... } })
-  -> Return 200 (webhook done in ~200ms)
-```
-The Inngest function picks up with concurrency 1 per conversation, handling ALL message types (text, audio, sticker, reaction, image, video).
-
-**What changes in `agent-production.ts`:**
-- Accept all message types (not just text)
-- Add media processing step before intent detection
-- Add check-before-send loop with `step.sleep()` + `step.run()` pattern
-
-**Confidence:** HIGH -- Pattern already proven in production with same Inngest version.
+**Exception:** The Meta JS SDK (`https://connect.facebook.net/en_US/sdk.js`) is loaded on the FRONTEND only for the Embedded Signup flow. This is a `<script>` tag, not an npm package.
 
 ---
 
-### 3. Claude Vision for Stickers (EXISTING - New Use Case)
+## 3. Recommended Stack Additions
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `@anthropic-ai/sdk` | ^0.73.0 (current) | Interpret WhatsApp stickers | Already used for OCR in `extract-guide-data.ts`. Same SDK, same pattern. |
+### Core (Zero new npm packages for messaging)
 
-**No new dependency.** Already in `package.json`.
+| Component | Technology | Version | Purpose | Why |
+|-----------|-----------|---------|---------|-----|
+| HTTP Client | Native `fetch` | Built-in | All Graph API calls | Already used for 360dialog. Same pattern. |
+| Webhook signature | Node.js `crypto` | Built-in | HMAC-SHA256 validation | Already implemented in current webhook route. Same algo. |
+| Graph API wrapper | Custom `src/lib/meta/api.ts` | N/A | Typed wrapper around fetch | Mirrors existing `src/lib/whatsapp/api.ts` pattern |
+| Embedded Signup | Meta JS SDK (CDN) | Latest | Frontend onboarding flow | Loaded via `<script>` tag, no npm |
+| Token encryption | `crypto` (AES-256-GCM) | Built-in | Encrypt tokens at rest in DB | Node built-in, no dependency needed |
 
-**Sticker characteristics:**
-- WhatsApp stickers: **512x512 px** max, typically **image/webp** format
-- Claude Vision supports: JPEG, PNG, GIF, **WebP**
-- Token cost formula: `tokens = (width * height) / 750`
-- **512x512 sticker = ~349 tokens**
+### Supporting (existing stack, no additions needed)
 
-**Cost per sticker interpretation:**
-| Model | Input Cost/1M | Tokens per Sticker | Cost per Sticker | Cost + Output (~50 tokens) |
-|-------|---------------|-------------------|------------------|---------------------------|
-| Haiku 3.5 | $0.80 | ~349 | $0.00028 | **~$0.0005** |
-| Haiku 4.5 | $1.00 | ~349 | $0.00035 | **~$0.0006** |
-| Sonnet 4 | $3.00 | ~349 | $0.00105 | **~$0.0013** |
+| Component | Already Have | How It's Used |
+|-----------|-------------|---------------|
+| Inngest | Yes | Async webhook processing, agent timers -- unchanged |
+| Supabase | Yes | Token storage, workspace settings, RLS |
+| Next.js App Router | Yes | Webhook routes (`/api/webhooks/meta`), Embedded Signup page |
+| Domain layer | Yes | All mutations through `src/lib/domain/` |
+| ChannelSender | Yes | Interface already exists, just add new implementations |
 
-**Recommendation: Use Haiku 3.5 for sticker interpretation.** At $0.0005/sticker this is practically free. Sticker interpretation is a simple task (classify as greeting/ok/thumbs-up/laughing/unclear) -- does not need Sonnet reasoning capability.
+---
 
-**Integration pattern (same as existing OCR):**
-```typescript
-import Anthropic from '@anthropic-ai/sdk'
+## 4. Meta App Configuration Requirements
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const base64Data = Buffer.from(stickerBuffer).toString('base64')
+### App Type & Products
 
-const response = await client.messages.create({
-  model: 'claude-3-5-haiku-20241022',  // Haiku 3.5 -- cheapest
-  max_tokens: 100,
-  messages: [{
-    role: 'user',
-    content: [
-      {
-        type: 'image',
-        source: { type: 'base64', media_type: 'image/webp', data: base64Data },
+| Setting | Value | Notes |
+|---------|-------|-------|
+| App Type | **Business** | Required for WhatsApp Cloud API + Messenger + Instagram |
+| Product: WhatsApp | Enable | Cloud API messaging |
+| Product: Messenger | Enable | Facebook Page messaging |
+| Product: Instagram | Enable | Instagram DM API |
+| Product: Webhooks | Enable (auto) | Comes with WhatsApp product |
+| Business Verification | Required | Must verify MorfX business on Meta Business Suite |
+| Tech Provider | Required | Must enroll by June 30, 2025 (deadline passed -- enroll ASAP) |
+
+### Permissions Required (App Review)
+
+| Permission | Channel | Purpose | Review Required |
+|------------|---------|---------|-----------------|
+| `whatsapp_business_messaging` | WhatsApp | Send/receive messages via Cloud API | YES -- video walkthrough |
+| `whatsapp_business_management` | WhatsApp | Manage templates, phone numbers, WABA | YES -- video walkthrough |
+| `pages_messaging` | Messenger | Send/receive Facebook Page messages | YES |
+| `pages_manage_metadata` | Messenger + IG | Subscribe to webhooks for Pages | YES |
+| `instagram_manage_messages` | Instagram | Send/receive Instagram DMs | YES (Advanced access) |
+| `instagram_basic` | Instagram | Read IG account profile info | YES |
+| `business_management` | All | Access Business Portfolio endpoints | YES |
+
+**CRITICAL:** App Review takes 3-4 weeks. Submit early. Video walkthroughs required for each permission showing real usage in the app.
+
+---
+
+## 5. Embedded Signup Flow (Client Onboarding)
+
+This is how 360dialog onboards clients, and how MorfX will too. Meta provides the Embedded Signup as a JavaScript-based popup flow.
+
+### How It Works (Step by Step)
+
+```
+1. MorfX Dashboard: Client clicks "Connect WhatsApp"
+2. Frontend loads Meta JS SDK via <script>
+3. Frontend calls FB.login() with specific parameters
+4. Meta popup opens (Facebook Login for Business)
+5. Client logs into Facebook (or uses existing session)
+6. Client selects/creates Meta Business Portfolio
+7. Client selects/creates WhatsApp Business Account (WABA)
+8. Client registers phone number + verifies via SMS/call
+9. Popup closes, returns to MorfX with:
+   - waba_id (WhatsApp Business Account ID)
+   - phone_number_id (registered phone number)
+   - code (authorization code for token exchange)
+10. MorfX backend exchanges code for Business Integration System User Access Token
+11. Backend subscribes app to WABA webhooks: POST /{WABA_ID}/subscribed_apps
+12. Done -- workspace is now connected
+```
+
+### Frontend Implementation
+
+```javascript
+// 1. Load SDK (in Next.js, load in <Script> component)
+// <Script src="https://connect.facebook.net/en_US/sdk.js" />
+
+// 2. Initialize
+window.fbAsyncInit = function() {
+  FB.init({
+    appId: '{META_APP_ID}',
+    cookie: true,
+    xfbml: true,
+    version: 'v22.0'
+  });
+};
+
+// 3. Session info listener (receives waba_id before flow completes)
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://www.facebook.com') return;
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type === 'WA_EMBEDDED_SIGNUP') {
+      // data.data.waba_id - WhatsApp Business Account ID
+      // data.data.phone_number_id - Phone number ID
+      // data.event - 'FINISH' or 'CANCEL' or 'ERROR'
+    }
+  } catch {}
+});
+
+// 4. Launch signup
+function launchWhatsAppSignup() {
+  FB.login((response) => {
+    if (response.authResponse) {
+      const code = response.authResponse.code;
+      // Send code + waba_id + phone_number_id to backend
+    }
+  }, {
+    config_id: '{WHATSAPP_CONFIG_ID}', // Created in Meta App Dashboard
+    response_type: 'code',
+    override_default_response_type: true,
+    extras: {
+      setup: {
+        // solutionID only if you're a Solution Partner, otherwise omit
       },
-      {
-        type: 'text',
-        text: 'This is a WhatsApp sticker. What does it express? Reply with ONE word: greeting, ok, thumbsup, laughing, love, sad, or unclear.',
-      },
-    ],
-  }],
-})
-```
-
-**Confidence:** HIGH -- Vision is already working in production for OCR (Phase 27). WebP confirmed supported. Token formula from official docs.
-
----
-
-### 4. Claude Haiku for Minifrase Generation (EXISTING - New Use Case)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `@anthropic-ai/sdk` | ^0.73.0 (current) | Generate minifrases for no-repetition system | Fast, cheap classification. Already used for intent detection. |
-
-**No new dependency.**
-
-**Current Haiku situation in codebase:** The project defines `claude-haiku-4-5` as a model constant but maps it to Sonnet 4 in `MODEL_MAP` (line 27 of `claude-client.ts`):
-```typescript
-'claude-haiku-4-5': 'claude-sonnet-4-20250514', // Using Sonnet 4 until Haiku 4 available
-```
-
-**For minifrase generation, use Haiku 3.5 directly** (not through the MODEL_MAP). The minifrase system needs maximum speed and minimum cost, not orchestrator-level reasoning.
-
-**Haiku 3.5 pricing (verified):**
-- Input: **$0.80/1M tokens** ($0.0008/1K)
-- Output: **$4.00/1M tokens** ($0.004/1K)
-- Context window: 200K tokens
-
-**Haiku 4.5 pricing (for comparison):**
-- Input: **$1.00/1M tokens**
-- Output: **$5.00/1M tokens**
-- 25% more expensive, better quality -- overkill for minifrases
-
-**Cost per minifrase call:**
-- Input: ~200 tokens (message content + prompt) = $0.00016
-- Output: ~30 tokens (minifrase text) = $0.00012
-- **Total: ~$0.0003 per call**
-
-**When minifrases are generated:**
-- **Plantillas (~30):** Predefined in code. **$0 runtime cost.**
-- **Human/AI messages:** Generated on send. ~2-5 per conversation = **$0.0006-0.0015/conversation**
-- **No-repetition Level 2 checks:** ~1-3 per response block = **$0.0003-0.0009/block**
-
-**Estimated monthly cost at 50 conversations/day:** ~$2-5/month (negligible).
-
-**Latency expectation:** ~200-400ms for Haiku calls. Acceptable because minifrase generation happens asynchronously (not blocking the user-facing response).
-
-**Confidence:** HIGH -- Haiku 3.5 pricing verified. Already using Anthropic SDK in project.
-
----
-
-### 5. Inngest step.sleep + step.run Pattern (EXISTING - Check-Before-Send)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `inngest` | ^3.51.0 (current) | Implement delay + DB check loop for message sequencing | step.sleep does NOT hold compute. step.run re-enters for DB check. Already used in agent-timers.ts. |
-
-**The check-before-send pattern is the core architectural innovation.** It uses Inngest's step system to implement the delay-check-send loop:
-
-```typescript
-// Inside Inngest function (concurrency 1 per conversation)
-for (const template of responseTemplates) {
-  // 1. Calculate delay based on character count
-  const delayMs = calculateCharDelay(template.content.length)
-
-  // 2. Sleep (does NOT count against concurrency)
-  await step.sleep(`delay-${template.id}`, `${delayMs}ms`)
-
-  // 3. Check for new inbound messages (step.run = DB query)
-  const hasNewInbound = await step.run(`check-${template.id}`, async () => {
-    const supabase = createAdminClient()
-    const { count } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('conversation_id', conversationId)
-      .eq('direction', 'inbound')
-      .gt('created_at', processingStartedAt)
-    return (count ?? 0) > 0
-  })
-
-  if (hasNewInbound) {
-    // Save unsent templates as pending, break loop
-    break
-  }
-
-  // 4. Send the template
-  await step.run(`send-${template.id}`, async () => {
-    await sendWhatsAppMessage(workspaceId, conversationId, template.content)
-  })
+      featureType: '',
+      sessionInfoVersion: '3',
+    }
+  });
 }
 ```
 
-**Why this works with Inngest:**
-- `step.sleep()` is free (no compute, no concurrency count)
-- `step.run()` is a separate HTTP invocation (fresh DB connection each time)
-- If the function crashes mid-sequence, Inngest retries from last completed step
-- Concurrency 1 means the next message's Inngest event queues automatically while we're sleeping/sending
+### Backend Token Exchange
 
-**Important Inngest behavior for step loops:**
-Each `step.run()` in a loop needs a **unique step ID** (e.g., `check-${template.id}`). Inngest uses step IDs for memoization -- duplicate IDs cause skipped execution.
+```typescript
+// POST to exchange code for token
+const response = await fetch(
+  `https://graph.facebook.com/v22.0/oauth/access_token` +
+  `?client_id=${META_APP_ID}` +
+  `&client_secret=${META_APP_SECRET}` +
+  `&code=${code}`,
+  { method: 'GET' }
+);
+const { access_token } = await response.json();
+// This is a Business Integration System User Access Token (BISUAT)
+// It NEVER expires. Store it encrypted in the workspace record.
 
-**Confidence:** HIGH -- `step.sleep()` + `step.run()` pattern proven in `agent-timers.ts` (same codebase). The loop pattern with dynamic step IDs is documented in Inngest's "Working with Loops" guide.
+// Subscribe app to WABA webhooks
+await fetch(
+  `https://graph.facebook.com/v22.0/${waba_id}/subscribed_apps`,
+  {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${access_token}` }
+  }
+);
+```
+
+### Config ID Setup
+
+The `config_id` is created in Meta App Dashboard > WhatsApp > Embedded Signup Configuration. It defines:
+- Which permissions to request
+- What the signup flow looks like
+- Callback URL settings
+
+**Source:** [Meta Embedded Signup Docs](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/), [Chatwoot Implementation](https://developers.chatwoot.com/self-hosted/configuration/features/integrations/whatsapp-embedded-signup)
 
 ---
 
-## Summary: What to Install
+## 6. Token Management Strategy
+
+### Token Types and Lifetimes
+
+| Token Type | Source | Lifetime | Use Case | Storage |
+|------------|--------|----------|----------|---------|
+| **Business Integration System User Access Token (BISUAT)** | Embedded Signup code exchange | **Never expires** | WhatsApp Cloud API calls (send messages, manage templates) | Encrypted in `workspaces.settings` |
+| **Page Access Token** | Facebook Login / Graph API | Long-lived (60 days) or never-expire if from System User | Messenger + Instagram API calls | Encrypted in `workspaces.settings` |
+| **App Access Token** | `{APP_ID}|{APP_SECRET}` | Never expires | Webhook verification, app-level operations | Environment variable |
+| **Temporary User Token** | Graph API Explorer | 1-2 hours | Dev/debug only | Never store |
+
+### Multi-Tenant Token Architecture
+
+```
+workspaces table
+  settings JSONB:
+    meta_waba_id: "123456789"
+    meta_phone_number_id: "987654321"
+    meta_access_token_encrypted: "AES-256-GCM encrypted BISUAT"
+    meta_page_id: "111222333"
+    meta_page_token_encrypted: "AES-256-GCM encrypted page token"
+    meta_ig_account_id: "444555666"
+    whatsapp_webhook_secret: "per-workspace secret for signature validation"
+```
+
+### Encryption Strategy
+
+```typescript
+// Use AES-256-GCM with a master key from environment
+// Key: META_TOKEN_ENCRYPTION_KEY (32 bytes, base64 encoded)
+// Each token gets a unique IV (12 bytes, stored with ciphertext)
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+
+function encryptToken(token: string): string {
+  const key = Buffer.from(process.env.META_TOKEN_ENCRYPTION_KEY!, 'base64');
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  // Format: base64(iv + tag + ciphertext)
+  return Buffer.concat([iv, tag, encrypted]).toString('base64');
+}
+```
+
+### Why BISUAT is the Right Choice
+
+- **Never expires** -- no refresh logic needed
+- **Scoped to WABA** -- each workspace has its own token
+- **Generated automatically** via Embedded Signup code exchange
+- **Can be revoked** by the business owner in Meta Business Suite
+- 360dialog uses API keys that map 1:1 to WABA tokens under the hood -- we just hold the real token now
+
+---
+
+## 7. Webhook Infrastructure
+
+### Unified Webhook Endpoint
+
+**Recommendation:** Single webhook route `/api/webhooks/meta` handles ALL three channels.
+
+All Meta webhooks share the same format:
+- Verification: GET with `hub.mode`, `hub.verify_token`, `hub.challenge`
+- Events: POST with JSON body, `X-Hub-Signature-256` header
+- Signature: HMAC-SHA256 of body with App Secret
+
+### Webhook Payload Differences by Channel
+
+#### WhatsApp
+```json
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "id": "WABA_ID",
+    "changes": [{
+      "value": {
+        "messaging_product": "whatsapp",
+        "metadata": {
+          "display_phone_number": "15551234567",
+          "phone_number_id": "PHONE_ID"
+        },
+        "messages": [{ "from": "SENDER", "type": "text", "text": { "body": "..." } }],
+        "statuses": [{ "id": "wamid.xxx", "status": "delivered" }]
+      },
+      "field": "messages"
+    }]
+  }]
+}
+```
+
+#### Messenger
+```json
+{
+  "object": "page",
+  "entry": [{
+    "id": "PAGE_ID",
+    "messaging": [{
+      "sender": { "id": "PSID" },
+      "recipient": { "id": "PAGE_ID" },
+      "message": { "mid": "msg_id", "text": "..." }
+    }]
+  }]
+}
+```
+
+#### Instagram
+```json
+{
+  "object": "instagram",
+  "entry": [{
+    "id": "IG_USER_ID",
+    "messaging": [{
+      "sender": { "id": "IG_SCOPED_ID" },
+      "recipient": { "id": "IG_USER_ID" },
+      "message": { "mid": "msg_id", "text": "..." }
+    }]
+  }]
+}
+```
+
+### Routing Strategy
+
+```typescript
+// /api/webhooks/meta/route.ts
+export async function POST(request: NextRequest) {
+  // 1. Verify signature (same for all 3 channels)
+  // 2. Parse payload
+  // 3. Route by object type:
+  switch (payload.object) {
+    case 'whatsapp_business_account':
+      return handleWhatsApp(payload);
+    case 'page':
+      return handleMessenger(payload);
+    case 'instagram':
+      return handleInstagram(payload);
+  }
+}
+```
+
+### Signature Validation
+
+**Identical to current implementation.** The existing `verifyWhatsAppHmac()` in `src/app/api/webhooks/whatsapp/route.ts` already uses `X-Hub-Signature-256` + HMAC-SHA256. The only change: the secret is now the **Meta App Secret** instead of a 360dialog-specific secret.
+
+**CRITICAL (March 2026):** Meta is switching the Certificate Authority for mTLS. Without a trust store update, webhooks stop arriving in April 2026. Vercel manages TLS for us, but verify this works.
+
+---
+
+## 8. Channel-Specific API Endpoints
+
+### WhatsApp Cloud API
+
+| Operation | Method | Endpoint | Auth |
+|-----------|--------|----------|------|
+| Send message | POST | `/{PHONE_NUMBER_ID}/messages` | Bearer BISUAT |
+| Upload media | POST | `/{PHONE_NUMBER_ID}/media` | Bearer BISUAT |
+| Get media URL | GET | `/{MEDIA_ID}` | Bearer BISUAT |
+| Download media | GET | `{CDN_URL}` (from media URL response) | Bearer BISUAT |
+| Mark as read | POST | `/{PHONE_NUMBER_ID}/messages` (status: read) | Bearer BISUAT |
+| Get templates | GET | `/{WABA_ID}/message_templates` | Bearer BISUAT |
+| Create template | POST | `/{WABA_ID}/message_templates` | Bearer BISUAT |
+| Delete template | DELETE | `/{WABA_ID}/message_templates?name={NAME}` | Bearer BISUAT |
+| Subscribe webhooks | POST | `/{WABA_ID}/subscribed_apps` | Bearer BISUAT |
+
+### Messenger Platform
+
+| Operation | Method | Endpoint | Auth |
+|-----------|--------|----------|------|
+| Send message | POST | `/me/messages` | Bearer Page Token |
+| Get user profile | GET | `/{PSID}?fields=first_name,last_name` | Bearer Page Token |
+| Set welcome text | POST | `/me/messenger_profile` | Bearer Page Token |
+
+### Instagram Messaging API
+
+| Operation | Method | Endpoint | Auth |
+|-----------|--------|----------|------|
+| Send message | POST | `/me/messages` | Bearer Page Token |
+| Get user profile | GET | `/{IG_SCOPED_ID}?fields=name,username` | Bearer Page Token |
+
+**Key difference:** Messenger and Instagram use the same Send API (`/me/messages`) with Page Access Tokens. WhatsApp uses `/{PHONE_NUMBER_ID}/messages` with BISUAT.
+
+---
+
+## 9. Rate Limits
+
+### WhatsApp
+
+| Limit Type | Value | Scope |
+|------------|-------|-------|
+| **Throughput (standard)** | 80 messages/second | Per phone number |
+| **Throughput (unlimited tier)** | Up to 1,000 messages/second | Per phone number (auto-upgrade) |
+| **Unique contacts/24h (Tier 0)** | 250 | Per Business Portfolio (unverified) |
+| **Unique contacts/24h (Tier 1)** | 1,000 | Per Business Portfolio |
+| **Unique contacts/24h (Tier 2)** | 10,000 | Per Business Portfolio |
+| **Unique contacts/24h (Tier 3)** | 100,000 | Per Business Portfolio |
+| **Unique contacts/24h (Tier 4)** | Unlimited | Per Business Portfolio |
+| **Media upload** | 25 requests/second | Per phone number |
+| **Media download fail limit** | 5 failures/hour blocks for 1 hour | Per phone number |
+
+**Note (Oct 2025 change):** Messaging limits are now per Business Portfolio, not per phone number.
+
+### Messenger
+
+| Limit Type | Value |
+|------------|-------|
+| Send API | 200 calls/hour per page (standard), higher with approved use |
+| 24h messaging window | After user messages, unlimited replies for 24 hours |
+| Outside window | Requires message tags (most deprecated Jan 2026) |
+
+### Instagram
+
+| Limit Type | Value |
+|------------|-------|
+| **DMs per hour** | 200 (firm, no exceptions) |
+| **24h messaging window** | Unlimited messages after user initiates |
+| **Outside window** | Cannot message (no equivalent of templates) |
+
+---
+
+## 10. Template Management via API
+
+### Creating Templates
+
+```typescript
+// POST https://graph.facebook.com/v22.0/{WABA_ID}/message_templates
+{
+  "name": "order_confirmation",
+  "language": "es",
+  "category": "UTILITY", // MARKETING | UTILITY | AUTHENTICATION
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Hola {{1}}, tu pedido {{2}} ha sido confirmado.",
+      "example": {
+        "body_text": [["Juan", "ORD-001"]]
+      }
+    }
+  ]
+}
+```
+
+### Approval Flow
+
+1. Submit template via API
+2. Status: `PENDING` (under review)
+3. Meta reviews (1 min to 48 hours typically)
+4. Status changes to `APPROVED` or `REJECTED`
+5. Webhook notification: `message_template_status_update`
+
+### Syncing Template Status
+
+```typescript
+// GET https://graph.facebook.com/v22.0/{WABA_ID}/message_templates
+// Returns all templates with current status
+// Webhook field "message_template_status_update" for real-time updates
+```
+
+**Migration from 360dialog:** Templates are associated with the WABA, not with 360dialog. When a client connects via Embedded Signup using their existing WABA, their templates carry over automatically.
+
+---
+
+## 11. Media Handling
+
+### Upload (WhatsApp)
+
+```typescript
+// POST https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/media
+// Content-Type: multipart/form-data
+// Body: file (binary), type (MIME), messaging_product: "whatsapp"
+// Returns: { id: "MEDIA_ID" }
+```
+
+### Download (WhatsApp)
+
+```typescript
+// Step 1: Get URL
+// GET https://graph.facebook.com/v22.0/{MEDIA_ID}
+// Returns: { url: "https://lookaside.fbsbx.com/...", mime_type: "...", ... }
+
+// Step 2: Download binary
+// GET {url} with Authorization: Bearer {token}
+// Returns: binary data
+// URL expires after 5 minutes
+```
+
+**Key difference from 360dialog:** Currently we replace `lookaside.fbsbx.com` with 360dialog's proxy domain. With direct integration, we hit `lookaside.fbsbx.com` directly using the Bearer token. Simpler.
+
+### Messenger/Instagram Media
+
+Messenger and Instagram handle media inline in the Send API:
+```json
+{
+  "recipient": { "id": "PSID" },
+  "message": {
+    "attachment": {
+      "type": "image",
+      "payload": { "url": "https://example.com/image.jpg" }
+    }
+  }
+}
+```
+
+---
+
+## 12. Pricing Impact (Direct vs 360dialog)
+
+### WhatsApp (Direct Meta Billing)
+
+Since July 2025, pricing is per delivered template message:
+- **Service messages** (replies within 24h window): **FREE**
+- **Marketing templates:** Most expensive (~$0.01-0.24 depending on country, Colombia is cheap)
+- **Utility templates:** ~80-90% cheaper than marketing. **FREE within open service window**
+- **Authentication templates:** Variable, international significantly more expensive
+
+### Cost Savings
+
+| Current (360dialog) | Direct Meta |
+|---------------------|-------------|
+| 360dialog markup on messages | Zero markup -- Meta direct pricing |
+| 360dialog monthly fee per number | Zero platform fee |
+| ManyChat Pro subscription | Zero -- direct API is free |
+| Limited by 360dialog's features | Full API access |
+
+**Key insight:** 360dialog claims "zero markup" but charges a monthly fee per number. ManyChat charges per-subscriber fees. Both are eliminated.
+
+---
+
+## 13. Migration Path from Current Stack
+
+### What Changes
+
+| Component | Current | New | Migration Effort |
+|-----------|---------|-----|-----------------|
+| WhatsApp API base URL | `waba-v2.360dialog.io` | `graph.facebook.com/v22.0` | Low -- constant change |
+| WhatsApp auth header | `D360-API-KEY: {key}` | `Authorization: Bearer {token}` | Low -- header change |
+| WhatsApp payload format | Same as Cloud API | Cloud API | **ZERO** -- identical |
+| Messenger send | ManyChat `sendContent` | Graph API `/me/messages` | Medium -- new sender |
+| Instagram send | ManyChat tag+field hack | Graph API `/me/messages` | Medium -- much simpler |
+| Webhook route | `/api/webhooks/whatsapp` | `/api/webhooks/meta` (unified) | Medium |
+| Webhook payload | Same as Meta format | Meta format | **ZERO** -- 360dialog passes through |
+| Client onboarding | Manual (paste API key) | Embedded Signup (self-service) | High -- new UI flow |
+| Token management | API key per workspace | Encrypted BISUAT per workspace | Medium |
+| Template management | Via 360dialog hub | Via Graph API | Medium -- new UI |
+
+### What Does NOT Change
+
+- `ChannelSender` interface (already abstracted)
+- `ChannelType` enum (same channels)
+- `processWebhook()` handler logic (payload format identical for WhatsApp)
+- Domain layer mutations
+- Inngest async processing
+- Supabase storage
+- Contact resolution logic
+
+---
+
+## 14. What NOT to Add
+
+| Technology | Why Skip |
+|------------|----------|
+| `whatsapp-cloud-api` npm | Thin wrapper around fetch. Adds dependency for zero value. |
+| `facebook-nodejs-business-sdk` npm | Marketing/Ads SDK. Wrong tool for messaging. |
+| Separate webhook routes per channel | One `/api/webhooks/meta` route handles all 3. Simpler. |
+| Redis for token caching | Tokens never expire. Store in DB, cache in memory per request. No Redis needed. |
+| Separate Meta Apps per workspace | One MorfX Meta App serves ALL workspaces. Each workspace connects their own WABA/Page via Embedded Signup. |
+| Webhook queue (SQS/Redis) | Inngest already handles async processing. Don't add infrastructure. |
+
+---
+
+## 15. Environment Variables (New)
 
 ```bash
-# Only ONE new dependency
-npm install openai
+# Meta App (one per MorfX deployment)
+META_APP_ID=               # From Meta App Dashboard
+META_APP_SECRET=           # From Meta App Dashboard (also used for webhook signature)
+META_CONFIG_ID=            # Embedded Signup configuration ID
+
+# Token encryption
+META_TOKEN_ENCRYPTION_KEY= # 32 bytes, base64 encoded, for AES-256-GCM
+
+# Webhook verification
+META_WEBHOOK_VERIFY_TOKEN= # Custom string for webhook URL verification
+
+# Remove after migration complete:
+# WHATSAPP_API_KEY (360dialog)
+# WHATSAPP_WEBHOOK_SECRET (360dialog-specific)
+# MANYCHAT_API_KEY
 ```
 
-**Environment variable needed:**
+---
+
+## 16. File Structure (New/Modified)
+
 ```
-OPENAI_API_KEY=sk-...
+src/lib/meta/
+  api.ts              # Graph API HTTP client (replaces 360dialog api.ts)
+  types.ts            # Webhook payload types, API response types
+  webhook-handler.ts  # Unified webhook handler for all 3 channels
+  token.ts            # Token encryption/decryption
+  templates.ts        # Template CRUD operations
+  media.ts            # Media upload/download
+  embedded-signup.ts  # Backend: code exchange, webhook subscription
+
+src/lib/channels/
+  meta-whatsapp-sender.ts   # New ChannelSender for direct WhatsApp
+  meta-messenger-sender.ts  # New ChannelSender for direct Messenger
+  meta-instagram-sender.ts  # New ChannelSender for direct Instagram
+  registry.ts               # Updated to include new senders
+
+src/app/api/webhooks/meta/
+  route.ts            # Unified webhook endpoint (replaces /whatsapp and /manychat)
+
+src/app/api/meta/
+  embedded-signup/route.ts  # Backend for code exchange after Embedded Signup
+
+src/app/(dashboard)/settings/channels/
+  page.tsx            # UI for Embedded Signup + channel connection
+  whatsapp-connect.tsx
+  messenger-connect.tsx
+  instagram-connect.tsx
 ```
-
----
-
-## What NOT to Add
-
-| Technology | Why NOT | What to Use Instead |
-|-----------|---------|---------------------|
-| `ffmpeg` / audio transcoding libs | WhatsApp OGG/Opus is natively supported by Whisper. No transcoding needed. | Direct buffer pass to Whisper API |
-| `openai` Realtime API | Streaming transcription is overkill. Voice notes are complete audio files. | Standard `audio.transcriptions.create()` |
-| `gpt-4o-transcribe` | Better accuracy but 2x cost of `whisper-1` for Spanish audio. Not needed for short voice notes. | `whisper-1` (proven, cheaper) -- can upgrade later if accuracy issues |
-| `bull` / `bullmq` / Redis | Inngest already provides queuing, concurrency, and durability. Adding Redis is redundant complexity. | Inngest concurrency 1 per conversation |
-| `sharp` / image processing | Sticker images are already small (512x512 WebP). No resizing needed for Claude Vision. | Pass WebP directly to Claude |
-| `@ai-sdk/openai` (Vercel AI SDK) | Whisper is a single API call, not a streaming chat. AI SDK adds complexity for no benefit here. | Direct `openai` SDK |
-| Message debounce library | The check-before-send pattern with character delays replaces debouncing entirely. | `step.sleep()` + DB check |
-| Separate Haiku 4.5 model constant | Too expensive for minifrase (25% more than 3.5). Minifrase is a trivial classification task. | Haiku 3.5 directly: `claude-3-5-haiku-20241022` |
-
----
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not Alternative |
-|----------|-------------|-------------|---------------------|
-| Audio transcription | OpenAI Whisper-1 | Google Speech-to-Text | Whisper is simpler (single API call vs stream setup), supports OGG natively, pricing comparable |
-| Audio transcription | OpenAI Whisper-1 | AssemblyAI | Additional vendor relationship, more complex SDK, no meaningful advantage for short audio |
-| Sticker interpretation | Claude Haiku 3.5 Vision | GPT-4o Vision | Already have Anthropic SDK + API key in project, adding OpenAI Vision means managing two Vision APIs |
-| Minifrase generation | Claude Haiku 3.5 | GPT-4o-mini | Same reason -- keep one LLM vendor for text generation |
-| Message queuing | Inngest | BullMQ + Redis | Inngest already in stack with proven concurrency pattern, adding Redis is ops burden |
-| Check-before-send | Inngest step.sleep + step.run | setTimeout in serverless | setTimeout dies when Vercel function times out. Inngest sleeps are durable across restarts. |
-
----
-
-## Cost Estimates (Monthly at 50 conversations/day)
-
-| API | Per-Call Cost | Calls/Day | Monthly Cost |
-|-----|-------------|-----------|-------------|
-| Whisper (audio transcription) | $0.001 avg | 5-10 | **$0.15-0.30** |
-| Claude Vision (stickers) | $0.0005 | 3-5 | **$0.05-0.08** |
-| Claude Haiku (minifrases) | $0.0003 | 50-100 | **$0.45-0.90** |
-| Claude Haiku (no-repetition L2) | $0.0003 | 100-200 | **$0.90-1.80** |
-| **TOTAL new API costs** | | | **$1.55-3.08/month** |
-
-**Context:** Existing Claude costs for intent detection + orchestration are ~$15-25/month at this volume. Human Behavior adds **~10-15%** to existing AI costs.
-
----
-
-## Integration Points with Existing Stack
-
-| Existing Component | How It Changes | Impact |
-|-------------------|----------------|--------|
-| `webhook-handler.ts` | Remove inline agent call (L250-296), emit Inngest event for ALL message types | Medium -- core webhook refactor |
-| `agent-production.ts` | Expand to handle audio/sticker/reaction, add check-before-send loop | Large -- becomes the central message processor |
-| `messaging.ts` (ProductionMessagingAdapter) | Replace fixed `delaySeconds` with `calculateCharDelay()`, add check-before-send | Medium -- delay logic change |
-| `agent-timers.ts` | Add silence timer (90s retoma) using same `step.waitForEvent()` pattern | Small -- new timer, existing pattern |
-| `events.ts` | Add `agent/silence.detected` event type | Small -- type addition |
-| `claude-client.ts` | Add direct Haiku 3.5 model for minifrase (bypass MODEL_MAP) | Small -- new method |
-| `whatsapp/api.ts` | `downloadMedia()` already returns buffer -- pipe to Whisper | None -- already works |
-| Supabase | Add `processed_by_agent` column to messages, create `disambiguation_log` table | Small -- 2 migrations |
 
 ---
 
 ## Sources
 
-- [Inngest Concurrency Documentation](https://www.inngest.com/docs/functions/concurrency) -- Verified key expression syntax, step-level limiting
-- [Inngest Sleeps Documentation](https://www.inngest.com/docs/features/inngest-functions/steps-workflows/sleeps) -- Confirmed sleep does not hold compute
-- [OpenAI Whisper API Reference](https://platform.openai.com/docs/api-reference/audio/) -- Supported formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, webm
-- [OpenAI Pricing](https://platform.openai.com/docs/pricing) -- Whisper-1: $0.006/min
-- [Anthropic Claude Vision Documentation](https://platform.claude.com/docs/en/docs/build-with-claude/vision) -- Image token formula: (width*height)/750, WebP supported
-- [Anthropic Pricing](https://platform.claude.com/docs/en/about-claude/pricing) -- Haiku 3.5: $0.80/$4.00 per 1M tokens
-- [360dialog Media Documentation](https://docs.360dialog.com/docs/waba-messaging/media/upload-retrieve-or-delete-media) -- WhatsApp audio format: audio/ogg (opus codec)
-- [OpenAI npm package](https://www.npmjs.com/package/openai) -- v6.22.0 (latest)
-- Existing codebase: `src/inngest/functions/agent-production.ts` -- Proven concurrency 1 per conversation
-- Existing codebase: `src/lib/ocr/extract-guide-data.ts` -- Proven Claude Vision with base64 images
-- Existing codebase: `src/lib/whatsapp/api.ts` -- Proven media download returning ArrayBuffer
+### Official Meta Documentation
+- [Graph API Changelog v22.0](https://developers.facebook.com/docs/graph-api/changelog/version22.0/)
+- [Embedded Signup Overview](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/)
+- [Embedded Signup Implementation](https://developers.facebook.com/docs/whatsapp/embedded-signup/implementation/)
+- [Access Tokens Guide](https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens/)
+- [WhatsApp Cloud API Media Reference](https://developers.facebook.com/docs/whatsapp/cloud-api/reference/media/)
+- [WhatsApp Templates](https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview)
+- [WhatsApp Pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)
+- [Messaging Limits](https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits)
+- [Messenger Platform Webhooks](https://developers.facebook.com/docs/messenger-platform/webhooks)
+- [Messenger Send API](https://developers.facebook.com/docs/messenger-platform/reference/send-api/)
+- [Instagram Messaging API](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/)
+- [WhatsApp Webhook Messages Reference](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/)
+- [Tech Provider Program](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers)
 
----
-*Research completed: 2026-02-23*
+### Verified Implementation References
+- [Chatwoot Embedded Signup Docs](https://developers.chatwoot.com/self-hosted/configuration/features/integrations/whatsapp-embedded-signup)
+- [360dialog Embedded Signup](https://docs.360dialog.com/docs/hub/embedded-signup)
+- [360dialog Host Your Own Embedded Signup](https://docs.360dialog.com/partner/integrations-and-api-development/integration-best-practices/integrated-onboarding/host-your-own-embedded-signup)
+- [Twilio Tech Provider Integration Guide](https://www.twilio.com/docs/whatsapp/isv/tech-provider-program/integration-guide)
+- [Infobip Tech Provider Setup](https://www.infobip.com/docs/whatsapp/tech-provider-program/setup-and-integration)
+- [Meta Business Integration Prototype (GitHub)](https://github.com/RadithSandeepa/meta-business-integration-prototype)
+
+### Community / Industry Sources
+- [WhatsApp Messaging Limits 2026 (Chatarmin)](https://chatarmin.com/en/blog/whats-app-messaging-limits)
+- [Scale WhatsApp Cloud API Throughput (WuSeller)](https://www.wuseller.com/whatsapp-business-knowledge-hub/scale-whatsapp-cloud-api-master-throughput-limits-upgrades-2026/)
+- [Shadow Delivery Webhook Fix (Medium)](https://medium.com/@siri.prasad/the-shadow-delivery-mystery-why-your-whatsapp-cloud-api-webhooks-silently-fail-and-how-to-fix-2c7383fec59f)
+- [Teknasyon Embedded Signup Implementation](https://engineering.teknasyon.com/embedded-signup-a-solution-to-streamline-transition-to-whatsapp-business-api-cdf57783a2d4)

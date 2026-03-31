@@ -1,913 +1,771 @@
-# Architecture: Human Behavior System Integration
+# Architecture: Meta Direct Integration into MorfX
 
-**Domain:** WhatsApp sales agent behavioral layer
-**Researched:** 2026-02-23
-**Confidence:** HIGH (based on full codebase analysis + existing design docs)
+**Domain:** Multi-channel messaging platform (WhatsApp + Facebook + Instagram)
+**Researched:** 2026-03-31
+**Focus:** How direct Meta API integration fits into existing MorfX architecture
+
+## Executive Summary
+
+MorfX currently uses 360dialog as WhatsApp BSP and ManyChat for Facebook/Instagram. Direct Meta integration replaces both intermediaries with Meta's Graph API (Cloud API), using Embedded Signup for onboarding, System User tokens for API access, and a unified webhook for all channels.
+
+The existing architecture is well-prepared for this migration:
+- The `ChannelSender` interface already abstracts send operations
+- The domain layer already mediates all mutations
+- The webhook handler already parses WhatsApp Cloud API payloads (360dialog proxies them)
+- Workspace settings JSONB already stores per-tenant credentials
+
+The migration is **evolutionary, not revolutionary** -- most changes are adding a new provider alongside existing ones, not replacing them.
+
+## Current Architecture (As-Is)
+
+```
+Inbound:
+  360dialog webhook --> /api/webhooks/whatsapp/route.ts --> webhook-handler.ts --> domain/messages.ts --> Inngest event
+  ManyChat webhook  --> /api/webhooks/manychat/route.ts --> manychat/webhook-handler.ts --> domain/messages.ts --> Inngest event
+
+Outbound:
+  Agent/Action --> domain/messages.ts --> channels/registry.ts --> whatsapp-sender.ts (360dialog) | manychat-sender.ts
+                                                                         |
+                                                                    whatsapp/api.ts (D360-API-KEY header, waba-v2.360dialog.io)
+
+Credentials:
+  workspaces.settings JSONB: { whatsapp_api_key, whatsapp_phone_number_id, manychat_api_key }
+  Fallback: process.env.WHATSAPP_API_KEY, process.env.WHATSAPP_PHONE_NUMBER_ID
+```
+
+### Key Files
+
+| File | Role |
+|------|------|
+| `src/lib/whatsapp/api.ts` | 360dialog API client (send text/media/template/button, download media) |
+| `src/lib/whatsapp/webhook-handler.ts` | Process inbound WA messages + status updates |
+| `src/lib/whatsapp/templates-api.ts` | 360dialog template CRUD |
+| `src/lib/whatsapp/types.ts` | Webhook payload types (Cloud API format) |
+| `src/lib/channels/types.ts` | ChannelSender interface (sendText, sendImage) |
+| `src/lib/channels/registry.ts` | Maps ChannelType to sender implementation |
+| `src/lib/channels/whatsapp-sender.ts` | WhatsApp sender via 360dialog |
+| `src/lib/channels/manychat-sender.ts` | Facebook/Instagram sender via ManyChat |
+| `src/lib/domain/messages.ts` | Domain layer: send + receive messages |
+| `src/app/api/webhooks/whatsapp/route.ts` | WA webhook endpoint (HMAC verify, workspace resolve) |
+| `src/app/api/webhooks/manychat/route.ts` | ManyChat webhook endpoint |
+| `src/lib/agents/engine-adapters/production/messaging.ts` | Agent message sending adapter |
 
 ---
 
-## 1. Current Architecture (Before)
+## Target Architecture (To-Be)
 
 ```
-360dialog HTTP POST
-  |
-  v
-route.ts [/api/webhooks/whatsapp]
-  |
-  v
-processWebhook()                           [webhook-handler.ts]
-  |-- Save raw payload in whatsapp_webhook_events
-  |-- processIncomingMessage()
-  |     |-- normalizePhone()
-  |     |-- domainFindOrCreateConversation()
-  |     |-- domainReceiveMessage()          [domain/messages.ts]
-  |     |     |-- INSERT messages (inbound)
-  |     |     |-- UPDATE conversations.last_message_at
-  |     |     |-- emitWhatsAppMessageReceived() -> Inngest automation trigger
-  |     |     |-- checkKeywordMatches()
-  |     |
-  |     |-- [ONLY if msg.type === 'text']   <<< MEDIA GATE (line 250)
-  |           |
-  |           v
-  |       processMessageWithAgent()         [webhook-processor.ts]
-  |         |-- isAgentEnabledForConversation()
-  |         |-- conversationHasTag('WPP' | 'P/W')
-  |         |-- autoCreateContact()
-  |         |-- broadcast typing=true
-  |         |-- UnifiedEngine.processMessage()
-  |         |     |-- storage.getOrCreateSession()
-  |         |     |-- storage.getHistory()
-  |         |     |-- SomnioAgent.processMessage()
-  |         |     |     |-- [collecting_data] -> IngestManager
-  |         |     |     |-- [else] -> checkImplicitYes
-  |         |     |     |-- IntentDetector.detect()    <<< CLAUDE CALL
-  |         |     |     |-- SomnioOrchestrator.orchestrate()
-  |         |     |     |-- Return SomnioAgentOutput
-  |         |     |-- Route to 5 adapters:
-  |         |     |     |-- StorageAdapter -> DB
-  |         |     |     |-- TimerAdapter -> Inngest events
-  |         |     |     |-- OrdersAdapter -> domain/orders
-  |         |     |     |-- MessagingAdapter -> domain/messages (360dialog)
-  |         |     |     |     |-- FOR EACH template:
-  |         |     |     |     |     sleep(template.delaySeconds * responseSpeed * 1000)
-  |         |     |     |     |     domainSendTextMessage()
-  |         |     |     |-- DebugAdapter -> no-op
-  |         |-- broadcast typing=false
-  |         |-- mark messages sent_by_agent=true
-  |         |-- tag 'WPP' + handoff if needed
-```
+Inbound:
+  Meta webhook --> /api/webhooks/meta/route.ts --> meta/webhook-router.ts
+                                                       |
+                                    +------------------+------------------+
+                                    v                  v                  v
+                            wa-handler.ts      fb-handler.ts      ig-handler.ts
+                                    |                  |                  |
+                                    +------------------+------------------+
+                                                       v
+                                              domain/messages.ts --> Inngest event
 
-### Critical Observations
+  360dialog webhook --> /api/webhooks/whatsapp/route.ts  (PRESERVED for legacy workspaces)
+  ManyChat webhook  --> /api/webhooks/manychat/route.ts  (PRESERVED for legacy workspaces)
 
-| # | Observation | File:Line | Impact |
-|---|-------------|-----------|--------|
-| H1 | Agent processing is **INLINE** in webhook request | `webhook-handler.ts:250-296` | Must migrate to Inngest for concurrency-1 |
-| H2 | Only `msg.type === 'text'` reaches the agent | `webhook-handler.ts:250` | Media gate needs to intercept all types |
-| H3 | `whatsappAgentProcessor` Inngest function **exists but is unused** | `agent-production.ts:29-78` | Already has concurrency 1 per conversationId |
-| H4 | Delays are fixed per template: `template.delaySeconds * responseSpeed` | `messaging.ts:103-104` | Replace with char-based calculation |
-| H5 | `routeByConfidence()` exists but result is **ignored** | `somnio-agent.ts:266-281` | action field not checked in production path |
-| H6 | `InterruptionHandler` checks `last_activity_at` with 2s window | `message-sequencer.ts:381-404` | Known Bug #6: stale cache. Replace with DB query |
-| H7 | MessagingAdapter sleep is `setTimeout`, NOT `step.sleep()` | `messaging.ts:22-24` | DB queries between sleeps are safe (same step.run) |
+Outbound:
+  Agent/Action --> domain/messages.ts --> channels/registry.ts --> meta-whatsapp-sender.ts (Cloud API direct)
+                                                                   meta-facebook-sender.ts (Messenger API)
+                                                                   meta-instagram-sender.ts (IG Messaging API)
+                                                                   whatsapp-sender.ts (360dialog, legacy)
+                                                                   manychat-sender.ts (ManyChat, legacy)
 
----
-
-## 2. Target Architecture (After)
-
-```
-360dialog HTTP POST
-  |
-  v
-route.ts [/api/webhooks/whatsapp]
-  |
-  v
-processWebhook()                              [webhook-handler.ts] MODIFIED
-  |-- Save raw payload in whatsapp_webhook_events
-  |-- processIncomingMessage()
-  |     |-- normalizePhone()
-  |     |-- domainFindOrCreateConversation()
-  |     |-- domainReceiveMessage()            [domain/messages.ts] MODIFIED
-  |     |     |-- INSERT messages (inbound, processed_by_agent: false)   << NEW FIELD
-  |     |     |-- UPDATE conversations.last_message_at
-  |     |     |-- emitWhatsAppMessageReceived() -> Inngest automation trigger
-  |     |     |-- checkKeywordMatches()
-  |     |
-  |     |-- [ALL message types, not just text]   << CHANGED
-  |           |
-  |           v
-  |       inngest.send('agent/whatsapp.message_received', {  << CHANGED: emit event
-  |         conversationId, contactId, messageContent, messageType,
-  |         workspaceId, phone, messageId
-  |       })
-  |       RETURN  (~200ms total webhook time)
-  |
-  |
-  === INNGEST BOUNDARY ===
-  |
-  v
-whatsappAgentProcessor                        [agent-production.ts] MODIFIED
-  concurrency: { key: 'event.data.conversationId', limit: 1 }
-  |
-  |-- step.run('process-message', async () => {
-  |     |
-  |     |-- [LAYER 2: MEDIA GATE]                [media-gate.ts] NEW
-  |     |     |-- text -> continue
-  |     |     |-- audio -> Whisper transcribe -> text (or handoff if 3+ intents)
-  |     |     |-- image/video -> HANDOFF direct
-  |     |     |-- sticker -> Claude Vision -> text (or handoff)
-  |     |     |-- reaction -> interpret emoji -> text (or handoff)
-  |     |
-  |     |-- [LAYER 3: MESSAGE CLASSIFIER]         [message-classifier-v2.ts] NEW
-  |     |     |-- Post IntentDetector classification:
-  |     |     |     RESPONDIBLE -> continue to orchestrator
-  |     |     |     SILENCIOSO  -> emit silence.detected, RETURN
-  |     |     |     HANDOFF     -> handoff flow, RETURN
-  |     |
-  |     |-- [LAYER 4: CONFIDENCE ROUTING]          [somnio-agent.ts] MODIFIED
-  |     |     |-- IntentDetector.detect()
-  |     |     |-- confidence < 80% -> HANDOFF + LOG to disambiguation_log
-  |     |     |-- confidence >= 80% -> continue
-  |     |
-  |     |-- [LAYER 5: ORCHESTRATION]               [somnio-orchestrator.ts] UNCHANGED
-  |     |     |-- TransitionValidator
-  |     |     |-- TemplateManager.getTemplatesForIntents()
-  |     |     |-- Return templates[], nextMode, shouldCreateOrder
-  |     |
-  |     |-- [LAYER 6: PENDING MERGE]               [pending-merge.ts] NEW
-  |     |     |-- Get pending templates from session state
-  |     |     |-- Merge by priority: CORE > COMPLEMENTARIA > OPCIONAL
-  |     |     |-- Cap at 3 templates max
-  |     |
-  |     |-- [LAYER 7: NO-REPETITION]               [no-repeat.ts] NEW
-  |     |     |-- Level 1: template ID in templates_enviados -> skip ($0)
-  |     |     |-- Level 2: minifrase semantic match via Haiku (~$0.0003)
-  |     |     |-- Level 3: full message context check (~$0.001)
-  |     |
-  |     |-- [LAYER 8: SEND WITH PRE-CHECK]         [messaging.ts] MODIFIED
-  |     |     |-- FOR EACH template:
-  |     |     |     1. calculateCharDelay(content.length) * speedFactor
-  |     |     |     2. sleep(delay)
-  |     |     |     3. CHECK DB: new inbound since processingStartedAt?
-  |     |     |        -> YES: save remaining as pending, BREAK
-  |     |     |        -> NO: send template, register in no-repeat
-  |     })
+Credentials:
+  workspace_meta_accounts table: { waba_id, phone_number_id, page_id, ig_account_id, access_token (encrypted) }
+  workspaces.settings JSONB: { provider: 'meta_direct' | '360dialog' | 'manychat', ... }
 ```
 
 ---
 
-## 3. Integration Points (Specific Files + Lines)
+## 1. Webhook Consolidation
 
-### 3.1 webhook-handler.ts -- Inline to Inngest Migration
+### Decision: NEW unified route, keep existing routes
 
-**File:** `src/lib/whatsapp/webhook-handler.ts`
-**Lines:** 250-296 (the `if (msg.type === 'text')` block)
+**Do NOT replace** `/api/webhooks/whatsapp/route.ts` -- it serves active 360dialog clients.
+**Do NOT replace** `/api/webhooks/manychat/route.ts` -- it serves active ManyChat clients.
+**ADD** `/api/webhooks/meta/route.ts` -- unified endpoint for all Meta direct events.
 
-**Current code (lines 250-296):**
+### Why One Unified Meta Endpoint
+
+Meta's webhook system sends ALL subscribed events to a single callback URL per app. The `object` field differentiates:
+- `"whatsapp_business_account"` -- WhatsApp messages and statuses
+- `"page"` -- Facebook Messenger messages
+- `"instagram"` -- Instagram DM messages
+
+One webhook URL is configured in the Meta App Dashboard and serves all channels.
+
+### New Route: `/api/webhooks/meta/route.ts`
+
+**Responsibilities:**
+1. GET: Hub challenge verification (same as existing WA webhook -- `hub.mode`, `hub.verify_token`, `hub.challenge`)
+2. POST: HMAC-SHA256 verification using `X-Hub-Signature-256` header + app secret
+3. Parse `payload.object` to determine channel type
+4. Route to appropriate handler based on object type
+5. Return 200 immediately (must respond within 20 seconds)
+
+**Key design:**
 ```typescript
-if (msg.type === 'text') {
-  try {
-    const { processMessageWithAgent } = await import(...)
-    const agentResult = await processMessageWithAgent({...})
-    // ... error handling
-  } catch (agentError) {
-    // ... non-blocking error
+// Pseudocode for route.ts
+export async function POST(request: NextRequest) {
+  // 1. HMAC verify with META_APP_SECRET
+  // 2. Parse payload
+  // 3. Route by object type:
+  switch (payload.object) {
+    case 'whatsapp_business_account':
+      return handleWhatsAppEvents(payload, rawBody)
+    case 'page':
+      return handleFacebookEvents(payload)
+    case 'instagram':
+      return handleInstagramEvents(payload)
   }
 }
 ```
 
-**New code:**
-```typescript
-// For ALL message types that should reach the agent:
-const agentEligibleTypes = new Set(['text', 'audio', 'sticker', 'reaction', 'image', 'video'])
-if (agentEligibleTypes.has(msg.type)) {
-  try {
-    const { inngest } = await import('@/inngest/client')
-    await inngest.send({
-      name: 'agent/whatsapp.message_received',
-      data: {
-        conversationId,
-        contactId: contactId,
-        messageContent: msg.type === 'text'
-          ? normalizeWebsiteGreeting(msg.text?.body ?? '')
-          : buildMessagePreview(msg),
-        messageType: msg.type,          // NEW: pass type for media gate
-        workspaceId,
-        phone,
-        messageId: domainResult.data?.messageId ?? msg.id,
-      },
-    })
-  } catch (inngestError) {
-    // Non-blocking: log but never fail message reception
-    console.error('Failed to emit agent event:', inngestError)
-  }
-}
-```
+**Workspace resolution for Meta direct:**
+- WhatsApp: `phone_number_id` from payload -> lookup `workspace_meta_accounts.phone_number_id`
+- Facebook: `page_id` from `entry[].id` -> lookup `workspace_meta_accounts.page_id`
+- Instagram: `ig_account_id` from entry -> lookup `workspace_meta_accounts.ig_account_id`
 
-**Key changes:**
-1. Remove `if (msg.type === 'text')` gate -- emit for all eligible types
-2. Replace `processMessageWithAgent()` inline call with `inngest.send()`
-3. Add `messageType` field to event data (for media gate in Inngest function)
-4. Webhook returns in ~200ms instead of ~5-15s
+### New Files
 
-### 3.2 agent-production.ts -- Activate + Extend the Existing Inngest Function
+| File | Purpose |
+|------|---------|
+| `src/app/api/webhooks/meta/route.ts` | Unified Meta webhook endpoint |
+| `src/lib/meta/webhook-router.ts` | Routes parsed payload to channel-specific handlers |
+| `src/lib/meta/handlers/whatsapp.ts` | WhatsApp event processor (reuses 90% of existing webhook-handler.ts logic) |
+| `src/lib/meta/handlers/facebook.ts` | Facebook Messenger event processor |
+| `src/lib/meta/handlers/instagram.ts` | Instagram DM event processor |
 
-**File:** `src/inngest/functions/agent-production.ts`
-**Lines:** 29-78 (entire function)
+### Existing webhook-handler.ts Reuse
 
-**Current code:** Single `step.run('process-message')` that calls `processMessageWithAgent()`
+The existing `src/lib/whatsapp/webhook-handler.ts` already parses Cloud API format payloads (360dialog proxies the same format). The key difference is:
+- 360dialog: `D360-API-KEY` header for media downloads, `waba-v2.360dialog.io` base URL
+- Meta direct: `Bearer {access_token}` header for media downloads, `graph.facebook.com` base URL
 
-**New code structure:**
-```typescript
-export const whatsappAgentProcessor = inngest.createFunction(
-  {
-    id: 'whatsapp-agent-processor',
-    name: 'WhatsApp Agent Message Processor',
-    retries: 2,
-    concurrency: [{ key: 'event.data.conversationId', limit: 1 }],
-  },
-  { event: 'agent/whatsapp.message_received' },
-  async ({ event, step }) => {
-    const { conversationId, messageContent, messageType, workspaceId, phone } = event.data
-
-    const result = await step.run('process-message', async () => {
-      // 1. Media Gate (Etapa 4) -- resolve to text or handoff
-      const { processMediaGate } = await import('@/lib/agents/somnio/media-gate')
-      const gateResult = await processMediaGate({
-        messageType,
-        messageContent,
-        conversationId,
-        workspaceId,
-        // pass media URL if needed from event data
-      })
-
-      if (gateResult.action === 'handoff') {
-        // Execute handoff, return early
-        return { success: true, action: 'handoff' }
-      }
-
-      // 2. Call processMessageWithAgent with resolved text
-      const { processMessageWithAgent } = await import(
-        '@/lib/agents/production/webhook-processor'
-      )
-      return processMessageWithAgent({
-        conversationId,
-        contactId: event.data.contactId,
-        messageContent: gateResult.resolvedText,
-        workspaceId,
-        phone,
-      })
-    })
-
-    return result
-  }
-)
-```
-
-**Key insight:** The media gate runs INSIDE the single `step.run()`, which means concurrency-1 is already guaranteed. All layers (media gate, classifier, intent, orchestrator, messaging with pre-check) execute within this one step.
-
-### 3.3 events.ts -- New Event Types
-
-**File:** `src/inngest/events.ts`
-**Additions to `AgentEvents`:**
-
-```typescript
-// Add messageType to existing event
-'agent/whatsapp.message_received': {
-  data: {
-    conversationId: string
-    contactId: string | null
-    messageContent: string
-    messageType: string           // NEW: 'text' | 'audio' | 'image' | etc.
-    workspaceId: string
-    phone: string
-    messageId: string
-  }
-}
-
-// NEW event for silence timer
-'agent/silence.detected': {
-  data: {
-    sessionId: string
-    conversationId: string
-    workspaceId: string
-  }
-}
-```
-
-### 3.4 messaging.ts -- Char Delays + Pre-Send Check
-
-**File:** `src/lib/agents/engine-adapters/production/messaging.ts`
-**Lines:** 99-105 (the delay + send loop)
-
-**Current code:**
-```typescript
-for (let i = 0; i < templates.length; i++) {
-  const template = templates[i]
-  if (i > 0 && template.delaySeconds > 0 && this.responseSpeed > 0) {
-    await sleep(template.delaySeconds * this.responseSpeed * 1000)
-  }
-  // send via domain
-}
-```
-
-**New code:**
-```typescript
-for (let i = 0; i < templates.length; i++) {
-  const template = templates[i]
-
-  // Etapa 1: Character-based delay (replaces fixed delaySeconds)
-  if (i > 0) {
-    const delay = calculateCharDelay(template.content.length) * this.responseSpeed
-    await sleep(delay)
-  }
-
-  // Etapa 3A: Pre-send check -- query DB for new inbound messages
-  if (i > 0) {
-    const hasNewInbound = await this.checkForNewInbound(convId, processingStartedAt)
-    if (hasNewInbound) {
-      // Save remaining templates as pending (Etapa 3B)
-      const remaining = templates.slice(i)
-      await this.savePendingTemplates(sessionId, remaining)
-      break
-    }
-  }
-
-  // Send via domain (unchanged)
-  const result = await domainSendTextMessage(ctx, {...})
-
-  // Etapa 3C: Register in no-repeat system
-  if (result.success) {
-    sentCount++
-    // Record template ID + minifrase for no-repeat
-  }
-}
-```
-
-**Critical implementation detail:** The `sleep()` in messaging.ts is a regular `Promise + setTimeout` (line 22-24), NOT Inngest's `step.sleep()`. This is correct because the entire messaging loop runs inside a single `step.run()`. DB queries between sleeps are plain async operations -- no Inngest memoization concerns.
-
-### 3.5 somnio-agent.ts -- Confidence Routing + Classifier Integration
-
-**File:** `src/lib/agents/somnio/somnio-agent.ts`
-**Lines:** 265-281 (intent detection block) and 300-319 (handoff handling)
-
-**Current code (step 5):**
-```typescript
-const detected = await this.intentDetector.detect(message, history, config)
-intent = detected.intent
-action = detected.action   // <-- CAPTURED but only 'handoff' is checked
-```
-
-**New code (after step 5, insert 5.1 and 5.2):**
-```typescript
-// 5. IntentDetector.detect() -- unchanged
-const detected = await this.intentDetector.detect(message, history, config)
-intent = detected.intent
-action = detected.action
-
-// 5.1 NEW: Confidence routing (Etapa 5)
-if (intent.confidence < 80) {
-  await logToDisambiguationLog({
-    workspaceId: input.session.workspace_id,
-    conversationId: input.session.conversation_id,
-    customerMessage: input.message,
-    agentState: currentMode,
-    intentAlternatives: { [intent.intent]: intent.confidence, ...alternatives },
-    confidenceTop: intent.confidence,
-    templatesEnviados: input.session.state.templates_enviados,
-  })
-  return handoffOutput(...)
-}
-
-// 5.2 NEW: Message classification (Etapa 2)
-const classification = classifyMessage(intent, currentMode)
-if (classification === 'SILENCIOSO') {
-  // Emit silence timer, return early (no response)
-  return silentOutput(timerSignals: [{ type: 'silence', ... }])
-}
-if (classification === 'HANDOFF') {
-  return handoffOutput(...)
-}
-```
-
-### 3.6 domain/messages.ts -- processed_by_agent Field
-
-**File:** `src/lib/domain/messages.ts`
-**Function:** `receiveMessage()`
-
-**Change:** Add `processed_by_agent: false` to the INSERT for inbound messages. When the Inngest function finishes processing, mark it `true`.
-
-### 3.7 template-manager.ts -- Priority Field
-
-**File:** `src/lib/agents/somnio/template-manager.ts`
-
-**Change:** Extend `AgentTemplate` type to include `priority: 'CORE' | 'COMPLEMENTARIA' | 'OPCIONAL'` field. Read from `agent_templates.priority` column (new DB column).
+**Strategy:** Extract the message processing logic from `webhook-handler.ts` into shared utilities, then have both the 360dialog handler and Meta direct handler call into them.
 
 ---
 
-## 4. New Components
+## 2. Token Storage and Management
 
-| File | Purpose | Etapa | Complexity |
-|------|---------|-------|------------|
-| `src/lib/agents/somnio/char-delay.ts` | Logarithmic delay curve (min 2s, cap 12s) | 1 | Low |
-| `src/lib/agents/somnio/message-classifier-v2.ts` | Post-IntentDetector RESPONDIBLE/SILENCIOSO/HANDOFF | 2 | Medium |
-| `src/inngest/functions/silence-timer.ts` | 90s retake timer via step.waitForEvent | 2 | Low |
-| `src/lib/agents/somnio/pending-merge.ts` | Priority-based merge of interrupted templates | 3B | Medium |
-| `src/lib/agents/somnio/no-repeat.ts` | 3-level no-repetition (ID, minifrase, full context) | 3C | High |
-| `src/lib/agents/somnio/media-gate.ts` | Audio/image/video/sticker/reaction routing | 4 | Medium |
-| `src/lib/agents/somnio/disambiguation-log.ts` | Log ambiguous situations to DB table | 5 | Low |
+### Token Types
 
-### Components Made Obsolete (Deprecated, Not Deleted)
+| Token | Scope | Lifetime | Per-Workspace |
+|-------|-------|----------|---------------|
+| App Access Token | `{app_id}\|{app_secret}` | Never expires | NO (global) |
+| System User Token | All WABAs owned by business | Never expires (until revoked) | NO (MorfX platform) |
+| Business Integration Token | Single customer WABA | Never expires (until revoked) | YES |
+| Short-lived User Token | From Embedded Signup code exchange | 1 hour | Temporary |
 
-| File | Reason |
-|------|--------|
-| `src/lib/agents/somnio/message-sequencer.ts` | Replaced by pre-send check in MessagingAdapter |
-| `src/lib/agents/somnio/interruption-handler.ts` | Replaced by pending-merge.ts + DB query check |
+### Recommended: Business Integration System User Tokens
 
----
+For multi-tenant SaaS, use **Business Integration System User access tokens** -- one per customer WABA, generated during Embedded Signup code exchange. These tokens:
+- Are scoped to the specific customer's WABA (principle of least privilege)
+- Never expire (no refresh needed)
+- Are revocable per-customer without affecting others
 
-## 5. Database Changes
+### Storage: New `workspace_meta_accounts` Table
 
-### New Column: messages.processed_by_agent
+**Do NOT store tokens in workspace settings JSONB.** Tokens need:
+- Encryption at rest
+- Separate access control
+- Structured querying (lookup by phone_number_id, page_id, etc.)
 
 ```sql
-ALTER TABLE messages
-  ADD COLUMN processed_by_agent BOOLEAN DEFAULT true;
+CREATE TABLE workspace_meta_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 
--- Existing messages are already processed (default true for backward compat)
--- New inbound messages get false, marked true after Inngest processing
-```
+  -- Account identifiers
+  waba_id TEXT,                    -- WhatsApp Business Account ID
+  phone_number_id TEXT,            -- WhatsApp phone number ID
+  phone_number TEXT,               -- Display phone number (E.164)
+  page_id TEXT,                    -- Facebook Page ID
+  ig_account_id TEXT,              -- Instagram account ID
+  business_id TEXT,                -- Meta Business Portfolio ID
 
-### New Column: agent_templates.priority
+  -- Encrypted access token (Business Integration System User token)
+  access_token_encrypted TEXT NOT NULL,
 
-```sql
-ALTER TABLE agent_templates
-  ADD COLUMN priority TEXT DEFAULT 'CORE'
-  CHECK (priority IN ('CORE', 'COMPLEMENTARIA', 'OPCIONAL'));
-```
+  -- Channel configuration
+  channel TEXT NOT NULL CHECK (channel IN ('whatsapp', 'facebook', 'instagram')),
+  provider TEXT NOT NULL DEFAULT 'meta_direct',
 
-### New Column: agent_templates.minifrase
+  -- Status
+  is_active BOOLEAN DEFAULT true,
+  verified_at TIMESTAMPTZ,
 
-```sql
-ALTER TABLE agent_templates
-  ADD COLUMN minifrase TEXT;
+  -- Metadata
+  account_name TEXT,               -- Business display name
+  quality_rating TEXT,             -- WhatsApp quality rating
+  messaging_limit TEXT,            -- Current messaging tier
 
--- ~30 rows to populate with manual minifrases per template
-```
+  created_at TIMESTAMPTZ DEFAULT timezone('America/Bogota', NOW()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('America/Bogota', NOW()),
 
-### New Table: disambiguation_log
-
-```sql
-CREATE TABLE disambiguation_log (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  conversation_id UUID NOT NULL REFERENCES conversations(id),
-  message_id UUID REFERENCES messages(id),
-  customer_message TEXT NOT NULL,
-  agent_state TEXT,
-  intent_alternatives JSONB,
-  confidence_top NUMERIC,
-  templates_enviados TEXT[],
-  pending_templates TEXT[],
-  history_summary TEXT,
-  correct_intent TEXT,
-  correct_action TEXT,
-  guidance_notes TEXT,
-  reviewed BOOLEAN DEFAULT false,
-  reviewed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT timezone('America/Bogota', NOW())
+  -- Unique constraints for webhook resolution
+  CONSTRAINT uq_meta_phone UNIQUE (phone_number_id),
+  CONSTRAINT uq_meta_page UNIQUE (page_id),
+  CONSTRAINT uq_meta_ig UNIQUE (ig_account_id)
 );
+
+-- Fast webhook resolution indexes
+CREATE INDEX idx_meta_accounts_phone ON workspace_meta_accounts(phone_number_id) WHERE phone_number_id IS NOT NULL;
+CREATE INDEX idx_meta_accounts_page ON workspace_meta_accounts(page_id) WHERE page_id IS NOT NULL;
+CREATE INDEX idx_meta_accounts_ig ON workspace_meta_accounts(ig_account_id) WHERE ig_account_id IS NOT NULL;
+CREATE INDEX idx_meta_accounts_workspace ON workspace_meta_accounts(workspace_id);
 ```
 
-### New Field in session_state: pending_templates
+### Token Encryption
 
-```
-session_state.pending_templates: JSON array of unsent templates with priority
-```
-
-This uses the existing JSONB `state` field in `agent_sessions` -- no migration needed. The `savePendingTemplates()` and `getPendingTemplates()` functions write/read from the session state, similar to how `datos_capturados` works today.
-
----
-
-## 6. Data Flow Changes: Pre-Send Check Detail
-
-The pre-send check is the most architecturally significant change because it spans the Inngest boundary.
-
-### How It Works
-
-```
-Inngest function (concurrency 1 per conversation)
-  |
-  step.run('process-message', async () => {
-    |
-    |-- processingStartedAt = NOW()
-    |
-    |-- [Layers 2-7: classify, detect, orchestrate, merge, no-repeat]
-    |
-    |-- MessagingAdapter.send(templates, processingStartedAt)
-    |     |
-    |     |-- FOR EACH template (i = 0 to N):
-    |     |     |
-    |     |     |-- if (i > 0): sleep(charDelay)      // regular setTimeout
-    |     |     |
-    |     |     |-- if (i > 0): CHECK DB
-    |     |     |     SELECT count(*) FROM messages
-    |     |     |     WHERE conversation_id = X
-    |     |     |       AND direction = 'inbound'
-    |     |     |       AND created_at > processingStartedAt
-    |     |     |       AND processed_by_agent = false
-    |     |     |
-    |     |     |     -> count > 0: INTERRUPT
-    |     |     |        |-- Save remaining templates to session state
-    |     |     |        |-- BREAK loop
-    |     |     |        |-- New message's Inngest event is QUEUED
-    |     |     |        |     (concurrency 1 ensures it waits)
-    |     |     |
-    |     |     |     -> count = 0: CONTINUE
-    |     |     |        |-- domainSendTextMessage()
-    |     |     |        |-- Record in no-repeat registry
-    |     |
-    |-- Mark processed_by_agent = true for triggering message
-    |
-    |-- RETURN result
-  })
-  |
-  |-- Next queued event starts (the interrupting message)
-  |     step.run('process-message', async () => {
-  |       |-- [Layers 2-7 again]
-  |       |-- Layer 6: getPendingTemplates() -> merge with new templates
-  |       |-- [Layer 8: send with pre-check again]
-  |     })
-```
-
-### Why This Works
-
-1. **Inngest concurrency 1** ensures only one message processes at a time per conversation
-2. **Regular sleep()** in MessagingAdapter means the entire send loop runs in one step.run()
-3. **DB query** during sleep window catches messages that arrived while sleeping
-4. **processed_by_agent: false** flag distinguishes unprocessed inbound messages
-5. **Pending templates in session state** persist across Inngest function invocations
-6. **Blind window ~250ms** between DB check and actual send is accepted risk
-
-### Why Not step.sleep() for Each Template
-
-Using Inngest's `step.sleep()` would require splitting each template into a separate `step.run()`. This breaks the current adapter pattern where MessagingAdapter owns the send loop. It would also cause function re-executions (Inngest memoizes completed steps), adding latency. The regular `setTimeout` sleep inside a single `step.run()` is simpler and sufficient.
-
----
-
-## 7. Timer Integration: Retake Timer (90s) Coexistence
-
-### Existing Timer Pattern (from agent-timers.ts)
+Use AES-256-GCM encryption with a server-side key stored in environment variable:
 
 ```typescript
-// Pattern: emit event -> waitForEvent with timeout -> action on timeout
-export const dataCollectionTimer = inngest.createFunction(
-  { id: 'data-collection-timer', retries: 3 },
-  { event: 'agent/collecting_data.started' },
-  async ({ event, step }) => {
-    await step.sleep('settle', '5s')  // let concurrent events settle
+// src/lib/meta/token-encryption.ts
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 
-    const customerMessage = await step.waitForEvent('wait-for-data', {
-      event: 'agent/customer.message',
-      timeout: `${timeoutMs}ms`,
-      match: 'data.sessionId',
-    })
+const ENCRYPTION_KEY = process.env.META_TOKEN_ENCRYPTION_KEY! // 32-byte hex string
+const ALGORITHM = 'aes-256-gcm'
 
-    if (customerMessage) return { status: 'responded' }
+export function encryptToken(token: string): string {
+  const iv = randomBytes(16)
+  const cipher = createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv)
+  const encrypted = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()])
+  const authTag = cipher.getAuthTag()
+  // Format: iv:authTag:encrypted (all base64)
+  return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`
+}
 
-    // Timeout: evaluate and execute action
-    await step.run('evaluate-and-execute', async () => { ... })
-  }
-)
+export function decryptToken(encryptedToken: string): string {
+  const [ivB64, authTagB64, encryptedB64] = encryptedToken.split(':')
+  const iv = Buffer.from(ivB64, 'base64')
+  const authTag = Buffer.from(authTagB64, 'base64')
+  const encrypted = Buffer.from(encryptedB64, 'base64')
+  const decipher = createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv)
+  decipher.setAuthTag(authTag)
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8')
+}
 ```
 
-### New Silence Timer (Same Pattern)
+**Environment variable:** `META_TOKEN_ENCRYPTION_KEY` -- a 64-character hex string (32 bytes). Generate once: `openssl rand -hex 32`.
 
-```typescript
-export const silenceTimer = inngest.createFunction(
-  { id: 'silence-timer', retries: 2 },
-  { event: 'agent/silence.detected' },
-  async ({ event, step }) => {
-    const { sessionId, conversationId, workspaceId } = event.data
+### Provider Selection Per-Workspace
 
-    // Wait for customer message or 90s timeout
-    const customerMessage = await step.waitForEvent('wait-for-response', {
-      event: 'agent/customer.message',
-      timeout: '90s',
-      match: 'data.sessionId',
-    })
+Add to `workspaces.settings` JSONB:
 
-    if (customerMessage) return { status: 'customer_replied' }
-
-    // Timeout: send retake message
-    await step.run('send-retake', async () => {
-      await sendWhatsAppMessage(workspaceId, conversationId,
-        'Por cierto, te cuento sobre las promociones que tenemos?')
-    })
-
-    return { status: 'retake_sent' }
-  }
-)
-```
-
-### Coexistence Rules
-
-| Situation | Data Collection Timer | Promos Timer | Silence Timer |
-|-----------|----------------------|--------------|---------------|
-| Customer in `bienvenida`, sends "ok" (SILENCIOSO) | Not active | Not active | STARTS (90s) |
-| Customer writes again within 90s | N/A | N/A | CANCELLED (customer.message event) |
-| Customer enters `collecting_data` | STARTS | Not active | CANCELLED (if active) |
-| Customer provides data | REEVALUATED | Not active | Not active |
-| Ingest completes -> `ofrecer_promos` | CANCELLED | STARTS | Not active |
-| HANDOFF triggered | CANCELLED | CANCELLED | CANCELLED |
-
-**Cancellation mechanism:** All timers use `step.waitForEvent('agent/customer.message', match: 'data.sessionId')`. The existing `ProductionTimerAdapter.onCustomerMessage()` already emits this event. No change needed for cancellation -- silence timer automatically cancelled when customer sends any message.
-
-**HANDOFF cancellation:** When HANDOFF occurs, silence timer is cancelled by the customer.message event emitted during handoff processing. If handoff happens WITHOUT a customer message (e.g., confidence < 80%), explicitly emit a cancellation event.
-
----
-
-## 8. Pending Messages: Persistence + Merge
-
-### Current State (InterruptionHandler)
-
-The existing `InterruptionHandler` stores pending messages in `session_state.datos_capturados` using special `__pending_messages` key (JSON string). This is a workaround because datos_capturados is Record<string, string>.
-
-### New Approach
-
-Store pending templates in a dedicated field within session state:
-
-```typescript
-// In session_state (JSONB), add:
+```jsonc
 {
-  // existing fields...
-  datos_capturados: { nombre: 'Juan', ... },
-  templates_enviados: ['hola', 'precio', ...],
-  pack_seleccionado: '1x',
+  // Existing fields preserved
+  "whatsapp_api_key": "...",          // 360dialog (legacy)
+  "whatsapp_phone_number_id": "...",  // 360dialog (legacy)
+  "manychat_api_key": "...",          // ManyChat (legacy)
 
-  // NEW:
-  pending_templates: [
-    {
-      id: 'precio',
-      content: 'Nuestro ELIXIR DEL SUEÑO...',
-      priority: 'CORE',
-      originalIntent: 'precio',
-      minifrase: 'precio $77,900 con envio gratis, 90 comprimidos'
-    }
-  ]
+  // New field for provider routing
+  "whatsapp_provider": "meta_direct", // "meta_direct" | "360dialog" (default for existing)
+  "facebook_provider": "meta_direct", // "meta_direct" | "manychat" (default for existing)
+  "instagram_provider": "meta_direct" // "meta_direct" | "manychat" (default for existing)
 }
-```
-
-**Access pattern:**
-- `savePendingTemplates(sessionId, templates[])` -- called by MessagingAdapter on interrupt
-- `getPendingTemplates(sessionId)` -- called by pending-merge.ts at Layer 6
-- `clearPendingTemplates(sessionId)` -- called after merge is consumed
-
-**Merge algorithm (pending-merge.ts):**
-```
-1. newTemplates = orchestrator output for new intent
-2. pendingTemplates = getPendingTemplates(sessionId)
-3. combined = [...newTemplates, ...pendingTemplates]
-4. Sort by priority: CORE > COMPLEMENTARIA > OPCIONAL
-5. Apply no-repeat filter (Layer 7) to all
-6. If length > 3: drop OPCIONAL first, then COMPLEMENTARIA
-7. CORE never dropped
-8. clearPendingTemplates(sessionId)
-9. Return final list
 ```
 
 ---
 
-## 9. Where Classification Happens (Etapa 2 Detail)
+## 3. Channel Sender Refactor
 
-**Design decision from DISCUSSION.md:** Classification is POST IntentDetector, not pre-IntentDetector. There is no regex gate. Everything goes through Claude first.
-
-### Integration Point
-
-**File:** `src/lib/agents/somnio/somnio-agent.ts`
-**After:** Step 5 (IntentDetector.detect())
-**Before:** Step 6 (Update intentsVistos)
+### Current Interface Problem
 
 ```typescript
-// After IntentDetector returns:
-const classification = classifyResponseType(intent, currentMode)
-
-switch (classification) {
-  case 'SILENCIOSO':
-    // States where "ok", "si" are meaningful (confirmatory):
-    // resumen, collecting_data, confirmado -> NOT SILENCIOSO, treat as RESPONDIBLE
-    // States where they are noise:
-    // conversacion, bienvenida -> SILENCIOSO
-    return {
-      success: true,
-      messages: [],
-      stateUpdates: { /* preserve current state */ },
-      shouldCreateOrder: false,
-      timerSignals: [{ type: 'silence' }],
-      // ...
-    }
-
-  case 'HANDOFF':
-    // Intents: asesor, queja, cancelar, no_gracias, no_interesa, fallback
-    return handoffOutput(...)
-
-  case 'RESPONDIBLE':
-    // Continue normal flow
-    break
+interface ChannelSender {
+  sendText(apiKey: string, to: string, text: string): Promise<ChannelSendResult>
+  sendImage(apiKey: string, to: string, imageUrl: string, caption?: string): Promise<ChannelSendResult>
 }
 ```
 
-**New file: `message-classifier-v2.ts`**
+The `apiKey: string` parameter assumes a single credential. Meta direct needs:
+- `access_token` (from workspace_meta_accounts)
+- `phone_number_id` (for WhatsApp -- the endpoint path includes it)
+- Different base URLs
+
+### Solution: Two-Phase Migration
+
+**Phase 1 (Pragmatic):** Keep `apiKey: string` signature. New Meta senders accept the access_token as the `apiKey` parameter and receive `phone_number_id` / `page_id` via a closure or module-level context. This avoids touching ~30+ call sites.
+
+**Phase 2 (Clean):** Migrate to `ChannelCredentials` object:
 
 ```typescript
-const HANDOFF_INTENTS = new Set([
-  'asesor', 'queja', 'cancelar', 'no_gracias', 'no_interesa', 'fallback'
-])
+export interface ChannelCredentials {
+  apiKey: string
+  provider: 'meta_direct' | '360dialog' | 'manychat'
+  accountId?: string  // phone_number_id for WA, page_id for FB
+}
 
-const CONFIRMATORY_STATES = new Set([
-  'resumen', 'collecting_data', 'confirmado'
-])
+export interface ChannelSender {
+  sendText(creds: ChannelCredentials, to: string, text: string): Promise<ChannelSendResult>
+  sendImage(creds: ChannelCredentials, to: string, imageUrl: string, caption?: string): Promise<ChannelSendResult>
+  sendTemplate?(creds: ChannelCredentials, to: string, templateName: string, language: string, components?: unknown[]): Promise<ChannelSendResult>
+}
+```
 
-export function classifyResponseType(
-  intent: IntentResult,
-  currentMode: string
-): 'RESPONDIBLE' | 'SILENCIOSO' | 'HANDOFF' {
-  // HANDOFF intents always handoff
-  if (HANDOFF_INTENTS.has(intent.intent)) return 'HANDOFF'
+### New Senders
 
-  // "otro" with low confidence = acknowledgment
-  if (intent.intent === 'otro' && intent.confidence < 60) {
-    // But in confirmatory states, treat as RESPONDIBLE
-    if (CONFIRMATORY_STATES.has(currentMode)) return 'RESPONDIBLE'
-    return 'SILENCIOSO'
+| File | Provider | Channel |
+|------|----------|---------|
+| `src/lib/channels/meta-whatsapp-sender.ts` | Meta direct | WhatsApp |
+| `src/lib/channels/meta-facebook-sender.ts` | Meta direct | Facebook Messenger |
+| `src/lib/channels/meta-instagram-sender.ts` | Meta direct | Instagram DM |
+
+### Updated Registry
+
+```typescript
+// src/lib/channels/registry.ts -- updated
+export function getChannelSender(channel: ChannelType, provider?: string): ChannelSender {
+  if (provider === 'meta_direct') {
+    switch (channel) {
+      case 'whatsapp': return metaWhatsAppSender
+      case 'facebook': return metaFacebookSender
+      case 'instagram': return metaInstagramSender
+    }
   }
-
-  return 'RESPONDIBLE'
+  // Legacy defaults
+  switch (channel) {
+    case 'whatsapp': return whatsappSender       // 360dialog
+    case 'facebook': return manychatFacebookSender
+    case 'instagram': return manychatInstagramSender
+  }
+  return whatsappSender
 }
 ```
 
+### Meta WhatsApp API Client
+
+New file: `src/lib/meta/api.ts`
+
+This replaces `src/lib/whatsapp/api.ts` functionality for Meta direct workspaces:
+- Base URL: `https://graph.facebook.com/v21.0`
+- Auth: `Authorization: Bearer {access_token}` (not `D360-API-KEY`)
+- Endpoint: `/{phone_number_id}/messages` (not `/messages`)
+- Same payload format (both are Cloud API -- 360dialog just proxies)
+
+**Key insight:** The message payload body is IDENTICAL between 360dialog and Meta Cloud API. The only differences are:
+1. Base URL
+2. Auth header format
+3. Endpoint path (Meta includes phone_number_id in URL)
+4. Media download URL (Meta: graph.facebook.com, 360dialog: waba-v2.360dialog.io proxy)
+
 ---
 
-## 10. Dependency Graph + Suggested Build Order
+## 4. Embedded Signup Integration
+
+### Where It Lives
+
+Embedded Signup is a **frontend flow** that launches Meta's Facebook Login popup. In Next.js App Router:
 
 ```
-                    +------------------+
-                    | DB Migrations    |  processed_by_agent, priority,
-                    | (prerequisite)   |  minifrase, disambiguation_log
-                    +--------+---------+
-                             |
-              +--------------+--------------+
-              |                             |
-    +---------v---------+         +---------v---------+
-    | Inngest Migration |         | Char Delay (E1)   |
-    | webhook -> event  |         | Standalone, no    |
-    | (CRITICAL PATH)   |         | dependencies      |
-    +--------+----------+         +---------+---------+
-             |                              |
-    +--------v----------+                   |
-    | Message Classifier|                   |
-    | + Silence Timer   |                   |
-    | (Etapa 2)         |                   |
-    +--------+----------+                   |
-             |                              |
-    +--------v----------+                   |
-    | Confidence Routing|                   |
-    | + disambiguation_ |                   |
-    | log (Etapa 5)     |                   |
-    +--------+----------+                   |
-             |                              |
-    +--------v----------+         +---------v---------+
-    | Pre-Send Check    |<--------+ Integrated into   |
-    | (Etapa 3A)        |         | messaging.ts      |
-    +--------+----------+         +-------------------+
-             |
-    +--------v----------+
-    | Pending Merge     |
-    | (Etapa 3B)        |
-    +--------+----------+
-             |
-    +--------v----------+
-    | No-Repeat         |
-    | (Etapa 3C)        |
-    +--------+----------+
-             |
-    +--------v----------+
-    | Media Gate         |
-    | (Etapa 4)         |
-    +-------------------+
+src/app/(dashboard)/settings/channels/page.tsx     -- Settings UI with "Connect WhatsApp" button
+src/app/(dashboard)/settings/channels/components/  -- Embedded Signup React component
+src/app/api/meta/exchange-token/route.ts            -- Server-side token exchange endpoint
+src/lib/meta/embedded-signup.ts                     -- Token exchange + WABA provisioning logic
 ```
 
-### Recommended Phase Order
+### Flow
 
-| Phase | Components | Risk | Rationale |
-|-------|------------|------|-----------|
-| **Phase 1: Foundation** | DB migrations + Inngest migration (webhook -> event) | HIGH | Everything depends on this. Most dangerous change. Must have rollback plan. |
-| **Phase 2: Char Delays** | `char-delay.ts` + modify `messaging.ts` | LOW | Isolated change. Can be done in parallel with Phase 1. |
-| **Phase 3: Classification** | `message-classifier-v2.ts` + `silence-timer.ts` + modify `somnio-agent.ts` | MEDIUM | Requires Inngest migration complete. New behavior for some messages. |
-| **Phase 4: Confidence** | Modify `somnio-agent.ts` confidence check + `disambiguation-log.ts` + DB table | LOW | Small code change. Mostly logging. |
-| **Phase 5: Pre-Send Check** | Modify `messaging.ts` + `processed_by_agent` usage | MEDIUM | Core interruption mechanism. Requires Inngest migration. |
-| **Phase 6: Pending Merge** | `pending-merge.ts` + modify session state + `priority` column usage | MEDIUM | Depends on pre-send check (Phase 5). |
-| **Phase 7: No-Repeat** | `no-repeat.ts` + `minifrase` column usage + Haiku calls | HIGH | Most complex. 3-level system. Can defer Level 3 to V2. |
-| **Phase 8: Media Gate** | `media-gate.ts` + Whisper integration + Claude Vision | MEDIUM | Independent of other etapas. External API dependencies (Whisper, Vision). |
+```
+1. User clicks "Connect WhatsApp" in Settings
+2. Facebook JS SDK launches login popup (FB.login with config_id)
+3. User completes signup in Meta's UI (business verification, phone number)
+4. sessionInfoListener receives: { waba_id, phone_number_id, code }
+5. Frontend POSTs code to /api/meta/exchange-token
+6. Server exchanges code for Business Integration token via:
+   GET https://graph.facebook.com/v21.0/oauth/access_token
+     ?client_id={app_id}
+     &client_secret={app_secret}
+     &code={code}
+7. Server stores encrypted token + account IDs in workspace_meta_accounts
+8. Server subscribes webhook for the new WABA via:
+   POST https://graph.facebook.com/v21.0/{waba_id}/subscribed_apps
+9. Server updates workspace settings with provider = 'meta_direct'
+10. Frontend shows success, workspace is now on Meta direct
+```
 
-### Why This Order
+### Environment Variables (App-Level, Not Per-Workspace)
 
-1. **Phase 1 first** because concurrency-1 is prerequisite for pre-send check (Phase 5) and silence timer (Phase 3)
-2. **Phase 2 can parallel** with Phase 1 because it only modifies the delay calculation inside MessagingAdapter
-3. **Phase 3 before Phase 5** because classification determines which messages get processed at all
-4. **Phase 4 before Phase 5** because confidence routing can also short-circuit processing
-5. **Phase 7 last** because it is the most complex and benefits from all other systems being stable
-6. **Phase 8 can be flexible** -- it depends only on Phase 1 (Inngest migration) and nothing else depends on it
-
----
-
-## 11. Patterns to Follow
-
-### Pattern 1: Inngest Concurrency-1 Per Conversation
-
-Already implemented in `agent-production.ts:34-38`. Use `event.data.conversationId` as concurrency key with limit 1. This guarantees sequential processing per conversation.
-
-**Important:** A sleeping function run does NOT count against concurrency limit. So while MessagingAdapter sleeps between template sends, the Inngest queue can accept new events. They wait until the current step.run() completes.
-
-### Pattern 2: Timer with waitForEvent + Cancellation
-
-Same pattern as `dataCollectionTimer`, `promosTimer`, `resumenTimer`. Use `step.waitForEvent('agent/customer.message', match: 'data.sessionId')` for cancellation. Already proven in production.
-
-### Pattern 3: Domain Layer for All Mutations
-
-All message sends go through `domainSendTextMessage()`. The pre-send DB check is a read-only query, not a mutation. Pending template storage uses `SessionManager.updateState()` which goes through storage adapter.
+```
+META_APP_ID=123456789              # Facebook App ID
+META_APP_SECRET=abc123...          # Facebook App Secret
+META_CONFIG_ID=987654321           # Embedded Signup Configuration ID
+META_WEBHOOK_VERIFY_TOKEN=...     # For /api/webhooks/meta GET verification
+META_TOKEN_ENCRYPTION_KEY=...     # 32-byte hex for AES-256-GCM
+```
 
 ---
 
-## 12. Anti-Patterns to Avoid
+## 5. Template Management
 
-### Anti-Pattern 1: step.sleep() for Template Delays
+### Current State
 
-**Do NOT** use Inngest's `step.sleep()` between template sends. This would:
-- Require splitting each template into a separate step.run()
-- Cause function re-executions (memoization overhead)
-- Break the adapter encapsulation pattern
-- Add ~500ms latency per template (Inngest step overhead)
+- `src/lib/whatsapp/templates-api.ts` calls 360dialog's `/v1/configs/templates` endpoint
+- Templates stored in `whatsapp_templates` table
+- UI in settings for template CRUD
 
-**Instead:** Use regular `setTimeout`-based sleep inside a single step.run().
+### Meta Direct Template API
 
-### Anti-Pattern 2: Storing Pending Templates in datos_capturados
+Meta Cloud API template management uses:
+- `POST https://graph.facebook.com/v21.0/{waba_id}/message_templates` -- Create
+- `GET https://graph.facebook.com/v21.0/{waba_id}/message_templates` -- List
+- `DELETE https://graph.facebook.com/v21.0/{waba_id}/message_templates?name={name}` -- Delete
 
-The existing `InterruptionHandler` stores pending messages as JSON in `datos_capturados.__pending_messages`. This pollutes the data collection namespace and makes the code fragile.
+The payload format is the same as 360dialog (both are Cloud API).
 
-**Instead:** Use a dedicated `pending_templates` field in session state.
+### New File
 
-### Anti-Pattern 3: Cache-Based Interruption Detection
+```
+src/lib/meta/templates-api.ts  -- Meta direct template CRUD
+```
 
-The existing `MessageSequencer.checkForInterruption()` reads `session.last_activity_at` which may be stale (Bug #6).
+### Integration with Existing Templates Table
 
-**Instead:** Query the `messages` table directly with `WHERE created_at > processingStartedAt AND processed_by_agent = false`.
-
-### Anti-Pattern 4: Pre-IntentDetector Regex Gate
-
-The design explicitly rejects a regex gate before IntentDetector. All messages pass through Claude for classification. The post-detection classification (RESPONDIBLE/SILENCIOSO/HANDOFF) uses the intent result, not raw message text.
-
----
-
-## 13. Rollback Strategy for Inngest Migration (Phase 1)
-
-The webhook-to-Inngest migration is the highest-risk change. Rollback plan:
+No schema change needed for `whatsapp_templates`. Use the `workspace_meta_accounts` table to determine which API to call:
 
 ```typescript
-// Feature flag in workspace settings or env var
-const USE_INNGEST_PROCESSING = process.env.USE_INNGEST_PROCESSING === 'true'
-
-if (USE_INNGEST_PROCESSING) {
-  // NEW: emit Inngest event
-  await inngest.send({ name: 'agent/whatsapp.message_received', data: {...} })
-} else {
-  // OLD: inline processing (current behavior)
-  if (msg.type === 'text') {
-    await processMessageWithAgent({...})
+async function syncTemplates(workspaceId: string) {
+  const account = await getMetaCredentials(workspaceId, 'whatsapp')
+  if (account?.provider === 'meta_direct') {
+    return listTemplatesMeta(account.accessToken, account.wabaId)
+  } else {
+    const apiKey = await get360dialogKey(workspaceId)
+    return listTemplates360(apiKey)
   }
 }
 ```
 
-This allows instant rollback by toggling the env var in Vercel, without a code deploy.
+---
+
+## 6. Media Handling
+
+### Current Media Pipeline
+
+```
+Inbound:
+  360dialog webhook -> mediaId in payload -> downloadMedia(apiKey, mediaId)
+    -> 360dialog proxies Facebook CDN -> re-host to Supabase Storage
+
+Outbound:
+  Agent sends image URL -> domain/messages.ts -> send360Media(apiKey, to, 'image', url)
+```
+
+### Meta Direct Media Pipeline
+
+**Inbound (download):**
+```
+Meta webhook -> mediaId in payload -> GET graph.facebook.com/v21.0/{mediaId}
+  -> returns { url: "https://lookaside.fbsbx.com/..." }
+  -> GET url with Authorization: Bearer {token}
+  -> re-host to Supabase Storage
+```
+
+Key difference: 360dialog replaces `lookaside.fbsbx.com` with their proxy domain. Meta direct accesses Facebook CDN directly with a Bearer token.
+
+**Outbound:** For sending, use `link` field in message payload (same as current approach -- no upload needed if media is publicly accessible). Media upload API only needed for non-public media.
+
+### New File
+
+```
+src/lib/meta/media.ts  -- Meta direct media download/upload
+```
 
 ---
 
-## 14. Confidence Assessment
+## 7. Multi-Tenant Token Management
+
+### Resolution Flow (Inbound)
+
+```
+Webhook arrives with phone_number_id / page_id / ig_account_id
+  -> Query workspace_meta_accounts by identifier
+  -> Get workspace_id + encrypted access_token
+  -> Decrypt token
+  -> Process message with correct workspace context
+```
+
+### Resolution Flow (Outbound)
+
+```
+Domain layer needs to send message for workspace X, channel Y
+  -> Query workspace_meta_accounts WHERE workspace_id = X AND channel = Y AND is_active = true
+  -> Decrypt access_token
+  -> Use token + account_id for API call
+```
+
+### Credential Resolution Function
+
+```typescript
+// src/lib/meta/credentials.ts
+export async function getMetaCredentials(
+  workspaceId: string,
+  channel: ChannelType
+): Promise<MetaCredentials | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('workspace_meta_accounts')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .eq('channel', channel)
+    .eq('is_active', true)
+    .single()
+
+  if (!data) return null
+
+  return {
+    accessToken: decryptToken(data.access_token_encrypted),
+    phoneNumberId: data.phone_number_id,
+    wabaId: data.waba_id,
+    pageId: data.page_id,
+    igAccountId: data.ig_account_id,
+    provider: data.provider,
+  }
+}
+```
+
+---
+
+## 8. Migration Path: Coexistence Strategy
+
+### Per-Workspace Provider Selection
+
+Each workspace independently chooses its provider per channel:
+
+```jsonc
+// Workspace A (legacy -- 360dialog + ManyChat)
+{ "whatsapp_provider": "360dialog", "facebook_provider": "manychat", "instagram_provider": "manychat" }
+
+// Workspace B (migrated -- all Meta direct)
+{ "whatsapp_provider": "meta_direct", "facebook_provider": "meta_direct", "instagram_provider": "meta_direct" }
+
+// Workspace C (hybrid -- WA migrated, FB/IG still ManyChat)
+{ "whatsapp_provider": "meta_direct", "facebook_provider": "manychat", "instagram_provider": "manychat" }
+```
+
+### Migration Flow Per Workspace
+
+1. Admin opens Settings > Channels
+2. Clicks "Connect via Meta" (launches Embedded Signup)
+3. Embedded Signup flow completes
+4. System stores Meta credentials in `workspace_meta_accounts`
+5. System updates `workspaces.settings.whatsapp_provider = 'meta_direct'`
+6. System subscribes Meta webhook for the WABA
+7. 360dialog webhook still configured but now dead (no more events from that WABA)
+8. Old 360dialog key preserved in settings for rollback
+
+### Rollback
+
+If Meta direct has issues for a workspace:
+1. Set `whatsapp_provider = '360dialog'` in settings
+2. All outbound traffic immediately routes to 360dialog
+3. Inbound requires re-registering the number with 360dialog (non-trivial -- rollback is mainly for outbound)
+
+### Webhook Coexistence
+
+Both webhook endpoints active simultaneously:
+- `/api/webhooks/whatsapp/` -- receives 360dialog events (legacy workspaces)
+- `/api/webhooks/meta/` -- receives Meta direct events (migrated workspaces)
+- `/api/webhooks/manychat/` -- receives ManyChat events (legacy FB/IG workspaces)
+
+No conflict because each workspace's events only arrive at one endpoint.
+
+---
+
+## 9. Database Schema Changes Summary
+
+### New Table: `workspace_meta_accounts`
+
+(Full schema in Section 2 above)
+
+### Modified: `workspaces.settings` JSONB
+
+Add fields:
+- `whatsapp_provider`: `'meta_direct' | '360dialog'` (default: `'360dialog'` for existing)
+- `facebook_provider`: `'meta_direct' | 'manychat'` (default: `'manychat'` for existing)
+- `instagram_provider`: `'meta_direct' | 'manychat'` (default: `'manychat'` for existing)
+
+### No Change Needed
+
+- `whatsapp_templates` -- schema works for both providers
+- `messages` -- provider-agnostic, `wamid` works for both
+- `conversations` -- already has `channel` field
+- `whatsapp_webhook_events` -- raw payload storage works for any source
+
+---
+
+## 10. Inngest Integration
+
+### Current Flow
+
+```
+WhatsApp webhook -> processWebhook() -> stores message via domain
+                                     -> emits Inngest event 'agent/whatsapp.message_received'
+                                     -> Inngest function processes agent response
+```
+
+### Meta Direct Flow (Same Pattern)
+
+```
+Meta webhook -> meta/handlers/whatsapp.ts -> stores message via domain (SAME path)
+                                          -> emits SAME Inngest event 'agent/whatsapp.message_received'
+                                          -> SAME Inngest function processes agent response
+```
+
+**No Inngest changes needed for WhatsApp.** The webhook handler difference is upstream of the domain layer. By the time the message reaches `domain/messages.ts`, it is provider-agnostic. The Inngest event is emitted by the domain layer, not the webhook handler.
+
+### Facebook/Instagram via Meta Direct
+
+For FB/IG agent processing (if needed later), reuse the existing event with a `channel` field or add new events:
+- `agent/facebook.message_received`
+- `agent/instagram.message_received`
+
+**Recommendation:** Keep `agent/whatsapp.message_received` for now. Add FB/IG agent events only when those channels need agent processing.
+
+---
+
+## Component Dependency Graph and Build Order
+
+```
+Phase 1: Foundation (no external dependencies)
+  +-- workspace_meta_accounts table (migration)
+  +-- src/lib/meta/token-encryption.ts
+  +-- src/lib/meta/credentials.ts
+  +-- src/lib/meta/types.ts
+  +-- src/lib/meta/api.ts (Cloud API client)
+
+Phase 2: Embedded Signup (depends on Phase 1)
+  +-- src/app/api/meta/exchange-token/route.ts
+  +-- src/lib/meta/embedded-signup.ts
+  +-- Settings UI component (Facebook JS SDK)
+
+Phase 3: Inbound Webhook (depends on Phase 1)
+  +-- src/app/api/webhooks/meta/route.ts
+  +-- src/lib/meta/webhook-router.ts
+  +-- src/lib/meta/handlers/whatsapp.ts (reuses domain layer)
+
+Phase 4: Outbound Sending (depends on Phase 1)
+  +-- src/lib/channels/meta-whatsapp-sender.ts
+  +-- Updated registry.ts (provider-aware)
+  +-- Updated getChannelCredentials() in messaging adapter
+
+Phase 5: Templates (depends on Phase 1)
+  +-- src/lib/meta/templates-api.ts
+  +-- Updated template sync/CRUD actions
+
+Phase 6: Media (depends on Phase 3)
+  +-- src/lib/meta/media.ts
+  +-- Updated downloadAndUploadMedia to support both providers
+
+Phase 7: FB/IG Channels (depends on Phases 1-4)
+  +-- src/lib/meta/handlers/facebook.ts
+  +-- src/lib/meta/handlers/instagram.ts
+  +-- src/lib/channels/meta-facebook-sender.ts
+  +-- src/lib/channels/meta-instagram-sender.ts
+```
+
+---
+
+## New Files Summary
+
+| File Path | Purpose |
+|-----------|---------|
+| `src/lib/meta/api.ts` | Meta Cloud API client (send text/media/template/interactive) |
+| `src/lib/meta/types.ts` | Meta-specific type definitions |
+| `src/lib/meta/token-encryption.ts` | AES-256-GCM encrypt/decrypt for access tokens |
+| `src/lib/meta/credentials.ts` | Resolve + decrypt credentials per workspace/channel |
+| `src/lib/meta/embedded-signup.ts` | Token exchange + WABA provisioning logic |
+| `src/lib/meta/templates-api.ts` | Meta direct template CRUD |
+| `src/lib/meta/media.ts` | Meta direct media download/upload |
+| `src/lib/meta/webhook-router.ts` | Route webhook events by object type |
+| `src/lib/meta/handlers/whatsapp.ts` | Process WA events from Meta direct |
+| `src/lib/meta/handlers/facebook.ts` | Process FB events from Meta direct |
+| `src/lib/meta/handlers/instagram.ts` | Process IG events from Meta direct |
+| `src/lib/channels/meta-whatsapp-sender.ts` | ChannelSender for Meta direct WA |
+| `src/lib/channels/meta-facebook-sender.ts` | ChannelSender for Meta direct FB |
+| `src/lib/channels/meta-instagram-sender.ts` | ChannelSender for Meta direct IG |
+| `src/app/api/webhooks/meta/route.ts` | Unified Meta webhook endpoint |
+| `src/app/api/meta/exchange-token/route.ts` | Embedded Signup token exchange |
+| `supabase/migrations/xxx_create_workspace_meta_accounts.sql` | New table migration |
+
+### Modified Files
+
+| File Path | Change |
+|-----------|--------|
+| `src/lib/channels/registry.ts` | Add provider parameter, register Meta senders |
+| `src/lib/channels/types.ts` | Add ChannelCredentials type (Phase 2 refactor) |
+| `src/lib/agents/engine-adapters/production/messaging.ts` | Provider-aware credential resolution |
+| `src/lib/domain/messages.ts` | Provider-aware send routing |
+| `src/app/actions/templates.ts` | Provider-aware template API calls |
+| `src/app/actions/messages.ts` | Provider-aware credential resolution |
+| `src/inngest/functions/agent-timers.ts` | Provider-aware credential resolution |
+| `src/inngest/functions/agent-timers-v3.ts` | Provider-aware credential resolution |
+| `src/lib/automations/action-executor.ts` | Provider-aware credential resolution |
+| Settings UI pages | Add channel connection UI, Embedded Signup |
+
+---
+
+## Serverless Constraints (Vercel)
+
+### Function Timeout
+- Current: `maxDuration = 60` on webhook routes
+- Meta requires webhook response within 20 seconds
+- Solution: Same as current approach -- store-before-process + Inngest for async
+
+### Cold Starts
+- Meta webhook verification (GET) must be fast -- no heavy imports
+- Token decryption is lightweight (~1ms), no concern
+
+### No Persistent Connections
+- Each webhook invocation is stateless -- no in-memory token cache
+- For MVP: decrypt on every request (acceptable overhead)
+- For scale: consider Vercel KV or Upstash Redis for decrypted token cache
+
+### Bundle Size
+- `src/lib/meta/` is pure HTTP + crypto -- no heavy dependencies
+- Facebook JS SDK loaded client-side only (Settings page)
+
+---
+
+## Security Considerations
+
+1. **Token encryption at rest** -- AES-256-GCM with server-side key
+2. **Webhook HMAC verification** -- SHA-256 with app secret (same as current WA webhook)
+3. **Token scope** -- Business Integration tokens scoped to single WABA (not all WABAs)
+4. **RLS bypass** -- Token operations use `createAdminClient()` (existing pattern)
+5. **No tokens in client** -- All token operations server-side only
+6. **Environment isolation** -- `META_TOKEN_ENCRYPTION_KEY` separate from other secrets
+7. **Audit trail** -- Token creation/revocation logged in `workspace_meta_accounts.created_at`
+
+---
+
+## Confidence Assessment
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| Inngest migration | HIGH | `whatsappAgentProcessor` already exists with correct concurrency config. Just activate it. |
-| Pre-send check | HIGH | Regular sleep + DB query pattern. No Inngest durable execution concerns. |
-| Timer integration | HIGH | Exact same pattern as 4 existing timer functions. Proven in production. |
-| Pending merge | MEDIUM | New priority system. Needs careful testing of merge edge cases. |
-| No-repeat system | MEDIUM | 3-level system is complex. Level 1 is trivial. Level 2-3 need Haiku calls. |
-| Media gate | MEDIUM | Whisper and Vision are external APIs with latency/cost. Need error handling. |
-| Char delay curve | HIGH | Pure math function. Easy to test and tune. |
+| Webhook structure | HIGH | Meta Cloud API webhook format is identical to 360dialog proxy format -- verified in existing codebase |
+| Token types | MEDIUM | Based on Meta developer docs (WebSearch); exact Embedded Signup code exchange flow needs validation during implementation |
+| ChannelSender refactor | HIGH | Clear path based on existing interface analysis |
+| Migration coexistence | HIGH | Per-workspace provider selection is straightforward with settings JSONB |
+| Template API | HIGH | Same payload format, different endpoint -- low risk |
+| Media handling | MEDIUM | Meta CDN direct access vs 360dialog proxy -- needs testing for auth headers and URL formats |
+| FB/IG Messenger API | LOW | Have not deeply researched Messenger/IG DM API specifics -- different payload formats than WhatsApp |
 
----
+## Sources
 
-*Research completed: 2026-02-23. Based on full codebase analysis of 15+ source files plus DISCUSSION.md and ARCHITECTURE-ANALYSIS.md design documents.*
-
-Sources:
-- [Inngest Concurrency Documentation](https://www.inngest.com/docs/functions/concurrency)
-- [Inngest Steps & Workflows](https://www.inngest.com/docs/features/inngest-functions/steps-workflows)
-- [Inngest Multi-Step Functions](https://www.inngest.com/docs/guides/multi-step-functions)
-- [Inngest Durable Execution](https://www.inngest.com/docs/learn/how-functions-are-executed)
+- [Meta Embedded Signup Documentation](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/)
+- [Meta Access Tokens Guide](https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens/)
+- [WhatsApp Cloud API Get Started](https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started)
+- [Meta Cloud API Media Reference](https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/media/media-api)
+- [Meta Auth Tokens Blog Post](https://developers.facebook.com/blog/post/2022/12/05/auth-tokens/)
+- [Chatwoot WhatsApp Embedded Signup](https://developers.chatwoot.com/self-hosted/configuration/features/integrations/whatsapp-embedded-signup)
+- [WhatsApp Cloud API Message API](https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/whatsapp-business-phone-number/message-api)
+- [Meta Unified Webhook Guide](https://www.adarshyadav.dev/blog/webhook-integration-meta-apis)
+- Existing MorfX codebase analysis (src/lib/whatsapp/, src/lib/channels/, src/lib/domain/, src/app/api/webhooks/)

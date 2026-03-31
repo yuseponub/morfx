@@ -1,191 +1,361 @@
-# Feature Landscape: Human-Like Conversation Behavior
+# Feature Landscape: Meta Direct Integration
 
-**Domain:** Conversational AI / WhatsApp sales agent with human-like behavior
-**Researched:** 2026-02-23
-**System context:** MorfX Somnio agent -- WhatsApp bot selling sleep supplement, needs to feel like a real salesperson
+**Domain:** Multi-channel messaging SaaS (WhatsApp + Messenger + Instagram) via direct Meta APIs
+**Researched:** 2026-03-31
+**Overall confidence:** MEDIUM-HIGH (based on official Meta docs, multiple verified sources, and existing codebase analysis)
 
 ---
 
 ## What Already Exists in MorfX
 
-- **33 intents** with template-based responses via SomnioOrchestrator (deterministic)
-- **IntentDetector** with Claude Sonnet (confidence score returned but action field ignored)
-- **ConfidenceThresholds** defined in types.ts (4 bands: 85/60/40/0) but NOT enforced
-- **MessageSequencer + InterruptionHandler** designed in Phase 14 but never connected to production
-- **whatsappAgentProcessor** Inngest function with concurrency 1/conversation -- EXISTS but not in active flow
-- **ProductionMessagingAdapter** with simple for-loop and fixed `delay_s` per template
-- **Timer system** (Inngest): data collection timer, promo timer, resumen timer -- all using `step.waitForEvent()` pattern
-- **Webhook handler** processes only `msg.type === 'text'` -- all media saved to DB but ignored by agent
-- **Session state** tracks `templates_enviados` (array of template IDs already sent)
+Before categorizing features, here is what the platform already has:
+
+- **WhatsApp messaging** via 360dialog (text, media, templates, interactive buttons, read receipts)
+- **Template management** via 360dialog API (create, list, delete, sync status)
+- **Messenger + Instagram messaging** via ManyChat (text, images, tags, flows, custom fields)
+- **ChannelSender abstraction** (`src/lib/channels/`) with registry pattern -- WA/FB/IG each have a sender
+- **Webhook processing** with signature verification (separate endpoints for WA and ManyChat)
+- **Cost tracking** for WhatsApp messages (`cost-utils.ts` with per-category Colombia rates)
+- **Multi-workspace isolation** -- each workspace has own API keys, contacts, conversations
+- **AI Agent (Somnio)** responds on all 3 channels via unified engine
+- **24h window management** -- falls back to template messages when window expires
+
+The migration to direct Meta APIs is about **replacing the transport layer** (360dialog/ManyChat) while keeping the application layer intact.
 
 ---
 
 ## Table Stakes
 
-Features users (message recipients) expect from a human-like WhatsApp conversation. Missing = bot feels robotic and untrustworthy.
+Features users expect. Missing = product cannot function or loses parity with current 360dialog/ManyChat setup.
 
-| # | Feature | Why Expected | Complexity | Depends On | Notes |
-|---|---------|-------------|------------|------------|-------|
-| T1 | **Character-based typing delays** | Humans don't type 200-char messages in 0ms. Instant responses are the #1 tell that it's a bot. Research (Gnewuch et al. ECIS 2018) confirms dynamic delays proportional to message length increase perceived humanness. | Low | Nothing | Curve: 2s min, ~12s cap at 250+ chars. Logarithmic with deceleration -- short messages have proportionally higher "thinking" overhead. Average human mobile typing ~30-40 WPM = ~150-200ms per character, but the delay curve simulates "read + think + type" not just raw typing speed. The designed curve (2s-12s) with configurable speed multiplier (0.7/1.0/1.3) is appropriate. Deterministic -- message length variation provides natural timing variation without needing random jitter. |
-| T2 | **Message grouping via check-pre-envio** | Humans send 2-5 rapid messages ("Hola" / "cuanto vale?" / "el envio es gratis?"). A human seller waits for them to finish, then responds to everything at once. Bots that reply to each message separately feel robotic and spammy. | Medium | Inngest migration (async processing) | Industry standard debounce: 5-10 second window (n8n community: 8-10s, Clawdbot: 5s configurable, Redis-buffer approach). The designed check-pre-envio approach is MORE elegant: no explicit debounce window. Instead, the character delay between template sends acts as natural collection window. If a new inbound arrives during the delay, the sequence stops and the new message gets processed as a fresh block. Avoids the "artificial waiting" problem. |
-| T3 | **Interruption detection** | When a seller is sending a multi-part response and the customer replies mid-sequence, the seller STOPS sending and addresses the new question. Bots that keep pushing messages after the customer replied feel aggressive and deaf. | Medium | T1, Inngest migration | Pattern: DB query (`SELECT count(*) FROM messages WHERE direction='inbound' AND created_at > processing_start`) before each send. Most reliable for serverless (WebSocket approaches don't work in Vercel). ~250ms blind window between check and actual send is acceptable. The existing InterruptionHandler/MessageSequencer will be replaced by this simpler, more reliable approach. |
-| T4 | **Selective silence for acknowledgments** | When someone says "Ok" or sends a thumbs-up, a real person doesn't respond. Bots that reply to "ok" with a product pitch feel desperate and robotic. | Low | Intent detection | Three categories post-IntentDetector: RESPONDIBLE (process normally), SILENCIOSO (don't respond, start 90s retake timer), HANDOFF (escalate to human). Critical nuance: "Ok"/"Si" ARE significant in confirmatory states (resumen, collecting_data, confirmado). Classification MUST be state-aware. Regex/keyword gate is sufficient -- no LLM needed. |
-| T5 | **Handoff to human for complex situations** | When the customer asks to speak to a person, complains, or sends something the bot can't handle, a real salesperson escalates. Bots that try to handle everything feel trapped. | Low | Nothing (partially exists) | 6 HANDOFF intents: asesor, queja, cancelar, no_gracias, no_interesa, fallback. On handoff: bot deactivates, sends "Regalame 1 min", notifies host, saves pending templates, cancels retake timer. Standard pattern verified across multiple chatbot platforms. |
-| T6 | **Audio message processing** | 30-40% of WhatsApp messages in Latin America are voice notes. A bot that ignores voice messages loses a huge portion of customer input. | Medium | Whisper API, Media gate | OpenAI Whisper API supports OGG natively (WhatsApp's voice format) -- NO conversion needed. Models: `whisper-1` (V2), `gpt-4o-transcribe` (newer, better). Cost: ~$0.006/min. Spanish support strong. Key behavior: transcribe silently, respond as if you "heard" the audio -- never mention transcription. 1-2 intent limit sensible; 3+ intents in single audio = handoff (too complex for bot to address properly). |
-| T7 | **Non-text media handling** | Complete silence on images, videos, stickers feels broken. Even if the bot can't process them, a human acknowledges receipt. | Low | Media type detection | Image/Video: handoff ("Regalame 1 min" + notify host). Sticker: Claude Vision interprets (~$0.003) -- if recognizable emotion/gesture, convert to text and process; if abstract, handoff. Reaction (emoji on message): arrives as text in webhook, no Vision needed -- map common reactions to text equivalents (thumbs_up = "ok", heart = positive ack, laugh = "jaja"). |
+### 1. Embedded Signup / Client Onboarding
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Meta Embedded Signup v4 flow | Only way for clients to connect their WABA/FB/IG without manual config. Standard for tech providers. | HIGH | Requires Facebook App review, Meta Tech Provider enrollment, OAuth 2.0 token exchange. v4 (Dec 2025) supports WA + Messenger + IG in single flow. |
+| WABA + phone number creation during signup | Client gets WhatsApp Business Account auto-created and phone number registered | MEDIUM | Part of Embedded Signup flow. Meta handles the UI. Your app receives tokens via callback. |
+| Phone number verification (SMS/voice) | Required to activate a WA number on Cloud API | LOW | Meta handles this within their Embedded Signup UI. Your app just stores the result. |
+| Token storage per workspace | Each workspace needs System User Access Token + WABA ID + Phone Number ID | MEDIUM | Replace current per-workspace `360dialog_api_key` with `meta_access_token` + `waba_id` + `phone_number_id`. Long-lived tokens but can expire -- need refresh logic. |
+| Webhook auto-subscription | App must be subscribed to each WABA to receive messages | MEDIUM | POST to `/{WABA_ID}/subscribed_apps` after signup. CRITICAL: without this, webhooks silently fail. Known as "Shadow Delivery" problem. |
+
+**Embedded Signup Implementation Details (MEDIUM confidence):**
+- Config needed: `WHATSAPP_APP_ID`, `WHATSAPP_CONFIGURATION_ID`, `WHATSAPP_APP_SECRET`
+- Flow: Client clicks "Connect WhatsApp" -> Facebook Login popup -> selects/creates Business Manager -> creates WABA -> verifies phone -> callback returns access token
+- 360dialog currently handles this via their Partner Hub. Going direct means MorfX owns the entire onboarding flow.
+- Chatwoot (open source) has a reference implementation of this flow.
+
+### 2. WhatsApp Cloud API Core Messaging
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Send text messages | Basic messaging. Already built for 360dialog. | LOW | API payload is nearly identical. Change base URL from `waba-v2.360dialog.io` to `graph.facebook.com/v21.0`. Change auth header from `D360-API-KEY` to `Authorization: Bearer {token}`. |
+| Send media (image, video, audio, document, sticker) | Already built. Must maintain parity. | LOW | Same payload format. Media URL handling simpler (no 360dialog CDN proxy replacement needed). |
+| Send template messages | Required for outbound beyond 24h. Already built. | LOW | Same payload structure. Templates managed via Graph API instead of 360dialog-specific endpoint. |
+| Send interactive messages (buttons, lists) | Already built. Must maintain parity. | LOW | Same payload format. 360dialog was already proxying Cloud API. |
+| Receive webhooks (messages + status updates) | Core inbound flow. Already built. | MEDIUM | Payload format is identical (360dialog proxied Cloud API webhooks). **Major change:** single webhook endpoint serves ALL workspaces. Must route by `phone_number_id`. |
+| Media download | Already built with 360dialog proxy. | LOW | Direct from Graph API: GET `/{media_id}` with Bearer token. Simpler than current 360dialog CDN proxy workaround. |
+| Read receipts | Already built. | LOW | Same API call structure. |
+
+### 3. WhatsApp Template Management
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Create templates via API | Already built via 360dialog. Must maintain. | LOW | Graph API: POST `/{WABA_ID}/message_templates`. Nearly identical payload to current `createTemplate360`. |
+| List/sync templates | Already built. Must maintain. | LOW | GET `/{WABA_ID}/message_templates`. Paginated response. |
+| Delete templates | Already built. Must maintain. | LOW | DELETE `/{WABA_ID}/message_templates?name={name}`. |
+| Template status webhooks | Know when Meta approves/rejects | MEDIUM | Subscribe to `message_template_status_update` webhook event. Currently MorfX polls via 360dialog. Push-based is better. |
+
+### 4. Webhook Infrastructure (Architectural Change)
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Single webhook endpoint for all workspaces | Meta sends ALL webhooks to ONE URL per app. Must route internally. | HIGH | **Major architectural change.** Currently: 360dialog sends webhooks per-channel (each workspace has own API key). Direct: one endpoint receives messages for ALL clients. Must parse `phone_number_id` / `page_id` / `ig_account_id` from payload to route to correct workspace. |
+| Webhook signature verification | Security requirement. Already built for 360dialog. | LOW | Change from 360dialog HMAC to Meta `x-hub-signature-256` using app_secret. Standard pattern. |
+| Webhook retry handling | Meta retries on non-200. Must handle idempotently. | MEDIUM | Already have idempotency via `external_message_id`. Meta retries up to 7 times with exponential backoff. Must respond with 200 within 5 seconds. |
+
+### 5. Facebook Messenger Core
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Receive messages from Messenger | Replace ManyChat webhook. Direct from Graph API. | MEDIUM | Subscribe to Page webhooks (`messages`, `messaging_postbacks`). Different payload format from WhatsApp. Need new parser, but same DB storage pattern. |
+| Send text messages via Messenger | Replace ManyChat `sendContent`. | LOW | POST to `/{PAGE_ID}/messages` with `messaging_type` + `recipient.id` + `message.text`. |
+| Send images/media via Messenger | Replace ManyChat image sending. | LOW | Attachment API: `message.attachment.type = "image"` + `payload.url`. |
+| Page-scoped User ID (PSID) resolution | Map Messenger users to contacts. | MEDIUM | Messenger uses PSIDs (Page-Scoped User IDs). Must map PSID -> contact. Currently ManyChat provides `subscriber_id` which abstracts over PSID. |
+| 24h messaging window | Messenger has a 24h standard messaging window. | LOW | Similar to WhatsApp. Outside 24h, limited to approved message tags (CONFIRMED_EVENT_UPDATE, POST_PURCHASE_UPDATE, ACCOUNT_UPDATE). |
+
+### 6. Instagram Messaging Core
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Receive DMs from Instagram | Replace ManyChat webhook for IG. | MEDIUM | Subscribe to Instagram webhooks. Different payload format from both WA and Messenger. Need new parser. |
+| Send text via IG DM | Replace ManyChat `sendContent` / `addTag` flow for IG. | LOW | POST to `/me/messages` with Instagram-scoped user ID. Max 1000 bytes UTF-8. |
+| Send images via IG DM | Replace ManyChat image sending for IG. | LOW | Attachment with image URL. Max 8MB PNG/JPEG. |
+| 24h messaging window (HARD limit) | IG has strict 24h window. | LOW (code) / HIGH (UX impact) | Unlike WhatsApp, there is NO way to message IG users after 24h. No templates, no message tags. This is a HARD limitation. Must design UX around this clearly. |
+
+### 7. Channel Sender Swap
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| New WhatsApp sender (Cloud API direct) | Replace 360dialog sender. | LOW | Implement `ChannelSender` interface. Change base URL + auth. Payload is mostly identical. |
+| New Messenger sender (Graph API) | Replace ManyChat Facebook sender. | MEDIUM | Implement `ChannelSender` interface. New payload format. PSID as recipient. |
+| New Instagram sender (Graph API) | Replace ManyChat Instagram sender. | MEDIUM | Implement `ChannelSender` interface. New payload format. IG-scoped user ID as recipient. |
+| Feature flag for gradual migration | Some workspaces on old BSP, some on direct. | MEDIUM | Per-workspace `channel_provider` field: `360dialog` or `meta_direct`. Sender registry checks this. Essential for safe migration. |
 
 ---
 
 ## Differentiators
 
-Features that set this system apart from typical WhatsApp bots. Not expected but create the "this feels real" reaction.
+Features that provide advantage over using BSPs. Not required for launch but create real value.
 
-| # | Feature | Value Proposition | Complexity | Depends On | Notes |
-|---|---------|-------------------|------------|------------|-------|
-| D1 | **No-repetition system (3 escalation levels)** | Most bots repeat themselves constantly -- sending the same product info multiple times in a conversation. A real seller never says "our product costs $77,900" twice. The 3-level escalated check is sophisticated and uncommon in the industry. | High | Message history, template tracking, Haiku API | **Single biggest differentiator.** Level 1: template ID lookup in session_state.templates_enviados (0ms, $0) catches exact repeats. Level 2: minifrase (theme tag) comparison via Haiku (~200ms, ~$0.0003) catches thematic repeats even across message types (template vs human vs AI). Level 3: full message context analysis via Haiku (~1-3s) handles partial overlaps ("human covered 60% of this template's content"). Most chatbot platforms only do Level 1 if anything. The minifrase system (manual tags for ~30 templates, Haiku-generated for human/AI messages) is pragmatic. |
-| D2 | **Priority-based pending merge** | When interrupted mid-sequence, most bots either drop unsent messages or blindly resume. This system merges pending messages with new response using CORE/COMPLEMENTARIA/OPCIONAL priority, ensuring nothing critical is lost while avoiding overload. | Medium | T3 (interruption), template priority metadata | Max 3 templates per response block prevents overwhelming. Priority assignment is PER TEMPLATE PER INTENT (same template can be CORE in one intent, COMPLEMENTARIA in another). Pending CORE can displace new COMP/OPC. Example: /precio interrupted -> pending. Next intent generates /modouso (CORE) + /tiempoefecto1 (COMP). Merge: /modouso + /precio(pending,CORE) + /tiempoefecto1. Rare in commercial WhatsApp bots. |
-| D3 | **Retake timer (proactive re-engagement)** | When the customer goes silent after a non-committal response ("ok"), a real seller circles back after ~90s with a gentle redirect. Most bots nag immediately or give up entirely. | Low | Inngest timer pattern | 90 seconds calibrated: short enough to re-engage, long enough to not feel pushy. Uses identical Inngest pattern as existing timers: `step.waitForEvent('agent/customer.message', timeout: '90s')`. Customer message before timeout cancels timer. New message = retake redirect toward sale. |
-| D4 | **Confidence-based routing with learning loop** | Most bots respond to everything (even uncertain) or escalate too aggressively. The data-first approach collects real ambiguous cases before building disambiguation logic. | Medium | Disambiguation log table | V1: 2 bands (>=80% respond, <80% handoff + log to disambiguation_log with full context: customer_message, agent_state, intent_alternatives, templates_enviados, pending_templates). Human reviews each case, fills correct_intent + guidance_notes. After 20-50 cases: build V2 with 3 bands (>=80% respond, 60-79% auto-disambiguate using reviewed cases as few-shot, <60% handoff). Industry standard is 70-80% threshold boundary. |
-| D5 | **Paraphrasing for repeated intents** | When a customer asks the same question twice, most bots send identical text. A real person rephrases: "Como te decia, cuesta $77,900 con envio gratis." | Medium | D1 (no-repetition), Claude API | Eliminates need for "first visit" vs "subsequent visit" template variants in DB. When intent repeats: take top-2 templates by priority (CORE > COMP > OPC), Claude Haiku paraphrases (~$0.001 per template). Keeps conversation fresh without maintaining duplicate template sets. |
-| D6 | **Block-based conversation model** | The architectural paradigm of treating conversations as "blocks" (customer question block -> bot response block) rather than message-by-message. This single concept enables T1-T3 and D1-D2 to work together coherently. | Conceptual | Inngest migration | Not a user-visible feature -- it's the foundation. Key insight: the character delay between template sends doubles as the debounce window for incoming messages. No separate debounce timer needed. Process immediately, check before each send, stop if interrupted, merge pending into next block. |
+### 1. Cost Savings (PRIMARY Differentiator)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Zero BSP markup on WhatsApp | 360dialog charges per-message markup (~$0.005/msg) + monthly fee ($49-199/workspace). Direct = Meta rates only. | LOW (technical) | No code needed. Architectural consequence. At 10K messages/month/workspace, saves ~$100+/mo per client. |
+| Zero ManyChat subscription | ManyChat Pro: $15-65/mo per page. Direct Messenger/IG APIs are free. | LOW (technical) | Same. Messenger and IG APIs have no per-message cost from Meta. |
+| Transparent billing dashboard | Show clients exact Meta costs vs BSP costs. | MEDIUM | New UI. Query pricing table + usage data. Show savings. Powerful sales tool. |
+
+### 2. WhatsApp Business Profile Management
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Update business profile via API | Set profile photo, about, address, website from MorfX UI. Not available via 360dialog free tier. | LOW | GET/POST `/{PHONE_NUMBER_ID}/whatsapp_business_profile`. Simple CRUD. |
+| Phone number quality rating display | Show quality score + messaging limit tier in dashboard. | LOW | GET `/{PHONE_NUMBER_ID}` with `fields=quality_rating,messaging_limit_tier`. |
+| Display name management | Change display name (requires Meta review). | LOW | Part of phone number management API. |
+
+### 3. Messenger-Specific Features
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Persistent menu | Always-visible menu in Messenger conversations. Not possible via ManyChat API directly. | LOW | POST to Messenger Profile API with `persistent_menu`. Up to 20 buttons. Requires Get Started button configured first. |
+| Handover protocol | Pass conversation between AI agent and human inbox. | MEDIUM | Primary receiver (AI) can pass thread to secondary (human agent) via `/{USER_ID}/pass_thread_control`. Better than current tag-based approach. |
+| Quick replies | Suggest response options to user. | LOW | Add `quick_replies` array to message payload. Up to 13 options. |
+| Typing indicator | Show "typing..." before AI responds. | LOW | POST `sender_action: "typing_on"`. Better UX. |
+
+### 4. Instagram-Specific Features
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Ice breakers | FAQ questions shown on first DM. Up to 4. | LOW | Configure via API. Great for AI agent conversation starters. Replaces need for ManyChat flow triggers. |
+| Generic templates | Rich card messages with image + title + subtitle + buttons. | LOW | Structured cards. Better than plain text for product info. |
+| Private replies to comments | Reply privately (via DM) to public post comments. | MEDIUM | Comment webhook trigger -> DM send. Requires `instagram_manage_comments` permission. |
+| Story mention replies | Auto-reply when user mentions brand in story. | MEDIUM | Webhook for `story_mentions` -> auto DM. |
+
+### 5. Prepaid Wallet / Billing System
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Workspace credit wallet | Clients pre-pay credits. Messages deduct from balance. Prevents unpaid usage. | HIGH | New subsystem: `wallet_transactions` table, credit/debit logic, balance checks before sending, top-up UI, payment gateway integration. |
+| Per-message usage tracking | Track exact Meta cost per delivered template message. | MEDIUM | On delivery webhook (`status: delivered`), calculate cost by category + recipient country. Extends existing `cost-utils.ts`. |
+| Low balance alerts | Notify workspace admin when credits below threshold. | LOW | Threshold check + email/in-app notification. |
+| Auto-pause on zero balance | Stop sending templates when wallet is empty. | MEDIUM | Pre-send balance check. Must NOT block incoming message processing or free service replies. |
+
+### 6. Number Migration / Porting
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Migrate number from 360dialog | Clients keep their existing number + approved templates + quality rating. | HIGH | Process: disable 2FA on 360dialog -> initiate transfer via Embedded Signup -> verify OTP -> number moves to your WABA. Templates and quality rating migrate automatically. 24-48h downtime risk. |
+| Migrate from other BSPs | Support clients coming from Twilio, WATI, etc. | MEDIUM | Same Graph API process. Each BSP has different 2FA disable flow. Document per-BSP instructions. |
+
+### 7. Advanced Webhook Features
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Template status change webhooks | Know instantly when template approved/rejected. Better than current polling. | MEDIUM | Subscribe to `message_template_status_update`. Push notifications to workspace admin. |
+| Account status webhooks | Know if client's WABA gets restricted or banned. | LOW | Subscribe to `account_update` webhook event. Critical for compliance monitoring. |
+| Messaging limit change notifications | Know when client's messaging tier changes. | LOW | Part of account update webhooks. |
 
 ---
 
 ## Anti-Features
 
-Features to explicitly NOT build. Common mistakes in the human-like chatbot domain.
+Features to explicitly NOT build in v1. Common mistakes platforms make.
 
-| # | Anti-Feature | Why Avoid | What to Do Instead |
-|---|-------------|-----------|-------------------|
-| A1 | **Artificial keystroke-by-keystroke simulation** | Research (arXiv 2510.08912) shows hesitation + self-editing improves naturalness, but on WhatsApp users only see "typing..." indicator -- never individual keystrokes. Simulating typo injection, correction sequences, variable per-character delays is extreme overkill. | Simple character-count-based delay curve + optional typing indicator API call. The "typing..." bubble is sufficient for perceived naturalness. |
-| A2 | **Explicit debounce with waiting message** | Some bots send "Please wait while I read your messages..." during debounce. Dead giveaway it's a bot. No human says "hold on, I'm reading your messages." | Check-pre-envio pattern: process immediately, check for new messages before each send. Character delay = natural collection window. No waiting message needed. |
-| A3 | **Over-aggressive proactive messaging** | Some bots send "Are you still there?" after 30 seconds, or push promos every few minutes. Feels spammy and desperate. Stacking multiple timers compounds the problem. | Single retake timer at 90s for SILENCIOSO only. Existing promo/data-collection timers handle other proactive outreach. One gentle nudge per silence period is the limit. |
-| A4 | **Sentiment analysis for tone matching** | Building sentiment analysis to make bot match customer's emotional tone (happy/sad/frustrated) is dangerous. Misreading sentiment leads to inappropriate responses ("Que alegria!" when customer is angry). | Intent system handles tone indirectly. HANDOFF intents (queja, cancelar) catch negative sentiment cases. Bot personality stays consistently warm and professional, not reactive to mood. |
-| A5 | **Image/video AI processing** | Building Vision analysis for customer photos ("Is this your product?" / "Look at this damage") requires visual context understanding that's hard to get right in sales context. Misinterpreting a complaint photo as product inquiry would be disastrous. | Handoff to human for all images/videos. Only process stickers (which are emotive/gestural, not informational). |
-| A6 | **Multi-language detection** | For a Colombian sleep supplement sold in Spanish, language switching adds complexity with near-zero value. The rare English-speaking customer gets handoff. | Keep everything in Spanish. Non-Spanish messages naturally trigger low confidence (<80%) which routes to handoff. |
-| A7 | **Random delay variance for "naturalness"** | Adding +/-20% random variance to delays seems natural but makes behavior unpredictable and harder to debug. Character-based curve already provides variation because message lengths vary. | Deterministic delay curve based on character count. Natural variation comes from different message lengths. Configurable speed multiplier (0.7/1.0/1.3) is better than randomness for tuning. |
-| A8 | **Complex disambiguator before data collection** | Building sophisticated disambiguation for low-confidence intents before real-world data is premature. You don't know edge cases until real customers trigger them. | V1: 2-band system (>=80% respond, <80% handoff + log). Collect 20-50 cases with human review. Build V2 disambiguator only when pattern emerges from data. |
-| A9 | **WhatsApp typing indicator API (for now)** | Technically possible (Cloud API supports it, lasts 25s), but user explicitly decided against it. Adds API calls and 360dialog compatibility uncertainty for marginal benefit. | Deferred by decision. Character delays + natural pacing are sufficient for V1. One-line enhancement possible later. |
-| A10 | **Separate "following visit" template variants** | Maintaining duplicate template sets (primera_vez vs siguientes) doubles content management burden and templates still sound repetitive on third/fourth visit. | Paraphrasing via Claude Haiku (D5) handles repeated intents dynamically. Top-2 priority templates get paraphrased on repeat visits. No duplicate templates needed. |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Custom BSP/reseller layer** | Enormous compliance + legal burden. Meta Tech Provider program has strict requirements for sub-reselling. | MorfX is the tech provider. Clients connect their own accounts. No sub-licensing. |
+| **WhatsApp Flows (form builder)** | Complex feature with limited adoption in LATAM e-commerce. High effort, uncertain ROI. | Use interactive messages (buttons, lists) which are already supported. Revisit if demand emerges. |
+| **WhatsApp Catalog / Commerce API** | Meta's commerce features are still evolving and LATAM adoption is low. | Continue using Shopify integration. Send product info via templates/messages. |
+| **Custom phone number purchasing** | Telecom operation. Regulatory complexity. Out of scope. | Clients bring their own number or get a new one during Embedded Signup (Meta handles this). |
+| **Multi-number per workspace** | Adds massive complexity to routing, billing, contacts, conversations. | One WA number per workspace. Multiple numbers = multiple workspaces. Same as current model. |
+| **Voice/video calls via WA API** | Completely different product domain. WhatsApp Cloud API calling is new and separate. | Stick to messaging. CRM inbox is text-based. |
+| **Meta's Business AI integration** | Meta is rolling out their own AI for business messaging. Would conflict with Somnio agent. | Somnio IS the AI layer. Do not integrate Meta's AI. Keep full control. |
+| **Conversation-based billing tracking** | Old model (pre-July 2025) is deprecated. | Implement per-message billing aligned with current Meta pricing model. |
+| **WhatsApp Groups API** | Different use case. No CRM value for 1-to-1 customer support/sales. | Ignore completely. |
+| **Building custom Embedded Signup UI** | Meta provides the UI via Facebook Login SDK. Don't recreate it. | Use Meta's provided flow. Just handle the OAuth callback and token storage. |
+| **WhatsApp Pay integration** | Payment processing within chat. Heavy regulatory requirements, limited to specific countries (India, Brazil). | Use external payment links/Shopify checkout. Not relevant for Colombia market yet. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-                    INNGEST MIGRATION (prerequisite)
-                    Move webhook from inline to async Inngest
-                    Activate whatsappAgentProcessor (already exists)
-                    |
-            +-------+--------+------------------+
-            |                |                  |
-    +-------v------+  +-----v--------+  +------v-------+
-    | T1: Char     |  | T4: Silence  |  | T6+T7: Media |
-    | Delays       |  | Classification|  | Gate         |
-    | (isolated)   |  | + D3: Retake |  | Audio/Sticker|
-    +-------+------+  +--------------+  +--------------+
-            |
-    +-------v-----------+
-    | T2+T3: Check      |
-    | Pre-Envio +       |
-    | Interruption      |
-    | (requires         |
-    |  processed_by_    |
-    |  agent DB field)  |
-    +-------+-----------+
-            |
-    +---+---+---+--------+
-    |   |       |        |
-    v   v       v        v
-   D2  D1      D4       T5
-   Merge No-Rep Confid.  Handoff
-   Pend. System + Log   (enhance)
-    |   |
-    +---+
-    |
-    v
-    D5: Paraphrasing
-    (needs D1 to know when
-     intent is repeated)
+Embedded Signup v4 (FIRST - enables everything)
+  |
+  +-> Token + Credential Storage per workspace
+  |     |
+  |     +-> WA Cloud API Messaging (swap sender)
+  |     |     +-> Template Management (Graph API)
+  |     |     +-> Media Handling (direct download)
+  |     |     +-> Business Profile CRUD
+  |     |
+  |     +-> FB Page Connection
+  |     |     +-> Messenger Messaging (new sender)
+  |     |     +-> Persistent Menu
+  |     |     +-> Handover Protocol
+  |     |
+  |     +-> IG Account Connection
+  |           +-> Instagram Messaging (new sender)
+  |           +-> Ice Breakers
+  |           +-> Generic Templates
+  |
+  +-> Webhook Routing (single endpoint, route by phone/page/ig ID)
+        +-> WA inbound messages
+        +-> Messenger inbound messages
+        +-> IG inbound messages
+        +-> Delivery/read status updates
+        +-> Template status changes
+        +-> Account status updates
+
+Wallet System (INDEPENDENT - can be built in parallel)
+  +-> Balance table + transaction log
+  +-> Pre-send balance check (hooks into sender)
+  +-> Top-up flow (payment gateway)
+  +-> Usage dashboard
+
+Feature Flags (PREREQUISITE for safe migration)
+  +-> Per-workspace provider selection
+  +-> Dual-sender support (old + new in parallel)
+
+Number Migration (LAST - after direct WA is proven stable)
+  +-> 360dialog migration guide
+  +-> Other BSP migration docs
 ```
-
-**Critical path:** Inngest Migration -> T1 -> T2/T3 -> D1/D2 -> D5
-
-**Independent tracks (can run in parallel):**
-- T4 + D3 (silence classification + retake timer) -- only needs Inngest events
-- T6 + T7 (media processing) -- only needs media gate in webhook/Inngest function
-- D4 (confidence routing) -- only needs IntentDetector modification + new DB table
-- T5 (enhanced handoff) -- can improve incrementally
 
 ---
 
 ## MVP Recommendation
 
-For MVP, prioritize in this order:
+### Phase 1: WhatsApp Direct (replaces 360dialog)
 
-### Phase 1: Foundation (highest impact, enables everything)
-1. **Inngest migration** -- Move from inline webhook processing to async Inngest with concurrency 1/conversation. Architectural prerequisite for all async features.
-2. **T1: Character-based delays** -- Immediate dramatic improvement. Single function change in MessagingAdapter.
+Priority: Must work before any client can be migrated.
 
-### Phase 2: Intelligent Processing
-3. **T4: Silence classification** + **D3: Retake timer** -- Stop responding to "ok"/"jaja". Re-engage after 90s silence.
-4. **T2+T3: Check pre-envio + interruption** -- Stop talking over the customer. Requires `processed_by_agent` DB field.
+1. **Meta App setup + Tech Provider enrollment** -- Facebook App review, permissions, Embedded Signup configuration
+2. **Embedded Signup v4 flow** -- Client connects WhatsApp Business Account from MorfX settings page
+3. **Token + credential storage** -- New columns in workspace settings or dedicated `meta_connections` table
+4. **Webhook routing infrastructure** -- Single endpoint, route by `phone_number_id` to workspace
+5. **Cloud API sender** -- Swap `whatsapp-sender.ts` implementation (reuse `ChannelSender` interface)
+6. **Template management** -- CRUD via Graph API instead of 360dialog API
+7. **Feature flag** -- Per-workspace `whatsapp_provider: '360dialog' | 'meta_direct'` for gradual migration
 
-### Phase 3: Media and Confidence
-5. **T6: Audio processing** -- Unlock 30-40% of messages being ignored. Whisper API integration.
-6. **T7: Media handling** -- Image/video handoff, sticker interpretation, reaction mapping.
-7. **D4: Confidence routing** + log -- Stop responding when unsure. Start collecting learning data.
+### Phase 2: Messenger + Instagram Direct (replaces ManyChat)
 
-### Phase 4: Advanced Intelligence
-8. **D1: No-repetition system** -- Most complex feature. 3 levels, minifrases, Haiku integration.
-9. **D2: Priority-based pending merge** -- Intelligent interrupted-sequence handling.
-10. **D5: Paraphrasing for repeats** -- Dynamic freshness for repeated questions.
+8. **FB Page + IG Account connection** via Embedded Signup v4 (same flow, additional permissions)
+9. **Messenger sender** -- New `ChannelSender` implementation for Graph API
+10. **Instagram sender** -- New `ChannelSender` implementation for IG API
+11. **Webhook parsers** -- Messenger + IG have different payload formats than WA
+12. **Persistent menu + Ice breakers** -- Quick wins, low effort
+
+### Phase 3: Billing + Migration
+
+13. **Wallet system** -- Prepaid credits, per-message tracking, low-balance alerts
+14. **Number migration tooling** -- Scripts/guides for moving 360dialog numbers to direct
+15. **Billing dashboard** -- Usage visualization, cost comparison
 
 ### Defer to post-MVP:
-- **V2 disambiguator:** Needs 20-50 real reviewed cases. Build 2-4 weeks after production launch.
-- **WhatsApp typing indicator (A9):** User deferred. Can add in ~1 hour when desired.
+
+- **Handover protocol** (Messenger): Agent handles escalation via existing patterns
+- **Story mention replies** (IG): Nice-to-have
+- **Private replies from comments** (IG): Not core inbox
+- **Multi-BSP migration automation**: Document-first, automate later
+- **Volume tier pricing**: Only relevant at scale
 
 ---
 
-## Complexity Budget
+## Pricing Model (Current as of July 2025)
 
-| Feature | Est. Effort | New Files | Modified Files | DB Changes | External APIs |
-|---------|------------|-----------|----------------|------------|---------------|
-| Inngest migration | 1-2 days | 0 | 2 (webhook-handler, agent-production) | 0 | 0 |
-| T1: Char delays | 0.5 days | 1 (char-delay.ts) | 1 (messaging.ts) | 0 | 0 |
-| T4+D3: Silence + retake | 1 day | 2 (message-gate.ts, silence-timer.ts) | 1 (events.ts) | 0 | 0 |
-| T2+T3: Check pre-envio | 1-2 days | 0 | 1 (messaging.ts) | 1 (processed_by_agent) | 0 |
-| T6: Audio processing | 1-2 days | 1 (media-gate.ts) | 1 (webhook-handler.ts) | 0 | Whisper |
-| T7: Media handling | 0.5 days | 0 (in media-gate.ts) | 0 | 0 | Vision (stickers) |
-| D4: Confidence + log | 1 day | 1 (disambiguation-log.ts) | 1 (somnio-agent.ts) | 1 (table) | 0 |
-| D1: No-repetition | 2-3 days | 1 (no-repeat.ts) | 1 (messaging.ts) | 1 (minifrase) | Haiku |
-| D2: Pending merge | 1 day | 1 (pending-merge.ts) | 1 (messaging.ts) | 1 (priority) | 0 |
-| D5: Paraphrasing | 0.5 days | 0 (in no-repeat.ts) | 0 | 0 | Haiku |
-| **TOTAL** | **~10-14 days** | **~7 new** | **~5 modified** | **~3 migrations** | **Whisper + Haiku + Vision** |
+Per-message billing for template messages. Critical for wallet system design.
+
+| Category | Description | Cost (Colombia ~) | Charged When |
+|----------|-------------|-------------------|--------------|
+| Marketing | Promos, product recs | ~$0.0177 USD | Always (every delivered template, even in active window) |
+| Utility | Order updates, receipts | ~$0.0064 USD | Only outside 24h service window |
+| Authentication | OTPs, verification | ~$0.0064 USD | Always |
+| Service | Customer-initiated replies | FREE | Never charged |
+
+**Key billing rules:**
+- 24h service window: opens when customer messages. All free-form replies + utility templates = free.
+- 72h entry point window: from click-to-WA ads. ALL message types free.
+- Utility-in-window: Free. This is a big deal -- order confirmations sent during active conversations cost nothing.
+- Marketing-in-window: Still charged. Marketing templates always cost money.
+- Volume tiers: Discounts on utility + auth at high monthly volumes. Marketing has no volume discount currently.
+
+**Messenger + Instagram: Zero per-message cost from Meta.** Only your hosting/infrastructure costs.
+
+---
+
+## Complexity Summary
+
+| Feature Area | Complexity | Reason |
+|--------------|------------|--------|
+| Meta App Setup + Tech Provider | HIGH | Business verification, app review, permissions. Weeks of calendar time (not dev time). |
+| Embedded Signup | HIGH | OAuth flow, token exchange, error handling, multiple account types. |
+| WA Messaging (swap sender) | LOW | API payloads are nearly identical to 360dialog (which was proxying Cloud API). |
+| Webhook Routing | HIGH | Single endpoint for all workspaces. Must be bulletproof. Routing table, idempotency, failure handling, 5-second response requirement. |
+| Template Management | LOW | Simple API endpoint swap. Same data model. |
+| Messenger Messaging | MEDIUM | New payload format, PSID -> contact mapping, Page-level auth tokens. |
+| Instagram Messaging | MEDIUM | New payload format, IG-scoped user IDs, strict 24h hard limit (no templates to reopen). |
+| Wallet / Billing | HIGH | New subsystem: transaction log, balance checks, payment integration, alerts, dashboards. |
+| Number Migration | HIGH | Multi-step with downtime risk, per-BSP differences, customer communication needed. |
+| Business Profile | LOW | Simple CRUD API calls. |
+| Persistent Menu / Ice Breakers | LOW | One-time configuration API calls per workspace. |
+| Feature Flags / Dual Mode | MEDIUM | Must support old + new providers simultaneously during migration period. |
 
 ---
 
 ## Sources
 
-### HIGH Confidence (official docs, verified)
-- [OpenAI Whisper API - Supported Formats](https://platform.openai.com/docs/api-reference/audio/) -- OGG natively supported, no conversion needed
-- [OpenAI Speech-to-Text Guide](https://platform.openai.com/docs/guides/speech-to-text) -- Models: whisper-1, gpt-4o-transcribe
-- [Twilio WhatsApp Typing Indicators](https://www.twilio.com/docs/whatsapp/api/typing-indicators-resource) -- Endpoint structure, 25s duration
+### Official Meta Documentation (HIGH confidence)
+- [Embedded Signup Overview](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/)
+- [Embedded Signup v4](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/version-4/)
+- [Embedded Signup v4 Blog Announcement (Dec 2025)](https://developers.facebook.com/blog/post/2025/12/03/simplify-business-onboarding-with-embedded-signup-v4/)
+- [Embedded Signup Implementation](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation/)
+- [WhatsApp Business Platform Pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)
+- [Pricing Updates July 2025](https://developers.facebook.com/docs/whatsapp/pricing/updates-to-pricing/)
+- [Conversation-Based Pricing (DEPRECATED)](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/conversation-based-pricing/)
+- [Messenger Persistent Menu](https://developers.facebook.com/docs/messenger-platform/send-messages/persistent-menu/)
+- [Messenger Handover Protocol](https://developers.facebook.com/docs/messenger-platform/handover-protocol/)
+- [Instagram Messaging API](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/)
+- [Instagram Ice Breakers](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/ice-breakers/)
+- [Instagram Generic Template](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/generic-template/)
+- [WhatsApp Cloud API Webhooks](https://developers.facebook.com/docs/whatsapp/cloud-api/guides/set-up-webhooks/)
+- [Number Migration via Embedded Signup](https://developers.facebook.com/docs/whatsapp/solution-providers/support/migrating-phone-numbers-among-solution-partners-via-embedded-signup/)
+- [WhatsApp Business Accounts](https://developers.facebook.com/documentation/business-messaging/whatsapp/whatsapp-business-accounts/)
 
-### MEDIUM Confidence (multiple sources agree)
-- [n8n WhatsApp Debounce Flow with Redis](https://community.n8n.io/t/whatsapp-debounce-flow-combine-multiple-rapid-messages-into-one-ai-response-using-redis-n8n/225494) -- 10s window, timestamp comparison, message concatenation
-- [BotSailor: WhatsApp Cloud API Typing Indicators](https://botsailor.com/blog/new-typing-indicators-in-whatsapp-cloud-api) -- API payload structure, auto-read-receipt
-- [arXiv: Beyond Words - Human-like Typing Behaviors](https://arxiv.org/abs/2510.08912) -- Hesitation + self-editing increases trust
-- [Chatbot-to-Human Handoff Guide 2025](https://www.spurnow.com/en/blogs/chatbot-to-human-handoff) -- Confidence thresholds (70-80%), escalation triggers
-- [AI Chatbot with Human Handoff 2026](https://www.socialintents.com/blog/ai-chatbot-with-human-handoff/) -- Consecutive failure escalation, sentiment triggers
-- [Context Window Management for AI Agents](https://www.getmaxim.ai/articles/context-window-management-strategies-for-long-context-ai-agents-and-chatbots/) -- Memory hierarchy patterns
-- [GeeLark: Human Typing Simulation](https://www.geelark.com/glossary/human-typing-simulation/) -- Per-keystroke delays 80-250ms, speed profiles
-- [ChatBot.com: Conversation Delay](https://www.chatbot.com/blog/manage-the-speed-of-the-chat-with-the-conversation-delay/) -- 0.1s-10s range, 2s default
+### 360dialog Documentation (HIGH confidence -- current BSP)
+- [360dialog Embedded Signup](https://docs.360dialog.com/docs/hub/embedded-signup)
+- [360dialog Partner Integrated Onboarding](https://docs.360dialog.com/partner/integrations-and-api-development/integration-best-practices/integrated-onboarding)
+- [360dialog Tech Provider Program](https://docs.360dialog.com/partner/get-started/tech-provider-program/tech-provider-program-info)
 
-### LOW Confidence (single source or unverified)
-- Gnewuch et al. ECIS 2018 "Faster Is Not Always Better" -- cited in original research, paper not re-verified directly
-- 360dialog typing indicator support -- assumed from Meta Cloud API compatibility, not directly confirmed with 360dialog docs
-- Latin American WhatsApp voice note usage (30-40%) -- general industry estimate, no specific data source
+### Third-Party Verified (MEDIUM confidence)
+- [Chatwoot WhatsApp Embedded Signup Implementation](https://developers.chatwoot.com/self-hosted/configuration/features/integrations/whatsapp-embedded-signup) -- Reference implementation
+- [WhatsApp API Pricing Analysis (Spur)](https://www.spurnow.com/en/blogs/whatsapp-business-api-pricing-explained) -- Detailed pricing breakdown
+- [respond.io Cloud API Feature Overview](https://respond.io/blog/whatsapp-cloud-api) -- Feature comparison direct vs BSP
+- [Shadow Delivery Webhook Bug (Medium)](https://medium.com/@siri.prasad/the-shadow-delivery-mystery-why-your-whatsapp-cloud-api-webhooks-silently-fail-and-how-to-fix-2c7383fec59f) -- Critical gotcha documented
+- [Number Migration Guide (respond.io)](https://respond.io/help/whatsapp/phone-number-migration-to-whatsapp-cloud-api)
+- [Number Migration (BoldDesk)](https://support.bolddesk.com/kb/article/17949/migrating-a-phone-number-from-bsp-to-whatsapp-cloud-api)
+- [Meta Killing Messenger.com (ChatMaxima)](https://chatmaxima.com/blog/meta-killing-messenger-website-business-messaging/) -- Messenger standalone site deprecated April 2026
+- [WhatsApp Pricing Changes (Chat2Desk)](https://chat2desk.com/en/blog/articles/whatsapp-business-api-billing-to-change)
+
+### Codebase Analysis (HIGH confidence)
+- `src/lib/channels/types.ts` -- ChannelSender interface (to be preserved, implementations swapped)
+- `src/lib/channels/registry.ts` -- Channel routing registry (to be extended with provider check)
+- `src/lib/whatsapp/api.ts` -- 360dialog API client (to be replaced with Cloud API direct client)
+- `src/lib/whatsapp/templates-api.ts` -- Template CRUD via 360dialog (to be replaced with Graph API)
+- `src/lib/whatsapp/cost-utils.ts` -- Cost tracking (to be updated for per-message billing model)
+- `src/lib/manychat/api.ts` -- ManyChat API client (to be replaced with direct Messenger + IG clients)
+- `src/lib/channels/whatsapp-sender.ts` -- WA sender implementation (to be swapped)
+- `src/lib/channels/manychat-sender.ts` -- FB/IG sender implementation (to be replaced)
 
 ---
-*Research completed: 2026-02-23*
+*Research completed: 2026-03-31*

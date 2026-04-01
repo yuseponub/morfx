@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v5.0 Meta Direct Integration — Roadmap created, ready to plan Phase 37
+**Current focus:** Milestone v5.0 Meta Direct Integration — Phase 37 in progress (2/2 plans complete)
 
 ## Current Position
 
-Phase: 37 (Meta App Setup + Foundation) — not started
-Plan: —
-Status: Roadmap created, awaiting plan
-Last activity: 2026-03-31 — v5.0 roadmap created (Phases 37-41, 33 requirements mapped)
+Phase: 37 (Meta App Setup + Foundation) — 2/2 plans complete
+Plan: 02 of 2
+Status: Phase 37 complete
+Last activity: 2026-04-01 — Completed 37-02-PLAN.md (Meta API client module)
 
-Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [----------] 0% v5.0
+Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
 ### Carryover from v4.0
 - Phase 36 (Shopify Product Conditional): IN PROGRESS (1/2 plans)
@@ -24,7 +24,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 37 | Meta App Setup + Foundation | SETUP-01, SETUP-02, SETUP-03, SETUP-04 | Pending |
+| 37 | Meta App Setup + Foundation | SETUP-01, SETUP-02, SETUP-03, SETUP-04 | COMPLETE (2/2 plans) |
 | 38 | Embedded Signup + WhatsApp Inbound | SIGNUP-01, SIGNUP-02, SIGNUP-03, WA-05, HOOK-01→04 | Pending |
 | 39 | WhatsApp Outbound + Templates | WA-01→04, WA-06→09, MIG-01, MIG-03 | Pending |
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |

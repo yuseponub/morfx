@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v5.0 Meta Direct Integration — Phase 37 in progress (2/2 plans complete)
+**Current focus:** Milestone v5.0 Meta Direct Integration — Phase 37 complete, Phase 38 next
 
 ## Current Position
 
-Phase: 37 (Meta App Setup + Foundation) — 2/2 plans complete
-Plan: 02 of 2
-Status: Phase 37 complete
-Last activity: 2026-04-01 — Completed 37-02-PLAN.md (Meta API client module)
+Phase: 38 (Embedded Signup + WhatsApp Inbound) — not started
+Plan: —
+Status: Phase 37 verified (4/4), awaiting Phase 38 plan
+Last activity: 2026-03-31 — Phase 37 complete (2/2 plans, verified 4/4)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 

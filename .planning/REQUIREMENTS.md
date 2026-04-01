@@ -101,10 +101,10 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SETUP-01 | Phase 37 | Pending |
-| SETUP-02 | Phase 37 | Pending |
-| SETUP-03 | Phase 37 | Pending |
-| SETUP-04 | Phase 37 | Pending |
+| SETUP-01 | Phase 37 | Complete |
+| SETUP-02 | Phase 37 | Complete |
+| SETUP-03 | Phase 37 | Complete |
+| SETUP-04 | Phase 37 | Complete |
 | SIGNUP-01 | Phase 38 | Pending |
 | SIGNUP-02 | Phase 38 | Pending |
 | SIGNUP-03 | Phase 38 | Pending |

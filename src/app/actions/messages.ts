@@ -283,7 +283,10 @@ export async function sendMediaMessage(
     // Upload to Supabase Storage (adapter concern — stays in server action)
     const adminClient = createAdminClient()
     const buffer = Buffer.from(fileData, 'base64')
-    const filePath = `${workspaceId}/${conversationId}/${Date.now()}-${fileName}`
+    const safeName = fileName
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${workspaceId}/${conversationId}/${Date.now()}-${safeName}`
 
     const { error: uploadError } = await adminClient
       .storage

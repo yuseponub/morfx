@@ -594,7 +594,8 @@ export async function executeLeerGuias(
 
     for (const file of input.files) {
       const buffer = Buffer.from(file.base64Data, 'base64')
-      const filePath = `ocr-guides/${auth.workspaceId}/${Date.now()}-${file.fileName}`
+      const safeName = file.fileName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filePath = `ocr-guides/${auth.workspaceId}/${Date.now()}-${safeName}`
 
       const { error: uploadError } = await supabase
         .storage

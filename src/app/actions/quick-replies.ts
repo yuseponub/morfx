@@ -359,7 +359,7 @@ export async function uploadQuickReplyMedia(
 
   // Generate unique file path
   const timestamp = Date.now()
-  const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
+  const safeFileName = fileName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
   const filePath = `quick-replies/${workspaceId}/${timestamp}_${safeFileName}`
 
   // Upload to Supabase Storage

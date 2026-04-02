@@ -519,7 +519,7 @@ async function downloadAndUploadMedia(
     // Build storage path: inbound/{workspaceId}/{conversationId}/{timestamp}_{sanitized_filename_or_mediaId}
     const ext = getExtensionFromMime(media.mimeType || mimeType || 'application/octet-stream')
     const safeName = media.filename
-      ? media.filename.replace(/[^a-zA-Z0-9.-]/g, '_')
+      ? media.filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
       : `${mediaId}${ext}`
     const filePath = `inbound/${workspaceId}/${conversationId}/${Date.now()}_${safeName}`
 

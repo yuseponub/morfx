@@ -17,6 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export interface AgentConfig {
   workspace_id: string
   agent_enabled: boolean
+  recompra_enabled: boolean
   conversational_agent_id: string
   crm_agents_enabled: Record<string, boolean>
   handoff_message: string
@@ -31,6 +32,7 @@ export interface AgentConfig {
  */
 export const DEFAULT_AGENT_CONFIG: Omit<AgentConfig, 'workspace_id' | 'created_at' | 'updated_at'> = {
   agent_enabled: false,
+  recompra_enabled: true,
   conversational_agent_id: 'somnio-sales-v1',
   crm_agents_enabled: { 'order-manager': true },
   handoff_message: 'Regalame 1 min, ya te comunico con un asesor',

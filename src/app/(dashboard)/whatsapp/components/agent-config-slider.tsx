@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Bot, X, Zap, Clock, MessageSquare, Loader2 } from 'lucide-react'
+import { Bot, X, Zap, Clock, MessageSquare, Loader2, RefreshCw } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -82,6 +82,11 @@ export function AgentConfigSlider({ workspaceId, onClose }: AgentConfigSliderPro
   const handleToggleAgent = useCallback((checked: boolean) => {
     setConfig(prev => prev ? { ...prev, agent_enabled: checked } : prev)
     saveConfig({ agent_enabled: checked })
+  }, [saveConfig])
+
+  const handleToggleRecompra = useCallback((checked: boolean) => {
+    setConfig(prev => prev ? { ...prev, recompra_enabled: checked } : prev)
+    saveConfig({ recompra_enabled: checked })
   }, [saveConfig])
 
   const handleSelectAgent = useCallback((agentId: string) => {
@@ -189,6 +194,33 @@ export function AgentConfigSlider({ workspaceId, onClose }: AgentConfigSliderPro
             <Switch
               checked={config.agent_enabled}
               onCheckedChange={handleToggleAgent}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Section 1b: Recompra toggle */}
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+                config.recompra_enabled
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-muted text-muted-foreground'
+              }`}>
+                <RefreshCw className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Agente Recompra</p>
+                <p className="text-xs text-muted-foreground">
+                  {config.recompra_enabled ? 'Activo para clientes' : 'Desactivado'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={config.recompra_enabled}
+              onCheckedChange={handleToggleRecompra}
             />
           </div>
         </div>

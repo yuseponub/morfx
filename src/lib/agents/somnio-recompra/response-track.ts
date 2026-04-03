@@ -121,7 +121,7 @@ export async function resolveResponseTrack(input: {
     ...extraContext,
     ...infoExtraContext,
     pack: state.pack ?? undefined,
-    nombre_saludo: state.datos.nombre ? getGreeting(state.datos.nombre) : undefined,
+    nombre_saludo: getGreeting(state.datos.nombre),
   }
 
   const allProcessed: PrioritizedTemplate[] = []
@@ -210,9 +210,7 @@ export async function resolveResponseTrack(input: {
  * Compute time-of-day greeting based on Colombia timezone (America/Bogota).
  * Uses only the first name from the full name.
  */
-export function getGreeting(nombre: string): string {
-  const firstName = nombre.split(' ')[0] || nombre
-
+export function getGreeting(nombre: string | null): string {
   const now = new Date()
   const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
   const hour = colombiaTime.getHours()
@@ -226,6 +224,9 @@ export function getGreeting(nombre: string): string {
     greeting = 'Buenas noches'
   }
 
+  if (!nombre) return greeting
+
+  const firstName = nombre.split(' ')[0] || nombre
   return `${greeting} ${firstName}`
 }
 
@@ -312,7 +313,7 @@ async function resolveSalesActionTemplates(
           intents: ['preguntar_direccion_recompra'],
           extraContext: {
             direccion_completa: [direccion, ciudad].filter(Boolean).join(', '),
-            nombre_saludo: state.datos.nombre ? getGreeting(state.datos.nombre) : '',
+            nombre_saludo: getGreeting(state.datos.nombre),
           },
         }
       }
@@ -323,20 +324,15 @@ async function resolveSalesActionTemplates(
         intents: ['preguntar_direccion_recompra'],
         extraContext: {
           campos_faltantes: labels.map(l => `- ${l}`).join('\n'),
-          nombre_saludo: state.datos.nombre ? getGreeting(state.datos.nombre) : '',
+          nombre_saludo: getGreeting(state.datos.nombre),
         },
       }
     }
 
     case 'ofrecer_promos': {
-      // In recompra, prepend greeting context for initial phase
-      const greetingContext: Record<string, string> = state.datos.nombre
-        ? { nombre_saludo: getGreeting(state.datos.nombre) }
-        : {}
-
       return {
         intents: ['promociones'],
-        extraContext: Object.keys(greetingContext).length > 0 ? greetingContext : undefined,
+        extraContext: { nombre_saludo: getGreeting(state.datos.nombre) },
       }
     }
 

@@ -74,6 +74,7 @@ REGLAS DE INTENT:
 - primary: el intent principal del mensaje
 - secondary: solo si hay DOS intenciones claras (ej: "Hola, cuanto cuesta?" = saludo + precio)
 - secondary = "ninguno" si solo hay un intent
+- REGLA RECOMPRA SALUDO: Si el cliente saluda Y expresa intencion general de compra ("Hola! Me interesa comprar", "Hola quiero pedir", "Buenos dias quiero el producto", "Hola me interesa el elixir"), clasificar como primary=saludo, secondary=quiero_comprar. En recompra el saludo es la accion principal porque el cliente ya compro antes.
 - seleccion_pack: cuando el cliente elige un pack especifico CON INTENCION DE COMPRA ("quiero el de 2", "dame el triple", "me llevo 2 frascos"). NUNCA usar para preguntas de precio
 - confirmar: cuando ACEPTA un resumen/pedido previamente mostrado ("si confirmo", "dale", "proceder")
 - quiero_comprar: cuando expresa intencion de compra sin elegir pack especifico ("lo quiero", "quiero comprar")

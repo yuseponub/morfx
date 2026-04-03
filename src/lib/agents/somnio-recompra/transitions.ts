@@ -72,26 +72,14 @@ export const TRANSITIONS: TransitionEntry[] = [
     description: 'Escenario 1: saludo → greeting personalizado + promos',
   },
 
-  // Escenario 2: quiero_comprar + direccion NO confirmada → preguntar direccion
-  {
-    phase: 'initial', on: 'quiero_comprar', action: 'preguntar_direccion',
-    condition: (state) => !state.direccionConfirmada,
-    resolve: () => ({
-      timerSignal: { type: 'start', level: 'L5', reason: 'esperando confirmacion de direccion' },
-      reason: 'Quiere comprar, direccion no confirmada → preguntar',
-    }),
-    description: 'Escenario 2: quiero_comprar sin direccion confirmada → preguntar',
-  },
-
-  // Escenario 2b: quiero_comprar + direccion YA confirmada → promos
+  // Escenario 2: quiero_comprar → promos directas (recompra: no preguntar direccion en initial)
   {
     phase: 'initial', on: 'quiero_comprar', action: 'ofrecer_promos',
-    condition: (state) => state.direccionConfirmada,
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L3', reason: 'promos mostradas' },
-      reason: 'Quiere comprar + direccion confirmada → promos',
+      timerSignal: { type: 'start', level: 'L3', reason: 'quiero_comprar → promos' },
+      reason: 'Quiere comprar en initial → promos directas',
     }),
-    description: 'Escenario 2b: quiero_comprar + direccionConfirmada → promos',
+    description: 'Escenario 2: quiero_comprar → promos (sin gate de direccion)',
   },
 
   // Escenario 3: datos espontaneos + datos criticos → promos

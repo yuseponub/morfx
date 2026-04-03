@@ -154,14 +154,17 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 3b. Check if contact is a client → route to recompra agent
+  // 3b. Check if contact is a client + recompra enabled → route to recompra agent
   const { data: contactData } = await supabase
     .from('contacts')
     .select('is_client')
     .eq('id', contactId)
     .single()
 
-  if (contactData?.is_client) {
+  const globalAgentConfig = await getWorkspaceAgentConfig(workspaceId)
+  const recompraEnabled = globalAgentConfig?.recompra_enabled ?? true
+
+  if (contactData?.is_client && recompraEnabled) {
     // Route to recompra agent — client contacts get personalized recompra flow
     // Tags already filtered at step 1b (WPP, P/W, RECO etc.), so arriving here = safe to process
     logger.info({ conversationId, contactId }, 'Contact is a client, routing to recompra agent')

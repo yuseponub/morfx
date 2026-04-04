@@ -29,7 +29,7 @@ PRODUCTO: Somnio — 90 comprimidos de melatonina + magnesio
 PRECIOS: 1 frasco (1x) = $77,900 | 2 frascos (2x) = $109,900 | 3 frascos (3x) = $139,900
 ENVIO: Gratis a nivel nacional via Interrapidisimo o Coordinadora
 PAGO: Contra entrega (pago al recibir)
-INVIMA: Registro sanitario INVIMA SD2020-0003505
+REGISTRO SANITARIO: Producto importado con Registro Sanitario FDA. Desarrollado por Laboratorio BDE NUTRITION LLC.
 
 Tu tarea: analizar el mensaje del cliente y extraer TODA la informacion estructurada.
 
@@ -83,7 +83,7 @@ CONTEXTO DE INTENTS:
 - envio: informacion de envio ("hacen envios a Medellin?", "por donde envian?")
 - tiempo_entrega: pregunta sobre tiempos de entrega ("cuanto se demora?", "cuando llega?", "en cuantos dias llega?", "cuanto tarda el envio?")
 - REGLA envio vs tiempo_entrega: Si el cliente pregunta sobre tiempos/dias/demora de entrega, usar tiempo_entrega. Si pregunta sobre logistica general (hacen envios?, envian a X?, por donde envian?), usar envio.
-- registro_sanitario: regulacion ("tiene INVIMA?", "es legal?")
+- registro_sanitario: regulacion ("tiene INVIMA?", "tiene FDA?", "es legal?", "registro sanitario?")
 - ubicacion: donde estan ("desde donde envian?", "tienen tienda?")
 - contraindicaciones: efectos secundarios o contraindicaciones ("tiene contraindicaciones?", "tiene efectos secundarios?", "es seguro?")
 - dependencia: si causa dependencia o se puede dejar de tomar ("causa dependencia?", "se puede dejar de tomar?", "es adictivo?", "genera adiccion?")

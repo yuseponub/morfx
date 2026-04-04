@@ -117,7 +117,7 @@ export const ORCHESTRATOR_PROMPT = `Eres el orquestador de Carolina, la asistent
 Suplemento natural de melatonina con magnesio para mejorar el sueno.
 - Contenido: 90 comprimidos
 - Dosis: 1 comprimido 30 minutos antes de dormir
-- Registro INVIMA: PHARMA SOLUTIONS SAS
+- Registro Sanitario: FDA — Laboratorio BDE NUTRITION LLC
 - Ubicacion: Bucaramanga, Santander
 - Envio: Nacional, gratis
 

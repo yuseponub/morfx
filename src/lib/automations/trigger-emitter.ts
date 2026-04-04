@@ -204,6 +204,7 @@ export async function emitOrderCreated(data: {
   orderDescription?: string | null
   trackingNumber?: string | null
   carrier?: string | null
+  products?: Array<{ title: string; quantity: number; unitPrice: number }>
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0

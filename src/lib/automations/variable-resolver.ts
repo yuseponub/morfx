@@ -161,7 +161,13 @@ export function buildTriggerContext(
   const orden: Record<string, unknown> = {}
   if (eventData.orderId !== undefined) orden.id = eventData.orderId
   if (eventData.orderName !== undefined) orden.nombre = eventData.orderName
-  if (eventData.orderValue !== undefined) orden.valor = eventData.orderValue
+  if (eventData.orderValue !== undefined) {
+    orden.valor = eventData.orderValue
+    orden.total_formato = Number(eventData.orderValue).toLocaleString('es-CO', { maximumFractionDigits: 0 })
+  }
+  if (eventData.products !== undefined) {
+    orden.productos_formato = formatProductList(eventData.products as Array<{ title: string; quantity: number }>)
+  }
   if (eventData.previousStageName !== undefined) orden.stage_anterior = eventData.previousStageName
   if (eventData.previousStageId !== undefined) orden.stage_id_anterior = eventData.previousStageId
   if (eventData.newStageName !== undefined) orden.stage_nuevo = eventData.newStageName
@@ -231,7 +237,13 @@ export function buildTriggerContext(
   if (eventData.email !== undefined) shopify.email = eventData.email
   if (eventData.phone !== undefined) shopify.phone = eventData.phone
   if (eventData.note !== undefined) shopify.note = eventData.note
-  if (eventData.products !== undefined) shopify.productos = JSON.stringify(eventData.products)
+  if (eventData.products !== undefined) {
+    shopify.productos = JSON.stringify(eventData.products)
+    shopify.productos_formato = formatProductList(eventData.products as Array<{ title: string; quantity: number }>)
+  }
+  if (eventData.total !== undefined) {
+    shopify.total_formato = Number(eventData.total).toLocaleString('es-CO', { maximumFractionDigits: 0 })
+  }
   if (eventData.shippingAddress !== undefined) shopify.direccion_envio = eventData.shippingAddress
   if (eventData.shippingCity !== undefined) shopify.ciudad_envio = eventData.shippingCity
   if (eventData.shippingDepartment !== undefined) shopify.departamento_envio = eventData.shippingDepartment
@@ -240,4 +252,21 @@ export function buildTriggerContext(
   if (Object.keys(shopify).length > 0) context.shopify = shopify
 
   return context
+}
+
+// ============================================================================
+// Product Name Formatting
+// ============================================================================
+
+const PRODUCT_NAME_MAP: Record<string, string> = {
+  'Melatonina + Magnesio': 'Elixir del Sueño',
+}
+
+function formatProductList(products: Array<{ title: string; quantity: number }>): string {
+  return products
+    .map(p => {
+      const name = PRODUCT_NAME_MAP[p.title] || p.title
+      return `- ${p.quantity}X ${name}`
+    })
+    .join('\n')
 }

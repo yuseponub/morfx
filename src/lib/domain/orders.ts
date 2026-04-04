@@ -292,6 +292,7 @@ export async function createOrder(
       orderDescription: params.description ?? null,
       trackingNumber: params.trackingNumber ?? null,
       carrier: params.carrier ?? null,
+      products: params.products?.map(p => ({ title: p.title, quantity: p.quantity, unitPrice: p.unitPrice })),
       cascadeDepth: ctx.cascadeDepth,
     })
 

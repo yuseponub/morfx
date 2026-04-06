@@ -64,6 +64,7 @@ export function OrdersTable({
   const [orderToDelete, setOrderToDelete] = React.useState<OrderWithDetails | null>(null)
   const [recompraDialogOpen, setRecompraDialogOpen] = React.useState(false)
   const [orderToRecompra, setOrderToRecompra] = React.useState<OrderWithDetails | null>(null)
+  const [recompraStageId, setRecompraStageId] = React.useState<string>('')
 
   // Filters
   const [pipelineFilter, setPipelineFilter] = React.useState<string>('all')
@@ -115,6 +116,8 @@ export function OrdersTable({
         },
         onRecompra: (order) => {
           setOrderToRecompra(order)
+          const orderPipeline = pipelines.find(p => p.id === order.pipeline_id)
+          setRecompraStageId(orderPipeline?.stages[0]?.id || '')
           setRecompraDialogOpen(true)
         },
       }),
@@ -138,8 +141,8 @@ export function OrdersTable({
 
   // Handle recompra confirmation
   const handleRecompraConfirm = async () => {
-    if (!orderToRecompra) return
-    const result = await recompraOrder(orderToRecompra.id)
+    if (!orderToRecompra || !recompraStageId) return
+    const result = await recompraOrder(orderToRecompra.id, recompraStageId)
     if ('error' in result) {
       toast.error(result.error)
     } else {
@@ -339,12 +342,32 @@ export function OrdersTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Crear recompra</AlertDialogTitle>
             <AlertDialogDescription>
-              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia. El pedido se ubicara en la primera etapa del pipeline.
+              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
+            <Select value={recompraStageId} onValueChange={setRecompraStageId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar etapa" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map((pipeline) => (
+                  pipeline.stages.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                        {pipeline.name} — {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRecompraConfirm}>
+            <AlertDialogAction onClick={handleRecompraConfirm} disabled={!recompraStageId}>
               Crear recompra
             </AlertDialogAction>
           </AlertDialogFooter>

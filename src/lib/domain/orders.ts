@@ -92,6 +92,8 @@ export interface DuplicateOrderParams {
 
 export interface RecompraOrderParams {
   sourceOrderId: string
+  /** Optional target stage. If omitted, uses first stage of same pipeline. */
+  targetStageId?: string | null
 }
 
 export interface AddOrderTagParams {
@@ -918,10 +920,11 @@ export async function recompraOrder(
     return { success: false, error: 'Pedido origen no encontrado' }
   }
 
-  // Duplicate to same pipeline, first stage
+  // Duplicate to same pipeline, chosen stage (or first stage if not specified)
   const dupResult = await duplicateOrder(ctx, {
     sourceOrderId: params.sourceOrderId,
     targetPipelineId: sourceOrder.pipeline_id,
+    targetStageId: params.targetStageId ?? undefined,
     copyContact: true,
     copyProducts: true,
     copyValue: true,

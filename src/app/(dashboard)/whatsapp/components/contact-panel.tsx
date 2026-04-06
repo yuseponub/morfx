@@ -16,6 +16,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { WindowIndicator } from './window-indicator'
 import { CreateOrderSheet } from './create-order-sheet'
@@ -342,6 +349,7 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
   const [openTagPopover, setOpenTagPopover] = useState<string | null>(null)
   const [openStagePopover, setOpenStagePopover] = useState<string | null>(null)
   const [recompraOrderId, setRecompraOrderId] = useState<string | null>(null)
+  const [recompraStageId, setRecompraStageId] = useState<string>('')
 
   // Track current order IDs for polling comparison
   const orderIdsRef = useRef<string>('')
@@ -469,8 +477,8 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
   }
 
   const handleRecompra = async () => {
-    if (!recompraOrderId) return
-    const result = await recompraOrder(recompraOrderId)
+    if (!recompraOrderId || !recompraStageId) return
+    const result = await recompraOrder(recompraOrderId, recompraStageId)
     if ('error' in result) {
       toast.error(result.error)
     } else {
@@ -579,7 +587,11 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                 </p>
               </div>
               <button
-                onClick={() => setRecompraOrderId(order.id)}
+                onClick={() => {
+                  setRecompraOrderId(order.id)
+                  const orderPipeline = pipelines.find(p => p.stages.some(s => s.id === order.stage_id))
+                  setRecompraStageId(orderPipeline?.stages[0]?.id || '')
+                }}
                 className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-1"
                 title="Recompra"
               >
@@ -684,9 +696,29 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
               Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
+            <Select value={recompraStageId} onValueChange={setRecompraStageId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar etapa" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map((pipeline) => (
+                  pipeline.stages.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                        {pipeline.name} — {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRecompra}>Crear recompra</AlertDialogAction>
+            <AlertDialogAction onClick={handleRecompra} disabled={!recompraStageId}>Crear recompra</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -823,6 +823,11 @@ export async function duplicateOrder(
         ? (finalOrder?.total_value ?? sourceOrder.total_value ?? 0)
         : 0
 
+      // Build products array for trigger enrichment
+      const dupProducts = (sourceOrder.order_products as Array<{
+        title: string; quantity: number; unit_price: number
+      }> | null)?.map(p => ({ title: p.title, quantity: p.quantity, unitPrice: p.unit_price }))
+
       await emitOrderCreated({
         workspaceId: ctx.workspaceId,
         orderId: newOrder.id,
@@ -843,6 +848,7 @@ export async function duplicateOrder(
         contactAddress: dupContactAddress,
         contactCity: dupContactCity,
         contactDepartment: dupContactDepartment,
+        products: dupProducts,
         cascadeDepth: ctx.cascadeDepth,
       })
     } else {
@@ -875,6 +881,10 @@ export async function duplicateOrder(
         contactAddress: dupContactAddress,
         contactCity: dupContactCity,
         contactDepartment: dupContactDepartment,
+        // No products copied, but still pass source products for trigger enrichment
+        products: (sourceOrder.order_products as Array<{
+          title: string; quantity: number; unit_price: number
+        }> | null)?.map(p => ({ title: p.title, quantity: p.quantity, unitPrice: p.unit_price })),
         cascadeDepth: ctx.cascadeDepth,
       })
     }

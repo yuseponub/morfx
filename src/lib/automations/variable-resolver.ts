@@ -266,7 +266,7 @@ function formatProductList(products: Array<{ title: string; quantity: number }>)
   return products
     .map(p => {
       const name = PRODUCT_NAME_MAP[p.title] || p.title
-      return `- ${p.quantity}X ${name}`
+      return `${p.quantity}X ${name}`
     })
-    .join('\n')
+    .join(', ')
 }

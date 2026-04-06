@@ -890,6 +890,17 @@ async function executeSendWhatsAppTemplate(
     renderedText = renderedText.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value)
   })
 
+  console.log('[action-executor] sendTemplate debug:', {
+    templateName: template.name,
+    language,
+    rawVars: JSON.stringify(rawVars),
+    resolvedVars: JSON.stringify(templateVars),
+    bodyVarCount: bodyVars.length,
+    apiComponents: JSON.stringify(apiComponents),
+    renderedText,
+    contactPhone: conversation.phone,
+  })
+
   const ctx: DomainContext = { workspaceId, source: 'automation' }
   const result = await domainSendTemplateMessage(ctx, {
     conversationId: conversation.id,

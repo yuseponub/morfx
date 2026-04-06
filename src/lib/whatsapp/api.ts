@@ -170,6 +170,8 @@ export async function sendTemplateMessage(
     (payload.template as Record<string, unknown>).components = components
   }
 
+  console.log('[whatsapp-api] sendTemplate payload:', JSON.stringify(payload, null, 2))
+
   return request<Send360Response>(apiKey, '/messages', {
     method: 'POST',
     body: JSON.stringify(payload),

@@ -857,6 +857,8 @@ async function executeSendWhatsAppTemplate(
       const mediaUrl = String(
         params.headerMediaUrl ||
         headerComponent.example?.header_handle?.[0] ||
+        // Fallback: workspace default header image (stored in automation params or env)
+        (format === 'IMAGE' ? (params.defaultHeaderImageUrl || process.env.DEFAULT_TEMPLATE_HEADER_IMAGE || '') : '') ||
         ''
       )
       if (mediaUrl) {

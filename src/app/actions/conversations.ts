@@ -127,6 +127,46 @@ export async function getConversations(
 }
 
 /**
+ * Find a conversation by phone number (partial match).
+ * Used when navigating from CRM to WhatsApp by contact phone.
+ */
+export async function findConversationByPhone(
+  phone: string
+): Promise<string | null> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const workspaceId = await getActiveWorkspaceId()
+  if (!workspaceId) return null
+
+  // Try exact match first, then partial (phone might have/miss country code)
+  const { data } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .ilike('phone', `%${phone}%`)
+    .order('last_message_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (data) return data.id
+
+  // Also try matching via linked contact phone
+  const { data: contactMatch } = await supabase
+    .from('conversations')
+    .select('id, contact:contacts!inner(phone)')
+    .eq('workspace_id', workspaceId)
+    .ilike('contact.phone', `%${phone}%`)
+    .order('last_message_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return contactMatch?.id || null
+}
+
+/**
  * Get a single conversation by ID with full details.
  */
 export async function getConversation(

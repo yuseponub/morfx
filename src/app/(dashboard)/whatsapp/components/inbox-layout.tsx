@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { ConversationList } from './conversation-list'
 import { ContactPanel } from './contact-panel'
 import { AgentConfigSlider } from './agent-config-slider'
@@ -61,6 +61,17 @@ export function InboxLayout({
       markAsRead(id).catch(console.error)
     }
   }, [])
+
+  // If we have an initialSelectedId but it's not in the pre-loaded list
+  // (e.g., outbound-only conversation where customer hasn't replied),
+  // fetch it directly from DB so the chat view can display it.
+  useEffect(() => {
+    if (selectedConversationId && !selectedConversation) {
+      getConversation(selectedConversationId).then((conv) => {
+        if (conv) setSelectedConversation(conv)
+      })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refresh selected conversation data (called after contact/order creation)
   const refreshSelectedConversation = useCallback(async () => {

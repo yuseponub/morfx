@@ -1,5 +1,5 @@
 import { InboxLayout } from './components/inbox-layout'
-import { getConversations } from '@/app/actions/conversations'
+import { getConversations, findConversationByPhone } from '@/app/actions/conversations'
 import { getClientActivationSettings } from '@/app/actions/client-activation'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 
@@ -31,10 +31,22 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
   ])
 
   // Find conversation by ID or phone if provided
-  const initialSelectedId = c
-    || (phone
-      ? initialConversations.find(conv => conv.phone.includes(phone) || conv.contact?.phone.includes(phone))?.id
-      : undefined)
+  let initialSelectedId: string | undefined = c || undefined
+
+  if (!initialSelectedId && phone) {
+    // Try matching in already-loaded conversations first
+    const localMatch = initialConversations.find(
+      conv => conv.phone.includes(phone) || conv.contact?.phone?.includes(phone)
+    )
+    if (localMatch) {
+      initialSelectedId = localMatch.id
+    } else {
+      // Fallback: search DB directly (covers conversations not in initial list,
+      // e.g., outbound-only where customer hasn't replied yet)
+      const dbMatch = await findConversationByPhone(phone)
+      if (dbMatch) initialSelectedId = dbMatch
+    }
+  }
 
   return (
     <InboxLayout

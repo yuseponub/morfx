@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo, RefreshCwIcon } from 'lucide-react'
+import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo, RefreshCwIcon, PencilIcon, CheckIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
 import {
   AlertDialog,
@@ -30,6 +32,7 @@ import { CreateContactSheet } from './create-contact-sheet'
 import { ViewOrderSheet } from './view-order-sheet'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
+import { updateContactName } from '@/app/actions/contacts'
 import { createClient } from '@/lib/supabase/client'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
@@ -51,12 +54,32 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState('')
 
   // Handler for when order is created - refresh data
   const handleOrderCreated = () => {
     setOrdersRefreshKey(k => k + 1)
     router.refresh()
     onConversationUpdated?.()
+  }
+
+  // Handler for inline contact name edit
+  const handleSaveName = async () => {
+    const contact = conversation?.contact
+    if (!contact || !nameValue.trim() || nameValue.trim() === contact.name) {
+      setEditingName(false)
+      return
+    }
+    const result = await updateContactName(contact.id, nameValue)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success('Nombre actualizado')
+      router.refresh()
+      onConversationUpdated?.()
+    }
+    setEditingName(false)
   }
 
   // Handler for when contact is created - refresh conversation to show linked contact
@@ -160,8 +183,35 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
                     <User className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div>
-                    <p className="font-medium">{contact.name}</p>
+                  <div className="flex-1 min-w-0">
+                    {editingName ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={nameValue}
+                          onChange={(e) => setNameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveName()
+                            if (e.key === 'Escape') setEditingName(false)
+                          }}
+                          className="h-7 text-sm font-medium"
+                          autoFocus
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveName}>
+                          <CheckIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p
+                        className="font-medium cursor-pointer hover:underline"
+                        onClick={() => {
+                          setNameValue(contact.name)
+                          setEditingName(true)
+                        }}
+                        title="Click para editar nombre"
+                      >
+                        {contact.name}
+                      </p>
+                    )}
                     <p className="text-sm text-muted-foreground">{contact.phone}</p>
                   </div>
                 </div>
@@ -311,7 +361,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { toast } from 'sonner'
 
 interface RecentOrder {
   id: string

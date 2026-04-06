@@ -482,6 +482,30 @@ export async function updateContactFromForm(id: string, formData: FormData): Pro
   return { success: true, data: contact! }
 }
 
+/**
+ * Quick inline update of a contact's name.
+ */
+export async function updateContactName(contactId: string, name: string): Promise<ActionResult<{ name: string }>> {
+  if (!name.trim()) return { error: 'El nombre no puede estar vacio' }
+
+  const ctx = await getWorkspaceContext()
+  if ('error' in ctx) return { error: ctx.error }
+
+  const domainCtx: DomainContext = { workspaceId: ctx.workspaceId, source: 'server-action' }
+  const result = await domainUpdateContact(domainCtx, {
+    contactId,
+    name: name.trim(),
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al actualizar nombre' }
+  }
+
+  revalidatePath('/crm/contactos')
+  revalidatePath('/whatsapp')
+  return { success: true, data: { name: name.trim() } }
+}
+
 // ============================================================================
 // Delete Operations — Delegated to domain
 // ============================================================================

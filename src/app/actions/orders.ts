@@ -21,6 +21,7 @@ import {
   deleteOrder as domainDeleteOrder,
   addOrderTag as domainAddOrderTag,
   removeOrderTag as domainRemoveOrderTag,
+  recompraOrder as domainRecompraOrder,
 } from '@/lib/domain/orders'
 import type { DomainContext } from '@/lib/domain/types'
 
@@ -649,6 +650,29 @@ export async function deleteOrders(ids: string[]): Promise<ActionResult<{ delete
 
   revalidatePath('/crm/pedidos')
   return { success: true, data: { deleted } }
+}
+
+// ============================================================================
+// Recompra — via domain/orders
+// ============================================================================
+
+/**
+ * Create a repeat order (recompra) from an existing order.
+ * Duplicates to same pipeline first stage, clears tracking/carrier/guide/closing_date.
+ */
+export async function recompraOrder(orderId: string): Promise<ActionResult<{ orderId: string }>> {
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
+
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const result = await domainRecompraOrder(ctx, { sourceOrderId: orderId })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al crear recompra' }
+  }
+
+  revalidatePath('/crm/pedidos')
+  return { success: true, data: { orderId: result.data!.orderId } }
 }
 
 /**

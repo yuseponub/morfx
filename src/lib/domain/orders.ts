@@ -90,6 +90,10 @@ export interface DuplicateOrderParams {
   copyValue?: boolean
 }
 
+export interface RecompraOrderParams {
+  sourceOrderId: string
+}
+
 export interface AddOrderTagParams {
   orderId: string
   tagName: string
@@ -124,6 +128,11 @@ export interface DeleteOrderResult {
 }
 
 export interface DuplicateOrderResult {
+  orderId: string
+  sourceOrderId: string
+}
+
+export interface RecompraOrderResult {
   orderId: string
   sourceOrderId: string
 }
@@ -878,6 +887,72 @@ export async function duplicateOrder(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// recompraOrder
+// ============================================================================
+
+/**
+ * Create a repeat order (recompra) from an existing order.
+ * Duplicates the order to the same pipeline's first stage, then clears
+ * tracking/carrier/guide/closing_date fields so the new order starts fresh.
+ * Emits: order.created (via duplicateOrder)
+ */
+export async function recompraOrder(
+  ctx: DomainContext,
+  params: RecompraOrderParams
+): Promise<DomainResult<RecompraOrderResult>> {
+  const supabase = createAdminClient()
+
+  // Read source order to get pipeline_id
+  const { data: sourceOrder, error: sourceError } = await supabase
+    .from('orders')
+    .select('pipeline_id')
+    .eq('id', params.sourceOrderId)
+    .eq('workspace_id', ctx.workspaceId)
+    .single()
+
+  if (sourceError || !sourceOrder) {
+    return { success: false, error: 'Pedido origen no encontrado' }
+  }
+
+  // Duplicate to same pipeline, first stage
+  const dupResult = await duplicateOrder(ctx, {
+    sourceOrderId: params.sourceOrderId,
+    targetPipelineId: sourceOrder.pipeline_id,
+    copyContact: true,
+    copyProducts: true,
+    copyValue: true,
+  })
+
+  if (!dupResult.success) {
+    return { success: false, error: dupResult.error || 'Error al crear recompra' }
+  }
+
+  // Clear tracking/carrier/closing_date on the new order
+  const { error: clearError } = await supabase
+    .from('orders')
+    .update({
+      tracking_number: null,
+      carrier: null,
+      carrier_guide_number: null,
+      closing_date: null,
+    })
+    .eq('id', dupResult.data!.orderId)
+    .eq('workspace_id', ctx.workspaceId)
+
+  if (clearError) {
+    return { success: false, error: `Error al limpiar campos de envio: ${clearError.message}` }
+  }
+
+  return {
+    success: true,
+    data: {
+      orderId: dupResult.data!.orderId,
+      sourceOrderId: params.sourceOrderId,
+    },
   }
 }
 

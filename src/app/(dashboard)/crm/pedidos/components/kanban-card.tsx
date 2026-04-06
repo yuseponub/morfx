@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon } from 'lucide-react'
+import { PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon, RefreshCwIcon } from 'lucide-react'
 import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -45,6 +45,7 @@ interface KanbanCardProps {
   onClick?: () => void
   isSelected?: boolean
   onSelectChange?: (selected: boolean) => void
+  onRecompra?: (order: OrderWithDetails) => void
 }
 
 /**
@@ -57,6 +58,7 @@ export function KanbanCard({
   onClick,
   isSelected = false,
   onSelectChange,
+  onRecompra,
 }: KanbanCardProps) {
   const {
     attributes,
@@ -175,6 +177,18 @@ export function KanbanCard({
           <span>{formatRelativeTime(order.created_at)}</span>
         </div>
         <div className="flex items-center gap-2">
+          {onRecompra && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRecompra(order)
+              }}
+              className="p-1 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors"
+              title="Recompra"
+            >
+              <RefreshCwIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
           {order.contact?.phone && (
             <Link
               href={`/whatsapp?phone=${encodeURIComponent(order.contact.phone)}`}

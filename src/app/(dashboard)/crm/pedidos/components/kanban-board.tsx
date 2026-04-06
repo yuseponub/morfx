@@ -38,6 +38,7 @@ interface KanbanBoardProps {
   selectedOrderIds?: Set<string>
   onOrderSelectChange?: (orderId: string, selected: boolean) => void
   onStagesReorder?: (stages: PipelineStage[]) => void
+  onRecompra?: (order: OrderWithDetails) => void
   stageCounts?: Record<string, number>
   stageHasMore?: Record<string, boolean>
   stageLoading?: Record<string, boolean>
@@ -81,6 +82,7 @@ export function KanbanBoard({
   selectedOrderIds,
   onOrderSelectChange,
   onStagesReorder,
+  onRecompra,
   stageCounts,
   stageHasMore,
   stageLoading,
@@ -325,6 +327,7 @@ export function KanbanBoard({
               onOrderClick={onOrderClick}
               onEditStage={onEditStage}
               onDeleteStage={onDeleteStage}
+              onRecompra={onRecompra}
               onAddStage={onAddStage}
               selectedOrderIds={selectedOrderIds}
               onOrderSelectChange={onOrderSelectChange}

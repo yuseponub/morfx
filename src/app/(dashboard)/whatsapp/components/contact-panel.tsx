@@ -2,10 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo } from 'lucide-react'
+import { X, User, ShoppingBag, ExternalLink, Eye, MapPin, ListTodo, RefreshCwIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { WindowIndicator } from './window-indicator'
 import { CreateOrderSheet } from './create-order-sheet'
@@ -276,7 +286,7 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
 
 import { getRecentOrders } from '@/app/actions/whatsapp'
 import { getTagsForScope } from '@/app/actions/tags'
-import { addOrderTag, removeOrderTag, moveOrderToStage } from '@/app/actions/orders'
+import { addOrderTag, removeOrderTag, moveOrderToStage, recompraOrder } from '@/app/actions/orders'
 import { getPipelines } from '@/app/actions/orders'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -331,6 +341,7 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
   const [openTagPopover, setOpenTagPopover] = useState<string | null>(null)
   const [openStagePopover, setOpenStagePopover] = useState<string | null>(null)
+  const [recompraOrderId, setRecompraOrderId] = useState<string | null>(null)
 
   // Track current order IDs for polling comparison
   const orderIdsRef = useRef<string>('')
@@ -457,6 +468,21 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
     }
   }
 
+  const handleRecompra = async () => {
+    if (!recompraOrderId) return
+    const result = await recompraOrder(recompraOrderId)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success('Recompra creada')
+      const freshOrders = await getRecentOrders(contactId)
+      setOrders(freshOrders)
+      orderIdsRef.current = freshOrders.map(o => o.id).join(',')
+      onStageChanged?.()
+    }
+    setRecompraOrderId(null)
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -553,8 +579,15 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                 </p>
               </div>
               <button
+                onClick={() => setRecompraOrderId(order.id)}
+                className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-1"
+                title="Recompra"
+              >
+                <RefreshCwIcon className="h-4 w-4 text-muted-foreground" />
+              </button>
+              <button
                 onClick={() => setViewingOrderId(order.id)}
-                className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-2"
+                className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-1"
                 title="Ver pedido"
               >
                 <Eye className="h-4 w-4 text-muted-foreground" />
@@ -641,6 +674,22 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
         open={!!viewingOrderId}
         onOpenChange={(open) => !open && setViewingOrderId(null)}
       />
+
+      {/* Recompra confirmation dialog */}
+      <AlertDialog open={!!recompraOrderId} onOpenChange={(open) => !open && setRecompraOrderId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Crear recompra</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecompra}>Crear recompra</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

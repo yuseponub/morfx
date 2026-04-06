@@ -1,7 +1,7 @@
 'use client'
 
 import { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDownIcon, MoreHorizontalIcon, PackageIcon } from 'lucide-react'
+import { ArrowUpDownIcon, MoreHorizontalIcon, PackageIcon, RefreshCwIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -47,11 +47,13 @@ function formatRelativeTime(date: string): string {
 interface ColumnsProps {
   onEdit: (order: OrderWithDetails) => void
   onDelete: (order: OrderWithDetails) => void
+  onRecompra: (order: OrderWithDetails) => void
 }
 
 export function createColumns({
   onEdit,
   onDelete,
+  onRecompra,
 }: ColumnsProps): ColumnDef<OrderWithDetails>[] {
   return [
     {
@@ -231,6 +233,10 @@ export function createColumns({
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => onEdit(order)}>
                 Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onRecompra(order)}>
+                <RefreshCwIcon className="mr-2 h-4 w-4" />
+                Recompra
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

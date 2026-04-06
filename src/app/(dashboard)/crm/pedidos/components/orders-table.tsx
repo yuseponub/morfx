@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { createColumns } from './columns'
 import { OrderForm } from './order-form'
-import { deleteOrder } from '@/app/actions/orders'
+import { deleteOrder, recompraOrder } from '@/app/actions/orders'
 import { toast } from 'sonner'
 import { RowSelectionState } from '@tanstack/react-table'
 import type { OrderWithDetails, PipelineWithStages, Product } from '@/lib/orders/types'
@@ -62,6 +62,8 @@ export function OrdersTable({
   const [editingOrder, setEditingOrder] = React.useState<OrderWithDetails | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [orderToDelete, setOrderToDelete] = React.useState<OrderWithDetails | null>(null)
+  const [recompraDialogOpen, setRecompraDialogOpen] = React.useState(false)
+  const [orderToRecompra, setOrderToRecompra] = React.useState<OrderWithDetails | null>(null)
 
   // Filters
   const [pipelineFilter, setPipelineFilter] = React.useState<string>('all')
@@ -111,6 +113,10 @@ export function OrdersTable({
           setOrderToDelete(order)
           setDeleteDialogOpen(true)
         },
+        onRecompra: (order) => {
+          setOrderToRecompra(order)
+          setRecompraDialogOpen(true)
+        },
       }),
     []
   )
@@ -128,6 +134,20 @@ export function OrdersTable({
     }
     setDeleteDialogOpen(false)
     setOrderToDelete(null)
+  }
+
+  // Handle recompra confirmation
+  const handleRecompraConfirm = async () => {
+    if (!orderToRecompra) return
+    const result = await recompraOrder(orderToRecompra.id)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success('Recompra creada exitosamente')
+      router.refresh()
+    }
+    setRecompraDialogOpen(false)
+    setOrderToRecompra(null)
   }
 
   // Handle sheet close and success
@@ -308,6 +328,24 @@ export function OrdersTable({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Recompra confirmation dialog */}
+      <AlertDialog open={recompraDialogOpen} onOpenChange={setRecompraDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Crear recompra</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia. El pedido se ubicara en la primera etapa del pipeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecompraConfirm}>
+              Crear recompra
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

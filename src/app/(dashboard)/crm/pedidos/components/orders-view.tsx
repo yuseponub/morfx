@@ -45,7 +45,7 @@ import { BulkMoveDialog } from './bulk-move-dialog'
 import { BulkEditDialog } from './bulk-edit-dialog'
 import { OrderForm } from './order-form'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
-import { deleteOrder, deleteOrders, exportOrdersToCSV, getOrdersForStage, getStageOrderCounts, bulkMoveOrdersToStage, bulkUpdateOrderField } from '@/app/actions/orders'
+import { deleteOrder, deleteOrders, exportOrdersToCSV, getOrdersForStage, getStageOrderCounts, bulkMoveOrdersToStage, bulkUpdateOrderField, recompraOrder } from '@/app/actions/orders'
 import { useOrderSearch } from '@/lib/search/fuse-config'
 import type { User } from '@supabase/supabase-js'
 import { toast } from 'sonner'
@@ -279,6 +279,10 @@ export function OrdersView({
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [orderToDelete, setOrderToDelete] = React.useState<OrderWithDetails | null>(null)
+
+  // Recompra dialog
+  const [recompraDialogOpen, setRecompraDialogOpen] = React.useState(false)
+  const [orderToRecompra, setOrderToRecompra] = React.useState<OrderWithDetails | null>(null)
 
   // Order selection
   const [selectedOrderIds, setSelectedOrderIds] = React.useState<Set<string>>(new Set())
@@ -557,6 +561,10 @@ export function OrdersView({
           setOrderToDelete(order)
           setDeleteDialogOpen(true)
         },
+        onRecompra: (order) => {
+          setOrderToRecompra(order)
+          setRecompraDialogOpen(true)
+        },
       }),
     []
   )
@@ -596,6 +604,23 @@ export function OrdersView({
     }
     setDeleteDialogOpen(false)
     setOrderToDelete(null)
+  }
+
+  // Handle recompra confirmation
+  const handleRecompraConfirm = async () => {
+    if (!orderToRecompra) return
+    const result = await recompraOrder(orderToRecompra.id)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success('Recompra creada exitosamente')
+      router.refresh()
+      if (viewMode === 'kanban' && activePipelineId) {
+        setKanbanInitialized(false)
+      }
+    }
+    setRecompraDialogOpen(false)
+    setOrderToRecompra(null)
   }
 
   // Handle form success
@@ -862,6 +887,10 @@ export function OrdersView({
             onAddStage={handleAddStage}
             selectedOrderIds={selectedOrderIds}
             onOrderSelectChange={handleOrderSelectChange}
+            onRecompra={(order) => {
+              setOrderToRecompra(order)
+              setRecompraDialogOpen(true)
+            }}
             stageCounts={kanbanCounts}
             stageHasMore={kanbanHasMore}
             stageLoading={kanbanLoading}
@@ -921,6 +950,24 @@ export function OrdersView({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Recompra confirmation dialog */}
+      <AlertDialog open={recompraDialogOpen} onOpenChange={setRecompraDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Crear recompra</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia. El pedido se ubicara en la primera etapa del pipeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecompraConfirm}>
+              Crear recompra
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

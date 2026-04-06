@@ -27,6 +27,7 @@ interface KanbanColumnProps {
   onAddStage?: () => void
   selectedOrderIds?: Set<string>
   onOrderSelectChange?: (orderId: string, selected: boolean) => void
+  onRecompra?: (order: OrderWithDetails) => void
   totalCount?: number
   hasMore?: boolean
   isLoadingMore?: boolean
@@ -46,6 +47,7 @@ export function KanbanColumn({
   onAddStage,
   selectedOrderIds,
   onOrderSelectChange,
+  onRecompra,
   totalCount,
   hasMore,
   isLoadingMore,
@@ -220,6 +222,7 @@ export function KanbanColumn({
               onClick={() => onOrderClick(order)}
               isSelected={selectedOrderIds?.has(order.id) ?? false}
               onSelectChange={onOrderSelectChange ? (selected) => onOrderSelectChange(order.id, selected) : undefined}
+              onRecompra={onRecompra}
             />
           ))
         )}

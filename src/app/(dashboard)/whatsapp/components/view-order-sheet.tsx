@@ -15,6 +15,7 @@ import {
   PencilIcon,
   ExternalLinkIcon,
   MessageSquareIcon,
+  RefreshCwIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -32,9 +33,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { OrderTagInput } from '@/app/(dashboard)/crm/pedidos/components/order-tag-input'
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
-import { getOrder, getPipelines, moveOrderToStage } from '@/app/actions/orders'
+import { getOrder, getPipelines, moveOrderToStage, recompraOrder } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
 import { getTagsForScope } from '@/app/actions/tags'
 import { getOrderNotes } from '@/app/actions/order-notes'
@@ -83,6 +94,7 @@ export function ViewOrderSheet({
   const [orderNotes, setOrderNotes] = React.useState<OrderNoteWithUser[]>([])
   const [allTags, setAllTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
   const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
+  const [recompraDialogOpen, setRecompraDialogOpen] = React.useState(false)
 
   // Load order notes when sheet opens
   React.useEffect(() => {
@@ -169,6 +181,19 @@ export function ViewOrderSheet({
     }
   }
 
+  const handleRecompra = async () => {
+    if (!orderId) return
+    const result = await recompraOrder(orderId)
+    if ('error' in result) {
+      toast.error(result.error)
+    } else {
+      toast.success('Recompra creada exitosamente')
+      onSuccess?.()
+      handleClose()
+    }
+    setRecompraDialogOpen(false)
+  }
+
   return (
     <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent className="sm:max-w-[550px] p-0 flex flex-col h-full max-h-screen overflow-hidden">
@@ -226,6 +251,14 @@ export function ViewOrderSheet({
                 >
                   <PencilIcon className="h-4 w-4 mr-2" />
                   Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRecompraDialogOpen(true)}
+                >
+                  <RefreshCwIcon className="h-4 w-4 mr-1" />
+                  Recompra
                 </Button>
 
                 {/* Spacer */}
@@ -472,6 +505,22 @@ export function ViewOrderSheet({
           </>
         )}
       </SheetContent>
+
+      {/* Recompra confirmation dialog */}
+      <AlertDialog open={recompraDialogOpen} onOpenChange={setRecompraDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Crear recompra</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia. El pedido se ubicara en la primera etapa del pipeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecompra}>Crear recompra</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   )
 }

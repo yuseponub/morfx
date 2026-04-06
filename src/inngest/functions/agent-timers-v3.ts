@@ -95,6 +95,90 @@ async function sendTimerMessage(
     }
 
     logger.info({ conversationId, channel, messageId: result.data?.messageId }, 'V3 timer message sent')
+
+    return true
+  } catch (err) {
+    logger.error({ conversationId, err }, 'Failed to send V3 timer message')
+    return false
+  }
+}
+
+/**
+ * Send an image message from a V3 timer via domain layer.
+ * Supports "URL" or "URL|caption" format.
+ */
+async function sendTimerImage(
+  workspaceId: string,
+  conversationId: string,
+  content: string
+): Promise<boolean> {
+  try {
+    const supabase = createAdminClient()
+
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('phone, channel, external_subscriber_id')
+      .eq('id', conversationId)
+      .single()
+
+    if (!conv?.phone && !conv?.external_subscriber_id) {
+      logger.error({ conversationId }, 'No phone/subscriber for conversation (image)')
+      return false
+    }
+
+    const channel = (conv.channel as 'whatsapp' | 'facebook' | 'instagram') || 'whatsapp'
+    const { data: ws } = await supabase
+      .from('workspaces')
+      .select('settings')
+      .eq('id', workspaceId)
+      .single()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const settings = ws?.settings as any
+    const apiKey = (channel === 'facebook' || channel === 'instagram')
+      ? settings?.manychat_api_key
+      : settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+
+    if (!apiKey) {
+      logger.error({ workspaceId, channel }, 'No API key for channel (image)')
+      return false
+    }
+
+    const recipientId = (channel !== 'whatsapp' && conv.external_subscriber_id)
+      ? conv.external_subscriber_id
+      : conv.phone!
+
+    // Parse "URL|caption" format
+    const pipeIdx = content.indexOf('|')
+    const mediaUrl = pipeIdx > 0 ? content.slice(0, pipeIdx) : content
+    const caption = pipeIdx > 0 ? content.slice(pipeIdx + 1) : undefined
+
+    const { sendMediaMessage: domainSendMedia } = await import('@/lib/domain/messages')
+    const result = await domainSendMedia(
+      { workspaceId, source: 'inngest' },
+      {
+        conversationId,
+        contactPhone: recipientId,
+        mediaUrl,
+        mediaType: 'image',
+        caption,
+        apiKey,
+        channel,
+      }
+    )
+
+    if (!result.success) {
+      logger.error({ conversationId, channel, error: result.error }, 'Domain sendMediaMessage failed')
+      return false
+    }
+
+    if (result.data?.messageId) {
+      await supabase
+        .from('messages')
+        .update({ sent_by_agent: true })
+        .eq('id', result.data.messageId)
+    }
+
+    logger.info({ conversationId, channel, messageId: result.data?.messageId }, 'V3 timer image sent')
     return true
   } catch (error) {
     logger.error({ error, conversationId }, 'Failed to send v3 timer message')
@@ -245,28 +329,34 @@ export const v3Timer = inngest.createFunction(
 
       // e. Send templates via WhatsApp
       let sentCount = 0
-      const messagesToSend = output.templates
-        ? output.templates.map(t => t.content)
-        : output.messages
+      const templatesToSend = output.templates ?? output.messages.map(m => ({ content: m, contentType: 'texto' as const }))
 
-      if (messagesToSend.length > 0) {
+      if (templatesToSend.length > 0) {
         const { calculateCharDelay } = await import('@/lib/agents/somnio/char-delay')
 
-        for (const msg of messagesToSend) {
-          if (!msg || msg.trim().length === 0) continue
+        for (const tmpl of templatesToSend) {
+          const content = typeof tmpl === 'string' ? tmpl : tmpl.content
+          const contentType = typeof tmpl === 'string' ? 'texto' : (tmpl.contentType ?? 'texto')
+          if (!content || content.trim().length === 0) continue
 
           // Apply character delay for human-like timing
-          const delayMs = calculateCharDelay(msg.length)
+          const delayMs = calculateCharDelay(content.length)
           await new Promise(resolve => setTimeout(resolve, delayMs))
 
-          const sent = await sendTimerMessage(workspaceId, conversationId, msg)
+          let sent: boolean
+          if (contentType === 'imagen') {
+            sent = await sendTimerImage(workspaceId, conversationId, content)
+          } else {
+            sent = await sendTimerMessage(workspaceId, conversationId, content)
+          }
           if (sent) sentCount++
         }
       }
 
       // e2. Record assistant turn in agent_turns (so comprehension has timer messages as context)
       if (sentCount > 0) {
-        const assistantContent = messagesToSend.filter(m => m && m.trim().length > 0).join('\n')
+        const messageBodies = templatesToSend.map(t => typeof t === 'string' ? t : t.content)
+        const assistantContent = messageBodies.filter(m => m && m.trim().length > 0).join('\n')
         if (assistantContent.trim()) {
           try {
             const { SessionManager } = await import('@/lib/agents/session-manager')

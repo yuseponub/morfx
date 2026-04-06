@@ -373,6 +373,7 @@ Conversation Tags to Contact decisions:
 | 031 | Fix GoDentist fecha_vaga + 0-slot fallback + real schedules | 2026-03-24 | 1bc41aa | [031-fix-godentist-fecha-vaga-0slots-horarios](./quick/031-fix-godentist-fecha-vaga-0slots-horarios/) |
 | 032 | Conectar ManyChat GoDentist Valoraciones (multi-workspace webhook) | 2026-03-25 | 1932ad7 | [032-conectar-manychat-godentist-valoraciones](./quick/032-conectar-manychat-godentist-valoraciones/) |
 | 033 | Tag de cierre por pipeline en estados de pedido | 2026-03-26 | c5f9ec3 | [033-tag-cierre-pipeline-estados-pedido](./quick/033-tag-cierre-pipeline-estados-pedido/) |
+| 034 | Boton recompra pedidos CRM + WhatsApp | 2026-04-06 | 6ecb8e0 | [034-boton-recompra-pedidos-crm-whatsapp](./quick/034-boton-recompra-pedidos-crm-whatsapp/) |
 
 ### Blockers/Concerns
 
@@ -380,7 +381,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-31 COT
-Stopped at: v5.0 roadmap created (Phases 37-41, 33 requirements)
+Last session: 2026-04-06 COT
+Stopped at: Completed quick-034 (Boton Recompra Pedidos CRM + WhatsApp)
 Resume file: None
 Next: `/gsd:plan-phase 37` (Meta App Setup + Foundation)

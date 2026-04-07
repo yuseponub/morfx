@@ -16,8 +16,40 @@
 
 import { inngest } from '../client'
 import { createModuleLogger } from '@/lib/audit/logger'
+import {
+  isObservabilityEnabled,
+  ObservabilityCollector,
+  runWithCollector,
+  type AgentId,
+} from '@/lib/observability'
 
 const logger = createModuleLogger('agent-production')
+
+/**
+ * Resolve the canonical observability AgentId for a workspace.
+ *
+ * Reads `workspace_agent_config.conversational_agent_id` and maps the
+ * string id (`'somnio-sales-v3'`, `'godentist'`, `'somnio-sales-v1'`,
+ * etc.) to the narrow `AgentId` union used by ObservabilityCollector.
+ *
+ * Fallbacks defensively to `'somnio-v2'` so the collector can still
+ * be created if config is missing -- the wrapper must never throw
+ * (REGLA 6).
+ */
+async function resolveAgentIdForWorkspace(workspaceId: string): Promise<AgentId> {
+  try {
+    const { getWorkspaceAgentConfig } = await import('@/lib/agents/production/agent-config')
+    const config = await getWorkspaceAgentConfig(workspaceId)
+    const id = config?.conversational_agent_id ?? 'somnio-sales-v1'
+    if (id === 'somnio-sales-v3') return 'somnio-v3'
+    if (id === 'godentist') return 'godentist'
+    if (id === 'somnio-recompra' || id === 'somnio-recompra-v1') return 'somnio-recompra'
+    // 'somnio-sales-v1', 'somnio-sales-v2', or anything else -> v2 bucket
+    return 'somnio-v2'
+  } catch {
+    return 'somnio-v2'
+  }
+}
 
 /**
  * WhatsApp Agent Message Processor
@@ -57,6 +89,32 @@ export const whatsappAgentProcessor = inngest.createFunction(
       'Processing WhatsApp message with agent'
     )
 
+    // ================================================================
+    // Phase 42.1: Observability collector (feature-flagged)
+    //
+    // When OBSERVABILITY_ENABLED is OFF, `collector` is null and the
+    // handler runs identically to the baseline (REGLA 6: zero impact
+    // on the production agent path). When ON, we wrap the entire turn
+    // in `runWithCollector` so downstream code (domain layer queries,
+    // Anthropic calls via the fetch wrapper, recordEvent injections in
+    // the pipeline) can resolve the active collector via ALS without
+    // threading it as a parameter.
+    //
+    // Plan 07 will add `await collector.flush()` inside a step.run
+    // after the turn body resolves; for now flush() is a no-op.
+    // ================================================================
+    const collector = isObservabilityEnabled()
+      ? new ObservabilityCollector({
+          conversationId,
+          workspaceId,
+          agentId: await resolveAgentIdForWorkspace(workspaceId),
+          turnStartedAt: new Date(),
+          triggerMessageId: messageId,
+          triggerKind: 'user_message',
+        })
+      : null
+
+    const run = async () => {
     // ================================================================
     // Step 1: Media Gate (Phase 32)
     // Routes message by type: text passes through unchanged, audio gets
@@ -223,6 +281,26 @@ export const whatsappAgentProcessor = inngest.createFunction(
     )
 
     return result
+    }
+    // ----------------------------------------------------------------
+    // End of inner `run` arrow function. Below: collector wiring.
+    // ----------------------------------------------------------------
+
+    if (collector) {
+      try {
+        return await runWithCollector(collector, run)
+      } catch (err) {
+        const e = err as Error
+        collector.recordError({ name: e?.name ?? 'Error', message: e?.message ?? String(err), stack: e?.stack })
+        throw err
+      } finally {
+        // Plan 07 will replace this placeholder with:
+        //   await step.run('observability-flush', () => collector.flush())
+        // For now flush() is a no-op so the call is intentionally omitted.
+      }
+    }
+
+    return await run()
   }
 )
 

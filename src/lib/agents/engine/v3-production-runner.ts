@@ -147,10 +147,11 @@ export class V3ProductionRunner {
         output = await processMessage(v3Input)
       }
 
-      // 4b. Side-effect: tag VAL on first pedir_fecha transition (godentist only)
-      // Quick-035: feeds the metrics system (Conversation Tags to Contact) which
-      // listens to tag.assigned events on contacts to count valoraciones agendadas.
-      await this.applyGodentistValTagIfNeeded(input, output, accionesEjecutadas)
+      // 4b. Side-effect: tag VAL on first datosCriticos completion (godentist only)
+      // Quick-035 / Quick-036: feeds the metrics system (Conversation Tags to
+      // Contact) which listens to tag.assigned events on contacts to count
+      // valoraciones agendadas per day.
+      await this.applyGodentistValTagIfNeeded(input, output, inputDatosCapturados)
 
       // 5. Route output to adapters
       // NOTE: State save is DEFERRED until after messaging to support Path A rollback.
@@ -514,39 +515,56 @@ export class V3ProductionRunner {
   }
 
   /**
-   * Quick-035: GoDentist VAL tag side-effect.
+   * Quick-035 / Quick-036: GoDentist VAL tag side-effect.
    *
-   * When the godentist agent transitions to `pedir_fecha` (asking for appointment
-   * date) for the first time in a session, tag the contact with 'VAL' to feed the
-   * metrics system (standalone "Conversation Tags to Contact" — listens to
-   * tag.assigned on contacts to count valoraciones agendadas per day).
+   * When the godentist agent captures all critical fields (datosCriticos —
+   * nombre + telefono + sede_preferida) for the first time in a session,
+   * tag the contact with 'VAL' to feed the metrics system (standalone
+   * "Conversation Tags to Contact" — listens to tag.assigned on contacts to
+   * count valoraciones agendadas per day).
    *
-   * Decisions (see .planning/quick/035-.../035-PLAN.md):
+   * Decisions (see .planning/quick/035-.../035-PLAN.md + 036-PLAN.md):
    * - Injection point: runner (not agent) — keeps godentist agent pure/stateless
-   * - Trigger: NEW pedir_fecha action (was not present in previous accionesEjecutadas)
+   * - Trigger: NEW datosCriticos completion (was incomplete before, complete now)
+   *   Previous attempt (quick-035) used pedir_fecha action delta but failed due
+   *   to a shared-reference mutation bug: godentist deserializeState reuses the
+   *   accionesEjecutadas array and push()es to it in-place, so `previousAcciones`
+   *   and `output.accionesEjecutadas` pointed to the same mutated array. Quick-036
+   *   switches to datosCapturados comparison — `inputDatosCapturados` is a fresh
+   *   spread copy (line 83) and `output.datosCapturados` is a fresh object from
+   *   serializeState, so there is no shared-reference hazard.
+   * - Critical fields hardcoded in runner to keep it agnostic from godentist
+   *   internals (see godentist/constants.ts:126 CRITICAL_FIELDS — must stay in sync)
    * - Scope: ALL workspaces using agentModule === 'godentist'
-   * - Idempotency: assignTag handles 23505 (already assigned) as success
+   * - Idempotency: if contact already had all 3 fields before the turn,
+   *   `hadCritical=true` short-circuits. Double-protected by assignTag handling
+   *   23505 (already assigned) as success.
    * - Fail-open: log warn and continue if tag missing or DB error
    * - No feature flag: purely additive side-effect, zero conversational impact
    */
   private async applyGodentistValTagIfNeeded(
     input: EngineInput,
     output: V3AgentOutput,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    previousAcciones: any[],
+    previousDatos: Record<string, string>,
   ): Promise<void> {
     if (this.config.agentModule !== 'godentist') return
     if (!input.contactId) return
 
-    const isPedirFecha = (a: { tipo?: string } | null | undefined) =>
-      !!a && a.tipo === 'pedir_fecha'
+    // Must stay in sync with src/lib/agents/godentist/constants.ts::CRITICAL_FIELDS
+    const GODENTIST_CRITICAL_FIELDS = ['nombre', 'telefono', 'sede_preferida'] as const
 
-    const wasAlreadyPresent = Array.isArray(previousAcciones)
-      && previousAcciones.some(isPedirFecha)
-    const isNowPresent = Array.isArray(output.accionesEjecutadas)
-      && output.accionesEjecutadas.some(isPedirFecha)
+    const hasAllCriticalFields = (datos: Record<string, string> | undefined): boolean => {
+      if (!datos) return false
+      return GODENTIST_CRITICAL_FIELDS.every(f => {
+        const val = datos[f]
+        return typeof val === 'string' && val.trim() !== ''
+      })
+    }
 
-    if (wasAlreadyPresent || !isNowPresent) return
+    const hadCritical = hasAllCriticalFields(previousDatos)
+    const hasCritical = hasAllCriticalFields(output.datosCapturados)
+
+    if (hadCritical || !hasCritical) return
 
     try {
       const { assignTag } = await import('@/lib/domain/tags')
@@ -562,7 +580,7 @@ export class V3ProductionRunner {
       } else {
         console.log(
           `[V3-RUNNER][godentist] Assigned VAL tag to contact ${input.contactId} ` +
-          `on first pedir_fecha transition`,
+          `on datosCriticos completion (nombre+telefono+sede)`,
         )
       }
     } catch (err) {

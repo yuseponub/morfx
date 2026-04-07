@@ -13,6 +13,7 @@
 import { TemplateManager } from '@/lib/agents/somnio/template-manager'
 import { composeBlock, type PrioritizedTemplate } from '@/lib/agents/somnio/block-composer'
 import type { IntentRecord } from '@/lib/agents/types'
+import { getCollector } from '@/lib/observability'
 import {
   INFORMATIONAL_INTENTS,
   ACTION_TEMPLATE_MAP,
@@ -227,6 +228,25 @@ async function resolveSalesActionTemplates(
   action: TipoAccion,
   state: AgentState,
 ): Promise<{ intents: string[]; extraContext?: Record<string, string> }> {
+  // Phase 42.1: surface retake template selection on the timeline.
+  if (typeof action === 'string' && action.startsWith('retoma')) {
+    getCollector()?.recordEvent('retake', 'template_selected', {
+      action,
+      hasOfiInter: state.ofiInter ?? false,
+    })
+  }
+  // Phase 42.1: surface ofi_inter template-level routing.
+  if (action === 'ask_ofi_inter') {
+    getCollector()?.recordEvent('ofi_inter', 'template_selected', {
+      action,
+      kind: 'ask',
+    })
+  } else if (action === 'confirmar_cambio_ofi_inter' || action === 'retoma_ofi_inter') {
+    getCollector()?.recordEvent('ofi_inter', 'template_selected', {
+      action,
+      kind: action === 'retoma_ofi_inter' ? 'retoma' : 'confirmar_cambio',
+    })
+  }
   switch (action) {
     case 'mostrar_confirmacion':
     case 'cambio': {

@@ -20,6 +20,7 @@
 import type { TimerAdapter, AgentSessionLike } from '../../engine/types'
 import type { TimerSignal } from '@/lib/sandbox/types'
 import { isCollectingDataMode } from '../../somnio/constants'
+import { getCollector } from '@/lib/observability'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('production-timer-adapter')
@@ -93,9 +94,18 @@ export class ProductionTimerAdapter implements TimerAdapter {
           content,
         },
       })
+      getCollector()?.recordEvent('silence_timer', 'cancel', {
+        reason: 'customer_message',
+        sessionId,
+        conversationId,
+      })
       logger.debug({ sessionId }, 'Emitted agent/customer.message event')
     } catch (error) {
       // Non-blocking: log but don't fail processing
+      getCollector()?.recordEvent('silence_timer', 'cancel_failed', {
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      })
       logger.warn({ error, sessionId }, 'Failed to emit customer.message event')
     }
   }
@@ -244,9 +254,19 @@ export class ProductionTimerAdapter implements TimerAdapter {
           intent,
         },
       })
+      getCollector()?.recordEvent('silence_timer', 'inngest_event_emitted', {
+        sessionId,
+        conversationId,
+        intent,
+      })
       logger.info({ sessionId, conversationId, intent }, 'Emitted agent/silence.detected event')
     } catch (error) {
       // Non-blocking: log but don't fail processing
+      getCollector()?.recordEvent('silence_timer', 'emit_failed', {
+        sessionId,
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      })
       logger.warn({ error, sessionId }, 'Failed to emit silence.detected event')
     }
   }

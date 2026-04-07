@@ -25,6 +25,7 @@ import { INFORMATIONAL_INTENTS } from './constants'
 import { hasAction } from './state'
 import type { StateChanges } from './state'
 import { resolveTransition, systemEventToKey } from './transitions'
+import { getCollector } from '@/lib/observability'
 
 // ============================================================================
 // Main Sales Track Function
@@ -45,6 +46,17 @@ export function resolveSalesTrack(input: {
     const key = systemEventToKey({ type: 'timer_expired', level: event.level })
     const match = resolveTransition(phase, key, state, gates)
     if (match) {
+      // Phase 42.1: a retake-flavored action is the canonical signal of
+      // the retake mechanism firing in production.
+      if (typeof match.action === 'string' && match.action.startsWith('retoma')) {
+        getCollector()?.recordEvent('retake', 'decision', {
+          willRetake: true,
+          action: match.action,
+          phase,
+          timerLevel: event.level,
+          reason: match.output.reason ?? null,
+        })
+      }
       return {
         accion: match.action,
         enterCaptura: match.output.enterCaptura,
@@ -123,6 +135,44 @@ export function resolveSalesTrack(input: {
       ? 'ask_ofi_inter' as const
       : undefined
 
+    // Phase 42.1: ofi_inter routing decision. Three observable routes:
+    //   - Route 1 (initial): main action ask_ofi_inter (primary)
+    //   - Route 2 (secondary append): main is something else but
+    //     mencionaInter triggers ask_ofi_inter as secondarySalesAction
+    //   - Route 3 (late change): main action is confirmar_cambio_ofi_inter
+    if (match.action === 'ask_ofi_inter') {
+      getCollector()?.recordEvent('ofi_inter', 'route_selected', {
+        route: 1,
+        kind: 'primary',
+        intent,
+        phase,
+      })
+    } else if (secondarySalesAction === 'ask_ofi_inter') {
+      getCollector()?.recordEvent('ofi_inter', 'route_selected', {
+        route: 2,
+        kind: 'secondary',
+        primaryAction: match.action,
+        intent,
+        phase,
+      })
+    } else if (match.action === 'confirmar_cambio_ofi_inter') {
+      getCollector()?.recordEvent('ofi_inter', 'route_selected', {
+        route: 3,
+        kind: 'late_change',
+        intent,
+        phase,
+      })
+    }
+
+    if (typeof match.action === 'string' && match.action.startsWith('retoma')) {
+      getCollector()?.recordEvent('retake', 'decision', {
+        willRetake: true,
+        action: match.action,
+        phase,
+        intent,
+      })
+    }
+
     return {
       accion: match.action,
       secondarySalesAction,
@@ -130,6 +180,16 @@ export function resolveSalesTrack(input: {
       timerSignal: match.output.timerSignal ?? dataTimerSignal,
       reason: match.output.reason,
     }
+  }
+
+  // No main match, but check if mencionaInter triggers fallback secondary ofi_inter
+  if (changes.mencionaInter) {
+    getCollector()?.recordEvent('ofi_inter', 'route_selected', {
+      route: 2,
+      kind: 'fallback_secondary',
+      intent,
+      phase,
+    })
   }
 
   // ------------------------------------------------------------------

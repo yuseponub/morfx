@@ -16,6 +16,7 @@
 
 import { SomnioAgent } from '../somnio/somnio-agent'
 import { isCollectingDataMode } from '../somnio/constants'
+import { getCollector } from '@/lib/observability'
 import { VersionConflictError } from '../errors'
 import { composeBlock, type PrioritizedTemplate } from '../somnio/block-composer'
 import { NoRepetitionFilter } from '../somnio/no-repetition-filter'
@@ -172,6 +173,12 @@ export class UnifiedEngine {
 
       // 5. Silence detected → start retake timer (Phase 30)
       if (agentOutput.silenceDetected && this.adapters.timer.onSilenceDetected) {
+        getCollector()?.recordEvent('silence_timer', 'start', {
+          reason: 'silence_detected',
+          sessionId: session.id,
+          conversationId: input.conversationId,
+          intent: agentOutput.intentInfo?.intent ?? 'unknown',
+        })
         await this.adapters.timer.onSilenceDetected(
           session.id,
           input.conversationId,

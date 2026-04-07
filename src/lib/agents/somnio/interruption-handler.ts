@@ -13,6 +13,7 @@
 
 import type { SessionManager } from '../session-manager'
 import type { TemplateContentType } from '../types'
+import { getCollector } from '@/lib/observability'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('interruption-handler')
@@ -151,6 +152,18 @@ export class InterruptionHandler {
     // Determine if we should append pending messages
     const shouldAppend = this.shouldAppendPending(newIntent, pendingMessages)
 
+    getCollector()?.recordEvent('interruption_handling', 'detected', {
+      sessionId,
+      pendingCount: pendingMessages.length,
+      newIntent,
+      shouldAppend,
+    })
+    getCollector()?.recordEvent('pending_pool', 'evaluated', {
+      sessionId,
+      poolSize: pendingMessages.length,
+      decision: shouldAppend ? 'append' : 'discard',
+    })
+
     logger.info(
       {
         sessionId,
@@ -234,6 +247,12 @@ export class InterruptionHandler {
       },
     })
 
+    getCollector()?.recordEvent('interruption_handling', 'pending_stored', {
+      sessionId,
+      sequenceId,
+      messageCount: pending.length,
+    })
+
     logger.info(
       {
         sessionId,
@@ -290,6 +309,11 @@ export class InterruptionHandler {
       datos_capturados: newDatos,
     })
 
+    getCollector()?.recordEvent('pending_pool', 'cleared', {
+      sessionId,
+      reason: 'explicit_clear',
+    })
+
     logger.debug({ sessionId }, 'Cleared pending messages')
   }
 
@@ -313,6 +337,11 @@ export class InterruptionHandler {
         ...state.datos_capturados,
         [INTERRUPTED_AT_KEY]: timestamp.toISOString(),
       },
+    })
+
+    getCollector()?.recordEvent('interruption_handling', 'marked', {
+      sessionId,
+      timestamp: timestamp.toISOString(),
     })
   }
 

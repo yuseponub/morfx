@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 2 in progress)
-Plan: 3/11
-Status: Wave 1 COMPLETE + Plan 03 (supabase fetch wrapper) COMPLETE. Existe makeObservableFetch + parsePostgrestUrl. createAdminClient ahora instrumentado (signature unchanged), createRawAdminClient disponible para uso interno del modulo (anti-recursion). Stub Anthropic en wrapper a la espera de Plan 04. Domain layer 100% intacto, build Next 16 verde, fast-path no-op cuando flag OFF.
-Last activity: 2026-04-07 — Plan 03 ejecutado. Commits aa174fd (fetch-wrapper.ts) + 34e592d (admin.ts refactor).
+Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 2 COMPLETE)
+Plan: 4/11
+Status: Wave 1 + Wave 2 COMPLETE. Ambos interceptores listos: Supabase (Plan 03) y Anthropic (Plan 04). hashPrompt determinista (SHA-256, key order fijo, whitespace normalizado) + createInstrumentedAnthropic (factory unica) + purposeAls (segundo ALS para etiquetar reason de cada call). Fetch wrapper en kind='anthropic' captura request body (system normalizado, messages, model, params), response body (content + usage tokens completos incl. cache_creation/cache_read), HTTP errors, streaming fast-path. collector.recordAiCall ahora calcula promptHash + costUsd reales. Domain layer 100% intacto, build Next 16 verde, fast-path no-op cuando flag OFF. Wave 3 (Plans 05/06) puede empezar a migrar las 13 call sites de new Anthropic() a createInstrumentedAnthropic + runWithPurpose.
+Last activity: 2026-04-07 — Plan 04 ejecutado. Commits ade8e6a (prompt-version + anthropic-instrumented) + 37931a4 (anthropic capture branch + purposeAls + collector real hashPrompt).
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -30,7 +30,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
 | 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
-| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (3/11 plans — Wave 1 complete + Plan 03 supabase fetch wrapper) |
+| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (4/11 plans — Wave 1 + Wave 2 complete: ambos interceptores listos) |
 
 ### MVP v1.0 Complete (2026-02-04)
 

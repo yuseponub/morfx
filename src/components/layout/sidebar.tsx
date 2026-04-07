@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck } from 'lucide-react'
+import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -27,6 +27,13 @@ type NavItem = {
   icon: typeof Building2
   badgeType?: 'tasks' | 'automations'
   adminOnly?: boolean
+  /**
+   * Optional gate based on workspaces.settings JSONB.
+   * Format: '<namespace>.<key>', e.g. 'conversation_metrics.enabled'.
+   * The item is hidden unless settings[namespace][key] is truthy.
+   * Unlike `adminOnly`, this gate applies to ALL users of the workspace.
+   */
+  settingsKey?: string
   subLink?: {
     href: string
     label: string
@@ -80,6 +87,14 @@ const navItems: NavItem[] = [
     adminOnly: true,
   },
   {
+    // NOTE: NO adminOnly — explicit exception vs analytics.
+    // ALL workspace users can access /metricas when the flag is enabled.
+    href: '/metricas',
+    label: 'Metricas',
+    icon: TrendingUp,
+    settingsKey: 'conversation_metrics.enabled',
+  },
+  {
     href: '/sandbox',
     label: 'Sandbox',
     icon: Bot,
@@ -120,10 +135,16 @@ export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProp
   // Filter nav items based on user role and workspace settings
   const userRole = currentWorkspace?.role
   const isManager = userRole === 'owner' || userRole === 'admin'
-  const hiddenModules = (currentWorkspace?.settings as Record<string, unknown> | null)?.hidden_modules as string[] | undefined
+  const settings = currentWorkspace?.settings as Record<string, unknown> | null | undefined
+  const hiddenModules = settings?.hidden_modules as string[] | undefined
   const filteredNavItems = navItems.filter(item => {
     if (item.adminOnly && !isManager) return false
     if (hiddenModules?.includes(item.href)) return false
+    if (item.settingsKey) {
+      const [ns, key] = item.settingsKey.split('.')
+      const nsObj = settings?.[ns] as Record<string, unknown> | undefined
+      if (!nsObj?.[key]) return false
+    }
     return true
   })
 

@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42 (Session Lifecycle) — COMPLETE
-Plan: 5/5 complete
-Status: Phase 42 verified (11/11 must-haves, 5/5 UAT criteria PASS), ready for Phase 38
-Last activity: 2026-04-07 — Phase 42 complete (cron closed 774 sessions correctly at 02:00 COT, zero regression, TZ bug caught + fixed mid-execution)
+Phase: 42.1 (Observabilidad Bots Produccion) — INSERTED, not yet planned
+Plan: 0/0
+Status: Phase 42 COMPLETE (5/5 plans, 11/11 must-haves, 5/5 UAT). Phase 42.1 inserted como urgente. Pendiente discuss-phase.
+Last activity: 2026-04-07 — Quick 035 completed: tag VAL al contacto en bot godentist al transicionar a pedir_fecha (commit b406aa7)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -382,9 +382,11 @@ Conversation Tags to Contact decisions:
 | 032 | Conectar ManyChat GoDentist Valoraciones (multi-workspace webhook) | 2026-03-25 | 1932ad7 | [032-conectar-manychat-godentist-valoraciones](./quick/032-conectar-manychat-godentist-valoraciones/) |
 | 033 | Tag de cierre por pipeline en estados de pedido | 2026-03-26 | c5f9ec3 | [033-tag-cierre-pipeline-estados-pedido](./quick/033-tag-cierre-pipeline-estados-pedido/) |
 | 034 | Boton recompra pedidos CRM + WhatsApp | 2026-04-06 | 6ecb8e0 | [034-boton-recompra-pedidos-crm-whatsapp](./quick/034-boton-recompra-pedidos-crm-whatsapp/) |
+| 035 | Tag VAL al contacto en bot godentist (al pedir fecha) | 2026-04-07 | b406aa7 | [035-agregar-tag-val-godentist-valoraciones](./quick/035-agregar-tag-val-godentist-valoraciones/) |
 
 ### Roadmap Evolution
 
+- Phase 42.1 inserted (2026-04-07) after Phase 42: Sistema de Observabilidad y Mirroring para Bots en Produccion (URGENT). Motivacion: tras Phase 42 quedo evidente el costo de no tener visibilidad profunda de bots en produccion. Usuario quiere equivalente al Debug Panel del sandbox pero (1) para produccion real, (2) mucho mas profundo (logica IA, queries, mecanismos), (3) consultable retroactivamente por conversation_id. Bots cubiertos tentativamente: Somnio V3, GoDentist, Recompra, Coordinadora, OCR, Creador Guias. Pendiente refinar scope/storage/retencion en /gsd:discuss-phase 42.1.
 - Phase 42 added (2026-04-06): Session Lifecycle — cierre nocturno + reapertura limpia de sesiones de agentes conversacionales (Somnio V3 + GoDentist). Descubierto durante sesion de debug: sesiones nunca se cierran en DB, clientes recurrentes reciben bot con state fosilizado o errores de unique constraint. Diseno: Opcion A (multiples sesiones por `(conversation_id, agent_id)`, indice parcial unico WHERE status='active'), cron Inngest 02:00 COT, defensive check en timers V3.
 
 ### Blockers/Concerns

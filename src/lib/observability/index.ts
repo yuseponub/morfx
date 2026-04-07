@@ -24,8 +24,23 @@ export {
   OBSERVABILITY_FLAG_NAME,
 } from './flag'
 
-// AsyncLocalStorage context
-export { runWithCollector, getCollector } from './context'
+// AsyncLocalStorage context (collector + purpose)
+export {
+  runWithCollector,
+  getCollector,
+  runWithPurpose,
+  getCurrentPurpose,
+} from './context'
+
+// Anthropic instrumentation factory + prompt versioning helpers
+export { createInstrumentedAnthropic } from './anthropic-instrumented'
+export type { CreateInstrumentedAnthropicOpts } from './anthropic-instrumented'
+export {
+  hashPrompt,
+  resolvePromptVersions,
+  type HashPromptParams,
+  type PromptVersionInput,
+} from './prompt-version'
 
 // Collector class + helper input types
 export {

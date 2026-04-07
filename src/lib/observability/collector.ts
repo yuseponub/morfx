@@ -27,6 +27,7 @@
  */
 
 import { estimateCost } from './pricing'
+import { hashPrompt } from './prompt-version'
 import type {
   EventCategory,
   ObservabilityAiCall,
@@ -65,17 +66,6 @@ export interface RecordedErrorInfo {
   name: string
   message: string
   stack?: string
-}
-
-/**
- * Stub for prompt hashing. Plan 04 will replace this with the real
- * sha256 hash from `./prompt-version`. Until then we return an empty
- * string so the collector compiles and tests pass.
- *
- * TODO(plan-04): import { hashPrompt } from './prompt-version'
- */
-function hashPromptStub(_systemPrompt: string): string {
-  return ''
 }
 
 export class ObservabilityCollector {
@@ -173,11 +163,16 @@ export class ObservabilityCollector {
         cacheReadInputTokens,
       })
 
+      const promptHash = hashPrompt(input.systemPrompt, input.model, {
+        temperature: input.temperature,
+        maxTokens: input.maxTokens,
+      })
+
       this.aiCalls.push({
         sequence: this.sequenceCounter++,
         recordedAt: new Date(),
         purpose: input.purpose,
-        promptHash: hashPromptStub(input.systemPrompt),
+        promptHash,
         systemPrompt: input.systemPrompt,
         model: input.model,
         temperature: input.temperature,

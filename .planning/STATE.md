@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 38 (Embedded Signup + WhatsApp Inbound) — not started
-Plan: —
-Status: Phase 37 verified (4/4), awaiting Phase 38 plan
-Last activity: 2026-03-31 — Phase 37 complete (2/2 plans, verified 4/4)
+Phase: 42 (Session Lifecycle)
+Plan: 01 complete
+Status: Wave 1 done (migration applied in prod), awaiting Wave 2 execution (02/03/04, then 05 with Q3 pre-sweep)
+Last activity: 2026-04-07 — Phase 42 Plan 01 complete (migration applied in prod, diagnostics captured)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -29,6 +29,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 39 | WhatsApp Outbound + Templates | WA-01→04, WA-06→09, MIG-01, MIG-03 | Pending |
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
+| 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | IN PROGRESS (1/5 plans — Wave 1 migration applied in prod) |
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -318,6 +319,13 @@ Debug Panel v4.0 decisions (Plan 05):
 - No-rep Level badges use single-char abbreviations (P/F/E/N/~) for compact table columns
 - pending_templates display skipped (SandboxState lacks the field)
 
+Phase 42 decisions (Plan 01):
+- Q1 confirmed default constraint name `agent_sessions_conversation_id_agent_id_key` — migration applied unchanged
+- Q3 result: `stale_cron_rule=1906` in prod (exceeds 1000 threshold) — first automated cron run would close too many in one shot
+- 05-PLAN must execute a manual pre-sweep BEFORE enabling cron; recommended single-statement 7-day cutoff sweep (closes 1258, leaves ~648 residual for first cron run)
+- Q4 returned zero duplicate `(conversation_id, agent_id)` active pairs — partial unique index created cleanly with no data cleanup
+- All 306 `handed_off` sessions are bot-mute fossils (dominated by godentist ~85%, somnio-sales-v3 ~15%) — Phase 42 reopen logic will unblock them
+
 Conversation Tags to Contact decisions:
 - addTagToConversation/removeTagFromConversation delegate to contact actions via dynamic import (preserves signatures)
 - godentist.ts changed from entityType 'conversation' to 'contact' (only remaining caller)
@@ -375,13 +383,17 @@ Conversation Tags to Contact decisions:
 | 033 | Tag de cierre por pipeline en estados de pedido | 2026-03-26 | c5f9ec3 | [033-tag-cierre-pipeline-estados-pedido](./quick/033-tag-cierre-pipeline-estados-pedido/) |
 | 034 | Boton recompra pedidos CRM + WhatsApp | 2026-04-06 | 6ecb8e0 | [034-boton-recompra-pedidos-crm-whatsapp](./quick/034-boton-recompra-pedidos-crm-whatsapp/) |
 
+### Roadmap Evolution
+
+- Phase 42 added (2026-04-06): Session Lifecycle — cierre nocturno + reapertura limpia de sesiones de agentes conversacionales (Somnio V3 + GoDentist). Descubierto durante sesion de debug: sesiones nunca se cierran en DB, clientes recurrentes reciben bot con state fosilizado o errores de unique constraint. Diseno: Opcion A (multiples sesiones por `(conversation_id, agent_id)`, indice parcial unico WHERE status='active'), cron Inngest 02:00 COT, defensive check en timers V3.
+
 ### Blockers/Concerns
 
 None.
 
 ## Session Continuity
 
-Last session: 2026-04-06 COT
-Stopped at: Completed quick-034 (Boton Recompra Pedidos CRM + WhatsApp)
+Last session: 2026-04-07 COT
+Stopped at: Phase 42 Plan 01 complete (Wave 1 migration applied in prod, diagnostics captured)
 Resume file: None
-Next: `/gsd:plan-phase 37` (Meta App Setup + Foundation)
+Next: `/gsd:execute-phase 42` for Plan 02 (Inngest close-stale-sessions cron) — then 03, 04, 05. 05-PLAN must read 42-01-SUMMARY.md Q3 FLAG section before writing activation steps.

@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 Phase: 42.1 (Observabilidad Bots Produccion) — INSERTED, not yet planned
 Plan: 0/0
 Status: Phase 42 COMPLETE (5/5 plans, 11/11 must-haves, 5/5 UAT). Phase 42.1 inserted como urgente. Pendiente discuss-phase.
-Last activity: 2026-04-07 — Quick 035 completed: tag VAL al contacto en bot godentist al transicionar a pedir_fecha (commit b406aa7)
+Last activity: 2026-04-07 — Quick 036 completed: fix bug ref compartida quick-035 + cambio trigger tag VAL a datosCriticos (commit ab6c9f5)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -383,6 +383,7 @@ Conversation Tags to Contact decisions:
 | 033 | Tag de cierre por pipeline en estados de pedido | 2026-03-26 | c5f9ec3 | [033-tag-cierre-pipeline-estados-pedido](./quick/033-tag-cierre-pipeline-estados-pedido/) |
 | 034 | Boton recompra pedidos CRM + WhatsApp | 2026-04-06 | 6ecb8e0 | [034-boton-recompra-pedidos-crm-whatsapp](./quick/034-boton-recompra-pedidos-crm-whatsapp/) |
 | 035 | Tag VAL al contacto en bot godentist (al pedir fecha) | 2026-04-07 | b406aa7 | [035-agregar-tag-val-godentist-valoraciones](./quick/035-agregar-tag-val-godentist-valoraciones/) |
+| 036 | Fix tag VAL godentist: trigger datosCriticos + fix ref bug de 035 | 2026-04-07 | ab6c9f5 | [036-fix-tag-val-godentist-datoscriticos](./quick/036-fix-tag-val-godentist-datoscriticos/) |
 
 ### Roadmap Evolution
 

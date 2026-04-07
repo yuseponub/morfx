@@ -10,7 +10,8 @@
  * Cost: ~$0.001-0.005 per sticker (small 512x512 WebP, ~200-300 tokens)
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 
 /**
  * Recognized gestures that map to text equivalents in the pipeline.
@@ -51,7 +52,7 @@ export async function interpretSticker(
   stickerUrl: string
 ): Promise<{ gesto: string | null; descripcion: string }> {
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const client = createInstrumentedAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     // Fetch sticker and convert to base64
     const res = await fetch(stickerUrl)
@@ -74,22 +75,24 @@ export async function interpretSticker(
     ) as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
     // Call Claude Vision with base64-encoded sticker
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 256,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: base64Data },
-            },
-            { type: 'text', text: STICKER_VISION_PROMPT },
-          ],
-        },
-      ],
-    })
+    const response = await runWithPurpose('sticker_vision', () =>
+      client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 256,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64Data },
+              },
+              { type: 'text', text: STICKER_VISION_PROMPT },
+            ],
+          },
+        ],
+      })
+    )
 
     // Extract text from response (same pattern as OCR module)
     const text = response.content

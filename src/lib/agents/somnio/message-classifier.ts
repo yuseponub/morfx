@@ -24,6 +24,8 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('message-classifier')
@@ -127,7 +129,7 @@ export class MessageClassifier {
   private client: Anthropic
 
   constructor(apiKey?: string) {
-    this.client = new Anthropic({
+    this.client = createInstrumentedAnthropic({
       apiKey: apiKey ?? process.env.ANTHROPIC_API_KEY,
     })
   }
@@ -169,12 +171,14 @@ export class MessageClassifier {
     message: string,
     model: string
   ): Promise<ClassificationResult> {
-    const response = await this.client.messages.create({
-      model,
-      max_tokens: 256,
-      system: CLASSIFIER_PROMPT,
-      messages: [{ role: 'user', content: message }],
-    })
+    const response = await runWithPurpose('classifier', () =>
+      this.client.messages.create({
+        model,
+        max_tokens: 256,
+        system: CLASSIFIER_PROMPT,
+        messages: [{ role: 'user', content: message }],
+      })
+    )
 
     const text = this.extractText(response.content)
     const result = this.parseResponse(text)

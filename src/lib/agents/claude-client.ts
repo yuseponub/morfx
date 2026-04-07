@@ -7,6 +7,8 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 import { toolRegistry, ToolNotFoundError } from '@/lib/tools/registry'
 import type {
   ClaudeModel,
@@ -43,7 +45,7 @@ export class ClaudeClient {
   private client: Anthropic
 
   constructor(apiKey?: string) {
-    this.client = new Anthropic({
+    this.client = createInstrumentedAnthropic({
       apiKey: apiKey ?? process.env.ANTHROPIC_API_KEY,
     })
   }
@@ -72,15 +74,17 @@ export class ClaudeClient {
     )
 
     try {
-      const response = await this.client.messages.create({
-        model: MODEL_MAP[model],
-        max_tokens: 500,
-        system: systemPrompt,
-        messages: [
-          ...this.convertToAnthropicMessages(conversationHistory),
-          { role: 'user', content: currentMessage },
-        ],
-      })
+      const response = await runWithPurpose('claude_client_intent', () =>
+        this.client.messages.create({
+          model: MODEL_MAP[model],
+          max_tokens: 500,
+          system: systemPrompt,
+          messages: [
+            ...this.convertToAnthropicMessages(conversationHistory),
+            { role: 'user', content: currentMessage },
+          ],
+        })
+      )
 
       const text = this.extractText(response.content)
       const result = this.parseIntentResponse(text)
@@ -183,16 +187,18 @@ export class ClaudeClient {
     const tools = this.buildToolDefinitions(toolNames)
 
     try {
-      const response = await this.client.messages.create({
-        model: MODEL_MAP[model],
-        max_tokens: 2000,
-        system: systemPrompt,
-        tools,
-        messages: [
-          ...this.convertToAnthropicMessages(conversationHistory),
-          { role: 'user', content: contextMessage },
-        ],
-      })
+      const response = await runWithPurpose('claude_client_orchestrate', () =>
+        this.client.messages.create({
+          model: MODEL_MAP[model],
+          max_tokens: 2000,
+          system: systemPrompt,
+          tools,
+          messages: [
+            ...this.convertToAnthropicMessages(conversationHistory),
+            { role: 'user', content: contextMessage },
+          ],
+        })
+      )
 
       const result = this.parseOrchestratorResponse(response)
       const tokensUsed = response.usage.input_tokens + response.usage.output_tokens

@@ -10,7 +10,9 @@
  * Fail-safe: any error returns original content unchanged.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 import { createModuleLogger } from '@/lib/audit/logger'
 
 const logger = createModuleLogger('template-paraphraser')
@@ -42,7 +44,7 @@ let clientInstance: Anthropic | null = null
 
 function getClient(): Anthropic {
   if (!clientInstance) {
-    clientInstance = new Anthropic({
+    clientInstance = createInstrumentedAnthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     })
   }
@@ -88,12 +90,14 @@ export async function paraphraseTemplate(originalContent: string): Promise<strin
   try {
     const client = getClient()
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 512,
-      system: PARAPHRASE_PROMPT,
-      messages: [{ role: 'user', content: originalContent }],
-    })
+    const response = await runWithPurpose('paraphraser', () =>
+      client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 512,
+        system: PARAPHRASE_PROMPT,
+        messages: [{ role: 'user', content: originalContent }],
+      })
+    )
 
     // Extract text from response
     const paraphrased = response.content

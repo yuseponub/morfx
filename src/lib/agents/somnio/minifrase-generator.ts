@@ -13,7 +13,9 @@
  * Human/AI minifrases are generated on-the-fly by this module.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 import { createModuleLogger } from '@/lib/audit/logger'
 import type { OutboundEntry } from './no-repetition-types'
 
@@ -64,7 +66,7 @@ export async function generateMinifrases(entries: OutboundEntry[]): Promise<void
     'Generating minifrases for human/AI entries'
   )
 
-  const client = new Anthropic({
+  const client = createInstrumentedAnthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   })
 
@@ -109,12 +111,14 @@ async function callHaikuForMinifrase(
   client: Anthropic,
   content: string
 ): Promise<string> {
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 128,
-    system: MINIFRASE_PROMPT,
-    messages: [{ role: 'user', content }],
-  })
+  const response = await runWithPurpose('minifrase', () =>
+    client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 128,
+      system: MINIFRASE_PROMPT,
+      messages: [{ role: 'user', content }],
+    })
+  )
 
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')

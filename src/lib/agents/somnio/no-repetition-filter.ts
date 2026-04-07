@@ -13,7 +13,9 @@
  * It's better to occasionally repeat than to suppress useful information.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import type { PrioritizedTemplate } from './block-composer'
@@ -75,7 +77,7 @@ export class NoRepetitionFilter {
   private minifraseCache: Map<string, string> = new Map()
 
   constructor(private workspaceId?: string) {
-    this.client = new Anthropic({
+    this.client = createInstrumentedAnthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     })
   }
@@ -240,12 +242,14 @@ ${candidateMinifrase}
 MINIFRASES DE MENSAJES YA ENVIADOS:
 ${registryMinifrases}`
 
-      const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 256,
-        system: LEVEL2_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-      })
+      const response = await runWithPurpose('no_rep_l2', () =>
+        this.client.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 256,
+          system: LEVEL2_PROMPT,
+          messages: [{ role: 'user', content: userMessage }],
+        })
+      )
 
       const text = this.extractText(response.content)
       return this.parseLevel2Response(text)
@@ -314,12 +318,14 @@ ${template.content}
 CONTENIDOS COMPLETOS DE MENSAJES PREVIOS CON TEMATICA SIMILAR:
 ${previousContents}`
 
-      const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 256,
-        system: LEVEL3_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-      })
+      const response = await runWithPurpose('no_rep_l3', () =>
+        this.client.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 256,
+          system: LEVEL3_PROMPT,
+          messages: [{ role: 'user', content: userMessage }],
+        })
+      )
 
       const text = this.extractText(response.content)
       return this.parseLevel3Response(text)

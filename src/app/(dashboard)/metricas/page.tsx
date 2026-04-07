@@ -50,7 +50,7 @@ export default async function MetricasPage() {
             Nuevas, reabiertas y valoraciones agendadas por dia.
           </p>
         </div>
-        <MetricasView initial={initial} />
+        <MetricasView initial={initial} workspaceId={workspaceId} />
       </div>
     </div>
   )

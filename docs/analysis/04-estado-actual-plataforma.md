@@ -277,6 +277,37 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Funciona:** Metricas basicas y tendencias
 - **Limitaciones:** No hay reportes exportables, no PDF, no custom date ranges avanzados
 
+#### Metricas de Conversaciones (`src/app/(dashboard)/metricas/`)
+- **Estado:** ✅ Funcional (activo solo en GoDentist Valoraciones)
+- **Tipo:** Dashboard read-only con actualizacion realtime hibrida (Supabase Realtime sobre `messages` + `contact_tags`, re-fetch del RPC en cada evento)
+- **Metricas calculadas:**
+  - Conversaciones **nuevas** del dia (primer mensaje inbound historico del contacto)
+  - Conversaciones **reabiertas** del dia (contacto que vuelve tras N dias de silencio, default 7)
+  - Valoraciones **agendadas** del dia (tag configurable, default `VAL`)
+- **Backend:** Postgres RPC `get_conversation_metrics(workspace_id, start, end, reopen_days, tag_name)` con CTE + `LAG()` window function, SECURITY INVOKER
+- **Selector temporal:** Hoy / Ayer / 7d / 30d / rango custom (date picker)
+- **Activacion por workspace:** gated por `workspaces.settings.conversation_metrics.enabled` (JSONB, default `false`). Todos los workspaces heredan el modulo pero solo lo ven si el flag esta activo.
+- **Workspaces activos:** GoDentist Valoraciones
+- **Permisos:**
+  - Dashboard (`/metricas`): **todos** los usuarios del workspace (owner/admin/agent) — excepcion explicita vs Sales Analytics que es admin-only
+  - Settings (`/metricas/settings`): solo owner/admin (agent redirigido a `/metricas`)
+- **Sidebar:** item condicional via mecanismo `settingsKey` en `NavItem` (nuevo en plan 05) — se muestra solo cuando `conversation_metrics.enabled === true`
+- **Configuracion editable desde UI:**
+  - `enabled` (toggle)
+  - `reopen_window_days` (1–90, default 7)
+  - `scheduled_tag_name` (texto libre, default `VAL`)
+- **Key files:**
+  - `src/app/(dashboard)/metricas/page.tsx` — dashboard gated por flag
+  - `src/app/(dashboard)/metricas/components/` — view, period selector, metric cards, chart, hook realtime
+  - `src/app/(dashboard)/metricas/settings/page.tsx` — pagina de configuracion admin-only
+  - `src/app/actions/metricas-conversaciones.ts` — server action que ejecuta el RPC
+  - `src/app/actions/metricas-conversaciones-settings.ts` — server action que actualiza settings (auth + rol)
+  - `src/lib/domain/workspace-settings.ts` — `updateConversationMetricsSettings` (merge en JSONB preservando siblings)
+  - `src/lib/metricas-conversaciones/types.ts` — tipos `MetricsSettings`, `MetricsPayload`, `Period`, etc.
+  - `supabase/migrations/` — RPC `get_conversation_metrics` + publicacion realtime de `messages` / `contact_tags`
+- **Bugs conocidos:** ninguno al cierre del plan 05
+- **Deuda tecnica:** ninguna al cierre del plan 05
+
 ---
 
 ### 7. Integraciones

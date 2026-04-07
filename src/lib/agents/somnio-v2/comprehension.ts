@@ -8,8 +8,10 @@
  * Prompt caching via cache_control on the system prompt.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
+import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { runWithPurpose } from '@/lib/observability'
 import { MessageAnalysisSchema, type MessageAnalysis } from './comprehension-schema'
 import { buildSystemPrompt } from './comprehension-prompt'
 import { V2_INTENTS } from './constants'
@@ -24,7 +26,7 @@ let client: Anthropic | null = null
 
 function getClient(): Anthropic {
   if (!client) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    client = createInstrumentedAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   }
   return client
 }
@@ -68,17 +70,19 @@ export async function comprehend(
   ]
 
   // Use create() instead of parse() for manual safeParse control
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    system: [{
-      type: 'text',
-      text: buildSystemPrompt(existingData),
-      cache_control: { type: 'ephemeral' },
-    }],
-    messages,
-    output_config: { format: zodOutputFormat(MessageAnalysisSchema) },
-  })
+  const response = await runWithPurpose('v2_comprehension', () =>
+    anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: [{
+        type: 'text',
+        text: buildSystemPrompt(existingData),
+        cache_control: { type: 'ephemeral' },
+      }],
+      messages,
+      output_config: { format: zodOutputFormat(MessageAnalysisSchema) },
+    })
+  )
 
   const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
 

@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 1 done)
-Plan: 2/11
-Status: Wave 1 COMPLETE — Plan 01 (DB schema aplicado en prod, REGLA 5 honored) + Plan 02 (core src/lib/observability/ module: flag, AsyncLocalStorage context, parallel types, pricing, ObservabilityCollector). Listo para arrancar Wave 2 (interceptors: Plans 03 + 04 en paralelo).
-Last activity: 2026-04-07 — Phase 42.1 Wave 1 cerrada. Plan 01 metadata finalizada tras confirmacion de migration aplicada en prod ("Success. No rows returned"). Plan 02 ya estaba commiteado (1a8eddd, 34d38f8).
+Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 2 in progress)
+Plan: 3/11
+Status: Wave 1 COMPLETE + Plan 03 (supabase fetch wrapper) COMPLETE. Existe makeObservableFetch + parsePostgrestUrl. createAdminClient ahora instrumentado (signature unchanged), createRawAdminClient disponible para uso interno del modulo (anti-recursion). Stub Anthropic en wrapper a la espera de Plan 04. Domain layer 100% intacto, build Next 16 verde, fast-path no-op cuando flag OFF.
+Last activity: 2026-04-07 — Plan 03 ejecutado. Commits aa174fd (fetch-wrapper.ts) + 34e592d (admin.ts refactor).
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -30,7 +30,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
 | 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
-| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (2/11 plans — Wave 1 complete: schema en prod + core module) |
+| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (3/11 plans — Wave 1 complete + Plan 03 supabase fetch wrapper) |
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -333,6 +333,19 @@ Phase 42.1 decisions (Plan 01):
 - Helpers PL/pgSQL `create_observability_partition(date)` y `drop_observability_partitions_older_than(date)` para cron de mantenimiento futuro
 - Sin acceso directo a Supabase prod desde agente de ejecucion: queries de baseline documentadas en baseline-volume.md para refinamiento futuro; veredicto "monthly OK" basado en estimate del research-phase
 
+Phase 42.1 decisions (Plan 03):
+- Wrapper importa getCollector desde ./context (NO desde ./index) — evita ciclo barrel↔consumers
+- Dual-factory anti-recursion: createAdminClient (instrumented, default ~30 callers) + createRawAdminClient (exclusivo observability internal)
+- Fast-path no-op cuando getCollector() es null — overhead = 1 null check, garantiza zero impacto con flag OFF
+- PUT mapeado a 'upsert' (no estaba en ejemplo del research pero sí en ObservabilityQuery.operation)
+- Bodies no-string (Blob/FormData/ReadableStream) descartados a null — supabase-js solo envia JSON strings para tablas
+- columns extraido como string[] (split por coma desde ?select=) en vez de string crudo, alineado con ParsedQuery interface
+- Branch error: AMBOS recordError (RecordedErrorInfo {name,message,stack}) Y recordQuery/recordEvent fallido — preserva contexto del fallo en timeline
+- URL malformada: try/catch silencioso → tableName='unknown', sin throw (REGLA 6)
+- Branch Anthropic STUB: registra event tool_call/ai_call_raw — Plan 04 lo reemplazara por recordAiCall completo
+- Helper readEnv() en admin.ts consolida env validation y preserva el throw original sobre SUPABASE_SERVICE_ROLE_KEY
+- createRawAdminClient documentado en jsdoc como prohibido fuera de src/lib/observability/* (futura ESLint rule)
+
 Phase 42.1 decisions (Plan 02):
 - Types parallel-not-shared with sandbox (Decision A): zero imports from src/lib/sandbox/* in src/lib/observability/
 - isObservabilityEnabled() reads process.env on every call — never cached (Pitfall 5 in 42.1-RESEARCH.md)
@@ -423,6 +436,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-07 COT
-Stopped at: Phase 42.1 Wave 1 complete — Plan 01 (DB schema aplicado en prod) + Plan 02 (core observability module) cerrados
+Stopped at: Phase 42.1 Plan 03 complete — fetch wrapper universal + admin client instrumentado/raw
 Resume file: None
-Next: `/gsd:execute-phase 42.1` para Wave 2 — Plan 03 (supabase fetch wrapper sobre context.ts + collector.recordQuery) y Plan 04 (anthropic fetch wrapper + prompt-version reemplaza hashPromptStub). Plans 03 y 04 forman Wave 2 (interceptors) y pueden ejecutarse en paralelo ahora que el schema existe en prod.
+Next: `/gsd:execute-phase 42.1` para Plan 04 — anthropic-instrumented + prompt-version (sha256) + reemplazar branch stub `kind === 'anthropic'` del fetch-wrapper.ts por captura completa via recordAiCall. Plan 04 desbloquea el resto de Wave 3 (entry point integration + flush + UI).

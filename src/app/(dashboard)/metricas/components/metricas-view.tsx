@@ -5,6 +5,7 @@ import type { Period, MetricsPayload } from '@/lib/metricas-conversaciones/types
 import { getConversationMetrics } from '@/app/actions/metricas-conversaciones'
 import { PeriodSelector } from './period-selector'
 import { MetricCards } from './metric-cards'
+import { EvolutionChart } from './evolution-chart'
 
 interface MetricasViewProps {
   initial: MetricsPayload
@@ -36,7 +37,7 @@ export function MetricasView({ initial }: MetricasViewProps) {
         <PeriodSelector value={period} onChange={handlePeriodChange} disabled={isPending} />
       </div>
       <MetricCards data={data.totals} loading={isPending} />
-      {/* EvolutionChart added in Plan 03 */}
+      <EvolutionChart data={data.daily} loading={isPending} />
     </div>
   )
 }

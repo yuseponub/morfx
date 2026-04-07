@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 3 EN MARCHA — Somnio V3 instrumentado)
-Plan: 5/11
-Status: Wave 3 Plan 05 COMPLETE. Pipeline Somnio V3 instrumentado end-to-end. 7 call sites de Anthropic (claude-client, sticker, minifrase, classifier, paraphraser, no_rep_l2/l3, comprehension v3) migradas a createInstrumentedAnthropic + runWithPurpose. Handler whatsappAgentProcessor envuelto estructuralmente en runWithCollector con feature flag OFF identico al baseline (REGLA 6). resolveAgentIdForWorkspace inline mapea workspace_agent_config.conversational_agent_id al union AgentId. 14 collector?.recordEvent en agent-production.ts (8 categorias: session_lifecycle, media_gate, classifier, handoff, mode_transition, silence_timer, block_composition, intent). 19 getCollector()?.recordEvent en los 5 mecanismos del scope CONTEXT (silence_timer en unified-engine + production/timer; retake en sales-track + response-track; ofi_inter Routes 1/2/3 en sales-track + response-track; interruption_handling + pending_pool en interruption-handler). Gap log: template_selection, no_repetition (eventos), pre_send_check, char_delay diferidos a un plan futuro de instrumentacion de webhook-processor + block-composer (no en agent-production.ts -- adapt-to-real-code). Build Next 16 verde despues de cada commit. Plan 06 puede repetir el patron Task 1 para godentist + somnio-recompra + somnio-v2.
-Last activity: 2026-04-07 — Plan 05 ejecutado. Commits 84eb043 (anthropic migration) + 99e7499 (handler wrap) + 8708367 (recordEvent en handler) + 703e461 (5 mecanismos en sus archivos).
+Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 3 COMPLETE — 10/10 call sites migrados)
+Plan: 6/11
+Status: Wave 3 Plan 06 COMPLETE. Cierre de Wave 3: las 3 call sites restantes de Anthropic (godentist/comprehension.ts, somnio-recompra/comprehension.ts, somnio-v2/comprehension.ts) migradas a createInstrumentedAnthropic + runWithPurpose con labels `godentist_comprehension` / `recompra_comprehension` / `v2_comprehension`. Inventario 10/10 completo para el arbol `src/lib/agents/`. Grep `new Anthropic(` en `src/lib/agents/` = 0 matches (invariante lint-able establecido). `agent-production.ts` confirmado como UNICO handler Inngest conversacional para los 4 bots (v2, v3, godentist, recompra) — `godentist-reminders.ts` contiene solo senders de templates programados (reminder.send, tag.remove_scheduled, followup.check), cero invocaciones a Anthropic, fuera de scope de Phase 42.1. `resolveAgentIdForWorkspace` ya mapea godentist y somnio-recompra correctamente, sin extensiones necesarias. Tres constructores `new Anthropic(` out-of-scope en subsistemas no conversacionales (pdf/normalize-order-data, ocr/extract-guide-data, domain/carrier-coverage) documentados como gap para un plan transversal futuro si se requiere tracking de costos cross-subsystem. Build Next 16 verde (`pnpm run build` Compiled successfully in 81s, 63 paginas estaticas). Feature flag OFF identico al baseline (REGLA 6). Wave 4 (Plans 07 flush + 08 cron/migration) desbloqueado.
+Last activity: 2026-04-07 — Plan 06 ejecutado. Commits 4c956cf (godentist) + 250a3b6 (somnio-recompra) + 92fa47a (somnio-v2).
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -30,7 +30,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
 | 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
-| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (5/11 plans — Wave 3 en marcha: Somnio V3 pipeline instrumentado end-to-end) |
+| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (6/11 plans — Wave 3 COMPLETE: 10/10 call sites agente migrados) |
 
 ### MVP v1.0 Complete (2026-02-04)
 

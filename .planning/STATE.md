@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 1 done)
 Plan: 2/11
-Status: Plan 02 COMPLETE — core src/lib/observability/ module (flag, AsyncLocalStorage context, parallel types, pricing, ObservabilityCollector). Wave 1 base estable para Wave 2 (interceptors).
-Last activity: 2026-04-07 — Phase 42.1 Plan 02 ejecutado: src/lib/observability/ core module (commits 1a8eddd, 34d38f8)
+Status: Wave 1 COMPLETE — Plan 01 (DB schema aplicado en prod, REGLA 5 honored) + Plan 02 (core src/lib/observability/ module: flag, AsyncLocalStorage context, parallel types, pricing, ObservabilityCollector). Listo para arrancar Wave 2 (interceptors: Plans 03 + 04 en paralelo).
+Last activity: 2026-04-07 — Phase 42.1 Wave 1 cerrada. Plan 01 metadata finalizada tras confirmacion de migration aplicada en prod ("Success. No rows returned"). Plan 02 ya estaba commiteado (1a8eddd, 34d38f8).
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -30,7 +30,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
 | 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
-| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (2/11 plans — Wave 1 core module done) |
+| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (2/11 plans — Wave 1 complete: schema en prod + core module) |
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -320,6 +320,19 @@ Debug Panel v4.0 decisions (Plan 05):
 - No-rep Level badges use single-char abbreviations (P/F/E/N/~) for compact table columns
 - pending_templates display skipped (SandboxState lacks the field)
 
+Phase 42.1 decisions (Plan 01):
+- Migration ADDITIVE only — cero ALTER/DROP de tablas existentes (zero riesgo en prod)
+- Particionado mensual (no daily) — baseline projection ~14K turns/dia agregado, dentro de limites con indices definidos
+- 12 particiones iniciales: 4 tablas particionadas x 3 meses (2026-04..06)
+- PK compuesto `(started_at|recorded_at, id)` — requisito de Postgres declarative partitioning
+- FK logico cross-particion (no enforced) entre ai_calls.prompt_version_id y agent_prompt_versions.id
+- `total_tokens` y `duration_ms` como GENERATED STORED (calculo automatico, sin app code)
+- `sequence` compartido entre events/queries/ai_calls para timeline unificado por turno
+- Cero RLS — solo super-user accede via server actions con admin client (Decision #6 CONTEXT.md)
+- REGLA 5 honored con human checkpoint blocking: usuario aplico migration manualmente en Supabase Dashboard antes de cualquier commit/push de codigo dependiente. Confirmacion: "Success. No rows returned" (2026-04-07)
+- Helpers PL/pgSQL `create_observability_partition(date)` y `drop_observability_partitions_older_than(date)` para cron de mantenimiento futuro
+- Sin acceso directo a Supabase prod desde agente de ejecucion: queries de baseline documentadas en baseline-volume.md para refinamiento futuro; veredicto "monthly OK" basado en estimate del research-phase
+
 Phase 42.1 decisions (Plan 02):
 - Types parallel-not-shared with sandbox (Decision A): zero imports from src/lib/sandbox/* in src/lib/observability/
 - isObservabilityEnabled() reads process.env on every call — never cached (Pitfall 5 in 42.1-RESEARCH.md)
@@ -410,6 +423,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-07 COT
-Stopped at: Phase 42.1 Plan 02 complete (core observability module — Wave 1 done)
+Stopped at: Phase 42.1 Wave 1 complete — Plan 01 (DB schema aplicado en prod) + Plan 02 (core observability module) cerrados
 Resume file: None
-Next: `/gsd:execute-phase 42.1` para Plan 03 (supabase fetch wrapper sobre context.ts + collector.recordQuery) y Plan 04 (anthropic fetch wrapper + prompt-version reemplaza hashPromptStub). Plans 03 y 04 forman Wave 2 (interceptors) y pueden ejecutarse en paralelo.
+Next: `/gsd:execute-phase 42.1` para Wave 2 — Plan 03 (supabase fetch wrapper sobre context.ts + collector.recordQuery) y Plan 04 (anthropic fetch wrapper + prompt-version reemplaza hashPromptStub). Plans 03 y 04 forman Wave 2 (interceptors) y pueden ejecutarse en paralelo ahora que el schema existe en prod.

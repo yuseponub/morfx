@@ -147,6 +147,11 @@ export class V3ProductionRunner {
         output = await processMessage(v3Input)
       }
 
+      // 4b. Side-effect: tag VAL on first pedir_fecha transition (godentist only)
+      // Quick-035: feeds the metrics system (Conversation Tags to Contact) which
+      // listens to tag.assigned events on contacts to count valoraciones agendadas.
+      await this.applyGodentistValTagIfNeeded(input, output, accionesEjecutadas)
+
       // 5. Route output to adapters
       // NOTE: State save is DEFERRED until after messaging to support Path A rollback.
 
@@ -505,6 +510,66 @@ export class V3ProductionRunner {
           message: errorMessage,
         },
       }
+    }
+  }
+
+  /**
+   * Quick-035: GoDentist VAL tag side-effect.
+   *
+   * When the godentist agent transitions to `pedir_fecha` (asking for appointment
+   * date) for the first time in a session, tag the contact with 'VAL' to feed the
+   * metrics system (standalone "Conversation Tags to Contact" — listens to
+   * tag.assigned on contacts to count valoraciones agendadas per day).
+   *
+   * Decisions (see .planning/quick/035-.../035-PLAN.md):
+   * - Injection point: runner (not agent) — keeps godentist agent pure/stateless
+   * - Trigger: NEW pedir_fecha action (was not present in previous accionesEjecutadas)
+   * - Scope: ALL workspaces using agentModule === 'godentist'
+   * - Idempotency: assignTag handles 23505 (already assigned) as success
+   * - Fail-open: log warn and continue if tag missing or DB error
+   * - No feature flag: purely additive side-effect, zero conversational impact
+   */
+  private async applyGodentistValTagIfNeeded(
+    input: EngineInput,
+    output: V3AgentOutput,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    previousAcciones: any[],
+  ): Promise<void> {
+    if (this.config.agentModule !== 'godentist') return
+    if (!input.contactId) return
+
+    const isPedirFecha = (a: { tipo?: string } | null | undefined) =>
+      !!a && a.tipo === 'pedir_fecha'
+
+    const wasAlreadyPresent = Array.isArray(previousAcciones)
+      && previousAcciones.some(isPedirFecha)
+    const isNowPresent = Array.isArray(output.accionesEjecutadas)
+      && output.accionesEjecutadas.some(isPedirFecha)
+
+    if (wasAlreadyPresent || !isNowPresent) return
+
+    try {
+      const { assignTag } = await import('@/lib/domain/tags')
+      const result = await assignTag(
+        { workspaceId: this.config.workspaceId, source: 'adapter', cascadeDepth: 0 },
+        { entityType: 'contact', entityId: input.contactId, tagName: 'VAL' },
+      )
+      if (!result.success) {
+        console.warn(
+          `[V3-RUNNER][godentist] Could not assign VAL tag (fail-open): ${result.error} ` +
+          `(workspace=${this.config.workspaceId}, contact=${input.contactId})`,
+        )
+      } else {
+        console.log(
+          `[V3-RUNNER][godentist] Assigned VAL tag to contact ${input.contactId} ` +
+          `on first pedir_fecha transition`,
+        )
+      }
+    } catch (err) {
+      console.warn(
+        `[V3-RUNNER][godentist] Exception applying VAL tag (fail-open):`,
+        err,
+      )
     }
   }
 }

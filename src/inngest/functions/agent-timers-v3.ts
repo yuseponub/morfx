@@ -17,6 +17,7 @@ import { inngest } from '../client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { getWorkspaceAgentConfig } from '@/lib/agents/production/agent-config'
+import { checkSessionActive } from '@/lib/agents/timer-guard'
 import type { V3AgentInput, V3AgentOutput, AccionRegistrada } from '@/lib/agents/somnio-v3/types'
 
 const logger = createModuleLogger('agent-timers-v3')
@@ -254,6 +255,16 @@ export const v3Timer = inngest.createFunction(
       if (conv?.is_agent_enabled === false) {
         logger.info({ conversationId, level }, 'Agent disabled — skipping v3 timer')
         return { status: 'skipped' as const, action: 'agent_disabled' }
+      }
+
+      // Phase 42: defensive check — abort if session no longer active
+      const guardResult = await checkSessionActive(sessionId)
+      if (!guardResult.ok) {
+        logger.info(
+          { sessionId, level, handlerName: 'v3Timer', observedStatus: guardResult.status },
+          'V3 timer aborted: session no longer active'
+        )
+        return { status: 'skipped' as const, action: 'session_not_active' }
       }
 
       // b. Read session via SessionManager

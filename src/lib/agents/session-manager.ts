@@ -134,6 +134,33 @@ export class SessionManager {
       .single()
 
     if (sessionError) {
+      // Phase 42: Recover from concurrent-insert race against the partial
+      // unique index `agent_sessions_one_active_per_conv_agent`
+      // (on conversation_id, agent_id WHERE status='active'). Two webhooks
+      // arriving at the same time can both pass getSessionByConversation()==null
+      // and race on INSERT. One wins, the other gets 23505 — we transparently
+      // return the session the winner just created. Single recovery attempt only.
+      if ((sessionError as { code?: string }).code === '23505') {
+        const existing = await this.getSessionByConversation(
+          params.conversationId,
+          params.agentId
+        )
+        if (existing) {
+          logger.info(
+            {
+              agentId: params.agentId,
+              conversationId: params.conversationId,
+              sessionId: existing.id,
+            },
+            'Phase 42: recovered from concurrent createSession race (23505) — returning session created by racing request'
+          )
+          return existing
+        }
+        // Defensive: under the partial unique index this branch is unreachable,
+        // but if the racing session was already closed between INSERT and
+        // recovery fetch, fall through and rethrow the original error.
+      }
+
       logger.error({ error: sessionError }, 'Failed to create session')
       throw new SessionError('Failed to create session', sessionError)
     }

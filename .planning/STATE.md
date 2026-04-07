@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42.1 (Observabilidad Bots Produccion) — INSERTED, not yet planned
-Plan: 0/0
-Status: Phase 42 COMPLETE (5/5 plans, 11/11 must-haves, 5/5 UAT). Phase 42.1 inserted como urgente. Pendiente discuss-phase.
-Last activity: 2026-04-07 — Quick 036 completed: fix bug ref compartida quick-035 + cambio trigger tag VAL a datosCriticos (commit ab6c9f5)
+Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 1 done)
+Plan: 2/11
+Status: Plan 02 COMPLETE — core src/lib/observability/ module (flag, AsyncLocalStorage context, parallel types, pricing, ObservabilityCollector). Wave 1 base estable para Wave 2 (interceptors).
+Last activity: 2026-04-07 — Phase 42.1 Plan 02 ejecutado: src/lib/observability/ core module (commits 1a8eddd, 34d38f8)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -30,6 +30,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
 | 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
+| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (2/11 plans — Wave 1 core module done) |
 
 ### MVP v1.0 Complete (2026-02-04)
 
@@ -319,6 +320,18 @@ Debug Panel v4.0 decisions (Plan 05):
 - No-rep Level badges use single-char abbreviations (P/F/E/N/~) for compact table columns
 - pending_templates display skipped (SandboxState lacks the field)
 
+Phase 42.1 decisions (Plan 02):
+- Types parallel-not-shared with sandbox (Decision A): zero imports from src/lib/sandbox/* in src/lib/observability/
+- isObservabilityEnabled() reads process.env on every call — never cached (Pitfall 5 in 42.1-RESEARCH.md)
+- ObservabilityCollector.record* methods are synchronous (push only, no I/O) and wrapped in defensive try/catch (REGLA 6: never crash production agent path because of observability internals)
+- Single shared sequenceCounter across events/queries/aiCalls so the UI renders one global ordered timeline per turn
+- recordError captures only the first fatal error of the turn (preserves original cause)
+- Pricing table includes both exact ids (claude-haiku-4-5-20251001) and bare aliases (claude-haiku-4-5) because both forms exist in repo today
+- estimateCost falls back to 0 + one-time pino warn for unknown models (non-fatal)
+- promptHash field exists in ObservabilityAiCall but populated by stub returning '' until Plan 04 wires sha256 from ./prompt-version
+- flush() declared as async stub (// TODO plan-07) — Plan 07 implements single batch INSERT
+- provider field is 'anthropic' literal (not free string) — only one provider until other LLMs join
+
 Phase 42 decisions (Plan 01):
 - Q1 confirmed default constraint name `agent_sessions_conversation_id_agent_id_key` — migration applied unchanged
 - Q3 result: `stale_cron_rule=1906` in prod (exceeds 1000 threshold) — first automated cron run would close too many in one shot
@@ -397,6 +410,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-07 COT
-Stopped at: Phase 42 Plan 01 complete (Wave 1 migration applied in prod, diagnostics captured)
+Stopped at: Phase 42.1 Plan 02 complete (core observability module — Wave 1 done)
 Resume file: None
-Next: `/gsd:execute-phase 42` for Plan 02 (Inngest close-stale-sessions cron) — then 03, 04, 05. 05-PLAN must read 42-01-SUMMARY.md Q3 FLAG section before writing activation steps.
+Next: `/gsd:execute-phase 42.1` para Plan 03 (supabase fetch wrapper sobre context.ts + collector.recordQuery) y Plan 04 (anthropic fetch wrapper + prompt-version reemplaza hashPromptStub). Plans 03 y 04 forman Wave 2 (interceptors) y pueden ejecutarse en paralelo.

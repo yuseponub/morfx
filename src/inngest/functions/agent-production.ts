@@ -115,6 +115,14 @@ export const whatsappAgentProcessor = inngest.createFunction(
       : null
 
     const run = async () => {
+    // Phase 42.1: register turn start + trigger metadata for the timeline.
+    collector?.recordEvent('session_lifecycle', 'turn_started', {
+      action: 'turn_started',
+      conversationId,
+      messageId,
+      messageType: event.data.messageType ?? 'text',
+    })
+
     // ================================================================
     // Step 1: Media Gate (Phase 32)
     // Routes message by type: text passes through unchanged, audio gets
@@ -134,12 +142,36 @@ export const whatsappAgentProcessor = inngest.createFunction(
       })
     })
 
+    // Phase 42.1: media gate decision is one of the pipeline's first
+    // forks -- record it so the timeline shows the routing branch taken.
+    collector?.recordEvent('media_gate', 'gate_decision', {
+      kind: event.data.messageType ?? 'text',
+      action: gateResult.action,
+      reason: 'reason' in gateResult ? gateResult.reason : null,
+      hasMediaUrl: Boolean(event.data.mediaUrl),
+    })
+
+    // The classifier runs at the rule layer inside processMediaGate
+    // (audio/image/sticker/reaction routing). Surface it as a coarse
+    // classifier event tied to the media gate result so the timeline
+    // shows that the rule-based classifier ran here -- richer
+    // classifier events for text messages live deeper in the Somnio
+    // V3 pipeline (Task 3 will instrument those if/when reachable).
+    collector?.recordEvent('classifier', 'rule-based media routing', {
+      type: event.data.messageType ?? 'text',
+      action: gateResult.action,
+    })
+
     // ================================================================
     // Step 2: Branch based on media gate result
     // ================================================================
 
     // --- IGNORE: silently drop (unrecognized stickers, unmapped reactions) ---
     if (gateResult.action === 'ignore') {
+      collector?.recordEvent('media_gate', 'ignored', {
+        action: 'ignore',
+        messageType: event.data.messageType,
+      })
       logger.info(
         { conversationId, messageType: event.data.messageType },
         'Media gate: ignoring message'
@@ -149,6 +181,10 @@ export const whatsappAgentProcessor = inngest.createFunction(
 
     // --- NOTIFY HOST: create task, bot stays active (negative reactions) ---
     if (gateResult.action === 'notify_host') {
+      collector?.recordEvent('media_gate', 'notify_host', {
+        reason: gateResult.reason,
+        messageType: event.data.messageType,
+      })
       await step.run('notify-host-media', async () => {
         const { createAdminClient } = await import('@/lib/supabase/admin')
         const supabase = createAdminClient()
@@ -186,6 +222,16 @@ export const whatsappAgentProcessor = inngest.createFunction(
 
     // --- HANDOFF: image/video/failed transcription -> hand off to human ---
     if (gateResult.action === 'handoff') {
+      collector?.recordEvent('handoff', 'triggered', {
+        reason: gateResult.reason,
+        trigger: 'media_gate',
+        messageType: event.data.messageType,
+      })
+      collector?.recordEvent('mode_transition', undefined, {
+        from: null,
+        to: 'handoff',
+        reason: 'media_gate',
+      })
       await step.run('execute-media-handoff', async () => {
         const { getWorkspaceAgentConfig } = await import('@/lib/agents/production/agent-config')
         const { executeHandoff } = await import('@/lib/agents/production/handoff-handler')
@@ -199,6 +245,10 @@ export const whatsappAgentProcessor = inngest.createFunction(
       // WHY: For media handoff the UnifiedEngine is NOT invoked, so the engine's
       // natural agent/customer.message emission (step 6) never fires. Without this,
       // a stale retake message would fire after the human agent takes over.
+      collector?.recordEvent('silence_timer', 'cancel', {
+        reason: 'media_handoff',
+        conversationId,
+      })
       await step.run('cancel-silence-timer', async () => {
         const { inngest: inngestClient } = await import('@/inngest/client')
         const { createAdminClient } = await import('@/lib/supabase/admin')
@@ -236,6 +286,11 @@ export const whatsappAgentProcessor = inngest.createFunction(
 
     // --- PASSTHROUGH: text / transcribed audio / recognized sticker / mapped reaction ---
     // gateResult.action === 'passthrough' — continue with existing agent pipeline
+    collector?.recordEvent('media_gate', 'passthrough', {
+      action: 'passthrough',
+      messageType: event.data.messageType ?? 'text',
+      transformedText: gateResult.text !== event.data.messageContent,
+    })
     const result = await step.run('process-message', async () => {
       // Dynamic import to avoid circular dependencies and reduce cold start
       const { processMessageWithAgent } = await import(
@@ -252,6 +307,34 @@ export const whatsappAgentProcessor = inngest.createFunction(
       })
     })
 
+    // Phase 42.1: snapshot the engine result onto the timeline. The deep
+    // pipeline events (classifier text branch, intent detection,
+    // template selection, no_repetition decisions, block composition,
+    // pre-send check, char_delay) are recorded inside their own files
+    // by Task 3 via getCollector() and ALS -- here we just capture the
+    // top-level outcome so the collector has the final mode + counts.
+    collector?.recordEvent('mode_transition', undefined, {
+      from: null,
+      to: result.newMode ?? null,
+      reason: result.success ? 'engine_result' : 'engine_error',
+    })
+    if (result.newMode === 'handoff') {
+      collector?.recordEvent('handoff', 'engine_handoff', {
+        trigger: 'engine',
+        reason: result.error?.message ?? 'engine_signal',
+      })
+    }
+    collector?.recordEvent('block_composition', 'turn_outbound_summary', {
+      messagesSent: result.messagesSent ?? 0,
+      success: result.success,
+    })
+    if (result.error) {
+      collector?.recordEvent('intent', 'engine_error', {
+        code: result.error.code,
+        retryable: result.error.retryable,
+      })
+    }
+
     // Write error message to conversation for visibility (same as inline path)
     if (!result.success && result.error) {
       await step.run('write-error-message', async () => {
@@ -267,6 +350,13 @@ export const whatsappAgentProcessor = inngest.createFunction(
         })
       })
     }
+
+    collector?.recordEvent('session_lifecycle', 'turn_completed', {
+      action: 'turn_completed',
+      success: result.success,
+      newMode: result.newMode ?? null,
+      messagesSent: result.messagesSent ?? 0,
+    })
 
     logger.info(
       {

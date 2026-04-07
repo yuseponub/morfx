@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
-import { startOfDay, subDays, addDays, format, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type {
   Period,
@@ -12,39 +12,77 @@ import type {
 } from '@/lib/metricas-conversaciones/types'
 
 /**
- * Compute [start, endExclusive) in America/Bogota timezone.
+ * Compute [start, endExclusive) anchored to America/Bogota midnights.
  *
- * Vercel serverless runs in UTC, so `new Date()` returns the current UTC instant.
- * To get "today in Bogota", we re-parse the locale string in en-US format (which
- * yields a string the Date constructor can parse) with timeZone: 'America/Bogota'.
- * This produces a Date whose calendar fields match Bogota wall-clock time.
+ * BUG FIX: La version anterior usaba `new Date(new Date().toLocaleString('en-US', {tz}))`
+ * + `startOfDay()` de date-fns. Eso produce UTC midnights (porque Vercel corre en UTC),
+ * NO Bogota midnights. Resultado: el rango "hoy" cubria [Bogota Apr 5 19:00, Apr 6 19:00)
+ * en lugar de [Apr 6 00:00, Apr 7 00:00), perdiendo cualquier evento entre las 19:00 y
+ * 23:59 hora Colombia.
+ *
+ * FIX: derivar la fecha calendario de Bogota via Intl.DateTimeFormat (en-CA → YYYY-MM-DD)
+ * y construir Date instants con offset explicito "-05:00" (Colombia no observa DST).
  *
  * Pattern from CLAUDE.md Rule 2.
  */
+const BOGOTA_OFFSET = '-05:00'
+
+function todayInBogota(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+function bogotaMidnight(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00${BOGOTA_OFFSET}`)
+}
+
+/** Add (or subtract) calendar days to a YYYY-MM-DD string. CO has no DST, safe in UTC. */
+function shiftBogotaDate(dateStr: string, days: number): string {
+  const d = bogotaMidnight(dateStr)
+  d.setUTCDate(d.getUTCDate() + days)
+  // The result is still at Bogota midnight (05:00 UTC), so the UTC calendar date
+  // matches the Bogota calendar date. slice(0,10) extracts YYYY-MM-DD safely.
+  return d.toISOString().slice(0, 10)
+}
+
 function getRange(period: Period): { start: Date; endExclusive: Date } {
-  // Custom range object
+  // Custom range object: dates already in YYYY-MM-DD form from the date picker
   if (typeof period === 'object' && period !== null) {
-    const start = startOfDay(parseISO(period.start))
-    const endExclusive = addDays(startOfDay(parseISO(period.end)), 1)
-    return { start, endExclusive }
+    return {
+      start: bogotaMidnight(period.start),
+      endExclusive: bogotaMidnight(shiftBogotaDate(period.end, 1)),
+    }
   }
 
-  const nowBogota = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' })
-  )
-  const todayStart = startOfDay(nowBogota)
-  const tomorrowStart = addDays(todayStart, 1)
+  const today = todayInBogota()
+  const tomorrow = shiftBogotaDate(today, 1)
 
   switch (period) {
     case 'today':
-      return { start: todayStart, endExclusive: tomorrowStart }
+      return {
+        start: bogotaMidnight(today),
+        endExclusive: bogotaMidnight(tomorrow),
+      }
     case 'yesterday':
-      return { start: startOfDay(subDays(nowBogota, 1)), endExclusive: todayStart }
+      return {
+        start: bogotaMidnight(shiftBogotaDate(today, -1)),
+        endExclusive: bogotaMidnight(today),
+      }
     case '7days':
       // Last 7 days inclusive of today
-      return { start: startOfDay(subDays(nowBogota, 6)), endExclusive: tomorrowStart }
+      return {
+        start: bogotaMidnight(shiftBogotaDate(today, -6)),
+        endExclusive: bogotaMidnight(tomorrow),
+      }
     case '30days':
-      return { start: startOfDay(subDays(nowBogota, 29)), endExclusive: tomorrowStart }
+      return {
+        start: bogotaMidnight(shiftBogotaDate(today, -29)),
+        endExclusive: bogotaMidnight(tomorrow),
+      }
   }
 }
 

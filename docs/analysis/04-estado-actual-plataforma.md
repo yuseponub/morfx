@@ -105,7 +105,7 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 ---
 
 ### 3. Agentes IA
-- **Estado:** ✅ Funcional
+- **Estado:** ✅ Funcional (session lifecycle bug corregido en Phase 42, completada 2026-04-07)
 
 #### Agente Somnio (`src/lib/agents/somnio/`)
 - **Proposito:** Bot de ventas para Somnio (almohadas) via WhatsApp
@@ -168,6 +168,13 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - ~~OrderCreator.updateContact no pasaba department al tool handler~~ — Resuelto: department ahora se incluye en crm.contact.update
 - ~~contactUpdate tool handler no aceptaba ni delegaba department~~ — Resuelto: tipo ContactUpdateInput + domain call actualizados
 - ~~webhook-processor no sincronizaba conversation.contact_id despues de order creation~~ — Resuelto: paso 9 actualiza contact_id si engine resolvio contacto diferente
+
+#### Bugs resueltos (Phase 42, 2026-04-07 — Session Lifecycle)
+- ~~`agent_sessions` nunca se cerraban en runtime~~ — Resuelto: nuevo cron Inngest `closeStaleSessionsCron` corre 02:00 COT diario y cierra sesiones con `last_activity_at < midnight Bogota`. RPC `close_stale_agent_sessions` con TZ-safe boundary
+- ~~Clientes recurrentes bloqueados con error 23505~~ — Resuelto: partial unique index `(conversation_id, agent_id) WHERE status='active'` permite N filas historicas, solo 1 activa. `SessionManager.createSession` ahora hace retry-via-fetch en 23505
+- ~~Bot permanentemente mudo tras decir "no" una vez~~ — Resuelto indirectamente: nuevas sesiones nacen con `accionesEjecutadas=[]`, asi `derivePhase()` no queda fossilizado en `'closed'`
+- ~~Clientes con `handed_off` previo no podian reactivar conversacion~~ — Resuelto: el partial unique index ya no choca con filas `handed_off`. Validado en UAT con caso real (cliente con handed_off de 4 dias atras envio mensaje y bot respondio limpio)
+- **Defensive timer-guard:** Helper `timer-guard.ts` agregado a 6 handlers V1+V3 (collecting_data, promos, resumen, cancel, etc.) hace early-return si la sesion fue cerrada por el cron mientras el timer dormia
 
 ---
 
@@ -474,6 +481,9 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 6. **Task timestamps UTC** — Deberian usar America/Bogota
 7. **Phone normalization inconsistente** — 4 implementaciones diferentes (consolidar a 1)
 8. **Unresolved variables como literal** (R-3) — `{{placeholder}}` deberia ser string vacio
+9. **SessionManager bypassing src/lib/domain/** — refactor candidate (excepcion a Regla 3 ratificada en Phase 42 LEARNINGS, pendiente fase dedicada)
+10. **Bug pre-existente `agent-production.ts:154`** — query filtra por columna inexistente `is_active` (out of scope Phase 42, tracked separately)
+11. **Somnio V1 (`somnio-sales-v1`, `somnio-recompra-v1`) confirmed dead code** — auditoria Phase 42 verifico cero sesiones activas ni handlers vivos. Candidato a deletion en fase de cleanup
 
 ### P3 — Baja (Cleanup)
 
@@ -511,3 +521,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 
 *Generado: 19 febrero 2026 — Actualizado con fixes quick-003 (workspace_id) y quick-004 (task.overdue variables)*
 *Actualizado: 20 febrero 2026 — Hotfix bot CRM: mapeo name/shippingCity/shippingDepartment, department en contactUpdate, sync conversation.contact_id post-order*
+*Actualizado: 7 abril 2026 — Phase 42 (Session Lifecycle) completada: cron de cierre, partial unique index, retry 23505, defensive timer-guard, TZ-safe RPC*

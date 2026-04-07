@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 2 COMPLETE)
-Plan: 4/11
-Status: Wave 1 + Wave 2 COMPLETE. Ambos interceptores listos: Supabase (Plan 03) y Anthropic (Plan 04). hashPrompt determinista (SHA-256, key order fijo, whitespace normalizado) + createInstrumentedAnthropic (factory unica) + purposeAls (segundo ALS para etiquetar reason de cada call). Fetch wrapper en kind='anthropic' captura request body (system normalizado, messages, model, params), response body (content + usage tokens completos incl. cache_creation/cache_read), HTTP errors, streaming fast-path. collector.recordAiCall ahora calcula promptHash + costUsd reales. Domain layer 100% intacto, build Next 16 verde, fast-path no-op cuando flag OFF. Wave 3 (Plans 05/06) puede empezar a migrar las 13 call sites de new Anthropic() a createInstrumentedAnthropic + runWithPurpose.
-Last activity: 2026-04-07 — Plan 04 ejecutado. Commits ade8e6a (prompt-version + anthropic-instrumented) + 37931a4 (anthropic capture branch + purposeAls + collector real hashPrompt).
+Phase: 42.1 (Observabilidad Bots Produccion) — IN PROGRESS (Wave 3 EN MARCHA — Somnio V3 instrumentado)
+Plan: 5/11
+Status: Wave 3 Plan 05 COMPLETE. Pipeline Somnio V3 instrumentado end-to-end. 7 call sites de Anthropic (claude-client, sticker, minifrase, classifier, paraphraser, no_rep_l2/l3, comprehension v3) migradas a createInstrumentedAnthropic + runWithPurpose. Handler whatsappAgentProcessor envuelto estructuralmente en runWithCollector con feature flag OFF identico al baseline (REGLA 6). resolveAgentIdForWorkspace inline mapea workspace_agent_config.conversational_agent_id al union AgentId. 14 collector?.recordEvent en agent-production.ts (8 categorias: session_lifecycle, media_gate, classifier, handoff, mode_transition, silence_timer, block_composition, intent). 19 getCollector()?.recordEvent en los 5 mecanismos del scope CONTEXT (silence_timer en unified-engine + production/timer; retake en sales-track + response-track; ofi_inter Routes 1/2/3 en sales-track + response-track; interruption_handling + pending_pool en interruption-handler). Gap log: template_selection, no_repetition (eventos), pre_send_check, char_delay diferidos a un plan futuro de instrumentacion de webhook-processor + block-composer (no en agent-production.ts -- adapt-to-real-code). Build Next 16 verde despues de cada commit. Plan 06 puede repetir el patron Task 1 para godentist + somnio-recompra + somnio-v2.
+Last activity: 2026-04-07 — Plan 05 ejecutado. Commits 84eb043 (anthropic migration) + 99e7499 (handler wrap) + 8708367 (recordEvent en handler) + 703e461 (5 mecanismos en sus archivos).
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -30,7 +30,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
 | 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
-| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (4/11 plans — Wave 1 + Wave 2 complete: ambos interceptores listos) |
+| 42.1 | Observabilidad Bots Produccion (mirroring + deep logging) | Operational urgency | IN PROGRESS (5/11 plans — Wave 3 en marcha: Somnio V3 pipeline instrumentado end-to-end) |
 
 ### MVP v1.0 Complete (2026-02-04)
 

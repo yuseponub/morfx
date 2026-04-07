@@ -10,7 +10,7 @@ MorfX is a CRM + WhatsApp + Automations + AI Agents SaaS platform for e-commerce
 - **v2.0 Agentes Conversacionales** — Phases 12-20 (shipped 2026-02-16)
 - **v3.0 Logistica** — Phases 21-28 (shipped 2026-02-24)
 - **v4.0 Comportamiento Humano** — Phases 29-36 (Phase 36 in progress)
-- **v5.0 Meta Direct Integration** — Phases 37-41 (planned)
+- **v5.0 Meta Direct Integration** — Phases 37-42 (planned)
 
 ## Phases
 
@@ -611,6 +611,63 @@ Plans:
 3. Instagram-scoped user IDs are resolved to existing MorfX contacts or create new contacts automatically, following the same resolution pattern as Messenger PSIDs
 4. The inbox clearly shows the remaining time in the 24-hour messaging window for each Instagram conversation -- when the window expires, the send button is disabled with an explanation that the customer must message first
 5. AI agents (Somnio and others) can respond to Instagram DMs through the same agent routing system used for WhatsApp and Messenger -- with window-aware sending that prevents attempts to message after the 24h expiry
+
+---
+
+### Phase 42: Session Lifecycle — Cierre y Reapertura de Sesiones de Agentes ✓ COMPLETE (2026-04-07)
+
+**Status:** COMPLETE — 5/5 plans executed, 11/11 must-haves verified, 5/5 UAT criteria PASS in production.
+
+**Goal:** Los agentes conversacionales (Somnio V3, GoDentist, Somnio Recompra) cierran sesiones terminadas y abren sesiones frescas cuando el cliente vuelve a escribir despues de un ciclo conversacional concluido, eliminando el reuso de state fosilizado y los errores de unique constraint que hoy dejan al bot sin responder a clientes recurrentes.
+
+**Dependencies:** Phase 13 (Agent Engine Core — tabla `agent_sessions` base), Phase 27-Standalone (Agent GoDentist), Phase 29+ (V3 production runner y timers Inngest)
+
+**Requirements:** Bug critico de produccion — no tiene codigo de requerimiento asignado (descubierto en sesion de debug 2026-04-06)
+
+**Risk:** MEDIUM — toca migracion de DB (drop UNIQUE constraint + indice parcial), un cron Inngest nuevo, y audit de todos los handlers de timers V3. Mitigado por: cambios aditivos al flujo, defensive checks como red de seguridad, y Regla 5 (migracion antes de deploy). El comportamiento del agente en produccion no cambia para sesiones activas actuales — solo cambia lo que pasa cuando el cliente vuelve despues de mucho tiempo.
+
+**Plans:** 5/5 COMPLETE
+- 01: Pre-deploy diagnostics + migration files (partial unique index + close_stale_agent_sessions RPC)
+- 02: Inngest cron close-stale-sessions (02:00 COT) + registration
+- 03: timer-guard.ts helper + 6 defensive checks (5 in agent-timers.ts, 1 in agent-timers-v3.ts)
+- 04: retry-on-23505 in SessionManager.createSession + Somnio V1 dead-code audit
+- 05: 7-day pre-sweep + Vercel push + UAT + docs + LEARNINGS
+
+**Deviation documented:** TZ bug discovered mid-execution in original RPC. Fix migration `20260410000002_fix_close_stale_sessions_tz.sql` created and applied. See LEARNINGS.md Phase 42 entry (TZ cast trap is the headline lesson).
+
+**UAT evidence (2026-04-07):** Cron auto-ran at 02:00 COT, closed 774 sessions correctly (cutoff respected: newest closed had last_activity_at 23:38 Bogota Apr 6, zero post-midnight activity touched). 74 active sessions remain (all born post-midnight Apr 7). Per-bot: godentist 65 active/1398 closed, somnio-sales-v3 9/158, V1 legacy confirmed dead code (0 active).
+
+**Diseno aprobado (sesion 2026-04-06):**
+
+1. **Modelo conceptual — Opcion A (sesiones multiples por conversacion):** Una sesion es un ciclo conversacional finito con inicio y fin. Pueden coexistir multiples sesiones para el mismo `(conversation_id, agent_id)` a lo largo del tiempo, con maximo 1 activa en cualquier momento. Las cerradas quedan archivadas intactas, consultables por `session_id`, nunca se borran. Mas adelante (fase 2) se disenara una capa de "memoria entre sesiones" que lea datos relevantes de la sesion cerrada para sembrar la nueva; por ahora cada nueva sesion nace 100% virgen.
+
+2. **Cambios de schema:** Drop `UNIQUE(conversation_id, agent_id)` sobre `agent_sessions`. Reemplazar por indice parcial unico `ON (conversation_id, agent_id) WHERE status = 'active'` que garantiza maximo 1 activa por par pero permite N cerradas historicas. Migracion aplicada en produccion ANTES del deploy (Regla 5).
+
+3. **Cron de cierre nocturno:** Inngest scheduled function ejecutandose diariamente a las 02:00 `America/Bogota`. Query: `UPDATE agent_sessions SET status='closed' WHERE status='active' AND last_activity_at < date_trunc('day', timezone('America/Bogota', NOW()))`. Traduccion: cierra toda sesion activa cuya ultima actividad sea anterior a las 00:00 de hoy. Las sesiones `handed_off` no se tocan (ya son terminales). Sesiones que recibieron mensajes despues de medianoche sobreviven al cron y se evaluaran el dia siguiente.
+
+4. **Lookup y creacion:** `getSessionByConversation` sigue filtrando por `status='active'` (ya correcto). `createSession` deja de explotar con unique violation porque el constraint viejo ya no existe. Cliente que vuelve tras sesion cerrada → no se encuentra activa → se inserta fila nueva → sesion arranca 100% limpia (defaults del schema: `current_mode='conversacion'`, `accionesEjecutadas=[]`, `datos_capturados={}`, etc.).
+
+5. **Defensive check en timers V3:** Auditar todos los handlers de timers en `src/inngest/functions/agent-timers-v3.ts` y cualquier otro job Inngest que opere sobre un `sessionId`. Agregar al inicio de cada handler: `if (session.status !== 'active') return` con log info. Previene timers zombis que disparen mensajes sobre sesiones cerradas.
+
+6. **Edge case aceptado:** Cliente que escribe exactamente durante la ejecucion del cron (2:00 AM) puede terminar con su mensaje atado a la sesion cerrada. Caso rarisimo, impacto cosmetico, se deja asi conscientemente.
+
+**Bug colateral descubierto (fuera de scope, documentar en LEARNINGS):**
+- `src/inngest/functions/agent-production.ts:154` usa `.eq('is_active', true)` sobre una columna que no existe en `agent_sessions`. Es un bug latente en el path de media handoff (cancel silence timer). No se arregla en esta fase pero queda registrado para atacarlo despues.
+
+**Fuera de scope (fase 2 futura):**
+- Memoria entre sesiones: extraer datos relevantes de sesion cerrada → seed de la nueva
+- Cierre por intent (cliente dijo "no me interesa" / compro / agendo cita → cerrar inmediato sin esperar cron nocturno)
+- UI en CRM para ver historial de sesiones de un contacto
+- Metricas de cierre (razon, duracion, tasa de reapertura, clientes recurrentes)
+- Fix del bug `is_active` en agent-production.ts:154
+- Soporte multi-timezone (hoy hardcoded `America/Bogota` para todos los workspaces)
+
+**Success Criteria:**
+1. Cliente que tuvo una conversacion cerrada hace >24 horas vuelve a escribir y recibe respuesta normal del agente — el bot arranca desde cero sin contexto contaminado (`current_mode='conversacion'`, sin `accionesEjecutadas` previas, sin `datos_capturados` viejos, sin `templates_enviados` pre-cargados)
+2. La base de datos muestra multiples filas en `agent_sessions` para el mismo `(conversation_id, agent_id)` cuando un cliente ha tenido varios ciclos — todas las cerradas con `status='closed'` y sus `agent_turns`/`session_state` congelados intactos
+3. El cron Inngest ejecuta cada madrugada a las 02:00 `America/Bogota` y logea el numero de sesiones cerradas en cada ejecucion; sesiones con actividad pasada la medianoche sobreviven la primera ejecucion y se cierran en la siguiente si no tuvieron mas actividad
+4. Clientes que venian quedando en silencio por el bug del unique constraint (caso de sesiones previamente en `handed_off` al volver a escribir) ahora reciben respuesta normal — el defensive check en timers evita mensajes zombis y no hay errores 23505 en los logs
+5. El comportamiento del agente para sesiones activas en curso al momento del deploy permanece identico — no hay regresion en conversaciones ya iniciadas; la migracion es segura de aplicar sin downtime
 
 ---
 

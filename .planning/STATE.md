@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 ## Current Position
 
-Phase: 42 (Session Lifecycle)
-Plan: 01 complete
-Status: Wave 1 done (migration applied in prod), awaiting Wave 2 execution (02/03/04, then 05 with Q3 pre-sweep)
-Last activity: 2026-04-07 — Phase 42 Plan 01 complete (migration applied in prod, diagnostics captured)
+Phase: 42 (Session Lifecycle) — COMPLETE
+Plan: 5/5 complete
+Status: Phase 42 verified (11/11 must-haves, 5/5 UAT criteria PASS), ready for Phase 38
+Last activity: 2026-04-07 — Phase 42 complete (cron closed 774 sessions correctly at 02:00 COT, zero regression, TZ bug caught + fixed mid-execution)
 
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
@@ -29,7 +29,7 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 | 39 | WhatsApp Outbound + Templates | WA-01→04, WA-06→09, MIG-01, MIG-03 | Pending |
 | 40 | Facebook Messenger Direct | SIGNUP-04, FB-01→04, MIG-02 | Pending |
 | 41 | Instagram Direct | IG-01→05 | Pending |
-| 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | IN PROGRESS (1/5 plans — Wave 1 migration applied in prod) |
+| 42 | Session Lifecycle (cierre/reapertura sesiones agentes) | Bug critico prod | COMPLETE (5/5 plans, verified 11/11, UAT 5/5 PASS) |
 
 ### MVP v1.0 Complete (2026-02-04)
 

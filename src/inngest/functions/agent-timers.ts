@@ -19,6 +19,7 @@ import { createModuleLogger } from '@/lib/audit/logger'
 import { TIMER_LEVELS, TIMER_ALL_FIELDS } from '@/lib/sandbox/timer-levels-legacy'
 import type { TimerEvalContext, TimerAction } from '@/lib/sandbox/types'
 import { TIMER_MINIMUM_FIELDS, SILENCE_RETAKE_FULL, SILENCE_RETAKE_SHORT, SILENCE_RETAKE_DETECT } from '@/lib/agents/somnio/constants'
+import { checkSessionActive } from '@/lib/agents/timer-guard'
 
 const logger = createModuleLogger('agent-timers')
 
@@ -284,6 +285,16 @@ export const ingestTimer = inngest.createFunction(
 
     // Timeout: evaluate level and execute action
     const result = await step.run('evaluate-and-execute', async () => {
+      // Phase 42: defensive check — abort if session no longer active
+      const guardResult = await checkSessionActive(sessionId)
+      if (!guardResult.ok) {
+        logger.info(
+          { sessionId, handlerName: 'ingestTimer', observedStatus: guardResult.status },
+          'Timer handler aborted: session no longer active'
+        )
+        return { status: 'aborted' as const, reason: 'session_not_active' }
+      }
+
       const sm = getSessionManager()
       const session = await sm.getSession(sessionId)
       const ctx = buildTimerContext(session)
@@ -360,6 +371,16 @@ export const dataCollectionTimer = inngest.createFunction(
 
     // Timeout: evaluate level and execute action
     const result = await step.run('evaluate-and-execute', async () => {
+      // Phase 42: defensive check — abort if session no longer active
+      const guardResult = await checkSessionActive(sessionId)
+      if (!guardResult.ok) {
+        logger.info(
+          { sessionId, handlerName: 'dataCollectionTimer', observedStatus: guardResult.status },
+          'Timer handler aborted: session no longer active'
+        )
+        return { status: 'aborted' as const, reason: 'session_not_active' }
+      }
+
       const sm = getSessionManager()
       const session = await sm.getSession(sessionId)
       const ctx = buildTimerContext(session)
@@ -428,6 +449,16 @@ export const promosTimer = inngest.createFunction(
 
     // Timeout: evaluate level and execute action
     const result = await step.run('evaluate-and-execute', async () => {
+      // Phase 42: defensive check — abort if session no longer active
+      const guardResult = await checkSessionActive(sessionId)
+      if (!guardResult.ok) {
+        logger.info(
+          { sessionId, handlerName: 'promosTimer', observedStatus: guardResult.status },
+          'Timer handler aborted: session no longer active'
+        )
+        return { status: 'aborted' as const, reason: 'session_not_active' }
+      }
+
       const sm = getSessionManager()
       const session = await sm.getSession(sessionId)
       const ctx = buildTimerContext(session)
@@ -496,6 +527,16 @@ export const resumenTimer = inngest.createFunction(
 
     // Timeout: evaluate level and execute action
     const result = await step.run('evaluate-and-execute', async () => {
+      // Phase 42: defensive check — abort if session no longer active
+      const guardResult = await checkSessionActive(sessionId)
+      if (!guardResult.ok) {
+        logger.info(
+          { sessionId, handlerName: 'resumenTimer', observedStatus: guardResult.status },
+          'Timer handler aborted: session no longer active'
+        )
+        return { status: 'aborted' as const, reason: 'session_not_active' }
+      }
+
       const sm = getSessionManager()
       const session = await sm.getSession(sessionId)
       const ctx = buildTimerContext(session)
@@ -581,6 +622,16 @@ export const silenceTimer = inngest.createFunction(
       if (conv && conv.is_agent_enabled === false) {
         logger.info({ conversationId }, 'Agent disabled — skipping retake message')
         return { status: 'skipped', action: 'agent_disabled' }
+      }
+
+      // Phase 42: defensive check — abort if session no longer active
+      const guardResult = await checkSessionActive(sessionId)
+      if (!guardResult.ok) {
+        logger.info(
+          { sessionId, handlerName: 'silenceTimer', observedStatus: guardResult.status },
+          'Timer handler aborted: session no longer active'
+        )
+        return { status: 'skipped', action: 'session_not_active' }
       }
 
       // Phase 31: Get pending templates from session state

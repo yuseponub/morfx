@@ -21,6 +21,7 @@ import { agentProductionFunctions } from '@/inngest/functions/agent-production'
 import { automationFunctions } from '@/inngest/functions/automation-runner'
 import { taskOverdueCron } from '@/inngest/functions/task-overdue-cron'
 import { closeStaleSessionsCron } from '@/inngest/functions/close-stale-sessions'
+import { observabilityPurgeCron } from '@/inngest/functions/observability-purge'
 import { robotOrchestratorFunctions } from '@/inngest/functions/robot-orchestrator'
 import { godentistReminderFunctions } from '@/inngest/functions/godentist-reminders'
 import { v3TimerFunctions } from '@/inngest/functions/agent-timers-v3'
@@ -56,5 +57,6 @@ export const { GET, POST, PUT } = serve({
     ...smsDeliveryFunctions,
     taskOverdueCron,
     closeStaleSessionsCron,
+    observabilityPurgeCron,
   ],
 })

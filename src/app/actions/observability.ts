@@ -22,7 +22,9 @@
 import { isObservabilityEnabled, OBSERVABILITY_FLAG_NAME } from '@/lib/observability'
 import {
   listTurnsForConversation,
+  getTurnDetail,
   type TurnSummary,
+  type TurnDetail,
 } from '@/lib/observability/repository'
 import { assertSuperUser } from '@/lib/auth/super-user'
 
@@ -46,4 +48,27 @@ export async function getTurnsByConversationAction(
 
   const turns = await listTurnsForConversation(conversationId, { limit: 200 })
   return { status: 'ok', turns }
+}
+
+/**
+ * Fetch the full detail of a turn (events + queries + ai calls + prompt
+ * versions). Super-user gated.
+ *
+ * `startedAt` MUST be the value already surfaced by the master pane row —
+ * see `getTurnDetail` in the repository for the partition-pruning rationale.
+ * Unlike `getTurnsByConversationAction`, this action does NOT return a
+ * discriminated union: by the time the user has selected a turn they must
+ * have already seen a populated list, so the flag check would only exist
+ * to handle the race where the flag is toggled off mid-session. In that
+ * case the server action throws and the UI's error state renders.
+ *
+ * @throws Error('FORBIDDEN') when the caller is not the super-user.
+ * @throws When the turn row cannot be found inside the started_at window.
+ */
+export async function getTurnDetailAction(
+  turnId: string,
+  startedAt: string,
+): Promise<TurnDetail> {
+  await assertSuperUser()
+  return getTurnDetail(turnId, startedAt)
 }

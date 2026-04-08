@@ -59,7 +59,7 @@ CREATE TABLE agent_observability_turns (
   total_tokens INTEGER NOT NULL DEFAULT 0,
   total_cost_usd NUMERIC(10, 6) NOT NULL DEFAULT 0,
   error JSONB,                                  -- { name, message, stack } | null
-  trigger_message_id UUID,                      -- FK-ish a whatsapp_messages
+  trigger_message_id TEXT,                      -- WhatsApp message id "wamid.HBgM..." (NOT a UUID)
   trigger_kind TEXT,                            -- 'user_message' | 'timer' | 'system_event'
   current_mode TEXT,                            -- snapshot del agent state (entrada)
   new_mode TEXT,                                -- snapshot del agent state (salida)

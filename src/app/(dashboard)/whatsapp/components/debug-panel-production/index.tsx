@@ -14,12 +14,15 @@
  *   │             │                         │
  *   └─────────────┴─────────────────────────┘
  *
- * Detail pane is intentionally a stub until Plan 10 wires the full
- * turn timeline (events + queries + ai_calls + prompt versions).
+ * Detail pane renders the full turn timeline (Plan 10): events +
+ * queries + ai_calls merged by sequence, each row expandable to show
+ * the underlying JSON payload, SQL filters/body, or AI prompt/
+ * messages/response.
  */
 
 import { useState } from 'react'
 import { TurnList } from './turn-list'
+import { TurnDetailView } from './turn-detail'
 
 interface Props {
   conversationId: string
@@ -48,23 +51,18 @@ export function DebugPanelProduction({ conversationId }: Props) {
             onSelectTurn={(id, startedAt) => setSelectedTurn({ id, startedAt })}
           />
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 min-w-0 min-h-0">
           {selectedTurn ? (
-            <div className="text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Turno seleccionado</p>
-              <p className="text-xs mt-1 font-mono">{selectedTurn.id}</p>
-              <p className="text-xs mt-1">
-                {new Date(selectedTurn.startedAt).toLocaleString('es-CO', {
-                  timeZone: 'America/Bogota',
-                })}
-              </p>
-              <p className="mt-4 italic">
-                Detalle del turno — implementado en Plan 10.
-              </p>
-            </div>
+            <TurnDetailView
+              key={selectedTurn.id}
+              turnId={selectedTurn.id}
+              startedAt={selectedTurn.startedAt}
+            />
           ) : (
-            <div className="text-sm text-muted-foreground italic">
-              Selecciona un turno de la lista.
+            <div className="h-full flex items-center justify-center p-4">
+              <div className="text-sm text-muted-foreground italic">
+                Selecciona un turno de la lista.
+              </div>
             </div>
           )}
         </div>

@@ -1,17 +1,18 @@
 /**
- * TODO(plan-11): VERIFICAR precios contra https://www.anthropic.com/pricing
- * antes de activar en produccion. Review quarterly.
+ * Prices verified 2026-04-07 against https://www.anthropic.com/pricing
+ * (cross-checked against https://docs.claude.com/en/docs/about-claude/pricing
+ * which renders the same table statically). Review quarterly.
  *
  * Anthropic per-model pricing for cost estimation.
  *
- * Values are USD per million tokens (MTok). Confidence: MEDIUM —
- * captured 2026-04-07 from public Anthropic pricing pages. The numbers
- * below MUST be re-verified before Plan 11 (activation in prod):
+ * Values are USD per million tokens (MTok). Confidence: HIGH —
+ * verified 2026-04-07 directly from the official Anthropic pricing
+ * docs. Exact figures pulled from the docs pricing table:
  *
- *   Haiku 4.5  : ~$1.00 input / ~$5.00 output per MTok
- *   Sonnet 4.5 : ~$3.00 input / ~$15.00 output per MTok
+ *   Haiku 4.5  : $1.00 input / $5.00 output / $1.25 cache_creation (5m) / $0.10 cache_read per MTok
+ *   Sonnet 4.5 : $3.00 input / $15.00 output / $3.75 cache_creation (5m) / $0.30 cache_read per MTok
  *
- * Cache pricing (applies to both):
+ * Cache pricing (5-minute TTL writes, applies to both):
  *   cache_creation = 1.25x input price
  *   cache_read     = 0.10x input price
  *

@@ -282,3 +282,21 @@ $$;
 -- WHERE proname IN ('create_observability_partition','drop_observability_partitions_older_than');
 -- -- Debe retornar 2 filas.
 -- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- GRANTs: service_role needs explicit privileges on the new tables.
+-- Supabase auto-grants on simple tables but partitioned tables in a
+-- custom schema do not always inherit the defaults. Without these
+-- grants, the flush() path fails with "permission denied for table
+-- agent_observability_turns" (SQLSTATE 42501).
+-- Added 2026-04-08 after activation bug hit production.
+-- ---------------------------------------------------------------------
+
+GRANT ALL ON TABLE agent_prompt_versions TO service_role;
+GRANT ALL ON TABLE agent_observability_turns TO service_role;
+GRANT ALL ON TABLE agent_observability_events TO service_role;
+GRANT ALL ON TABLE agent_observability_queries TO service_role;
+GRANT ALL ON TABLE agent_observability_ai_calls TO service_role;
+
+GRANT EXECUTE ON FUNCTION create_observability_partition(DATE) TO service_role;
+GRANT EXECUTE ON FUNCTION drop_observability_partitions_older_than(DATE) TO service_role;

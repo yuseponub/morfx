@@ -41,14 +41,12 @@ The deploy itself is a no-op for the running agents — `OBSERVABILITY_ENABLED` 
 
 ## Paso 2: Activar el flag `OBSERVABILITY_ENABLED=true` en Vercel
 
-**PREREQUISITE — `SUPER_USER_EMAIL` env var:**
+**PREREQUISITE — `MORFX_OWNER_USER_ID` env var (likely already set):**
 
-Plan 09 introduced the `SUPER_USER_EMAIL` environment variable for the production debug panel access control. The server action `getTurnsByConversationAction` calls `assertSuperUser()` which compares the authenticated user's email against this env var; if the env var is unset or does not match, the call throws `FORBIDDEN` even for Jose. **Set this BEFORE flipping the flag, otherwise the panel will show the disabled state for Jose too.**
+The production debug panel reuses the existing `MORFX_OWNER_USER_ID` env var already used by `/super-admin/*`, `src/app/actions/super-admin.ts`, `usage.ts` and `sms-admin.ts`. The server action `getTurnsByConversationAction` calls `assertSuperUser()` which compares `user.id === process.env.MORFX_OWNER_USER_ID`. Most likely this is already set in Vercel — verify first, only add if missing.
 
 1. Vercel Dashboard -> morfx -> Settings -> Environment Variables.
-2. Add (Production scope only):
-   - Key: `SUPER_USER_EMAIL`
-   - Value: `<jose's actual email used to log into morfx, e.g. jose@morfx.app>`
+2. Confirm `MORFX_OWNER_USER_ID` exists (Production scope). If missing, add it with Jose's Supabase auth user id (UUID).
 3. Add (Production scope only):
    - Key: `OBSERVABILITY_ENABLED`
    - Value: `true`
@@ -81,7 +79,7 @@ After each, confirm the bot responds normally.
 1. Open the morfx app in browser, log in as Jose (super-user).
 2. Open WhatsApp inbox.
 3. Open the conversation that just received the test message.
-4. Look for the **Bug** icon in the chat header. (It only renders for super-users — that's the smoke test for `SUPER_USER_EMAIL` working.)
+4. Look for the **Bug** icon in the chat header. (It only renders for super-users — that's the smoke test for `MORFX_OWNER_USER_ID` working.)
 5. Click the Bug icon -> the production debug panel opens on the right (Allotment split pane).
 6. Confirm the master pane shows the new turn (15s polling) with non-zero counters in the row (events / queries / ai_calls).
 7. Click the row -> the detail pane fetches `getTurnDetailAction(turnId, startedAt)` and renders:
@@ -185,7 +183,7 @@ To declare Phase 42.1 ACTIVE in production, ALL of these must be true:
 
 - [ ] Vercel deploy succeeded with flag OFF (Paso 1.2).
 - [ ] Flag-OFF baseline check returned 0 rows in `agent_observability_turns` (Paso 1.3).
-- [ ] `SUPER_USER_EMAIL` set in Vercel Production env (Paso 2.2).
+- [ ] `MORFX_OWNER_USER_ID` confirmed in Vercel Production env (Paso 2.2 — likely already set).
 - [ ] `OBSERVABILITY_ENABLED=true` set in Vercel Production env (Paso 2.3).
 - [ ] Redeploy succeeded (Paso 2.5).
 - [ ] All 3 bots responded normally to test messages (Paso 3.1).

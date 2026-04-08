@@ -3,18 +3,18 @@
  *
  * Decision #6 in `.planning/phases/42.1-observabilidad-bots-produccion/42.1-CONTEXT.md`:
  * the production observability panel is scoped to a single "super-user"
- * (the platform owner, Jose). There is no workspace-member role nor
- * user metadata flag that already models this concept in the repo, so
- * this helper introduces a minimal env-var gated check:
+ * (the platform owner, Jose).
  *
- *   SUPER_USER_EMAIL=jose@morfx.app
+ * REUSES the existing platform mechanism already used by /super-admin
+ * (`src/app/actions/super-admin.ts`, `src/app/super-admin/layout.tsx`,
+ * `src/app/actions/usage.ts`, `src/app/actions/sms-admin.ts`):
+ *
+ *   MORFX_OWNER_USER_ID=<supabase auth.users.id of the platform owner>
+ *
+ * Comparison is `user.id === MORFX_OWNER_USER_ID` (UUID match), NOT email.
  *
  * If the env var is unset the helper always returns `false`, which
  * means the debug panel becomes invisible to everyone (fail-closed).
- *
- * Plan 11 (runbook) MUST document adding this env var to Vercel
- * Production / Preview scopes. See 42.1-09-SUMMARY.md for the
- * full rationale + migration path to a role-based mechanism later.
  *
  * Usage: call from Server Components / Server Actions only. Reading
  * `auth.getUser()` requires the cookie store (Next 15 async cookies).
@@ -23,45 +23,45 @@
 import { createClient } from '@/lib/supabase/server'
 
 /**
- * Env var that holds the single super-user's email address. Kept as a
- * named constant so tests / docs / runbooks can reference it.
+ * Env var that holds the single super-user's Supabase auth user id.
+ * Named constant so tests / docs / runbooks can reference it.
  */
-export const SUPER_USER_EMAIL_ENV = 'SUPER_USER_EMAIL' as const
+export const SUPER_USER_ID_ENV = 'MORFX_OWNER_USER_ID' as const
 
 /**
- * Returns the configured super-user email, or `null` if the env var
+ * Returns the configured super-user id, or `null` if the env var
  * is missing / empty. Exported so UI helpers can display the exact
  * env var name in "disabled" messages without hardcoding the string.
  */
-export function getSuperUserEmail(): string | null {
-  const raw = process.env[SUPER_USER_EMAIL_ENV]
+export function getSuperUserId(): string | null {
+  const raw = process.env[SUPER_USER_ID_ENV]
   if (!raw) return null
-  const trimmed = raw.trim().toLowerCase()
+  const trimmed = raw.trim()
   return trimmed.length > 0 ? trimmed : null
 }
 
 /**
- * Returns true if the currently authenticated user's email matches
- * `SUPER_USER_EMAIL`. Fails closed when:
+ * Returns true if the currently authenticated user's id matches
+ * `MORFX_OWNER_USER_ID`. Fails closed when:
  *
  *  - env var is unset
  *  - no authenticated user in the cookie store
- *  - user exists but email does not match
+ *  - user exists but id does not match
  *  - any exception talking to Supabase Auth
  *
  * Callable from Server Components + Server Actions (both have access
  * to the request cookie store through `createClient()`).
  */
 export async function getIsSuperUser(): Promise<boolean> {
-  const expected = getSuperUserEmail()
+  const expected = getSuperUserId()
   if (!expected) return false
   try {
     const supabase = await createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user?.email) return false
-    return user.email.trim().toLowerCase() === expected
+    if (!user?.id) return false
+    return user.id === expected
   } catch {
     return false
   }
@@ -71,7 +71,7 @@ export async function getIsSuperUser(): Promise<boolean> {
  * Server-side assertion for use inside server actions that must be
  * gated to the super-user. Throws a generic `FORBIDDEN` error string
  * on failure so the client never learns the distinction between "not
- * logged in", "env var missing" and "wrong email".
+ * logged in", "env var missing" and "wrong user".
  */
 export async function assertSuperUser(): Promise<void> {
   const ok = await getIsSuperUser()

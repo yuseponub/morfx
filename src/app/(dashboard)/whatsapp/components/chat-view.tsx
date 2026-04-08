@@ -17,6 +17,14 @@ interface ChatViewProps {
   conversation: ConversationWithDetails | null
   onTogglePanel: () => void
   onOpenAgentConfig?: () => void
+  /**
+   * Phase 42.1: show "Debug bot" button in the header when provided.
+   * Pass `undefined` for non super-users to hide the control entirely
+   * (Regla 6 — zero regression for regular users).
+   */
+  onToggleDebug?: () => void
+  /** Whether the production debug panel is currently visible. */
+  isDebugOpen?: boolean
 }
 
 /**
@@ -28,6 +36,8 @@ export function ChatView({
   conversation,
   onTogglePanel,
   onOpenAgentConfig,
+  onToggleDebug,
+  isDebugOpen,
 }: ChatViewProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const scrolledToBottomRef = useRef(true)
@@ -144,12 +154,14 @@ export function ChatView({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex-1 flex flex-col min-w-0 h-full">
       {/* Chat header */}
       <ChatHeader
         conversation={conversation}
         onTogglePanel={onTogglePanel}
         onOpenAgentConfig={onOpenAgentConfig}
+        onToggleDebug={onToggleDebug}
+        isDebugOpen={isDebugOpen}
       />
 
       {/* Messages container with geometric pattern background */}

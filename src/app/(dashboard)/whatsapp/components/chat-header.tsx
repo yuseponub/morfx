@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, Bot, CalendarCheck, Check, ExternalLink, Loader2, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
+import { Archive, ArchiveRestore, Bot, Bug, CalendarCheck, Check, ExternalLink, Loader2, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,13 +29,26 @@ interface ChatHeaderProps {
   conversation: ConversationWithDetails
   onTogglePanel: () => void
   onOpenAgentConfig?: () => void
+  /**
+   * Phase 42.1: when provided, renders a "Debug bot" icon button in
+   * the header. Parent passes `undefined` for non super-users so the
+   * control is fully absent (Regla 6 — zero regression).
+   */
+  onToggleDebug?: () => void
+  isDebugOpen?: boolean
 }
 
 /**
  * Chat header with contact name, window indicator, tags, agent toggles, and actions.
  * Actions: Mark as read, Archive, Open in CRM, Edit name.
  */
-export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: ChatHeaderProps) {
+export function ChatHeader({
+  conversation,
+  onTogglePanel,
+  onOpenAgentConfig,
+  onToggleDebug,
+  isDebugOpen,
+}: ChatHeaderProps) {
   const router = useRouter()
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
@@ -354,6 +367,19 @@ export function ChatHeader({ conversation, onTogglePanel, onOpenAgentConfig }: C
               title="Configuracion de agente"
             >
               <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Debug bot (Phase 42.1, super-user only) */}
+          {onToggleDebug && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${isDebugOpen ? 'bg-muted text-foreground' : ''}`}
+              onClick={onToggleDebug}
+              title="Debug bot (observabilidad produccion)"
+            >
+              <Bug className="h-4 w-4" />
             </Button>
           )}
 

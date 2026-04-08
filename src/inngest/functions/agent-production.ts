@@ -376,21 +376,58 @@ export const whatsappAgentProcessor = inngest.createFunction(
     // End of inner `run` arrow function. Below: collector wiring.
     // ----------------------------------------------------------------
 
-    if (collector) {
-      try {
-        return await runWithCollector(collector, run)
-      } catch (err) {
-        const e = err as Error
-        collector.recordError({ name: e?.name ?? 'Error', message: e?.message ?? String(err), stack: e?.stack })
-        throw err
-      } finally {
-        // Plan 07 will replace this placeholder with:
-        //   await step.run('observability-flush', () => collector.flush())
-        // For now flush() is a no-op so the call is intentionally omitted.
-      }
+    // ================================================================
+    // Phase 42.1 Plan 07: turn execution + flush
+    //
+    // When `collector` is null (feature flag OFF) we just call `run()`
+    // and return its result -- byte-identical to the pre-42.1 baseline
+    // (REGLA 6).
+    //
+    // When `collector` is present we:
+    //
+    //   1. Run the inner `run()` inside `runWithCollector` so any code
+    //      reachable from the pipeline can resolve the collector via
+    //      ALS without parameter threading.
+    //
+    //   2. Capture any thrown error WITHOUT propagating it yet --
+    //      `collector.recordError(...)` must run BEFORE the flush so
+    //      the persisted turn row carries the failure cause.
+    //
+    //   3. Run the flush as the LAST `step.run` of the function. This
+    //      MUST happen even when `run()` threw, otherwise the dropped
+    //      turns would be the most interesting ones to inspect. The
+    //      flush itself swallows its own errors (see flushCollector)
+    //      so the step never fails -- Inngest will not retry the flush
+    //      on a transient observability outage.
+    //
+    //   4. Re-throw the original turn error (if any) AFTER the flush so
+    //      Inngest's standard retry/concurrency semantics still apply
+    //      to real production failures.
+    // ================================================================
+    if (!collector) {
+      return await run()
     }
 
-    return await run()
+    let turnResult: unknown
+    let turnError: unknown = null
+    try {
+      turnResult = await runWithCollector(collector, run)
+    } catch (err) {
+      const e = err as Error
+      collector.recordError({
+        name: e?.name ?? 'Error',
+        message: e?.message ?? String(err),
+        stack: e?.stack,
+      })
+      turnError = err
+    }
+
+    await step.run('observability-flush', async () => {
+      await collector.flush()
+    })
+
+    if (turnError) throw turnError
+    return turnResult
   }
 )
 

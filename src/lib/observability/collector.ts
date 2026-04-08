@@ -227,12 +227,27 @@ export class ObservabilityCollector {
   }
 
   // -------------------------------------------------------------------------
-  // Persistence — implemented in Plan 07.
+  // Persistence (Plan 07)
   // -------------------------------------------------------------------------
 
-  // TODO(plan-07): persist events / queries / aiCalls / error in a single
-  // batch INSERT against the observability schema (migration in Plan 06).
+  /**
+   * Persist the in-memory contents of this collector to the 5
+   * observability tables in a single batch (1 turn row + chunked
+   * children, with prompt-version dedup).
+   *
+   * The implementation lives in `./flush` and is loaded via a dynamic
+   * import so the cycle `collector -> flush -> (raw admin client) ->
+   * supabase types` cannot become a circular module load even if a
+   * future plan adds more imports to `flush.ts`. This call also keeps
+   * the static dependency graph of `collector.ts` minimal: importers
+   * who only call `recordEvent` / `recordQuery` / `recordAiCall` do
+   * not pay the cost of pulling in the supabase admin module.
+   *
+   * NEVER throws (REGLA 6): see `flushCollector` for the swallow-on-
+   * error rationale.
+   */
   async flush(): Promise<void> {
-    // implemented in Plan 07
+    const { flushCollector } = await import('./flush')
+    return flushCollector(this)
   }
 }

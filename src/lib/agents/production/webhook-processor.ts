@@ -20,7 +20,6 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
-import { getCollector } from '@/lib/observability'
 import { isAgentEnabledForConversation, getWorkspaceAgentConfig } from './agent-config'
 import type { SomnioEngineResult } from '../somnio/somnio-engine'
 import type { EngineOutput } from '../engine/types'
@@ -71,25 +70,6 @@ export async function processMessageWithAgent(
     { conversationId, phone, workspaceId, hasContact: !!contactId },
     'Starting agent processing for WhatsApp message'
   )
-
-  // Phase 42.1 diagnostic probe: verify ALS propagation from agent-production
-  // step.run boundary into this function. Logs to Vercel runtime regardless
-  // of collector state so we can distinguish "probe not deployed" from
-  // "ALS broken".
-  const probeCollector = getCollector()
-  logger.info(
-    {
-      conversationId,
-      probe: 'webhook_processor_entry',
-      hasCollectorInAls: probeCollector !== null,
-      collectorEventCount: probeCollector?.events.length ?? -1,
-    },
-    '[42.1 PROBE] processMessageWithAgent entry'
-  )
-  probeCollector?.recordEvent('tool_call', 'webhook_processor_entry', {
-    hasCollectorInAls: true,
-    conversationId,
-  })
 
   // 1. Check if agent is enabled for this conversation
   const agentEnabled = await isAgentEnabledForConversation(

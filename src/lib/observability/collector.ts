@@ -194,6 +194,73 @@ export class ObservabilityCollector {
     }
   }
 
+  /**
+   * Merge another collector's captured data into this one. Used to work
+   * around Inngest's lambda-boundary memoization: a step.run callback
+   * creates a local collector, returns its raw arrays in the step output,
+   * and the outer handler (running in a later replay lambda with a fresh
+   * collector) merges them here before flush.
+   *
+   * After merging, all three arrays are re-sorted by recordedAt and
+   * assigned monotonic sequence numbers so the UI timeline renders
+   * cleanly. Within the same millisecond, we fall back to the original
+   * sequence for stable ordering.
+   */
+  mergeFrom(other: {
+    events: ObservabilityEvent[]
+    queries: ObservabilityQuery[]
+    aiCalls: ObservabilityAiCall[]
+  }): void {
+    try {
+      for (const e of other.events) this.events.push(e)
+      for (const q of other.queries) this.queries.push(q)
+      for (const a of other.aiCalls) this.aiCalls.push(a)
+
+      // Re-normalize sequence by recordedAt across all three arrays
+      // combined, so the timeline is monotonic. Stable within the same
+      // millisecond by falling back to original sequence.
+      type Anchored = {
+        recordedAt: Date
+        sequence: number
+        bucket: 'e' | 'q' | 'a'
+        idx: number
+      }
+      const anchors: Anchored[] = []
+      this.events.forEach((e, idx) =>
+        anchors.push({ recordedAt: e.recordedAt, sequence: e.sequence, bucket: 'e', idx }),
+      )
+      this.queries.forEach((q, idx) =>
+        anchors.push({ recordedAt: q.recordedAt, sequence: q.sequence, bucket: 'q', idx }),
+      )
+      this.aiCalls.forEach((a, idx) =>
+        anchors.push({ recordedAt: a.recordedAt, sequence: a.sequence, bucket: 'a', idx }),
+      )
+
+      anchors.sort((x, y) => {
+        const dt = x.recordedAt.getTime() - y.recordedAt.getTime()
+        if (dt !== 0) return dt
+        return x.sequence - y.sequence
+      })
+
+      let seq = 0
+      for (const anchor of anchors) {
+        const target =
+          anchor.bucket === 'e'
+            ? this.events[anchor.idx]
+            : anchor.bucket === 'q'
+              ? this.queries[anchor.idx]
+              : this.aiCalls[anchor.idx]
+        target.sequence = seq++
+      }
+      // Keep the internal counter ahead of anything we might still
+      // append later in the same iteration (e.g. turn_completed event
+      // fired after the merge).
+      this.sequenceCounter = seq
+    } catch {
+      // Defensive: never throw from observability bookkeeping (REGLA 6).
+    }
+  }
+
   recordError(errorInfo: RecordedErrorInfo): void {
     // Only the first fatal error wins — preserves the original cause.
     if (this.error !== null) return

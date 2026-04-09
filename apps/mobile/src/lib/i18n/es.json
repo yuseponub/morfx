@@ -1,0 +1,19 @@
+{
+  "auth": {
+    "login": {
+      "title": "Iniciar sesión",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "submit": "Entrar",
+      "error": "Credenciales incorrectas"
+    }
+  },
+  "inbox": {
+    "title": "Conversaciones",
+    "empty": "No hay conversaciones"
+  },
+  "common": {
+    "logout": "Cerrar sesión",
+    "loading": "Cargando..."
+  }
+}

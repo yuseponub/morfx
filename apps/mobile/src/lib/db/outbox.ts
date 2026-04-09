@@ -140,10 +140,9 @@ class HttpError extends Error {
  * Send one outbox row via the mobile API client. Kept as a standalone helper
  * so drainOutbox stays readable.
  *
- * The api-client module is lazy-imported to avoid circular deps and to let
- * this module compile cleanly before Plan 09 lands the real client. Until
- * then, the dynamic import will throw and drainOutbox will count the row as
- * a transient failure, which is the correct behavior pre-Plan-09.
+ * The api-client module is lazy-imported to dodge any risk of circular
+ * imports between db/ and the api client layer. Plan 43-04 shipped the real
+ * client at ../api-client; this file now resolves it normally.
  */
 async function postOutboxRow(row: OutboxRow): Promise<SendMessageResponse> {
   const payload = JSON.parse(row.payload_json) as {
@@ -154,26 +153,8 @@ async function postOutboxRow(row: OutboxRow): Promise<SendMessageResponse> {
     mediaType: string | null;
   };
 
-  // TODO(43-09): replace dynamic import with a static one once the mobile API
-  // client lands. Lazy import guarantees the db module has zero compile-time
-  // dependency on the not-yet-existing api client, and also dodges any risk
-  // of circular imports between db/ and api/ layers.
-  let mobileApi: {
-    sendMessage: (args: {
-      conversationId: string;
-      body: string | null;
-      mediaUri: string | null;
-      mediaType: string | null;
-      idempotencyKey: string;
-    }) => Promise<SendMessageResponse>;
-  };
-  try {
-    // @ts-expect-error -- api/client lands in Plan 43-09; dynamic import keeps
-    // this file compiling before that module exists.
-    mobileApi = (await import('../api/client')) as unknown as typeof mobileApi;
-  } catch {
-    throw new Error('api-client pending Plan 09');
-  }
+  // Lazy import to dodge potential circular deps between db/ and api-client.
+  const { mobileApi } = await import('../api-client');
 
   return mobileApi.sendMessage({
     conversationId: payload.conversationId,

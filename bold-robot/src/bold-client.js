@@ -76,12 +76,23 @@ async function createPaymentLink({ username, password, amount, description }) {
 
   try {
     // ===== STEP 1: LOGIN =====
-    console.log('[bold] navigating to login...')
+    console.log('[bold] navigating to landing...')
     await page.goto(BOLD_LOGIN_URL, { waitUntil: 'networkidle' })
-    await saveScreenshot(page, '01-login-page')
+    await saveScreenshot(page, '01-landing-page')
 
-    // Selectors are best-guess based on common merchant-panel patterns.
-    // Adjust after the first real run using debug screenshots.
+    // panel.bold.co is a LANDING page with "Registrarme" + "Iniciar sesión" buttons,
+    // not the login form directly. Click "Iniciar sesión" first.
+    const iniciarSesionSelector =
+      'a:has-text("Iniciar sesión"), button:has-text("Iniciar sesión"), a:has-text("Iniciar"), button:has-text("Iniciar")'
+    await page.waitForSelector(iniciarSesionSelector, { timeout: LOGIN_FIELD_TIMEOUT })
+    await Promise.all([
+      page.waitForLoadState('networkidle').catch(() => {}),
+      page.click(iniciarSesionSelector),
+    ])
+    await page.waitForTimeout(1500)
+    await saveScreenshot(page, '01b-login-form')
+
+    // Now we should be on the actual login form
     const emailSelector =
       'input[type="email"], input[name="email"], input[name="username"], input[id*="email" i], input[placeholder*="correo" i], input[placeholder*="email" i]'
     const passwordSelector = 'input[type="password"], input[name="password"], input[id*="password" i]'

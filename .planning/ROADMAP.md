@@ -671,6 +671,73 @@ Plans:
 
 ---
 
+### Phase 42.1: Sistema de Observabilidad y Mirroring para Bots en Produccion (INSERTED)
+
+**Goal:** [Urgent insertion — pendiente de refinar en /gsd:discuss-phase] Tener visibilidad completa de cada decision que toman los bots en produccion (Somnio V3, GoDentist, Coordinadora, OCR, Creador Guias, Recompra) por `conversation_id`: cada llamada a IA, cada query a DB, cada paso del pipeline, cada mecanismo de seguridad activado. Equivalente al Debug Panel del sandbox pero (1) para produccion real, (2) mucho mas profundo, capturando logica interna de IA y queries reales, (3) consultable retroactivamente por ID de conversacion.
+
+**Depends on:** Phase 42 (Session Lifecycle), Debug Panel v4.0 standalone (precedente arquitectonico)
+
+**Requirements:** Necesidad operativa critica — descubierta tras Phase 42 que destapo el costo de no tener observabilidad de produccion (debugging manual prolongado del bug de sesiones fosilizadas)
+
+**Risk:** TBD (definir en discuss/research) — debe minimizar impacto en latencia de respuesta del agente, no contaminar tabla de mensajes, definir retencion de logs, y respetar Regla 6 (no afectar comportamiento de agentes en produccion)
+
+**Plans:** 11 plans
+
+Plans:
+- [ ] 01-PLAN.md — Schema + migrations + baseline volume measurement (CHECKPOINT: user applies migration in prod)
+- [ ] 02-PLAN.md — Collector core: feature flag, AsyncLocalStorage context, types, collector class, pricing table
+- [ ] 03-PLAN.md — Supabase admin client wrapper + createRawAdminClient (anti-recursion)
+- [ ] 04-PLAN.md — Anthropic fetch wrapper + prompt versioning (hash + dedupe) + cost estimator
+- [ ] 05-PLAN.md — Inject observability into Somnio V3 pipeline + shared Anthropic call sites
+- [ ] 06-PLAN.md — Inject observability into GoDentist + Somnio Recompra (+ v2) pipelines
+- [ ] 07-PLAN.md — Flush batch implementation + wire step.run observability-flush in Inngest handler
+- [ ] 08-PLAN.md — Inngest daily cron observability-purge (partition create/drop)
+- [ ] 09-PLAN.md — Repository + server actions + debug panel container + turn-list (split pane in inbox)
+- [ ] 10-PLAN.md — Turn detail view: timeline rows, ai-call view, query view, event expansion
+- [ ] 11-PLAN.md — Smoke tests + Anthropic pricing verify + activation runbook + activate flag + LEARNINGS
+
+**Motivacion (capturada de la sesion 2026-04-07):**
+- "Quiero poder ver en cada id de conversacion que esta pasando en el backend y por que el robot esta tomando ciertas decisiones y ciertas no"
+- "Mas o menos como el debug panel de sandbox pero mucho mas profundo, con todas las logicas de las ia y como esta interactuando cada mecanismo con cada query que se realiza"
+- "Esto para tener mucho mas control sobre cada instancia y entender que esta pasando por detras"
+- "Logs reales" — no resumenes, no aproximaciones
+
+**Scope tentativo (a refinar en discuss-phase):**
+- Bots cubiertos: Somnio V3 (sales), GoDentist (citas), Somnio Recompra, Robot Coordinadora, Robot OCR, Robot Creador Guias PDF
+- Captura por turno: classifier, intent detection, mode/state transitions, template selection, no-rep filter, pre-send check, char-delay, defensive timer checks, reapertura de sesiones (Phase 42), media gate, handoff routing
+- Captura por query: cada SELECT/INSERT/UPDATE relevante con timing y workspace_id
+- Captura por llamada IA: prompt completo, response, tokens, latencia, modelo, costo
+- Captura por mecanismo: silence timer, retoma, ofi inter routing, confidence routing, disambiguation log, agent session lifecycle
+- UI: navegacion por conversation_id, vista timeline + vista detalle por turno, filtros por bot/workspace/fecha
+- Storage: definir si tabla dedicada, almacen externo (S3/R2), o hibrido — depende de retencion y volumen
+
+**Detalles:**
+[A completar tras /gsd:discuss-phase 42.1 + /gsd:research-phase 42.1]
+
+---
+
+### Phase 43: Mobile App (MorfX) — Native iOS + Android
+
+**Goal:** Entregar la primera version de la app movil nativa de MorfX para iOS y Android. El MVP arranca con el modulo WhatsApp como unica pantalla principal (inbox, envio/recepcion de mensajes, toggle del bot por conversacion, acceso al CRM desde dentro del chat vial panel lateral derecho con paridad al modulo web actual) y sienta las bases para extender la app a otras capacidades de CRM en fases futuras.
+
+**Depends on:** Ninguna dependencia de codigo. Convive con el modulo web existente. Usa la misma Supabase DB y las mismas APIs/domain layer.
+
+**Requirements:** Necesidad de tener acceso movil al inbox de WhatsApp y al CRM para responder clientes fuera del escritorio, prender/apagar bots sobre la marcha y operar el pipeline desde el telefono.
+
+**Risk:** Nuevo stack (React Native / Expo o alternativa), nuevas cuentas de distribucion (Apple Developer $99/ano + Google Play Console $25), build sin Mac (requiere build en la nube), keystore de Android debe definirse correctamente desde dia 1 para no romper migracion a Play Store.
+
+**Restricciones duras del usuario:**
+- iOS + Android obligatorios
+- Sin Mac disponible
+- Sin presupuesto inicial para cuentas developer — desarrollo con $0 usando Expo Go + .apk sideload, cuentas se compran al momento de publicar
+- Push notifications en iOS se stubbean hasta tener cuenta Apple
+
+**Context:** `.planning/phases/43-mobile-app/43-CONTEXT.md` (discuss-phase completado 2026-04-08)
+
+**Plans:** TBD — pendiente `/gsd:research-phase 43` con investigacion profunda en foros de GitHub (mandato explicito del usuario) + `/gsd:plan-phase 43`
+
+---
+
 ## Standalone Phases (between milestones)
 
 - [x] **WhatsApp Performance** — Realtime consolidation, panel lazy-loading, infrastructure (4 plans)

@@ -82,9 +82,9 @@ interface ProductMapping {
  * Matches SOMNIO_PRICES but as numbers for order creation.
  */
 const SOMNIO_PRICES_NUMERIC: Record<PackSelection, number> = {
-  '1x': 77900,
-  '2x': 109900,
-  '3x': 139900,
+  '1x': 89900,
+  '2x': 129900,
+  '3x': 169900,
 }
 
 // ============================================================================
@@ -431,19 +431,19 @@ export class OrderCreator {
         return {
           productName: 'Somnio 90 Caps',
           quantity: 1,
-          price: 77900,
+          price: 89900,
         }
       case '2x':
         return {
           productName: 'Somnio 90 Caps x2',
           quantity: 2,
-          price: 109900,
+          price: 129900,
         }
       case '3x':
         return {
           productName: 'Somnio 90 Caps x3',
           quantity: 3,
-          price: 139900,
+          price: 169900,
         }
       default:
         // Default to 1x if unknown pack
@@ -451,7 +451,7 @@ export class OrderCreator {
         return {
           productName: 'Somnio 90 Caps',
           quantity: 1,
-          price: 77900,
+          price: 89900,
         }
     }
   }

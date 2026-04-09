@@ -1,50 +1,178 @@
-# Welcome to your Expo app 👋
+# MorfX Mobile (apps/mobile)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Native iOS + Android app for MorfX. Phase 43 — WhatsApp inbox + bot toggle +
+in-chat CRM side panel as the first mobile MVP.
+
+- **Stack:** Expo SDK 54, React Native 0.81, expo-router v6, TypeScript strict
+- **Package name (Android):** `app.morfx.mobile` — **LOCKED, never change**
+- **Bundle identifier (iOS):** `app.morfx.mobile` — **LOCKED, never change**
+- **Scheme:** `morfx`
+- **Isolated workspace:** standalone npm project inside the morfx monorepo.
+  Does NOT participate in the root `pnpm-workspace.yaml`. Running
+  `npm run build` or `pnpm run build` at the repo root does not touch this
+  directory.
+
+## Requirements
+
+- Node.js 20.x (Expo SDK 54 requires Node 20+)
+- An Expo account (https://expo.dev) for EAS Build
+- On Android: any recent phone with "Install unknown apps" enabled
+- On iOS: Expo Go from the App Store during the $0 development phase
 
 ## Get started
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
 ```bash
-npm run reset-project
+cd apps/mobile
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then:
 
-## Learn more
+- **iPhone:** open Expo Go, scan the QR, load `morfx-mobile`.
+- **Android:** use `adb` + Expo Go, or install the signed preview APK below.
 
-To learn more about developing your project with Expo, look at the following resources:
+The bootstrap screen should display: **"MorfX Mobile — bootstrap OK"**.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Build profiles (`eas.json`)
 
-## Join the community
+| Profile     | Distribution | Artifact  | Channel     | Purpose                                        |
+| ----------- | ------------ | --------- | ----------- | ---------------------------------------------- |
+| development | internal     | apk       | development | Dev client for on-device debugging             |
+| preview     | internal     | apk       | preview     | Sideloadable signed APK for $0 Android testing |
+| production  | store        | app-bundle| production  | Google Play upload (when account exists)       |
 
-Join our community of developers creating universal apps.
+Build an Android preview APK (this is what you sideload during development):
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx eas-cli build --profile preview --platform android
+```
+
+## --------------------------------------------------------------------
+
+## ⚠️  NEVER RESET THE ANDROID KEYSTORE — READ THIS FIRST  ⚠️
+
+## --------------------------------------------------------------------
+
+This project uses **EAS Managed Credentials**. On the very first Android
+build, EAS asks:
+
+> "Generate a new Android Keystore?"
+
+You answer **YES — exactly once, ever**. EAS stores that keystore on its
+servers and reuses it for every subsequent build: development APK,
+preview APK, production AAB, forever.
+
+**WHY THIS MATTERS (Pitfall 2 — Research Day 1, HIGH severity, irreversible):**
+
+Android identifies an app by `(package name, signing certificate)`. If the
+APK that a user sideloads today is signed with keystore A, and tomorrow's
+Play Store release is signed with keystore B, Android treats them as
+**two different apps**. Every existing user would have to:
+
+1. Manually uninstall the sideloaded version
+2. Lose all local app state (cached conversations, pending outbox messages,
+   login session, draft replies)
+3. Download and install the Play Store version from scratch
+
+This is the single most expensive mistake you can make in this phase, and
+it is **irreversible** — once users have installed keystore A, you are
+committed to keystore A for the life of the app.
+
+**ABSOLUTELY NEVER:**
+
+- Run `eas credentials` → `Android` → `Remove keystore` (unless the app has
+  literally zero installed users and you are starting over)
+- Run `eas credentials` → `Android` → `Set up a new keystore` on top of an
+  existing one
+- Generate a keystore locally and overwrite the EAS-managed one
+- Change `android.package` in `app.json` (package name is half of the app
+  identity — changing it is equivalent to shipping a brand new app)
+- Commit any `*.jks`, `*.keystore`, `credentials.json`, or
+  `google-services.json` file to git (`.gitignore` blocks these on purpose)
+
+**WHEN YOU PUBLISH TO THE PLAY STORE LATER:**
+
+Google Play now requires **Play App Signing**. When you upload the first
+AAB, Google will ask for your "upload certificate" — that IS the
+EAS-managed keystore from below. Upload it as-is. Google then manages the
+final app signing key on their side while the EAS keystore remains your
+upload key. **Do NOT generate a new keystore for the Play Store release.**
+
+**TO EXPORT THE KEYSTORE** (backup / leaving EAS):
+
+```bash
+npx eas-cli credentials
+# Platform: Android
+# Profile: production
+# Action: Download keystore
+```
+
+Store the downloaded `.jks` file in a secure password manager — never in
+git, never in the repo, never in a shared folder.
+
+## --------------------------------------------------------------------
+
+## 🔐 Android keystore fingerprint (fill in after first EAS build)
+
+Once the first `eas build --profile preview --platform android` completes
+and generates the managed keystore, run:
+
+```bash
+npx eas-cli credentials
+# Platform: Android  →  Profile: production  →  copy SHA-256
+```
+
+Paste the values below (this is a human-auditable proof that the keystore
+was locked on day 1 and has never been rotated since):
+
+```
+SHA-1 fingerprint:   <PASTE AFTER FIRST BUILD>
+SHA-256 fingerprint: <PASTE AFTER FIRST BUILD>
+Keystore type:       EAS Managed (stored on Expo servers)
+Locked on:           <DATE OF FIRST BUILD>
+Locked by:           <EXPO USERNAME>
+First build URL:     <EAS BUILD URL>
+```
+
+If the SHA-256 you see in `eas credentials` later ever differs from the
+value pasted above, **STOP** and do not publish anything — the keystore
+was rotated and you risk stranding existing users.
+
+## EAS Project ID
+
+The EAS project ID is created by running `npx eas-cli init` and is
+automatically written into `app.json` under `expo.extra.eas.projectId`.
+Because that requires interactive Expo login, it is NOT done by the
+bootstrap automation — the user must run it locally. See the Phase 43 Plan
+02 checkpoint for the exact commands.
+
+```
+EAS projectId: <FILLED BY `eas init`>
+```
+
+## Troubleshooting
+
+- **`Cannot find module @/hooks/use-color-scheme`:** the default template's
+  scaffolding (hooks/, components/, constants/) was removed on purpose.
+  Any file that still imports from `@/hooks/...` is a leftover and should
+  be deleted.
+- **`react-native-reanimated` build errors on first run:** make sure
+  `babel.config.js` keeps `babel-preset-expo` (Reanimated's plugin is
+  bundled with it in SDK 54+).
+- **`expo-doctor` warnings:** run `npx expo install --fix` to realign
+  versions, then re-run `npx expo-doctor`.
+
+## Pitfall reminders (from Phase 43 Research)
+
+- **Pitfall 2 (keystore):** see the huge warning above.
+- **Pitfall 3 (Expo Go prebuilt set):** during the $0 dev phase, do NOT
+  install any library that requires a custom dev client. Specifically:
+  no `@nozbe/watermelondb`, no `react-native-mmkv`, no
+  `react-native-firebase`, no custom native modules. Use `expo-sqlite`,
+  `expo-secure-store`, `expo-notifications`, and the other prebuilt
+  modules that ship inside Expo Go.
+
+---
+
+Phase: `.planning/phases/43-mobile-app/`

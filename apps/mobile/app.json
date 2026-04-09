@@ -45,6 +45,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bbbaad3e-180c-4743-b6d6-207c3b92bf17"
+      }
+    },
+    "owner": "morfxjose",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bbbaad3e-180c-4743-b6d6-207c3b92bf17"
     }
   }
 }

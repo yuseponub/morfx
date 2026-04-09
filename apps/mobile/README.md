@@ -127,12 +127,14 @@ Paste the values below (this is a human-auditable proof that the keystore
 was locked on day 1 and has never been rotated since):
 
 ```
-SHA-1 fingerprint:   <PASTE AFTER FIRST BUILD>
-SHA-256 fingerprint: <PASTE AFTER FIRST BUILD>
-Keystore type:       EAS Managed (stored on Expo servers)
-Locked on:           <DATE OF FIRST BUILD>
-Locked by:           <EXPO USERNAME>
-First build URL:     <EAS BUILD URL>
+Key Alias:           44f5c123d7fdcf266ca4d9fedf1f652c
+MD5 Fingerprint:     58:2B:0C:2E:D3:7F:45:A6:8E:D5:54:AE:BA:4E:D9:18
+SHA-1 fingerprint:   31:95:0A:C8:96:16:72:06:DB:6D:D9:BF:7A:2B:13:71:1F:C7:BE:91
+SHA-256 fingerprint: 8A:C0:B5:54:E7:C1:4D:5D:0B:8B:B9:70:98:E2:30:AD:7A:76:75:E5:74:88:8E:29:32:6F:11:CC:1C:EF:84:07
+Keystore type:       EAS Managed (JKS, stored on Expo servers)
+Locked on:           2026-04-09
+Locked by:           morfxjose
+First build URL:     https://expo.dev/accounts/morfxjose/projects/morfx-mobile/builds/bb6e817a-cabd-4440-9f2d-a3d30c81dffc
 ```
 
 If the SHA-256 you see in `eas credentials` later ever differs from the
@@ -148,7 +150,9 @@ bootstrap automation — the user must run it locally. See the Phase 43 Plan
 02 checkpoint for the exact commands.
 
 ```
-EAS projectId: <FILLED BY `eas init`>
+EAS projectId: bbbaad3e-180c-4743-b6d6-207c3b92bf17
+Owner account: @morfxjose
+Project URL:   https://expo.dev/accounts/morfxjose/projects/morfx-mobile
 ```
 
 ## Troubleshooting

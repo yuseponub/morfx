@@ -92,35 +92,51 @@ async function createPaymentLink({ username, password, amount, description }) {
     await page.waitForTimeout(1500)
     await saveScreenshot(page, '01b-login-form')
 
-    // Now we should be on the actual login form
+    // Bold uses a 2-step login: first email + "Ingresar", then password + "Ingresar"
     const emailSelector =
       'input[type="email"], input[name="email"], input[name="username"], input[id*="email" i], input[placeholder*="correo" i], input[placeholder*="email" i]'
     const passwordSelector = 'input[type="password"], input[name="password"], input[id*="password" i]'
+    const ingresarSelector =
+      'button[type="submit"], button:has-text("Ingresar"), button:has-text("Continuar"), button:has-text("Siguiente")'
 
+    // Step 1a: fill email
     await page.waitForSelector(emailSelector, { timeout: LOGIN_FIELD_TIMEOUT })
     await page.fill(emailSelector, username)
-    await page.fill(passwordSelector, password)
-    await saveScreenshot(page, '02-login-filled')
+    await saveScreenshot(page, '02a-email-filled')
 
-    const loginButtonSelector =
-      'button[type="submit"], button:has-text("Ingresar"), button:has-text("Iniciar sesión"), button:has-text("Iniciar"), button:has-text("Entrar")'
-
+    // Step 1b: click Ingresar to advance to password page
     await Promise.all([
       page.waitForLoadState('networkidle').catch(() => {}),
-      page.click(loginButtonSelector),
+      page.click(ingresarSelector),
     ])
-    await page.waitForTimeout(1500) // let client-side routing settle
+    await page.waitForTimeout(1500)
+    await saveScreenshot(page, '02b-password-page')
+
+    // Step 2a: fill password
+    await page.waitForSelector(passwordSelector, { timeout: LOGIN_FIELD_TIMEOUT })
+    await page.fill(passwordSelector, password)
+    await saveScreenshot(page, '02c-password-filled')
+
+    // Step 2b: click Ingresar to actually log in
+    await Promise.all([
+      page.waitForLoadState('networkidle').catch(() => {}),
+      page.click(ingresarSelector),
+    ])
+    await page.waitForTimeout(2000) // extra time for post-login redirect
     await saveScreenshot(page, '03-post-login')
 
     await dismissNpsPopup(page)
 
-    // Sanity check: we should NOT still be on the login page
+    // Sanity check: the password field should NOT still be visible
     const stillOnLogin = await page.$(passwordSelector)
     if (stillOnLogin) {
-      await saveScreenshot(page, 'error-still-on-login')
-      throw new Error(
-        'Login falló — la página sigue mostrando el campo de contraseña. Credenciales incorrectas o captcha.'
-      )
+      const visible = await stillOnLogin.isVisible().catch(() => false)
+      if (visible) {
+        await saveScreenshot(page, 'error-still-on-login')
+        throw new Error(
+          'Login falló — la página sigue mostrando el campo de contraseña. Credenciales incorrectas o captcha.'
+        )
+      }
     }
 
     // ===== STEP 2: NAVIGATE TO "NUEVO LINK" =====

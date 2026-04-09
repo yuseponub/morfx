@@ -1,0 +1,16 @@
+{
+  "name": "bold-robot",
+  "version": "1.0.0",
+  "description": "Playwright-based scraper for BOLD panel (panel.bold.co) to generate payment links on demand from morfx",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "1.58.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

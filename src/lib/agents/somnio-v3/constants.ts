@@ -142,6 +142,27 @@ export const PACK_PRICES: Record<string, string> = {
   '3x': '$169,900',
 }
 
+/**
+ * Numeric pack prices (COP). Source of truth for order creation in CRM.
+ * MUST stay in sync with PACK_PRICES (string format for client-facing templates).
+ * When updating prices, edit BOTH constants here — no other file should hardcode these numbers.
+ */
+export const PACK_PRICES_NUMERIC: Record<string, number> = {
+  '1x': 89900,
+  '2x': 129900,
+  '3x': 169900,
+}
+
+/**
+ * Pack product metadata for CRM order creation (productName + quantity).
+ * Single source of truth — order-creator.ts imports from here.
+ */
+export const PACK_PRODUCTS: Record<string, { name: string; quantity: number }> = {
+  '1x': { name: 'Somnio 90 Caps',    quantity: 1 },
+  '2x': { name: 'Somnio 90 Caps x2', quantity: 2 },
+  '3x': { name: 'Somnio 90 Caps x3', quantity: 3 },
+}
+
 // ============================================================================
 // State Metadata Prefix
 // ============================================================================

@@ -9,6 +9,7 @@ import {
   archiveConversation as domainArchiveConversation,
   linkContactToConversation as domainLinkContactToConversation,
 } from '@/lib/domain/conversations'
+import { normalizePhone } from '@/lib/utils/phone'
 import type { DomainContext } from '@/lib/domain/types'
 import type {
   ConversationWithDetails,
@@ -564,33 +565,12 @@ export async function startNewConversation(params: {
     return { error: 'No hay workspace seleccionado' }
   }
 
-  // Normalize phone number to E.164
-  // Remove all non-digit characters except leading +
-  let normalizedPhone = params.phone.trim()
-  const hasPlus = normalizedPhone.startsWith('+')
-  normalizedPhone = normalizedPhone.replace(/[^\d]/g, '') // Keep only digits
-
-  // Handle different input formats for Colombia
-  if (normalizedPhone.length === 10 && normalizedPhone.startsWith('3')) {
-    // Colombian mobile without country code: 3001234567
-    normalizedPhone = '+57' + normalizedPhone
-  } else if (normalizedPhone.length === 12 && normalizedPhone.startsWith('57')) {
-    // Colombian with country code but no +: 573001234567
-    normalizedPhone = '+' + normalizedPhone
-  } else if (normalizedPhone.length === 7 || normalizedPhone.length === 8) {
-    // Colombian landline without country code
-    normalizedPhone = '+57' + normalizedPhone
-  } else if (hasPlus || normalizedPhone.length > 10) {
-    // Already has country code or international number
-    normalizedPhone = '+' + normalizedPhone
-  } else {
-    // Default: assume Colombia
-    normalizedPhone = '+57' + normalizedPhone
-  }
-
-  // Validate phone format (E.164: + followed by 10-15 digits)
-  if (!/^\+\d{10,15}$/.test(normalizedPhone)) {
-    return { error: 'Numero de telefono invalido. Ejemplo: 3001234567 o +573001234567' }
+  // Normalize phone number to E.164 using libphonenumber-js.
+  // Auto-detects country from international prefix (+1 US, +52 MX, etc.),
+  // falls back to Colombia for local numbers without country code.
+  const normalizedPhone = normalizePhone(params.phone)
+  if (!normalizedPhone) {
+    return { error: 'Numero de telefono invalido. Ejemplo: 3001234567, +573001234567, +17144082081' }
   }
 
   // Check if conversation already exists

@@ -133,7 +133,7 @@ export async function parseContactsCsv(
         // Normalize phone
         const normalizedPhone = phone ? normalizePhone(phone) : null
         if (phone && !normalizedPhone) {
-          errors.push('Telefono invalido (debe ser numero colombiano)')
+          errors.push('Telefono invalido (usa formato E.164 con prefijo internacional, ej: +573001234567 o +17144082081)')
         }
 
         // If validation errors, add to invalid list

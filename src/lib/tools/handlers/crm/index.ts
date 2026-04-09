@@ -142,8 +142,8 @@ const contactCreate: ToolHandler = async (
       error: {
         type: 'validation_error',
         code: 'PHONE_INVALID',
-        message: 'Numero de telefono invalido. Debe ser un numero colombiano valido',
-        suggestion: 'Formatos aceptados: 3001234567, +573001234567, 57-300-123-4567',
+        message: 'Numero de telefono invalido',
+        suggestion: 'Formatos aceptados: 3001234567, +573001234567, +17144082081, +525512345678',
         retryable: false,
       },
     }
@@ -258,7 +258,7 @@ const contactUpdate: ToolHandler = async (
         error: {
           type: 'validation_error',
           code: 'PHONE_INVALID',
-          message: 'Numero de telefono invalido. Debe ser un numero colombiano valido',
+          message: 'Numero de telefono invalido',
           retryable: false,
         },
       }

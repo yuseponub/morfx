@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatPhoneDisplay, isValidColombianPhone, normalizePhone } from '@/lib/utils/phone'
+import { formatPhoneDisplay, isValidPhone, normalizePhone } from '@/lib/utils/phone'
 import { CheckIcon, XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +37,7 @@ export function PhoneInput({
     }
 
     const timer = setTimeout(() => {
-      const isValid = isValidColombianPhone(displayValue)
+      const isValid = isValidPhone(displayValue)
       setValidationState(isValid ? 'valid' : 'invalid')
 
       if (isValid) {
@@ -94,7 +94,7 @@ export function PhoneInput({
       )}
       {validationState === 'invalid' && displayValue && (
         <p className="text-sm text-orange-500">
-          Ingresa un numero colombiano valido (ej: 300 123 4567)
+          Ingresa un numero valido (ej: 300 123 4567 o +1 714 408 2081)
         </p>
       )}
       {error && (

@@ -1,31 +1,45 @@
 /**
- * Phone number normalization utilities for Colombian phone numbers
- * Uses libphonenumber-js for parsing and formatting
+ * Phone number normalization utilities.
+ *
+ * INTERNATIONAL BY DEFAULT:
+ * - Auto-detects country from international prefix (e.g., +1 for US, +52 for MX)
+ * - Falls back to Colombia (CO) ONLY for inputs with no country code
+ * - Accepts valid numbers from ANY country, not just Colombia
+ *
+ * Uses libphonenumber-js for parsing and formatting.
  */
 
 import {
   parsePhoneNumber,
+  parsePhoneNumberFromString,
   isValidPhoneNumber,
-  type PhoneNumber,
 } from 'libphonenumber-js'
 
 /**
- * Normalizes a phone number to E.164 format (+573001234567)
- * Handles various input formats:
- * - 3001234567
- * - 300 123 4567
- * - +57 300 123 4567
- * - 57-300-123-4567
+ * Normalizes a phone number to E.164 format.
+ *
+ * Auto-detects country from international prefix when present.
+ * Falls back to Colombia (CO) for local numbers without country code
+ * (backward compatibility with existing CO-only data).
+ *
+ * Examples:
+ * - "+1 714-408-2081"     -> "+17144082081"  (US, from +1)
+ * - "+52 55 1234 5678"    -> "+525512345678" (MX, from +52)
+ * - "+57 300 123 4567"    -> "+573001234567" (CO, from +57)
+ * - "300 123 4567"        -> "+573001234567" (CO fallback)
+ * - "3001234567"          -> "+573001234567" (CO fallback)
+ * - "573001234567"        -> "+573001234567" (CO, detected from 57 prefix)
+ * - "17144082081"         -> "+17144082081"  (US, detected from 1 prefix)
  *
  * @param input - Raw phone number string
- * @returns E.164 formatted phone (+573001234567) or null if invalid
+ * @returns E.164 formatted phone or null if invalid
  */
 export function normalizePhone(input: string): string | null {
   if (!input || typeof input !== 'string') {
     return null
   }
 
-  // Clean the input - remove spaces, dashes, parentheses
+  // Clean the input - remove spaces, dashes, parentheses, dots
   const cleaned = input.trim().replace(/[\s\-\(\)\.]/g, '')
 
   // Empty after cleaning
@@ -34,28 +48,39 @@ export function normalizePhone(input: string): string | null {
   }
 
   try {
-    // Try parsing with CO (Colombia) as default country
-    let phoneNumber: PhoneNumber | undefined
-
-    // If starts with + or country code 57, parse as-is
-    if (cleaned.startsWith('+') || cleaned.startsWith('57')) {
-      phoneNumber = parsePhoneNumber(cleaned, 'CO')
-    } else {
-      // Assume it's a local number without country code
-      phoneNumber = parsePhoneNumber(cleaned, 'CO')
-    }
-
-    if (!phoneNumber || !phoneNumber.isValid()) {
+    // Strategy 1: If input has a + prefix, parse as international (auto-detect country)
+    if (cleaned.startsWith('+')) {
+      const phone = parsePhoneNumberFromString(cleaned)
+      if (phone && phone.isValid()) {
+        return phone.format('E.164')
+      }
       return null
     }
 
-    // Verify it's a Colombian number
-    if (phoneNumber.country !== 'CO') {
+    // Strategy 2: Short local number (<=10 digits) — assume Colombia (backward compat)
+    // This preserves existing behavior for CO numbers typed without country code.
+    if (cleaned.length <= 10) {
+      const coPhone = parsePhoneNumberFromString(cleaned, 'CO')
+      if (coPhone && coPhone.isValid() && coPhone.country === 'CO') {
+        return coPhone.format('E.164')
+      }
       return null
     }
 
-    // Return E.164 format
-    return phoneNumber.format('E.164')
+    // Strategy 3: Longer number (11+ digits) without + — likely includes a country code.
+    // Try auto-detecting by prepending + (handles "17144082081", "573001234567", etc.)
+    const withPlus = parsePhoneNumberFromString('+' + cleaned)
+    if (withPlus && withPlus.isValid()) {
+      return withPlus.format('E.164')
+    }
+
+    // Strategy 4: Last resort — fall back to Colombia default
+    const coPhone = parsePhoneNumberFromString(cleaned, 'CO')
+    if (coPhone && coPhone.isValid() && coPhone.country === 'CO') {
+      return coPhone.format('E.164')
+    }
+
+    return null
   } catch {
     return null
   }
@@ -152,4 +177,19 @@ export function isValidColombianPhone(input: string): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * Validates a phone number from ANY country.
+ * Uses the same logic as normalizePhone — if it can be normalized, it's valid.
+ *
+ * Accepts:
+ * - International numbers with + prefix (auto-detects country)
+ * - Colombian numbers without country code (backward compat fallback)
+ *
+ * @param input - Raw phone number string
+ * @returns true if the phone number is valid for any country
+ */
+export function isValidPhone(input: string): boolean {
+  return normalizePhone(input) !== null
 }

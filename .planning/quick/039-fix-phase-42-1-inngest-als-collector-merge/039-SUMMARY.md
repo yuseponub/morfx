@@ -3,10 +3,33 @@ phase: quick-039
 plan: 039
 type: quick
 completed: 2026-04-09
-status: awaiting-checkpoint
+verified: 2026-04-09
+status: verified-in-production
 commits:
   - e757bb8 # Task 1: mergeFrom + revert probes
   - 7fd031b # Task 2: __obs encoding + outer merge
+  - ace557f # Task 3 (docs): plan + summary + STATE
+verification:
+  deploy_commit: 0fdbfc3 # hotfix paralelo que desbloqueo deploy (exclude apps/)
+  deploy_time_utc: 2026-04-09T20:39:13Z
+  post_fix_samples:
+    - agent_id: godentist
+      queries: 34
+      ai_calls: 1
+      tokens: 5274
+      cost_usd: 0.0071
+    - agent_id: godentist
+      queries: 30
+      ai_calls: 1
+      tokens: 5688
+      cost_usd: 0.0076
+    - agent_id: somnio-v3
+      queries: 20
+      ai_calls: 1
+      tokens: 5498
+      cost_usd: 0.0076
+  anti_recursion_count: 0
+  regression: none
 files_modified:
   - src/lib/observability/collector.ts
   - src/lib/agents/production/webhook-processor.ts

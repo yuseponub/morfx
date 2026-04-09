@@ -291,11 +291,38 @@ export const whatsappAgentProcessor = inngest.createFunction(
       messageType: event.data.messageType ?? 'text',
       transformedText: gateResult.text !== event.data.messageContent,
     })
-    const result = await step.run('process-message', async () => {
+    const stepResult = await step.run('process-message', async () => {
       // Dynamic import to avoid circular dependencies and reduce cold start
       const { processMessageWithAgent } = await import(
         '@/lib/agents/production/webhook-processor'
       )
+
+      // Phase 42.1 fix (quick/039): Inngest replay boundary.
+      //
+      // A step.run callback runs in EXACTLY ONE Vercel lambda. Later
+      // replay iterations (which execute the flush) return the CACHED
+      // step output without re-running the callback, so any in-memory
+      // state mutated inside the callback (e.g. a collector captured via
+      // ALS) is garbage collected when that lambda returns and is never
+      // visible to the flush iteration's collector.
+      //
+      // Fix: create a LOCAL collector scoped to this step, run the
+      // pipeline under it, and return its captured arrays in the step
+      // output so Inngest serializes + caches them. The outer handler
+      // (below, post-step) merges the cached __obs into its own
+      // per-iteration collector via `collector.mergeFrom(...)` before
+      // calling flush. Because the step output is deterministic across
+      // replays, every iteration ends up with identical merged state.
+      const stepCollector = collector
+        ? new ObservabilityCollector({
+            conversationId: collector.conversationId,
+            workspaceId: collector.workspaceId,
+            agentId: collector.agentId,
+            turnStartedAt: collector.turnStartedAt,
+            triggerMessageId: collector.triggerMessageId,
+            triggerKind: collector.triggerKind,
+          })
+        : null
 
       const invokePipeline = () => processMessageWithAgent({
         conversationId,
@@ -306,16 +333,38 @@ export const whatsappAgentProcessor = inngest.createFunction(
         messageTimestamp,  // Phase 31: for pre-send check
       })
 
-      // Phase 42.1 fix: re-wrap with runWithCollector INSIDE step.run.
-      // Inngest's step.run breaks AsyncLocalStorage propagation from the
-      // outer runWithCollector, so getCollector()-based instrumentation
-      // (fetch wrapper, unified-engine, sales-track, interruption-handler,
-      // etc.) was silently returning null and not capturing queries/ai calls.
-      // Re-binding the SAME collector instance inside the step restores ALS.
-      return collector
-        ? runWithCollector(collector, invokePipeline)
-        : invokePipeline()
+      // Wrap with runWithCollector so fetch wrapper + deep pipeline
+      // recordEvent/recordQuery/recordAiCall calls (which resolve their
+      // target via ALS) push into stepCollector. When this lambda ends,
+      // stepCollector is GC'd — but its captured arrays survive via the
+      // __obs field in the step output (serialized by Inngest).
+      const engineResult = stepCollector
+        ? await runWithCollector(stepCollector, invokePipeline)
+        : await invokePipeline()
+
+      return {
+        engineResult,
+        __obs: stepCollector
+          ? {
+              events: stepCollector.events,
+              queries: stepCollector.queries,
+              aiCalls: stepCollector.aiCalls,
+            }
+          : null,
+      }
     })
+
+    const result = stepResult.engineResult
+
+    // Merge the step-captured observability into the outer collector so
+    // it survives to the flush iteration. On every Inngest replay this
+    // runs using the CACHED stepResult (step.run callback does NOT
+    // re-execute), so even though `collector` is a brand-new instance
+    // in each iteration, it always ends up with the same merged data
+    // before flush.
+    if (collector && stepResult.__obs) {
+      collector.mergeFrom(stepResult.__obs)
+    }
 
     // Phase 42.1: snapshot the engine result onto the timeline. The deep
     // pipeline events (classifier text branch, intent detection,

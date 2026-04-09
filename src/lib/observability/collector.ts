@@ -207,14 +207,35 @@ export class ObservabilityCollector {
    * sequence for stable ordering.
    */
   mergeFrom(other: {
-    events: ObservabilityEvent[]
-    queries: ObservabilityQuery[]
-    aiCalls: ObservabilityAiCall[]
+    // Deliberately wide types: after Inngest serializes a step output
+    // through JSON, Date instances become ISO strings. We use `unknown`
+    // in the array element positions so callers passing either a raw
+    // collector snapshot (`{ events: ObservabilityEvent[] }`) or a
+    // JsonifyObject-wrapped payload from step.run return values both
+    // typecheck. The coercion logic below handles both shapes.
+    events: readonly unknown[]
+    queries: readonly unknown[]
+    aiCalls: readonly unknown[]
   }): void {
     try {
-      for (const e of other.events) this.events.push(e)
-      for (const q of other.queries) this.queries.push(q)
-      for (const a of other.aiCalls) this.aiCalls.push(a)
+      // When merging from a step.run output, Inngest has serialized the
+      // payload through JSON, so Date instances were converted to ISO
+      // strings. The flush path later calls `.toISOString()` on these
+      // fields, so coerce back to Date on the way in. Same-process
+      // merges (direct call without Inngest boundary) still work — new
+      // Date(existingDate) is a valid copy.
+      for (const raw of other.events) {
+        const e = raw as ObservabilityEvent
+        this.events.push({ ...e, recordedAt: new Date(e.recordedAt as unknown as string | Date) })
+      }
+      for (const raw of other.queries) {
+        const q = raw as ObservabilityQuery
+        this.queries.push({ ...q, recordedAt: new Date(q.recordedAt as unknown as string | Date) })
+      }
+      for (const raw of other.aiCalls) {
+        const a = raw as ObservabilityAiCall
+        this.aiCalls.push({ ...a, recordedAt: new Date(a.recordedAt as unknown as string | Date) })
+      }
 
       // Re-normalize sequence by recordedAt across all three arrays
       // combined, so the timeline is monotonic. Stable within the same

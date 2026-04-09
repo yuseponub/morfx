@@ -155,6 +155,35 @@ Owner account: @morfxjose
 Project URL:   https://expo.dev/accounts/morfxjose/projects/morfx-mobile
 ```
 
+## Local environment setup
+
+This app reads Supabase credentials from `apps/mobile/.env.local` (gitignored).
+Copy the template and fill in the values:
+
+```bash
+cd apps/mobile
+cp .env.example .env.local
+```
+
+Then edit `.env.local` with the same Supabase project the web app uses. The
+values are:
+
+- `EXPO_PUBLIC_SUPABASE_URL` — same as web's `NEXT_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` — same as web's `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_API_BASE_URL` — `https://morfx.app` in production
+
+To look up the web values, check Vercel dashboard → morfx project → Settings
+→ Environment Variables, or the root `.env` of the monorepo if present. The
+env var names in the mobile app are prefixed `EXPO_PUBLIC_` (NOT
+`NEXT_PUBLIC_`) — both point to the same Supabase project.
+
+After editing `.env.local`, restart Expo with `--clear` so Metro picks up
+the new values:
+
+```bash
+npx expo start --tunnel --clear
+```
+
 ## Troubleshooting
 
 - **`Cannot find module @/hooks/use-color-scheme`:** the default template's

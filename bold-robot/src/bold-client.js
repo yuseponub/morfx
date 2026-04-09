@@ -1,9 +1,15 @@
 const { chromium } = require('playwright')
+const fs = require('fs')
+const path = require('path')
 const { saveScreenshot } = require('./screenshots')
+const codeWaiter = require('./code-waiter')
 
 const BOLD_LOGIN_URL = 'https://panel.bold.co'
 const BOLD_NUEVO_LINK_URL =
   'https://panel.bold.co/misventas/pagos-en-linea/link-de-pago/nuevo/agregar-monto'
+
+const STATE_DIR = process.env.STATE_DIR || '/app/state'
+const STATE_FILE = path.join(STATE_DIR, 'bold-session.json')
 
 const DEFAULT_TIMEOUT = 60_000
 const LOGIN_FIELD_TIMEOUT = 20_000
@@ -35,13 +41,25 @@ async function createPaymentLink({ username, password, amount, description }) {
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   })
 
-  const context = await browser.newContext({
+  const contextOptions = {
     permissions: ['clipboard-read', 'clipboard-write'],
     viewport: { width: 1366, height: 900 },
     locale: 'es-CO',
     userAgent:
       'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  })
+  }
+
+  // If we have a saved session from a prior login, reuse it to skip login entirely
+  // (and avoid triggering the verification code challenge every time)
+  const hasSavedState = fs.existsSync(STATE_FILE)
+  if (hasSavedState) {
+    contextOptions.storageState = STATE_FILE
+    console.log('[bold] using saved session state from prior login')
+  } else {
+    console.log('[bold] no saved state — will perform full login')
+  }
+
+  const context = await browser.newContext(contextOptions)
 
   // Inject clipboard interceptor BEFORE any page navigates,
   // so we can capture what gets copied when the user-facing "Copiar link" button is clicked.
@@ -75,69 +93,126 @@ async function createPaymentLink({ username, password, amount, description }) {
   page.setDefaultTimeout(DEFAULT_TIMEOUT)
 
   try {
-    // ===== STEP 1: LOGIN =====
-    console.log('[bold] navigating to landing...')
-    await page.goto(BOLD_LOGIN_URL, { waitUntil: 'networkidle' })
-    await saveScreenshot(page, '01-landing-page')
-
-    // panel.bold.co is a LANDING page with "Registrarme" + "Iniciar sesión" buttons,
-    // not the login form directly. Click "Iniciar sesión" first.
-    const iniciarSesionSelector =
-      'a:has-text("Iniciar sesión"), button:has-text("Iniciar sesión"), a:has-text("Iniciar"), button:has-text("Iniciar")'
-    await page.waitForSelector(iniciarSesionSelector, { timeout: LOGIN_FIELD_TIMEOUT })
-    await Promise.all([
-      page.waitForLoadState('networkidle').catch(() => {}),
-      page.click(iniciarSesionSelector),
-    ])
-    await page.waitForTimeout(1500)
-    await saveScreenshot(page, '01b-login-form')
-
-    // Bold uses a 2-step login: first email + "Ingresar", then password + "Ingresar"
-    const emailSelector =
-      'input[type="email"], input[name="email"], input[name="username"], input[id*="email" i], input[placeholder*="correo" i], input[placeholder*="email" i]'
-    const passwordSelector = 'input[type="password"], input[name="password"], input[id*="password" i]'
-    const ingresarSelector =
-      'button[type="submit"], button:has-text("Ingresar"), button:has-text("Continuar"), button:has-text("Siguiente")'
-
-    // Step 1a: fill email
-    await page.waitForSelector(emailSelector, { timeout: LOGIN_FIELD_TIMEOUT })
-    await page.fill(emailSelector, username)
-    await saveScreenshot(page, '02a-email-filled')
-
-    // Step 1b: click Ingresar to advance to password page
-    await Promise.all([
-      page.waitForLoadState('networkidle').catch(() => {}),
-      page.click(ingresarSelector),
-    ])
-    await page.waitForTimeout(1500)
-    await saveScreenshot(page, '02b-password-page')
-
-    // Step 2a: fill password
-    await page.waitForSelector(passwordSelector, { timeout: LOGIN_FIELD_TIMEOUT })
-    await page.fill(passwordSelector, password)
-    await saveScreenshot(page, '02c-password-filled')
-
-    // Step 2b: click Ingresar to actually log in
-    await Promise.all([
-      page.waitForLoadState('networkidle').catch(() => {}),
-      page.click(ingresarSelector),
-    ])
-    await page.waitForTimeout(2000) // extra time for post-login redirect
-    await saveScreenshot(page, '03-post-login')
-
-    await dismissNpsPopup(page)
-
-    // Sanity check: the password field should NOT still be visible
-    const stillOnLogin = await page.$(passwordSelector)
-    if (stillOnLogin) {
-      const visible = await stillOnLogin.isVisible().catch(() => false)
-      if (visible) {
-        await saveScreenshot(page, 'error-still-on-login')
-        throw new Error(
-          'Login falló — la página sigue mostrando el campo de contraseña. Credenciales incorrectas o captcha.'
-        )
+    // ===== STEP 0: TRY SAVED SESSION FIRST =====
+    // If we have a saved storage state, try to navigate directly to the new link URL.
+    // If the session is still valid, we skip the whole login flow.
+    let isLoggedIn = false
+    if (hasSavedState) {
+      console.log('[bold] attempting to use saved session — navigating to new link URL...')
+      await page.goto(BOLD_NUEVO_LINK_URL, { waitUntil: 'networkidle' }).catch(() => {})
+      await page.waitForTimeout(1500)
+      await saveScreenshot(page, '00-session-probe')
+      const currentUrl = page.url()
+      // If we're on the agregar-monto URL, session is valid
+      if (currentUrl.includes('/link-de-pago/nuevo/agregar-monto')) {
+        console.log('[bold] saved session is valid, skipping login')
+        isLoggedIn = true
+      } else {
+        console.log(`[bold] saved session expired (landed on ${currentUrl}), falling back to full login`)
       }
     }
+
+    if (!isLoggedIn) {
+      // ===== STEP 1: LOGIN =====
+      console.log('[bold] navigating to landing...')
+      await page.goto(BOLD_LOGIN_URL, { waitUntil: 'networkidle' })
+      await saveScreenshot(page, '01-landing-page')
+
+      // panel.bold.co is a LANDING page with "Registrarme" + "Iniciar sesión" buttons,
+      // not the login form directly. Click "Iniciar sesión" first.
+      const iniciarSesionSelector =
+        'a:has-text("Iniciar sesión"), button:has-text("Iniciar sesión"), a:has-text("Iniciar"), button:has-text("Iniciar")'
+      await page.waitForSelector(iniciarSesionSelector, { timeout: LOGIN_FIELD_TIMEOUT })
+      await Promise.all([
+        page.waitForLoadState('networkidle').catch(() => {}),
+        page.click(iniciarSesionSelector),
+      ])
+      await page.waitForTimeout(1500)
+      await saveScreenshot(page, '01b-login-form')
+
+      // Bold uses a 2-step login: first email + "Ingresar", then password + "Ingresar"
+      const emailSelector =
+        'input[type="email"], input[name="email"], input[name="username"], input[id*="email" i], input[placeholder*="correo" i], input[placeholder*="email" i]'
+      const passwordSelector = 'input[type="password"], input[name="password"], input[id*="password" i]'
+      const ingresarSelector =
+        'button[type="submit"], button:has-text("Ingresar"), button:has-text("Continuar"), button:has-text("Siguiente")'
+
+      // Step 1a: fill email
+      await page.waitForSelector(emailSelector, { timeout: LOGIN_FIELD_TIMEOUT })
+      await page.fill(emailSelector, username)
+      await saveScreenshot(page, '02a-email-filled')
+
+      // Step 1b: click Ingresar to advance to password page
+      await Promise.all([
+        page.waitForLoadState('networkidle').catch(() => {}),
+        page.click(ingresarSelector),
+      ])
+      await page.waitForTimeout(1500)
+      await saveScreenshot(page, '02b-password-page')
+
+      // Step 2a: fill password
+      await page.waitForSelector(passwordSelector, { timeout: LOGIN_FIELD_TIMEOUT })
+      await page.fill(passwordSelector, password)
+      await saveScreenshot(page, '02c-password-filled')
+
+      // Step 2b: click Ingresar to actually log in
+      await Promise.all([
+        page.waitForLoadState('networkidle').catch(() => {}),
+        page.click(ingresarSelector),
+      ])
+      await page.waitForTimeout(2500) // extra time for post-login redirect
+      await saveScreenshot(page, '03-post-login')
+
+      // ===== STEP 1.5: HANDLE VERIFICATION CODE CHALLENGE =====
+      // Bold sends a 6-digit code to SMS/email when logging in from a new IP.
+      // Detect the challenge screen and wait for the user to submit the code via /api/submit-code.
+      const codeInputSelector =
+        'input[maxlength="6"], input[placeholder*="6 dígitos" i], input[placeholder*="código" i], input[placeholder*="codigo" i], input[name*="code" i], input[name*="codigo" i], input[aria-label*="código" i], input[aria-label*="codigo" i]'
+      const codeInput = await page.$(codeInputSelector)
+      if (codeInput && (await codeInput.isVisible().catch(() => false))) {
+        console.log('[bold] verification code screen detected — waiting for /api/submit-code...')
+        await saveScreenshot(page, '02d-code-screen')
+
+        const code = await codeWaiter.startWaiting(10 * 60 * 1000)
+        console.log(`[bold] code received (${code.length} digits), submitting...`)
+
+        await page.fill(codeInputSelector, code)
+        await saveScreenshot(page, '02e-code-filled')
+
+        // Click "Continuar" on the code screen
+        await Promise.all([
+          page.waitForLoadState('networkidle').catch(() => {}),
+          page.click('button:has-text("Continuar"), button[type="submit"], button:has-text("Ingresar")'),
+        ])
+        await page.waitForTimeout(2500)
+        await saveScreenshot(page, '02f-post-code')
+      }
+
+      await dismissNpsPopup(page)
+
+      // Sanity check: the password field should NOT still be visible
+      const stillOnLogin = await page.$(passwordSelector)
+      if (stillOnLogin) {
+        const visible = await stillOnLogin.isVisible().catch(() => false)
+        if (visible) {
+          await saveScreenshot(page, 'error-still-on-login')
+          throw new Error(
+            'Login falló — la página sigue mostrando el campo de contraseña. Credenciales incorrectas o captcha.'
+          )
+        }
+      }
+
+      // Persist the session state so future requests skip login entirely
+      try {
+        if (!fs.existsSync(STATE_DIR)) {
+          fs.mkdirSync(STATE_DIR, { recursive: true })
+        }
+        await context.storageState({ path: STATE_FILE })
+        console.log(`[bold] session state saved to ${STATE_FILE}`)
+      } catch (err) {
+        console.warn(`[bold] could not save session state: ${err.message}`)
+      }
+    } // end if (!isLoggedIn)
 
     // ===== STEP 2: NAVIGATE TO "NUEVO LINK" =====
     console.log('[bold] navigating to new link form...')

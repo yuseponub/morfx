@@ -2,6 +2,7 @@ const express = require('express')
 const fs = require('fs')
 const { createPaymentLink } = require('./src/bold-client')
 const { listScreenshots, getScreenshotPath } = require('./src/screenshots')
+const codeWaiter = require('./src/code-waiter')
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -61,6 +62,51 @@ app.post('/api/create-link', async (req, res) => {
       hint: 'Revisa /api/screenshots para ver el punto de falla',
       elapsed_ms: ms,
     })
+  }
+})
+
+// ============================================================================
+// Verification code submission (BOLD 2FA)
+// ============================================================================
+// When Bold challenges a login from a new IP with a 6-digit code, the
+// create-link flow blocks. The user reads the code from SMS/email and
+// submits it here; the pending flow picks it up and continues.
+
+app.post('/api/submit-code', (req, res) => {
+  const { code } = req.body || {}
+  if (!code) {
+    return res.status(400).json({ error: 'code requerido' })
+  }
+  if (!/^\d{4,8}$/.test(String(code).trim())) {
+    return res.status(400).json({ error: 'code debe tener 4-8 dígitos' })
+  }
+  if (!codeWaiter.status().pending) {
+    return res.status(404).json({ error: 'No hay login pendiente esperando código' })
+  }
+  try {
+    codeWaiter.submitCode(code)
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.get('/api/login-status', (req, res) => {
+  res.json(codeWaiter.status())
+})
+
+// Delete saved session state (forces next request to do a full login)
+app.post('/api/clear-session', (req, res) => {
+  const statePath = '/app/state/bold-session.json'
+  try {
+    if (fs.existsSync(statePath)) {
+      fs.unlinkSync(statePath)
+      res.json({ success: true, cleared: true })
+    } else {
+      res.json({ success: true, cleared: false })
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 

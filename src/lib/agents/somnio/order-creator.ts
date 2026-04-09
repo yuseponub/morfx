@@ -17,6 +17,7 @@ import { initializeTools } from '@/lib/tools/init'
 import type { PackSelection } from '../types'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { SOMNIO_PRICES } from './variable-substitutor'
+import { PACK_PRICES_NUMERIC, PACK_PRODUCTS } from '../somnio-v3/constants'
 
 const logger = createModuleLogger('order-creator')
 
@@ -74,20 +75,6 @@ interface ProductMapping {
 }
 
 // ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Numeric prices for Somnio products (pesos colombianos).
- * Matches SOMNIO_PRICES but as numbers for order creation.
- */
-const SOMNIO_PRICES_NUMERIC: Record<PackSelection, number> = {
-  '1x': 89900,
-  '2x': 129900,
-  '3x': 169900,
-}
-
-// ============================================================================
 // Order Creator Class
 // ============================================================================
 
@@ -122,7 +109,7 @@ export class OrderCreator {
     // Ensure tool registry is initialized (may not be in Inngest/serverless context)
     initializeTools()
 
-    const effectivePrice = priceOverride !== undefined ? priceOverride : SOMNIO_PRICES_NUMERIC[pack]
+    const effectivePrice = priceOverride !== undefined ? priceOverride : PACK_PRICES_NUMERIC[pack]
 
     logger.info(
       {
@@ -421,38 +408,29 @@ export class OrderCreator {
 
   /**
    * Map pack selection to product details.
+   * Reads from single source of truth in somnio-v3/constants.ts.
    *
    * @param pack - Pack selection (1x, 2x, 3x)
    * @returns Product mapping with name, quantity, and price
    */
   mapPackToProduct(pack: PackSelection): ProductMapping {
-    switch (pack) {
-      case '1x':
-        return {
-          productName: 'Somnio 90 Caps',
-          quantity: 1,
-          price: 89900,
-        }
-      case '2x':
-        return {
-          productName: 'Somnio 90 Caps x2',
-          quantity: 2,
-          price: 129900,
-        }
-      case '3x':
-        return {
-          productName: 'Somnio 90 Caps x3',
-          quantity: 3,
-          price: 169900,
-        }
-      default:
-        // Default to 1x if unknown pack
-        logger.warn({ pack }, 'Unknown pack, defaulting to 1x')
-        return {
-          productName: 'Somnio 90 Caps',
-          quantity: 1,
-          price: 89900,
-        }
+    const product = PACK_PRODUCTS[pack]
+    const price = PACK_PRICES_NUMERIC[pack]
+
+    if (!product || price === undefined) {
+      logger.warn({ pack }, 'Unknown pack, defaulting to 1x')
+      const fallback = PACK_PRODUCTS['1x']
+      return {
+        productName: fallback.name,
+        quantity: fallback.quantity,
+        price: PACK_PRICES_NUMERIC['1x'],
+      }
+    }
+
+    return {
+      productName: product.name,
+      quantity: product.quantity,
+      price,
     }
   }
 

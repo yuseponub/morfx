@@ -20,6 +20,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { getCollector } from '@/lib/observability'
 import { isAgentEnabledForConversation, getWorkspaceAgentConfig } from './agent-config'
 import type { SomnioEngineResult } from '../somnio/somnio-engine'
 import type { EngineOutput } from '../engine/types'
@@ -70,6 +71,15 @@ export async function processMessageWithAgent(
     { conversationId, phone, workspaceId, hasContact: !!contactId },
     'Starting agent processing for WhatsApp message'
   )
+
+  // Phase 42.1 diagnostic probe: verify ALS propagation from agent-production
+  // step.run boundary into this function. If getCollector() returns non-null,
+  // ALS propagation works and the runWithCollector re-wrap is effective.
+  const probeCollector = getCollector()
+  probeCollector?.recordEvent('tool_call', 'webhook_processor_entry', {
+    hasCollectorInAls: true,
+    conversationId,
+  })
 
   // 1. Check if agent is enabled for this conversation
   const agentEnabled = await isAgentEnabledForConversation(

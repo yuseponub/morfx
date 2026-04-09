@@ -297,7 +297,7 @@ export const whatsappAgentProcessor = inngest.createFunction(
         '@/lib/agents/production/webhook-processor'
       )
 
-      return processMessageWithAgent({
+      const invokePipeline = () => processMessageWithAgent({
         conversationId,
         contactId,
         messageContent: gateResult.text,  // May be original text or transcribed audio
@@ -305,6 +305,16 @@ export const whatsappAgentProcessor = inngest.createFunction(
         phone,
         messageTimestamp,  // Phase 31: for pre-send check
       })
+
+      // Phase 42.1 fix: re-wrap with runWithCollector INSIDE step.run.
+      // Inngest's step.run breaks AsyncLocalStorage propagation from the
+      // outer runWithCollector, so getCollector()-based instrumentation
+      // (fetch wrapper, unified-engine, sales-track, interruption-handler,
+      // etc.) was silently returning null and not capturing queries/ai calls.
+      // Re-binding the SAME collector instance inside the step restores ALS.
+      return collector
+        ? runWithCollector(collector, invokePipeline)
+        : invokePipeline()
     })
 
     // Phase 42.1: snapshot the engine result onto the timeline. The deep

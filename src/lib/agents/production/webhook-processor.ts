@@ -73,9 +73,19 @@ export async function processMessageWithAgent(
   )
 
   // Phase 42.1 diagnostic probe: verify ALS propagation from agent-production
-  // step.run boundary into this function. If getCollector() returns non-null,
-  // ALS propagation works and the runWithCollector re-wrap is effective.
+  // step.run boundary into this function. Logs to Vercel runtime regardless
+  // of collector state so we can distinguish "probe not deployed" from
+  // "ALS broken".
   const probeCollector = getCollector()
+  logger.info(
+    {
+      conversationId,
+      probe: 'webhook_processor_entry',
+      hasCollectorInAls: probeCollector !== null,
+      collectorEventCount: probeCollector?.events.length ?? -1,
+    },
+    '[42.1 PROBE] processMessageWithAgent entry'
+  )
   probeCollector?.recordEvent('tool_call', 'webhook_processor_entry', {
     hasCollectorInAls: true,
     conversationId,

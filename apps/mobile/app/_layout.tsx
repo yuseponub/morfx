@@ -24,6 +24,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { I18nextProvider } from 'react-i18next';
 import { i18n } from '@/lib/i18n';
 import { getCurrentSession, onAuthStateChange } from '@/lib/session';
@@ -98,14 +99,16 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <I18nextProvider i18n={i18n}>
-          {isAuthed ? (
-            <WorkspaceProvider onWorkspaceChange={handleWorkspaceChange}>
-              {navigationContent}
-            </WorkspaceProvider>
-          ) : (
-            navigationContent
-          )}
-          <StatusBar style="auto" />
+          <BottomSheetModalProvider>
+            {isAuthed ? (
+              <WorkspaceProvider onWorkspaceChange={handleWorkspaceChange}>
+                {navigationContent}
+              </WorkspaceProvider>
+            ) : (
+              navigationContent
+            )}
+            <StatusBar style="auto" />
+          </BottomSheetModalProvider>
         </I18nextProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

@@ -15,5 +15,11 @@
   "common": {
     "logout": "Cerrar sesión",
     "loading": "Cargando..."
+  },
+  "workspace": {
+    "switcher": {
+      "title": "Espacios de trabajo",
+      "current": "Espacio actual"
+    }
   }
 }

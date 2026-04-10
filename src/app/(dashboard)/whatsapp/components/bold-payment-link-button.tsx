@@ -32,6 +32,7 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const [linkState, setLinkState] = useState<BoldLinkState | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +87,7 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
     // Fresh form
     setAmount('')
     setDescription('')
+    setImageUrl('')
     setError(null)
     setCopied(false)
     setIsOpen(true)
@@ -104,7 +106,7 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
     setError(null)
 
     // Fire and forget — the store handles the request lifecycle
-    boldLinkStore.generate(conversationId, numAmount, description.trim())
+    boldLinkStore.generate(conversationId, numAmount, description.trim(), imageUrl.trim() || undefined)
     syncState()
   }
 
@@ -113,6 +115,7 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
     setLinkState(null)
     setAmount('')
     setDescription('')
+    setImageUrl('')
     setError(null)
     setCopied(false)
   }
@@ -259,6 +262,16 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleGenerate()
                   }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bold-image">Imagen del producto (opcional)</Label>
+                <Input
+                  id="bold-image"
+                  type="url"
+                  placeholder="https://cdn.shopify.com/..."
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
                 />
               </div>
               {error && (

@@ -131,6 +131,7 @@ export async function getBoldIntegration(): Promise<{
 export async function createPaymentLinkAction(input: {
   amount: number
   description: string
+  imageUrl?: string
 }): Promise<{ success: boolean; url?: string; error?: string }> {
   const ctx = await getIntegrationAuthContext()
   if (!ctx) {
@@ -174,6 +175,7 @@ export async function createPaymentLinkAction(input: {
       password: config.password,
       amount: input.amount,
       description: input.description.trim(),
+      ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
     })
 
     return { success: true, url: result.url }

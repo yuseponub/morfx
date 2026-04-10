@@ -15,6 +15,7 @@ export interface CreatePaymentLinkInput {
   password: string
   amount: number
   description: string
+  imageUrl?: string
 }
 
 /** Successful response from the robot */

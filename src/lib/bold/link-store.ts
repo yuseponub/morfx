@@ -19,9 +19,9 @@ import { createPaymentLinkAction } from '@/app/actions/bold'
 // ============================================================================
 
 export type BoldLinkState =
-  | { status: 'pending'; amount: number; description: string; startedAt: number }
-  | { status: 'completed'; amount: number; description: string; url: string }
-  | { status: 'error'; amount: number; description: string; error: string }
+  | { status: 'pending'; amount: number; description: string; imageUrl?: string; startedAt: number }
+  | { status: 'completed'; amount: number; description: string; imageUrl?: string; url: string }
+  | { status: 'error'; amount: number; description: string; imageUrl?: string; error: string }
 
 // ============================================================================
 // Storage helpers
@@ -86,7 +86,7 @@ export const boldLinkStore = {
    * Start generating a payment link. The request runs in a detached promise
    * that survives component unmounts. Results are written to localStorage.
    */
-  generate(conversationId: string, amount: number, description: string): void {
+  generate(conversationId: string, amount: number, description: string, imageUrl?: string): void {
     // Don't start duplicate requests
     if (pendingRequests.has(conversationId)) return
 
@@ -94,19 +94,21 @@ export const boldLinkStore = {
       status: 'pending',
       amount,
       description,
+      imageUrl,
       startedAt: Date.now(),
     }
     saveToStorage(conversationId, state)
     notify(conversationId)
 
     // Fire the request — this promise is NOT tied to any component lifecycle
-    const promise = createPaymentLinkAction({ amount, description })
+    const promise = createPaymentLinkAction({ amount, description, imageUrl })
       .then((result) => {
         if (result.success && result.url) {
           saveToStorage(conversationId, {
             status: 'completed',
             amount,
             description,
+            imageUrl,
             url: result.url,
           })
         } else {
@@ -114,6 +116,7 @@ export const boldLinkStore = {
             status: 'error',
             amount,
             description,
+            imageUrl,
             error: result.error || 'Error desconocido',
           })
         }
@@ -123,6 +126,7 @@ export const boldLinkStore = {
           status: 'error',
           amount,
           description,
+          imageUrl,
           error: err instanceof Error ? err.message : 'Error de red',
         })
       })

@@ -23,9 +23,10 @@ const STEP_TIMEOUT = 30_000
  * @param {string} input.password  - BOLD panel password
  * @param {number} input.amount    - Amount in COP (integer)
  * @param {string} input.description - Link description (e.g. "1x ELIXIR DEL SUEÑO")
+ * @param {string} [input.imageUrl] - Optional product image URL to upload
  * @returns {Promise<{url: string}>}
  */
-async function createPaymentLink({ username, password, amount, description }) {
+async function createPaymentLink({ username, password, amount, description, imageUrl }) {
   // === Input validation ===
   if (!username || typeof username !== 'string') throw new Error('username requerido')
   if (!password || typeof password !== 'string') throw new Error('password requerido')
@@ -341,6 +342,71 @@ async function createPaymentLink({ username, password, amount, description }) {
     await page.waitForSelector(descriptionSelector, { timeout: STEP_TIMEOUT })
     await page.fill(descriptionSelector, description.trim())
     await saveScreenshot(page, '07-description-filled')
+
+    // ===== STEP 4.5: UPLOAD IMAGE (optional) =====
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
+      console.log(`[bold] downloading image from ${imageUrl.slice(0, 80)}...`)
+      try {
+        const https = require('https')
+        const http = require('http')
+        const tmpPath = '/tmp/bold-product-image.jpg'
+
+        // Download image to temp file
+        await new Promise((resolve, reject) => {
+          const client = imageUrl.startsWith('https') ? https : http
+          client.get(imageUrl, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              // Follow redirect
+              client.get(res.headers.location, (res2) => {
+                const stream = fs.createWriteStream(tmpPath)
+                res2.pipe(stream)
+                stream.on('finish', () => { stream.close(); resolve() })
+                stream.on('error', reject)
+              }).on('error', reject)
+            } else if (res.statusCode === 200) {
+              const stream = fs.createWriteStream(tmpPath)
+              res.pipe(stream)
+              stream.on('finish', () => { stream.close(); resolve() })
+              stream.on('error', reject)
+            } else {
+              reject(new Error(`Image download failed: HTTP ${res.statusCode}`))
+            }
+          }).on('error', reject)
+        })
+
+        console.log(`[bold] image downloaded to ${tmpPath}`)
+
+        // Find the file input and upload
+        // BOLD uses a hidden <input type="file"> behind the "Subir imagen" button
+        const fileInput = await page.$('input[type="file"]')
+        if (fileInput) {
+          await fileInput.setInputFiles(tmpPath)
+          await page.waitForTimeout(2000) // wait for upload to process
+          console.log('[bold] image uploaded via file input')
+        } else {
+          // Try clicking "Subir imagen" to trigger a file chooser
+          const [fileChooser] = await Promise.all([
+            page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null),
+            page.getByText('Subir imagen', { exact: false }).first().click({ force: true, timeout: 5000 }).catch(() => {}),
+          ])
+          if (fileChooser) {
+            await fileChooser.setFiles(tmpPath)
+            await page.waitForTimeout(2000)
+            console.log('[bold] image uploaded via file chooser')
+          } else {
+            console.warn('[bold] could not find file upload mechanism — skipping image')
+          }
+        }
+
+        await saveScreenshot(page, '07b-image-uploaded')
+
+        // Cleanup temp file
+        fs.unlinkSync(tmpPath)
+      } catch (imgErr) {
+        console.warn(`[bold] image upload failed (non-blocking): ${imgErr.message}`)
+        // Continue without image — it's optional
+      }
+    }
 
     // ===== STEP 5: CREATE LINK =====
     // Use getByText (same approach that worked for Continuar — Boost widget interferes with CSS selectors)

@@ -38,6 +38,7 @@ export async function callBoldRobot(
         password: input.password,
         amount: input.amount,
         description: input.description,
+        ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
       }),
       signal: controller.signal,
     })

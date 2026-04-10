@@ -22,7 +22,7 @@ app.get('/api/health', (req, res) => {
 // Create payment link
 // ============================================================================
 app.post('/api/create-link', async (req, res) => {
-  const { username, password, amount, description } = req.body || {}
+  const { username, password, amount, description, imageUrl } = req.body || {}
 
   // Validation
   const missing = []
@@ -50,6 +50,7 @@ app.post('/api/create-link', async (req, res) => {
       password,
       amount: amountNum,
       description: String(description),
+      imageUrl: imageUrl || undefined,
     })
     const ms = Date.now() - startedAt
     console.log(`[${new Date().toISOString()}] SUCCESS in ${ms}ms: ${result.url}`)

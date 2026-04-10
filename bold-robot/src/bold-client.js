@@ -267,43 +267,35 @@ async function createPaymentLink({ username, password, amount, description }) {
     await page.fill(amountSelector, String(Math.floor(amount)))
     await saveScreenshot(page, '05-monto-filled')
 
-    // Click "Continuar" via DOM evaluate — Playwright's locator API and CSS
-    // selectors both fail because the Boost chat widget interferes.
-    // We find the visible button by scanning all elements with "Continuar" text.
-    const clicked = await page.evaluate(() => {
-      // Try buttons first
+    // Find the "Continuar" button via DOM (bypasses Playwright locator timeout)
+    // then click it via Playwright's click (proper React/Vue event dispatch).
+    // Native DOM .click() doesn't trigger framework event handlers properly.
+    const btnHandle = await page.evaluateHandle(() => {
       const buttons = document.querySelectorAll('button')
       for (const btn of buttons) {
-        const text = btn.textContent || ''
-        if (text.trim() === 'Continuar' && btn.offsetHeight > 0 && btn.offsetWidth > 0) {
-          btn.click()
-          return 'button: ' + text.trim()
+        const text = (btn.textContent || '').trim()
+        if (text === 'Continuar' && btn.offsetHeight > 20 && btn.offsetWidth > 20) {
+          return btn
         }
       }
-      // Try any clickable element (a, div, span) with Continuar text
-      const allEls = document.querySelectorAll('a, div, span, button')
-      for (const el of allEls) {
-        const text = el.textContent || ''
-        if (text.trim() === 'Continuar' && el.offsetHeight > 20 && el.offsetWidth > 20) {
-          el.click()
-          return 'other: ' + el.tagName + ' ' + text.trim()
-        }
-      }
-      // Last resort: find by innerText match
-      const all = document.querySelectorAll('*')
-      for (const el of all) {
-        if (el.children.length === 0 && el.innerText && el.innerText.trim() === 'Continuar') {
-          const parent = el.closest('button, a, [role="button"]') || el.parentElement
-          if (parent) { parent.click(); return 'parent-of-text: ' + parent.tagName }
+      // Also check anchors styled as buttons
+      const anchors = document.querySelectorAll('a')
+      for (const a of anchors) {
+        const text = (a.textContent || '').trim()
+        if (text === 'Continuar' && a.offsetHeight > 20 && a.offsetWidth > 20) {
+          return a
         }
       }
       return null
     })
-    console.log(`[bold] continuar click result: ${clicked}`)
-    if (!clicked) {
+    const btnElement = btnHandle.asElement()
+    if (!btnElement) {
       await saveScreenshot(page, 'error-continuar-not-found')
       throw new Error('No se encontró el botón Continuar en el DOM')
     }
+    console.log('[bold] found Continuar button via DOM, clicking with Playwright...')
+    await btnElement.click({ force: true })
+    console.log('[bold] Continuar clicked')
     await page.waitForLoadState('networkidle').catch(() => {})
     await page.waitForTimeout(1000)
     await dismissNpsPopup(page)

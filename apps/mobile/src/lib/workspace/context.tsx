@@ -95,7 +95,7 @@ export function WorkspaceProvider({
       const res = await mobileApi.get<WorkspacesApiResponse>(
         '/api/mobile/workspaces'
       );
-      const list = res.workspaces;
+      const list = res.workspaces ?? [];
       setMemberships(list);
 
       // Restore persisted workspace or fall back to first membership.

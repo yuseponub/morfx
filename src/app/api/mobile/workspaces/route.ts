@@ -12,7 +12,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 import { WorkspacesResponseSchema } from '../../../../../shared/mobile-api/schemas'
 
-import { requireMobileAuth } from '../_lib/auth'
+import { MobileAuthError } from '../_lib/errors'
 import { toMobileErrorResponse } from '../_lib/errors'
 
 export const dynamic = 'force-dynamic'
@@ -25,11 +25,26 @@ interface RawWorkspaceRow {
   } | null
 }
 
+/**
+ * GET /api/mobile/workspaces
+ *
+ * This endpoint does NOT require x-workspace-id because it is the bootstrap
+ * endpoint the mobile app calls to discover which workspaces the user belongs
+ * to BEFORE a workspace has been selected. It only requires a valid JWT.
+ */
 export async function GET(req: Request): Promise<NextResponse> {
   try {
-    const { user } = await requireMobileAuth(req)
+    // Authenticate via JWT only — no workspace required for this endpoint.
+    const header = req.headers.get('authorization') ?? req.headers.get('Authorization')
+    if (!header) throw new MobileAuthError('unauthorized', 'Missing Authorization header')
+    const match = /^Bearer\s+(.+)$/i.exec(header.trim())
+    if (!match?.[1]) throw new MobileAuthError('unauthorized', 'Malformed Authorization header')
 
     const admin = createAdminClient()
+    const { data: userData, error: userError } = await admin.auth.getUser(match[1].trim())
+    if (userError || !userData?.user) throw new MobileAuthError('unauthorized', 'Invalid JWT')
+
+    const user = userData.user
 
     const { data, error } = await admin
       .from('workspace_members')

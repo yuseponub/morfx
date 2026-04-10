@@ -215,10 +215,46 @@ async function createPaymentLink({ username, password, amount, description }) {
     } // end if (!isLoggedIn)
 
     // ===== STEP 2: NAVIGATE TO "NUEVO LINK" =====
+    // BOLD's SPA redirects deep links to the dashboard, so we navigate via menu clicks.
+    // First try the direct URL — if we actually land on agregar-monto, great.
+    // Otherwise, fall back to sidebar navigation.
     console.log('[bold] navigating to new link form...')
     await page.goto(BOLD_NUEVO_LINK_URL, { waitUntil: 'networkidle' })
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(1500)
     await dismissNpsPopup(page)
+
+    // Check if we're on the right page by looking for the amount field
+    const quickAmountCheck = await page.$('input[type="number"], input[inputmode="numeric"], input[placeholder*="$" i]')
+    if (!quickAmountCheck) {
+      console.log('[bold] deep link redirected to dashboard — navigating via sidebar...')
+      await saveScreenshot(page, '04a-dashboard-redirect')
+
+      // Click "Pagos en línea" in the sidebar
+      const pagosEnLineaSelector = 'a:has-text("Pagos en línea"), a:has-text("Pagos en linea"), nav a:has-text("Links de pago")'
+      await page.click(pagosEnLineaSelector).catch(async () => {
+        // Try alternative: look for any sidebar item pointing to pagos
+        console.log('[bold] primary sidebar click failed, trying alternatives...')
+        await page.click('text=Pagos en línea').catch(() => {})
+        await page.click('text=Links de pago').catch(() => {})
+      })
+      await page.waitForLoadState('networkidle').catch(() => {})
+      await page.waitForTimeout(1500)
+      await dismissNpsPopup(page)
+      await saveScreenshot(page, '04b-pagos-en-linea')
+
+      // Click "Links de pago" if we're on the pagos-en-linea page
+      await page.click('a:has-text("Links de pago"), button:has-text("Links de pago"), a:has-text("Link de pago")').catch(() => {})
+      await page.waitForLoadState('networkidle').catch(() => {})
+      await page.waitForTimeout(1000)
+      await dismissNpsPopup(page)
+      await saveScreenshot(page, '04c-links-de-pago')
+
+      // Click "Crear nuevo link" or "Nuevo link" or similar
+      await page.click('a:has-text("Crear nuevo"), button:has-text("Crear nuevo"), a:has-text("Nuevo link"), button:has-text("Nuevo link"), a:has-text("Crear link"), button:has-text("Crear link")').catch(() => {})
+      await page.waitForLoadState('networkidle').catch(() => {})
+      await page.waitForTimeout(1000)
+      await dismissNpsPopup(page)
+    }
     await saveScreenshot(page, '04-agregar-monto')
 
     // ===== STEP 3: FILL AMOUNT =====

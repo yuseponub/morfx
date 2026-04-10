@@ -808,6 +808,11 @@ Plans:
   - [x] 02-PLAN.md — Business logic: comprehension, transitions, sales-track, response-track
   - [x] 03-PLAN.md — Pipeline: main agent, config, index, sandbox engine
   - [x] 04-PLAN.md — Integration: webhook routing, production runner, timers, sandbox
+- [x] **Envia Status Polling** — Automatic polling of Envia Colvanes shipment statuses via public REST API, state change history, tracking UI in orders (3 plans)
+  Plans:
+  - [x] 01-PLAN.md — DB migrations (order_carrier_events table + carrier_configs polling columns)
+  - [x] 02-PLAN.md — Backend: Envia API client + domain layer + Inngest cron (every 2h, 5am-7pm COL)
+  - [x] 03-PLAN.md — Frontend: server action + tracking timeline component + order sheet integration
 
 ## Progress
 
@@ -820,8 +825,8 @@ Plans:
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-36) | Phase 36 in progress | — |
 | v5.0 Meta Direct | 37-41 | TBD | Planned | — |
-| Standalone | 15 phases | 54 | 11 complete, 4 in progress | |
-| **Total** | **60 phases** | **228+ plans** | | |
+| Standalone | 16 phases | 57 | 12 complete, 4 in progress | |
+| **Total** | **61 phases** | **231+ plans** | | |
 
 ### Current Phase
 

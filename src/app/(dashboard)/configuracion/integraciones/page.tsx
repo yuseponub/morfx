@@ -13,9 +13,10 @@ import { ShopifyForm } from './components/shopify-form'
 import { SyncStatus } from './components/sync-status'
 import { TwilioForm } from './components/twilio-form'
 import { TwilioUsage } from './components/twilio-usage'
+import { BoldForm } from './components/bold-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShoppingBag, Settings2, Phone } from 'lucide-react'
+import { ShoppingBag, Settings2, Phone, CreditCard } from 'lucide-react'
 
 export default async function IntegracionesPage() {
   // Verify user is authenticated
@@ -72,6 +73,10 @@ export default async function IntegracionesPage() {
           <TabsTrigger value="twilio" className="flex items-center gap-2">
             <Phone className="h-4 w-4" />
             Twilio
+          </TabsTrigger>
+          <TabsTrigger value="bold" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            BOLD
           </TabsTrigger>
         </TabsList>
 
@@ -167,6 +172,13 @@ export default async function IntegracionesPage() {
           </Suspense>
           <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded" />}>
             <TwilioUsage />
+          </Suspense>
+        </TabsContent>
+
+        {/* BOLD Tab */}
+        <TabsContent value="bold" className="space-y-4">
+          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded" />}>
+            <BoldForm />
           </Suspense>
         </TabsContent>
       </Tabs>

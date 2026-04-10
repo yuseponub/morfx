@@ -277,7 +277,7 @@ export function ChatHeader({
           )}
 
           {/* BOLD: Payment link button (only renders if configured) */}
-          <BoldPaymentLinkButton />
+          <BoldPaymentLinkButton conversationId={conversation.id} />
 
           {/* GoDentist: Confirm appointment button */}
           {conversation.workspace_id === GODENTIST_WORKSPACE_ID && !appointmentLoading && appointmentInfo && (

@@ -3,12 +3,14 @@
 // ============================================================================
 // BOLD Payment Link Button + Modal
 // Shows in chat-header when BOLD is configured for the workspace.
-// Captures amount + description, calls createPaymentLinkAction, shows URL.
+// Captures amount + description, calls robot in background.
+// Results persist in localStorage — survives navigation and page refresh.
 // ============================================================================
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { createPaymentLinkAction, getBoldIntegration } from '@/app/actions/bold'
+import { getBoldIntegration } from '@/app/actions/bold'
+import { boldLinkStore, type BoldLinkState } from '@/lib/bold/link-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,17 +21,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { CreditCard, Loader2, Copy, CheckCircle2, ExternalLink } from 'lucide-react'
+import { CreditCard, Loader2, Copy, CheckCircle2, ExternalLink, RotateCcw } from 'lucide-react'
 
-export function BoldPaymentLinkButton() {
+interface Props {
+  conversationId: string
+}
+
+export function BoldPaymentLinkButton({ conversationId }: Props) {
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [linkState, setLinkState] = useState<BoldLinkState | null>(null)
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Sync state from the global store
+  const syncState = useCallback(() => {
+    const state = boldLinkStore.getState(conversationId)
+    setLinkState(state)
+  }, [conversationId])
 
   // Check if BOLD is configured on mount
   useEffect(() => {
@@ -43,19 +54,44 @@ export function BoldPaymentLinkButton() {
     return () => { cancelled = true }
   }, [])
 
-  // Don't render if not configured or still loading
+  // Load persisted state on mount and when conversationId changes
+  useEffect(() => {
+    syncState()
+  }, [syncState])
+
+  // Listen for store updates (fires when background request completes)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.conversationId === conversationId) {
+        syncState()
+      }
+    }
+    window.addEventListener('bold-link-update', handler)
+    return () => window.removeEventListener('bold-link-update', handler)
+  }, [conversationId, syncState])
+
   if (isConfigured !== true) return null
 
+  const isPending = linkState?.status === 'pending'
+  const isCompleted = linkState?.status === 'completed'
+  const isError = linkState?.status === 'error'
+
   const handleOpen = () => {
+    // If there's already a result or pending, show it directly
+    if (linkState) {
+      setIsOpen(true)
+      return
+    }
+    // Fresh form
     setAmount('')
     setDescription('')
-    setGeneratedUrl(null)
     setError(null)
     setCopied(false)
     setIsOpen(true)
   }
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     const numAmount = Number(amount)
     if (!numAmount || numAmount <= 0) {
       setError('Ingresa un monto valido mayor a 0')
@@ -65,28 +101,26 @@ export function BoldPaymentLinkButton() {
       setError('Ingresa una descripcion')
       return
     }
-
-    setIsGenerating(true)
     setError(null)
 
-    const result = await createPaymentLinkAction({
-      amount: numAmount,
-      description: description.trim(),
-    })
+    // Fire and forget — the store handles the request lifecycle
+    boldLinkStore.generate(conversationId, numAmount, description.trim())
+    syncState()
+  }
 
-    setIsGenerating(false)
-
-    if (result.success && result.url) {
-      setGeneratedUrl(result.url)
-    } else {
-      setError(result.error || 'Error al generar link de pago')
-    }
+  const handleClearAndRetry = () => {
+    boldLinkStore.clear(conversationId)
+    setLinkState(null)
+    setAmount('')
+    setDescription('')
+    setError(null)
+    setCopied(false)
   }
 
   const handleCopy = async () => {
-    if (!generatedUrl) return
+    if (linkState?.status !== 'completed') return
     try {
-      await navigator.clipboard.writeText(generatedUrl)
+      await navigator.clipboard.writeText(linkState.url)
       setCopied(true)
       toast.success('Link copiado al portapapeles')
       setTimeout(() => setCopied(false), 2000)
@@ -95,85 +129,65 @@ export function BoldPaymentLinkButton() {
     }
   }
 
+  const handleClose = () => {
+    setIsOpen(false)
+    // Don't clear state on close — it persists for later
+  }
+
   return (
     <>
       <Button
         variant="ghost"
         size="sm"
-        className="h-8 gap-1 text-xs"
+        className="h-8 gap-1 text-xs relative"
         onClick={handleOpen}
         title="Generar link de pago BOLD"
       >
-        <CreditCard className="h-3.5 w-3.5" />
-        Cobrar con BOLD
+        {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+        {isCompleted && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
+        {!isPending && !isCompleted && <CreditCard className="h-3.5 w-3.5" />}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-blue-600" />
-              Generar link de pago BOLD
+              Cobrar con BOLD
             </DialogTitle>
           </DialogHeader>
 
-          {!generatedUrl ? (
-            // Form: amount + description
+          {/* PENDING: Show spinner + what's being generated */}
+          {isPending && (
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="bold-amount">Monto (COP)</Label>
-                <Input
-                  id="bold-amount"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="50000"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isGenerating) {
-                      handleGenerate()
-                    }
-                  }}
-                  disabled={isGenerating}
-                />
+              <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Generando link de pago...</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    ${linkState.amount.toLocaleString('es-CO')} COP — {linkState.description}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Puedes cerrar este modal y volver despues. El link se genera en segundo plano.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="bold-description">Descripcion</Label>
-                <Input
-                  id="bold-description"
-                  placeholder="Pago pedido #123"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isGenerating) {
-                      handleGenerate()
-                    }
-                  }}
-                  disabled={isGenerating}
-                />
-              </div>
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
-              {isGenerating && (
-                <p className="text-sm text-muted-foreground">
-                  Generando link... esto puede tardar hasta 30 segundos.
-                </p>
-              )}
             </div>
-          ) : (
-            // Result: show URL + copy button
+          )}
+
+          {/* COMPLETED: Show URL + copy */}
+          {isCompleted && (
             <div className="space-y-4 py-4">
               <div className="rounded-md border p-3 space-y-2">
                 <p className="text-sm font-medium text-green-600 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4" />
-                  Link generado exitosamente
+                  Link generado — ${linkState.amount.toLocaleString('es-CO')} COP
                 </p>
-                <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">{linkState.description}</p>
+                <div className="flex items-center gap-2 mt-2">
                   <Input
                     readOnly
-                    value={generatedUrl}
+                    value={linkState.url}
                     className="text-xs font-mono"
                     onClick={(e) => (e.target as HTMLInputElement).select()}
                   />
@@ -192,7 +206,7 @@ export function BoldPaymentLinkButton() {
                   </Button>
                 </div>
                 <a
-                  href={generatedUrl}
+                  href={linkState.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 hover:underline flex items-center gap-1"
@@ -204,21 +218,84 @@ export function BoldPaymentLinkButton() {
             </div>
           )}
 
+          {/* ERROR: Show error + retry */}
+          {isError && (
+            <div className="space-y-4 py-4">
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                <p className="text-sm font-medium text-destructive">Error al generar link</p>
+                <p className="text-xs text-muted-foreground">{linkState.error}</p>
+                <p className="text-xs text-muted-foreground">
+                  ${linkState.amount.toLocaleString('es-CO')} COP — {linkState.description}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* FRESH: Show form */}
+          {!linkState && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="bold-amount">Monto (COP)</Label>
+                <Input
+                  id="bold-amount"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="50000"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGenerate()
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bold-description">Descripcion</Label>
+                <Input
+                  id="bold-description"
+                  placeholder="Ej: 1x ELIXIR DEL SUENO"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGenerate()
+                  }}
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Puede tardar hasta 30 segundos. Puedes cerrar el modal y volver despues.
+              </p>
+            </div>
+          )}
+
           <DialogFooter>
-            {!generatedUrl ? (
+            {!linkState && (
               <>
-                <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isGenerating}>
+                <Button variant="outline" onClick={handleClose}>
                   Cancelar
                 </Button>
-                <Button onClick={handleGenerate} disabled={isGenerating}>
-                  {isGenerating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {isGenerating ? 'Generando...' : 'Generar link'}
+                <Button onClick={handleGenerate}>
+                  Generar link
                 </Button>
               </>
-            ) : (
-              <Button onClick={() => setIsOpen(false)}>
-                Cerrar
+            )}
+            {isPending && (
+              <Button variant="outline" onClick={handleClose}>
+                Cerrar (sigue generando)
               </Button>
+            )}
+            {(isCompleted || isError) && (
+              <>
+                <Button variant="outline" onClick={handleClearAndRetry} className="gap-1.5">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Crear otro
+                </Button>
+                <Button onClick={handleClose}>
+                  Cerrar
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>

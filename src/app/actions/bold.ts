@@ -9,8 +9,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getIntegrationAuthContext,
-  canManageIntegrations,
 } from '@/app/actions/integrations'
+
+function canManageIntegrations(role: string): boolean {
+  return role === 'owner' || role === 'admin'
+}
 import { callBoldRobot } from '@/lib/bold/client'
 import type { BoldConfig } from '@/lib/bold/types'
 

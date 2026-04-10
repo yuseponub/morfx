@@ -52,7 +52,7 @@ export async function getIntegrationAuthContext() {
  * Check if user has permission to manage integrations.
  * Per CONTEXT.md: Owner + Admin can configure integrations.
  */
-export function canManageIntegrations(role: string): boolean {
+function canManageIntegrations(role: string): boolean {
   return role === 'owner' || role === 'admin'
 }
 

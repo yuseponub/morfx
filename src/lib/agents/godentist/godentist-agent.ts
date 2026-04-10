@@ -20,6 +20,7 @@ import { checkGuards } from './guards'
 import { derivePhase } from './phase'
 import { checkDentosAvailability } from './dentos-availability'
 import { SCHEDULE_APPOINTMENT_ACTIONS } from './constants'
+import { getCollector } from '@/lib/observability'
 import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, AccionRegistrada } from './types'
 import type { StateChanges } from './transitions'
 
@@ -68,6 +69,14 @@ async function processSystemEvent(
     state,
     gates,
     event: { type: 'timer_expired', level: systemEvent.level },
+  })
+
+  getCollector()?.recordEvent('pipeline_decision', 'system_event_routed', {
+    agent: 'godentist',
+    eventType: 'timer_expired',
+    level: systemEvent.level,
+    action: salesResult.accion ?? 'none',
+    reason: salesResult.reason,
   })
 
   if (salesResult.timerSignal) {
@@ -185,6 +194,13 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     // GUARDS (R0, R1) — always run for user messages
     const guardResult = checkGuards(analysis)
     if (guardResult.blocked) {
+      getCollector()?.recordEvent('guard', 'blocked', {
+        agent: 'godentist',
+        intent: analysis.intent.primary,
+        confidence: analysis.intent.confidence,
+        reason: guardResult.decision.reason,
+      })
+
       if (guardResult.decision.timerSignal) {
         timerSignals.push(guardResult.decision.timerSignal)
       }
@@ -219,8 +235,18 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       }
     }
 
+    getCollector()?.recordEvent('guard', 'passed', {
+      agent: 'godentist',
+      intent: analysis.intent.primary,
+      confidence: analysis.intent.confidence,
+    })
+
     // ENGLISH DETECTION — short-circuit after guards
     if (analysis.classification.idioma === 'en') {
+      getCollector()?.recordEvent('pipeline_decision', 'english_detected', {
+        agent: 'godentist',
+        intent: analysis.intent.primary,
+      })
       const englishResponse = await resolveResponseTrack({
         state: mergedState,
         workspaceId: input.workspaceId,
@@ -273,6 +299,14 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       changes,
     })
 
+    getCollector()?.recordEvent('pipeline_decision', 'sales_track_result', {
+      agent: 'godentist',
+      intent: analysis.intent.primary,
+      action: salesResult.accion ?? 'none',
+      reason: salesResult.reason,
+      phase,
+    })
+
     if (salesResult.timerSignal) {
       timerSignals.push(salesResult.timerSignal)
     }
@@ -280,6 +314,12 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     // Check for appointment scheduling
     const isScheduleAppointment = !!salesResult.accion
       && SCHEDULE_APPOINTMENT_ACTIONS.has(salesResult.accion)
+
+    getCollector()?.recordEvent('pipeline_decision', 'appointment_decision', {
+      agent: 'godentist',
+      willSchedule: isScheduleAppointment,
+      action: salesResult.accion ?? 'none',
+    })
 
     // AVAILABILITY LOOKUP — call robot when showing availability
     let availabilitySlots: { manana: string[]; tarde: string[] } | undefined
@@ -304,6 +344,17 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       }
     }
 
+    getCollector()?.recordEvent('pipeline_decision', 'availability_lookup', {
+      agent: 'godentist',
+      fecha: mergedState.datos.fecha_preferida,
+      sede: mergedState.datos.sede_preferida,
+      hasSlots: !!availabilitySlots,
+      fallback: availabilityFallback,
+      totalSlots: availabilitySlots
+        ? (availabilitySlots.manana?.length ?? 0) + (availabilitySlots.tarde?.length ?? 0)
+        : 0,
+    })
+
     // RESPONSE TRACK — WHAT TO SAY
     const responseResult = await resolveResponseTrack({
       salesAction: salesResult.accion,
@@ -315,6 +366,13 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       servicioDetectado: analysis.extracted_fields.servicio_interes ?? undefined,
       availabilitySlots,
       availabilityFallback,
+    })
+
+    getCollector()?.recordEvent('pipeline_decision', 'response_track_result', {
+      agent: 'godentist',
+      salesTemplateIntents: responseResult.salesTemplateIntents,
+      infoTemplateIntents: responseResult.infoTemplateIntents,
+      messageCount: responseResult.messages.length,
     })
 
     // L4 GUARD: When 0 slots, replace L4 timer with L3 (re-ask for a different date)
@@ -341,6 +399,12 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
 
     // NATURAL SILENCE: response track produced 0 messages
     if (responseResult.messages.length === 0) {
+      getCollector()?.recordEvent('pipeline_decision', 'natural_silence', {
+        agent: 'godentist',
+        intent: analysis.intent.primary,
+        action: salesResult.accion ?? 'none',
+      })
+
       const serialized = serializeState(mergedState)
       return {
         success: true,

@@ -18,6 +18,7 @@
  *   save unsent as pending_templates for next turn to send first
  */
 
+import { getCollector } from '@/lib/observability'
 import { VersionConflictError } from '../errors'
 import type {
   EngineInput,
@@ -146,6 +147,15 @@ export class V3ProductionRunner {
         const { processMessage } = await import('../somnio-v3/somnio-v3-agent')
         output = await processMessage(v3Input)
       }
+
+      getCollector()?.recordEvent('pipeline_decision', 'agent_routed', {
+        agentModule: this.config.agentModule ?? 'somnio-v3',
+        sessionId: session.id,
+        success: output.success,
+        action: output.salesTrackInfo?.accion ?? 'none',
+        messageCount: output.messages.length,
+        templateCount: output.templates?.length ?? 0,
+      })
 
       // 4b. Side-effect: tag VAL on first datosCriticos completion (godentist only)
       // Quick-035 / Quick-036: feeds the metrics system (Conversation Tags to
@@ -318,6 +328,10 @@ export class V3ProductionRunner {
             if (sendResult.messagesSent === 0) {
               // PATH A: 0 templates sent — discard turn, save pending message
               wasInterruptedWithZeroSends = true
+              getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
+                sessionId: session.id,
+                pendingMessage: input.message.substring(0, 100),
+              })
               console.log(`[V3-RUNNER] Path A: 0 sends, discarding turn, saving pending message`)
             } else {
               // PATH B: partial send — save unsent as pending_templates
@@ -390,6 +404,14 @@ export class V3ProductionRunner {
           })
           console.log(`[V3-RUNNER] templates_enviados: +${actuallySentIds.length} (total: ${updatedTemplatesEnviados.length})`)
         }
+
+        getCollector()?.recordEvent('pipeline_decision', 'state_committed', {
+          sessionId: session.id,
+          messagesSent,
+          templatesSent: actuallySentIds.length,
+          newMode: output.newMode,
+          orderCreated: !!orderResult?.success,
+        })
 
         // Update mode (with optimistic locking)
         if (output.newMode && output.newMode !== session.current_mode) {

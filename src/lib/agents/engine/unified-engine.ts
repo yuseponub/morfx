@@ -158,6 +158,15 @@ export class UnifiedEngine {
 
       // 4. Mode transition → only for non-collecting modes (collecting_data is handled by ingest hooks above)
       //    This covers both: direct transition to promos AND two-step cancel+start pattern
+      if (modeChanged) {
+        getCollector()?.recordEvent('pipeline_decision', 'mode_transition', {
+          agent: 'somnio-v1',
+          sessionId: session.id,
+          from: session.current_mode,
+          to: newMode,
+          modeChanged,
+        })
+      }
       if (
         this.adapters.timer.onModeTransition &&
         modeChanged &&
@@ -198,6 +207,13 @@ export class UnifiedEngine {
       } | undefined
 
       console.log(`[ENGINE-ORDER] shouldCreateOrder=${agentOutput.shouldCreateOrder} hasOrderData=${!!agentOutput.orderData} pack=${agentOutput.orderData?.packSeleccionado} datos=${JSON.stringify(Object.keys(agentOutput.orderData?.datosCapturados ?? {}))}`)
+
+      getCollector()?.recordEvent('pipeline_decision', 'order_decision', {
+        agent: 'somnio-v1',
+        shouldCreateOrder: agentOutput.shouldCreateOrder,
+        hasOrderData: !!agentOutput.orderData,
+        pack: agentOutput.orderData?.packSeleccionado,
+      })
 
       if (agentOutput.shouldCreateOrder && agentOutput.orderData) {
         const orderMode = this.config.crmModes?.find(m => m.agentId === 'order-manager')?.mode

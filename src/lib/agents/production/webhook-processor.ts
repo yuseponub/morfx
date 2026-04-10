@@ -18,6 +18,7 @@
  * Internal engine was swapped from SomnioEngine to UnifiedEngine in Plan 05.
  */
 
+import { getCollector } from '@/lib/observability'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createModuleLogger } from '@/lib/audit/logger'
 import { isAgentEnabledForConversation, getWorkspaceAgentConfig } from './agent-config'
@@ -89,6 +90,9 @@ export async function processMessageWithAgent(
   // 1b. Check if conversation has "WPP", "P/W", or "RECO" tag (bot should stop)
   const hasSkipTag = await conversationHasAnyTag(conversationId, workspaceId, ['WPP', 'P/W', 'RECO'])
   if (hasSkipTag) {
+    getCollector()?.recordEvent('pipeline_decision', 'skip_tag_detected', {
+      conversationId,
+    })
     logger.info({ conversationId }, 'Conversation has WPP, P/W, or RECO tag, skipping agent')
     return { success: true }
   }
@@ -167,6 +171,11 @@ export async function processMessageWithAgent(
   if (contactData?.is_client && recompraEnabled) {
     // Route to recompra agent — client contacts get personalized recompra flow
     // Tags already filtered at step 1b (WPP, P/W, RECO etc.), so arriving here = safe to process
+    getCollector()?.recordEvent('pipeline_decision', 'recompra_routed', {
+      conversationId,
+      contactId,
+      isClient: true,
+    })
     logger.info({ conversationId, contactId }, 'Contact is a client, routing to recompra agent')
 
     // Load last order data for preloading
@@ -348,6 +357,11 @@ export async function processMessageWithAgent(
         messageTimestamp: input.messageTimestamp,
       })
 
+      getCollector()?.recordEvent('pipeline_decision', 'webhook_agent_routed', {
+        agentId,
+        conversationId,
+        contactId,
+      })
       logger.info({ conversationId, agentId }, 'V3 agent processing complete')
     } else if (agentId === 'godentist') {
       // GoDentist path — reuses V3ProductionRunner with godentist processMessage
@@ -366,6 +380,11 @@ export async function processMessageWithAgent(
         messageTimestamp: input.messageTimestamp,
       })
 
+      getCollector()?.recordEvent('pipeline_decision', 'webhook_agent_routed', {
+        agentId,
+        conversationId,
+        contactId,
+      })
       logger.info({ conversationId, agentId }, 'GoDentist agent processing complete')
     } else {
       // V1 path — unchanged (default)

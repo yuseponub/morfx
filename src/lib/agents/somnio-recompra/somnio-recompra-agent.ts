@@ -23,6 +23,7 @@ import { resolveResponseTrack } from './response-track'
 import { checkGuards } from './guards'
 import { derivePhase } from './phase'
 import { CRM_ACTIONS, CREATE_ORDER_ACTIONS } from './constants'
+import { getCollector } from '@/lib/observability'
 import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, AccionRegistrada } from './types'
 
 // ============================================================================
@@ -71,6 +72,14 @@ async function processSystemEvent(
     state,
     gates,
     event: { type: 'timer_expired', level: systemEvent.level },
+  })
+
+  getCollector()?.recordEvent('pipeline_decision', 'system_event_routed', {
+    agent: 'recompra',
+    eventType: 'timer_expired',
+    level: systemEvent.level,
+    action: salesResult.accion ?? 'none',
+    reason: salesResult.reason,
   })
 
   if (salesResult.timerSignal) {
@@ -183,6 +192,13 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     // GUARDS (R0, R1) — always run for user messages
     const guardResult = checkGuards(analysis)
     if (guardResult.blocked) {
+      getCollector()?.recordEvent('guard', 'blocked', {
+        agent: 'recompra',
+        intent: analysis.intent.primary,
+        confidence: analysis.intent.confidence,
+        reason: guardResult.decision.reason,
+      })
+
       if (guardResult.decision.timerSignal) {
         timerSignals.push(guardResult.decision.timerSignal)
       }
@@ -218,6 +234,12 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       }
     }
 
+    getCollector()?.recordEvent('guard', 'passed', {
+      agent: 'recompra',
+      intent: analysis.intent.primary,
+      confidence: analysis.intent.confidence,
+    })
+
     // SALES TRACK — WHAT TO DO
     const phase = derivePhase(mergedState.accionesEjecutadas)
     const salesResult = resolveSalesTrack({
@@ -232,6 +254,14 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       },
     })
 
+    getCollector()?.recordEvent('pipeline_decision', 'sales_track_result', {
+      agent: 'recompra',
+      intent: analysis.intent.primary,
+      action: salesResult.accion ?? 'none',
+      reason: salesResult.reason,
+      phase,
+    })
+
     if (salesResult.timerSignal) {
       timerSignals.push(salesResult.timerSignal)
     }
@@ -240,6 +270,13 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     const hasPriorOrder = mergedState.accionesEjecutadas.some(a => a.crmAction)
     const isCreateOrder = !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion) && !hasPriorOrder
 
+    getCollector()?.recordEvent('pipeline_decision', 'order_decision', {
+      agent: 'recompra',
+      willCreateOrder: isCreateOrder,
+      action: salesResult.accion ?? 'none',
+      hasPriorOrder,
+    })
+
     // RESPONSE TRACK — WHAT TO SAY (no secondarySalesAction in recompra)
     const responseResult = await resolveResponseTrack({
       salesAction: salesResult.accion,
@@ -247,6 +284,14 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       secondaryIntent: analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
       state: mergedState,
       workspaceId: input.workspaceId,
+    })
+
+    getCollector()?.recordEvent('pipeline_decision', 'response_track_result', {
+      agent: 'recompra',
+      salesTemplateIntents: responseResult.salesTemplateIntents,
+      infoTemplateIntents: responseResult.infoTemplateIntents,
+      messageCount: responseResult.messages.length,
+      templateIdsSent: responseResult.templateIdsSent,
     })
 
     // Register action (SINGLE registration point — D3)
@@ -268,6 +313,13 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
 
     // NATURAL SILENCE: response track produced 0 messages
     if (responseResult.messages.length === 0) {
+      getCollector()?.recordEvent('pipeline_decision', 'natural_silence', {
+        agent: 'recompra',
+        intent: analysis.intent.primary,
+        action: salesResult.accion ?? 'none',
+        reason: salesResult.reason,
+      })
+
       const serialized = serializeState(mergedState)
       return {
         success: true,

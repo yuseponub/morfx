@@ -12,6 +12,7 @@
  * Uses TemplateManager and composeBlock from somnio shared code.
  */
 
+import { getCollector } from '@/lib/observability'
 import { TemplateManager } from '@/lib/agents/somnio/template-manager'
 import { composeBlock, type PrioritizedTemplate } from '@/lib/agents/somnio/block-composer'
 import type { IntentRecord } from '@/lib/agents/types'
@@ -176,6 +177,12 @@ export async function resolveResponseTrack(input: {
   const hasSaludoCombined = infoTemplateIntents.includes('saludo') && (allIntents.length > 1 || salesTemplateIntents.length > 0)
 
   if (allIntents.length === 0) {
+    getCollector()?.recordEvent('template_selection', 'empty_result', {
+      agent: 'godentist',
+      salesAction: salesAction ?? 'none',
+      intent: intent ?? 'none',
+      reason: 'no_matching_intents',
+    })
     return emptyResult()
   }
 
@@ -265,6 +272,15 @@ export async function resolveResponseTrack(input: {
     const composed = composeBlock(byIntent, [])
     finalBlock = composed.block
   }
+
+  getCollector()?.recordEvent('template_selection', 'block_composed', {
+    agent: 'godentist',
+    salesTemplateCount: salesTemplateIntents.length,
+    infoTemplateCount: infoTemplateIntents.length,
+    allIntents,
+    finalBlockSize: finalBlock.length,
+    hasSaludoCombined,
+  })
 
   // ------------------------------------------------------------------
   // 5. Build response

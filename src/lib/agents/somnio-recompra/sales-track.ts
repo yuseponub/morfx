@@ -23,6 +23,7 @@ import type {
   SalesEvent,
   SalesTrackOutput,
 } from './types'
+import { getCollector } from '@/lib/observability'
 import { resolveTransition, systemEventToKey } from './transitions'
 
 // ============================================================================
@@ -44,6 +45,12 @@ export function resolveSalesTrack(input: {
     const key = systemEventToKey({ type: 'timer_expired', level: event.level })
     const match = resolveTransition(phase, key, state, gates)
     if (match) {
+      getCollector()?.recordEvent('pipeline_decision', 'timer_transition', {
+        agent: 'recompra',
+        level: event.level,
+        action: match.action,
+        reason: match.output.reason,
+      })
       return {
         accion: match.action,
         timerSignal: match.output.timerSignal,
@@ -64,6 +71,13 @@ export function resolveSalesTrack(input: {
   // ------------------------------------------------------------------
   const match = resolveTransition(phase, intent, state, gates, changes)
   if (match) {
+    getCollector()?.recordEvent('pipeline_decision', 'intent_transition', {
+      agent: 'recompra',
+      intent,
+      action: match.action,
+      reason: match.output.reason,
+      hasTimerSignal: !!match.output.timerSignal,
+    })
     return {
       accion: match.action,
       timerSignal: match.output.timerSignal,

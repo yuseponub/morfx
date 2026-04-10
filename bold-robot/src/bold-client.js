@@ -267,35 +267,67 @@ async function createPaymentLink({ username, password, amount, description }) {
     await page.fill(amountSelector, String(Math.floor(amount)))
     await saveScreenshot(page, '05-monto-filled')
 
-    // Find the "Continuar" button via DOM (bypasses Playwright locator timeout)
-    // then click it via Playwright's click (proper React/Vue event dispatch).
-    // Native DOM .click() doesn't trigger framework event handlers properly.
-    const btnHandle = await page.evaluateHandle(() => {
-      const buttons = document.querySelectorAll('button')
-      for (const btn of buttons) {
-        const text = (btn.textContent || '').trim()
-        if (text === 'Continuar' && btn.offsetHeight > 20 && btn.offsetWidth > 20) {
-          return btn
+    // Debug: dump all elements containing "Continuar" text to understand the DOM
+    const debugInfo = await page.evaluate(() => {
+      const results = []
+      const all = document.querySelectorAll('*')
+      for (const el of all) {
+        const text = (el.textContent || '').trim()
+        if (text.toLowerCase().includes('continuar') && text.length < 50) {
+          results.push({
+            tag: el.tagName,
+            text: text.slice(0, 40),
+            id: el.id || '',
+            cls: (el.className || '').toString().slice(0, 60),
+            w: el.offsetWidth,
+            h: el.offsetHeight,
+            visible: el.offsetHeight > 0 && el.offsetWidth > 0,
+            role: el.getAttribute('role') || '',
+            type: el.getAttribute('type') || '',
+          })
         }
       }
-      // Also check anchors styled as buttons
-      const anchors = document.querySelectorAll('a')
-      for (const a of anchors) {
-        const text = (a.textContent || '').trim()
-        if (text === 'Continuar' && a.offsetHeight > 20 && a.offsetWidth > 20) {
-          return a
-        }
-      }
-      return null
+      return results
     })
-    const btnElement = btnHandle.asElement()
-    if (!btnElement) {
-      await saveScreenshot(page, 'error-continuar-not-found')
-      throw new Error('No se encontró el botón Continuar en el DOM')
+    console.log('[bold] DOM elements with "Continuar":', JSON.stringify(debugInfo, null, 2))
+
+    // Strategy 1: Playwright getByText (matches any element regardless of tag)
+    try {
+      await page.getByText('Continuar', { exact: true }).first().click({ force: true, timeout: 5000 })
+      console.log('[bold] Continuar clicked via getByText')
+    } catch (e1) {
+      console.log(`[bold] getByText failed: ${e1.message.slice(0, 100)}`)
+      // Strategy 2: getByRole
+      try {
+        await page.getByRole('button', { name: 'Continuar' }).click({ force: true, timeout: 5000 })
+        console.log('[bold] Continuar clicked via getByRole')
+      } catch (e2) {
+        console.log(`[bold] getByRole failed: ${e2.message.slice(0, 100)}`)
+        // Strategy 3: evaluateHandle with ALL elements (not just button/a)
+        try {
+          const handle = await page.evaluateHandle(() => {
+            const all = document.querySelectorAll('*')
+            for (const el of all) {
+              if (el.children.length <= 2 && (el.textContent || '').trim() === 'Continuar' && el.offsetHeight > 20) {
+                return el
+              }
+            }
+            return null
+          })
+          const el = handle.asElement()
+          if (el) {
+            await el.click({ force: true })
+            console.log('[bold] Continuar clicked via evaluateHandle wildcard')
+          } else {
+            await saveScreenshot(page, 'error-continuar-not-found')
+            throw new Error('No se encontró el botón Continuar con ninguna estrategia')
+          }
+        } catch (e3) {
+          await saveScreenshot(page, 'error-continuar-not-found')
+          throw e3
+        }
+      }
     }
-    console.log('[bold] found Continuar button via DOM, clicking with Playwright...')
-    await btnElement.click({ force: true })
-    console.log('[bold] Continuar clicked')
     await page.waitForLoadState('networkidle').catch(() => {})
     await page.waitForTimeout(1000)
     await dismissNpsPopup(page)

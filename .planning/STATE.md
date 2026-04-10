@@ -434,6 +434,7 @@ Conversation Tags to Contact decisions:
 | 037 | Consolidar precios y productos Somnio a fuente unica en somnio-v3/constants.ts | 2026-04-09 | a28f6c9 | [037-consolidar-precios-somnio-fuente-unica](./quick/037-consolidar-precios-somnio-fuente-unica/) |
 | 038 | Fix normalizacion de telefonos para soportar numeros internacionales (no solo Colombia) | 2026-04-09 | ed7ecad | [038-fix-normalizacion-telefonos-internacionales](./quick/038-fix-normalizacion-telefonos-internacionales/) |
 | 039 | Fix phase 42.1 inngest ALS collector merge cruzando replays | 2026-04-09 | 7fd031b | [039-fix-phase-42-1-inngest-als-collector-merge](./quick/039-fix-phase-42-1-inngest-als-collector-merge/) |
+| 040 | Pipeline decision recordEvents (46 calls en 15 archivos, 3 agents) | 2026-04-10 | 22e5473 | [040-pipeline-decision-recordevents](./quick/040-pipeline-decision-recordevents/) |
 
 ### Roadmap Evolution
 

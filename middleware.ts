@@ -23,6 +23,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ==================== MOBILE API ROUTES ====================
+  // Mobile app uses Bearer JWT auth (not cookies), handled by requireMobileAuth()
+  // in each route handler. Must bypass the web session middleware.
+  if (pathname.startsWith('/api/mobile')) {
+    return NextResponse.next()
+  }
+
   // ==================== TEMP ROUTE (DELETE AFTER USE) ====================
   if (pathname.startsWith('/api/temp-send-agendados')) {
     return NextResponse.next()

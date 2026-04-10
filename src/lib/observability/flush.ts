@@ -144,7 +144,7 @@ export async function flushCollector(collector: ObservabilityCollector): Promise
       category: e.category,
       label: e.label ?? null,
       payload: e.payload,
-      duration_ms: e.durationMs ?? null,
+      duration_ms: e.durationMs != null ? Math.round(e.durationMs) : null,
     }))
 
     const queryRows = collector.queries.map((q) => ({
@@ -158,7 +158,7 @@ export async function flushCollector(collector: ObservabilityCollector): Promise
       // ?select=... so the UI can re-parse on read if needed.
       columns: q.columns === null ? null : JSON.stringify(q.columns),
       request_body: q.requestBody as Record<string, unknown> | null,
-      duration_ms: q.durationMs,
+      duration_ms: Math.round(q.durationMs),
       status_code: q.statusCode,
       row_count: q.rowCount ?? null,
       error: q.error ?? null,
@@ -178,7 +178,7 @@ export async function flushCollector(collector: ObservabilityCollector): Promise
       cache_creation_input_tokens: a.cacheCreationInputTokens,
       cache_read_input_tokens: a.cacheReadInputTokens,
       cost_usd: a.costUsd,
-      duration_ms: a.durationMs,
+      duration_ms: Math.round(a.durationMs),
       status_code: a.statusCode,
       error: a.error ?? null,
     }))

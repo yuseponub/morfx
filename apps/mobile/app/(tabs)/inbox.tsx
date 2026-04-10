@@ -5,7 +5,6 @@
  * Real conversation list arrives in a later plan.
  */
 
-import { useRouter, type Href } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,12 +16,10 @@ import { useTheme } from '@/lib/theme';
 export default function InboxScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const router = useRouter();
 
   async function handleLogout() {
     await signOut();
-    // Cast: expo-router typed routes regenerate at metro start.
-    router.replace('/(auth)/login' as Href);
+    // onAuthStateChange in _layout.tsx will redirect to /(auth)/login.
   }
 
   return (

@@ -14,7 +14,7 @@ import { useWorkspace } from '@/lib/workspace/use-workspace';
 import { WorkspaceSwitcherSheet } from './WorkspaceSwitcherSheet';
 
 export function WorkspaceSwitcher() {
-  const { workspaceName, isLoading } = useWorkspace();
+  const workspace = useWorkspace();
   const { colors } = useTheme();
   const sheetRef = useRef<BottomSheetModal>(null);
 
@@ -22,7 +22,9 @@ export function WorkspaceSwitcher() {
     sheetRef.current?.present();
   }, []);
 
-  if (isLoading) return null;
+  if (!workspace || workspace.isLoading) return null;
+
+  const { workspaceName } = workspace;
 
   return (
     <View>

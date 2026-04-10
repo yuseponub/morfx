@@ -17,7 +17,10 @@ import { useWorkspace } from '@/lib/workspace/use-workspace';
 
 export const WorkspaceSwitcherSheet = forwardRef<BottomSheetModal>(
   function WorkspaceSwitcherSheet(_props, ref) {
-    const { memberships, workspaceId, setWorkspaceId } = useWorkspace();
+    const workspace = useWorkspace();
+    const memberships = workspace?.memberships ?? [];
+    const workspaceId = workspace?.workspaceId;
+    const setWorkspaceId = workspace?.setWorkspaceId;
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
 
@@ -25,7 +28,7 @@ export const WorkspaceSwitcherSheet = forwardRef<BottomSheetModal>(
 
     const handleSelect = useCallback(
       async (id: string) => {
-        await setWorkspaceId(id);
+        await setWorkspaceId?.(id);
         if (ref && 'current' in ref) {
           ref.current?.dismiss();
         }

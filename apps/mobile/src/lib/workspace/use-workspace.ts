@@ -9,13 +9,6 @@ import { useContext } from 'react';
 
 import { WorkspaceContext, type WorkspaceContextValue } from './context';
 
-export function useWorkspace(): WorkspaceContextValue {
-  const ctx = useContext(WorkspaceContext);
-  if (!ctx) {
-    throw new Error(
-      'useWorkspace must be used within <WorkspaceProvider>. ' +
-        'Make sure the provider is mounted in app/_layout.tsx.'
-    );
-  }
-  return ctx;
+export function useWorkspace(): WorkspaceContextValue | null {
+  return useContext(WorkspaceContext);
 }

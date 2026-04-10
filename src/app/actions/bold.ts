@@ -1,8 +1,5 @@
 'use server'
 
-// Robot takes ~30s — need enough time for Vercel to wait
-export const maxDuration = 60
-
 // ============================================================================
 // BOLD Payment Link Server Actions
 // Save/read credentials (integrations table, type='bold')

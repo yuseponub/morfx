@@ -39,6 +39,7 @@ import {
 import { OrderTagInput } from './order-tag-input'
 import { RelatedOrders } from './related-orders'
 import { OrderNotesSection } from './order-notes-section'
+import { OrderTrackingSection } from './order-tracking-section'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { moveOrderToStage, getRelatedOrders } from '@/app/actions/orders'
 import { getOrderNotes } from '@/app/actions/order-notes'
@@ -458,6 +459,14 @@ export function OrderSheet({
                 </p>
               )}
             </section>
+
+            {/* Tracking Envia -- only renders if carrier is envia */}
+            {order.carrier && (
+              <>
+                <Separator />
+                <OrderTrackingSection orderId={order.id} carrier={order.carrier} />
+              </>
+            )}
 
             {/* Description */}
             {order.description && (

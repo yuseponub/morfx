@@ -35,6 +35,9 @@ export interface CarrierConfig {
   pdf_envia_pipeline_id: string | null
   pdf_envia_stage_id: string | null
   pdf_envia_dest_stage_id: string | null
+  // Status polling config (envia-status-polling)
+  status_polling_pipeline_id: string | null
+  status_polling_stage_ids: string[] | null
   is_enabled: boolean
   created_at: string
   updated_at: string
@@ -58,6 +61,9 @@ export interface UpsertCarrierConfigParams {
   pdfBogotaStageId?: string | null
   pdfEnviaPipelineId?: string | null
   pdfEnviaStageId?: string | null
+  // Status polling config (envia-status-polling)
+  statusPollingPipelineId?: string | null
+  statusPollingStageIds?: string[] | null
   isEnabled?: boolean
 }
 
@@ -146,6 +152,8 @@ export async function upsertCarrierConfig(
         pdf_bogota_stage_id: params.pdfBogotaStageId ?? null,
         pdf_envia_pipeline_id: params.pdfEnviaPipelineId ?? null,
         pdf_envia_stage_id: params.pdfEnviaStageId ?? null,
+        status_polling_pipeline_id: params.statusPollingPipelineId ?? null,
+        status_polling_stage_ids: params.statusPollingStageIds ?? null,
         is_enabled: params.isEnabled ?? false,
         created_at: now,
         updated_at: now,
@@ -182,6 +190,9 @@ export async function upsertCarrierConfig(
     if (params.pdfBogotaStageId !== undefined) updates.pdf_bogota_stage_id = params.pdfBogotaStageId
     if (params.pdfEnviaPipelineId !== undefined) updates.pdf_envia_pipeline_id = params.pdfEnviaPipelineId
     if (params.pdfEnviaStageId !== undefined) updates.pdf_envia_stage_id = params.pdfEnviaStageId
+    // Status polling config (envia-status-polling)
+    if (params.statusPollingPipelineId !== undefined) updates.status_polling_pipeline_id = params.statusPollingPipelineId
+    if (params.statusPollingStageIds !== undefined) updates.status_polling_stage_ids = params.statusPollingStageIds
     if (params.isEnabled !== undefined) updates.is_enabled = params.isEnabled
 
     const { data, error } = await supabase
@@ -415,6 +426,47 @@ export async function getGuideGenStage(
       data: {
         pipelineId,
         stageId,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Get the status polling stage configuration for a carrier.
+ * Returns null if config doesn't exist or status_polling_pipeline_id is not set.
+ * Note: stageIds is an array (multiple stages can be polled).
+ *
+ * Used by envia-status-polling cron to determine which orders to poll.
+ */
+export async function getStatusPollingStages(
+  ctx: DomainContext,
+  carrier?: string
+): Promise<DomainResult<{ pipelineId: string; stageIds: string[] } | null>> {
+  try {
+    const configResult = await getCarrierConfig(ctx, carrier)
+
+    if (!configResult.success) {
+      return { success: false, error: configResult.error }
+    }
+
+    if (!configResult.data) {
+      return { success: true, data: null }
+    }
+
+    const { status_polling_pipeline_id, status_polling_stage_ids } = configResult.data
+
+    if (!status_polling_pipeline_id || !status_polling_stage_ids || status_polling_stage_ids.length === 0) {
+      return { success: true, data: null }
+    }
+
+    return {
+      success: true,
+      data: {
+        pipelineId: status_polling_pipeline_id,
+        stageIds: status_polling_stage_ids,
       },
     }
   } catch (err) {

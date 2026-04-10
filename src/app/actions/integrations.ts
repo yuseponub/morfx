@@ -17,7 +17,7 @@ import { createTwilioClient } from '@/lib/twilio/client'
 // Auth Helper
 // ============================================================================
 
-async function getIntegrationAuthContext() {
+export async function getIntegrationAuthContext() {
   const supabase = await createClient()
 
   const {
@@ -52,7 +52,7 @@ async function getIntegrationAuthContext() {
  * Check if user has permission to manage integrations.
  * Per CONTEXT.md: Owner + Admin can configure integrations.
  */
-function canManageIntegrations(role: string): boolean {
+export function canManageIntegrations(role: string): boolean {
   return role === 'owner' || role === 'admin'
 }
 

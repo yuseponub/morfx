@@ -267,11 +267,43 @@ async function createPaymentLink({ username, password, amount, description }) {
     await page.fill(amountSelector, String(Math.floor(amount)))
     await saveScreenshot(page, '05-monto-filled')
 
-    // NOTE: DO NOT use button[type="submit"] or plain CSS selectors here —
-    // the Boost chat widget ("Hablemos") has a hidden submit button that
-    // confuses Playwright. Use locator API with .first() to target the
-    // wizard's Continuar button which renders first in the DOM.
-    await page.locator('button', { hasText: 'Continuar' }).first().click()
+    // Click "Continuar" via DOM evaluate — Playwright's locator API and CSS
+    // selectors both fail because the Boost chat widget interferes.
+    // We find the visible button by scanning all elements with "Continuar" text.
+    const clicked = await page.evaluate(() => {
+      // Try buttons first
+      const buttons = document.querySelectorAll('button')
+      for (const btn of buttons) {
+        const text = btn.textContent || ''
+        if (text.trim() === 'Continuar' && btn.offsetHeight > 0 && btn.offsetWidth > 0) {
+          btn.click()
+          return 'button: ' + text.trim()
+        }
+      }
+      // Try any clickable element (a, div, span) with Continuar text
+      const allEls = document.querySelectorAll('a, div, span, button')
+      for (const el of allEls) {
+        const text = el.textContent || ''
+        if (text.trim() === 'Continuar' && el.offsetHeight > 20 && el.offsetWidth > 20) {
+          el.click()
+          return 'other: ' + el.tagName + ' ' + text.trim()
+        }
+      }
+      // Last resort: find by innerText match
+      const all = document.querySelectorAll('*')
+      for (const el of all) {
+        if (el.children.length === 0 && el.innerText && el.innerText.trim() === 'Continuar') {
+          const parent = el.closest('button, a, [role="button"]') || el.parentElement
+          if (parent) { parent.click(); return 'parent-of-text: ' + parent.tagName }
+        }
+      }
+      return null
+    })
+    console.log(`[bold] continuar click result: ${clicked}`)
+    if (!clicked) {
+      await saveScreenshot(page, 'error-continuar-not-found')
+      throw new Error('No se encontró el botón Continuar en el DOM')
+    }
     await page.waitForLoadState('networkidle').catch(() => {})
     await page.waitForTimeout(1000)
     await dismissNpsPopup(page)

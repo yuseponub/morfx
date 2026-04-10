@@ -11,9 +11,9 @@ const BOLD_NUEVO_LINK_URL =
 const STATE_DIR = process.env.STATE_DIR || '/app/state'
 const STATE_FILE = path.join(STATE_DIR, 'bold-session.json')
 
-const DEFAULT_TIMEOUT = 60_000
-const LOGIN_FIELD_TIMEOUT = 20_000
-const STEP_TIMEOUT = 20_000
+const DEFAULT_TIMEOUT = 120_000
+const LOGIN_FIELD_TIMEOUT = 30_000
+const STEP_TIMEOUT = 30_000
 
 /**
  * Creates a BOLD payment link by automating the merchant panel with Playwright.

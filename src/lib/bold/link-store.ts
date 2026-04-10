@@ -90,17 +90,9 @@ export const boldLinkStore = {
     // Don't start duplicate requests
     if (pendingRequests.has(conversationId)) return
 
-    const state: BoldLinkState = {
-      status: 'pending',
-      amount,
-      description,
-      imageUrl,
-      startedAt: Date.now(),
-    }
-    saveToStorage(conversationId, state)
-    notify(conversationId)
-
-    // Fire the request — this promise is NOT tied to any component lifecycle
+    // Fire the request FIRST — register the promise in-memory BEFORE
+    // saving to localStorage and notifying, so getState() sees the
+    // in-memory promise and doesn't wrongly mark it as "interrupted".
     const promise = createPaymentLinkAction({ amount, description, imageUrl })
       .then((result) => {
         if (result.success && result.url) {
@@ -135,7 +127,18 @@ export const boldLinkStore = {
         notify(conversationId)
       })
 
+    // Register in-memory BEFORE notify so getState() finds it
     pendingRequests.set(conversationId, promise)
+
+    const state: BoldLinkState = {
+      status: 'pending',
+      amount,
+      description,
+      imageUrl,
+      startedAt: Date.now(),
+    }
+    saveToStorage(conversationId, state)
+    notify(conversationId)
   },
 
   /**

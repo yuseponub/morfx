@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { BoldPaymentLinkButton } from './bold-payment-link-button'
 import { WindowIndicator } from './window-indicator'
 import { AssignDropdown } from './assign-dropdown'
 import { ConversationTagInput } from './conversation-tag-input'
@@ -274,6 +275,9 @@ export function ChatHeader({
               </div>
             </div>
           )}
+
+          {/* BOLD: Payment link button (only renders if configured) */}
+          <BoldPaymentLinkButton />
 
           {/* GoDentist: Confirm appointment button */}
           {conversation.workspace_id === GODENTIST_WORKSPACE_ID && !appointmentLoading && appointmentInfo && (

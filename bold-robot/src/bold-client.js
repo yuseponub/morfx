@@ -334,17 +334,23 @@ async function createPaymentLink({ username, password, amount, description }) {
     await saveScreenshot(page, '06-personalizar')
 
     // ===== STEP 4: FILL DESCRIPTION =====
+    // The description field is a textarea with placeholder "Ej: nombre de tu prod..."
     const descriptionSelector =
-      'input[name*="descripcion" i], input[name*="description" i], textarea[name*="descripcion" i], textarea[name*="description" i], input[placeholder*="descripci" i], textarea[placeholder*="descripci" i], input[placeholder*="ej:" i]'
+      'textarea[placeholder*="Ej" i], textarea[placeholder*="nombre" i], textarea[placeholder*="producto" i], textarea[name*="descripcion" i], textarea[name*="description" i], input[placeholder*="Ej" i], input[placeholder*="nombre" i], input[placeholder*="producto" i]'
 
     await page.waitForSelector(descriptionSelector, { timeout: STEP_TIMEOUT })
     await page.fill(descriptionSelector, description.trim())
     await saveScreenshot(page, '07-description-filled')
 
     // ===== STEP 5: CREATE LINK =====
-    const crearLinkSelector =
-      'button:has-text("Crear link de pago"), button:has-text("Crear link"), button:has-text("Crear"), button:has-text("Generar")'
-    await page.click(crearLinkSelector)
+    // Use getByText (same approach that worked for Continuar — Boost widget interferes with CSS selectors)
+    try {
+      await page.getByText('Crear link de pago', { exact: true }).first().click({ force: true, timeout: 10000 })
+      console.log('[bold] Crear link clicked via getByText exact')
+    } catch {
+      await page.getByText('Crear link', { exact: false }).first().click({ force: true, timeout: 10000 })
+      console.log('[bold] Crear link clicked via getByText partial')
+    }
     await page.waitForLoadState('networkidle').catch(() => {})
     await page.waitForTimeout(2000)
     await dismissNpsPopup(page)
@@ -358,13 +364,13 @@ async function createPaymentLink({ username, password, amount, description }) {
       })
 
     // ===== STEP 6: EXTRACT URL — 4 strategies in cascade =====
-    const copiarSelector =
-      'button:has-text("Copiar link"), button:has-text("Copiar"), [data-testid*="copy"], [aria-label*="copiar" i]'
-
-    await page.waitForSelector(copiarSelector, { timeout: STEP_TIMEOUT }).catch(() => {})
-    await page.click(copiarSelector).catch((err) => {
-      console.warn(`[bold] could not click copiar button: ${err.message}`)
-    })
+    // Click "Copiar link" using getByText (same Boost widget workaround)
+    try {
+      await page.getByText('Copiar link', { exact: false }).first().click({ force: true, timeout: 10000 })
+      console.log('[bold] Copiar link clicked via getByText')
+    } catch (err) {
+      console.warn(`[bold] could not click copiar button: ${err.message.slice(0, 80)}`)
+    }
     await page.waitForTimeout(800)
     await dismissNpsPopup(page)
 

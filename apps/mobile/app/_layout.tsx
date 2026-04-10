@@ -1,11 +1,18 @@
 /**
  * Root layout.
  *
- * Boot sequence (Plan 43-04):
+ * Boot sequence (Plan 43-04, updated Plan 43-06):
  *   1. Keep splash visible (preventAutoHideAsync).
  *   2. Read current Supabase session via getCurrentSession().
  *   3. router.replace to /(tabs)/inbox if signed in, else /(auth)/login.
  *   4. Hide splash.
+ *
+ * Plan 43-06 additions:
+ *   - WorkspaceProvider wraps auth'd content (below auth check).
+ *   - workspaceId is used as React `key` on the tabs Stack.Screen so
+ *     switching workspace remounts the entire tab tree with clean state.
+ *   - BottomSheetModalProvider wraps the tree for @gorhom/bottom-sheet
+ *     (added in Task 2).
  *
  * Also subscribes to onAuthStateChange so a signOut() anywhere in the app
  * auto-routes back to /(auth)/login.
@@ -14,19 +21,30 @@
 import { Stack, useRouter, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { I18nextProvider } from 'react-i18next';
 import { i18n } from '@/lib/i18n';
 import { getCurrentSession, onAuthStateChange } from '@/lib/session';
 import { ThemeProvider } from '@/lib/theme';
+import { WorkspaceProvider } from '@/lib/workspace/context';
 
 // Keep the splash screen visible until we know the auth state.
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const [isAuthed, setIsAuthed] = useState(false);
+  // Active workspace id — drives the React key on the (tabs) screen so
+  // switching workspace remounts the tab tree with clean state.
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    null
+  );
+
+  const handleWorkspaceChange = useCallback((id: string) => {
+    setActiveWorkspaceId(id);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -39,8 +57,10 @@ export default function RootLayout() {
       // our route groups, so we cast to Href to satisfy tsc. Runtime paths
       // are correct.
       if (session) {
+        setIsAuthed(true);
         router.replace('/(tabs)/inbox' as Href);
       } else {
+        setIsAuthed(false);
         router.replace('/(auth)/login' as Href);
       }
       await SplashScreen.hideAsync();
@@ -48,7 +68,10 @@ export default function RootLayout() {
 
     const unsubscribe = onAuthStateChange((session) => {
       if (!session) {
+        setIsAuthed(false);
         router.replace('/(auth)/login' as Href);
+      } else {
+        setIsAuthed(true);
       }
     });
 
@@ -59,15 +82,29 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The inner content: Stack navigator with auth and tabs groups.
+  const navigationContent = (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen
+        name="(tabs)"
+        key={activeWorkspaceId ?? 'loading'}
+      />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <I18nextProvider i18n={i18n}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+          {isAuthed ? (
+            <WorkspaceProvider onWorkspaceChange={handleWorkspaceChange}>
+              {navigationContent}
+            </WorkspaceProvider>
+          ) : (
+            navigationContent
+          )}
           <StatusBar style="auto" />
         </I18nextProvider>
       </ThemeProvider>

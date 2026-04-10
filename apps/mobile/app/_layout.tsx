@@ -61,17 +61,23 @@ export default function RootLayout() {
   }, []);
 
   // Listen for auth state changes (login/logout) AFTER initial load.
-  // Use router.replace here because the navigator is guaranteed to be mounted.
+  // Only navigate when auth state actually CHANGES — Supabase fires multiple
+  // events on startup (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED) which
+  // would cause a redirect loop if we navigated on every event.
+  const prevAuthed = useRef<boolean | null>(null);
   useEffect(() => {
     const unsubscribe = onAuthStateChange((session) => {
-      setIsAuthed(!!session);
-      if (navigatorReady.current) {
-        if (session) {
+      const nowAuthed = !!session;
+      setIsAuthed(nowAuthed);
+      // Only navigate if state actually changed AND navigator is ready.
+      if (navigatorReady.current && prevAuthed.current !== null && prevAuthed.current !== nowAuthed) {
+        if (nowAuthed) {
           router.replace('/(tabs)/inbox' as Href);
         } else {
           router.replace('/(auth)/login' as Href);
         }
       }
+      prevAuthed.current = nowAuthed;
     });
     return () => { unsubscribe(); };
   }, [router]);

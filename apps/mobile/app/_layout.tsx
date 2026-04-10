@@ -18,7 +18,7 @@
  * auto-routes back to /(auth)/login.
  */
 
-import { Redirect, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
@@ -72,10 +72,10 @@ export default function RootLayout() {
           <BottomSheetModalProvider>
             <WorkspaceProvider onWorkspaceChange={handleWorkspaceChange}>
               <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)" redirect={isAuthed} />
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
                 <Stack.Screen
                   name="(tabs)"
-                  redirect={!isAuthed}
                   key={activeWorkspaceId ?? 'default'}
                 />
                 <Stack.Screen name="+not-found" />

@@ -267,11 +267,11 @@ async function createPaymentLink({ username, password, amount, description }) {
     await page.fill(amountSelector, String(Math.floor(amount)))
     await saveScreenshot(page, '05-monto-filled')
 
-    // NOTE: DO NOT use button[type="submit"] here — it matches the Boost
-    // chat widget ("Hablemos") submit button which is hidden and causes timeouts.
-    // Only use text-based selectors for wizard navigation.
-    const wizardContinuarSelector = 'button:has-text("Continuar"):not(.bai-button-fc1bfad1)'
-    await page.click(wizardContinuarSelector)
+    // NOTE: DO NOT use button[type="submit"] or plain CSS selectors here —
+    // the Boost chat widget ("Hablemos") has a hidden submit button that
+    // confuses Playwright. Use locator API with .first() to target the
+    // wizard's Continuar button which renders first in the DOM.
+    await page.locator('button', { hasText: 'Continuar' }).first().click()
     await page.waitForLoadState('networkidle').catch(() => {})
     await page.waitForTimeout(1000)
     await dismissNpsPopup(page)

@@ -11,7 +11,7 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
-import { runWithPurpose } from '@/lib/observability'
+import { runWithPurpose, getCollector } from '@/lib/observability'
 import { MessageAnalysisSchema, type MessageAnalysis } from './comprehension-schema'
 import { buildSystemPrompt } from './comprehension-prompt'
 import { V3_INTENTS } from './constants'
@@ -86,6 +86,17 @@ export async function comprehend(
   }
 
   const analysis = parseAnalysis(textBlock.text)
+
+  getCollector()?.recordEvent('comprehension', 'result', {
+    agent: 'somnio-v3',
+    intent: analysis.intent.primary,
+    secondary: analysis.intent.secondary,
+    confidence: analysis.intent.confidence,
+    category: analysis.classification.category,
+    sentiment: analysis.classification.sentiment,
+    fieldsExtracted: Object.keys(analysis.extracted_fields).filter(k => analysis.extracted_fields[k as keyof typeof analysis.extracted_fields] !== null),
+    tokensUsed,
+  })
 
   return { analysis, tokensUsed }
 }

@@ -56,6 +56,8 @@ export type EventCategory =
   | 'silence_timer'
   | 'interruption_handling'
   | 'pending_pool'
+  | 'pipeline_decision'
+  | 'comprehension'
 
 // ---------------------------------------------------------------------------
 // Records appended to the in-memory collector

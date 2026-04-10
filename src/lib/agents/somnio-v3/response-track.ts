@@ -91,6 +91,12 @@ export async function resolveResponseTrack(input: {
   const hasSaludoCombined = infoTemplateIntents.includes('saludo') && allIntents.length > 1
 
   if (allIntents.length === 0) {
+    getCollector()?.recordEvent('template_selection', 'empty_result', {
+      agent: 'somnio-v3',
+      salesAction: salesAction ?? 'none',
+      intent: intent ?? 'none',
+      reason: 'no_matching_intents',
+    })
     // Natural silence: no sales action + non-informational intent
     return emptyResult()
   }
@@ -178,6 +184,15 @@ export async function resolveResponseTrack(input: {
     const composed = composeBlock(byIntent, [])
     finalBlock = composed.block
   }
+
+  getCollector()?.recordEvent('template_selection', 'block_composed', {
+    agent: 'somnio-v3',
+    salesTemplateCount: salesTemplateIntents.length,
+    infoTemplateCount: infoTemplateIntents.length,
+    allIntents,
+    finalBlockSize: finalBlock.length,
+    hasSaludoCombined,
+  })
 
   // ------------------------------------------------------------------
   // 5. Build response

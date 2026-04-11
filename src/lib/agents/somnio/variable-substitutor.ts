@@ -16,6 +16,16 @@ import type { PackSelection } from '../types'
  * Hardcoded prices for Somnio products.
  * Per CONTEXT.md: configurable prices deferred to post-MVP.
  */
+/**
+ * @deprecated Este mapa pertenece al agente legacy `somnio-sales-v1`,
+ * que está muerto en producción. El agente activo es `somnio-v3` y sus
+ * precios viven en `src/lib/agents/somnio-v3/constants.ts`
+ * (ver `PACK_PRICES` y `PACK_PRICES_NUMERIC`).
+ *
+ * NO usar este export para nuevas features. Cualquier cambio de precio
+ * en producción debe hacerse en `somnio-v3/constants.ts` y en la tabla
+ * `agent_templates` de Supabase.
+ */
 export const SOMNIO_PRICES = {
   '1x': '$77,900',
   '2x': '$109,900',

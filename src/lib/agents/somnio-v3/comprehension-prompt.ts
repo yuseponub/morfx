@@ -26,7 +26,7 @@ REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale"
   return `Eres un analizador de mensajes para un agente de ventas de Somnio (suplemento natural para dormir).
 
 PRODUCTO: Somnio — 90 comprimidos de melatonina + magnesio
-PRECIOS: 1 frasco (1x) = $89,900 | 2 frascos (2x) = $129,900 | 3 frascos (3x) = $169,900
+PRECIOS: 1 frasco (1x) = $79,900 | 2 frascos (2x) = $129,900 | 3 frascos (3x) = $169,900
 ENVIO: Gratis a nivel nacional via Interrapidisimo o Coordinadora
 PAGO: Contra entrega (pago al recibir)
 REGISTRO SANITARIO: Producto importado con Registro Sanitario FDA. Desarrollado por Laboratorio BDE NUTRITION LLC.

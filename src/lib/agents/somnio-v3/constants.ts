@@ -137,7 +137,7 @@ export const LOW_CONFIDENCE_THRESHOLD = 80
 // ============================================================================
 
 export const PACK_PRICES: Record<string, string> = {
-  '1x': '$89,900',
+  '1x': '$79,900',
   '2x': '$129,900',
   '3x': '$169,900',
 }
@@ -148,7 +148,7 @@ export const PACK_PRICES: Record<string, string> = {
  * When updating prices, edit BOTH constants here — no other file should hardcode these numbers.
  */
 export const PACK_PRICES_NUMERIC: Record<string, number> = {
-  '1x': 89900,
+  '1x': 79900,
   '2x': 129900,
   '3x': 169900,
 }

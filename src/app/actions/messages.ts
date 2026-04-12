@@ -450,10 +450,42 @@ export async function sendTemplateMessage(params: {
   const apiComponents: Array<{
     type: 'header' | 'body' | 'button'
     parameters?: Array<{
-      type: 'text'
-      text: string
+      type: 'text' | 'image' | 'video' | 'document'
+      text?: string
+      image?: { link: string }
+      video?: { link: string }
+      document?: { link: string }
     }>
   }> = []
+
+  // Handle HEADER component (image/video/document require media parameter)
+  if (headerComponent) {
+    const format = (headerComponent.format || '').toUpperCase()
+    if (format === 'IMAGE' || format === 'VIDEO' || format === 'DOCUMENT') {
+      const mediaUrl = headerComponent.example?.header_handle?.[0] || ''
+      if (mediaUrl) {
+        const mediaType = format.toLowerCase() as 'image' | 'video' | 'document'
+        apiComponents.push({
+          type: 'header',
+          parameters: [{
+            type: mediaType,
+            [mediaType]: { link: mediaUrl },
+          }],
+        })
+      }
+    } else {
+      const headerVars = headerComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
+      if (headerVars.length > 0) {
+        apiComponents.push({
+          type: 'header',
+          parameters: headerVars.map(v => {
+            const num = v.replace(/[{}]/g, '')
+            return { type: 'text' as const, text: params.variableValues[num] || '' }
+          })
+        })
+      }
+    }
+  }
 
   // Extract variable numbers from body text and build parameters
   const bodyVars = bodyComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
@@ -461,18 +493,6 @@ export async function sendTemplateMessage(params: {
     apiComponents.push({
       type: 'body',
       parameters: bodyVars.map(v => {
-        const num = v.replace(/[{}]/g, '')
-        return { type: 'text' as const, text: params.variableValues[num] || '' }
-      })
-    })
-  }
-
-  // Same for header if it has variables
-  const headerVars = headerComponent?.text?.match(/\{\{(\d+)\}\}/g) || []
-  if (headerVars.length > 0) {
-    apiComponents.push({
-      type: 'header',
-      parameters: headerVars.map(v => {
         const num = v.replace(/[{}]/g, '')
         return { type: 'text' as const, text: params.variableValues[num] || '' }
       })

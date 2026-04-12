@@ -95,8 +95,8 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
 
   const handleGenerate = () => {
     const numAmount = Number(amount)
-    if (!numAmount || numAmount <= 0) {
-      setError('Ingresa un monto valido mayor a 0')
+    if (!numAmount || numAmount < 1000) {
+      setError('Monto minimo: $1.000 COP (escribe sin puntos: 1000)')
       return
     }
     if (!description.trim()) {
@@ -238,19 +238,27 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
           {!linkState && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="bold-amount">Monto (COP)</Label>
+                <Label htmlFor="bold-amount">Monto (COP) — sin puntos ni comas</Label>
                 <Input
                   id="bold-amount"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="50000"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="129900"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    // Strip dots and commas — user might type "129.900" or "129,900"
+                    const cleaned = e.target.value.replace(/[.,]/g, '').replace(/[^0-9]/g, '')
+                    setAmount(cleaned)
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleGenerate()
                   }}
                 />
+                {amount && Number(amount) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    = ${Number(amount).toLocaleString('es-CO')} COP
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bold-description">Descripcion</Label>

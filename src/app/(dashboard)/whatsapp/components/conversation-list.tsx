@@ -253,7 +253,9 @@ export function ConversationList({
                       ? 'No tienes chats asignados'
                       : filter === 'unassigned'
                         ? 'No hay chats sin asignar'
-                        : filter === 'archived'
+                        : filter === 'unanswered'
+                          ? 'No hay conversaciones sin respuesta'
+                          : filter === 'archived'
                           ? 'No hay conversaciones archivadas'
                           : 'No hay conversaciones aun'
               }

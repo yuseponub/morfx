@@ -520,6 +520,7 @@ export interface ConversationFilters {
   is_read?: boolean
   assigned_to?: string | null  // null = unassigned
   tag_ids?: string[]
+  unanswered?: boolean
   window_status?: WindowStatus
   sortBy?: 'last_message' | 'last_customer_message'
 }

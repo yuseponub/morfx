@@ -36,7 +36,7 @@ import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types
  * - 'unassigned': Only unassigned conversations
  * - 'archived': Only archived conversations
  */
-export type ConversationFilter = 'all' | 'unread' | 'mine' | 'unassigned' | 'archived'
+export type ConversationFilter = 'all' | 'unread' | 'mine' | 'unassigned' | 'archived' | 'unanswered'
 export type ConversationSort = 'last_message' | 'last_customer_message'
 
 interface UseConversationsOptions {
@@ -192,6 +192,7 @@ export function useConversations({
         status?: 'active' | 'archived'
         is_read?: boolean
         assigned_to?: string | null
+        unanswered?: boolean
         sortBy?: 'last_message' | 'last_customer_message'
       } = {}
 
@@ -209,6 +210,9 @@ export function useConversations({
         case 'unassigned':
           // Show only unassigned conversations
           filterParams = { status: 'active', assigned_to: null }
+          break
+        case 'unanswered':
+          filterParams = { status: 'active', unanswered: true }
           break
         default: // 'all'
           filterParams = { status: 'active' }

@@ -38,6 +38,7 @@ const mainFilters: { value: ConversationFilter; label: string }[] = [
 const moreFilters: { value: ConversationFilter; label: string }[] = [
   { value: 'mine', label: 'Mis chats' },
   { value: 'unassigned', label: 'Sin asignar' },
+  { value: 'unanswered', label: 'Sin respuesta' },
 ]
 
 /**

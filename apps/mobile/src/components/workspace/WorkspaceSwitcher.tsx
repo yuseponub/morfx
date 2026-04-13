@@ -24,6 +24,17 @@ export function WorkspaceSwitcher() {
 
   if (!workspace || workspace.isLoading) return null;
 
+  // Debug: show error if workspace fetch failed
+  if ((workspace as any).error) {
+    return (
+      <View>
+        <Text style={{ color: 'red', fontSize: 12 }}>
+          WS Error: {(workspace as any).error}
+        </Text>
+      </View>
+    );
+  }
+
   const { workspaceName } = workspace;
 
   return (

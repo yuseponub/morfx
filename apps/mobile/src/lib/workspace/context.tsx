@@ -52,6 +52,8 @@ export interface WorkspaceContextValue {
   refresh: () => Promise<void>;
   /** True while the initial fetch is in progress. */
   isLoading: boolean;
+  /** Error message if bootstrap failed (debug). */
+  error: string | null;
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextValue | null>(
@@ -80,6 +82,7 @@ export function WorkspaceProvider({
   const [memberships, setMemberships] = useState<WorkspaceMembership[]>([]);
   const [workspaceId, setWorkspaceIdState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Derive workspace name from memberships + current id.
   const workspaceName = useMemo(() => {
@@ -114,8 +117,10 @@ export function WorkspaceProvider({
       if (activeId) {
         onWorkspaceChange?.(activeId);
       }
-    } catch (err) {
-      console.error('[WorkspaceProvider] bootstrap failed', err);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.error('[WorkspaceProvider] bootstrap failed', msg);
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -154,8 +159,9 @@ export function WorkspaceProvider({
       setWorkspaceId: switchWorkspace,
       refresh: bootstrap,
       isLoading,
+      error,
     }),
-    [workspaceId, workspaceName, memberships, switchWorkspace, bootstrap, isLoading]
+    [workspaceId, workspaceName, memberships, switchWorkspace, bootstrap, isLoading, error]
   );
 
   return React.createElement(WorkspaceContext.Provider, { value }, children);

@@ -117,10 +117,7 @@ export async function getConversations(
 
   // Apply unanswered filter (client-side — PostgREST can't compare column vs column)
   if (filters?.unanswered) {
-    conversations = conversations.filter((conv) =>
-      !conv.last_customer_message_at ||
-      (conv.last_message_at && conv.last_customer_message_at < conv.last_message_at)
-    )
+    conversations = conversations.filter((conv) => !conv.last_customer_message_at)
   }
 
   // Apply tag filter (client-side)

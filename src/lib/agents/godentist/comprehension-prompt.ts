@@ -36,7 +36,7 @@ SEDES:
 - Canaveral: CC Jumbo El Bosque
 VALORACION: GRATIS (excepto cirugia maxilofacial $200.000)
 HORARIOS POR SEDE:
-- Cabecera: L-V 8:00am-12:30pm y 1:30pm-6:30pm. Sab 8:00am-5:00pm continua
+- Cabecera: L-V 8:00am-12:00pm y 2:00pm-7:00pm. Sab 8:00am-5:00pm continua
 - Mejoras Publicas: L-V 8:30am-12:00pm y 2:00pm-6:30pm. Sab 8:00am-12:00pm
 - Floridablanca: L-V 8:00am-12:00pm y 2:00pm-6:00pm. Sab 8:00am-12:00pm
 - Canaveral (Jumbo): L-V 8:30am-12:00pm y 2:00pm-6:30pm. Sab 8:00am-12:00pm

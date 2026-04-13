@@ -68,10 +68,6 @@ export async function getConversations(
     query = query.eq('is_read', filters.is_read)
   }
 
-  if (filters?.unanswered) {
-    query = query.or('last_customer_message_at.is.null,last_customer_message_at.lt.last_message_at')
-  }
-
   if (filters?.assigned_to !== undefined) {
     if (filters.assigned_to === null) {
       query = query.is('assigned_to', null)
@@ -117,6 +113,14 @@ export async function getConversations(
       const matchName = conv.contact?.name?.toLowerCase().includes(searchLower)
       return matchPhone || matchName
     })
+  }
+
+  // Apply unanswered filter (client-side — PostgREST can't compare column vs column)
+  if (filters?.unanswered) {
+    conversations = conversations.filter((conv) =>
+      !conv.last_customer_message_at ||
+      (conv.last_message_at && conv.last_customer_message_at < conv.last_message_at)
+    )
   }
 
   // Apply tag filter (client-side)

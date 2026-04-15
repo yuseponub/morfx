@@ -5,6 +5,7 @@ export interface LegalSubsection {
   heading: string;
   paragraphs?: string[];
   bullets?: string[];
+  subsections?: LegalSubsection[];
 }
 
 export interface LegalSectionProps {
@@ -40,6 +41,39 @@ function Bullets({ items }: { items?: string[] }) {
   );
 }
 
+function Subsection({
+  sub,
+  level,
+}: {
+  sub: LegalSubsection;
+  level: number;
+}) {
+  // level 0 -> h3, level 1+ -> h4
+  const HeadingTag = level === 0 ? 'h3' : 'h4';
+  const headingClass =
+    level === 0
+      ? 'text-xl font-semibold tracking-tight text-foreground'
+      : 'text-base font-semibold tracking-tight text-foreground';
+  return (
+    <div id={sub.id} className="scroll-mt-24 space-y-4">
+      <HeadingTag className={headingClass}>{sub.heading}</HeadingTag>
+      <Paragraphs items={sub.paragraphs} />
+      <Bullets items={sub.bullets} />
+      {sub.subsections && sub.subsections.length > 0 ? (
+        <div className="space-y-5 pt-1 pl-4 border-l border-border">
+          {sub.subsections.map((child, idx) => (
+            <Subsection
+              key={child.id ?? idx}
+              sub={child}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function LegalSection({
   id,
   heading,
@@ -58,17 +92,7 @@ export function LegalSection({
       {subsections && subsections.length > 0 ? (
         <div className="space-y-8 pt-2">
           {subsections.map((sub, idx) => (
-            <div
-              key={sub.id ?? idx}
-              id={sub.id}
-              className="scroll-mt-24 space-y-4"
-            >
-              <h3 className="text-xl font-semibold tracking-tight text-foreground">
-                {sub.heading}
-              </h3>
-              <Paragraphs items={sub.paragraphs} />
-              <Bullets items={sub.bullets} />
-            </div>
+            <Subsection key={sub.id ?? idx} sub={sub} level={0} />
           ))}
         </div>
       ) : null}

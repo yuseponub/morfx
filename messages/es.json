@@ -550,5 +550,176 @@
         "Los presentes Términos y Condiciones del Servicio entran en vigencia a partir de la fecha de su publicación en el sitio web de MORFX S.A.S. y se aplicarán a todos los Acuerdos de Servicios suscritos a partir de dicha fecha, así como a los Acuerdos vigentes en la medida en que no contradigan condiciones particulares pactadas con anterioridad."
       ]
     }
+  },
+  "Privacy": {
+    "pageTitle": "Política de Privacidad y Tratamiento de Datos Personales",
+    "lastUpdated": "Última actualización: 14 de abril de 2026",
+    "toc": "Índice",
+    "backToLanding": "Volver al inicio",
+    "seeTerms": "Ver Términos y Condiciones",
+    "preamble": "MORFX S.A.S. se compromete a proteger los datos personales de los Usuarios Administradores, Empresas Clientes y Consumidores Finales conforme a la Ley 1581 de 2012 (Ley de Protección de Datos Personales), el Decreto 1377 de 2013 y demás normas concordantes vigentes en Colombia. La presente Política de Privacidad y Tratamiento de Datos Personales forma parte integral de los Términos y Condiciones del Servicio y describe cómo MORFX S.A.S. recopila, usa, almacena, transmite y protege los datos personales en el marco de la Plataforma.",
+    "section7": {
+      "id": "proteccion-datos",
+      "heading": "7. Protección de Datos Personales",
+      "subsections": [
+        {
+          "id": "marco-legal",
+          "heading": "7.1 Marco Legal Aplicable",
+          "paragraphs": [
+            "El tratamiento de datos personales en el marco del presente sitio web, la Plataforma y los Servicios se rige por la Ley 1581 de 2012 (Ley de Protección de Datos Personales), el Decreto 1377 de 2013 y demás normas concordantes vigentes en Colombia."
+          ]
+        },
+        {
+          "id": "responsable",
+          "heading": "7.2 Datos Tratados por MORFX S.A.S. como Responsable",
+          "paragraphs": [
+            "MORFX S.A.S., en su calidad de Responsable del Tratamiento, recopila y trata los siguientes datos personales de los Usuarios Administradores de las Empresas Clientes:"
+          ],
+          "bullets": [
+            "Datos de identificación: nombre completo, número de identificación, cargo.",
+            "Datos de contacto: dirección de correo electrónico, teléfono, ciudad de domicilio.",
+            "Datos comerciales: información de la empresa contratante, histórico de consumo y facturación.",
+            "Datos de uso: registros de acceso, configuraciones de la Plataforma, métricas de uso de los Servicios."
+          ],
+          "subsections": [
+            {
+              "id": "responsable-finalidades",
+              "heading": "Finalidades del Tratamiento",
+              "paragraphs": [
+                "Las finalidades del tratamiento por parte de MORFX S.A.S. son:"
+              ],
+              "bullets": [
+                "Gestión del Acuerdo de Servicios y la relación contractual con la Empresa Cliente.",
+                "Facturación, cobro y gestión de pagos.",
+                "Soporte técnico, mantenimiento y mejora de la Plataforma.",
+                "Envío de comunicaciones relacionadas con los Servicios, actualizaciones y cambios relevantes.",
+                "Cumplimiento de obligaciones legales y regulatorias.",
+                "Envío de información comercial y de marketing sobre nuevas funcionalidades o servicios, previa autorización del titular."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "encargado",
+          "heading": "7.3 MORFX S.A.S. como Encargado del Tratamiento",
+          "paragraphs": [
+            "Respecto de los datos personales de los Consumidores Finales de la Empresa Cliente que sean procesados a través de la Plataforma, MORFX S.A.S. actúa en calidad de Encargado del Tratamiento, siguiendo exclusivamente las instrucciones de la Empresa Cliente, quien es la Responsable del Tratamiento frente a dichos consumidores. MORFX S.A.S. no determinará las finalidades del tratamiento de dichos datos y no los utilizará para fines propios distintos a la prestación de los Servicios."
+          ]
+        },
+        {
+          "id": "obligaciones-cliente",
+          "heading": "7.4 Obligaciones de la Empresa Cliente como Responsable",
+          "paragraphs": [
+            "En su calidad de Responsable del Tratamiento de los datos de sus Consumidores Finales, la Empresa Cliente se obliga a:"
+          ],
+          "bullets": [
+            "Obtener el consentimiento previo, expreso e informado de sus consumidores finales conforme al artículo 9 de la Ley 1581 de 2012, antes de que la Plataforma recopile sus datos personales.",
+            "Contar con una Política de Tratamiento de Datos Personales vigente y publicada que contemple el uso del Agente Conversacional.",
+            "Tramitar y responder oportunamente las solicitudes de derechos ARCO (Acceso, Rectificación, Cancelación y Oposición) de sus Consumidores Finales en los plazos legales.",
+            "Garantizar que los datos transmitidos a MORFX S.A.S. a través de la Plataforma son datos sobre los cuales tiene plenas facultades legales para su tratamiento."
+          ]
+        },
+        {
+          "id": "consentimiento",
+          "heading": "7.5 Flujo de Consentimiento Informado en la Plataforma",
+          "paragraphs": [
+            "El Agente Conversacional de MORFX S.A.S. implementará el siguiente mecanismo de consentimiento informado en cada interacción con un Consumidor Final:",
+            "Antes de iniciar la conversación, el Agente podrá indicar al Consumidor Final: (a) el hipervínculo donde puede consultar la política de tratamiento de datos del Responsable (Empresa Cliente), que debe incluir la identidad del Responsable, finalidades del tratamiento, derechos del titular y canal para ejercerlos; y (b) que, al continuar la conversación, autoriza el tratamiento de sus datos personales para las finalidades informadas.",
+            "La Empresa Cliente es responsable de conservar evidencia del consentimiento otorgado por sus Consumidores Finales."
+          ]
+        },
+        {
+          "id": "subencargados",
+          "heading": "7.6 Transmisión de Datos a Subencargados",
+          "paragraphs": [
+            "Para la prestación de los Servicios, MORFX S.A.S. podrá transmitir datos personales de Consumidores Finales a los siguientes subencargados:"
+          ],
+          "bullets": [
+            "Proveedores de infraestructura cloud (servidores, almacenamiento y cómputo).",
+            "Proveedores de modelos de lenguaje de gran escala (LLM) utilizados por los Agentes Conversacionales.",
+            "Plataformas de logística y mensajería integradas a la Plataforma."
+          ],
+          "subsections": [
+            {
+              "id": "subencargados-autorizacion",
+              "heading": "Autorización y actualización",
+              "paragraphs": [
+                "Al suscribir el Acuerdo de Servicios, la Empresa Cliente autoriza expresamente dichas transmisiones. MORFX S.A.S. garantiza la existencia de contratos de encargo de datos con los subencargados cuando la normativa lo requiera, y verificará su nivel de protección de datos. La lista de subencargados estará disponible para consulta de la Empresa Cliente y se actualizará con preaviso de quince (15) días ante cambios relevantes."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "arco",
+          "heading": "7.7 Derechos de los Titulares (ARCO)",
+          "paragraphs": [
+            "Los titulares de datos personales tratados por MORFX S.A.S. en su calidad de Responsable (Usuarios Administradores) tienen los siguientes derechos, ejercibles en los términos de la Ley 1581 de 2012:"
+          ],
+          "bullets": [
+            "Acceso: Conocer los datos personales que sobre ellos trate MORFX S.A.S.",
+            "Actualización y Rectificación: Solicitar la corrección de datos inexactos, incompletos o desactualizados.",
+            "Supresión: Solicitar la eliminación de sus datos cuando no exista obligación legal o contractual de conservarlos.",
+            "Revocación del consentimiento: Retirar la autorización otorgada para el tratamiento de sus datos.",
+            "Presentar quejas ante la SIC cuando sus derechos sean vulnerados."
+          ],
+          "subsections": [
+            {
+              "id": "arco-canal",
+              "heading": "Canal y plazos de atención",
+              "paragraphs": [
+                "Para ejercer estos derechos, los titulares podrán escribir a: morfx.colombia@gmail.com. MORFX S.A.S. dará respuesta en los plazos establecidos por la Ley 1581 de 2012 (diez (10) días hábiles para acceso; quince (15) días hábiles para las demás solicitudes, prorrogables por ocho (8) días hábiles adicionales con justa causa)."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "retencion",
+          "heading": "7.8 Retención y Eliminación de Datos",
+          "paragraphs": [
+            "MORFX S.A.S. conservará los datos personales de los Usuarios Administradores durante la vigencia del Acuerdo de Servicios y por el término adicional que sea necesario para el cumplimiento de obligaciones legales y contractuales. Los datos personales de Consumidores Finales procesados como Encargado serán devueltos o eliminados de forma segura en el plazo máximo de treinta (30) días calendario tras la terminación del Acuerdo, a elección de la Empresa Cliente.",
+            "En caso de incidente de seguridad que afecte datos personales, MORFX S.A.S. notificará a la Empresa Cliente en no más de setenta y dos (72) horas desde el conocimiento del hecho, y cooperará con la Empresa Cliente para el cumplimiento de los deberes de notificación ante la SIC y los titulares afectados conforme a la normativa vigente."
+          ]
+        }
+      ]
+    },
+    "section8": {
+      "id": "cookies",
+      "heading": "8. Política de Cookies y Tecnologías de Seguimiento",
+      "subsections": [
+        {
+          "id": "cookies-consentimiento",
+          "heading": "8.1 Consentimiento y Gestión de Cookies",
+          "paragraphs": [
+            "Al ingresar al sitio web por primera vez, el usuario podrá encontrar un aviso (banner de cookies) que le permite aceptar o rechazar las categorías de cookies no esenciales. El usuario puede en cualquier momento gestionar o revocar sus preferencias de cookies a través de la configuración de su navegador o el panel de preferencias disponible en el sitio web. La revocación del consentimiento para cookies no esenciales no afectará la funcionalidad de las cookies estrictamente necesarias ni la prestación de los Servicios contratados."
+          ]
+        },
+        {
+          "id": "cookies-retencion",
+          "heading": "8.2 Retención de Datos de Cookies",
+          "paragraphs": [
+            "Cuando aplique, las cookies de sesión se eliminan al cerrar el navegador. Las cookies persistentes tienen una duración máxima de doce (12) meses, salvo indicación distinta en la descripción de cada cookie."
+          ]
+        }
+      ]
+    },
+    "sectionContact": {
+      "id": "contacto",
+      "heading": "Canales de Contacto",
+      "paragraphs": [
+        "Para consultas relacionadas con esta Política de Privacidad, el ejercicio de derechos ARCO, o cualquier incidente de datos personales, contacte a MORFX S.A.S. por los siguientes canales:"
+      ],
+      "bullets": [
+        "Correo electrónico: morfx.colombia@gmail.com",
+        "Domicilio: Carrera 38 # 42 - 17 Apartamento 1601B, Bucaramanga, Santander, Colombia",
+        "Teléfono: +57 313 754 9286"
+      ]
+    },
+    "sectionEffective": {
+      "id": "vigencia",
+      "heading": "Entrada en Vigencia",
+      "paragraphs": [
+        "La presente Política de Privacidad entra en vigencia el 14 de abril de 2026 y se aplicará a todos los Usuarios y titulares de datos a partir de dicha fecha."
+      ]
+    }
   }
 }

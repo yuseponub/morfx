@@ -19,5 +19,87 @@
     "phone": "Phone",
     "email": "Email",
     "whatsapp": "WhatsApp"
+  },
+  "Landing": {
+    "Meta": {
+      "title": "MORFX S.A.S. — AI-powered CRM and WhatsApp Business automation",
+      "description": "Colombian SaaS platform for CRM and AI-powered WhatsApp Business automation for e-commerce. Conversational agents, Shopify and carrier integrations, and multi-channel customer care."
+    },
+    "Hero": {
+      "badge": "MORFX S.A.S. — A Colombian company",
+      "headline": "AI-powered CRM and WhatsApp Business automation",
+      "subhead": "We unify CRM, conversational customer care and automations on a single platform so e-commerce companies can sell, respond and fulfill with greater precision and lower operating cost.",
+      "primaryCTA": "Contact sales",
+      "secondaryCTA": "Log in",
+      "responseTag": "Reply within minutes via WhatsApp · Monday to Friday, 8:00 to 18:00 (Colombia time)"
+    },
+    "About": {
+      "eyebrow": "About us",
+      "heading": "A Colombian company building AI platforms for business",
+      "intro": "MORFX S.A.S. is a simplified joint-stock company incorporated in Colombia in 2026, headquartered in Bucaramanga, Santander. We develop, operate and license the MORFX platform — an ecosystem of CRM, conversational agents and automations designed for e-commerce companies and other productive sectors that require customer care at scale and integrated logistics management.",
+      "objetoSocialLabel": "Corporate purpose (incorporation deed)",
+      "objetoSocial": "Development, design, implementation, operation, commercialization and licensing of technology platforms based on artificial intelligence, with special emphasis on customer service, logistics management and commercial processes for e-commerce companies and other productive sectors.",
+      "objetoSocialSource": "Incorporation deed under Colombian Law 1258 of 2008.",
+      "legalDataLabel": "Legal information",
+      "dataLegalName": "Legal name",
+      "dataNIT": "Tax ID (NIT)",
+      "dataCity": "Registered office",
+      "dataFounded": "Year of incorporation",
+      "dataFoundedValue": "2026",
+      "dataCIIU": "CIIU code",
+      "dataLegalRep": "Legal representative"
+    },
+    "CRM": {
+      "heading": "Unified CRM for e-commerce",
+      "description": "We consolidate contacts, conversations, orders and sales stages in a single view. Every interaction is attached to the right customer, with complete history and synchronized status across WhatsApp, orders and pipelines.",
+      "illustrationLabel": "Unified CRM",
+      "bullet1": "Unified contact profiles with full message and order history",
+      "bullet2": "Configurable pipelines per business line, with custom stages",
+      "bullet3": "Tags, notes and tasks synchronized between CRM and WhatsApp inbox",
+      "bullet4": "Side-by-side conversation view with contact and order context"
+    },
+    "Agents": {
+      "heading": "AI conversational agents",
+      "description": "Our customer-care and sales agents run on leading language models (Anthropic Claude and OpenAI GPT) and are instrumented to deliver human-like conversational performance, with traceability, guardrails and tone fully controlled by each customer.",
+      "illustrationLabel": "AI agents",
+      "bullet1": "24/7 customer care and sales with tone configurable per brand",
+      "bullet2": "Spanish-first comprehension with intent- and context-based routing",
+      "bullet3": "Per-turn observability: events, queries and AI calls are auditable",
+      "bullet4": "Escalation to a human whenever the customer asks or ambiguity is detected"
+    },
+    "Automations": {
+      "heading": "No-code intelligent automations",
+      "description": "A visual builder with an AI assistant lets you design business flows that react to events from your store, your CRM or WhatsApp. We connect 10 trigger types with 11 actions across contacts, orders, stages, messages and notifications.",
+      "illustrationLabel": "Automations",
+      "bullet1": "10 triggers: new orders, stage changes, incoming messages and more",
+      "bullet2": "11 actions: send a message, move stage, assign tag, create task and more",
+      "bullet3": "Visual builder with an AI assistant that explains and validates each flow",
+      "bullet4": "Conditions and delays by business hours, working days and customer segment"
+    },
+    "Integrations": {
+      "heading": "Integrations with your e-commerce stack",
+      "description": "MORFX connects with the platforms Colombian companies already use: Shopify stores, local carriers and payment gateways. The goal is for orders, shipping guides and payments to flow without intermediate spreadsheets or copying data between systems.",
+      "illustrationLabel": "Integrations",
+      "bullet1": "Shopify: orders, products and customers synced in real time",
+      "bullet2": "Coordinadora and Inter Rapidísimo: shipping-guide creation and tracking",
+      "bullet3": "Configurable webhooks to connect the customer's own internal systems",
+      "bullet4": "Internal API for agent actions with workspace-level validation"
+    },
+    "Multichannel": {
+      "heading": "Multi-channel, starting with WhatsApp Business Platform",
+      "description": "Today we operate on WhatsApp Business Platform, the highest-volume channel in Colombia. We are enabling Messenger and Instagram Direct through direct Meta integration so a single conversation, CRM and agent can serve every channel the customer uses.",
+      "illustrationLabel": "Multi-channel",
+      "bullet1": "WhatsApp Business Platform with templates, sessions and campaigns",
+      "bullet2": "Coming soon: Facebook Messenger and Instagram Direct (Meta Direct)",
+      "bullet3": "One thread per contact, regardless of the originating channel",
+      "bullet4": "Auditable log of every inbound and outbound message per channel"
+    },
+    "CTA": {
+      "heading": "Ready to get started?",
+      "description": "Let's talk about your operation, show you the platform live and propose an implementation plan aligned with your sales and logistics processes.",
+      "primaryButton": "Message us on WhatsApp",
+      "secondaryButton": "Send an email",
+      "contactLine": "You can also call us at {phone} or write to {email}."
+    }
   }
 }

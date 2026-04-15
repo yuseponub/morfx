@@ -550,5 +550,176 @@
         "These Terms of Service enter into force as of the date of their publication on the MORFX S.A.S. website and shall apply to all Services Agreements executed as of that date, as well as to Agreements in force to the extent that they do not contradict particular conditions previously agreed upon."
       ]
     }
+  },
+  "Privacy": {
+    "pageTitle": "Privacy Policy and Personal Data Processing",
+    "lastUpdated": "Last updated: April 14, 2026",
+    "toc": "Contents",
+    "backToLanding": "Back to home",
+    "seeTerms": "See Terms of Service",
+    "preamble": "MORFX S.A.S. is committed to protecting the personal data of Administrator Users, Client Companies and End Consumers in accordance with Colombian Law 1581 of 2012 (Personal Data Protection Law), Decree 1377 of 2013 and other applicable regulations in force in Colombia. This Privacy Policy and Personal Data Processing Notice is an integral part of the Terms of Service and describes how MORFX S.A.S. collects, uses, stores, transmits and protects personal data within the Platform.",
+    "section7": {
+      "id": "proteccion-datos",
+      "heading": "7. Personal Data Protection",
+      "subsections": [
+        {
+          "id": "marco-legal",
+          "heading": "7.1 Applicable Legal Framework",
+          "paragraphs": [
+            "The processing of personal data within this website, the Platform and the Services is governed by Law 1581 of 2012 (Personal Data Protection Law), Decree 1377 of 2013 and other applicable regulations in force in Colombia."
+          ]
+        },
+        {
+          "id": "responsable",
+          "heading": "7.2 Data Processed by MORFX S.A.S. as Data Controller",
+          "paragraphs": [
+            "MORFX S.A.S., in its capacity as Data Controller, collects and processes the following personal data of Administrator Users of Client Companies:"
+          ],
+          "bullets": [
+            "Identification data: full name, identification number, job title.",
+            "Contact data: email address, telephone, city of residence.",
+            "Commercial data: information about the contracting company, consumption and billing history.",
+            "Usage data: access logs, Platform configurations, Service usage metrics."
+          ],
+          "subsections": [
+            {
+              "id": "responsable-finalidades",
+              "heading": "Purposes of Processing",
+              "paragraphs": [
+                "The purposes of processing by MORFX S.A.S. are:"
+              ],
+              "bullets": [
+                "Management of the Services Agreement and the contractual relationship with the Client Company.",
+                "Billing, collection and payment management.",
+                "Technical support, maintenance and improvement of the Platform.",
+                "Sending communications related to the Services, updates and relevant changes.",
+                "Compliance with legal and regulatory obligations.",
+                "Sending commercial and marketing information about new functionalities or services, subject to prior authorization from the data subject."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "encargado",
+          "heading": "7.3 MORFX S.A.S. as Data Processor",
+          "paragraphs": [
+            "With respect to the personal data of the End Consumers of the Client Company that are processed through the Platform, MORFX S.A.S. acts in its capacity as Data Processor, following exclusively the instructions of the Client Company, which is the Data Controller with respect to such consumers. MORFX S.A.S. will not determine the purposes of processing of such data and will not use them for its own purposes other than the provision of the Services."
+          ]
+        },
+        {
+          "id": "obligaciones-cliente",
+          "heading": "7.4 Client Company Obligations as Data Controller",
+          "paragraphs": [
+            "In its capacity as Data Controller of the data of its End Consumers, the Client Company undertakes to:"
+          ],
+          "bullets": [
+            "Obtain the prior, express and informed consent of its end consumers in accordance with article 9 of Law 1581 of 2012, before the Platform collects their personal data.",
+            "Maintain a current and published Personal Data Processing Policy that contemplates the use of the Conversational Agent.",
+            "Process and respond in a timely manner to requests for ARCO rights (Access, Rectification, Cancellation and Objection) from its End Consumers within the legal timeframes.",
+            "Ensure that the data transmitted to MORFX S.A.S. through the Platform are data over which it has full legal authority to process."
+          ]
+        },
+        {
+          "id": "consentimiento",
+          "heading": "7.5 Informed Consent Flow in the Platform",
+          "paragraphs": [
+            "The MORFX S.A.S. Conversational Agent shall implement the following informed consent mechanism in each interaction with an End Consumer:",
+            "Before starting the conversation, the Agent may indicate to the End Consumer: (a) the hyperlink where they can consult the Data Controller's (Client Company's) personal data processing policy, which must include the identity of the Controller, purposes of processing, rights of the data subject, and channel to exercise them; and (b) that by continuing the conversation, they authorize the processing of their personal data for the informed purposes.",
+            "The Client Company is responsible for keeping evidence of the consent granted by its End Consumers."
+          ]
+        },
+        {
+          "id": "subencargados",
+          "heading": "7.6 Data Transmission to Sub-processors",
+          "paragraphs": [
+            "For the provision of the Services, MORFX S.A.S. may transmit personal data of End Consumers to the following sub-processors:"
+          ],
+          "bullets": [
+            "Cloud infrastructure providers (servers, storage and compute).",
+            "Large language model (LLM) providers used by the Conversational Agents.",
+            "Logistics and messaging platforms integrated with the Platform."
+          ],
+          "subsections": [
+            {
+              "id": "subencargados-autorizacion",
+              "heading": "Authorization and updates",
+              "paragraphs": [
+                "By executing the Services Agreement, the Client Company expressly authorizes such transmissions. MORFX S.A.S. guarantees the existence of data processing agreements with sub-processors when the regulation requires it, and will verify their level of data protection. The list of sub-processors will be available for consultation by the Client Company and will be updated with fifteen (15) days' prior notice for relevant changes."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "arco",
+          "heading": "7.7 Rights of Data Subjects (ARCO)",
+          "paragraphs": [
+            "Data subjects whose personal data are processed by MORFX S.A.S. in its capacity as Data Controller (Administrator Users) have the following rights, exercisable under the terms of Law 1581 of 2012 (ARCO: Access, Rectification, Cancellation, Objection):"
+          ],
+          "bullets": [
+            "Access: To know the personal data that MORFX S.A.S. processes about them.",
+            "Update and Rectification: To request the correction of inaccurate, incomplete or outdated data.",
+            "Deletion: To request the deletion of their data when there is no legal or contractual obligation to keep them.",
+            "Revocation of consent: To withdraw the authorization granted for the processing of their data.",
+            "Filing complaints with the SIC (Colombian Data Protection Authority) when their rights are infringed."
+          ],
+          "subsections": [
+            {
+              "id": "arco-canal",
+              "heading": "Channel and response timeframes",
+              "paragraphs": [
+                "To exercise these rights, data subjects may write to: morfx.colombia@gmail.com. MORFX S.A.S. will respond within the timeframes established by Law 1581 of 2012 (ten (10) business days for access; fifteen (15) business days for other requests, extendable by an additional eight (8) business days with just cause)."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "retencion",
+          "heading": "7.8 Data Retention and Deletion",
+          "paragraphs": [
+            "MORFX S.A.S. will retain the personal data of Administrator Users during the term of the Services Agreement and for the additional period necessary to comply with legal and contractual obligations. Personal data of End Consumers processed as Data Processor will be returned or securely deleted within a maximum period of thirty (30) calendar days after termination of the Agreement, at the Client Company's election.",
+            "In the event of a security incident affecting personal data, MORFX S.A.S. shall notify the Client Company within no more than seventy-two (72) hours from knowledge of the fact, and will cooperate with the Client Company to comply with notification duties to the SIC and affected data subjects in accordance with current regulations."
+          ]
+        }
+      ]
+    },
+    "section8": {
+      "id": "cookies",
+      "heading": "8. Cookies and Tracking Technologies Policy",
+      "subsections": [
+        {
+          "id": "cookies-consentimiento",
+          "heading": "8.1 Cookie Consent and Management",
+          "paragraphs": [
+            "When entering the website for the first time, the user may find a notice (cookie banner) that allows them to accept or reject the non-essential cookie categories. The user may at any time manage or revoke their cookie preferences through their browser configuration or the preferences panel available on the website. The revocation of consent for non-essential cookies will not affect the functionality of strictly necessary cookies nor the provision of the contracted Services."
+          ]
+        },
+        {
+          "id": "cookies-retencion",
+          "heading": "8.2 Cookie Data Retention",
+          "paragraphs": [
+            "Where applicable, session cookies are deleted when the browser is closed. Persistent cookies have a maximum duration of twelve (12) months, unless otherwise indicated in the description of each cookie."
+          ]
+        }
+      ]
+    },
+    "sectionContact": {
+      "id": "contacto",
+      "heading": "Contact Channels",
+      "paragraphs": [
+        "For inquiries related to this Privacy Policy, the exercise of ARCO rights, or any personal data incident, please contact MORFX S.A.S. through the following channels:"
+      ],
+      "bullets": [
+        "Email: morfx.colombia@gmail.com",
+        "Address: Carrera 38 # 42 - 17 Apartamento 1601B, Bucaramanga, Santander, Colombia",
+        "Phone: +57 313 754 9286"
+      ]
+    },
+    "sectionEffective": {
+      "id": "vigencia",
+      "heading": "Effective Date",
+      "paragraphs": [
+        "This Privacy Policy enters into force on April 14, 2026 and shall apply to all Users and data subjects as of that date."
+      ]
+    }
   }
 }

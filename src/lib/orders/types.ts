@@ -141,6 +141,7 @@ export interface Order {
   linked_order_id: string | null
   source_order_id: string | null
   custom_fields: Record<string, unknown>
+  email: string | null
   created_at: string
   updated_at: string
 }
@@ -160,6 +161,7 @@ export interface OrderFormData {
   linked_order_id?: string | null
   source_order_id?: string | null
   custom_fields?: Record<string, unknown>
+  email?: string | null
 }
 
 /**

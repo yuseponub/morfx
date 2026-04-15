@@ -499,7 +499,7 @@ Plans:
 **Milestone Goal:** Eliminar intermediarios (360dialog para WhatsApp, ManyChat para FB/IG) e integrar directamente con Meta Cloud API. Multi-tenant con Embedded Signup para que cada cliente conecte su cuenta de WhatsApp, Facebook Messenger e Instagram. Migracion gradual con feature flags per-workspace.
 
 - [ ] **Phase 37: Meta App Setup + Foundation** - Meta App config, credentials table, token encryption, Graph API client, step-by-step setup guide
-- [ ] **Phase 37.5: Meta Business Verification Website** - Landing publica bilingue (ES/EN) + privacy + terms en morfx.app para desbloquear Business Verification tras rechazo silencioso
+- [x] **Phase 37.5: Meta Business Verification Website (Bloque A)** - Landing publica bilingue ES/EN + privacy + terms desplegados en morfx.app (2026-04-14). Bloques B/C/D manuales pendientes (otra conversacion)
 - [ ] **Phase 38: Embedded Signup + WhatsApp Inbound** - Embedded Signup UI, token exchange, webhook subscription, unified webhook endpoint, WA inbound messages
 - [ ] **Phase 39: WhatsApp Outbound + Templates** - Cloud API sender, media upload/download, templates CRUD, read receipts, provider flag, channel registry
 - [ ] **Phase 40: Facebook Messenger Direct** - FB/IG page connection UI, Messenger webhook handler, FB sender, PSID resolution, Messenger inbox, provider flag

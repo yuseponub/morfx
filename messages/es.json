@@ -1,1 +1,23 @@
-{}
+{
+  "Header": {
+    "login": "Iniciar sesión",
+    "contactSales": "Contactar ventas",
+    "localeToggleLabel": "Cambiar idioma"
+  },
+  "Footer": {
+    "tagline": "CRM y automatización de WhatsApp Business con IA para e-commerce",
+    "product": "Producto",
+    "crm": "CRM unificado",
+    "agents": "Agentes de IA",
+    "automations": "Automatizaciones",
+    "integrations": "Integraciones",
+    "legal": "Legal",
+    "privacy": "Política de privacidad",
+    "terms": "Términos de servicio",
+    "login": "Iniciar sesión",
+    "contact": "Contacto",
+    "phone": "Teléfono",
+    "email": "Email",
+    "whatsapp": "WhatsApp"
+  }
+}

@@ -1,1 +1,23 @@
-{}
+{
+  "Header": {
+    "login": "Login",
+    "contactSales": "Contact sales",
+    "localeToggleLabel": "Switch language"
+  },
+  "Footer": {
+    "tagline": "AI-powered CRM and WhatsApp Business automation for e-commerce",
+    "product": "Product",
+    "crm": "Unified CRM",
+    "agents": "AI agents",
+    "automations": "Automations",
+    "integrations": "Integrations",
+    "legal": "Legal",
+    "privacy": "Privacy policy",
+    "terms": "Terms of service",
+    "login": "Login",
+    "contact": "Contact",
+    "phone": "Phone",
+    "email": "Email",
+    "whatsapp": "WhatsApp"
+  }
+}

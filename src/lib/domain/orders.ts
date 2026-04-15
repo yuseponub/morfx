@@ -22,6 +22,16 @@ import { assignTag, removeTag } from './tags'
 import type { DomainContext, DomainResult } from './types'
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Pipeline name (case-sensitive, exact match) where recompra orders MUST land.
+ * Quick task 043 — restringe recompra a un unico pipeline destino conocido.
+ */
+export const RECOMPRA_PIPELINE_NAME = 'Ventas Somnio Standard' as const
+
+// ============================================================================
 // Param Types
 // ============================================================================
 
@@ -38,6 +48,7 @@ export interface CreateOrderParams {
   shippingCity?: string | null
   shippingDepartment?: string | null
   customFields?: Record<string, unknown>
+  email?: string | null
   products?: Array<{
     productId?: string | null
     sku: string
@@ -60,6 +71,7 @@ export interface UpdateOrderParams {
   shippingCity?: string | null
   shippingDepartment?: string | null
   customFields?: Record<string, unknown>
+  email?: string | null
   products?: Array<{
     productId?: string | null
     sku: string
@@ -92,8 +104,22 @@ export interface DuplicateOrderParams {
 
 export interface RecompraOrderParams {
   sourceOrderId: string
-  /** Optional target stage. If omitted, uses first stage of same pipeline. */
+  /**
+   * Etapa destino (debe pertenecer al pipeline 'Ventas Somnio Standard').
+   * Si se omite, se usa la primera etapa de ese pipeline.
+   */
   targetStageId?: string | null
+  /**
+   * Productos seleccionados manualmente por el usuario para la recompra.
+   * Requerido: array no vacio. Reemplazan por completo a los del pedido origen.
+   */
+  products: Array<{
+    product_id?: string | null
+    sku: string
+    title: string
+    unit_price: number
+    quantity: number
+  }>
 }
 
 export interface AddOrderTagParams {
@@ -212,6 +238,7 @@ export async function createOrder(
         shipping_city: params.shippingCity || null,
         shipping_department: params.shippingDepartment || null,
         custom_fields: params.customFields || {},
+        email: params.email || null,
       })
       .select('id, total_value, stage_id')
       .single()
@@ -283,6 +310,26 @@ export async function createOrder(
       }
     }
 
+    // Si se proporciono email y el contacto existe sin email, actualizarlo (primera captura).
+    // No sobreescribimos si el contacto ya tenia email, ni emitimos trigger field.changed
+    // (esto es captura, no edicion intencional del perfil).
+    if (params.email && params.contactId) {
+      const { data: contactEmailRow } = await supabase
+        .from('contacts')
+        .select('email')
+        .eq('id', params.contactId)
+        .eq('workspace_id', ctx.workspaceId)
+        .single()
+
+      if (contactEmailRow && !contactEmailRow.email) {
+        await supabase
+          .from('contacts')
+          .update({ email: params.email })
+          .eq('id', params.contactId)
+          .eq('workspace_id', ctx.workspaceId)
+      }
+    }
+
     // Fire-and-forget: emit automation trigger
     await emitOrderCreated({
       workspaceId: ctx.workspaceId,
@@ -336,7 +383,7 @@ export async function updateOrder(
     const { data: previousOrder, error: fetchError } = await supabase
       .from('orders')
       .select(
-        'workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, name, carrier, tracking_number, carrier_guide_number, shipping_address, shipping_city, shipping_department, custom_fields'
+        'workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, name, carrier, tracking_number, carrier_guide_number, shipping_address, shipping_city, shipping_department, custom_fields, email'
       )
       .eq('id', params.orderId)
       .eq('workspace_id', ctx.workspaceId)
@@ -359,6 +406,7 @@ export async function updateOrder(
     if (params.shippingCity !== undefined) updates.shipping_city = params.shippingCity || null
     if (params.shippingDepartment !== undefined) updates.shipping_department = params.shippingDepartment || null
     if (params.customFields !== undefined) updates.custom_fields = params.customFields
+    if (params.email !== undefined) updates.email = params.email || null
 
     // Update order fields
     if (Object.keys(updates).length > 0) {
@@ -448,6 +496,7 @@ export async function updateOrder(
       { paramKey: 'shipping_address', dbColumn: 'shipping_address' },
       { paramKey: 'shipping_city', dbColumn: 'shipping_city' },
       { paramKey: 'shipping_department', dbColumn: 'shipping_department' },
+      { paramKey: 'email', dbColumn: 'email' },
     ]
 
     for (const { paramKey, dbColumn } of fieldMappings) {
@@ -908,8 +957,20 @@ export async function duplicateOrder(
 
 /**
  * Create a repeat order (recompra) from an existing order.
- * Duplicates the order to the same pipeline's first stage, then clears
- * tracking/carrier/guide/closing_date fields so the new order starts fresh.
+ *
+ * Quick task 043: la recompra SIEMPRE aterriza en el pipeline cuyo nombre
+ * coincide exactamente con `RECOMPRA_PIPELINE_NAME` ('Ventas Somnio Standard').
+ * Los productos son seleccionados por el usuario (no copiados del pedido origen)
+ * y reemplazan cualquier producto que `duplicateOrder` no deberia insertar.
+ *
+ * Flujo:
+ *   1. Valida `params.products.length >= 1`.
+ *   2. Busca el pipeline destino por nombre + workspace_id.
+ *   3. Si `targetStageId` viene, valida que pertenece a ese pipeline.
+ *   4. Duplica con copyProducts=false, copyValue=false (se recalcula aqui).
+ *   5. Inserta los productos del usuario en order_products.
+ *   6. Recalcula total_value y limpia tracking/carrier/guide/closing_date.
+ *
  * Emits: order.created (via duplicateOrder)
  */
 export async function recompraOrder(
@@ -918,10 +979,18 @@ export async function recompraOrder(
 ): Promise<DomainResult<RecompraOrderResult>> {
   const supabase = createAdminClient()
 
-  // Read source order to get pipeline_id
+  // Defensa adicional: al menos 1 producto
+  if (!params.products || params.products.length === 0) {
+    return {
+      success: false,
+      error: 'Debe seleccionar al menos un producto para la recompra',
+    }
+  }
+
+  // Verifica que el pedido origen existe en este workspace
   const { data: sourceOrder, error: sourceError } = await supabase
     .from('orders')
-    .select('pipeline_id')
+    .select('id')
     .eq('id', params.sourceOrderId)
     .eq('workspace_id', ctx.workspaceId)
     .single()
@@ -930,40 +999,106 @@ export async function recompraOrder(
     return { success: false, error: 'Pedido origen no encontrado' }
   }
 
-  // Duplicate to same pipeline, chosen stage (or first stage if not specified)
+  // Busca el pipeline destino por nombre exacto
+  const { data: targetPipeline } = await supabase
+    .from('pipelines')
+    .select('id')
+    .eq('workspace_id', ctx.workspaceId)
+    .eq('name', RECOMPRA_PIPELINE_NAME)
+    .maybeSingle()
+
+  if (!targetPipeline) {
+    return {
+      success: false,
+      error: `No existe el pipeline '${RECOMPRA_PIPELINE_NAME}' en este workspace`,
+    }
+  }
+
+  // Si targetStageId viene, valida que pertenezca al pipeline destino
+  if (params.targetStageId) {
+    const { data: stage } = await supabase
+      .from('pipeline_stages')
+      .select('id')
+      .eq('id', params.targetStageId)
+      .eq('pipeline_id', targetPipeline.id)
+      .maybeSingle()
+
+    if (!stage) {
+      return {
+        success: false,
+        error: `La etapa destino no pertenece al pipeline '${RECOMPRA_PIPELINE_NAME}'`,
+      }
+    }
+  }
+
+  // Duplicar hacia el pipeline destino, SIN copiar productos ni total_value
   const dupResult = await duplicateOrder(ctx, {
     sourceOrderId: params.sourceOrderId,
-    targetPipelineId: sourceOrder.pipeline_id,
+    targetPipelineId: targetPipeline.id,
     targetStageId: params.targetStageId ?? undefined,
     copyContact: true,
-    copyProducts: true,
-    copyValue: true,
+    copyProducts: false,
+    copyValue: false,
   })
 
   if (!dupResult.success) {
     return { success: false, error: dupResult.error || 'Error al crear recompra' }
   }
 
-  // Clear tracking/carrier/closing_date on the new order
-  const { error: clearError } = await supabase
+  const newOrderId = dupResult.data!.orderId
+
+  // Insertar productos seleccionados por el usuario
+  const productsToInsert = params.products.map((p) => ({
+    order_id: newOrderId,
+    product_id: p.product_id || null,
+    sku: p.sku,
+    title: p.title,
+    unit_price: p.unit_price,
+    quantity: p.quantity,
+  }))
+
+  const { error: productsError } = await supabase
+    .from('order_products')
+    .insert(productsToInsert)
+
+  if (productsError) {
+    // Rollback: borrar la orden recien duplicada
+    await supabase.from('orders').delete().eq('id', newOrderId)
+    return {
+      success: false,
+      error: `Error insertando productos de recompra: ${productsError.message}`,
+    }
+  }
+
+  // Recalcular total_value + limpiar tracking/carrier/guide/closing_date
+  const totalValue = params.products.reduce(
+    (sum, p) => sum + p.unit_price * p.quantity,
+    0
+  )
+
+  const { error: updateError } = await supabase
     .from('orders')
     .update({
+      total_value: totalValue,
       tracking_number: null,
       carrier: null,
       carrier_guide_number: null,
       closing_date: null,
     })
-    .eq('id', dupResult.data!.orderId)
+    .eq('id', newOrderId)
     .eq('workspace_id', ctx.workspaceId)
 
-  if (clearError) {
-    return { success: false, error: `Error al limpiar campos de envio: ${clearError.message}` }
+  if (updateError) {
+    return {
+      success: false,
+      error: `Error actualizando total/envio de recompra: ${updateError.message}`,
+    }
   }
 
   return {
     success: true,
     data: {
-      orderId: dupResult.data!.orderId,
+      orderId: newOrderId,
       sourceOrderId: params.sourceOrderId,
     },
   }

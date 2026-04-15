@@ -25,6 +25,7 @@ import {
 import { ContactSelector } from './contact-selector'
 import { ProductPicker } from './product-picker'
 import { createOrder, updateOrder, type OrderFormData } from '@/app/actions/orders'
+import { getContact } from '@/app/actions/contacts'
 import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineWithStages, Product, OrderProductFormData } from '@/lib/orders/types'
 
@@ -41,6 +42,7 @@ interface FormData {
   shipping_address: string | null
   shipping_city: string | null
   shipping_department: string | null
+  email: string | null
   products: Array<{
     product_id?: string | null
     sku: string
@@ -99,6 +101,7 @@ export function OrderForm({
         shipping_address: order.shipping_address,
         shipping_city: order.shipping_city,
         shipping_department: order.shipping_department ?? null,
+        email: order.email ?? null,
         products: order.products.map((p) => ({
           product_id: p.product_id,
           sku: p.sku,
@@ -124,6 +127,7 @@ export function OrderForm({
       shipping_address: null,
       shipping_city: null,
       shipping_department: null,
+      email: null,
       products: [],
     }
   }, [mode, order, defaultPipelineId, defaultStageId, defaultContactId, pipelines])
@@ -150,6 +154,27 @@ export function OrderForm({
     }
   }, [watchPipelineId, selectedPipeline, form, mode])
 
+  // Prefill email desde el contacto seleccionado (solo en modo create, solo si el campo email esta vacio)
+  const watchContactId = form.watch('contact_id')
+  React.useEffect(() => {
+    if (mode !== 'create') return
+    if (!watchContactId) return
+    // No pisar si el usuario ya escribio algo
+    const currentEmail = form.getValues('email')
+    if (currentEmail) return
+
+    let cancelled = false
+    getContact(watchContactId).then((contact) => {
+      if (cancelled) return
+      if (contact?.email) {
+        form.setValue('email', contact.email, { shouldDirty: false })
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [watchContactId, mode, form])
+
   const handleSubmit = async (data: FormData) => {
     setIsPending(true)
     setServerError(null)
@@ -167,6 +192,7 @@ export function OrderForm({
         shipping_address: data.shipping_address ?? null,
         shipping_city: data.shipping_city ?? null,
         shipping_department: data.shipping_department ?? null,
+        email: data.email ?? null,
         custom_fields: {},
         products: data.products ?? [],
       }
@@ -365,6 +391,23 @@ export function OrderForm({
           {/* Shipping Section */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Envio</Label>
+
+            {/* Email (capturado al crear pedido desde WhatsApp) */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electronico</Label>
+              <Input
+                {...form.register('email')}
+                id="email"
+                type="email"
+                placeholder="cliente@ejemplo.com"
+                disabled={isPending}
+              />
+              {form.formState.errors.email && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.email.message}
+                </p>
+              )}
+            </div>
 
             {/* Shipping Address */}
             <div className="space-y-2">

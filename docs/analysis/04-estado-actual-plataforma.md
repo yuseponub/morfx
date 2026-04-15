@@ -498,6 +498,39 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 
 ---
 
+## Presencia Publica — morfx.app (Phase 37.5 Block A)
+
+**Estado:** ✅ Funcional — deployado 2026-04-14
+
+### Landing bilingue (`src/app/(marketing)/[locale]/`)
+- **Idiomas:** ES en `/`, EN en `/en` (next-intl 4.x `localePrefix: 'as-needed'`)
+- **Ruta root:** ya NO es redirect a `/login` — sirve landing publico con hero + about + product + CTA
+- **Legal:** `/privacy` (Ley 1581 + ARCO) + `/terms` (14 secciones, handwritten desde doc del equipo legal)
+- **Footer:** MORFX S.A.S. + NIT 902.052.328-5 + Carrera 38 #42-17 Apto 1601B Bucaramanga + +57 313 754 9286 + morfx.colombia@gmail.com
+- **SEO:** Metadata completa, OG image branded 1200x630, alternates ES/EN
+- **Sin referencias:** a 360dialog (stack actual es Meta Direct), sin NIT incorrecto (`902.058.328-5`)
+
+### Middleware composicion (pattern)
+- Repo-root `middleware.ts` compone 2 middlewares: 6 paths marketing (`/`, `/en`, `/privacy`, `/en/privacy`, `/terms`, `/en/terms`) via `createMiddleware` de next-intl; todo lo demas via `updateSession` de Supabase. Preserva bypasses criticos (Inngest, cron, `_next/*`).
+- **Rutas auth fuera del locale segment:** `/login`, `/signup`, `/forgot-password` no son parte de `(marketing)/[locale]/` — no tienen variantes ES/EN
+
+### Meta Business Verification (Blocking para Phase 38 Embedded Signup)
+- **Phase 37.5 Block A completo:** website publico + legal pages listas como evidencia para Meta reviewer
+- **Block B (email corporativo `info@morfx.app` via Porkbun forwarding):** handled by separate instance
+- **Block C (Facebook Page MORFX S.A.S. conectada a Business Portfolio):** handled by separate instance
+- **Block D (Domain TXT verify + BV resubmit):** manual user action (checklist en `.planning/phases/37.5-meta-verification-website/META-VERIFICATION-CHECKLIST.md`)
+- **Expected SLA Meta:** 2-5 dias habiles post-resubmit (community reports 2 semanas a 7 meses)
+
+### Bugs conocidos Phase 37.5
+- WSL + Geist fonts outage bloquea `npm run build` local (pattern conocido desde Phase 42.1-07); Vercel build funciona normal
+- `--legacy-peer-deps` requerido en npm install (pre-existente: @webscopeio/react-textarea-autocomplete peer React 18 vs app React 19.2.3)
+
+### Deuda tecnica abierta
+- Legal review profesional de T&C + Privacy antes de launch mayor (v1.0 pending-legal-review banner activo)
+- OG image branding iteration pendiente
+
+---
+
 ## Configuracion Pendiente (No es codigo)
 
 1. **SMTP** — Configurar en Supabase para emails transaccionales
@@ -521,4 +554,5 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 
 *Generado: 19 febrero 2026 — Actualizado con fixes quick-003 (workspace_id) y quick-004 (task.overdue variables)*
 *Actualizado: 20 febrero 2026 — Hotfix bot CRM: mapeo name/shippingCity/shippingDepartment, department en contactUpdate, sync conversation.contact_id post-order*
+*Actualizado: 14 abril 2026 — Phase 37.5 Block A completo: morfx.app con landing publico bilingue ES/EN + privacy + terms, middleware compuesto next-intl + Supabase whitelist. Listo para resubmit de Meta Business Verification.*
 *Actualizado: 7 abril 2026 — Phase 42 (Session Lifecycle) completada: cron de cierre, partial unique index, retry 23505, defensive timer-guard, TZ-safe RPC*

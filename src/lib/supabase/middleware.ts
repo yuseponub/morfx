@@ -43,6 +43,14 @@ export async function updateSession(request: NextRequest) {
     '/auth/callback',
     '/auth/confirm',
     '/invite',
+    // Marketing routes (Phase 37.5) — bypassed by composed middleware,
+    // listed here as defense-in-depth in case updateSession is ever called directly.
+    '/',
+    '/privacy',
+    '/terms',
+    '/en',
+    '/en/privacy',
+    '/en/terms',
   ]
 
   const isPublicRoute = publicRoutes.some(

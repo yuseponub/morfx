@@ -1,9 +1,32 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import createMiddleware from 'next-intl/middleware'
 import { updateSession } from '@/lib/supabase/middleware'
 import { validateApiKey, extractApiKey } from '@/lib/auth/api-key'
+import { routing } from '@/i18n/routing'
+
+const intlMiddleware = createMiddleware(routing)
+
+// Phase 37.5: Public marketing routes served by next-intl + (marketing) route group.
+// Exact-match list (not prefix) to avoid accidentally whitelisting authed /en/* routes later.
+const PUBLIC_MARKETING_ROUTES = new Set([
+  '/',
+  '/en',
+  '/privacy',
+  '/en/privacy',
+  '/terms',
+  '/en/terms',
+])
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+
+  // ==================== PUBLIC MARKETING (Phase 37.5) ====================
+  // Bypass Supabase session middleware for marketing pages so unauthenticated
+  // visitors (and Meta reviewers) can load / /privacy /terms /en /en/privacy /en/terms.
+  // next-intl handles locale detection + rewrites into (marketing)/[locale]/.
+  if (PUBLIC_MARKETING_ROUTES.has(pathname)) {
+    return intlMiddleware(request)
+  }
 
   // ==================== WEBHOOK ROUTES ====================
   // Allow webhooks to pass through without authentication

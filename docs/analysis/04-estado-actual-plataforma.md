@@ -37,6 +37,7 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Duplicacion:** Copy flags (copyContact, copyProducts, copyValue, copyTags)
 - **Paginacion:** `getOrdersForStage(stageId, limit=20, offset=0)` para Kanban performante
 - **Campos reales:** orders.name, orders.shipping_department (migration 20260217)
+- **Recompra (quick-043, 2026-04-15):** Boton "Recompra" restringido al pipeline `Ventas Somnio Standard` (constante `RECOMPRA_PIPELINE_NAME` en `src/lib/domain/orders.ts`). UI filtra etapas al pipeline unico y usa `ProductPicker` para seleccion manual multiple (ya no copia productos del pedido origen). Defense-in-depth: domain valida nombre de pipeline + stage ∈ pipeline. Botones deshabilitados en 3 UIs (orders-table, orders-view/kanban, contact-panel WhatsApp, view-order-sheet) si el workspace no tiene ese pipeline.
 - **Funciona:** Todo lo listado
 - **Bugs conocidos:** Orders auto-refresh en WhatsApp inbox resuelto con polling 30s (Realtime no confiable con filtros non-PK)
 

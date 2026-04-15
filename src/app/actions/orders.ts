@@ -49,6 +49,12 @@ const orderSchema = z.object({
   shipping_address: z.string().optional().nullable(),
   shipping_city: z.string().optional().nullable(),
   shipping_department: z.string().optional().nullable(),
+  email: z
+    .string()
+    .email('Correo invalido')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   custom_fields: z.record(z.string(), z.unknown()).optional().default({}),
   products: z.array(orderProductSchema).optional().default([]),
 })
@@ -464,6 +470,7 @@ export async function createOrder(formData: OrderFormData): Promise<ActionResult
     shippingCity: orderData.shipping_city,
     shippingDepartment: orderData.shipping_department,
     customFields: orderData.custom_fields,
+    email: orderData.email || null,
     products: products.map(p => ({
       productId: p.product_id,
       sku: p.sku,
@@ -532,6 +539,7 @@ export async function updateOrder(id: string, formData: Partial<OrderFormData>):
       shippingCity: orderData.shipping_city,
       shippingDepartment: orderData.shipping_department,
       customFields: orderData.custom_fields,
+      email: orderData.email === undefined ? undefined : (orderData.email || null),
       products: products?.map(p => ({
         productId: p.product_id,
         sku: p.sku,
@@ -658,14 +666,34 @@ export async function deleteOrders(ids: string[]): Promise<ActionResult<{ delete
 
 /**
  * Create a repeat order (recompra) from an existing order.
- * Duplicates to same pipeline first stage, clears tracking/carrier/guide/closing_date.
+ * Quick task 043: aterriza en pipeline 'Ventas Somnio Standard' (validado en domain),
+ * con productos seleccionados por el usuario (no copia del pedido origen).
+ * Limpia tracking/carrier/guide/closing_date automaticamente.
  */
-export async function recompraOrder(orderId: string, targetStageId?: string): Promise<ActionResult<{ orderId: string }>> {
+export async function recompraOrder(
+  orderId: string,
+  targetStageId: string,
+  products: Array<{
+    product_id?: string | null
+    sku: string
+    title: string
+    unit_price: number
+    quantity: number
+  }>
+): Promise<ActionResult<{ orderId: string }>> {
+  if (!products || products.length === 0) {
+    return { error: 'Debe seleccionar al menos un producto' }
+  }
+
   const auth = await getAuthContext()
   if ('error' in auth) return { error: auth.error }
 
   const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
-  const result = await domainRecompraOrder(ctx, { sourceOrderId: orderId, targetStageId })
+  const result = await domainRecompraOrder(ctx, {
+    sourceOrderId: orderId,
+    targetStageId,
+    products,
+  })
 
   if (!result.success) {
     return { error: result.error || 'Error al crear recompra' }

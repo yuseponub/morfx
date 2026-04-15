@@ -25,11 +25,8 @@ import type { DomainContext, DomainResult } from './types'
 // Constants
 // ============================================================================
 
-/**
- * Pipeline name (case-sensitive, exact match) where recompra orders MUST land.
- * Quick task 043 — restringe recompra a un unico pipeline destino conocido.
- */
-export const RECOMPRA_PIPELINE_NAME = 'Ventas Somnio Standard' as const
+import { RECOMPRA_PIPELINE_NAME } from '@/lib/orders/constants'
+export { RECOMPRA_PIPELINE_NAME }
 
 // ============================================================================
 // Param Types

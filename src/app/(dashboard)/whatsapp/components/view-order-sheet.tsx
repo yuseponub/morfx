@@ -50,7 +50,7 @@ import { getOrder, getPipelines, moveOrderToStage, recompraOrder } from '@/app/a
 import { getActiveProducts } from '@/app/actions/products'
 import { getTagsForScope } from '@/app/actions/tags'
 import { getOrderNotes } from '@/app/actions/order-notes'
-import { RECOMPRA_PIPELINE_NAME } from '@/lib/domain/orders'
+import { RECOMPRA_PIPELINE_NAME } from '@/lib/orders/constants'
 import { toast } from 'sonner'
 import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage, OrderNoteWithUser, OrderProductFormData } from '@/lib/orders/types'
 

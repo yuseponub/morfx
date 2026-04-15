@@ -19,5 +19,536 @@
     "phone": "Teléfono",
     "email": "Email",
     "whatsapp": "WhatsApp"
+  },
+  "Landing": {
+    "Meta": {
+      "title": "MORFX S.A.S. — CRM y WhatsApp Business automatizado con IA",
+      "description": "Plataforma SaaS colombiana de CRM y automatización de WhatsApp Business con IA para e-commerce. Agentes conversacionales, integraciones con Shopify y transportadoras, y atención multi-canal."
+    },
+    "Hero": {
+      "badge": "MORFX S.A.S. — Empresa colombiana",
+      "headline": "CRM y WhatsApp Business automatizados con inteligencia artificial",
+      "subhead": "Unificamos el CRM, la atención conversacional y las automatizaciones en una sola plataforma para que las empresas de comercio electrónico vendan, respondan y entreguen con mayor precisión y menor costo operativo.",
+      "primaryCTA": "Contactar ventas",
+      "secondaryCTA": "Iniciar sesión",
+      "responseTag": "Respuesta en minutos vía WhatsApp · Lunes a viernes, 8:00 a 18:00 (hora Colombia)"
+    },
+    "About": {
+      "eyebrow": "Quiénes somos",
+      "heading": "Una empresa colombiana dedicada a plataformas de IA para empresas",
+      "intro": "MORFX S.A.S. es una sociedad por acciones simplificada constituida en Colombia en 2026, con domicilio en Bucaramanga, Santander. Desarrollamos, operamos y licenciamos la plataforma MORFX, un ecosistema de CRM, agentes conversacionales y automatizaciones diseñado para empresas de comercio electrónico y otros sectores productivos que requieren atención al cliente a escala y gestión logística integrada.",
+      "objetoSocialLabel": "Objeto social (constitución)",
+      "objetoSocial": "Desarrollo, diseño, implementación, operación, comercialización y licenciamiento de plataformas tecnológicas basadas en inteligencia artificial, con especial énfasis en atención al cliente, gestión logística y procesos comerciales para empresas de comercio electrónico y otros sectores productivos.",
+      "objetoSocialSource": "Acta de constitución bajo la Ley 1258 de 2008 — República de Colombia.",
+      "legalDataLabel": "Datos legales",
+      "dataLegalName": "Razón social",
+      "dataNIT": "NIT",
+      "dataCity": "Domicilio",
+      "dataFounded": "Año de constitución",
+      "dataFoundedValue": "2026",
+      "dataCIIU": "Código CIIU",
+      "dataLegalRep": "Representante legal"
+    },
+    "CRM": {
+      "heading": "CRM unificado para comercio electrónico",
+      "description": "Concentramos contactos, conversaciones, pedidos y etapas comerciales en una sola vista. Cada interacción queda asociada al cliente correcto, con historial completo y estado sincronizado entre WhatsApp, pedidos y pipelines.",
+      "illustrationLabel": "CRM unificado",
+      "bullet1": "Contactos unificados con historial completo de mensajes y pedidos",
+      "bullet2": "Pipelines configurables por línea de negocio, con etapas personalizables",
+      "bullet3": "Tags, notas y tareas sincronizadas entre CRM y bandeja de WhatsApp",
+      "bullet4": "Vista de conversación lado a lado con el detalle del contacto y su pedido"
+    },
+    "Agents": {
+      "heading": "Agentes conversacionales con IA",
+      "description": "Nuestros agentes de atención y ventas operan sobre modelos líderes de lenguaje (Anthropic Claude y OpenAI GPT) y están instrumentados para lograr un desempeño conversacional cercano al humano, con trazabilidad, guardrails y control total del tono por parte de cada cliente.",
+      "illustrationLabel": "Agentes IA",
+      "bullet1": "Atención al cliente y ventas 24/7 con estilo configurable por marca",
+      "bullet2": "Comprensión en español con enrutamiento por intención y contexto",
+      "bullet3": "Observabilidad por turno: eventos, consultas y llamadas a IA auditables",
+      "bullet4": "Escalamiento a humano cuando el cliente lo pide o el agente detecta ambigüedad"
+    },
+    "Automations": {
+      "heading": "Automatizaciones inteligentes sin código",
+      "description": "Un constructor visual con asistente de IA permite diseñar flujos de negocio que reaccionan a eventos de la tienda, del CRM o de WhatsApp. Conectamos 10 tipos de triggers con 11 acciones sobre contactos, pedidos, etapas, mensajes y notificaciones.",
+      "illustrationLabel": "Automatizaciones",
+      "bullet1": "10 triggers: pedidos nuevos, cambios de etapa, mensajes entrantes y más",
+      "bullet2": "11 acciones: enviar mensaje, mover etapa, asignar tag, crear tarea, etc.",
+      "bullet3": "Constructor visual con asistente de IA que explica y valida cada flujo",
+      "bullet4": "Condiciones y retrasos por ventana horaria, días hábiles y segmento de cliente"
+    },
+    "Integrations": {
+      "heading": "Integraciones con tu stack de e-commerce",
+      "description": "MORFX se conecta con las plataformas que ya usan las empresas colombianas: tiendas Shopify, transportadoras locales y pasarelas de pago. El objetivo es que los pedidos, guías y pagos fluyan sin planillas intermedias ni copiar datos entre sistemas.",
+      "illustrationLabel": "Integraciones",
+      "bullet1": "Shopify: pedidos, productos y clientes sincronizados en tiempo real",
+      "bullet2": "Coordinadora e Inter Rapidísimo: creación y seguimiento de guías",
+      "bullet3": "Webhooks configurables para conectar sistemas propios del cliente",
+      "bullet4": "API interna para acciones de agentes con validación de workspace"
+    },
+    "Multichannel": {
+      "heading": "Multi-canal, iniciando por WhatsApp Business Platform",
+      "description": "Operamos hoy sobre WhatsApp Business Platform, el canal de mayor volumen en Colombia. Estamos habilitando Messenger e Instagram Direct mediante integración directa con Meta, para que una misma conversación, CRM y agente atiendan todos los canales del cliente.",
+      "illustrationLabel": "Multi-canal",
+      "bullet1": "WhatsApp Business Platform con plantillas, sesiones y campañas",
+      "bullet2": "Próximamente Facebook Messenger e Instagram Direct (Meta Direct)",
+      "bullet3": "Un solo hilo por contacto, independientemente del canal de origen",
+      "bullet4": "Registro auditable de cada mensaje entrante y saliente por canal"
+    },
+    "CTA": {
+      "heading": "¿Listo para empezar?",
+      "description": "Conversamos contigo para entender tu operación, mostrarte la plataforma en vivo y proponerte un plan de implementación alineado a tus procesos de venta y logística.",
+      "primaryButton": "Escribir por WhatsApp",
+      "secondaryButton": "Enviar un correo",
+      "contactLine": "También puedes llamarnos al {phone} o escribirnos a {email}."
+    }
+  },
+  "Terms": {
+    "pageTitle": "Términos y Condiciones del Servicio",
+    "lastUpdated": "Última actualización: 14 de abril de 2026",
+    "toc": "Índice",
+    "backToLanding": "Volver al inicio",
+    "seePrivacy": "Ver Política de Privacidad",
+    "preamble": "Bienvenido a MORFX. Antes de acceder o utilizar la Plataforma y los Servicios de MORFX S.A.S. (en adelante “MORFX”, “nosotros” o la “Empresa”), le pedimos leer detenidamente los presentes Términos y Condiciones del Servicio (en adelante “Términos”). El acceso, registro o uso de la Plataforma implica la aceptación plena, libre e informada de estos Términos y de los documentos incorporados por referencia. Si usted no está de acuerdo con alguna de estas condiciones, deberá abstenerse de usar la Plataforma.",
+    "section1": {
+      "id": "identificacion",
+      "heading": "1. Identificación del Titular del Sitio Web y la Plataforma",
+      "paragraphs": [
+        "El presente sitio web y la Plataforma son operados por:"
+      ],
+      "bullets": [
+        "Razón social: MORFX S.A.S.",
+        "NIT: 902.052.328-5",
+        "Domicilio principal: Bucaramanga, Colombia",
+        "Correo electrónico de contacto: morfx.colombia@gmail.com"
+      ],
+      "subsections": [
+        {
+          "id": "identificacion-naturaleza",
+          "heading": "Naturaleza jurídica",
+          "paragraphs": [
+            "MORFX S.A.S. es una sociedad por acciones simplificada constituida conforme a las leyes de la República de Colombia, cuya actividad principal consiste en la provisión de servicios de tecnología de agente conversacional con inteligencia artificial orientados a la automatización de logística y servicio al cliente para operaciones de comercio electrónico (e-commerce)."
+          ]
+        }
+      ]
+    },
+    "section2": {
+      "id": "definiciones",
+      "heading": "2. Definiciones",
+      "paragraphs": [
+        "Para efectos de los presentes Términos, los siguientes términos tendrán el significado que a continuación se indica:"
+      ],
+      "subsections": [
+        {
+          "id": "def-acuerdo",
+          "heading": "Acuerdo de Servicios",
+          "paragraphs": [
+            "El contrato específico suscrito entre MORFX S.A.S. y la Empresa Cliente que regula las condiciones particulares de la prestación de los Servicios, incorporado a los presentes Términos por referencia."
+          ]
+        },
+        {
+          "id": "def-agente",
+          "heading": "Agente Conversacional",
+          "paragraphs": [
+            "Componente de inteligencia artificial de la Plataforma que interactúa de forma automatizada con los consumidores finales de la Empresa Cliente a través de Canales de Comunicación, procesando lenguaje natural para resolver consultas, gestionar pedidos y automatizar procesos logísticos."
+          ]
+        },
+        {
+          "id": "def-canal",
+          "heading": "Canal de Comunicación",
+          "paragraphs": [
+            "El medio acordado entre la Empresa Cliente y MORFX S.A.S. (incluyendo la Plataforma, WhatsApp u otros canales designados) para la comunicación relacionada con la ejecución de los Servicios."
+          ]
+        },
+        {
+          "id": "def-consumidor",
+          "heading": "Consumidor Final del Cliente",
+          "paragraphs": [
+            "Persona natural o jurídica que adquiere los productos o servicios de la Empresa Cliente, y que puede interactuar con el Agente Conversacional de MORFX S.A.S. en el marco de dicha relación comercial."
+          ]
+        },
+        {
+          "id": "def-creditos",
+          "heading": "Créditos AI",
+          "paragraphs": [
+            "Unidades de consumo que cuantifican el uso de las capacidades de inteligencia artificial de la Plataforma por parte de la Empresa Cliente, según el modelo de facturación establecido en el Acuerdo de Servicios y el Anexo de Tarifas."
+          ]
+        },
+        {
+          "id": "def-datos",
+          "heading": "Datos Personales",
+          "paragraphs": [
+            "Toda información vinculada o que pueda asociarse a una o varias personas naturales determinadas o determinables, conforme a la definición del artículo 3 de la Ley 1581 de 2012."
+          ]
+        },
+        {
+          "id": "def-empresa",
+          "heading": "Empresa Cliente",
+          "paragraphs": [
+            "La persona natural o jurídica que contrata los Servicios de MORFX S.A.S. mediante la aceptación del Acuerdo de Servicios y los presentes Términos."
+          ]
+        },
+        {
+          "id": "def-encargado",
+          "heading": "Encargado del Tratamiento",
+          "paragraphs": [
+            "La persona natural o jurídica que realiza el tratamiento de datos personales por cuenta del Responsable del Tratamiento, conforme al artículo 3 de la Ley 1581 de 2012."
+          ]
+        },
+        {
+          "id": "def-plan",
+          "heading": "Plan de Suscripción",
+          "paragraphs": [
+            "Modalidad de acceso a los Servicios de MORFX S.A.S. que implica el pago de una tarifa periódica, conforme a los niveles Starter, Growth, Business o Enterprise definidos en el Anexo de Tarifas."
+          ]
+        },
+        {
+          "id": "def-plataforma",
+          "heading": "Plataforma",
+          "paragraphs": [
+            "La plataforma digital de agente conversacional con inteligencia artificial administrada y operada por MORFX S.A.S., incluyendo sus aplicaciones web, APIs, integraciones y todos los Canales de Comunicación habilitados."
+          ]
+        },
+        {
+          "id": "def-responsable",
+          "heading": "Responsable del Tratamiento",
+          "paragraphs": [
+            "La persona natural o jurídica que decide sobre la base de datos y/o el tratamiento de datos personales, conforme al artículo 3 de la Ley 1581 de 2012."
+          ]
+        },
+        {
+          "id": "def-servicios",
+          "heading": "Servicios",
+          "paragraphs": [
+            "El conjunto de funcionalidades y prestaciones tecnológicas que MORFX S.A.S. pone a disposición de la Empresa Cliente en virtud del Acuerdo de Servicios, incluyendo el acceso al Agente Conversacional, infraestructura tecnológica, integraciones, soporte técnico y capacitación."
+          ]
+        },
+        {
+          "id": "def-sla",
+          "heading": "SLA (Service Level Agreement / Acuerdo de Nivel de Servicio)",
+          "paragraphs": [
+            "El conjunto de métricas de disponibilidad, desempeño y soporte que MORFX S.A.S. se compromete a mantener respecto de la Plataforma, aplicables a los planes Business y Enterprise conforme al Acuerdo de Servicios."
+          ]
+        },
+        {
+          "id": "def-admin",
+          "heading": "Usuario Administrador",
+          "paragraphs": [
+            "La persona natural designada por la Empresa Cliente para gestionar el acceso, configuración y supervisión de la Plataforma en nombre de dicha empresa."
+          ]
+        }
+      ]
+    },
+    "section3": {
+      "id": "objeto",
+      "heading": "3. Objeto y Naturaleza del Servicio",
+      "paragraphs": [
+        "MORFX S.A.S. provee a las Empresas Clientes acceso a su Plataforma de agente conversacional con inteligencia artificial, orientada a la automatización de procesos de logística, gestión de pedidos y servicio al cliente para operaciones de comercio electrónico (e-commerce), actualmente disponible en Colombia y Ecuador.",
+        "Los Servicios comprenden, sin limitarse a:"
+      ],
+      "bullets": [
+        "Acceso a Agentes Conversacionales con rendimiento similar al humano (human-like performance), adaptables a los protocolos de ventas y logística de la Empresa Cliente.",
+        "Infraestructura tecnológica avanzada que soporta los agentes, incluyendo procesamiento de lenguaje natural (NLP), integraciones con plataformas logísticas y canales de atención al cliente.",
+        "Integraciones con plataformas de comercio electrónico (ej., Shopify), operadores logísticos y canales de mensajería (ej., WhatsApp Business Platform).",
+        "Soporte técnico y mantenimiento de la Plataforma conforme a los niveles de servicio pactados en el Acuerdo de Servicios.",
+        "Capacitación inicial en el uso de la Plataforma."
+      ],
+      "subsections": [
+        {
+          "id": "objeto-marco",
+          "heading": "Marco jurídico integral",
+          "paragraphs": [
+            "Los presentes Términos, junto con el Acuerdo de Servicios y sus Anexos, constituyen el marco jurídico completo que rige la relación entre MORFX S.A.S. y la Empresa Cliente. En caso de conflicto entre estos documentos, prevalecerá el Acuerdo de Servicios en lo que respecta a las condiciones particulares pactadas."
+          ]
+        }
+      ]
+    },
+    "section4": {
+      "id": "disponibilidad",
+      "heading": "4. Disponibilidad Geográfica y Limitaciones Jurisdiccionales",
+      "paragraphs": [
+        "Los Servicios de MORFX S.A.S. están disponibles únicamente en Colombia y Ecuador. MORFX S.A.S. no garantiza la disponibilidad, adecuación o cumplimiento normativo de la Plataforma fuera de dichas jurisdicciones. La Empresa Cliente reconoce que es su exclusiva responsabilidad verificar la legalidad del uso de los Servicios en la jurisdicción donde operen sus actividades comerciales y sus Consumidores Finales.",
+        "En Colombia, los Servicios se prestan con cobertura en las ciudades de Bogotá, Medellín, Cali, Barranquilla y Bucaramanga, pudiendo MORFX S.A.S. ampliar o modificar dicha cobertura con notificación previa a las Empresas Clientes."
+      ]
+    },
+    "section5": {
+      "id": "registro",
+      "heading": "5. Registro, Acceso y Condiciones de Uso de la Plataforma",
+      "subsections": [
+        {
+          "id": "registro-registro",
+          "heading": "5.1 Registro",
+          "paragraphs": [
+            "El acceso a la Plataforma requiere el registro previo de la Empresa Cliente, mediante el suministro de información veraz, completa y actualizada. La Empresa Cliente es responsable de mantener la confidencialidad de sus credenciales de acceso y de todas las actividades realizadas bajo su cuenta. Deberá notificar a MORFX S.A.S. de manera inmediata ante cualquier uso no autorizado de su cuenta."
+          ]
+        },
+        {
+          "id": "registro-uso-permitido",
+          "heading": "5.2 Uso Permitido",
+          "paragraphs": [
+            "La Empresa Cliente podrá usar la Plataforma exclusivamente para:"
+          ],
+          "bullets": [
+            "Automatizar procesos de atención al cliente y logística en el marco de sus operaciones de comercio electrónico.",
+            "Configurar y gestionar Agentes Conversacionales para interactuar con sus Consumidores Finales.",
+            "Integrar la Plataforma con sus sistemas internos y plataformas comerciales, en los términos técnicos habilitados por el Acuerdo de Servicios.",
+            "Acceder a los reportes, analíticas y funcionalidades incluidas en su Plan de Suscripción."
+          ]
+        },
+        {
+          "id": "registro-usos-prohibidos",
+          "heading": "5.3 Usos Prohibidos",
+          "paragraphs": [
+            "La Empresa Cliente se obliga a no usar la Plataforma para:"
+          ],
+          "bullets": [
+            "Actividades ilícitas, fraudulentas, engañosas o contrarias al orden público y las buenas costumbres.",
+            "Recopilar, almacenar o procesar datos personales de Consumidores Finales sin contar con las autorizaciones requeridas por la Ley 1581 de 2012 y demás normas aplicables.",
+            "Transmitir contenidos que infrinjan derechos de propiedad intelectual o industrial de terceros.",
+            "Introducir virus, malware u otros elementos dañinos en la Plataforma.",
+            "Realizar ingeniería inversa, descompilar o intentar acceder al código fuente de la Plataforma.",
+            "Ceder, sublicenciar o transferir el acceso a la Plataforma a terceros no autorizados por MORFX S.A.S.",
+            "Usar la Plataforma para finalidades distintas a las previstas en el Acuerdo de Servicios."
+          ]
+        },
+        {
+          "id": "registro-incumplimiento",
+          "heading": "5.4 Consecuencias del Incumplimiento",
+          "paragraphs": [
+            "El incumplimiento de las condiciones de uso habilitará a MORFX S.A.S. para suspender o terminar el acceso a la Plataforma, sin perjuicio de las acciones legales a que haya lugar."
+          ]
+        }
+      ]
+    },
+    "section6": {
+      "id": "facturacion",
+      "heading": "6. Modelo de Facturación y Condiciones Comerciales",
+      "subsections": [
+        {
+          "id": "facturacion-hibrido",
+          "heading": "6.1 Modelo Híbrido de Suscripción y Créditos AI",
+          "paragraphs": [
+            "El acceso a los Servicios se rige por un modelo híbrido que combina una tarifa de suscripción mensual (según el Plan elegido: Starter, Growth, Business o Enterprise) con un sistema de Créditos AI que cuantifica el consumo real de funcionalidades de inteligencia artificial. Las tarifas vigentes, el detalle de los planes, el sistema de Créditos AI y los costos pass-through de servicios de terceros se encuentran publicados en el Anexo de Tarifas del Acuerdo de Servicios, disponible para consulta durante el proceso de contratación."
+          ]
+        },
+        {
+          "id": "facturacion-ajuste",
+          "heading": "6.2 Ajuste de Tarifas",
+          "paragraphs": [
+            "MORFX S.A.S. podrá ajustar las tarifas de los Servicios con un preaviso mínimo de treinta (30) días calendario. Si la Empresa Cliente no acepta el ajuste, podrá terminar el Acuerdo de Servicios sin penalidad, notificando a MORFX S.A.S. antes de la fecha de entrada en vigencia del nuevo precio."
+          ]
+        }
+      ]
+    },
+    "section9": {
+      "id": "propiedad",
+      "heading": "9. Propiedad Intelectual",
+      "subsections": [
+        {
+          "id": "propiedad-morfx",
+          "heading": "9.1 Propiedad de MORFX S.A.S.",
+          "paragraphs": [
+            "Son propiedad exclusiva de MORFX S.A.S. y permanecerán como tal durante y después de la vigencia del Acuerdo de Servicios:"
+          ],
+          "bullets": [
+            "La Plataforma en su totalidad, incluyendo código fuente, código objeto, algoritmos, modelos de inteligencia artificial, arquitectura de software, interfaces de programación (APIs), documentación técnica y cualquier mejora o actualización.",
+            "Los métodos, procesos, know-how y secretos empresariales de MORFX S.A.S.",
+            "Los insights, análisis estadísticos y datos agregados que MORFX S.A.S. genere a partir del uso de la Plataforma por múltiples Empresas Clientes, siempre que no permitan identificar directa ni indirectamente a una Empresa Cliente o consumidor final específico.",
+            "La marca “MORFX”, sus variaciones, logotipos, diseños y demás signos distintivos de MORFX S.A.S."
+          ]
+        },
+        {
+          "id": "propiedad-licencia",
+          "heading": "9.2 Licencia de Uso",
+          "paragraphs": [
+            "MORFX S.A.S. otorga a la Empresa Cliente una licencia limitada, no exclusiva, no transferible, revocable y vigente durante el plazo del Acuerdo de Servicios, para acceder y usar la Plataforma únicamente para los fines establecidos en dichos Términos y el Acuerdo de Servicios. Ninguna disposición de los presentes Términos implica cesión de derechos de propiedad intelectual a la Empresa Cliente."
+          ]
+        },
+        {
+          "id": "propiedad-cliente",
+          "heading": "9.3 Propiedad de la Empresa Cliente",
+          "paragraphs": [
+            "Son propiedad exclusiva de la Empresa Cliente:"
+          ],
+          "bullets": [
+            "Los datos e información de su negocio (productos, precios, inventarios, políticas, protocolos de atención).",
+            "Los datos personales de sus Consumidores Finales.",
+            "Los contenidos, textos, guiones y flujos conversacionales que la Empresa Cliente desarrolle o suministre para la configuración de los Agentes."
+          ]
+        },
+        {
+          "id": "propiedad-confidencialidad",
+          "heading": "9.4 Confidencialidad",
+          "paragraphs": [
+            "Cada parte se obliga a mantener estricta confidencialidad sobre la información confidencial de la otra parte, incluyendo datos técnicos, comerciales, financieros y estratégicos, durante la vigencia del Acuerdo de Servicios y por un período de tres (3) años posteriores a su terminación. Esta obligación subsiste a la terminación del Acuerdo."
+          ]
+        }
+      ]
+    },
+    "section10": {
+      "id": "sla",
+      "heading": "10. Niveles de Servicio (SLA)",
+      "paragraphs": [
+        "Los Acuerdos de Nivel de Servicio son aplicables únicamente a las Empresas Clientes con planes Business y Enterprise. Las métricas de disponibilidad (uptime), tiempos de respuesta del Agente, tasas de error y tiempos de resolución de incidentes se detallan en el Acuerdo de Servicios.",
+        "El procedimiento de reclamación de créditos por incumplimiento de SLA, las exclusiones aplicables (fuerza mayor, mantenimientos programados, fallas de terceros, ataques cibernéticos masivos) y los límites de crédito mensual se rigen en su totalidad por las condiciones del Acuerdo de Servicios."
+      ]
+    },
+    "section11": {
+      "id": "responsabilidad",
+      "heading": "11. Limitaciones de Responsabilidad",
+      "subsections": [
+        {
+          "id": "responsabilidad-exenciones",
+          "heading": "11.1 Exenciones de Responsabilidad de MORFX S.A.S.",
+          "paragraphs": [
+            "MORFX S.A.S. no será responsable por:"
+          ],
+          "bullets": [
+            "Daños derivados del uso inadecuado, negligente o no autorizado de la Plataforma por la Empresa Cliente, sus empleados o terceros autorizados por ella.",
+            "Incumplimiento de obligaciones de protección de datos por parte de la Empresa Cliente en su calidad de Responsable del Tratamiento.",
+            "Hechos de fuerza mayor o caso fortuito, incluyendo desastres naturales, pandemias, actos de autoridad, o interrupciones generales de servicios de telecomunicaciones o energía.",
+            "Fallas o interrupciones en infraestructura de terceros fuera del control razonable de MORFX S.A.S.",
+            "Ataques cibernéticos masivos que superen las capacidades de mitigación razonables en la industria.",
+            "Decisiones comerciales, operativas o logísticas tomadas por la Empresa Cliente con base en la información procesada por el Agente Conversacional.",
+            "Contenido incorrecto o desactualizado suministrado por la Empresa Cliente para la configuración del Agente."
+          ]
+        },
+        {
+          "id": "responsabilidad-tope",
+          "heading": "11.2 Tope de Responsabilidad",
+          "paragraphs": [
+            "En ningún caso la responsabilidad total de MORFX S.A.S. por daños directos excederá el equivalente al valor facturado por MORFX S.A.S. a la Empresa Cliente durante los seis (6) meses inmediatamente anteriores al evento que originó la reclamación. MORFX S.A.S. no responderá en ningún caso por daños indirectos, lucro cesante, pérdida de datos, pérdida de reputación, daño emergente futuro, ni por daños especiales o consecuenciales, incluso si MORFX S.A.S. fue advertida de su posibilidad."
+          ]
+        },
+        {
+          "id": "responsabilidad-consumidor",
+          "heading": "11.3 Responsabilidad frente al Consumidor Final",
+          "paragraphs": [
+            "La Empresa Cliente es responsable ante el Consumidor Final por el cumplimiento de las obligaciones derivadas de la compraventa o prestación de servicios, de conformidad con la Ley 1480 de 2011 (Estatuto del Consumidor) y demás normas aplicables, incluyendo garantías, entregas, devoluciones y reclamaciones. El uso del Agente Conversacional no traslada a MORFX S.A.S. ninguna responsabilidad frente al Consumidor Final en calidad de vendedor o prestador de servicios."
+          ]
+        }
+      ]
+    },
+    "section12": {
+      "id": "vigencia",
+      "heading": "12. Vigencia y Terminación",
+      "subsections": [
+        {
+          "id": "vigencia-plazo",
+          "heading": "12.1 Vigencia",
+          "paragraphs": [
+            "El Acuerdo de Servicios tendrá una vigencia inicial de doce (12) meses contados desde la fecha de suscripción, prorrogable automáticamente por períodos iguales de doce (12) meses, a menos que cualquiera de las partes manifieste su voluntad de no renovarlo con un preaviso mínimo de treinta (30) días calendario antes del vencimiento del período correspondiente."
+          ]
+        },
+        {
+          "id": "vigencia-causales",
+          "heading": "12.2 Causales de Terminación",
+          "paragraphs": [
+            "El Acuerdo de Servicios podrá terminar por:"
+          ],
+          "bullets": [
+            "Incumplimiento material no subsanado dentro de los quince (15) días hábiles siguientes a la notificación escrita.",
+            "Declaración de insolvencia, liquidación forzosa o cesación de pagos de cualquiera de las partes.",
+            "Mutuo acuerdo por escrito entre las partes.",
+            "Terminación con justa causa: uso ilícito de la Plataforma, violación grave y reiterada de normas de protección de datos, mora en el pago superior a sesenta (60) días calendario.",
+            "Terminación sin justa causa: con preaviso mínimo de sesenta (60) días calendario de cualquier parte."
+          ]
+        },
+        {
+          "id": "vigencia-efectos",
+          "heading": "12.3 Efectos Post-Contractuales",
+          "paragraphs": [
+            "A la terminación del Acuerdo, independientemente de la causa:"
+          ],
+          "bullets": [
+            "La Empresa Cliente deberá pagar todas las sumas pendientes por servicios efectivamente prestados.",
+            "MORFX S.A.S. devolverá o eliminará de manera segura los datos de la Empresa Cliente y sus Consumidores Finales en el plazo máximo de treinta (30) días calendario.",
+            "Cesará inmediatamente el uso de las marcas de MORFX S.A.S. por la Empresa Cliente y viceversa.",
+            "Las cláusulas de confidencialidad, propiedad intelectual, limitaciones de responsabilidad y resolución de disputas subsistirán a la terminación."
+          ]
+        }
+      ]
+    },
+    "section13": {
+      "id": "disputas",
+      "heading": "13. Resolución de Disputas y Ley Aplicable",
+      "paragraphs": [
+        "Los presentes Términos y el Acuerdo de Servicios se rigen por las leyes de la República de Colombia. Las partes se someten a la jurisdicción de los jueces y tribunales competentes de Bucaramanga, Colombia."
+      ]
+    },
+    "section14": {
+      "id": "disposiciones",
+      "heading": "14. Disposiciones Generales",
+      "subsections": [
+        {
+          "id": "disposiciones-modificacion",
+          "heading": "14.1 Modificación de los Términos",
+          "paragraphs": [
+            "MORFX S.A.S. podrá modificar los presentes Términos en cualquier momento, publicando la versión actualizada en el sitio web con indicación de la fecha de la última modificación. El uso continuado de la Plataforma tras la publicación de los Términos modificados constituirá aceptación de los mismos. Para cambios materiales, MORFX S.A.S. notificará a las Empresas Clientes por correo electrónico con un preaviso mínimo de treinta (30) días."
+          ]
+        },
+        {
+          "id": "disposiciones-integralidad",
+          "heading": "14.2 Integralidad del Acuerdo",
+          "paragraphs": [
+            "Los presentes Términos, junto con el Acuerdo de Servicios y sus Anexos, constituyen el acuerdo completo entre las partes respecto de su objeto y reemplazan cualquier acuerdo, negociación o entendimiento previo, ya sea verbal o escrito."
+          ]
+        },
+        {
+          "id": "disposiciones-divisibilidad",
+          "heading": "14.3 Divisibilidad",
+          "paragraphs": [
+            "Si alguna disposición de los presentes Términos fuere declarada inválida, ilegal o inaplicable, dicha disposición se considerará separada y las demás disposiciones continuarán con plena eficacia."
+          ]
+        },
+        {
+          "id": "disposiciones-no-renuncia",
+          "heading": "14.4 No Renuncia",
+          "paragraphs": [
+            "La omisión o demora de cualquiera de las partes en ejercer un derecho que le otorguen estos Términos o la ley no constituirá renuncia a dicho derecho."
+          ]
+        },
+        {
+          "id": "disposiciones-cesion",
+          "heading": "14.5 Cesión",
+          "paragraphs": [
+            "Ninguna de las partes podrá ceder los derechos u obligaciones derivados del Acuerdo de Servicios sin el consentimiento previo y escrito de la otra parte, salvo que MORFX S.A.S. ceda el Acuerdo a una empresa del mismo grupo empresarial o a un adquirente de una parte sustancial de sus activos, notificando a la Empresa Cliente con quince (15) días hábiles de anticipación."
+          ]
+        },
+        {
+          "id": "disposiciones-notificaciones",
+          "heading": "14.6 Notificaciones",
+          "paragraphs": [
+            "Todas las notificaciones deberán hacerse por escrito y se considerarán recibidas: (i) en la fecha de entrega personal con acuse de recibo; (ii) al día hábil siguiente si se envían por correo electrónico con confirmación de recepción; o (iii) al tercer día hábil siguiente al envío por correo certificado."
+          ]
+        }
+      ]
+    },
+    "section15": {
+      "id": "contacto",
+      "heading": "15. Canales de Contacto y Atención al Cliente",
+      "paragraphs": [
+        "Para consultas relacionadas con los presentes Términos, el Acuerdo de Servicios, el ejercicio de derechos sobre datos personales, o cualquier queja o reclamación, la Empresa Cliente o cualquier titular de datos personales podrá contactar a MORFX S.A.S. a través de los siguientes canales:"
+      ],
+      "bullets": [
+        "Correo electrónico (canal principal): morfx.colombia@gmail.com",
+        "Domicilio: Bucaramanga, Colombia"
+      ],
+      "subsections": [
+        {
+          "id": "contacto-plazos",
+          "heading": "Plazos de respuesta",
+          "paragraphs": [
+            "MORFX S.A.S. dará respuesta a las solicitudes en los plazos establecidos por la normativa colombiana aplicable según la naturaleza de cada solicitud."
+          ]
+        }
+      ]
+    },
+    "section16": {
+      "id": "vigencia-entrada",
+      "heading": "16. Entrada en Vigencia",
+      "paragraphs": [
+        "Los presentes Términos y Condiciones del Servicio entran en vigencia a partir de la fecha de su publicación en el sitio web de MORFX S.A.S. y se aplicarán a todos los Acuerdos de Servicios suscritos a partir de dicha fecha, así como a los Acuerdos vigentes en la medida en que no contradigan condiciones particulares pactadas con anterioridad."
+      ]
+    }
   }
 }

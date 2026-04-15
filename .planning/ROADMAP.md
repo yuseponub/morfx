@@ -499,6 +499,7 @@ Plans:
 **Milestone Goal:** Eliminar intermediarios (360dialog para WhatsApp, ManyChat para FB/IG) e integrar directamente con Meta Cloud API. Multi-tenant con Embedded Signup para que cada cliente conecte su cuenta de WhatsApp, Facebook Messenger e Instagram. Migracion gradual con feature flags per-workspace.
 
 - [ ] **Phase 37: Meta App Setup + Foundation** - Meta App config, credentials table, token encryption, Graph API client, step-by-step setup guide
+- [ ] **Phase 37.5: Meta Business Verification Website** - Landing publica bilingue (ES/EN) + privacy + terms en morfx.app para desbloquear Business Verification tras rechazo silencioso
 - [ ] **Phase 38: Embedded Signup + WhatsApp Inbound** - Embedded Signup UI, token exchange, webhook subscription, unified webhook endpoint, WA inbound messages
 - [ ] **Phase 39: WhatsApp Outbound + Templates** - Cloud API sender, media upload/download, templates CRUD, read receipts, provider flag, channel registry
 - [ ] **Phase 40: Facebook Messenger Direct** - FB/IG page connection UI, Messenger webhook handler, FB sender, PSID resolution, Messenger inbox, provider flag
@@ -527,6 +528,34 @@ Plans:
 2. The Meta App is registered with Tech Provider enrollment and submitted for App Review with whatsapp_business_management + whatsapp_business_messaging + pages_messaging + instagram_manage_messages permissions
 3. A `workspace_meta_accounts` table stores WABA ID, phone_number_id, page_id, ig_account_id, and BISUAT tokens encrypted with AES-256-GCM per workspace -- with unique indexes on phone_number_id, page_id, and ig_account_id for O(1) webhook resolution
 4. A Graph API v22.0 client wrapper exists with the version pinned in a single global constant, accepting per-workspace tokens, and usable by all subsequent phases
+
+---
+
+### Phase 37.5: Meta Business Verification Website
+
+**Goal:** `morfx.app` serves a public, bilingual (ES/EN) landing with legal business info, plus functional `/privacy` and `/terms` routes, so Meta reviewers can verify MORFX S.A.S. is a real business and approve Business Verification (which was rejected silently on 2026-03-31 because the domain only exposed `/login`).
+
+**Dependencies:** None (blocks Phase 38 Embedded Signup and all Meta Direct flows that require verified business).
+
+**Requirements:** Unblock Business Verification resubmission. Inserted as decimal phase because it is urgent and sits logically between Phase 37 (Meta App setup) and Phase 38 (Embedded Signup).
+
+**Plans:** 5 plans
+
+Plans:
+- [ ] 37.5-01-PLAN.md — Middleware whitelist + delete root redirect + next-intl 4.x install/config
+- [ ] 37.5-02-PLAN.md — Marketing route group scaffold: layout, header, footer, locale toggle, messages seed
+- [ ] 37.5-03-PLAN.md — Landing page content: hero, about, 5 product sections, CTA band, SEO metadata + OG image
+- [ ] 37.5-04-PLAN.md — Privacy (Ley 1581 + GDPR) and Terms (Colombian law) pages hand-written ES/EN
+- [ ] 37.5-05-PLAN.md — Regression + Vercel deploy + Meta domain-verification/BV-resubmit checklist + docs update
+
+**Success Criteria:**
+1. `https://morfx.app/` returns 200 and renders a public landing (no redirect to `/login`) that shows legal name "MORFX S.A.S.", NIT 902052328-5, physical address, phone, email, logo, product description, and links to Privacy + Terms
+2. `https://morfx.app/privacy` and `https://morfx.app/terms` return 200 with content covering Ley 1581 de 2012 (Colombia) and GDPR in both Spanish and English
+3. Bilingual toggle switches between `/` (ES) and `/en` (EN); same for privacy/terms
+4. `https://morfx.app/login`, `/signup`, `/forgot-password`, `/reset-password`, and all authenticated dashboard routes continue to work unchanged
+5. `morfx.app` is verified in Meta Business Manager via DNS TXT record (separate manual step but documented as part of phase)
+6. Landing is responsive (mobile + desktop) and all links return 200
+7. Business Verification is resubmitted in Meta Business Manager (manual user action, documented checklist provided)
 
 ---
 

@@ -453,6 +453,7 @@ Conversation Tags to Contact decisions:
 | 040 | Pipeline decision recordEvents (46 calls en 15 archivos, 3 agents) | 2026-04-10 | 22e5473 | [040-pipeline-decision-recordevents](./quick/040-pipeline-decision-recordevents/) |
 | 041 | Bajar precio 1x Somnio de $89,900 a $79,900 (v3 code + v1 deprecated + DB manual) | 2026-04-10 | e0498db | [041-somnio-1x-precio-79900](./quick/041-somnio-1x-precio-79900/) |
 | 042 | Correo electronico al crear pedido desde WhatsApp (orders.email + prefill contacto + propagacion contacts.email) | 2026-04-15 | c38ddbc | [042-correo-crear-pedido-whatsapp](./quick/042-correo-crear-pedido-whatsapp/) |
+| 043 | Restringir boton Recompra al pipeline "Ventas Somnio Standard" + selector multiple de productos en dialogo | 2026-04-15 | 2029115 | [043-recompra-solo-ventas-somnio-standard](./quick/043-recompra-solo-ventas-somnio-standard/) |
 
 ### Roadmap Evolution
 

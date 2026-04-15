@@ -45,12 +45,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { OrderTagInput } from '@/app/(dashboard)/crm/pedidos/components/order-tag-input'
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
+import { ProductPicker } from '@/app/(dashboard)/crm/pedidos/components/product-picker'
 import { getOrder, getPipelines, moveOrderToStage, recompraOrder } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
 import { getTagsForScope } from '@/app/actions/tags'
 import { getOrderNotes } from '@/app/actions/order-notes'
+import { RECOMPRA_PIPELINE_NAME } from '@/lib/domain/orders'
 import { toast } from 'sonner'
-import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage, OrderNoteWithUser } from '@/lib/orders/types'
+import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage, OrderNoteWithUser, OrderProductFormData } from '@/lib/orders/types'
 
 // Format currency in COP
 function formatCurrency(value: number): string {
@@ -96,6 +98,14 @@ export function ViewOrderSheet({
   const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
   const [recompraDialogOpen, setRecompraDialogOpen] = React.useState(false)
   const [recompraStageId, setRecompraStageId] = React.useState<string>('')
+  const [recompraProducts, setRecompraProducts] = React.useState<OrderProductFormData[]>([])
+
+  // Pipeline destino para recompras (quick task 043)
+  const recompraPipeline = React.useMemo(
+    () => pipelines.find((p) => p.name === RECOMPRA_PIPELINE_NAME),
+    [pipelines]
+  )
+  const recompraDisabled = !recompraPipeline
 
   // Load order notes when sheet opens
   React.useEffect(() => {
@@ -183,8 +193,18 @@ export function ViewOrderSheet({
   }
 
   const handleRecompra = async () => {
-    if (!orderId || !recompraStageId) return
-    const result = await recompraOrder(orderId, recompraStageId)
+    if (!orderId || !recompraStageId || recompraProducts.length === 0) return
+    const result = await recompraOrder(
+      orderId,
+      recompraStageId,
+      recompraProducts.map((p) => ({
+        product_id: p.product_id,
+        sku: p.sku,
+        title: p.title,
+        unit_price: p.unit_price,
+        quantity: p.quantity,
+      }))
+    )
     if ('error' in result) {
       toast.error(result.error)
     } else {
@@ -193,6 +213,7 @@ export function ViewOrderSheet({
       handleClose()
     }
     setRecompraDialogOpen(false)
+    setRecompraProducts([])
   }
 
   return (
@@ -256,11 +277,19 @@ export function ViewOrderSheet({
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={recompraDisabled}
+                  title={
+                    recompraDisabled
+                      ? `No existe el pipeline '${RECOMPRA_PIPELINE_NAME}' en este workspace`
+                      : 'Crear recompra'
+                  }
                   onClick={() => {
-                    if (order) {
-                      const orderPipeline = pipelines.find(p => p.id === order.pipeline_id)
-                      setRecompraStageId(orderPipeline?.stages[0]?.id || '')
+                    if (recompraDisabled) {
+                      toast.error(`No existe el pipeline '${RECOMPRA_PIPELINE_NAME}' en este workspace`)
+                      return
                     }
+                    setRecompraStageId(recompraPipeline?.stages[0]?.id || '')
+                    setRecompraProducts([])
                     setRecompraDialogOpen(true)
                   }}
                 >
@@ -514,37 +543,63 @@ export function ViewOrderSheet({
       </SheetContent>
 
       {/* Recompra confirmation dialog */}
-      <AlertDialog open={recompraDialogOpen} onOpenChange={setRecompraDialogOpen}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={recompraDialogOpen}
+        onOpenChange={(open) => {
+          setRecompraDialogOpen(open)
+          if (!open) setRecompraProducts([])
+        }}
+      >
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Crear recompra</AlertDialogTitle>
             <AlertDialogDescription>
-              Se creara un nuevo pedido con los mismos productos y contacto, sin tracking ni guia.
+              Se creara un nuevo pedido en el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; con el contacto del pedido origen.
+              Selecciona los productos manualmente (no se copian del pedido original).
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-2">
-            <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
-            <Select value={recompraStageId} onValueChange={setRecompraStageId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar etapa" />
-              </SelectTrigger>
-              <SelectContent>
-                {pipelines.map((pipeline) => (
-                  pipeline.stages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                        {pipeline.name} — {stage.name}
-                      </div>
-                    </SelectItem>
-                  ))
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {recompraPipeline ? (
+            <div className="py-2 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
+                <Select value={recompraStageId} onValueChange={setRecompraStageId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar etapa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recompraPipeline.stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                          {stage.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Productos de la recompra</label>
+                <ProductPicker
+                  products={products}
+                  value={recompraProducts}
+                  onChange={setRecompraProducts}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 text-sm text-destructive">
+              No existe el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; en este workspace.
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRecompra} disabled={!recompraStageId}>Crear recompra</AlertDialogAction>
+            <AlertDialogAction
+              onClick={handleRecompra}
+              disabled={!recompraStageId || recompraProducts.length === 0 || !recompraPipeline}
+            >
+              Crear recompra
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -452,6 +452,7 @@ Conversation Tags to Contact decisions:
 | 039 | Fix phase 42.1 inngest ALS collector merge cruzando replays | 2026-04-09 | 7fd031b | [039-fix-phase-42-1-inngest-als-collector-merge](./quick/039-fix-phase-42-1-inngest-als-collector-merge/) |
 | 040 | Pipeline decision recordEvents (46 calls en 15 archivos, 3 agents) | 2026-04-10 | 22e5473 | [040-pipeline-decision-recordevents](./quick/040-pipeline-decision-recordevents/) |
 | 041 | Bajar precio 1x Somnio de $89,900 a $79,900 (v3 code + v1 deprecated + DB manual) | 2026-04-10 | e0498db | [041-somnio-1x-precio-79900](./quick/041-somnio-1x-precio-79900/) |
+| 042 | Correo electronico al crear pedido desde WhatsApp (orders.email + prefill contacto + propagacion contacts.email) | 2026-04-15 | c38ddbc | [042-correo-crear-pedido-whatsapp](./quick/042-correo-crear-pedido-whatsapp/) |
 
 ### Roadmap Evolution
 

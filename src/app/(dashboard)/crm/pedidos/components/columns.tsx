@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TagBadge } from '@/components/contacts/tag-badge'
-import { cn } from '@/lib/utils'
 import {
   detectOrderProductTypes,
   PRODUCT_TYPE_COLORS,
@@ -156,11 +155,12 @@ export function createColumns({
               {productTypes.length > 0 && (
                 <div className="flex items-center gap-1 ml-1">
                   {productTypes.map((type) => {
-                    const { label, dotClass } = PRODUCT_TYPE_COLORS[type]
+                    const { label, dotColor } = PRODUCT_TYPE_COLORS[type]
                     return (
                       <span
                         key={type}
-                        className={cn('h-2 w-2 rounded-full shrink-0', dotClass)}
+                        className="h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: dotColor }}
                         title={label}
                         aria-label={`Tipo de producto: ${label}`}
                         role="img"

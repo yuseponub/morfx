@@ -11,11 +11,6 @@
  *   3. null (sin match)
  */
 
-// Tailwind static classes used by PRODUCT_TYPE_COLORS (do NOT remove):
-// bg-green-500 bg-orange-500 bg-purple-500
-// bg-green-500/10 bg-orange-500/10 bg-purple-500/10
-// text-green-600 text-orange-600 text-purple-600
-
 export type ProductType = 'melatonina' | 'ash' | 'magnesio_forte'
 
 /** Orden estable para renderizado de multiples dots en una card. */
@@ -26,30 +21,29 @@ const PRODUCT_TYPE_ORDER: readonly ProductType[] = [
 ] as const
 
 /**
- * Clases Tailwind COMPLETAS (literales) por tipo.
- * IMPORTANTE (Tailwind v4 JIT): No construir dinamicamente — el scanner no las detectaria.
+ * Colores hex literales por tipo. Se aplican via inline style
+ * (`style={{ backgroundColor: dotColor }}`) para permitir hex arbitrarios
+ * sin depender del scanner de Tailwind JIT.
+ *
+ * - melatonina: #3d8077 (teal oscuro — diferenciado de tags verde genericos)
+ * - ash:        #ff751f (naranja vibrante)
+ * - magnesio_forte: #a855f7 (purple-500 equivalente)
  */
 export const PRODUCT_TYPE_COLORS: Record<
   ProductType,
-  { label: string; dotClass: string; bgClass: string; textClass: string }
+  { label: string; dotColor: string }
 > = {
   melatonina: {
     label: 'Melatonina',
-    dotClass: 'bg-green-500',
-    bgClass: 'bg-green-500/10',
-    textClass: 'text-green-600',
+    dotColor: '#3d8077',
   },
   ash: {
     label: 'Ash',
-    dotClass: 'bg-orange-500',
-    bgClass: 'bg-orange-500/10',
-    textClass: 'text-orange-600',
+    dotColor: '#ff751f',
   },
   magnesio_forte: {
     label: 'Magnesio Forte',
-    dotClass: 'bg-purple-500',
-    bgClass: 'bg-purple-500/10',
-    textClass: 'text-purple-600',
+    dotColor: '#a855f7',
   },
 }
 

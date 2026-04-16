@@ -27,6 +27,7 @@ import { godentistReminderFunctions } from '@/inngest/functions/godentist-remind
 import { v3TimerFunctions } from '@/inngest/functions/agent-timers-v3'
 import { smsDeliveryFunctions } from '@/inngest/functions/sms-delivery-check'
 import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling'
+import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
 
 /**
  * Serve all Inngest functions.
@@ -57,6 +58,7 @@ export const { GET, POST, PUT } = serve({
     ...godentistReminderFunctions,
     ...v3TimerFunctions,
     ...smsDeliveryFunctions,
+    ...mobilePushFunctions,
     taskOverdueCron,
     closeStaleSessionsCron,
     observabilityPurgeCron,

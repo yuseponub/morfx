@@ -71,3 +71,20 @@ export const WorkspacesResponseSchema = z.object({
   workspaces: z.array(WorkspaceSchema),
 })
 export type WorkspacesResponse = z.infer<typeof WorkspacesResponseSchema>
+
+// ---------------------------------------------------------------------------
+// POST /api/mobile/push/register (Phase 43 Plan 13)
+// ---------------------------------------------------------------------------
+
+export const RegisterPushTokenRequestSchema = z.object({
+  platform: z.enum(['android', 'ios']),
+  token: z.string().min(1),
+  deviceName: z.string().optional(),
+})
+export type RegisterPushTokenRequest = z.infer<typeof RegisterPushTokenRequestSchema>
+
+export const RegisterPushTokenResponseSchema = z.object({
+  ok: z.literal(true),
+  id: z.string().uuid(),
+})
+export type RegisterPushTokenResponse = z.infer<typeof RegisterPushTokenResponseSchema>

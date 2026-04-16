@@ -27,7 +27,9 @@ import {
   mobileApi,
   setSelectedWorkspaceId,
 } from '@/lib/api-client';
+import { registerForPushNotifications } from '@/lib/notifications';
 import { teardownAllChannels } from '@/lib/realtime/channel-registry';
+import { supabase } from '@/lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,6 +131,25 @@ export function WorkspaceProvider({
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  // -- Register for push notifications whenever workspaceId changes ---------
+  // Phase 43 Plan 13. iOS short-circuits inside registerForPushNotifications.
+  // Android: requests permission, fetches ExpoPushToken, POSTs to
+  // /api/mobile/push/register. Safe to call on every workspace switch —
+  // server upserts on (user,workspace,platform,token).
+  useEffect(() => {
+    if (!workspaceId) return;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const userId = data.session?.user?.id;
+        if (!userId) return;
+        await registerForPushNotifications({ userId, workspaceId });
+      } catch (err) {
+        console.warn('[WorkspaceProvider] push registration failed', err);
+      }
+    })();
+  }, [workspaceId]);
 
   // -- Switch workspace -----------------------------------------------------
 

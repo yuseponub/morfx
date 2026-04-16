@@ -28,6 +28,9 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { I18nextProvider } from 'react-i18next';
 import { i18n } from '@/lib/i18n';
 import { getCurrentSession, onAuthStateChange } from '@/lib/session';
+// Import for side effect: installs expo-notifications foreground handler
+// + tap listener once at boot (Phase 43 Plan 13).
+import '@/lib/notifications';
 import { ThemeProvider } from '@/lib/theme';
 import { WorkspaceProvider } from '@/lib/workspace/context';
 

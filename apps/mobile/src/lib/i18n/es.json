@@ -21,5 +21,8 @@
       "title": "Espacios de trabajo",
       "current": "Espacio actual"
     }
+  },
+  "push": {
+    "permissionDenied": "No se pudieron activar las notificaciones. Puedes habilitarlas desde los ajustes del sistema."
   }
 }

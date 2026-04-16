@@ -7,6 +7,10 @@ import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
+import {
+  detectOrderProductTypes,
+  PRODUCT_TYPE_COLORS,
+} from '@/lib/orders/product-types'
 import type { OrderWithDetails } from '@/lib/orders/types'
 
 // Format currency in COP
@@ -74,6 +78,11 @@ export function KanbanCard({
 
   const dragging = isDragging || isDraggableActive
 
+  const productTypes = React.useMemo(
+    () => detectOrderProductTypes(order.products),
+    [order.products]
+  )
+
   const handleClick = (e: React.MouseEvent) => {
     // Only trigger click if not dragging (prevent clicks during drag)
     if (!dragging && onClick) {
@@ -133,6 +142,22 @@ export function KanbanCard({
       {order.products.length > 0 && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
           <PackageIcon className="h-3.5 w-3.5" />
+          {productTypes.length > 0 && (
+            <div className="flex items-center gap-1 shrink-0">
+              {productTypes.map((type) => {
+                const { label, dotClass } = PRODUCT_TYPE_COLORS[type]
+                return (
+                  <span
+                    key={type}
+                    className={cn('h-2 w-2 rounded-full shrink-0', dotClass)}
+                    title={label}
+                    aria-label={`Tipo de producto: ${label}`}
+                    role="img"
+                  />
+                )
+              })}
+            </div>
+          )}
           <span className="truncate">
             {order.products.length === 1
               ? order.products[0].title

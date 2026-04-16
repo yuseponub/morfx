@@ -767,6 +767,32 @@ Plans:
 
 ---
 
+### Phase 44: CRM Bots (Read + Write) — API-only Tool Providers
+
+**Goal:** Dos agentes AI independientes expuestos como API interna (sin UI humana) para ser invocados por otros agentes como tool providers: `crm-reader` (solo lectura sobre contactos, pedidos, pipelines/stages, tags) y `crm-writer` (create/update/archive sobre contactos, pedidos, notas, tareas). Aislamiento estricto por construccion — dos carpetas de codigo separadas, dos agent_ids, dos tool registries. El writer opera con flujo two-step (propose+confirm), rate limit 50/min por workspace, kill-switch global y alertas por email a runaway loops.
+
+**Depends on:** Phase 18 (Domain Layer), Phase 42.1 (Observability infra) — reusa collector + tablas agent_observability_*. Compatible con todas las fases activas.
+
+**Requirements:** Nueva capability a nivel plataforma — los agentes futuros van a necesitar un backend consistente y seguro para consultar/mutar el CRM sin reimplementar cada vez.
+
+**Risk:** MEDIUM — nuevos endpoints HTTP publicos (auth + rate limit criticos), nueva tabla de audit log, two-step flow requiere diseno cuidadoso (TTL, idempotencia). Mitigado por scope acotado (4 entidades core), sin borrados reales, sin WA/robots/bots/automatizaciones en V1, y kill-switch con redeploy-free.
+
+**Restricciones duras (de la discusion 2026-04-15):**
+- API-only en V1 — sin UI humana, sin chat
+- Dos carpetas de codigo fisicamente separadas: `src/lib/agents/crm-reader/` y `src/lib/agents/crm-writer/`
+- Writer scope estricto: solo entidades core (contactos, pedidos, notas, tareas) — NO WA, NO bots, NO robots, NO automatizaciones
+- NO crear recursos base nuevos (tags/pipelines/stages/templates/users) — respeto `agent-scope.md`
+- NO DELETE real — solo archivar/cerrar
+- Two-step flow obligatorio en todas las mutaciones (propose → action_id → confirm)
+- Auth: API key per-workspace + scope bound
+- Rate limit: 50 calls/min configurable por env + kill-switch `CRM_BOT_ENABLED` + email alert runaway
+
+**Context:** `.planning/phases/44-crm-bots/44-CONTEXT.md` (discuss-phase completado 2026-04-15)
+
+**Plans:** TBD — pendiente `/gsd:research-phase 44` + `/gsd:plan-phase 44`
+
+---
+
 ## Standalone Phases (between milestones)
 
 - [x] **WhatsApp Performance** — Realtime consolidation, panel lazy-loading, infrastructure (4 plans)

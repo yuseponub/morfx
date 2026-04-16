@@ -126,23 +126,7 @@ export function KanbanCard({
       {/* Header: Order name + value */}
       <div className={cn('flex items-start justify-between gap-2 mb-1.5', onSelectChange && 'pl-5')}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <PackageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-          <div className="min-w-0 flex-1">
-            <span className="font-semibold text-sm truncate block">
-              {order.name || 'Sin nombre'}
-            </span>
-          </div>
-        </div>
-        <span className="font-semibold text-sm text-primary shrink-0">
-          {formatCurrency(order.total_value)}
-        </span>
-      </div>
-
-      {/* Products summary */}
-      {order.products.length > 0 && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
-          <PackageIcon className="h-3.5 w-3.5" />
-          {productTypes.length > 0 && (
+          {productTypes.length > 0 ? (
             <div className="flex items-center gap-1 shrink-0">
               {productTypes.map((type) => {
                 const { label, dotColor } = PRODUCT_TYPE_COLORS[type]
@@ -158,7 +142,24 @@ export function KanbanCard({
                 )
               })}
             </div>
+          ) : (
+            <PackageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-sm truncate block">
+              {order.name || 'Sin nombre'}
+            </span>
+          </div>
+        </div>
+        <span className="font-semibold text-sm text-primary shrink-0">
+          {formatCurrency(order.total_value)}
+        </span>
+      </div>
+
+      {/* Products summary */}
+      {order.products.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+          <PackageIcon className="h-3.5 w-3.5" />
           <span className="truncate">
             {order.products.length === 1
               ? order.products[0].title

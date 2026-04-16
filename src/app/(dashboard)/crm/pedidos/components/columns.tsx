@@ -12,6 +12,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TagBadge } from '@/components/contacts/tag-badge'
+import { cn } from '@/lib/utils'
+import {
+  detectOrderProductTypes,
+  PRODUCT_TYPE_COLORS,
+} from '@/lib/orders/product-types'
 import type { OrderWithDetails } from '@/lib/orders/types'
 
 // Format currency in COP
@@ -139,14 +144,31 @@ export function createColumns({
         if (!products || products.length === 0) {
           return <span className="text-muted-foreground">-</span>
         }
+        const productTypes = detectOrderProductTypes(products)
         return (
           <div className="flex items-center gap-2">
             <PackageIcon className="h-4 w-4 text-muted-foreground" />
-            <div>
+            <div className="flex items-center gap-2">
               <span className="font-medium">{products.length}</span>
-              <span className="text-muted-foreground text-sm ml-1">
+              <span className="text-muted-foreground text-sm">
                 {products.length === 1 ? 'producto' : 'productos'}
               </span>
+              {productTypes.length > 0 && (
+                <div className="flex items-center gap-1 ml-1">
+                  {productTypes.map((type) => {
+                    const { label, dotClass } = PRODUCT_TYPE_COLORS[type]
+                    return (
+                      <span
+                        key={type}
+                        className={cn('h-2 w-2 rounded-full shrink-0', dotClass)}
+                        title={label}
+                        aria-label={`Tipo de producto: ${label}`}
+                        role="img"
+                      />
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )

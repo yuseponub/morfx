@@ -761,7 +761,27 @@ const pdfGuideOrchestrator = inngest.createFunction(
         logoBuffer = undefined
       }
 
-      const pdfBuffer = await generateGuidesPdf(normalized, logoBuffer)
+      // Enriquecer NormalizedOrder[] con isMixed + productLabels usando los
+      // productos ya cargados con sku/title en el step fetch-orders (Wave 1).
+      // Post-normalize enrichment (RESEARCH Pitfall 5): Claude no sabe de isMixed,
+      // se computa aqui directo desde `orders` — independiente del fallback path.
+      // Event shape `robot/pdf-guide.submitted` INTACTO (Pitfall 4).
+      const typesByOrderId = new Map<string, ReturnType<typeof detectOrderProductTypes>>()
+      for (const o of orders) {
+        typesByOrderId.set(o.id, detectOrderProductTypes(o.products))
+      }
+
+      const enriched = normalized.map((n) => {
+        const types = typesByOrderId.get(n.orderId) ?? []
+        const mixed = isMixedOrder(types)
+        return {
+          ...n,
+          isMixed: mixed,
+          productLabels: mixed ? formatProductLabels(types) : undefined,
+        }
+      })
+
+      const pdfBuffer = await generateGuidesPdf(enriched, logoBuffer)
 
       // Upload to Supabase Storage
       const { createAdminClient } = await import('@/lib/supabase/admin')

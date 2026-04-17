@@ -3,7 +3,7 @@
 // ============================================================================
 // BOLD Payment Link Configuration Form
 // Form for saving BOLD credentials (username + password)
-// Pattern: copy of twilio-form.tsx adapted for BOLD
+// Pattern: standard credentials form following the integraciones tab style
 // ============================================================================
 
 import { useState, useTransition, useEffect } from 'react'

@@ -1,6 +1,6 @@
 // ============================================================================
 // Phase 11 + Phase 20: Integrations Settings Page
-// Configure external integrations (Shopify + Twilio)
+// Configure external integrations (Shopify + SMS Onurix + BOLD)
 // Accessible by Owner and Admin roles
 // ============================================================================
 
@@ -11,12 +11,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getShopifyIntegration, getPipelinesForConfig, getWebhookEvents } from '@/app/actions/shopify'
 import { ShopifyForm } from './components/shopify-form'
 import { SyncStatus } from './components/sync-status'
-import { TwilioForm } from './components/twilio-form'
-import { TwilioUsage } from './components/twilio-usage'
+import { SmsTab } from './components/sms-tab'
 import { BoldForm } from './components/bold-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShoppingBag, Settings2, Phone, CreditCard } from 'lucide-react'
+import { ShoppingBag, Settings2, MessageSquare, CreditCard } from 'lucide-react'
 
 export default async function IntegracionesPage() {
   // Verify user is authenticated
@@ -70,9 +69,9 @@ export default async function IntegracionesPage() {
             <ShoppingBag className="h-4 w-4" />
             Shopify
           </TabsTrigger>
-          <TabsTrigger value="twilio" className="flex items-center gap-2">
-            <Phone className="h-4 w-4" />
-            Twilio
+          <TabsTrigger value="sms" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            SMS
           </TabsTrigger>
           <TabsTrigger value="bold" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
@@ -165,13 +164,10 @@ export default async function IntegracionesPage() {
           </Card>
         </TabsContent>
 
-        {/* Twilio Tab */}
-        <TabsContent value="twilio" className="space-y-4">
-          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded" />}>
-            <TwilioForm />
-          </Suspense>
+        {/* SMS (Onurix) Tab */}
+        <TabsContent value="sms" className="space-y-4">
           <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded" />}>
-            <TwilioUsage />
+            <SmsTab />
           </Suspense>
         </TabsContent>
 

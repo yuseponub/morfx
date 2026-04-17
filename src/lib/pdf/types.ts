@@ -27,6 +27,12 @@ export interface NormalizedOrder {
   valorNumerico: number // Raw numeric value for Excel
   pagoAnticipado: boolean
   unidades: number
+  /** Opcional: true si la orden contiene productos que NO son Elixir puro.
+   *  Se derivan en el orchestrator (post-normalize) — Claude no lo popula. */
+  isMixed?: boolean
+  /** Opcional: labels UPPERCASE (ej "ELIXIR + ASHWAGANDHA") para renderizar
+   *  en la caja destacada del PDF cuando isMixed es true. */
+  productLabels?: string
 }
 
 /** Envia Excel row data */

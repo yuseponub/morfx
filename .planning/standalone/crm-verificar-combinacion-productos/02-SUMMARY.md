@@ -313,6 +313,23 @@ command-output.tsx:
 - Render condicional item.products presente: verificado con grep -c
 
 ---
+
+## Addendum 2026-04-17 — fix gap-closure post-QA Task 4
+
+**Gap capturado por el checkpoint humano del Plan 04 (Paso 2 del QA):** cuando TODAS las ordenes son rechazadas por combinacion, el server retorna `success:false` con texto generico + `data.rejectedByCombination` poblado. La UI cortaba en el early-return de `!result.success` y mostraba solo el texto generico, sin orderName ni products ni reason.
+
+**Causa:** `comandos-layout.tsx:517-525` trataba el branch `!success` como error puro sin inspeccionar `data.rejectedByCombination`. El must-have "warning cuando `rejectedByCombination.length > 0`" solo se implementaba en la rama success:true (parcial), no en el early-return "todas rechazadas".
+
+**Fix:** Dentro del `if (!result.success)`, se inspecciona `result.data?.rejectedByCombination` y si tiene items se renderiza el mismo warning detallado (orderName + products + reason) que ya existia para el caso parcial. Si no hay rejectedByCombination (error real), cae al mensaje de error generico.
+
+**Impacto:** Cuando 1 de 1 orden es rechazada, la UI ahora muestra:
+> 1 orden NO se enviaron a Coordinadora (productos fuera de stock en bodega Coord):
+> - Jose Romero — ASHWAGANDHA — Contiene ASHWAGANDHA y no hay stock de esos productos en la bodega de Coord. Usa Envia/Inter/Bogota para esta orden.
+
+**Archivos modificados en el fix:** `src/app/(dashboard)/comandos/components/comandos-layout.tsx` (+17/-4 lineas aprox).
+**Tratamiento GSD:** fix atomico dentro de la fase activa — Plan 02 scope, commit prefijo `fix(crm-verificar-combinacion-productos-02):`. No se abre plan nuevo: es exactamente lo que el gate bloqueante Task 4 existe para capturar.
+
+---
 *Phase: standalone/crm-verificar-combinacion-productos*
 *Plan: 02*
 *Wave: 2 / 3*

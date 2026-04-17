@@ -515,11 +515,25 @@ export function ComandosLayout() {
 
         const result = await executeSubirOrdenesCoord()
         if (!result.success) {
-          addMessage({
-            type: 'error',
-            text: result.error!,
-            timestamp: now(),
-          })
+          const rej = result.data?.rejectedByCombination
+          if (rej && rej.length > 0) {
+            addMessage({
+              type: 'warning',
+              title: `${rej.length} orden${rej.length === 1 ? '' : 'es'} NO se enviaron a Coordinadora (productos fuera de stock en bodega Coord):`,
+              items: rej.map(r => ({
+                orderName: r.orderName,
+                reason: r.reason,
+                products: r.products,
+              })),
+              timestamp: now(),
+            })
+          } else {
+            addMessage({
+              type: 'error',
+              text: result.error!,
+              timestamp: now(),
+            })
+          }
           setIsExecuting(false)
           return
         }

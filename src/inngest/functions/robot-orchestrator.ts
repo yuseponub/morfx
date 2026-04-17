@@ -23,6 +23,11 @@ import { generateGuidesPdf } from '@/lib/pdf/generate-guide-pdf'
 import { generateEnviaExcel } from '@/lib/pdf/generate-envia-excel'
 import { emitRobotOcrCompleted, emitRobotGuideGenCompleted } from '@/lib/automations/trigger-emitter'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  detectOrderProductTypes,
+  isMixedOrder,
+  formatProductLabels,
+} from '@/lib/orders/product-types'
 import type { OcrItemResult, OrderForMatching } from '@/lib/ocr/types'
 
 // ============================================================================
@@ -940,8 +945,29 @@ const excelGuideOrchestrator = inngest.createFunction(
 
     // Step 4: Generate Excel + upload to Storage (WITHIN SAME STEP to avoid Inngest 4MB limit)
     const downloadUrl = await step.run('generate-and-upload', async () => {
-      // Convert NormalizedOrder[] to EnviaOrderData[] using helper
-      const enviaData = normalized.map(normalizedToEnvia)
+      // Build productTypes map by orderId using the already-fetched orders.
+      // Los productos vienen con { sku, title, quantity } gracias a Wave 1.
+      // Post-normalize enrichment es el patron correcto (RESEARCH Pitfall 5):
+      // - Claude no sabe de isMixed; no necesita saber.
+      // - Si normalize falla, el fallback construye NormalizedOrder -- productTypes
+      //   se derivan de `orders` que es independiente del fallback.
+      const typesByOrderId = new Map<string, ReturnType<typeof detectOrderProductTypes>>()
+      for (const o of orders) {
+        typesByOrderId.set(o.id, detectOrderProductTypes(o.products))
+      }
+
+      // Convert NormalizedOrder[] to EnviaOrderData[] using helper,
+      // then enrich with isMixed + combinacion per order.
+      const enviaData = normalized.map((n) => {
+        const base = normalizedToEnvia(n)
+        const types = typesByOrderId.get(n.orderId) ?? []
+        const mixed = isMixedOrder(types)
+        return {
+          ...base,
+          isMixed: mixed,
+          combinacion: mixed ? formatProductLabels(types) : '',
+        }
+      })
 
       const excelBuffer = await generateEnviaExcel(enviaData)
 

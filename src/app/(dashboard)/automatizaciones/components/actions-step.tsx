@@ -42,14 +42,13 @@ import {
   MessageSquare,
   ListTodo,
   Globe,
-  Phone,
   Info,
   GitBranch,
   Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VariablePicker } from './variable-picker'
-import { checkTwilioConfigured } from '@/app/actions/automations'
+import { checkSmsConfigured } from '@/app/actions/automations'
 import { useState, useEffect } from 'react'
 
 // ============================================================================
@@ -82,8 +81,7 @@ const ACTION_CATEGORY_CONFIG: Record<string, { icon: typeof Building2; color: st
   WhatsApp: { icon: MessageSquare, color: 'text-green-600 bg-green-50 dark:bg-green-950/50' },
   Tareas: { icon: ListTodo, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/50' },
   Integraciones: { icon: Globe, color: 'text-gray-600 bg-gray-50 dark:bg-gray-950/50' },
-  Twilio: { icon: Phone, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/50' },
-  SMS: { icon: Phone, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/50' },
+  SMS: { icon: MessageSquare, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/50' },
 }
 
 /** Human-readable labels for select options */
@@ -1154,7 +1152,7 @@ function ActionCard({
   tags,
   templates,
   triggerType,
-  twilioWarning,
+  smsWarning,
   products,
 }: {
   action: AutomationAction
@@ -1168,7 +1166,7 @@ function ActionCard({
   tags: Tag[]
   templates: Template[]
   triggerType: TriggerType
-  twilioWarning: boolean
+  smsWarning: boolean
   products: Product[]
 }) {
   const catalogEntry = ACTION_CATALOG.find((a) => a.type === action.type)
@@ -1253,11 +1251,13 @@ function ActionCard({
 
         <p className="text-xs text-muted-foreground">{catalogEntry.description}</p>
 
-        {/* SMS not configured warning */}
-        {twilioWarning && catalogEntry.category === 'SMS' && (
-          <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
-            <AlertTriangle className="size-3.5 shrink-0" />
-            SMS no configurado. Configura las credenciales SMS antes de usar esta accion.
+        {/* SMS not configured / no balance warning */}
+        {smsWarning && catalogEntry.category === 'SMS' && (
+          <div className="flex items-start gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+            <Info size={14} className="shrink-0 mt-0.5" />
+            <span>
+              SMS no esta configurado o sin saldo. Revisa Integraciones &rarr; SMS.
+            </span>
           </div>
         )}
 
@@ -1515,27 +1515,29 @@ function ActionSelector({
 export function ActionsStep({ formData, onChange, pipelines, tags, templates = [], triggerType, products = [] }: ActionsStepProps) {
   const actions = formData.actions
   const atLimit = actions.length >= MAX_ACTIONS_PER_AUTOMATION
-  const [twilioWarning, setTwilioWarning] = useState(false)
+  const [smsWarning, setSmsWarning] = useState(false)
 
-  // Check SMS configuration when an SMS action is present
-  const hasTwilioAction = actions.some((a) => {
+  // Check SMS (Onurix) configuration when an SMS action is present.
+  // Warning fires if NOT configured (sms_workspace_config.is_active=false)
+  // OR if balance is below SMS_PRICE_COP minimum (D-12).
+  const hasSmsAction = actions.some((a) => {
     const entry = ACTION_CATALOG.find((c) => c.type === a.type)
     return entry?.category === 'SMS'
   })
 
   useEffect(() => {
-    if (!hasTwilioAction) {
-      setTwilioWarning(false)
+    if (!hasSmsAction) {
+      setSmsWarning(false)
       return
     }
     let cancelled = false
-    checkTwilioConfigured().then((configured) => {
+    checkSmsConfigured().then((res) => {
       if (!cancelled) {
-        setTwilioWarning(!configured)
+        setSmsWarning(!res.configured || !res.hasBalance)
       }
     })
     return () => { cancelled = true }
-  }, [hasTwilioAction])
+  }, [hasSmsAction])
 
   function addAction(type: ActionType) {
     if (atLimit) return
@@ -1600,7 +1602,7 @@ export function ActionsStep({ formData, onChange, pipelines, tags, templates = [
               tags={tags}
               templates={templates}
               triggerType={triggerType}
-              twilioWarning={twilioWarning}
+              smsWarning={smsWarning}
               products={products}
             />
           ))}

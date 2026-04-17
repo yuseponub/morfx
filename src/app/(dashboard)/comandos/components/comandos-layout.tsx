@@ -132,10 +132,11 @@ export type CommandMessage =
       title: string
       items: Array<{
         orderName: string | null
-        originalCity: string
-        resolvedCity: string
-        department: string
+        originalCity?: string
+        resolvedCity?: string
+        department?: string
         reason: string
+        products?: string
       }>
       timestamp: string
     }
@@ -529,6 +530,24 @@ export function ComandosLayout() {
           text: `Job creado: ${data.validCount} ordenes validas de ${data.totalOrders} total.${data.invalidCount > 0 ? ` ${data.invalidCount} invalidas.` : ''}`,
           timestamp: now(),
         })
+
+        // Warning: ordenes filtradas por combinacion de productos (Ashwagandha, Magnesio Forte, etc.)
+        // NOTA: NO poblar originalCity/resolvedCity/department — omitirlos (quedan undefined).
+        // El renderer discrimina por `item.products` presente vs `item.originalCity` presente.
+        // Strings vacios '' serian fragiles y renderizarian garbage si se llega al branch legacy.
+        if (data.rejectedByCombination && data.rejectedByCombination.length > 0) {
+          const n = data.rejectedByCombination.length
+          addMessage({
+            type: 'warning',
+            title: `${n} orden${n === 1 ? '' : 'es'} NO se enviaron a Coordinadora (productos fuera de stock en bodega Coord):`,
+            items: data.rejectedByCombination.map(r => ({
+              orderName: r.orderName,
+              reason: r.reason,
+              products: r.products,
+            })),
+            timestamp: now(),
+          })
+        }
 
         if (data.aiResolvedOrders && data.aiResolvedOrders.length > 0) {
           addMessage({

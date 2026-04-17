@@ -1,3 +1,18 @@
+---
+gsd_state_version: 1.0
+milestone: v5.0
+milestone_name: Meta Direct Integration
+status: planning
+stopped_at: context exhaustion at 90% (2026-04-17)
+last_updated: "2026-04-17T16:12:20.864Z"
+progress:
+  total_phases: 11
+  completed_phases: 4
+  total_plans: 39
+  completed_plans: 29
+  percent: 74
+---
+
 # Project State
 
 ## Project Reference
@@ -13,7 +28,7 @@ Phase: 37.5 (Meta Verification Website) — IN PROGRESS (5/5 plans executed; Pla
 Plan: 05/05 PARCIAL (Tasks 1-3 ejecutados autonomamente; Task 4 checkpoint activo)
 Status: Plan 37.5-05 PARCIAL. Tasks 1-3 ejecutados autonomamente, Task 4 es checkpoint:human-action bloqueante (user login a Meta Business Manager + Porkbun, Claude no puede ejecutar). Task 1: regression clean — `npx tsc --noEmit` 4 errores pre-existentes vitest/somnio out-of-scope, zero errores en Phase 37.5 code; JSON valido ambos locales; grep 360dialog = 0, grep NIT incorrecto 902.058.328-5 = 0; `npm run build` skipped (WSL Geist fonts outage persistente, validacion via Vercel pipeline). Task 2: `git push origin main` commits 85bae1a..ef43d41 (22 commits Plans 01-04) — Vercel auto-deploy https://morfx.app. Task 3: (a) META-VERIFICATION-CHECKLIST.md creado (202 lineas, Parts A [DNS TXT Porkbun + Meta Domain Verify], B [email corporativo — separate instance], C [Facebook Page — separate instance], D [Business Verification resubmit], pre-submission sanity + post-approval cleanup); (b) 37.5-LEARNINGS.md creado (153 lineas, 5 bugs resueltos: middleware composition in-place vs src/middleware.ts, parallel JSON clobbering → python atomic re-read-merge pattern, LegalSection recursive subsections, --legacy-peer-deps pre-existente, WSL Geist fonts outage; patterns: next-intl 4.x with Next 16, localePrefix as-needed, middleware composition order, route group scope, handwritten legal docs vs Termly/iubenda; 4-cause Meta rejection root analysis online research convergence; decisions, open questions); (c) docs/analysis/04-estado-actual-plataforma.md — nueva seccion "Presencia Publica — morfx.app (Phase 37.5 Block A)" + trailing updated-date entry 14 abril 2026; (d) memory file meta_integration_setup.md actualizado con Phase 37.5 Block A completion entry. Commits Plan 05: 94968e5 (checklist) + 58e127b (LEARNINGS) + 03187f3 (estado-actual). Push completado ef43d41..03187f3. Task 4 CHECKPOINT activo esperando: (1) usuario verifica visualmente https://morfx.app + /privacy + /terms + /en/* en browser, (2) ejecuta Part A (DNS TXT Porkbun → dig verify → Meta Domain Verify), (3) Block B/C delegados a separate instance — NO ejecutar aqui, (4) ejecuta Part D (Business Verification resubmit con website como evidencia) cuando A+B+C completos. Resume signal: "deploy verified" / "domain verified + BV resubmitted" / "domain verified, BV failed — reason: <...>" / "blocked on <...>". SUMMARY: .planning/phases/37.5-meta-verification-website/37.5-05-SUMMARY.md (marker PARCIAL — awaiting human-action checkpoint). Expected SLA post-resubmit: 2-5 dias habiles (community reports 2 semanas a 7 meses). Phase 38 (Embedded Signup) BLOCKED hasta Meta returns Verified.
 
-Previous activity: 2026-04-17 — Standalone `crm-verificar-combinacion-productos` CIERRE DE FASE (4/4 plans). **Plan 04 Wave 3 COMPLETE** (code, 3/3 tasks automatic + 1 checkpoint humano pendiente de QA post-deploy). Apartado visual condicional "COMBINACIÓN: {labels}" en PDFs Inter+Bogota entre logo y primer separador, SOLO cuando orden es mixed (productos distintos a Elixir puro). Colores exactos: borde `#ff751f` (naranja Ashwagandha = PRODUCT_TYPE_COLORS.ash.dotColor, consistencia cross-surface con dots Kanban), fill `#FFF4E5`, texto `#B45309` bold 11pt centrado, box 28pt alto. `doc.save()/.restore()` alrededor de `rect().fillAndStroke()` aisla stroke; `fillColor('#000000')` reset DESPUES del texto para evitar Pitfall 2 leak (si no se resetea, ENVIAR A: y direccion salen naranjas). Defensive double-check `if (order.isMixed && order.productLabels)` evita caja vacia si productLabels falta upstream. Enrichment 100% en `pdfGuideOrchestrator` step `generate-and-upload`: `typesByOrderId` Map construido desde `orders` (fetch step, productos ricos con sku/title de Wave 1), `enriched = normalized.map(n => ({...n, isMixed, productLabels: mixed ? formatProductLabels(types) : undefined}))` antes de `generateGuidesPdf(enriched, logoBuffer)`. Event shape `robot/pdf-guide.submitted` INTACTO (Pitfall 4) — productTypes se derivan dentro del step.run, no viajan en el evento. `normalize-order-data.ts` NO modificado (Pitfall 5) — Claude prompt + `buildFallbackOrder` sin tocar. Ambos carriers (Inter y Bogota) cubiertos por 1 sola implementacion por compartir `generateGuidesPdf`. Safe orders pixel-identicas al comportamiento actual (cero regresion). Commits atomicos: `78c39b7` (Task 1 types.ts NormalizedOrder + isMixed?/productLabels?) + `a883de2` (Task 2 generate-guide-pdf.ts caja condicional) + `a6680e1` (Task 3 robot-orchestrator.ts enrichment pdfGuideOrchestrator) + `ff57739` (docs SUMMARY + LEARNINGS). Push a Vercel: `22e096b..a6680e1` confirmado. `npx tsc --noEmit` sin errores nuevos (4 errores pre-existentes vitest/somnio out-of-scope). **Cierre de fase standalone** (4 planes, 11 commits, ~190 LoC productivas): los 4 flujos de guias (Coord + Envia + Inter + Bogota) protegidos contra despacho de combinacion equivocada. SUMMARY: .planning/standalone/crm-verificar-combinacion-productos/04-SUMMARY.md. LEARNINGS.md creado consolidando los 4 planes (6 patrones replicables + 6 pitfalls mitigados + decisiones sutiles + recomendaciones para agentes/planners futuros). Checkpoint humano Task 4 pendiente: QA manual end-to-end post-deploy de los 4 flujos con ordenes de prueba (Elixir puro / Ashwagandha / Elixir+Magnesio / sin clasificar) + actualizacion de `docs/analysis/04-estado-actual-plataforma.md` (REGLA 4).
+Previous activity: 2026-04-17 — Standalone `crm-verificar-combinacion-productos` CIERRE DE FASE (4/4 plans). **Plan 04 Wave 3 COMPLETE** (code, 3/3 tasks automatic + 1 checkpoint humano pendiente de QA post-deploy). Apartado visual condicional "COMBINACIÓN: {labels}" en PDFs Inter+Bogota entre logo y primer separador, SOLO cuando orden es mixed (productos distintos a Elixir puro). Colores exactos: borde `#ff751f` (naranja Ashwagandha = PRODUCT_TYPE_COLORS.ash.dotColor, consistencia cross-surface con dots Kanban), fill `#FFF4E5`, texto `#B45309` bold 11pt centrado, box 28pt alto. `doc.save()/.restore()` alrededor de `rect().fillAndStroke()` aisla stroke; `fillColor('#000000')` reset DESPUES del texto para evitar Pitfall 2 leak (si no se resetea, ENVIAR A: y direccion salen naranjas). Defensive double-check `if (order.isMixed && order.productLabels)` evita caja vacia si productLabels falta upstream. Enrichment 100% en `pdfGuideOrchestrator` step `generate-and-upload`: `typesByOrderId` Map construido desde `orders` (fetch step, productos ricos con sku/title de Wave 1), `enriched = normalized.map(n => ({...n, isMixed, productLabels: mixed ? formatProductLabels(types) : undefined}))` antes de `generateGuidesPdf(enriched, logoBuffer)`. Event shape `robot/pdf-guide.submitted` INTACTO (Pitfall 4) — productTypes se derivan dentro del step.run, no viajan en el evento. `normalize-order-data.ts` NO modificado (Pitfall 5) — Claude prompt + `buildFallbackOrder` sin tocar. Ambos carriers (Inter y Bogota) cubiertos por 1 sola implementacion por compartir `generateGuidesPdf`. Safe orders pixel-identicas al comportamiento actual (cero regresion). Commits atomicos: `78c39b7` (Task 1 types.ts NormalizedOrder + isMixed?/productLabels?) + `a883de2` (Task 2 generate-guide-pdf.ts caja condicional) + `a6680e1` (Task 3 robot-orchestrator.ts enrichment pdfGuideOrchestrator) + `ff57739` (docs SUMMARY + LEARNINGS). Push a Vercel: `22e096b..a6680e1` confirmado. `npx tsc --noEmit` sin errores nuevos (4 errores pre-existentes vitest/somnio out-of-scope). **Cierre de fase standalone** (4 planes, 11 commits, ~190 LoC productivas): los 4 flujos de guias (Coord + Envia + Inter + Bogota) protegidos contra despacho de combinacion equivocada. SUMMARY: .planning/standalone/crm-verificar-combinacion-productos/04-SUMMARY.md. LEARNINGS.md creado consolidando los 4 planes (6 patrones replicables + 6 pitfalls mitigados + decisiones sutiles + recomendaciones para agentes/planners futuros). Checkpoint humano Task 4 APROBADO por usuario 2026-04-17 — QA flujo Coord verificado con orden real (ASHWAGANDHA), mensaje detallado con orderName + products + reason confirmado en UI. **Gap mid-checkpoint identificado y fixeado**: UI cortaba en early-return `!result.success` cuando TODAS las ordenes eran rechazadas por combinacion, mostrando solo el texto generico sin detalles. Fix `comandos-layout.tsx` inspecciona `result.data?.rejectedByCombination` dentro del branch de fail y renderiza el mismo warning detallado que ya existia para el caso parcial (commit `61f9820`, push `eb2d342..61f9820`). Addendum al `02-SUMMARY.md`. REGLA 4 cumplida: `docs/analysis/04-estado-actual-plataforma.md` extendido con nueva seccion "10. Logistica — Generacion de Guias" documentando los 4 flujos + feature shipped 2026-04-17. **FASE STANDALONE `crm-verificar-combinacion-productos` CLOSED** (4/4 plans completos, LEARNINGS consolidado, gap de checkpoint fixeado inline).
 
 Previous activity: 2026-04-14 — Phase 42.1 Plan 11 PARCIAL. Tasks 1+2 ejecutados autonomamente, Task 3 es checkpoint:human-verify bloqueante (Regla 6 — Claude no activa flag en produccion). Task 1: precios Anthropic verificados via curl contra docs.claude.com (mirror static-rendered de www.anthropic.com/pricing porque la marketing site es JS-rendered) — Sonnet 4.5 $3/$15/$3.75/$0.30 y Haiku 4.5 $1/$5/$1.25/$0.10 per MTok matchean exactamente lo que ya estaba en pricing.ts; solo se actualizo el header del archivo (TODO removido, confidence MEDIUM->HIGH, fecha 2026-04-07, breakdown explicito por modelo). Smoke test 1 (AsyncLocalStorage): script throwaway scripts/smoke/als-smoke-test.ts importo runWithCollector/getCollector/ObservabilityCollector del barrel publico, ejecuto 7 sub-checks (immediate read, post-microtask Promise.resolve, post-setTimeout macrotask hop, nested helper async fn, 2 ramas Promise.all con setTimeout interno, outside-run null) — TODOS PASS. Script + scripts/smoke/ dir borrados post-run. Smoke tests 2 (anti-recursion SQL) y 3 (sandbox debug panel regression) DEFERRED a runbook Step 3 porque requieren schema live + flag ON o inspeccion visual UI — Claude no puede ejecutarlos autonomamente. smoke-tests.md creado documentando los 3 con criterios de pass/fail, rationale del defer, y argumento de bajo riesgo para test 3 (componentes completamente separados, inbox-layout.tsx usa rama JSX condicional byte-identical para non-super-users). Task 2: activation-runbook.md creado con pre-checklist (7 items completos), Paso 1 (deploy con flag OFF + zero-row check + 10min latency baseline), **Paso 2 con PREREQUISITO `SUPER_USER_EMAIL` env var ANTES de OBSERVABILITY_ENABLED=true** (Plan 09 introdujo assertSuperUser que tira FORBIDDEN si la env esta unset, incluso para Jose — esto no estaba en el plan 11 task 2 original pero las instrucciones de execucion lo requirieron explicitamente), Paso 3 con 6 sub-steps (1 mensaje por bot, abrir panel + click row + expand events/queries/AI calls, anti-recursion SQL, sandbox panel check, ventana 1h latencia con p50 baseline+20ms y flush p95 200ms via pino, volume sanity check vs RESEARCH.md), rollback < 2min con cleanup SQL, criterios de exito de 11 items para declarar fase ACTIVA, handoff explicito a continuation agent para Task 4. Push a Vercel: `git push origin main` con 3 commits — todos doc-only/comment-only, cero impacto runtime (el codigo runtime de Plans 02-10 ya esta en produccion behind flag OFF). 42.1-11-SUMMARY.md creado con marker (PARCIAL — awaiting activation checkpoint). CHECKPOINT activo esperando "sistema activo en produccion" + metricas o "rollback ejecutado: <razon>" del usuario. Task 4 (docs/04-estado-actual-plataforma + LEARNINGS.md + commit final) sera ejecutado por un agente continuation post-checkpoint. Detail pane del debug panel produccion listo end-to-end. (1) `src/lib/observability/repository.ts` — `getTurnDetail(turnId, startedAt)` implementado con partition pruning +/-60s en started_at (composite PK `(started_at, id)` requiere rango para podar particiones; `.eq('id')` sigue siendo el filtro real), 4 queries en `Promise.all` (turn + events + queries + ai_calls via `createRawAdminClient`), join secundario `agent_prompt_versions.in('id', promptVersionIds)` para dereferenciar systemPrompt O(1) via `promptVersionsById` map. Hijos NO filtran por recorded_at hoy — comentario inline documenta optimizacion post-MVP (usar finished_at como upper bound) y por que se pospone (turnos legitimamente largos + latencia 2 round trips + indices `(turn_id, sequence)` ya selectivos). Todos los campos camelCase, numerics coerced via `Number()`. Nuevos tipos exportados: `TurnDetail`, `TurnDetailError`, `TurnDetailEvent`, `TurnDetailQuery`, `TurnDetailAiCall`, `TurnDetailPromptVersion`. (2) `src/app/actions/observability.ts` — `getTurnDetailAction(turnId, startedAt)` super-user gated via `assertSuperUser()`, NO discriminated union (la master pane ya verifico flag; race mid-session → throw + error state de la UI). (3) `turn-detail.tsx` (NEW) — one-shot fetch con `useEffect(() => { fetchOnce() }, [turnId, startedAt])` + `cancelled` flag + `mountedRef`. **NO auto-refresh, NO polling, NO revalidacion — turnos inmutables post-flush (Pitfall 7)**. Merge events+queries+aiCalls en un solo timeline sorted por `sequence` via `useMemo`. Header con agentId, triggerKind, duration, tokens, cost, counts, mode transition, error banner. (4) `event-row.tsx` (NEW) — discriminated union `TimelineItem`, row expandible con prefijo coloreado (`EVT` cyan / `SQL` amber / `AI` violet), chevron, secuencia, summary con counts a la derecha, body delegado a `JsonView` / `QueryView` / `AiCallView` por kind. Estado expanded local (expandir multiples rows OK). (5) `query-view.tsx` (NEW) — metadata grid (tabla/operacion/status/rowCount/duracion) + error banner + columns (raw text) + filters JsonView + requestBody JsonView. (6) `ai-call-view.tsx` (NEW) — header grid (purpose/model/temp/maxTokens/shortHash con tooltip firstSeenAt/status), token breakdown bar (input/output/cache_creation/cache_read/total + cost + lat), secciones colapsables default-closed: "System Prompt" (monospace `<pre>` max-height 400px scroll), "Messages" (JsonView), "Response" (JsonView). Theme-aware via `useTheme().resolvedTheme` → `darkTheme`/`lightTheme` consistente con sandbox debug panel. Fallback "prompt version no encontrada" si race con manual DB prune. (7) `index.tsx` — stub del detail area reemplazado por `<TurnDetailView key={selectedTurn.id} turnId startedAt />`. `key=id` fuerza remount limpio al cambiar turno (mas barato que reconciliar fetch in-flight). Wrapper `min-w-0 min-h-0` escape flexbox para permitir scroll interno. **Desviacion de plan documentada:** 10-PLAN.md mostraba `useSWR` en el snippet pero Plan 09 ya habia establecido pattern hand-rolled (no SWR en repo, zero new deps en Phase 42.1). Mirrored turn-list.tsx pattern en turn-detail.tsx (Rule 3 — blocking: SWR habria roto build y violado constraint de fase). **Verificacion:** `tsc --noEmit` clean en todos los archivos nuevos/modificados (unicos errores restantes son vitest pre-existentes en somnio tests, out of scope). `pnpm run build` killed por timeout (WSL Geist fonts outage persiste, mismo estado Plan 07/09 — no blocker, Plan 11 lo verificara en Vercel). `@uiw/react-json-view@^2.0.0-alpha.41` ya en package.json, 10 imports en 3 componentes nuevos (verificado con grep count). Commits: 6ae5e49 (repository + server action) + 7d1551b (UI 4 nuevos archivos + wire en index). Plan 11 (runbook + verification + ship) desbloqueado — ultimo plan de la fase 42.1. (1) `src/lib/observability/repository.ts` — `listTurnsForConversation(conversationId, {limit?})` usa `createRawAdminClient()` (Pitfall 1 safe: lecturas no contaminan captura futura), mapea filas de `agent_observability_turns` a DTO `TurnSummary` con camelCase + coercion numerica de `total_cost_usd`; `getTurnDetail` exportado como stub (Plan 10 lo implementa) para que el repo ya exponga la superficie final. (2) `src/lib/auth/super-user.ts` — helper nuevo con `SUPER_USER_EMAIL_ENV` constante, `getSuperUserEmail()`, `getIsSuperUser()` (async, via `createClient()` SSR Supabase, fail-closed ante cualquier excepcion) y `assertSuperUser()` (throw generic `FORBIDDEN`). Verificado con grep que NO existia ningun mecanismo previo de super-user en `src/` (workspace_members.role es scope per-workspace, no platform). Decision: env var nuevo en vez de overload role=owner — explicit, auditable en Vercel, fail-closed, trivialmente revocable, sin polucionar DB. Plan 11 runbook debe agregar `SUPER_USER_EMAIL=<jose>` a Vercel. (3) `src/app/actions/observability.ts` — `getTurnsByConversationAction(conversationId)` retorna discriminated union `{status:'disabled',flagName}|{status:'ok',turns}` para que la UI distinga flag OFF vs sin datos sin leer process.env en cliente. Gated via `assertSuperUser()`. (4) `debug-panel-production/turn-list.tsx` — master pane cliente con polling hand-rolled (no SWR/react-query en repo — verificado), maquina de 5 estados (loading/disabled/empty/data/error) con `inFlightRef` para dedupe + `mountedRef` contra setState-after-unmount, `setInterval(15s)` clearOnUnmount. Estado disabled muestra exact env var `OBSERVABILITY_ENABLED=true` en bloque de codigo. (5) `debug-panel-production/index.tsx` — container con TurnList izquierda 256px + detail pane derecha stub ("Detalle del turno — implementado en Plan 10"). (6) `inbox-layout.tsx` — `Allotment` + CSS importados localmente, state `debugPanelOpen`, prop nueva `isSuperUser?: boolean` (default false). **Patron critico Regla 6 byte-identical:** rama condicional a nivel JSX, NO wrap unconditional — cuando `debugPanelOpen && isSuperUser && selectedConversationId` se renderiza `<div flex-1><Allotment>ChatView|DebugPanel</Allotment></div>`, en cualquier otro caso cae al `<ChatView flex-1 />` de siempre. Unconditional wrap habria cambiado layout de usuarios regulares (pane absolute positioning + drag handle + min sizes) violando Regla 6. (7) `chat-view.tsx` + `chat-header.tsx` — props opcionales `onToggleDebug?: () => void` y `isDebugOpen?: boolean`; icono `Bug` solo se renderiza cuando `onToggleDebug` existe → no super-user ve cero diff. ChatView root tiene `h-full` para funcionar tanto en flex parent como dentro de `Allotment.Pane`. (8) `whatsapp/page.tsx` — `getIsSuperUser()` en Server Component, agregado a `Promise.all` existente junto a conversations+clientConfig, forwarded a InboxLayout. **Verificacion:** `tsc --noEmit` clean en todos los archivos nuevos/modificados (unicos errores en repo son vitest pre-existentes en tests de somnio). `pnpm run build` no ejecutado por outage WSL Google Fonts (documentado Plan 07). `allotment@1.20.5` ya estaba en package.json y usado en sandbox/comandos split-panels. Commit 1 e629417 (repo+action+super-user) + Commit 2 c4410c9 (debug-panel components + inbox integration). Wave 5 Plan 10 (turn detail) desbloqueado.
 Previous activity: 2026-04-14 — Phase 37.5-04 COMPLETE (5/5 tasks, 5 atomic commits). /privacy + /terms bilingual desde TyC-original.docx del equipo legal de MORFX. LegalSection component server-side (src/components/marketing/legal/legal-section.tsx) con soporte recursivo de subsections (LegalSubsection interface self-referencing, h2 -> h3 level 0 -> h4 level 1+ con left-border indent para nesting visual). privacy/page.tsx y terms/page.tsx: setRequestLocale + getTranslations + t.raw(sectionKey) iterando SECTION_KEYS constant (14 para terms: section1..6 + section9..16; 4 para privacy: section7 + section8 + sectionContact + sectionEffective), TOC nav panel top + header con MORFX S.A.S. eyebrow + lastUpdated badge + cross-links footer (Privacy<->Terms<->Landing via LocaleLink). **Transcripcion verbatim** 400 lineas / ~4300 palabras fuente a messages/es.json Terms (20 keys, 14 secciones legales) + Privacy (10 keys, 7+8+contact+effective) + en.json mirror 1:1 (2598 Terms EN / 1190 Privacy EN words — compression normal ES->EN). **4 correcciones mandatorias aplicadas**: (1) NIT 902.058.328-5 (typo equipo legal) -> 902.052.328-5 (matches Camara Comercio + RUT), 0 / 0 ocurrencias erroneas post-edit, 1/1 ocurrencias correctas; (2) 'morfx S.A.S.' / lowercase -> MORFX S.A.S. uppercase consistente con documentos oficiales (64 ocurrencias cada locale post-edit); (3) seccion 3 bullet 'WhatsApp a traves de 360dialog' -> 'WhatsApp Business Platform' + seccion 7.6 subencargados a categorias genericas only (cloud infra / LLM providers / messaging platforms — zero vendor names en T&C publico, lista detallada se mantiene en Acuerdo de Servicios privado per-cliente), `grep 360dialog messages/*.json` = 0/0; (4) email stays morfx.colombia@gmail.com (corporate email info@morfx.app es Block B, otra instancia/plan hara find-replace de 6 ocurrencias post-configuracion). **Preservado verbatim**: plazos 10/15/30/60/72 horas dias habiles vs calendario, Ley 1581 art. 3 y 9, Ley 1480 de 2011 (Estatuto Consumidor), Decreto 1377 de 2013, derechos ARCO con expansion acronimo (Acceso/Rectificacion/Cancelacion/Oposicion), notification SIC 72h incidentes seguridad, tope responsabilidad 6 meses facturacion previa, vigencia 12m renovable, preavisos 30/60/90 dias. **Coordinacion parallel exitosa con Plan 03**: ambos pluggers editaron messages/{es,en}.json concurrentemente — Plan 04 uso python re-read-load-set-dump atomico en cada task (NO templates, NO echo heredocs), namespace Landing (Plan 03) aterrizo entre mis Tasks 3 y 4, preservado byte-identical en Tasks 4-5. Final namespaces ambos locales: ['Header','Footer','Landing','Terms','Privacy'] — zero clobber. **Desviacion Rule 3 (blocking) documentada**: Task 1 LegalSection tenia subsections flat sin recursion; Task 4 Privacy seccion 7.2 (Datos Tratados como Responsable) tiene 2 listas de bullets distintas separadas por paragraph intro (data categories + finalidades), no cabe en schema con bullets[] unico — o (a) inflaba a 9 subsections violando plan `length=8` o (b) merge destructivo perdiendo semantica. Fix: extend LegalSubsection interface con `subsections?: LegalSubsection[]` self-ref, recursive Subsection component con `level` param (h3 level 0, h4 level 1+). Mismo fix desbloqueo 7.6 Subencargados (bullets + authorization paragraph anidado) y 7.7 ARCO (bullets + canal y plazos paragraph anidado). Commit b16e27f bundled con contenido Task 4 (additive non-breaking). tsc --noEmit clean. `npm run dev` smoke test skipped (WSL Geist fonts outage persistente, mismo estado 37.5-01/02/03, 42.1-07/09/10) — end-to-end verification Plan 37.5-05 via Vercel. Cero agent behavior impact (Regla 6 preserved — rutas additivas, middleware bypass intacto, zero feature flag). Commits: 2a83e5e (Task 1 LegalSection + page scaffolds) + bf0dca2 (Task 2 Terms ES 14 secciones) + 3ab1b83 (Task 3 Terms EN 1:1 mirror) + b16e27f (Task 4 Privacy ES 10 keys + LegalSection recursive extension) + eb4c061 (Task 5 Privacy EN 1:1 mirror). SUMMARY: .planning/phases/37.5-meta-verification-website/37.5-04-SUMMARY.md. Desbloquea Plan 37.5-05 (Vercel deploy + Meta Business Verification reviewer walkthrough) — ultimo plan de la fase 37.5. NO pushed a Vercel — esperando push combinado Plan 05.
@@ -42,6 +57,7 @@ Phase 43 Plan 06 COMPLETE (2026-04-12): Workspace switcher. WorkspaceContext pro
 Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100% v3.0 | [#########-] 95% v4.0 | [##--------] 10% v5.0
 
 ### Carryover from v4.0
+
 - Phase 36 (Shopify Product Conditional): IN PROGRESS (1/2 plans)
 - Standalone in progress: v3-state-machine, v3-two-track-decision, v3-ofi-inter, GoDentist Followup Ultimatum, SMS Module, v3-tiempo-entrega
 
@@ -61,12 +77,14 @@ Progress: [##########] 100% MVP v1 | [##########] 100% MVP v2 | [##########] 100
 ### MVP v1.0 Complete (2026-02-04)
 
 All 11 phases + 4 inserted phases completed:
+
 - 51 plans executed across 15 phases
 - Core value delivered: CRM + WhatsApp sync
 
 ### MVP v2.0 Complete (2026-02-16)
 
 All 9 phases + 5 inserted phases completed:
+
 - 83 plans executed across 14 phases
 - 441 commits, 454 files, 121K lines added
 
@@ -121,6 +139,7 @@ All 9 phases + 5 inserted phases completed:
 ## Performance Metrics
 
 **Overall:**
+
 - Total phases completed: 42 (36 milestone + 6 standalone)
 - Total plans completed: 217
 - Total execution time: ~31 days (2026-01-26 to 2026-02-26)
@@ -132,6 +151,7 @@ All 9 phases + 5 inserted phases completed:
 Decisions logged in PROJECT.md Key Decisions table.
 
 Phase 28 decisions:
+
 - Guide gen config stored on same carrier_configs row (carrier='coordinadora') alongside dispatch/OCR config
 - Non-fatal tag fetch: getOrdersForGuideGeneration proceeds without tags on error
 - destStageId nullable (optional post-generation stage move)
@@ -145,6 +165,7 @@ Phase 28 decisions:
 - Stage move errors non-fatal: logged but don't fail the job
 
 Order notes system decisions:
+
 - No activity logging for order notes (no order_activity table exists)
 - Extended existing domain/notes.ts rather than creating new file
 - Notes loaded via useEffect on sheet open, not in initial page query
@@ -152,11 +173,13 @@ Order notes system decisions:
 - 'Notas' label reserved exclusively for notes entity; 'Descripcion' for order.description
 
 Phase 29 decisions:
+
 - processAgentInline helper: DRY extraction for shared inline/fallback path
 - processed_by_agent marks ALL unprocessed inbound messages (batch case)
 - Inngest send failure falls back to inline processing (safety net)
 
 Phase 30 decisions:
+
 - no_gracias intent NOT created: existing no_interesa covers polite refusals
 - fallback triggers emptied: overlapping keywords moved to dedicated asesor intent
 - bienvenida state added to SOMNIO_STATES for explicit state machine correctness
@@ -170,6 +193,7 @@ Phase 30 decisions:
 - HANDOFF early return includes cancel timer signal to stop active timers on handoff
 
 Recent decisions affecting v4.0:
+
 - Inngest migration with USE_INNGEST_PROCESSING feature flag for instant rollback
 - Character delay curve: min 2s, cap 12s at 250 chars, logarithmic
 - Classification post-IntentDetector (not pre-gate regex)
@@ -181,23 +205,27 @@ Recent decisions affecting v4.0:
 - Ofi Inter: always confirm, never assume; 3 detection paths
 
 Phase 31 decisions (Plan 01):
+
 - Dedup across block/pool: shouldReplace() replaces block entries when pending pool candidate has same templateId and is preferred
 - Excess intent overflow classified individually: OPC dropped, CORE/COMP to pending
 - Pool sort: PRIORITY_RANK primary, isNew tiebreaker (pending first), orden final
 
 Phase 31 decisions (Plan 02):
+
 - Priority as TEXT with CHECK constraint (not Postgres enum) for flexibility
 - Default priority CORE for backward compatibility
 - Seed priorities by orden (0=CORE, 1=COMP, 2+=OPC)
 - isValidTemplatePriority as standalone type guard (not importing from parallel plan files)
 
 Phase 31 decisions (Plan 03):
+
 - Pre-send check runs AFTER char delay and BEFORE send (customer types during delay)
 - Check applies to every template including index 0 (first one)
 - Lightweight count query with head:true (no row data fetched)
 - Interrupted result captured but NOT acted upon yet (Plan 04 handles pending storage)
 
 Phase 31 decisions (Plan 04):
+
 - Block composition guard: hasTemplates && !forceIntent (sandbox + timer bypass)
 - sentMessageContents tracks actually-sent template content for accurate assistant turn recording
 - Silence timer sends up to 3 pending templates with char-delay before retake message
@@ -205,53 +233,63 @@ Phase 31 decisions (Plan 04):
 - sentCount=0 interruption discards all templates and clears pending (fresh recalculation)
 
 Resilience v2 decisions (Plan 01):
+
 - Idempotent DDL with IF EXISTS/IF NOT EXISTS for safe migration re-runs
 - Partial index for replay queries: only indexes failed rows with retry_count < 3
 - Regla 5 added to CLAUDE.md: migration must be applied in production before deploying dependent code
 
 Resilience v2 decisions (Plan 02):
+
 - processWebhook swallows errors when stored=true (ACK for replay)
 - processWebhook re-throws only when eventId=null (no safety net)
 - replayWebhookPayload intentionally duplicates inner processing loop (different responsibilities)
 - updateWhatsAppWebhookEvent uses Record<string, unknown> for conditional field updates
 
 Resilience v2 decisions (Plan 03):
+
 - dotenv/config as first import before any app imports (env must load before process.env reads)
 - Script manages status updates directly via its own Supabase client (not through domain layer)
 - 2-second delay between events for rate limiting during batch replay
 
 Robot Coordinadora Hardening decisions (Plan 02):
+
 - Fetch timeout formula: 60s/order + 10min base margin (same for fetch and waitForEvent)
 - Error propagation via pending robot_job_items (no schema migration needed)
 - Settle sleep increased from 2s to 5s (mitigates Inngest waitForEvent race #1433)
 
 Robot Coordinadora Hardening decisions (Plan 04):
+
 - Flag reset on inngest.send failure allows retry to re-attempt emission
 - 500 response on send failure (robot service retries on 5xx; returning 200 caused silent data loss)
 - UUID regex validation prevents unnecessary DB lookups with garbage IDs
 - errorMessage truncated to 500 chars to prevent oversized payloads in DB
 
 Robot Coordinadora Hardening decisions (Plan 03):
+
 - Soft tracking number validation: warn on suspicious lengths (< 3 or > 50) but don't block (carrier formats vary)
 - Safe access filter pattern: pedidoNumbers uses .map().filter(NonNullable) instead of non-null assertions
 - createOcrRobotJob domain function for OCR jobs (null order_id, workspace-scoped)
 
 Robot Coordinadora Hardening decisions (Plan 01):
+
 - SECURITY DEFINER on increment_robot_job_counter RPC for admin-level counter updates
 - Error items are re-processable (not terminal) to support retry scenarios; only success is terminal
 - Auto-completion logic moved to SQL (prevents application-level race on status transition)
 
 Phase 32 decisions (Plan 01):
+
 - Heart emoji mapped with and without variation selector U+FE0F for WhatsApp client compatibility
 - ReactionAction as intermediate type before conversion to MediaGateResult (separation of concerns)
 - Inngest event media fields are optional for backward compatibility with existing text-only flow
 
 Phase 32 decisions (Plan 02):
+
 - Claude Sonnet 4 for sticker vision (matches OCR module pattern, ~$0.001-0.005/sticker)
 - Dynamic media_type detection from Content-Type header for sticker interpretation (not hardcoded webp)
 - handleReaction is synchronous (no async needed, pure function delegation to reaction-mapper)
 
 Phase 32 decisions (Plan 03):
+
 - AGENT_PROCESSABLE_TYPES as local const inside processIncomingMessage (scoping clarity)
 - Reactions pass raw emoji to Inngest (not '[Reaccion]'), media gate's mapReaction handles mapping
 - Inline fallback restricted to text-only: media messages silently skip when Inngest unavailable
@@ -260,6 +298,7 @@ Phase 32 decisions (Plan 03):
 - No messageType added to ProcessMessageInput: media gate resolves everything to text before processMessageWithAgent
 
 Phase 33 decisions (Plan 01):
+
 - LOW_CONFIDENCE_THRESHOLD = 80 as simple numeric constant (not configurable per workspace yet)
 - Rule 1.5 placed after HANDOFF_INTENTS check: explicit handoff intents bypass confidence check
 - Reason string format low_confidence:N enables Plan 02 to parse confidence value for logging
@@ -267,6 +306,7 @@ Phase 33 decisions (Plan 01):
 - No updated_at column on disambiguation_log (records immutable once reviewed; reviewed_at suffices)
 
 Phase 33 decisions (Plan 02):
+
 - Fire-and-forget pattern: .catch() ensures handoff proceeds regardless of log failure
 - Only low-confidence handoffs logged (reason.startsWith('low_confidence:')), not intent-based handoffs
 - Admin client direct write for disambiguation_log (audit/diagnostic table, not domain layer)
@@ -274,6 +314,7 @@ Phase 33 decisions (Plan 02):
 - Step 7 timer cancel fix: empty array -> [{type: 'cancel', reason: 'handoff'}] (phantom timer prevention)
 
 Phase 34 decisions (Plan 02):
+
 - Sonnet 4 for all Haiku calls (claude-sonnet-4-20250514) until Haiku 4 available
 - Fail-open on all error paths (ENVIAR on API/parse errors, send rather than block)
 - Template minifrases cached per-instance (Map) to avoid repeated DB queries in same request
@@ -282,6 +323,7 @@ Phase 34 decisions (Plan 02):
 - Fallback minifrase: first 15 words of content (no LLM call needed)
 
 Phase 34 decisions (Plan 03):
+
 - Anthropic client as module-level singleton (matching message-classifier.ts pattern)
 - MIN_CONTENT_LENGTH=20 threshold to skip paraphrasing very short templates
 - MAX_LENGTH_RATIO=1.3 validation (paraphrased max 30% longer than original)
@@ -290,6 +332,7 @@ Phase 34 decisions (Plan 03):
 - visitType always returns 'primera_vez' (siguientes logic completely removed from TemplateManager)
 
 Phase 34 decisions (Plan 04):
+
 - Only useBlockComposition path gets no-rep filter (forceIntent and sandbox bypass it)
 - Fail-open at pipeline level: entire no-rep crash falls back to sending full block
 - Two-phase save: pre-send saves base templates_enviados, post-send appends only sent IDs
@@ -297,6 +340,7 @@ Phase 34 decisions (Plan 04):
 - Interruption slicing uses filteredBlock (not composed.block) for accurate pending storage
 
 Phase 35 decisions (Plan 01):
+
 - OFI_INTER_CRITICAL_FIELDS uses 'ciudad' not 'municipio' (reuses existing field, zero schema changes)
 - REMOTE_MUNICIPALITIES stored as accent-stripped Set for O(1) lookup
 - hasCriticalDataInter requires 4 critical + 2 additional = 6 minimum (cedula optional)
@@ -304,6 +348,7 @@ Phase 35 decisions (Plan 01):
 - CONFIRMATORY_MODES includes collecting_data_inter (RESPONDIBLE, not SILENCIOSO)
 
 Phase 35 decisions (Plan 02):
+
 - Route 1 transitions immediately to collecting_data_inter (direct mention dominates)
 - Route 3 saves city but does NOT change mode (waits for customer answer)
 - Route 2 only fires in collecting_data mode (not collecting_data_inter)
@@ -312,6 +357,7 @@ Phase 35 decisions (Plan 02):
 - checkAutoTriggersForMode replaces checkAutoTriggers in orchestrator for mode-aware auto-trigger
 
 Phase 36 decisions (Plan 01):
+
 - productMappings takes precedence over copyProducts when both present (3-mode priority)
 - Numeric normalization via parseFloat for decimal comparison (109994.80 vs 109994.8)
 - Product not found returns empty array (graceful degradation, no throw)
@@ -319,6 +365,7 @@ Phase 36 decisions (Plan 01):
 - product_mapping param type registered in ACTION_CATALOG for custom UI in Plan 02
 
 Debug Panel v4.0 decisions (Plan 01):
+
 - Debug data flows through SomnioAgentOutput (not separate channels) per RESEARCH.md
 - All new DebugTurn fields optional for backward compatibility with saved sessions
 - rulesChecked re-evaluates all 4 classifier rules for debug visibility
@@ -328,12 +375,14 @@ Debug Panel v4.0 decisions (Plan 01):
 - DebugParaphrasing DEFERRED (no engine capture exists yet)
 
 Debug Panel v4.0 decisions (Plan 02):
+
 - FilteredTemplateEntry accessed via f.template.templateId (not f.templateId) per no-repetition-types.ts
 - Spread array instead of .concat() to fix TypeScript literal type narrowing conflict
 - No-rep disabled path records { enabled: false } explicitly for frontend "off" vs "no data" distinction
 - Timer signals always recorded with ?? [] fallback for consistent debug output
 
 Debug Panel v4.0 decisions (Plan 04):
+
 - Turn chip flags use unicode characters for compact inline display
 - PipelineStep uses -- prefix for skipped steps instead of block characters
 - Claude call estimator is heuristic: counts intent + classifier + extractor + per-template L2/L3
@@ -341,12 +390,14 @@ Debug Panel v4.0 decisions (Plan 04):
 - Safe index clamping prevents out-of-bounds on session reset
 
 Debug Panel v4.0 decisions (Plan 05):
+
 - Timer controls (toggle, presets, sliders) migrated to Config tab; timer display (countdown, pause) stays in Ingest
 - Paraphrasing section deferred from Bloques tab (no recordParaphrasing() or engine capture)
 - No-rep Level badges use single-char abbreviations (P/F/E/N/~) for compact table columns
 - pending_templates display skipped (SandboxState lacks the field)
 
 Phase 42.1 decisions (Plan 01):
+
 - Migration ADDITIVE only — cero ALTER/DROP de tablas existentes (zero riesgo en prod)
 - Particionado mensual (no daily) — baseline projection ~14K turns/dia agregado, dentro de limites con indices definidos
 - 12 particiones iniciales: 4 tablas particionadas x 3 meses (2026-04..06)
@@ -360,6 +411,7 @@ Phase 42.1 decisions (Plan 01):
 - Sin acceso directo a Supabase prod desde agente de ejecucion: queries de baseline documentadas en baseline-volume.md para refinamiento futuro; veredicto "monthly OK" basado en estimate del research-phase
 
 Phase 42.1 decisions (Plan 03):
+
 - Wrapper importa getCollector desde ./context (NO desde ./index) — evita ciclo barrel↔consumers
 - Dual-factory anti-recursion: createAdminClient (instrumented, default ~30 callers) + createRawAdminClient (exclusivo observability internal)
 - Fast-path no-op cuando getCollector() es null — overhead = 1 null check, garantiza zero impacto con flag OFF
@@ -373,6 +425,7 @@ Phase 42.1 decisions (Plan 03):
 - createRawAdminClient documentado en jsdoc como prohibido fuera de src/lib/observability/* (futura ESLint rule)
 
 Phase 42.1 decisions (Plan 02):
+
 - Types parallel-not-shared with sandbox (Decision A): zero imports from src/lib/sandbox/* in src/lib/observability/
 - isObservabilityEnabled() reads process.env on every call — never cached (Pitfall 5 in 42.1-RESEARCH.md)
 - ObservabilityCollector.record* methods are synchronous (push only, no I/O) and wrapped in defensive try/catch (REGLA 6: never crash production agent path because of observability internals)
@@ -385,6 +438,7 @@ Phase 42.1 decisions (Plan 02):
 - provider field is 'anthropic' literal (not free string) — only one provider until other LLMs join
 
 Phase 42 decisions (Plan 01):
+
 - Q1 confirmed default constraint name `agent_sessions_conversation_id_agent_id_key` — migration applied unchanged
 - Q3 result: `stale_cron_rule=1906` in prod (exceeds 1000 threshold) — first automated cron run would close too many in one shot
 - 05-PLAN must execute a manual pre-sweep BEFORE enabling cron; recommended single-statement 7-day cutoff sweep (closes 1258, leaves ~648 residual for first cron run)
@@ -392,6 +446,7 @@ Phase 42 decisions (Plan 01):
 - All 306 `handed_off` sessions are bot-mute fossils (dominated by godentist ~85%, somnio-sales-v3 ~15%) — Phase 42 reopen logic will unblock them
 
 Conversation Tags to Contact decisions:
+
 - addTagToConversation/removeTagFromConversation delegate to contact actions via dynamic import (preserves signatures)
 - godentist.ts changed from entityType 'conversation' to 'contact' (only remaining caller)
 - getTagsForContact server action for efficient realtime refetch by contactId
@@ -468,7 +523,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14 COT
-Stopped at: Phase 37.5 Plan 05 Task 4 — checkpoint:human-action activo (user debe ejecutar Parts A + D de META-VERIFICATION-CHECKLIST.md en Meta Business Manager + Porkbun)
-Resume file: .planning/phases/37.5-meta-verification-website/META-VERIFICATION-CHECKLIST.md
+Last session: 2026-04-17T16:12:20.792Z
+Stopped at: context exhaustion at 90% (2026-04-17)
+Resume file: None
 Next: Usuario ejecuta Part A (DNS TXT domain verify) y Part D (Business Verification resubmit) cuando Blocks B+C completos en separate instance. Post-approval Meta: update memory + estado-actual con verification date, desbloquea Phase 38 (Embedded Signup).

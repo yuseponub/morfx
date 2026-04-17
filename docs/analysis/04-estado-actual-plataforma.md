@@ -389,6 +389,18 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 
 ---
 
+### 10. Logistica — Generacion de Guias
+
+- **Estado:** ✅ Funcional
+- **Flujos:** 4 — Coordinadora (robot Railway + portal), Envia (Excel .xlsx), Inter (PDF), Bogota (PDF)
+- **Orchestrator:** `src/inngest/functions/robot-orchestrator.ts` (2 orchestrators: `excelGuideOrchestrator`, `pdfGuideOrchestrator`)
+- **Generadores:** `src/lib/pdf/generate-guide-pdf.ts` (Inter+Bogota, PDFKit), `src/lib/pdf/generate-envia-excel.ts` (ExcelJS)
+- **Normalizer:** Claude AI en `src/lib/pdf/normalize-order-data.ts` con fallback `buildFallbackOrder`
+- **Server action:** `executeSubirOrdenesCoord` en `src/app/actions/comandos.ts`
+- **2026-04-17 (crm-verificar-combinacion-productos):** Agregada deteccion de combinacion de productos en los 4 flujos de generacion de guias. Helpers en `src/lib/orders/product-types.ts` (`isSafeForCoord`, `isMixedOrder`, `formatProductLabels`, `detectOrderProductTypes`). Coord filtra server-side las ordenes con productos fuera de stock en bodega Coord (Ashwagandha, Magnesio Forte) y renderiza warning detallado con orderName + products + reason. Envia Excel marca filas mixed con fondo amarillo y agrega columna `COMBINACION` al final. Inter/Bogota PDF muestran caja naranja condicional "COMBINACION: {labels}" entre logo y primer separador solo para ordenes mixed (Pitfall fillColor reset mitigated). Safe orders (Elixir puro) quedan pixel-identicas al comportamiento previo. Event shapes Inngest intactos.
+
+---
+
 ## API Endpoints
 
 | Endpoint | Metodos | Auth | Status | Funcion |

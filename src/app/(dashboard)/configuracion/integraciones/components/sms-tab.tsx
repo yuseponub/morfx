@@ -1,7 +1,6 @@
 // ============================================================================
 // SMS (Onurix) Integration Tab
 // Server component — reads sms_workspace_config + sms_messages (last 30d).
-// Replaces the legacy Twilio tab (twilio-form.tsx + twilio-usage.tsx).
 //
 // Role gating:
 //   - Tab visibility (Owner / Admin) is enforced one level up by

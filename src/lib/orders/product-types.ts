@@ -145,3 +145,59 @@ export function detectOrderProductTypes(
   }
   return PRODUCT_TYPE_ORDER.filter((t) => found.has(t))
 }
+
+// ============================================================================
+// Helpers para deteccion de combinaciones en generacion de guias
+// Agregados en standalone/crm-verificar-combinacion-productos Wave 1.
+// ============================================================================
+
+/**
+ * Labels en MAYUSCULAS usados en UI de guias (Excel columna, mensaje Coord,
+ * apartado PDF). Separado de `PRODUCT_TYPE_COLORS.label` que se usa en los
+ * dots del Kanban (title-case).
+ *
+ * Fuente: decision del usuario en CONTEXT.md seccion "Decisions" #2.
+ */
+const DISPLAY_LABELS: Record<ProductType, string> = {
+  melatonina: 'ELIXIR',
+  ash: 'ASHWAGANDHA',
+  magnesio_forte: 'MAGNESIO FORTE',
+}
+
+/**
+ * true SOLO si la orden tiene unicamente Elixir (type 'melatonina').
+ * Usado por el flujo Coordinadora para filtrar ordenes que pueden ir al robot.
+ *
+ * IMPORTANTE: `types === []` -> false (sin clasificar se trata como mixed por
+ * precaucion — ver CONTEXT.md "Decisions" #1).
+ */
+export function isSafeForCoord(types: ProductType[]): boolean {
+  return types.length === 1 && types[0] === 'melatonina'
+}
+
+/**
+ * true si la orden es "mezcla problematica" (cualquier cosa distinta a Elixir puro).
+ * Incluye `[]` (orden sin clasificar = flag).
+ *
+ * Simetrico con `isSafeForCoord`: `isMixedOrder = !isSafeForCoord`.
+ */
+export function isMixedOrder(types: ProductType[]): boolean {
+  return !isSafeForCoord(types)
+}
+
+/**
+ * Formatea los tipos presentes en una orden como string legible en MAYUSCULAS.
+ *
+ * Orden de labels: sigue `PRODUCT_TYPE_ORDER` (melatonina -> ash -> magnesio_forte)
+ * lo cual esta garantizado por `detectOrderProductTypes` que ya filtra en ese orden.
+ *
+ * @example
+ *   formatProductLabels([])                          -> 'SIN CLASIFICAR'
+ *   formatProductLabels(['melatonina'])              -> 'ELIXIR'
+ *   formatProductLabels(['melatonina','ash'])        -> 'ELIXIR + ASHWAGANDHA'
+ *   formatProductLabels(['ash','magnesio_forte'])    -> 'ASHWAGANDHA + MAGNESIO FORTE'
+ */
+export function formatProductLabels(types: ProductType[]): string {
+  if (types.length === 0) return 'SIN CLASIFICAR'
+  return types.map((t) => DISPLAY_LABELS[t]).join(' + ')
+}

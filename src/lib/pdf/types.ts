@@ -8,7 +8,7 @@ export interface GuideGenOrder {
   shippingCity: string | null
   shippingDepartment: string | null
   totalValue: number
-  products: Array<{ quantity: number }>
+  products: Array<{ sku: string | null; title: string | null; quantity: number }>
   customFields: Record<string, unknown>
   tags: string[]
 }

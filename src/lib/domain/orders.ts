@@ -1232,7 +1232,7 @@ export interface OrderForDispatch {
   shipping_city: string | null
   shipping_department: string | null
   total_value: number
-  products: Array<{ quantity: number }>
+  products: Array<{ sku: string | null; title: string | null; quantity: number }>
   custom_fields: Record<string, unknown>
   tags: string[]
 }
@@ -1251,7 +1251,7 @@ export async function getOrdersByStage(
     const { data, error } = await supabase
       .from('orders')
       .select(
-        'id, name, contact_id, shipping_address, shipping_city, shipping_department, total_value, custom_fields, contacts(name, phone, email), order_products(quantity)'
+        'id, name, contact_id, shipping_address, shipping_city, shipping_department, total_value, custom_fields, contacts(name, phone, email), order_products(sku, title, quantity)'
       )
       .eq('workspace_id', ctx.workspaceId)
       .eq('stage_id', stageId)
@@ -1281,7 +1281,11 @@ export async function getOrdersByStage(
 
     const mappedOrders: OrderForDispatch[] = (data ?? []).map((row) => {
       const contact = row.contacts as unknown as { name: string; phone: string; email: string } | null
-      const products = (row.order_products as unknown as Array<{ quantity: number }>) ?? []
+      const products = (row.order_products as unknown as Array<{
+        sku: string | null
+        title: string | null
+        quantity: number
+      }>) ?? []
 
       return {
         id: row.id,
@@ -1294,7 +1298,11 @@ export async function getOrdersByStage(
         shipping_city: row.shipping_city,
         shipping_department: row.shipping_department,
         total_value: row.total_value ?? 0,
-        products: products.map((p) => ({ quantity: p.quantity })),
+        products: products.map((p) => ({
+          sku: p.sku ?? null,
+          title: p.title ?? null,
+          quantity: p.quantity,
+        })),
         custom_fields: (row.custom_fields as Record<string, unknown>) ?? {},
         tags: tagsByOrderId.get(row.id) ?? [],
       }
@@ -1368,7 +1376,7 @@ export interface OrderForGuideGen {
   shipping_city: string | null
   shipping_department: string | null
   total_value: number
-  products: Array<{ quantity: number }>
+  products: Array<{ sku: string | null; title: string | null; quantity: number }>
   custom_fields: Record<string, unknown>
   tags: string[]  // tag names for PAGO ANTICIPADO detection
 }
@@ -1396,7 +1404,7 @@ export async function getOrdersForGuideGeneration(
     const { data, error } = await supabase
       .from('orders')
       .select(
-        'id, name, shipping_address, shipping_city, shipping_department, total_value, custom_fields, contacts(name, phone), order_products(quantity)'
+        'id, name, shipping_address, shipping_city, shipping_department, total_value, custom_fields, contacts(name, phone), order_products(sku, title, quantity)'
       )
       .eq('workspace_id', ctx.workspaceId)
       .eq('stage_id', stageId)
@@ -1436,7 +1444,11 @@ export async function getOrdersForGuideGeneration(
     // Map orders with enriched data
     const mapped: OrderForGuideGen[] = orders.map((row) => {
       const contact = row.contacts as unknown as { name: string; phone: string } | null
-      const products = (row.order_products as unknown as Array<{ quantity: number }>) ?? []
+      const products = (row.order_products as unknown as Array<{
+        sku: string | null
+        title: string | null
+        quantity: number
+      }>) ?? []
 
       return {
         id: row.id,
@@ -1447,7 +1459,11 @@ export async function getOrdersForGuideGeneration(
         shipping_city: row.shipping_city,
         shipping_department: row.shipping_department,
         total_value: row.total_value ?? 0,
-        products: products.map((p) => ({ quantity: p.quantity })),
+        products: products.map((p) => ({
+          sku: p.sku ?? null,
+          title: p.title ?? null,
+          quantity: p.quantity,
+        })),
         custom_fields: (row.custom_fields as Record<string, unknown>) ?? {},
         tags: tagMap.get(row.id) ?? [],
       }

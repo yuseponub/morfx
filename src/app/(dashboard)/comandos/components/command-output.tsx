@@ -361,10 +361,25 @@ function MessageRenderer({ message }: { message: CommandMessage }) {
                     <span className="font-semibold text-yellow-800 dark:text-yellow-300">
                       {item.orderName || 'Sin nombre'}
                     </span>
-                    <span className="text-muted-foreground">{' — '}</span>
-                    <span className="text-muted-foreground">&quot;{item.originalCity}&quot;</span>
-                    <span className="text-muted-foreground">{' → '}</span>
-                    <span className="font-bold text-yellow-700 dark:text-yellow-300">{item.resolvedCity}</span>
+                    {item.products ? (
+                      // Warning de combinacion de productos
+                      <>
+                        <span className="text-muted-foreground">{' — '}</span>
+                        <span className="font-bold text-yellow-700 dark:text-yellow-300">
+                          {item.products}
+                        </span>
+                      </>
+                    ) : (
+                      // Warning de correccion de ciudad por IA (legacy — mantener render)
+                      <>
+                        <span className="text-muted-foreground">{' — '}</span>
+                        <span className="text-muted-foreground">&quot;{item.originalCity}&quot;</span>
+                        <span className="text-muted-foreground">{' → '}</span>
+                        <span className="font-bold text-yellow-700 dark:text-yellow-300">
+                          {item.resolvedCity}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div className="text-muted-foreground pl-4 italic">
                     {item.reason}

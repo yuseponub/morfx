@@ -35,6 +35,11 @@ import { getOrdersByStage, getOrdersPendingGuide, getOrdersForGuideGeneration, t
 import type { PedidoInput } from '@/lib/logistics/constants'
 import type { DomainContext } from '@/lib/domain/types'
 import { inngest } from '@/inngest/client'
+import {
+  detectOrderProductTypes,
+  isSafeForCoord,
+  formatProductLabels,
+} from '@/lib/orders/product-types'
 
 // ============================================================================
 // Types
@@ -81,6 +86,12 @@ interface SubirOrdenesResult {
     originalCity: string
     resolvedCity: string
     department: string
+    reason: string
+  }>
+  rejectedByCombination: Array<{
+    orderId: string
+    orderName: string | null
+    products: string
     reason: string
   }>
 }
@@ -209,13 +220,63 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
     // 5. Fetch orders from dispatch stage
     const ordersResult = await getOrdersByStage(ctx, dispatchStage.stageId)
     if (!ordersResult.success) return { success: false, error: ordersResult.error! }
-    const orders = ordersResult.data!
+    const allOrders = ordersResult.data!
 
-    if (orders.length === 0) {
+    if (allOrders.length === 0) {
       return { success: false, error: 'No hay pedidos en la etapa de despacho' }
     }
 
-    // 6. Validate cities
+    // 5b. Filtro de combinacion de productos — solo ordenes puras Elixir pasan al robot.
+    // Ordenes con Ashwagandha o Magnesio Forte se rechazan aqui ANTES de validateCities
+    // para evitar costo de Claude AI en ordenes que nunca llegaran al robot
+    // (ver RESEARCH Open Question #1 — filtrar inmediatamente despues del fetch).
+    const rejectedByCombination: Array<{
+      orderId: string
+      orderName: string | null
+      products: string
+      reason: string
+    }> = []
+
+    const orders: typeof allOrders = []
+    for (const order of allOrders) {
+      const types = detectOrderProductTypes(order.products)
+      if (isSafeForCoord(types)) {
+        orders.push(order)
+      } else {
+        const productLabels = formatProductLabels(types)
+        rejectedByCombination.push({
+          orderId: order.id,
+          orderName: order.name ?? null,
+          products: productLabels,
+          reason: `Contiene ${productLabels} y no hay stock de esos productos en la bodega de Coord. Usa Envía/Inter/Bogotá para esta orden.`,
+        })
+      }
+    }
+
+    // Early return cuando TODAS las ordenes fueron rechazadas por combinacion.
+    // REPLICA EXACTA del precedente "todas rechazadas" de linea ~309-322
+    // (validCityResults.length === 0): success: false + error string + data con conteos.
+    // - invalidCount: rejectedByCombination.length (son "invalidas" conceptualmente — no llegan al robot).
+    // - totalOrders: allOrders.length (el total real fetcheado).
+    // - invalidOrders: [] (estas no son city-invalid; el detalle vive en rejectedByCombination).
+    // - rejectedByCombination: poblado para que el UI muestre el warning con los detalles.
+    if (rejectedByCombination.length === allOrders.length) {
+      return {
+        success: false,
+        error: `Las ${allOrders.length} orden${allOrders.length === 1 ? '' : 'es'} en la etapa contienen productos que no se despachan por Coordinadora. Usa Envía/Inter/Bogotá.`,
+        data: {
+          jobId: '',
+          totalOrders: allOrders.length,
+          validCount: 0,
+          invalidCount: rejectedByCombination.length,
+          invalidOrders: [],
+          aiResolvedOrders: [],
+          rejectedByCombination,
+        },
+      }
+    }
+
+    // 6. Validate cities (only on orders that passed combination filter)
     const validationResult = await validateCities(ctx, {
       cities: orders.map((o) => ({
         city: o.shipping_city || '',
@@ -312,11 +373,12 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
         error: 'Ninguna orden paso la validacion de ciudad/COD',
         data: {
           jobId: '',
-          totalOrders: orders.length,
+          totalOrders: allOrders.length,
           validCount: 0,
           invalidCount: invalidOrders.length,
           invalidOrders,
           aiResolvedOrders,
+          rejectedByCombination,
         },
       }
     }
@@ -389,11 +451,12 @@ export async function executeSubirOrdenesCoord(): Promise<CommandResult<SubirOrd
       success: true,
       data: {
         jobId: jobResult.data.jobId,
-        totalOrders: orders.length,
+        totalOrders: allOrders.length,
         validCount: validCityResults.length,
         invalidCount: invalidOrders.length,
         invalidOrders,
         aiResolvedOrders,
+        rejectedByCombination,
       },
     }
   } catch (err) {

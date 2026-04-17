@@ -85,6 +85,42 @@ export async function generateGuidesPdf(
       }
     }
 
+    // --- Combinacion de productos (condicional) ---
+    // Se renderiza SOLO si la orden es mixed (contiene productos distintos a Elixir puro).
+    // Safe orders (Elixir puro) saltan este bloque y el layout queda identico al actual.
+    //
+    // Colores:
+    //   - Borde: #ff751f (mismo naranja de PRODUCT_TYPE_COLORS.ash.dotColor — consistencia con dots Kanban)
+    //   - Fill: #FFF4E5 (naranja claro para contraste suave)
+    //   - Texto: #B45309 (naranja oscuro legible sobre fill claro)
+    //
+    // PITFALL 2 (RESEARCH): fillAndStroke deja el fillColor interno en el color del box;
+    // hay que llamar fillColor() ANTES del text() y resetear a '#000000' DESPUES para no
+    // contaminar el render posterior (ENVIAR A:, direccion, etc.).
+    if (order.isMixed && order.productLabels) {
+      const boxH = 28
+      const boxY = y
+      doc
+        .save()
+        .rect(MARGIN, boxY, CONTENT_W, boxH)
+        .fillAndStroke('#FFF4E5', '#ff751f')
+        .restore()
+
+      doc
+        .fillColor('#B45309')
+        .fontSize(11)
+        .font('Helvetica-Bold')
+        .text(`COMBINACIÓN: ${order.productLabels}`, MARGIN, boxY + 9, {
+          align: 'center',
+          width: CONTENT_W,
+        })
+
+      // Reset state (Pitfall 2 — evita que el fillColor naranja contamine el resto del render)
+      doc.fillColor('#000000')
+
+      y += boxH + 6
+    }
+
     // --- Separator 1 ---
     drawSeparator(doc, y)
     y += 8

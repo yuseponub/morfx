@@ -37,4 +37,10 @@ export interface EnviaOrderData {
   direccion: string
   municipio: string
   departamento: string
+  /** Opcional: true si la orden contiene productos que NO son Elixir puro.
+   *  Usado por generateEnviaExcel para pintar la fila en amarillo. */
+  isMixed?: boolean
+  /** Opcional: labels UPPERCASE de los productos (ej "ELIXIR + ASHWAGANDHA")
+   *  o string vacio si la orden es safe. Renderizado en la columna COMBINACION. */
+  combinacion?: string
 }

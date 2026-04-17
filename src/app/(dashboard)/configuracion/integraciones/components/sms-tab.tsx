@@ -53,11 +53,9 @@ export async function SmsTab() {
   // Usage last 30d (Onurix-backed getSmsUsage from Plan 02). Fail-soft —
   // if the call throws (e.g. shape mismatch during migration), the stats
   // block simply does not render.
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
   let usage: Awaited<ReturnType<typeof getSmsUsage>> | null = null
   try {
-    usage = await getSmsUsage(workspaceId, thirtyDaysAgo.toISOString(), now.toISOString())
+    usage = await getSmsUsage('month')
   } catch {
     usage = null
   }

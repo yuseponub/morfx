@@ -938,27 +938,38 @@ export async function reorderAutomations(
 // ============================================================================
 
 /**
- * Check if Twilio is configured and active for the current workspace.
- * Returns boolean. Used by the wizard to show configuration warnings.
+ * Check if SMS (Onurix) is configured and active for the current workspace.
+ * Returns { configured, balance, hasBalance } where:
+ *   - configured: sms_workspace_config row exists AND is_active=true
+ *   - balance: balance_cop value (null if no row)
+ *   - hasBalance: balance_cop >= SMS_PRICE_COP (one segment)
+ * Used by the automations wizard to show configuration warnings.
  */
-export async function checkTwilioConfigured(): Promise<boolean> {
+export async function checkSmsConfigured(): Promise<{
+  configured: boolean
+  balance: number | null
+  hasBalance: boolean
+}> {
   const ctx = await getAuthContext()
-  if (!ctx) return false
+  if (!ctx) return { configured: false, balance: null, hasBalance: false }
 
   const { supabase, workspaceId } = ctx
 
   const { data, error } = await supabase
-    .from('integrations')
-    .select('id')
+    .from('sms_workspace_config')
+    .select('is_active, balance_cop')
     .eq('workspace_id', workspaceId)
-    .eq('type', 'twilio')
-    .eq('is_active', true)
     .maybeSingle()
 
-  if (error) {
-    console.error('Error checking Twilio config:', error)
-    return false
+  if (error || !data) {
+    return { configured: false, balance: null, hasBalance: false }
   }
 
-  return !!data
+  const MINIMUM_BALANCE = 97 // SMS_PRICE_COP — one segment
+
+  return {
+    configured: data.is_active,
+    balance: data.balance_cop,
+    hasBalance: data.balance_cop >= MINIMUM_BALANCE,
+  }
 }

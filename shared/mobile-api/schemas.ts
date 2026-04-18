@@ -284,6 +284,211 @@ export type MobileQuickRepliesListResponse = z.infer<
 >
 
 // ---------------------------------------------------------------------------
+// CRM drawer schemas (Phase 43 Plan 10a)
+// ---------------------------------------------------------------------------
+//
+// Backend-only slice of the in-chat CRM drawer. Plan 10b consumes every
+// schema below. Mutations route through src/lib/domain/ per Regla 3.
+//
+// Shape notes:
+//   - `MobileContactSchema` mirrors the web contact-panel's data (name +
+//     phone + address + city + tags). Email is intentionally OMITTED from
+//     the contract — the mobile panel does NOT show email per 43-CONTEXT
+//     "user explicit exclusion".
+//   - `MobileOrderSchema` is the recent-orders row (not a full order edit
+//     view — mobile v1 does not support full order composition per CONTEXT
+//     Out of Scope; see Plan 10b CreateOrderSheet header for rationale).
+//   - `WindowIndicatorSchema` computes the 24h WhatsApp customer-care
+//     window server-side. `within_window` is the single authoritative
+//     boolean — the mobile UI does NOT recompute from `last_customer_
+//     message_at`, it renders whatever the server decided (keeps the math
+//     centralized + identical to the web panel).
+
+// Shared primitives ---------------------------------------------------------
+
+export const MobileTagSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  color: z.string(),
+})
+export type MobileTag = z.infer<typeof MobileTagSchema>
+
+export const MobilePipelineStageSchema = z.object({
+  id: z.string().uuid(),
+  pipeline_id: z.string().uuid(),
+  pipeline_name: z.string(),
+  name: z.string(),
+  color: z.string(),
+  position: z.number().int().nonnegative(),
+})
+export type MobilePipelineStage = z.infer<typeof MobilePipelineStageSchema>
+
+// Contact + conversation panel payload -------------------------------------
+
+export const MobileContactSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  phone: z.string().nullable(),
+  address: z.string().nullable(),
+  city: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+  tags: z.array(MobileTagSchema),
+  created_at: z.string(),
+})
+export type MobileContact = z.infer<typeof MobileContactSchema>
+
+export const WindowIndicatorSchema = z.object({
+  within_window: z.boolean(),
+  last_customer_message_at: z.string().nullable(),
+  hours_remaining: z.number().nullable(),
+})
+export type WindowIndicator = z.infer<typeof WindowIndicatorSchema>
+
+// GET /api/mobile/conversations/:id/contact
+export const MobileContactPanelResponseSchema = z.object({
+  contact: MobileContactSchema.nullable(),
+  // Web conversation-level tags (deprecated per src/app/actions/conversations.ts).
+  // Kept on the wire for symmetry; Plan 10b UI does not render them separately
+  // from `contact.tags` — but if the field is useful later (pinned-to-
+  // conversation tags), it's already here.
+  conversation_tags: z.array(MobileTagSchema),
+  window: WindowIndicatorSchema,
+  // Conversation's WhatsApp profile name when no contact is linked ("unknown
+  // contact" state). The UI falls back to this + phone when contact is null.
+  profile_name: z.string().nullable(),
+  phone: z.string(),
+})
+export type MobileContactPanelResponse = z.infer<
+  typeof MobileContactPanelResponseSchema
+>
+
+// Recent orders for a conversation -----------------------------------------
+
+export const MobileOrderSchema = z.object({
+  id: z.string().uuid(),
+  total: z.number(),
+  currency: z.literal('COP'),
+  stage_id: z.string().uuid(),
+  stage_name: z.string(),
+  stage_color: z.string(),
+  pipeline_id: z.string().uuid(),
+  pipeline_name: z.string(),
+  created_at: z.string(),
+  tags: z.array(MobileTagSchema),
+  name: z.string().nullable(),
+})
+export type MobileOrder = z.infer<typeof MobileOrderSchema>
+
+// GET /api/mobile/conversations/:id/orders
+export const MobileRecentOrdersResponseSchema = z.object({
+  orders: z.array(MobileOrderSchema),
+})
+export type MobileRecentOrdersResponse = z.infer<
+  typeof MobileRecentOrdersResponseSchema
+>
+
+// GET /api/mobile/pipeline-stages
+export const MobilePipelineStagesResponseSchema = z.object({
+  stages: z.array(MobilePipelineStageSchema),
+})
+export type MobilePipelineStagesResponse = z.infer<
+  typeof MobilePipelineStagesResponseSchema
+>
+
+// GET /api/mobile/tags
+export const MobileTagsResponseSchema = z.object({
+  tags: z.array(MobileTagSchema),
+})
+export type MobileTagsResponse = z.infer<typeof MobileTagsResponseSchema>
+
+// Write request schemas ----------------------------------------------------
+
+// POST /api/mobile/contacts/:id/name
+export const UpdateContactNameRequestSchema = z.object({
+  name: z.string().min(1),
+})
+export type UpdateContactNameRequest = z.infer<
+  typeof UpdateContactNameRequestSchema
+>
+
+// POST /api/mobile/orders
+//
+// Minimal "quick create" request — mirrors the mobile CreateOrderSheet
+// Plan 10b scope (no full editor, defaults to first stage of the
+// default/first pipeline, total=0). The web's richer create flow is NOT
+// mirrored on mobile v1 (Plan 10b rationale in CreateOrderSheet header).
+export const CreateOrderRequestSchema = z.object({
+  contactId: z.string().uuid(),
+  conversationId: z.string().uuid().nullable().optional(),
+  // Optional pipeline+stage override. When omitted, server picks the
+  // workspace's default pipeline (or first available) + its first stage.
+  pipelineId: z.string().uuid().optional(),
+  stageId: z.string().uuid().optional(),
+  name: z.string().optional(),
+  total: z.number().optional(),
+})
+export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>
+
+export const CreateOrderResponseSchema = z.object({
+  order: MobileOrderSchema,
+})
+export type CreateOrderResponse = z.infer<typeof CreateOrderResponseSchema>
+
+// POST /api/mobile/orders/:id/stage
+export const MoveOrderStageRequestSchema = z.object({
+  stageId: z.string().uuid(),
+})
+export type MoveOrderStageRequest = z.infer<typeof MoveOrderStageRequestSchema>
+
+export const MoveOrderStageResponseSchema = z.object({
+  ok: z.literal(true),
+  order_id: z.string().uuid(),
+  previous_stage_id: z.string().uuid(),
+  new_stage_id: z.string().uuid(),
+})
+export type MoveOrderStageResponse = z.infer<
+  typeof MoveOrderStageResponseSchema
+>
+
+// POST /api/mobile/orders/:id/tags  (add)
+// DELETE /api/mobile/orders/:id/tags?tagId=...  (remove — query param)
+// POST /api/mobile/contacts/:id/tags  (add)
+// DELETE /api/mobile/contacts/:id/tags?tagId=...  (remove — query param)
+//
+// Add variants take a JSON body with the tag id. Remove variants use a query
+// param because DELETE requests cannot always carry a body through every
+// proxy/edge-runtime layer reliably (matches the web actions which pass
+// the tagId as argument).
+export const AddTagRequestSchema = z.object({
+  tagId: z.string().uuid(),
+})
+export type AddTagRequest = z.infer<typeof AddTagRequestSchema>
+
+export const TagMutationResponseSchema = z.object({
+  ok: z.literal(true),
+  tag_id: z.string().uuid(),
+})
+export type TagMutationResponse = z.infer<typeof TagMutationResponseSchema>
+
+// POST /api/mobile/orders/:id/recompra
+//
+// The web recompraOrder domain requires a `products` array (non-empty). The
+// mobile v1 recompra button triggers a "same-products" clone — server-side
+// the endpoint reads the source order's products and feeds them back to
+// domain.recompraOrder. Mobile client does NOT pick products (that editor is
+// deferred to a later plan). Target stage is optional — server picks the
+// first stage of the Recompra pipeline when omitted.
+export const RecompraOrderRequestSchema = z.object({
+  targetStageId: z.string().uuid().optional(),
+})
+export type RecompraOrderRequest = z.infer<typeof RecompraOrderRequestSchema>
+
+export const RecompraOrderResponseSchema = z.object({
+  order: MobileOrderSchema,
+})
+export type RecompraOrderResponse = z.infer<typeof RecompraOrderResponseSchema>
+
+// ---------------------------------------------------------------------------
 // POST /api/mobile/push/register (Phase 43 Plan 13)
 // ---------------------------------------------------------------------------
 

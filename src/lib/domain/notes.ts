@@ -582,3 +582,137 @@ export async function deleteOrderNote(
     return { success: false, error: 'Error inesperado al eliminar la nota de pedido' }
   }
 }
+
+// ============================================================================
+// archiveNote (Phase 44 — contact_notes soft delete)
+// ============================================================================
+
+export interface ArchiveNoteParams {
+  noteId: string
+}
+
+export interface ArchiveNoteResult {
+  noteId: string
+  archivedAt: string
+}
+
+/**
+ * Archive a contact note (soft delete). Used by crm-writer (Phase 44) —
+ * writer CANNOT DELETE real (CONTEXT D-05). Logs `note_archived` to
+ * contact_activity mirroring the deleteNote "log before act" pattern.
+ *
+ * Idempotent: archiving an already-archived note returns the existing timestamp.
+ */
+export async function archiveNote(
+  ctx: DomainContext,
+  params: ArchiveNoteParams,
+): Promise<DomainResult<ArchiveNoteResult>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('contact_notes')
+      .select('id, contact_id, user_id, content, archived_at')
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Nota no encontrada' }
+    }
+
+    if (existing.archived_at) {
+      return {
+        success: true,
+        data: { noteId: params.noteId, archivedAt: existing.archived_at },
+      }
+    }
+
+    // Log activity BEFORE archive (mirrors deleteNote's log-before-act pattern).
+    await supabase.from('contact_activity').insert({
+      contact_id: existing.contact_id,
+      workspace_id: ctx.workspaceId,
+      user_id: existing.user_id,
+      action: 'note_archived',
+      metadata: { preview: existing.content.substring(0, 100) },
+    })
+
+    const { data: updated, error: updateError } = await supabase
+      .from('contact_notes')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+      .select('id, archived_at')
+      .single()
+
+    if (updateError || !updated) {
+      return { success: false, error: `Error al archivar la nota: ${updateError?.message ?? 'unknown'}` }
+    }
+
+    return {
+      success: true,
+      data: { noteId: params.noteId, archivedAt: updated.archived_at },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+// ============================================================================
+// archiveOrderNote (Phase 44 — order_notes soft delete)
+// ============================================================================
+
+export interface ArchiveOrderNoteParams {
+  noteId: string
+}
+
+export interface ArchiveOrderNoteResult {
+  noteId: string
+  archivedAt: string
+}
+
+export async function archiveOrderNote(
+  ctx: DomainContext,
+  params: ArchiveOrderNoteParams,
+): Promise<DomainResult<ArchiveOrderNoteResult>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('order_notes')
+      .select('id, archived_at')
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Nota de pedido no encontrada' }
+    }
+
+    if (existing.archived_at) {
+      return {
+        success: true,
+        data: { noteId: params.noteId, archivedAt: existing.archived_at },
+      }
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('order_notes')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', params.noteId)
+      .eq('workspace_id', ctx.workspaceId)
+      .select('id, archived_at')
+      .single()
+
+    if (updateError || !updated) {
+      return { success: false, error: `Error al archivar la nota de pedido: ${updateError?.message ?? 'unknown'}` }
+    }
+
+    return {
+      success: true,
+      data: { noteId: params.noteId, archivedAt: updated.archived_at },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}

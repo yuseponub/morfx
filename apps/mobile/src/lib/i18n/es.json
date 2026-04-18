@@ -23,7 +23,8 @@
   "common": {
     "logout": "Cerrar sesión",
     "loading": "Cargando...",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "cancel": "Cancelar"
   },
   "workspace": {
     "switcher": {
@@ -42,8 +43,27 @@
       "fallback": "Conversación"
     },
     "composer": {
-      "placeholder": "El compositor llega en el siguiente plan"
+      "placeholder": "Escribe un mensaje... (/ para respuestas rápidas)"
     },
+    "attach": {
+      "title": "Adjuntar",
+      "camera": "Cámara",
+      "gallery": "Galería",
+      "audio": "Nota de voz",
+      "imageStaged": "Imagen lista para enviar",
+      "permissionDenied": "Permiso denegado. Puedes habilitarlo en los ajustes del sistema."
+    },
+    "audio": {
+      "title": "Grabar nota de voz",
+      "start": "Grabar",
+      "stop": "Detener",
+      "preview": "Reproducir",
+      "cancel": "Cancelar",
+      "send": "Enviar",
+      "permissionDenied": "Permiso de micrófono denegado. Puedes habilitarlo en los ajustes del sistema."
+    },
+    "send": "Enviar",
+    "slash_hint": "Escribe / para usar respuestas rápidas",
     "media": {
       "image": "Imagen",
       "audio": "Nota de voz",

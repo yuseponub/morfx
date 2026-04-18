@@ -37,6 +37,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MessageInput } from '@/components/chat/MessageInput';
 import { MessageList } from '@/components/chat/MessageList';
 import { useConversationMessages } from '@/hooks/useConversationMessages';
 import { getCachedConversation } from '@/lib/db/conversations-cache';
@@ -133,22 +134,11 @@ export default function ChatScreen() {
           />
         </View>
 
-        {/* Composer placeholder — Plan 09 replaces this with the real
-            composer. Leaving a bordered bar so the layout is stable and
-            users see the footer affordance exists. */}
-        <View
-          style={[
-            styles.composerPlaceholder,
-            { borderTopColor: colors.border, backgroundColor: colors.bg },
-          ]}
-        >
-          <Text
-            style={[styles.composerLabel, { color: colors.textMuted }]}
-            accessibilityLabel={t('chat.composer.placeholder')}
-          >
-            {t('chat.composer.placeholder')}
-          </Text>
-        </View>
+        {/* Composer — Plan 09. Send path (text / image / audio) +
+            slash-command autocomplete + offline outbox drain. */}
+        {conversationId ? (
+          <MessageInput conversationId={conversationId} />
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -175,15 +165,5 @@ const styles = StyleSheet.create({
   },
   spacer: {
     width: 32,
-  },
-  composerPlaceholder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  composerLabel: {
-    fontSize: 13,
-    fontStyle: 'italic',
   },
 });

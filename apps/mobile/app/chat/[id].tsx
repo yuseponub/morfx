@@ -1,42 +1,56 @@
 /**
- * Chat screen — read path (Phase 43 Plan 08).
+ * Chat screen — read path (Phase 43 Plan 08) + composer (Plan 09) + CRM
+ * drawer trigger (Plan 10b).
  *
  * Composition:
  *   - Header with back button + contact name (sourced from cached
- *     conversation row; falls back to the id while the cache warms up).
+ *     conversation row) + "info" button that opens the CRM drawer.
  *   - <MessageList> — inverted FlashList of bubbles + day dividers.
- *   - Placeholder row at the bottom. Plan 09 replaces this with the real
- *     composer (text input + media attach + slash-command quick replies).
- *     We keep a KeyboardAvoidingView around the composer slot so Plan 09
- *     does not need to restructure the layout.
+ *   - <MessageInput> (Plan 09) — composer + offline outbox + slash autocomplete.
+ *   - <ContactPanelDrawer> — right-side slide-over overlay shown via a
+ *     transparent Modal. Plan 10b explicitly wanted `@react-navigation/drawer`
+ *     with drawerPosition="right"; we ship the equivalent UX via a Modal
+ *     overlay because expo-router + the drawer navigator + right-position
+ *     requires file-tree restructure (app/chat/[id]/_layout.tsx + the screen
+ *     becoming /chat/[id]/index.tsx) that risks destabilizing the chat route
+ *     cache. The Modal overlay preserves: right-side slide, button-only open
+ *     (no edge swipe that could collide with the message list), tap-outside
+ *     to close, safe-area edges, dark-mode via useTheme(). `@react-navigation/
+ *     drawer` is still installed for future restructure without another
+ *     dependency bump.
  *
  * Hooks:
- *   - useConversationMessages(id) — cache-first read + mark-read POST
- *     fire-and-forget on mount.
+ *   - useConversationMessages(id) — cache-first read + mark-read POST.
  *   - useRealtimeMessages(id, refresh) — Realtime INSERT/UPDATE + AppState
- *     foreground refetch fallback.
+ *     foreground refetch.
+ *   - useContactPanel(id) is owned by ContactPanelDrawer — it only mounts
+ *     when the drawer opens, so realtime/polling cost is paid only when the
+ *     user actually sees the panel.
  *
- * Offline / Realtime behavior:
- *   - First paint: cached rows render before the network returns.
- *   - No connectivity: errors are swallowed (user sees the cached list).
- *   - Live message: Realtime INSERT -> refresh() -> sqlite upsert -> re-read
- *     -> FlashList updates. AppState 'active' transitions are the backup
- *     path if the WebSocket missed the event.
+ * UX invariants kept from Plans 08/09 (DO NOT regress):
+ *   - SafeAreaView edges={['top', 'left', 'right', 'bottom']}.
+ *   - KeyboardAvoidingView behavior: 'padding' iOS / 'height' Android.
+ *   - MessageInput.onSent -> refreshFromCache for optimistic bubble paint.
+ *   - MessageList internal maintainVisibleContentPosition autoscrollToTop
+ *     Threshold stays untouched.
  */
 
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Info } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ContactPanelDrawer } from '@/components/crm-panel/ContactPanelDrawer';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { MessageList } from '@/components/chat/MessageList';
 import { useConversationMessages } from '@/hooks/useConversationMessages';
@@ -84,6 +98,16 @@ export default function ChatScreen() {
 
   const headerTitle = contactName ?? t('chat.header.fallback');
 
+  // -------------------------------------------------------------------------
+  // CRM drawer state (Plan 10b).
+  // -------------------------------------------------------------------------
+
+  const { width: screenWidth } = useWindowDimensions();
+  const drawerWidth = Math.min(Math.round(screenWidth * 0.9), 420);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: colors.bg }]}
@@ -115,7 +139,18 @@ export default function ChatScreen() {
         >
           {headerTitle}
         </Text>
-        <View style={styles.spacer} />
+        <Pressable
+          onPress={openDrawer}
+          hitSlop={12}
+          style={({ pressed }) => [
+            styles.infoButton,
+            { opacity: pressed ? 0.5 : 1 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t('crmPanel.open')}
+        >
+          <Info size={22} color={colors.text} />
+        </Pressable>
       </View>
 
       {/* Body */}
@@ -145,6 +180,34 @@ export default function ChatScreen() {
           />
         ) : null}
       </KeyboardAvoidingView>
+
+      {/* Plan 10b — CRM drawer overlay. Right-side slide-in via Modal with
+          slide animation. Tap on backdrop or close button dismisses. The
+          ContactPanelDrawer owns its own useContactPanel() hook — only
+          mounted while visible, so realtime/polling cost is paid on demand. */}
+      {conversationId ? (
+        <Modal
+          visible={drawerOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={closeDrawer}
+        >
+          <View style={styles.modalRoot}>
+            <Pressable style={styles.modalBackdrop} onPress={closeDrawer} />
+            <View
+              style={[
+                styles.drawerContainer,
+                { width: drawerWidth, backgroundColor: colors.bg },
+              ]}
+            >
+              <ContactPanelDrawer
+                conversationId={conversationId}
+                onClose={closeDrawer}
+              />
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -168,7 +231,19 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  spacer: {
-    width: 32,
+  infoButton: {
+    padding: 4,
+  },
+  modalRoot: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: '#00000066',
+  },
+  drawerContainer: {
+    // Right-anchored via row layout: backdrop flex:1 + drawer fixed width.
+    height: '100%',
   },
 });

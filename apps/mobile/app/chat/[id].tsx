@@ -55,7 +55,7 @@ export default function ChatScreen() {
   const workspace = useWorkspace();
   const workspaceId = workspace?.workspaceId ?? null;
 
-  const { messages, loading, refresh, loadOlder } =
+  const { messages, loading, refresh, refreshFromCache, loadOlder } =
     useConversationMessages(conversationId);
 
   useRealtimeMessages(conversationId, refresh);
@@ -87,7 +87,7 @@ export default function ChatScreen() {
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: colors.bg }]}
-      edges={['top', 'left', 'right']}
+      edges={['top', 'left', 'right', 'bottom']}
     >
       {/* Header */}
       <View
@@ -120,7 +120,7 @@ export default function ChatScreen() {
 
       {/* Body */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
         keyboardVerticalOffset={0}
       >
@@ -137,7 +137,12 @@ export default function ChatScreen() {
         {/* Composer — Plan 09. Send path (text / image / audio) +
             slash-command autocomplete + offline outbox drain. */}
         {conversationId ? (
-          <MessageInput conversationId={conversationId} />
+          <MessageInput
+            conversationId={conversationId}
+            onSent={() => {
+              void refreshFromCache();
+            }}
+          />
         ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>

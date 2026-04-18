@@ -47,6 +47,12 @@ export interface UseConversationMessagesResult {
   error: string | null;
   refresh: () => Promise<void>;
   loadOlder: () => Promise<void>;
+  /**
+   * Re-read the sqlite cache WITHOUT hitting the API. Used right after the
+   * composer enqueues an optimistic row so the bubble paints immediately,
+   * without waiting for the drain round-trip + Realtime echo.
+   */
+  refreshFromCache: () => Promise<void>;
   /** True once the API has signaled no more older pages exist. */
   reachedEnd: boolean;
 }
@@ -122,12 +128,19 @@ export function useConversationMessages(
 
   const loadFromCache = useCallback(async (convId: string) => {
     try {
-      const rows = await listCachedMessages(convId, PAGE_LIMIT);
+      const rows = await listCachedMessages(convId, PAGE_LIMIT * 4);
       setMessages(rows);
     } catch (err) {
       console.warn('[useConversationMessages] cache read failed', err);
     }
   }, []);
+
+  // Public wrapper — re-read the cache for the currently-bound conversation.
+  // Used by the composer to paint the optimistic bubble synchronously.
+  const refreshFromCache = useCallback(async () => {
+    if (!conversationId) return;
+    await loadFromCache(conversationId);
+  }, [conversationId, loadFromCache]);
 
   // -------------------------------------------------------------------------
   // Fresh fetch.
@@ -250,5 +263,13 @@ export function useConversationMessages(
     void fetchLatest(conversationId);
   }, [conversationId, workspaceId, loadFromCache, fetchLatest]);
 
-  return { messages, loading, error, refresh, loadOlder, reachedEnd };
+  return {
+    messages,
+    loading,
+    error,
+    refresh,
+    refreshFromCache,
+    loadOlder,
+    reachedEnd,
+  };
 }

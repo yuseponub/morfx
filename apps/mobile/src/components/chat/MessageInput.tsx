@@ -76,6 +76,14 @@ interface StagedImage {
 
 interface MessageInputProps {
   conversationId: string;
+  /**
+   * Called right after a successful enqueue (text or media). The chat screen
+   * wires this to `useConversationMessages.refreshFromCache` so the optimistic
+   * bubble paints synchronously, without waiting for the drain round-trip
+   * or the Realtime echo. Without this hook the bubble only appears when the
+   * user leaves and re-enters the chat.
+   */
+  onSent?: () => void;
 }
 
 /**
@@ -112,7 +120,7 @@ function extractSlashQuery(
   return null;
 }
 
-export function MessageInput({ conversationId }: MessageInputProps) {
+export function MessageInput({ conversationId, onSent }: MessageInputProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { sendText, sendMedia } = useSendMessage();
@@ -260,6 +268,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         setStagedImage(null);
         setText('');
         setSelection({ start: 0, end: 0 });
+        onSent?.();
       } else {
         const body = text.trim();
         if (body.length === 0) return;
@@ -267,6 +276,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
         await sendText(conversationId, body);
         setText('');
         setSelection({ start: 0, end: 0 });
+        onSent?.();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al enviar');
@@ -280,6 +290,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     conversationId,
     sendText,
     sendMedia,
+    onSent,
   ]);
 
   const handleAudioSend = useCallback<AudioSendHandler>(
@@ -291,13 +302,14 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           mimeType,
           caption: null,
         });
+        onSent?.();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al enviar');
       } finally {
         setIsSending(false);
       }
     },
-    [conversationId, sendMedia]
+    [conversationId, sendMedia, onSent]
   );
 
   const removeStaged = useCallback(() => {

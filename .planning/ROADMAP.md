@@ -788,8 +788,21 @@ Plans:
 - Rate limit: 50 calls/min configurable por env + kill-switch `CRM_BOT_ENABLED` + email alert runaway
 
 **Context:** `.planning/phases/44-crm-bots/44-CONTEXT.md` (discuss-phase completado 2026-04-15)
+**Research:** `.planning/phases/44-crm-bots/44-RESEARCH.md` (research-phase completado 2026-04-15)
+**Patterns:** `.planning/phases/44-crm-bots/44-PATTERNS.md` (pattern map completado 2026-04-18)
 
-**Plans:** TBD — pendiente `/gsd:research-phase 44` + `/gsd:plan-phase 44`
+**Plans:** 9 plans across 4 waves (plan-phase completado 2026-04-18)
+
+Plans:
+- [ ] 44-01-PLAN.md — Wave 1: DB migration + type/middleware/rate-limiter foundation (autonomous:false, BLOCKING migration checkpoint)
+- [ ] 44-02-PLAN.md — Wave 1: Install resend + shared alerts module + env var docs
+- [ ] 44-03-PLAN.md — Wave 1: archiveContact/archiveOrder/archiveNote domain helpers
+- [ ] 44-04-PLAN.md — Wave 2: crm-reader agent scaffolding (9 files: config, prompt, types, 4 tool files, index)
+- [ ] 44-05-PLAN.md — Wave 2: crm-writer agent + two-step propose/confirm lifecycle (10 files)
+- [ ] 44-06-PLAN.md — Wave 2: Inngest TTL expiration cron (every 1 min + 30s grace)
+- [ ] 44-07-PLAN.md — Wave 3: HTTP route POST /api/v1/crm-bots/reader
+- [ ] 44-08-PLAN.md — Wave 3: HTTP routes POST /api/v1/crm-bots/writer/{propose,confirm}
+- [ ] 44-09-PLAN.md — Wave 4: Integration tests + agent-scope.md/docs/STATE updates + end-to-end prod verification (autonomous:false)
 
 ---
 

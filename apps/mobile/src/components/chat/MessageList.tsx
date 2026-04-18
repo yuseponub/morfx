@@ -26,8 +26,8 @@
  *   the DESC list (which represents an OLDER message).
  */
 
-import { FlashList, type FlashListRef } from '@shopify/flash-list';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { FlashList } from '@shopify/flash-list';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -132,21 +132,8 @@ export function MessageList({
   onRefresh,
 }: MessageListProps) {
   const { colors } = useTheme();
-  const listRef = useRef<FlashListRef<ListRow>>(null);
 
   const rows = useMemo(() => buildRows(messages), [messages]);
-
-  // Auto-scroll to newest when a new message arrives (either from Realtime
-  // or the user's own send once Plan 09 wires the composer). With the scaleY
-  // flip, "offset 0" in data terms = visual BOTTOM of the chat. Fires only
-  // when the id of the newest message changes, so pagination up the history
-  // (which prepends OLDER messages at the END of the DESC array) does not
-  // yank the scroll position.
-  const newestId = messages[0]?.id;
-  useEffect(() => {
-    if (!newestId) return;
-    listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [newestId]);
 
   const renderItem = useCallback(
     ({ item }: { item: ListRow }) => {
@@ -181,12 +168,21 @@ export function MessageList({
   return (
     <View style={[styles.container, styles.flip]}>
       <FlashList
-        ref={listRef}
         data={rows}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
+        // Auto-scroll to newest on new message. With scaleY=-1 flip, the
+        // FlashList internal "top" (offset 0) == visual BOTTOM. So the
+        // `autoscrollToTopThreshold` we want here is actually the visual
+        // "stick to bottom of the chat" behavior. 200px threshold: if the
+        // user is within ~2 bubble-heights of the newest message when a new
+        // one arrives, snap to it. Scrolled further up reading history?
+        // Don't yank them away.
+        maintainVisibleContentPosition={{
+          autoscrollToTopThreshold: 200,
+        }}
         refreshControl={
           onRefresh ? (
             // The RefreshControl needs its own un-flip so the spinner

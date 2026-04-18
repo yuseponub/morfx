@@ -136,6 +136,73 @@ export type MobileConversationsListQuery = z.infer<
 >
 
 // ---------------------------------------------------------------------------
+// GET /api/mobile/conversations/:id/messages (Phase 43 Plan 08)
+// ---------------------------------------------------------------------------
+//
+// Read-only conversation detail path. Cursor paginates by `created_at` DESC
+// (opaque ISO string — the mobile client never parses it).
+//
+// Shape notes:
+//   - `direction` mirrors the DB CHECK ('inbound'|'outbound') but exposed as
+//     'in' / 'out' for terseness on the wire (matches the mobile cache).
+//   - `body` is the plain-text rendering of the message. For template /
+//     interactive / media messages it may be null — the media fields carry
+//     the payload instead.
+//   - `media_type` is 'image' | 'audio' | 'video' | 'document' (matches the
+//     WhatsApp type taxonomy minus text/template/interactive/etc.).
+//   - `status` only applies to outbound messages (WhatsApp delivery status).
+//   - `template_name` is set for outbound template messages (null otherwise).
+//   - `sender_name` is set for inbound messages when the WhatsApp profile
+//     name is known (fallback shown in the UI is the phone number).
+//   - `idempotency_key` mirrors the outbox idempotency token so the mobile
+//     cache can reconcile optimistic writes with server-assigned ids.
+
+export const MobileMessageSchema = z.object({
+  id: z.string().uuid(),
+  conversation_id: z.string().uuid(),
+  workspace_id: z.string().uuid(),
+  direction: z.enum(['in', 'out']),
+  body: z.string().nullable(),
+  media_url: z.string().nullable(),
+  media_type: z.enum(['image', 'audio', 'video', 'document']).nullable(),
+  template_name: z.string().nullable(),
+  sender_name: z.string().nullable(),
+  status: z
+    .enum(['pending', 'sent', 'delivered', 'read', 'failed'])
+    .nullable(),
+  idempotency_key: z.string().nullable(),
+  created_at: z.string(),
+})
+export type MobileMessage = z.infer<typeof MobileMessageSchema>
+
+export const MobileMessagesListResponseSchema = z.object({
+  messages: z.array(MobileMessageSchema),
+  next_cursor: z.string().nullable(),
+})
+export type MobileMessagesListResponse = z.infer<
+  typeof MobileMessagesListResponseSchema
+>
+
+// Cursor is an ISO string (created_at of the oldest row in the current page).
+// Subsequent requests ask for rows strictly older than that timestamp.
+export const MobileMessagesListQuerySchema = z.object({
+  before: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+})
+export type MobileMessagesListQuery = z.infer<
+  typeof MobileMessagesListQuerySchema
+>
+
+// ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/mark-read (Phase 43 Plan 08)
+// ---------------------------------------------------------------------------
+
+export const MarkReadResponseSchema = z.object({
+  ok: z.literal(true),
+})
+export type MarkReadResponse = z.infer<typeof MarkReadResponseSchema>
+
+// ---------------------------------------------------------------------------
 // POST /api/mobile/push/register (Phase 43 Plan 13)
 // ---------------------------------------------------------------------------
 

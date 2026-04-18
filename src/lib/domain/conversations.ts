@@ -33,6 +33,10 @@ export interface ArchiveConversationParams {
   conversationId: string
 }
 
+export interface MarkConversationReadParams {
+  conversationId: string
+}
+
 export interface LinkContactToConversationParams {
   conversationId: string
   contactId: string
@@ -58,6 +62,10 @@ export interface AssignConversationResult {
 }
 
 export interface ArchiveConversationResult {
+  conversationId: string
+}
+
+export interface MarkConversationReadResult {
   conversationId: string
 }
 
@@ -163,6 +171,66 @@ export async function archiveConversation(
   if (updateError) {
     console.error('[domain/conversations] archiveConversation failed:', updateError.message)
     return { success: false, error: updateError.message || 'Error al archivar conversacion' }
+  }
+
+  return { success: true, data: { conversationId: params.conversationId } }
+}
+
+// ============================================================================
+// markConversationRead
+// ============================================================================
+
+/**
+ * Mark a conversation as read for the current workspace.
+ *
+ * Resets `unread_count` to 0 and `is_read` to true. Workspace-scoped so a
+ * stray id from another workspace cannot silently mutate rows.
+ *
+ * Used by the mobile app when the user opens a conversation (Plan 43-08)
+ * and, in the future, by any other human surface that opens the thread.
+ * Web server actions historically bypassed the domain layer for this same
+ * mutation — Regla 3 requires us to route through here when we add new
+ * entrypoints. The web actions will be migrated separately.
+ *
+ * No trigger emitted (no conversation triggers in TRIGGER_CATALOG).
+ */
+export async function markConversationRead(
+  ctx: DomainContext,
+  params: MarkConversationReadParams
+): Promise<DomainResult<MarkConversationReadResult>> {
+  const supabase = createAdminClient()
+
+  // Verify conversation exists in workspace (prevents cross-workspace writes).
+  const { data: existing, error: readError } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('id', params.conversationId)
+    .eq('workspace_id', ctx.workspaceId)
+    .single()
+
+  if (readError || !existing) {
+    return { success: false, error: 'Conversacion no encontrada' }
+  }
+
+  const { error: updateError } = await supabase
+    .from('conversations')
+    .update({
+      is_read: true,
+      unread_count: 0,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.conversationId)
+    .eq('workspace_id', ctx.workspaceId)
+
+  if (updateError) {
+    console.error(
+      '[domain/conversations] markConversationRead failed:',
+      updateError.message
+    )
+    return {
+      success: false,
+      error: updateError.message || 'Error al marcar como leido',
+    }
   }
 
   return { success: true, data: { conversationId: params.conversationId } }

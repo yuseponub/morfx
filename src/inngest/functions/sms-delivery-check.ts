@@ -42,6 +42,7 @@ export const smsDeliveryCheck = inngest.createFunction(
           .update({
             status: 'delivered',
             delivery_checked_at: new Date().toISOString(),
+            provider_state_raw: firstCheck.state,
           })
           .eq('id', smsMessageId)
           .eq('workspace_id', workspaceId)
@@ -69,6 +70,7 @@ export const smsDeliveryCheck = inngest.createFunction(
         .update({
           status: finalStatus,
           delivery_checked_at: new Date().toISOString(),
+          provider_state_raw: secondCheck?.state ?? firstCheck?.state ?? null,
         })
         .eq('id', smsMessageId)
         .eq('workspace_id', workspaceId)

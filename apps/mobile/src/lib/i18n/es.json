@@ -76,5 +76,56 @@
       "sent": "Enviado",
       "failed": "Fallido"
     }
+  },
+  "crmPanel": {
+    "title": "Contacto",
+    "close": "Cerrar",
+    "open": "Abrir panel de contacto",
+    "window": {
+      "open": "Ventana abierta · {{hours}}h restantes",
+      "closed": "Ventana cerrada · requiere plantilla",
+      "noMessage": "Sin mensaje del cliente"
+    },
+    "contact": {
+      "unknown": "Sin contacto",
+      "editName": "Editar nombre",
+      "saveName": "Guardar nombre",
+      "namePlaceholder": "Nombre del contacto",
+      "viewInCrm": "Ver en CRM",
+      "createCta": "Crear contacto"
+    },
+    "tags": {
+      "add": "Añadir",
+      "remove": "Quitar etiqueta {{name}}",
+      "pickerTitle": "Añadir etiqueta",
+      "searchPlaceholder": "Buscar etiqueta...",
+      "empty": "No hay etiquetas disponibles"
+    },
+    "orders": {
+      "title": "Pedidos recientes",
+      "empty": "No hay pedidos recientes",
+      "viewAll": "Ver todos",
+      "moveStage": "Mover etapa",
+      "recompra": "Recompra",
+      "view": "Ver"
+    },
+    "stages": {
+      "title": "Mover a etapa",
+      "searchPlaceholder": "Buscar etapa...",
+      "showAllPipelines": "Mostrar todos los pipelines",
+      "showCurrentPipeline": "Mostrar solo este pipeline",
+      "current": "Actual",
+      "empty": "No hay etapas disponibles"
+    },
+    "createOrder": {
+      "cta": "Crear pedido",
+      "creating": "Creando...",
+      "successTitle": "Pedido creado",
+      "successBody": "Edítalo en la web para añadir productos y envío.",
+      "openWeb": "Abrir en la web",
+      "failedTitle": "No se pudo crear",
+      "failedBody": "Revisa tu conexión e intenta de nuevo.",
+      "requiresContact": "Primero crea el contacto para poder registrar pedidos."
+    }
   }
 }

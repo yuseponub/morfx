@@ -3,7 +3,11 @@
 // Phone formatting, segment calculation, and time window checking.
 // ============================================================================
 
-import { SMS_GSM7_SEGMENT_LENGTH, SMS_UCS2_SEGMENT_LENGTH } from './constants'
+import {
+  SMS_GSM7_SEGMENT_LENGTH,
+  SMS_UCS2_SEGMENT_LENGTH,
+  TRANSACTIONAL_SOURCES,
+} from './constants'
 
 /**
  * Format a Colombian phone number for Onurix API (57XXXXXXXXXX).
@@ -50,10 +54,35 @@ export function calculateSMSSegments(message: string): number {
 }
 
 /**
- * Check if current time is within Colombia SMS sending window.
- * CRC regulation: SMS only between 8 AM and 9 PM Colombia time.
+ * Check whether an SMS source is transactional (bypass time-window guard).
+ *
+ * Permissive default (D-02): NULL/undefined/unknown sources are treated as transactional
+ * so a missing `source` never blocks a legitimate dispatch. Marketing compliance is
+ * defended by:
+ *  - contract: sms_messages.source is NOT NULL (migration)
+ *  - convention: callers must set source explicitly (enforced at code review)
+ *
+ * @param source - Value of SendSMSParams.source (possibly NULL/undefined).
+ * @returns true if the source is transactional OR unknown (permissive); false only for
+ *          explicit marketing sources ('campaign' | 'marketing').
  */
-export function isWithinSMSWindow(): boolean {
+export function isTransactionalSource(source?: string | null): boolean {
+  if (source == null) return true
+  return (TRANSACTIONAL_SOURCES as readonly string[]).includes(source)
+}
+
+/**
+ * Check if current time is within Colombia marketing-SMS sending window.
+ * CRC regulation: marketing SMS only between 8 AM and 9 PM Colombia time.
+ *
+ * NOTE: This applies ONLY to marketing SMS. Transactional SMS bypass this check
+ * via isTransactionalSource(). See standalone sms-time-window-by-type for rationale.
+ *
+ * NOTE: Current implementation is conservative (daily 8 AM - 9 PM). Actual CRC norm
+ * differs by day (L-V 7-9PM, Sáb 8-8PM, Dom/festivos prohibited). Adjustment deferred
+ * until campaign module exists.
+ */
+export function isWithinMarketingSMSWindow(): boolean {
   const now = new Date()
   const colombiaHour = parseInt(
     now.toLocaleString('en-US', {

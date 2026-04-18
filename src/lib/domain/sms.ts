@@ -18,8 +18,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { inngest } from '@/inngest/client'
 import { sendOnurixSMS } from '@/lib/sms/client'
-import { formatColombianPhone } from '@/lib/sms/utils'
-import { isWithinSMSWindow } from '@/lib/sms/utils'
+import {
+  formatColombianPhone,
+  isWithinMarketingSMSWindow,
+  isTransactionalSource,
+} from '@/lib/sms/utils'
 import { SMS_PRICE_COP } from '@/lib/sms/constants'
 import type { DomainContext, DomainResult } from './types'
 import type { SmsStatus } from '@/lib/sms/types'
@@ -84,8 +87,10 @@ export async function sendSMS(
       return { success: false, error: `Numero invalido: ${params.phone}` }
     }
 
-    // 2. Check time window
-    if (!isWithinSMSWindow()) {
+    // 2. Time window check — only applies to marketing SMS per CRC Res. 5111/2017.
+    //    Transactional SMS (automation, domain-call, script) are exempt and can be
+    //    sent 24/7. See .planning/standalone/sms-time-window-by-type/CONTEXT.md §D-01.
+    if (!isTransactionalSource(params.source) && !isWithinMarketingSMSWindow()) {
       return {
         success: false,
         error: 'SMS no enviado: fuera de horario permitido (8 AM - 9 PM Colombia)',
@@ -135,6 +140,14 @@ export async function sendSMS(
     }
     const costCop = segmentsUsed * SMS_PRICE_COP
 
+    // Q5: warn on fallback so missing source is observable.
+    if (!params.source) {
+      console.warn('[SMS] source not set, falling back to domain-call', {
+        phone: formattedPhone,
+      })
+    }
+    const effectiveSource = params.source || 'domain-call'
+
     // 6. Atomic: INSERT sms_messages + UPDATE balance + INSERT transaction (D-01, D-03)
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('insert_and_deduct_sms_message', {
@@ -145,7 +158,7 @@ export async function sendSMS(
         p_body: params.message,
         p_segments: segmentsUsed,
         p_cost_cop: costCop,
-        p_source: params.source || 'domain-call',
+        p_source: effectiveSource,
         p_automation_execution_id: params.automationExecutionId || null,
         p_contact_name: params.contactName || null,
         p_amount: costCop,

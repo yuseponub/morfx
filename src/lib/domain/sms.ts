@@ -9,9 +9,9 @@
 //   2. Filter by ctx.workspaceId on every query
 //   3. Validate phone, check time window, check balance
 //   4. Call Onurix API
-//   5. Log to sms_messages
-//   6. Deduct balance (atomic RPC)
-//   7. Emit Inngest event for delivery verification
+//   5. Apply defensive fallback on credits (Number(raw) || 1 + warn)
+//   6. Atomic RPC: INSERT sms_messages + UPDATE balance + INSERT transaction (one transaction)
+//   7. Emit Inngest event for delivery verification (best-effort, outside transaction)
 //   8. Return DomainResult<SendSMSResult>
 // ============================================================================
 
@@ -65,8 +65,8 @@ export interface SendSMSResult {
  * 2. Check time window (8 AM - 9 PM Colombia)
  * 3. Check workspace SMS config (is_active, balance)
  * 4. Call Onurix API to send
- * 5. Log message to sms_messages table
- * 6. Deduct balance via atomic RPC
+ * 5. Defensive fallback on credits (Number(raw) || 1 + warn on fallback)
+ * 6. Atomic RPC: INSERT sms_messages + UPDATE balance + INSERT transaction
  * 7. Emit Inngest event for delivery verification
  */
 export async function sendSMS(
@@ -124,39 +124,53 @@ export async function sendSMS(
     // 4. Call Onurix API to send the SMS
     const onurixResponse = await sendOnurixSMS(formattedPhone, params.message)
 
-    // Calculate actual cost from Onurix response (credits = actual segments used)
-    const segmentsUsed = onurixResponse.data.credits
+    // 5. Defensive fallback on credits (D-07, D-08)
+    const rawCredits = onurixResponse.data.credits
+    const segmentsUsed = Number(rawCredits) || 1
+    if (!Number(rawCredits)) {
+      console.warn('[SMS] Onurix returned invalid credits, falling back to 1', {
+        raw: rawCredits,
+        phone: formattedPhone,
+      })
+    }
     const costCop = segmentsUsed * SMS_PRICE_COP
 
-    // 5. Log message to sms_messages table
-    const { data: smsRecord, error: insertError } = await supabase
-      .from('sms_messages')
-      .insert({
-        workspace_id: ctx.workspaceId,
-        provider_message_id: onurixResponse.id,
-        provider: 'onurix',
-        from_number: 'Onurix',
-        to_number: formattedPhone,
-        body: params.message,
-        direction: 'outbound',
-        status: 'sent',
-        segments: segmentsUsed,
-        cost_cop: costCop,
-        source: params.source || 'domain-call',
-        automation_execution_id: params.automationExecutionId || null,
-        contact_name: params.contactName || null,
+    // 6. Atomic: INSERT sms_messages + UPDATE balance + INSERT transaction (D-01, D-03)
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('insert_and_deduct_sms_message', {
+        p_workspace_id: ctx.workspaceId,
+        p_provider_message_id: onurixResponse.id,
+        p_from_number: 'Onurix',
+        p_to_number: formattedPhone,
+        p_body: params.message,
+        p_segments: segmentsUsed,
+        p_cost_cop: costCop,
+        p_source: params.source || 'domain-call',
+        p_automation_execution_id: params.automationExecutionId || null,
+        p_contact_name: params.contactName || null,
+        p_amount: costCop,
+        p_description: `SMS a ${formattedPhone} (${segmentsUsed} segmento${segmentsUsed > 1 ? 's' : ''})`,
       })
-      .select('id')
       .single()
 
-    if (insertError || !smsRecord) {
-      // SMS was already sent by Onurix, but we couldn't log it
-      // Log the error but don't fail the operation
-      console.error('[SMS] Failed to insert sms_messages record:', insertError?.message)
+    const result = rpcResult as unknown as {
+      success: boolean
+      sms_message_id: string | null
+      new_balance: string
+      error_message: string | null
+    } | null
+
+    if (rpcError) {
+      console.error('[SMS] Atomic RPC failed — SMS sent but not persisted:', {
+        code: rpcError.code,
+        message: rpcError.message,
+        dispatchId: onurixResponse.id,
+        phone: formattedPhone,
+      })
       return {
         success: true,
         data: {
-          smsMessageId: 'unknown',
+          smsMessageId: 'unpersisted',
           dispatchId: onurixResponse.id,
           status: 'sent' as SmsStatus,
           segmentsUsed,
@@ -165,45 +179,45 @@ export async function sendSMS(
       }
     }
 
-    // 6. Deduct balance via atomic RPC
-    const { data: deductResult, error: deductError } = await supabase.rpc(
-      'deduct_sms_balance',
-      {
-        p_workspace_id: ctx.workspaceId,
-        p_amount: costCop,
-        p_sms_message_id: smsRecord.id,
-        p_description: `SMS a ${formattedPhone} (${segmentsUsed} segmento${segmentsUsed > 1 ? 's' : ''})`,
+    if (!result || !result.success) {
+      console.error('[SMS] Atomic RPC returned success=false — SMS sent but not persisted:', {
+        reason: result?.error_message,
+        dispatchId: onurixResponse.id,
+        phone: formattedPhone,
+      })
+      return {
+        success: true,
+        data: {
+          smsMessageId: 'unpersisted',
+          dispatchId: onurixResponse.id,
+          status: 'sent' as SmsStatus,
+          segmentsUsed,
+          costCop,
+        },
       }
-    )
-
-    if (deductError) {
-      console.error('[SMS] Balance deduction RPC error:', deductError.message)
-      // SMS was already sent — we log the error but don't fail
-    } else if (deductResult && deductResult.length > 0 && !deductResult[0].success) {
-      console.warn('[SMS] Balance deduction warning:', deductResult[0].error_message)
-      // SMS was already sent — balance might go negative, which is acceptable
     }
 
-    // 7. Emit Inngest event for delivery verification
+    const smsMessageId = result.sms_message_id!
+
+    // 7. Emit Inngest event for delivery verification (best-effort, outside transaction)
     try {
       await (inngest.send as any)({
         name: 'sms/delivery.check',
         data: {
-          smsMessageId: smsRecord.id,
+          smsMessageId,
           dispatchId: onurixResponse.id,
           workspaceId: ctx.workspaceId,
         },
       })
     } catch (inngestError) {
       console.error('[SMS] Failed to emit delivery check event:', inngestError)
-      // Non-fatal: SMS was sent, delivery check is best-effort
     }
 
     // 8. Return success
     return {
       success: true,
       data: {
-        smsMessageId: smsRecord.id,
+        smsMessageId,
         dispatchId: onurixResponse.id,
         status: 'sent' as SmsStatus,
         segmentsUsed,

@@ -59,9 +59,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // ==================== API TOOL ROUTES ====================
-  // Handle /api/v1/tools/* with API key authentication
+  // Handle /api/v1/tools/* and /api/v1/crm-bots/* with API key authentication
   // This runs BEFORE the existing session logic
-  if (pathname.startsWith('/api/v1/tools')) {
+  if (pathname.startsWith('/api/v1/tools') || pathname.startsWith('/api/v1/crm-bots')) {
     const authHeader = request.headers.get('authorization')
     const apiKey = extractApiKey(authHeader)
 

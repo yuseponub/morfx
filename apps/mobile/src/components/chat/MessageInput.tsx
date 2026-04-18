@@ -436,9 +436,6 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
           </Pressable>
         </View>
 
-        <Text style={[styles.hint, { color: colors.textMuted }]}>
-          {t('chat.slash_hint')}
-        </Text>
       </View>
 
       <AudioRecorder ref={audioSheetRef} onSend={handleAudioSend} />
@@ -482,11 +479,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  hint: {
-    fontSize: 11,
-    textAlign: 'center',
-    opacity: 0.7,
   },
   stagedRow: {
     flexDirection: 'row',

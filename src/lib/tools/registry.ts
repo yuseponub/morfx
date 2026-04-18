@@ -295,6 +295,7 @@ class ToolRegistry {
       crm: [],
       whatsapp: [],
       system: [],
+      'crm-bot': [],
     }
 
     for (const [name, tool] of this.tools) {

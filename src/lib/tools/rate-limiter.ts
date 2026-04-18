@@ -11,6 +11,7 @@
  *   - CRM: 120 calls / 60 seconds
  *   - WhatsApp: 30 calls / 60 seconds (360dialog has its own limits)
  *   - System: 60 calls / 60 seconds
+ *   - crm-bot: 50 calls / 60 seconds (configurable via CRM_BOT_RATE_LIMIT_PER_MIN env var)
  */
 
 import type { ToolModule } from './types'
@@ -30,6 +31,10 @@ const DEFAULTS: Record<ToolModule, RateLimitConfig> = {
   crm: { limit: 120, windowMs: 60_000 },
   whatsapp: { limit: 30, windowMs: 60_000 },
   system: { limit: 60, windowMs: 60_000 },
+  'crm-bot': {
+    limit: Number(process.env.CRM_BOT_RATE_LIMIT_PER_MIN ?? 50),
+    windowMs: 60_000,
+  },
 }
 
 // ============================================================================

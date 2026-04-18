@@ -34,6 +34,7 @@ const TIMEOUTS: Record<ToolModule, number> = {
   crm: 5_000,       // 5 seconds for DB operations
   whatsapp: 15_000,  // 15 seconds for external API (360dialog)
   system: 10_000,    // 10 seconds default
+  'crm-bot': 30_000, // 30 seconds — CRM bots run LLM tool-calling loops
 }
 
 // ============================================================================

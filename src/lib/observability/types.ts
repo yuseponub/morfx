@@ -14,15 +14,25 @@
 // Identity
 // ---------------------------------------------------------------------------
 
-/** Conversational agents covered by Phase 42.1 (Decision #1). */
+/**
+ * Agents covered by observability.
+ *
+ * - Somnio V3 / GoDentist / Somnio Recompra / Somnio V2 are conversational
+ *   bots introduced in Phase 42.1 (Decision #1).
+ * - 'crm-reader' and 'crm-writer' added in Phase 44 (API-only tool providers,
+ *   no conversation). They emit observability turns per API call with
+ *   triggerKind='api' and a synthetic conversationId.
+ */
 export type AgentId =
   | 'somnio-v3'
   | 'godentist'
   | 'somnio-recompra'
   | 'somnio-v2'
+  | 'crm-reader'
+  | 'crm-writer'
 
 /** What initiated a turn. */
-export type TriggerKind = 'user_message' | 'timer' | 'system_event'
+export type TriggerKind = 'user_message' | 'timer' | 'system_event' | 'api'
 
 // ---------------------------------------------------------------------------
 // Event taxonomy

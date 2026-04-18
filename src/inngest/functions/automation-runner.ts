@@ -300,6 +300,26 @@ async function processAutomation(
       error: actionResult.error,
     })
 
+    // Propagate newly-created entity IDs into context for subsequent actions.
+    // Mutations inside step.run don't survive Inngest replays (each replay is
+    // a fresh lambda) — this merge must happen in the parent scope using the
+    // memoized step return value, which Inngest persists across replays.
+    if (actionResult.success && actionResult.result && typeof actionResult.result === 'object') {
+      const resultObj = actionResult.result as Record<string, unknown>
+      let newOrderId: string | undefined
+      if (action.type === 'create_order' && typeof resultObj.orderId === 'string') {
+        newOrderId = resultObj.orderId
+      } else if (action.type === 'duplicate_order' && typeof resultObj.newOrderId === 'string') {
+        newOrderId = resultObj.newOrderId
+      }
+      if (newOrderId) {
+        triggerContext.orderId = newOrderId
+        const orden = (variableContext.orden as Record<string, unknown> | undefined) ?? {}
+        orden.id = newOrderId
+        variableContext.orden = orden
+      }
+    }
+
     // Stop on first failure
     if (!actionResult.success) {
       // Mark remaining actions as skipped

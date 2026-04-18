@@ -19,6 +19,7 @@ import { supabase } from './supabase';
 
 const DEFAULT_BASE_URL = 'https://morfx.app';
 const WORKSPACE_STORAGE_KEY = 'mobile:selectedWorkspaceId';
+const WORKSPACE_MEMBERSHIPS_KEY = 'mobile:workspaceMemberships';
 
 function getBaseUrl(): string {
   return process.env.EXPO_PUBLIC_API_BASE_URL || DEFAULT_BASE_URL;
@@ -43,6 +44,37 @@ export async function setSelectedWorkspaceId(id: string): Promise<void> {
 export async function clearSelectedWorkspaceId(): Promise<void> {
   cachedWorkspaceId = null;
   await AsyncStorage.removeItem(WORKSPACE_STORAGE_KEY);
+}
+
+// -- Workspace memberships cache (offline resilience) -----------------------
+//
+// Cache the workspace list returned by /api/mobile/workspaces so the app can
+// bootstrap offline. Shape must be a plain JSON array of the minimal fields
+// the WorkspaceProvider consumes; keep in sync with WorkspaceMembership.
+
+export interface CachedWorkspaceMembership {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
+export async function getCachedWorkspaceMemberships(): Promise<
+  CachedWorkspaceMembership[] | null
+> {
+  const raw = await AsyncStorage.getItem(WORKSPACE_MEMBERSHIPS_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CachedWorkspaceMembership[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedWorkspaceMemberships(
+  list: CachedWorkspaceMembership[]
+): Promise<void> {
+  await AsyncStorage.setItem(WORKSPACE_MEMBERSHIPS_KEY, JSON.stringify(list));
 }
 
 // -- Error type --------------------------------------------------------------

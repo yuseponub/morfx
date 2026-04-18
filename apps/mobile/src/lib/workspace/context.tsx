@@ -23,8 +23,10 @@ import React, {
 } from 'react';
 
 import {
+  getCachedWorkspaceMemberships,
   getSelectedWorkspaceId,
   mobileApi,
+  setCachedWorkspaceMemberships,
   setSelectedWorkspaceId,
 } from '@/lib/api-client';
 import { registerForPushNotifications } from '@/lib/notifications';
@@ -94,39 +96,63 @@ export function WorkspaceProvider({
 
   // -- Fetch memberships + restore last-used workspace ----------------------
 
+  // Resolve the active workspace from a given membership list — restore the
+  // persisted selection if still valid, otherwise fall back to the first.
+  const resolveActiveId = useCallback(
+    async (list: WorkspaceMembership[]): Promise<string | null> => {
+      const storedId = await getSelectedWorkspaceId();
+      const isStillValid = list.some((w) => w.id === storedId);
+      if (storedId && isStillValid) return storedId;
+      if (list.length > 0) {
+        await setSelectedWorkspaceId(list[0].id);
+        return list[0].id;
+      }
+      return null;
+    },
+    []
+  );
+
   const bootstrap = useCallback(async () => {
     setIsLoading(true);
+
+    // 1. Cache-first: hydrate from AsyncStorage so the UI can render offline.
+    //    This prevents the "WS Error: Network request failed" screen when the
+    //    app cold-starts without connectivity (Plan 43-07 Task 4 regression).
+    const cachedList = await getCachedWorkspaceMemberships();
+    if (cachedList && cachedList.length > 0) {
+      setMemberships(cachedList);
+      const activeId = await resolveActiveId(cachedList);
+      setWorkspaceIdState(activeId);
+      if (activeId) onWorkspaceChange?.(activeId);
+      setIsLoading(false); // Let the UI render immediately from cache.
+    }
+
+    // 2. Fire the API fetch in parallel. On success, refresh cache + state.
+    //    On failure, keep whatever the cache already gave us and only surface
+    //    an error if we have no cache to fall back on.
     try {
       const res = await mobileApi.get<WorkspacesApiResponse>(
         '/api/mobile/workspaces'
       );
       const list = res.workspaces ?? [];
       setMemberships(list);
+      await setCachedWorkspaceMemberships(list);
 
-      // Restore persisted workspace or fall back to first membership.
-      const storedId = await getSelectedWorkspaceId();
-      const isStillValid = list.some((w) => w.id === storedId);
-
-      let activeId: string | null = null;
-      if (storedId && isStillValid) {
-        activeId = storedId;
-      } else if (list.length > 0) {
-        activeId = list[0].id;
-        await setSelectedWorkspaceId(activeId);
-      }
-
+      const activeId = await resolveActiveId(list);
       setWorkspaceIdState(activeId);
-      if (activeId) {
-        onWorkspaceChange?.(activeId);
-      }
+      if (activeId) onWorkspaceChange?.(activeId);
+      setError(null);
     } catch (err: any) {
       const msg = err?.message || String(err);
-      console.error('[WorkspaceProvider] bootstrap failed', msg);
-      setError(msg);
+      console.warn('[WorkspaceProvider] bootstrap fetch failed', msg);
+      // Only propagate the error if there is no cached list to render from.
+      if (!cachedList || cachedList.length === 0) {
+        setError(msg);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [onWorkspaceChange]);
+  }, [onWorkspaceChange, resolveActiveId]);
 
   useEffect(() => {
     void bootstrap();

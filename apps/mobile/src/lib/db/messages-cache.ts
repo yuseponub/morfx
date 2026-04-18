@@ -107,6 +107,94 @@ export async function listMessagesForConversation(
   return rows.map(rowToMessage);
 }
 
+/**
+ * Bounded read for the chat screen (Plan 08). Caller passes a limit to keep
+ * cold-render fast on long threads; defaults to 50 messages.
+ */
+export async function listCachedMessages(
+  conversationId: string,
+  limit = 50
+): Promise<CachedMessage[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<CachedMessageRow>(
+    `SELECT * FROM cached_messages
+     WHERE conversation_id = ?
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    [conversationId, limit]
+  );
+  return rows.map(rowToMessage);
+}
+
+/**
+ * Batch upsert for messages fetched from the API (Plan 08).
+ *
+ * Wraps N inserts in a single `withTransactionAsync` so a partial API page
+ * either fully lands or not at all. INSERT ... ON CONFLICT(id) DO UPDATE
+ * mirrors the single-row helper above; keeping the logic identical means
+ * Realtime INSERTs and bulk API reads share the same merge semantics.
+ */
+export async function upsertCachedMessages(
+  messages: CachedMessage[]
+): Promise<void> {
+  if (messages.length === 0) return;
+  const db = await getDb();
+  await db.withTransactionAsync(async () => {
+    for (const msg of messages) {
+      await db.runAsync(
+        `INSERT INTO cached_messages (
+           id, conversation_id, workspace_id, body, media_uri, media_type,
+           direction, status, idempotency_key, server_id, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           conversation_id = excluded.conversation_id,
+           workspace_id = excluded.workspace_id,
+           body = excluded.body,
+           media_uri = excluded.media_uri,
+           media_type = excluded.media_type,
+           direction = excluded.direction,
+           status = excluded.status,
+           idempotency_key = excluded.idempotency_key,
+           server_id = excluded.server_id,
+           created_at = excluded.created_at,
+           updated_at = excluded.updated_at`,
+        [
+          msg.id,
+          msg.conversationId,
+          msg.workspaceId,
+          msg.body,
+          msg.mediaUri,
+          msg.mediaType,
+          msg.direction,
+          msg.status,
+          msg.idempotencyKey,
+          msg.serverId,
+          msg.createdAt,
+          msg.updatedAt,
+        ]
+      );
+    }
+  });
+}
+
+/**
+ * Newest cached created_at (ms epoch) for a conversation. Returns null when
+ * the cache is empty — caller decides whether to refetch the whole page or
+ * request messages newer than this watermark.
+ */
+export async function getLatestCachedTimestamp(
+  conversationId: string
+): Promise<number | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ max_created: number | null }>(
+    `SELECT MAX(created_at) AS max_created
+       FROM cached_messages
+      WHERE conversation_id = ?`,
+    [conversationId]
+  );
+  return row?.max_created ?? null;
+}
+
 export interface UpdateMessageStatusExtras {
   serverId?: string | null;
   lastError?: string | null;

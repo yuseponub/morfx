@@ -10,11 +10,20 @@
   },
   "inbox": {
     "title": "Conversaciones",
-    "empty": "No hay conversaciones"
+    "empty": "No hay conversaciones",
+    "noName": "Sin nombre",
+    "noPreview": "Sin mensajes",
+    "sla": {
+      "waiting": "Esperando cliente"
+    },
+    "unread": {
+      "cap": "99+"
+    }
   },
   "common": {
     "logout": "Cerrar sesión",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "retry": "Reintentar"
   },
   "workspace": {
     "switcher": {

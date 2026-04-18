@@ -74,7 +74,7 @@ export type ToolResult<T> = ToolSuccess<T> | ToolError
 /**
  * Module categorization for tools
  */
-export type ToolModule = 'crm' | 'whatsapp' | 'system'
+export type ToolModule = 'crm' | 'whatsapp' | 'system' | 'crm-bot'
 
 /**
  * Request source for execution context

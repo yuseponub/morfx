@@ -33,5 +33,28 @@
   },
   "push": {
     "permissionDenied": "No se pudieron activar las notificaciones. Puedes habilitarlas desde los ajustes del sistema."
+  },
+  "chat": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "header": {
+      "back": "Volver",
+      "fallback": "Conversación"
+    },
+    "composer": {
+      "placeholder": "El compositor llega en el siguiente plan"
+    },
+    "media": {
+      "image": "Imagen",
+      "audio": "Nota de voz",
+      "video": "Video",
+      "document": "Documento"
+    },
+    "status": {
+      "queued": "En cola",
+      "sending": "Enviando",
+      "sent": "Enviado",
+      "failed": "Fallido"
+    }
   }
 }

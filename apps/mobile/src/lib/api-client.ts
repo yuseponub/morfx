@@ -158,13 +158,41 @@ async function request<T>(
 interface SendMessageArgs {
   conversationId: string;
   body: string | null;
-  mediaUri: string | null;
-  mediaType: string | null;
+  /** Opaque storage key returned by /media/upload, OR null for text-only. */
+  mediaKey: string | null;
+  mediaType: 'image' | 'audio' | null;
   idempotencyKey: string;
+  templateName?: string;
+  templateVariables?: Record<string, string>;
+}
+
+type SendMessageStatus =
+  | 'pending'
+  | 'sent'
+  | 'delivered'
+  | 'read'
+  | 'failed'
+  | null;
+
+interface ServerSendEnvelope {
+  message: {
+    id: string;
+    status: SendMessageStatus;
+  };
 }
 
 interface SendMessageResponse {
+  /**
+   * The send endpoint returns the new/existing message row wrapped in a
+   * `{ message: ... }` envelope (matches SendMessageResponseSchema).
+   * The outbox drain only needs the server-assigned id; other fields are
+   * already reflected in the cached_messages row via the upsert path.
+   */
   id: string;
+  message?: {
+    id: string;
+    status: SendMessageStatus;
+  };
 }
 
 export const mobileApi = {
@@ -183,18 +211,28 @@ export const mobileApi = {
       skipAuth: true,
     }),
 
-  /** Outbox drain endpoint. Signature matches drainOutbox expectations. */
-  sendMessage: (args: SendMessageArgs): Promise<SendMessageResponse> =>
-    request<SendMessageResponse>(
+  /**
+   * Outbox drain endpoint. Signature matches drainOutbox expectations.
+   * Plan 09: request carries idempotencyKey + mediaKey in the JSON body
+   * (server accepts the header version as fallback for older clients).
+   */
+  sendMessage: async (args: SendMessageArgs): Promise<SendMessageResponse> => {
+    const raw = await request<ServerSendEnvelope>(
       'POST',
       `/api/mobile/conversations/${encodeURIComponent(args.conversationId)}/messages`,
       {
+        idempotencyKey: args.idempotencyKey,
         body: args.body,
-        mediaUri: args.mediaUri,
+        mediaKey: args.mediaKey,
         mediaType: args.mediaType,
-      },
-      {
-        headers: { 'Idempotency-Key': args.idempotencyKey },
+        templateName: args.templateName,
+        templateVariables: args.templateVariables,
       }
-    ),
+    );
+    const msg = raw?.message;
+    if (!msg || typeof msg.id !== 'string') {
+      throw new MobileApiError(500, raw, 'Server returned malformed send response');
+    }
+    return { id: msg.id, message: msg };
+  },
 };

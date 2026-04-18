@@ -31,6 +31,7 @@ import { getCurrentSession, onAuthStateChange } from '@/lib/session';
 // Import for side effect: installs expo-notifications foreground handler
 // + tap listener once at boot (Phase 43 Plan 13).
 import '@/lib/notifications';
+import { OutboxDrainer } from '@/components/outbox/OutboxDrainer';
 import { ThemeProvider } from '@/lib/theme';
 import { WorkspaceProvider } from '@/lib/workspace/context';
 
@@ -94,6 +95,10 @@ export default function RootLayout() {
         <I18nextProvider i18n={i18n}>
           <BottomSheetModalProvider>
             <WorkspaceProvider onWorkspaceChange={handleWorkspaceChange}>
+              {/* Invisible effect — triggers drainOutbox() on NetInfo
+                  online + AppState active. Must live inside auth'd tree so
+                  the api-client has a session when draining fires. */}
+              {isAuthed ? <OutboxDrainer /> : null}
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />

@@ -33,17 +33,46 @@ import { randomUUID } from 'expo-crypto';
 import { getDb } from './index';
 import { updateMessageStatusByLocalId } from './messages-cache';
 
+export type OutboundMediaType = 'image' | 'audio';
+
 export interface EnqueueOutboundMessageInput {
   conversationId: string;
   workspaceId: string;
   body?: string | null;
+  /**
+   * Local file URI (file:// or content://) at enqueue time. The drain loop
+   * is responsible for uploading to Supabase Storage and obtaining the
+   * server-side `mediaKey` before POSTing the send — so at enqueue time
+   * we only know the local path.
+   */
   mediaUri?: string | null;
-  mediaType?: string | null;
+  /** Narrow to the v1 send surface: image (camera/gallery) or audio (voice note). */
+  mediaType?: OutboundMediaType | null;
+  /** MIME of the local file (e.g. image/jpeg, audio/m4a). Needed for upload signing. */
+  mediaMimeType?: string | null;
 }
 
 export interface EnqueueOutboundMessageResult {
   localId: string;
   idempotencyKey: string;
+}
+
+/**
+ * Shape of the JSON payload we persist in the outbox row.
+ *
+ * After a successful media upload the drain loop updates this payload in
+ * place so subsequent retries pick up where they left off (and do NOT
+ * re-upload the file, which would burn bytes and time).
+ */
+interface OutboxPayload {
+  conversationId: string;
+  workspaceId: string;
+  body: string | null;
+  mediaUri: string | null;
+  mediaType: OutboundMediaType | null;
+  mediaMimeType: string | null;
+  mediaKey: string | null;
+  mediaPublicUrl: string | null;
 }
 
 interface OutboxRow {
@@ -74,13 +103,19 @@ export async function enqueueOutboundMessage(
   const mediaUri = input.mediaUri ?? null;
   const mediaType = input.mediaType ?? null;
 
-  const payloadJson = JSON.stringify({
+  const mediaMimeType = input.mediaMimeType ?? null;
+
+  const payload: OutboxPayload = {
     conversationId: input.conversationId,
     workspaceId: input.workspaceId,
     body,
     mediaUri,
-    mediaType,
-  });
+    mediaType: (mediaType as OutboundMediaType | null) ?? null,
+    mediaMimeType,
+    mediaKey: null,
+    mediaPublicUrl: null,
+  };
+  const payloadJson = JSON.stringify(payload);
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
@@ -137,32 +172,81 @@ class HttpError extends Error {
 }
 
 /**
- * Send one outbox row via the mobile API client. Kept as a standalone helper
- * so drainOutbox stays readable.
+ * Send one outbox row via the mobile API client.
  *
- * The api-client module is lazy-imported to dodge any risk of circular
- * imports between db/ and the api client layer. Plan 43-04 shipped the real
- * client at ../api-client; this file now resolves it normally.
+ * Two-phase for media rows:
+ *   1. If `mediaUri` is set but `mediaKey` is null (first attempt with a
+ *      file-backed message), upload the local file to Supabase Storage via
+ *      the server-issued presigned URL. Persist the returned `mediaKey` +
+ *      `mediaPublicUrl` back into the outbox payload so retries skip the
+ *      upload and the cached_messages row can render the remote URL.
+ *   2. POST /api/mobile/conversations/:id/messages with the final payload
+ *      (body + mediaKey + mediaType + idempotencyKey).
+ *
+ * Any thrown error propagates up to drainOutbox which classifies it as
+ * fatal (drop row, mark failed) or transient (attempts++, retry later).
+ * MobileApiError from the api-client is re-wrapped as HttpError so the
+ * fatal-status set below applies uniformly.
  */
 async function postOutboxRow(row: OutboxRow): Promise<SendMessageResponse> {
-  const payload = JSON.parse(row.payload_json) as {
-    conversationId: string;
-    workspaceId: string;
-    body: string | null;
-    mediaUri: string | null;
-    mediaType: string | null;
-  };
+  let payload = JSON.parse(row.payload_json) as OutboxPayload;
 
   // Lazy import to dodge potential circular deps between db/ and api-client.
-  const { mobileApi } = await import('../api-client');
+  const { mobileApi, MobileApiError } = await import('../api-client');
 
-  return mobileApi.sendMessage({
-    conversationId: payload.conversationId,
-    body: payload.body,
-    mediaUri: payload.mediaUri,
-    mediaType: payload.mediaType,
-    idempotencyKey: row.idempotency_key,
-  });
+  try {
+    // Phase 1: upload media if needed.
+    if (payload.mediaUri && payload.mediaType && !payload.mediaKey) {
+      const { uploadLocalFile } = await import('../media/upload');
+      const mime = payload.mediaMimeType || guessMimeFromMediaType(payload.mediaType);
+      const uploadResult = await uploadLocalFile(
+        payload.conversationId,
+        payload.mediaUri,
+        mime
+      );
+
+      // Persist the key in the outbox row so a later retry (after a crash
+      // or fatal POST error) doesn't re-upload. The cached_messages row
+      // already has the local mediaUri — we keep it so the UI preview is
+      // instant; the public URL is only relevant on success for WhatsApp.
+      payload = {
+        ...payload,
+        mediaKey: uploadResult.mediaKey,
+        mediaPublicUrl: uploadResult.publicUrl,
+      };
+      const db = await getDb();
+      await db.runAsync(
+        `UPDATE outbox SET payload_json = ? WHERE id = ?`,
+        [JSON.stringify(payload), row.id]
+      );
+    }
+
+    // Phase 2: POST the send endpoint.
+    const resp = await mobileApi.sendMessage({
+      conversationId: payload.conversationId,
+      body: payload.body,
+      mediaKey: payload.mediaKey,
+      mediaType: payload.mediaType,
+      idempotencyKey: row.idempotency_key,
+    });
+
+    return resp;
+  } catch (err) {
+    // Translate the api-client's typed error into the outbox's HttpError so
+    // drainOutbox's FATAL_HTTP_STATUSES set applies the same way.
+    if (err instanceof MobileApiError) {
+      throw new HttpError(err.status, err.message);
+    }
+    throw err;
+  }
+}
+
+function guessMimeFromMediaType(t: OutboundMediaType): string {
+  // Best-effort fallback when the caller didn't record the MIME. expo-audio
+  // defaults to m4a (AAC in MP4) on both platforms, and expo-image-picker
+  // returns jpeg for camera / gallery captures unless the original was png.
+  if (t === 'audio') return 'audio/m4a';
+  return 'image/jpeg';
 }
 
 /**

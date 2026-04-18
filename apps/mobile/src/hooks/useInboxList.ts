@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { MobileConversationsListResponseSchema } from '../../../../shared/mobile-api/schemas';
+import { MobileConversationsListResponseSchema } from '@/lib/api-schemas/conversations';
 import { mobileApi } from '@/lib/api-client';
 import {
   listCachedConversations,

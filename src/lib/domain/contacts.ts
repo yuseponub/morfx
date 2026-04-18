@@ -440,3 +440,219 @@ export async function bulkCreateContacts(
     return { success: false, error: message }
   }
 }
+
+// ============================================================================
+// archiveContact (Phase 44 — soft delete for crm-writer)
+// ============================================================================
+
+export interface ArchiveContactParams {
+  contactId: string
+}
+
+export interface ArchiveContactResult {
+  contactId: string
+  archivedAt: string  // ISO-8601
+}
+
+/**
+ * Archive a contact (soft delete). Used by crm-writer (Phase 44) — writer
+ * CANNOT DELETE real (CONTEXT D-05). Human UI retains deleteContact.
+ *
+ * Idempotent: archiving an already-archived contact returns success with the
+ * existing archived_at timestamp (not overwritten).
+ *
+ * No automation trigger — mirrors deleteContact which also emits none.
+ */
+export async function archiveContact(
+  ctx: DomainContext,
+  params: ArchiveContactParams,
+): Promise<DomainResult<ArchiveContactResult>> {
+  const supabase = createAdminClient()
+
+  try {
+    // Verify contact exists and belongs to workspace.
+    const { data: existing, error: fetchError } = await supabase
+      .from('contacts')
+      .select('id, archived_at')
+      .eq('id', params.contactId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Contacto no encontrado' }
+    }
+
+    // Idempotency: if already archived, return existing timestamp.
+    if (existing.archived_at) {
+      return {
+        success: true,
+        data: { contactId: params.contactId, archivedAt: existing.archived_at },
+      }
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('contacts')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', params.contactId)
+      .eq('workspace_id', ctx.workspaceId)
+      .select('id, archived_at')
+      .single()
+
+    if (updateError || !updated) {
+      return { success: false, error: `Error al archivar el contacto: ${updateError?.message ?? 'unknown'}` }
+    }
+
+    return {
+      success: true,
+      data: { contactId: params.contactId, archivedAt: updated.archived_at },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// searchContacts (Phase 44 — reader helper, Blocker 1 mitigation)
+// ============================================================================
+
+export interface SearchContactsParams {
+  /** Free-text: matches phone, email, or name via ILIKE */
+  query: string
+  /** Include archived? Default: false */
+  includeArchived?: boolean
+  limit?: number
+}
+
+export interface ContactListItem {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  createdAt: string
+}
+
+/**
+ * Search contacts in the workspace. Reader-side helper.
+ * Default excludes archived rows (archived_at IS NULL).
+ */
+export async function searchContacts(
+  ctx: DomainContext,
+  params: SearchContactsParams,
+): Promise<DomainResult<ContactListItem[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const limit = Math.min(Math.max(params.limit ?? 20, 1), 50)
+    const q = params.query.trim()
+    if (!q) return { success: true, data: [] }
+
+    // Escape PostgREST `or` filter special chars in the ILIKE value.
+    // Commas and parentheses would otherwise break the filter list.
+    const safe = q.replace(/[,()%]/g, (m) => (m === '%' ? '\\%' : ' '))
+
+    let qb = supabase
+      .from('contacts')
+      .select('id, name, phone, email, created_at')
+      .eq('workspace_id', ctx.workspaceId)
+      .or(`phone.ilike.%${safe}%,email.ilike.%${safe}%,name.ilike.%${safe}%`)
+      .limit(limit)
+
+    if (!params.includeArchived) qb = qb.is('archived_at', null)
+
+    const { data, error } = await qb
+
+    if (error) return { success: false, error: `Error de base de datos: ${error.message}` }
+
+    return {
+      success: true,
+      data: (data ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        email: r.email,
+        createdAt: r.created_at,
+      })),
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+// ============================================================================
+// getContactById (Phase 44 — reader + writer existence check)
+// ============================================================================
+
+export interface GetContactByIdParams {
+  contactId: string
+  /** Include archived row? Default: false */
+  includeArchived?: boolean
+}
+
+export interface ContactDetail {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  address: string | null
+  city: string | null
+  createdAt: string
+  archivedAt: string | null
+  tags: Array<{ id: string; name: string }>
+  customFields: Record<string, unknown>
+}
+
+/**
+ * Get a contact by ID with tags + custom fields. Workspace-scoped.
+ * Returns data=null (inside a success result) if not found so callers can
+ * differentiate DB error from not_found_in_workspace without throwing.
+ */
+export async function getContactById(
+  ctx: DomainContext,
+  params: GetContactByIdParams,
+): Promise<DomainResult<ContactDetail | null>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('id, name, phone, email, address, city, custom_fields, created_at, archived_at, contact_tags(tag_id, tags(id, name))')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('id', params.contactId)
+      .maybeSingle()
+
+    if (error) return { success: false, error: error.message }
+    if (!data) return { success: true, data: null }
+
+    if (!params.includeArchived && data.archived_at) {
+      return { success: true, data: null }
+    }
+
+    // Flatten nested tag join (Supabase embed returns tags as object or array).
+    const tags = Array.isArray(data.contact_tags)
+      ? data.contact_tags
+          .map((ct: { tag_id: string; tags: { id: string; name: string } | { id: string; name: string }[] | null }) =>
+            Array.isArray(ct.tags) ? ct.tags[0] : ct.tags,
+          )
+          .filter((t: { id: string; name: string } | null | undefined): t is { id: string; name: string } => !!t)
+      : []
+
+    return {
+      success: true,
+      data: {
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        city: data.city,
+        createdAt: data.created_at,
+        archivedAt: data.archived_at,
+        tags,
+        customFields: (data.custom_fields as Record<string, unknown>) ?? {},
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}

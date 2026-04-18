@@ -1475,3 +1475,217 @@ export async function getOrdersForGuideGeneration(
     return { success: false, error: message }
   }
 }
+
+// ============================================================================
+// archiveOrder (Phase 44 — soft delete / close)
+// ============================================================================
+
+export interface ArchiveOrderParams {
+  orderId: string
+}
+
+export interface ArchiveOrderResult {
+  orderId: string
+  archivedAt: string
+}
+
+/**
+ * Archive an order (soft delete). CONTEXT D-04 says writer should "archivar/cerrar"
+ * pedidos. Implementation: column-set on archived_at (Phase 44 migration).
+ * If the workspace's convention is to also move to a "closed" stage, the caller
+ * (writer tool) should first call moveOrderToStage then archiveOrder — or just
+ * archive, which hides the row from active listings.
+ *
+ * Idempotent: archiving an already-archived order returns the existing timestamp.
+ */
+export async function archiveOrder(
+  ctx: DomainContext,
+  params: ArchiveOrderParams,
+): Promise<DomainResult<ArchiveOrderResult>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('orders')
+      .select('id, archived_at')
+      .eq('id', params.orderId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Pedido no encontrado' }
+    }
+
+    if (existing.archived_at) {
+      return {
+        success: true,
+        data: { orderId: params.orderId, archivedAt: existing.archived_at },
+      }
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('orders')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', params.orderId)
+      .eq('workspace_id', ctx.workspaceId)
+      .select('id, archived_at')
+      .single()
+
+    if (updateError || !updated) {
+      return { success: false, error: `Error al archivar el pedido: ${updateError?.message ?? 'unknown'}` }
+    }
+
+    return {
+      success: true,
+      data: { orderId: params.orderId, archivedAt: updated.archived_at },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+// ============================================================================
+// listOrders (Phase 44 — reader helper)
+// ============================================================================
+
+export interface ListOrdersParams {
+  pipelineId?: string
+  stageId?: string
+  contactId?: string
+  /** Default false — archived orders excluded */
+  includeArchived?: boolean
+  limit?: number
+  offset?: number
+}
+
+export interface OrderListItem {
+  id: string
+  contactId: string | null
+  pipelineId: string
+  stageId: string
+  totalValue: number
+  createdAt: string
+  archivedAt: string | null
+}
+
+export async function listOrders(
+  ctx: DomainContext,
+  params: ListOrdersParams,
+): Promise<DomainResult<OrderListItem[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const limit = Math.min(Math.max(params.limit ?? 20, 1), 50)
+    const offset = Math.max(params.offset ?? 0, 0)
+
+    let qb = supabase
+      .from('orders')
+      .select('id, contact_id, pipeline_id, stage_id, total_value, created_at, archived_at')
+      .eq('workspace_id', ctx.workspaceId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (params.pipelineId) qb = qb.eq('pipeline_id', params.pipelineId)
+    if (params.stageId) qb = qb.eq('stage_id', params.stageId)
+    if (params.contactId) qb = qb.eq('contact_id', params.contactId)
+    if (!params.includeArchived) qb = qb.is('archived_at', null)
+
+    const { data, error } = await qb
+
+    if (error) return { success: false, error: error.message }
+
+    return {
+      success: true,
+      data: (data ?? []).map((r) => ({
+        id: r.id,
+        contactId: r.contact_id,
+        pipelineId: r.pipeline_id,
+        stageId: r.stage_id,
+        totalValue: Number(r.total_value),
+        createdAt: r.created_at,
+        archivedAt: r.archived_at,
+      })),
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+// ============================================================================
+// getOrderById (Phase 44 — reader + writer existence check)
+// ============================================================================
+
+export interface GetOrderByIdParams {
+  orderId: string
+  includeArchived?: boolean
+}
+
+export interface OrderDetail {
+  id: string
+  contactId: string | null
+  pipelineId: string
+  stageId: string
+  totalValue: number
+  description: string | null
+  createdAt: string
+  archivedAt: string | null
+  items: Array<{
+    id: string
+    sku: string
+    title: string
+    unitPrice: number
+    quantity: number
+    subtotal: number
+  }>
+}
+
+export async function getOrderById(
+  ctx: DomainContext,
+  params: GetOrderByIdParams,
+): Promise<DomainResult<OrderDetail | null>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, contact_id, pipeline_id, stage_id, total_value, description, created_at, archived_at, order_products(id, sku, title, unit_price, quantity, subtotal)')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('id', params.orderId)
+      .maybeSingle()
+
+    if (error) return { success: false, error: error.message }
+    if (!data) return { success: true, data: null }
+
+    if (!params.includeArchived && data.archived_at) {
+      return { success: true, data: null }
+    }
+
+    const items = Array.isArray(data.order_products)
+      ? data.order_products.map((p: { id: string; sku: string; title: string; unit_price: number; quantity: number; subtotal: number }) => ({
+          id: p.id,
+          sku: p.sku,
+          title: p.title,
+          unitPrice: Number(p.unit_price),
+          quantity: p.quantity,
+          subtotal: Number(p.subtotal),
+        }))
+      : []
+
+    return {
+      success: true,
+      data: {
+        id: data.id,
+        contactId: data.contact_id,
+        pipelineId: data.pipeline_id,
+        stageId: data.stage_id,
+        totalValue: Number(data.total_value),
+        description: data.description,
+        createdAt: data.created_at,
+        archivedAt: data.archived_at,
+        items,
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}

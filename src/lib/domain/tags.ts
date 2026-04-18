@@ -280,3 +280,66 @@ export async function removeTag(
     return { success: false, error: message }
   }
 }
+
+// ============================================================================
+// listTags + getTagById (Phase 44 — reader helper + writer existence check)
+// ============================================================================
+
+export interface TagListItem {
+  id: string
+  name: string
+  createdAt: string
+}
+
+/**
+ * List all tags in the workspace. Reader-side helper for crm-reader (Phase 44).
+ */
+export async function listTags(
+  ctx: DomainContext,
+): Promise<DomainResult<TagListItem[]>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('id, name, created_at')
+      .eq('workspace_id', ctx.workspaceId)
+      .order('name', { ascending: true })
+
+    if (error) return { success: false, error: error.message }
+
+    return {
+      success: true,
+      data: (data ?? []).map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at })),
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/**
+ * Get a tag by id, workspace-scoped. Returns data=null on success when not found
+ * so callers can differentiate DB error from missing-resource.
+ */
+export async function getTagById(
+  ctx: DomainContext,
+  params: { tagId: string },
+): Promise<DomainResult<TagListItem | null>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('id, name, created_at')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('id', params.tagId)
+      .maybeSingle()
+
+    if (error) return { success: false, error: error.message }
+    if (!data) return { success: true, data: null }
+
+    return { success: true, data: { id: data.id, name: data.name, createdAt: data.created_at } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}

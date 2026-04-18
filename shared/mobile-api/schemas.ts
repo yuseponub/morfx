@@ -73,6 +73,69 @@ export const WorkspacesResponseSchema = z.object({
 export type WorkspacesResponse = z.infer<typeof WorkspacesResponseSchema>
 
 // ---------------------------------------------------------------------------
+// GET /api/mobile/conversations (Phase 43 Plan 07)
+// ---------------------------------------------------------------------------
+//
+// Read-only inbox list for the mobile app. Cursor paginates by
+// `last_message_at` DESC with a secondary `id` tiebreaker.
+//
+// Shape notes:
+//   - `tags` is derived from the linked contact's contact_tags (source of
+//     truth on the web per src/app/actions/conversations.ts — the web's
+//     comment calls conversation_tags "deprecated").
+//   - `pipeline_stage_*` is always null in this plan — pipeline stages are
+//     attached to orders, not conversations. Kept on the wire so UI code in
+//     Plan 43-10b (stage chip) doesn't need another contract bump.
+//   - `bot_mode` + `bot_mute_until` come from Plan 43-01 migration.
+//   - `avatar_url` is nullable; WhatsApp profile pictures are not exposed
+//     yet (future plan), so it is null for every row today.
+
+export const MobileConversationSchema = z.object({
+  id: z.string().uuid(),
+  workspace_id: z.string().uuid(),
+  contact_id: z.string().uuid().nullable(),
+  contact_name: z.string().nullable(),
+  contact_phone: z.string(),
+  contact_profile_name: z.string().nullable(),
+  last_message_body: z.string().nullable(),
+  last_message_at: z.string().nullable(),
+  last_customer_message_at: z.string().nullable(),
+  unread_count: z.number().int().nonnegative(),
+  tags: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      color: z.string(),
+    })
+  ),
+  pipeline_stage_id: z.string().uuid().nullable(),
+  pipeline_stage_name: z.string().nullable(),
+  pipeline_stage_color: z.string().nullable(),
+  bot_mode: z.enum(['on', 'off', 'muted']),
+  bot_mute_until: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+})
+export type MobileConversation = z.infer<typeof MobileConversationSchema>
+
+export const MobileConversationsListResponseSchema = z.object({
+  conversations: z.array(MobileConversationSchema),
+  next_cursor: z.string().nullable(),
+})
+export type MobileConversationsListResponse = z.infer<
+  typeof MobileConversationsListResponseSchema
+>
+
+// Cursor format: base64(`${last_message_at_iso}|${id}`). The route builds +
+// parses this server-side; the client only passes it verbatim.
+export const MobileConversationsListQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(40),
+})
+export type MobileConversationsListQuery = z.infer<
+  typeof MobileConversationsListQuerySchema
+>
+
+// ---------------------------------------------------------------------------
 // POST /api/mobile/push/register (Phase 43 Plan 13)
 // ---------------------------------------------------------------------------
 

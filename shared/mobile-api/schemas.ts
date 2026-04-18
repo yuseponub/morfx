@@ -203,6 +203,87 @@ export const MarkReadResponseSchema = z.object({
 export type MarkReadResponse = z.infer<typeof MarkReadResponseSchema>
 
 // ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/messages (Phase 43 Plan 09)
+// ---------------------------------------------------------------------------
+//
+// Send path. Called by the mobile outbox drain loop. Honors the
+// idempotency_key — if a message with that key already exists in the
+// workspace, the server returns the existing message instead of re-sending.
+//
+// Shape notes:
+//   - Either `body` or `mediaKey` (or both) must be present. `mediaKey` is
+//     the opaque key returned by the signed-upload endpoint below.
+//   - `templateName` + `templateVariables` reserve the wire slot for Plan 14
+//     (TemplatePicker). Plan 09 accepts them on the server but the mobile
+//     composer does NOT expose them yet — so in practice Plan 09 traffic
+//     will always leave these two fields null/undefined.
+//   - `idempotencyKey` is generated client-side on enqueue, persisted in
+//     the local outbox, and reused on every retry so duplicates are safe.
+
+export const SendMessageRequestSchema = z.object({
+  idempotencyKey: z.string().min(1),
+  body: z.string().nullable(),
+  mediaKey: z.string().nullable(),
+  mediaType: z.enum(['image', 'audio']).nullable(),
+  templateName: z.string().optional(),
+  templateVariables: z.record(z.string(), z.string()).optional(),
+})
+export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>
+
+export const SendMessageResponseSchema = z.object({
+  message: MobileMessageSchema,
+})
+export type SendMessageResponse = z.infer<typeof SendMessageResponseSchema>
+
+// ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/media/upload (Phase 43 Plan 09)
+// ---------------------------------------------------------------------------
+//
+// Returns a presigned PUT URL to Supabase Storage. Mobile uploads the file
+// directly to the signed URL, then POSTs the returned `mediaKey` back on
+// the send request above. No DB rows are created by this endpoint — the
+// mediaKey is consumed by the send path.
+
+export const MediaUploadRequestSchema = z.object({
+  mimeType: z.string().min(1),
+  byteSize: z.number().int().positive(),
+})
+export type MediaUploadRequest = z.infer<typeof MediaUploadRequestSchema>
+
+export const MediaUploadResponseSchema = z.object({
+  uploadUrl: z.string().url(),
+  mediaKey: z.string().min(1),
+  publicUrl: z.string().url(),
+  expiresAt: z.string(),
+})
+export type MediaUploadResponse = z.infer<typeof MediaUploadResponseSchema>
+
+// ---------------------------------------------------------------------------
+// GET /api/mobile/quick-replies (Phase 43 Plan 09)
+// ---------------------------------------------------------------------------
+//
+// Workspace-scoped list of saved quick replies (/ slash commands in the
+// composer). Read-only, cache-friendly. `body` is the expanded content that
+// replaces the slash token in the composer when the user picks a reply.
+
+export const MobileQuickReplySchema = z.object({
+  id: z.string().uuid(),
+  trigger: z.string(),
+  body: z.string(),
+  category: z.string().nullable(),
+  mediaUrl: z.string().nullable(),
+  mediaType: z.enum(['image', 'video', 'audio', 'document']).nullable(),
+})
+export type MobileQuickReply = z.infer<typeof MobileQuickReplySchema>
+
+export const MobileQuickRepliesListResponseSchema = z.object({
+  quickReplies: z.array(MobileQuickReplySchema),
+})
+export type MobileQuickRepliesListResponse = z.infer<
+  typeof MobileQuickRepliesListResponseSchema
+>
+
+// ---------------------------------------------------------------------------
 // POST /api/mobile/push/register (Phase 43 Plan 13)
 // ---------------------------------------------------------------------------
 

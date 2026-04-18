@@ -21,18 +21,22 @@
 
 import { NextResponse } from 'next/server'
 
+import { sendMessageIdempotent } from '@/lib/domain/messages-send-idempotent'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 import {
   MobileMessageSchema,
   MobileMessagesListQuerySchema,
   MobileMessagesListResponseSchema,
+  SendMessageRequestSchema,
+  SendMessageResponseSchema,
   type MobileMessage,
 } from '../../../../../../../shared/mobile-api/schemas'
 
 import { requireMobileAuth } from '../../../_lib/auth'
 import {
   MobileNotFoundError,
+  MobileValidationError,
   toMobileErrorResponse,
 } from '../../../_lib/errors'
 
@@ -286,6 +290,167 @@ export async function GET(
     })
 
     return NextResponse.json(body, {
+      status: 200,
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  } catch (err) {
+    return toMobileErrorResponse(err)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/messages — send an outbound message.
+//
+// Phase 43 Plan 09. Mutation route — routes through
+// src/lib/domain/messages-send-idempotent.ts (Regla 3).
+//
+// Idempotency: the `idempotencyKey` is generated client-side by the mobile
+// outbox, persisted in the local outbox table, and reused on every retry.
+// The domain wrapper SELECTs messages.content @> { idempotency_key: <key> }
+// filtered by workspace_id BEFORE sending — if a row already exists we
+// return it unchanged, preventing duplicate sends across network flips,
+// app kills, and server timeouts.
+//
+// Header `Idempotency-Key` is accepted as a fallback for clients (like the
+// existing mobile api-client wrapper) that were emitting the key via the
+// HTTP header rather than in the body.
+//
+// Shape translation: the domain wrapper returns a DB row ('inbound'|
+// 'outbound' direction, content JSONB). We map it back to the mobile wire
+// shape ('in'|'out' direction, rendered body text) so the mobile cache can
+// upsert it without further translation.
+// ---------------------------------------------------------------------------
+
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  try {
+    const { workspaceId } = await requireMobileAuth(req)
+    const { id: conversationId } = await ctx.params
+
+    // Parse body — the mobile client sends JSON. Allow the idempotency key
+    // to arrive via header as a secondary channel (existing api-client
+    // emits it that way for Plan 05 compatibility).
+    let rawJson: unknown
+    try {
+      rawJson = await req.json()
+    } catch {
+      throw new MobileValidationError('bad_request', 'Body must be JSON')
+    }
+
+    const headerIdempotencyKey =
+      req.headers.get('idempotency-key') ?? req.headers.get('Idempotency-Key')
+
+    const body =
+      rawJson && typeof rawJson === 'object'
+        ? (rawJson as Record<string, unknown>)
+        : {}
+    const bodyWithHeader = {
+      ...body,
+      idempotencyKey:
+        (body.idempotencyKey as string | undefined) ||
+        headerIdempotencyKey ||
+        undefined,
+    }
+
+    const parsed = SendMessageRequestSchema.safeParse(bodyWithHeader)
+    if (!parsed.success) {
+      throw new MobileValidationError(
+        'bad_request',
+        parsed.error.issues.map((i) => i.message).join('; ')
+      )
+    }
+
+    const input = parsed.data
+
+    // Validate: either a body or a mediaKey+mediaType must be present.
+    const hasText = typeof input.body === 'string' && input.body.length > 0
+    const hasMedia =
+      typeof input.mediaKey === 'string' &&
+      input.mediaKey.length > 0 &&
+      input.mediaType !== null
+    const isTemplate =
+      typeof input.templateName === 'string' && input.templateName.length > 0
+
+    if (!hasText && !hasMedia && !isTemplate) {
+      throw new MobileValidationError(
+        'bad_request',
+        'Mensaje vacio — se requiere body, mediaKey o templateName'
+      )
+    }
+
+    // Verify conversation belongs to workspace (404 otherwise).
+    const admin = createAdminClient()
+    const { data: convo, error: convoError } = await admin
+      .from('conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .eq('workspace_id', workspaceId)
+      .single()
+
+    if (convoError || !convo) {
+      throw new MobileNotFoundError(
+        'not_found',
+        'Conversation not found in workspace'
+      )
+    }
+
+    // Route through the domain layer (Regla 3).
+    const result = await sendMessageIdempotent(
+      { workspaceId, source: 'mobile-api' },
+      {
+        conversationId,
+        idempotencyKey: input.idempotencyKey,
+        body: input.body,
+        mediaKey: input.mediaKey,
+        mediaType: input.mediaType,
+        templateName: input.templateName,
+        templateVariables: input.templateVariables,
+      }
+    )
+
+    if (!result.success || !result.data) {
+      // Map domain errors to HTTP statuses.
+      const msg = result.error || 'internal'
+      if (msg.includes('no encontrada')) {
+        throw new MobileNotFoundError('not_found', msg)
+      }
+      if (msg.includes('24h') || msg.includes('vacio') || msg.includes('API key')) {
+        throw new MobileValidationError('bad_request', msg)
+      }
+      console.error('[mobile-api/messages:POST] send failed', msg)
+      throw new Error(msg)
+    }
+
+    const row = result.data.message
+
+    // Map the DB row to the mobile wire shape (same mapping used by GET).
+    const mobileMessage: MobileMessage = {
+      id: row.id,
+      conversation_id: row.conversation_id,
+      workspace_id: row.workspace_id,
+      direction: row.direction === 'inbound' ? 'in' : 'out',
+      body: renderBody(row.type as DbType, row.content, row.media_url),
+      media_url: row.media_url,
+      media_type: mediaType(row.type as DbType),
+      template_name: templateName(row.type as DbType, row.content),
+      sender_name: null, // outbound — no sender label
+      status: row.direction === 'outbound' ? row.status : null,
+      idempotency_key:
+        (row.content as Record<string, unknown> | null)?.idempotency_key as
+          | string
+          | null
+          | undefined
+          ?? null,
+      created_at: row.created_at,
+    }
+
+    // Validate before serializing (defense in depth).
+    MobileMessageSchema.parse(mobileMessage)
+    const resBody = SendMessageResponseSchema.parse({ message: mobileMessage })
+
+    return NextResponse.json(resBody, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' },
     })

@@ -43,3 +43,40 @@ export const MarkReadResponseSchema = z.object({
   ok: z.literal(true),
 });
 export type MarkReadResponse = z.infer<typeof MarkReadResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/messages — send path (Plan 09)
+// ---------------------------------------------------------------------------
+
+export const SendMessageRequestSchema = z.object({
+  idempotencyKey: z.string().min(1),
+  body: z.string().nullable(),
+  mediaKey: z.string().nullable(),
+  mediaType: z.enum(['image', 'audio']).nullable(),
+  templateName: z.string().optional(),
+  templateVariables: z.record(z.string(), z.string()).optional(),
+});
+export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>;
+
+export const SendMessageResponseSchema = z.object({
+  message: MobileMessageSchema,
+});
+export type SendMessageResponse = z.infer<typeof SendMessageResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/media/upload — presigned PUT (Plan 09)
+// ---------------------------------------------------------------------------
+
+export const MediaUploadRequestSchema = z.object({
+  mimeType: z.string().min(1),
+  byteSize: z.number().int().positive(),
+});
+export type MediaUploadRequest = z.infer<typeof MediaUploadRequestSchema>;
+
+export const MediaUploadResponseSchema = z.object({
+  uploadUrl: z.string().url(),
+  mediaKey: z.string().min(1),
+  publicUrl: z.string().url(),
+  expiresAt: z.string(),
+});
+export type MediaUploadResponse = z.infer<typeof MediaUploadResponseSchema>;

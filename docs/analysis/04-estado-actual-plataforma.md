@@ -401,6 +401,50 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 
 ---
 
+### 11. CRM Bots (Phase 44)
+
+- **Estado:** ✅ SHIPPED 2026-04-18 (pending production kill-switch verification — Task 6)
+- **Proposito:** Dos agentes IA internos expuestos como API HTTP para callers agent-to-agent (otros agentes de la plataforma o integraciones externas con API key). `crm-reader` es solo lectura; `crm-writer` es escritura con flujo obligatorio two-step propose→confirm.
+
+#### Endpoints (`src/app/api/v1/crm-bots/`)
+- `POST /api/v1/crm-bots/reader` — LLM con tools read-only: `contacts_search`, `contacts_get`, `orders_list`, `orders_get`, `pipelines_list`, `stages_list`, `tags_list`. Responde texto natural + toolCalls trazados en observability.
+- `POST /api/v1/crm-bots/writer/propose` — LLM con tools mutation: `createContact`, `updateContact`, `archiveContact`, `createOrder`, `updateOrder`, `archiveOrder`, `moveOrderToStage`, `createNote`, `archiveNote`, `createTask`, `updateTask`, `completeTask`. **NO muta.** Cada tool llama `proposeAction(...)` que inserta fila en `crm_bot_actions` con status='proposed', TTL 5min, y retorna `{action_id, preview, expires_at}`.
+- `POST /api/v1/crm-bots/writer/confirm` — Recibe `{actionId}`, ejecuta optimistic `UPDATE crm_bot_actions SET status='executing' WHERE id=? AND status='proposed'` (idempotencia por race), despacha el domain call real, marca 'executed' con output. **No invoca LLM.** Segundo confirm retorna `already_executed` con el mismo output.
+
+#### Autenticacion y Aislamiento
+- **API key per workspace** via `Authorization: Bearer mfx_...` + middleware inyecta `x-workspace-id` del header del API key (NUNCA del body — Pitfall 4 mitigated).
+- **Agentes aislados:** `src/lib/agents/crm-reader/` y `src/lib/agents/crm-writer/` son carpetas fisicamente separadas con tool registries separados. Blocker 1 enforcement: grep verificado que ningun tool file importa `createAdminClient` o `@supabase/supabase-js` — todos pasan por domain layer. El unico archivo del writer que usa `createAdminClient` es `two-step.ts` y exclusivamente contra `crm_bot_actions`.
+
+#### Rate Limiting + Kill-Switch
+- **Rate limit:** `50 calls/min per workspace` (shared bucket `'crm-bot'` entre reader + writer — invariante Warning #8 enforced con grep: exactamente 3 call sites en los 3 endpoints). Configurable via env var `CRM_BOT_RATE_LIMIT_PER_MIN`.
+- **Kill-switch:** `CRM_BOT_ENABLED=false` → 503 con code=KILL_SWITCH en siguientes requests. Env var leida per-request (Pitfall 2 mitigated — no caching).
+- **Caveat Blocker 6:** en Vercel, cambiar `CRM_BOT_ENABLED` NO refresca lambdas warm automaticamente. Operador DEBE trigger redeploy (o push empty commit) para que la env nueva propague. Documentado en runbook y en SUMMARY.md Phase 44.
+- **Email alerts** via Resend a `joseromerorincon041100@gmail.com`:
+  - Runaway alert cuando rate-limit 429 dispara (dedupe 15 min in-memory).
+  - Approaching-limit alert cuando uso >80%.
+  - FROM address parametrizable via `CRM_BOT_ALERT_FROM` env var (Blocker 5).
+
+#### Observability
+- **Cada call** (reader, propose, confirm) escribe fila en `agent_observability_turns` con `trigger_kind='api'`, `agent_id` correcto ('crm-reader' o 'crm-writer'), tokens + costos + duration. Consulta retroactiva via el mismo panel que otros agentes (Phase 42.1).
+- **Writer actions adicional:** cada propose + confirm se persiste en tabla nueva `crm_bot_actions` con lifecycle `proposed → executing → executed/expired/failed`. Inngest cron `crm-bot-expire-proposals` marca como `expired` las filas con `expires_at < now() - 30s` (grace period contra race con confirm in-flight, Pitfall 7).
+
+#### Error Shape (Blocker 4)
+- `ResourceNotFoundError.resource_type` cubre 9 entity types: base no-creables (`tag | pipeline | stage | template | user`) + mutables (`contact | order | note | task`). Cuando el writer recibe un `tagId` inexistente en `createContact`, retorna `resource_not_found` con `suggested_action: 'create manually in UI'` en vez de inventar el recurso.
+
+#### Deuda Tecnica Aceptada
+- **In-memory rate limiter:** Pitfall 1 accepted — en Vercel con multiples instancias warm cada una tiene su propio contador; el limite real puede ser 2-3x el configurado durante bursts. Migrar a Redis/Upstash en V2.
+- **Sin daily cap:** solo deteccion de runaway con rate limit per-minute + alerta email. No hay cap diario/mensual por workspace (deliberate — MVP, revisar cuando haya datos de uso real).
+- **Sin UI humana:** para revisar/aprobar actions propuestas — los actions expiran a los 5min si ningun caller los confirma. En V2 considerar dashboard para super-users que vea pending actions.
+- **Kill-switch requiere redeploy:** Blocker 6 acknowledged — no hay mecanismo para "hot-swap" del flag sin redeploy. Documentado en runbook operacional como ceiling de tiempo para emergency shutdown (~30-90s de redeploy en Vercel).
+
+#### Referencias
+- **Codigo:** `src/app/api/v1/crm-bots/`, `src/lib/agents/crm-reader/`, `src/lib/agents/crm-writer/`, `src/inngest/functions/crm-bot-expire-proposals.ts`
+- **Schema:** migrations `crm_bot_actions` table + `archived_at` columns en 4 tablas (contacts, orders, contact_notes, order_notes)
+- **Plan artifacts:** `.planning/phases/44-crm-bots/` (9 planes + SUMMARY + LEARNINGS + INVARIANTS)
+- **Scope enforcement:** `.claude/rules/agent-scope.md` documenta PUEDE/NO PUEDE para ambos agentes (MANDATORIO al crear agente nuevo)
+
+---
+
 ## API Endpoints
 
 | Endpoint | Metodos | Auth | Status | Funcion |
@@ -413,6 +457,9 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 | `/api/sandbox/process` | POST | Supabase | ✅ | Procesamiento sandbox UnifiedEngine |
 | `/api/v1/tools` | GET | None | ✅ | Tool discovery (MCP-compatible) |
 | `/api/v1/tools/[toolName]` | GET, POST | API key | ✅ | Tool execution + schema |
+| `/api/v1/crm-bots/reader` | POST | API key + kill-switch | ✅ | CRM Reader Bot (Phase 44) — LLM read-only con 7 tools |
+| `/api/v1/crm-bots/writer/propose` | POST | API key + kill-switch | ✅ | CRM Writer Bot propose (Phase 44) — LLM proposes mutations, no side effects |
+| `/api/v1/crm-bots/writer/confirm` | POST | API key + kill-switch | ✅ | CRM Writer Bot confirm (Phase 44) — ejecuta propuesta (idempotent, no LLM) |
 | `/api/webhooks/shopify` | GET, POST | HMAC-SHA256 | ✅ | Shopify order webhooks |
 | `/api/webhooks/twilio/status` | POST | Trusted IP | ✅ | SMS delivery status callbacks |
 | `/api/webhooks/whatsapp` | GET, POST | HMAC + token | ✅ | 360dialog message webhooks |
@@ -430,6 +477,7 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 | Agent Timer (cancel) | `agent/customer.message` | ✅ | Cancela timers pendientes |
 | `taskOverdueCron` | Cron `*/15 * * * *` | ✅ | Escanea tareas vencidas, emite triggers |
 | AutomationRunner x13 | `automation/*` events | ✅ | 13 runners (1 por trigger type) via factory |
+| `crmBotExpireProposals` | Cron periodic (Phase 44) | ✅ | Marca `crm_bot_actions` con `status='proposed'` y `expires_at < now()-30s` como `expired` (grace window contra race con confirm in-flight) |
 
 ---
 
@@ -569,3 +617,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 *Actualizado: 20 febrero 2026 — Hotfix bot CRM: mapeo name/shippingCity/shippingDepartment, department en contactUpdate, sync conversation.contact_id post-order*
 *Actualizado: 14 abril 2026 — Phase 37.5 Block A completo: morfx.app con landing publico bilingue ES/EN + privacy + terms, middleware compuesto next-intl + Supabase whitelist. Listo para resubmit de Meta Business Verification.*
 *Actualizado: 7 abril 2026 — Phase 42 (Session Lifecycle) completada: cron de cierre, partial unique index, retry 23505, defensive timer-guard, TZ-safe RPC*
+*Actualizado: 18 abril 2026 — Phase 44 (CRM Bots Read + Write) SHIPPED: dos agentes IA internos expuestos como API (reader + writer two-step propose/confirm), aislamiento fisico por carpeta, rate-limit compartido `'crm-bot'` 50/min/workspace, kill-switch `CRM_BOT_ENABLED` (requiere Vercel redeploy — Blocker 6), Inngest cron `crmBotExpireProposals`, email alerts Resend, observability full. Pending production QA en Task 6 checkpoint.*

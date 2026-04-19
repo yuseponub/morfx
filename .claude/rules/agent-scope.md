@@ -24,6 +24,42 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
 - **PUEDE:** Ejecutar herramientas definidas en su tool set
 - **NO PUEDE:** Salirse de las herramientas asignadas ni crear recursos de otros modulos
 
+### CRM Reader Bot (`crm-reader` — API `/api/v1/crm-bots/reader`)
+- **PUEDE (solo lectura):**
+  - `contacts_search` / `contacts_get` — buscar y leer contactos (tags, custom fields, archivados via flag)
+  - `orders_list` / `orders_get` — listar y leer pedidos con items
+  - `pipelines_list` / `stages_list` — listar pipelines y etapas del workspace
+  - `tags_list` — listar tags y entidades asociadas
+- **NO PUEDE:**
+  - Mutar NADA (crear/editar/archivar/eliminar contactos, pedidos, notas, tareas, tags, pipelines, etapas, templates, usuarios)
+  - Enviar mensajes de WhatsApp
+  - Inventar recursos inexistentes (retorna `not_found_in_workspace`)
+  - Acceder a otros workspaces (workspace_id viene del header `x-workspace-id` set por middleware — nunca del body)
+- **Validacion:**
+  - Tool handlers importan EXCLUSIVAMENTE desde `@/lib/domain/*` — cero `createAdminClient` en `src/lib/agents/crm-reader/tools/**` (BLOCKER 1 Phase 44)
+  - Todas las queries pasan por domain layer que filtra por `workspace_id` (Regla 3)
+  - Agent ID registrado: `'crm-reader'` en `agentRegistry`; observability agentId mismo valor; rate-limit bucket `'crm-bot'` compartido con writer
+
+### CRM Writer Bot (`crm-writer` — API `/api/v1/crm-bots/writer/propose` + `/confirm`)
+- **PUEDE (via two-step propose→confirm obligatorio):**
+  - Contactos: crear, actualizar, archivar (soft-delete via `archived_at`)
+  - Pedidos: crear, actualizar, archivar, cerrar (NO DELETE real)
+  - Notas: crear, archivar (contact_notes + order_notes)
+  - Tareas: crear, actualizar, completar (via updateTask con `completed_at`)
+- **NO PUEDE:**
+  - Crear/editar recursos base: tags, pipelines, stages, templates de WhatsApp, usuarios — retorna `resource_not_found` + sugiere al usuario crear manualmente
+  - Ejecutar DELETE real contra ninguna tabla — solo soft-delete via campos `archived_at` / `completed_at`
+  - Enviar mensajes de WhatsApp directamente
+  - Mutar sin pasar por `proposeAction` — tools NUNCA llaman domain write funcs en `execute()`; solo llaman `proposeAction` que persiste en `crm_bot_actions` con status='proposed'
+  - Mutar tras TTL de 5min (Inngest cron `crm-bot-expire-proposals` marca como 'expired' con 30s grace)
+  - Acceder a otros workspaces (workspace_id SOLO del header `x-workspace-id`)
+- **Validacion:**
+  - Tool handlers importan EXCLUSIVAMENTE desde `@/lib/domain/*` para existence pre-checks (getContactById, getOrderById, getTagById, getPipelineById, getStageById) — cero `createAdminClient` en `src/lib/agents/crm-writer/tools/**` (BLOCKER 1 Phase 44)
+  - `src/lib/agents/crm-writer/two-step.ts` es el UNICO archivo del agent que usa `createAdminClient`, y solo contra tabla `crm_bot_actions` (propose insert + confirm optimistic UPDATE)
+  - Idempotencia por `optimistic UPDATE WHERE status='proposed' AND id=?` — segundo confirm retorna `already_executed` sin re-mutar (Pitfall 3 Phase 44)
+  - `ResourceNotFoundError.resource_type` cubre union completa: `tag | pipeline | stage | template | user | contact | order | note | task` (BLOCKER 4 Phase 44)
+  - Agent ID registrado: `'crm-writer'`; rate-limit bucket `'crm-bot'` compartido con reader
+
 ## OBLIGATORIO al Crear un Agente Nuevo
 
 Cuando se programe CUALQUIER agente nuevo en el sistema, se DEBE:

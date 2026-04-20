@@ -20,14 +20,16 @@
  *   401 { error, code: 'MISSING_CONTEXT' }                  — workspace header missing
  *   429 { error, code: 'RATE_LIMITED', retry_after_ms }     — runaway limiter hit
  *   500 { error, code: 'INTERNAL' }                         — processReaderMessage threw
- *   503 { error, code: 'KILL_SWITCH' }                      — CRM_BOT_ENABLED=false
+ *   503 { error, code: 'KILL_SWITCH' }                      — platform_config.crm_bot_enabled=false
  *
- * CRITICAL RULES (from 44-RESEARCH.md + 44-PATTERNS.md):
- *   1. process.env.CRM_BOT_ENABLED read INSIDE handler (Pitfall 2).
+ * CRITICAL RULES (from 44-RESEARCH.md + 44-PATTERNS.md, updated Phase 44.1):
+ *   1. platform_config.crm_bot_enabled read INSIDE handler (Pitfall 2, 44.1).
+ *      Cache TTL 30s — propagation window after SQL flip (Pitfall 4 of 44.1).
  *   2. workspaceId read ONLY from x-workspace-id header set by middleware
  *      post validateApiKey (Pitfall 4). Body workspaceId is ignored.
- *   3. rateLimiter.check(workspaceId, 'crm-bot') — shared bucket with writer
- *      (44-01 decision — runaway detection works best with shared quota).
+ *   3. rateLimiter.check(workspaceId, 'crm-bot', { limit }) — shared bucket with
+ *      writer (44-01 decision — runaway detection works best with shared quota).
+ *      Limit resolved per-request via getPlatformConfig (Phase 44.1).
  *   4. Alerts are fire-and-forget via `void` — never awaited, never throw
  *      (fail-silent inside alerts module per 44-02).
  *   5. invoker falls back to x-api-key-prefix if x-invoker absent
@@ -55,12 +57,17 @@ import {
   sendRunawayAlert,
   maybeSendApproachingLimitAlert,
 } from '@/lib/agents/_shared/alerts'
+import { getPlatformConfig } from '@/lib/domain/platform-config'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // ==================== 1. KILL-SWITCH (per-request env read — Pitfall 2) ====================
-  // NEVER cache CRM_BOT_ENABLED at module scope. Vercel warm lambdas would
-  // keep stale values for ~15 min after a dashboard toggle.
-  if (process.env.CRM_BOT_ENABLED === 'false') {
+  // ==================== 1. KILL-SWITCH (Pitfall 2 + Phase 44.1) ====================
+  // Lee platform_config.crm_bot_enabled via getPlatformConfig (cache TTL 30s).
+  // Llamada DENTRO del handler — cache in-memory per-lambda, NO memoizado
+  // cross-request (Pitfall 2). Fallback `true` = fail-open si DB falla
+  // (Pitfall 6 de 44.1-RESEARCH — bots siguen activos durante blip de DB).
+  // Comparacion estricta `=== false`: valor corrupto/mismatch -> fallback -> bots activos.
+  const enabled = await getPlatformConfig('crm_bot_enabled', true)
+  if (enabled === false) {
     return NextResponse.json(
       { error: 'CRM bots globally disabled', code: 'KILL_SWITCH', retryable: false },
       { status: 503 },
@@ -88,9 +95,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     )
   }
 
-  // ==================== 3. RATE LIMIT (shared 'crm-bot' bucket — 44-01) ====================
-  const limit = Number(process.env.CRM_BOT_RATE_LIMIT_PER_MIN ?? 50)
-  const rl = rateLimiter.check(workspaceId, 'crm-bot')
+  // ==================== 3. RATE LIMIT (shared 'crm-bot' bucket — 44-01 + 44.1) ====================
+  // Phase 44.1: limit resuelto per-request via getPlatformConfig (cache TTL 30s).
+  // Se pasa explicito a rateLimiter.check({ limit }) — el rate-limiter permanece sync.
+  const limit = await getPlatformConfig('crm_bot_rate_limit_per_min', 50)
+  const rl = rateLimiter.check(workspaceId, 'crm-bot', { limit })
 
   if (!rl.allowed) {
     // Fire-and-forget — sendRunawayAlert is defensive (try/catch + lazy client);

@@ -60,10 +60,10 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
 // Two-Track Decision Constants (tt-01)
 // ============================================================================
 
-/** Intents that the response track always answers (informational questions). 14 total. */
+/** Intents that the response track always answers (informational questions). 13 total. */
 export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
   'saludo', 'precio', 'promociones', 'contenido', 'formula', 'como_se_toma',
-  'pago', 'envio', 'registro_sanitario', 'ubicacion', 'contraindicaciones', 'dependencia', 'efectividad',
+  'pago', 'envio', 'ubicacion', 'contraindicaciones', 'dependencia', 'efectividad',
   'tiempo_entrega',
 ])
 

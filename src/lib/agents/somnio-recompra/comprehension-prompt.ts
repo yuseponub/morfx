@@ -92,7 +92,7 @@ CONTEXTO DE INTENTS:
 - envio: informacion de envio ("hacen envios a Medellin?", "por donde envian?")
 - tiempo_entrega: pregunta sobre tiempos de entrega ("cuanto se demora?", "cuando llega?", "en cuantos dias llega?", "cuanto tarda el envio?")
 - REGLA envio vs tiempo_entrega: Si el cliente pregunta sobre tiempos/dias/demora de entrega, usar tiempo_entrega. Si pregunta sobre logistica general (hacen envios?, envian a X?, por donde envian?), usar envio.
-- registro_sanitario: regulacion ("tiene INVIMA?", "tiene FDA?", "es legal?", "registro sanitario?")
+- registro_sanitario: regulacion u origen del producto ("tiene INVIMA?", "tiene FDA?", "es legal?", "registro sanitario?", "es colombiano?", "es importado?", "es nacional?", "de donde es?", "de donde viene?", "quien lo fabrica?", "que laboratorio?", "donde lo hacen?")
 - ubicacion: donde estan ("desde donde envian?", "tienen tienda?")
 - contraindicaciones: efectos secundarios o contraindicaciones ("tiene contraindicaciones?", "tiene efectos secundarios?", "es seguro?")
 - dependencia: si causa dependencia o se puede dejar de tomar ("causa dependencia?", "se puede dejar de tomar?", "es adictivo?", "genera adiccion?")

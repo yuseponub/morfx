@@ -8,9 +8,9 @@
  * (T-44-08-01 mitigation enforced inside writerConfirm).
  *
  * Gate stack mirrors propose route exactly:
- *   1. Kill-switch (per-request env read — Pitfall 2)
+ *   1. Kill-switch via platform_config.crm_bot_enabled (Pitfall 2 + Phase 44.1; cache TTL 30s)
  *   2. x-workspace-id header required (Pitfall 4 — body.workspaceId IGNORED)
- *   3. Rate limit on shared 'crm-bot' namespace
+ *   3. Rate limit on shared 'crm-bot' namespace (limit from platform_config — Phase 44.1)
  *   4. Observability-wrapped execution (conversationId=actionId for correlation)
  *
  * Body validation: { actionId: uuid } — UUID_REGEX defense-in-depth.
@@ -30,12 +30,15 @@ import {
   sendRunawayAlert,
   maybeSendApproachingLimitAlert,
 } from '@/lib/agents/_shared/alerts'
+import { getPlatformConfig } from '@/lib/domain/platform-config'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Gate 1: Kill-switch.
-  if (process.env.CRM_BOT_ENABLED === 'false') {
+  // Gate 1: Kill-switch (Phase 44.1: via platform_config.crm_bot_enabled, cache TTL 30s).
+  // Fallback true = fail-open si DB falla (Pitfall 6 de 44.1-RESEARCH).
+  const enabled = await getPlatformConfig('crm_bot_enabled', true)
+  if (enabled === false) {
     return NextResponse.json(
       { error: 'CRM bots globally disabled', code: 'KILL_SWITCH', retryable: false },
       { status: 503 },
@@ -55,8 +58,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // Gate 3: Rate limit — shared 'crm-bot' namespace with reader + propose.
-  const limit = Number(process.env.CRM_BOT_RATE_LIMIT_PER_MIN ?? 50)
-  const rl = rateLimiter.check(workspaceId, 'crm-bot')
+  // Phase 44.1: limit resuelto per-request via platform_config.crm_bot_rate_limit_per_min.
+  const limit = await getPlatformConfig('crm_bot_rate_limit_per_min', 50)
+  const rl = rateLimiter.check(workspaceId, 'crm-bot', { limit })
   if (!rl.allowed) {
     void sendRunawayAlert({ workspaceId, agentId: CRM_WRITER_AGENT_ID, limit })
     return NextResponse.json(

@@ -75,6 +75,24 @@
       "sending": "Enviando",
       "sent": "Enviado",
       "failed": "Fallido"
+    },
+    "bot": {
+      "on": "Bot activo",
+      "off": "Bot apagado",
+      "muted": "Silenciado",
+      "muted_until": "Silenciado · {{time}}",
+      "clear_mute": "Quitar silencio",
+      "mute": {
+        "title": "Silenciar bot",
+        "30m": "30 minutos",
+        "1h": "1 hora",
+        "2h": "2 horas",
+        "eod": "Hasta el final del día"
+      },
+      "a11y": {
+        "toggleHint": "Toca para alternar bot activo y apagado. Mantén presionado para silenciar por un tiempo.",
+        "mutedHint": "Toca para cambiar la duración del silencio. Usa la X para reactivar el bot."
+      }
     }
   },
   "crmPanel": {

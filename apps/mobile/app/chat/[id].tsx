@@ -35,7 +35,6 @@
  *     Threshold stays untouched.
  */
 
-import { ChevronLeft, Info } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -44,15 +43,17 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ContactPanelDrawer } from '@/components/crm-panel/ContactPanelDrawer';
+import { ChatHeader } from '@/components/chat/ChatHeader';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { MessageList } from '@/components/chat/MessageList';
+import { MuteDurationSheet } from '@/components/chat/MuteDurationSheet';
+import { useBotToggle } from '@/hooks/useBotToggle';
 import { useConversationMessages } from '@/hooks/useConversationMessages';
 import { getCachedConversation } from '@/lib/db/conversations-cache';
 import { useRealtimeMessages } from '@/lib/realtime/use-realtime-messages';
@@ -108,50 +109,54 @@ export default function ChatScreen() {
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
+  // -------------------------------------------------------------------------
+  // Plan 11 — three-state bot toggle.
+  // -------------------------------------------------------------------------
+
+  const {
+    mode: botMode,
+    muteUntilMs: botMuteUntilMs,
+    pending: botPending,
+    setBotMode,
+  } = useBotToggle(conversationId, workspaceId);
+
+  const [muteSheetOpen, setMuteSheetOpen] = useState(false);
+  const openMuteSheet = useCallback(() => setMuteSheetOpen(true), []);
+  const closeMuteSheet = useCallback(() => setMuteSheetOpen(false), []);
+
+  const handleToggleOnOff = useCallback(() => {
+    const next = botMode === 'on' ? 'off' : 'on';
+    void setBotMode({ mode: next, muteUntilMs: null });
+  }, [botMode, setBotMode]);
+
+  const handlePickMuteDuration = useCallback(
+    (muteUntilMs: number) => {
+      closeMuteSheet();
+      void setBotMode({ mode: 'muted', muteUntilMs });
+    },
+    [closeMuteSheet, setBotMode]
+  );
+
+  const handleClearMute = useCallback(() => {
+    void setBotMode({ mode: 'on', muteUntilMs: null });
+  }, [setBotMode]);
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: colors.bg }]}
       edges={['top', 'left', 'right', 'bottom']}
     >
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          { borderBottomColor: colors.border, backgroundColor: colors.bg },
-        ]}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={({ pressed }) => [
-            styles.backButton,
-            { opacity: pressed ? 0.5 : 1 },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('chat.header.back')}
-        >
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text
-          style={[styles.title, { color: colors.text }]}
-          numberOfLines={1}
-          accessibilityRole="header"
-        >
-          {headerTitle}
-        </Text>
-        <Pressable
-          onPress={openDrawer}
-          hitSlop={12}
-          style={({ pressed }) => [
-            styles.infoButton,
-            { opacity: pressed ? 0.5 : 1 },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('crmPanel.open')}
-        >
-          <Info size={22} color={colors.text} />
-        </Pressable>
-      </View>
+      <ChatHeader
+        title={headerTitle}
+        onBack={() => router.back()}
+        onOpenDrawer={openDrawer}
+        botMode={botMode}
+        botMuteUntilMs={botMuteUntilMs}
+        botPending={botPending}
+        onToggleOnOff={handleToggleOnOff}
+        onOpenMuteSheet={openMuteSheet}
+        onClearMute={handleClearMute}
+      />
 
       {/* Body */}
       <KeyboardAvoidingView
@@ -208,6 +213,13 @@ export default function ChatScreen() {
           </View>
         </Modal>
       ) : null}
+
+      {/* Plan 11 — MuteDurationSheet (bottom sheet picker). */}
+      <MuteDurationSheet
+        visible={muteSheetOpen}
+        onClose={closeMuteSheet}
+        onPick={handlePickMuteDuration}
+      />
     </SafeAreaView>
   );
 }
@@ -215,25 +227,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 8,
-  },
-  backButton: {
-    padding: 4,
-  },
-  title: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  infoButton: {
-    padding: 4,
-  },
   modalRoot: {
     flex: 1,
     flexDirection: 'row',

@@ -168,6 +168,27 @@ export async function updateCachedConversationBotMode(
   );
 }
 
+/**
+ * Optimistic local update of `unread_count` for one conversation.
+ *
+ * Called right after the mark-read POST succeeds so the inbox card reflects
+ * the cleared badge without waiting for Realtime UPDATE (best-effort) or the
+ * next foreground refetch.
+ */
+export async function updateCachedConversationUnread(
+  id: string,
+  workspaceId: string,
+  unreadCount: number
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE cached_conversations
+       SET unread_count = ?, updated_at = ?
+     WHERE id = ? AND workspace_id = ?`,
+    [unreadCount, Date.now(), id, workspaceId]
+  );
+}
+
 /* ------------------------------ kv singleton ------------------------------ */
 
 export async function setKv(key: string, value: string): Promise<void> {

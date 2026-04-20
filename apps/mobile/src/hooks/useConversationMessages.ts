@@ -30,6 +30,7 @@ import {
   type MobileMessage,
 } from '@/lib/api-schemas/messages';
 import { mobileApi } from '@/lib/api-client';
+import { updateCachedConversationUnread } from '@/lib/db/conversations-cache';
 import {
   getLatestCachedTimestamp,
   listCachedMessages,
@@ -244,6 +245,23 @@ export function useConversationMessages(
       .post(
         `/api/mobile/conversations/${encodeURIComponent(conversationId)}/mark-read`
       )
+      .then(async () => {
+        // Optimistic local clear of the unread badge so the inbox card
+        // reflects reality when the user navigates back, without waiting
+        // for Realtime UPDATE (best-effort) or the next foreground refetch.
+        try {
+          await updateCachedConversationUnread(
+            conversationId,
+            workspaceId,
+            0
+          );
+        } catch (err) {
+          console.warn(
+            '[useConversationMessages] local unread clear failed',
+            err
+          );
+        }
+      })
       .catch((err) => {
         console.warn('[useConversationMessages] mark-read failed', err);
       });

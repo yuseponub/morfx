@@ -15,6 +15,8 @@
 
 import { LogOut, MessageCircle } from 'lucide-react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +38,17 @@ export default function InboxScreen() {
   // Realtime + AppState foreground refetch. Both converge on the same
   // refresh() so there is no divergence between triggers.
   useRealtimeInbox(refresh);
+
+  // Refresh whenever the inbox regains focus (e.g. user returns from a chat).
+  // The chat screen's mark-read POST clears unread_count server-side AND
+  // updates the local cached_conversations row synchronously, but a focus
+  // refetch also catches any other server-side changes the user may have
+  // made from the web while the chat was open.
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
 
   async function handleLogout() {
     await signOut();

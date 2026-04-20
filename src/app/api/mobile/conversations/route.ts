@@ -65,15 +65,33 @@ interface ConversationRow {
 
 // ---------------------------------------------------------------------------
 // Cursor helpers.
+//
+// Sort order matches the web inbox: `last_customer_message_at DESC NULLS
+// LAST` as the primary key (so outbound-only traffic never bumps a thread
+// to the top), with `last_message_at DESC` as the tiebreaker and `id DESC`
+// as the final tiebreaker for ties on both timestamps.
+//
+// Cursor format (base64-encoded): `${last_customer_message_at_iso}|${last_
+// message_at_iso}|${id}`. `last_customer_message_at` may be null for threads
+// that have never received an inbound message — we encode the literal string
+// 'null' in that case and treat it as the smallest value for comparison
+// (matches NULLS LAST semantics in PostgREST).
 // ---------------------------------------------------------------------------
 
 interface Cursor {
-  lastMessageAt: string
+  /** ISO string or literal 'null' when the primary key is NULL. */
+  lastCustomerMessageAt: string | null
+  /** ISO string or literal 'null' — should always be non-null in practice
+   *  but kept nullable for safety. */
+  lastMessageAt: string | null
   id: string
 }
 
 function encodeCursor(c: Cursor): string {
-  return Buffer.from(`${c.lastMessageAt}|${c.id}`, 'utf8').toString('base64')
+  return Buffer.from(
+    `${c.lastCustomerMessageAt ?? 'null'}|${c.lastMessageAt ?? 'null'}|${c.id}`,
+    'utf8'
+  ).toString('base64')
 }
 
 function decodeCursor(raw: string): Cursor {
@@ -83,20 +101,28 @@ function decodeCursor(raw: string): Cursor {
   } catch {
     throw new MobileValidationError('invalid_cursor', 'Malformed cursor')
   }
-  const sep = decoded.indexOf('|')
-  if (sep <= 0) {
+  const parts = decoded.split('|')
+  if (parts.length !== 3) {
     throw new MobileValidationError('invalid_cursor', 'Malformed cursor')
   }
-  const lastMessageAt = decoded.slice(0, sep)
-  const id = decoded.slice(sep + 1)
-  if (!lastMessageAt || !id) {
+  const [lastCustomerRaw, lastMessageRaw, id] = parts
+  if (!id) {
     throw new MobileValidationError('invalid_cursor', 'Malformed cursor')
   }
-  // Basic ISO-ish validation — the DB will reject anything weirder.
-  if (Number.isNaN(Date.parse(lastMessageAt))) {
+  const lastCustomerMessageAt =
+    lastCustomerRaw === 'null' || !lastCustomerRaw ? null : lastCustomerRaw
+  const lastMessageAt =
+    lastMessageRaw === 'null' || !lastMessageRaw ? null : lastMessageRaw
+  if (
+    lastCustomerMessageAt !== null &&
+    Number.isNaN(Date.parse(lastCustomerMessageAt))
+  ) {
     throw new MobileValidationError('invalid_cursor', 'Malformed cursor')
   }
-  return { lastMessageAt, id }
+  if (lastMessageAt !== null && Number.isNaN(Date.parse(lastMessageAt))) {
+    throw new MobileValidationError('invalid_cursor', 'Malformed cursor')
+  }
+  return { lastCustomerMessageAt, lastMessageAt, id }
 }
 
 // ---------------------------------------------------------------------------
@@ -152,17 +178,53 @@ export async function GET(req: Request): Promise<NextResponse> {
       )
       .eq('workspace_id', workspaceId)
       .neq('status', 'archived')
+      // Match the web inbox ordering: `last_customer_message_at DESC NULLS
+      // LAST` is primary (so outbound bot replies do NOT bump the thread to
+      // the top), `last_message_at DESC NULLS LAST` is the tiebreaker, `id
+      // DESC` is the final tiebreaker for two rows with identical timestamps.
+      .order('last_customer_message_at', {
+        ascending: false,
+        nullsFirst: false,
+      })
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .order('id', { ascending: false })
       .limit(query.limit + 1) // fetch N+1 so we know whether another page exists
 
     if (cursor) {
-      // Strict inequality on last_message_at; for ties, fall back to id <.
-      // PostgREST does not support tuple comparisons, so we emulate with an
-      // `.or` filter: (last_message_at < X) OR (last_message_at = X AND id < Y).
-      q = q.or(
-        `last_message_at.lt.${cursor.lastMessageAt},and(last_message_at.eq.${cursor.lastMessageAt},id.lt.${cursor.id})`
-      )
+      // PostgREST has no tuple comparison; emulate the strict lexicographic
+      // inequality with nested `.or()`:
+      //   (last_customer_message_at < X)
+      //   OR (last_customer_message_at = X AND last_message_at < Y)
+      //   OR (last_customer_message_at = X AND last_message_at = Y AND id < Z)
+      //
+      // NULL handling (NULLS LAST): a row with `last_customer_message_at IS
+      // NULL` sorts AFTER any non-null row. When the cursor's primary key is
+      // non-null, we include rows with `last_customer_message_at IS NULL`
+      // (they come last in the sort, so they're strictly "after" the cursor).
+      // When the cursor's primary key is null, we only descend into the
+      // secondary tiebreakers among rows that are also null.
+      const c = cursor
+      if (c.lastCustomerMessageAt !== null) {
+        const secondary =
+          c.lastMessageAt !== null
+            ? `and(last_customer_message_at.eq.${c.lastCustomerMessageAt},last_message_at.lt.${c.lastMessageAt}),and(last_customer_message_at.eq.${c.lastCustomerMessageAt},last_message_at.eq.${c.lastMessageAt},id.lt.${c.id})`
+            : `and(last_customer_message_at.eq.${c.lastCustomerMessageAt},last_message_at.is.null,id.lt.${c.id})`
+        q = q.or(
+          `last_customer_message_at.lt.${c.lastCustomerMessageAt},last_customer_message_at.is.null,${secondary}`
+        )
+      } else {
+        // Cursor's primary is NULL → we're already in the NULLS LAST bucket.
+        // Only descend into the id tiebreaker among the NULL-primary rows.
+        if (c.lastMessageAt !== null) {
+          q = q.or(
+            `and(last_customer_message_at.is.null,last_message_at.lt.${c.lastMessageAt}),and(last_customer_message_at.is.null,last_message_at.eq.${c.lastMessageAt},id.lt.${c.id})`
+          )
+        } else {
+          q = q.or(
+            `and(last_customer_message_at.is.null,last_message_at.is.null,id.lt.${c.id})`
+          )
+        }
+      }
     }
 
     const { data, error } = await q
@@ -228,8 +290,9 @@ export async function GET(req: Request): Promise<NextResponse> {
     let nextCursor: string | null = null
     if (hasMore) {
       const last = slice[slice.length - 1]
-      if (last?.last_message_at && last?.id) {
+      if (last?.id) {
         nextCursor = encodeCursor({
+          lastCustomerMessageAt: last.last_customer_message_at,
           lastMessageAt: last.last_message_at,
           id: last.id,
         })

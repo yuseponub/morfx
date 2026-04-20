@@ -122,10 +122,21 @@ export async function listCachedConversations(
   workspaceId: string
 ): Promise<CachedConversation[]> {
   const db = await getDb();
+  // Match the web + mobile API inbox order: `last_customer_message_at DESC
+  // NULLS LAST` primary (so outbound-only traffic does NOT bump a thread to
+  // the top), `last_message_at DESC NULLS LAST` as the tiebreaker, `id DESC`
+  // as the final tiebreaker. The `last_customer_message_at` column was
+  // already added to the cache schema in Plan 43-05 (migration 1) so no
+  // schema bump is required here.
   const rows = await db.getAllAsync<CachedConversationRow>(
     `SELECT * FROM cached_conversations
      WHERE workspace_id = ?
-     ORDER BY last_message_at DESC`,
+     ORDER BY
+       last_customer_message_at IS NULL,
+       last_customer_message_at DESC,
+       last_message_at IS NULL,
+       last_message_at DESC,
+       id DESC`,
     [workspaceId]
   );
   return rows.map(rowToConversation);

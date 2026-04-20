@@ -522,6 +522,7 @@ Conversation Tags to Contact decisions:
 | 041 | Bajar precio 1x Somnio de $89,900 a $79,900 (v3 code + v1 deprecated + DB manual) | 2026-04-10 | e0498db | [041-somnio-1x-precio-79900](./quick/041-somnio-1x-precio-79900/) |
 | 042 | Correo electronico al crear pedido desde WhatsApp (orders.email + prefill contacto + propagacion contacts.email) | 2026-04-15 | c38ddbc | [042-correo-crear-pedido-whatsapp](./quick/042-correo-crear-pedido-whatsapp/) |
 | 043 | Restringir boton Recompra al pipeline "Ventas Somnio Standard" + selector multiple de productos en dialogo | 2026-04-15 | 2029115 | [043-recompra-solo-ventas-somnio-standard](./quick/043-recompra-solo-ventas-somnio-standard/) |
+| 044 | Crear nueva etiqueta inline desde popover WhatsApp (applies_to='whatsapp', auto-aplicar a conversacion) | 2026-04-20 | 3bf7814 | [044-whatsapp-crear-etiqueta-inline](./quick/044-whatsapp-crear-etiqueta-inline/) |
 
 ### Roadmap Evolution
 

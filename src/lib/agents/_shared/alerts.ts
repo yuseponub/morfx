@@ -11,14 +11,14 @@
  * via console.error and return — never crash the route handler (the
  * caller's rate-limit response must still be delivered).
  *
- * Revision 2026-04-18 (Blocker 5): FROM is now env-parameterized via
- * CRM_BOT_ALERT_FROM. Default is Resend sandbox 'onboarding@resend.dev'
- * which works without DKIM verification (any Resend account can send from it).
- * This avoids silent send failures when the user hasn't yet verified morfx.app.
+ * Revision 2026-04-19 (Phase 44.1): FROM is now read from platform_config.crm_bot_alert_from
+ * (JSONB; null -> sandbox fallback). Cache TTL 30s — post-flip propagation window.
+ * Default fallback: Resend sandbox 'onboarding@resend.dev' (works without DKIM verification).
  */
 
 import { Resend } from 'resend'
 import { createModuleLogger } from '@/lib/audit/logger'
+import { getPlatformConfig } from '@/lib/domain/platform-config'
 
 const logger = createModuleLogger('crm-bot-alerts')
 
@@ -35,14 +35,15 @@ function getResendClient(): Resend | null {
 
 const RECIPIENT = 'joseromerorincon041100@gmail.com'
 
-// FROM address is env-parameterized. Default is Resend sandbox
-// (onboarding@resend.dev) which always works without domain verification —
-// any Resend account can send from this address. In production, user sets
-// CRM_BOT_ALERT_FROM to a DKIM-verified domain (e.g. alerts@morfx.app).
-// Read per-call (not at module load) so env flips take effect without redeploy
-// in dev; in Vercel prod this is already a fresh lambda invocation context.
-function getFromAddress(): string {
-  return process.env.CRM_BOT_ALERT_FROM ?? 'onboarding@resend.dev'
+// FROM address is read from platform_config.crm_bot_alert_from (Phase 44.1).
+// Default fallback is Resend sandbox (onboarding@resend.dev) which always
+// works without domain verification — any Resend account can send from it.
+// In production, operator sets crm_bot_alert_from to a DKIM-verified domain
+// (e.g. "alerts@morfx.app") via `UPDATE platform_config SET value='"alerts@morfx.app"'::jsonb ...`.
+// Read per-call via getPlatformConfig (cache TTL 30s — no redeploy needed for flips).
+async function getFromAddress(): Promise<string> {
+  const configured = await getPlatformConfig<string | null>('crm_bot_alert_from', null)
+  return configured ?? 'onboarding@resend.dev'
 }
 
 const DEDUPE_MS = 15 * 60 * 1000 // 15 minutes — Pitfall 8 mitigation
@@ -96,7 +97,7 @@ export async function sendRunawayAlert(ctx: RunawayAlertCtx): Promise<void> {
 
   try {
     await client.emails.send({
-      from: getFromAddress(),
+      from: await getFromAddress(),
       to: RECIPIENT,
       subject: `[CRM Bot] Runaway loop suspected — ${ctx.agentId} — workspace ${ctx.workspaceId.slice(0, 8)}`,
       text: [
@@ -106,7 +107,7 @@ export async function sendRunawayAlert(ctx: RunawayAlertCtx): Promise<void> {
         '',
         'Dedupe: next alert for this workspace+agent in 15 min.',
         '',
-        'Kill-switch: set CRM_BOT_ENABLED=false in Vercel to stop all CRM bot traffic.',
+        "Kill-switch: UPDATE platform_config SET value='false'::jsonb WHERE key='crm_bot_enabled'. Effect visible within 30s (cache TTL).",
       ].join('\n'),
     })
     logger.info({ ctx }, 'runaway alert sent')
@@ -145,7 +146,7 @@ export async function maybeSendApproachingLimitAlert(
 
   try {
     await client.emails.send({
-      from: getFromAddress(),
+      from: await getFromAddress(),
       to: RECIPIENT,
       subject: `[CRM Bot] Approaching rate limit — ${ctx.agentId} — workspace ${ctx.workspaceId.slice(0, 8)}`,
       text: [

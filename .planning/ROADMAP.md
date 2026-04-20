@@ -806,7 +806,9 @@ Plans:
 
 ---
 
-### Phase 44.1: CRM bots config via platform_config table (INSERTED)
+### Phase 44.1: CRM bots config via platform_config table (INSERTED) ✓ COMPLETE (2026-04-20)
+
+**Status:** COMPLETE — 1/1 plan executed, kill-switch SQL verified end-to-end in production, 12 commits, SUMMARY + LEARNINGS written. Task 9 Parte B (delete Vercel env vars) MOOT — user confirmó que nunca las seteó.
 
 **Goal:** Mover las 3 vars no-secret de CRM bots (`CRM_BOT_ENABLED`, `CRM_BOT_RATE_LIMIT_PER_MIN`, `CRM_BOT_ALERT_FROM`) de Vercel env vars a una tabla `platform_config` en Supabase, leída con cache in-memory de 30s. `RESEND_API_KEY` se mantiene como Vercel env (es secret). Resultado: kill-switch flipable via SQL sin redeploy; config centralizada en DB; preparación para per-workspace overrides a futuro.
 
@@ -818,10 +820,14 @@ Plans:
 
 **Requirements:** Eliminar dependencia operativa de Vercel dashboard para operar kill-switch y config de CRM bots. Prerequisito para admin UI de plataforma (futuro).
 
-**Plans:** 1 plan
+**Plans:** 1/1 COMPLETE
 
 Plans:
-- [ ] 44.1-01-PLAN.md — Migracion platform_config + domain helper getPlatformConfig + refactor 3 rutas + alerts.ts + docs (2 checkpoints humanos: apply migration + delete Vercel env vars)
+- [x] 44.1-01-PLAN.md — Migracion platform_config + domain helper getPlatformConfig + refactor 3 rutas + alerts.ts + docs (2 checkpoints humanos: apply migration done, delete Vercel env vars MOOT)
+
+**Ciclo de debug destacado (LEARNING 1 — CRITICAL):** Task 9 Parte A QA destapó que tablas creadas via Supabase Studio SQL Editor NO auto-grantean privilegios a `service_role` (a diferencia de `supabase db push`). `getPlatformConfig` hit `42501 permission denied` silenciosamente; fail-open fallback retornaba `true`; kill-switch nunca disparaba. Fix: GRANTs explicitos aplicados en prod y persistidos en migration file (commit `ac4b6b8`). Propaga a pattern de todas las migrations futuras — ver LEARNINGS.md.
+
+**Satisface Phase 44 Plan 09 Task 6 QA:** El kill-switch QA checkpoint de Phase 44 queda EFECTIVAMENTE SATISFECHO por Task 9 Parte A de esta fase (verificación end-to-end en producción cubre exactamente lo que Task 6 requería).
 
 ---
 
@@ -911,14 +917,14 @@ Plans:
 | v2.0 Agentes | 12-20 (+5 inserted) | 83 | Complete | 2026-02-16 |
 | v3.0 Logistica | 21-28 | 27 (Phases 21-28) | Complete | 2026-02-24 |
 | v4.0 Comportamiento Humano | 29-36 | 30+ (Phases 29-36) | Phase 36 in progress | — |
-| v5.0 Meta Direct | 37-41 | TBD | Planned | — |
+| v5.0 Meta Direct | 37-41 (+37.5, 42, 42.1, 43, 44, 44.1 inserted) | TBD | Planned (Phases 42, 44, 44.1 complete; 37.5, 42.1, 43 in progress) | — |
 | Standalone | 16 phases | 57 | 12 complete, 4 in progress | |
-| **Total** | **61 phases** | **231+ plans** | | |
+| **Total** | **62 phases** | **232+ plans** | | |
 
 ### Current Phase
 
-Phase 36: Shopify Product Conditional — 2 plans (1 complete)
-Next: Complete Phase 36, then `/gsd:plan-phase 37`
+Phase 44.1: CRM bots config via platform_config — ✓ COMPLETE (1/1 plan, kill-switch end-to-end verified in production 2026-04-20)
+Next active carryover: Phase 37.5-05 Meta Business Verification (awaiting user manual action — Meta Business Manager + Porkbun DNS).
 
 ---
 

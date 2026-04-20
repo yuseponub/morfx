@@ -272,16 +272,44 @@ export async function sendMessageIdempotent(
   let messageId: string | null = null
 
   if (isTemplate) {
-    // Templates: build components from the variables map ({"1":"Foo","2":"Bar"}).
-    const components = params.templateVariables
-      ? buildTemplateBodyComponents(params.templateVariables)
-      : undefined
+    // Look up the template by name in the workspace so we use its real
+    // language code and build the full HEADER+BODY components (mirrors the
+    // web path in src/app/actions/messages.ts::sendTemplateMessage). The
+    // mobile wire only carries templateName + variables — the server is
+    // the source of truth for the template definition.
+    const templateName = params.templateName as string
+    const { data: tplRow, error: tplErr } = await admin
+      .from('whatsapp_templates')
+      .select('name, language, status, components')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('name', templateName)
+      .maybeSingle()
+
+    if (tplErr || !tplRow) {
+      return {
+        success: false,
+        error: `Plantilla '${templateName}' no encontrada en el workspace`,
+      }
+    }
+    if (tplRow.status !== 'APPROVED') {
+      return {
+        success: false,
+        error: `Plantilla '${templateName}' no esta aprobada por Meta`,
+      }
+    }
+
+    const vars = params.templateVariables ?? {}
+    const apiComponents = buildTemplateApiComponents(
+      tplRow.components as RawTemplateComponent[] | null,
+      vars
+    )
+
     const result = await domainSendTemplateMessage(ctx, {
       conversationId: params.conversationId,
       contactPhone: recipientId,
-      templateName: params.templateName as string,
-      templateLanguage: 'es',
-      components,
+      templateName,
+      templateLanguage: tplRow.language || 'es',
+      components: apiComponents.length > 0 ? apiComponents : undefined,
       renderedText: params.body ?? undefined,
       apiKey,
     })
@@ -372,25 +400,88 @@ function resolveMediaPublicUrl(mediaKey: string): string {
   return data.publicUrl
 }
 
+interface RawTemplateComponent {
+  type?: string
+  format?: string
+  text?: string
+  example?: { header_handle?: string[] }
+}
+
+type ApiComponent = {
+  type: 'header' | 'body' | 'button'
+  parameters?: Array<{
+    type: 'text' | 'image' | 'document' | 'video'
+    text?: string
+    image?: { link: string }
+    document?: { link: string }
+    video?: { link: string }
+  }>
+}
+
 /**
- * Convert `{ "1": "foo", "2": "bar" }` into the 360dialog body components
- * shape. Kept here (instead of reusing the web server action's version) to
- * avoid importing from the 'use server' module.
+ * Build the 360dialog `components` array from the stored template definition
+ * + the user-provided variable values. Mirrors the web action path in
+ * src/app/actions/messages.ts::sendTemplateMessage so both send paths stay
+ * in lockstep. Handles:
+ *   - HEADER with media (IMAGE/VIDEO/DOCUMENT) — uses the approved example
+ *     handle as the link (same as web).
+ *   - HEADER with text variables — substitutes from vars.
+ *   - BODY with text variables — substitutes from vars.
  */
-function buildTemplateBodyComponents(
+function buildTemplateApiComponents(
+  components: RawTemplateComponent[] | null,
   vars: Record<string, string>
-): Array<{
-  type: 'body'
-  parameters: Array<{ type: 'text'; text: string }>
-}> {
-  const keys = Object.keys(vars).sort(
-    (a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10)
+): ApiComponent[] {
+  if (!components || components.length === 0) return []
+
+  const out: ApiComponent[] = []
+  const headerComp = components.find(
+    (c) => typeof c.type === 'string' && c.type.toUpperCase() === 'HEADER'
   )
-  if (keys.length === 0) return []
-  return [
-    {
+  const bodyComp = components.find(
+    (c) => typeof c.type === 'string' && c.type.toUpperCase() === 'BODY'
+  )
+
+  if (headerComp) {
+    const format = (headerComp.format || '').toUpperCase()
+    if (format === 'IMAGE' || format === 'VIDEO' || format === 'DOCUMENT') {
+      const mediaUrl = headerComp.example?.header_handle?.[0] || ''
+      if (mediaUrl) {
+        const mediaType = format.toLowerCase() as 'image' | 'video' | 'document'
+        out.push({
+          type: 'header',
+          parameters: [
+            {
+              type: mediaType,
+              [mediaType]: { link: mediaUrl },
+            },
+          ],
+        })
+      }
+    } else {
+      const headerVars = headerComp.text?.match(/\{\{(\d+)\}\}/g) || []
+      if (headerVars.length > 0) {
+        out.push({
+          type: 'header',
+          parameters: headerVars.map((v) => {
+            const num = v.replace(/[{}]/g, '')
+            return { type: 'text' as const, text: vars[num] ?? '' }
+          }),
+        })
+      }
+    }
+  }
+
+  const bodyVars = bodyComp?.text?.match(/\{\{(\d+)\}\}/g) || []
+  if (bodyVars.length > 0) {
+    out.push({
       type: 'body',
-      parameters: keys.map((k) => ({ type: 'text' as const, text: vars[k] ?? '' })),
-    },
-  ]
+      parameters: bodyVars.map((v) => {
+        const num = v.replace(/[{}]/g, '')
+        return { type: 'text' as const, text: vars[num] ?? '' }
+      }),
+    })
+  }
+
+  return out
 }

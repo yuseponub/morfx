@@ -411,16 +411,20 @@ export async function POST(
     )
 
     if (!result.success || !result.data) {
-      // Map domain errors to HTTP statuses.
+      // Map domain errors to HTTP statuses. We surface the domain's error
+      // string to the mobile client for ANY non-internal failure so the user
+      // sees "Plantilla no aprobada" / "Missing parameter" instead of a
+      // useless 'internal'. Real 5xx scenarios (DB crash, unexpected throw)
+      // still fall through to toMobileErrorResponse → { error: 'internal' }.
       const msg = result.error || 'internal'
-      if (msg.includes('no encontrada')) {
+      console.error('[mobile-api/messages:POST] send failed', msg)
+      if (msg.includes('no encontrada') || msg.includes('no esta aprobada')) {
         throw new MobileNotFoundError('not_found', msg)
       }
-      if (msg.includes('24h') || msg.includes('vacio') || msg.includes('API key')) {
-        throw new MobileValidationError('bad_request', msg)
-      }
-      console.error('[mobile-api/messages:POST] send failed', msg)
-      throw new Error(msg)
+      // Everything else the domain returned is a user-actionable error:
+      // 24h window, missing API key, empty body, template variable mismatch,
+      // 360dialog validation errors, etc. Surface the message as-is.
+      throw new MobileValidationError('bad_request', msg)
     }
 
     const row = result.data.message

@@ -58,13 +58,18 @@ function isKnownMobileError(err: unknown): err is KnownMobileError {
  */
 export function toMobileErrorResponse(err: unknown): NextResponse {
   if (isKnownMobileError(err)) {
-    return NextResponse.json(
-      { error: err.code },
-      {
-        status: err.status,
-        headers: { 'Cache-Control': 'no-store' },
-      }
-    )
+    // Include the human-readable message when it differs from the code so
+    // the mobile client can surface actionable feedback (e.g. "Plantilla no
+    // aprobada" instead of a generic 'bad_request'). The `code` field stays
+    // stable for machine-readable handling.
+    const payload: Record<string, string> = { error: err.code }
+    if (err.message && err.message !== err.code) {
+      payload.message = err.message
+    }
+    return NextResponse.json(payload, {
+      status: err.status,
+      headers: { 'Cache-Control': 'no-store' },
+    })
   }
 
   // Unknown error — log server-side, never leak to client.

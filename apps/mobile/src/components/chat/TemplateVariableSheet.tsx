@@ -421,8 +421,14 @@ export function TemplateVariableSheet({
 
 function extractApiErrorMessage(err: MobileApiError): string | null {
   if (err.body && typeof err.body === 'object') {
-    const maybe = (err.body as Record<string, unknown>).error;
-    if (typeof maybe === 'string' && maybe.length > 0) return maybe;
+    // Server surfaces the human-readable reason on `message` (mobile errors.ts)
+    // and falls back to the stable code on `error` — prefer message so the
+    // user sees "Plantilla no aprobada" instead of "bad_request".
+    const body = err.body as Record<string, unknown>;
+    const message = body.message;
+    if (typeof message === 'string' && message.length > 0) return message;
+    const code = body.error;
+    if (typeof code === 'string' && code.length > 0) return code;
   }
   return null;
 }

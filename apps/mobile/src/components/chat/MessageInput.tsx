@@ -45,9 +45,8 @@ import {
   type RefObject,
 } from 'react';
 import {
-  ActionSheetIOS,
-  Alert,
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -55,6 +54,7 @@ import {
   View,
   Platform,
 } from 'react-native';
+import { Camera, FileText, X as XClose } from 'lucide-react-native';
 
 import { useQuickReplies } from '@/hooks/useQuickReplies';
 import { useSendMessage } from '@/hooks/useSendMessage';
@@ -141,6 +141,10 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
   const [templatePickerOpen, setTemplatePickerOpen] = useState<boolean>(false);
   const [selectedTemplate, setSelectedTemplate] =
     useState<MobileTemplate | null>(null);
+
+  // Attach menu state (replaces Alert.alert which only supports 3 buttons on
+  // Android — truncated our 4 options silently).
+  const [attachMenuOpen, setAttachMenuOpen] = useState<boolean>(false);
 
   const inputRef = useRef<TextInput>(null) as RefObject<TextInput>;
   const audioSheetRef = useRef<AudioRecorderHandle>(null);
@@ -235,36 +239,25 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
 
   const handleAttachPress = useCallback(() => {
     setError(null);
-    const options = [
-      t('chat.attach.camera'),
-      t('chat.attach.gallery'),
-      t('chat.attach.audio'),
-      t('chat.attach.template'),
-      t('common.cancel'),
-    ];
-    const cancelButtonIndex = 4;
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex },
-        (idx) => {
-          if (idx === 0) void openCamera();
-          else if (idx === 1) void openGallery();
-          else if (idx === 2) openAudio();
-          else if (idx === 3) openTemplatePicker();
-        }
-      );
-    } else {
-      // Android — simple Alert. Plan 09 scope: no third-party sheet. The
-      // audio + image gallery + camera flows work identically.
-      Alert.alert(t('chat.attach.title'), undefined, [
-        { text: options[0], onPress: () => void openCamera() },
-        { text: options[1], onPress: () => void openGallery() },
-        { text: options[2], onPress: openAudio },
-        { text: options[3], onPress: openTemplatePicker },
-        { text: options[4], style: 'cancel' },
-      ]);
-    }
-  }, [t, openCamera, openGallery, openAudio, openTemplatePicker]);
+    setAttachMenuOpen(true);
+  }, []);
+
+  const closeAttachMenu = useCallback(() => setAttachMenuOpen(false), []);
+
+  const pickAttachAction = useCallback(
+    (action: 'camera' | 'gallery' | 'audio' | 'template') => {
+      setAttachMenuOpen(false);
+      // Defer a tick so the modal dismiss animation starts before the next
+      // picker/modal mounts (prevents two modals fighting on Android).
+      setTimeout(() => {
+        if (action === 'camera') void openCamera();
+        else if (action === 'gallery') void openGallery();
+        else if (action === 'audio') openAudio();
+        else if (action === 'template') openTemplatePicker();
+      }, 150);
+    },
+    [openCamera, openGallery, openAudio, openTemplatePicker]
+  );
 
   // -------------------------------------------------------------------------
   // Send handlers.
@@ -455,6 +448,86 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
 
       <AudioRecorder ref={audioSheetRef} onSend={handleAudioSend} />
 
+      {/* Attach menu — cross-platform bottom sheet. Replaces Alert.alert
+          which truncated on Android (max 3 buttons). 4 options + X close. */}
+      <Modal
+        visible={attachMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeAttachMenu}
+      >
+        <Pressable style={attachStyles.backdrop} onPress={closeAttachMenu}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={[
+              attachStyles.sheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={attachStyles.header}>
+              <Text style={[attachStyles.title, { color: colors.text }]}>
+                {t('chat.attach.title')}
+              </Text>
+              <Pressable
+                onPress={closeAttachMenu}
+                hitSlop={12}
+                accessibilityLabel={t('common.cancel')}
+              >
+                <XClose size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            <Pressable
+              onPress={() => pickAttachAction('camera')}
+              style={({ pressed }) => [
+                attachStyles.row,
+                { opacity: pressed ? 0.6 : 1, borderBottomColor: colors.border },
+              ]}
+            >
+              <Camera size={22} color={colors.text} />
+              <Text style={[attachStyles.rowText, { color: colors.text }]}>
+                {t('chat.attach.camera')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => pickAttachAction('gallery')}
+              style={({ pressed }) => [
+                attachStyles.row,
+                { opacity: pressed ? 0.6 : 1, borderBottomColor: colors.border },
+              ]}
+            >
+              <ImageIcon size={22} color={colors.text} />
+              <Text style={[attachStyles.rowText, { color: colors.text }]}>
+                {t('chat.attach.gallery')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => pickAttachAction('audio')}
+              style={({ pressed }) => [
+                attachStyles.row,
+                { opacity: pressed ? 0.6 : 1, borderBottomColor: colors.border },
+              ]}
+            >
+              <Mic size={22} color={colors.text} />
+              <Text style={[attachStyles.rowText, { color: colors.text }]}>
+                {t('chat.attach.audio')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => pickAttachAction('template')}
+              style={({ pressed }) => [
+                attachStyles.row,
+                { opacity: pressed ? 0.6 : 1, borderBottomWidth: 0 },
+              ]}
+            >
+              <FileText size={22} color={colors.text} />
+              <Text style={[attachStyles.rowText, { color: colors.text }]}>
+                {t('chat.attach.template')}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Plan 14 — WhatsApp template picker. Tap template -> opens the
           variable-fill sheet; submit there sends via the existing Plan 09
           POST /messages endpoint with templateName + templateVariables. */}
@@ -543,5 +616,42 @@ const styles = StyleSheet.create({
   errorLine: {
     fontSize: 12,
     paddingHorizontal: 10,
+  },
+});
+
+const attachStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  rowText: {
+    fontSize: 15,
   },
 });

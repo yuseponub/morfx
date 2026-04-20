@@ -525,6 +525,67 @@ export const RecompraOrderResponseSchema = z.object({
 export type RecompraOrderResponse = z.infer<typeof RecompraOrderResponseSchema>
 
 // ---------------------------------------------------------------------------
+// GET /api/mobile/search (Phase 43 Plan 12)
+// ---------------------------------------------------------------------------
+//
+// Read-only message + contact search. Returns up to 50 ephemeral results per
+// query — these are NOT cached on the client (search results are
+// intentionally not persisted to sqlite because they'd stale fast and the
+// cache cost is not justified at ~50-row result sets).
+//
+// Match path:
+//   - `messages.fts` (Spanish tsvector GENERATED column from
+//     `to_tsvector('spanish', coalesce(content ->> 'body', ''))`, indexed
+//     with GIN — see supabase/migrations/20260410_messages_fts.sql).
+//   - Contact name + phone ILIKE — for "type a name, find the thread"
+//     behaviour that FTS on message bodies alone cannot satisfy.
+//
+// Snippet shape:
+//   - `snippet_before` / `snippet_match` / `snippet_after` is the highlighted
+//     triple the mobile UI renders as `${before}<bold>${match}</bold>${after}`.
+//     Empty `match` on contact-only rows means the UI falls back to the
+//     contact name display (no body highlight).
+//   - Server-side extraction is a narrow window (≤60 chars each side) around
+//     the first matched token. The plan originally proposed `ts_headline()`;
+//     we extract client-side in TS instead to avoid requiring a second
+//     migration for an RPC function — Postgres `ts_headline` is not directly
+//     exposable via PostgREST's select syntax, and the mobile client only
+//     needs one token highlighted, not multiple.
+
+export const MobileSearchResultSchema = z.object({
+  message_id: z.string().uuid().nullable(),
+  conversation_id: z.string().uuid(),
+  contact_id: z.string().uuid().nullable(),
+  contact_name: z.string().nullable(),
+  contact_phone: z.string(),
+  snippet_before: z.string(),
+  snippet_match: z.string(),
+  snippet_after: z.string(),
+  /** ISO timestamp — `messages.created_at` for message hits, or conversation's
+   *  `last_customer_message_at` (falling back to `last_message_at`) for
+   *  contact-only hits. Rendered via Bogota timezone on the client (Regla 2). */
+  created_at: z.string(),
+  /** Source of the hit — `'message'` means the body matched FTS,
+   *  `'contact'` means the contact name or phone matched ILIKE. */
+  source: z.enum(['message', 'contact']),
+})
+export type MobileSearchResult = z.infer<typeof MobileSearchResultSchema>
+
+export const MobileSearchResponseSchema = z.object({
+  results: z.array(MobileSearchResultSchema),
+})
+export type MobileSearchResponse = z.infer<typeof MobileSearchResponseSchema>
+
+export const MobileSearchQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .min(2, 'query must be at least 2 characters')
+    .max(200, 'query too long'),
+})
+export type MobileSearchQuery = z.infer<typeof MobileSearchQuerySchema>
+
+// ---------------------------------------------------------------------------
 // POST /api/mobile/push/register (Phase 43 Plan 13)
 // ---------------------------------------------------------------------------
 

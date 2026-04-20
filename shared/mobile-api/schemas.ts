@@ -203,6 +203,42 @@ export const MarkReadResponseSchema = z.object({
 export type MarkReadResponse = z.infer<typeof MarkReadResponseSchema>
 
 // ---------------------------------------------------------------------------
+// POST /api/mobile/conversations/:id/bot-mode (Phase 43 Plan 11)
+// ---------------------------------------------------------------------------
+//
+// Three-state bot toggle — on / off / muted-until-ISO. Writes to the
+// `bot_mode` + `bot_mute_until` columns added by Plan 43-01. Routes through
+// the additive `setBotMode` domain function (Regla 3). The existing web
+// `toggleConversationAgent` action (legacy `agent_conversational` boolean)
+// is NOT touched — see the file comment in
+// src/lib/domain/conversations/set-bot-mode.ts for Regla 6 rationale.
+//
+// Request invariants enforced both here (Zod) and in the domain function:
+//   - mode='muted'  ⇒ muteUntil is an ISO string in the future
+//   - mode='on'/'off' ⇒ muteUntil is null
+//
+// Response mirrors the stored + read-coerced state. If Plan 43-01's auto-
+// resume (resolveBotMode) fires inside the write path — it currently does
+// not, but a future consolidation could — the client will see the post-
+// coercion mode, not the raw DB row.
+
+export const MobileBotModeRequestSchema = z.object({
+  mode: z.enum(['on', 'off', 'muted']),
+  muteUntil: z
+    .string()
+    .datetime({ offset: true })
+    .nullable(),
+})
+export type MobileBotModeRequest = z.infer<typeof MobileBotModeRequestSchema>
+
+export const MobileBotModeResponseSchema = z.object({
+  conversation_id: z.string().uuid(),
+  bot_mode: z.enum(['on', 'off', 'muted']),
+  bot_mute_until: z.string().nullable(),
+})
+export type MobileBotModeResponse = z.infer<typeof MobileBotModeResponseSchema>
+
+// ---------------------------------------------------------------------------
 // POST /api/mobile/conversations/:id/messages (Phase 43 Plan 09)
 // ---------------------------------------------------------------------------
 //

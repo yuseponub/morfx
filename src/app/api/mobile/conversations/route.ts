@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveBotMode } from '@/lib/domain/conversations/set-bot-mode'
 
 import {
   MobileConversationsListQuerySchema,
@@ -191,10 +192,14 @@ export async function GET(req: Request): Promise<NextResponse> {
         }
       }
 
-      // COALESCE for legacy rows that predate Plan 43-01 — defensive, even
-      // though the migration sets bot_mode NOT NULL DEFAULT 'on'. A cache row
-      // or a mock row without the column should still serialize cleanly.
-      const botMode: 'on' | 'off' | 'muted' = row.bot_mode ?? 'on'
+      // Plan 43-11: apply resolveBotMode here so an expired mute is coerced
+      // to 'on' before the client ever sees it. This is the v1 auto-resume
+      // strategy — no scheduled worker needed (a future consolidation plan
+      // can add one as defense-in-depth without changing this call path).
+      const { bot_mode: botMode, bot_mute_until: botMuteUntil } = resolveBotMode({
+        bot_mode: row.bot_mode,
+        bot_mute_until: row.bot_mute_until,
+      })
 
       return {
         id: row.id,
@@ -215,7 +220,7 @@ export async function GET(req: Request): Promise<NextResponse> {
         pipeline_stage_name: null,
         pipeline_stage_color: null,
         bot_mode: botMode,
-        bot_mute_until: row.bot_mute_until,
+        bot_mute_until: botMuteUntil,
         avatar_url: null,
       }
     })

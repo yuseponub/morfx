@@ -416,13 +416,13 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Agentes aislados:** `src/lib/agents/crm-reader/` y `src/lib/agents/crm-writer/` son carpetas fisicamente separadas con tool registries separados. Blocker 1 enforcement: grep verificado que ningun tool file importa `createAdminClient` o `@supabase/supabase-js` — todos pasan por domain layer. El unico archivo del writer que usa `createAdminClient` es `two-step.ts` y exclusivamente contra `crm_bot_actions`.
 
 #### Rate Limiting + Kill-Switch
-- **Rate limit:** `50 calls/min per workspace` (shared bucket `'crm-bot'` entre reader + writer — invariante Warning #8 enforced con grep: exactamente 3 call sites en los 3 endpoints). Configurable via env var `CRM_BOT_RATE_LIMIT_PER_MIN`.
-- **Kill-switch:** `CRM_BOT_ENABLED=false` → 503 con code=KILL_SWITCH en siguientes requests. Env var leida per-request (Pitfall 2 mitigated — no caching).
-- **Caveat Blocker 6:** en Vercel, cambiar `CRM_BOT_ENABLED` NO refresca lambdas warm automaticamente. Operador DEBE trigger redeploy (o push empty commit) para que la env nueva propague. Documentado en runbook y en SUMMARY.md Phase 44.
+- **Rate limit:** `50 calls/min per workspace` (shared bucket `'crm-bot'` entre reader + writer — invariante Warning #8 enforced con grep: exactamente 3 call sites en los 3 endpoints). Configurable via `platform_config.crm_bot_rate_limit_per_min` (Phase 44.1).
+- **Kill-switch:** `platform_config.crm_bot_enabled=false` → 503 con code=KILL_SWITCH en siguientes requests. Leido per-request via `getPlatformConfig` (cache TTL 30s — Phase 44.1 eliminates Blocker 6).
+- **Phase 44.1 (2026-04-19):** las 3 vars operacionales migradas de Vercel env a `platform_config` table. Kill-switch ahora flipeable via SQL sin redeploy. Ver seccion dedicada abajo.
 - **Email alerts** via Resend a `joseromerorincon041100@gmail.com`:
   - Runaway alert cuando rate-limit 429 dispara (dedupe 15 min in-memory).
   - Approaching-limit alert cuando uso >80%.
-  - FROM address parametrizable via `CRM_BOT_ALERT_FROM` env var (Blocker 5).
+  - FROM address parametrizable via `platform_config.crm_bot_alert_from` (Phase 44.1 — antes env var).
 
 #### Observability
 - **Cada call** (reader, propose, confirm) escribe fila en `agent_observability_turns` con `trigger_kind='api'`, `agent_id` correcto ('crm-reader' o 'crm-writer'), tokens + costos + duration. Consulta retroactiva via el mismo panel que otros agentes (Phase 42.1).
@@ -435,13 +435,76 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **In-memory rate limiter:** Pitfall 1 accepted — en Vercel con multiples instancias warm cada una tiene su propio contador; el limite real puede ser 2-3x el configurado durante bursts. Migrar a Redis/Upstash en V2.
 - **Sin daily cap:** solo deteccion de runaway con rate limit per-minute + alerta email. No hay cap diario/mensual por workspace (deliberate — MVP, revisar cuando haya datos de uso real).
 - **Sin UI humana:** para revisar/aprobar actions propuestas — los actions expiran a los 5min si ningun caller los confirma. En V2 considerar dashboard para super-users que vea pending actions.
-- **Kill-switch requiere redeploy:** Blocker 6 acknowledged — no hay mecanismo para "hot-swap" del flag sin redeploy. Documentado en runbook operacional como ceiling de tiempo para emergency shutdown (~30-90s de redeploy en Vercel).
+- **~~Kill-switch requiere redeploy~~:** RESUELTO en Phase 44.1 (2026-04-19). Kill-switch ahora en `platform_config.crm_bot_enabled` — flipeable via SQL sin redeploy. Propagacion visible en <=30s (cache TTL).
+- **Tests de Phase 44 rotos post-44.1:** `src/__tests__/integration/crm-bots/{reader,security}.test.ts` todavia mockean `process.env.CRM_BOT_ENABLED` y fallaran contra la nueva arquitectura. Tagged out-of-scope de 44.1 (D6 — refactor solo de los 4 archivos consumidores). P1 — requiere fase follow-up para actualizar a mock de `getPlatformConfig`.
 
 #### Referencias
-- **Codigo:** `src/app/api/v1/crm-bots/`, `src/lib/agents/crm-reader/`, `src/lib/agents/crm-writer/`, `src/inngest/functions/crm-bot-expire-proposals.ts`
-- **Schema:** migrations `crm_bot_actions` table + `archived_at` columns en 4 tablas (contacts, orders, contact_notes, order_notes)
-- **Plan artifacts:** `.planning/phases/44-crm-bots/` (9 planes + SUMMARY + LEARNINGS + INVARIANTS)
+- **Codigo:** `src/app/api/v1/crm-bots/`, `src/lib/agents/crm-reader/`, `src/lib/agents/crm-writer/`, `src/inngest/functions/crm-bot-expire-proposals.ts`, `src/lib/domain/platform-config.ts` (Phase 44.1)
+- **Schema:** migrations `crm_bot_actions` table + `archived_at` columns en 4 tablas (contacts, orders, contact_notes, order_notes) + `platform_config` table (Phase 44.1)
+- **Plan artifacts:** `.planning/phases/44-crm-bots/` (9 planes + SUMMARY + LEARNINGS + INVARIANTS), `.planning/phases/44.1-crm-bots-config-db/` (config relocation)
 - **Scope enforcement:** `.claude/rules/agent-scope.md` documenta PUEDE/NO PUEDE para ambos agentes (MANDATORIO al crear agente nuevo)
+
+---
+
+### 11.1 Config runtime — platform_config (Phase 44.1)
+
+- **Estado:** ✅ SHIPPED 2026-04-19
+- **Proposito:** Relocar config runtime no-secret de CRM bots desde Vercel env vars a una tabla centralizada en Supabase. Habilita kill-switch via SQL sin redeploy (resuelve Blocker 6 de Phase 44) y prepara base para per-workspace overrides + admin UI en fases futuras.
+
+#### Tabla `platform_config`
+
+```
+CREATE TABLE platform_config (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('America/Bogota', NOW())
+);
+```
+
+Sin RLS — acceso server-only via `createAdminClient()` (mismo patron que `crm_bot_actions`). Sin indexes adicionales (3 filas seed).
+
+#### Keys actualmente seeded
+
+| Antigua env var (Vercel)     | Nueva key en platform_config   | Tipo JSONB     | Fallback si DB falla |
+|------------------------------|--------------------------------|----------------|----------------------|
+| `CRM_BOT_ENABLED`            | `crm_bot_enabled`              | boolean        | `true` (fail-open)   |
+| `CRM_BOT_RATE_LIMIT_PER_MIN` | `crm_bot_rate_limit_per_min`   | number         | `50`                 |
+| `CRM_BOT_ALERT_FROM`         | `crm_bot_alert_from`           | string or null | `null` → sandbox Resend |
+
+- **Lectura:** `getPlatformConfig<T>(key, fallback)` en `src/lib/domain/platform-config.ts`. Cache in-memory 30s TTL por lambda instance (`PLATFORM_CONFIG_TTL_MS = 30_000`).
+- **Kill-switch operativo:** `UPDATE platform_config SET value='false'::jsonb WHERE key='crm_bot_enabled'` en Supabase Studio. Efecto visible en <=30s, sin redeploy de Vercel.
+- **Consistencia multi-instance:** hasta 30s de divergencia entre lambdas tras un flip (Pitfall 4 de 44.1-RESEARCH). Aceptable para operacion normal — kill-switch es soft-guard; hard-kill sigue siendo desactivar la API key a nivel workspace.
+- **Fail-open policy:** errores de DB retornan fallback (NUNCA throw). Si DB cae, bots siguen activos con limite 50 y FROM sandbox — degradacion al estado pre-Phase-44.1.
+- **`RESEND_API_KEY` SIGUE en Vercel env** — es secret y debe ser secret-managed. NO mover secrets a `platform_config`.
+
+#### Archivos afectados (refactor)
+
+- `src/lib/domain/platform-config.ts` (nuevo helper + cache)
+- `src/app/api/v1/crm-bots/reader/route.ts`
+- `src/app/api/v1/crm-bots/writer/propose/route.ts`
+- `src/app/api/v1/crm-bots/writer/confirm/route.ts`
+- `src/lib/agents/_shared/alerts.ts`
+- `src/lib/tools/rate-limiter.ts` (nuevo param opcional `opts.limit`)
+
+#### QA procedure update — Phase 44 Plan 09 Task 6
+
+El QA del kill-switch de Phase 44 cambio:
+- **Antigua:** "Set `CRM_BOT_ENABLED=false` in Vercel env + redeploy → verify 503"
+- **Nueva:** "`UPDATE platform_config SET value='false'::jsonb WHERE key='crm_bot_enabled'` → wait 30s → verify 503 → revert con `'true'::jsonb`"
+
+#### Deuda tecnica abierta (futuras fases, NO en 44.1)
+
+- **Admin UI** para editar `platform_config` sin SQL (actualmente solo via Supabase Studio SQL Editor).
+- **Columna `workspace_id UUID NULL`** para per-workspace overrides (D8 — schema cambio non-breaking cuando llegue).
+- **Endpoint `POST /admin/invalidate-config`** con header secret para forzar cache clear — util para urgencias donde no se puede esperar 30s de propagacion.
+- **Audit trail** de cambios (quien/cuando) — `platform_config.updated_at` captura timestamp, pero falta `actor_id`. Out of scope single-operator MVP.
+
+#### Referencias
+
+- **Codigo:** `src/lib/domain/platform-config.ts`
+- **Schema:** `supabase/migrations/20260420000443_platform_config.sql`
+- **Plan artifacts:** `.planning/phases/44.1-crm-bots-config-db/` (CONTEXT + RESEARCH + 01-PLAN + SUMMARY)
+- **Threat model:** 44.1-01-PLAN `<threat_model>` seccion — T-44.1-01..08 documentados con dispositions.
 
 ---
 
@@ -618,3 +681,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 *Actualizado: 14 abril 2026 — Phase 37.5 Block A completo: morfx.app con landing publico bilingue ES/EN + privacy + terms, middleware compuesto next-intl + Supabase whitelist. Listo para resubmit de Meta Business Verification.*
 *Actualizado: 7 abril 2026 — Phase 42 (Session Lifecycle) completada: cron de cierre, partial unique index, retry 23505, defensive timer-guard, TZ-safe RPC*
 *Actualizado: 18 abril 2026 — Phase 44 (CRM Bots Read + Write) SHIPPED: dos agentes IA internos expuestos como API (reader + writer two-step propose/confirm), aislamiento fisico por carpeta, rate-limit compartido `'crm-bot'` 50/min/workspace, kill-switch `CRM_BOT_ENABLED` (requiere Vercel redeploy — Blocker 6), Inngest cron `crmBotExpireProposals`, email alerts Resend, observability full. Pending production QA en Task 6 checkpoint.*
+*Actualizado: 19 abril 2026 — Phase 44.1 (CRM Bots Config DB) SHIPPED: 3 env vars de CRM bots relocadas a tabla `platform_config` en Supabase. Nuevo helper `src/lib/domain/platform-config.ts` con cache in-memory 30s TTL. Kill-switch ahora flipeable via SQL sin redeploy (resuelve Blocker 6). `RESEND_API_KEY` permanece en Vercel (secret). QA kill-switch procedure actualizado — ver seccion 11.1.*

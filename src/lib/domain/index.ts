@@ -15,5 +15,6 @@ export * from './client-activation'  // Standalone
 export * from './carrier-coverage'   // Phase 21 Plan 03
 export * from './carrier-configs'    // Phase 21 Plan 03
 export * from './robot-jobs'         // Phase 21 Plan 04
+export * from './platform-config'    // Phase 44.1
 
 export type { DomainContext, DomainResult } from './types'

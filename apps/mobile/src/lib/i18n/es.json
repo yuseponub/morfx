@@ -116,6 +116,37 @@
       }
     }
   },
+  "settings": {
+    "title": "Ajustes",
+    "tabTitle": "Ajustes",
+    "account": {
+      "title": "Cuenta",
+      "email": "Correo",
+      "logoutConfirmTitle": "Cerrar sesión",
+      "logoutConfirmBody": "Tendrás que ingresar tu contraseña para volver a entrar."
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Seguir el sistema"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "notifyAll": "Notificar cada mensaje nuevo",
+      "previewContent": "Mostrar contenido del mensaje",
+      "disclaimer": "Estas preferencias son locales; el servidor envía todas las notificaciones por ahora. Puedes silenciar por completo desde los ajustes del sistema operativo."
+    },
+    "language": {
+      "title": "Idioma",
+      "current": "Idioma actual",
+      "spanish": "Español"
+    },
+    "about": {
+      "title": "Acerca de",
+      "version": "Versión"
+    }
+  },
   "crmPanel": {
     "title": "Contacto",
     "close": "Cerrar",

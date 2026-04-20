@@ -1,8 +1,7 @@
 /**
  * MessageBubble — single message bubble in the chat screen.
  *
- * Phase 43 Plan 08. Read-only rendering (Plan 09 wires the composer +
- * real audio playback + optimistic local bubbles).
+ * Phase 43 Plan 08 (initial) + Plan 14 (image + audio real renderers).
  *
  * Direction
  *   - 'in'  -> left aligned, neutral surface bg, contact/sender text above
@@ -11,12 +10,16 @@
  *              bottom-right corner.
  *
  * Media types
- *   - image    -> thumbnail placeholder (text stub) — Plan 09 renders the
- *                 real image via expo-image.
- *   - audio    -> audio player placeholder stub — Plan 09 adds expo-av.
- *   - video    -> video placeholder stub — Plan 09 adds expo-av / Video.
+ *   - image    -> ImageRenderer (expo-image) with tap-to-fullscreen.
+ *   - audio    -> AudioPlayer (expo-audio) with play/pause + progress bar.
+ *   - video    -> video placeholder stub (Plan 09 did not ship a video renderer;
+ *                 keep a static placeholder for now — future plan wires
+ *                 expo-video / Video.getPlayableAsset).
  *   - document -> document icon + filename stub.
  *   - null     -> text only (body string rendered).
+ *
+ * For image and audio we render the media AND the caption body (if any)
+ * underneath — same layout as WhatsApp bubbles.
  *
  * Timestamps always render in America/Bogota (Regla 2) as HH:mm.
  *
@@ -29,13 +32,14 @@ import {
   Check,
   Clock,
   FileText,
-  Image as ImageIcon,
   Loader2,
   Play,
 } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { AudioPlayer } from '@/components/media/AudioPlayer';
+import { ImageRenderer } from '@/components/media/ImageRenderer';
 import type { CachedMessage } from '@/lib/db/messages-cache';
 import { useTheme } from '@/lib/theme';
 import { useTranslation } from '@/lib/i18n';
@@ -88,40 +92,73 @@ function StatusIcon({
   }
 }
 
-function MediaPlaceholder({ message }: { message: CachedMessage }) {
+function MediaPlaceholder({
+  message,
+  direction,
+}: {
+  message: CachedMessage;
+  direction: 'in' | 'out';
+}) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
   switch (message.mediaType) {
-    case 'image':
+    case 'image': {
+      // Plan 14: render the real remote image with tap-to-fullscreen. If the
+      // URL is missing (should not happen for inbound — the server always
+      // surfaces media_url — but defensive for outbound staged-only bubbles),
+      // fall back to the placeholder so the bubble doesn't break.
+      if (!message.mediaUri) {
+        return (
+          <View
+            style={[
+              styles.mediaBox,
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.mediaLabel, { color: colors.textMuted }]}>
+              {t('chat.media.image')}
+            </Text>
+          </View>
+        );
+      }
       return (
-        <View
-          style={[
-            styles.mediaBox,
-            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-          ]}
-        >
-          <ImageIcon size={32} color={colors.textMuted} />
-          <Text style={[styles.mediaLabel, { color: colors.textMuted }]}>
-            {t('chat.media.image')}
-          </Text>
-        </View>
+        <ImageRenderer
+          uri={message.mediaUri}
+          accessibilityLabel={message.body ?? t('chat.media.image')}
+        />
       );
-    case 'audio':
+    }
+    case 'audio': {
+      if (!message.mediaUri) {
+        return (
+          <View
+            style={[
+              styles.mediaBox,
+              styles.audioBox,
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.mediaLabel, { color: colors.textMuted }]}>
+              {t('chat.media.audio')}
+            </Text>
+          </View>
+        );
+      }
       return (
-        <View
-          style={[
-            styles.mediaBox,
-            styles.audioBox,
-            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-          ]}
-        >
-          <Play size={18} color={colors.textMuted} />
-          <Text style={[styles.mediaLabel, { color: colors.textMuted }]}>
-            {t('chat.media.audio')}
-          </Text>
-        </View>
+        <AudioPlayer
+          uri={message.mediaUri}
+          direction={direction}
+          accessibilityLabel={t('chat.media.audio')}
+        />
       );
+    }
     case 'video':
       return (
         <View
@@ -222,8 +259,14 @@ export function MessageBubble({
         message.body === null &&
         isOut ? null : null}
 
-        {/* Media placeholder (image/audio/video/document) */}
-        {message.mediaType ? <MediaPlaceholder message={message} /> : null}
+        {/* Media renderer (image/audio real players; video/document still
+            placeholders). Image + audio live renderers land in Plan 14. */}
+        {message.mediaType ? (
+          <MediaPlaceholder
+            message={message}
+            direction={isOut ? 'out' : 'in'}
+          />
+        ) : null}
 
         {/* Body text (supports multi-line — RN Text honors \n natively) */}
         {message.body ? (

@@ -601,3 +601,47 @@ export const RegisterPushTokenResponseSchema = z.object({
   id: z.string().uuid(),
 })
 export type RegisterPushTokenResponse = z.infer<typeof RegisterPushTokenResponseSchema>
+
+// ---------------------------------------------------------------------------
+// GET /api/mobile/templates (Phase 43 Plan 14)
+// ---------------------------------------------------------------------------
+//
+// Workspace-scoped list of APPROVED WhatsApp templates (the only ones Meta
+// allows to send). Read-only, cache-friendly (Regla 3: no domain layer
+// needed for reads).
+//
+// Shape notes:
+//   - `components` mirrors the raw 360dialog/Meta schema the web uses so
+//     the mobile TemplateVariableSheet can render a preview identical to
+//     the web's template-preview.tsx.
+//   - `variable_count` is derived server-side by counting distinct
+//     `{{n}}` tokens across BODY + HEADER components, so the mobile client
+//     can decide whether to show the variable form before rendering.
+//   - `variable_mapping` mirrors the web's mapping (e.g. {"1": "contact.name"})
+//     so mobile can pre-fill variables from contact/order context on the
+//     sheet (identical UX to the web template-send-modal).
+
+export const MobileTemplateComponentSchema = z.object({
+  type: z.enum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS']),
+  format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT']).optional(),
+  text: z.string().optional(),
+})
+export type MobileTemplateComponent = z.infer<typeof MobileTemplateComponentSchema>
+
+export const MobileTemplateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  language: z.string(),
+  category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
+  components: z.array(MobileTemplateComponentSchema),
+  variable_count: z.number().int().nonnegative(),
+  variable_mapping: z.record(z.string(), z.string()),
+})
+export type MobileTemplate = z.infer<typeof MobileTemplateSchema>
+
+export const MobileTemplatesListResponseSchema = z.object({
+  templates: z.array(MobileTemplateSchema),
+})
+export type MobileTemplatesListResponse = z.infer<
+  typeof MobileTemplatesListResponseSchema
+>

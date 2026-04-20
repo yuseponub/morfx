@@ -59,6 +59,7 @@ import {
 import { useQuickReplies } from '@/hooks/useQuickReplies';
 import { useSendMessage } from '@/hooks/useSendMessage';
 import type { MobileQuickReply } from '@/lib/api-schemas/quick-replies';
+import type { MobileTemplate } from '@/lib/api-schemas/templates';
 import { useTheme } from '@/lib/theme';
 import { useTranslation } from '@/lib/i18n';
 
@@ -68,6 +69,8 @@ import {
   type AudioSendHandler,
 } from './AudioRecorder';
 import { QuickReplyAutocomplete } from './QuickReplyAutocomplete';
+import { TemplatePicker } from './TemplatePicker';
+import { TemplateVariableSheet } from './TemplateVariableSheet';
 
 interface StagedImage {
   uri: string;
@@ -133,6 +136,11 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
   const [stagedImage, setStagedImage] = useState<StagedImage | null>(null);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Plan 14 — template picker + variable sheet state.
+  const [templatePickerOpen, setTemplatePickerOpen] = useState<boolean>(false);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<MobileTemplate | null>(null);
 
   const inputRef = useRef<TextInput>(null) as RefObject<TextInput>;
   const audioSheetRef = useRef<AudioRecorderHandle>(null);
@@ -221,15 +229,20 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
     audioSheetRef.current?.open();
   }, []);
 
+  const openTemplatePicker = useCallback(() => {
+    setTemplatePickerOpen(true);
+  }, []);
+
   const handleAttachPress = useCallback(() => {
     setError(null);
     const options = [
       t('chat.attach.camera'),
       t('chat.attach.gallery'),
       t('chat.attach.audio'),
+      t('chat.attach.template'),
       t('common.cancel'),
     ];
-    const cancelButtonIndex = 3;
+    const cancelButtonIndex = 4;
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options, cancelButtonIndex },
@@ -237,6 +250,7 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
           if (idx === 0) void openCamera();
           else if (idx === 1) void openGallery();
           else if (idx === 2) openAudio();
+          else if (idx === 3) openTemplatePicker();
         }
       );
     } else {
@@ -246,10 +260,11 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
         { text: options[0], onPress: () => void openCamera() },
         { text: options[1], onPress: () => void openGallery() },
         { text: options[2], onPress: openAudio },
-        { text: options[3], style: 'cancel' },
+        { text: options[3], onPress: openTemplatePicker },
+        { text: options[4], style: 'cancel' },
       ]);
     }
-  }, [t, openCamera, openGallery, openAudio]);
+  }, [t, openCamera, openGallery, openAudio, openTemplatePicker]);
 
   // -------------------------------------------------------------------------
   // Send handlers.
@@ -439,6 +454,27 @@ export function MessageInput({ conversationId, onSent }: MessageInputProps) {
       </View>
 
       <AudioRecorder ref={audioSheetRef} onSend={handleAudioSend} />
+
+      {/* Plan 14 — WhatsApp template picker. Tap template -> opens the
+          variable-fill sheet; submit there sends via the existing Plan 09
+          POST /messages endpoint with templateName + templateVariables. */}
+      <TemplatePicker
+        visible={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        onPick={(tpl) => {
+          setTemplatePickerOpen(false);
+          setSelectedTemplate(tpl);
+        }}
+      />
+      <TemplateVariableSheet
+        visible={selectedTemplate !== null}
+        template={selectedTemplate}
+        conversationId={conversationId}
+        onClose={() => setSelectedTemplate(null)}
+        onSent={() => {
+          onSent?.();
+        }}
+      />
     </>
   );
 }

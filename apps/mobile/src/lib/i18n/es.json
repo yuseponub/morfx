@@ -56,8 +56,23 @@
       "camera": "Cámara",
       "gallery": "Galería",
       "audio": "Nota de voz",
+      "template": "Plantilla de WhatsApp",
       "imageStaged": "Imagen lista para enviar",
       "permissionDenied": "Permiso denegado. Puedes habilitarlo en los ajustes del sistema."
+    },
+    "template": {
+      "pickerTitle": "Enviar plantilla",
+      "searchPlaceholder": "Buscar plantilla...",
+      "empty": "No hay plantillas aprobadas",
+      "noResults": "Sin coincidencias",
+      "previewTitle": "Vista previa",
+      "variables": "Variables",
+      "variablePlaceholder": "Valor...",
+      "variableCount_one": "{{count}} variable",
+      "variableCount_other": "{{count}} variables",
+      "preview": "Vista previa",
+      "send": "Enviar plantilla",
+      "sendFailed": "No se pudo enviar la plantilla"
     },
     "audio": {
       "title": "Grabar nota de voz",

@@ -806,6 +806,25 @@ Plans:
 
 ---
 
+### Phase 44.1: CRM bots config via platform_config table (INSERTED)
+
+**Goal:** Mover las 3 vars no-secret de CRM bots (`CRM_BOT_ENABLED`, `CRM_BOT_RATE_LIMIT_PER_MIN`, `CRM_BOT_ALERT_FROM`) de Vercel env vars a una tabla `platform_config` en Supabase, leída con cache in-memory de 30s. `RESEND_API_KEY` se mantiene como Vercel env (es secret). Resultado: kill-switch flipable via SQL sin redeploy; config centralizada en DB; preparación para per-workspace overrides a futuro.
+
+**Depends on:** Phase 44 (usa las rutas + módulo alerts ya construidos; refactoriza cómo leen config).
+
+**Trigger:** Urgent insertion 2026-04-18 post-Phase-44-merge. Usuario prefiere no "llenar Vercel de envs" y pide kill-switch sin redeploy para operación multi-workspace.
+
+**Risk:** LOW — 1 migración additive (nueva tabla, 0 ALTER a tablas existentes), 4 archivos refactorizados (3 routes + alerts.ts), cache 30s → tiempo máximo de inconsistencia post-flip es 30s. Rollback trivial (env var fallback si DB lookup falla).
+
+**Requirements:** Eliminar dependencia operativa de Vercel dashboard para operar kill-switch y config de CRM bots. Prerequisito para admin UI de plataforma (futuro).
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 44.1-01-PLAN.md — Migracion platform_config + domain helper getPlatformConfig + refactor 3 rutas + alerts.ts + docs (2 checkpoints humanos: apply migration + delete Vercel env vars)
+
+---
+
 ## Standalone Phases (between milestones)
 
 - [x] **WhatsApp Performance** — Realtime consolidation, panel lazy-loading, infrastructure (4 plans)

@@ -22,9 +22,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { ConversationCard } from '@/components/inbox/ConversationCard';
+import { SearchBar } from '@/components/search/SearchBar';
 import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
 import type { CachedConversation } from '@/lib/db/conversations-cache';
 import { useInboxList } from '@/hooks/useInboxList';
+import { useMessageSearch } from '@/hooks/useMessageSearch';
 import { useRealtimeInbox } from '@/lib/realtime/use-realtime-inbox';
 import { signOut } from '@/lib/session';
 import { useTheme } from '@/lib/theme';
@@ -34,6 +36,13 @@ export default function InboxScreen() {
   const { t } = useTranslation();
 
   const { conversations, loading, error, refresh, loadMore } = useInboxList();
+
+  // Plan 12: message + contact search. State is owned here (not inside
+  // SearchBar) so we can swap the inbox FlashList out when the user is
+  // searching. The hook debounces at 300ms; results are ephemeral (no
+  // sqlite cache). Regla 3 compliance: read-only endpoint, no domain.
+  const search = useMessageSearch();
+  const isSearching = search.query.trim().length >= 2;
 
   // Realtime + AppState foreground refetch. Both converge on the same
   // refresh() so there is no divergence between triggers.
@@ -95,54 +104,62 @@ export default function InboxScreen() {
         </Pressable>
       </View>
 
-      {/* Body */}
-      {error && conversations.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={[styles.errorText, { color: colors.danger }]}>
-            {error}
-          </Text>
-          <Pressable
-            onPress={() => {
+      {/* Search bar — always visible above the inbox FlashList. When
+          `isSearching` is true the SearchBar renders its own result list
+          and we hide the inbox below. */}
+      <SearchBar showResults={isSearching} search={search} />
+
+      {/* Body — hidden while searching so the SearchBar's result list
+          gets the full body area. */}
+      {!isSearching && (
+        error && conversations.length === 0 ? (
+          <View style={styles.centered}>
+            <Text style={[styles.errorText, { color: colors.danger }]}>
+              {error}
+            </Text>
+            <Pressable
+              onPress={() => {
+                void refresh();
+              }}
+              style={[
+                styles.retryButton,
+                { borderColor: colors.border, backgroundColor: colors.surface },
+              ]}
+            >
+              <Text style={[styles.retryText, { color: colors.text }]}>
+                {t('common.retry')}
+              </Text>
+            </Pressable>
+          </View>
+        ) : showEmptyState ? (
+          <View style={styles.centered}>
+            <MessageCircle size={56} color={colors.textMuted} />
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              {t('inbox.empty')}
+            </Text>
+          </View>
+        ) : (
+          <FlashList
+            data={conversations}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            onEndReached={() => {
+              void loadMore();
+            }}
+            onEndReachedThreshold={0.5}
+            refreshing={loading}
+            onRefresh={() => {
               void refresh();
             }}
-            style={[
-              styles.retryButton,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-            ]}
-          >
-            <Text style={[styles.retryText, { color: colors.text }]}>
-              {t('common.retry')}
-            </Text>
-          </Pressable>
-        </View>
-      ) : showEmptyState ? (
-        <View style={styles.centered}>
-          <MessageCircle size={56} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            {t('inbox.empty')}
-          </Text>
-        </View>
-      ) : (
-        <FlashList
-          data={conversations}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          onEndReached={() => {
-            void loadMore();
-          }}
-          onEndReachedThreshold={0.5}
-          refreshing={loading}
-          onRefresh={() => {
-            void refresh();
-          }}
-          ListFooterComponent={
-            loading && conversations.length > 0 ? (
-              <View style={styles.footer}>
-                <ActivityIndicator color={colors.textMuted} />
-              </View>
-            ) : null
-          }
-        />
+            ListFooterComponent={
+              loading && conversations.length > 0 ? (
+                <View style={styles.footer}>
+                  <ActivityIndicator color={colors.textMuted} />
+                </View>
+              ) : null
+            }
+          />
+        )
       )}
     </SafeAreaView>
   );

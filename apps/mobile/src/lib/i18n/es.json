@@ -20,6 +20,12 @@
       "cap": "99+"
     }
   },
+  "search": {
+    "placeholder": "Buscar conversaciones o mensajes",
+    "no_results": "No hay resultados",
+    "min_chars": "Escribe al menos 2 caracteres",
+    "contactMatch": "Coincidencia por contacto"
+  },
   "common": {
     "logout": "Cerrar sesión",
     "loading": "Cargando...",

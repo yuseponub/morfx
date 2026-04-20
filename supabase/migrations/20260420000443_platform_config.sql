@@ -18,3 +18,19 @@ INSERT INTO platform_config (key, value) VALUES
 
 COMMENT ON TABLE platform_config IS
   'Platform-level runtime config (Phase 44.1). Read via src/lib/domain/platform-config.ts with 30s in-memory TTL cache. Server-only (no RLS). Seeded: crm_bot_enabled, crm_bot_rate_limit_per_min, crm_bot_alert_from.';
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Corrective (2026-04-20): grants explicitos
+-- ──────────────────────────────────────────────────────────────────────────
+-- Tablas creadas via Supabase Studio SQL Editor NO reciben grants automaticos
+-- para el service_role ni para authenticated. La primera version de esta
+-- migracion omitio los GRANTs y `getPlatformConfig` en produccion fallaba con
+-- `code: 42501 — permission denied for table platform_config`, que el fail-open
+-- fallback enmascaraba retornando `true` (kill-switch nunca disparaba).
+--
+-- LEARNING propagado: toda migracion futura que cree una tabla debe incluir
+-- GRANTs explicitos aqui mismo — no asumir que las tablas creadas en prod via
+-- SQL Editor hereden los privileges que habrian tenido via `supabase db push`.
+-- Ver LEARNINGS.md (Phase 44.1) — LEARNING 1.
+GRANT ALL    ON TABLE public.platform_config TO service_role;
+GRANT SELECT ON TABLE public.platform_config TO authenticated;

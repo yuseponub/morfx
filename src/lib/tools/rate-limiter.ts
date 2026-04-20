@@ -11,7 +11,11 @@
  *   - CRM: 120 calls / 60 seconds
  *   - WhatsApp: 30 calls / 60 seconds (360dialog has its own limits)
  *   - System: 60 calls / 60 seconds
- *   - crm-bot: 50 calls / 60 seconds (configurable via CRM_BOT_RATE_LIMIT_PER_MIN env var)
+ *   - crm-bot: 50 calls / 60 seconds (Phase 44.1: limit configurable via
+ *     `{limit}` opt param passed from route handlers — resolved from
+ *     `platform_config.crm_bot_rate_limit_per_min` via
+ *     `src/lib/domain/platform-config.ts`. Default fallback 50 stays hardcoded
+ *     here for any non-route caller that invokes `check()` without opts).
  */
 
 import type { ToolModule } from './types'
@@ -31,10 +35,10 @@ const DEFAULTS: Record<ToolModule, RateLimitConfig> = {
   crm: { limit: 120, windowMs: 60_000 },
   whatsapp: { limit: 30, windowMs: 60_000 },
   system: { limit: 60, windowMs: 60_000 },
-  'crm-bot': {
-    limit: Number(process.env.CRM_BOT_RATE_LIMIT_PER_MIN ?? 50),
-    windowMs: 60_000,
-  },
+  // Phase 44.1: el 50 aqui es fallback defensive para callers sin opts.
+  // En produccion las rutas CRM bots SIEMPRE pasan `{ limit }` explicito
+  // resuelto de `platform_config.crm_bot_rate_limit_per_min` (Decision D9).
+  'crm-bot': { limit: 50, windowMs: 60_000 },
 }
 
 // ============================================================================
@@ -71,11 +75,23 @@ export class ToolRateLimiter {
    * If allowed, records the timestamp (consuming a slot).
    *
    * @param workspaceId - The workspace making the request
-   * @param module - The tool module ('crm' | 'whatsapp' | 'system')
+   * @param module - The tool module ('crm' | 'whatsapp' | 'system' | 'crm-bot')
+   * @param opts - Optional per-call overrides. `opts.limit` replaces the
+   *   DEFAULTS[module] limit for this call only. Used by CRM bot routes
+   *   (Phase 44.1) to resolve the limit from `platform_config` at request
+   *   time. If omitted, falls back to DEFAULTS[module].limit. `windowMs`
+   *   is NOT override-able (stays from DEFAULTS).
    * @returns Rate limit check result with allowed, remaining, resetMs
    */
-  check(workspaceId: string, module: ToolModule): RateLimitResult {
+  check(
+    workspaceId: string,
+    module: ToolModule,
+    opts?: { limit?: number },
+  ): RateLimitResult {
     const config = DEFAULTS[module] || DEFAULTS.system
+    // Phase 44.1: per-call override. Rutas CRM bot pasan limit resuelto de
+    // platform_config.crm_bot_rate_limit_per_min. windowMs siempre desde DEFAULTS.
+    const effectiveLimit = opts?.limit ?? config.limit
     const key = `${workspaceId}:${module}`
     const now = Date.now()
 
@@ -84,7 +100,7 @@ export class ToolRateLimiter {
       (t) => now - t < config.windowMs
     )
 
-    if (timestamps.length >= config.limit) {
+    if (timestamps.length >= effectiveLimit) {
       // Rate limit exceeded
       const oldest = timestamps[0]
       return {
@@ -100,7 +116,7 @@ export class ToolRateLimiter {
 
     return {
       allowed: true,
-      remaining: config.limit - timestamps.length,
+      remaining: effectiveLimit - timestamps.length,
       resetMs: config.windowMs,
     }
   }

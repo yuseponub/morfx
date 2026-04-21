@@ -219,12 +219,25 @@ export function createTemplateBuilderTools(ctx: TemplateBuilderToolContext) {
       description:
         'Valida el draft completo contra las reglas de Meta (char limits, variables secuenciales, nombre). Llamar ANTES de submitTemplate.',
       inputSchema: z.object({
-        draft: z.custom<TemplateDraft>(),
+        draft: z.object({
+          name: z.string(),
+          language: z.enum(['es', 'es_CO', 'en_US']),
+          category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
+          headerFormat: z.enum(['NONE', 'TEXT', 'IMAGE']),
+          headerText: z.string(),
+          headerImageStoragePath: z.string().nullable(),
+          headerImageLocalUrl: z.string().nullable(),
+          bodyText: z.string(),
+          footerText: z.string(),
+          variableMapping: z.record(z.string(), z.string()),
+          bodyExamples: z.record(z.string(), z.string()),
+          headerExamples: z.record(z.string(), z.string()),
+        }),
       }),
       execute: async (
         params,
       ): Promise<{ success: true } | { error: string; errors: string[] }> => {
-        const result = validateDraft(params.draft)
+        const result = validateDraft(params.draft as TemplateDraft)
         if (result.ok) return { success: true }
         return { error: 'Validacion fallo', errors: result.errors }
       },

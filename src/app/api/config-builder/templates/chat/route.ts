@@ -106,6 +106,16 @@ export async function POST(request: Request) {
       messages: modelMessages,
       tools,
       stopWhen: stepCountIs(15),
+      // Forzar una tool call en el primer step de cada turn — evita que la IA
+      // responda puro texto sin llamar updateDraft y deje el preview vacio.
+      // Steps posteriores son libres (toolChoice default 'auto') para que
+      // pueda combinar multiples tools + responder texto final.
+      prepareStep: async ({ stepNumber }: { stepNumber: number }) => {
+        if (stepNumber === 0) {
+          return { toolChoice: 'required' as const }
+        }
+        return {}
+      },
       onFinish: async () => {
         // Persistir las UIMessages tal cual vienen del cliente.
         // Mismo patron que /api/builder/chat.

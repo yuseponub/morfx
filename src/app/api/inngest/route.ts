@@ -29,6 +29,7 @@ import { smsDeliveryFunctions } from '@/inngest/functions/sms-delivery-check'
 import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling'
 import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
 import { crmBotExpireProposalsCron } from '@/inngest/functions/crm-bot-expire-proposals'
+import { recompraPreloadContextFunctions } from '@/inngest/functions/recompra-preload-context'
 
 /**
  * Serve all Inngest functions.
@@ -49,6 +50,7 @@ import { crmBotExpireProposalsCron } from '@/inngest/functions/crm-bot-expire-pr
  * - sms-delivery-check: 2-stage SMS delivery verification via Onurix (Standalone: SMS Module)
  * - envia-status-polling: 2h cron polling Envia shipment status API (Standalone: envia-status-polling)
  * - crm-bot-expire-proposals: Every 1 min cron that marks crm_bot_actions proposed rows as expired past TTL+30s (Phase 44)
+ * - recompra-preload-context: Triggered by 'recompra/preload-context' event after webhook-processor creates a new recompra session; calls crm-reader via AI SDK, persists `_v3:crm_context` into session_state (Standalone: somnio-recompra-crm-reader)
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -61,6 +63,7 @@ export const { GET, POST, PUT } = serve({
     ...v3TimerFunctions,
     ...smsDeliveryFunctions,
     ...mobilePushFunctions,
+    ...recompraPreloadContextFunctions,
     taskOverdueCron,
     closeStaleSessionsCron,
     observabilityPurgeCron,

@@ -15,6 +15,13 @@ type SettingsLink = {
 
 const settingsLinks: SettingsLink[] = [
   {
+    href: '/configuracion/whatsapp/templates/builder',
+    title: 'Configuracion con IA',
+    description: 'Crea templates guiado por IA con preview en tiempo real',
+    icon: Sparkles,
+    badge: 'solo WhatsApp Template por ahora',
+  },
+  {
     href: '/settings/workspace/members',
     title: 'Miembros del equipo',
     description: 'Gestiona los miembros de tu workspace e invita nuevos colaboradores',
@@ -31,13 +38,6 @@ const settingsLinks: SettingsLink[] = [
     title: 'WhatsApp',
     description: 'Templates, equipos, respuestas rapidas y costos de mensajeria',
     icon: MessageSquare,
-  },
-  {
-    href: '/configuracion/whatsapp/templates/builder',
-    title: 'Configuracion con IA',
-    description: 'Crea templates guiado por IA con preview en tiempo real',
-    icon: Sparkles,
-    badge: 'solo WhatsApp Template por ahora',
   },
   {
     href: '/configuracion/integraciones',

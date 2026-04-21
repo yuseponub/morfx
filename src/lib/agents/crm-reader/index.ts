@@ -51,6 +51,7 @@ export async function processReaderMessage(input: ReaderInput): Promise<ReaderOu
     tools,
     stopWhen: stepCountIs(MAX_STEPS),
     temperature: 0,
+    abortSignal: input.abortSignal,
   })
 
   // Flatten every tool call across all steps into a simple serialisable record.

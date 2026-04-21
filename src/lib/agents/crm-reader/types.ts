@@ -31,6 +31,8 @@ export interface ReaderInput {
   workspaceId: string
   messages: ReaderMessage[]
   invoker?: string
+  /** Optional abort signal for upstream timeouts (e.g. 12s budget in Inngest preload function). Pitfall 5 mitigation — AI SDK v6 generateText supports abortSignal nativo. */
+  abortSignal?: AbortSignal
 }
 
 export interface ReaderOutput {

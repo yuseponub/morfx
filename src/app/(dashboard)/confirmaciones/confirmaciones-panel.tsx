@@ -327,7 +327,7 @@ export function ConfirmacionesPanel() {
           onClick={() => setTab('history')}
         >
           <History className="mr-2 h-4 w-4" />
-          Historial
+          Historial confirmaciones
         </Button>
         <Button
           variant={tab === 'programacion' ? 'default' : 'ghost'}
@@ -335,7 +335,7 @@ export function ConfirmacionesPanel() {
           onClick={() => setTab('programacion')}
         >
           <Clock className="mr-2 h-4 w-4" />
-          Programacion
+          Programacion recordatorios
         </Button>
       </div>
 
@@ -673,6 +673,10 @@ export function ConfirmacionesPanel() {
         <>
           {historyView === 'list' && (
             <>
+              <div>
+                <h2 className="text-lg font-semibold">Historial de confirmaciones</h2>
+                <p className="text-sm text-muted-foreground">Envios de confirmaciones y seguimiento 2PM por scrape</p>
+              </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Ultimos 20 scrapes</p>
                 <Button variant="outline" size="sm" onClick={loadHistory} disabled={historyLoading}>
@@ -793,6 +797,10 @@ export function ConfirmacionesPanel() {
       {/* =============================================== */}
       {tab === 'programacion' && (
         <>
+          <div>
+            <h2 className="text-lg font-semibold">Programacion de recordatorios</h2>
+            <p className="text-sm text-muted-foreground">Recordatorios 1h antes de la cita (pendientes + historial)</p>
+          </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">Recordatorios programados</p>

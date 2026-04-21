@@ -742,10 +742,42 @@ export type V3TimerEvents = {
   }
 }
 
+// ============================================================================
+// Somnio Recompra — CRM Reader Preload Events
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot + godentist + v3 timer).
+ * Somnio recompra — CRM reader preload events.
+ * Emitted by webhook-processor after session creation to trigger async
+ * enrichment of session state with CRM context via the crm-reader agent.
+ * See: .planning/standalone/somnio-recompra-crm-reader/CONTEXT.md D-04/D-05.
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents
+export type RecompraPreloadEvents = {
+  /**
+   * Emitted by src/lib/agents/production/webhook-processor.ts after the
+   * V3ProductionRunner creates a new recompra session (version === 0 equivalent).
+   * Consumed by src/inngest/functions/recompra-preload-context.ts which calls
+   * processReaderMessage and writes `_v3:crm_context` + `_v3:crm_context_status`
+   * into session_state.datos_capturados via SessionManager.updateCapturedData.
+   *
+   * Idempotent: Inngest function early-returns if `_v3:crm_context_status`
+   * already present in datos_capturados (D-15).
+   * Concurrency-keyed by sessionId (limit 1) to dedupe rapid retries.
+   */
+  'recompra/preload-context': {
+    data: {
+      sessionId: string
+      contactId: string
+      workspaceId: string
+      invoker: 'somnio-recompra-v1'
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + recompra preload).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & RecompraPreloadEvents
 
 /**
  * Type helper for extracting event data by name

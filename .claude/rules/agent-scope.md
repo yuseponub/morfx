@@ -60,6 +60,24 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
   - `ResourceNotFoundError.resource_type` cubre union completa: `tag | pipeline | stage | template | user | contact | order | note | task` (BLOCKER 4 Phase 44)
   - Agent ID registrado: `'crm-writer'`; rate-limit bucket `'crm-bot'` compartido con reader
 
+### Config Builder: WhatsApp Templates (`config-builder-whatsapp-templates` — UI `/configuracion/whatsapp/templates/builder`)
+- **PUEDE:**
+  - Crear templates de WhatsApp (SOLO via domain `createTemplate` en `src/lib/domain/whatsapp-templates.ts`)
+  - Subir imagenes de header al bucket `whatsapp-media` path `templates/{workspaceId}/{timestamp}_{safeName}`
+  - Consultar templates existentes (solo lectura, para detectar duplicados y cooldown de 30 dias)
+  - Sugerir categoria (MARKETING / UTILITY / AUTHENTICATION), idioma (es / es_CO / en_US) y mapping de variables
+- **NO PUEDE:**
+  - Editar o eliminar templates ya creados (limitacion Meta: solo se elimina y recrea)
+  - Crear/editar tags, pipelines, etapas, contactos, pedidos, tareas, usuarios, templates de otro modulo
+  - Enviar mensajes de WhatsApp directamente (SEND no se toca — D-16/D-17)
+  - Ejecutar `createTemplate360()` o `supabase.from('whatsapp_templates').insert()` sin pasar por domain (Regla 3)
+  - Acceder a otros workspaces (workspace_id viene del cookie `morfx_workspace` validado en route handler, nunca del body)
+- **Validacion:**
+  - Tool `submitTemplate.execute` llama EXCLUSIVAMENTE a `createTemplate` del domain; CERO `createAdminClient` + `insert` directo en `src/lib/config-builder/templates/tools.ts` (verificable con grep)
+  - System prompt `buildTemplatesSystemPrompt` incluye lista textual de PUEDE / NO PUEDE y prohibicion explicita de crear recursos fuera del scope
+  - Agent ID registrado: `'config-builder-whatsapp-templates'`
+  - stopWhen: `stepCountIs(6)` — ciclo maximo list -> draft -> preview -> validate -> upload -> submit
+
 ## OBLIGATORIO al Crear un Agente Nuevo
 
 Cuando se programe CUALQUIER agente nuevo en el sistema, se DEBE:

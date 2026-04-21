@@ -230,6 +230,81 @@ export async function processMessageWithAgent(
         messageTimestamp: input.messageTimestamp,
       })
 
+      // ============================================================================
+      // CRM Reader Preload Dispatch (standalone: somnio-recompra-crm-reader)
+      // ============================================================================
+      // Triggers the `recompra-preload-context` Inngest function, which calls the
+      // crm-reader agent and merges the result into session_state.datos_capturados
+      // ({ _v3:crm_context, _v3:crm_context_status }). See
+      // src/inngest/functions/recompra-preload-context.ts.
+      //
+      // Position: POST-runner so engineOutput.sessionId is populated (the runner
+      // creates the session inside processMessage). D-03 "parallel" is preserved in
+      // spirit — the reader runs while the client reads the greeting and drafts a
+      // reply (3-5s window per D-13).
+      //
+      // Feature flag: platform_config['somnio_recompra_crm_reader_enabled'] default
+      // false (Regla 6). Check here to avoid the inngest.send cost when disabled.
+      // Plan 03 function also checks (defense-in-depth).
+      //
+      // Fail-open: if dispatch fails, log and continue — the greeting already went
+      // out, losing reader enrichment is not fatal (Plan 05 poll handles missing
+      // key gracefully via crm_context_missing_after_wait).
+      if (engineOutput.sessionId) {
+        try {
+          const { getPlatformConfig } = await import('@/lib/domain/platform-config')
+          const crmPreloadEnabled = await getPlatformConfig<boolean>(
+            'somnio_recompra_crm_reader_enabled',
+            false,
+          )
+
+          if (crmPreloadEnabled) {
+            // D-16 — emit dispatched event BEFORE send, so intent is recorded even if send fails.
+            getCollector()?.recordEvent('pipeline_decision', 'crm_reader_dispatched', {
+              agent: 'somnio-recompra-v1',
+              sessionId: engineOutput.sessionId,
+              contactId: contactId!,
+              workspaceId,
+            })
+
+            const { inngest } = await import('@/inngest/client')
+            await inngest.send({
+              name: 'recompra/preload-context',
+              data: {
+                sessionId: engineOutput.sessionId,
+                contactId: contactId!,
+                workspaceId,
+                invoker: 'somnio-recompra-v1',
+              },
+            })
+
+            logger.info(
+              {
+                conversationId,
+                contactId,
+                sessionId: engineOutput.sessionId,
+              },
+              'Dispatched recompra/preload-context (reader will enrich session state in background)',
+            )
+          }
+        } catch (dispatchErr) {
+          // Fail-open: the greeting already went out. Losing reader enrichment
+          // downgrades the next turn to "no CRM context" but nothing breaks. The poll
+          // in Plan 05 handles the missing key gracefully (timeout path emits
+          // crm_context_missing_after_wait).
+          logger.warn(
+            {
+              conversationId,
+              contactId,
+              sessionId: engineOutput.sessionId,
+              err: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+            },
+            'Failed to dispatch recompra/preload-context (fail-open, greeting already sent)',
+          )
+        }
+      }
+      // ============================================================================
+
       recompraResult = {
         success: engineOutput.success,
         response: engineOutput.response,

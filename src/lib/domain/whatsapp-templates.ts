@@ -23,7 +23,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   createTemplate360,
-  uploadHeaderImage360,
 } from '@/lib/whatsapp/templates-api'
 import type { DomainContext, DomainResult } from './types'
 import type {
@@ -90,7 +89,15 @@ export async function createTemplate(
     }
   }
 
-  // Step 2: Upload image to 360 Dialog and patch HEADER component (if IMAGE)
+  // Step 2: Use Supabase public URL as header_handle (360 Dialog v2 spec)
+  //
+  // NOTA (2026-04-21): El resumable upload a 360 Dialog (uploadHeaderImage360)
+  // devuelve un handle con prefijo "4:..." que Meta Cloud API acepta, pero
+  // 360 Dialog v2 rechaza con:
+  //   Invalid payload (Value `4:xxx` for `header_handle`, it should be valid url address)
+  // Por eso pasamos la URL publica de Supabase Storage. El bucket `whatsapp-media`
+  // debe ser publico (o tener una policy permissiva) para que 360 Dialog / Meta
+  // puedan descargar la imagen durante la revision.
   let components = params.components
   if (params.headerImage) {
     const headerIdx = components.findIndex((c) => c.type === 'HEADER')
@@ -102,46 +109,26 @@ export async function createTemplate(
       }
     }
 
-    // Step 2a: Download bytes from Supabase Storage
-    const { data: blob, error: dlErr } = await supabase.storage
+    // Generar URL publica del bucket whatsapp-media
+    const { data: pub } = supabase.storage
       .from('whatsapp-media')
-      .download(params.headerImage.storagePath)
+      .getPublicUrl(params.headerImage.storagePath)
 
-    if (dlErr || !blob) {
+    if (!pub?.publicUrl) {
       return {
         success: false,
-        error: `No se pudo descargar imagen: ${dlErr?.message || 'unknown'}`,
+        error: 'No se pudo generar URL publica de la imagen del header',
       }
     }
 
-    // Step 2b: Upload to 360 Dialog resumable API
-    let handle: string
-    try {
-      const bytes = await blob.arrayBuffer()
-      const result = await uploadHeaderImage360(
-        params.apiKey,
-        bytes,
-        params.headerImage.mimeType,
-        params.headerImage.storagePath.split('/').pop() || 'header.jpg'
-      )
-      handle = result.handle
-    } catch (err) {
-      return {
-        success: false,
-        error: `Error subiendo imagen a 360 Dialog: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      }
-    }
-
-    // Step 2c: Patch the HEADER component with the handle
+    // Patch del HEADER component con la URL publica
     components = components.map((c, i) =>
       i === headerIdx
         ? {
             ...c,
             example: {
               ...(c.example || {}),
-              header_handle: [handle],
+              header_handle: [pub.publicUrl],
             },
           }
         : c

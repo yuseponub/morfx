@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug, BadgeCheck, Truck } from 'lucide-react'
+import { Users, Shield, Building2, MessageSquare, Contact, Package, SlidersHorizontal, GitBranch, CircleDot, Plug, BadgeCheck, Truck, Sparkles } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
@@ -10,6 +10,7 @@ type SettingsLink = {
   description: string
   icon: typeof Users
   ownerOnly?: boolean
+  badge?: string
 }
 
 const settingsLinks: SettingsLink[] = [
@@ -30,6 +31,13 @@ const settingsLinks: SettingsLink[] = [
     title: 'WhatsApp',
     description: 'Templates, equipos, respuestas rapidas y costos de mensajeria',
     icon: MessageSquare,
+  },
+  {
+    href: '/configuracion/whatsapp/templates/builder',
+    title: 'Configuracion con IA',
+    description: 'Crea templates guiado por IA con preview en tiempo real',
+    icon: Sparkles,
+    badge: 'solo WhatsApp Template por ahora',
   },
   {
     href: '/configuracion/integraciones',
@@ -127,7 +135,14 @@ export default async function SettingsPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                       <Icon className="h-5 w-5 text-primary" />
                     </div>
-                    <CardTitle className="text-lg">{item.title}</CardTitle>
+                    <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-lg">{item.title}</CardTitle>
+                      {item.badge && (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

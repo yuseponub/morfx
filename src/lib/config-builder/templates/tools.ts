@@ -213,6 +213,35 @@ export function createTemplateBuilderTools(ctx: TemplateBuilderToolContext) {
     }),
 
     // ------------------------------------------------------------------
+    // 4b. updateDraft — empuja cambios del draft al preview (UI sync)
+    // ------------------------------------------------------------------
+    updateDraft: tool({
+      description:
+        'OBLIGATORIO — cada vez que propones o cambias cualquier campo del template (name, category, language, headerFormat, headerText, bodyText, footerText, bodyExamples, headerExamples) DEBES invocar esta tool con los campos modificados. Esto mantiene el panel de preview del lado derecho en sync con lo que vas proponiendo. Pasa solo los campos que cambian; los no incluidos se preservan.',
+      inputSchema: z.object({
+        name: z.string().optional(),
+        language: z.enum(['es', 'es_CO', 'en_US']).optional(),
+        category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']).optional(),
+        headerFormat: z.enum(['NONE', 'TEXT', 'IMAGE']).optional(),
+        headerText: z.string().optional(),
+        bodyText: z.string().optional(),
+        footerText: z.string().optional(),
+        bodyExamples: z.record(z.string(), z.string()).optional(),
+        headerExamples: z.record(z.string(), z.string()).optional(),
+      }),
+      execute: async (
+        params,
+      ): Promise<{ success: true; patch: Record<string, unknown> }> => {
+        // Echo the patch — el UI lo lee del tool-result y dispatcha al reducer
+        const patch: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(params)) {
+          if (v !== undefined) patch[k] = v
+        }
+        return { success: true, patch }
+      },
+    }),
+
+    // ------------------------------------------------------------------
     // 5. validateTemplateDraft — validador compartido
     // ------------------------------------------------------------------
     validateTemplateDraft: tool({

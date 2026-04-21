@@ -42,6 +42,7 @@ const TOOL_LABELS: Record<string, string> = {
   suggestCategory: 'Analizando categoria...',
   suggestLanguage: 'Detectando idioma...',
   captureVariableMapping: 'Mapeando variable...',
+  updateDraft: 'Actualizando preview...',
   validateTemplateDraft: 'Validando...',
   submitTemplate: 'Enviando a Meta...',
 }
@@ -94,6 +95,11 @@ function ToolOutput({
         onDraftPatch({
           type: 'APPLY_AI_PATCH',
           patch: { language: o.language as TemplateDraft['language'] },
+        })
+      } else if (toolName === 'updateDraft' && 'patch' in o && o.patch && typeof o.patch === 'object') {
+        onDraftPatch({
+          type: 'APPLY_AI_PATCH',
+          patch: o.patch as Partial<TemplateDraft>,
         })
       } else if (
         toolName === 'captureVariableMapping' &&

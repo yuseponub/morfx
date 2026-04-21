@@ -54,7 +54,16 @@ export function SearchBar({ showResults, search }: SearchBarProps) {
     showResults && hasQueried && !loading && results.length === 0;
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        // When rendering results we need to fill the parent's flex column
+        // so the FlashList below gets non-zero height. In the idle state
+        // (input-only) we keep the intrinsic height so the inbox FlashList
+        // below us can claim the rest.
+        showResults ? styles.containerExpanded : null,
+      ]}
+    >
       {/* Input row */}
       <View
         style={[
@@ -139,6 +148,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 4,
+  },
+  containerExpanded: {
+    // Claims the remaining vertical space in the inbox SafeAreaView column
+    // so the inner resultsBody's `flex: 1` resolves to non-zero height.
+    flex: 1,
+    minHeight: 0,
   },
   inputRow: {
     flexDirection: 'row',

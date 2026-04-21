@@ -53,7 +53,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { randomUUID } from 'expo-crypto';
 
 import { mobileApi, MobileApiError } from '@/lib/api-client';
+import { SendMessageResponseSchema } from '@/lib/api-schemas/messages';
 import type { MobileTemplate } from '@/lib/api-schemas/templates';
+import {
+  upsertCachedMessages,
+  type CachedMessage,
+  type MessageStatus,
+} from '@/lib/db/messages-cache';
 import { useTheme } from '@/lib/theme';
 import { useTranslation } from '@/lib/i18n';
 
@@ -174,7 +180,7 @@ export function TemplateVariableSheet({
       // messages-send-idempotent.ts line ~285).
       const previewBody = renderedBody.body ?? null;
 
-      await mobileApi.post(
+      const raw = await mobileApi.post<unknown>(
         `/api/mobile/conversations/${encodeURIComponent(conversationId)}/messages`,
         {
           idempotencyKey: randomUUID(),
@@ -185,6 +191,45 @@ export function TemplateVariableSheet({
           templateVariables,
         }
       );
+
+      // Upsert the server row into the local cache so the bubble paints on
+      // the next refreshFromCache() tick. Templates don't go through the
+      // outbox optimistic-insert path, so without this step the row only
+      // lands in the cache on the next network fetch — leaving the chat
+      // looking empty even though WhatsApp already delivered the template.
+      try {
+        const parsed = SendMessageResponseSchema.parse(raw);
+        const m = parsed.message;
+        const status: MessageStatus =
+          m.direction === 'in'
+            ? 'sent'
+            : m.status === 'failed'
+              ? 'failed'
+              : m.status === 'pending'
+                ? 'sending'
+                : 'sent';
+        const createdMs = Date.parse(m.created_at);
+        const row: CachedMessage = {
+          id: m.id,
+          conversationId: m.conversation_id,
+          workspaceId: m.workspace_id,
+          body: m.body,
+          mediaUri: m.media_url,
+          mediaType: m.media_type,
+          direction: m.direction,
+          status,
+          idempotencyKey: m.idempotency_key,
+          serverId: m.id,
+          createdAt: Number.isNaN(createdMs) ? Date.now() : createdMs,
+          updatedAt: Date.now(),
+        };
+        await upsertCachedMessages([row]);
+      } catch (cacheErr) {
+        console.warn(
+          '[TemplateVariableSheet] cache upsert failed',
+          cacheErr
+        );
+      }
 
       // Success — let the parent refresh the message list.
       onSent();

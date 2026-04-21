@@ -39,6 +39,16 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
   - Tool handlers importan EXCLUSIVAMENTE desde `@/lib/domain/*` — cero `createAdminClient` en `src/lib/agents/crm-reader/tools/**` (BLOCKER 1 Phase 44)
   - Todas las queries pasan por domain layer que filtra por `workspace_id` (Regla 3)
   - Agent ID registrado: `'crm-reader'` en `agentRegistry`; observability agentId mismo valor; rate-limit bucket `'crm-bot'` compartido con writer
+- **Consumidores in-process documentados:**
+  - `somnio-recompra-v1` (Phase standalone `somnio-recompra-crm-reader`, shipped 2026-04-21):
+    - Invoca `processReaderMessage(...)` desde la funcion Inngest `recompra-preload-context` (`src/inngest/functions/recompra-preload-context.ts`) al crear sesion nueva de recompra.
+    - Invoker propagado: el dispatch webhook-processor + function pasan `invoker: 'somnio-recompra-v1'` → reader loggea este valor.
+    - Workspace isolation: `workspaceId` del event validado contra el workspace del session_state; reader filtra queries por workspace como de costumbre (Regla 3).
+    - Feature flag: `platform_config.somnio_recompra_crm_reader_enabled` (default `false`, flip manual via SQL — Regla 6).
+    - Escribe `_v3:crm_context` + `_v3:crm_context_status` a `session_state.datos_capturados` via `SessionManager.updateCapturedData` (merge-safe).
+    - Observability: emite 5 eventos `pipeline_decision:*` (`crm_reader_dispatched`, `crm_reader_completed`, `crm_reader_failed`, `crm_context_used`, `crm_context_missing_after_wait`).
+    - Timeout: 12s inner AbortController; retries=1; concurrency=1 por `event.data.sessionId`.
+    - Consumo HTTP: NO (invocacion in-process dentro del mismo Vercel deployment).
 
 ### CRM Writer Bot (`crm-writer` — API `/api/v1/crm-bots/writer/propose` + `/confirm`)
 - **PUEDE (via two-step propose→confirm obligatorio):**

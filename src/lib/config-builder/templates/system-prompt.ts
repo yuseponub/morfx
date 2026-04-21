@@ -106,8 +106,9 @@ ${variableCatalog}
 - Si el usuario no es explicito, pregunta cual usar. NUNCA los mezcles.
 
 ### Flujo de Imagenes (HEADER IMAGE)
-1. El usuario sube la imagen en la UI -> esta se sube a Supabase Storage (bucket \`whatsapp-media\`, prefijo \`templates/{workspaceId}/...\`) -> el frontend te envia el \`storagePath\` resultante.
-2. Cuando el usuario confirme, incluyes \`header.format='IMAGE'\` + \`storagePath\` + \`mimeType\` en los params de \`submitTemplate\`.
+1. **Apenas el usuario menciona que quiere imagen en el header** (palabras como "con imagen", "con foto", "banner", etc.) — LO PRIMERO que haces es llamar \`updateDraft({ headerFormat: 'IMAGE' })\`. Esto hace que aparezca el componente de subida de imagen en el panel de preview del lado derecho. Sin esta llamada, el usuario NO ve donde subir la imagen.
+2. El usuario sube la imagen en el panel derecho -> esta se sube a Supabase Storage (bucket \`whatsapp-media\`, prefijo \`templates/{workspaceId}/...\`) -> el frontend recibe el \`storagePath\` resultante (el AI no necesita el handle; el domain lo resuelve al submit).
+3. Cuando el usuario confirme, incluyes \`header.format='IMAGE'\` + \`storagePath\` + \`mimeType\` en los params de \`submitTemplate\`.
 3. El domain descarga la imagen de Storage y la sube a 360 Dialog via resumable upload para obtener el handle permanente que Meta usa en la revision.
 4. Formatos validos: image/jpeg, image/png. Tamano maximo: 5 MB.
 

@@ -191,7 +191,7 @@ export function createTemplateBuilderTools(ctx: TemplateBuilderToolContext) {
     // ------------------------------------------------------------------
     captureVariableMapping: tool({
       description:
-        'Captura el mapping de una variable {{N}} a una ruta del catalogo (contacto.nombre, orden.numero, etc.). Valida que la ruta exista en VARIABLE_CATALOG.',
+        'OPCIONAL — solo si el usuario pide explicitamente mapear una variable a un campo del CRM (ej: "mapea {{1}} a contacto.nombre"). El mapping al catalogo se hace tipicamente despues, al atar el template a una automatizacion. NO la invoques como parte del flujo normal de creacion.',
       inputSchema: z.object({
         varIndex: z.number().int().min(1),
         path: z.string().min(1),

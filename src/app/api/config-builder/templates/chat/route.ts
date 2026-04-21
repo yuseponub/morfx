@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       system: systemPrompt,
       messages: modelMessages,
       tools,
-      stopWhen: stepCountIs(6),
+      stopWhen: stepCountIs(15),
       onFinish: async () => {
         // Persistir las UIMessages tal cual vienen del cliente.
         // Mismo patron que /api/builder/chat.

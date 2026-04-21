@@ -508,6 +508,50 @@ El QA del kill-switch de Phase 44 cambio:
 
 ---
 
+### 11.2 Integracion somnio-recompra ↔ crm-reader (Standalone: somnio-recompra-crm-reader)
+
+- **Estado:** ✅ SHIPPED 2026-04-21 (flag default `false` — Regla 6 rollout gradual; activacion manual en Task 3 checkpoint)
+- **Proposito:** Enriquecer la sesion del agente `somnio-recompra-v1` con contexto rico del cliente (ultimo pedido con items, tags activos, total de pedidos, direccion mas reciente) invocando al agente `crm-reader` de forma asincrona, **sin bloquear el saludo del turno 0**. Primera integracion agent-to-agent in-process del repo.
+
+#### Flujo end-to-end
+
+1. `webhook-processor` crea la sesion de recompra via `V3ProductionRunner.processMessage` y envia el saludo (latencia <200ms usando solo `contact.name`).
+2. Post-runner, si `platform_config.somnio_recompra_crm_reader_enabled === true`, emite `await inngest.send({ name: 'recompra/preload-context', data: { sessionId, contactId, workspaceId, invoker: 'somnio-recompra-v1' } })` con fail-open try/catch.
+3. Inngest function `recompra-preload-context` (retries=1, concurrency=1 por `sessionId`) llama a `processReaderMessage` con `AbortSignal.timeout(12_000)`, y escribe merge-safe `_v3:crm_context` + `_v3:crm_context_status` (`'ok' | 'empty' | 'error'`) en `session_state.datos_capturados`.
+4. En el turno 1+, `somnio-recompra-agent.processUserMessage` invoca `pollCrmContext(sessionId, datosCapturados)` antes de `comprehend`: fast-path si el marker ya esta en el snapshot, poll DB de 500ms × 6 iteraciones (3s max) si no. Timeout retorna `{ crmContext: null, status: 'timeout' }`.
+5. Al obtener `status='ok'`, el helper merge el texto a `input.datosCapturados`; el `buildSystemPrompt` del `comprehension-prompt.ts` inyecta una seccion dedicada `## CONTEXTO CRM DEL CLIENTE (precargado)` ANTES de `DATOS YA CAPTURADOS` y filtra keys `_v3:*` del JSON dump. Haiku analiza con contexto rico; si status != `'ok'`, el prompt queda byte-identical al pre-fase.
+
+#### Feature flag (Regla 6)
+
+- Key: `somnio_recompra_crm_reader_enabled` (seed en migration `20260421155713_seed_recompra_crm_reader_flag.sql`, default `false`).
+- Doble guard: webhook-processor (evita coste `inngest.send` cuando disabled) + Inngest function (defense-in-depth, early-return `skipped/feature_flag_off`).
+- Flipeable via SQL sin redeploy (`UPDATE platform_config SET value = 'true'::jsonb WHERE key = 'somnio_recompra_crm_reader_enabled';`); propagacion ≤30s (`getPlatformConfig` cache TTL).
+
+#### Observability (Phase 42.1)
+
+Emite 5 eventos `pipeline_decision:*` consumibles desde el dashboard de observability:
+- `crm_reader_dispatched` — webhook-processor envio el event (intencion registrada ANTES del send).
+- `crm_reader_completed` / `crm_reader_failed` — Inngest function termino ok/empty o fallo con timeout/exception (metrics: durationMs, toolCallCount, steps, textLength).
+- `crm_context_used` — agent turno 1+ obtuvo `status='ok'` tras poll DB (no se emite en fast-path — el contexto ya estaba en el snapshot).
+- `crm_context_missing_after_wait` — agent espero 3s sin exito (`status='timeout'|'error'|'empty'`); turno procede sin contexto (D-14).
+
+#### Tests
+
+- `src/inngest/functions/__tests__/recompra-preload-context.test.ts` — 5 branches (flag off, idempotency, ok, empty, error).
+- `src/lib/agents/production/__tests__/webhook-processor.recompra-flag.test.ts` — 4 branches (flag off, flag on+sessionId, sessionId empty, send throws).
+- `src/lib/agents/somnio-recompra/__tests__/crm-context-poll.test.ts` — 7 branches (3 fast-paths + poll ok + timeout + status=error + transient swallow) con `vi.useFakeTimers()`.
+- `src/lib/agents/somnio-recompra/__tests__/comprehension-prompt.test.ts` — 10 branches (inject, filter, 3 no-inject, edge cases).
+- Total: **26 unit tests** todos passing.
+
+#### Referencias
+
+- **Codigo:** `src/inngest/functions/recompra-preload-context.ts` (Inngest function), `src/lib/agents/production/webhook-processor.ts` (dispatch, lines ~233-309), `src/lib/agents/somnio-recompra/somnio-recompra-agent.ts` (poll + processUserMessage wire), `src/lib/agents/somnio-recompra/comprehension-prompt.ts` (prompt inject), `src/inngest/events.ts` (`RecompraPreloadEvents` schema), `src/lib/agents/crm-reader/types.ts` + `index.ts` (abortSignal pass-through).
+- **Schema:** `supabase/migrations/20260421155713_seed_recompra_crm_reader_flag.sql`.
+- **Plan artifacts:** `.planning/standalone/somnio-recompra-crm-reader/` (CONTEXT + RESEARCH + PATTERNS + 01..07-PLAN + 01..07-SUMMARY).
+- **Scope enforcement:** `.claude/rules/agent-scope.md` §CRM Reader Bot → "Consumidores in-process documentados" bullet (D-17).
+
+---
+
 ## API Endpoints
 
 | Endpoint | Metodos | Auth | Status | Funcion |
@@ -682,3 +726,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 *Actualizado: 7 abril 2026 — Phase 42 (Session Lifecycle) completada: cron de cierre, partial unique index, retry 23505, defensive timer-guard, TZ-safe RPC*
 *Actualizado: 18 abril 2026 — Phase 44 (CRM Bots Read + Write) SHIPPED: dos agentes IA internos expuestos como API (reader + writer two-step propose/confirm), aislamiento fisico por carpeta, rate-limit compartido `'crm-bot'` 50/min/workspace, kill-switch `CRM_BOT_ENABLED` (requiere Vercel redeploy — Blocker 6), Inngest cron `crmBotExpireProposals`, email alerts Resend, observability full. Pending production QA en Task 6 checkpoint.*
 *Actualizado: 19 abril 2026 — Phase 44.1 (CRM Bots Config DB) SHIPPED: 3 env vars de CRM bots relocadas a tabla `platform_config` en Supabase. Nuevo helper `src/lib/domain/platform-config.ts` con cache in-memory 30s TTL. Kill-switch ahora flipeable via SQL sin redeploy (resuelve Blocker 6). `RESEND_API_KEY` permanece en Vercel (secret). QA kill-switch procedure actualizado — ver seccion 11.1.*
+*Actualizado: 21 abril 2026 — Standalone `somnio-recompra-crm-reader` SHIPPED (codigo) con feature flag default `false` (Regla 6 rollout gradual): `somnio-recompra-v1` ahora enriquece la sesion con contexto rico del cliente (ultimo pedido, tags, total pedidos, direccion) via Inngest function `recompra-preload-context` que invoca al agente `crm-reader` en paralelo al saludo. Comprehension del turno 1+ inyecta seccion dedicada `## CONTEXTO CRM DEL CLIENTE (precargado)` cuando `_v3:crm_context_status === 'ok'`. 26 unit tests passing. Activacion manual via SQL en `platform_config.somnio_recompra_crm_reader_enabled`. Ver seccion 11.2.*

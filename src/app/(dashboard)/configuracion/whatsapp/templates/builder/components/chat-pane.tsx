@@ -89,7 +89,14 @@ export function ChatPane({ sessionId, onSessionCreated, initialMessages }: ChatP
           toolName?: string
           output?: unknown
         }
-        if (part.type !== 'dynamic-tool' || part.state !== 'output-available') continue
+        if (!part.type || part.state !== 'output-available') continue
+        // AI SDK v6: statically-typed tools emit 'tool-{toolName}', dynamic tools emit 'dynamic-tool'
+        const isDynamic = part.type === 'dynamic-tool'
+        const isStatic = part.type.startsWith('tool-')
+        if (!isDynamic && !isStatic) continue
+        const toolName = isDynamic ? part.toolName : part.type.slice('tool-'.length)
+        if (!toolName) continue
+
         const key = `${msg.id}:${i}`
         if (processedPartsRef.current.has(key)) continue
         const out = part.output
@@ -97,16 +104,16 @@ export function ChatPane({ sessionId, onSessionCreated, initialMessages }: ChatP
         const o = out as Record<string, unknown>
         if (!('success' in o) || o.success !== true) continue
 
-        if (part.toolName === 'updateDraft' && 'patch' in o && o.patch && typeof o.patch === 'object') {
+        if (toolName === 'updateDraft' && 'patch' in o && o.patch && typeof o.patch === 'object') {
           dispatch({ type: 'APPLY_AI_PATCH', patch: o.patch as Partial<TemplateDraft> })
           processedPartsRef.current.add(key)
-        } else if (part.toolName === 'suggestCategory' && 'category' in o) {
+        } else if (toolName === 'suggestCategory' && 'category' in o) {
           dispatch({
             type: 'APPLY_AI_PATCH',
             patch: { category: o.category as TemplateDraft['category'] },
           })
           processedPartsRef.current.add(key)
-        } else if (part.toolName === 'suggestLanguage' && 'language' in o) {
+        } else if (toolName === 'suggestLanguage' && 'language' in o) {
           dispatch({
             type: 'APPLY_AI_PATCH',
             patch: { language: o.language as TemplateDraft['language'] },

@@ -245,16 +245,11 @@ export function ChatMessage({ message, onDraftPatch }: ChatMessageProps) {
                 )
 
               case 'dynamic-tool': {
-                // AI SDK v6 tool states:
-                //   input-streaming / input-available -> loading
-                //   output-available -> ToolOutput (renders + dispatches patch)
-                //   output-error -> red badge
+                // AI SDK v6 dynamic tools
                 const { toolName, state } = part
-
                 if (state === 'input-streaming' || state === 'input-available') {
                   return <ToolLoading key={i} toolName={toolName} />
                 }
-
                 if (state === 'output-available') {
                   return (
                     <ToolOutput
@@ -265,7 +260,6 @@ export function ChatMessage({ message, onDraftPatch }: ChatMessageProps) {
                     />
                   )
                 }
-
                 if (state === 'output-error') {
                   return (
                     <div
@@ -276,12 +270,43 @@ export function ChatMessage({ message, onDraftPatch }: ChatMessageProps) {
                     </div>
                   )
                 }
-
                 return null
               }
 
-              default:
+              default: {
+                // AI SDK v6 statically-typed tools emit 'tool-{toolName}'
+                if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
+                  const toolName = part.type.slice('tool-'.length)
+                  const p = part as unknown as {
+                    state?: string
+                    output?: unknown
+                  }
+                  if (p.state === 'input-streaming' || p.state === 'input-available') {
+                    return <ToolLoading key={i} toolName={toolName} />
+                  }
+                  if (p.state === 'output-available') {
+                    return (
+                      <ToolOutput
+                        key={i}
+                        toolName={toolName}
+                        output={p.output}
+                        onDraftPatch={onDraftPatch}
+                      />
+                    )
+                  }
+                  if (p.state === 'output-error') {
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-destructive/10 text-xs text-destructive w-fit"
+                      >
+                        <span>Error en {toolName}</span>
+                      </div>
+                    )
+                  }
+                }
                 return null
+              }
             }
           })
         )}

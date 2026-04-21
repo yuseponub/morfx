@@ -10,10 +10,10 @@ import type {
   ActionResult,
 } from '@/lib/whatsapp/types'
 import {
-  createTemplate360,
   listTemplates360,
   deleteTemplate360,
 } from '@/lib/whatsapp/templates-api'
+import { createTemplate as createTemplateDomain } from '@/lib/domain/whatsapp-templates'
 
 // ============================================================================
 // READ OPERATIONS
@@ -132,21 +132,23 @@ export async function createTemplate(params: {
   category: TemplateCategory
   components: TemplateComponent[]
   variable_mapping?: Record<string, string>
+  headerImage?: { storagePath: string; mimeType: 'image/jpeg' | 'image/png' }
 }): Promise<ActionResult<Template>> {
+  // 1. Auth check
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'No autenticado' }
   }
 
+  // 2. Workspace resolution
   const cookieStore = await cookies()
   const workspaceId = cookieStore.get('morfx_workspace')?.value
   if (!workspaceId) {
     return { error: 'No hay workspace seleccionado' }
   }
 
-  // Validate and clean template name (lowercase, underscores only)
+  // 3. Name validation + cleanup (lowercase, underscores only)
   if (!params.name.trim()) {
     return { error: 'El nombre es requerido', field: 'name' }
   }
@@ -161,77 +163,43 @@ export async function createTemplate(params: {
     return { error: 'El nombre debe contener letras o numeros', field: 'name' }
   }
 
-  // Validate components
+  // 4. Component validation
   if (!params.components || params.components.length === 0) {
     return { error: 'El template debe tener al menos un componente', field: 'components' }
   }
 
-  const language = params.language || 'es'
-
-  // Insert into local database first
-  const { data: template, error: insertError } = await supabase
-    .from('whatsapp_templates')
-    .insert({
-      workspace_id: workspaceId,
-      name: cleanName,
-      language,
-      category: params.category,
-      status: 'PENDING',
-      components: params.components,
-      variable_mapping: params.variable_mapping || {},
-    })
-    .select()
-    .single()
-
-  if (insertError) {
-    console.error('Error creating template:', insertError)
-    if (insertError.code === '23505') {
-      return { error: 'Ya existe un template con este nombre', field: 'name' }
-    }
-    return { error: 'Error al crear el template' }
-  }
-
-  // Get workspace-specific API key (fallback to env var)
+  // 5. Fetch workspace API key (fallback to env var)
   const { data: wsData } = await supabase
     .from('workspaces')
     .select('settings')
     .eq('id', workspaceId)
     .single()
   const apiKey = wsData?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-  if (apiKey) {
-    try {
-      await createTemplate360(apiKey, {
-        name: cleanName,
-        language,
-        category: params.category,
-        components: params.components,
-      })
+  if (!apiKey) {
+    return { error: 'API key de WhatsApp no configurada en el workspace' }
+  }
 
-      // Update submitted_at
-      await supabase
-        .from('whatsapp_templates')
-        .update({ submitted_at: new Date().toISOString() })
-        .eq('id', template.id)
-    } catch (apiError) {
-      console.error('Failed to submit template to 360dialog:', apiError)
-      const errorMessage = apiError instanceof Error ? apiError.message : 'Error al enviar a 360dialog'
-
-      // Update template with error info
-      await supabase
-        .from('whatsapp_templates')
-        .update({
-          status: 'REJECTED',
-          rejected_reason: errorMessage,
-        })
-        .eq('id', template.id)
-
-      revalidatePath('/configuracion/whatsapp/templates')
-      return { error: `Error de 360dialog: ${errorMessage}` }
+  // 6. Delegate to domain (Regla 3: single source of truth)
+  const result = await createTemplateDomain(
+    { workspaceId, source: 'server-action' },
+    {
+      name: cleanName,
+      language: params.language || 'es',
+      category: params.category,
+      components: params.components,
+      variableMapping: params.variable_mapping || {},
+      headerImage: params.headerImage,
+      apiKey,
     }
+  )
+
+  // 7. Translate DomainResult -> ActionResult
+  if (!result.success) {
+    return { error: result.error || 'Error desconocido al crear template' }
   }
 
   revalidatePath('/configuracion/whatsapp/templates')
-  return { success: true, data: template as Template }
+  return { success: true, data: result.data as Template }
 }
 
 // ============================================================================

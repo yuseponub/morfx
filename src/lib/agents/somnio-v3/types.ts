@@ -147,6 +147,15 @@ export interface V3AgentInput {
   turnNumber: number
   workspaceId: string
   systemEvent?: SystemEvent
+  /**
+   * Session id (agent_sessions row id).
+   * Added standalone `somnio-recompra-crm-reader` Plan 05: enables crm_context
+   * poll in processUserMessage (Pitfall 3 mitigation — input.datosCapturados is
+   * a snapshot taken at turn start, while the Inngest function may persist
+   * `_v3:crm_context_status` AFTER that snapshot).
+   * Optional for backward compat with sandbox / tests that build V3AgentInput by hand.
+   */
+  sessionId?: string
 }
 
 export interface V3AgentOutput {

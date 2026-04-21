@@ -144,6 +144,14 @@ export interface V3AgentInput {
   turnNumber: number
   workspaceId: string
   systemEvent?: SystemEvent
+  /**
+   * Session id (row id from agent_sessions table).
+   * Required for the crm_context poll in processUserMessage (Pitfall 3 mitigation):
+   * input.datosCapturados is a snapshot taken at turn start; the Inngest function
+   * may write `_v3:crm_context_status` AFTER the snapshot. Poll DB directly.
+   * Optional for backward compatibility with sandbox/tests that construct V3AgentInput manually.
+   */
+  sessionId?: string
 }
 
 export interface V3AgentOutput {

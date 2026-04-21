@@ -113,6 +113,7 @@ export class V3ProductionRunner {
         accionesEjecutadas,
         turnNumber,
         workspaceId: this.config.workspaceId,
+        sessionId: session.id,
         // systemEvent: undefined — only for timers, not user messages
       }
 

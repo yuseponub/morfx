@@ -206,3 +206,86 @@ export async function syncTemplateStatus360(
     rejected_reason: template.rejected_reason || null,
   }
 }
+
+// ============================================================================
+// RESUMABLE UPLOAD (for template IMAGE headers)
+// Meta requires a permanent file handle (not URL, not temporary media ID) in
+// example.header_handle[0] when creating a template with an IMAGE header.
+// 360 Dialog proxies Meta's Resumable Upload API with D360-API-KEY auth.
+//
+// Two-step flow:
+//   1. POST /uploads?file_length=X&file_type=image/jpeg  -> { id: "upload:MTphd..." }
+//   2. POST /{session_id}   headers file_offset: 0       -> { h: "4::aW..." }
+// ============================================================================
+
+export interface UploadHeaderImageResult {
+  handle: string // "4::aW..."
+}
+
+/**
+ * Upload an image to 360 Dialog and obtain a permanent file handle suitable
+ * for use in example.header_handle[0] at template creation time.
+ *
+ * @param apiKey - Workspace D360-API-KEY
+ * @param bytes - Raw image bytes (Uint8Array / Buffer / ArrayBuffer)
+ * @param mimeType - 'image/jpeg' | 'image/png'
+ * @param fileName - Informational only (360 stores it; Meta uses it in the UI)
+ * @returns { handle } - the "h" value from Meta
+ */
+export async function uploadHeaderImage360(
+  apiKey: string,
+  bytes: ArrayBuffer | Uint8Array,
+  mimeType: 'image/jpeg' | 'image/png',
+  fileName: string
+): Promise<UploadHeaderImageResult> {
+  const fileLength =
+    bytes instanceof ArrayBuffer ? bytes.byteLength : bytes.length
+
+  // ---- Step 1: create upload session ----
+  const sessionUrl = new URL(`${BASE_URL}/uploads`)
+  sessionUrl.searchParams.set('file_length', String(fileLength))
+  sessionUrl.searchParams.set('file_type', mimeType)
+  sessionUrl.searchParams.set('file_name', fileName)
+
+  const sessionRes = await fetch(sessionUrl.toString(), {
+    method: 'POST',
+    headers: { 'D360-API-KEY': apiKey },
+  })
+
+  if (!sessionRes.ok) {
+    const err = await sessionRes.json().catch(() => ({}))
+    throw new Error(
+      err.error?.message || `Upload session failed: ${sessionRes.status}`
+    )
+  }
+
+  const { id: sessionId } = (await sessionRes.json()) as { id: string }
+  if (!sessionId || !sessionId.startsWith('upload:')) {
+    throw new Error(`Unexpected session id format: ${sessionId}`)
+  }
+
+  // ---- Step 2: upload bytes ----
+  // The session id already contains the "upload:" prefix - the endpoint path
+  // uses it as-is per docs.360dialog.com's example.
+  const uploadRes = await fetch(`${BASE_URL}/${sessionId}`, {
+    method: 'POST',
+    headers: {
+      'D360-API-KEY': apiKey,
+      'file_offset': '0',
+      'Content-Type': mimeType,
+    },
+    body: bytes as BodyInit,
+  })
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json().catch(() => ({}))
+    throw new Error(
+      err.error?.message || `Upload bytes failed: ${uploadRes.status}`
+    )
+  }
+
+  const { h } = (await uploadRes.json()) as { h: string }
+  if (!h) throw new Error('Upload response missing handle "h"')
+
+  return { handle: h }
+}

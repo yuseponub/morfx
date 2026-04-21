@@ -169,6 +169,17 @@ function ToolOutput({
     )
   }
 
+  // updateDraft: chip con los campos que se actualizaron (diagnostico visual)
+  if (toolName === 'updateDraft' && 'success' in o && o.success === true && 'patch' in o && o.patch && typeof o.patch === 'object') {
+    const fields = Object.keys(o.patch as Record<string, unknown>)
+    return (
+      <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-blue-500/10 text-xs text-blue-600 dark:text-blue-400 w-fit">
+        <Check className="h-3 w-3" />
+        <span>Preview actualizado ({fields.join(', ') || 'sin cambios'})</span>
+      </div>
+    )
+  }
+
   // Tools "silenciosos" (listExisting, suggest*, capture): un check sutil
   if ('success' in o && o.success === true) {
     const label = TOOL_LABELS[toolName] ?? toolName

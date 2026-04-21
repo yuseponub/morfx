@@ -12,9 +12,29 @@
  */
 
 export function buildSystemPrompt(existingData: Record<string, string>, recentBotMessages: string[] = []): string {
-  const dataSection = Object.keys(existingData).length > 0
-    ? `\nDATOS YA CAPTURADOS (no re-extraer si ya estan):\n${JSON.stringify(existingData, null, 2)}`
+  // CRM context + status marker set by Plan 03 Inngest function and surfaced by Plan 05 poll.
+  const crmContext = existingData['_v3:crm_context']
+  const crmStatus = existingData['_v3:crm_context_status']
+  const hasCrmContext =
+    crmStatus === 'ok' && crmContext != null && crmContext.trim().length > 0
+
+  // Filter out _v3:* internal metadata keys from the data dump. Leaking them would
+  // (a) duplicate crm_context text (already rendered in crmSection),
+  // (b) surface implementation details ("_v3:crm_context_status" is nonsense for the analyzer),
+  // (c) tempt the analyzer to "capture" _v3: keys as regular fields.
+  const filteredData = Object.fromEntries(
+    Object.entries(existingData).filter(([k]) => !k.startsWith('_v3:')),
+  )
+
+  const dataSection = Object.keys(filteredData).length > 0
+    ? `\nDATOS YA CAPTURADOS (no re-extraer si ya estan):\n${JSON.stringify(filteredData, null, 2)}`
     : '\nDATOS YA CAPTURADOS: Ninguno aun.'
+
+  // Dedicated CRM section rendered BEFORE "DATOS YA CAPTURADOS" (Claude's Discretion LOCK —
+  // reader output is richer than flat keys and deserves its own labelled block).
+  const crmSection = hasCrmContext
+    ? `\n\n## CONTEXTO CRM DEL CLIENTE (precargado)\n${crmContext}\n\n(Usa este contexto para personalizar la comprension; NO reinventes datos.)`
+    : ''
 
   const botContextSection = recentBotMessages.length > 0
     ? `\nULTIMOS MENSAJES DEL BOT (para contexto de respuestas cortas del cliente):
@@ -114,5 +134,5 @@ REGLAS DE CLASIFICACION:
   - irrelevante: mensajes sin contenido sustancial que no requieren respuesta informativa
 - Si el cliente envia su nombre y pregunta el precio, es "mixto"
 - Si solo envia "Jose Lopez, 3001234567, Bogota", es "datos"
-${dataSection}${botContextSection}`
+${crmSection}${dataSection}${botContextSection}`
 }

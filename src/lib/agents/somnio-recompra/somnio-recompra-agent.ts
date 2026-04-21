@@ -27,6 +27,81 @@ import { getCollector } from '@/lib/observability'
 import type { AgentState, V3AgentInput, V3AgentOutput, TimerSignal, AccionRegistrada } from './types'
 
 // ============================================================================
+// CRM Context Poll (standalone: somnio-recompra-crm-reader, D-13/D-14)
+// ============================================================================
+
+/**
+ * Poll session_state for the CRM context marker written by the
+ * `recompra-preload-context` Inngest function (see
+ * src/inngest/functions/recompra-preload-context.ts).
+ *
+ * Fast path: if `datosFromInput` already contains a status marker, return
+ * immediately (no DB hit). This happens when the dispatch + reader completed
+ * BEFORE the runner took the snapshot (likely by turn 1+).
+ *
+ * Poll path (Pitfall 3 mitigation): `datosFromInput` is a snapshot taken at
+ * turn start by v3-production-runner; the Inngest function may have written
+ * AFTER that snapshot. Poll DB every `intervalMs` up to `timeoutMs`.
+ *
+ * Returns:
+ * - `{ crmContext, status: 'ok' }`     reader wrote non-empty text.
+ * - `{ crmContext: '', status: 'empty' }`  reader returned empty text.
+ * - `{ crmContext: '', status: 'error' }`  reader threw (marker written in Plan 03 catch).
+ * - `{ crmContext: null, status: 'timeout' }`  poll timed out, function still running or crashed.
+ *
+ * D-13: timeoutMs=3000, intervalMs=500 (6 iterations max).
+ * D-14: on timeout, caller proceeds without context (comprehension falls back).
+ */
+export async function pollCrmContext(
+  sessionId: string,
+  datosFromInput: Record<string, string>,
+  timeoutMs = 3000,
+  intervalMs = 500,
+): Promise<{
+  crmContext: string | null
+  status: 'ok' | 'empty' | 'error' | 'timeout'
+}> {
+  // Fast path: status already present in input snapshot (dispatch won race before turn 1+).
+  const existingStatus = datosFromInput['_v3:crm_context_status']
+  if (
+    existingStatus === 'ok' ||
+    existingStatus === 'empty' ||
+    existingStatus === 'error'
+  ) {
+    return {
+      crmContext: datosFromInput['_v3:crm_context'] ?? null,
+      status: existingStatus as 'ok' | 'empty' | 'error',
+    }
+  }
+
+  // Poll path: input snapshot is stale, read DB directly (Pitfall 3).
+  const { SessionManager } = await import('@/lib/agents/session-manager')
+  const sm = new SessionManager()
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    try {
+      const state = await sm.getState(sessionId)
+      const datos = (state.datos_capturados ?? {}) as Record<string, string>
+      const status = datos['_v3:crm_context_status']
+      if (status === 'ok' || status === 'empty' || status === 'error') {
+        return {
+          crmContext: datos['_v3:crm_context'] ?? null,
+          status: status as 'ok' | 'empty' | 'error',
+        }
+      }
+    } catch {
+      // Swallow transient DB errors and retry — if session doesn't exist
+      // (shouldn't happen — v3-production-runner just created it) we fall
+      // through to timeout and comprehension proceeds without context.
+    }
+  }
+
+  return { crmContext: null, status: 'timeout' }
+}
+
+// ============================================================================
 // Main Processing Function
 // ============================================================================
 
@@ -169,6 +244,42 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
       input.templatesEnviados,
       input.accionesEjecutadas ?? [],
     )
+
+    // ★ CRM context poll (standalone: somnio-recompra-crm-reader, D-13/D-14)
+    // Waits up to 3s (500ms intervals) for the recompra-preload-context Inngest
+    // function to persist `_v3:crm_context*` into session_state. On fast path
+    // (marker already in the snapshot) returns immediately without a DB hit.
+    if (input.sessionId) {
+      const fastPathHit = input.datosCapturados['_v3:crm_context_status'] !== undefined
+      const { crmContext, status } = await pollCrmContext(
+        input.sessionId,
+        input.datosCapturados,
+      )
+
+      if (status === 'ok' && crmContext) {
+        // Merge into input.datosCapturados so comprehension-prompt (Plan 06) picks it up.
+        input.datosCapturados['_v3:crm_context'] = crmContext
+        input.datosCapturados['_v3:crm_context_status'] = 'ok'
+
+        // Emit `crm_context_used` only when we actually waited (not fast-path).
+        if (!fastPathHit) {
+          getCollector()?.recordEvent('pipeline_decision', 'crm_context_used', {
+            agent: 'somnio-recompra-v1',
+            sessionId: input.sessionId,
+            contextLength: crmContext.length,
+          })
+        }
+      } else if (status === 'timeout' || status === 'error' || status === 'empty') {
+        // Emit `crm_context_missing_after_wait` only when we actually waited (not fast-path).
+        if (!fastPathHit) {
+          getCollector()?.recordEvent('pipeline_decision', 'crm_context_missing_after_wait', {
+            agent: 'somnio-recompra-v1',
+            sessionId: input.sessionId,
+            status,
+          })
+        }
+      }
+    }
 
     // C2: Comprehension (always real — this is a user message)
     const recentBotMessages = input.history

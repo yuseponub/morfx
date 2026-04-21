@@ -17,12 +17,15 @@ import type { BuilderSession } from '@/lib/builder/types'
  * @param workspaceId - Workspace UUID for isolation
  * @param userId - User UUID who owns the session
  * @param title - Optional title (auto-generated from first message if omitted)
+ * @param kind - Builder flavor: 'automation' (default) or 'template'.
+ *               Defaults to 'automation' so existing callers keep working unchanged (Regla 6).
  * @returns The created BuilderSession or null on failure
  */
 export async function createSession(
   workspaceId: string,
   userId: string,
-  title?: string
+  title?: string,
+  kind: 'automation' | 'template' = 'automation'
 ): Promise<BuilderSession | null> {
   try {
     const supabase = createAdminClient()
@@ -35,6 +38,7 @@ export async function createSession(
         title: title || null,
         messages: [],
         automations_created: [],
+        kind,
       })
       .select()
       .single()
@@ -97,30 +101,41 @@ export async function getSession(
  * @param workspaceId - Workspace UUID for isolation
  * @param userId - User UUID to filter by
  * @param limit - Max sessions to return (default 20)
- * @returns Array of sessions (lightweight: id, title, dates, automations count)
+ * @param kind - Optional filter by builder flavor ('automation' | 'template').
+ *               When undefined (default), NO filter is applied — existing callers
+ *               that omit this param see the same behavior as before (Regla 6).
+ *               New template-builder callers should pass 'template' explicitly.
+ * @returns Array of sessions (lightweight: id, title, dates, automations count, kind)
  */
 export async function getSessions(
   workspaceId: string,
   userId: string,
-  limit: number = 20
-): Promise<Pick<BuilderSession, 'id' | 'title' | 'created_at' | 'updated_at' | 'automations_created'>[]> {
+  limit: number = 20,
+  kind?: 'automation' | 'template'
+): Promise<Pick<BuilderSession, 'id' | 'title' | 'created_at' | 'updated_at' | 'automations_created' | 'kind'>[]> {
   try {
     const supabase = createAdminClient()
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('builder_sessions')
-      .select('id, title, created_at, updated_at, automations_created')
+      .select('id, title, created_at, updated_at, automations_created, kind')
       .eq('workspace_id', workspaceId)
       .eq('user_id', userId)
       .order('updated_at', { ascending: false })
       .limit(limit)
+
+    if (kind !== undefined) {
+      query = query.eq('kind', kind)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('[session-store] getSessions error:', error.message)
       return []
     }
 
-    return (data || []) as Pick<BuilderSession, 'id' | 'title' | 'created_at' | 'updated_at' | 'automations_created'>[]
+    return (data || []) as Pick<BuilderSession, 'id' | 'title' | 'created_at' | 'updated_at' | 'automations_created' | 'kind'>[]
   } catch (err) {
     console.error('[session-store] getSessions unexpected error:', err)
     return []

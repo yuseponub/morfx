@@ -23,14 +23,15 @@ export type { TriggerType, ActionType, AutomationAction, ConditionGroup }
  * Stores the conversational state between a user and the AI builder.
  */
 export interface BuilderSession {
-  id: string                    // UUID
-  workspace_id: string          // UUID — workspace isolation
-  user_id: string               // UUID — session owner
-  title: string | null          // AI-generated or user-provided title
-  messages: unknown[]           // AI SDK message format (UIMessage[] at runtime)
-  automations_created: string[] // UUID[] of automations created from this session
-  created_at: string            // ISO timestamp
-  updated_at: string            // ISO timestamp
+  id: string                         // UUID
+  workspace_id: string               // UUID — workspace isolation
+  user_id: string                    // UUID — session owner
+  title: string | null               // AI-generated or user-provided title
+  messages: unknown[]                // AI SDK message format (UIMessage[] at runtime)
+  automations_created: string[]      // UUID[] of automations created from this session
+  kind: 'automation' | 'template'    // Builder flavor (DB DEFAULT 'automation' — added by standalone whatsapp-template-ai-builder)
+  created_at: string                 // ISO timestamp
+  updated_at: string                 // ISO timestamp
 }
 
 // ============================================================================

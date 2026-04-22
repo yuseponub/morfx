@@ -10,6 +10,176 @@ import type { ResourceValidation } from '@/lib/builder/types'
 import type { ConditionGroup } from '@/lib/automations/types'
 
 // ============================================================================
+// AutoNode shape (shared between cycle DFS + conditionsPreventActivation)
+// ============================================================================
+
+/**
+ * Automation node shape consumed by build-time cycle detection.
+ * Only `conditions` is read by conditionsPreventActivation; the rest are used
+ * by `detectCycles` DFS walking.
+ */
+export type AutoNode = {
+  name: string
+  trigger_type: string
+  trigger_config: Record<string, unknown>
+  conditions: unknown
+  actions: { type: string; params: Record<string, unknown> }[]
+}
+
+// ============================================================================
+// conditionsPreventActivation — build-time cycle detection layer 1 (D-07)
+// ============================================================================
+
+/**
+ * Local condition shape for build-time cycle detection.
+ *
+ * Uses short operator names (`eq`/`neq`/...) which mirror the Pattern 6 RESEARCH
+ * canonical form. Runtime condition evaluation lives in `src/lib/automations/`
+ * with the longer names (`equals`/`not_equals`/...) — the build-time validator
+ * accepts the short form for D-07 capa 1 and applies conservative fallback when
+ * operators aren't recognized (so legacy long-form conditions do not silently
+ * miss cycles).
+ */
+type BuildTimeConditionOperator =
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'contains'
+  | 'in'
+  | 'not_in'
+
+interface BuildTimeConditionRule {
+  field: string
+  operator: BuildTimeConditionOperator
+  value: unknown
+}
+
+interface BuildTimeConditionGroup {
+  logic: 'AND' | 'OR'
+  conditions: Array<BuildTimeConditionRule | BuildTimeConditionGroup>
+}
+
+/**
+ * Return true if the target automation's conditions would DEFINITELY prevent
+ * activation given the action's params. Return false if conditions allow
+ * activation OR the value cannot be determined statically (conservative —
+ * let the cycle be detected / reported upstream).
+ *
+ * Semantics (action=A -> target=T has conditions C; we're asking
+ * "would C.evaluate(A.params) be FALSE?"):
+ *  - AND group: any child-prevents -> group prevents
+ *  - OR  group: all children prevent -> group prevents
+ *
+ * Key insight (Pattern 6 insight 1): false-positive (warn about a non-cycle)
+ * is acceptable; false-negative (miss a real cycle) is NOT. So when data is
+ * insufficient, return `false` = does NOT prevent = caller will WARN the user
+ * about a potential cycle (safer default).
+ *
+ * D-07 layer 1 (CONTEXT.md). No feature flag (D-20 — pure function, no I/O,
+ * executes only during builder save).
+ */
+export function conditionsPreventActivation(
+  action: { type: string; params: Record<string, unknown> },
+  target: AutoNode,
+): boolean {
+  const conditions = target.conditions as BuildTimeConditionGroup | null
+
+  if (!conditions?.conditions || conditions.conditions.length === 0) return false
+
+  function evalGroup(group: BuildTimeConditionGroup): boolean {
+    const childResults = group.conditions.map((child) => {
+      if (
+        child &&
+        typeof child === 'object' &&
+        'logic' in child &&
+        'conditions' in child
+      ) {
+        return evalGroup(child as BuildTimeConditionGroup)
+      }
+      return evalRule(child as BuildTimeConditionRule)
+    })
+
+    // AND: any prevents -> group prevents (some r === true)
+    // OR : all prevent  -> group prevents (every r === true)
+    return group.logic === 'AND'
+      ? childResults.some((r) => r === true)
+      : childResults.every((r) => r === true)
+  }
+
+  function evalRule(rule: BuildTimeConditionRule): boolean {
+    if (!rule.field) return false // conservative
+
+    const extracted = extractActionValue(action.type, action.params, rule.field)
+    if (extracted === undefined) return false // cannot determine -> conservative
+
+    const value = rule.value
+
+    switch (rule.operator) {
+      case 'eq':
+        return extracted !== value
+      case 'neq':
+        return extracted === value
+      case 'gt':
+        return Number(extracted) <= Number(value)
+      case 'gte':
+        return Number(extracted) < Number(value)
+      case 'lt':
+        return Number(extracted) >= Number(value)
+      case 'lte':
+        return Number(extracted) > Number(value)
+      case 'contains':
+        return !String(extracted).includes(String(value))
+      case 'in':
+        return !Array.isArray(value) || !(value as unknown[]).includes(extracted)
+      case 'not_in':
+        return Array.isArray(value) && (value as unknown[]).includes(extracted)
+      default:
+        return false // unknown operator -> conservative
+    }
+  }
+
+  function extractActionValue(
+    actionType: string,
+    params: Record<string, unknown>,
+    field: string,
+  ): unknown {
+    // Spanish field paths match the runtime automation engine convention
+    switch (field) {
+      case 'orden.stage_id':
+        return params.targetStageId ?? params.stageId
+      case 'orden.pipeline_id':
+        return params.targetPipelineId ?? params.pipelineId
+      case 'tag.nombre':
+        return params.tagName
+      case 'tag.id':
+        return params.tagId
+      case 'orden.valor':
+      case 'orden.total_value':
+        // Actions don't set order value directly -> runtime unpredictable
+        return undefined
+      case 'contacto.nombre':
+      case 'contacto.telefono':
+        // Actions don't set contact fields -> runtime unpredictable
+        return undefined
+      default: {
+        // Custom fields via update_field action (e.g., orden.custom_prioridad)
+        if (actionType === 'update_field') {
+          const normalizedField = field.replace(/^orden\.|^contacto\./, '')
+          if (params.fieldName === normalizedField) return params.value
+        }
+        // Unknown field -> conservative (don't prevent; let cycle be flagged)
+        return undefined
+      }
+    }
+  }
+
+  return evalGroup(conditions)
+}
+
+// ============================================================================
 // Action -> Trigger Mapping (for cycle detection)
 // ============================================================================
 
@@ -289,15 +459,8 @@ export async function detectCycles(
       return { hasCycles: false, cyclePath: [], severity: 'none' }
     }
 
-    // Build list of all automations (existing enabled + new one)
-    type AutoNode = {
-      name: string
-      trigger_type: string
-      trigger_config: Record<string, unknown>
-      conditions: unknown
-      actions: { type: string; params: Record<string, unknown> }[]
-    }
-
+    // Build list of all automations (existing enabled + new one).
+    // AutoNode is module-scoped (see top of file) — shared with conditionsPreventActivation.
     const allAutos: AutoNode[] = []
 
     for (const auto of existingAutos || []) {
@@ -384,57 +547,9 @@ export async function detectCycles(
       }
     }
 
-    // Also check if conditions on the target would prevent activation
-    // E.g., condition "stage == CONFIRMADO" won't match if the action
-    // creates the order in a different stage
-    function conditionsPreventActivation(
-      action: { type: string; params: Record<string, unknown> },
-      target: AutoNode
-    ): boolean {
-      const conditions = target.conditions as ConditionGroup | null
-
-      if (!conditions?.conditions || conditions.conditions.length === 0) return false
-
-      function checkConditionEntries(
-        entries: ConditionGroup['conditions']
-      ): boolean {
-        for (const entry of entries) {
-          // Handle nested ConditionGroups recursively
-          if ('logic' in entry && 'conditions' in entry) {
-            if (checkConditionEntries((entry as ConditionGroup).conditions)) return true
-            continue
-          }
-
-          const rule = entry as { field?: string; operator?: string; value?: unknown }
-          if (!rule.field || !rule.value) continue
-
-          // Check stage conditions (Spanish field names used by runtime)
-          if (rule.field === 'orden.stage_id') {
-            const requiredStage = rule.value as string
-            const actionStageId = (action.params.targetStageId || action.params.stageId) as string | undefined
-            if (actionStageId && requiredStage && actionStageId !== requiredStage) return true
-          }
-
-          // Check pipeline conditions
-          if (rule.field === 'orden.pipeline_id') {
-            const requiredPipeline = rule.value as string
-            const actionPipelineId = (action.params.targetPipelineId || action.params.pipelineId) as string | undefined
-            if (actionPipelineId && requiredPipeline && actionPipelineId !== requiredPipeline) return true
-          }
-
-          // Check tag conditions
-          if (rule.field === 'tag.nombre') {
-            const requiredTag = rule.value as string
-            const actionTagName = action.params.tagName as string | undefined
-            if (actionTagName && requiredTag && actionTagName !== requiredTag) return true
-          }
-        }
-
-        return false
-      }
-
-      return checkConditionEntries(conditions.conditions)
-    }
+    // Note: `conditionsPreventActivation` is now module-scoped (top of file) —
+    // D-07 layer 1 expanded to AND/OR recursive + 9 operators + 5+ field namespaces
+    // with conservative-false fallback (Pattern 6 RESEARCH, CONTEXT.md §D-20).
 
     // DFS with specificity-aware edge evaluation
     let worstSeverity: 'none' | 'warning' | 'blocker' = 'none'

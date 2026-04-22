@@ -26,10 +26,17 @@ import { lookupDeliveryZone, formatDeliveryTime } from '@/lib/agents/somnio-v3/d
 import type { AgentState, ProcessedMessage, ResponseTrackOutput, TipoAccion } from './types'
 
 // ============================================================================
-// Agent ID (recompra uses same templates as v3 for now)
+// Template lookup agent_id
 // ============================================================================
+// Recompra's agent identity constant is SOMNIO_RECOMPRA_AGENT_ID from config.ts
+// (`somnio-recompra-v1`) — used for sessions, observability, rate-limit buckets.
+// For TEMPLATE lookup specifically, recompra reuses the somnio-sales-v3 template
+// set (registered under `agent_id='somnio-sales-v3'` in the `agent_templates` table).
+// TemplateManager.loadTemplates filters `.eq('agent_id', agentId)`, so passing the
+// recompra agent id returned zero rows → fallback to generic promos. Split the
+// constants so template lookup points to the shared bank.
 
-const SOMNIO_RECOMPRA_AGENT_ID = 'somnio-recompra-v1'
+const TEMPLATE_LOOKUP_AGENT_ID = 'somnio-sales-v3'
 
 // ============================================================================
 // Main Response Track Function
@@ -113,7 +120,7 @@ export async function resolveResponseTrack(input: {
   }))
 
   const selectionMap = await templateManager.getTemplatesForIntents(
-    SOMNIO_RECOMPRA_AGENT_ID,
+    TEMPLATE_LOOKUP_AGENT_ID,
     allIntents,
     intentsVistos,
     state.templatesMostrados,

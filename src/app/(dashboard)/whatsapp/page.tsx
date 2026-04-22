@@ -3,6 +3,7 @@ import { getConversations, findConversationByPhone } from '@/app/actions/convers
 import { getClientActivationSettings } from '@/app/actions/client-activation'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { getIsSuperUser } from '@/lib/auth/super-user'
+import { getIsInboxV2Enabled } from '@/lib/auth/inbox-v2'
 
 interface WhatsAppPageProps {
   searchParams: Promise<{ phone?: string; c?: string }>
@@ -25,11 +26,12 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
     )
   }
 
-  // Fetch initial conversations, client config, and super-user flag in parallel
-  const [initialConversations, clientConfig, isSuperUser] = await Promise.all([
+  // Fetch initial conversations, client config, super-user flag, and inbox-v2 flag in parallel
+  const [initialConversations, clientConfig, isSuperUser, isInboxV2] = await Promise.all([
     getConversations({ status: 'active', sortBy: 'last_customer_message' }),
     getClientActivationSettings(),
     getIsSuperUser(),
+    getIsInboxV2Enabled(workspaceId),
   ])
 
   // Find conversation by ID or phone if provided
@@ -57,6 +59,7 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
       initialSelectedId={initialSelectedId}
       clientConfig={clientConfig}
       isSuperUser={isSuperUser}
+      v2={isInboxV2}
     />
   )
 }

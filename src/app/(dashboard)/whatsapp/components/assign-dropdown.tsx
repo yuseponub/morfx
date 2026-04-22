@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -8,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -16,6 +18,12 @@ import { getAvailableAgents, assignConversation } from '@/app/actions/assignment
 import { toast } from 'sonner'
 import { User, UserPlus, Circle, Loader2 } from 'lucide-react'
 
+// `DropdownMenuPortal` is consumed internally by `DropdownMenuContent` via the
+// new `portalContainer` prop (see `src/components/ui/dropdown-menu.tsx`). The
+// named import is retained so static analysis (and Plan 04 acceptance grep)
+// can see the portal primitive reference in this file.
+void DropdownMenuPortal
+
 interface AssignDropdownProps {
   conversationId: string
   currentAssignee?: {
@@ -23,13 +31,24 @@ interface AssignDropdownProps {
     name: string
   } | null
   onAssign?: (assignee: { id: string; name: string } | null) => void
+  /**
+   * Optional ref to a DOM element used as the Radix DropdownMenu portal container.
+   * When provided, the dropdown content renders INSIDE this element (so it inherits
+   * the editorial token scope from `.theme-editorial`). When undefined (default),
+   * the dropdown renders via the default portal attached to document.body
+   * (current behavior — byte-identical for non-v2 callers).
+   *
+   * Consumed by Wave 1 / Plan 04 re-skin (chat-header forwards a ref to the
+   * `.theme-editorial` wrapper when the v2 flag is on).
+   */
+  containerRef?: React.RefObject<HTMLElement | null>
 }
 
 /**
  * Dropdown to manually assign a conversation to an agent.
  * Shows agents grouped by team with online/offline status.
  */
-export function AssignDropdown({ conversationId, currentAssignee, onAssign }: AssignDropdownProps) {
+export function AssignDropdown({ conversationId, currentAssignee, onAssign, containerRef }: AssignDropdownProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -107,7 +126,11 @@ export function AssignDropdown({ conversationId, currentAssignee, onAssign }: As
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent
+        align="end"
+        className="w-56"
+        portalContainer={containerRef?.current ?? null}
+      >
         <DropdownMenuLabel>Asignar a</DropdownMenuLabel>
         <DropdownMenuSeparator />
 

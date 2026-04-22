@@ -34,10 +34,19 @@ function DropdownMenuTrigger({
 function DropdownMenuContent({
   className,
   sideOffset = 4,
+  portalContainer,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  /**
+   * Optional DOM element to mount the Radix portal into. When omitted,
+   * Radix defaults to document.body (current shadcn behavior). Pass the
+   * `.theme-editorial` wrapper to keep the dropdown inside the editorial
+   * CSS token scope (standalone ui-redesign-conversaciones Pitfall 2).
+   */
+  portalContainer?: HTMLElement | null
+}) {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={portalContainer ?? undefined}>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}

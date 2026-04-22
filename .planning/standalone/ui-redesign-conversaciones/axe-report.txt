@@ -1,0 +1,160 @@
+=== axe-core Accessibility Report — UI-SPEC §16 DoD item 9 ===
+Date: 2026-04-22T22:18:31Z
+Executor: claude-opus-4-7 (Plan 06 Task 1)
+Status: FALLBACK PLAN DOCUMENTED — actual scan deferred to Task 2 (human QA)
+
+---
+
+## Why this is a fallback plan, not a scan result
+
+The Task 1 invocation attempted `npx @axe-core/cli http://localhost:3020/whatsapp`, but the
+dev server on localhost:3020 is not running at the time of this verification run
+(curl -sI exited with status 7 — "couldn't connect to host"). Task 1 scope explicitly states:
+
+  > "The dev server for axe-core CLI may not be running. If the CLI cannot reach
+  >  localhost:3020, document the DevTools fallback plan in axe-report.txt and
+  >  defer actual axe execution to Task 2 (human QA). Task 1 is passing if all
+  >  6 grep/tsc checks pass and the axe fallback plan is documented."
+
+All 6 non-axe checks passed in `dod-verification.txt`. This file documents the two
+ways Task 2 can complete the axe-core scan.
+
+---
+
+## Option A — CLI (preferred, reproducible)
+
+Task 2 executor (human-run) can bring up the dev server and run:
+
+```bash
+# Step 1: start dev server (in a separate terminal)
+npm run dev                              # port 3020 per CLAUDE.md
+
+# Step 2: flip the feature flag for the test workspace (see Task 2 for workspace id)
+#   psql or Supabase dashboard SQL editor:
+#   UPDATE workspaces
+#   SET settings = jsonb_set(
+#     COALESCE(settings, '{}'::jsonb),
+#     '{ui_inbox_v2,enabled}',
+#     'true'::jsonb,
+#     true
+#   )
+#   WHERE id = '<test-workspace-uuid>';
+
+# Step 3: authenticate in the browser at http://localhost:3020/whatsapp
+#   (axe-core CLI needs the auth cookie; alternatively skip this and use Option B)
+
+# Step 4: run axe-core CLI against the loaded page
+#   Note: requires passing the auth cookie; otherwise middleware redirects to /login
+npx @axe-core/cli http://localhost:3020/whatsapp \
+  --tags wcag2a,wcag2aa \
+  --exit \
+  > axe-cli-output.txt 2>&1
+echo "exit=$?"
+```
+
+Expected: exit code 0 AND zero violations with impact = `serious` or `critical`.
+
+Because morfx dashboard requires auth middleware to reach /whatsapp, Option A typically
+fails to load the protected route without an authenticated session cookie. In practice
+Option B is the reliable path.
+
+---
+
+## Option B — DevTools console snippet (reliable, use this one for Task 2)
+
+This is the recommended path. The user is already logged in in the browser, so the
+authenticated /whatsapp route renders naturally.
+
+### Step-by-step
+
+1. Start the dev server: `npm run dev` (port 3020).
+2. Log in to http://localhost:3020 with a user that belongs to a test workspace
+   (NOT a productive customer workspace — Regla 6).
+3. Flip the flag for the test workspace (SQL snippet — see 06-PLAN.md Task 2 Step 3).
+4. Navigate to http://localhost:3020/whatsapp. Wait for the inbox to fully render
+   (conversation list + chat view + contact panel).
+5. Open DevTools (F12) → Console tab.
+6. Paste the snippet below and press Enter.
+
+### Snippet
+
+```javascript
+// axe-core 4.8.2 via cloudflare CDN (no install needed).
+// Runs wcag2a + wcag2aa rule sets across the /whatsapp page.
+// Filters to serious/critical impact violations (per UI-SPEC §16 DoD item 9).
+(() => {
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js';
+  s.onload = () => {
+    axe.run({ runOnly: ['wcag2a', 'wcag2aa'] }).then(r => {
+      const all = r.violations;
+      const serious = all.filter(v => v.impact === 'serious' || v.impact === 'critical');
+      console.log('=== axe-core scan — /whatsapp (flag ON) ===');
+      console.log('Total violations:', all.length);
+      console.log('Serious/critical (BLOCKING per DoD §16.9):', serious.length);
+      if (serious.length > 0) {
+        console.table(serious.map(v => ({
+          id: v.id,
+          impact: v.impact,
+          description: v.description,
+          nodes: v.nodes.length,
+          helpUrl: v.helpUrl
+        })));
+      } else {
+        console.log('✅ PASS — zero serious/critical violations.');
+      }
+      // Also log minor/moderate for the record (non-blocking)
+      const minorModerate = all.filter(v => v.impact === 'minor' || v.impact === 'moderate');
+      console.log('Minor/moderate (non-blocking, informational):', minorModerate.length);
+    });
+  };
+  document.head.appendChild(s);
+})();
+```
+
+### Expected output (PASS case)
+
+```
+=== axe-core scan — /whatsapp (flag ON) ===
+Total violations: N              // any integer ≥ 0
+Serious/critical (BLOCKING per DoD §16.9): 0
+✅ PASS — zero serious/critical violations.
+Minor/moderate (non-blocking, informational): M
+```
+
+### Failure case — what to do
+
+If `Serious/critical (BLOCKING per DoD §16.9)` is greater than 0:
+
+1. Inspect the console.table output — each row has `id` (rule name), `description`, and `helpUrl`.
+2. Fix the violation in the relevant TSX file under `src/app/(dashboard)/whatsapp/components/`
+   (most likely missing aria-label, wrong heading order, insufficient contrast, or missing
+   alt text — Plans 02/04/05 added aria-labels universally, so this should be rare).
+3. Re-run the snippet.
+4. Only proceed to Task 3 once the count is 0.
+
+---
+
+## Paste actual output here after Task 2
+
+```
+<-- paste the console log from Option B (or CLI output from Option A) here -->
+<-- include full Violations serious/critical: X [] line and any rows of console.table -->
+
+Example of what a PASS looks like:
+=== axe-core scan — /whatsapp (flag ON) ===
+Total violations: 3
+Serious/critical (BLOCKING per DoD §16.9): 0
+✅ PASS — zero serious/critical violations.
+Minor/moderate (non-blocking, informational): 3
+```
+
+TODO for Task 2 continuation executor: replace the example block above with the real
+paste from the user's browser console.
+
+---
+
+## References
+- UI-SPEC §16 DoD item 9: "axe-core scan sobre /whatsapp (flag on) retorna 0 violations serious/critical"
+- axe-core rule set docs: https://github.com/dequelabs/axe-core/blob/develop/doc/rule-descriptions.md
+- WCAG 2.1 AA criteria: https://www.w3.org/TR/WCAG21/#qr-meta

@@ -1,0 +1,132 @@
+=== DoD Verification Report — UI-SPEC §16 automated checks ===
+Date: 2026-04-22T22:18:31Z
+Executor: claude-opus-4-7 (Plan 06 Task 1, autonomous-false)
+HEAD: 534ec94aba11f03c5715208b78b1ee03d5f98bae (main, post-Wave-2 merge)
+Baseline: main (phase pre-merge)
+
+---
+
+--- Check 1: no hardcoded OKLCH in component TSX (UI-SPEC §16 DoD item 6) ---
+Command: grep -rE 'oklch\(' "src/app/(dashboard)/whatsapp/components/" | grep -v "color-mix" | grep -v "\.test\.tsx"
+Result:
+PASS: no hardcoded OKLCH
+
+Interpretation: Zero raw `oklch(L C H)` values in TSX files outside of `color-mix(in oklch, ...)` expressions. All color references go through the `var(--*)` indirection layer per UI-SPEC §4 contract.
+
+---
+
+--- Check 2: no legacy .tg.* classes (UI-SPEC §16 DoD item 5) ---
+Command: grep -rE '\.tg\.(red|gold|indi|ver)' "src/app/(dashboard)/whatsapp/"
+Result:
+PASS: no legacy tg classes
+
+Interpretation: The mock's legacy `.tg.red/.gold/.indi/.ver` selectors (from `reference/design_handoff_morfx/mocks/conversaciones.html`) are NEVER used in TSX source. Pill styling flows through `<MxTag variant=…>` (UI-SPEC §7.12).
+
+---
+
+--- Check 3: mx-* classes scoped to /whatsapp (Pitfall 8 — no leakage to other modules) ---
+Command: grep -rE 'mx-tag|mx-h[0-9]|mx-body|mx-caption|mx-smallcaps|mx-display|mx-rubric|mx-mono' "src/app/(dashboard)/" --include="*.tsx" | grep -v "src/app/(dashboard)/whatsapp/"
+Result:
+PASS: mx-* scoped to whatsapp module
+
+Interpretation: All `mx-*` utility classes are confined to `/whatsapp/**`. Pitfall 8 (CSS scope leakage) mitigated — `/crm`, `/tareas`, `/automatizaciones`, etc. have zero `mx-*` references. Safe because the CSS rules use `.theme-editorial .mx-*` ancestry selectors in globals.css.
+
+---
+
+--- Check 4: Regla 6 NO-TOUCH diff line count (UI-SPEC §16 DoD item 10) ---
+Command: git diff main -- <18 NO-TOUCH paths from D-19/D-20>
+Result:
+0
+
+Interpretation: Zero lines of diff against main for ALL protected paths:
+  - src/lib/agents/ (agent production logic)
+  - src/lib/inngest/ (async runners)
+  - src/app/actions/conversations.ts
+  - src/lib/whatsapp/
+  - src/components/layout/sidebar.tsx (Brand OUT per D-12)
+  - src/lib/domain/
+  - src/hooks/use-conversations.ts (D-19)
+  - src/hooks/use-messages.ts (D-19)
+  - 14 NO-TOUCH component files (agent-config-slider, debug-panel-production/, availability-toggle, window-indicator, bold-payment-link-button, new-conversation-modal, template-send-modal, view-order-sheet, create-contact-sheet, create-order-sheet, media-preview, emoji-picker, quick-reply-autocomplete, template-button, template-preview, conversation-tag-input)
+
+Regla 6 verified: productive agent behavior is bit-for-bit identical to main. Zero risk of regression in clients' agent flows when the `ui_inbox_v2.enabled` flag is rolled out.
+
+--- Check 4b: src/components/ui/dropdown-menu.tsx additive-only exception ---
+Command: git diff main -- src/components/ui/dropdown-menu.tsx
+Result:
+(empty — no diff)
+
+Interpretation: The permitted one-line additive exception (DropdownMenuPortal re-export) was NOT needed. Plan 04 Task 3 achieved portal re-rooting by passing `containerRef` prop through existing shadcn API without patching the primitive. CLEANER than the plan originally assumed.
+
+---
+
+--- Check 5: TypeScript clean for files in scope ---
+Command: npx tsc --noEmit 2>&1 | grep -E "src/app/\(dashboard\)/whatsapp|src/lib/auth/inbox-v2" | grep -E "error TS"
+Result:
+PASS: no TS errors
+
+Interpretation: `npx tsc --noEmit` completed with no errors for files in scope (nor globally — full run exited silently). Build-ready for Vercel.
+
+---
+
+--- Check 6: --primary mapped to --ink-1 (NOT to --rubric-2) within .theme-editorial scope (UI-SPEC §4 critical note) ---
+Primary command: grep -A 2 "\.theme-editorial" src/app/globals.css | grep -E "^\s*--primary:" | grep "var(--ink-1)"
+Primary result: (empty — FALSE NEGATIVE)
+Reason: `grep -A 2` only shows 2 lines after the FIRST `.theme-editorial` match (line 123, a comment). The actual `--primary: var(--ink-1);` declaration sits at line 238, deep inside the block. The check's grep heuristic is too narrow, NOT a true failure.
+
+Fallback command (authoritative block-scoped check):
+  awk '/^\.theme-editorial \{/,/^\}/' src/app/globals.css | grep -E "^\s*--primary:\s*var\(--ink-1\)"
+Fallback result:
+  --primary: var(--ink-1);
+ALT-PASS: --primary maps to --ink-1 within .theme-editorial block
+
+Direct inspection of globals.css lines 226-239:
+  /* -- Shadcn semantic token overrides (UI-SPEC §4 mapping) --
+   * CRITICAL: --primary maps to --ink-1 (ink, NOT rubric). Rubric-2
+   * is reserved for 11 specific uses (UI-SPEC §3.4). Binding primary
+   * to rubric would flood the UI with accent and break the 60/30/10
+   * color contract.
+   */
+  --background: var(--paper-1);
+  --foreground: var(--ink-1);
+  ...
+  --primary: var(--ink-1);         <-- line 238, CONFIRMED
+  --primary-foreground: var(--paper-0);
+  ...
+  --destructive: var(--rubric-2);  <-- rubric only on destructive, per D-03/§3.4
+
+Interpretation: PASS. The §4 critical rule is honored — --primary → --ink-1, --destructive → --rubric-2. 60/30/10 color contract preserved. No fix needed.
+
+Fix to plan's Check 6 heuristic: recorded for future planners — use the `awk` block-extraction form, not `grep -A 2`.
+
+---
+
+--- Check 7: axe-core automated scan (UI-SPEC §16 DoD item 9) ---
+Dev server status: localhost:3020 NOT RESPONDING (curl exit 7 — connection refused at 2026-04-22T22:18:31Z)
+CLI command attempted: npx @axe-core/cli http://localhost:3020/whatsapp --tags wcag2a,wcag2aa --exit
+CLI result: DEFERRED to Task 2 (human QA) per invocation scope boundary.
+
+Fallback plan documented in: .planning/standalone/ui-redesign-conversaciones/axe-report.txt
+See that file for:
+  - DevTools console snippet (axe-core 4.8.2 via CDN) to paste at /whatsapp with flag ON
+  - CLI re-run instructions once dev server is up
+  - Expected output: "Violations serious/critical: 0 []"
+  - Instructions for user to paste actual output after Task 2 side-by-side QA
+
+Task 1 is passing per invocation scope: "Task 1 is passing if all 6 grep/tsc checks pass and the axe fallback plan is documented."
+
+---
+
+=== Summary ===
+Check 1 (no OKLCH hardcoded):              PASS
+Check 2 (no legacy .tg.*):                 PASS
+Check 3 (mx-* scoped to /whatsapp):        PASS
+Check 4 (Regla 6 NO-TOUCH = 0 diff):       PASS
+Check 4b (dropdown-menu.tsx unchanged):    PASS (additive exception unused)
+Check 5 (tsc --noEmit clean):              PASS
+Check 6 (--primary → --ink-1):             PASS (via awk block fallback — see grep heuristic note)
+Check 7 (axe-core):                        DEFERRED to Task 2 (dev server not running; fallback plan in axe-report.txt)
+
+Task 1 status: COMPLETE (6/6 automatable checks PASS; axe-core deferred with documented fallback plan per invocation scope).
+
+Zero code fixes required. No files under src/ were modified during verification.

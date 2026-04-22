@@ -6,6 +6,7 @@ import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
 import { RelativeTime } from '@/components/ui/relative-time'
 import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
+import { useInboxV2 } from './inbox-v2-context'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
 
 /**
@@ -41,12 +42,16 @@ export function ConversationItem({
   orders = [],
   showClientBadge = false,
 }: ConversationItemProps) {
+  const v2 = useInboxV2()
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
 
   // Always show last_customer_message_at (blue + User icon), fallback to last_message_at
   const timerDate = conversation.last_customer_message_at || conversation.last_message_at
   const isCustomerTimer = !!conversation.last_customer_message_at
+
+  // Unread state — drives editorial weight on preview text
+  const hasUnread = !conversation.is_read
 
   // Tags from linked contact (source of truth)
   const conversationTags = conversation.tags || []
@@ -65,9 +70,22 @@ export function ConversationItem({
   return (
     <button
       onClick={() => onSelect(conversation.id)}
+      role="listitem"
+      aria-selected={isSelected}
+      aria-current={isSelected || undefined}
       className={cn(
-        'w-full text-left p-3 border-b transition-colors hover:bg-muted/50',
-        isSelected && 'bg-muted'
+        'w-full text-left transition-colors',
+        v2
+          ? cn(
+              'border-b border-[var(--border)] hover:bg-[var(--paper-2)]',
+              isSelected
+                ? 'bg-[var(--paper-0)] border-l-[3px] border-l-[var(--rubric-2)] py-3 pr-4 pl-[13px]'
+                : 'p-3'
+            )
+          : cn(
+              'p-3 border-b hover:bg-muted/50',
+              isSelected && 'bg-muted'
+            )
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -76,8 +94,26 @@ export function ConversationItem({
           {/* Avatar with optional emoji indicator (Callbell style) */}
           <div className="relative flex-shrink-0">
             {/* Avatar circle with initials */}
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary">
+            <div
+              className={cn(
+                'w-10 h-10 rounded-full flex items-center justify-center',
+                v2
+                  ? 'bg-[var(--paper-3)] border border-[var(--ink-1)]'
+                  : 'bg-primary/20'
+              )}
+            >
+              <span
+                className={cn(
+                  v2
+                    ? 'text-[var(--ink-1)]'
+                    : 'text-sm font-medium text-primary'
+                )}
+                style={
+                  v2
+                    ? { fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '13px', letterSpacing: '0.02em' }
+                    : undefined
+                }
+              >
                 {getInitials(displayName)}
               </span>
             </div>
@@ -127,16 +163,44 @@ export function ConversationItem({
                 </svg>
               </span>
             )}
-            <span className={cn(
-              'text-sm font-medium truncate',
-              !conversation.is_read && 'font-semibold'
-            )}>
+            <span
+              className={cn(
+                'truncate',
+                v2
+                  ? cn(
+                      'text-[14px] tracking-[-0.005em] text-[var(--ink-1)]',
+                      hasUnread ? 'font-semibold' : 'font-semibold'
+                    )
+                  : cn(
+                      'text-sm font-medium',
+                      !conversation.is_read && 'font-semibold'
+                    )
+              )}
+              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            >
               {displayName}
             </span>
             {conversation.unread_count > 0 && (
-              <span className="flex-shrink-0 inline-flex items-center justify-center h-[22px] min-w-[22px] px-1.5 text-xs font-semibold text-white bg-primary rounded-full">
-                {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
-              </span>
+              v2 ? (
+                conversation.unread_count <= 9 ? (
+                  <span
+                    className="h-2 w-2 rounded-full bg-[var(--rubric-2)] flex-shrink-0"
+                    aria-label={`${conversation.unread_count} sin leer`}
+                  />
+                ) : (
+                  <span
+                    className="flex-shrink-0 inline-flex items-center justify-center h-[22px] min-w-[22px] rounded-full bg-[var(--ink-1)] px-1.5 text-[11px] text-[var(--paper-0)]"
+                    style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}
+                    aria-label={`${conversation.unread_count} sin leer`}
+                  >
+                    {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+                  </span>
+                )
+              ) : (
+                <span className="flex-shrink-0 inline-flex items-center justify-center h-[22px] min-w-[22px] px-1.5 text-xs font-semibold text-white bg-primary rounded-full">
+                  {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+                </span>
+              )
             )}
           </div>
         </div>
@@ -144,23 +208,45 @@ export function ConversationItem({
         {/* Timestamp — single line, client-only to avoid hydration mismatch */}
         {timerDate && (
           <div className="flex items-center gap-1 flex-shrink-0">
-            {isCustomerTimer && <User className="h-3 w-3 text-blue-500" />}
-            <RelativeTime
-              date={timerDate}
-              className={cn(
-                'text-xs',
-                isCustomerTimer ? 'text-blue-500' : 'text-muted-foreground'
-              )}
-            />
+            {isCustomerTimer && (
+              <User className={cn('h-3 w-3', v2 ? 'text-[var(--ink-3)]' : 'text-blue-500')} />
+            )}
+            {v2 ? (
+              <span
+                className="text-[11px] text-[var(--ink-3)]"
+                style={{ fontFamily: 'var(--font-mono)', fontWeight: 500, letterSpacing: '0.02em' }}
+              >
+                <RelativeTime date={timerDate} />
+              </span>
+            ) : (
+              <RelativeTime
+                date={timerDate}
+                className={cn(
+                  'text-xs',
+                  isCustomerTimer ? 'text-blue-500' : 'text-muted-foreground'
+                )}
+              />
+            )}
           </div>
         )}
       </div>
 
       {/* Last message preview */}
-      <p className={cn(
-        'mt-1 text-sm truncate',
-        conversation.is_read ? 'text-muted-foreground' : 'text-foreground'
-      )}>
+      <p
+        className={cn(
+          'mt-1 truncate',
+          v2
+            ? cn(
+                'text-[13px] leading-[1.4]',
+                hasUnread ? 'text-[var(--ink-1)] font-medium' : 'text-[var(--ink-2)]'
+              )
+            : cn(
+                'text-sm',
+                conversation.is_read ? 'text-muted-foreground' : 'text-foreground'
+              )
+        )}
+        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+      >
         {preview}
       </p>
 
@@ -168,9 +254,13 @@ export function ConversationItem({
       <div className="mt-2 flex flex-wrap items-center gap-1">
         {/* Unassigned badge - shows for managers to identify chats needing attention */}
         {!conversation.assigned_to && (
-          <Badge variant="outline" className="text-xs font-normal">
-            Sin asignar
-          </Badge>
+          v2 ? (
+            <span className="mx-tag mx-tag--ink">Sin asignar</span>
+          ) : (
+            <Badge variant="outline" className="text-xs font-normal">
+              Sin asignar
+            </Badge>
+          )
         )}
 
         {/* Conversation-specific tags (direct) */}
@@ -180,9 +270,13 @@ export function ConversationItem({
 
         {/* Overflow indicator */}
         {conversationTags.length > 2 && (
-          <span className="text-xs text-muted-foreground">
-            +{conversationTags.length - 2}
-          </span>
+          v2 ? (
+            <span className="mx-tag mx-tag--ink">+{conversationTags.length - 2}</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              +{conversationTags.length - 2}
+            </span>
+          )
         )}
       </div>
     </button>

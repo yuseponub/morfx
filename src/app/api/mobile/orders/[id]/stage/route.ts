@@ -33,7 +33,8 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const { workspaceId } = await requireMobileAuth(req)
+    const authCtx = await requireMobileAuth(req)
+    const { workspaceId, user } = authCtx  // BLOCKER 2 fix Plan 02 — user.id para actorId
     const { id: orderId } = await ctx.params
 
     let json: unknown
@@ -49,7 +50,12 @@ export async function POST(
     }
 
     const result = await domainMoveOrderToStage(
-      { workspaceId, source: 'mobile-api' },
+      {
+        workspaceId,
+        source: 'mobile-api',
+        actorId: user.id,           // real user.id del JWT (Plan 02 Task 4)
+        actorLabel: 'mobile-api',   // label hardcoded — no display-name lookup en mobile route
+      },
       { orderId, newStageId: parsed.data.stageId }
     )
 
@@ -57,6 +63,19 @@ export async function POST(
       const msg = (result.error ?? '').toLowerCase()
       if (msg.includes('no encontrad')) {
         throw new MobileNotFoundError('not_found', result.error ?? 'not_found')
+      }
+      // D-15 narrow: stage_changed_concurrently -> 409 Conflict con currentStageId
+      // para que el cliente mobile (Phase 43) pueda distinguir del error generico
+      // y refrescar la vista sin romper el flujo de drag.
+      if (result.error === 'stage_changed_concurrently') {
+        return NextResponse.json(
+          {
+            error: 'stage_changed_concurrently',
+            currentStageId:
+              (result.data as { currentStageId?: string | null } | undefined)?.currentStageId ?? null,
+          },
+          { status: 409, headers: { 'Cache-Control': 'no-store' } },
+        )
       }
       throw new Error(result.error ?? 'move_stage_failed')
     }

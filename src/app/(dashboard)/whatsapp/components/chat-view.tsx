@@ -8,6 +8,8 @@ import { useMessages } from '@/hooks/use-messages'
 import { ChatHeader } from './chat-header'
 import { MessageBubble } from './message-bubble'
 import { MessageInput } from './message-input'
+import { DaySeparator } from './day-separator'
+import { useInboxV2 } from './inbox-v2-context'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import { differenceInHours, isSameDay, format, isToday, isYesterday } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -39,6 +41,7 @@ export function ChatView({
   onToggleDebug,
   isDebugOpen,
 }: ChatViewProps) {
+  const v2 = useInboxV2()
   const parentRef = useRef<HTMLDivElement>(null)
   const scrolledToBottomRef = useRef(true)
 
@@ -143,12 +146,20 @@ export function ChatView({
   // Empty state
   if (!conversationId || !conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/10">
-        <div className="text-center text-muted-foreground">
-          <div className="mb-4 text-6xl opacity-20">💬</div>
-          <p className="text-lg font-medium">Selecciona una conversacion</p>
-          <p className="text-sm">Elige una conversacion del panel izquierdo</p>
-        </div>
+      <div className="flex-1 flex items-center justify-center bg-muted/10 px-6">
+        {v2 ? (
+          <div className="flex flex-col items-center text-center gap-3">
+            <p className="mx-h4">Seleccione una conversación.</p>
+            <p className="mx-caption">Los mensajes y el contexto del cliente aparecerán aquí.</p>
+            <p className="mx-rule-ornament">· · ·</p>
+          </div>
+        ) : (
+          <div className="text-center text-muted-foreground">
+            <div className="mb-4 text-6xl opacity-20">💬</div>
+            <p className="text-lg font-medium">Selecciona una conversacion</p>
+            <p className="text-sm">Elige una conversacion del panel izquierdo</p>
+          </div>
+        )}
       </div>
     )
   }
@@ -223,15 +234,19 @@ export function ChatView({
                 }}
               >
                 {showDateSeparator && (
-                  <div className="flex justify-center py-3">
-                    <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full shadow-sm">
-                      {isToday(messageDate)
-                        ? 'Hoy'
-                        : isYesterday(messageDate)
-                          ? 'Ayer'
-                          : format(messageDate, "d 'de' MMMM, yyyy", { locale: es })}
-                    </span>
-                  </div>
+                  v2 ? (
+                    <DaySeparator date={messageDate} />
+                  ) : (
+                    <div className="flex justify-center py-3">
+                      <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full shadow-sm">
+                        {isToday(messageDate)
+                          ? 'Hoy'
+                          : isYesterday(messageDate)
+                            ? 'Ayer'
+                            : format(messageDate, "d 'de' MMMM, yyyy", { locale: es })}
+                      </span>
+                    </div>
+                  )
                 )}
                 <MessageBubble
                   message={message}
@@ -284,7 +299,7 @@ export function ChatView({
       {/* CSS for chat background pattern */}
       <style jsx>{`
         .chat-background {
-          background-color: hsl(var(--background));
+          background-color: var(--background);
           background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
       `}</style>

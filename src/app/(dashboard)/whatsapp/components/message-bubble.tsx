@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { MediaPreview } from './media-preview'
+import { useInboxV2 } from './inbox-v2-context'
 import type { Message, MessageStatus, TextContent, MediaContent, LocationContent } from '@/lib/whatsapp/types'
 
 interface MessageBubbleProps {
@@ -162,6 +163,7 @@ function MessageContent({
  * Received messages (inbound) align left with muted color.
  */
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+  const v2 = useInboxV2()
   const timestamp = format(new Date(message.timestamp), 'HH:mm', { locale: es })
   const isAgentMessage = isOwn && message.sent_by_agent
 
@@ -175,20 +177,40 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
       <div className={cn('max-w-[70%]', isOwn ? 'flex flex-col items-end' : '')}>
         {/* Bot badge for agent-sent messages */}
         {isAgentMessage && (
-          <div className="flex items-center gap-1 mb-0.5 mr-1">
-            <Bot className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Bot</span>
-          </div>
+          v2 ? (
+            <span
+              className="block text-right mb-1 mr-1 text-[11px] uppercase tracking-[0.08em] font-semibold text-[var(--rubric-2)]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              ❦ bot · respuesta sugerida
+            </span>
+          ) : (
+            <div className="flex items-center gap-1 mb-0.5 mr-1">
+              <Bot className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">Bot</span>
+            </div>
+          )
         )}
 
         <div
           className={cn(
-            'relative rounded-lg px-3 py-2 shadow-sm',
-            isOwn
-              ? 'bg-primary text-primary-foreground rounded-br-none'
-              : 'bg-muted rounded-bl-none',
+            'relative shadow-sm',
+            v2
+              ? cn(
+                  'px-[14px] py-[10px] text-[15px] leading-[1.5]',
+                  isOwn
+                    ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border border-[var(--ink-1)] rounded-[10px] rounded-br-[2px]'
+                    : 'bg-[var(--paper-0)] text-[var(--ink-1)] border border-[var(--ink-2)] rounded-[10px] rounded-bl-[2px]'
+                )
+              : cn(
+                  'rounded-lg px-3 py-2',
+                  isOwn
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-muted rounded-bl-none'
+                ),
             message.status === ('sending' as any) && 'opacity-70'
           )}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
         >
         {/* Message content */}
         <div className="text-sm">
@@ -204,9 +226,17 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
         >
           <span
             className={cn(
-              'text-[10px]',
-              isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
+              v2
+                ? cn(
+                    'text-[11px] tracking-[0.02em]',
+                    isOwn ? 'text-[var(--paper-2)] opacity-85' : 'text-[var(--ink-3)] opacity-75'
+                  )
+                : cn(
+                    'text-[10px]',
+                    isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                  )
             )}
+            style={v2 ? { fontFamily: 'var(--font-mono)', fontWeight: 500 } : undefined}
           >
             {timestamp}
           </span>

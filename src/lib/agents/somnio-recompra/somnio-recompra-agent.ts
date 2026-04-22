@@ -249,8 +249,16 @@ async function processUserMessage(input: V3AgentInput): Promise<V3AgentOutput> {
     // Waits up to 3s (500ms intervals) for the recompra-preload-context Inngest
     // function to persist `_v3:crm_context*` into session_state. On fast path
     // (marker already in the snapshot) returns immediately without a DB hit.
-    if (input.sessionId) {
-      const fastPathHit = input.datosCapturados['_v3:crm_context_status'] !== undefined
+    //
+    // Turn 0 guard: the Inngest dispatch runs POST-runner of turn 0 (webhook-processor
+    // needs engineOutput.sessionId, which is created inside the runner). The marker
+    // cannot exist yet — waiting 3s is pure latency loss and emits a spurious
+    // `crm_context_missing_after_wait` on every first message. Skip unless we have
+    // a fast-path hit (marker already in the input snapshot from DB load).
+    const fastPathHit = input.datosCapturados['_v3:crm_context_status'] !== undefined
+    const shouldPoll = fastPathHit || state.turnCount >= 1
+
+    if (input.sessionId && shouldPoll) {
       const { crmContext, status } = await pollCrmContext(
         input.sessionId,
         input.datosCapturados,

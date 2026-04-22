@@ -63,12 +63,14 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
   - Mutar sin pasar por `proposeAction` — tools NUNCA llaman domain write funcs en `execute()`; solo llaman `proposeAction` que persiste en `crm_bot_actions` con status='proposed'
   - Mutar tras TTL de 5min (Inngest cron `crm-bot-expire-proposals` marca como 'expired' con 30s grace)
   - Acceder a otros workspaces (workspace_id SOLO del header `x-workspace-id`)
+  - Retry implicito tras `stage_changed_concurrently` (Standalone `crm-stage-integrity`, D-06). La decision de re-proponer la mutacion es del agent loop / usuario — el writer mechanic (two-step propose → confirm) no intenta reintentos automaticos. Comportamiento esperado: el `confirm` devuelve `status: 'failed'` + `error: { code: 'stage_changed_concurrently' }`; el caller decide que hacer (propose de nuevo con fresh state via reader o escalar al usuario).
 - **Validacion:**
   - Tool handlers importan EXCLUSIVAMENTE desde `@/lib/domain/*` para existence pre-checks (getContactById, getOrderById, getTagById, getPipelineById, getStageById) — cero `createAdminClient` en `src/lib/agents/crm-writer/tools/**` (BLOCKER 1 Phase 44)
   - `src/lib/agents/crm-writer/two-step.ts` es el UNICO archivo del agent que usa `createAdminClient`, y solo contra tabla `crm_bot_actions` (propose insert + confirm optimistic UPDATE)
   - Idempotencia por `optimistic UPDATE WHERE status='proposed' AND id=?` — segundo confirm retorna `already_executed` sin re-mutar (Pitfall 3 Phase 44)
   - `ResourceNotFoundError.resource_type` cubre union completa: `tag | pipeline | stage | template | user | contact | order | note | task` (BLOCKER 4 Phase 44)
   - Agent ID registrado: `'crm-writer'`; rate-limit bucket `'crm-bot'` compartido con reader
+  - **Error contract `stage_changed_concurrently` (Standalone `crm-stage-integrity`, D-06):** cuando `domain.moveOrderToStage` retorna este error (CAS reject — otra fuente movio el pedido entre el SELECT y el UPDATE serializado), el writer lo persiste verbatim en `crm_bot_actions.error.code`. La sandbox UI lo consume para mostrar toast "pedido stale / movido por otra fuente". NO convertir a mensaje generico; NO mapear a `not_found`. La integridad del error code es parte del contract con consumidores (UI + agent loop + observability).
 
 ### Config Builder: WhatsApp Templates (`config-builder-whatsapp-templates` — UI `/configuracion/whatsapp/templates/builder`)
 - **PUEDE:**

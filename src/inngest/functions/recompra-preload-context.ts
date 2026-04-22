@@ -26,7 +26,13 @@ import {
 
 const logger = createModuleLogger('recompra-preload-context')
 
-const READER_TIMEOUT_MS = 12_000
+// QA observed: crm-reader uses Sonnet 4.5 with stopWhen=stepCountIs(5) and frequently
+// chains contacts_get + orders_list + orders_get (x2) + synthesis. With tool-call latency
+// + Sonnet inference, the 5-step budget lands in the 15-20s range for the worst case.
+// Budget 25s so the reader can finish cleanly instead of being aborted mid-synthesis
+// (prior 12s timeout caused "This operation was aborted" on every smoke test despite
+// successful tool execution).
+const READER_TIMEOUT_MS = 25_000
 const FEATURE_FLAG_KEY = 'somnio_recompra_crm_reader_enabled'
 
 /**

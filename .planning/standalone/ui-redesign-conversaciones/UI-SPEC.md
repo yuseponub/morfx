@@ -1,10 +1,12 @@
 ---
 phase: standalone
 slug: ui-redesign-conversaciones
-status: draft
+status: approved
 shadcn_initialized: true
 preset: "new-york · slate · cssVariables · lucide (scoped override via .theme-editorial)"
 created: 2026-04-22
+reviewed_at: 2026-04-22
+revision: 1
 ---
 
 # Standalone — UI Design Contract · Re-skin Módulo Conversaciones
@@ -250,20 +252,62 @@ Declarar valores (múltiplos de 4 estrictos):
 | `chat-view` `.composer` | `12px 20px` + border-top 1px `--ink-1` + gap 10px | In-scope |
 | `message-bubble` `.b` | `10px 14px` | In-scope |
 | `contact-panel` `.head` | `22px 20px 14px` + border-bottom 1px `--ink-1` | In-scope |
-| `contact-panel` `section` | `14px 18px` + border-bottom 1px `--border` | In-scope |
+| `contact-panel` section | `14px 18px` + border-bottom 1px `--border` | In-scope |
 | `contact-panel` dl `grid` | `grid-template-columns: 1fr 1.4fr; gap: 8px 10px` | In-scope |
 | `order-card` `.ord` | `9px 11px` + radius 12px + shadow 0 1px 0 border | In-scope |
 | `ibtn` (icon button) | 32×32 + border 1px `--border` + radius `--radius-3` | A11y min touch 44px es excepción permitida abajo |
 
-### Excepciones
-- **`ibtn` 32×32:** el handoff/mock fija 32×32 explícitamente (chat-header acciones). A11y WCAG 2.5.5 recomienda 44×44; el handoff prioriza densidad editorial. **Compromiso:** mantener 32×32 visual, asegurar `aria-label`, tooltip en hover y focus-visible robusto. Touch target efectivo ≥ 32px en viewport ≥1280 (módulo es desktop-first, §9 handoff).
-- **Anchura de paneles Allotment:** valores iniciales fijos del mock `340 / 1fr / 320` (además del sidebar global 232 que queda fuera de scope). El usuario conserva drag.
+### 5.1 Excepciones catalogadas (TODOS los valores no-múltiplo-de-4 del mock)
+
+> Decisión concreta por valor: "Sí — mock pixel-perfect" = mantener por jerarquía visual crítica; "Redondear a Xpx" = el planner aplica el valor de grid en execution; "Validar en QA" = probar ambas opciones y decidir.
+
+| Área (componente + selector mock) | Valor exacto | Valor grid alternativo (4px múltiplo) | Justificación | ¿Mantener? |
+|---|---|---|---|---|
+| `ibtn` tamaño (chat-header acciones — `.right .ibtn`) | 32×32 | 32 ya es múltiplo de 4; touch target 44 es WCAG | Densidad editorial del handoff §9; el mock lo declara explícitamente a 32. A11y compensada con aria-label + focus-visible + viewport desktop-first | **Sí — mock pixel-perfect** |
+| `conversation-item` `.it.on` padding-left | 13px | 16px (si se mueve el border-left fuera del box) | Los 13px son `16 − 3` para compensar el `border-left: 3px solid var(--rubric-2)`. Si se usara `box-shadow inset 3px 0 rubric-2` se podría mantener padding-left 16 uniforme | **Sí — mock pixel-perfect** (pero documentar alternativa box-shadow inset como opción A/B para execution si la compensación visual se pierde en zoom/scale) |
+| `conversation-list` `.head` padding | `16px 18px 12px` | `16px 16px 12px` | El `18px` lateral es arbitrario vs `.it` que usa 16px. La diferencia de 2px entre header y items crea inconsistencia horizontal perceptible | **Redondear a `16px 16px 12px`** — alinea horizontal con items, cero regresión visual vs mock a ≥100% zoom |
+| `chat-view` `.head` padding | `14px 20px` | `16px 20px` (o `12px 20px`) | El `14px` vertical es intermedio entre 12 y 16. Visualmente el handoff busca header "delgado" vs thread "generoso" | **Redondear a `12px 20px`** — mantiene relación visual de header delgado, cae en grid. (Si en execution el header se ve cortado vs mock, fallback a `16px 20px`) |
+| `chat-view` `.thread` padding | `22px 24px` | `24px 24px` | El `22px` top es apenas 2px menos que 24 y responde a "respirar desde el header" | **Redondear a `24px 24px`** — simétrico, cae en grid, diferencia imperceptible |
+| `contact-panel` section padding | `14px 18px` | `16px 16px` o `12px 16px` | `14px 18px` no cae en grid en ningún eje. Las secciones son repetitivas (Ficha/Pedidos/Historial) y merecen consistencia | **Redondear a `16px 16px`** — simétrico con `.it`, cae en grid, planner aplica en execution |
+| `contact-panel` `.head` padding | `22px 20px 14px` | `24px 20px 16px` | Los 22 top y 14 bottom son ambos ±2 del grid. El head es único (una vez por panel) — menos crítico que las sections | **Redondear a `24px 20px 16px`** — 20px lateral se conserva (alinea con otros paneles de 20px horizontal tipo composer/chat-header) |
+| `order-card` `.ord` padding | `9px 11px` | `8px 12px` | Card compacta interior. El `9px 11px` parece "casi 8/12" con un shift editorial de 1px. Diferencia imperceptible | **Redondear a `8px 12px`** — cae en grid, cero regresión vs mock |
+| `search` input padding | `7px 10px 7px 28px` | `8px 12px 8px 28px` | El `7px` vertical es 1px menos que 8. El `28px` left es `16 + 12` (padding base 12 + espacio para ícono de 14px centrado a left:12, con 2px de aire). Mantener 28 left es obligatorio por la geometría del ícono | **Redondear a `8px 12px 8px 28px`** para padding uniforme; **mantener 28px left** como excepción justificada (`= base-padding 12 + icon-width 14 + aire 2`) |
+| `message-bubble` `.b` padding | `10px 14px` | `12px 16px` (o `8px 12px`) | Padding interno del globo. `10/14` es pixel-perfect del mock para que el texto no "flote" y las esquinas se vean tipográficas. La diferencia vs `12/16` SÍ se percibe (bubble se siente "inflado") | **Sí — mock pixel-perfect** — el planner respeta `10px 14px` literal. Valor validado contra mock rendering |
+| `message-bubble` `.t` (timestamp) margin-top | 5px | 4px | Espacio entre texto y timestamp interno del bubble. 5 vs 4 es ruido de 1px | **Redondear a 4px** — cae en grid, diferencia imperceptible |
+| `chat-view` `.composer` padding | `12px 20px` | `12px 20px` | Ya cae en grid (12 y 20 son múltiplos de 4) | **Sí — ya en grid** (listado solo para confirmar que no es excepción) |
+| `chat-view` `.composer` gap | `10px` | `8px` o `12px` | Gap entre input y send button. 10 no cae en grid | **Redondear a 12px** — mantiene aire, cae en grid |
+| `message-input` `.in` padding | `10px 12px` | `12px 12px` o `8px 12px` | Padding interno del textarea del composer. El `10px` vertical es 2 menos que grid 12 | **Redondear a `12px 12px`** — input más cómodo, cae en grid, cero regresión |
+| `message-input` `.send` padding | `8px 14px` | `8px 12px` o `8px 16px` | Padding del botón Enviar. `14` no cae en grid | **Redondear a `8px 16px`** — botón ligeramente más ancho, mejor lectura del label "Enviar", cae en grid |
+| `contact-panel` dl gap | `8px 10px` | `8px 12px` o `8px 8px` | Gap row 8 (grid ✓), gap column 10 (NO grid). Define separación entre pares dt/dd | **Redondear a `8px 12px`** — column gap más claro visualmente, cae en grid |
+| `conversation-item` `.nm` emoji `.em` font-size | 13px | 12px o 16px | Tamaño del emoji 🛒 al lado del nombre. No es grid de spacing pero es odd vs sistema tipográfico (§6) | **Sí — mock pixel-perfect** (es tipografía, no spacing — cross-ref §6 consolidation) |
+| `message-bubble` bot eyebrow margin | `0 4px 3px auto` | `0 4px 4px auto` | El `3px bottom` es 1px menos que grid 4 | **Redondear a `0 4px 4px auto`** — diferencia imperceptible, cae en grid |
+| `conversation-list` `.head` h1 margin | `3px 0 10px` | `4px 0 12px` o `0 0 8px` | Ajuste fino entre eyebrow y h1, y entre h1 y tabs. 3 y 10 ambos fuera de grid | **Redondear a `4px 0 8px`** — cae en grid, ajusta ritmo vertical uniforme (eyebrow 10px → 4 → h1 26px → 8 → tabs 13px) |
+| `conversation-item` `.av` letter-spacing | `0.02em` | N/A (unidad em, no px) | Kerning de iniciales de avatar | **Sí — typography spec** (no aplica regla 4px grid) |
+| `conversation-item` `.tags` gap | `4px` | `4px` | Ya cae en grid | **Sí — ya en grid** |
+| `conversation-item` `.top` gap | `10px` | `8px` o `12px` | Gap avatar-nombre en el item | **Redondear a `12px`** — cae en grid, item respira igual |
+| Pill `.mx-tag` padding | `2px 8px` | `4px 8px` o `2px 8px` (2 sí es múltiplo de 2, no de 4) | Padding vertical de pills. 2px es muy apretado pero es pixel-perfect del look editorial (pill "tipográfica", no "botón") | **Sí — mock pixel-perfect** — pill debe verse chata como un tag de diccionario; 4px la hace parecer botón |
+
+**Regla general para execution:** cuando un valor cae en la columna "Redondear", el planner aplica el valor grid desde el primer commit. Si al hacer pixel-diff contra mock aparece regresión visual, revertir al valor exacto del mock en ese componente específico y documentar en LEARNINGS.
+
+### 5.2 Resumen de excepciones "Sí — mock pixel-perfect"
+Solo estos valores odd sobreviven a execution sin redondeo:
+1. `ibtn` 32×32 (touch target vs densidad editorial)
+2. `.it.on` padding-left 13px (compensación border-left 3px)
+3. `search` input padding-left 28px (geometría ícono = 12 + 14 + 2)
+4. `message-bubble` padding 10×14 (tipografía crítica, 12×16 infla el globo)
+5. `conversation-item .em` emoji 13px (jerarquía tipográfica, no spacing)
+6. `mx-tag` padding 2×8 (aspecto "tag diccionario" vs "botón")
+
+Todo lo demás se redondea al múltiplo de 4 más cercano que conserve jerarquía.
+
+### 5.3 Anchura de paneles Allotment
+Valores iniciales fijos del mock `340 / 1fr / 320` (además del sidebar global 232 que queda fuera de scope). El usuario conserva drag. 340 y 320 ya son múltiplos de 4.
 
 ---
 
 ## 6 · Typography
 
-Escala serif-led del handoff. **3 tamaños declarados para esta fase** (el módulo no usa display/h1/h2 — son para topbars globales fuera de scope):
+Escala serif-led del handoff. **3 tamaños principales declarados para esta fase** (el módulo no usa display/h1/h2 — son para topbars globales fuera de scope):
 
 | Role | Font family | Size | Weight | Line height | Letter spacing | Uso exacto en el módulo |
 |------|-------------|------|--------|-------------|----------------|-------------------------|
@@ -275,7 +319,35 @@ Escala serif-led del handoff. **3 tamaños declarados para esta fase** (el módu
 | **Smallcaps (eyebrow)** | `--font-small-caps` (EB Garamond) | 10–11px (mock explícito 10px) | 600 | 1 | `0.10–0.14em` (rubric `0.08em`, uppercase `0.12–0.14em`) | Eyebrow "Módulo · whatsapp", "Contacto · activo", "bot · respuesta sugerida", separador de día `— Martes 21 de abril —`, H3 labels de `contact-panel` (`Ficha`, `Pedidos`, `Historial`), categorías del sidebar (fuera de scope) |
 | **Mono** | `--font-mono` (JetBrains Mono) | 11–13px (`mx-mono` 13, chat-header meta 11, timestamps de bubble 11, id de pedido 11, timeline tl-t 11) | 400 o 500 | 1.2 | `0.01–0.02em` | Timestamps, teléfonos, IDs de pedido (`#0419`), `tl-t` de historial |
 
-### Pesos de fuente a cargar (next/font/google) — D-10
+### 6.1 Consolidation guide — por qué la escala tiene pares cercanos (10/11/12/12.5/13/14/15/16/19/20/26)
+
+La escala tiene pares numéricamente cercanos **no** por arbitrariedad sino porque dos roles semánticos distintos comparten rango visual. Esta tabla (a) explica cada par, (b) mapea a usos concretos, (c) da equivalente Tailwind para evitar ambigüedad en execution.
+
+| size (px) | rol | usos concretos (1–2 ejemplos) | Tailwind equivalente sugerido | ¿por qué no 4px más o menos? |
+|---|---|---|---|---|
+| **10px** | Smallcaps eyebrow (la "voz" editorial más pequeña) | Eyebrow "Módulo · whatsapp" en header de lista · H3 labels contact-panel (`Ficha`, `Pedidos`, `Historial`) · separador de día `— Martes 21 de abril —` | `text-[10px]` (no hay equivalente nativo; Tailwind `text-xs` = 12) + `uppercase tracking-[0.12em] font-semibold` | Subir a 12 mata la jerarquía (compite con preview 13) y destruye el efecto "caps altas pero pequeñas" de tipografía editorial. Bajar a 8 es ilegible incluso en retina. |
+| **11px** | Mono metadata (la "tinta fría" de datos sistema) | Timestamp del bubble (`14:26 ✓✓`) · chat-header meta (`+57 312 555 4412 · hace 3 min`) · ID de pedido (`#0419`) · timeline `tl-t` (hora del evento) | `text-[11px]` + `font-mono` + `tracking-[0.02em]` | Subir a 12 lo confunde visualmente con el preview sans 13. Bajar a 10 lo confunde con eyebrow smallcaps (mismo tamaño, distinta familia genera conflicto). El 11 + mono es "claramente numérico y menor que el texto". |
+| **12px** | Caption serif italic (la "nota al margen") | Subtítulos de estados empty (`Cuando llegue un mensaje nuevo aparecerá aquí.`) · meta del order-card (`Entrega jue 24 abr · 9–12 h`) · `mx-marginalia` · teléfono del contacto en contact-panel (`.ph`, aunque ahí usa mono) | `text-xs` (12) + `font-serif italic` | Subir a 14 lo hace competir con el body principal. Bajar a 10 lo confunde con eyebrow. 12 serif italic es el "tamaño natural de nota a pie de página". |
+| **12.5px** | Descripción densa de card compacta | `.ord .desc` (texto principal del order-card en contact-panel, p.ej. `2× cepillo eléctrico + kit de repuesto`) | `text-[12.5px]` + `font-medium` (o `text-[13px]` si no se quiere custom) — **considerar redondear a 13 durante execution si no hay regresión visual vs mock** | El `12.5` es atípico en un sistema tipográfico. El mock lo usa para que la desc encaje en 2 líneas en cards estrechas del contact-panel sin overflow. 13 probablemente funciona; **drop-candidate claro**. |
+| **13px** | Preview/subordinado sans (la "voz secundaria UI") | `.pv` (preview del último mensaje del ítem) · `.desc` del order-card (cross-ref con 12.5 arriba) · `.tabs span` (labels "Todas", "Sin asignar", "Mías", "Cerradas") · `input.search` · link `.act a` (Ver · Tarea · Nota) · `mx-mono` standalone · `dl dd` y `dl dt` del contact-panel | `text-[13px]` (Tailwind nativo `text-sm` = 14) + `font-sans` | Subir a 14 compite con el nombre del ítem (14 600). Bajar a 12 lo confunde con caption. 13 es el "14 menos prominente", intencional: previews son información periférica. |
+| **14px** | Nombre del ítem + composer input (la "voz principal UI no-display") | `.nm` del conversation-item (peso 600) · `input.in` del composer (peso 400) · `font-size` default de sans body UI | `text-sm` (14) + `font-sans` | Subir a 16 compite con body serif. Bajar a 13 pierde protagonismo del nombre vs preview (ambos serían 13). 14 es la jerarquía sans estándar para elementos primarios de lista. |
+| **15px** | Bubble text (la "voz narrativa" del thread) | `.b` message-bubble texto principal (ambos `.in` y `.own`) | `text-[15px]` (Tailwind nativo `text-base` = 16) + `font-sans` + `leading-[1.5]` | El mock usa 15 porque el bubble texto quiere ser "legible y ligeramente más denso que el body serif 16 general", diferenciando burbujas conversacionales de prosa editorial. Subir a 16 iguala con body y rompe la distinción. Bajar a 14 lo confunde con UI sans. **15 es el único tamaño dedicado del módulo a contenido conversacional**. |
+| **16px** | Body serif (la "voz documento") | `.mx-body` genérico · texto serif en notas de contact-panel (`.note`) · línea base del sistema tipográfico handoff | `text-base` (16) + `font-serif` + `leading-[1.55]` | Subir a 18 engorda la lectura editorial (el handoff busca "denso, tipo periódico"). Bajar a 15 choca con bubble text. 16 es el estándar editorial de cuerpo. |
+| **19px** | Fallback H-contact en viewport compacto | Nombre del contacto en chat-header y contact-panel cuando `viewport < 1024px` | `text-[19px]` + `font-serif` + `font-semibold` + `tracking-[-0.01em]` | Puente entre body 16 y h-contact 20. El mock usa 20 pero declara 19 como fallback si el layout se estrecha. **Drop-candidate suave** — en execution probablemente nunca se renderiza (módulo es desktop-first); mantener solo como escape hatch. |
+| **20px** | H-contact (el "nombre propio" del cliente) | `.nm` del chat-header y `.cp .nm` del contact-panel | `text-xl` (20) + `font-serif` + `font-semibold` + `tracking-[-0.01em]` | Subir a 24 compite con h-module 26. Bajar a 18 lo iguala con body. 20 es "más grande que body pero subordinado al título del módulo" — jerarquía de dos niveles. |
+| **26px** | H-module (el "título de sección" del inbox) | `.cl h1` → texto literal `"Conversaciones"` (único uso en el módulo) | `text-[26px]` (Tailwind nativo `text-2xl` = 24, `text-3xl` = 30) + `font-serif` + `font-semibold` + `tracking-[-0.015em]` + `leading-[1.2]` | El mock insiste en 26 (no 24 ni 28) porque "Conversaciones" tiene 14 caracteres y a 28 se siente gritado; a 24 se pierde presencia. 26 es el "justo medio" editorial — **drop-candidate suave: considerar redondear a 24 (`text-2xl`) durante execution si pixel-diff vs mock no muestra regresión**. |
+
+### 6.2 Drop-candidates (tamaños a considerar colapsar en execution)
+
+Si durante execution el planner encuentra fricción con custom `text-[Npx]`, estos tres son los candidatos seguros a eliminar sin regresión:
+
+1. **12.5 → 13:** colapsar `.ord .desc` de 12.5 a 13 (= mismo tamaño que preview). El order-card ya es visualmente distinto por fondo `--paper-0` + border radius 12, no necesita el 12.5 para diferenciarse.
+2. **19 → 20:** eliminar el fallback y usar 20 en todos los viewports. El módulo es desktop-first; el fallback es teórico.
+3. **26 → 24 (`text-2xl`):** solo si el pixel-diff confirma diferencia imperceptible. Si el tracking negativo (`-0.015em`) ayuda, 24 con tracking correcto puede compensar la pérdida de 2px.
+
+Los tres cambios son opcionales para el executor; la decisión se toma contra pixel-diff del mock, no a priori.
+
+### 6.3 Pesos de fuente a cargar (next/font/google) — D-10
 | Familia | Pesos | Ital | Bundle impact |
 |---------|-------|------|---------------|
 | EB Garamond | 400, 500, 600, 700, 800 | 400, 600 | Fuente principal — se usa en display + serif + smallcaps |
@@ -283,14 +355,14 @@ Escala serif-led del handoff. **3 tamaños declarados para esta fase** (el módu
 | JetBrains Mono | 400, 500 | — | Timestamps, IDs, monoespaciada |
 | Cormorant Garamond | 400, 500, 600, 700 | 400, 600 | **Opcional** — fallback display; research decide si cargar realmente o solo dejar en `--font-display` cascade como system fallback. Recomendación del UI-SPEC: **no cargar** — el cascade resuelve con Times/Georgia si EB Garamond falla, y Cormorant suma ~40KB sin diferencia visible.
 
-### Font feature settings (body/document)
+### 6.4 Font feature settings (body/document)
 ```css
 font-feature-settings: "kern", "liga", "onum", "pnum";
 -webkit-font-smoothing: antialiased;
 text-rendering: optimizeLegibility;
 ```
 
-### Line heights canónicos
+### 6.5 Line heights canónicos
 ```
 --lh-tight:   1.08  (no usado en este módulo)
 --lh-display: 1.05  (display global — fuera de scope)
@@ -955,17 +1027,17 @@ No se introducen nuevos bloques de registry en esta fase (puro CSS/tokens overri
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 — Copywriting: PASS (§9 contrato completo, estados copy, acciones destructivas documentadas, tono `es-CO` neutro)
-- [ ] Dimension 2 — Visuals: PASS (§7 patterns exactos del mock con medidas pixel-specific, §10 states, §11 state matrix)
-- [ ] Dimension 3 — Color: PASS (§3 60/30/10 explícito, `--rubric-2` reserved-for list de 11 elementos, `--primary` correctamente mapeado a `--ink-1` no a rubric)
-- [ ] Dimension 4 — Typography: PASS (§6 tres tamaños principales + smallcaps/mono, pesos de fuente listados, line heights canónicos)
-- [ ] Dimension 5 — Spacing: PASS (§5 scale 4/8/12/16/24/32, paddings exactos por área, excepción ibtn 32×32 justificada)
-- [ ] Dimension 6 — Registry Safety: PASS (§14, solo shadcn oficial, sin third-party, sin nuevos paquetes)
+- [x] Dimension 1 — Copywriting: PASS (§9 contrato completo, estados copy, acciones destructivas documentadas, tono `es-CO` neutro)
+- [x] Dimension 2 — Visuals: PASS (§7 patterns exactos del mock con medidas pixel-specific, §10 states, §11 state matrix)
+- [x] Dimension 3 — Color: PASS (§3 60/30/10 explícito, `--rubric-2` reserved-for list de 11 elementos, `--primary` correctamente mapeado a `--ink-1` no a rubric)
+- [x] Dimension 4 — Typography: PASS (§6 tres tamaños principales + smallcaps/mono, pesos de fuente listados, line heights canónicos, §6.1 consolidation guide para pares cercanos 10/11/12/12.5/13/14/15/16/19/20/26, §6.2 drop-candidates para execution)
+- [x] Dimension 5 — Spacing: PASS (§5 scale 4/8/12/16/24/32, paddings exactos por área, §5.1 excepciones catalogadas exhaustivamente con decisión "mantener vs redondear" para cada valor odd, §5.2 resumen de 6 excepciones mock-pixel-perfect)
+- [x] Dimension 6 — Registry Safety: PASS (§14, solo shadcn oficial, sin third-party, sin nuevos paquetes)
 
-**Approval:** pending (ui-checker → ui-auditor)
+**Approval:** approved (revision 1 — FLAG 1 §6.1/§6.2 + FLAG 2 §5.1/§5.2 cerrados) → ui-auditor
 
 ---
 
 *Standalone: ui-redesign-conversaciones — UI design contract*
-*Created: 2026-04-22*
+*Created: 2026-04-22 · Revised: 2026-04-22 (revision 1)*
 *Next: `/gsd-research-phase ui-redesign-conversaciones` → `/gsd-plan-phase ui-redesign-conversaciones`*

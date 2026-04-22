@@ -158,7 +158,10 @@ export async function processMessageWithAgent(
     }
   }
 
-  // 3b. Check if contact is a client + recompra enabled → route to recompra agent
+  // 3b. Check if contact is a client → routing decision (client vs non-client).
+  //     Client + recompra_enabled=true  → recompra agent (with optional crm-reader enrichment).
+  //     Client + recompra_enabled=false → bot skips (human handoff — admin intentionally turned recompra off).
+  //     Non-client                     → v3 normal (below).
   const { data: contactData } = await supabase
     .from('contacts')
     .select('is_client')
@@ -168,7 +171,22 @@ export async function processMessageWithAgent(
   const globalAgentConfig = await getWorkspaceAgentConfig(workspaceId)
   const recompraEnabled = globalAgentConfig?.recompra_enabled ?? true
 
-  if (contactData?.is_client && recompraEnabled) {
+  if (contactData?.is_client) {
+    if (!recompraEnabled) {
+      // Client contact but recompra agent disabled for this workspace → skip bot entirely.
+      // Falling through to v3 would treat the client as a new lead (wrong UX), so the admin's
+      // intent when flipping the UI slider OFF is "no automated response for clients".
+      getCollector()?.recordEvent('pipeline_decision', 'recompra_disabled_client_skip', {
+        conversationId,
+        contactId,
+      })
+      logger.info(
+        { conversationId, contactId },
+        'Client contact but workspace_agent_config.recompra_enabled=false — skipping bot (human handoff)',
+      )
+      return { success: true }
+    }
+
     // Route to recompra agent — client contacts get personalized recompra flow
     // Tags already filtered at step 1b (WPP, P/W, RECO etc.), so arriving here = safe to process
     getCollector()?.recordEvent('pipeline_decision', 'recompra_routed', {

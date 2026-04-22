@@ -117,27 +117,35 @@ export class V3ProductionRunner {
         // systemEvent: undefined — only for timers, not user messages
       }
 
-      // 3b. Preload data into session state for new sessions (recompra: last order datos)
-      // Idempotent guard: `_v3:preloaded` marker. Previous `session.version === 0` guard
-      // never fired because SessionManager.createSession inserts rows with version=1
-      // (DB default is also 1), so preload silently never ran.
+      // 3b. Preload data + agent_module marker for new sessions (recompra: last order datos)
+      // Idempotent guard: `_v3:preloaded` marker inside datos_capturados. Previous
+      // `session.version === 0` guard never fired because SessionManager.createSession
+      // inserts rows with version=1 (DB default is also 1), so preload silently never ran.
+      //
+      // Both markers live INSIDE `datos_capturados` (jsonb) because session_state has no
+      // dedicated top-level columns for them — writing `{'_v3:agent_module': ...}` at
+      // the top level would try to target a column that doesn't exist and Supabase
+      // rejects the UPDATE ("Failed to update session state").
       const alreadyPreloaded = session.state.datos_capturados?.['_v3:preloaded'] === 'true'
-      if (this.config.preloadedData && Object.keys(this.config.preloadedData).length > 0 && !alreadyPreloaded) {
-        await this.adapters.storage.saveState(session.id, {
-          datos_capturados: { ...this.config.preloadedData, '_v3:preloaded': 'true' },
-        })
-        // Also inject into current v3Input so first processMessage sees it
-        Object.assign(v3Input.datosCapturados, this.config.preloadedData)
-        console.log(`[V3-RUNNER] Preloaded data injected into new session: ${Object.keys(this.config.preloadedData).join(', ')}`)
-      }
-
-      // 3c. Store agent_module in session state for timer routing (read by agent-timers-v3)
       const agentModuleAlreadyStored = session.state.datos_capturados?.['_v3:agent_module'] !== undefined
-      if (this.config.agentModule && this.config.agentModule !== 'somnio-v3' && !agentModuleAlreadyStored) {
-        await this.adapters.storage.saveState(session.id, {
-          '_v3:agent_module': this.config.agentModule,
-        })
-        console.log(`[V3-RUNNER] Stored _v3:agent_module=${this.config.agentModule} in session state`)
+      const shouldWriteAgentModule = this.config.agentModule && this.config.agentModule !== 'somnio-v3' && !agentModuleAlreadyStored
+
+      if ((this.config.preloadedData && Object.keys(this.config.preloadedData).length > 0 && !alreadyPreloaded) || shouldWriteAgentModule) {
+        const merged: Record<string, string> = {
+          ...session.state.datos_capturados,
+        }
+        if (this.config.preloadedData && !alreadyPreloaded) {
+          Object.assign(merged, this.config.preloadedData)
+          merged['_v3:preloaded'] = 'true'
+          Object.assign(v3Input.datosCapturados, this.config.preloadedData)
+        }
+        if (shouldWriteAgentModule) {
+          merged['_v3:agent_module'] = this.config.agentModule!
+        }
+        await this.adapters.storage.saveState(session.id, { datos_capturados: merged })
+        console.log(
+          `[V3-RUNNER] Preload/agent_module write: preloaded=${!alreadyPreloaded && !!this.config.preloadedData} agentModule=${shouldWriteAgentModule ? this.config.agentModule : 'skip'}`
+        )
       }
 
       // 4. Call processMessage — route by agentModule

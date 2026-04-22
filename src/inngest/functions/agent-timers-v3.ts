@@ -307,8 +307,10 @@ export const v3Timer = inngest.createFunction(
       // then fall back to workspace-level config (godentist vs somnio-v3)
       const agentConfig = await getWorkspaceAgentConfig(workspaceId)
       let agentModule: 'somnio-v3' | 'godentist' | 'somnio-recompra' = 'somnio-v3'
+      // `_v3:agent_module` lives inside `session.state.datos_capturados` (jsonb),
+      // not as a top-level column of session_state — there is no such column.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sessionAgentModule = (session.state as any)?.['_v3:agent_module'] as string | undefined
+      const sessionAgentModule = (session.state as any)?.datos_capturados?.['_v3:agent_module'] as string | undefined
       if (sessionAgentModule === 'somnio-recompra') {
         agentModule = 'somnio-recompra'
       } else if (agentConfig?.conversational_agent_id === 'godentist') {

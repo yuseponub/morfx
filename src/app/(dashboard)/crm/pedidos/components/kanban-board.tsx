@@ -25,7 +25,61 @@ import { KanbanCard } from './kanban-card'
 import { moveOrderToStage } from '@/app/actions/orders'
 import { updateStageOrder } from '@/app/actions/pipelines'
 import { toast } from 'sonner'
+import { useKanbanRealtime } from '@/hooks/use-kanban-realtime'
 import type { OrderWithDetails, PipelineStage, OrdersByStage } from '@/lib/orders/types'
+
+/**
+ * Result shape returned by the `moveOrderToStage` server action.
+ * Exposed as an exported type so `handleMoveResult` can be unit-tested.
+ * Standalone crm-stage-integrity Plan 05 (WARNING 4).
+ */
+export interface MoveOrderResult {
+  success?: true
+  error?: string
+  data?: { currentStageId?: string | null; warning?: string }
+}
+
+/**
+ * Context carried into `handleMoveResult` — everything the helper needs to
+ * rollback local state + show a toast + release the echo-suppression ref.
+ * Kept as an interface (not a class) so tests can build plain literals.
+ */
+export interface HandleMoveResultCtx {
+  orderId: string
+  originalStageId: string
+  setLocalOrdersByStage: (
+    next: OrdersByStage | ((prev: OrdersByStage) => OrdersByStage)
+  ) => void
+  ordersByStage: OrdersByStage
+  recentMoveRef: React.MutableRefObject<boolean>
+  toast: { error: (msg: string) => void }
+}
+
+/**
+ * Pure function: branches on a `moveOrderToStage` result and reverts optimistic
+ * UI state + shows toast when the server rejected (CAS, WIP limits, 404, etc).
+ * Exported so unit tests can verify the error-branching WITHOUT driving dnd-kit.
+ *
+ * D-15 (toast rollback) + Standalone crm-stage-integrity Plan 05 WARNING 4.
+ */
+export function handleMoveResult(
+  result: MoveOrderResult,
+  ctx: HandleMoveResultCtx,
+): void {
+  if (result.success) return // happy path — optimistic state already correct
+
+  // Rollback optimistic state to parent truth
+  ctx.setLocalOrdersByStage(ctx.ordersByStage)
+
+  if (result.error === 'stage_changed_concurrently') {
+    // D-15: CAS rejection — other source moved this order concurrently
+    ctx.toast.error('Este pedido fue movido por otra fuente. Actualizando...')
+    // Release echo suppression so Realtime can deliver the truth-state update
+    ctx.recentMoveRef.current = false
+  } else {
+    ctx.toast.error(result.error ?? 'Error al mover el pedido')
+  }
+}
 
 interface KanbanBoardProps {
   stages: PipelineStage[]
@@ -108,6 +162,55 @@ export function KanbanBoard({
     if (recentMoveRef.current) return
     setLocalOrdersByStage(ordersByStage)
   }, [ordersByStage])
+
+  // Realtime reconciliation (Standalone crm-stage-integrity Plan 05, D-14).
+  // Subscribes to `orders` UPDATE events filtered by pipelineId and reconciles
+  // remote moves (other clients, automations, agents) into the local Kanban state.
+  const handleRemoteMove = React.useCallback(
+    (orderId: string, newStageId: string) => {
+      setLocalOrdersByStage((prev) => {
+        // Locate current position of the order
+        let currentStageId: string | null = null
+        let orderItem: OrderWithDetails | null = null
+        for (const [sid, orders] of Object.entries(prev)) {
+          const found = orders.find((o) => o.id === orderId)
+          if (found) {
+            currentStageId = sid
+            orderItem = found
+            break
+          }
+        }
+        // Idempotent: no-op if not found or already in target stage (Pitfall 7)
+        if (!orderItem || currentStageId === newStageId) return prev
+
+        const next: OrdersByStage = { ...prev }
+        if (currentStageId) {
+          next[currentStageId] = (prev[currentStageId] || []).filter(
+            (o) => o.id !== orderId,
+          )
+        }
+        next[newStageId] = [
+          ...(prev[newStageId] || []),
+          { ...orderItem, stage_id: newStageId },
+        ]
+        return next
+      })
+    },
+    [],
+  )
+
+  const handleReconnect = React.useCallback(() => {
+    // Supabase Realtime has NO event replay — on reconnect, reset local state
+    // back to parent truth (Pitfall 6).
+    setLocalOrdersByStage(ordersByStage)
+  }, [ordersByStage])
+
+  useKanbanRealtime({
+    pipelineId: pipelineId ?? null,
+    recentMoveRef,
+    onRemoteMove: handleRemoteMove,
+    onReconnect: handleReconnect,
+  })
 
   // Cleanup move timeout on unmount
   React.useEffect(() => {
@@ -293,16 +396,27 @@ export function KanbanBoard({
     const result = await moveOrderToStage(orderId, newStageId)
     setPendingMoveId(null)
 
+    // Delegate error-branching (rollback + toast + release ref on CAS reject)
+    // to the exported pure helper — allows unit testing without dnd-kit
+    // (Standalone crm-stage-integrity Plan 05, WARNING 4).
+    const moveResult = result as MoveOrderResult
+    handleMoveResult(moveResult, {
+      orderId,
+      originalStageId: currentStageId,
+      setLocalOrdersByStage,
+      ordersByStage,
+      recentMoveRef,
+      toast,
+    })
+
     if ('error' in result) {
-      // Revert local state on error
-      setLocalOrdersByStage(ordersByStage)
-      // Revert parent state
+      // Revert parent state (handleMoveResult already reverted local state + toast)
       onOrderMoved?.(orderId, newStageId, currentStageId)
-      toast.error(result.error)
-    } else {
-      if (result.data?.warning) {
-        toast.warning(result.data.warning)
-      }
+      return
+    }
+
+    if (result.data?.warning) {
+      toast.warning(result.data.warning)
     }
   }
 

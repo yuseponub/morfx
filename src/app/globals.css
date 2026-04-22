@@ -115,6 +115,425 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* ============================================================
+ * EDITORIAL SCOPE — UI-SPEC revision 1 · 2026-04-22
+ * ============================================================
+ * Scoped tokens for the /whatsapp re-skin (Standalone
+ * ui-redesign-conversaciones). Applied ONLY when InboxLayout
+ * root has class `theme-editorial` (D-02/D-04). Outside this
+ * scope, shadcn-slate tokens remain untouched (Regla 6).
+ *
+ * CRITICAL (RESEARCH Pitfall 1): NEVER nest @theme inside
+ * .theme-editorial — Tailwind v4 only accepts @theme at top
+ * level. Inside this scope, use plain CSS variable declarations.
+ *
+ * Rubric-2 is a RESERVED accent (UI-SPEC §3.4) — do NOT bind
+ * --primary to --rubric-2. --primary maps to --ink-1 (UI-SPEC §4
+ * critical note).
+ */
+.theme-editorial {
+  /* Force light — dark mode is OUT-OF-SCOPE for v1 (UI-SPEC §12.4) */
+  color-scheme: light;
+
+  /* -- Paper palette (background surfaces — UI-SPEC §2.1) -------- */
+  --paper-0: oklch(0.995 0.008 85);
+  --paper-1: oklch(0.985 0.012 82);
+  --paper-2: oklch(0.970 0.016 80);
+  --paper-3: oklch(0.945 0.020 78);
+  --paper-4: oklch(0.915 0.026 76);
+  --paper-shadow: oklch(0.82 0.035 70);
+
+  /* -- Ink palette (foreground — UI-SPEC §2.2) ------------------ */
+  --ink-1: oklch(0.18 0.02 60);
+  --ink-2: oklch(0.32 0.025 60);
+  --ink-3: oklch(0.48 0.03 65);
+  --ink-4: oklch(0.62 0.035 70);
+  --ink-5: oklch(0.78 0.03 72);
+
+  /* -- Rubric palette (reserved accent — UI-SPEC §2.3 + §3.4) --- */
+  --rubric-1: oklch(0.45 0.09 28);
+  --rubric-2: oklch(0.55 0.10 30);
+  --rubric-3: oklch(0.70 0.07 32);
+
+  /* -- Color-ink accents (sparse — UI-SPEC §2.4) ---------------- */
+  --accent-verdigris: oklch(0.52 0.035 180);
+  --accent-gold: oklch(0.68 0.055 80);
+  --accent-indigo: oklch(0.42 0.045 260);
+
+  /* -- Semantics (UI-SPEC §2.5) --------------------------------- */
+  --semantic-success: oklch(0.50 0.08 145);
+  --semantic-warning: oklch(0.58 0.12 65);
+  --semantic-danger: var(--rubric-2);
+  --semantic-info: var(--accent-indigo);
+
+  /* -- Internal aliases (UI-SPEC §2.6) -------------------------- */
+  --rule: var(--ink-2);
+  --border-strong: var(--ink-1);
+
+  /* -- Typography (UI-SPEC §2.7) -------------------------------- */
+  --font-display: var(--font-ebgaramond), 'Cormorant Garamond', 'Times New Roman', Georgia, serif;
+  --font-serif: var(--font-ebgaramond), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-small-caps: var(--font-ebgaramond), Georgia, serif;
+
+  /* -- Font sizes (UI-SPEC §6) ---------------------------------- */
+  --fs-display: 44px;
+  --fs-h1: 32px;
+  --fs-h2: 26px;
+  --fs-h3: 24px;
+  --fs-h4: 20px;
+  --fs-body: 16px;
+  --fs-body-sm: 14px;
+  --fs-caption: 12px;
+  --fs-micro: 10px;
+
+  /* -- Line heights (UI-SPEC §6.5) ------------------------------ */
+  --lh-tight: 1.08;
+  --lh-display: 1.05;
+  --lh-heading: 1.20;
+  --lh-body: 1.55;
+  --lh-long: 1.70;
+
+  /* -- Spacing (UI-SPEC §5) ------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* -- Radii (UI-SPEC §2.8) ------------------------------------- */
+  --radius-0: 0px;
+  --radius-1: 2px;
+  --radius-2: 3px;
+  --radius-3: 4px;
+  --radius-pill: 999px;
+
+  /* -- Shadows (UI-SPEC §2.9) ----------------------------------- */
+  --shadow-hair: 0 0 0 0.5px var(--border);
+  --shadow-page: 0 1px 0 var(--border), 0 12px 28px -14px oklch(0.3 0.04 60 / 0.25);
+  --shadow-card: 0 1px 0 var(--border), 0 4px 12px -6px oklch(0.3 0.04 60 / 0.18);
+  --shadow-raised: 0 1px 0 var(--border), 0 10px 24px -10px oklch(0.25 0.05 60 / 0.28);
+
+  /* -- Paper textures (UI-SPEC §2.10) --------------------------- */
+  --paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.15 0 0 0 0.035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --paper-fibers: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.012 0.9' numOctaves='1' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.2 0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
+
+  /* -- Shadcn semantic token overrides (UI-SPEC §4 mapping) -----
+   * CRITICAL: --primary maps to --ink-1 (ink, NOT rubric). Rubric-2
+   * is reserved for 11 specific uses (UI-SPEC §3.4). Binding primary
+   * to rubric would flood the UI with accent and break the 60/30/10
+   * color contract.
+   */
+  --background: var(--paper-1);
+  --foreground: var(--ink-1);
+  --card: var(--paper-0);
+  --card-foreground: var(--ink-1);
+  --popover: var(--paper-0);
+  --popover-foreground: var(--ink-1);
+  --primary: var(--ink-1);
+  --primary-foreground: var(--paper-0);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink-1);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--paper-3);
+  --accent-foreground: var(--ink-1);
+  --destructive: var(--rubric-2);
+  --border: oklch(0.80 0.025 72);
+  --input: oklch(0.80 0.025 72);
+  --ring: var(--ink-1);
+  --radius: var(--radius-3);
+
+  /* -- Root visual application (UI-SPEC §2.10) ------------------ */
+  background-color: var(--paper-1);
+  background-image: var(--paper-grain), var(--paper-fibers);
+  background-blend-mode: multiply;
+  font-family: var(--font-serif);
+  font-feature-settings: "kern", "liga", "onum", "pnum";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* PAPER TEXTURE FALLBACK — Pitfall 6 one-commit rollback.
+ * Uncomment this block if Safari retina QA flags frame-rate regression
+ * from the multiply blend-mode on scroll. Simultaneously remove the
+ * background-image + background-blend-mode declarations from the main
+ * .theme-editorial block above.
+ *
+ * .theme-editorial { position: relative; isolation: isolate; }
+ * .theme-editorial::before {
+ *   content: "";
+ *   position: absolute;
+ *   inset: 0;
+ *   background-image: var(--paper-grain), var(--paper-fibers);
+ *   background-blend-mode: multiply;
+ *   opacity: 0.6;
+ *   pointer-events: none;
+ *   z-index: -1;
+ * }
+ */
+
+/* Defensive: if next-themes applies .dark globally to <html> while
+ * the user is inside /whatsapp with v2 on, re-apply the light shadcn
+ * token overrides at higher specificity. We do NOT repeat the custom
+ * paper/ink/rubric tokens — those cascade from the base scope and
+ * are not mutated by .dark. Only the shadcn semantic tokens need to
+ * win specificity against `.dark { --background: oklch(0.129 ...) }`.
+ */
+.dark .theme-editorial {
+  --background: var(--paper-1);
+  --foreground: var(--ink-1);
+  --card: var(--paper-0);
+  --card-foreground: var(--ink-1);
+  --popover: var(--paper-0);
+  --popover-foreground: var(--ink-1);
+  --primary: var(--ink-1);
+  --primary-foreground: var(--paper-0);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink-1);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--paper-3);
+  --accent-foreground: var(--ink-1);
+  --destructive: var(--rubric-2);
+  --border: oklch(0.80 0.025 72);
+  --input: oklch(0.80 0.025 72);
+  --ring: var(--ink-1);
+}
+
+/* ============================================================
+ * EDITORIAL TYPOGRAPHY UTILITIES (mx-*) — UI-SPEC §6/§7
+ * All utilities are prefixed by `.theme-editorial` selector so
+ * they have NO effect outside the scope (D-07).
+ * ============================================================ */
+
+.theme-editorial .mx-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+
+.theme-editorial .mx-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-heading);
+  letter-spacing: -0.015em;
+  color: var(--ink-1);
+}
+
+.theme-editorial .mx-h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-heading);
+  letter-spacing: -0.015em;
+  color: var(--ink-1);
+}
+
+.theme-editorial .mx-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-heading);
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+}
+
+.theme-editorial .mx-h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-h4);
+  line-height: var(--lh-heading);
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+}
+
+.theme-editorial .mx-body {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+}
+
+.theme-editorial .mx-body-long {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: var(--lh-long);
+  color: var(--ink-2);
+}
+
+.theme-editorial .mx-caption {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+.theme-editorial .mx-smallcaps {
+  font-family: var(--font-small-caps);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--ink-3);
+}
+
+.theme-editorial .mx-rubric {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rubric-2);
+}
+
+.theme-editorial .mx-marginalia {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  color: var(--ink-4);
+}
+
+.theme-editorial .mx-ui {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-body-sm);
+  letter-spacing: 0.01em;
+  color: var(--ink-1);
+}
+
+.theme-editorial .mx-mono {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+
+/* -- Rules (horizontal dividers — UI-SPEC §7) ------------------ */
+.theme-editorial .mx-rule {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  height: 0;
+  margin: var(--space-3) 0;
+}
+
+.theme-editorial .mx-rule-double {
+  border: 0;
+  border-top: 3px double var(--rule);
+  height: 0;
+  margin: var(--space-4) 0;
+}
+
+.theme-editorial .mx-rule-thick {
+  border: 0;
+  border-top: 2px solid var(--ink-1);
+  height: 0;
+  margin: var(--space-4) 0;
+}
+
+.theme-editorial .mx-rule-ornament {
+  text-align: center;
+  color: var(--ink-3);
+  font-family: var(--font-serif);
+  font-size: var(--fs-caption);
+  letter-spacing: 0.5em;
+  margin: var(--space-4) 0;
+}
+
+/* -- Pills / tags (UI-SPEC §7.12) -----------------------------
+ * ALL variants constructed with color-mix(in oklch, ...) — never
+ * hardcoded OKLCH (handoff CHANGELOG v2).
+ */
+.theme-editorial .mx-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.01em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.theme-editorial .mx-tag--rubric {
+  background: color-mix(in oklch, var(--rubric-2) 10%, var(--paper-0));
+  color: var(--rubric-1);
+  border-color: color-mix(in oklch, var(--rubric-2) 40%, var(--paper-0));
+}
+
+.theme-editorial .mx-tag--gold {
+  background: color-mix(in oklch, var(--accent-gold) 14%, var(--paper-0));
+  color: color-mix(in oklch, var(--accent-gold) 60%, var(--ink-1));
+  border-color: color-mix(in oklch, var(--accent-gold) 45%, var(--paper-0));
+}
+
+.theme-editorial .mx-tag--indigo {
+  background: color-mix(in oklch, var(--accent-indigo) 10%, var(--paper-0));
+  color: var(--accent-indigo);
+  border-color: color-mix(in oklch, var(--accent-indigo) 40%, var(--paper-0));
+}
+
+.theme-editorial .mx-tag--verdigris {
+  background: color-mix(in oklch, var(--accent-verdigris) 10%, var(--paper-0));
+  color: var(--accent-verdigris);
+  border-color: color-mix(in oklch, var(--accent-verdigris) 40%, var(--paper-0));
+}
+
+.theme-editorial .mx-tag--ink {
+  background: var(--paper-0);
+  color: var(--ink-2);
+  border-color: var(--ink-3);
+}
+
+/* -- Skeleton loading (UI-SPEC §10.4) -------------------------- */
+@keyframes mx-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.theme-editorial .mx-skeleton {
+  background: var(--paper-2);
+  border: 1px solid var(--border);
+  animation: mx-pulse 1.5s ease-in-out infinite;
+  border-radius: var(--radius-3);
+}
+
+/* -- Reduced motion (UI-SPEC §12.3 a11y) ----------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .theme-editorial *,
+  .theme-editorial *::before,
+  .theme-editorial *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .theme-editorial .mx-skeleton {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

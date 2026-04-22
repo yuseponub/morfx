@@ -3,11 +3,13 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
+import { cn } from '@/lib/utils'
 import { ConversationList } from './conversation-list'
 import { ContactPanel } from './contact-panel'
 import { AgentConfigSlider } from './agent-config-slider'
 import { ChatView } from './chat-view'
 import { DebugPanelProduction } from './debug-panel-production'
+import { InboxV2Provider } from './inbox-v2-context'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
@@ -31,6 +33,16 @@ interface InboxLayoutProps {
    * regular users).
    */
   isSuperUser?: boolean
+  /**
+   * UI Inbox v2 flag (Standalone ui-redesign-conversaciones, D-01/D-02).
+   * Resolved server-side via `getIsInboxV2Enabled(workspaceId)` in
+   * `src/lib/auth/inbox-v2.ts`. When false, the editorial re-skin is OFF
+   * and the layout renders byte-identical to today (Regla 6 zero
+   * regression). When true, the root div gets `.theme-editorial` class
+   * which cascades all shadcn token overrides + custom paper/ink/rubric
+   * tokens to the entire subtree.
+   */
+  v2?: boolean
 }
 
 /**
@@ -45,6 +57,7 @@ export function InboxLayout({
   initialSelectedId,
   clientConfig,
   isSuperUser = false,
+  v2 = false,
 }: InboxLayoutProps) {
   // Initialize with pre-selected conversation if provided
   const initialConversation = initialSelectedId
@@ -113,71 +126,73 @@ export function InboxLayout({
   }, [])
 
   return (
-    <div className="flex h-full">
-      {/* Left column: Conversation list */}
-      <div className="w-80 flex-shrink-0 border-r bg-background">
-        <ConversationList
-          workspaceId={workspaceId}
-          initialConversations={initialConversations}
-          selectedId={selectedConversationId}
-          onSelect={handleSelectConversation}
-          onSelectedUpdated={handleConversationUpdatedFromList}
-          onRefreshOrdersReady={handleRefreshOrdersReady}
-          clientConfig={clientConfig}
-        />
-      </div>
+    <InboxV2Provider v2={v2}>
+      <div className={cn('flex h-full', v2 && 'theme-editorial')} data-module="whatsapp">
+        {/* Left column: Conversation list */}
+        <div className="w-80 flex-shrink-0 border-r bg-background">
+          <ConversationList
+            workspaceId={workspaceId}
+            initialConversations={initialConversations}
+            selectedId={selectedConversationId}
+            onSelect={handleSelectConversation}
+            onSelectedUpdated={handleConversationUpdatedFromList}
+            onRefreshOrdersReady={handleRefreshOrdersReady}
+            clientConfig={clientConfig}
+          />
+        </div>
 
-      {/* Center column: Chat view — optionally split with production debug panel */}
-      {debugPanelOpen && isSuperUser && selectedConversationId ? (
-        <div className="flex-1 min-w-0">
-          <Allotment>
-            <Allotment.Pane minSize={400}>
-              <ChatView
-                conversationId={selectedConversationId}
-                conversation={selectedConversation}
-                onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
-                onOpenAgentConfig={handleOpenAgentConfig}
-                onToggleDebug={() => setDebugPanelOpen((o) => !o)}
-                isDebugOpen={debugPanelOpen}
+        {/* Center column: Chat view — optionally split with production debug panel */}
+        {debugPanelOpen && isSuperUser && selectedConversationId ? (
+          <div className="flex-1 min-w-0">
+            <Allotment>
+              <Allotment.Pane minSize={400}>
+                <ChatView
+                  conversationId={selectedConversationId}
+                  conversation={selectedConversation}
+                  onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+                  onOpenAgentConfig={handleOpenAgentConfig}
+                  onToggleDebug={() => setDebugPanelOpen((o) => !o)}
+                  isDebugOpen={debugPanelOpen}
+                />
+              </Allotment.Pane>
+              <Allotment.Pane minSize={320} preferredSize={520}>
+                <DebugPanelProduction conversationId={selectedConversationId} />
+              </Allotment.Pane>
+            </Allotment>
+          </div>
+        ) : (
+          <ChatView
+            conversationId={selectedConversationId}
+            conversation={selectedConversation}
+            onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+            onOpenAgentConfig={handleOpenAgentConfig}
+            onToggleDebug={
+              isSuperUser ? () => setDebugPanelOpen((o) => !o) : undefined
+            }
+            isDebugOpen={debugPanelOpen}
+          />
+        )}
+
+        {/* Right column: Contact panel or Agent config slider (conditional render) */}
+        {isPanelOpen && (
+          <div className="w-80 flex-shrink-0 border-l bg-background">
+            {rightPanel === 'agent-config' ? (
+              <AgentConfigSlider
+                workspaceId={workspaceId}
+                onClose={handleCloseAgentConfig}
               />
-            </Allotment.Pane>
-            <Allotment.Pane minSize={320} preferredSize={520}>
-              <DebugPanelProduction conversationId={selectedConversationId} />
-            </Allotment.Pane>
-          </Allotment>
-        </div>
-      ) : (
-        <ChatView
-          conversationId={selectedConversationId}
-          conversation={selectedConversation}
-          onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
-          onOpenAgentConfig={handleOpenAgentConfig}
-          onToggleDebug={
-            isSuperUser ? () => setDebugPanelOpen((o) => !o) : undefined
-          }
-          isDebugOpen={debugPanelOpen}
-        />
-      )}
-
-      {/* Right column: Contact panel or Agent config slider (conditional render) */}
-      {isPanelOpen && (
-        <div className="w-80 flex-shrink-0 border-l bg-background">
-          {rightPanel === 'agent-config' ? (
-            <AgentConfigSlider
-              workspaceId={workspaceId}
-              onClose={handleCloseAgentConfig}
-            />
-          ) : (
-            <ContactPanel
-              key={selectedConversationId || 'none'}
-              conversation={selectedConversation}
-              onClose={() => setIsPanelOpen(false)}
-              onConversationUpdated={refreshSelectedConversation}
-              onOrdersChanged={refreshOrdersFn}
-            />
-          )}
-        </div>
-      )}
-    </div>
+            ) : (
+              <ContactPanel
+                key={selectedConversationId || 'none'}
+                conversation={selectedConversation}
+                onClose={() => setIsPanelOpen(false)}
+                onConversationUpdated={refreshSelectedConversation}
+                onOrdersChanged={refreshOrdersFn}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </InboxV2Provider>
   )
 }

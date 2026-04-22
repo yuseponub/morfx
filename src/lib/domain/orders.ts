@@ -19,7 +19,47 @@ import {
   emitFieldChanged,
 } from '@/lib/automations/trigger-emitter'
 import { assignTag, removeTag } from './tags'
+import { getPlatformConfig } from '@/lib/domain/platform-config'
 import type { DomainContext, DomainResult } from './types'
+
+// ============================================================================
+// Helpers (standalone crm-stage-integrity — Plan 02)
+// ============================================================================
+
+/**
+ * Map DomainContext.source to order_stage_history.source CHECK constraint values.
+ * Pitfall 10 RESEARCH: source column is the discriminator; actor_id/actor_label interpret within that source.
+ *
+ * DomainContext.source (6 values) → history.source (7 values):
+ *   'server-action'              → 'manual'
+ *   'mobile-api'                 → 'manual'  (mobile is still a human user moving a card)
+ *   'automation'                 → 'automation'
+ *   'webhook'                    → 'webhook'
+ *   'tool-handler' | 'adapter'   → 'agent'
+ *   'robot'                      → 'robot'
+ *   else                         → 'system'
+ *
+ * Note: 'cascade_capped' is written directly by the cascade cap logic (Plan 03), not via this mapper.
+ */
+function mapDomainSourceToHistorySource(source: string): string {
+  switch (source) {
+    case 'server-action':
+      return 'manual'
+    case 'mobile-api':
+      return 'manual'
+    case 'automation':
+      return 'automation'
+    case 'webhook':
+      return 'webhook'
+    case 'tool-handler':
+    case 'adapter':
+      return 'agent'
+    case 'robot':
+      return 'robot'
+    default:
+      return 'system'
+  }
+}
 
 // ============================================================================
 // Constants
@@ -561,7 +601,7 @@ export async function moveOrderToStage(
   const supabase = createAdminClient()
 
   try {
-    // Read current order state (include shipping fields for rich trigger context)
+    // Step 1: Read current order state (include shipping fields for rich trigger context)
     const { data: currentOrder, error: fetchError } = await supabase
       .from('orders')
       .select('stage_id, pipeline_id, contact_id, total_value, description, name, shipping_address, shipping_city, shipping_department, carrier, tracking_number')
@@ -575,18 +615,91 @@ export async function moveOrderToStage(
 
     const previousStageId = currentOrder.stage_id
 
-    // Update stage
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({ stage_id: params.newStageId })
-      .eq('id', params.orderId)
-      .eq('workspace_id', ctx.workspaceId)
-
-    if (updateError) {
-      return { success: false, error: `Error al mover el pedido: ${updateError.message}` }
+    // Short-circuit: same-stage drop is a no-op success (Pitfall 2 RESEARCH — evita falso CAS reject)
+    if (previousStageId === params.newStageId) {
+      return {
+        success: true,
+        data: {
+          orderId: params.orderId,
+          previousStageId,
+          newStageId: params.newStageId,
+        },
+      }
     }
 
-    // Fetch stage names + pipeline name + contact info for rich trigger context
+    // Step 2: flag-gated CAS (D-17). Fail-closed: default off para rollout (Regla 6).
+    const casEnabled = await getPlatformConfig<boolean>(
+      'crm_stage_integrity_cas_enabled',
+      false,
+    )
+
+    if (casEnabled) {
+      // CAS: .eq('stage_id', previousStageId) es el swap predicate.
+      // .select('id') es CRITICO — sin el, data es null siempre (Pitfall 1 RESEARCH).
+      const { data: updated, error: updateError } = await supabase
+        .from('orders')
+        .update({ stage_id: params.newStageId })
+        .eq('id', params.orderId)
+        .eq('workspace_id', ctx.workspaceId)
+        .eq('stage_id', previousStageId) // ← CAS predicate
+        .select('id')
+
+      if (updateError) {
+        return { success: false, error: `Error al mover el pedido: ${updateError.message}` }
+      }
+
+      // CAS REJECTED: array vacio = 0 filas matcharon (Assumption A1 + PostgREST docs)
+      if (!updated || updated.length === 0) {
+        // Re-fetch current stage para que el caller pueda mostrarlo en toast
+        const { data: refetch } = await supabase
+          .from('orders')
+          .select('stage_id')
+          .eq('id', params.orderId)
+          .eq('workspace_id', ctx.workspaceId)
+          .single()
+
+        return {
+          success: false,
+          error: 'stage_changed_concurrently',
+          data: { currentStageId: refetch?.stage_id ?? null } as any,
+        }
+      }
+    } else {
+      // Legacy path (flag off) — byte-identical al comportamiento actual
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ stage_id: params.newStageId })
+        .eq('id', params.orderId)
+        .eq('workspace_id', ctx.workspaceId)
+
+      if (updateError) {
+        return { success: false, error: `Error al mover el pedido: ${updateError.message}` }
+      }
+    }
+
+    // Step 3: INSERT order_stage_history (D-18: SIN flag, additive desde deploy).
+    // Best-effort: failure logged but does NOT block the move (Pitfall 3 RESEARCH).
+    const historySource = mapDomainSourceToHistorySource(ctx.source)
+    const { error: historyError } = await supabase
+      .from('order_stage_history')
+      .insert({
+        order_id: params.orderId,
+        workspace_id: ctx.workspaceId,
+        previous_stage_id: previousStageId,
+        new_stage_id: params.newStageId,
+        source: historySource,
+        actor_id: ctx.actorId ?? null,
+        actor_label: ctx.actorLabel ?? null,
+        cascade_depth: ctx.cascadeDepth ?? 0,
+        trigger_event: ctx.triggerEvent ?? null,
+      })
+
+    if (historyError) {
+      // NON-FATAL: move already succeeded; losing audit row acceptable (Pitfall 3).
+      console.error('[moveOrderToStage] history insert failed:', historyError.message)
+    }
+
+    // Step 4: Fetch stage names + pipeline name + contact info for rich trigger context
     const [
       { data: prevStage },
       { data: newStage },

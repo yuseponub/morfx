@@ -125,6 +125,30 @@ export function InboxLayout({
     setRightPanel('contact')
   }, [])
 
+  // Keyboard shortcut: 'Escape' closes the contact-panel drawer when the viewport
+  // is narrow enough that the panel behaves as an overlay (<1280px per UI-SPEC §10.1).
+  // Scoped to focus inside [data-module="whatsapp"] + ignored on input/textarea/
+  // contenteditable so composer behavior is untouched. Only active when v2.
+  // Does NOT attempt to close modals/dropdowns (Radix handles Esc natively) nor
+  // to blur the composer textarea — those flows remain standard browser behavior.
+  useEffect(() => {
+    if (!v2) return
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return
+      if (!target.closest('[data-module="whatsapp"]')) return
+      if (typeof window !== 'undefined' && window.innerWidth < 1280 && isPanelOpen) {
+        e.preventDefault()
+        setIsPanelOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [v2, isPanelOpen])
+
   return (
     <InboxV2Provider v2={v2}>
       <div className={cn('flex h-full', v2 && 'theme-editorial')} data-module="whatsapp">

@@ -151,6 +151,50 @@ export function ConversationList({
     return result
   }, [conversations, agentFilter, tagFilter])
 
+  // Keyboard shortcuts: '[' previous / ']' next conversation (D-23, UI-SPEC §10.1).
+  // Same scoping rules as '/': only fires when focus is inside [data-module="whatsapp"],
+  // ignored on input/textarea/contenteditable, only active when v2.
+  // Navigates through the FILTERED list (what the user actually sees — matches '/' focus semantics).
+  // Wraps at ends: '[' at first item goes to last, ']' at last goes to first.
+  useEffect(() => {
+    if (!v2) return
+    function handleBracketKey(e: KeyboardEvent) {
+      if (e.key !== '[' && e.key !== ']') return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return
+      if (!target.closest('[data-module="whatsapp"]')) return
+      if (!filteredConversations.length) return
+
+      const currentIdx = filteredConversations.findIndex((c) => c.id === selectedId)
+
+      if (e.key === '[') {
+        const prevIdx = currentIdx <= 0 ? filteredConversations.length - 1 : currentIdx - 1
+        const prev = filteredConversations[prevIdx]
+        if (prev) {
+          e.preventDefault()
+          markAsReadLocally(prev.id)
+          onSelect(prev.id, prev)
+        }
+        return
+      }
+
+      if (e.key === ']') {
+        const nextIdx =
+          currentIdx < 0 || currentIdx >= filteredConversations.length - 1 ? 0 : currentIdx + 1
+        const next = filteredConversations[nextIdx]
+        if (next) {
+          e.preventDefault()
+          markAsReadLocally(next.id)
+          onSelect(next.id, next)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleBracketKey)
+    return () => document.removeEventListener('keydown', handleBracketKey)
+  }, [v2, filteredConversations, selectedId, onSelect, markAsReadLocally])
+
   // Tab configuration for editorial header (v2). Maps editorial labels to
   // existing ConversationFilter values — D-19 no hook mutation.
   // Note: 'Cerradas' maps to 'archived' (closed = archivada in this CRM).

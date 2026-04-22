@@ -428,15 +428,27 @@ export function ConversationList({
       <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
         {isLoading && !initialConversations.length ? (
           v2 ? (
-            /* Editorial skeleton — 6 items, mx-pulse animation from globals.css (D-14 interim) */
-            <div>
+            /* D-14 editorial skeleton — 6 conversation-item shaped placeholders
+               using .mx-skeleton utility (globals.css: paper-2 bg + 1px border +
+               mx-pulse 1.5s animation, disabled by prefers-reduced-motion). */
+            <div role="list" aria-busy="true" aria-label="Cargando conversaciones" className="flex flex-col">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[72px] mx-4 my-2 bg-[var(--paper-2)] border border-[var(--border)] rounded-[4px]"
-                  style={{ animation: 'mx-pulse 1.5s ease-in-out infinite' }}
+                  className="flex items-start gap-3 px-4 py-3 border-b border-[var(--border)]"
                   aria-hidden
-                />
+                >
+                  {/* Avatar skeleton */}
+                  <div className="mx-skeleton h-10 w-10 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0 flex flex-col gap-2">
+                    {/* Name skeleton */}
+                    <div className="mx-skeleton h-[14px] w-[120px] rounded-[2px]" />
+                    {/* Preview skeleton */}
+                    <div className="mx-skeleton h-[12px] w-[180px] rounded-[2px]" />
+                  </div>
+                  {/* Timestamp skeleton */}
+                  <div className="mx-skeleton h-[10px] w-[40px] rounded-[2px] mt-1" />
+                </div>
               ))}
             </div>
           ) : (

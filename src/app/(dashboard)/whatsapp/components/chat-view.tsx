@@ -196,14 +196,46 @@ export function ChatView({
           </div>
         )}
 
-        {/* Loading spinner when switching conversations */}
+        {/* Loading indicator when switching conversations */}
         {isLoading && messages.length === 0 && (
-          <div className="flex-1 flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Cargando mensajes...</p>
+          v2 ? (
+            /* D-14 editorial thread skeleton — 3 bubble placeholders
+               alternating in/own with letter-note 10px + 2px opposite corner,
+               using .mx-skeleton (paper-2 bg + border + mx-pulse) gated by
+               prefers-reduced-motion via globals.css. */
+            <div
+              role="log"
+              aria-busy="true"
+              aria-label="Cargando mensajes"
+              className="flex flex-col gap-2 px-6 py-[22px]"
+            >
+              <div className="flex justify-start">
+                <div
+                  className="mx-skeleton h-[56px] w-[45%] max-w-[62%] rounded-[10px] rounded-bl-[2px]"
+                  aria-hidden
+                />
+              </div>
+              <div className="flex justify-end">
+                <div
+                  className="mx-skeleton h-[42px] w-[35%] max-w-[62%] rounded-[10px] rounded-br-[2px]"
+                  aria-hidden
+                />
+              </div>
+              <div className="flex justify-start">
+                <div
+                  className="mx-skeleton h-[72px] w-[58%] max-w-[62%] rounded-[10px] rounded-bl-[2px]"
+                  aria-hidden
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Cargando mensajes...</p>
+              </div>
+            </div>
+          )
         )}
 
         {/* Virtualized message list */}

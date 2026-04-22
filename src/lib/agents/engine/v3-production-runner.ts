@@ -118,9 +118,13 @@ export class V3ProductionRunner {
       }
 
       // 3b. Preload data into session state for new sessions (recompra: last order datos)
-      if (this.config.preloadedData && Object.keys(this.config.preloadedData).length > 0 && session.version === 0) {
+      // Idempotent guard: `_v3:preloaded` marker. Previous `session.version === 0` guard
+      // never fired because SessionManager.createSession inserts rows with version=1
+      // (DB default is also 1), so preload silently never ran.
+      const alreadyPreloaded = session.state.datos_capturados?.['_v3:preloaded'] === 'true'
+      if (this.config.preloadedData && Object.keys(this.config.preloadedData).length > 0 && !alreadyPreloaded) {
         await this.adapters.storage.saveState(session.id, {
-          datos_capturados: { ...this.config.preloadedData },
+          datos_capturados: { ...this.config.preloadedData, '_v3:preloaded': 'true' },
         })
         // Also inject into current v3Input so first processMessage sees it
         Object.assign(v3Input.datosCapturados, this.config.preloadedData)
@@ -128,7 +132,8 @@ export class V3ProductionRunner {
       }
 
       // 3c. Store agent_module in session state for timer routing (read by agent-timers-v3)
-      if (this.config.agentModule && this.config.agentModule !== 'somnio-v3' && session.version === 0) {
+      const agentModuleAlreadyStored = session.state.datos_capturados?.['_v3:agent_module'] !== undefined
+      if (this.config.agentModule && this.config.agentModule !== 'somnio-v3' && !agentModuleAlreadyStored) {
         await this.adapters.storage.saveState(session.id, {
           '_v3:agent_module': this.config.agentModule,
         })

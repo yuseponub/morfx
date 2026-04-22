@@ -119,7 +119,8 @@ export async function executeAction(
       resolvedParams,
       context,
       workspaceId,
-      cascadeDepth
+      cascadeDepth,
+      automationContext
     )
 
     // Post-action: create contact review after order is created (close-phone flow)
@@ -163,7 +164,8 @@ async function executeByType(
   params: Record<string, unknown>,
   context: TriggerContext,
   workspaceId: string,
-  cascadeDepth: number
+  cascadeDepth: number,
+  automationContext?: { automationId: string; automationName: string; triggerType: string }
 ): Promise<unknown> {
   switch (type) {
     case 'assign_tag':
@@ -171,7 +173,7 @@ async function executeByType(
     case 'remove_tag':
       return executeRemoveTag(params, context, workspaceId, cascadeDepth)
     case 'change_stage':
-      return executeChangeStage(params, context, workspaceId, cascadeDepth)
+      return executeChangeStage(params, context, workspaceId, cascadeDepth, automationContext)
     case 'update_field':
       return executeUpdateField(params, context, workspaceId, cascadeDepth)
     case 'create_order':
@@ -303,12 +305,32 @@ async function executeRemoveTag(
 /**
  * Change the stage of an order.
  * Delegates to domain/orders.moveOrderToStage.
+ *
+ * Wave 2 (CRM Stage Integrity, D-10 + Pitfall 10 RESEARCH): when invoked from
+ * an automation runner, `automationContext` is plumbed in so that the domain
+ * layer's `moveOrderToStage` can write `order_stage_history` rows with:
+ *   - actor_id    = automation.id
+ *   - actor_label = "Automation: {name}"
+ *   - trigger_event = the triggerType that fired this runner
+ * This makes the audit ledger show WHO/WHAT changed the stage, not just the
+ * abstract `source='automation'` bucket.
+ *
+ * `cascadeDepth + 1`: ensures the trigger chain is bounded by MAX_CASCADE_DEPTH
+ * (D-07 layer 3). When the incremented value reaches the cap,
+ * automation-runner.ts short-circuits AND logs `cascade_capped` to
+ * `order_stage_history`.
+ *
+ * CAS reject narrowing (D-22): when the domain layer returns
+ * `error='stage_changed_concurrently'` (CAS flag ON + mid-air collision), this
+ * function re-throws the exact string as the Error message so the runner can
+ * log `stage_change_rejected_cas` distinctly in Task 1's narrow block.
  */
 async function executeChangeStage(
   params: Record<string, unknown>,
   _context: TriggerContext,
   workspaceId: string,
-  cascadeDepth: number
+  cascadeDepth: number,
+  automationContext?: { automationId: string; automationName: string; triggerType: string }
 ): Promise<unknown> {
   const stageId = String(params.stageId || '')
   const orderId = _context.orderId
@@ -316,10 +338,27 @@ async function executeChangeStage(
   if (!stageId) throw new Error('stageId is required for change_stage')
   if (!orderId) throw new Error('No orderId available in trigger context')
 
-  const ctx: DomainContext = { workspaceId, source: 'automation', cascadeDepth: cascadeDepth + 1 }
+  const ctx: DomainContext = {
+    workspaceId,
+    source: 'automation',
+    cascadeDepth: cascadeDepth + 1,
+    // D-10 actor mapping (Pitfall 10 RESEARCH): populate from automation metadata
+    actorId: automationContext?.automationId ?? null,
+    actorLabel: automationContext
+      ? `Automation: ${automationContext.automationName}`
+      : null,
+    triggerEvent: automationContext?.triggerType ?? null,
+  }
   const result = await domainMoveOrderToStage(ctx, { orderId, newStageId: stageId })
 
-  if (!result.success) throw new Error(result.error || 'Failed to change stage')
+  if (!result.success) {
+    // D-22: propagate CAS reject as a distinct error so the runner logs
+    // `stage_change_rejected_cas` rather than a generic action failure.
+    if (result.error === 'stage_changed_concurrently') {
+      throw new Error('stage_changed_concurrently')
+    }
+    throw new Error(result.error || 'Failed to change stage')
+  }
 
   return {
     orderId,

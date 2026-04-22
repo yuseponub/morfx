@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useRef, useCallback, ChangeEvent } from 'react'
-import { Paperclip, Smile, Send, Lock, X, File, Image as ImageIcon, Video, Music } from 'lucide-react'
+import { Paperclip, Smile, Send, Lock, AlertTriangle, X, File, Image as ImageIcon, Video, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { EmojiPicker } from './emoji-picker'
 import { QuickReplyAutocomplete } from './quick-reply-autocomplete'
 import { TemplateButton } from './template-button'
+import { useInboxV2 } from './inbox-v2-context'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
 import type { QuickReply } from '@/lib/whatsapp/types'
 import { toast } from 'sonner'
@@ -62,6 +63,7 @@ export function MessageInput({
   addOptimisticMessage,
   onSend,
 }: MessageInputProps) {
+  const v2 = useInboxV2()
   const [text, setText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -264,14 +266,35 @@ export function MessageInput({
   // Disabled state when window closed - show template button
   if (!isWindowOpen) {
     return (
-      <div className="flex-shrink-0 px-4 py-3 border-t bg-yellow-50/50 dark:bg-yellow-900/10">
+      <div
+        className={cn(
+          'flex-shrink-0 px-4 py-3 border-t',
+          v2
+            ? 'bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))] border-l-[3px] border-l-[var(--rubric-2)] border-t-[var(--ink-1)] text-[var(--ink-1)]'
+            : 'bg-yellow-50/50 dark:bg-yellow-900/10'
+        )}
+      >
         <div className="flex items-center gap-3">
-          <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+          {v2 ? (
+            <AlertTriangle className="h-4 w-4 text-[var(--rubric-2)]" />
+          ) : (
+            <Lock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+          )}
           <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+            <p
+              className={cn(
+                'text-sm font-medium',
+                v2 ? 'text-[var(--ink-1)]' : 'text-yellow-800 dark:text-yellow-200'
+              )}
+            >
               Ventana de 24h cerrada
             </p>
-            <p className="text-xs text-yellow-600 dark:text-yellow-400">
+            <p
+              className={cn(
+                'text-xs',
+                v2 ? 'text-[var(--ink-3)]' : 'text-yellow-600 dark:text-yellow-400'
+              )}
+            >
               Solo puedes enviar templates aprobados
             </p>
           </div>
@@ -286,7 +309,12 @@ export function MessageInput({
   }
 
   return (
-    <div className="flex-shrink-0 border-t bg-background">
+    <div
+      className={cn(
+        'flex-shrink-0',
+        v2 ? 'border-t border-[var(--ink-1)] bg-[var(--paper-0)]' : 'border-t bg-background'
+      )}
+    >
       {/* File preview */}
       {attachedFile && (
         <div className="px-4 pt-3 pb-2">
@@ -414,25 +442,43 @@ export function MessageInput({
               onChange={handleTextChange}
               onSend={handleSend}
               onSelectWithMedia={handleQuickReplyWithMedia}
-              placeholder={attachedFile ? "Agregar caption (opcional)..." : pendingQuickReplyMedia ? "Enviar con imagen..." : "Escribe un mensaje... (/ para respuestas rapidas)"}
+              placeholder={
+                v2
+                  ? 'Escriba su respuesta…'
+                  : attachedFile
+                    ? 'Agregar caption (opcional)...'
+                    : pendingQuickReplyMedia
+                      ? 'Enviar con imagen...'
+                      : 'Escribe un mensaje... (/ para respuestas rapidas)'
+              }
               disabled={isLoading}
               className={cn(
                 'min-h-[40px] max-h-[120px] py-2',
                 'focus-visible:ring-1',
-                pendingQuickReplyMedia && 'border-primary'
+                pendingQuickReplyMedia && 'border-primary',
+                v2 &&
+                  'bg-[var(--paper-1)] border border-[var(--border)] rounded-[4px] px-3 text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]'
               )}
             />
           </div>
 
           {/* Send button */}
           <Button
-            size="icon"
-            className="h-10 w-10 flex-shrink-0"
+            size={v2 ? 'default' : 'icon'}
+            className={cn(
+              'flex-shrink-0',
+              v2
+                ? 'h-auto px-[16px] py-[8px] text-[13px] font-semibold gap-1.5 active:translate-y-px bg-[var(--ink-1)] text-[var(--paper-0)] border border-[var(--ink-1)] hover:bg-[var(--ink-2)] rounded-[4px]'
+                : 'h-10 w-10'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
             onClick={handleSend}
             disabled={(!text.trim() && !attachedFile && !pendingQuickReplyMedia) || isLoading}
             title="Enviar mensaje"
+            aria-label="Enviar mensaje"
           >
-            <Send className="h-5 w-5" />
+            <Send className={v2 ? 'h-[14px] w-[14px]' : 'h-5 w-5'} />
+            {v2 && <span>Enviar</span>}
           </Button>
         </div>
       </div>

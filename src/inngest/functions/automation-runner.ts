@@ -15,6 +15,7 @@ import { evaluateConditionGroup } from '@/lib/automations/condition-evaluator'
 import { executeAction } from '@/lib/automations/action-executor'
 import { buildTriggerContext } from '@/lib/automations/variable-resolver'
 import { MAX_CASCADE_DEPTH } from '@/lib/automations/constants'
+import { getPlatformConfig } from '@/lib/domain/platform-config'
 import type {
   Automation,
   TriggerType,
@@ -234,7 +235,10 @@ async function processAutomation(
   variableContext: Record<string, unknown>,
   cascadeDepth: number,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  step: any
+  step: any,
+  // Wave 2 (D-07 actor mapping, Pitfall 10 RESEARCH): plumb automation metadata
+  // down to executeChangeStage for order_stage_history.actor_id/actor_label.
+  triggerType: TriggerType
 ): Promise<{
   status: 'success' | 'failed' | 'cancelled'
   actionsLog: ActionLog[]
@@ -283,11 +287,28 @@ async function processAutomation(
       await step.sleep(sleepId, duration)
     }
 
+    // Wave 2 (Pitfall 10 RESEARCH): propagate automation metadata so
+    // executeChangeStage can populate order_stage_history.actor_id /
+    // actor_label / trigger_event. action-executor.ts consumes this via
+    // the 6th arg (automationContext).
+    const automationContext = {
+      automationId: automation.id,
+      automationName: automation.name ?? 'unnamed',
+      triggerType,
+    }
+
     // Execute the action in a durable step
     const actionResult = await step.run(
       `action-${automation.id}-${i}-${action.type}`,
       async () => {
-        return executeAction(action, triggerContext, automation.workspace_id, cascadeDepth, variableContext)
+        return executeAction(
+          action,
+          triggerContext,
+          automation.workspace_id,
+          cascadeDepth,
+          variableContext,
+          automationContext,
+        )
       }
     )
 
@@ -299,6 +320,20 @@ async function processAutomation(
       duration_ms: actionResult.duration_ms,
       error: actionResult.error,
     })
+
+    // Wave 2 (D-22 observability): narrow `stage_changed_concurrently` so a CAS
+    // reject is logged distinctly from a generic action failure. This is a
+    // warning log (not a bubble-up error) — the automation chain is naturally
+    // aborted by the existing `stop on first failure` branch below.
+    if (
+      !actionResult.success &&
+      actionResult.error === 'stage_changed_concurrently'
+    ) {
+      console.warn(
+        `[automation-runner] stage_change_rejected_cas for order ` +
+          `${triggerContext.orderId ?? 'unknown'} via automation ${automation.id}`
+      )
+    }
 
     // Propagate newly-created entity IDs into context for subsequent actions.
     // Mutations inside step.run don't survive Inngest replays (each replay is
@@ -343,6 +378,68 @@ async function processAutomation(
 }
 
 // ============================================================================
+// Exported Helpers (Wave 2 — CRM Stage Integrity)
+// ============================================================================
+
+/**
+ * Kill-switch query — checks if an order has had > threshold non-manual stage
+ * changes in the last windowMs milliseconds. Fail-open: query error returns
+ * shouldSkip=false (Pattern 5 RESEARCH). Exported for unit testing (WARNING 3).
+ *
+ * D-07 layer 2 + D-20. Reads from `order_stage_history` filtering out `manual`
+ * rows (human Kanban drags don't count against the runaway-automation quota).
+ */
+export async function checkKillSwitch(
+  admin: ReturnType<typeof createAdminClient>,
+  orderId: string,
+  threshold = 5,
+  windowMs = 60_000,
+): Promise<{ shouldSkip: boolean; recentChanges: number }> {
+  const sinceIso = new Date(Date.now() - windowMs).toISOString()
+  const { count, error } = await admin
+    .from('order_stage_history')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', orderId)
+    .neq('source', 'manual')
+    .gt('changed_at', sinceIso)
+  if (error) {
+    console.error('[kill-switch] query failed:', error.message)
+    return { shouldSkip: false, recentChanges: 0 } // fail-open
+  }
+  const recentChanges = count ?? 0
+  return { shouldSkip: recentChanges > threshold, recentChanges }
+}
+
+/**
+ * Cascade cap audit — writes a row to `order_stage_history` marking where a
+ * cascade was truncated (source='cascade_capped'). Makes the bug VISIBLE in the
+ * ledger post-hoc. D-07 layer 3 + D-18. Exported for unit testing (WARNING 3).
+ */
+export async function logCascadeCap(
+  admin: ReturnType<typeof createAdminClient>,
+  params: {
+    orderId: string
+    workspaceId: string
+    prevStageId: string | null
+    newStageId: string | null
+    cascadeDepth: number
+    triggerType: string
+  },
+): Promise<void> {
+  await admin.from('order_stage_history').insert({
+    order_id: params.orderId,
+    workspace_id: params.workspaceId,
+    previous_stage_id: params.prevStageId,
+    new_stage_id: params.newStageId ?? params.prevStageId ?? '',
+    source: 'cascade_capped',
+    actor_id: null,
+    actor_label: `Cascade capped at depth ${params.cascadeDepth}`,
+    cascade_depth: params.cascadeDepth,
+    trigger_event: params.triggerType,
+  })
+}
+
+// ============================================================================
 // Factory: Create Automation Runner Function
 // ============================================================================
 
@@ -356,11 +453,26 @@ async function processAutomation(
  * 4. Logs execution to automation_executions table
  */
 function createAutomationRunner(triggerType: TriggerType, eventName: string) {
+  // D-08 + D-09: extend existing per-workspace limit with a per-orderId
+  // serializer for `order.stage_changed` runner ONLY. This collapses
+  // concurrent cascades targeting the same order into a 1-at-a-time queue
+  // WITHOUT slowing down cross-order or cross-workspace events (Shared
+  // Pattern 4 RESEARCH). Inngest's TS types require a fixed-shape mutable
+  // tuple ([C] | [C, C]) — branch unions on the literal trigger type so
+  // the inferred tuple arity is exact per runner.
+  const concurrency: [{ key: string; limit: number }] | [{ key: string; limit: number }, { key: string; limit: number }] =
+    triggerType === 'order.stage_changed'
+      ? [
+          { key: 'event.data.workspaceId', limit: 5 },
+          { key: 'event.data.orderId', limit: 1 },
+        ]
+      : [{ key: 'event.data.workspaceId', limit: 5 }]
+
   return inngest.createFunction(
     {
       id: `automation-${triggerType.replace(/\./g, '-')}`,
       retries: 2,
-      concurrency: [{ key: 'event.data.workspaceId', limit: 5 }],
+      concurrency,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { event: eventName as any },
@@ -370,13 +482,67 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
       const workspaceId = String(eventData.workspaceId || '')
       const cascadeDepth = Number(eventData.cascadeDepth ?? 0)
 
-      // Check cascade depth
+      // === D-07 Layer 3: cascade_capped history audit ===
+      // Make the truncation VISIBLE post-hoc in the `order_stage_history` ledger
+      // so users who report "my order bounced back to stage X" can see exactly
+      // where the loop was cut. Only for order.stage_changed + orderId present
+      // (Pitfall 4 RESEARCH — do not apply to other trigger runners).
       if (cascadeDepth >= MAX_CASCADE_DEPTH) {
+        await step.run(`cap-audit-${triggerType}`, async () => {
+          if (triggerType !== 'order.stage_changed' || !eventData.orderId) return
+          await logCascadeCap(createAdminClient(), {
+            orderId: String(eventData.orderId),
+            workspaceId,
+            prevStageId: eventData.previousStageId
+              ? String(eventData.previousStageId)
+              : null,
+            newStageId: eventData.newStageId ? String(eventData.newStageId) : null,
+            cascadeDepth,
+            triggerType,
+          })
+        })
         console.warn(
           `[automation-runner] Cascade depth ${cascadeDepth} >= MAX (${MAX_CASCADE_DEPTH}). ` +
           `Skipping ${triggerType} for workspace ${workspaceId}`
         )
         return { skipped: true, reason: 'cascade_depth_exceeded' }
+      }
+
+      // === D-07 Layer 2: runtime kill-switch (flag-gated, fail-open) ===
+      // When >5 non-manual stage changes happen on the same order in 60s,
+      // skip this automation dispatch entirely. Gated by
+      // `crm_stage_integrity_killswitch_enabled` (D-20) — flag OFF by default,
+      // so this code is inert until the user flips it (Regla 6). Scoped to
+      // order.stage_changed + orderId present (Pitfall 4 RESEARCH).
+      if (triggerType === 'order.stage_changed' && eventData.orderId) {
+        const killSwitchEnabled = await step.run(
+          'kill-switch-flag',
+          async () =>
+            getPlatformConfig<boolean>(
+              'crm_stage_integrity_killswitch_enabled',
+              false,
+            ),
+        )
+
+        if (killSwitchEnabled) {
+          const { shouldSkip, recentChanges } = await step.run(
+            'kill-switch-check',
+            async () =>
+              checkKillSwitch(createAdminClient(), eventData.orderId as string),
+          )
+
+          if (shouldSkip) {
+            // D-22 observability event + D-23 warning log
+            console.warn(
+              `[kill-switch] order ${eventData.orderId}: ${recentChanges} non-manual changes in 60s. Skipping.`
+            )
+            return {
+              skipped: true,
+              reason: 'kill_switch_triggered',
+              recentChanges,
+            }
+          }
+        }
       }
 
       // Step 1: Load matching automations from DB
@@ -583,7 +749,8 @@ function createAutomationRunner(triggerType: TriggerType, eventName: string) {
           triggerContext,
           variableContext,
           cascadeDepth,
-          step
+          step,
+          triggerType
         )
 
         // Update execution record with result

@@ -68,6 +68,11 @@ export interface ActionResult {
  * @param context - Trigger context with entity data for variable resolution
  * @param workspaceId - Workspace scope for DB operations
  * @param cascadeDepth - Current cascade depth (for emitting child triggers)
+ * @param variableContext - Pre-built variable context (optional; falls back to buildTriggerContext)
+ * @param automationContext - Wave 2 (Pitfall 10 RESEARCH) — automation metadata
+ *   used by order-affecting actions (change_stage) to populate
+ *   `order_stage_history.actor_id` / `actor_label` / `trigger_event`. Plumbed
+ *   into `executeByType` where relevant actions consume it.
  * @returns ActionResult with success/error and timing
  */
 export async function executeAction(
@@ -75,7 +80,8 @@ export async function executeAction(
   context: TriggerContext,
   workspaceId: string,
   cascadeDepth: number,
-  variableContext?: Record<string, unknown>
+  variableContext?: Record<string, unknown>,
+  automationContext?: { automationId: string; automationName: string; triggerType: string }
 ): Promise<ActionResult> {
   const startMs = Date.now()
 

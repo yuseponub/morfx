@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Analytics</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  /* Sidebar */
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+
+  main { overflow: auto; }
+  .topbar { padding: 18px 28px 14px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: flex-end; justify-content: space-between; }
+  .eye { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; margin: 2px 0 0; letter-spacing: -0.015em; }
+  h1 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 16px; color: var(--ink-3); margin-left: 8px; }
+
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.sm { font-size: 11px; padding: 5px 9px; }
+  .period { display: inline-flex; border: 1px solid var(--ink-1); border-radius: var(--radius-3); overflow: hidden; box-shadow: 0 1px 0 var(--ink-1); }
+  .period button { font-family: var(--font-sans); font-size: 12px; font-weight: 600; padding: 6px 12px; background: var(--paper-0); border: 0; border-right: 1px solid var(--ink-1); cursor: pointer; color: var(--ink-2); }
+  .period button:last-child { border-right: 0; }
+  .period button.on { background: var(--ink-1); color: var(--paper-0); }
+
+  .tabs { display: flex; gap: 20px; padding: 0 28px; border-bottom: 1px solid var(--border); background: var(--paper-1); }
+  .tabs a { font-family: var(--font-sans); font-weight: 500; font-size: 13px; padding: 10px 0; color: var(--ink-3); text-decoration: none; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tabs a.on { color: var(--ink-1); font-weight: 600; border-bottom-color: var(--ink-1); }
+
+  .page { padding: 24px 28px 48px; }
+
+  /* KPI strip */
+  .kpi-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border: 1px solid var(--ink-1); background: var(--paper-0); box-shadow: 0 1px 0 var(--ink-1); margin-bottom: 24px; }
+  .kpi { padding: 16px 18px; border-right: 1px solid var(--border); position: relative; }
+  .kpi:last-child { border-right: 0; }
+  .kpi .l { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  .kpi .v { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; margin-top: 8px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .kpi .v small { font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--ink-3); margin-left: 3px; letter-spacing: 0; }
+  .kpi .d { font-family: var(--font-mono); font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+  .kpi .d.up { color: var(--semantic-success); }
+  .kpi .d.down { color: var(--rubric-2); }
+  .kpi .d.flat { color: var(--ink-3); }
+
+  /* Sections */
+  .section {
+    background: var(--paper-0); border: 1px solid var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1); margin-bottom: 24px;
+  }
+  .sh { padding: 14px 20px 12px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .sh h3 { font-family: var(--font-display); font-weight: 700; font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .sh h3 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 13px; color: var(--ink-3); margin-left: 8px; }
+  .sh .rub { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  .sh .tools { display: flex; align-items: center; gap: 8px; }
+  .sb-body { padding: 20px; }
+
+  /* Grid layout for bottom sections */
+  .two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .two-col.equal { grid-template-columns: 1fr 1fr; }
+
+  /* ------- CHART: line ------- */
+  .chart-main { padding: 0; }
+  .chart-top { display: flex; justify-content: space-between; align-items: flex-end; padding: 20px 24px 0; }
+  .legend { display: flex; gap: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-dot.r { background: var(--rubric-2); }
+  .legend-dot.g { background: var(--accent-verdigris); }
+  .legend-dot.i { background: var(--accent-indigo); }
+  .legend-dot.y { background: var(--accent-gold); }
+
+  .chart-svg { display: block; width: 100%; height: 320px; }
+  .chart-svg .grid line { stroke: var(--ink-5); stroke-width: 1; }
+  .chart-svg .grid text { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-3); }
+  .chart-svg .axis text { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-3); }
+  .chart-svg .line-r { stroke: var(--rubric-2); stroke-width: 2; fill: none; }
+  .chart-svg .line-g { stroke: var(--accent-verdigris); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+  .chart-svg .line-i { stroke: var(--accent-indigo); stroke-width: 1.5; fill: none; }
+  .chart-svg .area-r { fill: url(#grad-r); opacity: 0.45; }
+  .chart-svg .dot { fill: var(--paper-0); stroke: var(--rubric-2); stroke-width: 2; }
+  .chart-svg .dot.hi { stroke-width: 3; r: 5; }
+  .chart-svg .annot { font-family: var(--font-serif); font-style: italic; font-size: 11px; fill: var(--ink-2); }
+  .chart-svg .annot-line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 2; }
+
+  /* ------- CHART: bars by channel ------- */
+  .bar-list { display: flex; flex-direction: column; gap: 14px; }
+  .bar-row { display: grid; grid-template-columns: 140px 1fr 90px 60px; gap: 14px; align-items: center; }
+  .bar-row .lbl { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--ink-1); }
+  .bar-row .lbl .ico { display: inline-flex; width: 22px; height: 22px; background: var(--paper-2); border: 1px solid var(--border); margin-right: 8px; align-items: center; justify-content: center; vertical-align: middle; color: var(--ink-2); }
+  .bar-track { position: relative; height: 24px; background: var(--paper-2); border: 1px solid var(--border); }
+  .bar-fill { height: 100%; background: var(--rubric-2); display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--paper-0); font-weight: 600; position: relative; }
+  .bar-fill.g { background: var(--accent-verdigris); }
+  .bar-fill.i { background: var(--accent-indigo); }
+  .bar-fill.y { background: var(--accent-gold); }
+  .bar-fill.k { background: var(--ink-1); }
+  .bar-fill::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(45deg, transparent 0, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 4px);
+    pointer-events: none;
+  }
+  .bar-val { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink-1); text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-pct { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); text-align: right; }
+
+  /* ------- FUNNEL ------- */
+  .funnel { display: flex; flex-direction: column; gap: 0; }
+  .stage { position: relative; padding: 14px 20px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 34px 1fr auto auto; gap: 16px; align-items: center; }
+  .stage:last-child { border-bottom: 0; }
+  .stage .n { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--rubric-2); width: 34px; text-align: center; border-right: 1px solid var(--border); padding-right: 10px; line-height: 1; }
+  .stage .t { font-family: var(--font-sans); font-size: 13px; font-weight: 600; }
+  .stage .t .s { display: block; font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); font-weight: 400; margin-top: 2px; }
+  .stage .count { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .stage .conv { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); min-width: 60px; text-align: right; }
+  .stage .drop { color: var(--rubric-2); }
+  .stage-bar {
+    position: absolute; bottom: 0; left: 0; height: 3px; background: var(--rubric-2);
+  }
+
+  /* ------- Agent perf table ------- */
+  table.perf { width: 100%; border-collapse: collapse; }
+  table.perf thead th { text-align: left; padding: 10px 14px; font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); border-bottom: 1px solid var(--ink-1); background: var(--paper-1); }
+  table.perf thead th.num { text-align: right; }
+  table.perf tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); vertical-align: middle; }
+  table.perf tbody td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; }
+  table.perf tbody tr:hover { background: var(--paper-2); }
+  table.perf tbody td.name { font-weight: 600; }
+  table.perf tbody td.name .role { font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); margin-left: 8px; font-weight: 400; }
+  .sparkline { vertical-align: middle; display: inline-block; }
+
+  /* Top lists */
+  .top-list { display: flex; flex-direction: column; }
+  .top-row { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); align-items: center; }
+  .top-row:last-child { border-bottom: 0; }
+  .top-row .rank { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--rubric-2); line-height: 1; }
+  .top-row .t { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--ink-1); }
+  .top-row .t em { display: block; font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); font-weight: 400; margin-top: 2px; }
+  .top-row .v { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  /* Heatmap */
+  .heat-grid { display: grid; grid-template-columns: auto repeat(24, 1fr); gap: 2px; font-family: var(--font-mono); font-size: 10px; }
+  .heat-grid .dlabel { color: var(--ink-3); padding-right: 8px; text-align: right; padding-top: 4px; font-size: 11px; font-weight: 600; }
+  .heat-grid .hlabel { color: var(--ink-3); text-align: center; font-size: 9px; padding-bottom: 4px; }
+  .hc { height: 20px; background: var(--paper-2); border: 1px solid var(--paper-3); }
+  .hc[data-v="1"] { background: color-mix(in oklch, var(--rubric-2) 15%, var(--paper-1)); }
+  .hc[data-v="2"] { background: color-mix(in oklch, var(--rubric-2) 35%, var(--paper-1)); }
+  .hc[data-v="3"] { background: color-mix(in oklch, var(--rubric-2) 60%, var(--paper-1)); }
+  .hc[data-v="4"] { background: var(--rubric-2); }
+  .heat-legend { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+  .heat-legend .scale { display: flex; gap: 2px; }
+  .heat-legend .hb { width: 18px; height: 14px; }
+
+  /* Cost / return reasons */
+  .reason-list { display: flex; flex-direction: column; gap: 10px; }
+  .reason { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px dotted var(--border); }
+  .reason:last-child { border-bottom: 0; }
+  .reason .t { font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); }
+  .reason .bar { height: 6px; background: var(--paper-2); position: relative; margin-top: 6px; border: 1px solid var(--border); }
+  .reason .bar-in { height: 100%; background: var(--rubric-2); }
+  .reason .n { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink-1); }
+  .reason .n em { font-family: var(--font-sans); font-style: normal; font-size: 11px; color: var(--ink-3); display: block; margin-top: 2px; text-align: right; }
+
+</style>
+</head>
+<body class="mx-doc">
+
+<div class="app">
+  <aside class="sb">
+    <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Analytics · vista general</div></div>
+    <nav>
+      <div class="cat">Operación</div>
+      <ul>
+        <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+        <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+        <li><a><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+        <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+      </ul>
+      <div class="cat">Automatización</div>
+      <ul>
+        <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+        <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+      </ul>
+      <div class="cat">Análisis</div>
+      <ul>
+        <li><a class="active"><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+        <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <div class="eye">Panel · Últimos 30 días</div>
+        <h1>Analytics <em>· 22 mar — 22 abr 2026</em></h1>
+      </div>
+      <div class="actions">
+        <div class="period">
+          <button>7d</button>
+          <button class="on">30d</button>
+          <button>90d</button>
+          <button>Año</button>
+          <button>Custom</button>
+        </div>
+        <button class="btn"><i data-lucide="download" width="14" height="14"></i>Exportar</button>
+        <button class="btn pri"><i data-lucide="share-2" width="14" height="14"></i>Compartir</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a class="on">Vista general</a>
+      <a>Conversaciones</a>
+      <a>Agentes</a>
+      <a>Ventas</a>
+      <a>Envíos</a>
+      <a>Cohortes</a>
+    </div>
+
+    <div class="page">
+
+      <!-- ======= KPI STRIP ======= -->
+      <div class="kpi-strip">
+        <div class="kpi">
+          <div class="l">Conversaciones</div>
+          <div class="v">12 487</div>
+          <div class="d up"><i data-lucide="trending-up" width="11" height="11"></i>+18.4% vs. 30d ant.</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Resueltas por IA</div>
+          <div class="v">91<small>%</small></div>
+          <div class="d up"><i data-lucide="trending-up" width="11" height="11"></i>+3.2 pts</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Tiempo respuesta</div>
+          <div class="v">1.9<small>s</small></div>
+          <div class="d up"><i data-lucide="trending-down" width="11" height="11"></i>−0.4s</div>
+        </div>
+        <div class="kpi">
+          <div class="l">CSAT promedio</div>
+          <div class="v">4.72</div>
+          <div class="d flat"><i data-lucide="minus" width="11" height="11"></i>sin cambio</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Pedidos generados</div>
+          <div class="v">1 284</div>
+          <div class="d up"><i data-lucide="trending-up" width="11" height="11"></i>+24.8%</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Ingresos</div>
+          <div class="v">$48.2<small>M</small></div>
+          <div class="d up"><i data-lucide="trending-up" width="11" height="11"></i>+31.6% · COP</div>
+        </div>
+      </div>
+
+      <!-- ======= MAIN CHART ======= -->
+      <section class="section chart-main">
+        <div class="sh">
+          <div>
+            <div class="rub">Volumen diario</div>
+            <h3>Conversaciones por día <em>· pico mié 16 abr</em></h3>
+          </div>
+          <div class="tools">
+            <div class="legend">
+              <span class="legend-item"><span class="legend-dot r"></span>Conversaciones</span>
+              <span class="legend-item"><span class="legend-dot g"></span>Periodo anterior</span>
+              <span class="legend-item"><span class="legend-dot i"></span>Pedidos</span>
+            </div>
+          </div>
+        </div>
+
+        <svg class="chart-svg" viewBox="0 0 900 320" preserveAspectRatio="none" id="main-chart">
+          <defs>
+            <linearGradient id="grad-r" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--rubric-2)" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="var(--rubric-2)" stop-opacity="0"/>
+            </linearGradient>
+            <pattern id="paper-tex" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="5" r="0.3" fill="var(--ink-4)" opacity="0.2"/>
+              <circle cx="15" cy="12" r="0.3" fill="var(--ink-4)" opacity="0.15"/>
+            </pattern>
+          </defs>
+
+          <!-- grid lines -->
+          <g class="grid">
+            <line x1="50" y1="40"  x2="880" y2="40" />
+            <line x1="50" y1="100" x2="880" y2="100"/>
+            <line x1="50" y1="160" x2="880" y2="160"/>
+            <line x1="50" y1="220" x2="880" y2="220"/>
+            <line x1="50" y1="280" x2="880" y2="280" stroke="var(--ink-2)"/>
+            <text x="44" y="44"  text-anchor="end">600</text>
+            <text x="44" y="104" text-anchor="end">450</text>
+            <text x="44" y="164" text-anchor="end">300</text>
+            <text x="44" y="224" text-anchor="end">150</text>
+            <text x="44" y="284" text-anchor="end">0</text>
+          </g>
+
+          <!-- previous period (dashed) -->
+          <path class="line-g" d="M 50,200 L 105,195 L 160,205 L 215,190 L 270,185 L 325,195 L 380,180 L 435,175 L 490,185 L 545,170 L 600,175 L 655,165 L 710,170 L 765,160 L 820,165 L 875,170"/>
+
+          <!-- area current period -->
+          <path class="area-r" d="M 50,180 L 105,170 L 160,165 L 215,155 L 270,150 L 325,140 L 380,135 L 435,110 L 490,120 L 545,95 L 600,70 L 655,105 L 710,90 L 765,85 L 820,75 L 875,95 L 875,280 L 50,280 Z"/>
+
+          <!-- current period line -->
+          <path class="line-r" d="M 50,180 L 105,170 L 160,165 L 215,155 L 270,150 L 325,140 L 380,135 L 435,110 L 490,120 L 545,95 L 600,70 L 655,105 L 710,90 L 765,85 L 820,75 L 875,95"/>
+
+          <!-- pedidos line (indigo) -->
+          <path class="line-i" d="M 50,240 L 105,238 L 160,235 L 215,230 L 270,232 L 325,225 L 380,220 L 435,210 L 490,215 L 545,200 L 600,190 L 655,205 L 710,195 L 765,192 L 820,188 L 875,200"/>
+
+          <!-- dots on peak -->
+          <circle class="dot hi" cx="600" cy="70" r="5"/>
+          <circle class="dot" cx="270" cy="150" r="3.5"/>
+          <circle class="dot" cx="875" cy="95" r="3.5"/>
+
+          <!-- annotation on peak -->
+          <line class="annot-line" x1="600" y1="70" x2="600" y2="30"/>
+          <text class="annot" x="600" y="24" text-anchor="middle">mié 16 abr · 587 conv · campaña Día del Niño</text>
+
+          <!-- x-axis labels -->
+          <g class="axis">
+            <text x="50"  y="304">22 mar</text>
+            <text x="215" y="304">29 mar</text>
+            <text x="380" y="304">5 abr</text>
+            <text x="545" y="304">12 abr</text>
+            <text x="710" y="304">19 abr</text>
+            <text x="875" y="304" text-anchor="end">22 abr</text>
+          </g>
+        </svg>
+      </section>
+
+      <!-- ======= CHANNEL + HEATMAP ======= -->
+      <div class="two-col">
+        <section class="section">
+          <div class="sh">
+            <div>
+              <div class="rub">Distribución</div>
+              <h3>Entrada por canal <em>· 12 487 conversaciones</em></h3>
+            </div>
+          </div>
+          <div class="sb-body">
+            <div class="bar-list">
+              <div class="bar-row">
+                <div class="lbl"><span class="ico"><i data-lucide="message-circle" width="12" height="12"></i></span>WhatsApp orgánico</div>
+                <div class="bar-track"><div class="bar-fill" style="width: 78%;">7 412</div></div>
+                <div class="bar-val">7 412</div>
+                <div class="bar-pct">59.4%</div>
+              </div>
+              <div class="bar-row">
+                <div class="lbl"><span class="ico"><i data-lucide="shopping-bag" width="12" height="12"></i></span>Shopify checkout</div>
+                <div class="bar-track"><div class="bar-fill g" style="width: 42%;">2 841</div></div>
+                <div class="bar-val">2 841</div>
+                <div class="bar-pct">22.8%</div>
+              </div>
+              <div class="bar-row">
+                <div class="lbl"><span class="ico"><i data-lucide="megaphone" width="12" height="12"></i></span>Campañas salientes</div>
+                <div class="bar-track"><div class="bar-fill i" style="width: 21%;">1 287</div></div>
+                <div class="bar-val">1 287</div>
+                <div class="bar-pct">10.3%</div>
+              </div>
+              <div class="bar-row">
+                <div class="lbl"><span class="ico"><i data-lucide="instagram" width="12" height="12"></i></span>Click-to-WhatsApp</div>
+                <div class="bar-track"><div class="bar-fill y" style="width: 14%;">742</div></div>
+                <div class="bar-val">742</div>
+                <div class="bar-pct">5.9%</div>
+              </div>
+              <div class="bar-row">
+                <div class="lbl"><span class="ico"><i data-lucide="hash" width="12" height="12"></i></span>Código QR físico</div>
+                <div class="bar-track"><div class="bar-fill k" style="width: 4%;">205</div></div>
+                <div class="bar-val">205</div>
+                <div class="bar-pct">1.6%</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="sh">
+            <div>
+              <div class="rub">Fecha clave</div>
+              <h3>Embudo de ventas <em>· 30d</em></h3>
+            </div>
+          </div>
+          <div class="sb-body" style="padding: 0;">
+            <div class="funnel">
+              <div class="stage">
+                <div class="n">01</div>
+                <div class="t">Contactos iniciados<span class="s">Cliente escribió primer mensaje</span></div>
+                <div class="count">12 487</div>
+                <div class="conv">100%</div>
+                <div class="stage-bar" style="width: 100%;"></div>
+              </div>
+              <div class="stage">
+                <div class="n">02</div>
+                <div class="t">Cotización enviada<span class="s">Agente mostró precio o catálogo</span></div>
+                <div class="count">6 842</div>
+                <div class="conv">54.8%</div>
+                <div class="stage-bar" style="width: 54.8%;"></div>
+              </div>
+              <div class="stage">
+                <div class="n">03</div>
+                <div class="t">Pedido creado<span class="s">Cliente confirmó productos</span></div>
+                <div class="count">2 108</div>
+                <div class="conv">16.9%</div>
+                <div class="stage-bar" style="width: 16.9%;"></div>
+              </div>
+              <div class="stage">
+                <div class="n">04</div>
+                <div class="t">Pago confirmado<span class="s">PSE, contra entrega, o Shopify</span></div>
+                <div class="count">1 487</div>
+                <div class="conv">11.9%</div>
+                <div class="stage-bar" style="width: 11.9%;"></div>
+              </div>
+              <div class="stage">
+                <div class="n">05</div>
+                <div class="t">Entregado<span class="s">Confirmado por transportadora</span></div>
+                <div class="count">1 284</div>
+                <div class="conv">10.3%</div>
+                <div class="stage-bar" style="width: 10.3%;"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ======= AGENT PERF ======= -->
+      <section class="section">
+        <div class="sh">
+          <div>
+            <div class="rub">Rendimiento</div>
+            <h3>Agentes IA <em>· 6 activos · ordenado por volumen</em></h3>
+          </div>
+          <div class="tools">
+            <button class="btn sm"><i data-lucide="filter" width="12" height="12"></i>Filtrar</button>
+            <button class="btn sm"><i data-lucide="columns-3" width="12" height="12"></i>Columnas</button>
+          </div>
+        </div>
+        <div class="sb-body" style="padding: 0;">
+          <table class="perf">
+            <thead>
+              <tr>
+                <th>Agente</th>
+                <th>Modelo</th>
+                <th>Tendencia 30d</th>
+                <th class="num">Turnos</th>
+                <th class="num">Auto-resuelto</th>
+                <th class="num">Escalados</th>
+                <th class="num">Resp. prom.</th>
+                <th class="num">CSAT</th>
+                <th class="num">Costo</th>
+              </tr>
+            </thead>
+            <tbody id="perf-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ======= HEATMAP ======= -->
+      <section class="section">
+        <div class="sh">
+          <div>
+            <div class="rub">Actividad</div>
+            <h3>Mapa de calor · conversaciones por hora <em>· últimos 30 días</em></h3>
+          </div>
+          <div class="tools">
+            <span style="font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3);">hora local · America/Bogotá</span>
+          </div>
+        </div>
+        <div class="sb-body">
+          <div class="heat-grid" id="heat"></div>
+          <div class="heat-legend">
+            <span>Menos</span>
+            <div class="scale">
+              <div class="hb hc" data-v="0"></div>
+              <div class="hb hc" data-v="1"></div>
+              <div class="hb hc" data-v="2"></div>
+              <div class="hb hc" data-v="3"></div>
+              <div class="hb hc" data-v="4"></div>
+            </div>
+            <span>Más</span>
+            <span style="margin-left: auto; font-family: var(--font-serif); font-style: italic; color: var(--ink-2);">Pico operacional: jueves 19:00–22:00</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======= TOP lists ======= -->
+      <div class="two-col equal">
+        <section class="section">
+          <div class="sh">
+            <div>
+              <div class="rub">Producto</div>
+              <h3>Más vendidos <em>· por unidades · 30d</em></h3>
+            </div>
+          </div>
+          <div class="top-list">
+            <div class="top-row">
+              <div class="rank">1</div>
+              <div class="t">Cuaderno Norma oficio × 12<em>Papelería escolar</em></div>
+              <div class="v">487 uds</div>
+            </div>
+            <div class="top-row">
+              <div class="rank">2</div>
+              <div class="t">Mochila reforzada clásica<em>Accesorios · escolar</em></div>
+              <div class="v">312 uds</div>
+            </div>
+            <div class="top-row">
+              <div class="rank">3</div>
+              <div class="t">Kit lápices color × 24<em>Papelería · arte</em></div>
+              <div class="v">268 uds</div>
+            </div>
+            <div class="top-row">
+              <div class="rank">4</div>
+              <div class="t">Cartuchera rígida acolchada<em>Accesorios · escolar</em></div>
+              <div class="v">214 uds</div>
+            </div>
+            <div class="top-row">
+              <div class="rank">5</div>
+              <div class="t">Block Bond tamaño carta<em>Papelería · oficina</em></div>
+              <div class="v">198 uds</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="sh">
+            <div>
+              <div class="rub">Calidad</div>
+              <h3>Motivos de devolución <em>· 42 devoluciones · 3.3%</em></h3>
+            </div>
+          </div>
+          <div class="sb-body">
+            <div class="reason-list">
+              <div class="reason">
+                <div>
+                  <div class="t">Producto llegó dañado</div>
+                  <div class="bar"><div class="bar-in" style="width: 71%;"></div></div>
+                </div>
+                <div class="n">17<em>40.5%</em></div>
+              </div>
+              <div class="reason">
+                <div>
+                  <div class="t">Talla incorrecta</div>
+                  <div class="bar"><div class="bar-in" style="width: 50%;"></div></div>
+                </div>
+                <div class="n">12<em>28.6%</em></div>
+              </div>
+              <div class="reason">
+                <div>
+                  <div class="t">No era lo que esperaba</div>
+                  <div class="bar"><div class="bar-in" style="width: 30%;"></div></div>
+                </div>
+                <div class="n">7<em>16.7%</em></div>
+              </div>
+              <div class="reason">
+                <div>
+                  <div class="t">Producto faltante en el pedido</div>
+                  <div class="bar"><div class="bar-in" style="width: 17%;"></div></div>
+                </div>
+                <div class="n">4<em>9.5%</em></div>
+              </div>
+              <div class="reason">
+                <div>
+                  <div class="t">Otro</div>
+                  <div class="bar"><div class="bar-in" style="width: 8%;"></div></div>
+                </div>
+                <div class="n">2<em>4.7%</em></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  // Agent performance
+  const agents = [
+    { n: "Valentina · Atención",    r: "Atención cliente", m: "claude-4-sonnet", spark: [3,4,5,4,6,7,8,7,9,8,10,11,12,11,13,14,13,15,14,16,17,15,18,17,19,18,20,21,19,22], t: 24812, auto: 94, esc: 1488, lat: 1.8, csat: 4.8, cost: "$187k COP" },
+    { n: "Santiago · Ventas",       r: "Venta consultiva", m: "claude-4-sonnet", spark: [5,6,5,7,8,7,9,10,9,11,12,10,13,12,14,13,15,14,16,15,17,16,18,17,16,18,19,17,20,19], t: 12086, auto: 76, esc: 2903, lat: 2.1, csat: 4.7, cost: "$142k COP" },
+    { n: "Mariana · Logística",     r: "Envíos",           m: "claude-4-sonnet", spark: [8,7,8,9,8,10,9,11,10,12,11,13,12,14,13,12,14,13,15,14,13,15,14,13,12,14,13,12,14,13], t: 6847,  auto: 88, esc: 821,  lat: 1.9, csat: 4.5, cost: "$78k COP"  },
+    { n: "Claudia · Post-venta",    r: "Encuestas",        m: "gpt-5-mini",      spark: [2,3,2,3,4,3,4,5,4,5,6,5,6,5,6,7,6,7,8,7,8,7,8,9,8,9,10,9,8,9], t: 4128,  auto: 67, esc: 1362, lat: 1.4, csat: 4.6, cost: "$22k COP"  },
+    { n: "Camilo · Campañas",       r: "Broadcast",        m: "gpt-5-mini",      spark: [10,12,11,13,8,4,2,3,2,2,1,2,1,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], t: 1842,  auto: 92, esc: 147,  lat: 1.2, csat: 4.3, cost: "$8k COP"  },
+  ];
+
+  const spark = (data, color = "var(--rubric-2)") => {
+    const w = 90, h = 24, max = Math.max(...data), min = Math.min(...data);
+    const pts = data.map((v, i) => {
+      const x = (i / (data.length - 1)) * (w - 4) + 2;
+      const y = h - 2 - ((v - min) / (max - min || 1)) * (h - 4);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" ");
+    return `<svg class="sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+  };
+
+  document.getElementById("perf-body").innerHTML = agents.map(a => `
+    <tr>
+      <td class="name">${a.n}<span class="role">${a.r}</span></td>
+      <td><span style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); background: var(--paper-2); padding: 2px 6px; border: 1px solid var(--border);">${a.m}</span></td>
+      <td>${spark(a.spark)}</td>
+      <td class="num">${a.t.toLocaleString('es-CO')}</td>
+      <td class="num" style="color: var(--semantic-success);">${a.auto}%</td>
+      <td class="num">${a.esc.toLocaleString('es-CO')}</td>
+      <td class="num">${a.lat}s</td>
+      <td class="num">${a.csat}</td>
+      <td class="num">${a.cost}</td>
+    </tr>
+  `).join("");
+
+  // Heatmap: 7 days × 24 hours
+  const heat = document.getElementById("heat");
+  const days = ["L", "M", "X", "J", "V", "S", "D"];
+  // header row
+  let html = `<div></div>`;
+  for (let h = 0; h < 24; h++) html += `<div class="hlabel">${h === 0 ? '0' : h % 3 === 0 ? h : ''}</div>`;
+  // rows
+  for (let d = 0; d < 7; d++) {
+    html += `<div class="dlabel">${days[d]}</div>`;
+    for (let h = 0; h < 24; h++) {
+      // higher activity on weekday evenings, lower early morning
+      let base = 0;
+      if (h >= 0 && h < 7) base = 0;
+      else if (h >= 7 && h < 10) base = 1;
+      else if (h >= 10 && h < 13) base = 2;
+      else if (h >= 13 && h < 17) base = 2;
+      else if (h >= 17 && h < 23) base = 3;
+      else base = 1;
+      // Thursday peak
+      if (d === 3 && h >= 19 && h <= 22) base = 4;
+      if (d === 6 && h >= 10 && h <= 12) base = 3;  // Sunday noon
+      if (d === 5 && h >= 18 && h <= 20) base = 4;  // Saturday evening
+      if (d === 0 && h >= 8 && h <= 10) base = 3;   // Monday morning
+      if (Math.random() < 0.12 && base > 0) base = Math.max(0, base + (Math.random() < 0.5 ? -1 : 1));
+      if (base > 4) base = 4;
+      html += `<div class="hc" data-v="${base}"></div>`;
+    }
+  }
+  heat.innerHTML = html;
+</script>
+
+</body>
+</html>

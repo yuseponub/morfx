@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Configuración</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin:0; height:100%; background:var(--paper-1); color:var(--ink-1); font-family:var(--font-sans); overflow:hidden; }
+  .app { display:grid; grid-template-columns: 232px 1fr; height:100vh; }
+
+  /* ---- main sidebar (igual a CRM/Pedidos) ---- */
+  .sb { background:var(--paper-2); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding:18px 18px 14px; border-bottom:1px solid var(--ink-1); }
+  .wm { font-family:var(--font-display); font-weight:800; font-size:32px; line-height:1; letter-spacing:-0.02em; }
+  .wm b { color:var(--rubric-2); }
+  .sub { font-family:var(--font-sans); font-size:12px; font-weight:500; color:var(--ink-3); margin-top:4px; }
+  nav { padding:8px; flex:1; overflow:auto; }
+  nav ul { list-style:none; padding:0; margin:0; }
+  nav li a { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:var(--radius-2); font-family:var(--font-sans); font-weight:500; font-size:13px; color:var(--ink-2); text-decoration:none; cursor:pointer; }
+  nav li a:hover { background:var(--paper-3); color:var(--ink-1); }
+  nav li a.active { background:var(--paper-0); color:var(--ink-1); border:1px solid var(--ink-1); box-shadow:0 1px 0 var(--border); }
+  nav .cat { font-family:var(--font-sans); font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-size:10px; color:var(--ink-3); padding:12px 10px 6px; }
+
+  main { display:grid; grid-template-columns: 248px 1fr; overflow:hidden; }
+
+  /* ---- secondary sidebar (settings sections) ---- */
+  .sec { border-right:1px solid var(--border); background:var(--paper-1); display:flex; flex-direction:column; overflow:hidden; }
+  .sec .hd { padding:18px 20px 12px; border-bottom:1px solid var(--ink-1); }
+  .sec .eye { font-family:var(--font-sans); font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--rubric-2); }
+  .sec h1 { font-family:var(--font-display); font-weight:700; font-size:26px; margin:2px 0 0; letter-spacing:-0.015em; }
+  .sec .ws { margin-top:14px; padding:10px; border:1px solid var(--border); border-radius:var(--radius-3); background:var(--paper-0); display:flex; gap:10px; align-items:center; }
+  .sec .ws .logo { width:36px; height:36px; border-radius:var(--radius-2); background:var(--ink-1); color:var(--paper-0); font-family:var(--font-display); font-weight:800; font-size:18px; display:flex; align-items:center; justify-content:center; }
+  .sec .ws .meta .n { font-family:var(--font-sans); font-weight:600; font-size:13px; color:var(--ink-1); }
+  .sec .ws .meta .p { font-family:var(--font-mono); font-size:10px; color:var(--ink-3); margin-top:2px; }
+  .sec .list { padding:8px; overflow:auto; flex:1; }
+  .sec .gcat { font-family:var(--font-sans); font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-size:10px; color:var(--ink-3); padding:14px 10px 6px; }
+  .sec a.it { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-2); font-family:var(--font-sans); font-weight:500; font-size:13px; color:var(--ink-2); text-decoration:none; cursor:pointer; position:relative; }
+  .sec a.it:hover { background:var(--paper-2); color:var(--ink-1); }
+  .sec a.it.on { background:var(--paper-0); border:1px solid var(--ink-1); color:var(--ink-1); box-shadow:0 1px 0 var(--border); font-weight:600; }
+  .sec a.it .n { font-family:var(--font-mono); font-size:10px; color:var(--ink-3); margin-left:auto; }
+  .sec a.it .dot { width:6px; height:6px; border-radius:999px; background:var(--rubric-2); margin-left:auto; }
+
+  /* ---- content panel ---- */
+  .panel { overflow:auto; background:var(--paper-1); }
+  .panel .topbar { padding:18px 32px 14px; border-bottom:1px solid var(--ink-1); background:var(--paper-1); display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
+  .panel .eye { font-family:var(--font-sans); font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--rubric-2); }
+  .panel h2 { font-family:var(--font-display); font-weight:700; font-size:30px; margin:2px 0 0; letter-spacing:-0.015em; }
+  .panel h2 em { font-family:var(--font-sans); font-style:normal; font-weight:400; font-size:15px; color:var(--ink-3); margin-left:10px; }
+  .panel .saveline { display:flex; gap:8px; align-items:center; }
+  .panel .saved { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); }
+
+  .btn { font-family:var(--font-sans); font-size:13px; font-weight:600; padding:7px 12px; border-radius:var(--radius-3); border:1px solid var(--ink-1); background:var(--paper-0); color:var(--ink-1); cursor:pointer; box-shadow:0 1px 0 var(--ink-1); display:inline-flex; align-items:center; gap:6px; }
+  .btn:hover { background:var(--paper-3); }
+  .btn.pri { background:var(--ink-1); color:var(--paper-0); }
+  .btn.pri:hover { background:var(--ink-2); }
+  .btn.gh { border-color:var(--border); box-shadow:none; color:var(--ink-2); }
+  .btn.gh:hover { background:var(--paper-2); }
+  .btn.dn { border-color:oklch(0.75 0.10 28); color:oklch(0.38 0.14 28); box-shadow:0 1px 0 oklch(0.75 0.10 28); }
+
+  .body { padding:24px 32px 48px; max-width:880px; }
+
+  /* ---- form row / cards ---- */
+  .card { background:var(--paper-0); border:1px solid var(--ink-1); border-radius:var(--radius-3); box-shadow:0 1px 0 var(--ink-1); margin-bottom:18px; }
+  .card .hd { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .card .hd h3 { font-family:var(--font-display); font-weight:700; font-size:18px; margin:0; letter-spacing:-0.01em; }
+  .card .hd p { font-family:var(--font-sans); font-size:12px; color:var(--ink-3); margin:3px 0 0; }
+  .card .hd .side { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); }
+  .card .bd { padding:16px 18px; }
+
+  .row { display:grid; grid-template-columns: 180px 1fr; gap:16px 20px; padding:12px 0; border-bottom:1px dashed var(--border); }
+  .row:last-child { border-bottom:none; padding-bottom:0; }
+  .row:first-child { padding-top:0; }
+  .row .lb { font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--ink-1); letter-spacing:0.02em; }
+  .row .lb .h { font-family:var(--font-sans); font-weight:400; font-size:11px; color:var(--ink-3); margin-top:3px; letter-spacing:0; }
+  .row .ct { display:flex; flex-direction:column; gap:6px; }
+
+  input[type=text], input[type=email], input[type=tel], select, textarea { width:100%; border:1px solid var(--border); background:var(--paper-0); padding:8px 10px; border-radius:var(--radius-3); font-family:var(--font-sans); font-size:13px; color:var(--ink-1); box-sizing:border-box; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--ink-1); box-shadow:0 0 0 3px var(--paper-3); }
+  textarea { resize:vertical; min-height:70px; }
+  .inline { display:flex; gap:8px; }
+  .inline > * { flex:1; }
+  .hint { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); }
+
+  /* avatar edit */
+  .avatar-edit { display:flex; gap:14px; align-items:center; }
+  .avatar-edit .pic { width:64px; height:64px; border-radius:999px; background:var(--rubric-2); color:var(--paper-0); font-family:var(--font-display); font-weight:800; font-size:26px; display:flex; align-items:center; justify-content:center; border:2px solid var(--ink-1); box-shadow:0 2px 0 var(--ink-1); }
+  .avatar-edit .actions { display:flex; gap:6px; }
+
+  /* switch */
+  .switch { --sw:34px; position:relative; width:var(--sw); height:20px; background:var(--paper-3); border:1px solid var(--border); border-radius:999px; cursor:pointer; flex-shrink:0; }
+  .switch::after { content:""; position:absolute; top:1px; left:1px; width:16px; height:16px; border-radius:999px; background:var(--paper-0); border:1px solid var(--ink-1); transition: left .15s; }
+  .switch.on { background:oklch(0.58 0.14 150); border-color:oklch(0.40 0.12 150); }
+  .switch.on::after { left:15px; }
+
+  .toggle-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px dashed var(--border); }
+  .toggle-row:last-child { border-bottom:none; }
+  .toggle-row .info { flex:1; }
+  .toggle-row .info .t { font-family:var(--font-sans); font-weight:600; font-size:13px; color:var(--ink-1); }
+  .toggle-row .info .d { font-family:var(--font-sans); font-size:12px; color:var(--ink-3); margin-top:2px; line-height:1.4; }
+
+  /* chip */
+  .chip { font-family:var(--font-sans); font-weight:500; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); color:var(--ink-2); background:var(--paper-0); display:inline-flex; align-items:center; gap:6px; }
+
+  /* table (team, labels, sessions) */
+  table.t { width:100%; border-collapse:collapse; }
+  table.t thead th { text-align:left; padding:8px 10px; font-family:var(--font-sans); font-weight:600; letter-spacing:0.08em; text-transform:uppercase; font-size:10px; color:var(--ink-3); border-bottom:1px solid var(--ink-1); background:var(--paper-1); }
+  table.t td { padding:10px; border-bottom:1px solid var(--border); font-family:var(--font-sans); font-size:13px; color:var(--ink-1); vertical-align:middle; }
+  table.t tr:last-child td { border-bottom:none; }
+  .av { width:28px; height:28px; border-radius:999px; background:var(--paper-3); border:1px solid var(--ink-2); font-family:var(--font-sans); font-weight:700; font-size:11px; display:inline-flex; align-items:center; justify-content:center; color:var(--ink-1); }
+  .who { display:flex; gap:10px; align-items:center; }
+  .who .nm { font-weight:600; }
+  .who .em { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); }
+  .role { font-family:var(--font-sans); font-weight:600; font-size:11px; letter-spacing:0.02em; padding:3px 9px; border-radius:999px; border:1px solid transparent; }
+  .role.own { background:oklch(0.92 0.045 28); color:oklch(0.32 0.09 28); border-color:oklch(0.80 0.07 28); }
+  .role.adm { background:oklch(0.93 0.035 260); color:oklch(0.30 0.06 260); border-color:oklch(0.80 0.05 260); }
+  .role.ven { background:oklch(0.93 0.03 180); color:oklch(0.32 0.04 180); border-color:oklch(0.80 0.04 180); }
+  .role.inv { background:var(--paper-3); color:var(--ink-3); border-color:var(--border); }
+  .last { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); }
+
+  /* label pill (CRM tags) */
+  .tg { display:inline-flex; align-items:center; font-family:var(--font-sans); font-weight:600; font-size:11px; letter-spacing:0.01em; padding:3px 9px; border-radius:999px; border:1px solid transparent; background:var(--paper-3); color:var(--ink-1); }
+  .tg.red  { background:oklch(0.92 0.045 28); color:oklch(0.32 0.09 28); border-color:oklch(0.80 0.07 28); }
+  .tg.gold { background:oklch(0.94 0.055 80); color:oklch(0.38 0.065 70); border-color:oklch(0.82 0.07 80); }
+  .tg.indi { background:oklch(0.93 0.035 260); color:oklch(0.30 0.06 260); border-color:oklch(0.80 0.05 260); }
+  .tg.ver  { background:oklch(0.93 0.03 180); color:oklch(0.32 0.04 180); border-color:oklch(0.80 0.04 180); }
+  .tg.ros  { background:oklch(0.94 0.04 10); color:oklch(0.38 0.10 10); border-color:oklch(0.82 0.06 10); }
+  .tg.sl   { background:oklch(0.93 0.015 240); color:oklch(0.32 0.02 240); border-color:oklch(0.80 0.02 240); }
+
+  /* WhatsApp number panel */
+  .wa-status { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+  .wa-status .box { border:1px solid var(--border); background:var(--paper-1); border-radius:var(--radius-3); padding:12px 14px; }
+  .wa-status .box .k { font-family:var(--font-sans); font-weight:600; letter-spacing:0.08em; text-transform:uppercase; font-size:10px; color:var(--ink-3); }
+  .wa-status .box .v { font-family:var(--font-display); font-weight:700; font-size:18px; margin-top:4px; letter-spacing:-0.01em; }
+  .wa-status .box .s { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); margin-top:3px; }
+  .greendot { display:inline-block; width:8px; height:8px; border-radius:999px; background:oklch(0.65 0.18 150); margin-right:6px; vertical-align:middle; }
+
+  /* plan card */
+  .plan { display:grid; grid-template-columns: 1.2fr 1fr; gap:0; }
+  .plan .left { padding:20px 22px; border-right:1px solid var(--border); }
+  .plan .right { padding:20px 22px; background:var(--paper-1); }
+  .plan .tag { font-family:var(--font-sans); font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-size:10px; color:var(--rubric-2); }
+  .plan h4 { font-family:var(--font-display); font-weight:700; font-size:28px; margin:4px 0 2px; letter-spacing:-0.015em; }
+  .plan .pr { font-family:var(--font-sans); color:var(--ink-2); font-size:13px; }
+  .plan .feats { margin:14px 0 0; padding:0; list-style:none; display:grid; gap:6px; }
+  .plan .feats li { font-family:var(--font-sans); font-size:13px; color:var(--ink-1); display:flex; gap:8px; align-items:center; }
+  .plan .feats li svg { color:oklch(0.55 0.14 150); }
+  .plan .cc { display:flex; gap:12px; align-items:center; padding:12px; border:1px solid var(--border); border-radius:var(--radius-3); background:var(--paper-0); }
+  .plan .cc .card-visual { width:46px; height:30px; border-radius:4px; background: linear-gradient(135deg, var(--ink-1), var(--ink-2)); position:relative; flex-shrink:0; }
+  .plan .cc .card-visual::after { content:""; position:absolute; top:7px; left:5px; width:10px; height:7px; background:oklch(0.78 0.06 80); border-radius:1.5px; }
+  .plan .cc .nm { font-family:var(--font-mono); font-size:12px; color:var(--ink-1); }
+  .plan .cc .nm b { font-family:var(--font-sans); }
+  .plan .cc .ex { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); margin-top:2px; }
+  .usage { margin-top:14px; }
+  .usage .urow { display:grid; grid-template-columns: 130px 1fr 80px; gap:10px; align-items:center; padding:6px 0; font-family:var(--font-sans); font-size:12px; color:var(--ink-2); }
+  .usage .bar { height:6px; background:var(--paper-3); border:1px solid var(--border); border-radius:999px; overflow:hidden; }
+  .usage .bar > span { display:block; height:100%; background:var(--ink-1); }
+  .usage .val { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); text-align:right; }
+
+  /* integrations grid */
+  .intg { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  .intg .i { border:1px solid var(--border); background:var(--paper-1); border-radius:var(--radius-3); padding:14px; display:grid; grid-template-columns: 40px 1fr auto; gap:12px; align-items:center; }
+  .intg .i .lg { width:40px; height:40px; border-radius:var(--radius-2); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:16px; color:var(--paper-0); }
+  .intg .i .t { font-family:var(--font-sans); font-weight:600; font-size:13px; color:var(--ink-1); }
+  .intg .i .d { font-family:var(--font-sans); font-size:11px; color:var(--ink-3); margin-top:2px; line-height:1.35; }
+  .intg .i.on { background:oklch(0.98 0.015 150); border-color:oklch(0.75 0.08 150); }
+  .status { font-family:var(--font-sans); font-weight:600; font-size:11px; letter-spacing:0.04em; text-transform:uppercase; padding:3px 8px; border-radius:999px; }
+  .status.on { background:oklch(0.92 0.05 150); color:oklch(0.35 0.10 150); border:1px solid oklch(0.75 0.08 150); }
+  .status.off { background:var(--paper-3); color:var(--ink-3); border:1px solid var(--border); }
+
+  /* danger zone */
+  .dz { border:1px solid oklch(0.80 0.09 28); background:oklch(0.98 0.02 28); }
+  .dz .hd { border-bottom-color:oklch(0.85 0.06 28); }
+  .dz .hd h3 { color:oklch(0.38 0.14 28); }
+
+  /* hide non-active sections */
+  [data-section] { display:none; }
+  [data-section].active { display:block; }
+</style>
+</head>
+<body class="mx-doc">
+  <div class="app">
+
+    <!-- MAIN SIDEBAR -->
+    <aside class="sb">
+      <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Configuración · ajustes del workspace</div></div>
+      <nav>
+        <div class="cat">Operación</div>
+        <ul>
+          <li><a href="../crm/index.html"><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+          <li><a href="../whatsapp/index.html"><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+          <li><a href="../pedidos/index.html"><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+          <li><a href="../catalogo/index.html"><i data-lucide="box" width="16" height="16"></i>Catálogo</a></li>
+          <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+        </ul>
+        <div class="cat">Automatización</div>
+        <ul>
+          <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+          <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+        </ul>
+        <div class="cat">Análisis</div>
+        <ul>
+          <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+          <li><a><i data-lucide="trending-up" width="16" height="16"></i>Métricas</a></li>
+          <li><a class="active"><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main>
+      <!-- SECTIONS SIDEBAR -->
+      <aside class="sec">
+        <div class="hd">
+          <div class="eye">Módulo</div>
+          <h1>Configuración</h1>
+          <div class="ws">
+            <div class="logo">P</div>
+            <div class="meta">
+              <div class="n">Papelería El Dorado</div>
+              <div class="p">workspace · plan crecimiento</div>
+            </div>
+          </div>
+        </div>
+        <div class="list">
+          <div class="gcat">Personal</div>
+          <a class="it on" data-nav="perfil"><i data-lucide="user" width="15" height="15"></i>Perfil</a>
+          <a class="it" data-nav="notif"><i data-lucide="bell" width="15" height="15"></i>Notificaciones</a>
+
+          <div class="gcat">Workspace</div>
+          <a class="it" data-nav="negocio"><i data-lucide="building-2" width="15" height="15"></i>Negocio</a>
+          <a class="it" data-nav="equipo"><i data-lucide="users" width="15" height="15"></i>Equipo<span class="n">6</span></a>
+          <a class="it" data-nav="modulos"><i data-lucide="layout-grid" width="15" height="15"></i>Módulos visibles</a>
+
+          <div class="gcat">Datos</div>
+          <a class="it" data-nav="tags"><i data-lucide="tag" width="15" height="15"></i>Etiquetas CRM<span class="n">12</span></a>
+          <a class="it" data-nav="wa"><i data-lucide="message-square" width="15" height="15"></i>WhatsApp<span class="dot"></span></a>
+          <a class="it" data-nav="intg"><i data-lucide="plug" width="15" height="15"></i>Integraciones</a>
+
+          <div class="gcat">Cuenta morfx</div>
+          <a class="it" data-nav="plan"><i data-lucide="credit-card" width="15" height="15"></i>Plan y facturación</a>
+        </div>
+      </aside>
+
+      <!-- CONTENT PANEL -->
+      <section class="panel">
+
+        <!-- ============ PERFIL ============ -->
+        <div data-section="perfil" class="active">
+          <div class="topbar">
+            <div>
+              <div class="eye">Personal</div>
+              <h2>Perfil <em>— tu cuenta en morfx</em></h2>
+            </div>
+            <div class="saveline"><span class="saved">guardado · hace 2 min</span><button class="btn pri"><i data-lucide="check" width="14" height="14"></i>Guardar cambios</button></div>
+          </div>
+          <div class="body">
+
+            <div class="card">
+              <div class="hd">
+                <div>
+                  <h3>Datos personales</h3>
+                  <p>Solo lo ves tú y tu equipo. Tu teléfono no se publica a clientes.</p>
+                </div>
+              </div>
+              <div class="bd">
+                <div class="row">
+                  <div class="lb">Foto<div class="h">PNG o JPG, máx 2 MB</div></div>
+                  <div class="ct">
+                    <div class="avatar-edit">
+                      <div class="pic">S</div>
+                      <div class="actions">
+                        <button class="btn gh"><i data-lucide="upload" width="13" height="13"></i>Subir</button>
+                        <button class="btn gh"><i data-lucide="trash-2" width="13" height="13"></i>Quitar</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lb">Nombre completo</div>
+                  <div class="ct"><input type="text" value="Sofía Arango Henao"></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Correo<div class="h">Se usa para iniciar sesión</div></div>
+                  <div class="ct">
+                    <input type="email" value="sofia@papeleriaeldorado.co">
+                    <span class="hint"><span class="greendot"></span>verificado</span>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lb">Teléfono</div>
+                  <div class="ct"><input type="tel" value="+57 310 445 9912"></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Idioma</div>
+                  <div class="ct">
+                    <select>
+                      <option>Español (Colombia)</option>
+                      <option>Español (México)</option>
+                      <option>English (US)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lb">Zona horaria</div>
+                  <div class="ct">
+                    <select>
+                      <option>América/Bogotá · UTC−05:00</option>
+                      <option>América/Ciudad de México · UTC−06:00</option>
+                      <option>América/Lima · UTC−05:00</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd">
+                <div>
+                  <h3>Seguridad</h3>
+                  <p>Cambia tu contraseña y revisa dónde tienes sesión abierta.</p>
+                </div>
+              </div>
+              <div class="bd">
+                <div class="row">
+                  <div class="lb">Contraseña<div class="h">Última vez · 3 meses</div></div>
+                  <div class="ct"><button class="btn" style="align-self:flex-start;"><i data-lucide="key-round" width="13" height="13"></i>Cambiar contraseña</button></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Sesiones activas</div>
+                  <div class="ct">
+                    <table class="t">
+                      <tbody>
+                        <tr>
+                          <td style="width:32px"><i data-lucide="laptop" width="18" height="18"></i></td>
+                          <td><b>MacBook · Chrome</b><div class="last">Bogotá · ahora mismo</div></td>
+                          <td style="text-align:right;"><span class="chip"><span class="greendot"></span>esta sesión</span></td>
+                        </tr>
+                        <tr>
+                          <td><i data-lucide="smartphone" width="18" height="18"></i></td>
+                          <td><b>iPhone · Safari</b><div class="last">Bogotá · hace 2 días</div></td>
+                          <td style="text-align:right;"><button class="btn gh"><i data-lucide="log-out" width="13" height="13"></i>Cerrar</button></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card dz">
+              <div class="hd">
+                <div>
+                  <h3>Zona peligrosa</h3>
+                  <p>Eliminar tu cuenta borra tu acceso, pero no los datos del workspace si eres administrador.</p>
+                </div>
+              </div>
+              <div class="bd">
+                <div class="toggle-row" style="border:none; padding:0;">
+                  <div class="info">
+                    <div class="t">Eliminar mi cuenta</div>
+                    <div class="d">Esta acción es irreversible. Pide al dueño transferir el workspace antes.</div>
+                  </div>
+                  <button class="btn dn"><i data-lucide="trash-2" width="13" height="13"></i>Eliminar cuenta</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ NEGOCIO ============ -->
+        <div data-section="negocio">
+          <div class="topbar">
+            <div>
+              <div class="eye">Workspace</div>
+              <h2>Negocio <em>— datos que tus clientes y el equipo ven</em></h2>
+            </div>
+            <div class="saveline"><button class="btn pri"><i data-lucide="check" width="14" height="14"></i>Guardar</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="hd"><div><h3>Identidad</h3><p>Así aparece tu negocio en mensajes y facturas.</p></div></div>
+              <div class="bd">
+                <div class="row">
+                  <div class="lb">Logo</div>
+                  <div class="ct">
+                    <div class="avatar-edit">
+                      <div class="pic" style="background:var(--ink-1); border-radius:var(--radius-2);">P</div>
+                      <div class="actions"><button class="btn gh"><i data-lucide="upload" width="13" height="13"></i>Subir logo</button><button class="btn gh"><i data-lucide="trash-2" width="13" height="13"></i>Quitar</button></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lb">Nombre comercial</div>
+                  <div class="ct"><input type="text" value="Papelería El Dorado"></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Razón social<div class="h">Aparece en facturas</div></div>
+                  <div class="ct"><input type="text" value="El Dorado Papelería S.A.S."></div>
+                </div>
+                <div class="row">
+                  <div class="lb">NIT / RFC</div>
+                  <div class="ct"><div class="inline"><input type="text" value="901.447.220"><input type="text" value="-3" style="max-width:80px;"></div></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Descripción corta<div class="h">Usada en respuestas automáticas</div></div>
+                  <div class="ct"><textarea>Distribuidora de papelería e insumos escolares en Bucaramanga. Ventas al por mayor y detal. Despacho a toda Colombia.</textarea></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Ubicación</h3><p>Dirección de despacho y punto físico.</p></div></div>
+              <div class="bd">
+                <div class="row"><div class="lb">Dirección</div><div class="ct"><input type="text" value="Cra. 27 #36-15, Barrio La Aurora"></div></div>
+                <div class="row"><div class="lb">Ciudad</div><div class="ct"><div class="inline"><input type="text" value="Bucaramanga"><input type="text" value="Santander"></div></div></div>
+                <div class="row"><div class="lb">País</div><div class="ct"><select><option>Colombia</option><option>México</option><option>Perú</option></select></div></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Horarios de atención</h3><p>Cuando estás abierto. Fuera de estos horarios, el agente responde con mensaje automático.</p></div></div>
+              <div class="bd">
+                <div class="row"><div class="lb">Lun–Vie</div><div class="ct"><div class="inline"><input type="text" value="08:00"><span style="align-self:center; font-family:var(--font-mono); color:var(--ink-3);">a</span><input type="text" value="18:00"></div></div></div>
+                <div class="row"><div class="lb">Sábado</div><div class="ct"><div class="inline"><input type="text" value="09:00"><span style="align-self:center; font-family:var(--font-mono); color:var(--ink-3);">a</span><input type="text" value="14:00"></div></div></div>
+                <div class="row"><div class="lb">Domingo</div><div class="ct"><div class="toggle-row" style="padding:0; border:none;"><div class="switch"></div><div class="info"><div class="t">Cerrado</div><div class="d">No se procesan pedidos ni se asignan conversaciones</div></div></div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ EQUIPO ============ -->
+        <div data-section="equipo">
+          <div class="topbar">
+            <div>
+              <div class="eye">Workspace</div>
+              <h2>Equipo <em>— 6 miembros · 2 invitaciones pendientes</em></h2>
+            </div>
+            <div class="saveline"><button class="btn"><i data-lucide="shield-check" width="14" height="14"></i>Ver permisos</button><button class="btn pri"><i data-lucide="user-plus" width="14" height="14"></i>Invitar miembro</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="hd"><div><h3>Miembros activos</h3><p>Pueden iniciar sesión y ver conversaciones según su rol.</p></div><div class="side">6 · asientos · plan crecimiento (hasta 10)</div></div>
+              <div class="bd" style="padding:0 0 4px;">
+                <table class="t">
+                  <thead><tr><th>Miembro</th><th>Rol</th><th>Último activo</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="who"><span class="av">S</span><div><div class="nm">Sofía Arango</div><div class="em">sofia@papeleriaeldorado.co · tú</div></div></div></td><td><span class="role own">dueño</span></td><td class="last">ahora</td><td></td></tr>
+                    <tr><td><div class="who"><span class="av">M</span><div><div class="nm">Mateo Herrera</div><div class="em">mateo@papeleriaeldorado.co</div></div></div></td><td><span class="role adm">admin</span></td><td class="last">hace 12 min</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="more-horizontal" width="14" height="14"></i></button></td></tr>
+                    <tr><td><div class="who"><span class="av">Y</span><div><div class="nm">Yuliana Rincón</div><div class="em">yuliana@papeleriaeldorado.co</div></div></div></td><td><span class="role ven">vendedor</span></td><td class="last">hace 1 h</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="more-horizontal" width="14" height="14"></i></button></td></tr>
+                    <tr><td><div class="who"><span class="av">C</span><div><div class="nm">Camilo Duarte</div><div class="em">camilo@papeleriaeldorado.co</div></div></div></td><td><span class="role ven">vendedor</span></td><td class="last">hace 3 h</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="more-horizontal" width="14" height="14"></i></button></td></tr>
+                    <tr><td><div class="who"><span class="av">L</span><div><div class="nm">Laura Pineda</div><div class="em">laura@papeleriaeldorado.co</div></div></div></td><td><span class="role ven">vendedor</span></td><td class="last">ayer</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="more-horizontal" width="14" height="14"></i></button></td></tr>
+                    <tr><td><div class="who"><span class="av">A</span><div><div class="nm">Andrés Quiroz</div><div class="em">andres@papeleriaeldorado.co</div></div></div></td><td><span class="role adm">admin</span></td><td class="last">18 abr</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="more-horizontal" width="14" height="14"></i></button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Invitaciones pendientes</h3><p>Aún no aceptan el correo de invitación.</p></div></div>
+              <div class="bd" style="padding:0 0 4px;">
+                <table class="t">
+                  <tbody>
+                    <tr><td><div class="who"><span class="av" style="background:var(--paper-3); color:var(--ink-3);">?</span><div><div class="nm">daniel@papeleriaeldorado.co</div><div class="em">invitado hace 2 días</div></div></div></td><td><span class="role inv">vendedor</span></td><td style="text-align:right;"><button class="btn gh"><i data-lucide="refresh-cw" width="13" height="13"></i>Reenviar</button> <button class="btn gh"><i data-lucide="x" width="13" height="13"></i>Cancelar</button></td></tr>
+                    <tr><td><div class="who"><span class="av" style="background:var(--paper-3); color:var(--ink-3);">?</span><div><div class="nm">valentina@papeleriaeldorado.co</div><div class="em">invitada hace 5 días</div></div></div></td><td><span class="role inv">vendedor</span></td><td style="text-align:right;"><button class="btn gh"><i data-lucide="refresh-cw" width="13" height="13"></i>Reenviar</button> <button class="btn gh"><i data-lucide="x" width="13" height="13"></i>Cancelar</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Roles y permisos</h3><p>Resumen rápido de lo que puede hacer cada rol.</p></div></div>
+              <div class="bd" style="padding:0;">
+                <table class="t">
+                  <thead><tr><th>Permiso</th><th>Dueño</th><th>Admin</th><th>Vendedor</th></tr></thead>
+                  <tbody>
+                    <tr><td>Ver todas las conversaciones</td><td>✓</td><td>✓</td><td>solo asignadas</td></tr>
+                    <tr><td>Editar catálogo</td><td>✓</td><td>✓</td><td>—</td></tr>
+                    <tr><td>Configurar WhatsApp</td><td>✓</td><td>✓</td><td>—</td></tr>
+                    <tr><td>Ver métricas del equipo</td><td>✓</td><td>✓</td><td>—</td></tr>
+                    <tr><td>Invitar / eliminar miembros</td><td>✓</td><td>—</td><td>—</td></tr>
+                    <tr><td>Plan y facturación</td><td>✓</td><td>—</td><td>—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ WHATSAPP ============ -->
+        <div data-section="wa">
+          <div class="topbar">
+            <div>
+              <div class="eye">Datos</div>
+              <h2>WhatsApp <em>— número, agente y mensajes automáticos</em></h2>
+            </div>
+            <div class="saveline"><span class="chip"><span class="greendot"></span>conectado</span><button class="btn pri"><i data-lucide="check" width="14" height="14"></i>Guardar</button></div>
+          </div>
+          <div class="body">
+
+            <div class="card">
+              <div class="hd"><div><h3>Número conectado</h3><p>Este es el número desde el que envías y recibes mensajes.</p></div><div class="side">WhatsApp Business API · v2</div></div>
+              <div class="bd">
+                <div class="wa-status">
+                  <div class="box"><div class="k">Número</div><div class="v">+57 304 712 8840</div><div class="s">Papelería El Dorado</div></div>
+                  <div class="box"><div class="k">Display name</div><div class="v">El Dorado</div><div class="s">aprobado · verificado ✓</div></div>
+                  <div class="box"><div class="k">Calidad</div><div class="v" style="color:oklch(0.45 0.14 150);">Alta</div><div class="s">sin reportes últimos 30 días</div></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Webhook</div>
+                  <div class="ct">
+                    <div class="inline"><input type="text" value="https://api.morfx.co/webhooks/wa/ws_8f3a..." readonly><button class="btn gh"><i data-lucide="copy" width="13" height="13"></i></button></div>
+                    <span class="hint">Última recepción · hace 8 s</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Agente de IA</h3><p>Responde automáticamente fuera de horario o cuando el equipo está saturado.</p></div></div>
+              <div class="bd">
+                <div class="toggle-row">
+                  <div class="info"><div class="t">Activar agente</div><div class="d">Contesta primera respuesta y escala a un humano si es necesario</div></div>
+                  <div class="switch on"></div>
+                </div>
+                <div class="toggle-row">
+                  <div class="info"><div class="t">Solo fuera de horario</div><div class="d">Si está activo, el agente solo responde cuando el negocio está cerrado</div></div>
+                  <div class="switch"></div>
+                </div>
+                <div class="row" style="margin-top:12px;">
+                  <div class="lb">Personalidad<div class="h">Cómo escribe el agente</div></div>
+                  <div class="ct">
+                    <select><option>Formal y concisa (para B2B)</option><option>Cercana y amigable</option><option>Vendedora proactiva</option></select>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lb">Límite diario</div>
+                  <div class="ct"><div class="inline"><input type="text" value="120" style="max-width:100px;"><span style="align-self:center; font-family:var(--font-sans); color:var(--ink-3); font-size:12px;">conversaciones por día</span></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Mensajes automáticos</h3><p>Respuestas rápidas para situaciones comunes.</p></div></div>
+              <div class="bd">
+                <div class="row">
+                  <div class="lb">Bienvenida<div class="h">Primer mensaje del día</div></div>
+                  <div class="ct"><textarea>¡Hola! 👋 Gracias por escribirle a Papelería El Dorado. ¿En qué te ayudamos hoy? Si es un pedido, envíanos el listado y te cotizamos al instante.</textarea></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Fuera de horario</div>
+                  <div class="ct"><textarea>Estamos cerrados en este momento. Nuestro horario es Lun–Vie 8am a 6pm y Sáb 9am a 2pm. Déjanos tu pedido y te respondemos apenas abramos. 🕒</textarea></div>
+                </div>
+                <div class="row">
+                  <div class="lb">Pedido confirmado</div>
+                  <div class="ct"><textarea>¡Listo {{nombre}}! Tu pedido #{{pedido}} por ${{total}} quedó confirmado. Te despachamos mañana antes del mediodía. 🚚</textarea></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ============ ETIQUETAS ============ -->
+        <div data-section="tags">
+          <div class="topbar">
+            <div>
+              <div class="eye">Datos</div>
+              <h2>Etiquetas CRM <em>— 12 etiquetas · agrupan a tus contactos</em></h2>
+            </div>
+            <div class="saveline"><button class="btn pri"><i data-lucide="plus" width="14" height="14"></i>Nueva etiqueta</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="hd"><div><h3>Etiquetas disponibles</h3><p>Úsalas en contactos, pedidos y automatizaciones.</p></div></div>
+              <div class="bd" style="padding:0 0 4px;">
+                <table class="t">
+                  <thead><tr><th>Etiqueta</th><th>Contactos</th><th>Creada</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="tg red">cliente</span></td><td>112</td><td class="last">hace 8 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg indi">prospecto</span></td><td>94</td><td class="last">hace 8 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg ver">mayorista</span></td><td>18</td><td class="last">hace 8 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg gold">vip</span></td><td>12</td><td class="last">hace 6 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg ros">moroso</span></td><td>4</td><td class="last">hace 3 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg sl">inactivo</span></td><td>32</td><td class="last">hace 3 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg ver">escolar</span></td><td>48</td><td class="last">hace 2 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg indi">oficina</span></td><td>38</td><td class="last">hace 2 meses</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg gold">b2b-norte</span></td><td>14</td><td class="last">hace 1 mes</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg red">retail</span></td><td>62</td><td class="last">hace 1 mes</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg ros">campaña-abril</span></td><td>28</td><td class="last">hace 2 semanas</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                    <tr><td><span class="tg sl">referido</span></td><td>16</td><td class="last">hace 1 semana</td><td style="text-align:right;"><button class="btn gh"><i data-lucide="pencil" width="13" height="13"></i></button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ MODULOS ============ -->
+        <div data-section="modulos">
+          <div class="topbar">
+            <div>
+              <div class="eye">Workspace</div>
+              <h2>Módulos visibles <em>— qué ve el equipo en el menú</em></h2>
+            </div>
+            <div class="saveline"><span class="saved">aplica a todo el workspace</span><button class="btn pri"><i data-lucide="check" width="14" height="14"></i>Guardar</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="hd"><div><h3>Módulos activos</h3><p>Oculta los que aún no usas para simplificar el sidebar del equipo.</p></div></div>
+              <div class="bd">
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="building-2" width="14" height="14" style="vertical-align:-2px;"></i> CRM</div><div class="d">Contactos, pipelines, etiquetas</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="message-square" width="14" height="14" style="vertical-align:-2px;"></i> WhatsApp</div><div class="d">Inbox compartido y mensajes</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="package" width="14" height="14" style="vertical-align:-2px;"></i> Pedidos</div><div class="d">Kanban de fulfillment + detalle</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="box" width="14" height="14" style="vertical-align:-2px;"></i> Catálogo</div><div class="d">Productos, precios, stock</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="list-todo" width="14" height="14" style="vertical-align:-2px;"></i> Tareas</div><div class="d">Pendientes por contacto o pedido</div></div><div class="switch"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="zap" width="14" height="14" style="vertical-align:-2px;"></i> Automatizaciones</div><div class="d">Reglas y disparadores</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="bot" width="14" height="14" style="vertical-align:-2px;"></i> Agentes</div><div class="d">Configurar agentes de IA</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="bar-chart-3" width="14" height="14" style="vertical-align:-2px;"></i> Analytics</div><div class="d">Dashboards de negocio</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t"><i data-lucide="trending-up" width="14" height="14" style="vertical-align:-2px;"></i> Métricas de conversación</div><div class="d">Medidas avanzadas por chat · beta</div></div><div class="switch"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ NOTIFICACIONES ============ -->
+        <div data-section="notif">
+          <div class="topbar">
+            <div>
+              <div class="eye">Personal</div>
+              <h2>Notificaciones <em>— qué te avisa morfx y por dónde</em></h2>
+            </div>
+            <div class="saveline"><button class="btn pri"><i data-lucide="check" width="14" height="14"></i>Guardar</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="hd"><div><h3>Conversaciones</h3><p>Solo las que te conciernen como vendedor asignado.</p></div></div>
+              <div class="bd">
+                <div class="toggle-row"><div class="info"><div class="t">Nuevo mensaje asignado a mí</div><div class="d">Notificación de escritorio + sonido</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t">Mención con @mi-nombre</div><div class="d">Cuando un compañero te mencione en nota interna</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t">Conversación sin responder > 30 min</div><div class="d">Recordatorio por correo</div></div><div class="switch"></div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="hd"><div><h3>Pedidos</h3><p>Eventos relevantes del kanban.</p></div></div>
+              <div class="bd">
+                <div class="toggle-row"><div class="info"><div class="t">Nuevo pedido creado</div><div class="d">Llega a "Nuevo" en el kanban</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t">Pedido pagado</div><div class="d">Confirmación del cliente o pasarela</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div class="info"><div class="t">Pedido atrasado en entrega</div><div class="d">Más de 24 h en "Empacado" sin despacho</div></div><div class="switch"></div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="hd"><div><h3>Resumen diario por correo</h3><p>Llega a tu correo cada mañana a las 8:00.</p></div></div>
+              <div class="bd">
+                <div class="toggle-row" style="border:none; padding:0;"><div class="info"><div class="t">Enviar resumen diario</div><div class="d">Conversaciones nuevas, pedidos del día, tareas pendientes</div></div><div class="switch on"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ PLAN ============ -->
+        <div data-section="plan">
+          <div class="topbar">
+            <div>
+              <div class="eye">Cuenta morfx</div>
+              <h2>Plan y facturación <em>— plan Crecimiento · $ 480.000 / mes</em></h2>
+            </div>
+            <div class="saveline"><button class="btn gh"><i data-lucide="file-text" width="14" height="14"></i>Facturas</button><button class="btn pri"><i data-lucide="arrow-up-right" width="14" height="14"></i>Cambiar de plan</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="plan">
+                <div class="left">
+                  <div class="tag">Plan actual</div>
+                  <h4>Crecimiento</h4>
+                  <div class="pr">$ 480.000 COP / mes · facturado mensual</div>
+                  <ul class="feats">
+                    <li><i data-lucide="check" width="14" height="14"></i>Hasta 10 asientos</li>
+                    <li><i data-lucide="check" width="14" height="14"></i>3 números de WhatsApp</li>
+                    <li><i data-lucide="check" width="14" height="14"></i>Agentes de IA ilimitados</li>
+                    <li><i data-lucide="check" width="14" height="14"></i>Catálogo hasta 2.000 productos</li>
+                    <li><i data-lucide="check" width="14" height="14"></i>Soporte prioritario en 4 h</li>
+                  </ul>
+                </div>
+                <div class="right">
+                  <div class="tag">Método de pago</div>
+                  <h4 style="font-size:18px; margin-top:4px;">Tarjeta registrada</h4>
+                  <div class="cc" style="margin-top:10px;">
+                    <div class="card-visual"></div>
+                    <div><div class="nm"><b>Visa</b> •••• 4412</div><div class="ex">Expira 08/27 · Sofía Arango</div></div>
+                    <button class="btn gh" style="margin-left:auto;"><i data-lucide="pencil" width="13" height="13"></i></button>
+                  </div>
+                  <div class="usage">
+                    <div class="urow"><span>Asientos</span><div class="bar"><span style="width:60%"></span></div><span class="val">6 / 10</span></div>
+                    <div class="urow"><span>Números WA</span><div class="bar"><span style="width:33%"></span></div><span class="val">1 / 3</span></div>
+                    <div class="urow"><span>Productos</span><div class="bar"><span style="width:16%"></span></div><span class="val">320 / 2k</span></div>
+                    <div class="urow"><span>Conv. IA / mes</span><div class="bar"><span style="width:72%"></span></div><span class="val">2.160 / 3k</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Historial de facturas</h3><p>Últimos 6 meses · descarga PDF.</p></div></div>
+              <div class="bd" style="padding:0;">
+                <table class="t">
+                  <thead><tr><th>Fecha</th><th>Concepto</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td class="last">01 abr 2025</td><td>Plan Crecimiento · abril</td><td>$ 480.000</td><td><span class="status on">pagada</span></td><td style="text-align:right;"><button class="btn gh"><i data-lucide="download" width="13" height="13"></i>PDF</button></td></tr>
+                    <tr><td class="last">01 mar 2025</td><td>Plan Crecimiento · marzo</td><td>$ 480.000</td><td><span class="status on">pagada</span></td><td style="text-align:right;"><button class="btn gh"><i data-lucide="download" width="13" height="13"></i>PDF</button></td></tr>
+                    <tr><td class="last">01 feb 2025</td><td>Plan Crecimiento · febrero</td><td>$ 480.000</td><td><span class="status on">pagada</span></td><td style="text-align:right;"><button class="btn gh"><i data-lucide="download" width="13" height="13"></i>PDF</button></td></tr>
+                    <tr><td class="last">01 ene 2025</td><td>Plan Arranque · enero</td><td>$ 240.000</td><td><span class="status on">pagada</span></td><td style="text-align:right;"><button class="btn gh"><i data-lucide="download" width="13" height="13"></i>PDF</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ INTEGRACIONES ============ -->
+        <div data-section="intg">
+          <div class="topbar">
+            <div>
+              <div class="eye">Datos</div>
+              <h2>Integraciones <em>— conecta morfx con tus otras herramientas</em></h2>
+            </div>
+            <div class="saveline"><button class="btn gh"><i data-lucide="book-open" width="14" height="14"></i>Ver documentación</button></div>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="hd"><div><h3>Conectadas</h3><p>Activas ahora mismo.</p></div></div>
+              <div class="bd">
+                <div class="intg">
+                  <div class="i on">
+                    <div class="lg" style="background:#95BF47;">S</div>
+                    <div><div class="t">Shopify</div><div class="d">Sincroniza catálogo y pedidos · tienda eldoradoco.myshopify.com</div></div>
+                    <span class="status on">activa</span>
+                  </div>
+                  <div class="i on">
+                    <div class="lg" style="background:#FFE600; color:var(--ink-1);">ML</div>
+                    <div><div class="t">Mercado Libre</div><div class="d">Recibe preguntas de productos en WhatsApp</div></div>
+                    <span class="status on">activa</span>
+                  </div>
+                  <div class="i on">
+                    <div class="lg" style="background:#1A73E8;">G</div>
+                    <div><div class="t">Google Sheets</div><div class="d">Exporta pedidos a una hoja cada noche</div></div>
+                    <span class="status on">activa</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><div><h3>Disponibles</h3><p>Un clic para conectar.</p></div></div>
+              <div class="bd">
+                <div class="intg">
+                  <div class="i">
+                    <div class="lg" style="background:oklch(0.55 0.14 260);">S</div>
+                    <div><div class="t">Siigo · Contabilidad</div><div class="d">Genera facturas electrónicas desde pedidos</div></div>
+                    <button class="btn">Conectar</button>
+                  </div>
+                  <div class="i">
+                    <div class="lg" style="background:oklch(0.50 0.15 28);">A</div>
+                    <div><div class="t">Alegra</div><div class="d">Facturación + inventario sincronizado</div></div>
+                    <button class="btn">Conectar</button>
+                  </div>
+                  <div class="i">
+                    <div class="lg" style="background:oklch(0.45 0.14 240);">W</div>
+                    <div><div class="t">WooCommerce</div><div class="d">Importa pedidos de tu tienda WordPress</div></div>
+                    <button class="btn">Conectar</button>
+                  </div>
+                  <div class="i">
+                    <div class="lg" style="background:oklch(0.55 0.16 35);">D</div>
+                    <div><div class="t">Despachos · Servientrega</div><div class="d">Crea guías automáticas al empacar</div></div>
+                    <button class="btn">Conectar</button>
+                  </div>
+                  <div class="i">
+                    <div class="lg" style="background:var(--ink-1);">{/}</div>
+                    <div><div class="t">Webhooks / API</div><div class="d">Integra morfx con tus sistemas propios</div></div>
+                    <button class="btn">Ver docs</button>
+                  </div>
+                  <div class="i">
+                    <div class="lg" style="background:oklch(0.55 0.16 150);">Z</div>
+                    <div><div class="t">Zapier</div><div class="d">Conecta morfx con 5.000+ apps</div></div>
+                    <button class="btn">Conectar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // section switching
+    document.querySelectorAll('.sec a.it').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.sec a.it').forEach(x => x.classList.remove('on'));
+        a.classList.add('on');
+        const k = a.dataset.nav;
+        document.querySelectorAll('[data-section]').forEach(s => s.classList.toggle('active', s.dataset.section === k));
+        document.querySelector('.panel').scrollTop = 0;
+      });
+    });
+    // switch toggles
+    document.querySelectorAll('.switch').forEach(s => {
+      s.addEventListener('click', () => s.classList.toggle('on'));
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>

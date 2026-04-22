@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Automatizaciones</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  /* Sidebar */
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+
+  main { display: grid; grid-template-rows: auto auto 1fr; overflow: hidden; }
+
+  /* Topbar */
+  .topbar { padding: 14px 24px 12px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+  .crumb a { color: var(--ink-3); text-decoration: none; cursor: pointer; }
+  .crumb a:hover { color: var(--ink-1); }
+  .crumb .sep { color: var(--ink-4); margin: 0 6px; }
+  .crumb .cur { color: var(--ink-1); font-weight: 600; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 24px; margin: 2px 0 0; letter-spacing: -0.015em; display:flex; align-items:center; gap:10px; }
+  .tag-state { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border: 1px solid; }
+  .tag-state.on { color: var(--semantic-success); border-color: var(--semantic-success); background: color-mix(in oklch, var(--semantic-success) 8%, var(--paper-0)); }
+  .tag-state.draft { color: var(--ink-3); border-color: var(--ink-3); }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.red { background: var(--rubric-2); color: var(--paper-0); border-color: var(--rubric-1); box-shadow: 0 1px 0 var(--rubric-1); }
+  .btn.red:hover { background: var(--rubric-1); }
+  .btn.sm { font-size: 11px; padding: 5px 9px; }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); box-shadow: none; }
+
+  /* Tabs below topbar */
+  .tabs { display: flex; gap: 20px; padding: 0 24px; border-bottom: 1px solid var(--border); background: var(--paper-1); }
+  .tabs a { font-family: var(--font-sans); font-weight: 500; font-size: 13px; padding: 10px 0; color: var(--ink-3); text-decoration: none; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tabs a.on { color: var(--ink-1); font-weight: 600; border-bottom-color: var(--ink-1); }
+  .tabs .runs { margin-left: auto; align-self: center; font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); }
+
+  /* 3-column workspace */
+  .workspace { display: grid; grid-template-columns: 280px 1fr 320px; overflow: hidden; height: 100%; }
+
+  /* ===== LEFT: automations list ===== */
+  .autolist { border-right: 1px solid var(--border); background: var(--paper-2); display: flex; flex-direction: column; overflow: hidden; }
+  .al-hd { padding: 12px 16px; display: flex; gap: 8px; border-bottom: 1px solid var(--border); align-items: center; }
+  .al-hd h3 { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin: 0; flex: 1; }
+  .al-search { padding: 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
+  .al-search input { width: 100%; border: 1px solid var(--border); background: var(--paper-0); padding: 6px 8px 6px 26px; font-family: var(--font-sans); font-size: 12px; box-sizing: border-box; border-radius: var(--radius-2); }
+  .al-search svg { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+
+  .al-body { flex: 1; overflow: auto; padding: 4px 0; }
+  .al-group { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding: 12px 16px 4px; }
+  .al-item { padding: 10px 16px; border-bottom: 1px dotted var(--border); cursor: pointer; display: grid; grid-template-columns: 16px 1fr auto; gap: 10px; align-items: center; }
+  .al-item:hover { background: var(--paper-3); }
+  .al-item.on { background: var(--paper-0); border-left: 3px solid var(--rubric-2); padding-left: 13px; }
+  .al-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--semantic-success); margin-left: 4px; }
+  .al-item .dot.paused { background: var(--accent-gold); }
+  .al-item .dot.draft { background: var(--ink-4); }
+  .al-item .t { min-width: 0; }
+  .al-item .t .name { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--ink-1); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .al-item .t .sub { font-family: var(--font-serif); font-style: italic; font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+  .al-item .runs { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right; }
+  .al-item .runs .ok { color: var(--semantic-success); }
+
+  /* ===== CENTER: canvas ===== */
+  .canvas-wrap { position: relative; background: var(--paper-1); overflow: hidden; }
+  .canvas {
+    position: absolute; inset: 0;
+    background-color: var(--paper-1);
+    background-image:
+      radial-gradient(circle at 0.5px 0.5px, var(--ink-4) 0.5px, transparent 0.5px);
+    background-size: 16px 16px;
+    overflow: hidden;
+  }
+  .canvas-inner { position: absolute; left: 0; top: 0; width: 1400px; height: 1600px; }
+
+  /* Canvas floating toolbar */
+  .canvas-toolbar {
+    position: absolute; top: 14px; left: 14px; z-index: 5;
+    display: flex; gap: 4px; background: var(--paper-0); border: 1px solid var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1), 0 4px 14px -8px oklch(0.2 0.04 60 / 0.2);
+    padding: 4px;
+  }
+  .canvas-toolbar button { font-family: var(--font-sans); font-size: 12px; padding: 6px 10px; background: transparent; border: 0; cursor: pointer; color: var(--ink-2); display: flex; align-items: center; gap: 4px; border-radius: 3px; }
+  .canvas-toolbar button:hover { background: var(--paper-2); color: var(--ink-1); }
+  .canvas-toolbar button.on { background: var(--ink-1); color: var(--paper-0); }
+  .canvas-toolbar .sep { width: 1px; background: var(--border); margin: 4px 2px; }
+
+  .canvas-zoom {
+    position: absolute; bottom: 14px; left: 14px; z-index: 5;
+    display: flex; gap: 0; background: var(--paper-0); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--ink-1);
+  }
+  .canvas-zoom button { padding: 6px 10px; background: transparent; border: 0; border-right: 1px solid var(--border); cursor: pointer; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+  .canvas-zoom button:last-child { border-right: 0; }
+  .canvas-zoom .lvl { padding: 6px 14px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--ink-1); border-right: 1px solid var(--border); }
+
+  /* Minimap */
+  .minimap {
+    position: absolute; bottom: 14px; right: 14px; z-index: 5;
+    width: 180px; height: 120px;
+    background: var(--paper-0); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--ink-1), 0 4px 14px -8px oklch(0.2 0.04 60 / 0.2);
+    padding: 4px;
+  }
+  .minimap .frame { position: absolute; border: 1.5px solid var(--rubric-2); background: color-mix(in oklch, var(--rubric-2) 8%, transparent); }
+
+  /* Legend */
+  .legend {
+    position: absolute; top: 14px; right: 14px; z-index: 5;
+    background: var(--paper-0); border: 1px solid var(--border); padding: 8px 10px;
+    font-family: var(--font-sans); font-size: 11px; color: var(--ink-3);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .legend .row { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 10px; height: 10px; border: 1px solid var(--ink-1); }
+
+  /* ===== NODES ===== */
+  .node {
+    position: absolute; width: 240px;
+    background: var(--paper-0); border: 1px solid var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1), 0 8px 22px -16px oklch(0.2 0.04 60 / 0.3);
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .node:hover { box-shadow: 0 1px 0 var(--ink-1), 0 12px 28px -14px oklch(0.2 0.04 60 / 0.4); }
+  .node.selected { outline: 2px solid var(--rubric-2); outline-offset: 2px; }
+  .node .nh {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .node .nh .ic { display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; }
+  .node .nh .idx { margin-left: auto; font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: var(--ink-4); letter-spacing: 0; text-transform: none; }
+  .node .nb { padding: 10px 12px; }
+  .node .nb .title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink-1); line-height: 1.25; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .node .nb .subl { font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); line-height: 1.4; }
+  .node .nb .kv { margin-top: 8px; padding-top: 8px; border-top: 1px dotted var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .node .nb .kv .ln { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; }
+  .node .nb .kv .ln .k { color: var(--ink-3); }
+  .node .nb .kv .ln .v { color: var(--ink-1); font-weight: 500; }
+  .node .stat-row {
+    display: flex; border-top: 1px solid var(--border); background: var(--paper-1);
+    font-family: var(--font-mono); font-size: 10px; color: var(--ink-3);
+  }
+  .node .stat-row .s { flex: 1; padding: 6px 8px; border-right: 1px solid var(--border); text-align: center; }
+  .node .stat-row .s:last-child { border-right: 0; }
+  .node .stat-row .s b { display: block; font-family: var(--font-display); font-size: 12px; color: var(--ink-1); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* node type colors */
+  .node.trigger .nh { background: color-mix(in oklch, var(--rubric-2) 12%, var(--paper-0)); color: var(--rubric-2); }
+  .node.trigger .nh .ic { color: var(--rubric-2); }
+  .node.delay .nh { background: color-mix(in oklch, var(--accent-gold) 15%, var(--paper-0)); color: oklch(0.42 0.12 65); }
+  .node.delay .nh .ic { color: oklch(0.55 0.14 70); }
+  .node.cond .nh { background: color-mix(in oklch, var(--accent-indigo) 12%, var(--paper-0)); color: var(--accent-indigo); }
+  .node.cond .nh .ic { color: var(--accent-indigo); }
+  .node.agent .nh { background: color-mix(in oklch, var(--accent-verdigris) 12%, var(--paper-0)); color: oklch(0.38 0.05 180); }
+  .node.agent .nh .ic { color: var(--accent-verdigris); }
+  .node.action .nh { background: var(--paper-2); color: var(--ink-2); }
+  .node.action .nh .ic { color: var(--ink-2); }
+  .node.end .nh { background: var(--ink-1); color: var(--paper-0); }
+  .node.end .nh .ic { color: var(--paper-0); }
+
+  /* ports */
+  .port { position: absolute; width: 10px; height: 10px; background: var(--paper-0); border: 2px solid var(--ink-1); border-radius: 50%; }
+  .port.in  { top: -7px; left: 50%; transform: translateX(-50%); }
+  .port.out { bottom: -7px; left: 50%; transform: translateX(-50%); background: var(--rubric-2); border-color: var(--rubric-2); }
+  .port.out-yes { bottom: -7px; left: calc(50% - 40px); background: var(--semantic-success); border-color: var(--semantic-success); }
+  .port.out-no  { bottom: -7px; left: calc(50% + 30px); background: var(--rubric-2); border-color: var(--rubric-2); }
+  .port-label { position: absolute; font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* edges */
+  .edges { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+  .edges path { fill: none; stroke: var(--ink-2); stroke-width: 2; }
+  .edges path.yes { stroke: var(--semantic-success); }
+  .edges path.no  { stroke: var(--rubric-2); }
+  .edges .pulse { animation: dash 1.2s linear infinite; stroke-dasharray: 6 6; }
+  @keyframes dash { to { stroke-dashoffset: -24; } }
+  .edges .lbl { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-3); }
+  .edges circle.tok { fill: var(--rubric-2); r: 4; }
+
+  /* Runs at bottom */
+  .runs-bar {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 5;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--paper-0); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--ink-1);
+    padding: 8px 14px;
+    font-family: var(--font-sans); font-size: 11px;
+  }
+  .runs-bar .dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; }
+  .runs-bar .dot.ok { background: var(--semantic-success); }
+  .runs-bar .dot.err { background: var(--rubric-2); }
+  .runs-bar .dot.run { background: var(--accent-gold); border-radius: 50%; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+
+  /* ===== RIGHT: inspector ===== */
+  .inspector { border-left: 1px solid var(--border); background: var(--paper-2); overflow: auto; }
+  .ins-hd { padding: 14px 20px; border-bottom: 1px solid var(--ink-1); }
+  .ins-hd .lbl { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  .ins-hd h3 { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin: 2px 0 0; letter-spacing: -0.01em; }
+  .ins-hd h3 em { font-family: var(--font-sans); font-style: normal; font-weight: 500; font-size: 12px; color: var(--ink-3); margin-left: 6px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .ins-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .ins-tabs a { flex: 1; padding: 10px 8px; text-align: center; font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); border-bottom: 2px solid transparent; cursor: pointer; }
+  .ins-tabs a.on { color: var(--ink-1); border-bottom-color: var(--ink-1); background: var(--paper-0); }
+
+  .ins-sect { border-bottom: 1px solid var(--border); }
+  .ins-sect > summary { list-style: none; cursor: pointer; padding: 12px 20px; display: flex; align-items: center; gap: 10px; font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); user-select: none; }
+  .ins-sect > summary::-webkit-details-marker { display: none; }
+  .ins-sect > summary:hover { background: var(--paper-3); color: var(--ink-1); }
+  .ins-sect[open] > summary { color: var(--ink-1); }
+  .ins-sect > summary .caret { color: var(--ink-3); transition: transform 180ms ease; }
+  .ins-sect[open] > summary .caret { transform: rotate(90deg); color: var(--rubric-2); }
+  .ins-sect > summary .title { flex: 1; }
+  .ins-sect > summary .meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .ins-sect > .ins-body { padding: 0 20px 14px; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+  .field input, .field select, .field textarea {
+    width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid var(--border);
+    background: var(--paper-0); font-family: var(--font-sans); font-size: 13px; border-radius: var(--radius-2);
+    color: var(--ink-1);
+  }
+  .field textarea { font-family: var(--font-serif); font-size: 13px; resize: vertical; min-height: 60px; line-height: 1.5; }
+  .field .hint { font-family: var(--font-serif); font-style: italic; font-size: 11px; color: var(--ink-3); margin-top: 3px; line-height: 1.4; }
+  .rows-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .tpl { font-family: var(--font-mono); font-size: 11px; background: var(--paper-0); border: 1px solid var(--border); padding: 8px 10px; white-space: pre-wrap; line-height: 1.5; color: var(--ink-1); }
+  .tpl .var { color: var(--rubric-2); font-weight: 600; }
+
+  .cond-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center;
+    padding: 8px; border: 1px solid var(--border); background: var(--paper-0); margin-bottom: 6px;
+  }
+  .cond-row select, .cond-row input { border: 1px solid var(--border); padding: 5px 8px; font-size: 12px; font-family: var(--font-sans); background: var(--paper-1); border-radius: var(--radius-2); }
+  .cond-op { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); text-align: center; }
+  .add-cond { font-family: var(--font-sans); font-size: 11px; color: var(--rubric-2); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); background: var(--paper-0); }
+  .stat-grid .cell { padding: 10px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .stat-grid .cell:nth-child(2n) { border-right: 0; }
+  .stat-grid .cell:nth-last-child(-n+2) { border-bottom: 0; }
+  .stat-grid .cell .l { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+  .stat-grid .cell .v { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink-1); margin-top: 3px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat-grid .cell .v small { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); }
+
+  .run-list { display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--paper-0); }
+  .run-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; padding: 7px 10px; border-bottom: 1px dotted var(--border); font-family: var(--font-mono); font-size: 11px; align-items: center; }
+  .run-row:last-child { border-bottom: 0; }
+  .run-row.ok .st { color: var(--semantic-success); }
+  .run-row.err .st { color: var(--rubric-2); }
+  .run-row .id { color: var(--ink-1); font-weight: 500; }
+  .run-row .t { color: var(--ink-3); }
+
+  .danger { color: var(--rubric-2); }
+
+</style>
+</head>
+<body class="mx-doc">
+
+<div class="app">
+  <aside class="sb">
+    <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Automatizaciones · flujos</div></div>
+    <nav>
+      <div class="cat">Operación</div>
+      <ul>
+        <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+        <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+        <li><a><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+        <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+      </ul>
+      <div class="cat">Automatización</div>
+      <ul>
+        <li><a class="active"><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+        <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+      </ul>
+      <div class="cat">Análisis</div>
+      <ul>
+        <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+        <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <div class="crumb"><a>Automatizaciones</a><span class="sep">/</span><a>Post-venta</a><span class="sep">/</span><span class="cur">Carrito abandonado Shopify</span></div>
+        <h1>Carrito abandonado Shopify <span class="tag-state on">● Activa</span></h1>
+      </div>
+      <div class="actions">
+        <button class="btn sm ghost"><i data-lucide="history" width="12" height="12"></i>Historial</button>
+        <button class="btn sm ghost"><i data-lucide="copy" width="12" height="12"></i>Duplicar</button>
+        <button class="btn"><i data-lucide="flask-conical" width="14" height="14"></i>Probar</button>
+        <button class="btn"><i data-lucide="pause" width="14" height="14"></i>Pausar</button>
+        <button class="btn red"><i data-lucide="save" width="14" height="14"></i>Publicar cambios</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a class="on">Flujo</a>
+      <a>Ejecuciones</a>
+      <a>Analytics</a>
+      <a>Versiones</a>
+      <a>Permisos</a>
+      <span class="runs">Última ejecución hace 3 min · 4 corriendo ahora</span>
+    </div>
+
+    <div class="workspace">
+
+      <!-- ========== LEFT: automations list ========== -->
+      <aside class="autolist">
+        <div class="al-hd">
+          <h3>Automatizaciones</h3>
+          <button class="btn sm pri"><i data-lucide="plus" width="12" height="12"></i>Nueva</button>
+        </div>
+        <div class="al-search">
+          <i data-lucide="search" width="13" height="13"></i>
+          <input placeholder="Buscar flujo…">
+        </div>
+        <div class="al-body">
+          <div class="al-group">Post-venta · 4</div>
+          <div class="al-item on">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">Carrito abandonado Shopify</div>
+              <div class="sub">Trigger: carrito_abandoned · 14h</div>
+            </div>
+            <div class="runs">1 284<br><span class="ok">98%</span></div>
+          </div>
+          <div class="al-item">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">NPS 48h post-entrega</div>
+              <div class="sub">Trigger: pedido.entregado</div>
+            </div>
+            <div class="runs">4 128<br><span class="ok">100%</span></div>
+          </div>
+          <div class="al-item">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">Recompra a clientes frecuentes</div>
+              <div class="sub">Cada 30 días · segmento</div>
+            </div>
+            <div class="runs">812<br><span class="ok">96%</span></div>
+          </div>
+          <div class="al-item">
+            <span class="dot draft"></span>
+            <div class="t">
+              <div class="name">Reseña en Trustpilot</div>
+              <div class="sub">Borrador</div>
+            </div>
+            <div class="runs">—</div>
+          </div>
+
+          <div class="al-group">Ventas · 3</div>
+          <div class="al-item">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">Nuevo lead WhatsApp</div>
+              <div class="sub">Trigger: primer_mensaje</div>
+            </div>
+            <div class="runs">2 914<br><span class="ok">99%</span></div>
+          </div>
+          <div class="al-item">
+            <span class="dot paused"></span>
+            <div class="t">
+              <div class="name">Campaña Día del Niño</div>
+              <div class="sub">Pausada · finalizó 18 abr</div>
+            </div>
+            <div class="runs">7 284<br><span class="ok">94%</span></div>
+          </div>
+          <div class="al-item">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">Cotización sin respuesta 48h</div>
+              <div class="sub">Trigger: cotizacion.enviada</div>
+            </div>
+            <div class="runs">486<br><span class="ok">71%</span></div>
+          </div>
+
+          <div class="al-group">Logística · 2</div>
+          <div class="al-item">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">Confirmación dirección</div>
+              <div class="sub">Trigger: pedido.creado</div>
+            </div>
+            <div class="runs">1 512<br><span class="ok">99%</span></div>
+          </div>
+          <div class="al-item">
+            <span class="dot"></span>
+            <div class="t">
+              <div class="name">Notificación envío</div>
+              <div class="sub">Trigger: pedido.despachado</div>
+            </div>
+            <div class="runs">1 284<br><span class="ok">100%</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ========== CENTER: canvas ========== -->
+      <div class="canvas-wrap">
+        <div class="canvas" id="canvas">
+
+          <!-- Floating toolbar -->
+          <div class="canvas-toolbar">
+            <button class="on"><i data-lucide="mouse-pointer-2" width="13" height="13"></i>Seleccionar</button>
+            <button><i data-lucide="hand" width="13" height="13"></i>Mover</button>
+            <div class="sep"></div>
+            <button><i data-lucide="plus" width="13" height="13"></i>Añadir nodo</button>
+            <button><i data-lucide="git-branch" width="13" height="13"></i>Condición</button>
+            <button><i data-lucide="bot" width="13" height="13"></i>Agente</button>
+            <button><i data-lucide="clock" width="13" height="13"></i>Delay</button>
+            <div class="sep"></div>
+            <button><i data-lucide="align-horizontal-distribute-center" width="13" height="13"></i>Alinear</button>
+            <button><i data-lucide="maximize" width="13" height="13"></i>Centrar</button>
+          </div>
+
+          <!-- Legend -->
+          <div class="legend">
+            <div class="row"><div class="swatch" style="background: color-mix(in oklch, var(--rubric-2) 12%, var(--paper-0));"></div>Trigger</div>
+            <div class="row"><div class="swatch" style="background: color-mix(in oklch, var(--accent-gold) 15%, var(--paper-0));"></div>Delay</div>
+            <div class="row"><div class="swatch" style="background: color-mix(in oklch, var(--accent-indigo) 12%, var(--paper-0));"></div>Condición</div>
+            <div class="row"><div class="swatch" style="background: color-mix(in oklch, var(--accent-verdigris) 12%, var(--paper-0));"></div>Agente</div>
+            <div class="row"><div class="swatch" style="background: var(--paper-2);"></div>Acción</div>
+          </div>
+
+          <!-- Canvas inner with nodes + edges -->
+          <div class="canvas-inner" id="canvas-inner" style="height: 1800px;">
+
+            <!-- SVG edges layer -->
+            <svg class="edges" width="1400" height="1800">
+              <!-- Trigger (540,40; h=240) out at y=280 -> Filter (540,320) in at y=320 -->
+              <path d="M 660,280 C 660,300 660,300 660,320" />
+              <circle class="tok" cx="660" cy="300">
+                <animate attributeName="cy" values="280;320" dur="1.6s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;0" dur="1.6s" repeatCount="indefinite"/>
+              </circle>
+
+              <!-- Filter (540,320; h~180) out at y=500 -> Delay (540,540) in at y=540 -->
+              <path d="M 660,500 C 660,520 660,520 660,540" />
+
+              <!-- Delay (540,540; h~180) out at y=720 -> Cond (540,760) in at y=760 -->
+              <path d="M 660,720 C 660,740 660,740 660,760" />
+
+              <!-- Cond (540,760; h~220) out at y=980 -->
+              <path class="yes" d="M 620,980 C 620,1020 380,1020 380,1060" />
+              <text class="lbl" x="488" y="1014">sí · es cliente recurrente</text>
+
+              <path class="no" d="M 700,980 C 700,1020 940,1020 940,1060" />
+              <text class="lbl" x="780" y="1014">no · es nuevo</text>
+
+              <!-- Agents (y=1060; h~240) out at y=1300 -> Actions (y=1340) in at y=1340 -->
+              <path d="M 380,1300 C 380,1320 380,1320 380,1340" />
+              <path d="M 940,1300 C 940,1320 940,1320 940,1340" />
+
+              <!-- Actions (y=1340; h~180) out at y=1520 -> End (540,1560) in at y=1560 -->
+              <path d="M 380,1520 C 380,1560 660,1560 660,1560" />
+              <path d="M 940,1520 C 940,1560 660,1560 660,1560" />
+            </svg>
+
+            <!-- Node: Trigger -->
+            <div class="node trigger" style="left: 540px; top: 40px;" data-h="240">
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="zap" width="14" height="14"></i></span>
+                Trigger · webhook
+                <span class="idx">01</span>
+              </div>
+              <div class="nb">
+                <div class="title">Carrito abandonado</div>
+                <div class="subl">Shopify emite <em>checkouts/create</em> cuando un cliente añade al carrito y no completa el pago en 14 horas.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">evento</span><span class="v">checkouts/create</span></div>
+                  <div class="ln"><span class="k">fuente</span><span class="v">Shopify · tienda MX-01</span></div>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="s"><b>1 484</b>disparos</div>
+                <div class="s"><b>100%</b>procesados</div>
+              </div>
+            </div>
+
+            <!-- Node: Filter -->
+            <div class="node cond" style="left: 540px; top: 320px;">
+              <div class="port in"></div>
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="filter" width="14" height="14"></i></span>
+                Filtro · precondición
+                <span class="idx">02</span>
+              </div>
+              <div class="nb">
+                <div class="title">Carrito &gt; $80 000 COP</div>
+                <div class="subl">Solo procesar carritos con valor suficiente para justificar campaña.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">pasa</span><span class="v">72%</span></div>
+                  <div class="ln"><span class="k">descarta</span><span class="v">28%</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Node: Delay -->
+            <div class="node delay" style="left: 540px; top: 540px;">
+              <div class="port in"></div>
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="hourglass" width="14" height="14"></i></span>
+                Delay · esperar
+                <span class="idx">03</span>
+              </div>
+              <div class="nb">
+                <div class="title">2 horas</div>
+                <div class="subl">Esperar para no parecer invasivos, pero antes de que el cliente olvide el carrito.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">duración</span><span class="v">2h 00m</span></div>
+                  <div class="ln"><span class="k">ventana</span><span class="v">8:00–21:00 CO</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Node: Cond (selected) -->
+            <div class="node cond selected" style="left: 540px; top: 760px;">
+              <div class="port in"></div>
+              <div class="port out-yes"></div>
+              <div class="port out-no"></div>
+              <span class="port-label" style="left: 4px; bottom: -24px;">SÍ</span>
+              <span class="port-label" style="right: 4px; bottom: -24px;">NO</span>
+              <div class="nh">
+                <span class="ic"><i data-lucide="git-branch" width="14" height="14"></i></span>
+                Condición · si/no
+                <span class="idx">04</span>
+              </div>
+              <div class="nb">
+                <div class="title">¿Cliente recurrente?</div>
+                <div class="subl">Ramifica el flujo según historial de compras.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">criterio</span><span class="v">pedidos_totales ≥ 2</span></div>
+                  <div class="ln"><span class="k">sí</span><span class="v" style="color: var(--semantic-success);">41%</span></div>
+                  <div class="ln"><span class="k">no</span><span class="v" style="color: var(--rubric-2);">59%</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Node: Agent (sí) -->
+            <div class="node agent" style="left: 260px; top: 1060px;">
+              <div class="port in"></div>
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="bot" width="14" height="14"></i></span>
+                Agente IA
+                <span class="idx">05a</span>
+              </div>
+              <div class="nb">
+                <div class="title">Valentina · recupera con descuento</div>
+                <div class="subl">Ofrece un <em>5% off</em> personalizado sobre los ítems del carrito y menciona la última compra.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">agente</span><span class="v">Valentina</span></div>
+                  <div class="ln"><span class="k">modelo</span><span class="v">claude-4-sonnet</span></div>
+                  <div class="ln"><span class="k">tokens máx</span><span class="v">800</span></div>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="s"><b>612</b>ejec.</div>
+                <div class="s"><b>38%</b>convierte</div>
+              </div>
+            </div>
+
+            <!-- Node: Agent (no) -->
+            <div class="node agent" style="left: 820px; top: 1060px;">
+              <div class="port in"></div>
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="bot" width="14" height="14"></i></span>
+                Agente IA
+                <span class="idx">05b</span>
+              </div>
+              <div class="nb">
+                <div class="title">Santiago · venta consultiva</div>
+                <div class="subl">Resuelve dudas comunes de cliente nuevo (tallas, envío, devolución) <em>sin ofrecer descuento</em>.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">agente</span><span class="v">Santiago</span></div>
+                  <div class="ln"><span class="k">modelo</span><span class="v">claude-4-sonnet</span></div>
+                  <div class="ln"><span class="k">tokens máx</span><span class="v">800</span></div>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="s"><b>872</b>ejec.</div>
+                <div class="s"><b>22%</b>convierte</div>
+              </div>
+            </div>
+
+            <!-- Node: Action Tag -->
+            <div class="node action" style="left: 260px; top: 1340px;">
+              <div class="port in"></div>
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="tag" width="14" height="14"></i></span>
+                Acción · etiquetar
+                <span class="idx">06a</span>
+              </div>
+              <div class="nb">
+                <div class="title">Etiquetar como "VIP recuperado"</div>
+                <div class="subl">Marca en CRM para seguimiento de fidelización.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">etiqueta</span><span class="v">vip_recuperado_2026q2</span></div>
+                  <div class="ln"><span class="k">expira</span><span class="v">90 días</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Node: Action Mensaje -->
+            <div class="node action" style="left: 820px; top: 1340px;">
+              <div class="port in"></div>
+              <div class="port out"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="user-plus" width="14" height="14"></i></span>
+                Acción · CRM
+                <span class="idx">06b</span>
+              </div>
+              <div class="nb">
+                <div class="title">Crear contacto · pipeline ventas</div>
+                <div class="subl">Añade al embudo de "Primer contacto · 2026" y asigna a Santiago.</div>
+                <div class="kv">
+                  <div class="ln"><span class="k">pipeline</span><span class="v">Primer contacto '26</span></div>
+                  <div class="ln"><span class="k">asignado</span><span class="v">Santiago · Ventas</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Node: End -->
+            <div class="node end" style="left: 540px; top: 1560px;">
+              <div class="port in"></div>
+              <div class="nh">
+                <span class="ic"><i data-lucide="flag" width="14" height="14"></i></span>
+                Fin del flujo
+                <span class="idx" style="color: var(--paper-3);">07</span>
+              </div>
+              <div class="nb">
+                <div class="title" style="color: var(--ink-1);">Finalizar y registrar</div>
+                <div class="subl">Guarda resultado en historial de ejecución y cierra la instancia.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Zoom bar -->
+          <div class="canvas-zoom">
+            <button><i data-lucide="minus" width="12" height="12"></i></button>
+            <div class="lvl">68%</div>
+            <button><i data-lucide="plus" width="12" height="12"></i></button>
+            <button><i data-lucide="maximize-2" width="12" height="12"></i></button>
+          </div>
+
+          <!-- Runs bar -->
+          <div class="runs-bar">
+            <span><span class="dot run"></span><strong>4</strong> corriendo ahora</span>
+            <span style="color: var(--ink-4);">·</span>
+            <span><span class="dot ok"></span><strong>1 249</strong> exitosas (30d)</span>
+            <span style="color: var(--ink-4);">·</span>
+            <span><span class="dot err"></span><strong>35</strong> fallidas</span>
+            <span style="color: var(--ink-4);">·</span>
+            <span style="font-family: var(--font-serif); font-style: italic; color: var(--ink-3);">promedio 4m 12s</span>
+          </div>
+
+          <!-- Minimap -->
+          <div class="minimap">
+            <svg viewBox="0 0 180 120" width="100%" height="100%">
+              <!-- simplified node boxes -->
+              <rect x="80" y="10" width="20" height="8" fill="var(--rubric-2)" opacity="0.5"/>
+              <rect x="80" y="24" width="20" height="8" fill="var(--accent-indigo)" opacity="0.4"/>
+              <rect x="80" y="38" width="20" height="8" fill="var(--accent-gold)" opacity="0.5"/>
+              <rect x="80" y="52" width="20" height="8" fill="var(--accent-indigo)" opacity="0.6" stroke="var(--rubric-2)" stroke-width="0.8"/>
+              <rect x="50" y="70" width="20" height="8" fill="var(--accent-verdigris)" opacity="0.5"/>
+              <rect x="110" y="70" width="20" height="8" fill="var(--accent-verdigris)" opacity="0.5"/>
+              <rect x="50" y="86" width="20" height="6" fill="var(--ink-3)" opacity="0.3"/>
+              <rect x="110" y="86" width="20" height="6" fill="var(--ink-3)" opacity="0.3"/>
+              <rect x="80" y="102" width="20" height="6" fill="var(--ink-1)"/>
+              <!-- edges -->
+              <path d="M 90 18 L 90 24 M 90 32 L 90 38 M 90 46 L 90 52 M 90 60 L 60 70 M 90 60 L 120 70 M 60 78 L 60 86 M 120 78 L 120 86 M 60 92 L 90 102 M 120 92 L 90 102" stroke="var(--ink-3)" stroke-width="0.6" fill="none" opacity="0.5"/>
+              <!-- frame -->
+              <rect x="30" y="30" width="120" height="60" fill="none" stroke="var(--rubric-2)" stroke-width="1.5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== RIGHT: inspector ========== -->
+      <aside class="inspector">
+        <div class="ins-hd">
+          <div class="lbl">Inspector · Nodo 04</div>
+          <h3>Condición <em>· si/no</em></h3>
+        </div>
+
+        <div class="ins-tabs">
+          <a class="on">Configurar</a>
+          <a>Estadísticas</a>
+          <a>Historial</a>
+        </div>
+
+        <!-- Config -->
+        <details class="ins-sect" open>
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">General</span>
+            <span class="meta">2 campos</span>
+          </summary>
+          <div class="ins-body">
+            <div class="field">
+              <label>Etiqueta del nodo</label>
+              <input value="¿Cliente recurrente?">
+            </div>
+            <div class="field">
+              <label>Descripción</label>
+              <textarea>Ramifica el flujo según historial de compras. Si el cliente ya compró 2+ veces, vamos por recuperación con descuento.</textarea>
+            </div>
+          </div>
+        </details>
+
+        <details class="ins-sect" open>
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Condiciones</span>
+            <span class="meta">1 regla</span>
+          </summary>
+          <div class="ins-body">
+            <div class="field">
+              <label>Tipo de comparación</label>
+              <select>
+                <option selected>Todas se cumplen (AND)</option>
+                <option>Alguna se cumple (OR)</option>
+                <option>Personalizada (expresión)</option>
+              </select>
+            </div>
+            <div class="cond-row">
+              <select>
+                <option selected>cliente.pedidos_totales</option>
+                <option>cliente.ltv</option>
+                <option>cliente.ultima_compra</option>
+                <option>carrito.total</option>
+              </select>
+              <div class="cond-op">≥</div>
+              <input value="2" type="number">
+            </div>
+            <a class="add-cond"><i data-lucide="plus" width="11" height="11"></i>Añadir condición</a>
+            <div class="field" style="margin-top: 10px;">
+              <label>Preview de evaluación</label>
+              <div class="tpl">cliente.pedidos_totales <span class="var">≥</span> 2</div>
+              <div class="hint">Últimos 30 días: <strong>41%</strong> de carritos cumplen esta condición.</div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ins-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Salidas</span>
+            <span class="meta">SÍ · NO</span>
+          </summary>
+          <div class="ins-body">
+            <div class="rows-2">
+              <div class="field">
+                <label>Rama SÍ</label>
+                <select><option selected>Valentina · recupera</option></select>
+                <div class="hint">41% · 612 ejec / 30d</div>
+              </div>
+              <div class="field">
+                <label>Rama NO</label>
+                <select><option selected>Santiago · consultiva</option></select>
+                <div class="hint">59% · 872 ejec / 30d</div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ins-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Rendimiento · 30d</span>
+            <span class="meta">1 484 evaluaciones</span>
+          </summary>
+          <div class="ins-body">
+            <div class="stat-grid">
+              <div class="cell"><div class="l">Evaluaciones</div><div class="v">1 484</div></div>
+              <div class="cell"><div class="l">Rama SÍ</div><div class="v" style="color: var(--semantic-success);">612 <small>41%</small></div></div>
+              <div class="cell"><div class="l">Rama NO</div><div class="v" style="color: var(--rubric-2);">872 <small>59%</small></div></div>
+              <div class="cell"><div class="l">Latencia prom.</div><div class="v">12<small>ms</small></div></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ins-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Ejecuciones recientes</span>
+            <span class="meta">5 de 1 484</span>
+          </summary>
+          <div class="ins-body">
+            <div class="run-list">
+              <div class="run-row ok"><span class="st">✓</span><span class="id">#r-0849a2</span><span class="t">hace 3m · SÍ</span></div>
+              <div class="run-row ok"><span class="st">✓</span><span class="id">#r-0849a1</span><span class="t">hace 7m · NO</span></div>
+              <div class="run-row ok"><span class="st">✓</span><span class="id">#r-084998</span><span class="t">hace 12m · NO</span></div>
+              <div class="run-row err"><span class="st">✗</span><span class="id">#r-084984</span><span class="t">hace 24m · timeout</span></div>
+              <div class="run-row ok"><span class="st">✓</span><span class="id">#r-084971</span><span class="t">hace 41m · SÍ</span></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ins-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Avanzado</span>
+            <span class="meta danger">Zona de riesgo</span>
+          </summary>
+          <div class="ins-body">
+            <div class="field">
+              <label>Qué hacer si falla la evaluación</label>
+              <select>
+                <option selected>Ir a rama NO</option>
+                <option>Detener flujo</option>
+                <option>Reintentar 3 veces</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Timeout</label>
+              <input value="5 000 ms" type="text">
+            </div>
+            <button class="btn sm red" style="margin-top: 4px;"><i data-lucide="trash-2" width="12" height="12"></i>Eliminar este nodo</button>
+          </div>
+        </details>
+
+      </aside>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  // Node selection
+  document.querySelectorAll('.node').forEach(n => {
+    n.addEventListener('click', (e) => {
+      document.querySelectorAll('.node').forEach(x => x.classList.remove('selected'));
+      n.classList.add('selected');
+    });
+  });
+
+  // Automation list selection
+  document.querySelectorAll('.al-item').forEach(it => {
+    it.addEventListener('click', () => {
+      document.querySelectorAll('.al-item').forEach(x => x.classList.remove('on'));
+      it.classList.add('on');
+    });
+  });
+</script>
+
+</body>
+</html>

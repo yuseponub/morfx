@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — WhatsApp Inbox</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 232px 340px 1fr 320px; height: 100vh; }
+  .app > section { border-right: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+  .app > section:last-child { border-right: 0; }
+
+  /* ----- Sidebar ----- */
+  .sb { background: var(--paper-2); }
+  .sb .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; color: var(--ink-1); }
+  .wm b { color: var(--rubric-2); font-weight: 800; }
+  .sb .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  .ws { padding: 12px 14px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap: 8px; }
+  .ws .av { width: 26px; height: 26px; border-radius: 6px; background: var(--ink-1); color: var(--paper-0); display:flex; align-items:center; justify-content:center; font-family: var(--font-sans); font-size: 12px; font-weight: 700; }
+  .ws .nm { font-family: var(--font-sans); font-weight: 600; font-size: 13px; color: var(--ink-1); }
+  .ws .rl { font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .sb nav { padding: 8px; flex: 1; overflow: auto; }
+  .sb nav ul { list-style: none; padding: 0; margin: 0; }
+  .sb nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; letter-spacing: 0.005em; color: var(--ink-2); text-decoration: none; position: relative; cursor: pointer; }
+  .sb nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  .sb nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  .sb nav li a.active::before { content: ""; position: absolute; left: -9px; top: 50%; width: 6px; height: 1px; background: var(--rubric-2); }
+  .sb nav li a svg { stroke-width: 1.5; }
+  .sb nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+  .sb .badge { margin-left: auto; background: var(--rubric-2); color: var(--paper-0); font-family: var(--font-sans); font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 6px; }
+  .sb .foot { border-top: 1px solid var(--border); padding: 10px 14px; display: flex; align-items:center; gap: 10px; }
+  .sb .foot .av { width: 28px; height: 28px; border-radius: 999px; background: var(--rubric-3); color: var(--paper-0); display:flex; align-items:center; justify-content:center; font-family: var(--font-sans); font-weight: 700; font-size: 11px; }
+  .sb .foot .em { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); font-weight: 500; }
+
+  /* ----- Conversation list ----- */
+  .cl { background: var(--paper-1); }
+  .cl .head { padding: 16px 18px 12px; border-bottom: 1px solid var(--ink-1); }
+  .cl .eye { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--rubric-2); }
+  .cl h1 { font-family: var(--font-display); font-weight: 600; font-size: 26px; margin: 3px 0 10px; letter-spacing: -0.015em; color: var(--ink-1); }
+  .cl .tabs { display: flex; gap: 16px; font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--ink-3); }
+  .cl .tabs span { padding-bottom: 4px; cursor: pointer; }
+  .cl .tabs .on { color: var(--ink-1); border-bottom: 2px solid var(--ink-1); font-weight: 600; }
+  .cl .search { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .cl .search input { width: 100%; border: 1px solid var(--border); background: var(--paper-0); padding: 7px 10px 7px 28px; border-radius: var(--radius-3); font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); }
+  .cl .search { position: relative; }
+  .cl .search svg { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  .cl .items { overflow: auto; flex: 1; }
+  .it { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .it:hover { background: var(--paper-2); }
+  .it.on { background: var(--paper-0); border-left: 3px solid var(--rubric-2); padding-left: 13px; }
+  .it .top { display: flex; gap: 10px; align-items: flex-start; }
+  .it .av { width: 40px; height: 40px; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--ink-1); flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-family: var(--font-sans); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: var(--ink-1); }
+  .it .nm { font-family: var(--font-sans); font-weight: 600; font-size: 14px; color: var(--ink-1); display: flex; align-items: center; gap: 6px; letter-spacing: -0.005em; }
+  .it .nm .em { font-size: 13px; color: var(--rubric-2); }
+  .it .tm { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-left: auto; font-weight: 500; }
+  .it .pv { font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--ink-2); margin: 3px 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
+  .it.unread .pv { color: var(--ink-1); font-weight: 500; }
+  .it.unread .nm::after { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--rubric-2); margin-left: 4px; }
+  .it .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tg { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-sans); font-weight: 600; font-size: 10px; letter-spacing: 0.01em; padding: 2px 8px; border-radius: 999px; border: 1px solid transparent; background: var(--paper-3); color: var(--ink-1); }
+  .tg.red  { background: oklch(0.92 0.045 28);  color: oklch(0.32 0.09 28);  border-color: oklch(0.80 0.07 28); }
+  .tg.gold { background: oklch(0.94 0.055 80);  color: oklch(0.38 0.065 70); border-color: oklch(0.82 0.07 80); }
+  .tg.indi { background: oklch(0.93 0.035 260); color: oklch(0.30 0.06 260); border-color: oklch(0.80 0.05 260); }
+  .tg.ver  { background: oklch(0.93 0.03 180);  color: oklch(0.32 0.04 180); border-color: oklch(0.80 0.04 180); }
+
+  /* ----- Chat view ----- */
+  .ch { background:
+      linear-gradient(var(--paper-1), var(--paper-1)),
+      repeating-linear-gradient(to bottom, transparent 0 27px, oklch(0.65 0.03 80 / 0.15) 27px 28px);
+    background-blend-mode: multiply;
+  }
+  .ch .head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--ink-1); background: var(--paper-0); }
+  .ch .head .av { width: 40px; height: 40px; border-radius: 999px; background: var(--ink-1); color: var(--paper-0); display:flex; align-items:center; justify-content:center; font-family: var(--font-sans); font-weight: 700; font-size: 15px; }
+  .ch .head .info .eye { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--rubric-2); }
+  .ch .head .info .nm { font-family: var(--font-display); font-weight: 600; font-size: 20px; color: var(--ink-1); letter-spacing: -0.01em; }
+  .ch .head .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .ch .head .right { margin-left: auto; display: flex; gap: 8px; }
+  .ibtn { border: 1px solid var(--border); background: var(--paper-0); width: 32px; height: 32px; border-radius: var(--radius-3); display:flex; align-items:center; justify-content:center; color: var(--ink-2); cursor: pointer; }
+  .ibtn:hover { background: var(--paper-3); color: var(--ink-1); }
+
+  .thread { flex: 1; overflow: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px; }
+  .day { text-align: center; font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); margin: 8px 0; }
+  .row { display: flex; }
+  .row.own { justify-content: flex-end; }
+  .b { max-width: 62%; padding: 10px 14px; font-family: var(--font-sans); font-size: 15px; font-weight: 500; line-height: 1.5; border: 1px solid var(--ink-2); border-radius: 10px; background: var(--paper-0); color: var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  .b.own { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); border-bottom-right-radius: 2px; }
+  .b.in { border-bottom-left-radius: 2px; }
+  .b .t { display:block; text-align:right; font-family: var(--font-mono); font-size: 11px; font-weight: 500; opacity: 0.75; margin-top: 5px; letter-spacing: 0.02em; }
+  .b.own .t { opacity: 0.85; color: var(--paper-2); }
+  .bot { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--rubric-2); display:block; text-align:right; margin: 0 4px 3px auto; }
+
+  .composer { border-top: 1px solid var(--ink-1); background: var(--paper-0); padding: 12px 20px; display: flex; gap: 10px; align-items: flex-end; }
+  .composer .in { flex: 1; border: 1px solid var(--border); background: var(--paper-1); border-radius: var(--radius-3); padding: 10px 12px; font-family: var(--font-sans); font-size: 14px; color: var(--ink-1); min-height: 20px; }
+  .composer .in[contenteditable]:empty::before { content: "Escriba su respuesta…"; color: var(--ink-3); font-style: normal; }
+  .send { background: var(--ink-1); color: var(--paper-0); border: 1px solid var(--ink-1); padding: 8px 14px; border-radius: var(--radius-3); font-family: var(--font-sans); font-weight: 600; font-size: 13px; cursor: pointer; display:flex; align-items:center; gap:6px; }
+  .send:hover { background: var(--ink-2); }
+  .send:active { transform: translateY(1px); }
+
+  /* ----- Contact panel ----- */
+  .cp { background: var(--paper-2); overflow: auto; }
+  .cp .head { padding: 22px 20px 14px; border-bottom: 1px solid var(--ink-1); text-align: center; }
+  .cp .av-lg { width: 72px; height: 72px; border-radius: 999px; background: var(--paper-0); border: 1px solid var(--ink-1); margin: 0 auto 10px; display:flex; align-items:center; justify-content:center; font-family: var(--font-sans); font-weight: 700; font-size: 26px; color: var(--ink-1); }
+  .cp .nm { font-family: var(--font-display); font-weight: 600; font-size: 20px; color: var(--ink-1); letter-spacing: -0.01em; }
+  .cp .ph { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); margin-top: 3px; font-weight: 500; }
+  .cp section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .cp h3 { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); margin: 0 0 10px; }
+  .cp dl { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px 10px; margin: 0; font-family: var(--font-sans); font-size: 13px; }
+  .cp dt { color: var(--ink-3); font-weight: 500; font-style: normal; }
+  .cp dd { margin: 0; color: var(--ink-1); font-weight: 500; }
+  .cp .note { font-family: var(--font-sans); font-style: normal; font-size: 13px; color: var(--ink-2); line-height: 1.5; border-left: 2px solid var(--ink-1); padding-left: 10px; font-weight: 400; }
+  .cp .act { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .cp .act a { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); text-decoration: none; cursor: pointer; font-weight: 500; }
+  .cp .act a:hover { color: var(--rubric-2); }
+
+  /* Order boxes */
+  .cp .orders { display: flex; flex-direction: column; gap: 10px; }
+  .ord { background: var(--paper-0); border: 1px solid var(--border); border-radius: 12px; padding: 9px 11px; box-shadow: 0 1px 0 var(--border); }
+  .ord .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .ord .id { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+  .ord .st { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-sans); font-weight: 600; font-size: 10px; letter-spacing: 0.01em; padding: 2px 8px; border-radius: 999px; background: oklch(0.94 0.055 80); color: oklch(0.38 0.065 70); border: 1px solid oklch(0.82 0.07 80); }
+  .ord .st.ship { background: oklch(0.93 0.03 180); color: oklch(0.32 0.04 180); border-color: oklch(0.80 0.04 180); }
+  .ord .desc { font-family: var(--font-sans); font-size: 12.5px; line-height: 1.4; color: var(--ink-1); font-weight: 500; margin: 0 0 2px; }
+  .ord .meta { font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); margin: 0 0 6px; }
+  .ord .act { margin-top: 0; display: flex; gap: 8px; align-items: center; }
+  .ord .act a { font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); text-decoration: none; font-weight: 500; cursor: pointer; }
+  .ord .act a:hover { color: var(--rubric-2); }
+  .ord .act .sep { color: var(--ink-3); font-family: var(--font-sans); font-size: 10px; }
+
+  /* Timeline */
+  .tl { display: flex; flex-direction: column; gap: 8px; font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); }
+  .tl-item { display: grid; grid-template-columns: 68px 1fr; gap: 10px; align-items: baseline; }
+  .tl-t { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.01em; }
+  .tl-b { color: var(--ink-2); font-weight: 400; line-height: 1.45; }
+</style>
+</head>
+<body class="mx-doc" style="margin:0;">
+  <div class="app">
+    <!-- Sidebar -->
+    <section class="sb">
+      <div class="brand">
+        <div class="wm">morf<b>·</b>x</div>
+        <div class="sub">Bandeja de entrada</div>
+      </div>
+      <div class="ws">
+        <div class="av">P</div>
+        <div>
+          <div class="nm">Papelería Andina</div>
+          <div class="rl">Owner · es-CO</div>
+        </div>
+      </div>
+      <nav>
+        <div class="cat">Operación</div>
+        <ul>
+          <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+          <li><a class="active"><i data-lucide="message-square" width="16" height="16"></i>WhatsApp<span class="badge">7</span></a></li>
+          <li><a><i data-lucide="message-square-text" width="16" height="16"></i>SMS</a></li>
+          <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+        </ul>
+        <div class="cat">Automatización</div>
+        <ul>
+          <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+          <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+          <li><a><i data-lucide="terminal" width="16" height="16"></i>Comandos</a></li>
+        </ul>
+        <div class="cat">Análisis</div>
+        <ul>
+          <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+          <li><a><i data-lucide="trending-up" width="16" height="16"></i>Métricas</a></li>
+          <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+        </ul>
+      </nav>
+      <div class="foot">
+        <div class="av">Y</div>
+        <div class="em">yusepo@morfx.co</div>
+      </div>
+    </section>
+
+    <!-- Conversation list -->
+    <section class="cl">
+      <div class="head">
+        <div class="eye">Módulo · whatsapp</div>
+        <h1>Conversaciones</h1>
+        <div class="tabs"><span class="on">Todas</span><span>Sin asignar</span><span>Mías</span><span>Cerradas</span></div>
+      </div>
+      <div class="search">
+        <i data-lucide="search" width="14" height="14"></i>
+        <input placeholder="Buscar por nombre, teléfono o etiqueta…">
+      </div>
+      <div class="items" id="items"></div>
+    </section>
+
+    <!-- Chat -->
+    <section class="ch">
+      <div class="head">
+        <div class="av">J</div>
+        <div class="info">
+          <div class="eye">Contacto · activo</div>
+          <div class="nm">Juan Carlos Pérez</div>
+          <div class="meta">+57 312 555 4412 · última respuesta hace 3 min</div>
+        </div>
+        <div class="right">
+          <button class="ibtn" title="Asignar"><i data-lucide="user-plus" width="16" height="16"></i></button>
+          <button class="ibtn" title="Etiquetar"><i data-lucide="tag" width="16" height="16"></i></button>
+          <button class="ibtn" title="Más"><i data-lucide="more-horizontal" width="16" height="16"></i></button>
+        </div>
+      </div>
+      <div class="thread" id="thread">
+        <div class="day">— Martes 21 de abril —</div>
+        <div class="row"><div class="b in">Buenas tardes, ¿todavía tienen disponibilidad de cuadernos Norma oficio para el jueves? <span class="t">14:22</span></div></div>
+        <div class="row own"><div><span class="bot">❦ bot · respuesta sugerida</span><div class="b own">Sí, tenemos disponibilidad. ¿Prefiere entrega en la mañana o en la tarde? <span class="t">14:23 ✓✓</span></div></div></div>
+        <div class="row"><div class="b in">En la mañana. Misma dirección que el mes pasado. <span class="t">14:25</span></div></div>
+        <div class="row own"><div class="b own">Confirmado: jueves 24, entre 9:00 y 12:00, Cr 15 # 85-32, apto 402. Le envío el comprobante en un momento. <span class="t">14:26 ✓✓</span></div></div>
+        <div class="row"><div class="b in">Perfecto, gracias. ¿Puedo pagar contra entrega? <span class="t">14:28</span></div></div>
+      </div>
+      <div class="composer">
+        <div class="in" contenteditable id="input"></div>
+        <button class="send" id="send"><i data-lucide="send" width="14" height="14"></i> Enviar</button>
+      </div>
+    </section>
+
+    <!-- Contact panel -->
+    <aside class="cp">
+      <div class="head">
+        <div class="av-lg">J</div>
+        <div class="nm">Juan Carlos Pérez</div>
+        <div class="ph">+57 312 555 4412</div>
+      </div>
+      <section>
+        <h3>Ficha</h3>
+        <dl>
+          <dt>Ciudad</dt><dd>Bogotá</dd>
+          <dt>Etiquetas</dt><dd><span class="tg red">cliente</span> <span class="tg gold">vip</span></dd>
+          <dt>Origen</dt><dd>WhatsApp orgánico</dd>
+          <dt>Asignado</dt><dd>María R.</dd>
+        </dl>
+      </section>
+      <section>
+        <h3>Pedidos</h3>
+        <div class="orders">
+          <div class="ord">
+            <div class="top">
+              <span class="id">#0419</span>
+              <span class="st">pendiente pago</span>
+            </div>
+            <p class="desc">Cuadernos Norma oficio × 12</p>
+            <p class="meta">Entrega jue 24 abr · 9–12 h</p>
+            <div class="act"><a>Ver</a><span class="sep">·</span><a>Tarea</a><span class="sep">·</span><a>Nota</a></div>
+          </div>
+          <div class="ord">
+            <div class="top">
+              <span class="id">#0418</span>
+              <span class="st ship">entregado</span>
+            </div>
+            <p class="desc">Resma carta × 5 · Bíc × 24</p>
+            <p class="meta">Entregado 15 abr · factura enviada</p>
+            <div class="act"><a>Ver</a><span class="sep">·</span><a>Reordenar</a></div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h3>Historial</h3>
+        <div class="tl">
+          <div class="tl-item"><span class="tl-t">hoy 14:22</span><span class="tl-b">respondió en WhatsApp</span></div>
+          <div class="tl-item"><span class="tl-t">ayer 17:10</span><span class="tl-b">pedido cerrado #0418</span></div>
+          <div class="tl-item"><span class="tl-t">mar 18</span><span class="tl-b">etiqueta <span class="tg gold" style="font-size:9px; padding: 1px 6px;">vip</span> añadida</span></div>
+          <div class="tl-item"><span class="tl-t">mar 02</span><span class="tl-b">contacto creado</span></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    const conversations = [
+      { id: 1, name: "Juan Carlos Pérez", preview: "Perfecto, gracias. ¿Puedo pagar contra entrega?", time: "hace 3 min", tags: [["red","cliente"],["gold","vip"]], unread: 2, on: true, em: "🍳" },
+      { id: 2, name: "Laura Mendoza", preview: "Quiero confirmar la factura electrónica, me sale…", time: "hace 12 min", tags: [["red","cliente"]], unread: 1, em: "📦" },
+      { id: 3, name: "Andrés Ramírez", preview: "Muchas gracias, quedo atento.", time: "hace 34 min", tags: [["indi","prospecto"]], unread: 0 },
+      { id: 4, name: "Distribuciones Norte", preview: "Adjunto la orden de compra del mes…", time: "hace 1 h", tags: [["ver","mayorista"]], unread: 3, em: "🚚" },
+      { id: 5, name: "Carolina López", preview: "Sí, la dirección nueva es calle 72 # 10-25.", time: "hace 2 h", tags: [["red","cliente"]], unread: 0 },
+      { id: 6, name: "Felipe Torres", preview: "¿El precio incluye IVA?", time: "hace 3 h", tags: [["indi","prospecto"]], unread: 0 },
+      { id: 7, name: "María Fernanda", preview: "Ok, confirmo el viernes.", time: "ayer", tags: [["red","cliente"]], unread: 0 },
+      { id: 8, name: "Papelería El Dorado", preview: "Necesito cotización para 200 resmas.", time: "ayer", tags: [["ver","mayorista"],["gold","vip"]], unread: 0 },
+    ];
+    const items = document.getElementById('items');
+    items.innerHTML = conversations.map(c => `
+      <div class="it ${c.on?'on':''} ${c.unread?'unread':''}" onclick="document.querySelectorAll('.it').forEach(i=>i.classList.remove('on'));this.classList.add('on')">
+        <div class="top">
+          <div class="av">${c.name.split(' ').slice(0,2).map(s=>s[0]).join('')}</div>
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="nm">${c.name}${c.em?` <span class="em">${c.em}</span>`:''}</span>
+              <span class="tm">${c.time}</span>
+            </div>
+            <div class="pv">${c.preview}</div>
+            <div class="tags">${c.tags.map(([cl,t])=>`<span class="tg ${cl}">${t}</span>`).join('')}${c.unread?`<span class="tg red" style="margin-left:auto; font-weight: 700;">${c.unread} nuevos</span>`:''}</div>
+          </div>
+        </div>
+      </div>`).join('');
+
+    // Composer interactivity
+    const input = document.getElementById('input');
+    const thread = document.getElementById('thread');
+    document.getElementById('send').addEventListener('click', () => {
+      const text = input.innerText.trim();
+      if (!text) return;
+      const row = document.createElement('div');
+      row.className = 'row own';
+      const now = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+      row.innerHTML = `<div class="b own">${text.replace(/[<>]/g,'')}<span class="t">${now} ✓</span></div>`;
+      thread.appendChild(row);
+      input.innerText = '';
+      thread.scrollTop = thread.scrollHeight;
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('send').click(); }
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

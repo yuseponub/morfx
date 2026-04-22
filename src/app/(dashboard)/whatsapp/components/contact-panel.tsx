@@ -32,9 +32,29 @@ import { CreateContactSheet } from './create-contact-sheet'
 import { ViewOrderSheet } from './view-order-sheet'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
+import { MxTag } from './mx-tag'
+import { useInboxV2 } from './inbox-v2-context'
 import { updateContactName } from '@/app/actions/contacts'
 import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+
+/**
+ * Map order stage name (lowercase Spanish conventions per UI-SPEC §7.10) to
+ * the editorial MxTag variant. Returns 'ink' for unknown states (neutral).
+ */
+function mapOrderStageToMxTagVariant(
+  name: string | undefined | null
+): 'gold' | 'verdigris' | 'rubric' | 'indigo' | 'ink' {
+  if (!name) return 'ink'
+  const n = name.toLowerCase()
+  if (n.includes('pendiente') && n.includes('pago')) return 'gold'
+  if (n.includes('vip')) return 'gold'
+  if (n.includes('entregado') || n.includes('enviado') || n.includes('completado')) return 'verdigris'
+  if (n.includes('cancel') || n.includes('refund') || n.includes('devol')) return 'rubric'
+  if (n.includes('prospect')) return 'indigo'
+  return 'ink'
+}
 
 interface ContactPanelProps {
   conversation: ConversationWithDetails | null
@@ -51,6 +71,7 @@ interface ContactPanelProps {
  */
 export function ContactPanel({ conversation, onClose, onConversationUpdated, onOrdersChanged }: ContactPanelProps) {
   const router = useRouter()
+  const v2 = useInboxV2()
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
@@ -139,19 +160,52 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
   // Empty state
   if (!conversation) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="h-14 px-4 border-b flex items-center justify-between">
-          <span className="font-medium">Contacto</span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+      <aside
+        aria-label="Información del contacto"
+        className={cn(
+          'h-full flex flex-col',
+          v2 && 'bg-[var(--paper-2)] border-l border-[var(--border)]'
+        )}
+      >
+        <div
+          className={cn(
+            'h-14 px-4 border-b flex items-center justify-between',
+            v2 && 'border-b-[var(--ink-1)] bg-[var(--paper-0)]'
+          )}
+        >
+          <span
+            className={cn(
+              'font-medium',
+              v2 && 'text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+          >
+            Contacto
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onClose}
+            aria-label="Cerrar panel de contacto"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
-          <p className="text-sm text-muted-foreground text-center">
+          <p
+            className={cn(
+              'text-sm text-center',
+              v2
+                ? 'text-[var(--ink-3)]'
+                : 'text-muted-foreground'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+          >
             Selecciona una conversacion para ver la informacion del contacto
           </p>
         </div>
-      </div>
+      </aside>
     )
   }
 
@@ -159,11 +213,36 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
   const hasContact = !!contact
 
   return (
-    <div className="h-full flex flex-col">
+    <aside
+      aria-label="Información del contacto"
+      className={cn(
+        'h-full flex flex-col',
+        v2 && 'bg-[var(--paper-2)] border-l border-[var(--border)]'
+      )}
+    >
       {/* Header */}
-      <div className="h-14 px-4 border-b flex items-center justify-between">
-        <span className="font-medium">Contacto</span>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+      <div
+        className={cn(
+          'h-14 px-4 border-b flex items-center justify-between',
+          v2 && 'border-b-[var(--ink-1)] bg-[var(--paper-0)]'
+        )}
+      >
+        <span
+          className={cn(
+            'font-medium',
+            v2 && 'text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)]'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+        >
+          Contacto
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onClose}
+          aria-label="Cerrar panel de contacto"
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -179,9 +258,34 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
             <div className="space-y-4">
               {/* Contact details */}
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <User className="h-5 w-5 text-muted-foreground" />
+                {v2 && (
+                  <h3
+                    className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)] mb-3 font-semibold"
+                    style={{ fontFamily: 'var(--font-sans)' }}
+                  >
+                    Ficha
+                  </h3>
+                )}
+                <div
+                  className={cn(
+                    'flex items-center gap-2',
+                    v2 && 'gap-3'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'h-10 w-10 rounded-full flex items-center justify-center',
+                      v2
+                        ? 'bg-[var(--paper-0)] border border-[var(--ink-1)]'
+                        : 'bg-muted'
+                    )}
+                  >
+                    <User
+                      className={cn(
+                        'h-5 w-5',
+                        v2 ? 'text-[var(--ink-1)]' : 'text-muted-foreground'
+                      )}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     {editingName ? (
@@ -196,13 +300,25 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
                           className="h-7 text-sm font-medium"
                           autoFocus
                         />
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveName}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={handleSaveName}
+                          aria-label="Guardar nombre del contacto"
+                        >
                           <CheckIcon className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ) : (
                       <p
-                        className="font-medium cursor-pointer hover:underline"
+                        className={cn(
+                          'cursor-pointer hover:underline',
+                          v2
+                            ? 'text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)] leading-tight'
+                            : 'font-medium'
+                        )}
+                        style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
                         onClick={() => {
                           setNameValue(contact.name)
                           setEditingName(true)
@@ -212,24 +328,85 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
                         {contact.name}
                       </p>
                     )}
-                    <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                    <p
+                      className={cn(
+                        v2
+                          ? 'text-[12px] text-[var(--ink-3)] mt-0.5'
+                          : 'text-sm text-muted-foreground'
+                      )}
+                      style={
+                        v2
+                          ? { fontFamily: 'var(--font-mono)', fontWeight: 500 }
+                          : undefined
+                      }
+                    >
+                      {contact.phone}
+                    </p>
                   </div>
                 </div>
 
+                {/* Definition list — ciudad + dirección (UI-SPEC §7.9 dl grid 1fr/1.4fr) */}
                 {(contact.address || contact.city) && (
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div>
-                      {contact.address && <p>{contact.address}</p>}
-                      {contact.city && <p>{contact.city}</p>}
+                  v2 ? (
+                    <dl className="grid grid-cols-[1fr_1.4fr] gap-x-3 gap-y-1 items-baseline pt-2">
+                      {contact.address && (
+                        <>
+                          <dt
+                            className="text-[13px] text-[var(--ink-3)] font-medium"
+                            style={{ fontFamily: 'var(--font-sans)' }}
+                          >
+                            Dirección
+                          </dt>
+                          <dd
+                            className="text-[13px] text-[var(--ink-1)] m-0"
+                            style={{ fontFamily: 'var(--font-sans)' }}
+                          >
+                            {contact.address}
+                          </dd>
+                        </>
+                      )}
+                      {contact.city && (
+                        <>
+                          <dt
+                            className="text-[13px] text-[var(--ink-3)] font-medium"
+                            style={{ fontFamily: 'var(--font-sans)' }}
+                          >
+                            Ciudad
+                          </dt>
+                          <dd
+                            className="text-[13px] text-[var(--ink-1)] m-0"
+                            style={{ fontFamily: 'var(--font-sans)' }}
+                          >
+                            {contact.city}
+                          </dd>
+                        </>
+                      )}
+                    </dl>
+                  ) : (
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                      <div>
+                        {contact.address && <p>{contact.address}</p>}
+                        {contact.city && <p>{contact.city}</p>}
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
 
                 {/* Tags section - from linked contact (source of truth) */}
                 {conversation.tags.length > 0 && (
                   <div className="pt-2">
-                    <p className="text-xs text-muted-foreground mb-1">Etiquetas</p>
+                    <p
+                      className={cn(
+                        'mb-1',
+                        v2
+                          ? 'text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)] font-semibold'
+                          : 'text-xs text-muted-foreground'
+                      )}
+                      style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                    >
+                      Etiquetas
+                    </p>
                     <div className="flex flex-wrap gap-1">
                       {conversation.tags.map((tag) => (
                         <TagBadge key={tag.id} tag={tag} size="sm" />
@@ -260,15 +437,58 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
             <div className="space-y-4">
               {/* Unknown contact */}
               <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                  <User className="h-5 w-5 text-muted-foreground" />
+                <div
+                  className={cn(
+                    'h-10 w-10 rounded-full flex items-center justify-center',
+                    v2
+                      ? 'bg-[var(--paper-0)] border border-[var(--ink-1)]'
+                      : 'bg-muted'
+                  )}
+                >
+                  <User
+                    className={cn(
+                      'h-5 w-5',
+                      v2 ? 'text-[var(--ink-1)]' : 'text-muted-foreground'
+                    )}
+                  />
                 </div>
                 <div>
-                  <p className="font-medium">{conversation.profile_name || conversation.phone}</p>
+                  <p
+                    className={cn(
+                      v2
+                        ? 'text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)] leading-tight'
+                        : 'font-medium'
+                    )}
+                    style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+                  >
+                    {conversation.profile_name || conversation.phone}
+                  </p>
                   {conversation.profile_name && (
-                    <p className="text-sm text-muted-foreground">{conversation.phone}</p>
+                    <p
+                      className={cn(
+                        v2
+                          ? 'text-[12px] text-[var(--ink-3)]'
+                          : 'text-sm text-muted-foreground'
+                      )}
+                      style={
+                        v2
+                          ? { fontFamily: 'var(--font-mono)', fontWeight: 500 }
+                          : undefined
+                      }
+                    >
+                      {conversation.phone}
+                    </p>
                   )}
-                  <p className="text-sm text-muted-foreground">Contacto desconocido</p>
+                  <p
+                    className={cn(
+                      v2
+                        ? 'text-[11px] uppercase tracking-[0.08em] text-[var(--rubric-2)] font-semibold mt-0.5'
+                        : 'text-sm text-muted-foreground'
+                    )}
+                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                  >
+                    Contacto desconocido
+                  </p>
                 </div>
               </div>
 
@@ -290,14 +510,34 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
         {/* Recent orders section */}
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium text-sm">Pedidos recientes</span>
+            <ShoppingBag
+              className={cn(
+                'h-4 w-4',
+                v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
+              )}
+            />
+            <h3
+              className={cn(
+                'font-medium text-sm m-0',
+                v2 &&
+                  'text-[10px] uppercase tracking-[0.12em] text-[var(--ink-3)] font-semibold'
+              )}
+              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            >
+              Pedidos recientes
+            </h3>
           </div>
 
           {hasContact ? (
             <RecentOrdersList contactId={contact.id} refreshKey={ordersRefreshKey} onStageChanged={onOrdersChanged} />
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p
+              className={cn(
+                'text-sm',
+                v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
+              )}
+              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            >
               Vincula un contacto para ver sus pedidos
             </p>
           )}
@@ -333,7 +573,7 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
         conversationId={conversation.id}
         onSuccess={handleContactCreated}
       />
-    </div>
+    </aside>
   )
 }
 
@@ -394,6 +634,7 @@ interface Pipeline {
 }
 
 function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId: string; refreshKey?: number; onStageChanged?: () => Promise<void> }) {
+  const v2 = useInboxV2()
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -578,7 +819,13 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
 
   if (orders.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p
+        className={cn(
+          'text-sm',
+          v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
+        )}
+        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+      >
         No hay pedidos recientes
       </p>
     )
@@ -598,20 +845,34 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
         return (
           <div
             key={order.id}
-            className="p-2 rounded-lg border hover:bg-muted/50 transition-colors"
+            className={cn(
+              'transition-colors',
+              v2
+                ? 'rounded-xl bg-[var(--paper-0)] border border-[var(--border)] px-3 py-2 shadow-[0_1px_0_var(--border)]'
+                : 'p-2 rounded-lg border hover:bg-muted/50'
+            )}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  {/* Stage selector */}
+                  {/* Stage selector — when v2, render as MxTag pill per UI-SPEC §7.10 */}
                   <Popover
                     open={openStagePopover === order.id}
                     onOpenChange={(open) => setOpenStagePopover(open ? order.id : null)}
                   >
                     <PopoverTrigger asChild>
-                      <button className="hover:opacity-80 transition-opacity">
+                      <button
+                        className="hover:opacity-80 transition-opacity"
+                        aria-label="Cambiar etapa del pedido"
+                      >
                         {order.stage && (
-                          <OrderStageBadge stage={order.stage} size="sm" />
+                          v2 ? (
+                            <MxTag variant={mapOrderStageToMxTagVariant(order.stage.name)}>
+                              {order.stage.name}
+                            </MxTag>
+                          ) : (
+                            <OrderStageBadge stage={order.stage} size="sm" />
+                          )
                         )}
                       </button>
                     </PopoverTrigger>
@@ -642,7 +903,15 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                     </PopoverContent>
                   </Popover>
                   <Link href={`/crm/pedidos?order=${order.id}`}>
-                    <span className="text-sm font-medium hover:underline">
+                    <span
+                      className={cn(
+                        'hover:underline',
+                        v2
+                          ? 'text-[13px] font-medium text-[var(--ink-1)] leading-[1.4]'
+                          : 'text-sm font-medium'
+                      )}
+                      style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                    >
                       {order.total_value
                         ? new Intl.NumberFormat('es-CO', {
                             style: 'currency',
@@ -654,7 +923,19 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                     </span>
                   </Link>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p
+                  className={cn(
+                    'mt-1',
+                    v2
+                      ? 'text-[11px] text-[var(--ink-3)] tracking-[0.01em]'
+                      : 'text-xs text-muted-foreground'
+                  )}
+                  style={
+                    v2
+                      ? { fontFamily: 'var(--font-mono)', fontWeight: 500 }
+                      : undefined
+                  }
+                >
                   {formatDistanceToNow(new Date(order.created_at), {
                     addSuffix: true,
                     locale: es,
@@ -678,15 +959,27 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                     ? `No existe el pipeline '${RECOMPRA_PIPELINE_NAME}' en este workspace`
                     : 'Recompra'
                 }
+                aria-label="Crear recompra del pedido"
               >
-                <RefreshCwIcon className="h-4 w-4 text-muted-foreground" />
+                <RefreshCwIcon
+                  className={cn(
+                    'h-4 w-4',
+                    v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
+                  )}
+                />
               </button>
               <button
                 onClick={() => setViewingOrderId(order.id)}
                 className="p-1.5 rounded-md hover:bg-accent shrink-0 ml-1"
                 title="Ver pedido"
+                aria-label="Ver detalles del pedido"
               >
-                <Eye className="h-4 w-4 text-muted-foreground" />
+                <Eye
+                  className={cn(
+                    'h-4 w-4',
+                    v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
+                  )}
+                />
               </button>
             </div>
 

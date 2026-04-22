@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Archive, ArchiveRestore, Bot, Bug, CalendarCheck, Check, ExternalLink, Loader2, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
@@ -18,10 +18,12 @@ import { BoldPaymentLinkButton } from './bold-payment-link-button'
 import { WindowIndicator } from './window-indicator'
 import { AssignDropdown } from './assign-dropdown'
 import { ConversationTagInput } from './conversation-tag-input'
+import { useInboxV2 } from './inbox-v2-context'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
 import { toggleConversationAgent, getConversationAgentStatus } from '@/app/actions/agent-config'
 import { confirmAppointment, getAppointmentForContact } from '@/app/actions/godentist'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 
 const GODENTIST_WORKSPACE_ID = '36a74890-aad6-4804-838c-57904b1c9328'
@@ -51,6 +53,8 @@ export function ChatHeader({
   isDebugOpen,
 }: ChatHeaderProps) {
   const router = useRouter()
+  const v2 = useInboxV2()
+  const themeContainerRef = useRef<HTMLElement | null>(null)
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -71,6 +75,16 @@ export function ChatHeader({
   const [isConfirming, setIsConfirming] = useState(false)
   const [appointmentLoading, setAppointmentLoading] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+
+  // Locate the `.theme-editorial` wrapper (rendered by InboxLayout with
+  // `data-module="whatsapp"`) so the AssignDropdown's Radix portal can
+  // re-root inside the editorial token scope. When v2 is false, ref
+  // stays null → AssignDropdown falls back to default portal (document.body).
+  useEffect(() => {
+    if (!v2) return
+    const el = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
+    themeContainerRef.current = el
+  }, [v2])
 
   // Load agent status when conversation changes
   useEffect(() => {
@@ -199,33 +213,106 @@ export function ChatHeader({
   const isArchived = conversation.status === 'archived'
 
   return (
-    <div className="flex-shrink-0 border-b bg-background">
+    <div
+      className={cn(
+        'flex-shrink-0 border-b',
+        v2
+          ? 'bg-[var(--paper-0)] border-b-[var(--ink-1)]'
+          : 'bg-background'
+      )}
+    >
       {/* Main header row */}
-      <div className="h-14 px-4 flex items-center justify-between">
+      <div
+        className={cn(
+          'flex items-center justify-between',
+          v2 ? 'px-5 py-[14px] gap-3' : 'h-14 px-4'
+        )}
+      >
         <div className="flex items-center gap-3 min-w-0">
           {/* Contact avatar placeholder */}
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-medium text-primary">
+          <div
+            className={cn(
+              'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
+              v2
+                ? 'bg-[var(--ink-1)] text-[var(--paper-0)]'
+                : 'bg-primary/10'
+            )}
+            style={
+              v2
+                ? { fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '15px' }
+                : undefined
+            }
+          >
+            <span className={cn(!v2 && 'text-sm font-medium text-primary')}>
               {displayName.charAt(0).toUpperCase()}
             </span>
           </div>
 
           {/* Contact info */}
           <div className="min-w-0">
+            {v2 && (
+              <span
+                className="block text-[10px] uppercase tracking-[0.12em] font-semibold text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                Contacto · activo
+              </span>
+            )}
             {canEditName ? (
               <button
                 onClick={handleOpenEditName}
-                className="flex items-center gap-1.5 group hover:text-primary transition-colors"
+                className={cn(
+                  'flex items-center gap-1.5 group transition-colors',
+                  v2 ? 'hover:text-[var(--rubric-2)]' : 'hover:text-primary'
+                )}
+                aria-label="Editar nombre del contacto"
               >
-                <span className="font-medium truncate">{displayName}</span>
-                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span
+                  className={cn(
+                    'truncate',
+                    v2
+                      ? 'text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)] leading-tight'
+                      : 'font-medium'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+                >
+                  {displayName}
+                </span>
+                <Pencil
+                  className={cn(
+                    'h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity',
+                    v2 && 'text-[var(--ink-3)]'
+                  )}
+                />
               </button>
             ) : (
-              <p className="font-medium truncate">{displayName}</p>
+              <p
+                className={cn(
+                  'truncate',
+                  v2
+                    ? 'text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)] leading-tight'
+                    : 'font-medium'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+              >
+                {displayName}
+              </p>
             )}
             <div className="flex items-center gap-1.5">
               {(conversation.contact || conversation.profile_name) && (
-                <p className="text-xs text-muted-foreground truncate">
+                <p
+                  className={cn(
+                    'truncate',
+                    v2
+                      ? 'text-[11px] text-[var(--ink-3)]'
+                      : 'text-xs text-muted-foreground'
+                  )}
+                  style={
+                    v2
+                      ? { fontFamily: 'var(--font-mono)', fontWeight: 500 }
+                      : undefined
+                  }
+                >
                   {conversation.phone}
                 </p>
               )}
@@ -288,6 +375,7 @@ export function ChatHeader({
               disabled={isConfirming || appointmentInfo.estado.toLowerCase().includes('confirmada')}
               onClick={() => setShowConfirmDialog(true)}
               title={`Confirmar cita: ${appointmentInfo.nombre} - ${appointmentInfo.hora} - ${appointmentInfo.sucursal}`}
+              aria-label="Confirmar cita GoDentist"
             >
               {isConfirming ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -308,6 +396,7 @@ export function ChatHeader({
             conversationId={conversation.id}
             currentAssignee={localAssignee}
             onAssign={setLocalAssignee}
+            containerRef={v2 ? themeContainerRef : undefined}
           />
 
           {/* Mark as read */}
@@ -318,6 +407,7 @@ export function ChatHeader({
               className="h-8 w-8"
               onClick={handleMarkAsRead}
               title="Marcar como leido"
+              aria-label="Marcar como leído"
             >
               <Check className="h-4 w-4" />
             </Button>
@@ -331,6 +421,7 @@ export function ChatHeader({
               className="h-8 w-8"
               onClick={handleUnarchive}
               title="Desarchivar"
+              aria-label="Desarchivar conversación"
             >
               <ArchiveRestore className="h-4 w-4" />
             </Button>
@@ -341,6 +432,7 @@ export function ChatHeader({
               className="h-8 w-8"
               onClick={handleArchive}
               title="Archivar"
+              aria-label="Archivar conversación"
             >
               <Archive className="h-4 w-4" />
             </Button>
@@ -355,7 +447,10 @@ export function ChatHeader({
               asChild
               title="Ver en CRM"
             >
-              <Link href={`/crm/contactos/${conversation.contact_id}`}>
+              <Link
+                href={`/crm/contactos/${conversation.contact_id}`}
+                aria-label="Ver contacto en CRM"
+              >
                 <ExternalLink className="h-4 w-4" />
               </Link>
             </Button>
@@ -369,6 +464,7 @@ export function ChatHeader({
               className="h-8 w-8"
               onClick={onOpenAgentConfig}
               title="Configuracion de agente"
+              aria-label="Configurar agente"
             >
               <SlidersHorizontal className="h-4 w-4" />
             </Button>
@@ -382,6 +478,7 @@ export function ChatHeader({
               className={`h-8 w-8 ${isDebugOpen ? 'bg-muted text-foreground' : ''}`}
               onClick={onToggleDebug}
               title="Debug bot (observabilidad produccion)"
+              aria-label="Abrir panel de debug"
             >
               <Bug className="h-4 w-4" />
             </Button>
@@ -394,6 +491,7 @@ export function ChatHeader({
             className="h-8 w-8"
             onClick={onTogglePanel}
             title="Panel de contacto"
+            aria-label="Mostrar información del contacto"
           >
             <PanelRightOpen className="h-4 w-4" />
           </Button>

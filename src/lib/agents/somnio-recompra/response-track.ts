@@ -234,9 +234,17 @@ export async function resolveResponseTrack(input: {
  * Uses only the first name from the full name.
  */
 export function getGreeting(nombre: string | null): string {
-  const now = new Date()
-  const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-  const hour = colombiaTime.getHours()
+  // Intl.DateTimeFormat evaluates in the target timezone without reparsing a
+  // localized string (the `new Date(toLocaleString(...))` pattern loses TZ info
+  // and reads `.getHours()` in the runtime zone — UTC on Vercel — violating
+  // CLAUDE.md Regla 2).
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Bogota',
+      hour: 'numeric',
+      hour12: false,
+    }).format(new Date()),
+  )
 
   let greeting: string
   if (hour < 12) {

@@ -73,7 +73,7 @@ type ActionResult<T = void> =
 // Auth Helper
 // ============================================================================
 
-async function getAuthContext(): Promise<{ workspaceId: string } | { error: string }> {
+async function getAuthContext(): Promise<{ workspaceId: string; userId: string } | { error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
@@ -82,7 +82,9 @@ async function getAuthContext(): Promise<{ workspaceId: string } | { error: stri
   const workspaceId = cookieStore.get('morfx_workspace')?.value
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
-  return { workspaceId }
+  // BLOCKER 1 fix (Plan 02): userId ya estaba in-scope (linea 78), ahora se expone
+  // para poblar DomainContext.actorId en callers (audit trail order_stage_history).
+  return { workspaceId, userId: user.id }
 }
 
 // ============================================================================
@@ -570,9 +572,10 @@ export async function updateOrder(id: string, formData: Partial<OrderFormData>):
  * Delegates to domain/orders.moveOrderToStage for DB logic + trigger emission.
  * Keeps WIP limit warning check as adapter concern.
  */
-export async function moveOrderToStage(orderId: string, newStageId: string): Promise<ActionResult<{ warning?: string }>> {
+export async function moveOrderToStage(orderId: string, newStageId: string): Promise<ActionResult<{ warning?: string }> | { error: string; data?: unknown }> {
   const auth = await getAuthContext()
   if ('error' in auth) return { error: auth.error }
+  const { workspaceId, userId } = auth
 
   const supabase = await createClient()
 
@@ -600,11 +603,22 @@ export async function moveOrderToStage(orderId: string, newStageId: string): Pro
     }
   }
 
-  // Delegate to domain
-  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  // Delegate to domain (Plan 02 Task 2: pasa actorId/actorLabel para audit trail)
+  // actor_label fallback: 'user:<8chars>' — deuda tecnica follow-up Plan 05 LEARNINGS
+  // (join a workspace_members.full_name para display-name mas humano).
+  const ctx: DomainContext = {
+    workspaceId,
+    source: 'server-action',
+    actorId: userId,
+    actorLabel: `user:${userId.slice(0, 8)}`,
+  }
   const result = await domainMoveOrderToStage(ctx, { orderId, newStageId })
 
   if (!result.success) {
+    // Narrow el string-marker asi el Kanban puede render toast dedicado (D-15)
+    if (result.error === 'stage_changed_concurrently') {
+      return { error: 'stage_changed_concurrently', data: result.data }
+    }
     return { error: result.error || 'Error al mover el pedido' }
   }
 
@@ -810,24 +824,36 @@ export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResu
 export async function bulkMoveOrdersToStage(
   orderIds: string[],
   newStageId: string
-): Promise<ActionResult<{ moved: number }>> {
+): Promise<ActionResult<{ moved: number; failed: Array<{ orderId: string; reason: string }> }>> {
   if (orderIds.length === 0) {
     return { error: 'No hay pedidos para mover' }
   }
 
   const auth = await getAuthContext()
   if ('error' in auth) return { error: auth.error }
+  const { workspaceId, userId } = auth
 
-  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const ctx: DomainContext = {
+    workspaceId,
+    source: 'server-action',
+    actorId: userId,
+    actorLabel: `user:${userId.slice(0, 8)}`,
+  }
   let moved = 0
+  const failed: Array<{ orderId: string; reason: string }> = []
 
   for (const orderId of orderIds) {
     const result = await domainMoveOrderToStage(ctx, { orderId, newStageId })
-    if (result.success) moved++
+    if (result.success) {
+      moved++
+    } else {
+      failed.push({ orderId, reason: result.error || 'unknown' })
+    }
   }
 
   revalidatePath('/crm/pedidos')
-  return { success: true, data: { moved } }
+  // Pitfall 12 RESEARCH: expone failed list para UX granular (antes: solo count).
+  return { success: true, data: { moved, failed } }
 }
 
 /**

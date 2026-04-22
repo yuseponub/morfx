@@ -10,6 +10,7 @@
 // ============================================================================
 
 import { inngest } from '@/inngest/client'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { MAX_CASCADE_DEPTH } from './constants'
 
 // ============================================================================
@@ -19,17 +20,59 @@ import { MAX_CASCADE_DEPTH } from './constants'
 /**
  * Check cascade depth and warn if exceeded.
  * Returns true if the event should be suppressed (depth >= MAX).
+ *
+ * Wave 2 (CRM Stage Integrity, D-07 layer 3, Pitfall 9 RESEARCH): when the
+ * suppressed event is `order.stage_changed` AND `orderContext` is provided,
+ * write a row to `order_stage_history` with `source='cascade_capped'` so the
+ * truncation is VISIBLE in the ledger BEFORE the event is ever emitted. The
+ * automation-runner also writes a `cascade_capped` row on the post-dequeue
+ * path — both paths are intentional (doble cobertura). `actor_label` uses
+ * the "(pre-emit)" suffix to distinguish the source.
+ *
+ * INSERT is best-effort (try/catch): a history insert failure must NOT
+ * block suppression — the event is still dropped either way.
  */
-function isCascadeSuppressed(
+async function isCascadeSuppressed(
   triggerType: string,
   workspaceId: string,
-  cascadeDepth: number
-): boolean {
+  cascadeDepth: number,
+  orderContext?: {
+    orderId: string
+    previousStageId?: string | null
+    newStageId?: string | null
+  }
+): Promise<boolean> {
   if (cascadeDepth >= MAX_CASCADE_DEPTH) {
     console.warn(
       `[trigger-emitter] Cascade depth ${cascadeDepth} >= MAX_CASCADE_DEPTH (${MAX_CASCADE_DEPTH}). ` +
       `Suppressing ${triggerType} for workspace ${workspaceId}`
     )
+
+    // D-07 layer 3 (pre-emit path): log cascade_capped to order_stage_history
+    // so the bug is VISIBLE post-hoc even when the runner never sees the event.
+    if (triggerType === 'order.stage_changed' && orderContext?.orderId) {
+      try {
+        const supabase = createAdminClient()
+        await supabase.from('order_stage_history').insert({
+          order_id: orderContext.orderId,
+          workspace_id: workspaceId,
+          previous_stage_id: orderContext.previousStageId ?? null,
+          new_stage_id:
+            orderContext.newStageId ?? orderContext.previousStageId ?? '',
+          source: 'cascade_capped',
+          actor_id: null,
+          actor_label: `Cascade capped at depth ${cascadeDepth} (pre-emit)`,
+          cascade_depth: cascadeDepth,
+          trigger_event: triggerType,
+        })
+      } catch (e) {
+        console.error(
+          '[trigger-emitter] cascade_capped history insert failed:',
+          e instanceof Error ? e.message : e,
+        )
+      }
+    }
+
     return true
   }
   return false
@@ -89,7 +132,11 @@ export async function emitOrderStageChanged(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('order.stage_changed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('order.stage_changed', data.workspaceId, depth, {
+    orderId: data.orderId,
+    previousStageId: data.previousStageId,
+    newStageId: data.newStageId,
+  })) return
 
   await sendEvent(
     'automation/order.stage_changed',
@@ -118,7 +165,7 @@ export async function emitTagAssigned(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('tag.assigned', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('tag.assigned', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/tag.assigned',
@@ -146,7 +193,7 @@ export async function emitTagRemoved(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('tag.removed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('tag.removed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/tag.removed',
@@ -171,7 +218,7 @@ export async function emitContactCreated(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('contact.created', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('contact.created', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/contact.created',
@@ -208,7 +255,7 @@ export async function emitOrderCreated(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('order.created', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('order.created', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/order.created',
@@ -233,7 +280,7 @@ export async function emitFieldChanged(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('field.changed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('field.changed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/field.changed',
@@ -257,7 +304,7 @@ export async function emitWhatsAppMessageReceived(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('whatsapp.message_received', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('whatsapp.message_received', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/whatsapp.message_received',
@@ -282,7 +329,7 @@ export async function emitWhatsAppKeywordMatch(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('whatsapp.keyword_match', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('whatsapp.keyword_match', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/whatsapp.keyword_match',
@@ -306,7 +353,7 @@ export async function emitTaskCompleted(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('task.completed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('task.completed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/task.completed',
@@ -332,7 +379,7 @@ export async function emitTaskOverdue(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('task.overdue', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('task.overdue', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/task.overdue',
@@ -370,7 +417,7 @@ export async function emitShopifyOrderCreated(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('shopify.order_created', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('shopify.order_created', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/shopify.order_created',
@@ -399,7 +446,7 @@ export async function emitShopifyDraftOrderCreated(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('shopify.draft_order_created', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('shopify.draft_order_created', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/shopify.draft_order_created',
@@ -434,7 +481,7 @@ export async function emitShopifyOrderUpdated(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('shopify.order_updated', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('shopify.order_updated', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/shopify.order_updated',
@@ -469,7 +516,7 @@ export async function emitRobotCoordCompleted(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('robot.coord.completed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('robot.coord.completed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/robot.coord.completed',
@@ -496,7 +543,7 @@ export async function emitRobotOcrCompleted(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('robot.ocr.completed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('robot.ocr.completed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/robot.ocr.completed',
@@ -527,7 +574,7 @@ export async function emitRobotGuideLookupCompleted(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('robot.guide_lookup.completed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('robot.guide_lookup.completed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/robot.guide_lookup.completed',
@@ -559,7 +606,7 @@ export async function emitRobotGuideGenCompleted(data: {
   cascadeDepth?: number
 }): Promise<void> {
   const depth = data.cascadeDepth ?? 0
-  if (isCascadeSuppressed('robot.guide_gen.completed', data.workspaceId, depth)) return
+  if (await isCascadeSuppressed('robot.guide_gen.completed', data.workspaceId, depth)) return
 
   await sendEvent(
     'automation/robot.guide_gen.completed',

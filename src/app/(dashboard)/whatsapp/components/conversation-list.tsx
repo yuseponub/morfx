@@ -48,6 +48,10 @@ export function ConversationList({
 }: ConversationListProps) {
   const v2 = useInboxV2()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  // Locate the `.theme-editorial` wrapper so Radix Popover can re-root inside
+  // the editorial token scope (same pattern as chat-header.tsx — Plan 04). When
+  // v2 is false, ref stays null → Popover falls back to default document.body portal.
+  const themeContainerRef = useRef<HTMLElement | null>(null)
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
@@ -74,6 +78,13 @@ export function ConversationList({
     workspaceId,
     initialConversations,
   })
+
+  // Resolve the `.theme-editorial` wrapper for Radix portal re-rooting.
+  // Only needed when v2 (else ref stays null → default body portal).
+  useEffect(() => {
+    if (!v2) return
+    themeContainerRef.current = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
+  }, [v2])
 
   // Keyboard shortcut: '/' focuses the list search input (D-23).
   // Scoped to focus inside [data-module="whatsapp"] (set by InboxLayout), and
@@ -150,6 +161,50 @@ export function ConversationList({
     }
     return result
   }, [conversations, agentFilter, tagFilter])
+
+  // Keyboard shortcuts: '[' previous / ']' next conversation (D-23, UI-SPEC §10.1).
+  // Same scoping rules as '/': only fires when focus is inside [data-module="whatsapp"],
+  // ignored on input/textarea/contenteditable, only active when v2.
+  // Navigates through the FILTERED list (what the user actually sees — matches '/' focus semantics).
+  // Wraps at ends: '[' at first item goes to last, ']' at last goes to first.
+  useEffect(() => {
+    if (!v2) return
+    function handleBracketKey(e: KeyboardEvent) {
+      if (e.key !== '[' && e.key !== ']') return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return
+      if (!target.closest('[data-module="whatsapp"]')) return
+      if (!filteredConversations.length) return
+
+      const currentIdx = filteredConversations.findIndex((c) => c.id === selectedId)
+
+      if (e.key === '[') {
+        const prevIdx = currentIdx <= 0 ? filteredConversations.length - 1 : currentIdx - 1
+        const prev = filteredConversations[prevIdx]
+        if (prev) {
+          e.preventDefault()
+          markAsReadLocally(prev.id)
+          onSelect(prev.id, prev)
+        }
+        return
+      }
+
+      if (e.key === ']') {
+        const nextIdx =
+          currentIdx < 0 || currentIdx >= filteredConversations.length - 1 ? 0 : currentIdx + 1
+        const next = filteredConversations[nextIdx]
+        if (next) {
+          e.preventDefault()
+          markAsReadLocally(next.id)
+          onSelect(next.id, next)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleBracketKey)
+    return () => document.removeEventListener('keydown', handleBracketKey)
+  }, [v2, filteredConversations, selectedId, onSelect, markAsReadLocally])
 
   // Tab configuration for editorial header (v2). Maps editorial labels to
   // existing ConversationFilter values — D-19 no hook mutation.
@@ -283,7 +338,11 @@ export function ConversationList({
                   <Tag className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-2" align="start">
+              <PopoverContent
+                className="w-[200px] p-2"
+                align="start"
+                portalContainer={v2 ? themeContainerRef.current : undefined}
+              >
                 <div className="space-y-1">
                   {tagFilter && (
                     <button
@@ -428,15 +487,27 @@ export function ConversationList({
       <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
         {isLoading && !initialConversations.length ? (
           v2 ? (
-            /* Editorial skeleton — 6 items, mx-pulse animation from globals.css (D-14 interim) */
-            <div>
+            /* D-14 editorial skeleton — 6 conversation-item shaped placeholders
+               using .mx-skeleton utility (globals.css: paper-2 bg + 1px border +
+               mx-pulse 1.5s animation, disabled by prefers-reduced-motion). */
+            <div role="list" aria-busy="true" aria-label="Cargando conversaciones" className="flex flex-col">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-[72px] mx-4 my-2 bg-[var(--paper-2)] border border-[var(--border)] rounded-[4px]"
-                  style={{ animation: 'mx-pulse 1.5s ease-in-out infinite' }}
+                  className="flex items-start gap-3 px-4 py-3 border-b border-[var(--border)]"
                   aria-hidden
-                />
+                >
+                  {/* Avatar skeleton */}
+                  <div className="mx-skeleton h-10 w-10 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0 flex flex-col gap-2">
+                    {/* Name skeleton */}
+                    <div className="mx-skeleton h-[14px] w-[120px] rounded-[2px]" />
+                    {/* Preview skeleton */}
+                    <div className="mx-skeleton h-[12px] w-[180px] rounded-[2px]" />
+                  </div>
+                  {/* Timestamp skeleton */}
+                  <div className="mx-skeleton h-[10px] w-[40px] rounded-[2px] mt-1" />
+                </div>
               ))}
             </div>
           ) : (
@@ -497,7 +568,7 @@ export function ConversationList({
             </div>
           )
         ) : (
-          <div>
+          <div role="list" aria-label="Lista de conversaciones">
             {filteredConversations.map((conversation) => {
               // Get orders for this conversation's contact
               const contactOrders = conversation.contact?.id

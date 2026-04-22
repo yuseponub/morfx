@@ -635,6 +635,15 @@ interface Pipeline {
 
 function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId: string; refreshKey?: number; onStageChanged?: () => Promise<void> }) {
   const v2 = useInboxV2()
+  // Locate the `.theme-editorial` wrapper so order-card Popovers re-root their
+  // Radix portal inside the editorial token scope (Plan 05 Task 4 portal sweep).
+  // When v2 is false, ref stays null → Popover falls back to document.body default.
+  const themeContainerRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!v2) return
+    themeContainerRef.current = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
+  }, [v2])
+
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -876,7 +885,11 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                         )}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-0" align="start">
+                    <PopoverContent
+                      className="w-48 p-0"
+                      align="start"
+                      portalContainer={v2 ? themeContainerRef.current : undefined}
+                    >
                       <Command>
                         <CommandInput placeholder="Buscar etapa..." />
                         <CommandList>
@@ -1021,7 +1034,11 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
                       Tag
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-48 p-0" align="start">
+                  <PopoverContent
+                    className="w-48 p-0"
+                    align="start"
+                    portalContainer={v2 ? themeContainerRef.current : undefined}
+                  >
                     <Command>
                       <CommandInput placeholder="Buscar tag..." />
                       <CommandList>

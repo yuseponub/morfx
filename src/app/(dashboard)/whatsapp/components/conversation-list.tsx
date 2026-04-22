@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Bot, Plus, Tag, UserRoundSearch } from 'lucide-react'
+import { Bot, Plus, Search as SearchIcon, Tag, UserRoundSearch } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,12 +11,13 @@ import {
 } from '@/components/ui/popover'
 import { getTagsForScope } from '@/app/actions/tags'
 import { cn } from '@/lib/utils'
-import { useConversations } from '@/hooks/use-conversations'
+import { useConversations, type ConversationFilter } from '@/hooks/use-conversations'
 import { InboxFilters } from './filters/inbox-filters'
 import { SearchInput } from './filters/search-input'
 import { ConversationItem } from './conversation-item'
 import { AvailabilityToggle } from './availability-toggle'
 import { NewConversationModal } from './new-conversation-modal'
+import { useInboxV2 } from './inbox-v2-context'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 
@@ -45,6 +46,9 @@ export function ConversationList({
   onRefreshOrdersReady,
   clientConfig,
 }: ConversationListProps) {
+  const v2 = useInboxV2()
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   const [showNewModal, setShowNewModal] = useState(false)
   const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
@@ -70,6 +74,25 @@ export function ConversationList({
     workspaceId,
     initialConversations,
   })
+
+  // Keyboard shortcut: '/' focuses the list search input (D-23).
+  // Scoped to focus inside [data-module="whatsapp"] (set by InboxLayout), and
+  // ignored when focus is in another input/textarea/contenteditable. Only active when v2.
+  useEffect(() => {
+    if (!v2) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== '/') return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return
+      if (!target.closest('[data-module="whatsapp"]')) return
+      e.preventDefault()
+      searchInputRef.current?.focus()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [v2])
 
   // Expose refreshOrders to parent
   useEffect(() => {
@@ -128,139 +151,351 @@ export function ConversationList({
     return result
   }, [conversations, agentFilter, tagFilter])
 
+  // Tab configuration for editorial header (v2). Maps editorial labels to
+  // existing ConversationFilter values — D-19 no hook mutation.
+  // Note: 'Cerradas' maps to 'archived' (closed = archivada in this CRM).
+  const editorialTabs: Array<{ value: ConversationFilter; label: string }> = [
+    { value: 'all', label: 'Todas' },
+    { value: 'unassigned', label: 'Sin asignar' },
+    { value: 'mine', label: 'Mías' },
+    { value: 'archived', label: 'Cerradas' },
+  ]
+
+  // Detect whether any non-default filter is active (D-16 empty-filter state).
+  const isFiltered =
+    filter !== 'all' ||
+    hasQuery ||
+    agentFilter === 'agent-attended' ||
+    !!tagFilter
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header with new button and availability toggle */}
-      <div className="px-3 py-2 border-b flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold">Conversaciones</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setShowNewModal(true)}
-            title="Nueva conversacion"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <AvailabilityToggle />
-      </div>
+      {/* ===================== v2 EDITORIAL HEADER ===================== */}
+      {v2 && (
+        <>
+          {/* Utility row: new-conversation button + availability toggle (kept minimal) */}
+          <div className="px-4 pt-3 flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setShowNewModal(true)}
+              title="Nueva conversación"
+              aria-label="Nueva conversación"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <AvailabilityToggle />
+          </div>
 
-      {/* New conversation modal */}
+          {/* Editorial header: eyebrow + h1 + underlined tabs */}
+          <div className="px-4 pt-2 pb-2 border-b border-[var(--ink-1)]">
+            <span
+              className="block text-[10px] uppercase tracking-[0.12em] font-semibold text-[var(--rubric-2)]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              Módulo · whatsapp
+            </span>
+            <h1
+              className="mt-1 mb-2 text-[26px] leading-[1.2] font-semibold tracking-[-0.015em] text-[var(--ink-1)]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Conversaciones
+            </h1>
+            <div className="flex gap-4 mt-2" role="tablist" aria-label="Filtros de conversaciones">
+              {editorialTabs.map((tab) => {
+                const isActive = filter === tab.value
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setFilter(tab.value)}
+                    className={cn(
+                      'pb-1 text-[13px] transition-colors',
+                      'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ink-1)]',
+                      isActive
+                        ? 'font-semibold text-[var(--ink-1)] border-b-2 border-[var(--ink-1)]'
+                        : 'font-medium text-[var(--ink-3)] hover:text-[var(--ink-1)] border-b-2 border-transparent'
+                    )}
+                    style={{ fontFamily: 'var(--font-sans)' }}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Editorial search input with lucide Search icon + '/' shortcut */}
+          <div className="px-4 py-2 border-b border-[var(--border)] relative">
+            <SearchIcon
+              className="absolute left-[22px] top-1/2 -translate-y-1/2 h-[14px] w-[14px] text-[var(--ink-3)] pointer-events-none"
+              aria-hidden
+            />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nombre, teléfono o etiqueta…"
+              className="w-full bg-[var(--paper-0)] border border-[var(--border)] rounded-[4px] py-2 pr-3 text-[13px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]"
+              style={{ fontFamily: 'var(--font-sans)', paddingLeft: '28px' }}
+              aria-label="Buscar conversaciones"
+            />
+          </div>
+
+          {/* Secondary filter row: sort mode + agent filter + tag filter (preserve functionality) */}
+          <div className="px-4 py-2 border-b border-[var(--border)] flex items-center gap-2">
+            <Button
+              variant={sortMode === 'last_message' ? 'default' : 'ghost'}
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={() => setSortMode(prev =>
+                prev === 'last_customer_message' ? 'last_message' : 'last_customer_message'
+              )}
+              title={sortMode === 'last_message'
+                ? 'Ordenando por última interacción'
+                : 'Ordenar por última interacción'}
+            >
+              <UserRoundSearch className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={agentFilter === 'agent-attended' ? 'default' : 'ghost'}
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={() => setAgentFilter(prev => prev === 'all' ? 'agent-attended' : 'all')}
+              title={agentFilter === 'agent-attended' ? 'Mostrando solo con agente' : 'Filtrar por agente'}
+            >
+              <Bot className="h-4 w-4" />
+            </Button>
+            <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={tagFilter ? 'default' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0"
+                  title={tagFilter
+                    ? `Filtrando: ${availableTags.find(t => t.id === tagFilter)?.name || 'tag'}`
+                    : 'Filtrar por etiqueta'}
+                >
+                  <Tag className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-2" align="start">
+                <div className="space-y-1">
+                  {tagFilter && (
+                    <button
+                      onClick={() => { setTagFilter(null); setTagFilterOpen(false) }}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
+                    >
+                      Quitar filtro
+                    </button>
+                  )}
+                  {availableTags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground px-2 py-1.5">Sin etiquetas</p>
+                  ) : (
+                    availableTags.map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => { setTagFilter(tag.id); setTagFilterOpen(false) }}
+                        className={cn(
+                          "w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2",
+                          tagFilter === tag.id && "bg-accent font-medium"
+                        )}
+                      >
+                        <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                        {tag.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </>
+      )}
+
+      {/* ===================== LEGACY HEADER (flag-OFF) ===================== */}
+      {!v2 && (
+        <>
+          {/* Header with new button and availability toggle */}
+          <div className="px-3 py-2 border-b flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold">Conversaciones</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowNewModal(true)}
+                title="Nueva conversacion"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <AvailabilityToggle />
+          </div>
+
+          {/* Filters */}
+          <div className="p-3 border-b space-y-3">
+            <InboxFilters value={filter} onChange={setFilter} />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <SearchInput value={query} onChange={setQuery} />
+              </div>
+              {/* Sort mode toggle: default=last_customer_message, toggled=last_message */}
+              <Button
+                variant={sortMode === 'last_message' ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => setSortMode(prev =>
+                  prev === 'last_customer_message' ? 'last_message' : 'last_customer_message'
+                )}
+                title={sortMode === 'last_message'
+                  ? 'Ordenando por última interacción'
+                  : 'Ordenar por última interacción'}
+              >
+                <UserRoundSearch className="h-4 w-4" />
+              </Button>
+              {/* Agent filter toggle */}
+              <Button
+                variant={agentFilter === 'agent-attended' ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => setAgentFilter(prev => prev === 'all' ? 'agent-attended' : 'all')}
+                title={agentFilter === 'agent-attended' ? 'Mostrando solo con agente' : 'Filtrar por agente'}
+              >
+                <Bot className="h-4 w-4" />
+              </Button>
+              {/* Tag filter */}
+              <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={tagFilter ? 'default' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    title={tagFilter
+                      ? `Filtrando: ${availableTags.find(t => t.id === tagFilter)?.name || 'tag'}`
+                      : 'Filtrar por etiqueta'}
+                  >
+                    <Tag className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-2" align="start">
+                  <div className="space-y-1">
+                    {tagFilter && (
+                      <button
+                        onClick={() => { setTagFilter(null); setTagFilterOpen(false) }}
+                        className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
+                      >
+                        Quitar filtro
+                      </button>
+                    )}
+                    {availableTags.length === 0 ? (
+                      <p className="text-sm text-muted-foreground px-2 py-1.5">Sin etiquetas</p>
+                    ) : (
+                      availableTags.map(tag => (
+                        <button
+                          key={tag.id}
+                          onClick={() => { setTagFilter(tag.id); setTagFilterOpen(false) }}
+                          className={cn(
+                            "w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2",
+                            tagFilter === tag.id && "bg-accent font-medium"
+                          )}
+                        >
+                          <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                          {tag.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* New conversation modal (shared by both modes) */}
       <NewConversationModal
         open={showNewModal}
         onOpenChange={setShowNewModal}
         onConversationCreated={handleConversationCreated}
       />
 
-      {/* Filters */}
-      <div className="p-3 border-b space-y-3">
-        <InboxFilters value={filter} onChange={setFilter} />
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <SearchInput value={query} onChange={setQuery} />
-          </div>
-          {/* Sort mode toggle: default=last_customer_message, toggled=last_message */}
-          <Button
-            variant={sortMode === 'last_message' ? 'default' : 'ghost'}
-            size="icon"
-            className="h-8 w-8 flex-shrink-0"
-            onClick={() => setSortMode(prev =>
-              prev === 'last_customer_message' ? 'last_message' : 'last_customer_message'
-            )}
-            title={sortMode === 'last_message'
-              ? 'Ordenando por última interacción'
-              : 'Ordenar por última interacción'}
-          >
-            <UserRoundSearch className="h-4 w-4" />
-          </Button>
-          {/* Agent filter toggle */}
-          <Button
-            variant={agentFilter === 'agent-attended' ? 'default' : 'ghost'}
-            size="icon"
-            className="h-8 w-8 flex-shrink-0"
-            onClick={() => setAgentFilter(prev => prev === 'all' ? 'agent-attended' : 'all')}
-            title={agentFilter === 'agent-attended' ? 'Mostrando solo con agente' : 'Filtrar por agente'}
-          >
-            <Bot className="h-4 w-4" />
-          </Button>
-          {/* Tag filter */}
-          <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant={tagFilter ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8 flex-shrink-0"
-                title={tagFilter
-                  ? `Filtrando: ${availableTags.find(t => t.id === tagFilter)?.name || 'tag'}`
-                  : 'Filtrar por etiqueta'}
-              >
-                <Tag className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-2" align="start">
-              <div className="space-y-1">
-                {tagFilter && (
-                  <button
-                    onClick={() => { setTagFilter(null); setTagFilterOpen(false) }}
-                    className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
-                  >
-                    Quitar filtro
-                  </button>
-                )}
-                {availableTags.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-2 py-1.5">Sin etiquetas</p>
-                ) : (
-                  availableTags.map(tag => (
-                    <button
-                      key={tag.id}
-                      onClick={() => { setTagFilter(tag.id); setTagFilterOpen(false) }}
-                      className={cn(
-                        "w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2",
-                        tagFilter === tag.id && "bg-accent font-medium"
-                      )}
-                    >
-                      <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-                      {tag.name}
-                    </button>
-                  ))
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
       {/* Conversation list */}
       <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
         {isLoading && !initialConversations.length ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
+          v2 ? (
+            /* Editorial skeleton — 6 items, mx-pulse animation from globals.css (D-14 interim) */
+            <div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[72px] mx-4 my-2 bg-[var(--paper-2)] border border-[var(--border)] rounded-[4px]"
+                  style={{ animation: 'mx-pulse 1.5s ease-in-out infinite' }}
+                  aria-hidden
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-32">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          )
         ) : filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <p className="text-muted-foreground">
-              {tagFilter
-                ? 'No hay conversaciones con esta etiqueta'
-                : agentFilter === 'agent-attended'
-                ? 'No hay conversaciones con agente activo'
-                : hasQuery
-                  ? 'No se encontraron conversaciones'
-                  : filter === 'unread'
-                    ? 'No hay mensajes sin leer'
-                    : filter === 'mine'
-                      ? 'No tienes chats asignados'
-                      : filter === 'unassigned'
-                        ? 'No hay chats sin asignar'
-                        : filter === 'unanswered'
-                          ? 'No hay conversaciones sin respuesta'
-                          : filter === 'archived'
-                          ? 'No hay conversaciones archivadas'
-                          : 'No hay conversaciones aun'
-              }
-            </p>
-          </div>
+          v2 ? (
+            isFiltered ? (
+              /* D-16 empty filter state */
+              <div className="flex flex-col items-center justify-center h-full px-6 py-16 text-center gap-2">
+                <p className="mx-h4">Nada coincide con los filtros activos.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter('all')
+                    setQuery('')
+                    setAgentFilter('all')
+                    setTagFilter(null)
+                  }}
+                  className="text-[13px] font-medium text-[var(--ink-2)] border-b border-[var(--ink-2)] hover:text-[var(--rubric-2)] hover:border-[var(--rubric-2)] transition-colors"
+                  style={{ fontFamily: 'var(--font-sans)' }}
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            ) : (
+              /* D-15 empty bandeja state */
+              <div className="flex flex-col items-center justify-center h-full px-6 py-16 text-center gap-3">
+                <p className="mx-h3">La bandeja está limpia.</p>
+                <p className="mx-caption">Cuando llegue un mensaje nuevo aparecerá aquí.</p>
+                <p className="mx-rule-ornament">· · ·</p>
+              </div>
+            )
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <p className="text-muted-foreground">
+                {tagFilter
+                  ? 'No hay conversaciones con esta etiqueta'
+                  : agentFilter === 'agent-attended'
+                  ? 'No hay conversaciones con agente activo'
+                  : hasQuery
+                    ? 'No se encontraron conversaciones'
+                    : filter === 'unread'
+                      ? 'No hay mensajes sin leer'
+                      : filter === 'mine'
+                        ? 'No tienes chats asignados'
+                        : filter === 'unassigned'
+                          ? 'No hay chats sin asignar'
+                          : filter === 'unanswered'
+                            ? 'No hay conversaciones sin respuesta'
+                            : filter === 'archived'
+                            ? 'No hay conversaciones archivadas'
+                            : 'No hay conversaciones aun'
+                }
+              </p>
+            </div>
+          )
         ) : (
           <div>
             {filteredConversations.map((conversation) => {

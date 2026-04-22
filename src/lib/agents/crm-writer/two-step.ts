@@ -132,8 +132,24 @@ export async function confirmAction(
     output = await dispatchToolExecution(ctx, row.tool_name, row.input_params)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    failed = { code: 'dispatch_error', message }
-    logger.error({ err, actionId, tool: row.tool_name }, 'dispatch threw')
+    // D-06 cross-agent contract (Plan 02 crm-stage-integrity): when dispatch
+    // returns moveOrderToStage error === 'stage_changed_concurrently', we
+    // preserve the string-marker verbatim as error.code so the sandbox UI
+    // (and any future consumer of crm_bot_actions.error JSONB) can render a
+    // dedicated toast. Do NOT rewrite to a generic message.
+    // `unwrap` below attaches the domain error string to Error.cause/message
+    // as "moveOrderToStage_failed: stage_changed_concurrently"; we narrow here.
+    const codeFromErr =
+      err instanceof Error && typeof (err as unknown as { code?: unknown }).code === 'string'
+        ? (err as unknown as { code: string }).code
+        : null
+    const code =
+      codeFromErr === 'stage_changed_concurrently' ||
+      message.includes('stage_changed_concurrently')
+        ? 'stage_changed_concurrently'
+        : 'dispatch_error'
+    failed = { code, message }
+    logger.error({ err, actionId, tool: row.tool_name, code }, 'dispatch threw')
   }
 
   if (failed) {
@@ -260,7 +276,14 @@ async function dispatchToolExecution(
 
 function unwrap<T>(result: { success: boolean; data?: T; error?: string }, toolName: string): T {
   if (!result.success) {
-    throw new Error(`${toolName}_failed: ${result.error ?? 'unknown'}`)
+    const rawError = result.error ?? 'unknown'
+    const err = new Error(`${toolName}_failed: ${rawError}`) as Error & { code?: string }
+    // D-06 cross-agent contract (Plan 02 crm-stage-integrity): attach the raw
+    // domain error code as a structured property so confirmAction can narrow
+    // stage_changed_concurrently (and other future string-markers) without
+    // relying on substring matches alone.
+    err.code = rawError
+    throw err
   }
   return result.data as T
 }

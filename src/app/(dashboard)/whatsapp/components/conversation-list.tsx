@@ -48,6 +48,10 @@ export function ConversationList({
 }: ConversationListProps) {
   const v2 = useInboxV2()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  // Locate the `.theme-editorial` wrapper so Radix Popover can re-root inside
+  // the editorial token scope (same pattern as chat-header.tsx — Plan 04). When
+  // v2 is false, ref stays null → Popover falls back to default document.body portal.
+  const themeContainerRef = useRef<HTMLElement | null>(null)
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
@@ -74,6 +78,13 @@ export function ConversationList({
     workspaceId,
     initialConversations,
   })
+
+  // Resolve the `.theme-editorial` wrapper for Radix portal re-rooting.
+  // Only needed when v2 (else ref stays null → default body portal).
+  useEffect(() => {
+    if (!v2) return
+    themeContainerRef.current = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
+  }, [v2])
 
   // Keyboard shortcut: '/' focuses the list search input (D-23).
   // Scoped to focus inside [data-module="whatsapp"] (set by InboxLayout), and
@@ -327,7 +338,11 @@ export function ConversationList({
                   <Tag className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-2" align="start">
+              <PopoverContent
+                className="w-[200px] p-2"
+                align="start"
+                portalContainer={v2 ? themeContainerRef.current : undefined}
+              >
                 <div className="space-y-1">
                   {tagFilter && (
                     <button
@@ -553,7 +568,7 @@ export function ConversationList({
             </div>
           )
         ) : (
-          <div>
+          <div role="list" aria-label="Lista de conversaciones">
             {filteredConversations.map((conversation) => {
               // Get orders for this conversation's contact
               const contactOrders = conversation.contact?.id

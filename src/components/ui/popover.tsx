@@ -21,10 +21,21 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  portalContainer,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /**
+   * Optional portal container for the popover content. When provided, the Radix
+   * portal re-roots into this element instead of document.body — required for
+   * re-skinned surfaces (e.g. `.theme-editorial`) that need CSS tokens to
+   * cascade into the popover. When omitted (default), the popover portals to
+   * document.body — BYTE-IDENTICAL behavior for all existing consumers.
+   * Pattern mirrors the one in dropdown-menu.tsx shipped by Plan 04.
+   */
+  portalContainer?: HTMLElement | null
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

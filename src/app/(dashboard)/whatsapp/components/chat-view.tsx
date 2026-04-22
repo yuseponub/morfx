@@ -178,6 +178,9 @@ export function ChatView({
       {/* Messages container with geometric pattern background */}
       <div
         ref={parentRef}
+        role="log"
+        aria-live="polite"
+        aria-label="Hilo de mensajes"
         className="flex-1 overflow-auto chat-background"
         style={{
           contain: 'strict',

@@ -66,20 +66,28 @@ export const recompraPreloadContext = inngest.createFunction(
       return { status: 'skipped' as const, reason: 'feature_flag_off' as const }
     }
 
-    // ---- Idempotency (D-15, Open Q 6) — short-circuit if already processed ----
+    // ---- Load session (conversation_id for observability + state for idempotency) ----
+    //
+    // Idempotency (D-15, Open Q 6): short-circuit on terminal-success markers only
+    // ('ok' / 'empty'). Status 'error' is treated as retryable — the prior run may
+    // have hit a transient failure (timeout, Anthropic 5xx) and the automatic Inngest
+    // retry (retries=1) should attempt again, overwriting the error marker on success.
+    //
+    // Observability: the outer collector's conversationId MUST be the REAL WhatsApp
+    // conversation id so the crm-reader turn shows up in the debug panel alongside
+    // the recompra agent's turns. Using a synthetic id (`recompra-preload-<sessionId>`)
+    // flushes to a "ghost" conversation that is never queried by the UI.
     const { SessionManager } = await import('@/lib/agents/session-manager')
     const sm = new SessionManager()
+    let realConversationId: string | null = null
     try {
-      const existingState = await sm.getState(sessionId)
-      const existingStatus = existingState.datos_capturados?.['_v3:crm_context_status']
-      if (
-        existingStatus === 'ok' ||
-        existingStatus === 'empty' ||
-        existingStatus === 'error'
-      ) {
+      const session = await sm.getSession(sessionId)
+      realConversationId = session.conversation_id
+      const existingStatus = session.state.datos_capturados?.['_v3:crm_context_status']
+      if (existingStatus === 'ok' || existingStatus === 'empty') {
         logger.info(
           { sessionId, existingStatus },
-          'crm_context_status already present, short-circuit (idempotent)',
+          'crm_context_status already terminal, short-circuit (idempotent)',
         )
         return {
           status: 'skipped' as const,
@@ -87,19 +95,29 @@ export const recompraPreloadContext = inngest.createFunction(
           existingStatus,
         }
       }
-    } catch (getStateErr) {
-      // If session not found (race with session create), proceed — the reader will attempt write
-      // which may or may not persist. Log and continue (fail-open to not block preload).
+      // existingStatus === 'error' → fall through, retry the reader call.
+    } catch (getSessionErr) {
+      // Session not found (race with session create) — proceed anyway. The reader
+      // write may or may not persist; we fail-open to not block preload. Observability
+      // will fall back to a synthetic conversationId (can't join to a real conversation).
       logger.warn(
-        { sessionId, err: getStateErr instanceof Error ? getStateErr.message : String(getStateErr) },
-        'could not pre-fetch session state, proceeding to call reader',
+        {
+          sessionId,
+          err:
+            getSessionErr instanceof Error
+              ? getSessionErr.message
+              : String(getSessionErr),
+        },
+        'could not pre-fetch session, proceeding without real conversationId',
       )
     }
 
     // ---- Observability setup (outer collector for cross-step aggregation) ----
+    // Real conversationId when available so debug panel picks up this turn under
+    // the same conversation as the recompra agent's turns.
     const collector = isObservabilityEnabled()
       ? new ObservabilityCollector({
-          conversationId: `recompra-preload-${sessionId}`,
+          conversationId: realConversationId ?? `recompra-preload-${sessionId}`,
           workspaceId,
           agentId: 'crm-reader',
           turnStartedAt: new Date(),

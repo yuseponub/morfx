@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mocks — define ANTES de import del modulo bajo test (vi.mock hoisting).
 const mockProcessReaderMessage = vi.fn()
 const mockUpdateCapturedData = vi.fn()
-const mockGetState = vi.fn()
+const mockGetSession = vi.fn()
 const mockGetPlatformConfig = vi.fn()
 
 vi.mock('@/lib/agents/crm-reader', () => ({
@@ -13,7 +13,7 @@ vi.mock('@/lib/agents/crm-reader', () => ({
 vi.mock('@/lib/agents/session-manager', () => ({
   SessionManager: vi.fn().mockImplementation(() => ({
     updateCapturedData: mockUpdateCapturedData,
-    getState: mockGetState,
+    getSession: mockGetSession,
   })),
 }))
 
@@ -74,10 +74,13 @@ describe('recompra-preload-context Inngest function', () => {
     expect(mockUpdateCapturedData).not.toHaveBeenCalled()
   })
 
-  it('short-circuits with skipped/already_processed when _v3:crm_context_status already present (D-15)', async () => {
+  it('short-circuits with skipped/already_processed when _v3:crm_context_status is terminal (ok)', async () => {
     mockGetPlatformConfig.mockResolvedValue(true)
-    mockGetState.mockResolvedValue({
-      datos_capturados: { '_v3:crm_context_status': 'ok', '_v3:crm_context': 'prev' },
+    mockGetSession.mockResolvedValue({
+      conversation_id: 'conv-real-abc',
+      state: {
+        datos_capturados: { '_v3:crm_context_status': 'ok', '_v3:crm_context': 'prev' },
+      },
     })
 
     const result = await recompraPreloadContext.handler({ event: baseEvent, step: mockStep })
@@ -87,9 +90,55 @@ describe('recompra-preload-context Inngest function', () => {
     expect(mockUpdateCapturedData).not.toHaveBeenCalled()
   })
 
+  it('short-circuits with skipped/already_processed on terminal status=empty', async () => {
+    mockGetPlatformConfig.mockResolvedValue(true)
+    mockGetSession.mockResolvedValue({
+      conversation_id: 'conv-real-abc',
+      state: {
+        datos_capturados: { '_v3:crm_context_status': 'empty', '_v3:crm_context': '' },
+      },
+    })
+
+    const result = await recompraPreloadContext.handler({ event: baseEvent, step: mockStep })
+
+    expect(result).toMatchObject({ status: 'skipped', reason: 'already_processed' })
+    expect(mockProcessReaderMessage).not.toHaveBeenCalled()
+  })
+
+  it('retries (does NOT skip) when prior status=error (transient failure recovery)', async () => {
+    mockGetPlatformConfig.mockResolvedValue(true)
+    mockGetSession.mockResolvedValue({
+      conversation_id: 'conv-real-abc',
+      state: {
+        datos_capturados: { '_v3:crm_context_status': 'error', '_v3:crm_context': '' },
+      },
+    })
+    mockProcessReaderMessage.mockResolvedValue({
+      text: 'Recovered context: 1x Somnio entregado 2026-04-15. Tags: VIP.',
+      toolCalls: [{ name: 'contacts_get' }],
+      steps: 2,
+      agentId: 'crm-reader',
+    })
+
+    const result = await recompraPreloadContext.handler({ event: baseEvent, step: mockStep })
+
+    expect(mockProcessReaderMessage).toHaveBeenCalledTimes(1)
+    expect(mockUpdateCapturedData).toHaveBeenCalledWith(
+      'session-123',
+      expect.objectContaining({
+        '_v3:crm_context_status': 'ok',
+        '_v3:crm_context': expect.stringContaining('Recovered'),
+      }),
+    )
+    expect(result).toMatchObject({ status: 'ok' })
+  })
+
   it('calls reader and writes status=ok on success', async () => {
     mockGetPlatformConfig.mockResolvedValue(true)
-    mockGetState.mockResolvedValue({ datos_capturados: {} })
+    mockGetSession.mockResolvedValue({
+      conversation_id: 'conv-real-abc',
+      state: { datos_capturados: {} },
+    })
     mockProcessReaderMessage.mockResolvedValue({
       text: 'Ultimo pedido: 2x Somnio entregado 2026-04-10. Tags: VIP. 3 pedidos total. Direccion: Cra 10 #20-30, Bogota.',
       toolCalls: [{ name: 'contacts_get' }, { name: 'orders_list' }, { name: 'tags_list' }],
@@ -124,7 +173,10 @@ describe('recompra-preload-context Inngest function', () => {
 
   it('writes status=empty when reader returns empty text', async () => {
     mockGetPlatformConfig.mockResolvedValue(true)
-    mockGetState.mockResolvedValue({ datos_capturados: {} })
+    mockGetSession.mockResolvedValue({
+      conversation_id: 'conv-real-abc',
+      state: { datos_capturados: {} },
+    })
     mockProcessReaderMessage.mockResolvedValue({
       text: '',
       toolCalls: [],
@@ -143,7 +195,10 @@ describe('recompra-preload-context Inngest function', () => {
 
   it('writes status=error marker BEFORE returning when reader throws (Pitfall 4)', async () => {
     mockGetPlatformConfig.mockResolvedValue(true)
-    mockGetState.mockResolvedValue({ datos_capturados: {} })
+    mockGetSession.mockResolvedValue({
+      conversation_id: 'conv-real-abc',
+      state: { datos_capturados: {} },
+    })
     mockProcessReaderMessage.mockRejectedValue(new Error('Anthropic 5xx upstream'))
 
     const result = await recompraPreloadContext.handler({ event: baseEvent, step: mockStep })
@@ -154,5 +209,21 @@ describe('recompra-preload-context Inngest function', () => {
     )
     expect(result).toMatchObject({ status: 'error' })
     expect((result as { error?: string }).error).toContain('Anthropic 5xx')
+  })
+
+  it('proceeds when getSession throws (fail-open, no real conversationId)', async () => {
+    mockGetPlatformConfig.mockResolvedValue(true)
+    mockGetSession.mockRejectedValue(new Error('SessionNotFoundError'))
+    mockProcessReaderMessage.mockResolvedValue({
+      text: 'Some context',
+      toolCalls: [],
+      steps: 1,
+      agentId: 'crm-reader',
+    })
+
+    const result = await recompraPreloadContext.handler({ event: baseEvent, step: mockStep })
+
+    expect(mockProcessReaderMessage).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({ status: 'ok' })
   })
 })

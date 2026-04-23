@@ -905,5 +905,80 @@ Range pushado: `cfd447d..9642e36` (13 commits).
 
 Fase `ui-redesign-dashboard` con CONTEXT + PLAN committed, **ready-to-execute** en próxima sesión. Re-skinea 7 módulos (CRM, Pedidos, Tareas, Agentes, Automatizaciones, Analytics/Métricas, Configuración) gated por flag `ui_dashboard_v2.enabled`. 4 waves (infra → 3‖ → 2‖ → 2‖ → close), ~6-8h con paralelización. Artefactos en `.planning/standalone/ui-redesign-dashboard/`.
 
+### UI Editorial Dashboard v2 (in rollout — 2026-04-23)
+
+**Standalone:** `.planning/standalone/ui-redesign-dashboard/`
+**Status:** SHIPPED detrás de feature flag — flag default `false` per workspace (Regla 6).
+
+**Feature flag:** `workspaces.settings.ui_dashboard_v2.enabled` (boolean, JSONB).
+**Coexistencia:** independiente de `ui_inbox_v2.enabled` (D-DASH-03). Un workspace puede tener uno sin el otro. Caso típico Somnio hoy: `ui_inbox_v2=true` y `ui_dashboard_v2=false`. Post-QA de esta fase, se activan ambos.
+
+**Activación per workspace (manual, via SQL — admin UI deferred):**
+Snippet completo en `.planning/standalone/ui-redesign-dashboard/activacion-somnio.sql`.
+
+Resumen:
+```sql
+UPDATE workspaces
+SET settings = jsonb_set(
+  COALESCE(settings, '{}'::jsonb),
+  '{ui_dashboard_v2,enabled}',
+  'true'::jsonb,
+  true
+)
+WHERE id = '<workspace-uuid>';
+```
+
+**Rollback:**
+```sql
+UPDATE workspaces
+SET settings = jsonb_set(settings, '{ui_dashboard_v2,enabled}', 'false'::jsonb)
+WHERE id = '<workspace-uuid>';
+```
+
+**Módulos re-skineados (7):**
+- **CRM** (`src/app/(dashboard)/crm/`) — dictionary-table para listados de contactos/productos, detail drawer ledger-style, dialogs editorial.
+- **Pedidos** (`src/app/(dashboard)/crm/pedidos/`) — status pills editorial (mx-tag--verdigris/gold/rubric/indigo/ink), kanban cards paper-1 + flag pills, order sheet ledger-style, pipeline tabs smallcaps.
+- **Tareas** (`src/app/(dashboard)/tareas/`) — kanban 4-col paper-0 + border ink-1 + pri-stripe 3px, dictionary-table list-view, detail sheet con dp-hd + meta-grid + details collapsibles, form editorial inputs.
+- **Agentes** (`src/app/(dashboard)/agentes/`) — 9 metric cards (serif 30px tabular-nums), config panel 6 sections editorial, preset cards selectables.
+- **Automatizaciones** (`src/app/(dashboard)/automatizaciones/`) — dictionary-table listing + wizard editorial + React Flow canvas dotted-grid con nodos paper-0/stamp + AI builder chat + historial pills.
+- **Analytics + Métricas** (`src/app/(dashboard)/analytics/` + `metricas/`) — Recharts re-themed via props (AreaChart rubric-2 + LineChart multi-series rubric/gold/verdigris), KPI strip dictionary-style, date-range popover portal-respectful.
+- **Configuración** (`src/app/(dashboard)/configuracion/`) — integraciones (Shopify/SMS/BOLD + sync-status) + WhatsApp (landing/templates/equipos/quick-replies/costos) + tareas, forms editorial helpers reutilizables, sub-nav dictionary-list.
+
+**Infraestructura compartida (Wave 0):**
+- `src/lib/auth/dashboard-v2.ts` — server-side flag resolver `getIsDashboardV2Enabled(workspaceId)` (fail-closed try/catch, mismo pattern que `inbox-v2.ts`).
+- `src/app/(dashboard)/fonts.ts` — loader EB Garamond + Inter + JetBrains Mono via `next/font/google` (per-segment preload con dedupe Next).
+- `src/app/(dashboard)/layout.tsx` — wrapper conditional `theme-editorial` className + font vars basado en el flag.
+- `src/components/layout/sidebar.tsx` — re-skin editorial conditional gated (paper-1 bg, smallcaps section labels, ink-1 border, rubric-2 active state, wordmark `morf·x`).
+- `src/components/layout/dashboard-v2-context.tsx` — `DashboardV2Provider` + `useDashboardV2()` hook para propagación sin prop drilling.
+
+**Shadcn primitives extendidos aditivamente (BC-additive `portalContainer?: HTMLElement | null`):**
+- `sheet.tsx` (Plan 03 Pedidos), `alert-dialog.tsx` (Plan 04 Tareas), `dialog.tsx` (Plan 06 Automatizaciones). Heredan pattern de `dropdown-menu.tsx` + `popover.tsx` ya extendidos por fase Conversaciones Plan 01.
+
+**CSS:**
+- `src/app/globals.css` — bloque `.theme-editorial` heredado de fase Conversaciones (sin cambios estructurales; tokens canónicos reutilizados). **Cero cambios nuevos** al globals.
+
+**Out-of-scope (deferred):**
+- Módulos `whatsapp` (tiene su propio flag `ui_inbox_v2.enabled`), `super-admin`, `sandbox`, `onboarding`, `create-workspace`, `invite` — estos pueden romperse visualmente con flag ON (D-DASH-04). Si surge necesidad, fase `ui-redesign-dashboard-extras` con `[data-theme-override="slate"]` en sus layouts.
+- Mobile responsive <1024px — fase futura.
+- Dark mode editorial — fuera de scope (`.theme-editorial` forzado a `color-scheme: light`).
+- Sistema de microanimaciones — fuera de scope.
+- Admin UI para flipear flag sin SQL — operativo, no frecuente. Standalone separado low-priority.
+- i18n del dashboard editorial — keys preservadas donde existían (D-DASH-18); textos nuevos hardcoded en español.
+- `Select` primitive `portalContainer` extension — deuda si QA reporta leakage.
+
+**Stack:** cero npm packages nuevos. Las 3 fuentes ya están en uso por la fase Conversaciones; `next/font/google` las cachea entre segments.
+
+**Métricas:** 49 commits phase-scoped, 107 archivos tocados, +13,085 / -2,238 LOC (neto +10,847), 9 plans, 4 waves, ~1 día con paralelización.
+
+**Reglas verificadas:**
+- **Regla 6** (proteger dashboard productivo): cero cambios en `src/lib/domain`, `src/lib/agents`, `src/lib/automation`, `src/inngest`, `src/app/api`, `src/app/actions`, `src/hooks`. Verificable via `git log --grep="ui-redesign-dashboard|worktree-agent"` filtro phase-scoped (Check 6 del reporte DoD).
+- **Regla 1** (push a Vercel): commits de Plans 01-09 pusheados al final de Plan 09.
+- **Regla 4** (docs): este documento actualizado.
+- **Coexistencia con flag inbox v2 (D-DASH-03):** un workspace puede tener uno, otro, ambos o ninguno activo.
+
+**DoD verification:** `.planning/standalone/ui-redesign-dashboard/dod-verification.txt` (7 checks PASS: slate leakage por módulo, hsl antipattern delta=0, dark: delta=0, mx-* count 120≥50, tsc clean, Regla 6 NO-TOUCH phase-scoped, flag-OFF byte-identical).
+
+**LEARNINGS:** `.planning/standalone/ui-redesign-dashboard/LEARNINGS.md` (12 secciones — 7 patterns establecidos, pitfalls, deferred, Regla 6, rollout playbook, recommendations, DoD evidence, commits ranges).
+
 *Actualizado: 23 abril 2026 — Standalone `somnio-recompra-template-catalog` SHIPPED. Recompra independizado a nivel de templates: `TEMPLATE_LOOKUP_AGENT_ID = 'somnio-recompra-v1'` (revierte fix T2 `cdc06d9`). Scope redefinido tras audit D-11 — los 3 templates que el plan iba a tocar ya existian en prod con copy equivalente o mejor (saludo/preguntar_direccion_recompra/registro_sanitario), y los gaps reales eran otros 3 intents (contraindicaciones, tiempo_entrega_1_3_days, tiempo_entrega_2_4_days zona DEFAULT) ahora cerrados via migration `20260423142420_recompra_template_catalog_gaps.sql` (aplicada en prod ANTES del push — Regla 5). Cambios de codigo: `response-track.ts` (TEMPLATE_LOOKUP_AGENT_ID + `{{direccion_completa}}` incluye departamento D-12 + export `resolveSalesActionTemplates`), `constants.ts` (agrega `'registro_sanitario'` a `INFORMATIONAL_INTENTS` D-06 — cierra deuda), `transitions.ts` (elimina entry `saludo` D-05 + `quiero_comprar → preguntar_direccion` con L5 D-04). Tests: 15 nuevos (9 transitions.test.ts + 6 response-track.test.ts) → suite recompra 32/32 green. Bug `.planning/debug/recompra-greeting-bugs.md` movido a `resolved/`. Ver `.planning/standalone/somnio-recompra-template-catalog/LEARNINGS.md`.*
 

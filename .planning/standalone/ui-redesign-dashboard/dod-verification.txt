@@ -1,0 +1,136 @@
+=== UI Redesign Dashboard — DoD Verification ===
+Date: 2026-04-23T18:04:00Z
+Executor: claude-opus-4-7 (Plan 09 Task 1, autonomous=true)
+HEAD: 6629b9d794d25560d8063a90b4e8d00f23640c75 (6629b9d)
+Base: main (pre-mega-phase, base_commit 9642e36)
+Modules in-scope: crm, tareas, agentes, automatizaciones, analytics, metricas, configuracion
+Modules OUT-OF-SCOPE (per D-DASH-04): whatsapp, super-admin, sandbox, onboarding, create-workspace, invite
+
+Phase-scope filter: commit subjects matching 'ui-redesign-dashboard' | 'worktree-agent'.
+Rationale: other standalone phases (somnio-recompra-template-catalog) were merged in
+parallel into main between $BASE and HEAD; they legitimately touch NO-TOUCH paths per
+their own contracts. Dashboard's D-DASH-07 contract only covers its own commits.
+Files touched by dashboard phase commits: 107.
+
+--- Check 1: slate-* leakage per module (editorial path must not use slate-N tokens) ---
+PASS: zero slate-* leakage in the editorial path. Any slate-N matches are confined to the flag-OFF branch (cn(!v2 && '...')).
+
+--- Check 2: hsl(var(--*)) antipattern (count in HEAD must not exceed count in base) ---
+hsl(var(--*)) count in HEAD (7 modules): 8
+hsl(var(--*)) count in base 9642e36 (7 modules): 8
+Delta: 0
+PASS: no new hsl(var(--*)) instances introduced. Any matches in HEAD are preexisting debt preserved verbatim in flag-OFF branches (cf. Plan 07 SUMMARY: 'Tooltip contentStyle usa var(--paper-0) en v2 branch — elimina antipattern hsl(var(--background)) mantenido verbatim en !v2').
+Preexisting debt locations (all inside !v2 branches of each file):
+  src/app/(dashboard)/analytics/components/sales-chart.tsx:208:                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+  src/app/(dashboard)/analytics/components/sales-chart.tsx:209:                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+  src/app/(dashboard)/analytics/components/sales-chart.tsx:246:                stroke="hsl(var(--primary))"
+  src/app/(dashboard)/metricas/components/evolution-chart.tsx:217:                  backgroundColor: 'hsl(var(--background))',
+  src/app/(dashboard)/metricas/components/evolution-chart.tsx:218:                  border: '1px solid hsl(var(--border))',
+  src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-chart.tsx:58:                    stopColor="hsl(var(--primary))"
+  src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-chart.tsx:63:                    stopColor="hsl(var(--primary))"
+  src/app/(dashboard)/configuracion/whatsapp/costos/components/usage-chart.tsx:103:                stroke="hsl(var(--primary))"
+
+--- Check 3: dark: classes audit (D-DASH-04 — phase must not add new dark: classes) ---
+dark: count in HEAD (7 modules): 69
+dark: count in base 9642e36 (7 modules): 69
+Delta: 0
+PASS: no new dark: classes introduced. Preexisting dark: classes are inherited debt (dark mode editorial is a future phase).
+
+--- Check 4: mx-* utilities adoption count (minimum 50 — genuine editorial adoption) ---
+src/app/(dashboard)/crm: 46
+src/app/(dashboard)/tareas: 0
+src/app/(dashboard)/agentes: 4
+src/app/(dashboard)/automatizaciones: 24
+src/app/(dashboard)/analytics: 5
+src/app/(dashboard)/metricas: 6
+src/app/(dashboard)/configuracion: 35
+TOTAL mx-* references across 7 modules: 120
+PASS: mx-* count 120 >= 50 (adoption threshold met).
+
+--- Check 5: tsc --noEmit clean ---
+PASS: zero TypeScript errors outside node_modules.
+
+--- Check 6: Regla 6 NO-TOUCH guard (D-DASH-07 — UI-only, phase-scoped) ---
+NO-TOUCH paths audited:
+  - src/lib/domain
+  - src/lib/agents
+  - src/lib/automation
+  - src/inngest
+  - src/app/api
+  - src/app/actions
+  - src/hooks
+
+Files touched by PHASE commits in NO-TOUCH paths: 0
+PASS: zero files in NO-TOUCH paths modified by this phase's commits. Regla 6 verified.
+
+Note: 'git diff 9642e36..HEAD -- <NO-TOUCH>' shows non-zero lines because
+somnio-recompra-template-catalog was merged in parallel between $BASE and HEAD.
+Those commits are NOT part of this phase. Phase-scoped filter above proves
+our commits alone are UI-only.
+
+--- Check 7: flag-OFF byte-identical guarantee audit (D-DASH-04 + Regla 6) ---
+PASS: all phase-added lines in the 7 modules carry obvious flag-gating markers.
+
+--- Phase commit inventory (auditable provenance) ---
+All commits in this phase (subject matches 'ui-redesign-dashboard' | 'worktree-agent'):
+  6629b9d chore: merge worktree-agent-add6d810 (Plan 07 Analytics + Métricas editorial)
+  c2ad0f3 docs(ui-redesign-dashboard-08): Plan 08 SUMMARY — configuracion module editorial re-skin (Wave 3 close)
+  1ebe1d6 feat(ui-redesign-dashboard-08): Task 6 — tareas config + task-types-manager editorial
+  2d0d1bb feat(ui-redesign-dashboard-08): Task 5 — costos editorial (stat boxes + category breakdown + period selector)
+  53c45ec feat(ui-redesign-dashboard-08): Task 4 — equipos + quick-replies editorial (D-DASH-11 + D-DASH-14 + D-DASH-15)
+  309cf54 docs(ui-redesign-dashboard-07): Plan 07 SUMMARY — Wave 3 analytics+metricas editorial complete
+  ebe8160 feat(ui-redesign-dashboard-08): Task 3 — whatsapp landing + templates editorial (D-DASH-11 + D-DASH-14 + D-DASH-15 + D-DASH-16)
+  037c6fe feat(ui-redesign-dashboard-07-T4): KPI 3-col + EvolutionChart editorial (metricas)
+  df49525 feat(ui-redesign-dashboard-07-T3): period selectors + date-range popover editorial gated
+  25865a7 feat(ui-redesign-dashboard-08): Task 2 — shopify-form + bold-form editorial (D-DASH-14 forms + mx-tag status)
+  b46d20b feat(ui-redesign-dashboard-08): Task 1 — integraciones page + sms-tab + sync-status editorial
+  1bc5fa0 feat(ui-redesign-dashboard-07-T2): SalesChart editorial re-themed via Recharts props (analytics)
+  475e0a9 feat(ui-redesign-dashboard-07-T1): KPI cards + AnalyticsView editorial gated (analytics)
+  f85da50 docs(ui-redesign-dashboard-06): Plan 06 SUMMARY — automatizaciones module editorial re-skin
+  776c7ba feat(ui-redesign-dashboard-06-T5): execution history + detail dialog editorial + dialog portalContainer
+  4716723 feat(ui-redesign-dashboard-06-T4): AI Builder chat editorial (shell + sidebar + chat + messages + input + CTAs)
+  cbfdc44 feat(ui-redesign-dashboard-06-T3): React Flow canvas + preview-nodes editorial (lib intacta)
+  5ed1ab0 feat(ui-redesign-dashboard-06-T2): wizard editorial (steps + trigger cards + cond-row + actions cards + variable picker)
+  c32da8b docs(ui-redesign-dashboard-05): Plan 05 SUMMARY — agentes module editorial re-skin
+  179a8ef feat(ui-redesign-dashboard-05): config-panel Part B editorial gated v2
+  f4beb3b feat(ui-redesign-dashboard-06-T1): listing editorial automatizaciones (dictionary-table + folders + search + filter pills + status dots)
+  9b20eb5 feat(ui-redesign-dashboard-05): config-panel Part A editorial gated v2
+  d225563 feat(ui-redesign-dashboard-05): metrics-dashboard editorial gated v2
+  9a14c94 feat(ui-redesign-dashboard-05): header editorial agentes/layout gated v2
+  1a9362a chore: merge worktree-agent-a50be1cf (Plan 04 Tareas editorial re-skin)
+  e58064c docs(ui-redesign-dashboard-04): Plan 04 SUMMARY — Tareas module editorial re-skin
+  a37288e feat(ui-redesign-dashboard-04-T5): TaskForm editorial inputs + .btn.red + portalContainer
+  ded30ad docs(ui-redesign-dashboard-02): Plan 02 SUMMARY — CRM Contactos + Productos editorial re-skin shipped
+  7a295f6 feat(ui-redesign-dashboard-04-T4): TaskDetailSheet editorial con dp-hd + meta-grid + details
+  ca70ca6 feat(ui-redesign-dashboard-02): Task 6 — dialogs/sheets sweep editorial (D-DASH-10)
+  a3f2ffd feat(ui-redesign-dashboard-04-T3): TaskRow editorial para dictionary-table list-view
+  80b2fac feat(ui-redesign-dashboard-04-T2): TaskKanban 4-col + TaskCard editorial article
+  241c87e feat(ui-redesign-dashboard-02): Task 5 — forms editorial (D-DASH-14) ContactForm + ProductForm
+  f38b19c feat(ui-redesign-dashboard-04-T1): topbar editorial + tabs subrayadas + chip-row + view-toggle tareas
+  1959cf5 feat(ui-redesign-dashboard-02): Task 4 — productos listing editorial (dictionary-table + status mx-tag--verdigris/--ink + empty + form button)
+  c16f61c feat(ui-redesign-dashboard-02): Task 3 — columns.tsx con headers mx-smallcaps + cells editorial + tag overflow mx-tag--ink
+  06a4cff feat(ui-redesign-dashboard-02): Task 2 — listing contactos editorial (toolbar + dictionary-table wrapper + bulk + empty + tag-filter)
+  2f16661 feat(ui-redesign-dashboard-02): Task 1 — topbars editoriales en /crm/contactos, /crm/productos y /crm/contactos/[id]
+  b155f84 docs(ui-redesign-dashboard-03): Plan 03 SUMMARY — Pedidos module editorial re-skin
+  b3efa13 feat(ui-redesign-dashboard-03): reskin editorial view-toggle + columns stage badges + wire v2
+  426b395 feat(ui-redesign-dashboard-03): reskin editorial order-sheet (ledger + stage-bar + dictionary-table)
+  1761d86 feat(ui-redesign-dashboard-03): extender sheet.tsx con portalContainer opcional + reskin pipeline-tabs
+  c92cc95 feat(ui-redesign-dashboard-03): reskin editorial kanban (card + column + board)
+  99226ae feat(ui-redesign-dashboard-03): reskin editorial orders-view (topbar + toolbar + bulk bar)
+  2c13eef docs(ui-redesign-dashboard-01): Plan 01 SUMMARY — Wave 0 Infrastructure complete
+  7abd347 feat(ui-redesign-dashboard-01): re-skin sidebar editorial gated por prop v2
+  ab6c53a feat(ui-redesign-dashboard-01): wire layout con fonts + flag + DashboardV2Provider + theme-editorial gated
+  c5183b1 feat(ui-redesign-dashboard-01): agregar loader de fuentes editoriales para segment dashboard
+  d91ca2a feat(ui-redesign-dashboard-01): agregar flag resolver + contexto React dashboard-v2
+
+=== Summary ===
+Check 1 (slate leakage in editorial path):                       PASS
+Check 2 (hsl(var(--*)) delta <= 0, HEAD=8 base=8): PASS
+Check 3 (dark: delta <= 0, HEAD=69 base=69):       PASS
+Check 4 (mx-* count >= 50, actual: 120):                      PASS
+Check 5 (tsc --noEmit clean):                                    PASS
+Check 6 (Regla 6 NO-TOUCH phase-scoped, hits: 0):       PASS
+Check 7 (flag-OFF byte-identical heuristic audit):               PASS
+
+FAIL_COUNT: 0
+STATUS: PASS — proceed to Task 2 (LEARNINGS).

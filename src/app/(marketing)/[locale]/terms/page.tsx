@@ -81,71 +81,101 @@ export default async function TermsPage({
   })();
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-16 sm:py-20">
-      <header className="space-y-4 border-b border-border pb-8">
-        <p className="text-sm font-medium uppercase tracking-wider text-foreground/60">
-          MORFX S.A.S.
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          {t('pageTitle')}
-        </h1>
-        <p className="text-sm text-foreground/60">{t('lastUpdated')}</p>
-      </header>
+    <div className="bg-[var(--paper-0)]">
+      <article className="mx-auto w-full max-w-[64rem] px-6 py-16 md:px-8 md:py-24">
+        {/* Page header */}
+        <header className="mb-16 max-w-[42rem] space-y-5 border-b border-[var(--paper-4)] pb-10">
+          <p
+            className="mx-smallcaps text-[11px] tracking-[0.12em] text-[var(--rubric-2)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            MORFX S.A.S.
+          </p>
+          <h1 className="mx-display text-[2.5rem] leading-[1.02] tracking-[-0.02em] text-[var(--ink-1)] md:text-[3.5rem] lg:text-[4rem]">
+            {t('pageTitle')}
+          </h1>
+          <p
+            className="text-[12px] tracking-[0.02em] text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            {t('lastUpdated')}
+          </p>
+        </header>
 
-      {preamble ? (
-        <div className="pt-8">
-          <p className="text-foreground/80 leading-relaxed">{preamble}</p>
-        </div>
-      ) : null}
+        {preamble ? (
+          <div className="mb-12 max-w-[42rem]">
+            <p className="mx-body-long text-[1rem] leading-[1.7] text-[var(--ink-2)]">
+              {preamble}
+            </p>
+          </div>
+        ) : null}
 
-      <nav
-        aria-label={t('toc')}
-        className="mt-10 rounded-lg border border-border bg-muted/30 p-6"
-      >
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground/70">
-          {t('toc')}
-        </h2>
-        <ol className="space-y-2 text-sm">
-          {sections.map(({ key, data }) => (
-            <li key={key}>
-              <a
-                href={`#${data.id}`}
-                className="text-foreground/80 hover:text-foreground hover:underline"
+        {/* TOC editorial */}
+        <nav
+          aria-label={t('toc')}
+          className="mb-16 max-w-[42rem] border-l-2 border-[var(--ink-2)] bg-[var(--paper-1)] p-6"
+        >
+          <h2
+            className="mx-smallcaps mb-4 text-[11px] tracking-[0.12em] text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            {t('toc')}
+          </h2>
+          <ol className="space-y-2">
+            {sections.map(({ key, data }, idx) => (
+              <li
+                key={key}
+                className="flex gap-3 text-[14px] leading-[1.6] text-[var(--ink-2)]"
               >
-                {data.heading}
-              </a>
-            </li>
+                <span
+                  className="mx-marginalia shrink-0 text-[var(--ink-4)]"
+                  aria-hidden
+                >
+                  {`§ ${idx + 1}`}
+                </span>
+                <a
+                  href={`#${data.id}`}
+                  className="underline-offset-[3px] hover:text-[var(--ink-1)] hover:underline"
+                >
+                  {data.heading}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
+        {/* Sections with marginalia + ornaments */}
+        <div className="space-y-16">
+          {sections.map(({ key, data }, idx) => (
+            <LegalSection
+              key={key}
+              id={data.id}
+              sectionNumber={`§ ${idx + 1}`}
+              heading={data.heading}
+              paragraphs={data.paragraphs}
+              bullets={data.bullets}
+              subsections={data.subsections}
+              showOrnament={idx < sections.length - 1}
+            />
           ))}
-        </ol>
-      </nav>
+        </div>
 
-      <div className="mt-12 space-y-12">
-        {sections.map(({ key, data }) => (
-          <LegalSection
-            key={key}
-            id={data.id}
-            heading={data.heading}
-            paragraphs={data.paragraphs}
-            bullets={data.bullets}
-            subsections={data.subsections}
-          />
-        ))}
-      </div>
-
-      <footer className="mt-16 flex flex-col gap-4 border-t border-border pt-8 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <LocaleLink
-          href="/privacy"
-          className="text-foreground/80 hover:text-foreground hover:underline"
-        >
-          {t('seePrivacy')}
-        </LocaleLink>
-        <LocaleLink
-          href="/"
-          className="text-foreground/80 hover:text-foreground hover:underline"
-        >
-          {t('backToLanding')}
-        </LocaleLink>
-      </footer>
+        {/* Footer nav */}
+        <footer className="mt-20 flex flex-col gap-4 border-t border-[var(--paper-4)] pt-8 text-[13px] sm:flex-row sm:items-center sm:justify-between">
+          <LocaleLink
+            href="/privacy"
+            className="text-[var(--ink-2)] underline-offset-[3px] hover:text-[var(--ink-1)] hover:underline"
+          >
+            {t('seePrivacy')}
+          </LocaleLink>
+          <LocaleLink
+            href="/"
+            className="text-[var(--ink-2)] underline-offset-[3px] hover:text-[var(--ink-1)] hover:underline"
+          >
+            {t('backToLanding')}
+          </LocaleLink>
+        </footer>
+      </article>
     </div>
   );
 }

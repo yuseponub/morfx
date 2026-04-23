@@ -567,6 +567,7 @@ export function OrdersView({
   const columns = React.useMemo(
     () =>
       createColumns({
+        v2,
         onEdit: (order) => {
           setEditingOrder(order)
           setFormSheetOpen(true)
@@ -587,7 +588,7 @@ export function OrdersView({
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [recompraDisabled, recompraPipeline]
+    [v2, recompraDisabled, recompraPipeline]
   )
 
   // Handle card click in Kanban

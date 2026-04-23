@@ -70,6 +70,44 @@ function formatDateSpanish(dateStr: string): string {
   return `${days[date.getDay()]} ${day} de ${months[date.getMonth()]}`
 }
 
+/**
+ * Tags que bloquean envio de mensajes automaticos al contacto:
+ * - 'C'   = cita ya confirmada por el paciente
+ * - 'CAN' = cita cancelada
+ */
+const SKIP_TAGS = ['C', 'CAN']
+
+/**
+ * Returns the matched skip tag (uppercased) if the contact has one, or null.
+ * Shared between reminder send and followup check to keep filtering consistent.
+ */
+async function getMatchingSkipTag(
+  workspaceId: string,
+  phone: string,
+): Promise<string | null> {
+  const admin = createAdminClient()
+  const { data: contact } = await admin
+    .from('contacts')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('phone', phone)
+    .single()
+
+  if (!contact) return null
+
+  const { data: contactTags } = await admin
+    .from('contact_tags')
+    .select('tag_id, tags(name)')
+    .eq('contact_id', contact.id)
+
+  const tagNames = (contactTags || [])
+    .map((ct: Record<string, unknown>) => ((ct.tags as Record<string, unknown>)?.name as string) || '')
+    .filter(Boolean)
+
+  const matched = tagNames.find((t: string) => SKIP_TAGS.includes(t.toUpperCase()))
+  return matched ? matched.toUpperCase() : null
+}
+
 // ============================================================================
 // Inngest Function: GoDentist Reminder Send
 // ============================================================================
@@ -109,6 +147,23 @@ const godentistReminderSend = inngest.createFunction(
 
     if (!shouldSend) {
       return { skipped: true, reason: 'cancelled or already sent' }
+    }
+
+    // Step 2b: Skip si el contacto tiene etiqueta 'C' (confirmada) o 'CAN' (cancelada)
+    const phoneNormalized = telefono.startsWith('+') ? telefono : `+${telefono}`
+    const skipTag = await step.run('check-skip-tag', async () => {
+      return getMatchingSkipTag(workspaceId, phoneNormalized)
+    })
+
+    if (skipTag) {
+      await step.run('mark-skipped', async () => {
+        const admin = createAdminClient()
+        await admin
+          .from('godentist_scheduled_reminders')
+          .update({ status: 'cancelled', error: `contact has tag: ${skipTag}` })
+          .eq('id', reminderId)
+      })
+      return { skipped: true, reason: `contact has tag: ${skipTag}`, reminderId }
     }
 
     // Step 3: Send the template message
@@ -410,30 +465,10 @@ const godentistFollowupCheck = inngest.createFunction(
         }
 
         // Check contact tags — skip if already confirmed ("C") or cancelled ("CAN")
-        const SKIP_TAGS = ['C', 'CAN']
-        const { data: contact } = await admin
-          .from('contacts')
-          .select('id')
-          .eq('workspace_id', workspaceId)
-          .eq('phone', phone)
-          .single()
-
-        if (contact) {
-          const { data: contactTags } = await admin
-            .from('contact_tags')
-            .select('tag_id, tags(name)')
-            .eq('contact_id', contact.id)
-
-          const tagNames = (contactTags || [])
-            .map((ct: Record<string, unknown>) => ((ct.tags as Record<string, unknown>)?.name as string) || '')
-            .filter(Boolean)
-
-          const hasSkipTag = tagNames.some((t: string) => SKIP_TAGS.includes(t.toUpperCase()))
-          if (hasSkipTag) {
-            const matched = tagNames.find((t: string) => SKIP_TAGS.includes(t.toUpperCase()))
-            results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: `has tag: ${matched}` })
-            continue
-          }
+        const matchedSkipTag = await getMatchingSkipTag(workspaceId, phone)
+        if (matchedSkipTag) {
+          results.push({ nombre: patient.nombre, telefono: patient.telefono, status: 'skipped', reason: `has tag: ${matchedSkipTag}` })
+          continue
         }
 
         // Find matching appointment for hora

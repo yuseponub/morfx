@@ -21,12 +21,19 @@ import { SMS_PRICE_COP } from '@/lib/sms/constants'
 import { getIsSuperUser } from '@/lib/auth/super-user'
 import { getSmsUsage } from '@/app/actions/integrations'
 
-export async function SmsTab() {
+export async function SmsTab({ v2 = false }: { v2?: boolean } = {}) {
   const supabase = await createClient()
   const cookieStore = await cookies()
   const workspaceId = cookieStore.get('morfx_workspace')?.value
 
   if (!workspaceId) {
+    if (v2) {
+      return (
+        <div className="bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[var(--radius-3)] shadow-[0_1px_0_var(--ink-1)] px-[18px] py-[16px]">
+          <p className="text-[13px] text-[var(--ink-3)]" style={{ fontFamily: 'var(--font-sans)' }}>No se pudo determinar el workspace.</p>
+        </div>
+      )
+    }
     return (
       <Card>
         <CardContent className="pt-6">
@@ -58,6 +65,90 @@ export async function SmsTab() {
     usage = await getSmsUsage('month')
   } catch {
     usage = null
+  }
+
+  if (v2) {
+    return (
+      <div className="bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[var(--radius-3)] shadow-[0_1px_0_var(--ink-1)]">
+        <div className="px-[18px] py-[14px] border-b border-[var(--border)]">
+          <h3 className="text-[18px] font-bold tracking-[-0.01em] m-0 flex items-center gap-2" style={{ fontFamily: 'var(--font-display)' }}>
+            <MessageSquare className="h-5 w-5" />
+            SMS (Onurix)
+          </h3>
+          <p className="text-[12px] text-[var(--ink-3)] mt-[3px] m-0" style={{ fontFamily: 'var(--font-sans)' }}>
+            Envio de SMS a clientes via Onurix. Precio por segmento: ${SMS_PRICE_COP.toLocaleString('es-CO')} COP.
+          </p>
+        </div>
+        <div className="px-[18px] py-[16px] space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--ink-1)]" style={{ fontFamily: 'var(--font-sans)' }}>Estado</span>
+            {isActive ? (
+              <span className="mx-tag mx-tag--verdigris">Activo</span>
+            ) : (
+              <span className="mx-tag mx-tag--ink">Inactivo</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--ink-1)]" style={{ fontFamily: 'var(--font-sans)' }}>Saldo actual</span>
+            <span className="text-[18px] font-bold text-[var(--ink-1)]" style={{ fontFamily: 'var(--font-display)' }}>
+              ${balance.toLocaleString('es-CO')} COP
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--ink-1)]" style={{ fontFamily: 'var(--font-sans)' }}>Precio por segmento</span>
+            <span className="text-[13px] text-[var(--ink-2)]" style={{ fontFamily: 'var(--font-mono)' }}>${SMS_PRICE_COP.toLocaleString('es-CO')} COP</span>
+          </div>
+
+          {usage && (
+            <div className="border border-[var(--border)] bg-[var(--paper-1)] rounded-[var(--radius-3)] p-3 text-[13px] space-y-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]" style={{ fontFamily: 'var(--font-sans)' }}>
+                Uso ultimos 30 dias
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--ink-2)]" style={{ fontFamily: 'var(--font-sans)' }}>SMS enviados</span>
+                <span className="font-semibold text-[var(--ink-1)]" style={{ fontFamily: 'var(--font-mono)' }}>{usage.totalSms.toLocaleString('es-CO')}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--ink-2)]" style={{ fontFamily: 'var(--font-sans)' }}>Gasto total</span>
+                <span className="font-semibold text-[var(--ink-1)]" style={{ fontFamily: 'var(--font-mono)' }}>${usage.totalCostCop.toLocaleString('es-CO')} COP</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-[var(--ink-3)]">
+                <span style={{ fontFamily: 'var(--font-sans)' }}>Entregados / fallidos / pendientes</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{usage.delivered} / {usage.failed} / {usage.pending}</span>
+              </div>
+            </div>
+          )}
+
+          {needsAttention && (
+            <div className="flex items-start gap-2 border border-[oklch(0.80_0.09_70)] bg-[oklch(0.98_0.04_70)] p-3 text-[13px] text-[oklch(0.32_0.10_70)] rounded-[var(--radius-3)]" style={{ fontFamily: 'var(--font-sans)' }}>
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+              <div>
+                {!isActive
+                  ? 'SMS no esta activo para este workspace. Contacta al administrador para activarlo.'
+                  : `Saldo insuficiente (minimo ${SMS_PRICE_COP} COP). Contacta al administrador para recargar.`}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2 border-t border-[var(--border)]">
+            {isSuperAdmin ? (
+              <Link
+                href="/super-admin/sms"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] border border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] text-[13px] font-semibold shadow-[0_1px_0_var(--ink-1)] hover:bg-[var(--paper-3)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Recargar saldo (super-admin)
+              </Link>
+            ) : (
+              <p className="text-[11px] text-[var(--ink-3)]" style={{ fontFamily: 'var(--font-sans)' }}>
+                Para recargar saldo o activar el servicio, contacta al equipo de soporte.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

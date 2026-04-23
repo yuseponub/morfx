@@ -253,7 +253,14 @@
   background-color: var(--paper-1);
   background-image: var(--paper-grain), var(--paper-fibers);
   background-blend-mode: multiply;
-  font-family: var(--font-serif);
+  /* QA feedback 2026-04-23 — base sans (Inter) en vez de serif (EB
+   * Garamond). Motivo: módulos no-retrofit (Pedidos, Analytics, etc.)
+   * que heredan vía .theme-editorial se veían serif en sus shadcn
+   * primitives sin `font-sans` explícito. Sans como default es más
+   * legible para UI operacional; los pocos elementos editorial-serif
+   * intencionales (.wm, .mx-h1..h4, .mx-body) ya tienen
+   * `var(--font-display)` / `var(--font-serif)` explícitos. */
+  font-family: var(--font-sans);
   font-feature-settings: "kern", "liga", "onum", "pnum";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

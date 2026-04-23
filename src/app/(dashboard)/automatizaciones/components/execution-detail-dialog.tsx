@@ -21,6 +21,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { ACTION_CATALOG, TRIGGER_CATALOG } from '@/lib/automations/constants'
 import type { ActionLog, AutomationExecution } from '@/lib/automations/types'
+import { cn } from '@/lib/utils'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Status config
@@ -114,6 +116,8 @@ interface ExecutionDetailDialogProps {
 }
 
 export function ExecutionDetailDialog({ execution, onClose }: ExecutionDetailDialogProps) {
+  const v2 = useDashboardV2()
+
   if (!execution) return null
 
   const execStatus = EXECUTION_STATUS[execution.status] ?? EXECUTION_STATUS.cancelled
@@ -122,16 +126,49 @@ export function ExecutionDetailDialog({ execution, onClose }: ExecutionDetailDia
   // Try to get trigger type from trigger_event
   const triggerType = (execution.trigger_event?.triggerType as string) ?? ''
 
+  // Resolve .theme-editorial container so the modal portal re-roots into the
+  // editorial wrapper when v2 is on (D-DASH-10). Typeof window guard for SSR safety.
+  const editorialContainer =
+    v2 && typeof window !== 'undefined'
+      ? (document.querySelector('.theme-editorial') as HTMLElement | null)
+      : null
+
   return (
     <Dialog open={!!execution} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh]">
+      <DialogContent
+        className={cn(
+          'sm:max-w-2xl max-h-[85vh]',
+          v2 &&
+            'bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1),0_8px_22px_-16px_color-mix(in_oklch,var(--ink-1)_30%,transparent)] rounded-none'
+        )}
+        portalContainer={editorialContainer}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ExecIcon className={`h-5 w-5 ${execStatus.color}`} />
+          {v2 && (
+            <span
+              className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              Ejecución · #{execution.id.slice(0, 8)}
+            </span>
+          )}
+          <DialogTitle
+            className={cn(
+              'flex items-center gap-2',
+              v2 && 'text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)]'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+          >
+            <ExecIcon className={cn('h-5 w-5', v2 ? execStatus.color : execStatus.color)} />
             {execution.automation_name}
           </DialogTitle>
-          <DialogDescription>
-            Detalle de ejecucion
+          <DialogDescription
+            className={cn(
+              v2 && 'text-[12px] italic text-[var(--ink-3)]'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
+          >
+            {v2 ? 'Detalle de ejecución' : 'Detalle de ejecucion'}
           </DialogDescription>
         </DialogHeader>
 
@@ -140,44 +177,125 @@ export function ExecutionDetailDialog({ execution, onClose }: ExecutionDetailDia
             {/* Metadata */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="text-muted-foreground">Estado</span>
-                <p className={`font-medium ${execStatus.color}`}>{execStatus.label}</p>
+                <span
+                  className={cn(
+                    v2
+                      ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                      : 'text-muted-foreground'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                >
+                  Estado
+                </span>
+                <p className={cn('font-medium', v2 ? `text-[13px] ${execStatus.color}` : execStatus.color)}>{execStatus.label}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Duracion</span>
-                <p className="font-medium flex items-center gap-1">
+                <span
+                  className={cn(
+                    v2
+                      ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                      : 'text-muted-foreground'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                >
+                  {v2 ? 'Duración' : 'Duracion'}
+                </span>
+                <p
+                  className={cn(
+                    'font-medium flex items-center gap-1',
+                    v2 && 'text-[13px] tabular-nums text-[var(--ink-1)]'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+                >
                   <Clock className="h-3.5 w-3.5" />
                   {formatDuration(execution.duration_ms)}
                 </p>
               </div>
               <div>
-                <span className="text-muted-foreground">Inicio</span>
-                <p className="font-medium">{formatDate(execution.started_at)}</p>
+                <span
+                  className={cn(
+                    v2
+                      ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                      : 'text-muted-foreground'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                >
+                  Inicio
+                </span>
+                <p
+                  className={cn('font-medium', v2 && 'text-[12px] tabular-nums text-[var(--ink-1)]')}
+                  style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+                >
+                  {formatDate(execution.started_at)}
+                </p>
               </div>
               <div>
-                <span className="text-muted-foreground">Fin</span>
-                <p className="font-medium">
+                <span
+                  className={cn(
+                    v2
+                      ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                      : 'text-muted-foreground'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                >
+                  Fin
+                </span>
+                <p
+                  className={cn('font-medium', v2 && 'text-[12px] tabular-nums text-[var(--ink-1)]')}
+                  style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+                >
                   {execution.completed_at ? formatDate(execution.completed_at) : '-'}
                 </p>
               </div>
               {triggerType && (
                 <div>
-                  <span className="text-muted-foreground">Trigger</span>
-                  <p className="font-medium">{getTriggerLabel(triggerType)}</p>
+                  <span
+                    className={cn(
+                      v2
+                        ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                        : 'text-muted-foreground'
+                    )}
+                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                  >
+                    Trigger
+                  </span>
+                  <p className={cn('font-medium', v2 && 'text-[13px] text-[var(--ink-1)]')}>
+                    {getTriggerLabel(triggerType)}
+                  </p>
                 </div>
               )}
               <div>
-                <span className="text-muted-foreground flex items-center gap-1">
+                <span
+                  className={cn(
+                    'flex items-center gap-1',
+                    v2
+                      ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                      : 'text-muted-foreground'
+                  )}
+                  style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                >
                   <Layers className="h-3 w-3" />
                   Cascade depth
                 </span>
-                <p className="font-medium">{execution.cascade_depth}</p>
+                <p
+                  className={cn('font-medium', v2 && 'text-[13px] tabular-nums text-[var(--ink-1)]')}
+                  style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+                >
+                  {execution.cascade_depth}
+                </p>
               </div>
             </div>
 
             {/* Error message */}
             {execution.error_message && (
-              <div className="p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+              <div
+                className={cn(
+                  v2
+                    ? 'p-3 bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))] border border-[var(--rubric-2)] text-[12px] text-[var(--rubric-2)]'
+                    : 'p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+              >
                 <strong>Error:</strong> {execution.error_message}
               </div>
             )}
@@ -186,8 +304,26 @@ export function ExecutionDetailDialog({ execution, onClose }: ExecutionDetailDia
 
             {/* Trigger event data */}
             <div>
-              <h4 className="text-sm font-semibold mb-2">Datos del Trigger</h4>
-              <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto max-h-48">
+              <h4
+                className={cn(
+                  'mb-2',
+                  v2
+                    ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                    : 'text-sm font-semibold'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+              >
+                Datos del Trigger
+              </h4>
+              <pre
+                className={cn(
+                  'p-3 overflow-x-auto max-h-48',
+                  v2
+                    ? 'text-[11px] bg-[var(--paper-2)] border border-[var(--border)] text-[var(--ink-1)]'
+                    : 'text-xs bg-muted rounded-md'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+              >
                 {formatTriggerEvent(execution.trigger_event)}
               </pre>
             </div>
@@ -196,7 +332,17 @@ export function ExecutionDetailDialog({ execution, onClose }: ExecutionDetailDia
 
             {/* Actions timeline */}
             <div>
-              <h4 className="text-sm font-semibold mb-3">Acciones ({execution.actions_log?.length ?? 0})</h4>
+              <h4
+                className={cn(
+                  'mb-3',
+                  v2
+                    ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                    : 'text-sm font-semibold'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+              >
+                Acciones ({execution.actions_log?.length ?? 0})
+              </h4>
               <div className="space-y-2">
                 {(execution.actions_log ?? []).map((action: ActionLog, idx: number) => {
                   const actionStatus = ACTION_STATUS[action.status] ?? ACTION_STATUS.skipped

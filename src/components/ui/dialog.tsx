@@ -51,12 +51,20 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  portalContainer,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /**
+   * Optional portal container — when provided, Radix re-roots the portal to this
+   * element instead of document.body. Used by ui-redesign-dashboard Plan 06 to
+   * re-root modals inside the `.theme-editorial` wrapper (D-DASH-09/D-DASH-10).
+   * BC-additive: omitting this prop keeps the default portal target (document.body).
+   */
+  portalContainer?: HTMLElement | null
 }) {
   return (
-    <DialogPortal data-slot="dialog-portal">
+    <DialogPortal data-slot="dialog-portal" container={portalContainer ?? undefined}>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"

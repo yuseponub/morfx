@@ -1,0 +1,26 @@
+=== UI Redesign Landing — DoD Verification ===
+Date: 2026-04-23T01:52:22Z
+HEAD: e07658a452ea412d281ef1408b011be270294dd5
+
+--- Check 1: no slate leakage en marketing ---
+PASS: no slate tokens
+
+--- Check 2: no hsl() antipattern (post-Tailwind v4) ---
+PASS: no hsl() wrapper
+
+--- Check 3: no dark: classes en marketing (D-LND-07) ---
+PASS: no dark: classes
+
+--- Check 4: mx-* utilities applied (count >= 15) ---
+mx-* utilities usage count: 46
+PASS
+
+--- Check 5: TS clean en marketing files ---
+PASS: no TS errors in marketing scope
+
+--- Check 6: Regla NO-TOUCH (dashboard + lib + globals + messages diff against 1c2fd6f phase base) ---
+diff lines: 0
+PASS
+
+=== Summary ===
+Commit chain Plan 01 + 02 + 03: see SUMMARY files per plan

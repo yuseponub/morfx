@@ -8,8 +8,8 @@ export async function Footer() {
   const t = await getTranslations('Footer');
 
   return (
-    <footer className="border-t bg-background">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <footer className="border-t border-[var(--ink-2)] bg-[var(--paper-3)] py-12">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
           {/* Column 1: Logo + tagline */}
           <div className="space-y-4">
@@ -19,40 +19,49 @@ export async function Footer() {
                 alt="MORFX"
                 width={85}
                 height={32}
-                className="block h-8 w-auto dark:hidden"
-              />
-              <Image
-                src="/logo-dark.png"
-                alt="MORFX"
-                width={135}
-                height={32}
-                className="hidden h-8 w-auto dark:block"
+                className="block h-8 w-auto"
               />
             </div>
-            <p className="text-sm text-muted-foreground">{t('tagline')}</p>
+            <p className="mx-body text-[13px] text-[var(--ink-2)]">
+              {t('tagline')}
+            </p>
           </div>
 
           {/* Column 2: Producto */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold">{t('product')}</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h3 className="mx-smallcaps mb-4 text-[11px] tracking-[0.12em] text-[var(--ink-3)]">
+              {t('product')}
+            </h3>
+            <ul className="space-y-2">
               <li>
-                <LocaleLink href="/#crm" className="hover:text-foreground">
+                <LocaleLink
+                  href="/#crm"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('crm')}
                 </LocaleLink>
               </li>
               <li>
-                <LocaleLink href="/#agents" className="hover:text-foreground">
+                <LocaleLink
+                  href="/#agents"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('agents')}
                 </LocaleLink>
               </li>
               <li>
-                <LocaleLink href="/#automations" className="hover:text-foreground">
+                <LocaleLink
+                  href="/#automations"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('automations')}
                 </LocaleLink>
               </li>
               <li>
-                <LocaleLink href="/#integrations" className="hover:text-foreground">
+                <LocaleLink
+                  href="/#integrations"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('integrations')}
                 </LocaleLink>
               </li>
@@ -61,20 +70,31 @@ export async function Footer() {
 
           {/* Column 3: Legal */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold">{t('legal')}</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h3 className="mx-smallcaps mb-4 text-[11px] tracking-[0.12em] text-[var(--ink-3)]">
+              {t('legal')}
+            </h3>
+            <ul className="space-y-2">
               <li>
-                <LocaleLink href="/privacy" className="hover:text-foreground">
+                <LocaleLink
+                  href="/privacy"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('privacy')}
                 </LocaleLink>
               </li>
               <li>
-                <LocaleLink href="/terms" className="hover:text-foreground">
+                <LocaleLink
+                  href="/terms"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('terms')}
                 </LocaleLink>
               </li>
               <li>
-                <Link href="/login" className="hover:text-foreground">
+                <Link
+                  href="/login"
+                  className="text-[13px] text-[var(--ink-2)] underline-offset-[3px] transition-colors hover:text-[var(--ink-1)] hover:underline"
+                >
                   {t('login')}
                 </Link>
               </li>
@@ -83,36 +103,41 @@ export async function Footer() {
 
           {/* Column 4: Contacto */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold">{t('contact')}</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h3 className="mx-smallcaps mb-4 text-[11px] tracking-[0.12em] text-[var(--ink-3)]">
+              {t('contact')}
+            </h3>
+            <ul className="space-y-3">
               <li>
-                <span className="block text-xs uppercase tracking-wider">
+                <span className="mx-smallcaps block text-[10px] tracking-[0.12em] text-[var(--ink-4)]">
                   {t('phone')}
                 </span>
-                <a href="tel:+573137549286" className="hover:text-foreground">
+                <a
+                  href="tel:+573137549286"
+                  className="mt-1 block font-mono text-[12px] text-[var(--ink-2)] tracking-[0.02em] transition-colors hover:text-[var(--ink-1)]"
+                >
                   +57 313 754 9286
                 </a>
               </li>
               <li>
-                <span className="block text-xs uppercase tracking-wider">
+                <span className="mx-smallcaps block text-[10px] tracking-[0.12em] text-[var(--ink-4)]">
                   {t('email')}
                 </span>
                 <a
                   href="mailto:morfx.colombia@gmail.com"
-                  className="hover:text-foreground"
+                  className="mt-1 block font-mono text-[12px] text-[var(--ink-2)] tracking-[0.02em] transition-colors hover:text-[var(--ink-1)]"
                 >
                   morfx.colombia@gmail.com
                 </a>
               </li>
               <li>
-                <span className="block text-xs uppercase tracking-wider">
+                <span className="mx-smallcaps block text-[10px] tracking-[0.12em] text-[var(--ink-4)]">
                   {t('whatsapp')}
                 </span>
                 <a
                   href="https://wa.me/573137549286"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-foreground"
+                  className="mt-1 block font-mono text-[12px] text-[var(--ink-2)] tracking-[0.02em] transition-colors hover:text-[var(--ink-1)]"
                 >
                   wa.me/573137549286
                 </a>
@@ -122,7 +147,10 @@ export async function Footer() {
         </div>
 
         {/* Bottom legal bar — NOT translated (same in ES and EN) */}
-        <div className="mt-10 border-t pt-6 text-center text-xs text-muted-foreground">
+        <div
+          className="mt-12 border-t border-[var(--ink-2)] pt-6 text-center font-mono text-[11px] tracking-[0.02em] text-[var(--ink-3)]"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
           <p>© 2026 MORFX S.A.S. — NIT 902.052.328-5</p>
           <p className="mt-1">
             Carrera 38 # 42 - 17 Apartamento 1601B, Bucaramanga, Santander, Colombia

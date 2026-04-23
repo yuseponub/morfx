@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — CRM</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+
+  main { overflow: auto; }
+  .topbar { padding: 18px 28px 14px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: flex-end; justify-content: space-between; }
+  .eye { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; margin: 2px 0 0; letter-spacing: -0.015em; }
+  h1 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 16px; color: var(--ink-3); margin-left: 8px; }
+  .pg { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+
+  .actions { display: flex; gap: 8px; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.pri:hover { background: var(--ink-2); }
+
+  .tabs { display: flex; gap: 20px; padding: 0 28px; border-bottom: 1px solid var(--border); background: var(--paper-1); }
+  .tabs a { font-family: var(--font-sans); font-weight: 500; font-size: 13px; padding: 10px 0; color: var(--ink-3); text-decoration: none; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tabs a.on { color: var(--ink-1); font-weight: 600; border-bottom-color: var(--ink-1); }
+
+  .page { padding: 20px 28px; }
+
+  /* Contacts table — dictionary style */
+  .toolbar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+  .search { flex: 1; max-width: 320px; position: relative; }
+  .search input { width: 100%; border: 1px solid var(--border); background: var(--paper-0); padding: 8px 10px 8px 30px; border-radius: var(--radius-3); font-family: var(--font-sans); font-size: 13px; }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  .chip { font-family: var(--font-sans); font-weight: 500; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); cursor: pointer; background: var(--paper-0); }
+  .chip.on { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); font-weight: 600; }
+
+  table.dict { width: 100%; border-collapse: collapse; background: var(--paper-0); border: 1px solid var(--ink-1); }
+  table.dict thead th { text-align: left; padding: 10px 12px; font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); border-bottom: 1px solid var(--ink-1); background: var(--paper-1); }
+  table.dict td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); vertical-align: middle; }
+  table.dict tbody tr:hover { background: var(--paper-2); }
+  table.dict td.entry { font-weight: 600; }
+  table.dict td.entry .def { font-weight: 400; font-style: normal; color: var(--ink-3); font-size: 12px; margin-left: 8px; }
+  table.dict td.ph { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-weight: 500; }
+  table.dict td.city { color: var(--ink-3); font-style: normal; font-weight: 400; }
+  .tg { display: inline-flex; align-items: center; font-family: var(--font-sans); font-weight: 600; font-size: 11px; letter-spacing: 0.01em; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; background: var(--paper-3); color: var(--ink-1); margin-right: 4px; }
+  .tg.red  { background: oklch(0.92 0.045 28);  color: oklch(0.32 0.09 28);  border-color: oklch(0.80 0.07 28); }
+  .tg.gold { background: oklch(0.94 0.055 80);  color: oklch(0.38 0.065 70); border-color: oklch(0.82 0.07 80); }
+  .tg.indi { background: oklch(0.93 0.035 260); color: oklch(0.30 0.06 260); border-color: oklch(0.80 0.05 260); }
+  .tg.ver  { background: oklch(0.93 0.03 180);  color: oklch(0.32 0.04 180); border-color: oklch(0.80 0.04 180); }
+
+  /* Kanban */
+  .kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .col { background: var(--paper-0); border: 1px solid var(--ink-1); border-radius: var(--radius-3); display:flex; flex-direction:column; max-height: 560px; }
+  .col .hd { padding: 10px 12px; border-bottom: 1px solid var(--ink-1); display:flex; align-items:center; gap: 8px; }
+  .col .hd .t { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; color: var(--ink-1); }
+  .col .hd .c { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-left: auto; }
+  .col .hd .em { font-size: 14px; }
+  .col .body { padding: 10px; overflow: auto; display:flex; flex-direction:column; gap: 10px; }
+  .card { background: var(--paper-1); border: 1px solid var(--border); border-radius: var(--radius-2); padding: 10px 12px; box-shadow: 0 1px 0 var(--border); cursor: grab; }
+  .card:hover { background: var(--paper-2); }
+  .card .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .card .nm { font-family: var(--font-sans); font-weight: 600; font-size: 13px; color: var(--ink-1); }
+  .card .val { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-weight: 500; }
+  .card .pv { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); margin-top: 4px; line-height: 1.4; }
+  .card .foot { margin-top: 8px; display:flex; gap:6px; align-items:center; }
+  .card .av { width: 18px; height: 18px; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--ink-2); font-family: var(--font-sans); font-size: 10px; font-weight: 700; display:flex; align-items:center; justify-content:center; color: var(--ink-1); }ex; align-items:center; justify-content:center; }
+  .card .date { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-left: auto; }
+</style>
+</head>
+<body class="mx-doc">
+  <div class="app">
+    <aside class="sb">
+      <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">CRM · Contactos &amp; pedidos</div></div>
+      <nav>
+        <div class="cat">Operación</div>
+        <ul>
+          <li><a class="active"><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+          <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+          <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+        </ul>
+        <div class="cat">Automatización</div>
+        <ul>
+          <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+          <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+        </ul>
+        <div class="cat">Análisis</div>
+        <ul>
+          <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+          <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <div class="eye">Módulo · crm</div>
+          <h1>Contactos <em>— libro de clientes</em></h1>
+        </div>
+        <div class="actions">
+          <button class="btn"><i data-lucide="upload" width="14" height="14"></i>Importar</button>
+          <button class="btn"><i data-lucide="download" width="14" height="14"></i>Exportar</button>
+          <button class="btn pri"><i data-lucide="plus" width="14" height="14"></i>Crear contacto</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <a class="on" data-tab="contactos">Contactos</a>
+        <a data-tab="pedidos">Pedidos · kanban</a>
+        <a>Pipelines</a>
+        <a>Configuración</a>
+      </div>
+
+      <div class="page" id="contactos">
+        <div class="toolbar">
+          <div class="search"><i data-lucide="search" width="14" height="14"></i><input placeholder="Buscar por nombre, teléfono o ciudad…"></div>
+          <span class="chip on">Todos · 248</span>
+          <span class="chip">Clientes · 112</span>
+          <span class="chip">Prospectos · 94</span>
+          <span class="chip">Mayoristas · 18</span>
+          <span style="font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); margin-left: auto;">Actualizado 21 abr, 14:32</span>
+        </div>
+        <table class="dict">
+          <thead><tr><th style="width:30px"><input type="checkbox"></th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Etiquetas</th><th>Último contacto</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="page" id="pedidos" style="display:none;">
+        <div class="toolbar">
+          <span class="chip on">Este mes</span>
+          <span class="chip">Semana</span>
+          <span class="chip">Todos</span>
+          <span style="font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); margin-left: auto; font-weight: 500;">$ 18.420.000 en pedidos abiertos</span>
+        </div>
+        <div class="kanban" id="kanban"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const rows = [
+      { n: "Juan Carlos Pérez", def:"", p:"+57 312 555 4412", c:"Bogotá", tags:[["red","cliente"],["gold","vip"]], t:"hace 3 min" },
+      { n: "Laura Mendoza",      def:"", p:"+57 301 412 8823", c:"Medellín", tags:[["red","cliente"]], t:"hace 12 min" },
+      { n: "Andrés Ramírez",     def:"", p:"+57 320 784 1109", c:"Cali", tags:[["indi","prospecto"]], t:"hace 34 min" },
+      { n: "Distribuciones Norte",def:"", p:"+57 604 312 0040", c:"Barranquilla", tags:[["ver","mayorista"]], t:"hace 1 h" },
+      { n: "Carolina López",     def:"", p:"+57 310 445 9912", c:"Bogotá", tags:[["red","cliente"]], t:"hace 2 h" },
+      { n: "Felipe Torres",      def:"", p:"+57 315 227 6601", c:"Pereira", tags:[["indi","prospecto"]], t:"hace 3 h" },
+      { n: "María Fernanda",     def:"", p:"+57 300 119 4420", c:"Bogotá", tags:[["red","cliente"]], t:"ayer" },
+      { n: "Papelería El Dorado",def:"", p:"+57 608 210 3311", c:"Bucaramanga", tags:[["ver","mayorista"],["gold","vip"]], t:"ayer" },
+      { n: "Esteban Vélez",      def:"", p:"+57 318 665 2019", c:"Cartagena", tags:[["red","cliente"]], t:"20 abr" },
+    ];
+    document.getElementById('rows').innerHTML = rows.map(r=>`
+      <tr>
+        <td><input type="checkbox"></td>
+        <td class="entry">${r.n}<span class="def">${r.def}</span></td>
+        <td class="ph">${r.p}</td>
+        <td class="city">${r.c}</td>
+        <td>${r.tags.map(([cl,t])=>`<span class="tg ${cl}">${t}</span>`).join('')}</td>
+        <td style="color:var(--ink-3); font-family: var(--font-mono); font-size: 12px;">${r.t}</td>
+      </tr>`).join('');
+
+    const stages = [
+      { t: "Nuevo", em:"📥", c: 5, orders:[
+        { n:"Juan Carlos Pérez", v:"$ 420.000", pv:"Cuadernos Norma oficio × 12", a:"M", d:"jueves 24 abr"},
+        { n:"Andrés Ramírez", v:"$ 180.000", pv:"Resma carta × 5", a:"Y", d:"lunes 28 abr"},
+      ]},
+      { t: "Confirmado", em:"🍳", c: 3, orders:[
+        { n:"Laura Mendoza", v:"$ 860.000", pv:"Packs escolar × 20", a:"M", d:"mañana"},
+        { n:"Carolina López", v:"$ 240.000", pv:"Agendas 2026 × 8", a:"Y", d:"viernes 25"},
+      ]},
+      { t: "Empacado", em:"📦", c: 2, orders:[
+        { n:"Distribuciones Norte", v:"$ 4.200.000", pv:"Pedido mensual completo", a:"M", d:"mañana"},
+      ]},
+      { t: "Entregado", em:"🚚", c: 4, orders:[
+        { n:"Papelería El Dorado", v:"$ 12.520.000", pv:"Resmas oficio × 200", a:"Y", d:"20 abr"},
+        { n:"María Fernanda", v:"$ 96.000", pv:"Cartulina × 30", a:"M", d:"19 abr"},
+      ]},
+    ];
+    document.getElementById('kanban').innerHTML = stages.map(s=>`
+      <div class="col">
+        <div class="hd"><span class="em">${s.em}</span><span class="t">${s.t}</span><span class="c">${s.c} · total</span></div>
+        <div class="body">
+          ${s.orders.map(o=>`
+            <div class="card">
+              <div class="top"><span class="nm">${o.n}</span><span class="val">${o.v}</span></div>
+              <div class="pv">${o.pv}</div>
+              <div class="foot"><div class="av">${o.a}</div><span class="date">${o.d}</span></div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+
+    document.querySelectorAll('.tabs a').forEach(a=>a.addEventListener('click', ()=>{
+      document.querySelectorAll('.tabs a').forEach(x=>x.classList.remove('on'));
+      a.classList.add('on');
+      const tab = a.dataset.tab;
+      document.getElementById('contactos').style.display = tab==='contactos' ? '' : 'none';
+      document.getElementById('pedidos').style.display = tab==='pedidos' ? '' : 'none';
+    }));
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

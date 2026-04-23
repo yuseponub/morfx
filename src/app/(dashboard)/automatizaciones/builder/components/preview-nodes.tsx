@@ -9,6 +9,8 @@
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { Zap, GitBranch, Play, AlertTriangle, Clock } from 'lucide-react'
 import type { DiagramNodeData } from '@/lib/builder/types'
+import { cn } from '@/lib/utils'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Type Definitions
@@ -55,12 +57,7 @@ function ConfigDetail({ label, value }: { label: string; value: string }) {
 // ============================================================================
 
 function TriggerNode({ data }: NodeProps<TriggerNodeType>) {
-  const borderColor = data.hasError
-    ? 'border-red-500'
-    : 'border-violet-300 dark:border-violet-700'
-  const bgColor = data.hasError
-    ? 'bg-red-50 dark:bg-red-950/30'
-    : 'bg-violet-50 dark:bg-violet-950'
+  const v2 = useDashboardV2()
 
   // Extract displayable config values
   const configEntries = data.triggerConfig
@@ -68,6 +65,80 @@ function TriggerNode({ data }: NodeProps<TriggerNodeType>) {
         ([, v]) => v !== null && v !== undefined && v !== ''
       )
     : []
+
+  if (v2) {
+    return (
+      <div
+        className={cn(
+          'w-[240px] border bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1),0_8px_22px_-16px_color-mix(in_oklch,var(--ink-1)_30%,transparent)] transition-shadow hover:shadow-[0_1px_0_var(--ink-1),0_12px_28px_-14px_color-mix(in_oklch,var(--ink-1)_40%,transparent)]',
+          data.hasError ? 'border-[var(--rubric-2)]' : 'border-[var(--ink-1)]'
+        )}
+      >
+        {/* Header (.nh) */}
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 border-b border-[var(--border)]',
+            'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--rubric-2)]'
+          )}
+          style={{
+            fontFamily: 'var(--font-sans)',
+            background: 'color-mix(in oklch, var(--rubric-2) 12%, var(--paper-0))',
+          }}
+        >
+          <Zap className="h-3.5 w-3.5 text-[var(--rubric-2)]" />
+          <span className="flex-1">Trigger · {data.category ?? 'evento'}</span>
+        </div>
+        {/* Body (.nb) */}
+        <div className="px-3 py-2.5">
+          <div
+            className="text-[15px] font-bold leading-tight tracking-[-0.01em] text-[var(--ink-1)] mb-1"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {data.label}
+          </div>
+          {configEntries.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dotted border-[var(--border)] flex flex-col gap-0.5">
+              {configEntries.slice(0, 3).map(([k, v]) => (
+                <div
+                  key={k}
+                  className="flex justify-between text-[11px]"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  <span className="text-[var(--ink-3)]">{k}</span>
+                  <span className="text-[var(--ink-1)] font-medium truncate max-w-[140px]">
+                    {String(v)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {data.hasError && data.errorMessage && (
+            <div className="mt-2 flex items-start gap-1.5 border border-[var(--rubric-2)] bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))] px-2 py-1">
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-[var(--rubric-2)]" />
+              <span
+                className="text-[11px] leading-tight text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                {data.errorMessage}
+              </span>
+            </div>
+          )}
+        </div>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!w-2.5 !h-2.5 !bg-[var(--rubric-2)] !border-2 !border-[var(--rubric-2)]"
+        />
+      </div>
+    )
+  }
+
+  const borderColor = data.hasError
+    ? 'border-red-500'
+    : 'border-violet-300 dark:border-violet-700'
+  const bgColor = data.hasError
+    ? 'bg-red-50 dark:bg-red-950/30'
+    : 'bg-violet-50 dark:bg-violet-950'
 
   return (
     <div
@@ -107,9 +178,53 @@ function TriggerNode({ data }: NodeProps<TriggerNodeType>) {
 // ============================================================================
 
 function ConditionNode({ data }: NodeProps<ConditionNodeType>) {
+  const v2 = useDashboardV2()
   const count = data.conditionCount ?? 0
   const conditionText =
     count === 1 ? '1 condicion' : `${count} condiciones`
+
+  if (v2) {
+    return (
+      <div className="w-[240px] border border-[var(--ink-1)] bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1),0_8px_22px_-16px_color-mix(in_oklch,var(--ink-1)_30%,transparent)] transition-shadow hover:shadow-[0_1px_0_var(--ink-1),0_12px_28px_-14px_color-mix(in_oklch,var(--ink-1)_40%,transparent)]">
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="!w-2.5 !h-2.5 !bg-[var(--paper-0)] !border-2 !border-[var(--ink-1)]"
+        />
+        {/* Header */}
+        <div
+          className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-indigo)]"
+          style={{
+            fontFamily: 'var(--font-sans)',
+            background: 'color-mix(in oklch, var(--accent-indigo) 12%, var(--paper-0))',
+          }}
+        >
+          <GitBranch className="h-3.5 w-3.5 text-[var(--accent-indigo)]" />
+          <span className="flex-1">Condición · si/no</span>
+        </div>
+        {/* Body */}
+        <div className="px-3 py-2.5">
+          <div
+            className="text-[15px] font-bold leading-tight tracking-[-0.01em] text-[var(--ink-1)] mb-1"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {data.label}
+          </div>
+          <div
+            className="text-[12px] italic text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            {conditionText}
+          </div>
+        </div>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!w-2.5 !h-2.5 !bg-[var(--accent-indigo)] !border-2 !border-[var(--accent-indigo)]"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="min-w-[220px] max-w-[280px] rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 shadow-sm dark:border-amber-700 dark:bg-amber-950">
@@ -141,12 +256,7 @@ function ConditionNode({ data }: NodeProps<ConditionNodeType>) {
 // ============================================================================
 
 function ActionNode({ data }: NodeProps<ActionNodeType>) {
-  const borderColor = data.hasError
-    ? 'border-red-500'
-    : 'border-sky-300 dark:border-sky-700'
-  const bgColor = data.hasError
-    ? 'bg-red-50 dark:bg-red-950/30'
-    : 'bg-sky-50 dark:bg-sky-950'
+  const v2 = useDashboardV2()
 
   // Format delay text
   const delayText = data.delay
@@ -155,6 +265,88 @@ function ActionNode({ data }: NodeProps<ActionNodeType>) {
 
   // Extract key params for display
   const displayParams = extractDisplayParams(data.params ?? {})
+
+  if (v2) {
+    return (
+      <div
+        className={cn(
+          'w-[240px] border bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1),0_8px_22px_-16px_color-mix(in_oklch,var(--ink-1)_30%,transparent)] transition-shadow hover:shadow-[0_1px_0_var(--ink-1),0_12px_28px_-14px_color-mix(in_oklch,var(--ink-1)_40%,transparent)]',
+          data.hasError ? 'border-[var(--rubric-2)]' : 'border-[var(--ink-1)]'
+        )}
+      >
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="!w-2.5 !h-2.5 !bg-[var(--paper-0)] !border-2 !border-[var(--ink-1)]"
+        />
+        {/* Header */}
+        <div
+          className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-2)] bg-[var(--paper-2)]"
+          style={{ fontFamily: 'var(--font-sans)' }}
+        >
+          <Play className="h-3.5 w-3.5 text-[var(--ink-2)]" />
+          <span className="flex-1">Acción · {data.category ?? 'ejecución'}</span>
+        </div>
+        {/* Body */}
+        <div className="px-3 py-2.5">
+          <div
+            className="text-[15px] font-bold leading-tight tracking-[-0.01em] text-[var(--ink-1)] mb-1"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {data.label}
+          </div>
+          {delayText && (
+            <div
+              className="mt-1.5 flex items-center gap-1 text-[11px] text-[var(--ink-3)]"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              <Clock className="size-3" />
+              <span>Esperar {delayText}</span>
+            </div>
+          )}
+          {displayParams.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dotted border-[var(--border)] flex flex-col gap-0.5">
+              {displayParams.map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="flex justify-between text-[11px]"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  <span className="text-[var(--ink-3)]">{label}</span>
+                  <span className="text-[var(--ink-1)] font-medium truncate max-w-[140px]">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {data.hasError && data.errorMessage && (
+            <div className="mt-2 flex items-start gap-1.5 border border-[var(--rubric-2)] bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))] px-2 py-1">
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-[var(--rubric-2)]" />
+              <span
+                className="text-[11px] leading-tight text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                {data.errorMessage}
+              </span>
+            </div>
+          )}
+        </div>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!w-2.5 !h-2.5 !bg-[var(--ink-2)] !border-2 !border-[var(--ink-2)]"
+        />
+      </div>
+    )
+  }
+
+  const borderColor = data.hasError
+    ? 'border-red-500'
+    : 'border-sky-300 dark:border-sky-700'
+  const bgColor = data.hasError
+    ? 'bg-red-50 dark:bg-red-950/30'
+    : 'bg-sky-50 dark:bg-sky-950'
 
   return (
     <div

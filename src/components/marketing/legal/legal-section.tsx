@@ -11,9 +11,12 @@ export interface LegalSubsection {
 export interface LegalSectionProps {
   id: string;
   heading: string;
+  sectionNumber?: string;
+  subtitle?: string;
   paragraphs?: string[];
   bullets?: string[];
   subsections?: LegalSubsection[];
+  showOrnament?: boolean;
   children?: ReactNode;
 }
 
@@ -22,7 +25,10 @@ function Paragraphs({ items }: { items?: string[] }) {
   return (
     <div className="space-y-4">
       {items.map((p, i) => (
-        <p key={i} className="text-foreground/80 leading-relaxed">
+        <p
+          key={i}
+          className="mx-body-long text-[1rem] leading-[1.7] text-[var(--ink-2)]"
+        >
           {p}
         </p>
       ))}
@@ -33,7 +39,7 @@ function Paragraphs({ items }: { items?: string[] }) {
 function Bullets({ items }: { items?: string[] }) {
   if (!items || items.length === 0) return null;
   return (
-    <ul className="list-disc space-y-2 pl-6 text-foreground/80 leading-relaxed marker:text-foreground/40">
+    <ul className="mx-body-long list-disc space-y-2 pl-6 text-[1rem] leading-[1.7] text-[var(--ink-2)] marker:text-[var(--ink-4)]">
       {items.map((b, i) => (
         <li key={i}>{b}</li>
       ))}
@@ -48,19 +54,19 @@ function Subsection({
   sub: LegalSubsection;
   level: number;
 }) {
-  // level 0 -> h3, level 1+ -> h4
+  // level 0 -> h3 (mx-h3), level 1+ -> h4 en smallcaps (editorial pattern)
   const HeadingTag = level === 0 ? 'h3' : 'h4';
   const headingClass =
     level === 0
-      ? 'text-xl font-semibold tracking-tight text-foreground'
-      : 'text-base font-semibold tracking-tight text-foreground';
+      ? 'mx-h3 text-[1.25rem] md:text-[1.375rem] text-[var(--ink-1)]'
+      : 'mx-smallcaps text-[12px] tracking-[0.12em] text-[var(--ink-2)]';
   return (
     <div id={sub.id} className="scroll-mt-24 space-y-4">
       <HeadingTag className={headingClass}>{sub.heading}</HeadingTag>
       <Paragraphs items={sub.paragraphs} />
       <Bullets items={sub.bullets} />
       {sub.subsections && sub.subsections.length > 0 ? (
-        <div className="space-y-5 pt-1 pl-4 border-l border-border">
+        <div className="space-y-5 border-l border-[var(--paper-4)] pt-1 pl-4">
           {sub.subsections.map((child, idx) => (
             <Subsection
               key={child.id ?? idx}
@@ -77,26 +83,66 @@ function Subsection({
 export function LegalSection({
   id,
   heading,
+  sectionNumber,
+  subtitle,
   paragraphs,
   bullets,
   subsections,
+  showOrnament = true,
   children,
 }: LegalSectionProps) {
   return (
-    <section id={id} className="scroll-mt-24 space-y-5">
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-        {heading}
-      </h2>
-      <Paragraphs items={paragraphs} />
-      <Bullets items={bullets} />
-      {subsections && subsections.length > 0 ? (
-        <div className="space-y-8 pt-2">
-          {subsections.map((sub, idx) => (
-            <Subsection key={sub.id ?? idx} sub={sub} level={0} />
-          ))}
+    <section id={id} className="scroll-mt-24">
+      <div className="grid grid-cols-[1fr] gap-6 md:grid-cols-[6rem_1fr] md:gap-10">
+        {/* Marginalia column (md+): section number in italic serif */}
+        {sectionNumber ? (
+          <aside
+            aria-hidden
+            className="mx-marginalia sticky top-24 hidden self-start pt-1 text-right text-[var(--ink-3)] md:block"
+          >
+            {sectionNumber}
+          </aside>
+        ) : (
+          <div aria-hidden className="hidden md:block" />
+        )}
+
+        <div className="space-y-5">
+          {/* Title + optional subtitle */}
+          <header className="space-y-2">
+            <h2 className="mx-h2 text-[1.5rem] text-[var(--ink-1)] md:text-[1.875rem]">
+              {heading}
+            </h2>
+            {subtitle ? (
+              <p className="mx-smallcaps text-[11px] tracking-[0.12em] text-[var(--ink-3)]">
+                {subtitle}
+              </p>
+            ) : null}
+          </header>
+
+          {/* Body */}
+          <div className="max-w-[42rem] space-y-4">
+            <Paragraphs items={paragraphs} />
+            <Bullets items={bullets} />
+            {subsections && subsections.length > 0 ? (
+              <div className="space-y-8 pt-2">
+                {subsections.map((sub, idx) => (
+                  <Subsection key={sub.id ?? idx} sub={sub} level={0} />
+                ))}
+              </div>
+            ) : null}
+            {children}
+          </div>
+        </div>
+      </div>
+
+      {/* Rule ornament between sections */}
+      {showOrnament ? (
+        <div className="mt-10 mb-2 flex justify-center">
+          <span className="mx-smallcaps text-[12px] tracking-[0.12em] text-[var(--ink-4)]">
+            — ❦ —
+          </span>
         </div>
       ) : null}
-      {children}
     </section>
   );
 }

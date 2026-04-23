@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import { routing } from '@/i18n/routing';
 import { Header } from '@/components/marketing/header';
 import { Footer } from '@/components/marketing/footer';
+import { ebGaramond, inter, jetbrainsMono } from '../fonts';
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -36,7 +37,9 @@ export default async function MarketingLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <div
+        className={`${ebGaramond.variable} ${inter.variable} ${jetbrainsMono.variable} theme-editorial flex min-h-screen flex-col`}
+      >
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

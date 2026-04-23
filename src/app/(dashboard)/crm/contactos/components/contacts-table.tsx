@@ -6,8 +6,6 @@ import { SearchIcon, Upload, ChevronLeftIcon, ChevronRightIcon } from 'lucide-re
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { DataTable, useSelectedRowIds } from '@/components/ui/data-table'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
-import { cn } from '@/lib/utils'
 import { createColumns } from './columns'
 import { EmptyState } from './empty-state'
 import { BulkActions } from './bulk-actions'
@@ -44,7 +42,6 @@ export function ContactsTable({
 }: ContactsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const v2 = useDashboardV2()
   const [search, setSearch] = React.useState(currentSearch)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -125,9 +122,8 @@ export function ContactsTable({
         onViewDetail: (contact) => {
           router.push(`/crm/contactos/${contact.id}`)
         },
-        v2,
       }),
-    [router, v2]
+    [router]
   )
 
   // Bulk actions
@@ -181,7 +177,7 @@ export function ContactsTable({
   if (total === 0 && !hasFilters) {
     return (
       <>
-        <EmptyState onCreateClick={() => setDialogOpen(true)} v2={v2} />
+        <EmptyState onCreateClick={() => setDialogOpen(true)} />
         <ContactDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
@@ -193,11 +189,7 @@ export function ContactsTable({
           onImportComplete={() => router.refresh()}
         />
         <div className="flex justify-center">
-          <Button
-            variant="outline"
-            onClick={() => setImportDialogOpen(true)}
-            className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
-          >
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Importar desde CSV
           </Button>
@@ -209,35 +201,18 @@ export function ContactsTable({
   return (
     <div className="space-y-4">
       {/* Search and import/export buttons */}
-      <div className={v2 ? 'flex items-center gap-3 flex-wrap' : 'flex items-center gap-4'}>
-        <div className={cn('relative', v2 ? 'flex-1 max-w-[320px]' : 'flex-1 max-w-sm')}>
-          <SearchIcon
-            className={cn(
-              'absolute top-1/2 -translate-y-1/2',
-              v2
-                ? 'left-[10px] h-[14px] w-[14px] text-[var(--ink-3)]'
-                : 'left-3 h-4 w-4 text-muted-foreground'
-            )}
-          />
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={v2 ? 'Buscar por nombre, teléfono o ciudad…' : 'Buscar contactos...'}
+            placeholder="Buscar contactos..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={cn(
-              v2
-                ? 'pl-[30px] bg-[var(--paper-0)] border-[var(--border)] rounded-[var(--radius-3)] text-[13px]'
-                : 'pl-9'
-            )}
-            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            className="pl-9"
           />
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setImportDialogOpen(true)}
-            className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
-          >
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Importar
           </Button>
@@ -269,27 +244,16 @@ export function ContactsTable({
       />
 
       {/* Data table — no client-side search filtering, data is already server-filtered */}
-      <div
-        className={cn(
-          v2 &&
-            'bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[var(--radius-3)] overflow-hidden [&_table]:border-collapse [&_thead_th]:bg-[var(--paper-1)] [&_thead_th]:border-b [&_thead_th]:border-[var(--ink-1)] [&_thead_th]:text-[10px] [&_thead_th]:uppercase [&_thead_th]:tracking-[0.08em] [&_thead_th]:text-[var(--ink-3)] [&_thead_th]:font-semibold [&_tbody_tr:hover]:bg-[var(--paper-2)] [&_tbody_td]:border-b [&_tbody_td]:border-[var(--border)] [&_tbody_td]:text-[13px] [&_tbody_td]:text-[var(--ink-1)]'
-        )}
-        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-      >
-        <DataTable
-          columns={columns}
-          data={contacts}
-          onRowSelectionChange={setRowSelection}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={contacts}
+        onRowSelectionChange={setRowSelection}
+      />
 
       {/* Pagination controls */}
       {total > 0 && (
-        <div className={cn('flex items-center justify-between', v2 ? 'px-3 pt-3 border-t border-[var(--border)]' : 'px-2')}>
-          <p
-            className={cn(v2 ? 'text-[12px] text-[var(--ink-3)]' : 'text-sm text-muted-foreground')}
-            style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-          >
+        <div className="flex items-center justify-between px-2">
+          <p className="text-sm text-muted-foreground">
             Mostrando {startItem}-{endItem} de {total.toLocaleString()} contactos
           </p>
           <div className="flex items-center gap-2">
@@ -298,15 +262,11 @@ export function ContactsTable({
               size="sm"
               onClick={() => goToPage(page - 1)}
               disabled={page <= 1}
-              className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
             >
               <ChevronLeftIcon className="h-4 w-4 mr-1" />
               Anterior
             </Button>
-            <span
-              className={cn(v2 ? 'text-[12px] text-[var(--ink-3)]' : 'text-sm text-muted-foreground')}
-              style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-            >
+            <span className="text-sm text-muted-foreground">
               Pagina {page} de {totalPages}
             </span>
             <Button
@@ -314,7 +274,6 @@ export function ContactsTable({
               size="sm"
               onClick={() => goToPage(page + 1)}
               disabled={page >= totalPages}
-              className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
             >
               Siguiente
               <ChevronRightIcon className="h-4 w-4 ml-1" />

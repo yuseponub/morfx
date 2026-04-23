@@ -12,18 +12,13 @@ import { createQuickReply, updateQuickReply, uploadQuickReplyMedia, deleteQuickR
 import type { QuickReply } from '@/lib/whatsapp/types'
 import { toast } from 'sonner'
 import { Loader2, ImagePlus, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 interface QuickReplyFormProps {
   quickReply?: QuickReply
   onSuccess?: () => void
-  v2?: boolean
 }
 
-export function QuickReplyForm({ quickReply, onSuccess, v2: v2Prop }: QuickReplyFormProps) {
-  const v2Hook = useDashboardV2()
-  const v2 = v2Prop ?? v2Hook
+export function QuickReplyForm({ quickReply, onSuccess }: QuickReplyFormProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
@@ -172,64 +167,48 @@ export function QuickReplyForm({ quickReply, onSuccess, v2: v2Prop }: QuickReply
     }
   }
 
-  const inputV2 = v2
-    ? 'border border-[var(--border)] bg-[var(--paper-0)] px-[10px] py-[8px] rounded-[var(--radius-3)] text-[13px] text-[var(--ink-1)] focus-visible:outline-none focus-visible:border-[var(--ink-1)] focus-visible:shadow-[0_0_0_3px_var(--paper-3)] focus-visible:ring-0'
-    : ''
-  const textareaV2 = inputV2
-  const labelV2 = v2 ? 'text-[12px] font-semibold text-[var(--ink-1)] tracking-[0.02em]' : ''
-  const hintV2 = v2 ? 'text-[11px] text-[var(--ink-3)]' : 'text-xs text-muted-foreground'
-  const btnPrimaryV2 = v2
-    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] !bg-[var(--ink-1)] !text-[var(--paper-0)] hover:!bg-[var(--ink-2)] !border !border-[var(--ink-1)] !shadow-[0_1px_0_var(--ink-1)] text-[13px] font-semibold'
-    : ''
-  const v2FontSans = v2 ? { fontFamily: 'var(--font-sans)' } : undefined
-  const v2FontMono = v2 ? { fontFamily: 'var(--font-mono)' } : undefined
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="shortcut" className={labelV2} style={v2FontSans}>Atajo</Label>
+        <Label htmlFor="shortcut">Atajo</Label>
         <div className="flex items-center gap-2">
-          <span className={cn('text-muted-foreground', v2 && '!text-[var(--ink-3)] !text-[15px] !font-mono')} style={v2FontMono}>/</span>
+          <span className="text-muted-foreground">/</span>
           <Input
             id="shortcut"
-            className={inputV2}
-            style={v2FontMono}
             value={shortcut}
             onChange={(e) => setShortcut(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             placeholder="saludo"
             required
           />
         </div>
-        <p className={hintV2} style={v2FontSans}>
+        <p className="text-xs text-muted-foreground">
           Solo letras minusculas, numeros y guiones bajos
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="content" className={labelV2} style={v2FontSans}>Contenido</Label>
+        <Label htmlFor="content">Contenido</Label>
         <Textarea
           id="content"
-          className={textareaV2}
-          style={v2FontSans}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Hola! Gracias por contactarnos. En que podemos ayudarte?"
           rows={4}
           required
         />
-        <p className={hintV2} style={v2FontSans}>
+        <p className="text-xs text-muted-foreground">
           Este texto se insertara cuando uses el atajo /{shortcut || 'atajo'}
         </p>
       </div>
 
       {/* Media upload section */}
       <div className="space-y-2">
-        <Label className={labelV2} style={v2FontSans}>Imagen (opcional)</Label>
+        <Label>Imagen (opcional)</Label>
 
         {isCompressing ? (
-          <div className={cn('border-2 border-dashed rounded-lg p-6 text-center', v2 && '!border-[var(--border)] !bg-[var(--paper-1)] !rounded-[var(--radius-3)]')}>
-            <Loader2 className={cn('h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin', v2 && '!text-[var(--ink-3)]')} />
-            <p className={cn('text-sm text-muted-foreground', v2 && '!text-[13px] !text-[var(--ink-3)]')} style={v2FontSans}>
+          <div className="border-2 border-dashed rounded-lg p-6 text-center">
+            <Loader2 className="h-8 w-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+            <p className="text-sm text-muted-foreground">
               Comprimiendo imagen...
             </p>
           </div>
@@ -240,14 +219,14 @@ export function QuickReplyForm({ quickReply, onSuccess, v2: v2Prop }: QuickReply
               alt="Preview"
               width={200}
               height={200}
-              className={cn('rounded-lg border object-cover', v2 && '!rounded-[var(--radius-3)] !border-[var(--border)]')}
+              className="rounded-lg border object-cover"
               style={{ maxWidth: '200px', maxHeight: '200px' }}
             />
             <Button
               type="button"
               variant="destructive"
               size="icon"
-              className={cn('absolute -top-2 -right-2 h-6 w-6', v2 && '!bg-[var(--paper-0)] !border !border-[oklch(0.75_0.10_28)] !text-[oklch(0.38_0.14_28)] !shadow-[0_1px_0_oklch(0.75_0.10_28)] hover:!bg-[oklch(0.98_0.02_28)]')}
+              className="absolute -top-2 -right-2 h-6 w-6"
               onClick={handleRemoveMedia}
             >
               <X className="h-4 w-4" />
@@ -255,19 +234,14 @@ export function QuickReplyForm({ quickReply, onSuccess, v2: v2Prop }: QuickReply
           </div>
         ) : (
           <div
-            className={cn(
-              'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
-              v2
-                ? '!border-[var(--border)] !bg-[var(--paper-1)] !rounded-[var(--radius-3)] hover:!bg-[var(--paper-2)]'
-                : 'hover:bg-muted/50'
-            )}
+            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => fileInputRef.current?.click()}
           >
-            <ImagePlus className={cn('h-8 w-8 mx-auto text-muted-foreground mb-2', v2 && '!text-[var(--ink-3)]')} />
-            <p className={cn('text-sm text-muted-foreground', v2 && '!text-[13px] !text-[var(--ink-2)]')} style={v2FontSans}>
+            <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
               Click para agregar imagen
             </p>
-            <p className={cn('text-xs text-muted-foreground mt-1', v2 && '!text-[11px] !text-[var(--ink-3)]')} style={v2FontSans}>
+            <p className="text-xs text-muted-foreground mt-1">
               JPG, PNG, GIF (se comprime automaticamente)
             </p>
           </div>
@@ -282,8 +256,8 @@ export function QuickReplyForm({ quickReply, onSuccess, v2: v2Prop }: QuickReply
         />
       </div>
 
-      <div className={cn('flex justify-end gap-2 pt-2', v2 && 'border-t border-[var(--border)]')}>
-        <Button type="submit" disabled={loading || isCompressing || !shortcut.trim() || !content.trim()} className={btnPrimaryV2} style={v2FontSans}>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="submit" disabled={loading || isCompressing || !shortcut.trim() || !content.trim()}>
           {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           {isEditing ? 'Guardar Cambios' : 'Crear Respuesta'}
         </Button>

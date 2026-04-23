@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { cn } from '@/lib/utils'
 import type { TaskFilters, TaskPriority, TaskStatus } from '@/lib/tasks/types'
 import type { MemberWithUser } from '@/lib/types/database'
 
@@ -20,7 +19,6 @@ interface TaskFiltersProps {
   onFiltersChange: (filters: TaskFilters) => void
   members: MemberWithUser[]
   currentUserId?: string
-  v2?: boolean
 }
 
 export function TaskFiltersBar({
@@ -28,15 +26,7 @@ export function TaskFiltersBar({
   onFiltersChange,
   members,
   currentUserId,
-  v2 = false,
 }: TaskFiltersProps) {
-  // Portal target: the `.theme-editorial` wrapper mounted by dashboard layout.
-  // Radix falls back to document.body when null (BC preserved).
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.querySelector<HTMLElement>('.theme-editorial')
-      : null
-
   // Status toggle: all | pending | completed
   const statusValue = filters.status || 'all'
 
@@ -74,130 +64,6 @@ export function TaskFiltersBar({
     onFiltersChange({
       status: filters.status,
     })
-  }
-
-  if (v2) {
-    // Editorial chip-row + Selects — D-DASH-14 + mock lines 56-58 (chip) + §topbar Selects
-    const statusChips: Array<{ id: TaskStatus | 'all'; label: string }> = [
-      { id: 'all', label: 'Todas' },
-      { id: 'pending', label: 'Pendientes' },
-      { id: 'completed', label: 'Completadas' },
-    ]
-
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Status chips */}
-        <div className="flex items-center gap-1.5" role="group" aria-label="Filtro de estado">
-          {statusChips.map((chip) => {
-            const isOn = statusValue === chip.id
-            return (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={() => handleStatusChange(chip.id)}
-                aria-pressed={isOn}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]',
-                  isOn
-                    ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border border-[var(--ink-1)] font-semibold'
-                    : 'bg-[var(--paper-0)] text-[var(--ink-2)] border border-[var(--border)] hover:bg-[var(--paper-2)]'
-                )}
-                style={{ fontFamily: 'var(--font-sans)' }}
-              >
-                {chip.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Priority filter */}
-        <Select
-          value={filters.priority || 'all'}
-          onValueChange={handlePriorityChange}
-        >
-          <SelectTrigger
-            className="w-[140px] h-auto border border-[var(--ink-1)] rounded-[3px] bg-[var(--paper-0)] text-[var(--ink-1)] px-2.5 py-1 text-[13px] font-normal shadow-none focus-visible:ring-0 focus-visible:border-[var(--ink-1)]"
-            style={{ fontFamily: 'var(--font-sans)' }}
-          >
-            <SelectValue placeholder="Prioridad" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las prioridades</SelectItem>
-            <SelectItem value="high">
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 border border-[var(--ink-1)]"
-                  style={{ background: 'var(--rubric-2)' }}
-                  aria-hidden
-                />
-                Alta
-              </div>
-            </SelectItem>
-            <SelectItem value="medium">
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 border border-[var(--ink-1)]"
-                  style={{ background: 'var(--accent-gold)' }}
-                  aria-hidden
-                />
-                Media
-              </div>
-            </SelectItem>
-            <SelectItem value="low">
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 border border-[var(--ink-1)]"
-                  style={{ background: 'var(--ink-4)' }}
-                  aria-hidden
-                />
-                Baja
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Assignment filter */}
-        <Select
-          value={filters.assigned_to || 'all'}
-          onValueChange={handleAssignmentChange}
-        >
-          <SelectTrigger
-            className="w-[160px] h-auto border border-[var(--ink-1)] rounded-[3px] bg-[var(--paper-0)] text-[var(--ink-1)] px-2.5 py-1 text-[13px] font-normal shadow-none focus-visible:ring-0 focus-visible:border-[var(--ink-1)]"
-            style={{ fontFamily: 'var(--font-sans)' }}
-          >
-            <SelectValue placeholder="Asignacion" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="me">Mis tareas</SelectItem>
-            <SelectItem value="unassigned">Sin asignar</SelectItem>
-            {members.map((member) => (
-              <SelectItem key={member.user_id} value={member.user_id}>
-                {member.user?.email || 'Usuario'}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Clear filters button */}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="text-[var(--ink-3)] hover:text-[var(--rubric-2)] hover:bg-transparent h-auto px-2 py-1 text-[11px]"
-            style={{ fontFamily: 'var(--font-sans)' }}
-          >
-            <XIcon className="h-3 w-3 mr-1" />
-            Limpiar
-          </Button>
-        )}
-
-        {/* Portal target reference (kept as variable to avoid dead-code elimination; consumed indirectly by Radix when needed) */}
-        {portalTarget ? null : null}
-      </div>
-    )
   }
 
   return (

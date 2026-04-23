@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/select'
 import { Plus, Trash2, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Types & Constants
@@ -213,17 +212,10 @@ function ConditionRow({
   canRemove: boolean
   pipelines: PipelineWithStages[]
 }) {
-  const v2 = useDashboardV2()
   const needsValue = !NO_VALUE_OPERATORS.includes(condition.operator)
 
   return (
-    <div
-      className={cn(
-        'flex items-start gap-2',
-        v2 && 'p-2 border border-[var(--border)] bg-[var(--paper-0)]'
-      )}
-      style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-    >
+    <div className="flex items-start gap-2">
       {/* Field selector */}
       <div className="flex-1 min-w-0">
         <Select
@@ -309,7 +301,6 @@ function ConditionGroupEditor({
   depth: number
   pipelines: PipelineWithStages[]
 }) {
-  const v2 = useDashboardV2()
   function toggleLogic() {
     onUpdate({ ...group, logic: group.logic === 'AND' ? 'OR' : 'AND' })
   }
@@ -342,134 +333,6 @@ function ConditionGroupEditor({
       ...group,
       conditions: [...group.conditions, createEmptyGroup()],
     })
-  }
-
-  if (v2) {
-    return (
-      <div
-        className={cn(
-          'p-3 space-y-3',
-          depth === 0
-            ? 'border border-[var(--ink-1)] bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1)]'
-            : 'border border-dashed border-[var(--border)] bg-[var(--paper-2)]'
-        )}
-      >
-        {/* Group header: AND/OR toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant={group.logic === 'AND' ? 'default' : 'outline'}
-              size="sm"
-              className={cn(
-                'h-7 text-[11px] px-2 font-semibold tracking-[0.08em] uppercase',
-                group.logic === 'AND'
-                  ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border-[var(--ink-1)]'
-                  : 'bg-transparent text-[var(--ink-3)] border-[var(--border)] hover:text-[var(--ink-1)] hover:border-[var(--ink-1)]'
-              )}
-              style={{ fontFamily: 'var(--font-sans)' }}
-              onClick={toggleLogic}
-            >
-              AND
-            </Button>
-            <Button
-              type="button"
-              variant={group.logic === 'OR' ? 'default' : 'outline'}
-              size="sm"
-              className={cn(
-                'h-7 text-[11px] px-2 font-semibold tracking-[0.08em] uppercase',
-                group.logic === 'OR'
-                  ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border-[var(--ink-1)]'
-                  : 'bg-transparent text-[var(--ink-3)] border-[var(--border)] hover:text-[var(--ink-1)] hover:border-[var(--ink-1)]'
-              )}
-              style={{ fontFamily: 'var(--font-sans)' }}
-              onClick={toggleLogic}
-            >
-              OR
-            </Button>
-            <span
-              className="text-[11px] italic text-[var(--ink-3)]"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              {group.logic === 'AND'
-                ? 'Todas deben cumplirse'
-                : 'Al menos una debe cumplirse'}
-            </span>
-          </div>
-          {depth > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 text-[11px] text-[var(--ink-3)] hover:text-[var(--rubric-2)]"
-              style={{ fontFamily: 'var(--font-sans)' }}
-              onClick={onRemove}
-            >
-              <Trash2 className="size-3.5 mr-1" />
-              Eliminar grupo
-            </Button>
-          )}
-        </div>
-
-        {/* Conditions list */}
-        <div className="space-y-2">
-          {group.conditions.map((item, index) => {
-            if (isConditionGroup(item)) {
-              return (
-                <ConditionGroupEditor
-                  key={index}
-                  group={item}
-                  onUpdate={(g) => updateConditionAtIndex(index, g)}
-                  onRemove={() => removeConditionAtIndex(index)}
-                  fields={fields}
-                  depth={depth + 1}
-                  pipelines={pipelines}
-                />
-              )
-            }
-            return (
-              <ConditionRow
-                key={index}
-                condition={item}
-                onUpdate={(c) => updateConditionAtIndex(index, c)}
-                onRemove={() => removeConditionAtIndex(index)}
-                fields={fields}
-                canRemove={group.conditions.length > 1}
-                pipelines={pipelines}
-              />
-            )
-          })}
-        </div>
-
-        {/* Add condition / sub-group buttons */}
-        <div className="flex items-center gap-2 pt-1 border-t border-dotted border-[var(--border)]">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 text-[10px] font-bold uppercase tracking-[0.12em] bg-transparent text-[var(--rubric-2)] border border-[var(--rubric-2)] hover:bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))]"
-            style={{ fontFamily: 'var(--font-sans)' }}
-            onClick={addCondition}
-          >
-            <Plus className="size-3 mr-1" />
-            Condición
-          </Button>
-          {depth < 1 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 text-[10px] font-bold uppercase tracking-[0.12em] bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)]"
-              style={{ fontFamily: 'var(--font-sans)' }}
-              onClick={addSubGroup}
-            >
-              <GitBranch className="size-3 mr-1" />
-              Sub-grupo
-            </Button>
-          )}
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -581,7 +444,6 @@ function ConditionGroupEditor({
 // ============================================================================
 
 export function ConditionsStep({ formData, onChange, triggerType, pipelines = [] }: ConditionsStepProps) {
-  const v2 = useDashboardV2()
   const conditions = formData.conditions
   const fields = getVariableFields(triggerType)
 
@@ -612,79 +474,29 @@ export function ConditionsStep({ formData, onChange, triggerType, pipelines = []
   return (
     <div className="space-y-4">
       <div>
-        {v2 ? (
-          <>
-            <span
-              className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-indigo)]"
-              style={{ fontFamily: 'var(--font-sans)' }}
-            >
-              Filtros · lógica condicional
-            </span>
-            <h3
-              className="mt-1 text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              Condiciones
-            </h3>
-            <p
-              className="mt-1 text-[12px] italic text-[var(--ink-3)]"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              Define condiciones opcionales para filtrar cuándo se ejecuta la automatización.
-            </p>
-          </>
-        ) : (
-          <>
-            <h3 className="text-lg font-semibold">Condiciones</h3>
-            <p className="text-sm text-muted-foreground">
-              Define condiciones opcionales para filtrar cuando se ejecuta la automatizacion
-            </p>
-          </>
-        )}
+        <h3 className="text-lg font-semibold">Condiciones</h3>
+        <p className="text-sm text-muted-foreground">
+          Define condiciones opcionales para filtrar cuando se ejecuta la automatizacion
+        </p>
       </div>
 
       {!conditions ? (
-        v2 ? (
-          <div className="border border-dashed border-[var(--border)] bg-[var(--paper-2)] p-8 text-center space-y-3">
-            <div className="flex justify-center">
-              <GitBranch className="size-7 text-[var(--accent-indigo)]" />
-            </div>
-            <p
-              className="text-[13px] italic text-[var(--ink-3)]"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              Sin condiciones, la automatización se ejecutará siempre que el trigger se dispare.
-            </p>
-            <p className="mx-rule-ornament">· · ·</p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addGroup}
-              className="bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]"
-              style={{ fontFamily: 'var(--font-sans)' }}
-            >
-              <Plus className="size-4 mr-2" />
-              Agregar grupo de condiciones
-            </Button>
+        <div className="border border-dashed rounded-lg p-8 text-center space-y-3">
+          <div className="flex justify-center">
+            <GitBranch className="size-8 text-muted-foreground" />
           </div>
-        ) : (
-          <div className="border border-dashed rounded-lg p-8 text-center space-y-3">
-            <div className="flex justify-center">
-              <GitBranch className="size-8 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Sin condiciones, la automatizacion se ejecutara siempre que el trigger se dispare.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addGroup}
-            >
-              <Plus className="size-4 mr-2" />
-              Agregar grupo de condiciones
-            </Button>
-          </div>
-        )
+          <p className="text-sm text-muted-foreground">
+            Sin condiciones, la automatizacion se ejecutara siempre que el trigger se dispare.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addGroup}
+          >
+            <Plus className="size-4 mr-2" />
+            Agregar grupo de condiciones
+          </Button>
+        </div>
       ) : (
         <div className="space-y-3">
           <ConditionGroupEditor
@@ -696,14 +508,7 @@ export function ConditionsStep({ formData, onChange, triggerType, pipelines = []
             pipelines={pipelines}
           />
           <div className="flex items-center gap-2">
-            <Label
-              className={cn(
-                v2
-                  ? 'text-[11px] italic text-[var(--ink-3)] tracking-[0.02em]'
-                  : 'text-xs text-muted-foreground'
-              )}
-              style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
-            >
+            <Label className="text-xs text-muted-foreground">
               Puedes agregar condiciones individuales o sub-grupos dentro del grupo principal.
             </Label>
           </div>
@@ -711,12 +516,7 @@ export function ConditionsStep({ formData, onChange, triggerType, pipelines = []
             type="button"
             variant="ghost"
             size="sm"
-            className={cn(
-              v2
-                ? 'text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--rubric-2)] hover:text-[var(--rubric-1)] hover:bg-[color-mix(in_oklch,var(--rubric-2)_6%,var(--paper-0))]'
-                : 'text-xs text-destructive hover:text-destructive'
-            )}
-            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            className="text-xs text-destructive hover:text-destructive"
             onClick={removeRoot}
           >
             <Trash2 className="size-3 mr-1" />

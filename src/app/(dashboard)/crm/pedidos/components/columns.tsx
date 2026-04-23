@@ -49,19 +49,12 @@ function formatRelativeTime(date: string): string {
 }
 
 interface ColumnsProps {
-  /**
-   * When true, cell renderers emit editorial (mx-tag--*) styling for status
-   * badges instead of the default shadcn/inline-style variant. Additive arg,
-   * default false preserves backwards-compat for any external consumer.
-   */
-  v2?: boolean
   onEdit: (order: OrderWithDetails) => void
   onDelete: (order: OrderWithDetails) => void
   onRecompra: (order: OrderWithDetails) => void
 }
 
 export function createColumns({
-  v2 = false,
   onEdit,
   onDelete,
   onRecompra,
@@ -115,32 +108,6 @@ export function createColumns({
       header: 'Etapa',
       cell: ({ row }) => {
         const stage = row.original.stage
-        if (!stage) return null
-
-        if (v2) {
-          // Deterministic mx-tag variant mapping per D-DASH-15 + mock pedidos.html
-          const stageNameLower = (stage.name || '').toLowerCase()
-          const tagVariant: 'rubric' | 'gold' | 'verdigris' | 'indigo' | 'ink' = (() => {
-            if (/cancel|rechaz/.test(stageNameLower)) return 'rubric'
-            if (/atras|alert/.test(stageNameLower)) return 'rubric'
-            if (/listo|complet|entreg|enviad/.test(stageNameLower)) return 'verdigris'
-            if (/prepar|proces/.test(stageNameLower)) return 'gold'
-            if (/nuevo|pendien/.test(stageNameLower)) return 'indigo'
-            return 'ink'
-          })()
-
-          return (
-            <span className={`mx-tag mx-tag--${tagVariant} inline-flex items-center gap-1.5`}>
-              <span
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: stage.color }}
-              />
-              {stage.name}
-            </span>
-          )
-        }
-
-        // CURRENT (flag OFF) — preserve verbatim
         return (
           <div
             className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"

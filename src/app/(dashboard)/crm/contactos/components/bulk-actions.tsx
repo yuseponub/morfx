@@ -8,8 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
-import { cn } from '@/lib/utils'
 import type { Tag } from '@/lib/types/database'
 import { getContrastColor } from '@/lib/data/tag-colors'
 
@@ -30,50 +28,24 @@ export function BulkActions({
   onDelete,
   onClearSelection,
 }: BulkActionsProps) {
-  const v2 = useDashboardV2()
   if (selectedCount === 0) return null
 
-  // Preserve getContrastColor import for potential future usage (Regla 6 / D-DASH-07)
-  void getContrastColor
-
-  const portalContainer =
-    v2 && typeof document !== 'undefined'
-      ? document.querySelector<HTMLElement>('[data-theme-scope="dashboard-editorial"]')
-      : undefined
-
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2 px-4 py-2',
-        v2
-          ? 'bg-[var(--paper-2)] border border-[var(--ink-1)] rounded-[var(--radius-3)] shadow-[0_1px_0_var(--ink-1)]'
-          : 'bg-muted/50 border rounded-lg'
-      )}
-    >
-      <span
-        className={cn(
-          'text-sm font-medium',
-          v2 && 'text-[var(--ink-1)] uppercase tracking-[0.08em] text-[11px] font-semibold'
-        )}
-        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-      >
+    <div className="flex items-center gap-2 bg-muted/50 border rounded-lg px-4 py-2">
+      <span className="text-sm font-medium">
         {selectedCount} seleccionado{selectedCount > 1 ? 's' : ''}
       </span>
 
-      <div className={cn('h-4 w-px mx-2', v2 ? 'bg-[var(--ink-1)]' : 'bg-border')} />
+      <div className="h-4 w-px bg-border mx-2" />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
-          >
+          <Button variant="outline" size="sm">
             <TagIcon className="mr-2 h-4 w-4" />
             Agregar tag
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" portalContainer={portalContainer}>
+        <DropdownMenuContent align="start">
           {tags.length === 0 ? (
             <DropdownMenuItem disabled>No hay tags disponibles</DropdownMenuItem>
           ) : (
@@ -95,16 +67,12 @@ export function BulkActions({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
-          >
+          <Button variant="outline" size="sm">
             <XIcon className="mr-2 h-4 w-4" />
             Quitar tag
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" portalContainer={portalContainer}>
+        <DropdownMenuContent align="start">
           {tags.length === 0 ? (
             <DropdownMenuItem disabled>No hay tags disponibles</DropdownMenuItem>
           ) : (
@@ -128,7 +96,7 @@ export function BulkActions({
         variant="outline"
         size="sm"
         onClick={onDelete}
-        className={v2 ? 'border-[var(--rubric-2)] text-[var(--rubric-2)] bg-[var(--paper-0)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--rubric-2)]' : 'text-destructive hover:text-destructive'}
+        className="text-destructive hover:text-destructive"
       >
         <TrashIcon className="mr-2 h-4 w-4" />
         Eliminar
@@ -138,7 +106,7 @@ export function BulkActions({
         variant="ghost"
         size="sm"
         onClick={onClearSelection}
-        className={cn('ml-auto', v2 && 'text-[var(--ink-2)] hover:text-[var(--ink-1)]')}
+        className="ml-auto"
       >
         Limpiar seleccion
       </Button>

@@ -18,8 +18,6 @@ import {
   MessageCircleIcon,
   ListTodo,
   ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -45,7 +43,6 @@ import { OrderTrackingSection } from './order-tracking-section'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { moveOrderToStage, getRelatedOrders } from '@/app/actions/orders'
 import { getOrderNotes } from '@/app/actions/order-notes'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineStage, RelatedOrder, OrderNoteWithUser } from '@/lib/orders/types'
@@ -80,65 +77,39 @@ function isValidTrackingUrl(tracking: string): boolean {
 }
 
 function ContactSection({ contact }: { contact: { id: string; name: string; phone: string; address: string | null; city: string | null } }) {
-  const v2 = useDashboardV2()
   const [expanded, setExpanded] = React.useState(false)
   const hasDetails = contact.address || contact.city
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3
-          className={cn(
-            v2
-              ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]'
-              : 'text-sm font-semibold text-muted-foreground uppercase tracking-wide'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-        >
-          Cliente
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Contacto
         </h3>
         {hasDetails && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className={cn(
-              'transition-colors',
-              v2
-                ? 'text-[var(--ink-3)] hover:text-[var(--ink-1)]'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronDownIcon className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
           </button>
         )}
       </div>
-      <div
-        className={cn('space-y-2', v2 && 'text-[13px] text-[var(--ink-1)]')}
-        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-      >
+      <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <UserIcon
-            className={cn('h-4 w-4', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
-          />
+          <UserIcon className="h-4 w-4 text-muted-foreground" />
           <Link
             href={`/crm/contactos/${contact.id}`}
-            className={cn(
-              'hover:underline',
-              v2 ? 'text-[var(--ink-1)]' : 'text-primary'
-            )}
+            className="text-primary hover:underline"
           >
             {contact.name}
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <PhoneIcon
-            className={cn('h-4 w-4', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
-          />
+          <PhoneIcon className="h-4 w-4 text-muted-foreground" />
           <Link
             href={`/crm/contactos/${contact.id}`}
-            className={cn(
-              'hover:underline',
-              v2 ? 'text-[var(--ink-1)]' : 'text-primary'
-            )}
+            className="text-primary hover:underline"
           >
             {contact.phone}
           </Link>
@@ -147,24 +118,14 @@ function ContactSection({ contact }: { contact: { id: string; name: string; phon
           <>
             {contact.address && (
               <div className="flex items-start gap-3">
-                <MapPinIcon
-                  className={cn(
-                    'h-4 w-4 mt-0.5',
-                    v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-                  )}
-                />
-                <span className={v2 ? 'text-[var(--ink-2)]' : undefined}>{contact.address}</span>
+                <MapPinIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span>{contact.address}</span>
               </div>
             )}
             {contact.city && (
               <div className="flex items-center gap-3">
-                <MapPinIcon
-                  className={cn(
-                    'h-4 w-4',
-                    v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-                  )}
-                />
-                <span className={v2 ? 'text-[var(--ink-2)]' : undefined}>{contact.city}</span>
+                <MapPinIcon className="h-4 w-4 text-muted-foreground" />
+                <span>{contact.city}</span>
               </div>
             )}
           </>
@@ -207,7 +168,6 @@ export function OrderSheet({
   isAdminOrOwner,
   availableTags = [],
 }: OrderSheetProps) {
-  const v2 = useDashboardV2()
   const router = useRouter()
   const [isChangingStage, setIsChangingStage] = React.useState(false)
   const [localTags, setLocalTags] = React.useState<Array<{ id: string; name: string; color: string }>>([])
@@ -274,154 +234,110 @@ export function OrderSheet({
     }
   }
 
-  // Derive prev/next stages for editorial stage-bar advance buttons (v2 only)
-  const stageIdx = stages.findIndex((s) => s.id === order.stage_id)
-  const prevStage = stageIdx > 0 ? stages[stageIdx - 1] : null
-  const nextStage = stageIdx >= 0 && stageIdx < stages.length - 1 ? stages[stageIdx + 1] : null
-
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent
-        key={order.id}
-        className="sm:max-w-[500px] p-0 flex flex-col"
-        portalContainer={
-          v2
-            ? (typeof document !== 'undefined'
-                ? document.querySelector<HTMLElement>('[data-theme-scope="dashboard-editorial"]')
-                : undefined)
-            : undefined
-        }
-      >
+      <SheetContent key={order.id} className="sm:max-w-[500px] p-0 flex flex-col">
         {/* Header */}
-        {v2 ? (
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--ink-1)] space-y-0">
-            {/* Top: ID · #XXXX + display h2 + meta row */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div
-                  className="text-[11px] text-[var(--ink-3)] tracking-[0.02em]"
-                  style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}
-                >
-                  Pedido · <span>#{order.id.slice(-4).toUpperCase()}</span>
-                </div>
-                <SheetTitle asChild>
-                  <h2
-                    className="mt-1 text-[22px] leading-[1.15] font-semibold tracking-[-0.01em] text-[var(--ink-1)]"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {order.name || 'Sin nombre'}
-                  </h2>
-                </SheetTitle>
-                <div
-                  className="mt-2 flex flex-wrap gap-3 text-[12px] text-[var(--ink-3)]"
-                  style={{ fontFamily: 'var(--font-sans)' }}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    <CalendarIcon className="h-3 w-3" />
-                    {formatDateTime(order.created_at)}
-                  </span>
-                  {order.shipping_city && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPinIcon className="h-3 w-3" />
-                      {order.shipping_city}
-                    </span>
-                  )}
-                  {order.carrier && (
-                    <span className="inline-flex items-center gap-1">
-                      <TruckIcon className="h-3 w-3" />
-                      <span className="capitalize">{order.carrier}</span>
-                    </span>
-                  )}
-                </div>
+        <SheetHeader className="px-6 pt-6 pb-4 border-b space-y-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <SheetTitle className="text-xl">
+                {order.name || 'Sin nombre'}
+              </SheetTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-primary">
+                  {formatCurrency(order.total_value)}
+                </span>
               </div>
+              <p className="text-sm text-muted-foreground">
+                {pipeline.name}
+              </p>
             </div>
+          </div>
 
-            {/* Stage bar — replaces shadcn Select with pill chip + advance buttons */}
-            <div className="-mx-6 mt-4 px-6 py-3 border-t border-[var(--border)] bg-[var(--paper-1)] flex items-center gap-3 flex-wrap">
-              <span
-                className="text-[10px] uppercase tracking-[0.12em] font-semibold text-[var(--ink-3)]"
-                style={{ fontFamily: 'var(--font-sans)' }}
-              >
-                Estado actual
-              </span>
-              <span
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ink-1)] bg-[var(--paper-0)] text-[12px] font-semibold text-[var(--ink-1)] tracking-[0.02em]"
-                style={{ fontFamily: 'var(--font-sans)' }}
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                {isChangingStage ? (
-                  <LoaderIcon className="h-3 w-3 animate-spin" />
-                ) : (
-                  stage.name
-                )}
-              </span>
-              <div className="flex-1" />
-              <div className="flex gap-1.5">
-                {prevStage && (
-                  <button
-                    type="button"
-                    onClick={() => handleStageChange(prevStage.id)}
-                    disabled={isChangingStage}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] border border-[var(--border)] bg-[var(--paper-0)] text-[var(--ink-2)] text-[11px] font-medium hover:bg-[var(--paper-3)] hover:text-[var(--ink-1)] hover:border-[var(--ink-2)] transition-colors disabled:opacity-50"
-                    style={{ fontFamily: 'var(--font-sans)' }}
-                    aria-label={`Mover a ${prevStage.name}`}
-                  >
-                    <ChevronLeftIcon className="h-3 w-3" />
-                    {prevStage.name}
-                  </button>
-                )}
-                {nextStage && (
-                  <button
-                    type="button"
-                    onClick={() => handleStageChange(nextStage.id)}
-                    disabled={isChangingStage}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[3px] border border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] text-[11px] font-semibold hover:bg-[var(--paper-3)] transition-colors disabled:opacity-50"
-                    style={{ fontFamily: 'var(--font-sans)' }}
-                    aria-label={`Mover a ${nextStage.name}`}
-                  >
-                    {nextStage.name}
-                    <ChevronRightIcon className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Action buttons row */}
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
+          {/* Action buttons - Two rows with spacing */}
+          <div className="space-y-3">
+            {/* Row 1: Editar, Eliminar */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   onClose()
                   onEdit(order)
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] text-[12px] font-semibold hover:bg-[var(--paper-3)] transition-colors"
-                style={{ fontFamily: 'var(--font-sans)', boxShadow: '0 1px 0 var(--ink-1)' }}
               >
-                <PencilIcon className="h-3.5 w-3.5" />
+                <PencilIcon className="h-4 w-4 mr-2" />
                 Editar
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
                 onClick={() => {
                   onClose()
                   onDelete(order)
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-[var(--rubric-2)] bg-[var(--paper-0)] text-[var(--rubric-2)] text-[12px] font-semibold hover:bg-[var(--rubric-2)]/10 transition-colors"
-                style={{ fontFamily: 'var(--font-sans)' }}
               >
-                <Trash2Icon className="h-3.5 w-3.5" />
+                <Trash2Icon className="h-4 w-4 mr-2" />
                 Eliminar
-              </button>
+              </Button>
+            </div>
+
+            {/* Row 2: WhatsApp, Fases, Tarea */}
+            <div className="flex items-center gap-2">
               {contact?.phone && (
-                <Link
-                  href={`/whatsapp?phone=${encodeURIComponent(contact.phone)}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-[var(--accent-verdigris)] bg-[var(--paper-0)] text-[var(--accent-verdigris)] text-[12px] font-semibold hover:bg-[var(--accent-verdigris)]/10 transition-colors"
-                  style={{ fontFamily: 'var(--font-sans)' }}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                  asChild
                 >
-                  <MessageCircleIcon className="h-3.5 w-3.5" />
-                  WhatsApp
-                </Link>
+                  <Link href={`/whatsapp?phone=${encodeURIComponent(contact.phone)}`}>
+                    <MessageCircleIcon className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </Link>
+                </Button>
               )}
+              {/* Stage selector */}
+              <Select
+                value={order.stage_id}
+                onValueChange={handleStageChange}
+                disabled={isChangingStage}
+              >
+                <SelectTrigger
+                  className="w-[150px] h-9"
+                  style={{
+                    backgroundColor: `${stage.color}15`,
+                    borderColor: stage.color,
+                  }}
+                >
+                  {isChangingStage ? (
+                    <LoaderIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      <span className="truncate">{stage.name}</span>
+                    </div>
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {stages.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: s.color }}
+                        />
+                        {s.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <CreateTaskButton
                 orderId={order.id}
                 orderInfo={`Pedido ${formatCurrency(order.total_value)} - ${contact?.name || 'Sin contacto'}`}
@@ -429,118 +345,8 @@ export function OrderSheet({
                 size="sm"
               />
             </div>
-          </SheetHeader>
-        ) : (
-          <SheetHeader className="px-6 pt-6 pb-4 border-b space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <SheetTitle className="text-xl">
-                  {order.name || 'Sin nombre'}
-                </SheetTitle>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-primary">
-                    {formatCurrency(order.total_value)}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {pipeline.name}
-                </p>
-              </div>
-            </div>
-
-            {/* Action buttons - Two rows with spacing */}
-            <div className="space-y-3">
-              {/* Row 1: Editar, Eliminar */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onClose()
-                    onEdit(order)
-                  }}
-                >
-                  <PencilIcon className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => {
-                    onClose()
-                    onDelete(order)
-                  }}
-                >
-                  <Trash2Icon className="h-4 w-4 mr-2" />
-                  Eliminar
-                </Button>
-              </div>
-
-              {/* Row 2: WhatsApp, Fases, Tarea */}
-              <div className="flex items-center gap-2">
-                {contact?.phone && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                    asChild
-                  >
-                    <Link href={`/whatsapp?phone=${encodeURIComponent(contact.phone)}`}>
-                      <MessageCircleIcon className="h-4 w-4 mr-2" />
-                      WhatsApp
-                    </Link>
-                  </Button>
-                )}
-                {/* Stage selector */}
-                <Select
-                  value={order.stage_id}
-                  onValueChange={handleStageChange}
-                  disabled={isChangingStage}
-                >
-                  <SelectTrigger
-                    className="w-[150px] h-9"
-                    style={{
-                      backgroundColor: `${stage.color}15`,
-                      borderColor: stage.color,
-                    }}
-                  >
-                    {isChangingStage ? (
-                      <LoaderIcon className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: stage.color }}
-                        />
-                        <span className="truncate">{stage.name}</span>
-                      </div>
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: s.color }}
-                          />
-                          {s.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <CreateTaskButton
-                  orderId={order.id}
-                  orderInfo={`Pedido ${formatCurrency(order.total_value)} - ${contact?.name || 'Sin contacto'}`}
-                  variant="outline"
-                  size="sm"
-                />
-              </div>
-            </div>
-          </SheetHeader>
-        )}
+          </div>
+        </SheetHeader>
 
         {/* Content */}
         <ScrollArea className="flex-1">
@@ -554,100 +360,12 @@ export function OrderSheet({
 
             {/* Products */}
             <section className="space-y-3">
-              <h3
-                className={cn(
-                  v2
-                    ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)] mb-2'
-                    : 'text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2'
-                )}
-                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-              >
-                {!v2 && <PackageIcon className="h-4 w-4" />}
-                {v2 ? 'Líneas del pedido' : `Productos (${products.length})`}
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <PackageIcon className="h-4 w-4" />
+                Productos ({products.length})
               </h3>
               {products.length === 0 ? (
-                <p
-                  className={cn(
-                    v2 ? 'text-[13px] text-[var(--ink-3)] italic' : 'text-sm text-muted-foreground'
-                  )}
-                  style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
-                >
-                  Sin productos
-                </p>
-              ) : v2 ? (
-                <>
-                  <table
-                    className="w-full border-collapse"
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: '13px' }}
-                  >
-                    <thead>
-                      <tr>
-                        <th className="text-left pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--border)]">
-                          Artículo
-                        </th>
-                        <th className="text-right pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--border)] w-12">
-                          Cant.
-                        </th>
-                        <th className="text-right pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--border)] w-24">
-                          Precio
-                        </th>
-                        <th className="text-right pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--border)] w-28">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {products.map((product) => (
-                        <tr key={product.id}>
-                          <td className="py-2 pr-2 text-[var(--ink-1)] border-b border-[var(--border)] align-top">
-                            <div>{product.title}</div>
-                            {product.sku && (
-                              <span
-                                className="block text-[11px] text-[var(--ink-3)] mt-0.5"
-                                style={{ fontFamily: 'var(--font-mono)' }}
-                              >
-                                {product.sku}
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            className="py-2 text-right text-[var(--ink-2)] border-b border-[var(--border)] align-top"
-                            style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 500 }}
-                          >
-                            {product.quantity}
-                          </td>
-                          <td
-                            className="py-2 text-right text-[var(--ink-3)] border-b border-[var(--border)] align-top"
-                            style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 500 }}
-                          >
-                            {formatCurrency(product.unit_price)}
-                          </td>
-                          <td
-                            className="py-2 text-right text-[var(--ink-1)] border-b border-[var(--border)] align-top"
-                            style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600 }}
-                          >
-                            {formatCurrency(product.subtotal)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {/* Grand total — mx-display 18px */}
-                  <div className="mt-3 pt-3 border-t border-[var(--ink-1)] flex items-baseline justify-between">
-                    <span
-                      className="text-[14px] font-semibold text-[var(--ink-1)]"
-                      style={{ fontFamily: 'var(--font-sans)' }}
-                    >
-                      Total
-                    </span>
-                    <span
-                      className="text-[18px] font-bold text-[var(--ink-1)] tracking-[-0.005em]"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      {formatCurrency(order.total_value)}
-                    </span>
-                  </div>
-                </>
+                <p className="text-sm text-muted-foreground">Sin productos</p>
               ) : (
                 <div className="space-y-2">
                   {products.map((product) => (
@@ -688,16 +406,9 @@ export function OrderSheet({
 
             {/* Shipping */}
             <section className="space-y-3">
-              <h3
-                className={cn(
-                  v2
-                    ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]'
-                    : 'text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2'
-                )}
-                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-              >
-                {!v2 && <TruckIcon className="h-4 w-4" />}
-                Envío
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <TruckIcon className="h-4 w-4" />
+                Envio
               </h3>
               {order.shipping_address || order.shipping_city || order.carrier || order.tracking_number ? (
                 <div className="space-y-2">
@@ -762,25 +473,10 @@ export function OrderSheet({
               <>
                 <Separator />
                 <section className="space-y-3">
-                  <h3
-                    className={cn(
-                      v2
-                        ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]'
-                        : 'text-sm font-semibold text-muted-foreground uppercase tracking-wide'
-                    )}
-                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-                  >
-                    Descripción
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Descripcion
                   </h3>
-                  <p
-                    className={cn(
-                      'whitespace-pre-wrap',
-                      v2 ? 'text-[13px] text-[var(--ink-1)]' : 'text-sm'
-                    )}
-                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-                  >
-                    {order.description}
-                  </p>
+                  <p className="text-sm whitespace-pre-wrap">{order.description}</p>
                 </section>
               </>
             )}
@@ -789,14 +485,7 @@ export function OrderSheet({
 
             {/* Tags */}
             <section className="space-y-3">
-              <h3
-                className={cn(
-                  v2
-                    ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]'
-                    : 'text-sm font-semibold text-muted-foreground uppercase tracking-wide'
-                )}
-                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-              >
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Etiquetas
               </h3>
               <OrderTagInput
@@ -841,101 +530,29 @@ export function OrderSheet({
 
             <Separator />
 
-            {/* Timeline / Fechas */}
+            {/* Timeline */}
             <section className="space-y-3">
-              <h3
-                className={cn(
-                  v2
-                    ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]'
-                    : 'text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2'
-                )}
-                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-              >
-                {!v2 && <CalendarIcon className="h-4 w-4" />}
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
                 Fechas
               </h3>
-              <div className={cn('space-y-2', v2 ? 'text-[13px]' : 'text-sm')}>
+              <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      'w-24',
-                      v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-                    )}
-                  >
-                    Creado
-                  </span>
-                  <span className={v2 ? 'text-[var(--ink-1)]' : undefined}>{formatDateTime(order.created_at)}</span>
+                  <span className="text-muted-foreground w-24">Creado</span>
+                  <span>{formatDateTime(order.created_at)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      'w-24',
-                      v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-                    )}
-                  >
-                    Actualizado
-                  </span>
-                  <span className={v2 ? 'text-[var(--ink-1)]' : undefined}>{formatDateTime(order.updated_at)}</span>
+                  <span className="text-muted-foreground w-24">Actualizado</span>
+                  <span>{formatDateTime(order.updated_at)}</span>
                 </div>
                 {order.closing_date && (
                   <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        'w-24',
-                        v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-                      )}
-                    >
-                      Cierre
-                    </span>
-                    <span className={v2 ? 'text-[var(--ink-1)]' : undefined}>{formatDate(order.closing_date)}</span>
+                    <span className="text-muted-foreground w-24">Cierre</span>
+                    <span>{formatDate(order.closing_date)}</span>
                   </div>
                 )}
               </div>
             </section>
-
-            {/* Actividad timeline — v2 only (derived from existing dates; no fabrication) */}
-            {v2 && (
-              <>
-                <Separator />
-                <section className="space-y-3">
-                  <h3
-                    className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]"
-                    style={{ fontFamily: 'var(--font-sans)' }}
-                  >
-                    Actividad
-                  </h3>
-                  <div className="flex flex-col gap-2.5">
-                    {[
-                      { t: formatDateTime(order.created_at), b: 'Pedido creado' },
-                      ...(order.updated_at !== order.created_at
-                        ? [{ t: formatDateTime(order.updated_at), b: 'Última actualización' }]
-                        : []),
-                      ...(order.closing_date
-                        ? [{ t: formatDate(order.closing_date), b: 'Fecha de cierre planeada' }]
-                        : []),
-                    ].map((item, i) => (
-                      <div
-                        key={i}
-                        className="grid grid-cols-[110px_1fr] gap-2 items-baseline text-[13px]"
-                      >
-                        <span
-                          className="text-[11px] text-[var(--ink-3)]"
-                          style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}
-                        >
-                          {item.t}
-                        </span>
-                        <span
-                          className="text-[var(--ink-2)] leading-[1.45]"
-                          style={{ fontFamily: 'var(--font-sans)' }}
-                        >
-                          {item.b}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </>
-            )}
           </div>
         </ScrollArea>
       </SheetContent>

@@ -11,8 +11,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
-import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   exportContactsToCsv,
@@ -57,7 +55,6 @@ export function CsvExportButton({
   customFields,
   hasFilters
 }: CsvExportButtonProps) {
-  const v2 = useDashboardV2()
   const [open, setOpen] = React.useState(false)
   const [exportFiltered, setExportFiltered] = React.useState(hasFilters)
   const [selectedStandardFields, setSelectedStandardFields] = React.useState<string[]>(
@@ -144,36 +141,18 @@ export function CsvExportButton({
 
   const contactsToExport = exportFiltered ? filteredContacts : allContacts
 
-  const portalContainer =
-    v2 && typeof document !== 'undefined'
-      ? document.querySelector<HTMLElement>('[data-theme-scope="dashboard-editorial"]')
-      : undefined
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
-        >
+        <Button variant="outline" size="sm">
           <Download className="h-4 w-4 mr-2" />
           Exportar
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className={cn(
-          'w-72',
-          v2 && 'theme-editorial bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)] shadow-[0_2px_0_var(--ink-1)]'
-        )}
-        align="end"
-        portalContainer={portalContainer}
-      >
+      <PopoverContent className="w-72" align="end">
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className={cn('text-sm font-medium', v2 && 'mx-smallcaps text-[var(--ink-3)]')}>
-              Contactos a exportar
-            </Label>
+            <Label className="text-sm font-medium">Contactos a exportar</Label>
             <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -209,9 +188,7 @@ export function CsvExportButton({
           {/* Standard fields */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className={cn('text-sm font-medium', v2 && 'mx-smallcaps text-[var(--ink-3)]')}>
-                Campos estandar
-              </Label>
+              <Label className="text-sm font-medium">Campos estandar</Label>
               <Button
                 variant="ghost"
                 size="sm"
@@ -243,9 +220,7 @@ export function CsvExportButton({
               <Separator />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className={cn('text-sm font-medium', v2 && 'mx-smallcaps text-[var(--ink-3)]')}>
-                    Campos personalizados
-                  </Label>
+                  <Label className="text-sm font-medium">Campos personalizados</Label>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -276,11 +251,7 @@ export function CsvExportButton({
           <Separator />
 
           <Button
-            className={cn(
-              'w-full',
-              v2 && 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)]'
-            )}
-            style={v2 ? { fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' } : undefined}
+            className="w-full"
             onClick={handleExport}
             disabled={contactsToExport.length === 0}
           >

@@ -50,7 +50,6 @@ import { cn } from '@/lib/utils'
 import { VariablePicker } from './variable-picker'
 import { checkSmsConfigured } from '@/app/actions/automations'
 import { useState, useEffect } from 'react'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Types & Constants
@@ -1170,7 +1169,6 @@ function ActionCard({
   smsWarning: boolean
   products: Product[]
 }) {
-  const v2 = useDashboardV2()
   const catalogEntry = ACTION_CATALOG.find((a) => a.type === action.type)
   if (!catalogEntry) return null
 
@@ -1196,77 +1194,31 @@ function ActionCard({
     onUpdate({ ...action, delay })
   }
 
-  const CardWrapper = v2 ? 'div' : Card
-  const CardBodyWrapper = v2 ? 'div' : CardContent
-  const cardWrapperProps = v2
-    ? { className: 'p-4 space-y-3 bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]' }
-    : { className: 'py-3' }
-  const cardBodyProps = v2 ? {} : { className: 'px-4 py-0 space-y-3' }
-
   return (
-    <CardWrapper {...(cardWrapperProps as React.HTMLAttributes<HTMLDivElement>)}>
-      <CardBodyWrapper {...(cardBodyProps as React.HTMLAttributes<HTMLDivElement>)}>
+    <Card className="py-3">
+      <CardContent className="px-4 py-0 space-y-3">
         {/* Card header */}
-        <div
-          className={cn(
-            'flex items-center justify-between',
-            v2 && 'pb-2 border-b border-dotted border-[var(--border)]'
-          )}
-        >
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {v2 ? (
-              <span
-                className="inline-flex h-6 w-6 items-center justify-center bg-[var(--ink-1)] text-[var(--paper-0)] text-[10px] tabular-nums"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                {(index + 1).toString().padStart(2, '0')}
-              </span>
-            ) : (
-              <Badge variant="secondary" className="text-xs font-mono">
-                {index + 1}
-              </Badge>
-            )}
+            <Badge variant="secondary" className="text-xs font-mono">
+              {index + 1}
+            </Badge>
             {CategoryIcon && (
-              v2 ? (
-                <CategoryIcon className="size-3.5 text-[var(--ink-2)]" />
-              ) : (
-                <div className={cn('p-1 rounded', categoryConfig.color)}>
-                  <CategoryIcon className="size-3.5" />
-                </div>
-              )
+              <div className={cn('p-1 rounded', categoryConfig.color)}>
+                <CategoryIcon className="size-3.5" />
+              </div>
             )}
-            <span
-              className={cn(
-                v2
-                  ? 'text-[14px] font-semibold text-[var(--ink-1)] tracking-[-0.01em]'
-                  : 'text-sm font-medium'
-              )}
-              style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
-            >
-              {catalogEntry.label}
-            </span>
-            {v2 ? (
-              <span
-                className="mx-tag mx-tag--ink text-[10px]"
-                style={{ fontFamily: 'var(--font-sans)' }}
-              >
-                {catalogEntry.category}
-              </span>
-            ) : (
-              <Badge variant="outline" className="text-xs">
-                {catalogEntry.category}
-              </Badge>
-            )}
+            <span className="text-sm font-medium">{catalogEntry.label}</span>
+            <Badge variant="outline" className="text-xs">
+              {catalogEntry.category}
+            </Badge>
           </div>
           <div className="flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className={cn(
-                'h-7 w-7 p-0',
-                v2 && 'text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--paper-3)]'
-              )}
+              className="h-7 w-7 p-0"
               onClick={onMoveUp}
               disabled={index === 0}
               title="Mover arriba"
@@ -1277,10 +1229,7 @@ function ActionCard({
               type="button"
               variant="ghost"
               size="sm"
-              className={cn(
-                'h-7 w-7 p-0',
-                v2 && 'text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--paper-3)]'
-              )}
+              className="h-7 w-7 p-0"
               onClick={onMoveDown}
               disabled={index === total - 1}
               title="Mover abajo"
@@ -1291,12 +1240,7 @@ function ActionCard({
               type="button"
               variant="ghost"
               size="sm"
-              className={cn(
-                'h-7 w-7 p-0',
-                v2
-                  ? 'text-[var(--ink-3)] hover:text-[var(--rubric-2)] hover:bg-[color-mix(in_oklch,var(--rubric-2)_6%,var(--paper-0))]'
-                  : 'text-muted-foreground hover:text-destructive'
-              )}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               onClick={onRemove}
               title="Eliminar accion"
             >
@@ -1305,14 +1249,7 @@ function ActionCard({
           </div>
         </div>
 
-        <p
-          className={cn(
-            v2 ? 'text-[12px] italic text-[var(--ink-3)]' : 'text-xs text-muted-foreground'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
-        >
-          {catalogEntry.description}
-        </p>
+        <p className="text-xs text-muted-foreground">{catalogEntry.description}</p>
 
         {/* SMS not configured / no balance warning */}
         {smsWarning && catalogEntry.category === 'SMS' && (
@@ -1492,19 +1429,14 @@ function ActionCard({
         </div>
 
         {/* Delay */}
-        <div
-          className={cn(
-            'pt-3',
-            v2 ? 'border-t border-dotted border-[var(--border)]' : 'border-t'
-          )}
-        >
+        <div className="border-t pt-3">
           <DelayEditor
             delay={action.delay}
             onChange={updateDelay}
           />
         </div>
-      </CardBodyWrapper>
-    </CardWrapper>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -1519,7 +1451,6 @@ function ActionSelector({
   onSelect: (type: ActionType) => void
   disabled: boolean
 }) {
-  const v2 = useDashboardV2()
   const [open, setOpen] = useState(false)
 
   const categories = [...new Set(ACTION_CATALOG.map((a) => a.category))]
@@ -1536,39 +1467,14 @@ function ActionSelector({
           type="button"
           variant="outline"
           disabled={disabled}
-          className={cn(
-            v2 &&
-              'bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
         >
           <Plus className="size-4 mr-2" />
-          {v2 ? 'Agregar acción' : 'Agregar accion'}
+          Agregar accion
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className={cn(
-          'w-80 p-0',
-          v2 && 'bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]'
-        )}
-      >
-        <div
-          className={cn(
-            'p-3',
-            v2 ? 'border-b border-[var(--ink-1)] bg-[var(--paper-2)]' : 'border-b'
-          )}
-        >
-          <p
-            className={cn(
-              v2
-                ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--rubric-2)]'
-                : 'text-sm font-medium'
-            )}
-            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-          >
-            {v2 ? 'Seleccionar acción' : 'Seleccionar accion'}
-          </p>
+      <PopoverContent align="start" className="w-80 p-0">
+        <div className="p-3 border-b">
+          <p className="text-sm font-medium">Seleccionar accion</p>
         </div>
         <div className="max-h-72 overflow-y-auto p-1">
           {categories.map((cat) => {
@@ -1576,23 +1482,8 @@ function ActionSelector({
             const CatIcon = catConfig?.icon
             return (
             <div key={cat}>
-              <p
-                className={cn(
-                  'px-3 py-1.5 flex items-center gap-1.5',
-                  v2
-                    ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
-                    : 'text-xs font-semibold text-muted-foreground uppercase tracking-wide'
-                )}
-                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-              >
-                {CatIcon && (
-                  <CatIcon
-                    className={cn(
-                      'size-3',
-                      v2 ? 'text-[var(--ink-2)]' : catConfig?.color?.split(' ')[0]
-                    )}
-                  />
-                )}
+              <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                {CatIcon && <CatIcon className={cn('size-3', catConfig?.color?.split(' ')[0])} />}
                 {cat}
               </p>
               {ACTION_CATALOG.filter((a) => a.category === cat).map((action) => (
@@ -1600,32 +1491,10 @@ function ActionSelector({
                   key={action.type}
                   type="button"
                   onClick={() => handleSelect(action.type as ActionType)}
-                  className={cn(
-                    'w-full text-left px-3 py-2 transition-colors',
-                    v2
-                      ? 'hover:bg-[var(--paper-3)]'
-                      : 'text-sm rounded-sm hover:bg-accent'
-                  )}
+                  className="w-full text-left px-3 py-2 text-sm rounded-sm hover:bg-accent transition-colors"
                 >
-                  <span
-                    className={cn(
-                      v2
-                        ? 'text-[13px] font-semibold text-[var(--ink-1)]'
-                        : 'font-medium'
-                    )}
-                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-                  >
-                    {action.label}
-                  </span>
-                  <span
-                    className={cn(
-                      'block mt-0.5',
-                      v2
-                        ? 'text-[11px] italic text-[var(--ink-3)]'
-                        : 'text-xs text-muted-foreground'
-                    )}
-                    style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
-                  >
+                  <span className="font-medium">{action.label}</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5">
                     {action.description}
                   </span>
                 </button>
@@ -1644,7 +1513,6 @@ function ActionSelector({
 // ============================================================================
 
 export function ActionsStep({ formData, onChange, pipelines, tags, templates = [], triggerType, products = [] }: ActionsStepProps) {
-  const v2 = useDashboardV2()
   const actions = formData.actions
   const atLimit = actions.length >= MAX_ACTIONS_PER_AUTOMATION
   const [smsWarning, setSmsWarning] = useState(false)
@@ -1704,58 +1572,20 @@ export function ActionsStep({ formData, onChange, pipelines, tags, templates = [
   return (
     <div className="space-y-4">
       <div>
-        {v2 ? (
-          <>
-            <span
-              className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-2)]"
-              style={{ fontFamily: 'var(--font-sans)' }}
-            >
-              Acción · ejecución secuencial
-            </span>
-            <h3
-              className="mt-1 text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              Acciones
-            </h3>
-            <p
-              className="mt-1 text-[12px] italic text-[var(--ink-3)]"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              Define las acciones que se ejecutarán en orden secuencial.
-            </p>
-          </>
-        ) : (
-          <>
-            <h3 className="text-lg font-semibold">Acciones</h3>
-            <p className="text-sm text-muted-foreground">
-              Define las acciones que se ejecutaran en orden secuencial
-            </p>
-          </>
-        )}
+        <h3 className="text-lg font-semibold">Acciones</h3>
+        <p className="text-sm text-muted-foreground">
+          Define las acciones que se ejecutaran en orden secuencial
+        </p>
       </div>
 
       {/* Action cards */}
       {actions.length === 0 ? (
-        v2 ? (
-          <div className="border border-dashed border-[var(--border)] bg-[var(--paper-2)] p-8 text-center space-y-3">
-            <p
-              className="text-[13px] italic text-[var(--ink-3)]"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              Agrega al menos una acción para completar la automatización.
-            </p>
-            <p className="mx-rule-ornament">· · ·</p>
-            <ActionSelector onSelect={addAction} disabled={false} />
-          </div>
-        ) : (
-          <div className="border border-dashed rounded-lg p-8 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Agrega al menos una accion para completar la automatizacion.
-            </p>
-            <ActionSelector onSelect={addAction} disabled={false} />
-          </div>
-        )
+        <div className="border border-dashed rounded-lg p-8 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Agrega al menos una accion para completar la automatizacion.
+          </p>
+          <ActionSelector onSelect={addAction} disabled={false} />
+        </div>
       ) : (
         <div className="space-y-3">
           {actions.map((action, index) => (
@@ -1780,33 +1610,16 @@ export function ActionsStep({ formData, onChange, pipelines, tags, templates = [
           {/* Add button + limit warning */}
           <div className="flex items-center justify-between">
             <ActionSelector onSelect={addAction} disabled={atLimit} />
-            <span
-              className={cn(
-                v2
-                  ? 'text-[11px] tabular-nums text-[var(--ink-3)]'
-                  : 'text-xs text-muted-foreground'
-              )}
-              style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-            >
+            <span className="text-xs text-muted-foreground">
               {actions.length}/{MAX_ACTIONS_PER_AUTOMATION} acciones
             </span>
           </div>
 
           {atLimit && (
-            v2 ? (
-              <div
-                className="flex items-center gap-2 text-[11px] text-[var(--accent-gold)] bg-[color-mix(in_oklch,var(--accent-gold)_8%,var(--paper-0))] border border-[var(--accent-gold)] px-3 py-2"
-                style={{ fontFamily: 'var(--font-sans)' }}
-              >
-                <AlertTriangle className="size-3.5 shrink-0" />
-                Límite de acciones alcanzado ({MAX_ACTIONS_PER_AUTOMATION} máximo)
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
-                <AlertTriangle className="size-3.5 shrink-0" />
-                Limite de acciones alcanzado ({MAX_ACTIONS_PER_AUTOMATION} maximo)
-              </div>
-            )
+            <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              Limite de acciones alcanzado ({MAX_ACTIONS_PER_AUTOMATION} maximo)
+            </div>
           )}
         </div>
       )}

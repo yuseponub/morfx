@@ -27,51 +27,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 interface QuickReplyListProps {
   quickReplies: QuickReply[]
-  v2?: boolean
 }
 
-export function QuickReplyList({ quickReplies, v2: v2Prop }: QuickReplyListProps) {
-  const v2Hook = useDashboardV2()
-  const v2 = v2Prop ?? v2Hook
+export function QuickReplyList({ quickReplies }: QuickReplyListProps) {
   const router = useRouter()
   const [editingReply, setEditingReply] = useState<QuickReply | null>(null)
 
-  async function handleDelete(reply: QuickReply) {
-    try {
-      if (reply.media_url) {
-        await deleteQuickReplyMedia(reply.media_url)
-      }
-      const result = await deleteQuickReply(reply.id)
-      if ('error' in result) {
-        toast.error(result.error)
-        return
-      }
-      toast.success('Respuesta eliminada')
-      router.refresh()
-    } catch {
-      toast.error('Error al eliminar')
-    }
-  }
-
-  const v2FontSans = v2 ? { fontFamily: 'var(--font-sans)' } : undefined
-  const v2FontMono = v2 ? { fontFamily: 'var(--font-mono)' } : undefined
-  const v2FontDisplay = v2 ? { fontFamily: 'var(--font-display)' } : undefined
-
   if (quickReplies.length === 0) {
-    if (v2) {
-      return (
-        <div className="text-center py-12 flex flex-col items-center gap-3">
-          <MessageSquare className="h-10 w-10 text-[var(--ink-3)] opacity-50" />
-          <p className="mx-h3">No hay respuestas rapidas todavia.</p>
-          <p className="mx-caption">Crea respuestas rapidas para agilizar la atencion al cliente.</p>
-          <p className="mx-rule-ornament">· · ·</p>
-        </div>
-      )
-    }
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -85,111 +50,22 @@ export function QuickReplyList({ quickReplies, v2: v2Prop }: QuickReplyListProps
     )
   }
 
-  if (v2) {
-    return (
-      <>
-        <div className="bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[var(--radius-3)] shadow-[0_1px_0_var(--ink-1)] overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="text-left px-[12px] py-[10px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--ink-1)] bg-[var(--paper-1)] w-[160px]" style={v2FontSans}>Atajo</th>
-                <th className="text-left px-[12px] py-[10px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--ink-1)] bg-[var(--paper-1)]" style={v2FontSans}>Mensaje</th>
-                <th className="text-left px-[12px] py-[10px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] border-b border-[var(--ink-1)] bg-[var(--paper-1)] w-[80px]" style={v2FontSans}>Media</th>
-                <th className="border-b border-[var(--ink-1)] bg-[var(--paper-1)] w-[80px]"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {quickReplies.map((reply) => (
-                <tr key={reply.id} className="hover:bg-[var(--paper-1)]">
-                  <td className="px-[12px] py-[10px] border-b border-[var(--border)]">
-                    <code className="text-[12px] font-bold bg-[var(--paper-2)] border border-[var(--border)] text-[var(--ink-1)] px-[8px] py-[3px] rounded-[var(--radius-2)]" style={v2FontMono}>
-                      /{reply.shortcut}
-                    </code>
-                  </td>
-                  <td className="px-[12px] py-[10px] border-b border-[var(--border)]">
-                    <p className="text-[13px] text-[var(--ink-2)] line-clamp-2" style={v2FontSans}>
-                      {reply.content}
-                    </p>
-                  </td>
-                  <td className="px-[12px] py-[10px] border-b border-[var(--border)]">
-                    {reply.media_url && reply.media_type === 'image' ? (
-                      <Image
-                        src={reply.media_url}
-                        alt="Preview"
-                        width={48}
-                        height={48}
-                        className="rounded-[var(--radius-2)] border border-[var(--border)] object-cover"
-                        style={{ width: '48px', height: '48px' }}
-                      />
-                    ) : reply.media_url ? (
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-2)] border border-[var(--border)] bg-[var(--paper-2)] text-[var(--ink-3)]">
-                        <ImageIcon className="h-4 w-4" />
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-[var(--ink-3)]" style={v2FontSans}>—</span>
-                    )}
-                  </td>
-                  <td className="px-[12px] py-[10px] border-b border-[var(--border)] text-right">
-                    <div className="inline-flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditingReply(reply)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-[var(--radius-2)] text-[var(--ink-2)] hover:bg-[var(--paper-2)] hover:text-[var(--ink-1)]"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-[var(--radius-2)] text-[oklch(0.55_0.14_28)] hover:bg-[oklch(0.98_0.02_28)]"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_2px_0_var(--ink-1)]">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="text-[20px] font-bold tracking-[-0.01em]" style={v2FontDisplay}>Eliminar respuesta</AlertDialogTitle>
-                            <AlertDialogDescription className="text-[13px] text-[var(--ink-2)]" style={v2FontSans}>
-                              Esta accion no se puede deshacer.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] border border-[var(--border)] bg-[var(--paper-0)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--paper-2)]" style={v2FontSans}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(reply)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] !border !border-[oklch(0.75_0.10_28)] !bg-[var(--paper-0)] !text-[oklch(0.38_0.14_28)] !shadow-[0_1px_0_oklch(0.75_0.10_28)] hover:!bg-[oklch(0.98_0.02_28)] text-[13px] font-semibold"
-                              style={v2FontSans}
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <Dialog open={!!editingReply} onOpenChange={() => setEditingReply(null)}>
-          <DialogContent className="bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_2px_0_var(--ink-1)]">
-            <DialogHeader>
-              <DialogTitle className="text-[20px] font-bold tracking-[-0.01em]" style={v2FontDisplay}>Editar Respuesta Rapida</DialogTitle>
-            </DialogHeader>
-            {editingReply && (
-              <QuickReplyForm
-                quickReply={editingReply}
-                onSuccess={() => setEditingReply(null)}
-                v2={v2}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      </>
-    )
+  async function handleDelete(reply: QuickReply) {
+    try {
+      // Delete media from storage if exists
+      if (reply.media_url) {
+        await deleteQuickReplyMedia(reply.media_url)
+      }
+      const result = await deleteQuickReply(reply.id)
+      if ('error' in result) {
+        toast.error(result.error)
+        return
+      }
+      toast.success('Respuesta eliminada')
+      router.refresh()
+    } catch (error) {
+      toast.error('Error al eliminar')
+    }
   }
 
   return (

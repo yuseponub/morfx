@@ -2,20 +2,10 @@
 
 import * as React from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import {
-  PackageIcon,
-  TruckIcon,
-  MessageCircleIcon,
-  Link2Icon,
-  RefreshCwIcon,
-  ClockAlertIcon,
-  StarIcon,
-  WarehouseIcon,
-} from 'lucide-react'
+import { PackageIcon, TruckIcon, MessageCircleIcon, Link2Icon, RefreshCwIcon } from 'lucide-react'
 import Link from 'next/link'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { cn } from '@/lib/utils'
 import {
   detectOrderProductTypes,
@@ -74,7 +64,6 @@ export function KanbanCard({
   onSelectChange,
   onRecompra,
 }: KanbanCardProps) {
-  const v2 = useDashboardV2()
   const {
     attributes,
     listeners,
@@ -83,20 +72,11 @@ export function KanbanCard({
     isDragging: isDraggableActive,
   } = useDraggable({ id: order.id })
 
-  const baseStyle: React.CSSProperties = {
+  const style = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
   }
 
   const dragging = isDragging || isDraggableActive
-
-  const style: React.CSSProperties = v2
-    ? {
-        ...baseStyle,
-        boxShadow: isSelected
-          ? '0 1px 0 var(--ink-1), 0 4px 10px -4px rgba(0,0,0,0.18)'
-          : '0 1px 0 var(--border)',
-      }
-    : baseStyle
 
   const productTypes = React.useMemo(
     () => detectOrderProductTypes(order.products),
@@ -110,15 +90,6 @@ export function KanbanCard({
     }
   }
 
-  // v2 flag derivations — visual-only sugar (no business rules)
-  const isLate = Boolean(
-    order.closing_date &&
-    new Date(order.closing_date) < new Date() &&
-    !order.stage?.is_closed
-  )
-  const isVip = Boolean(order.tags?.some((t) => t.name?.toLowerCase() === 'vip'))
-  const isMayor = order.total_value > 1_000_000
-
   return (
     <div
       ref={setNodeRef}
@@ -128,20 +99,10 @@ export function KanbanCard({
       suppressHydrationWarning
       onClick={handleClick}
       className={cn(
-        'group relative rounded-[3px] cursor-grab active:cursor-grabbing transition-all',
-        v2
-          ? cn(
-              'p-3',
-              isSelected
-                ? 'bg-[var(--paper-0)] border border-[var(--ink-1)]'
-                : 'bg-[var(--paper-1)] border border-[var(--border)] hover:bg-[var(--paper-2)] hover:border-[var(--ink-2)]'
-            )
-          : cn(
-              'bg-background border p-2.5 shadow-sm',
-              'hover:border-foreground/20 hover:shadow-md',
-              isSelected && 'ring-2 ring-primary border-primary'
-            ),
-        dragging && (v2 ? 'opacity-50' : 'opacity-50 shadow-lg ring-2 ring-primary/50'),
+        'group relative bg-background border rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing',
+        'hover:border-foreground/20 hover:shadow-md transition-all',
+        dragging && 'opacity-50 shadow-lg ring-2 ring-primary/50',
+        isSelected && 'ring-2 ring-primary border-primary',
         onClick && 'cursor-pointer'
       )}
     >
@@ -163,13 +124,7 @@ export function KanbanCard({
       )}
 
       {/* Header: Order name + value */}
-      <div
-        className={cn(
-          'flex gap-2 mb-2',
-          v2 ? 'items-baseline justify-between' : 'items-start justify-between',
-          onSelectChange && 'pl-5'
-        )}
-      >
+      <div className={cn('flex items-start justify-between gap-2 mb-1.5', onSelectChange && 'pl-5')}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {productTypes.length > 0 ? (
             <div className="flex items-center gap-1 shrink-0">
@@ -188,54 +143,23 @@ export function KanbanCard({
               })}
             </div>
           ) : (
-            <PackageIcon
-              className={cn(
-                'shrink-0',
-                v2 ? 'h-3.5 w-3.5 text-[var(--ink-3)]' : 'h-4 w-4 text-muted-foreground'
-              )}
-            />
+            <PackageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
           <div className="min-w-0 flex-1">
-            <span
-              className={cn(
-                'truncate block',
-                v2
-                  ? 'text-[13.5px] font-semibold tracking-[-0.005em] text-[var(--ink-1)]'
-                  : 'font-semibold text-sm'
-              )}
-              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-            >
+            <span className="font-semibold text-sm truncate block">
               {order.name || 'Sin nombre'}
             </span>
           </div>
         </div>
-        <span
-          className={cn(
-            'shrink-0',
-            v2
-              ? 'text-[12px] font-semibold text-[var(--ink-1)]'
-              : 'font-semibold text-sm text-primary'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-        >
+        <span className="font-semibold text-sm text-primary shrink-0">
           {formatCurrency(order.total_value)}
         </span>
       </div>
 
       {/* Products summary */}
       {order.products.length > 0 && (
-        <div
-          className={cn(
-            'flex items-center gap-2 mb-1.5',
-            v2
-              ? 'text-[12px] text-[var(--ink-2)] leading-[1.4]'
-              : 'text-xs text-muted-foreground'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-        >
-          <PackageIcon
-            className={cn(v2 ? 'h-3 w-3 text-[var(--ink-3)] shrink-0' : 'h-3.5 w-3.5')}
-          />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+          <PackageIcon className="h-3.5 w-3.5" />
           <span className="truncate">
             {order.products.length === 1
               ? order.products[0].title
@@ -246,21 +170,11 @@ export function KanbanCard({
 
       {/* Tracking info */}
       {order.tracking_number && (
-        <div
-          className={cn(
-            'flex items-center gap-2 mb-1.5',
-            v2
-              ? 'text-[11px] text-[var(--ink-3)]'
-              : 'text-xs text-muted-foreground'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-        >
-          <TruckIcon className={cn(v2 ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
-          <span className={cn('truncate', !v2 && 'font-mono')}>{order.tracking_number}</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+          <TruckIcon className="h-3.5 w-3.5" />
+          <span className="font-mono truncate">{order.tracking_number}</span>
           {order.carrier && (
-            <span className={cn('text-[10px] uppercase', v2 && 'text-[var(--ink-3)]')}>
-              {order.carrier}
-            </span>
+            <span className="text-[10px] uppercase">{order.carrier}</span>
           )}
         </div>
       )}
@@ -272,52 +186,22 @@ export function KanbanCard({
             <TagBadge key={tag.id} tag={tag} size="sm" />
           ))}
           {order.tags.length > 2 && (
-            v2 ? (
-              <span className="mx-tag mx-tag--ink">+{order.tags.length - 2}</span>
-            ) : (
-              <span className="text-[10px] text-muted-foreground px-1 py-0.5">
-                +{order.tags.length - 2}
-              </span>
-            )
+            <span className="text-[10px] text-muted-foreground px-1 py-0.5">
+              +{order.tags.length - 2}
+            </span>
           )}
         </div>
       )}
 
-      {/* Footer: Date + WhatsApp + flag pills */}
-      <div
-        className={cn(
-          'flex items-center justify-between pt-2 mt-2',
-          v2
-            ? 'border-t border-dashed border-[var(--border)] text-[11px] text-[var(--ink-3)]'
-            : 'text-[11px] text-muted-foreground pt-1 border-t'
-        )}
-        style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-      >
-        <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Footer: Date + WhatsApp */}
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
+        <div className="flex items-center gap-1">
           {(order.source_order_id || order.has_derived_orders) && (
             <span title="Orden conectada">
-              <Link2Icon
-                className={cn('h-3 w-3', v2 ? 'text-[var(--accent-indigo)]' : 'text-blue-500')}
-              />
+              <Link2Icon className="h-3 w-3 text-blue-500" />
             </span>
           )}
           <span>{formatRelativeTime(order.created_at)}</span>
-          {/* Flag pills — only when v2 */}
-          {v2 && isLate && (
-            <span className="mx-tag mx-tag--rubric inline-flex items-center gap-1">
-              <ClockAlertIcon className="h-2.5 w-2.5" />atrasado
-            </span>
-          )}
-          {v2 && isVip && (
-            <span className="mx-tag mx-tag--gold inline-flex items-center gap-1">
-              <StarIcon className="h-2.5 w-2.5" />vip
-            </span>
-          )}
-          {v2 && isMayor && (
-            <span className="mx-tag mx-tag--indigo inline-flex items-center gap-1">
-              <WarehouseIcon className="h-2.5 w-2.5" />mayor
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-2">
           {onRecompra && (
@@ -326,14 +210,8 @@ export function KanbanCard({
                 e.stopPropagation()
                 onRecompra(order)
               }}
-              className={cn(
-                'p-1 rounded transition-colors',
-                v2
-                  ? 'hover:bg-[var(--paper-3)] text-[var(--ink-3)] hover:text-[var(--ink-1)]'
-                  : 'hover:bg-blue-100 hover:text-blue-600'
-              )}
+              className="p-1 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors"
               title="Recompra"
-              aria-label="Crear recompra"
             >
               <RefreshCwIcon className="h-3.5 w-3.5" />
             </button>
@@ -342,22 +220,14 @@ export function KanbanCard({
             <Link
               href={`/whatsapp?phone=${encodeURIComponent(order.contact.phone)}`}
               onClick={(e) => e.stopPropagation()}
-              className={cn(
-                'p-1 rounded transition-colors',
-                v2
-                  ? 'hover:bg-[var(--paper-3)] text-[var(--ink-3)] hover:text-[var(--ink-1)]'
-                  : 'hover:bg-green-100 hover:text-green-600'
-              )}
+              className="p-1 rounded hover:bg-green-100 hover:text-green-600 transition-colors"
               title="Ver en WhatsApp"
-              aria-label="Ver conversación de WhatsApp"
             >
               <MessageCircleIcon className="h-3.5 w-3.5" />
             </Link>
           )}
           {order.contact?.city && (
-            <span className={cn('truncate', v2 && 'text-[var(--ink-3)]')}>
-              {order.contact.city}
-            </span>
+            <span className="truncate">{order.contact.city}</span>
           )}
         </div>
       </div>

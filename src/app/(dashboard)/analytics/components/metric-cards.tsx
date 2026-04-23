@@ -1,8 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ShoppingCart, DollarSign, TrendingUp, Receipt } from 'lucide-react'
 import type { OrderMetrics } from '@/lib/analytics/types'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
-import { cn } from '@/lib/utils'
 
 interface MetricCardsProps {
   metrics: OrderMetrics
@@ -10,8 +8,6 @@ interface MetricCardsProps {
 }
 
 export function MetricCards({ metrics, loading }: MetricCardsProps) {
-  const v2 = useDashboardV2()
-
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -43,25 +39,6 @@ export function MetricCards({ metrics, loading }: MetricCardsProps) {
   ]
 
   if (loading) {
-    if (v2) {
-      return (
-        <div className="grid grid-cols-1 border border-[var(--ink-1)] bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1)] md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className={cn(
-                'p-[16px_18px] border-b border-r border-[var(--border)]',
-                'last:border-r-0 md:[&:nth-child(2)]:border-r-0 lg:[&:nth-child(2)]:border-r lg:last:border-r-0',
-                'md:[&:nth-child(3)]:border-b-0 md:[&:nth-child(4)]:border-b-0 lg:border-b-0'
-              )}
-            >
-              <div className="h-[12px] w-24 bg-[var(--paper-2)] animate-[mx-pulse_1.5s_ease-in-out_infinite]" />
-              <div className="mt-2 h-[28px] w-32 bg-[var(--paper-2)] animate-[mx-pulse_1.5s_ease-in-out_infinite]" />
-            </div>
-          ))}
-        </div>
-      )
-    }
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map(i => (
@@ -75,49 +52,6 @@ export function MetricCards({ metrics, loading }: MetricCardsProps) {
             </CardContent>
           </Card>
         ))}
-      </div>
-    )
-  }
-
-  if (v2) {
-    return (
-      <div className="grid grid-cols-1 border border-[var(--ink-1)] bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1)] md:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => {
-          const Icon = card.icon
-          return (
-            <div
-              key={card.title}
-              className={cn(
-                'p-[16px_18px] border-b border-r border-[var(--border)]',
-                'last:border-r-0 md:[&:nth-child(2)]:border-r-0 lg:[&:nth-child(2)]:border-r lg:last:border-r-0',
-                'md:[&:nth-child(3)]:border-b-0 md:[&:nth-child(4)]:border-b-0 lg:border-b-0'
-              )}
-            >
-              <div
-                className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
-                style={{ fontFamily: 'var(--font-sans)' }}
-              >
-                {card.title}
-              </div>
-              <div
-                className="mt-2 text-[28px] font-bold leading-none tracking-[-0.01em] text-[var(--ink-1)]"
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {card.value}
-              </div>
-              <div
-                className="mt-1.5 flex items-center gap-1 text-[11px] text-[var(--ink-3)]"
-                style={{ fontFamily: 'var(--font-mono)' }}
-                aria-hidden
-              >
-                <Icon className="h-[11px] w-[11px]" />
-              </div>
-            </div>
-          )
-        })}
       </div>
     )
   }

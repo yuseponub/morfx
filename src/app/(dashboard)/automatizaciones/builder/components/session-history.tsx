@@ -9,8 +9,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, MessageSquare, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Types
@@ -67,7 +65,6 @@ export function SessionHistory({
   onSelectSession,
   onNewSession,
 }: SessionHistoryProps) {
-  const v2 = useDashboardV2()
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -116,35 +113,17 @@ export function SessionHistory({
   )
 
   return (
-    <div className={cn('flex flex-col h-full', v2 && 'bg-[var(--paper-2)]')}>
+    <div className="flex flex-col h-full">
       {/* Header with new session button */}
-      <div
-        className={cn(
-          'px-3 py-3 shrink-0',
-          v2 ? 'border-b border-[var(--ink-1)] bg-[var(--paper-2)]' : 'border-b'
-        )}
-      >
-        {v2 && (
-          <span
-            className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)] mb-2 px-1"
-            style={{ fontFamily: 'var(--font-sans)' }}
-          >
-            Sesiones
-          </span>
-        )}
+      <div className="px-3 py-3 border-b shrink-0">
         <Button
           variant="outline"
           size="sm"
           onClick={onNewSession}
-          className={cn(
-            'w-full gap-1.5',
-            v2 &&
-              'bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+          className="w-full gap-1.5"
         >
           <Plus className="h-3.5 w-3.5" />
-          {v2 ? 'Nueva sesión' : 'Nueva sesion'}
+          Nueva sesion
         </Button>
       </div>
 
@@ -152,34 +131,14 @@ export function SessionHistory({
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2
-              className={cn(
-                'h-5 w-5 animate-spin',
-                v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-              )}
-            />
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : sessions.length === 0 ? (
           <div className="px-3 py-8 text-center">
-            {v2 ? (
-              <>
-                <MessageSquare className="h-7 w-7 text-[var(--ink-4)] mx-auto mb-2" />
-                <p
-                  className="text-[12px] italic text-[var(--ink-3)]"
-                  style={{ fontFamily: 'var(--font-serif)' }}
-                >
-                  No hay sesiones anteriores.
-                </p>
-                <p className="mx-rule-ornament">· · ·</p>
-              </>
-            ) : (
-              <>
-                <MessageSquare className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  No hay sesiones anteriores
-                </p>
-              </>
-            )}
+            <MessageSquare className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              No hay sesiones anteriores
+            </p>
           </div>
         ) : (
           <div className="py-1">
@@ -193,53 +152,28 @@ export function SessionHistory({
                   key={session.id}
                   onClick={() => onSelectSession(session.id)}
                   disabled={isDeleting}
-                  className={cn(
-                    'group w-full text-left px-3 py-2.5 transition-colors relative',
-                    v2
-                      ? 'border-b border-dotted border-[var(--border)]'
-                      : 'border-b border-border/50',
-                    isCurrent
-                      ? v2
-                        ? 'bg-[var(--paper-0)] border-l-[3px] border-l-[var(--rubric-2)] pl-[9px]'
-                        : 'bg-primary/10 border-l-2 border-l-primary'
-                      : v2
-                        ? 'hover:bg-[var(--paper-3)]'
-                        : 'hover:bg-muted',
-                    isDeleting && 'opacity-50'
-                  )}
+                  className={`
+                    group w-full text-left px-3 py-2.5 border-b border-border/50
+                    transition-colors relative
+                    ${isCurrent
+                      ? 'bg-primary/10 border-l-2 border-l-primary'
+                      : 'hover:bg-muted'
+                    }
+                    ${isDeleting ? 'opacity-50' : ''}
+                  `}
                 >
                   {/* Title */}
-                  <div
-                    className={cn(
-                      'truncate pr-8',
-                      v2
-                        ? 'text-[13px] font-semibold text-[var(--ink-1)]'
-                        : 'text-sm font-medium'
-                    )}
-                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-                  >
-                    {session.title || (v2 ? 'Sesión sin título' : 'Sesion sin titulo')}
+                  <div className="text-sm font-medium truncate pr-8">
+                    {session.title || 'Sesion sin titulo'}
                   </div>
 
                   {/* Meta: date + automations count */}
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span
-                      className={cn(
-                        v2 ? 'text-[11px] italic text-[var(--ink-3)]' : 'text-xs text-muted-foreground'
-                      )}
-                      style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
-                    >
+                    <span className="text-xs text-muted-foreground">
                       {formatRelativeDate(session.updated_at)}
                     </span>
                     {automationsCount > 0 && (
-                      <span
-                        className={cn(
-                          v2
-                            ? 'mx-tag mx-tag--rubric text-[10px]'
-                            : 'text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full'
-                        )}
-                        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-                      >
+                      <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                         {automationsCount} auto{automationsCount !== 1 ? 's' : ''}
                       </span>
                     )}
@@ -249,12 +183,7 @@ export function SessionHistory({
                   <button
                     onClick={(e) => handleDelete(e, session.id)}
                     disabled={isDeleting}
-                    className={cn(
-                      'absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1',
-                      v2
-                        ? 'hover:bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))] hover:text-[var(--rubric-2)]'
-                        : 'rounded hover:bg-destructive/10 hover:text-destructive'
-                    )}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
                     aria-label="Eliminar sesion"
                   >
                     {isDeleting ? (

@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { KanbanCard } from './kanban-card'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineStage } from '@/lib/orders/types'
 
@@ -54,8 +53,6 @@ export function KanbanColumn({
   isLoadingMore,
   onLoadMore,
 }: KanbanColumnProps) {
-  const v2 = useDashboardV2()
-
   // Make column sortable (for reordering stages)
   const {
     attributes,
@@ -120,39 +117,24 @@ export function KanbanColumn({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex flex-col w-72 min-w-72 rounded-[3px]',
-        v2
-          ? 'bg-[var(--paper-0)] border border-[var(--ink-1)]'
-          : 'bg-muted/30 border',
-        isOver && (v2 ? 'ring-2 ring-[var(--rubric-2)]/40' : 'ring-2 ring-primary/50'),
-        isAtLimit && !isOverLimit && (v2 ? 'border-[var(--accent-gold)]' : 'border-amber-400/50'),
-        isOverLimit && (v2 ? 'border-[var(--rubric-2)]' : 'border-destructive/50'),
+        'flex flex-col w-72 min-w-72 bg-muted/30 rounded-lg border',
+        isOver && 'ring-2 ring-primary/50',
+        isAtLimit && !isOverLimit && 'border-amber-400/50',
+        isOverLimit && 'border-destructive/50',
         isDragging && 'opacity-50'
       )}
     >
       {/* Column header */}
-      <div
-        className={cn(
-          'group flex items-center gap-2 p-3',
-          v2
-            ? 'border-b border-[var(--ink-1)] bg-[var(--paper-1)] rounded-t-[3px]'
-            : 'border-b bg-muted/50 rounded-t-lg'
-        )}
-      >
+      <div className="group flex items-center gap-2 p-3 border-b bg-muted/50 rounded-t-lg">
         {/* Drag handle - suppressHydrationWarning for DndKit aria-describedby mismatch */}
         <button
           {...attributes}
           {...listeners}
           suppressHydrationWarning
-          className={cn(
-            'cursor-grab active:cursor-grabbing p-0.5 -ml-1 rounded opacity-50 hover:opacity-100 transition-opacity',
-            v2 ? 'hover:bg-[var(--paper-3)]' : 'hover:bg-muted'
-          )}
+          className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 hover:bg-muted rounded opacity-50 hover:opacity-100 transition-opacity"
           title="Arrastrar para reordenar"
         >
-          <GripVerticalIcon
-            className={cn('h-4 w-4', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
-          />
+          <GripVerticalIcon className="h-4 w-4 text-muted-foreground" />
         </button>
 
         {/* Stage color dot */}
@@ -162,57 +144,24 @@ export function KanbanColumn({
         />
 
         {/* Stage name */}
-        <span
-          className={cn(
-            'flex-1 truncate',
-            v2
-              ? 'text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-1)]'
-              : 'font-medium text-sm'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-        >
-          {stage.name}
-        </span>
+        <span className="font-medium text-sm flex-1 truncate">{stage.name}</span>
 
         {/* Order count */}
-        {v2 ? (
-          <span
-            className={cn(
-              'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border',
-              isOverLimit
-                ? 'bg-[var(--paper-3)] text-[var(--rubric-2)] border-[var(--rubric-2)]'
-                : isAtLimit
-                  ? 'bg-[var(--paper-3)] text-[var(--accent-gold)] border-[var(--accent-gold)]'
-                  : 'bg-[var(--paper-3)] text-[var(--ink-3)] border-[var(--border)]'
-            )}
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
-            {totalCount !== undefined ? totalCount : orderCount}
-            {wipLimit !== null && (
-              <span className="ml-0.5 text-[var(--ink-3)]">/ {wipLimit}</span>
-            )}
-          </span>
-        ) : (
-          <Badge
-            variant={isOverLimit ? 'destructive' : isAtLimit ? 'secondary' : 'outline'}
-            className="h-5 px-1.5 text-xs font-normal"
-          >
-            {totalCount !== undefined ? totalCount : orderCount}
-            {wipLimit !== null && (
-              <span className="text-muted-foreground ml-0.5">/ {wipLimit}</span>
-            )}
-          </Badge>
-        )}
+        <Badge
+          variant={isOverLimit ? 'destructive' : isAtLimit ? 'secondary' : 'outline'}
+          className="h-5 px-1.5 text-xs font-normal"
+        >
+          {totalCount !== undefined ? totalCount : orderCount}
+          {wipLimit !== null && (
+            <span className="text-muted-foreground ml-0.5">/ {wipLimit}</span>
+          )}
+        </Badge>
 
         {/* Closed stage indicator */}
         {stage.is_closed && (
-          v2 ? (
-            <span className="mx-tag mx-tag--ink">Cerrado</span>
-          ) : (
-            <Badge variant="outline" className="h-5 px-1.5 text-xs">
-              Cerrado
-            </Badge>
-          )
+          <Badge variant="outline" className="h-5 px-1.5 text-xs">
+            Cerrado
+          </Badge>
         )}
 
         {/* Stage menu */}
@@ -226,17 +175,7 @@ export function KanbanColumn({
               <MoreHorizontalIcon className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-48"
-            portalContainer={
-              v2
-                ? (typeof document !== 'undefined'
-                    ? document.querySelector<HTMLElement>('[data-theme-scope="dashboard-editorial"]')
-                    : undefined)
-                : undefined
-            }
-          >
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => onEditStage?.(stage)}>
               <PencilIcon className="h-4 w-4 mr-2" />
               Editar etapa
@@ -264,15 +203,7 @@ export function KanbanColumn({
 
       {/* WIP warning */}
       {isOverLimit && (
-        <div
-          className={cn(
-            'px-3 py-1.5 text-xs',
-            v2
-              ? 'bg-[var(--rubric-2)]/10 text-[var(--rubric-2)] border-b border-[var(--rubric-2)]/30'
-              : 'bg-destructive/10 text-destructive'
-          )}
-          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
-        >
+        <div className="px-3 py-1.5 bg-destructive/10 text-destructive text-xs">
           Limite WIP excedido ({orderCount}/{wipLimit})
         </div>
       )}
@@ -280,13 +211,7 @@ export function KanbanColumn({
       {/* Cards container */}
       <div className="flex-1 p-2 space-y-1.5 overflow-y-auto min-h-[100px]">
         {orders.length === 0 ? (
-          <div
-            className={cn(
-              'flex items-center justify-center h-full text-sm py-8',
-              v2 ? 'text-[var(--ink-3)] italic' : 'text-muted-foreground'
-            )}
-            style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
-          >
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm py-8">
             Sin pedidos
           </div>
         ) : (
@@ -304,15 +229,7 @@ export function KanbanColumn({
         {hasMore && (
           <div ref={sentinelRef} className="flex items-center justify-center py-2">
             {isLoadingMore ? (
-              <div
-                className={cn(
-                  'text-xs',
-                  v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
-                )}
-                style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
-              >
-                Cargando...
-              </div>
+              <div className="text-xs text-muted-foreground">Cargando...</div>
             ) : (
               <div className="h-4" />
             )}

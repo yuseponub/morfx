@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { cn } from '@/lib/utils'
 import type { PipelineWithStages } from '@/lib/orders/types'
 
@@ -32,7 +31,6 @@ export function PipelineTabs({
   onPipelineChange,
   onOpenPipelines,
 }: PipelineTabsProps) {
-  const v2 = useDashboardV2()
   // Track if we've done initial load
   const [hasLoaded, setHasLoaded] = React.useState(false)
   const [openPipelineIds, setOpenPipelineIds] = React.useState<string[]>([])
@@ -124,108 +122,59 @@ export function PipelineTabs({
 
   return (
     <div className="absolute bottom-4 left-8 z-30">
-      <div
-        className={cn(
-          'flex items-center gap-2 px-2 py-1.5',
-          v2
-            ? 'bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[3px]'
-            : 'bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg'
-        )}
-        style={v2 ? { boxShadow: '0 1px 0 var(--ink-1)' } : undefined}
-      >
+      <div className="flex items-center gap-2 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-2 py-1.5">
         {/* Pipeline tabs */}
         <div className="flex items-center gap-1">
-          {openPipelines.map((pipeline) => {
-            const isActive = pipeline.id === activePipelineId
-            return (
-              <div
-                key={pipeline.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onPipelineChange(pipeline.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onPipelineChange(pipeline.id)
-                  }
-                }}
-                className={cn(
-                  'inline-flex items-center gap-2 transition-colors cursor-pointer group',
-                  v2
-                    ? cn(
-                        'px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] border rounded-[3px]',
-                        isActive
-                          ? 'bg-[var(--paper-0)] text-[var(--ink-1)] border-[var(--ink-1)] font-semibold'
-                          : 'bg-transparent text-[var(--ink-3)] border-[var(--border)] font-medium hover:text-[var(--ink-1)]'
-                      )
-                    : cn(
-                        'flex gap-2 px-3 py-1.5 text-sm rounded-md',
-                        'hover:bg-muted/80',
-                        isActive ? 'bg-muted font-medium' : 'text-muted-foreground'
-                      )
-                )}
-                style={
-                  v2
-                    ? {
-                        fontFamily: 'var(--font-sans)',
-                        boxShadow: isActive ? '0 1px 0 var(--ink-1)' : undefined,
-                      }
-                    : undefined
+          {openPipelines.map((pipeline) => (
+            <div
+              key={pipeline.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onPipelineChange(pipeline.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onPipelineChange(pipeline.id)
                 }
+              }}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors cursor-pointer',
+                'hover:bg-muted/80 group',
+                pipeline.id === activePipelineId
+                  ? 'bg-muted font-medium'
+                  : 'text-muted-foreground'
+              )}
+            >
+              <span className="truncate max-w-[150px]">{pipeline.name}</span>
+              {/* Close button */}
+              <button
+                onClick={(e) => closePipeline(pipeline.id, e)}
+                className={cn(
+                  'p-0.5 rounded hover:bg-muted-foreground/20',
+                  'opacity-0 group-hover:opacity-100 transition-opacity',
+                  pipeline.id === activePipelineId && 'opacity-50'
+                )}
               >
-                <span className="truncate max-w-[150px]">{pipeline.name}</span>
-                {/* Close button */}
-                <button
-                  onClick={(e) => closePipeline(pipeline.id, e)}
-                  className={cn(
-                    'p-0.5 rounded transition-opacity',
-                    v2
-                      ? 'hover:bg-[var(--paper-3)]'
-                      : 'hover:bg-muted-foreground/20',
-                    'opacity-0 group-hover:opacity-100',
-                    isActive && 'opacity-50'
-                  )}
-                  aria-label={`Cerrar ${pipeline.name}`}
-                >
-                  <XIcon className="h-3 w-3" />
-                </button>
-              </div>
-            )
-          })}
+                <XIcon className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
         </div>
 
         {/* Add pipeline dropdown */}
         {closedPipelines.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {v2 ? (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 h-7 px-2 rounded-[3px] border border-[var(--border)] bg-[var(--paper-0)] text-[var(--ink-2)] text-[11px] uppercase tracking-[0.08em] font-semibold hover:bg-[var(--paper-3)] hover:text-[var(--ink-1)] transition-colors"
-                  style={{ fontFamily: 'var(--font-sans)' }}
-                  aria-label="Abrir pipeline"
-                >
-                  <PlusIcon className="h-3.5 w-3.5" />
-                  <span>Pipeline</span>
-                </button>
-              ) : (
-                <Button variant="outline" size="sm" className="h-7 px-2 gap-1">
-                  <PlusIcon className="h-4 w-4" />
-                  <span className="text-xs">Pipeline</span>
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 gap-1"
+              >
+                <PlusIcon className="h-4 w-4" />
+                <span className="text-xs">Pipeline</span>
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-48"
-              portalContainer={
-                v2
-                  ? (typeof document !== 'undefined'
-                      ? document.querySelector<HTMLElement>('[data-theme-scope="dashboard-editorial"]')
-                      : undefined)
-                  : undefined
-              }
-            >
+            <DropdownMenuContent align="end" className="w-48">
               {closedPipelines.map((pipeline) => (
                 <DropdownMenuItem
                   key={pipeline.id}

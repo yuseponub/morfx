@@ -457,7 +457,7 @@ export function MessageInput({
                 'focus-visible:ring-1',
                 pendingQuickReplyMedia && 'border-primary',
                 v2 &&
-                  'bg-[var(--paper-1)] border border-[var(--border)] rounded-[4px] px-3 text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]'
+                  'bg-[var(--paper-1)] border border-[var(--border)] rounded-[4px] px-3 text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)] [font-family:var(--font-sans)]'
               )}
             />
           </div>

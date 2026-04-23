@@ -23,9 +23,16 @@ function SheetClose({
 }
 
 function SheetPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+  return (
+    <SheetPrimitive.Portal
+      data-slot="sheet-portal"
+      container={container}
+      {...props}
+    />
+  )
 }
 
 function SheetOverlay({
@@ -49,13 +56,23 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  portalContainer,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  /**
+   * Optional DOM element to mount the Radix portal into. When omitted,
+   * Radix defaults to document.body (current shadcn behavior). Pass the
+   * `.theme-editorial` wrapper (or any `[data-theme-scope]` container)
+   * to keep the sheet inside a specific CSS token scope — e.g., so the
+   * dashboard editorial tokens cascade into the sheet when flag ON
+   * (standalone ui-redesign-dashboard Plan 03 + D-DASH-10).
+   */
+  portalContainer?: HTMLElement | null
 }) {
   return (
-    <SheetPortal>
+    <SheetPortal container={portalContainer ?? undefined}>
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"

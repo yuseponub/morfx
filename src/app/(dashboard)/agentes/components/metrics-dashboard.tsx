@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { fetchAgentMetrics } from '@/app/actions/agent-metrics'
 import type { AgentMetrics, MetricsPeriod } from '@/lib/agents/production/metrics'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // TYPES
@@ -127,21 +128,79 @@ function MetricGroup({
   cards,
   metrics,
   loading,
+  v2,
 }: {
   title: string
   cards: MetricCardDef[]
   metrics: AgentMetrics
   loading: boolean
+  v2: boolean
 }) {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-        {title}
-      </h3>
+      {v2 ? (
+        <h3
+          className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+          style={{ fontFamily: 'var(--font-sans)' }}
+        >
+          {title}
+        </h3>
+      ) : (
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          {title}
+        </h3>
+      )}
       <div className="grid gap-4 md:grid-cols-3">
         {cards.map((card) => {
           const Icon = card.icon
-          return (
+          return v2 ? (
+            /* Editorial card pattern — refactor a <EditorialMetricCard> shared si Plan 07 lo introduce. Por ahora inline. */
+            <article
+              key={card.title}
+              className="border border-[var(--ink-1)] bg-[var(--paper-0)] flex flex-col"
+              style={{
+                boxShadow: '0 1px 0 var(--ink-1), 0 8px 20px -14px oklch(0.3 0.04 60 / 0.25)',
+              }}
+            >
+              <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--border)]">
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]"
+                  style={{ fontFamily: 'var(--font-sans)' }}
+                >
+                  {card.title}
+                </span>
+                <Icon className="h-[14px] w-[14px] text-[var(--ink-3)]" aria-hidden />
+              </div>
+              <div className="px-4 py-4 flex-1">
+                {loading ? (
+                  <div
+                    className="h-9 w-24 bg-[var(--paper-2)]"
+                    style={{ animation: 'mx-pulse 1.5s ease-in-out infinite' }}
+                  />
+                ) : (
+                  <>
+                    <div
+                      className="text-[30px] font-bold leading-none text-[var(--ink-1)]"
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {card.getValue(metrics)}
+                    </div>
+                    {card.description && (
+                      <p
+                        className="text-[12px] italic text-[var(--ink-3)] mt-2"
+                        style={{ fontFamily: 'var(--font-serif)' }}
+                      >
+                        {card.description}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </article>
+          ) : (
             <Card key={card.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -179,6 +238,7 @@ export function MetricsDashboard({ initialMetrics }: MetricsDashboardProps) {
   const [period, setPeriod] = useState<MetricsPeriod>('today')
   const [metrics, setMetrics] = useState<AgentMetrics>(initialMetrics)
   const [isPending, startTransition] = useTransition()
+  const v2 = useDashboardV2()
 
   const handlePeriodChange = (newPeriod: MetricsPeriod) => {
     setPeriod(newPeriod)
@@ -193,25 +253,54 @@ export function MetricsDashboard({ initialMetrics }: MetricsDashboardProps) {
   return (
     <div className="space-y-6">
       {/* Period selector */}
-      <div className="flex justify-end">
-        <div className="flex gap-1 p-1 bg-muted rounded-lg">
-          {periods.map((p) => (
-            <Button
-              key={p.value}
-              variant="ghost"
-              size="sm"
-              disabled={isPending}
-              onClick={() => handlePeriodChange(p.value)}
-              className={cn(
-                'rounded-md',
-                period === p.value && 'bg-background shadow-sm'
-              )}
-            >
-              {p.label}
-            </Button>
-          ))}
+      {v2 ? (
+        <div className="flex justify-end">
+          <div className="flex gap-2">
+            {periods.map((p) => {
+              const isActive = period === p.value
+              return (
+                <button
+                  key={p.value}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handlePeriodChange(p.value)}
+                  className={cn(
+                    'px-[10px] py-1 rounded-full border text-[12px] transition-colors',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                    isActive
+                      ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border-[var(--ink-1)] font-semibold'
+                      : 'bg-[var(--paper-0)] text-[var(--ink-2)] border-[var(--border)] font-medium hover:bg-[var(--paper-2)]'
+                  )}
+                  style={{ fontFamily: 'var(--font-sans)' }}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex justify-end">
+          <div className="flex gap-1 p-1 bg-muted rounded-lg">
+            {periods.map((p) => (
+              <Button
+                key={p.value}
+                variant="ghost"
+                size="sm"
+                disabled={isPending}
+                onClick={() => handlePeriodChange(p.value)}
+                className={cn(
+                  'rounded-md',
+                  period === p.value && 'bg-background shadow-sm'
+                )}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Metric groups */}
       <MetricGroup
@@ -219,6 +308,7 @@ export function MetricsDashboard({ initialMetrics }: MetricsDashboardProps) {
         cards={conversationCards}
         metrics={metrics}
         loading={isPending}
+        v2={v2}
       />
 
       <MetricGroup
@@ -226,6 +316,7 @@ export function MetricsDashboard({ initialMetrics }: MetricsDashboardProps) {
         cards={handoffCards}
         metrics={metrics}
         loading={isPending}
+        v2={v2}
       />
 
       <MetricGroup
@@ -233,6 +324,7 @@ export function MetricsDashboard({ initialMetrics }: MetricsDashboardProps) {
         cards={costCards}
         metrics={metrics}
         loading={isPending}
+        v2={v2}
       />
     </div>
   )

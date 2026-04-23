@@ -1,7 +1,8 @@
 ---
 phase: somnio-recompra-template-catalog
-status: discuss-ready
+status: discuss-complete
 created: 2026-04-22
+discuss_completed: 2026-04-22
 origin: /gsd-debug recompra-greeting-bugs (session slug: recompra-greeting-bugs)
 related_phase: somnio-recompra-crm-reader (closed, enabler)
 affected_agent: somnio-recompra-v1
@@ -116,56 +117,49 @@ Variables: `{{ciudad}}`, `{{tiempo_estimado}}`.
 - **D-06**: Deuda técnica `registro_sanitario` se agrega a `INFORMATIONAL_INTENTS` dentro de esta fase + template correspondiente.
 - **D-07**: Regla 6 aplica — recompra está en prod atendiendo clientes. La migración del catálogo + cambios de código debe protegerse con feature flag o estrategia de rollout (a decidir en plan).
 - **D-08**: Regla 5 aplica — la migración SQL de templates se aplica en prod ANTES de pushear código que las consuma.
+- **D-09** (rollout): **Opción A** — migration SQL + code push en la misma ventana. Si rompe, rollback del código y los templates son aditivos/no-destructivos. No se usa feature flag.
+- **D-10** (copy): Claude prepara borradores de copy para los 3 templates en plan-phase basándose en lo que ya sabe; el usuario revisa antes de ejecutar la migración. El resto del catálogo bajo `somnio-recompra-v1` ya está escrito y se respeta tal cual.
+- **D-11** (alcance real — scope reduction grande): Los templates bajo `agent_id='somnio-recompra-v1'` ya están bien **EXCEPTO**:
+  - `intent='saludo'` — reemplazar orden=0 (texto) y orden=1 (imagen ELIXIR)
+  - `intent='preguntar_direccion_recompra'` — crear (no existe hoy)
+
+  **El resto del catálogo (precio, promociones, pago, envio, ubicacion, contraindicaciones, dependencia, tiempo_entrega_*, resumen_*, confirmacion_orden_*, pendiente_*, no_interesa, rechazar, retoma_inicial) no se toca.** Esto reduce el trabajo de 22 templates nuevos a **3 templates** (2 reemplazo + 1 nuevo).
+- **D-12** (contenido preguntar_direccion_recompra): `"¡Claro que sí! ¿Sería para la misma dirección?\n{{direccion_completa}}"` donde `direccion_completa = direccion + municipio + departamento` concatenados con ", ". **Requiere ajuste en código:** `response-track.ts:346` hoy hace `[direccion, ciudad].filter(Boolean).join(', ')` — debe pasar a `[direccion, ciudad, departamento].filter(Boolean).join(', ')` para cumplir el contrato.
+- **D-13** (scope estricto): `somnio-sales-v3` NO se toca en esta fase. El copy de sales-v3 está validado por el usuario y mantenerlo intacto preserva el aislamiento entre agentes (consistente con D-01).
 
 ## Scope / breakdown preliminar (sujeto a `/gsd:plan-phase`)
 
-- **Plan 01** — Catálogo de templates bajo `somnio-recompra-v1`:
-  - SQL idempotente (INSERT ON CONFLICT) con los ~22 template_intents
-  - Borradores de copy basados en lo que recompra ya tenía antes + consistencia con sales-v3 + expectativa del negocio
-  - Usuario aprueba copy antes de ejecutar migración
-- **Plan 02** — Revertir T2 (`TEMPLATE_LOOKUP_AGENT_ID` → `somnio-recompra-v1`), agregar `registro_sanitario` a `INFORMATIONAL_INTENTS`
+Tras las decisiones de discuss, el scope se reduce a **3 templates + 4 cambios de código + registro_sanitario fix**. Breakdown:
+
+- **Plan 01** — Templates bajo `somnio-recompra-v1` (3 rows):
+  - SQL idempotente (UPSERT) para reemplazar `intent='saludo'` orden=0 (texto) y orden=1 (imagen ELIXIR)
+  - SQL INSERT para crear `intent='preguntar_direccion_recompra'` orden=0 (texto) — content locked en D-12
+  - Claude prepara borradores de copy (D-10); usuario aprueba antes de ejecutar en prod (D-08 Regla 5)
+- **Plan 02** — Revertir T2 + deuda registro_sanitario:
+  - `response-track.ts:32`: `TEMPLATE_LOOKUP_AGENT_ID` → `'somnio-recompra-v1'`
+  - `response-track.ts:346`: `direccion_completa` incluye `departamento` (D-12)
+  - `constants.ts`: agregar `'registro_sanitario'` a `INFORMATIONAL_INTENTS` + crear template `registro_sanitario` bajo recompra-v1 (D-06)
 - **Plan 03** — Ajustes a `transitions.ts`:
-  - `saludo` en initial: no dispara `ofrecer_promos`, solo saludo templates
-  - `quiero_comprar` en initial: → `preguntar_direccion` (no `ofrecer_promos`)
-  - Ajustar `ACTION_TEMPLATE_MAP` si es necesario
-- **Plan 04** — Tests unitarios cubriendo:
-  - Turn-0 saludo produce greeting + ELIXIR imagen
-  - "sí" tras saludo produce `preguntar_direccion_recompra` con dirección precargada del CRM reader
-  - "dale" tras preguntar_direccion produce promociones
+  - `saludo` en initial: NO dispara `ofrecer_promos` (D-05) — dejar que el saludo templates salgan solos
+  - `quiero_comprar` en initial: `action: 'ofrecer_promos'` → `'preguntar_direccion'` (D-04)
+  - Review `hasSaludoCombined` branch (response-track.ts:176-188): asegurar que no dropea orden=1 (imagen ELIXIR) cuando saludo va solo
+- **Plan 04** — Tests unitarios cubriendo nuevo flujo:
+  - Turn-0 saludo produce greeting + ELIXIR imagen (sin promos)
+  - "sí" post-saludo produce `preguntar_direccion_recompra` con `{{direccion_completa}}` del CRM reader
+  - "dale"/"esa misma" post-preguntar_direccion produce promociones
   - `seleccion_pack` con datosCriticos produce resumen
   - `confirmar` produce crear_orden
-- **Plan 05** — QA en prod:
-  - Aplicar migración SQL en prod (Regla 5)
-  - Verificar smoke test end-to-end con cliente real (Jose Romero)
-  - Flip de cualquier feature flag si se introdujo
-- **Plan 06** — Close-out: mover debug `recompra-greeting-bugs` a resolved, actualizar docs, LEARNINGS
+- **Plan 05** — QA en prod + close-out:
+  - Snapshot SQL pre-migración del estado actual de `somnio-recompra-v1`
+  - Aplicar migración SQL en prod (Regla 5) → push código
+  - Smoke test end-to-end con cliente Jose Romero (contact 285d6f19)
+  - Mover `.planning/debug/recompra-greeting-bugs.md` a `resolved/`
+  - Actualizar `.claude/rules/agent-scope.md` + `docs/analysis/04-estado-actual-plataforma.md` (Regla 4)
+  - LEARNINGS.md con patterns aprendidos
 
-## Puntos abiertos para `/gsd:discuss-phase`
+## Puntos abiertos — todos cerrados
 
-1. **Content exacto de cada template**: necesito que el usuario revise los borradores de copy antes de insertar en prod. Particularmente:
-   - Wording exacto del template de saludo (¿emoji 😊 va fijo? ¿signos de puntuación?)
-   - URL de imagen del ELIXIR (¿es la misma que sales-v3 orden=1 — `https://cdn.shopify.com/s/files/1/0688/9606/3724/files/Diseno_sin_titulo_25.jpg`?)
-   - Copy de `preguntar_direccion_recompra` — formato dirección ("Cra 38#42-17, Bucaramanga" vs "Cra 38#42-17 Apto 1601B, Barrio Cabecera, Bucaramanga")
-2. **Rollout strategy** (Regla 6):
-   - Opción A: migration SQL + code push en el mismo ventana. Si rompe, rollback del código y retain templates (son aditivos, no destructivos).
-   - Opción B: feature flag en response-track que conmute entre catálogo recompra-v1 vs shared sales-v3.
-   - Recomiendo A por simplicidad; los templates son aditivos y no rompen nada existente.
-3. **Template `preguntar_direccion_recompra` ya existe?** — SQL pendiente:
-   ```sql
-   SELECT id, agent_id, intent, orden, content_type, LEFT(content, 200) AS preview
-   FROM agent_templates
-   WHERE intent = 'preguntar_direccion_recompra'
-     AND (workspace_id = 'a3843b3f-c337-4836-92b5-89c58bb98490' OR workspace_id IS NULL);
-   ```
-4. **¿Qué templates de recompra-v1 ya existen hoy?** (si hay legacy, decidir si mantener, reemplazar, o convivir):
-   ```sql
-   SELECT intent, visit_type, orden, priority, content_type, LEFT(content, 120) AS preview
-   FROM agent_templates
-   WHERE agent_id = 'somnio-recompra-v1'
-     AND (workspace_id = 'a3843b3f-c337-4836-92b5-89c58bb98490' OR workspace_id IS NULL)
-   ORDER BY intent, orden;
-   ```
-5. **¿Aprovechar para actualizar copy general?** (ej: promociones — si sales-v3 tiene copy desactualizado, es oportunidad de refrescar para recompra sin afectar v3).
+Todos los gray areas originales quedaron resueltos en la sesión de discuss (decisiones D-09 a D-13). Siguiente paso: `/gsd-research-phase somnio-recompra-template-catalog` (o directo a plan si el usuario considera que no hace falta research adicional — el audit de esta CONTEXT.md ya mapeó el codebase).
 
 ## Artifacts relacionados
 

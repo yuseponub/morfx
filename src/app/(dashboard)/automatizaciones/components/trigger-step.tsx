@@ -18,6 +18,7 @@ import {
 import { Building2, MessageSquare, ListTodo, ShoppingBag, Truck, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Types
@@ -132,11 +133,26 @@ function TriggerConfigFields({
   pipelines: PipelineWithStages[]
   tags: Tag[]
 }) {
+  const v2 = useDashboardV2()
   if (trigger.configFields.length === 0) return null
 
   return (
-    <div className="mt-4 space-y-3 border-t pt-4">
-      <p className="text-sm font-medium text-muted-foreground">Configuracion del trigger</p>
+    <div
+      className={cn(
+        'mt-4 space-y-3 pt-4',
+        v2 ? 'border-t border-dotted border-[var(--border)]' : 'border-t'
+      )}
+    >
+      <p
+        className={cn(
+          v2
+            ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+            : 'text-sm font-medium text-muted-foreground'
+        )}
+        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+      >
+        {v2 ? 'Configuración del trigger' : 'Configuracion del trigger'}
+      </p>
       {trigger.configFields.map((field) => {
         // Pipeline select
         if (field.name === 'pipelineId') {
@@ -267,6 +283,7 @@ function TriggerConfigFields({
 // ============================================================================
 
 export function TriggerStep({ formData, onChange, pipelines, tags }: TriggerStepProps) {
+  const v2 = useDashboardV2()
   const selectedType = formData.trigger_type
   const selectedTrigger = TRIGGER_CATALOG.find((t) => t.type === selectedType)
 
@@ -289,10 +306,35 @@ export function TriggerStep({ formData, onChange, pipelines, tags }: TriggerStep
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold">Selecciona un trigger</h3>
-        <p className="text-sm text-muted-foreground">
-          El evento que dispara esta automatizacion
-        </p>
+        {v2 ? (
+          <>
+            <span
+              className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              Trigger · disparador
+            </span>
+            <h3
+              className="mt-1 text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink-1)]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Selecciona un trigger
+            </h3>
+            <p
+              className="mt-1 text-[12px] italic text-[var(--ink-3)]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              El evento que dispara esta automatización.
+            </p>
+          </>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold">Selecciona un trigger</h3>
+            <p className="text-sm text-muted-foreground">
+              El evento que dispara esta automatizacion
+            </p>
+          </>
+        )}
       </div>
 
       {CATEGORIES.map((category) => {
@@ -302,15 +344,65 @@ export function TriggerStep({ formData, onChange, pipelines, tags }: TriggerStep
         return (
           <div key={category} className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className={cn('p-1 rounded', color)}>
-                <Icon className="size-4" />
-              </div>
-              <h4 className="text-sm font-medium">{category}</h4>
+              {v2 ? (
+                <>
+                  <Icon className="size-4 text-[var(--ink-2)]" />
+                  <h4
+                    className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]"
+                    style={{ fontFamily: 'var(--font-sans)' }}
+                  >
+                    {category}
+                  </h4>
+                </>
+              ) : (
+                <>
+                  <div className={cn('p-1 rounded', color)}>
+                    <Icon className="size-4" />
+                  </div>
+                  <h4 className="text-sm font-medium">{category}</h4>
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {triggers.map((trigger) => {
                 const isSelected = selectedType === trigger.type
+                if (v2) {
+                  return (
+                    <button
+                      key={trigger.type}
+                      type="button"
+                      onClick={() => selectTrigger(trigger.type as TriggerType)}
+                      className={cn(
+                        'group text-left transition-all border p-3 bg-[var(--paper-0)]',
+                        'border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]',
+                        isSelected
+                          ? 'outline outline-2 outline-offset-2 outline-[var(--rubric-2)]'
+                          : 'hover:bg-[var(--paper-3)]'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <p
+                            className="text-[13px] font-semibold text-[var(--ink-1)] leading-tight"
+                            style={{ fontFamily: 'var(--font-display)' }}
+                          >
+                            {trigger.label}
+                          </p>
+                          <p
+                            className="text-[11px] italic text-[var(--ink-3)] leading-snug"
+                            style={{ fontFamily: 'var(--font-serif)' }}
+                          >
+                            {trigger.description}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check className="size-4 text-[var(--rubric-2)] shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                    </button>
+                  )
+                }
                 return (
                   <Card
                     key={trigger.type}
@@ -343,8 +435,8 @@ export function TriggerStep({ formData, onChange, pipelines, tags }: TriggerStep
 
       {/* Config fields for selected trigger */}
       {selectedTrigger && (
-        <Card className="py-4">
-          <CardContent className="px-4 py-0">
+        v2 ? (
+          <div className="p-4 bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]">
             <TriggerConfigFields
               trigger={selectedTrigger}
               config={formData.trigger_config}
@@ -352,8 +444,20 @@ export function TriggerStep({ formData, onChange, pipelines, tags }: TriggerStep
               pipelines={pipelines}
               tags={tags}
             />
-          </CardContent>
-        </Card>
+          </div>
+        ) : (
+          <Card className="py-4">
+            <CardContent className="px-4 py-0">
+              <TriggerConfigFields
+                trigger={selectedTrigger}
+                config={formData.trigger_config}
+                onConfigChange={updateConfig}
+                pipelines={pipelines}
+                tags={tags}
+              />
+            </CardContent>
+          </Card>
+        )
       )}
     </div>
   )

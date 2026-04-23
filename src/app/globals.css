@@ -611,20 +611,25 @@
   text-transform: uppercase;
   color: var(--rubric-2);
 }
+/* QA feedback 2026-04-23: swap topbar h1 from EB Garamond serif to Inter
+ * sans for legibility parity with the WhatsApp chat module. Deviation
+ * from mocks/crm.html (serif h1) documented as D-RETRO-EXCEPTION — user
+ * QA verdict prioritized over strict mock fidelity for operational text.
+ */
 .theme-editorial .topbar h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 700;
-  font-size: 30px;
+  font-size: 26px;
   margin: 2px 0 0;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   color: var(--ink-1);
-  line-height: 1.15;
+  line-height: 1.2;
 }
 .theme-editorial .topbar h1 em {
   font-family: var(--font-sans);
   font-style: normal;
   font-weight: 400;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--ink-3);
   margin-left: 8px;
 }

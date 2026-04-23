@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { TAG_COLORS, DEFAULT_TAG_COLOR, getContrastColor } from '@/lib/data/tag-colors'
 import { createTag, updateTag, deleteTag } from '@/app/actions/tags'
 import { toast } from 'sonner'
@@ -39,6 +40,7 @@ interface TagManagerProps {
  * - Delete with confirmation
  */
 export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
+  const v2 = useDashboardV2()
   const [newTagName, setNewTagName] = React.useState('')
   const [newTagColor, setNewTagColor] = React.useState(DEFAULT_TAG_COLOR)
   const [newTagScope, setNewTagScope] = React.useState<'whatsapp' | 'orders' | 'both'>('both')
@@ -125,21 +127,48 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
     }
   }
 
+  const portalContainer =
+    v2 && typeof document !== 'undefined'
+      ? document.querySelector<HTMLElement>('[data-theme-scope="dashboard-editorial"]')
+      : undefined
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:w-[540px]">
+      <SheetContent
+        className={cn(
+          'w-[400px] sm:w-[540px]',
+          v2 && 'theme-editorial bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)]'
+        )}
+        portalContainer={portalContainer}
+      >
         <SheetHeader>
-          <SheetTitle>Gestionar etiquetas</SheetTitle>
-          <SheetDescription>
+          <SheetTitle
+            className={v2 ? 'text-[22px] font-bold tracking-[-0.01em] text-[var(--ink-1)]' : ''}
+            style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+          >
+            Gestionar etiquetas
+          </SheetTitle>
+          <SheetDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] mt-1' : undefined}>
             Crea, edita y elimina etiquetas para organizar tus contactos.
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-8 space-y-8">
           {/* Create new tag form */}
-          <form onSubmit={handleCreateTag} className="space-y-5 p-4 border rounded-lg bg-muted/30">
+          <form
+            onSubmit={handleCreateTag}
+            className={cn(
+              'space-y-5 p-4 border rounded-lg',
+              v2 ? 'bg-[var(--paper-2)] border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]' : 'bg-muted/30'
+            )}
+          >
             <div className="space-y-3">
-              <Label htmlFor="new-tag-name" className="text-base font-medium">Nueva etiqueta</Label>
+              <Label
+                htmlFor="new-tag-name"
+                className={cn('text-base font-medium', v2 && 'mx-smallcaps text-[10px] tracking-[0.12em] uppercase text-[var(--ink-2)]')}
+              >
+                Nueva etiqueta
+              </Label>
               <div className="flex gap-3">
                 <Input
                   id="new-tag-name"
@@ -148,7 +177,12 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
                   onChange={(e) => setNewTagName(e.target.value)}
                   className="flex-1"
                 />
-                <Button type="submit" disabled={isCreating || !newTagName.trim()}>
+                <Button
+                  type="submit"
+                  disabled={isCreating || !newTagName.trim()}
+                  className={v2 ? 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)]' : ''}
+                  style={v2 ? { fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' } : undefined}
+                >
                   <PlusIcon className="h-4 w-4 mr-2" />
                   {isCreating ? 'Creando...' : 'Crear'}
                 </Button>
@@ -157,7 +191,9 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
 
             {/* Color picker for new tag */}
             <div className="space-y-3">
-              <Label>Color</Label>
+              <Label className={v2 ? 'mx-smallcaps text-[10px] tracking-[0.12em] uppercase text-[var(--ink-2)]' : undefined}>
+                Color
+              </Label>
               <ColorPicker
                 value={newTagColor}
                 onChange={setNewTagColor}
@@ -166,7 +202,12 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
 
             {/* Scope selection for new tag */}
             <div className="space-y-2">
-              <Label htmlFor="new-tag-scope">Aplicar a</Label>
+              <Label
+                htmlFor="new-tag-scope"
+                className={v2 ? 'mx-smallcaps text-[10px] tracking-[0.12em] uppercase text-[var(--ink-2)]' : undefined}
+              >
+                Aplicar a
+              </Label>
               <Select
                 value={newTagScope}
                 onValueChange={(value) => setNewTagScope(value as 'whatsapp' | 'orders' | 'both')}
@@ -203,7 +244,9 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
             {/* Preview */}
             {newTagName.trim() && (
               <div className="flex items-center gap-3 pt-2">
-                <Label className="text-muted-foreground">Vista previa:</Label>
+                <Label className={cn(v2 ? 'mx-smallcaps text-[var(--ink-3)]' : 'text-muted-foreground')}>
+                  Vista previa:
+                </Label>
                 <span
                   className="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium"
                   style={{
@@ -219,17 +262,27 @@ export function TagManager({ open, onOpenChange, tags }: TagManagerProps) {
 
           {/* Existing tags list */}
           <div className="space-y-2">
-            <Label>Etiquetas existentes ({tags.length})</Label>
-            <div className="border rounded-lg divide-y max-h-[400px] overflow-y-auto">
+            <Label className={v2 ? 'mx-smallcaps text-[10px] tracking-[0.12em] uppercase text-[var(--ink-2)]' : undefined}>
+              Etiquetas existentes ({tags.length})
+            </Label>
+            <div
+              className={cn(
+                'border rounded-lg divide-y max-h-[400px] overflow-y-auto',
+                v2 && 'border-[var(--ink-1)] divide-[var(--border)] bg-[var(--paper-0)]'
+              )}
+            >
               {tags.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
+                <p className={cn('text-sm text-center py-6', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}>
                   No hay etiquetas creadas
                 </p>
               ) : (
                 tags.map((tag) => (
                   <div
                     key={tag.id}
-                    className="flex items-center gap-3 p-3 hover:bg-muted/50"
+                    className={cn(
+                      'flex items-center gap-3 p-3',
+                      v2 ? 'hover:bg-[var(--paper-2)]' : 'hover:bg-muted/50'
+                    )}
                   >
                     {editingTagId === tag.id ? (
                       // Edit mode

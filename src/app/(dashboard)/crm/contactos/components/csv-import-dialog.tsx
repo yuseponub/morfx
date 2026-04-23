@@ -11,6 +11,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseContactsCsv, type ParseResult, type ParsedContact } from '@/lib/csv/parser'
 import {
@@ -49,6 +51,7 @@ interface CsvImportDialogProps {
 
 export function CsvImportDialog({ open, onOpenChange, onImportComplete }: CsvImportDialogProps) {
   const router = useRouter()
+  const v2 = useDashboardV2()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // State
@@ -221,10 +224,20 @@ export function CsvImportDialog({ open, onOpenChange, onImportComplete }: CsvImp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className={cn(
+          'sm:max-w-lg',
+          v2 && 'theme-editorial bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)] shadow-[0_2px_0_var(--ink-1)]'
+        )}
+      >
         <DialogHeader>
-          <DialogTitle>Importar contactos desde CSV</DialogTitle>
-          <DialogDescription>
+          <DialogTitle
+            className={v2 ? 'text-[20px] font-bold tracking-[-0.01em] text-[var(--ink-1)]' : ''}
+            style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+          >
+            Importar contactos desde CSV
+          </DialogTitle>
+          <DialogDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] mt-1' : undefined}>
             {step === 'upload' && 'Selecciona un archivo CSV con tus contactos'}
             {step === 'parsing' && 'Procesando archivo...'}
             {step === 'duplicates' && 'Resolver contactos duplicados'}
@@ -237,14 +250,23 @@ export function CsvImportDialog({ open, onOpenChange, onImportComplete }: CsvImp
         {step === 'upload' && (
           <div className="space-y-4">
             <div
-              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              className={cn(
+                'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
+                v2
+                  ? 'border-[var(--ink-3)] bg-[var(--paper-1)] hover:border-[var(--ink-1)]'
+                  : 'hover:border-primary/50'
+              )}
               onClick={() => fileInputRef.current?.click()}
             >
-              <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-2">
+              <FileSpreadsheet className={cn('h-12 w-12 mx-auto mb-4', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')} />
+              <p className={cn('text-sm mb-2', v2 ? 'text-[var(--ink-2)]' : 'text-muted-foreground')}>
                 Arrastra un archivo CSV o haz clic para seleccionar
               </p>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 Seleccionar archivo
               </Button>
@@ -257,7 +279,7 @@ export function CsvImportDialog({ open, onOpenChange, onImportComplete }: CsvImp
               />
             </div>
 
-            <div className="text-xs text-muted-foreground space-y-1">
+            <div className={cn('text-xs space-y-1', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}>
               <p><strong>Columnas requeridas:</strong> Nombre, Telefono</p>
               <p><strong>Columnas opcionales:</strong> Email, Ciudad, Direccion</p>
               <p>Los nombres de columnas se detectan automaticamente (ej: nombre, name, telefono, phone)</p>
@@ -330,7 +352,13 @@ export function CsvImportDialog({ open, onOpenChange, onImportComplete }: CsvImp
             </div>
 
             <div className="flex justify-end">
-              <Button onClick={handleClose}>Cerrar</Button>
+              <Button
+                onClick={handleClose}
+                className={v2 ? 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)]' : ''}
+                style={v2 ? { fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' } : undefined}
+              >
+                Cerrar
+              </Button>
             </div>
           </div>
         )}

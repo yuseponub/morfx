@@ -56,7 +56,7 @@ export async function ProductSection({
   return (
     <section
       id={id}
-      className="border-b border-border/60 bg-background py-20 md:py-24 odd:bg-muted/20"
+      className="border-b border-[var(--ink-2)] bg-[var(--paper-0)] py-20 md:py-24 odd:bg-[var(--paper-1)]"
     >
       <div className="mx-auto max-w-6xl px-6">
         <div
@@ -65,32 +65,45 @@ export async function ProductSection({
           }`}
         >
           <div>
-            <div className="mb-5 inline-flex size-12 items-center justify-center rounded-xl border border-border bg-background shadow-sm">
-              <Icon className="size-6 text-primary" aria-hidden />
+            <div className="mb-5 inline-flex size-12 items-center justify-center rounded-[6px] border border-[var(--paper-4)] bg-[var(--paper-0)]">
+              <Icon
+                className="size-6 text-[var(--ink-1)]"
+                strokeWidth={1.5}
+                aria-hidden
+              />
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h2 className="mx-h1 text-[2rem] text-[var(--ink-1)] sm:text-[2.5rem] md:text-[2.75rem]">
               {t('heading')}
             </h2>
-            <p className="mt-5 text-base leading-relaxed text-muted-foreground md:text-lg">
+            <p className="mx-body-long mt-5 text-[1rem] leading-[1.7] text-[var(--ink-2)] md:text-[1.125rem]">
               {t('description')}
             </p>
             <ul className="mt-8 space-y-3">
               {bullets.map((b, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Check className="size-3.5" aria-hidden />
+                  <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-[3px] border border-[var(--ink-3)] text-[var(--ink-1)]">
+                    <Check className="size-3" strokeWidth={2} aria-hidden />
                   </span>
-                  <span className="text-sm text-foreground/90 md:text-base">{b}</span>
+                  <span className="mx-body text-[0.9375rem] text-[var(--ink-2)] md:text-[1rem]">
+                    {b}
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
 
           <div>
-            <Card className="relative aspect-[4/3] items-center justify-center overflow-hidden border-border/80 bg-gradient-to-br from-muted/40 via-background to-muted/20 p-8 shadow-sm">
+            <Card className="relative aspect-[4/3] items-center justify-center overflow-hidden rounded-[6px] border border-[var(--paper-4)] bg-[var(--paper-2)] p-8 shadow-none">
               <div className="flex flex-col items-center justify-center gap-4 text-center">
-                <Icon className="size-16 text-primary/70" aria-hidden />
-                <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <Icon
+                  className="size-16 text-[var(--ink-2)]"
+                  strokeWidth={1.25}
+                  aria-hidden
+                />
+                <span
+                  className="mx-smallcaps text-[11px] tracking-[0.12em] text-[var(--ink-3)]"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
                   {t('illustrationLabel')}
                 </span>
               </div>

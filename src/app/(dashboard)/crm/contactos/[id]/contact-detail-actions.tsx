@@ -11,9 +11,10 @@ import type { ContactWithTags } from '@/lib/types/database'
 
 interface ContactDetailActionsProps {
   contact: ContactWithTags
+  v2?: boolean
 }
 
-export function ContactDetailActions({ contact }: ContactDetailActionsProps) {
+export function ContactDetailActions({ contact, v2 = false }: ContactDetailActionsProps) {
   const router = useRouter()
   const [editOpen, setEditOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -40,7 +41,12 @@ export function ContactDetailActions({ contact }: ContactDetailActionsProps) {
   return (
     <>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEditOpen(true)}
+          className={v2 ? 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]' : ''}
+        >
           <PencilIcon className="mr-2 h-4 w-4" />
           Editar
         </Button>
@@ -49,7 +55,7 @@ export function ContactDetailActions({ contact }: ContactDetailActionsProps) {
           size="sm"
           onClick={handleDelete}
           disabled={isDeleting}
-          className="text-destructive hover:text-destructive"
+          className={v2 ? 'border-[var(--rubric-2)] text-[var(--rubric-2)] bg-[var(--paper-0)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--rubric-2)]' : 'text-destructive hover:text-destructive'}
         >
           <TrashIcon className="mr-2 h-4 w-4" />
           {isDeleting ? 'Eliminando...' : 'Eliminar'}

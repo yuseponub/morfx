@@ -7,6 +7,7 @@ import { getTags } from '@/app/actions/tags'
 import { getCustomFields } from '@/app/actions/custom-fields'
 import { getContactNotes } from '@/app/actions/notes'
 import { getContactActivity } from '@/app/actions/activity'
+import { getIsDashboardV2Enabled } from '@/lib/auth/dashboard-v2'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
@@ -59,55 +60,129 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
     isAdminOrOwner = member?.role === 'owner' || member?.role === 'admin'
   }
 
+  const v2 = workspaceId ? await getIsDashboardV2Enabled(workspaceId) : false
+
   const city = contact.city ? getCityByValue(contact.city) : null
   const currentUserId = user?.id
 
   return (
-    <div className="flex-1 overflow-auto p-6">
+    <div className="flex-1 overflow-auto p-6" data-theme-scope={v2 ? 'dashboard-editorial' : undefined}>
     <div className="space-y-6 max-w-4xl">
-      {/* Back button */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/crm/contactos">
-            <ArrowLeftIcon className="mr-2 h-4 w-4" />
-            Volver a contactos
-          </Link>
-        </Button>
-      </div>
+      {v2 ? (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <Link
+              href="/crm/contactos"
+              className="inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.12em] font-semibold text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              <ArrowLeftIcon className="h-3 w-3" />
+              Volver a contactos
+            </Link>
+          </div>
+          <div className="flex items-start justify-between mb-4 pb-4 border-b border-[var(--ink-1)]">
+            <div>
+              <span
+                className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)] mb-1"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                Módulo · crm · contacto
+              </span>
+              <h1
+                className="text-[30px] leading-[1.1] font-bold tracking-[-0.015em] text-[var(--ink-1)] m-0"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {contact.name}
+              </h1>
+              <p
+                className="mt-1 text-[11px] text-[var(--ink-3)]"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              >
+                Creado el{' '}
+                {new Date(contact.created_at).toLocaleDateString('es-CO', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  timeZone: 'America/Bogota',
+                })}
+              </p>
+            </div>
+            <ContactDetailActions contact={contact} v2 />
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Back button */}
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/crm/contactos">
+                <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                Volver a contactos
+              </Link>
+            </Button>
+          </div>
 
-      {/* Contact header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{contact.name}</h1>
-          <p className="text-muted-foreground">
-            Creado el{' '}
-            {new Date(contact.created_at).toLocaleDateString('es-CO', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              timeZone: 'America/Bogota',
-            })}
-          </p>
-        </div>
-        <ContactDetailActions contact={contact} />
-      </div>
+          {/* Contact header */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">{contact.name}</h1>
+              <p className="text-muted-foreground">
+                Creado el{' '}
+                {new Date(contact.created_at).toLocaleDateString('es-CO', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  timeZone: 'America/Bogota',
+                })}
+              </p>
+            </div>
+            <ContactDetailActions contact={contact} />
+          </div>
+        </>
+      )}
 
       {/* Tabbed content */}
       <Tabs defaultValue="info" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="info">Informacion</TabsTrigger>
-          <TabsTrigger value="tasks">Tareas</TabsTrigger>
-          <TabsTrigger value="custom">Campos</TabsTrigger>
-          <TabsTrigger value="notes">Notas</TabsTrigger>
-          <TabsTrigger value="history">Historial</TabsTrigger>
-        </TabsList>
+        {v2 ? (
+          <TabsList
+            className="h-auto rounded-none bg-transparent border-b border-[var(--border)] p-0 gap-5 justify-start w-full"
+          >
+            {(['info','tasks','custom','notes','history'] as const).map((value) => {
+              const labels: Record<typeof value, string> = {
+                info: 'Información',
+                tasks: 'Tareas',
+                custom: 'Campos',
+                notes: 'Notas',
+                history: 'Historial',
+              }
+              return (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2 pt-1 text-[13px] font-medium text-[var(--ink-3)] data-[state=active]:bg-transparent data-[state=active]:text-[var(--ink-1)] data-[state=active]:font-semibold data-[state=active]:border-[var(--ink-1)] data-[state=active]:shadow-none"
+                  style={{ fontFamily: 'var(--font-sans)' }}
+                >
+                  {labels[value]}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        ) : (
+          <TabsList>
+            <TabsTrigger value="info">Informacion</TabsTrigger>
+            <TabsTrigger value="tasks">Tareas</TabsTrigger>
+            <TabsTrigger value="custom">Campos</TabsTrigger>
+            <TabsTrigger value="notes">Notas</TabsTrigger>
+            <TabsTrigger value="history">Historial</TabsTrigger>
+          </TabsList>
+        )}
 
         {/* Info tab */}
         <TabsContent value="info" className="space-y-6">
           {/* Tags section */}
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-2">
+              <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] flex items-center gap-2' : 'flex items-center gap-2'}>
                 <TagIcon className="h-4 w-4" />
                 Etiquetas
               </CardDescription>
@@ -129,7 +204,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
             {/* Phone */}
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
+                <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] flex items-center gap-2' : 'flex items-center gap-2'}>
                   <PhoneIcon className="h-4 w-4" />
                   Telefono
                 </CardDescription>
@@ -144,7 +219,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
             {/* Email */}
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
+                <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] flex items-center gap-2' : 'flex items-center gap-2'}>
                   <MailIcon className="h-4 w-4" />
                   Email
                 </CardDescription>
@@ -166,7 +241,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
             {/* City */}
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
+                <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] flex items-center gap-2' : 'flex items-center gap-2'}>
                   <MapPinIcon className="h-4 w-4" />
                   Ciudad
                 </CardDescription>
@@ -197,7 +272,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
             {/* Address */}
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
+                <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)] flex items-center gap-2' : 'flex items-center gap-2'}>
                   <MapPinIcon className="h-4 w-4" />
                   Direccion
                 </CardDescription>
@@ -251,7 +326,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
         <TabsContent value="notes">
           <Card>
             <CardHeader>
-              <CardDescription>
+              <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)]' : undefined}>
                 Notas internas visibles para todos los miembros del workspace.
               </CardDescription>
             </CardHeader>
@@ -270,7 +345,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
         <TabsContent value="history">
           <Card>
             <CardHeader>
-              <CardDescription>
+              <CardDescription className={v2 ? 'mx-smallcaps text-[var(--ink-3)]' : undefined}>
                 Historial de cambios realizados a este contacto.
               </CardDescription>
             </CardHeader>

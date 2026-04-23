@@ -448,98 +448,271 @@ export function ConfigPanel() {
       )}
 
       {/* Section 4: Handoff message */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Mensaje de handoff</CardTitle>
+      {v2 ? (
+        <article
+          className="border border-[var(--ink-1)] bg-[var(--paper-2)]"
+          style={{ boxShadow: '0 1px 0 var(--ink-1)' }}
+        >
+          <header className="px-6 pt-5 pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-1">
+              <MessageSquare className="h-[14px] w-[14px] text-[var(--rubric-2)]" aria-hidden />
+              <h3
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                Mensaje de handoff
+              </h3>
+            </div>
+            <p
+              className="text-[13px] italic text-[var(--ink-3)] leading-[1.5]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              Mensaje que se envia al cliente cuando el agente no puede resolver la consulta y transfiere a un humano.
+            </p>
+          </header>
+          <div className="px-6 py-5">
+            <Textarea
+              value={config.handoff_message}
+              onChange={(e) => handleHandoffChange(e.target.value)}
+              placeholder="Mensaje cuando el agente transfiere a un humano…"
+              className="resize-none w-full bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)] text-[14px] leading-[1.55] rounded-[3px] focus-visible:ring-[var(--ink-1)] focus-visible:ring-offset-0 placeholder:text-[var(--ink-3)] placeholder:italic"
+              style={{ fontFamily: 'var(--font-mono)' }}
+              rows={4}
+            />
           </div>
-          <CardDescription>
-            Mensaje que se envia al cliente cuando el agente no puede resolver la consulta y transfiere a un humano.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={config.handoff_message}
-            onChange={(e) => handleHandoffChange(e.target.value)}
-            placeholder="Mensaje cuando el agente transfiere a un humano..."
-            className="resize-none text-sm"
-            rows={3}
-          />
-        </CardContent>
-      </Card>
+        </article>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Mensaje de handoff</CardTitle>
+            </div>
+            <CardDescription>
+              Mensaje que se envia al cliente cuando el agente no puede resolver la consulta y transfiere a un humano.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={config.handoff_message}
+              onChange={(e) => handleHandoffChange(e.target.value)}
+              placeholder="Mensaje cuando el agente transfiere a un humano..."
+              className="resize-none text-sm"
+              rows={3}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 5: Timer preset */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Timer preset</CardTitle>
-          </div>
-          <CardDescription>
-            Controla cuanto tiempo espera el agente antes de tomar acciones proactivas (ofrecer promos, pedir datos faltantes).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            {TIMER_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                onClick={() => handleSelectPreset(preset.value)}
-                className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border text-center transition-colors ${
-                  config.timer_preset === preset.value
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-border hover:bg-muted'
-                }`}
+      {v2 ? (
+        <article
+          className="border border-[var(--ink-1)] bg-[var(--paper-2)]"
+          style={{ boxShadow: '0 1px 0 var(--ink-1)' }}
+        >
+          <header className="px-6 pt-5 pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-[14px] w-[14px] text-[var(--rubric-2)]" aria-hidden />
+              <h3
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
               >
-                <span className="text-sm font-medium">{preset.label}</span>
-                <span className="text-xs text-muted-foreground">{preset.description}</span>
-              </button>
-            ))}
-          </div>
-          {TIMER_PRESETS.find(p => p.value === config.timer_preset) && (
-            <p className="text-xs text-muted-foreground">
-              {TIMER_PRESETS.find(p => p.value === config.timer_preset)?.detail}
+                Timer preset
+              </h3>
+            </div>
+            <p
+              className="text-[13px] italic text-[var(--ink-3)] leading-[1.5]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              Controla cuanto tiempo espera el agente antes de tomar acciones proactivas (ofrecer promos, pedir datos faltantes).
             </p>
-          )}
-        </CardContent>
-      </Card>
+          </header>
+          <div className="px-6 py-5 space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              {TIMER_PRESETS.map((preset) => {
+                const isActive = config.timer_preset === preset.value
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset.value)}
+                    className={cn(
+                      'flex flex-col items-center gap-1 px-4 py-4 border text-center transition-colors',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]',
+                      isActive
+                        ? 'bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)]'
+                        : 'bg-[var(--paper-0)] border-[var(--border)] text-[var(--ink-2)] hover:border-[var(--ink-3)] hover:bg-[var(--paper-1)]'
+                    )}
+                    style={isActive ? { boxShadow: '0 1px 0 var(--ink-1)' } : undefined}
+                    aria-pressed={isActive}
+                  >
+                    <span
+                      className="text-[14px] font-semibold leading-tight"
+                      style={{ fontFamily: 'var(--font-display)' }}
+                    >
+                      {preset.label}
+                    </span>
+                    <span
+                      className="text-[11px] text-[var(--ink-3)]"
+                      style={{ fontFamily: 'var(--font-mono)' }}
+                    >
+                      {preset.description}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {TIMER_PRESETS.find(p => p.value === config.timer_preset) && (
+              <p
+                className="text-[12px] italic text-[var(--ink-3)] leading-[1.5]"
+                style={{ fontFamily: 'var(--font-serif)' }}
+              >
+                {TIMER_PRESETS.find(p => p.value === config.timer_preset)?.detail}
+              </p>
+            )}
+          </div>
+        </article>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Timer preset</CardTitle>
+            </div>
+            <CardDescription>
+              Controla cuanto tiempo espera el agente antes de tomar acciones proactivas (ofrecer promos, pedir datos faltantes).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              {TIMER_PRESETS.map((preset) => (
+                <button
+                  key={preset.value}
+                  onClick={() => handleSelectPreset(preset.value)}
+                  className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border text-center transition-colors ${
+                    config.timer_preset === preset.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{preset.label}</span>
+                  <span className="text-xs text-muted-foreground">{preset.description}</span>
+                </button>
+              ))}
+            </div>
+            {TIMER_PRESETS.find(p => p.value === config.timer_preset) && (
+              <p className="text-xs text-muted-foreground">
+                {TIMER_PRESETS.find(p => p.value === config.timer_preset)?.detail}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 6: Response speed */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Velocidad de respuesta</CardTitle>
-          </div>
-          <CardDescription>
-            Controla los delays entre mensajes del agente. Real simula escritura humana, Instantaneo envia todo sin pausa.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            {SPEED_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                onClick={() => handleSelectSpeed(preset.value)}
-                className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border text-center transition-colors ${
-                  config.response_speed === preset.value
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-border hover:bg-muted'
-                }`}
+      {v2 ? (
+        <article
+          className="border border-[var(--ink-1)] bg-[var(--paper-2)]"
+          style={{ boxShadow: '0 1px 0 var(--ink-1)' }}
+        >
+          <header className="px-6 pt-5 pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="h-[14px] w-[14px] text-[var(--rubric-2)]" aria-hidden />
+              <h3
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
               >
-                <span className="text-sm font-medium">{preset.label}</span>
-                <span className="text-xs text-muted-foreground">{preset.description}</span>
-              </button>
-            ))}
-          </div>
-          {SPEED_PRESETS.find(p => p.value === config.response_speed) && (
-            <p className="text-xs text-muted-foreground">
-              {SPEED_PRESETS.find(p => p.value === config.response_speed)?.detail}
+                Velocidad de respuesta
+              </h3>
+            </div>
+            <p
+              className="text-[13px] italic text-[var(--ink-3)] leading-[1.5]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              Controla los delays entre mensajes del agente. Real simula escritura humana, Instantaneo envia todo sin pausa.
             </p>
-          )}
-        </CardContent>
-      </Card>
+          </header>
+          <div className="px-6 py-5 space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              {SPEED_PRESETS.map((preset) => {
+                const isActive = config.response_speed === preset.value
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => handleSelectSpeed(preset.value)}
+                    className={cn(
+                      'flex flex-col items-center gap-1 px-4 py-4 border text-center transition-colors',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)]',
+                      isActive
+                        ? 'bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)]'
+                        : 'bg-[var(--paper-0)] border-[var(--border)] text-[var(--ink-2)] hover:border-[var(--ink-3)] hover:bg-[var(--paper-1)]'
+                    )}
+                    style={isActive ? { boxShadow: '0 1px 0 var(--ink-1)' } : undefined}
+                    aria-pressed={isActive}
+                  >
+                    <span
+                      className="text-[14px] font-semibold leading-tight"
+                      style={{ fontFamily: 'var(--font-display)' }}
+                    >
+                      {preset.label}
+                    </span>
+                    <span
+                      className="text-[11px] text-[var(--ink-3)]"
+                      style={{ fontFamily: 'var(--font-mono)' }}
+                    >
+                      {preset.description}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {SPEED_PRESETS.find(p => p.value === config.response_speed) && (
+              <p
+                className="text-[12px] italic text-[var(--ink-3)] leading-[1.5]"
+                style={{ fontFamily: 'var(--font-serif)' }}
+              >
+                {SPEED_PRESETS.find(p => p.value === config.response_speed)?.detail}
+              </p>
+            )}
+          </div>
+        </article>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Velocidad de respuesta</CardTitle>
+            </div>
+            <CardDescription>
+              Controla los delays entre mensajes del agente. Real simula escritura humana, Instantaneo envia todo sin pausa.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              {SPEED_PRESETS.map((preset) => (
+                <button
+                  key={preset.value}
+                  onClick={() => handleSelectSpeed(preset.value)}
+                  className={`flex flex-col items-center gap-1 px-4 py-3 rounded-lg border text-center transition-colors ${
+                    config.response_speed === preset.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{preset.label}</span>
+                  <span className="text-xs text-muted-foreground">{preset.description}</span>
+                </button>
+              ))}
+            </div>
+            {SPEED_PRESETS.find(p => p.value === config.response_speed) && (
+              <p className="text-xs text-muted-foreground">
+                {SPEED_PRESETS.find(p => p.value === config.response_speed)?.detail}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

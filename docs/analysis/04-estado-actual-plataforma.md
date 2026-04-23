@@ -780,6 +780,72 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 - Legal review profesional de T&C + Privacy antes de launch mayor (v1.0 pending-legal-review banner activo)
 - OG image branding iteration pendiente
 
+### Landing editorial v1 (shipped 2026-04-22)
+
+- **Standalone:** `.planning/standalone/ui-redesign-landing/` — 3 plans (01 layout + home → 02 legal pages → 03 DoD + close).
+- **Driver:** Meta App Review (Facebook Business Verification). El producto (inbox v2 editorial) ya tenia el look paper/ink/rubric — la landing seguia shadcn-slate default, incoherencia detectable en la review.
+- **Status:** ✅ SHIPPED a produccion **SIN feature flag** (diferencia clave vs inbox editorial v2 que usa flag per-workspace). Activacion inmediata y global para todos los visitantes de `morfx.app`. Rollback seria via `git revert`, no flag flip.
+- **Commits range:** `1c2fd6f..<HEAD-post-Plan-03-T3>` en `main`, push unico al final de Plan 03 (D-LND-12). Vercel auto-deploy disparado.
+- **Scope:** 11 archivos re-skineados (1 created + 10 modified). **Cero cambios** en `src/app/globals.css` (tokens `.theme-editorial` + utilities `.mx-*` ya existian desde `ui-redesign-conversaciones` Plan 01 — esta fase es el primer consumer externo al inbox del mismo bloque, validando reusabilidad).
+
+**Archivos creados (1):**
+- `src/app/(marketing)/fonts.ts` — loader dedicado EB Garamond (400/500/600/700/800) + Inter + JetBrains Mono (400/500) via `next/font/google` **per-segment**. Next 15 deduplica el WOFF2 bundle con `src/app/(dashboard)/whatsapp/fonts.ts` (misma familia → mismo hash → mismo chunk). Verificable en `.next/static/media/`.
+
+**Archivos modificados (10):**
+- `src/app/(marketing)/[locale]/layout.tsx` — wrapper `className="${ebGaramond.variable} ${inter.variable} ${jetbrainsMono.variable} theme-editorial ..."` unconditional (D-LND-04). Preserva `NextIntlClientProvider`, `Header`, `main`, `Footer`.
+- `src/components/marketing/header.tsx` — paper-0 bg + border-b ink-2, logo light-only (D-LND-08 — `/logo-dark.png` removido), ThemeToggle eliminado (D-LND-07), CTA "Empezar" en patron ink-1 press byte-exact del composer Send (D-LND-10).
+- `src/components/marketing/footer.tsx` — paper-3 bg, section headings `.mx-smallcaps` ink-3 11px tracking-[0.12em], NIT/razon social/CIIU en font-mono 11px ink-3, links ink-2→ink-1 underline-offset editorial.
+- `src/components/marketing/landing/hero.tsx` — eyebrow `.mx-smallcaps` rubric-2, headline `.mx-display` EB Garamond text-[3rem]→[6rem] responsive, rule ornament horizontal `h-px w-20 bg-[var(--ink-1)]`, subhead `.mx-body-long` max-w-[36rem], CTAs ink-1 press + outline ink-1.
+- `src/components/marketing/landing/about.tsx` — ornament centrado `— ❦ —` al tope, heading `.mx-h1` 2-2.75rem, intro `.mx-body-long` leading-[1.7], objetoSocial blockquote italic border-l rubric-2, legal data labels smallcaps + values font-mono.
+- `src/components/marketing/landing/product-section.tsx` — cards alternando `odd:bg-[var(--paper-1)]`, icon container rounded-[6px] border paper-4 con lucide strokeWidth={1.5}, heading `.mx-h1`, description `.mx-body-long`, bullets con check boxes rounded-[3px] border ink-3 (reemplaza rounded-full primary/10 shadcn), illustration Card paper-2 con icono strokeWidth={1.25}.
+- `src/components/marketing/landing/cta.tsx` — wrapper paper-1, ornament `— ❦ —`, heading `.mx-display` 2.5-4rem, CTAs WhatsApp ink-1 press + Email outline ink-1, contactLine font-mono ink-3.
+- `src/components/marketing/legal/legal-section.tsx` — refactor backward-compatible con props nuevas `sectionNumber`, `subtitle`, `showOrnament`. Layout grid `md:grid-cols-[6rem_1fr]` + aside sticky top-24 con `.mx-marginalia` serif italic ink-3 (hidden <md), body column max-w-[42rem] con `.mx-body-long` leading-[1.7] ink-2, subsections recursivas nivel 0→`.mx-h3` nivel 1+→`.mx-smallcaps`, rule ornament `— ❦ —` toggleable (default true).
+- `src/app/(marketing)/[locale]/terms/page.tsx` — page header con eyebrow "MORFX S.A.S." + `.mx-display` + lastUpdated mono, TOC editorial con `§ N ∣ heading` marginalia inline, 14 secciones via `<LegalSection sectionNumber={`§ ${idx + 1}`} showOrnament={idx < last}>` derivando numero del idx (no i18n — D-LND-06 copy intacto).
+- `src/app/(marketing)/[locale]/privacy/page.tsx` — mismo pattern adaptado a 4 secciones `§ 1..§ 4`.
+
+**Decisiones clave (subset, lista completa en `.planning/standalone/ui-redesign-landing/CONTEXT.md`):**
+
+- **D-LND-02 — SIN feature flag.** A diferencia del inbox (per-workspace opt-in), la landing es publica → rollout global. Rollback es `git revert`.
+- **D-LND-07 — ThemeToggle removido del marketing header.** `.theme-editorial` fuerza `color-scheme: light` — toggle seria ruido sin efecto. Trade-off menor: perdida de feature discovery (visitante anonimo no descubre dark mode del dashboard hasta loguearse).
+- **D-LND-09 — Marginalia para legal pages.** Pattern editorial revista clasica (New Yorker, Atlantic): `§ N` en columna marginalia izquierda, cuerpo en columna central `.mx-body-long`, ornaments `— ❦ —` entre secciones.
+- **D-LND-10 — CTA pattern byte-exact del composer Send button.** 4 CTAs en marketing usan el mismo tratamiento visual (bg ink-1, rounded-[4px], `active:translate-y-px`, font-semibold 13px sans). Consistencia product ↔ marketing.
+- **D-LND-12 — Push unico al final.** 14 commits atomicos por task (Plans 01/02/03), un solo `git push origin main` en Plan 03 T3 para evitar race condition donde Meta cae en un estado intermedio.
+
+**Zero changes verificados (`git diff 1c2fd6f -- ...`):**
+- `src/app/(dashboard)/**` → 0 lineas (inbox editorial v2 intocable).
+- `src/lib/**`, `src/hooks/**` → 0 lineas (domain, agentes, Inngest, hooks intactos — Regla 6 spirit para fases UI-only de surfaces publicos).
+- `src/app/globals.css` → 0 lineas (tokens + utilities ya existian).
+- `src/messages/{locale}.json` → 0 lineas (D-LND-06 copy intacto).
+- Zero npm packages agregados (next/font/google ya estaba instalado para el inbox).
+
+**DoD UI (6 checks — dod-verification.txt):**
+| Check | Pass |
+|---|---|
+| 1 No slate leakage (`bg-background|text-foreground|border-border`) | ✅ |
+| 2 No `hsl(var(--` antipattern post-Tailwind v4 | ✅ |
+| 3 No `dark:` classes (D-LND-07) | ✅ |
+| 4 mx-* utilities count ≥ 15 | ✅ (46 matches) |
+| 5 TS clean en marketing scope | ✅ |
+| 6 Regla NO-TOUCH (`git diff 1c2fd6f -- protected-paths`) | ✅ (0 lineas) |
+
+**Patterns reutilizables documentados (LEARNINGS.md §3):**
+1. Per-segment font loader Next 15 (dedup automatico del bundle).
+2. Theme unconditional vs gated — tabla de decision por tipo de surface (publico vs productivo).
+3. CTA consistency product ↔ marketing byte-exact.
+4. Form controls font inheritance footgun — 12 instancias de `style={{ fontFamily: 'var(--font-sans)' }}` explicito para romper herencia serif bajo `.theme-editorial`.
+5. Legal pages editorial pattern (marginalia + body-long + rule ornaments) via `<LegalSection>` backward-compatible.
+6. Section number derivation del idx del map (no hardcode en i18n).
+
+**Reglas verificadas:**
+- **Regla 1 (push a Vercel):** `git push origin main` ejecutado en Plan 03 T3.
+- **Regla 4 (docs):** esta entrada + `LEARNINGS.md` + `dod-verification.txt` + SUMMARY files por plan.
+- **Regla NO-TOUCH (spirit Regla 6):** verificado en DoD Check 6.
+
+**Referencias:**
+- `.planning/standalone/ui-redesign-landing/LEARNINGS.md` — patterns + trade-offs + handoff completo.
+- `.planning/standalone/ui-redesign-landing/dod-verification.txt` — raw output de los 6 checks.
+- `.planning/standalone/ui-redesign-landing/01-SUMMARY.md` + `02-SUMMARY.md` + `03-SUMMARY.md` — commit chain por plan.
+
 ---
 
 ## Configuracion Pendiente (No es codigo)
@@ -812,3 +878,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 *Actualizado: 21 abril 2026 — Standalone `somnio-recompra-crm-reader` SHIPPED (codigo) con feature flag default `false` (Regla 6 rollout gradual): `somnio-recompra-v1` ahora enriquece la sesion con contexto rico del cliente (ultimo pedido, tags, total pedidos, direccion) via Inngest function `recompra-preload-context` que invoca al agente `crm-reader` en paralelo al saludo. Comprehension del turno 1+ inyecta seccion dedicada `## CONTEXTO CRM DEL CLIENTE (precargado)` cuando `_v3:crm_context_status === 'ok'`. 26 unit tests passing. Activacion manual via SQL en `platform_config.somnio_recompra_crm_reader_enabled`. Ver seccion 11.2.*
 *Actualizado: 22 abril 2026 — Standalone `crm-stage-integrity` SHIPPED (codigo) con feature flags default `false` (Regla 6 rollout gradual). Fix del bug "pedidos se devuelven" reportado 2026-04-21: 6 capas compuestas (domain CAS + audit log append-only + Inngest concurrency per-orderId + runtime kill-switch + build-time cycle detection recursiva + Kanban Realtime + toast rollback). Flags `crm_stage_integrity_cas_enabled` y `crm_stage_integrity_killswitch_enabled` en `platform_config` — flipeable via SQL sin redeploy. Audit log (`order_stage_history`), Inngest concurrency, cycle detection y Kanban Realtime operativos desde deploy (additive, sin flag). Ver seccion CRM Pedidos + `.planning/standalone/crm-stage-integrity/LEARNINGS.md` para rollout guide.*
 *Actualizado: 22 abril 2026 — Standalone `ui-redesign-conversaciones` SHIPPED (6 plans + 06 DoD/docs). Re-skin editorial del modulo Inbox WhatsApp detrás de feature flag per-workspace `workspaces.settings.ui_inbox_v2.enabled` (default `false`, Regla 6). 8 componentes visuales re-skineados (inbox-layout/conversation-list/conversation-item/chat-view/chat-header/contact-panel/message-bubble/message-input) + 6 archivos nuevos (getIsInboxV2Enabled helper + fonts per-route + InboxV2 context + MxTag/IconButton/DaySeparator primitives) + bloque `.theme-editorial` en globals.css (~310 lineas) con tokens paper/ink/rubric + shadcn overrides scoped. Scope confinado a `/whatsapp` (D-07). Dark mode forzado a light (UI-SPEC §12.4). Fix universal del bug pre-existente `hsl(var(--background))` en chat-view post Tailwind v4. Shadcn primitives `dropdown-menu.tsx` + `popover.tsx` extendidos con prop opcional `portalContainer` (aditivo, byte-identical default) para re-rooting Radix portals dentro del scope editorial. D-17 (channel-down banner) y D-18 (snoozed state) diferidos — ver `.planning/standalone/ui-redesign-conversaciones/DEFERRED-D18.md` + LEARNINGS.md para checklist de un-defer. Primera activacion productiva: workspace Somnio (id `a3843b3f-c337-4836-92b5-89c58bb98490`) tras QA lado a lado aprobado por el usuario en Vercel prod. Ver seccion 2. WhatsApp → subseccion "UI Editorial v2 — Inbox Re-skin" + `.planning/standalone/ui-redesign-conversaciones/LEARNINGS.md`.*
+*Actualizado: 22 abril 2026 — Standalone `ui-redesign-landing` SHIPPED (3 plans: 01 layout+home → 02 legal pages → 03 DoD+close). Re-skin editorial de la presencia publica `morfx.app` (landing + terms + privacy + header + footer) **SIN feature flag** — rollout global inmediato para todos los visitantes. Driver: Meta App Review (Facebook Business Verification) — producto (inbox v2 editorial) + marketing ahora tienen el mismo lenguaje paper/ink/rubric. 11 archivos re-skineados (1 created: `src/app/(marketing)/fonts.ts` per-segment loader con dedup automatico del WOFF2 bundle vs `(dashboard)/whatsapp/fonts.ts`; 10 modified). **Cero cambios en `src/app/globals.css`** — tokens + utilities `.theme-editorial` ya existian desde `ui-redesign-conversaciones` Plan 01; esta fase es el primer consumer externo al inbox. ThemeToggle removido del marketing header (D-LND-07 — `.theme-editorial` fuerza `color-scheme: light`), logo light-only (D-LND-08), copy byte-exact (D-LND-06). Legal pages con marginalia `§ N` serif italic ink-3 + body-long leading-[1.7] + rule ornament `— ❦ —` entre secciones (D-LND-09). CTAs ink-1 press byte-exact del composer Send del inbox (D-LND-10 — consistency product ↔ marketing). Push unico al final (D-LND-12) — commit range `1c2fd6f..<HEAD>` pusheado a origin/main, Vercel auto-deploy triggered. Regla NO-TOUCH verificada: 0 lineas diff en `src/app/(dashboard)/ src/lib/ src/hooks/ src/app/globals.css src/messages/` vs base. Ver subseccion "Landing editorial v1" bajo "Presencia Publica — morfx.app" + `.planning/standalone/ui-redesign-landing/LEARNINGS.md` (6 patterns reutilizables para futuras fases UI publicas) + `dod-verification.txt` (6/6 checks PASS primera ejecucion, cero fixes inline).*

@@ -209,7 +209,7 @@ export function KanbanColumn({
       )}
 
       {/* Cards container */}
-      <div className="flex-1 p-2 space-y-1.5 overflow-y-auto min-h-[100px]">
+      <div className="flex-1 p-2 space-y-1.5 overflow-y-auto min-h-[100px] scrollbar-overlay">
         {orders.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm py-8">
             Sin pedidos

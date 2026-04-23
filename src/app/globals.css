@@ -867,6 +867,43 @@
   border-color: oklch(0.80 0.04 180);
 }
 
+/* -- Overlay-style thin scrollbar ------------------------------
+ * Scrollbar invisible en reposo, aparece momentáneamente al hover
+ * (interacción) como una barra delgada sin track-box blanco. Uso:
+ * kanban columns en /crm/pedidos y cualquier lista scrollable
+ * interna que no requiera scrollbar permanente.
+ * Firefox: scrollbar-width + scrollbar-color; WebKit: pseudo elements.
+ */
+.scrollbar-overlay {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+.scrollbar-overlay::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+.scrollbar-overlay::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+}
+.scrollbar-overlay::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+.scrollbar-overlay:hover {
+  scrollbar-color: color-mix(in oklch, currentColor 22%, transparent) transparent;
+}
+.scrollbar-overlay:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, currentColor 22%, transparent);
+}
+.scrollbar-overlay:hover::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, currentColor 40%, transparent);
+}
+
 /* -- Skeleton loading (UI-SPEC §10.4) -------------------------- */
 @keyframes mx-pulse {
   0%, 100% { opacity: 0.6; }

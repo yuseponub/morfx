@@ -71,6 +71,8 @@ import {
 } from '@/app/actions/automations'
 import { TRIGGER_CATALOG } from '@/lib/automations/constants'
 import type { Automation, AutomationFolder } from '@/lib/automations/types'
+import { cn } from '@/lib/utils'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // Constants
@@ -143,6 +145,7 @@ function SortableAutomationRow({
   currentFolderId,
   isToggling,
   isPending,
+  v2,
   onToggle,
   onDuplicate,
   onDelete,
@@ -155,6 +158,7 @@ function SortableAutomationRow({
   currentFolderId: string | null
   isToggling: boolean
   isPending: boolean
+  v2: boolean
   onToggle: () => void
   onDuplicate: () => void
   onDelete: () => void
@@ -177,45 +181,113 @@ function SortableAutomationRow({
   return (
     <div
       ref={ref}
-      className={`flex items-center gap-3 px-3 py-2.5 border rounded-lg bg-card transition-opacity ${
-        isDragSource ? 'opacity-30' : ''
-      } ${!automation.is_enabled ? 'opacity-50' : ''}`}
+      className={cn(
+        v2
+          ? 'flex items-center gap-3 px-3 py-2 border-b border-dotted border-[var(--border)] bg-transparent transition-colors hover:bg-[var(--paper-3)]'
+          : 'flex items-center gap-3 px-3 py-2.5 border rounded-lg bg-card transition-opacity',
+        isDragSource && 'opacity-30',
+        !automation.is_enabled && 'opacity-50'
+      )}
     >
       {/* Drag handle */}
-      <button ref={handleRef} className="cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground shrink-0">
+      <button
+        ref={handleRef}
+        className={cn(
+          'cursor-grab active:cursor-grabbing p-0.5 shrink-0',
+          v2 ? 'text-[var(--ink-4)] hover:text-[var(--ink-1)]' : 'text-muted-foreground hover:text-foreground'
+        )}
+      >
         <GripVertical className="h-4 w-4" />
       </button>
 
+      {/* Status dot (v2 only, mock .al-item .dot) */}
+      {v2 && (
+        <span
+          className={cn(
+            'h-2 w-2 rounded-full shrink-0',
+            automation.is_enabled ? 'bg-[var(--semantic-success)]' : 'bg-[var(--ink-4)]'
+          )}
+          aria-label={automation.is_enabled ? 'Activa' : 'Borrador'}
+        />
+      )}
+
       {/* Name + description */}
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium truncate block">{automation.name}</span>
+        <span
+          className={cn(
+            'truncate block',
+            v2
+              ? 'text-[13px] font-semibold text-[var(--ink-1)] leading-tight'
+              : 'text-sm font-medium'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+        >
+          {automation.name}
+        </span>
         {automation.description && (
-          <span className="text-xs text-muted-foreground truncate block">{automation.description}</span>
+          <span
+            className={cn(
+              'truncate block',
+              v2
+                ? 'mt-0.5 text-[11px] italic text-[var(--ink-3)]'
+                : 'text-xs text-muted-foreground'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
+          >
+            {automation.description}
+          </span>
         )}
       </div>
 
       {/* Badges */}
       <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${categoryColor}`}>
-          {trigger.label}
-        </Badge>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-          {automation.actions.length} acc
-        </Badge>
-      </div>
-
-      {/* Last execution */}
-      <div className="hidden md:flex items-center gap-1 text-xs shrink-0 min-w-[100px]">
-        {statusInfo ? (
+        {v2 ? (
           <>
-            <statusInfo.icon className={`h-3 w-3 ${statusInfo.color}`} />
-            <span className={statusInfo.color}>{statusInfo.label}</span>
-            <span className="text-muted-foreground">{formatRelativeTime(automation.updated_at)}</span>
+            <span
+              className="mx-tag mx-tag--ink text-[10px]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              {trigger.label}
+            </span>
+            <span
+              className="text-[10px] tabular-nums text-[var(--ink-3)]"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {automation.actions.length} acc
+            </span>
           </>
         ) : (
           <>
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">Sin ejec.</span>
+            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${categoryColor}`}>
+              {trigger.label}
+            </Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              {automation.actions.length} acc
+            </Badge>
+          </>
+        )}
+      </div>
+
+      {/* Last execution */}
+      <div
+        className={cn(
+          'hidden md:flex items-center gap-1 text-xs shrink-0 min-w-[100px]',
+          v2 && 'text-[11px]'
+        )}
+        style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+      >
+        {statusInfo ? (
+          <>
+            <statusInfo.icon className={`h-3 w-3 ${statusInfo.color}`} />
+            <span className={v2 ? 'text-[var(--ink-2)]' : statusInfo.color}>{statusInfo.label}</span>
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>
+              {formatRelativeTime(automation.updated_at)}
+            </span>
+          </>
+        ) : (
+          <>
+            <Clock className={cn('h-3 w-3', v2 ? 'text-[var(--ink-4)]' : 'text-muted-foreground')} />
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>Sin ejec.</span>
           </>
         )}
       </div>
@@ -232,7 +304,14 @@ function SortableAutomationRow({
       {/* Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'h-7 w-7 shrink-0',
+              v2 && 'text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--paper-2)]'
+            )}
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -297,6 +376,7 @@ function StaticAutomationRow({
   currentFolderId,
   isToggling,
   isPending,
+  v2,
   onToggle,
   onDuplicate,
   onDelete,
@@ -307,6 +387,7 @@ function StaticAutomationRow({
   currentFolderId: string | null
   isToggling: boolean
   isPending: boolean
+  v2: boolean
   onToggle: () => void
   onDuplicate: () => void
   onDelete: () => void
@@ -320,39 +401,99 @@ function StaticAutomationRow({
 
   return (
     <div
-      className={`flex items-center gap-3 px-3 py-2.5 border rounded-lg bg-card ${
-        !automation.is_enabled ? 'opacity-50' : ''
-      }`}
+      className={cn(
+        v2
+          ? 'flex items-center gap-3 px-3 py-2 border-b border-dotted border-[var(--border)] bg-transparent transition-colors hover:bg-[var(--paper-3)]'
+          : 'flex items-center gap-3 px-3 py-2.5 border rounded-lg bg-card',
+        !automation.is_enabled && 'opacity-50'
+      )}
     >
-      <div className="w-5 shrink-0" />
+      {v2 ? (
+        <span
+          className={cn(
+            'h-2 w-2 rounded-full shrink-0',
+            automation.is_enabled ? 'bg-[var(--semantic-success)]' : 'bg-[var(--ink-4)]'
+          )}
+          aria-label={automation.is_enabled ? 'Activa' : 'Borrador'}
+        />
+      ) : (
+        <div className="w-5 shrink-0" />
+      )}
 
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium truncate block">{automation.name}</span>
+        <span
+          className={cn(
+            'truncate block',
+            v2
+              ? 'text-[13px] font-semibold text-[var(--ink-1)] leading-tight'
+              : 'text-sm font-medium'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+        >
+          {automation.name}
+        </span>
         {automation.description && (
-          <span className="text-xs text-muted-foreground truncate block">{automation.description}</span>
+          <span
+            className={cn(
+              'truncate block',
+              v2
+                ? 'mt-0.5 text-[11px] italic text-[var(--ink-3)]'
+                : 'text-xs text-muted-foreground'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
+          >
+            {automation.description}
+          </span>
         )}
       </div>
 
       <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${categoryColor}`}>
-          {trigger.label}
-        </Badge>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-          {automation.actions.length} acc
-        </Badge>
-      </div>
-
-      <div className="hidden md:flex items-center gap-1 text-xs shrink-0 min-w-[100px]">
-        {statusInfo ? (
+        {v2 ? (
           <>
-            <statusInfo.icon className={`h-3 w-3 ${statusInfo.color}`} />
-            <span className={statusInfo.color}>{statusInfo.label}</span>
-            <span className="text-muted-foreground">{formatRelativeTime(automation.updated_at)}</span>
+            <span
+              className="mx-tag mx-tag--ink text-[10px]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              {trigger.label}
+            </span>
+            <span
+              className="text-[10px] tabular-nums text-[var(--ink-3)]"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {automation.actions.length} acc
+            </span>
           </>
         ) : (
           <>
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">Sin ejec.</span>
+            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${categoryColor}`}>
+              {trigger.label}
+            </Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              {automation.actions.length} acc
+            </Badge>
+          </>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          'hidden md:flex items-center gap-1 text-xs shrink-0 min-w-[100px]',
+          v2 && 'text-[11px]'
+        )}
+        style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+      >
+        {statusInfo ? (
+          <>
+            <statusInfo.icon className={`h-3 w-3 ${statusInfo.color}`} />
+            <span className={v2 ? 'text-[var(--ink-2)]' : statusInfo.color}>{statusInfo.label}</span>
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>
+              {formatRelativeTime(automation.updated_at)}
+            </span>
+          </>
+        ) : (
+          <>
+            <Clock className={cn('h-3 w-3', v2 ? 'text-[var(--ink-4)]' : 'text-muted-foreground')} />
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>Sin ejec.</span>
           </>
         )}
       </div>
@@ -367,7 +508,14 @@ function StaticAutomationRow({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'h-7 w-7 shrink-0',
+              v2 && 'text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--paper-2)]'
+            )}
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -431,6 +579,7 @@ function SortableFolderRow({
   index,
   automationCount,
   isCollapsed,
+  v2,
   onToggleCollapse,
   onRename,
   onDelete,
@@ -440,6 +589,7 @@ function SortableFolderRow({
   index: number
   automationCount: number
   isCollapsed: boolean
+  v2: boolean
   onToggleCollapse: () => void
   onRename: () => void
   onDelete: () => void
@@ -458,11 +608,27 @@ function SortableFolderRow({
   return (
     <div
       ref={ref}
-      className={`border rounded-lg overflow-hidden transition-opacity ${isDragSource ? 'opacity-30' : ''}`}
+      className={cn(
+        v2
+          ? 'border border-[var(--ink-1)] bg-[var(--paper-0)] overflow-hidden transition-opacity shadow-[0_1px_0_var(--ink-1)]'
+          : 'border rounded-lg overflow-hidden transition-opacity',
+        isDragSource && 'opacity-30'
+      )}
     >
       {/* Folder header */}
-      <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/50">
-        <button ref={handleRef} className="cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground shrink-0">
+      <div
+        className={cn(
+          'flex items-center gap-3 px-3 py-2.5',
+          v2 ? 'bg-[var(--paper-2)] border-b border-[var(--ink-1)]' : 'bg-muted/50'
+        )}
+      >
+        <button
+          ref={handleRef}
+          className={cn(
+            'cursor-grab active:cursor-grabbing p-0.5 shrink-0',
+            v2 ? 'text-[var(--ink-4)] hover:text-[var(--ink-1)]' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
           <GripVertical className="h-4 w-4" />
         </button>
 
@@ -471,21 +637,52 @@ function SortableFolderRow({
           className="flex items-center gap-2 min-w-0 flex-1 text-left"
         >
           {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <ChevronRight
+              className={cn('h-4 w-4 shrink-0', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
+            />
           ) : (
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <ChevronDown
+              className={cn('h-4 w-4 shrink-0', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
+            />
           )}
-          <FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="text-sm font-medium truncate">{folder.name}</span>
+          <FolderIcon
+            className={cn('h-4 w-4 shrink-0', v2 ? 'text-[var(--ink-2)]' : 'text-muted-foreground')}
+          />
+          <span
+            className={cn(
+              'truncate',
+              v2
+                ? 'text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-3)]'
+                : 'text-sm font-medium'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+          >
+            {folder.name}
+          </span>
         </button>
 
-        <span className="text-xs text-muted-foreground shrink-0">
-          {automationCount} automatizacion{automationCount !== 1 ? 'es' : ''}
+        <span
+          className={cn(
+            'shrink-0',
+            v2
+              ? 'text-[10px] tabular-nums text-[var(--ink-3)]'
+              : 'text-xs text-muted-foreground'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+        >
+          {v2 ? `· ${automationCount}` : `${automationCount} automatizacion${automationCount !== 1 ? 'es' : ''}`}
         </span>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-7 w-7 shrink-0',
+                v2 && 'text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--paper-3)]'
+              )}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -508,10 +705,25 @@ function SortableFolderRow({
 
       {/* Folder children */}
       {!isCollapsed && (
-        <div className="px-3 py-2 space-y-1.5 bg-muted/20 min-h-[40px]">
+        <div
+          className={cn(
+            'min-h-[40px]',
+            v2
+              ? 'bg-[var(--paper-0)]'
+              : 'px-3 py-2 space-y-1.5 bg-muted/20'
+          )}
+        >
           {children}
           {automationCount === 0 && (
-            <div className="text-xs text-muted-foreground text-center py-3">
+            <div
+              className={cn(
+                'text-center py-3',
+                v2
+                  ? 'text-[11px] italic text-[var(--ink-3)]'
+                  : 'text-xs text-muted-foreground'
+              )}
+              style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
+            >
               Arrastra automatizaciones aqui
             </div>
           )}
@@ -525,7 +737,15 @@ function SortableFolderRow({
 // RootDropZone
 // ============================================================================
 
-function RootDropZone({ children, hasItems }: { children: React.ReactNode; hasItems: boolean }) {
+function RootDropZone({
+  children,
+  hasItems,
+  v2,
+}: {
+  children: React.ReactNode
+  hasItems: boolean
+  v2: boolean
+}) {
   const { ref } = useDroppable({
     id: 'root',
     accept: 'automation',
@@ -533,10 +753,26 @@ function RootDropZone({ children, hasItems }: { children: React.ReactNode; hasIt
   })
 
   return (
-    <div ref={ref} className="space-y-1.5 min-h-[40px]">
+    <div
+      ref={ref}
+      className={cn(
+        'min-h-[40px]',
+        v2
+          ? 'border border-[var(--ink-1)] bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1)]'
+          : 'space-y-1.5'
+      )}
+    >
       {children}
       {!hasItems && (
-        <div className="text-xs text-muted-foreground text-center py-3 border border-dashed rounded-lg">
+        <div
+          className={cn(
+            'text-center py-3',
+            v2
+              ? 'text-[11px] italic text-[var(--ink-3)] border-t border-dotted border-[var(--border)]'
+              : 'text-xs text-muted-foreground border border-dashed rounded-lg'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
+        >
           Automatizaciones sin carpeta
         </div>
       )}
@@ -555,6 +791,7 @@ interface AutomationListProps {
 
 export function AutomationList({ initialAutomations, initialFolders }: AutomationListProps) {
   const router = useRouter()
+  const v2 = useDashboardV2()
   const [isPending, startTransition] = useTransition()
 
   // Build automation lookup map
@@ -899,6 +1136,32 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
   // ========================================================================
 
   if (initialAutomations.length === 0 && initialFolders.length === 0) {
+    if (v2) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
+          <div
+            className="flex h-14 w-14 items-center justify-center bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]"
+          >
+            <Zap className="h-6 w-6 text-[var(--rubric-2)]" />
+          </div>
+          <p className="mx-h3">Sin automatizaciones.</p>
+          <p className="mx-caption max-w-sm">
+            Crea la primera para ahorrar tiempo automatizando tareas repetitivas.
+          </p>
+          <p className="mx-rule-ornament">· · ·</p>
+          <Button
+            asChild
+            className="mt-2 bg-[var(--rubric-2)] text-[var(--paper-0)] border border-[var(--rubric-1)] shadow-[0_1px_0_var(--rubric-1)] hover:bg-[var(--rubric-1)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            <Link href="/automatizaciones/nueva">
+              <Plus className="h-4 w-4 mr-2" />
+              Crear automatización
+            </Link>
+          </Button>
+        </div>
+      )
+    }
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -927,46 +1190,110 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Automatizaciones</h1>
-          <p className="text-muted-foreground">
-            {initialAutomations.length} automatizacion{initialAutomations.length !== 1 ? 'es' : ''}
-            {folderOrder.length > 0 && ` · ${folderOrder.length} carpeta${folderOrder.length !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/automatizaciones/builder">
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI Builder
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/automatizaciones/historial">
-              <History className="h-4 w-4 mr-2" />
-              Historial
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setCreatingFolder(true)
-              setNewFolderName('')
-            }}
+      {v2 ? (
+        <div className="flex items-end justify-between gap-3">
+          <p
+            className="text-[11px] italic text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-serif)' }}
           >
-            <FolderPlus className="h-4 w-4 mr-2" />
-            Nueva carpeta
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/automatizaciones/nueva">
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva automatizacion
-            </Link>
-          </Button>
+            {initialAutomations.length} automatizaci
+            {initialAutomations.length !== 1 ? 'ones' : 'ón'}
+            {folderOrder.length > 0 &&
+              ` · ${folderOrder.length} carpeta${folderOrder.length !== 1 ? 's' : ''}`}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              <Link href="/automatizaciones/builder">
+                <Sparkles className="h-4 w-4 mr-2 text-[var(--rubric-2)]" />
+                AI Builder
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              <Link href="/automatizaciones/historial">
+                <History className="h-4 w-4 mr-2" />
+                Historial
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCreatingFolder(true)
+                setNewFolderName('')
+              }}
+              className="bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              <FolderPlus className="h-4 w-4 mr-2" />
+              Nueva carpeta
+            </Button>
+            <Button
+              size="sm"
+              asChild
+              className="bg-[var(--rubric-2)] text-[var(--paper-0)] border border-[var(--rubric-1)] shadow-[0_1px_0_var(--rubric-1)] hover:bg-[var(--rubric-1)] text-[11px] font-semibold uppercase tracking-[0.08em]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              <Link href="/automatizaciones/nueva">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva automatización
+              </Link>
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Automatizaciones</h1>
+            <p className="text-muted-foreground">
+              {initialAutomations.length} automatizacion{initialAutomations.length !== 1 ? 'es' : ''}
+              {folderOrder.length > 0 && ` · ${folderOrder.length} carpeta${folderOrder.length !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/automatizaciones/builder">
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Builder
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/automatizaciones/historial">
+                <History className="h-4 w-4 mr-2" />
+                Historial
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCreatingFolder(true)
+                setNewFolderName('')
+              }}
+            >
+              <FolderPlus className="h-4 w-4 mr-2" />
+              Nueva carpeta
+            </Button>
+            <Button size="sm" asChild>
+              <Link href="/automatizaciones/nueva">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva automatizacion
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Create folder inline */}
       {creatingFolder && (
@@ -1018,37 +1345,85 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar automatizaciones..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex gap-1">
-          {categories.map((cat) => (
-            <Button
-              key={cat.value}
-              variant={categoryFilter === cat.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setCategoryFilter(cat.value)}
-            >
-              {cat.label}
-            </Button>
-          ))}
+        {v2 ? (
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-[13px] w-[13px] text-[var(--ink-3)] pointer-events-none"
+              aria-hidden
+            />
+            <Input
+              placeholder="Buscar flujo…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-[var(--paper-0)] border-[var(--border)] rounded-[var(--radius-2)] py-1.5 pr-3 pl-9 text-[12px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:ring-[var(--ink-1)]"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            />
+          </div>
+        ) : (
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar automatizaciones..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        )}
+        <div className={cn('flex gap-1 flex-wrap', v2 && 'gap-2')}>
+          {categories.map((cat) => {
+            const isActive = categoryFilter === cat.value
+            return v2 ? (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => setCategoryFilter(cat.value)}
+                className={cn(
+                  'px-3 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase transition-colors border',
+                  isActive
+                    ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border-[var(--ink-1)]'
+                    : 'bg-transparent text-[var(--ink-3)] border-[var(--border)] hover:text-[var(--ink-1)] hover:border-[var(--ink-1)]'
+                )}
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                {cat.label}
+              </button>
+            ) : (
+              <Button
+                key={cat.value}
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCategoryFilter(cat.value)}
+              >
+                {cat.label}
+              </Button>
+            )
+          })}
         </div>
       </div>
 
       {/* Main content */}
       {isFiltering ? (
         /* ── Filtered flat view (no folders, no DnD) ── */
-        <div className="space-y-1.5">
+        <div
+          className={cn(
+            v2
+              ? 'border border-[var(--ink-1)] bg-[var(--paper-0)] shadow-[0_1px_0_var(--ink-1)]'
+              : 'space-y-1.5'
+          )}
+        >
           {filteredAutomations && filteredAutomations.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              No se encontraron automatizaciones con los filtros actuales
-            </div>
+            v2 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-2">
+                <p className="mx-h4">Sin resultados.</p>
+                <p className="mx-caption">No se encontraron automatizaciones con los filtros actuales.</p>
+                <p className="mx-rule-ornament">· · ·</p>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                No se encontraron automatizaciones con los filtros actuales
+              </div>
+            )
           ) : (
             filteredAutomations?.map((automation) => (
               <StaticAutomationRow
@@ -1058,6 +1433,7 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
                 currentFolderId={automation.folder_id}
                 isToggling={togglingIds.has(automation.id)}
                 isPending={isPending}
+                v2={v2}
                 onToggle={() => handleToggle(automation)}
                 onDuplicate={() => handleDuplicate(automation)}
                 onDelete={() => setDeleteTarget(automation)}
@@ -1088,6 +1464,7 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
                   index={folderIndex}
                   automationCount={folderItems.length}
                   isCollapsed={isCollapsed}
+                  v2={v2}
                   onToggleCollapse={() => handleToggleCollapse(folderId)}
                   onRename={() => startRenameFolder(folder)}
                   onDelete={() => handleStartDeleteFolder(folder)}
@@ -1105,6 +1482,7 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
                         currentFolderId={folderId}
                         isToggling={togglingIds.has(autoId)}
                         isPending={isPending}
+                        v2={v2}
                         onToggle={() => handleToggle(auto)}
                         onDuplicate={() => handleDuplicate(auto)}
                         onDelete={() => setDeleteTarget(auto)}
@@ -1117,7 +1495,7 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
             })}
 
             {/* Root automations */}
-            <RootDropZone hasItems={(items.root ?? []).length > 0}>
+            <RootDropZone hasItems={(items.root ?? []).length > 0} v2={v2}>
               {(items.root ?? []).map((autoId, autoIndex) => {
                 const auto = automationMap.get(autoId)
                 if (!auto) return null
@@ -1131,6 +1509,7 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
                     currentFolderId={null}
                     isToggling={togglingIds.has(autoId)}
                     isPending={isPending}
+                    v2={v2}
                     onToggle={() => handleToggle(auto)}
                     onDuplicate={() => handleDuplicate(auto)}
                     onDelete={() => setDeleteTarget(auto)}
@@ -1148,18 +1527,52 @@ export function AutomationList({ initialAutomations, initialFolders }: Automatio
               if (source.type === 'folder') {
                 const folder = folderMap.get(source.id as string)
                 return folder ? (
-                  <div className="flex items-center gap-2 px-3 py-2.5 bg-muted border rounded-lg shadow-lg">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{folder.name}</span>
+                  <div
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2.5 shadow-lg',
+                      v2
+                        ? 'bg-[var(--paper-2)] border border-[var(--ink-1)]'
+                        : 'bg-muted border rounded-lg'
+                    )}
+                  >
+                    <GripVertical
+                      className={cn('h-4 w-4', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
+                    />
+                    <FolderOpen
+                      className={cn('h-4 w-4', v2 ? 'text-[var(--ink-2)]' : 'text-muted-foreground')}
+                    />
+                    <span
+                      className={cn(
+                        v2 ? 'text-[13px] font-semibold text-[var(--ink-1)]' : 'text-sm font-medium'
+                      )}
+                      style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                    >
+                      {folder.name}
+                    </span>
                   </div>
                 ) : null
               }
               const auto = automationMap.get(source.id as string)
               return auto ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-card border rounded-lg shadow-lg">
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{auto.name}</span>
+                <div
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2.5 shadow-lg',
+                    v2
+                      ? 'bg-[var(--paper-0)] border border-[var(--ink-1)]'
+                      : 'bg-card border rounded-lg'
+                  )}
+                >
+                  <GripVertical
+                    className={cn('h-4 w-4', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}
+                  />
+                  <span
+                    className={cn(
+                      v2 ? 'text-[13px] font-semibold text-[var(--ink-1)]' : 'text-sm font-medium'
+                    )}
+                    style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+                  >
+                    {auto.name}
+                  </span>
                 </div>
               ) : null
             }}

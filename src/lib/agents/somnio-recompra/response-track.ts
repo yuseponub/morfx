@@ -28,15 +28,12 @@ import type { AgentState, ProcessedMessage, ResponseTrackOutput, TipoAccion } fr
 // ============================================================================
 // Template lookup agent_id
 // ============================================================================
-// Recompra's agent identity constant is SOMNIO_RECOMPRA_AGENT_ID from config.ts
-// (`somnio-recompra-v1`) — used for sessions, observability, rate-limit buckets.
-// For TEMPLATE lookup specifically, recompra reuses the somnio-sales-v3 template
-// set (registered under `agent_id='somnio-sales-v3'` in the `agent_templates` table).
-// TemplateManager.loadTemplates filters `.eq('agent_id', agentId)`, so passing the
-// recompra agent id returned zero rows → fallback to generic promos. Split the
-// constants so template lookup points to the shared bank.
+// Recompra opera con su propio catalogo bajo agent_id='somnio-recompra-v1'.
+// Phase `somnio-recompra-template-catalog` poblo los gaps (contraindicaciones,
+// tiempo_entrega_1_3_days, tiempo_entrega_2_4_days) en 2026-04-23 y revirtio
+// el fix T2 (cdc06d9) que apuntaba a sales-v3 temporalmente.
 
-const TEMPLATE_LOOKUP_AGENT_ID = 'somnio-sales-v3'
+const TEMPLATE_LOOKUP_AGENT_ID = 'somnio-recompra-v1'
 
 // ============================================================================
 // Main Response Track Function
@@ -280,7 +277,7 @@ const FIELD_LABELS: Record<string, string> = {
 // Sales Action -> Template Resolution
 // ============================================================================
 
-async function resolveSalesActionTemplates(
+export async function resolveSalesActionTemplates(
   action: TipoAccion,
   state: AgentState,
 ): Promise<{ intents: string[]; extraContext?: Record<string, string> }> {
@@ -337,13 +334,14 @@ async function resolveSalesActionTemplates(
       const faltantes = camposFaltantes(state)
       const direccion = state.datos.direccion ?? ''
       const ciudad = state.datos.ciudad ?? ''
+      const departamento = state.datos.departamento ?? ''
 
       if (faltantes.length === 0 || (direccion && ciudad)) {
         // All critical data present — ask for address confirmation
         return {
           intents: ['preguntar_direccion_recompra'],
           extraContext: {
-            direccion_completa: [direccion, ciudad].filter(Boolean).join(', '),
+            direccion_completa: [direccion, ciudad, departamento].filter(Boolean).join(', '),
             nombre_saludo: getGreeting(state.datos.nombre),
           },
         }

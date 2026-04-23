@@ -63,11 +63,11 @@ export const ESCAPE_INTENTS: ReadonlySet<string> = new Set([
 // Two-Track Decision Constants
 // ============================================================================
 
-/** Intents that the response track always answers (informational questions). 9 total. */
+/** Intents that the response track always answers (informational questions). 10 total. */
 export const INFORMATIONAL_INTENTS: ReadonlySet<string> = new Set([
   'saludo', 'precio', 'promociones',
   'pago', 'envio', 'ubicacion', 'contraindicaciones', 'dependencia',
-  'tiempo_entrega',
+  'tiempo_entrega', 'registro_sanitario',
 ])
 
 /** Maps sales track accion to template intents. Simplified — no ofi inter, no retoma_datos variants. */

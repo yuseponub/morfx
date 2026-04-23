@@ -6,6 +6,8 @@ import type { Period, OrderMetrics, SalesTrend } from '@/lib/analytics/types'
 import { MetricCards } from './metric-cards'
 import { SalesChart } from './sales-chart'
 import { PeriodSelector } from './period-selector'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
+import { cn } from '@/lib/utils'
 
 interface AnalyticsViewProps {
   initialMetrics: OrderMetrics
@@ -17,6 +19,7 @@ export function AnalyticsView({ initialMetrics, initialTrend }: AnalyticsViewPro
   const [metrics, setMetrics] = useState(initialMetrics)
   const [trend, setTrend] = useState(initialTrend)
   const [isPending, startTransition] = useTransition()
+  const v2 = useDashboardV2()
 
   const handlePeriodChange = (newPeriod: Period) => {
     setPeriod(newPeriod)
@@ -31,7 +34,7 @@ export function AnalyticsView({ initialMetrics, initialTrend }: AnalyticsViewPro
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn('space-y-6', v2 && 'theme-editorial')}>
       <div className="flex justify-end">
         <PeriodSelector value={period} onChange={handlePeriodChange} disabled={isPending} />
       </div>

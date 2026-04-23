@@ -7,6 +7,8 @@ import { useMetricasRealtime } from '../hooks/use-metricas-realtime'
 import { PeriodSelector } from './period-selector'
 import { MetricCards } from './metric-cards'
 import { EvolutionChart } from './evolution-chart'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
+import { cn } from '@/lib/utils'
 
 interface MetricasViewProps {
   initial: MetricsPayload
@@ -17,6 +19,7 @@ export function MetricasView({ initial, workspaceId }: MetricasViewProps) {
   const [period, setPeriod] = useState<Period>('today')
   const [data, setData] = useState<MetricsPayload>(initial)
   const [isPending, startTransition] = useTransition()
+  const v2 = useDashboardV2()
 
   // Track latest period in a ref so the realtime callback always re-fetches
   // with the currently-selected period without re-creating the subscription.
@@ -46,7 +49,7 @@ export function MetricasView({ initial, workspaceId }: MetricasViewProps) {
   useMetricasRealtime(workspaceId, () => refresh())
 
   return (
-    <div className="space-y-6">
+    <div className={cn('space-y-6', v2 && 'theme-editorial')}>
       <div className="flex justify-end">
         <PeriodSelector value={period} onChange={handlePeriodChange} disabled={isPending} />
       </div>

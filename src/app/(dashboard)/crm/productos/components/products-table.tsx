@@ -23,6 +23,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
+import { cn } from '@/lib/utils'
 import { createColumns } from './columns'
 import { ProductForm, productToFormData } from './product-form'
 import { deleteProduct, toggleProductActive } from '@/app/actions/products'
@@ -36,6 +38,7 @@ interface ProductsTableProps {
 
 export function ProductsTable({ products }: ProductsTableProps) {
   const router = useRouter()
+  const v2 = useDashboardV2()
   const [search, setSearch] = React.useState('')
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -75,8 +78,9 @@ export function ProductsTable({ products }: ProductsTableProps) {
             router.refresh()
           }
         },
+        v2,
       }),
-    [router]
+    [router, v2]
   )
 
   // Handle delete confirmation
@@ -113,19 +117,37 @@ export function ProductsTable({ products }: ProductsTableProps) {
   if (products.length === 0) {
     return (
       <>
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="rounded-full bg-muted p-4 mb-4">
-            <PackageIcon className="h-8 w-8 text-muted-foreground" />
+        {v2 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+            <p className="mx-h3">Sin productos.</p>
+            <p className="mx-caption max-w-sm">
+              Agrega tu primer producto para poder incluirlo en tus pedidos.
+            </p>
+            <p className="mx-rule-ornament">· · ·</p>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)] mt-2"
+              style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' }}
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Nuevo Producto
+            </Button>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Sin productos</h3>
-          <p className="text-muted-foreground mb-6 max-w-sm">
-            Agrega tu primer producto para poder incluirlo en tus pedidos.
-          </p>
-          <Button onClick={() => setDialogOpen(true)}>
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Nuevo Producto
-          </Button>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <PackageIcon className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Sin productos</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm">
+              Agrega tu primer producto para poder incluirlo en tus pedidos.
+            </p>
+            <Button onClick={() => setDialogOpen(true)}>
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Nuevo Producto
+            </Button>
+          </div>
+        )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
@@ -145,14 +167,26 @@ export function ProductsTable({ products }: ProductsTableProps) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className={v2 ? 'flex items-center gap-3 flex-wrap' : 'flex items-center gap-4'}>
+        <div className={cn('relative', v2 ? 'flex-1 max-w-[320px]' : 'flex-1 max-w-sm')}>
+          <SearchIcon
+            className={cn(
+              'absolute top-1/2 -translate-y-1/2',
+              v2
+                ? 'left-[10px] h-[14px] w-[14px] text-[var(--ink-3)]'
+                : 'left-3 h-4 w-4 text-muted-foreground'
+            )}
+          />
           <Input
-            placeholder="Buscar por titulo o SKU..."
+            placeholder={v2 ? 'Buscar por título o SKU…' : 'Buscar por titulo o SKU...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className={cn(
+              v2
+                ? 'pl-[30px] bg-[var(--paper-0)] border-[var(--border)] rounded-[var(--radius-3)] text-[13px]'
+                : 'pl-9'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -160,7 +194,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
             variant="outline"
             size="sm"
             onClick={() => setShowInactive(!showInactive)}
-            className="gap-2"
+            className={cn('gap-2', v2 && 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)] shadow-[0_1px_0_var(--ink-1)]')}
           >
             {showInactive ? (
               <>
@@ -174,7 +208,11 @@ export function ProductsTable({ products }: ProductsTableProps) {
               </>
             )}
           </Button>
-          <Button onClick={() => setDialogOpen(true)}>
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className={v2 ? 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)]' : ''}
+            style={v2 ? { fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' } : undefined}
+          >
             <PlusIcon className="h-4 w-4 mr-2" />
             Nuevo Producto
           </Button>
@@ -182,13 +220,21 @@ export function ProductsTable({ products }: ProductsTableProps) {
       </div>
 
       {/* Data table */}
-      <DataTable
-        columns={columns}
-        data={filteredProducts}
-        onRowSelectionChange={setRowSelection}
-        searchColumn="title"
-        searchValue={search}
-      />
+      <div
+        className={cn(
+          v2 &&
+            'bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[var(--radius-3)] overflow-hidden [&_table]:border-collapse [&_thead_th]:bg-[var(--paper-1)] [&_thead_th]:border-b [&_thead_th]:border-[var(--ink-1)] [&_thead_th]:text-[10px] [&_thead_th]:uppercase [&_thead_th]:tracking-[0.08em] [&_thead_th]:text-[var(--ink-3)] [&_thead_th]:font-semibold [&_tbody_tr:hover]:bg-[var(--paper-2)] [&_tbody_td]:border-b [&_tbody_td]:border-[var(--border)] [&_tbody_td]:text-[13px] [&_tbody_td]:text-[var(--ink-1)]'
+        )}
+        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+      >
+        <DataTable
+          columns={columns}
+          data={filteredProducts}
+          onRowSelectionChange={setRowSelection}
+          searchColumn="title"
+          searchValue={search}
+        />
+      </div>
 
       {/* Create/Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>

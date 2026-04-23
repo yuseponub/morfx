@@ -26,6 +26,8 @@ import { moveOrderToStage } from '@/app/actions/orders'
 import { updateStageOrder } from '@/app/actions/pipelines'
 import { toast } from 'sonner'
 import { useKanbanRealtime } from '@/hooks/use-kanban-realtime'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
+import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineStage, OrdersByStage } from '@/lib/orders/types'
 
 /**
@@ -143,6 +145,7 @@ export function KanbanBoard({
   onLoadMore,
   onOrderMoved,
 }: KanbanBoardProps) {
+  const v2 = useDashboardV2()
   // Track the order being dragged for overlay
   const [activeOrder, setActiveOrder] = React.useState<OrderWithDetails | null>(null)
   // Track the stage being dragged for overlay
@@ -432,7 +435,12 @@ export function KanbanBoard({
         items={localStages.map((s) => s.id)}
         strategy={horizontalListSortingStrategy}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-280px)]">
+        <div
+          className={cn(
+            'flex overflow-x-auto pb-4 h-[calc(100vh-280px)]',
+            v2 ? 'gap-4 px-1' : 'gap-4'
+          )}
+        >
           {localStages.map((stage) => (
             <KanbanColumn
               key={stage.id}
@@ -459,15 +467,44 @@ export function KanbanBoard({
         {activeOrder ? (
           <KanbanCard order={activeOrder} isDragging />
         ) : activeStage ? (
-          <div className="w-72 min-w-72 bg-muted/50 rounded-lg border-2 border-primary opacity-80 shadow-lg">
-            <div className="flex items-center gap-2 p-3 border-b bg-muted/50 rounded-t-lg">
+          <div
+            className={cn(
+              'w-72 min-w-72 opacity-80 shadow-lg',
+              v2
+                ? 'bg-[var(--paper-0)] rounded-[3px] border-2 border-[var(--ink-1)]'
+                : 'bg-muted/50 rounded-lg border-2 border-primary'
+            )}
+          >
+            <div
+              className={cn(
+                'flex items-center gap-2 p-3',
+                v2
+                  ? 'border-b border-[var(--ink-1)] bg-[var(--paper-1)] rounded-t-[3px]'
+                  : 'border-b bg-muted/50 rounded-t-lg'
+              )}
+            >
               <div
                 className="w-3 h-3 rounded-full shrink-0"
                 style={{ backgroundColor: activeStage.color }}
               />
-              <span className="font-medium text-sm">{activeStage.name}</span>
+              <span
+                className={cn(
+                  v2
+                    ? 'text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-1)]'
+                    : 'font-medium text-sm'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+              >
+                {activeStage.name}
+              </span>
             </div>
-            <div className="p-4 text-center text-muted-foreground text-sm">
+            <div
+              className={cn(
+                'p-4 text-center text-sm',
+                v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'
+              )}
+              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            >
               {localOrdersByStage[activeStage.id]?.length || 0} pedidos
             </div>
           </div>

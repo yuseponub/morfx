@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp } from 'lucide-react'
+import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp, Package, FlaskConical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -121,6 +121,59 @@ const navItems: NavItem[] = [
   },
 ]
 
+/**
+ * Sidebar v2 categories — Propuesta B (D-RETRO-04).
+ *
+ * 14 items across 4 categorías. Shares the same filtering semantics
+ * as `navItems` (adminOnly, settingsKey, hidden_modules). Items link
+ * to routes that already exist in the codebase (verified 2026-04-23
+ * against `src/app/(dashboard)/*`).
+ *
+ * Used ONLY when `v2=true`. The legacy flat `navItems[]` above keeps
+ * the flag-off render byte-identical (Regla 6 fail-closed).
+ */
+type SidebarCategoryV2 = {
+  label: string
+  items: NavItem[]
+}
+
+const navCategoriesV2: SidebarCategoryV2[] = [
+  {
+    label: 'Operación',
+    items: [
+      { href: '/crm', label: 'CRM', icon: Building2 },
+      { href: '/whatsapp', label: 'WhatsApp', icon: MessageSquare },
+      { href: '/crm/pedidos', label: 'Pedidos', icon: Package },
+      { href: '/tareas', label: 'Tareas', icon: ListTodo, badgeType: 'tasks' },
+      { href: '/confirmaciones', label: 'Confirmaciones', icon: CalendarCheck },
+      { href: '/sms', label: 'SMS', icon: MessageSquareText },
+    ],
+  },
+  {
+    label: 'Automatización',
+    items: [
+      { href: '/automatizaciones', label: 'Automatizaciones', icon: Zap, badgeType: 'automations' },
+      { href: '/agentes', label: 'Agentes', icon: Bot },
+      { href: '/comandos', label: 'Comandos', icon: Terminal, adminOnly: true },
+    ],
+  },
+  {
+    label: 'Análisis',
+    items: [
+      { href: '/analytics', label: 'Analytics', icon: BarChart3, adminOnly: true },
+      { href: '/metricas', label: 'Metricas', icon: TrendingUp, settingsKey: 'conversation_metrics.enabled' },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { href: '/sandbox', label: 'Sandbox', icon: FlaskConical },
+      { href: '/settings/workspace/members', label: 'Equipo', icon: Users },
+      { href: '/configuracion', label: 'Configuración', icon: Settings },
+    ],
+  },
+]
+
 interface SidebarProps {
   workspaces?: WorkspaceWithRole[]
   currentWorkspace?: WorkspaceWithRole | null
@@ -159,6 +212,189 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false }:
     }
     return true
   })
+
+  // =========================================================================
+  // Retrofit v2 branch — Propuesta B sidebar (D-RETRO-04 + D-RETRO-01)
+  // Raw HTML semantic with classes ported from the mock (Task 1). The legacy
+  // branch below remains BYTE-IDENTICAL to HEAD pre-plan when v2=false.
+  // =========================================================================
+  if (v2) {
+    const filterItem = (item: NavItem): boolean => {
+      if (item.adminOnly && !isManager) return false
+      if (hiddenModules?.includes(item.href)) return false
+      if (item.settingsKey) {
+        const [ns, key] = item.settingsKey.split('.')
+        const nsObj = settings?.[ns] as Record<string, unknown> | undefined
+        if (!nsObj?.[key]) return false
+      }
+      return true
+    }
+
+    const workspaceSubline = currentWorkspace?.name
+      ? `${currentWorkspace.name} · CRM`
+      : 'CRM · Contactos & pedidos'
+
+    return (
+      <aside className="sb hidden md:flex w-64 shrink-0">
+        <TooltipProvider>
+          <div className="brand">
+            <div className="wm">
+              morf<b>·</b>x
+            </div>
+            <div className="sub">{workspaceSubline}</div>
+          </div>
+
+          {/* Workspace switcher preserved as functional infra — the mock omits
+              it but the app requires it to switch contexts. Wrapped in a
+              paper-2 container so it reads as a sidebar module, not a
+              floating primitive. */}
+          <div
+            className="px-3 py-3"
+            style={{ borderBottom: '1px solid var(--border)' }}
+          >
+            <WorkspaceSwitcher
+              workspaces={workspaces}
+              currentWorkspace={currentWorkspace}
+            />
+          </div>
+
+          <div className="px-3 py-3">
+            <GlobalSearch />
+          </div>
+
+          <nav className="sb-nav">
+            {navCategoriesV2.map(category => {
+              const visibleItems = category.items.filter(filterItem)
+              if (visibleItems.length === 0) return null
+              return (
+                <div key={category.label}>
+                  <div className="cat">{category.label}</div>
+                  <ul>
+                    {visibleItems.map(item => {
+                      const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                      const Icon = item.icon
+                      let badgeCount = 0
+                      if (item.badgeType === 'tasks') badgeCount = taskBadgeCount
+                      else if (item.badgeType === 'automations') badgeCount = automationFailureCount
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={isActive ? 'active' : ''}
+                          >
+                            <Icon width={16} height={16} />
+                            <span style={{ flex: 1 }}>{item.label}</span>
+                            {badgeCount > 0 && (
+                              <span
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 10,
+                                  color: 'var(--paper-0)',
+                                  background: 'var(--rubric-2)',
+                                  padding: '1px 6px',
+                                  borderRadius: 999,
+                                  minWidth: 18,
+                                  textAlign: 'center',
+                                }}
+                              >
+                                {badgeCount > 99 ? '99+' : badgeCount}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+          </nav>
+
+          {user && (
+            <div
+              className="px-4 py-3"
+              style={{
+                borderTop: '1px solid var(--ink-1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: 'var(--ink-1)',
+                  color: 'var(--paper-0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                {user.email?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-serif)',
+                    fontSize: 13,
+                    color: 'var(--ink-1)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.email?.split('@')[0]}
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: 'var(--ink-3)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.email}
+                </p>
+              </div>
+              <form action={logout}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="submit"
+                      aria-label="Cerrar sesión"
+                      style={{
+                        padding: 6,
+                        borderRadius: 3,
+                        background: 'transparent',
+                        border: 0,
+                        color: 'var(--ink-2)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>Cerrar sesion</p>
+                  </TooltipContent>
+                </Tooltip>
+              </form>
+            </div>
+          )}
+        </TooltipProvider>
+      </aside>
+    )
+  }
 
   return (
     <aside

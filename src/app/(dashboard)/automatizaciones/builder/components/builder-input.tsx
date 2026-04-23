@@ -18,6 +18,8 @@ import {
 } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 export interface BuilderInputProps {
   onSubmit: (text: string) => void
@@ -26,6 +28,7 @@ export interface BuilderInputProps {
 }
 
 export function BuilderInput({ onSubmit, isLoading, ref }: BuilderInputProps) {
+  const v2 = useDashboardV2()
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -79,17 +82,26 @@ export function BuilderInput({ onSubmit, isLoading, ref }: BuilderInputProps) {
         value={input}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        placeholder="Describe tu automatizacion..."
+        placeholder={v2 ? 'Describe el flujo que quieres crear…' : 'Describe tu automatizacion...'}
         disabled={isLoading}
         rows={1}
-        className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ minHeight: '40px' }}
+        className={cn(
+          'flex-1 resize-none px-3 py-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50',
+          v2
+            ? 'bg-[var(--paper-0)] border border-[var(--ink-1)] rounded-[var(--radius-2)] text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:ring-[var(--ink-1)]'
+            : 'rounded-lg border border-input bg-background text-sm placeholder:text-muted-foreground focus-visible:ring-ring'
+        )}
+        style={{ minHeight: '40px', ...(v2 ? { fontFamily: 'var(--font-sans)' } : {}) }}
       />
       <Button
         size="icon"
         onClick={handleSubmitClick}
         disabled={!input.trim() || isLoading}
-        className="shrink-0 h-10 w-10"
+        className={cn(
+          'shrink-0 h-10 w-10',
+          v2 &&
+            'bg-[var(--rubric-2)] text-[var(--paper-0)] border border-[var(--rubric-1)] shadow-[0_1px_0_var(--rubric-1)] hover:bg-[var(--rubric-1)] rounded-none'
+        )}
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />

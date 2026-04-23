@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic'
 import type { UIMessage } from 'ai'
 import type { AutomationPreviewData } from '@/lib/builder/types'
 import { Loader2, Check, ExternalLink } from 'lucide-react'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // Dynamically import AutomationPreview (requires browser APIs for React Flow)
 const AutomationPreview = dynamic(
@@ -166,6 +167,7 @@ export function BuilderMessage({
   onConfirmPreview,
   onModifyRequest,
 }: BuilderMessageProps) {
+  const v2 = useDashboardV2()
   const isUser = message.role === 'user'
 
   return (
@@ -177,11 +179,19 @@ export function BuilderMessage({
     >
       <div
         className={cn(
-          'rounded-2xl px-4 py-2.5 space-y-2',
-          isUser
-            ? 'bg-primary text-primary-foreground ml-auto max-w-[80%]'
-            : 'bg-muted mr-auto max-w-[90%]'
+          'px-4 py-2.5 space-y-2',
+          v2
+            ? isUser
+              ? 'bg-[var(--paper-2)] border border-[var(--border)] text-[var(--ink-1)] ml-auto max-w-[80%]'
+              : 'bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)] text-[var(--ink-1)] mr-auto max-w-[90%]'
+            : cn(
+                'rounded-2xl',
+                isUser
+                  ? 'bg-primary text-primary-foreground ml-auto max-w-[80%]'
+                  : 'bg-muted mr-auto max-w-[90%]'
+              )
         )}
+        style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
       >
         {(!message.parts || !Array.isArray(message.parts)) ? (
           // Fallback for corrupted/legacy messages without .parts (e.g. ModelMessage format)
@@ -197,9 +207,12 @@ export function BuilderMessage({
                 <div
                   key={i}
                   className={cn(
-                    'text-sm whitespace-pre-wrap break-words',
-                    !isUser && 'prose prose-sm dark:prose-invert max-w-none'
+                    v2
+                      ? 'text-[14px] leading-relaxed whitespace-pre-wrap break-words'
+                      : 'text-sm whitespace-pre-wrap break-words',
+                    !v2 && !isUser && 'prose prose-sm dark:prose-invert max-w-none'
                   )}
+                  style={v2 && !isUser ? { fontFamily: 'var(--font-serif)' } : undefined}
                 >
                   {part.text}
                 </div>

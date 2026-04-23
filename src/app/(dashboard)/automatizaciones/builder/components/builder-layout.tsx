@@ -14,8 +14,11 @@ import { Button } from '@/components/ui/button'
 import { BuilderChat } from './builder-chat'
 import { SessionHistory } from './session-history'
 import type { UIMessage } from 'ai'
+import { cn } from '@/lib/utils'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 export function BuilderLayout() {
+  const v2 = useDashboardV2()
   // Session state
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionTitle, setSessionTitle] = useState<string | null>(null)
@@ -81,15 +84,28 @@ export function BuilderLayout() {
   }, [])
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className={cn('flex-1 overflow-y-auto', v2 && 'bg-[var(--paper-1)]')}>
       <div className="flex flex-col h-full relative">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-4 py-3 bg-background shrink-0 z-10">
+        <div
+          className={cn(
+            'flex items-center justify-between px-4 py-3 shrink-0 z-10',
+            v2
+              ? 'border-b border-[var(--ink-1)] bg-[var(--paper-1)]'
+              : 'border-b bg-background'
+          )}
+        >
           {/* Left: Back link + History toggle */}
           <div className="flex items-center gap-2">
             <Link
               href="/automatizaciones"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className={cn(
+                'flex items-center gap-1.5 transition-colors',
+                v2
+                  ? 'text-[12px] text-[var(--ink-3)] hover:text-[var(--ink-1)]'
+                  : 'text-sm text-muted-foreground hover:text-foreground'
+              )}
+              style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Automatizaciones</span>
@@ -98,7 +114,12 @@ export function BuilderLayout() {
               variant={showHistory ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => setShowHistory((prev) => !prev)}
-              className="h-8 w-8"
+              className={cn(
+                'h-8 w-8',
+                v2 && (showHistory
+                  ? 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-1)]'
+                  : 'text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--paper-3)]')
+              )}
               title="Historial de sesiones"
             >
               <Clock className="h-4 w-4" />
@@ -107,11 +128,38 @@ export function BuilderLayout() {
 
           {/* Center: Title */}
           <div className="flex flex-col items-center">
-            <h1 className="text-sm font-semibold">AI Builder</h1>
-            {sessionTitle && (
-              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                {sessionTitle}
-              </span>
+            {v2 ? (
+              <>
+                <span
+                  className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+                  style={{ fontFamily: 'var(--font-sans)' }}
+                >
+                  Builder · IA
+                </span>
+                <h1
+                  className="text-[15px] font-semibold text-[var(--ink-1)] tracking-[-0.01em]"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  AI Builder
+                </h1>
+                {sessionTitle && (
+                  <span
+                    className="text-[11px] italic text-[var(--ink-3)] truncate max-w-[200px]"
+                    style={{ fontFamily: 'var(--font-serif)' }}
+                  >
+                    {sessionTitle}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <h1 className="text-sm font-semibold">AI Builder</h1>
+                {sessionTitle && (
+                  <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                    {sessionTitle}
+                  </span>
+                )}
+              </>
             )}
           </div>
 
@@ -120,7 +168,12 @@ export function BuilderLayout() {
             variant="outline"
             size="sm"
             onClick={handleNewSession}
-            className="gap-1.5"
+            className={cn(
+              'gap-1.5',
+              v2 &&
+                'bg-transparent text-[var(--ink-1)] border border-[var(--ink-1)] hover:bg-[var(--paper-3)] text-[11px] font-semibold uppercase tracking-[0.08em]'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
           >
             <Plus className="h-3.5 w-3.5" />
             Nueva
@@ -131,7 +184,12 @@ export function BuilderLayout() {
         {showHistory && (
           <div
             ref={historyPanelRef}
-            className="absolute left-0 top-[53px] bottom-0 w-72 max-w-[80vw] bg-background border-r shadow-lg z-20"
+            className={cn(
+              'absolute left-0 top-[53px] bottom-0 w-72 max-w-[80vw] z-20',
+              v2
+                ? 'bg-[var(--paper-2)] border-r border-[var(--ink-1)] shadow-[0_4px_14px_-8px_color-mix(in_oklch,var(--ink-1)_20%,transparent)]'
+                : 'bg-background border-r shadow-lg'
+            )}
           >
             <SessionHistory
               currentSessionId={sessionId}

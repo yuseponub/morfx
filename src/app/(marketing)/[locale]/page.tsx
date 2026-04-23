@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { Hero } from '@/components/marketing/landing/hero';
-import { About } from '@/components/marketing/landing/about';
+import { Manifest } from '@/components/marketing/landing/manifest';
 import { ModulesGrid } from '@/components/marketing/landing/modules-grid';
+import { Flow } from '@/components/marketing/landing/flow';
+import { About } from '@/components/marketing/landing/about';
 import { CTA } from '@/components/marketing/landing/cta';
 
 const SITE_URL = 'https://morfx.app';
@@ -75,13 +77,14 @@ export default async function MarketingLandingPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  // NOTE: Manifest, Flow y la reordenación final se completan en T8.
-  // T4 solo reemplaza los 5 <ProductSection /> por un único <ModulesGrid />
-  // para mantener cada commit compilable.
+  // Orden final landing v2.1 (Plan 04 T8):
+  // Hero → Manifest → ModulesGrid → Flow → About → CTA
   return (
     <>
       <Hero />
+      <Manifest />
       <ModulesGrid />
+      <Flow />
       <About />
       <CTA />
     </>

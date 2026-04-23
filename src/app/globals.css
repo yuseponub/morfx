@@ -505,6 +505,356 @@
   border-color: var(--ink-3);
 }
 
+/* =========================================================================
+ * CRM module — raw classes ported verbatim from the Claude Design mock
+ *   .planning/.../design_handoff_morfx_v2.1/mocks/crm.html lines 8-82
+ *
+ * Scope: Standalone `ui-redesign-dashboard-retrofit` Plan 01 (CRM piloto).
+ * Decision D-RETRO-02/D-RETRO-03: the v2 JSX uses raw HTML semantic
+ * (<section>, <aside>, <table>, <input>, etc.) with these class names
+ * IDENTICAL to the mock so the markup can be a near-literal port.
+ *
+ * Naming caveat: the mock uses very short names (`.sb`, `.wm`, `.cat`,
+ * `.btn`, `.page`, `.tg`, etc.). To avoid collisions with possible
+ * ad-hoc short classes elsewhere in the app, EVERY selector here is
+ * scoped under `.theme-editorial` which only resolves when the flag
+ * is ON at the (dashboard)/layout.tsx wrapper (Regla 6 fail-closed).
+ * ========================================================================= */
+
+/* -- Sidebar shell (mock lines 12-22) --------------------------- */
+.theme-editorial .sb {
+  background: var(--paper-2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.theme-editorial .brand {
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--ink-1);
+}
+.theme-editorial .wm {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+.theme-editorial .wm b {
+  color: var(--rubric-2);
+  font-weight: 800;
+}
+.theme-editorial .sub {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.theme-editorial nav.sb-nav {
+  padding: 8px;
+  flex: 1;
+  overflow: auto;
+}
+.theme-editorial nav.sb-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.theme-editorial nav.sb-nav li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-2);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-decoration: none;
+  cursor: pointer;
+}
+.theme-editorial nav.sb-nav li a:hover {
+  background: var(--paper-3);
+  color: var(--ink-1);
+}
+.theme-editorial nav.sb-nav li a.active {
+  background: var(--paper-0);
+  color: var(--ink-1);
+  border: 1px solid var(--ink-1);
+  box-shadow: 0 1px 0 var(--border);
+}
+.theme-editorial nav.sb-nav .cat {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--ink-3);
+  padding: 12px 10px 6px;
+}
+
+/* -- Topbar + actions (mock lines 25-35) ------------------------ */
+.theme-editorial .topbar {
+  padding: 18px 28px 14px;
+  border-bottom: 1px solid var(--ink-1);
+  background: var(--paper-1);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.theme-editorial .eye {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rubric-2);
+}
+.theme-editorial .topbar h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  margin: 2px 0 0;
+  letter-spacing: -0.015em;
+  color: var(--ink-1);
+  line-height: 1.15;
+}
+.theme-editorial .topbar h1 em {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--ink-3);
+  margin-left: 8px;
+}
+.theme-editorial .pg {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.theme-editorial .actions {
+  display: flex;
+  gap: 8px;
+}
+.theme-editorial .btn {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: var(--radius-3);
+  border: 1px solid var(--ink-1);
+  background: var(--paper-0);
+  color: var(--ink-1);
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--ink-1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  line-height: 1;
+}
+.theme-editorial .btn:hover {
+  background: var(--paper-3);
+}
+.theme-editorial .btn.pri {
+  background: var(--ink-1);
+  color: var(--paper-0);
+}
+.theme-editorial .btn.pri:hover {
+  background: var(--ink-2);
+}
+
+/* -- Tabs (mock lines 37-39) ------------------------------------ */
+.theme-editorial .tabs {
+  display: flex;
+  gap: 20px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper-1);
+}
+.theme-editorial .tabs a {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 10px 0;
+  color: var(--ink-3);
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+}
+.theme-editorial .tabs a.on {
+  color: var(--ink-1);
+  font-weight: 600;
+  border-bottom-color: var(--ink-1);
+}
+.theme-editorial .tabs a:disabled,
+.theme-editorial .tabs a[aria-disabled="true"] {
+  color: var(--ink-4);
+  cursor: not-allowed;
+}
+
+/* -- Page wrapper (mock line 41) -------------------------------- */
+.theme-editorial .page {
+  padding: 20px 28px;
+}
+
+/* -- Toolbar + search + chips (mock lines 44-49) ---------------- */
+.theme-editorial .toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+.theme-editorial .search {
+  flex: 1;
+  max-width: 320px;
+  position: relative;
+}
+.theme-editorial .search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--paper-0);
+  padding: 8px 10px 8px 30px;
+  border-radius: var(--radius-3);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-1);
+  outline: none;
+}
+.theme-editorial .search input:focus {
+  border-color: var(--ink-1);
+}
+.theme-editorial .search > svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.theme-editorial .chip {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--paper-0);
+  line-height: 1.4;
+}
+.theme-editorial .chip.on {
+  background: var(--ink-1);
+  color: var(--paper-0);
+  border-color: var(--ink-1);
+  font-weight: 600;
+}
+
+/* -- Dictionary table (mock lines 51-58) ------------------------ */
+.theme-editorial table.dict {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper-0);
+  border: 1px solid var(--ink-1);
+}
+.theme-editorial table.dict thead th {
+  text-align: left;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--ink-1);
+  background: var(--paper-1);
+}
+.theme-editorial table.dict td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-1);
+  vertical-align: middle;
+}
+.theme-editorial table.dict tbody tr:hover {
+  background: var(--paper-2);
+}
+.theme-editorial table.dict td.entry {
+  font-weight: 600;
+}
+.theme-editorial table.dict td.entry .def {
+  font-weight: 400;
+  font-style: normal;
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-left: 8px;
+}
+.theme-editorial table.dict td.ph {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.theme-editorial table.dict td.city {
+  color: var(--ink-3);
+  font-style: normal;
+  font-weight: 400;
+}
+.theme-editorial table.dict td.date {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* -- Tag pills .tg + variants (mock lines 59-63) ----------------
+ * oklch values transcribed verbatim from the mock so colors
+ * match Claude Design pixel-perfect. D-RETRO-03 requires
+ * preserving the original classnames (.tg, .tg.red, .tg.gold,
+ * .tg.indi, .tg.ver) to keep JSX = mock HTML.
+ */
+.theme-editorial .tg {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--paper-3);
+  color: var(--ink-1);
+  margin-right: 4px;
+  line-height: 1.4;
+}
+.theme-editorial .tg.red {
+  background: oklch(0.92 0.045 28);
+  color: oklch(0.32 0.09 28);
+  border-color: oklch(0.80 0.07 28);
+}
+.theme-editorial .tg.gold {
+  background: oklch(0.94 0.055 80);
+  color: oklch(0.38 0.065 70);
+  border-color: oklch(0.82 0.07 80);
+}
+.theme-editorial .tg.indi {
+  background: oklch(0.93 0.035 260);
+  color: oklch(0.30 0.06 260);
+  border-color: oklch(0.80 0.05 260);
+}
+.theme-editorial .tg.ver {
+  background: oklch(0.93 0.03 180);
+  color: oklch(0.32 0.04 180);
+  border-color: oklch(0.80 0.04 180);
+}
+
 /* -- Skeleton loading (UI-SPEC §10.4) -------------------------- */
 @keyframes mx-pulse {
   0%, 100% { opacity: 0.6; }

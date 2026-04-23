@@ -60,29 +60,23 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // ======== Initial phase — 3 entry scenarios ========
+  // ======== Initial phase — 2 entry scenarios (saludo se maneja via response-track) ========
 
-  // Escenario 1: saludo → ofrecer promos (response track prepends greeting)
+  // D-05: saludo en initial NO dispara action — cae al fallback null, response-track
+  // emite los templates de saludo (texto + imagen ELIXIR) via INFORMATIONAL_INTENTS.
+  // Permite esperar la respuesta del cliente sin adelantar promos.
+
+  // Escenario 1: quiero_comprar → preguntar direccion (D-04: confirmar direccion antes de promos)
   {
-    phase: 'initial', on: 'saludo', action: 'ofrecer_promos',
+    phase: 'initial', on: 'quiero_comprar', action: 'preguntar_direccion',
     resolve: () => ({
-      timerSignal: { type: 'start', level: 'L3', reason: 'saludo → promos' },
-      reason: 'Saludo en initial → greeting + promos',
+      timerSignal: { type: 'start', level: 'L5', reason: 'quiero_comprar → preguntar direccion' },
+      reason: 'Quiere comprar en initial → confirmar direccion antes de promos',
     }),
-    description: 'Escenario 1: saludo → greeting personalizado + promos',
+    description: 'Escenario 1: quiero_comprar → preguntar_direccion (gate de direccion)',
   },
 
-  // Escenario 2: quiero_comprar → promos directas (recompra: no preguntar direccion en initial)
-  {
-    phase: 'initial', on: 'quiero_comprar', action: 'ofrecer_promos',
-    resolve: () => ({
-      timerSignal: { type: 'start', level: 'L3', reason: 'quiero_comprar → promos' },
-      reason: 'Quiere comprar en initial → promos directas',
-    }),
-    description: 'Escenario 2: quiero_comprar → promos (sin gate de direccion)',
-  },
-
-  // Escenario 3: datos espontaneos + datos criticos → promos
+  // Escenario 2: datos espontaneos + datos criticos → promos
   {
     phase: 'initial', on: 'datos', action: 'ofrecer_promos',
     condition: (_, gates) => gates.datosCriticos,
@@ -90,10 +84,10 @@ export const TRANSITIONS: TransitionEntry[] = [
       timerSignal: { type: 'start', level: 'L3', reason: 'datos espontaneos + criticos completos → promos' },
       reason: 'Datos espontaneos con criticos completos → promos',
     }),
-    description: 'Escenario 3: datos espontaneos + datosCriticos → promos',
+    description: 'Escenario 2: datos espontaneos + datosCriticos → promos',
   },
 
-  // Escenario 3 incompleto: datos espontaneos sin criticos → preguntar direccion
+  // Escenario 2 incompleto: datos espontaneos sin criticos → preguntar direccion
   {
     phase: 'initial', on: 'datos', action: 'preguntar_direccion',
     condition: (_, gates) => !gates.datosCriticos,
@@ -101,7 +95,7 @@ export const TRANSITIONS: TransitionEntry[] = [
       timerSignal: { type: 'start', level: 'L5', reason: 'datos incompletos, pedir lo que falta' },
       reason: 'Datos espontaneos sin criticos → preguntar lo que falta',
     }),
-    description: 'Escenario 3 incompleto: datos sin criticos → preguntar',
+    description: 'Escenario 2 incompleto: datos sin criticos → preguntar',
   },
 
   // confirmar_direccion en initial → promos

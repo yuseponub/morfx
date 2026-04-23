@@ -30,6 +30,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { createTask, updateTask } from '@/app/actions/tasks'
 import { cn } from '@/lib/utils'
 import type { TaskWithDetails, TaskType, TaskPriority } from '@/lib/tasks/types'
@@ -89,6 +90,25 @@ interface TaskFormProps {
   onCancel?: () => void
 }
 
+// Editorial token helpers — D-DASH-14 (inputs + labels + buttons)
+const editorialInputClasses =
+  'border border-[var(--ink-1)] rounded-[3px] bg-[var(--paper-0)] text-[var(--ink-1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)] focus-visible:ring-0 focus-visible:border-[var(--ink-1)] shadow-none'
+
+// Editorial labels — smallcaps 10px tracking-[0.12em] uppercase ink-3 (D-DASH-14).
+// Uses Tailwind arbitrary value `tracking-[0.12em]` so the class is greppable
+// per plan acceptance criterion, plus inline letter-spacing as defensive BC.
+const editorialLabelClassName =
+  'font-semibold tracking-[0.12em] uppercase text-[var(--ink-3)]'
+
+const editorialLabelStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: '10px',
+  fontWeight: 600,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: 'var(--ink-3)',
+}
+
 export function TaskForm({
   mode,
   task,
@@ -97,8 +117,15 @@ export function TaskForm({
   onSuccess,
   onCancel,
 }: TaskFormProps) {
+  const v2 = useDashboardV2()
   const [isPending, setIsPending] = React.useState(false)
   const [serverError, setServerError] = React.useState<string | null>(null)
+
+  // Portal target for D-DASH-10 — shared by PopoverContent (calendar) when v2
+  const portalTarget =
+    typeof document !== 'undefined'
+      ? document.querySelector<HTMLElement>('.theme-editorial')
+      : null
 
   const defaultValues: FormData = React.useMemo(() => {
     const defaultTime = format(addHours(new Date(), 4), 'HH:mm')
@@ -174,22 +201,40 @@ export function TaskForm({
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="space-y-6 pb-4">
           {serverError && (
-            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+            <div
+              className={cn(
+                'text-sm p-3',
+                v2
+                  ? 'border border-[var(--rubric-2)] bg-[color-mix(in_oklch,var(--rubric-2)_8%,var(--paper-0))] text-[var(--rubric-2)] rounded-[3px]'
+                  : 'text-destructive bg-destructive/10 rounded-md'
+              )}
+              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            >
               {serverError}
             </div>
           )}
 
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">Titulo *</Label>
+            <Label htmlFor="title" className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}>
+              {v2 ? 'Titulo' : 'Titulo *'}
+            </Label>
             <Input
               {...form.register('title', { required: 'El titulo es requerido' })}
               placeholder="Ej: Llamar al cliente, Enviar cotizacion..."
               disabled={isPending}
               autoFocus
+              className={cn(v2 && editorialInputClasses)}
+              style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
             />
             {form.formState.errors.title && (
-              <p className="text-sm text-destructive">
+              <p
+                className={cn(
+                  'text-sm',
+                  v2 ? 'text-[var(--rubric-2)]' : 'text-destructive'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+              >
                 {form.formState.errors.title.message}
               </p>
             )}
@@ -197,18 +242,31 @@ export function TaskForm({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descripcion</Label>
+            <Label
+              htmlFor="description"
+              className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}
+            >
+              Descripcion
+            </Label>
             <Textarea
               {...form.register('description')}
               placeholder="Detalles adicionales de la tarea..."
               disabled={isPending}
               rows={3}
+              className={cn(v2 && editorialInputClasses)}
+              style={
+                v2
+                  ? { fontFamily: 'var(--font-serif)', fontSize: '13px' }
+                  : undefined
+              }
             />
           </div>
 
           {/* Due date and time */}
           <div className="space-y-2">
-            <Label htmlFor="due_date">Fecha y hora limite</Label>
+            <Label htmlFor="due_date" className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}>
+              Fecha y hora limite
+            </Label>
             <div className="flex gap-2">
               {/* Date picker */}
               <Controller
@@ -222,9 +280,15 @@ export function TaskForm({
                         variant="outline"
                         className={cn(
                           'flex-1 justify-start text-left font-normal',
-                          !field.value && 'text-muted-foreground'
+                          !field.value && !v2 && 'text-muted-foreground',
+                          !field.value && v2 && 'text-[var(--ink-3)]',
+                          v2 &&
+                            'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] rounded-[3px] shadow-none hover:bg-[var(--paper-2)]'
                         )}
                         disabled={isPending}
+                        style={
+                          v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+                        }
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {field.value
@@ -232,7 +296,13 @@ export function TaskForm({
                           : 'Seleccionar fecha'}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent
+                      className="w-auto p-0"
+                      align="start"
+                      portalContainer={
+                        v2 ? portalTarget ?? undefined : undefined
+                      }
+                    >
                       <Calendar
                         mode="single"
                         selected={field.value ? new Date(field.value) : undefined}
@@ -278,7 +348,15 @@ export function TaskForm({
                     onValueChange={field.onChange}
                     disabled={isPending || !form.watch('due_date')}
                   >
-                    <SelectTrigger className="w-[120px]">
+                    <SelectTrigger
+                      className={cn(
+                        'w-[120px]',
+                        v2 && editorialInputClasses
+                      )}
+                      style={
+                        v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+                      }
+                    >
                       <Clock className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Hora" />
                     </SelectTrigger>
@@ -297,7 +375,12 @@ export function TaskForm({
 
           {/* Priority */}
           <div className="space-y-2">
-            <Label htmlFor="priority">Prioridad</Label>
+            <Label
+              htmlFor="priority"
+              className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}
+            >
+              Prioridad
+            </Label>
             <Controller
               control={form.control}
               name="priority"
@@ -307,25 +390,57 @@ export function TaskForm({
                   onValueChange={field.onChange}
                   disabled={isPending}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger
+                    className={cn(v2 && editorialInputClasses)}
+                    style={
+                      v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+                    }
+                  >
                     <SelectValue placeholder="Seleccionar prioridad" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="high">
                       <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-red-500" />
+                        <span
+                          className={cn(
+                            v2
+                              ? 'w-2.5 h-2.5 border border-[var(--ink-1)]'
+                              : 'h-2 w-2 rounded-full bg-red-500'
+                          )}
+                          style={
+                            v2 ? { background: 'var(--rubric-2)' } : undefined
+                          }
+                        />
                         Alta
                       </div>
                     </SelectItem>
                     <SelectItem value="medium">
                       <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                        <span
+                          className={cn(
+                            v2
+                              ? 'w-2.5 h-2.5 border border-[var(--ink-1)]'
+                              : 'h-2 w-2 rounded-full bg-yellow-500'
+                          )}
+                          style={
+                            v2 ? { background: 'var(--accent-gold)' } : undefined
+                          }
+                        />
                         Media
                       </div>
                     </SelectItem>
                     <SelectItem value="low">
                       <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-gray-400" />
+                        <span
+                          className={cn(
+                            v2
+                              ? 'w-2.5 h-2.5 border border-[var(--ink-1)]'
+                              : 'h-2 w-2 rounded-full bg-gray-400'
+                          )}
+                          style={
+                            v2 ? { background: 'var(--ink-4)' } : undefined
+                          }
+                        />
                         Baja
                       </div>
                     </SelectItem>
@@ -338,7 +453,12 @@ export function TaskForm({
           {/* Task type */}
           {taskTypes.length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="task_type_id">Tipo de tarea</Label>
+              <Label
+                htmlFor="task_type_id"
+                className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}
+              >
+                Tipo de tarea
+              </Label>
               <Controller
                 control={form.control}
                 name="task_type_id"
@@ -348,7 +468,12 @@ export function TaskForm({
                     onValueChange={(val) => field.onChange(val === 'none' ? null : val)}
                     disabled={isPending}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      className={cn(v2 && editorialInputClasses)}
+                      style={
+                        v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+                      }
+                    >
                       <SelectValue placeholder="Seleccionar tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -357,7 +482,11 @@ export function TaskForm({
                         <SelectItem key={type.id} value={type.id}>
                           <div className="flex items-center gap-2">
                             <span
-                              className="h-2 w-2 rounded-full"
+                              className={cn(
+                                v2
+                                  ? 'w-2.5 h-2.5 border border-[var(--ink-1)]'
+                                  : 'h-2 w-2 rounded-full'
+                              )}
                               style={{ backgroundColor: type.color }}
                             />
                             {type.name}
@@ -374,7 +503,12 @@ export function TaskForm({
           {/* Assigned to */}
           {members.length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="assigned_to">Asignar a</Label>
+              <Label
+                htmlFor="assigned_to"
+                className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}
+              >
+                Asignar a
+              </Label>
               <Controller
                 control={form.control}
                 name="assigned_to"
@@ -384,7 +518,12 @@ export function TaskForm({
                     onValueChange={(val) => field.onChange(val === 'none' ? null : val)}
                     disabled={isPending}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      className={cn(v2 && editorialInputClasses)}
+                      style={
+                        v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+                      }
+                    >
                       <SelectValue placeholder="Sin asignar" />
                     </SelectTrigger>
                     <SelectContent>
@@ -404,8 +543,18 @@ export function TaskForm({
           {/* Entity link (read-only when editing) */}
           {mode === 'edit' && task && (task.contact || task.order || task.conversation) && (
             <div className="space-y-2">
-              <Label>Vinculada a</Label>
-              <div className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
+              <Label className={cn(v2 && editorialLabelClassName)} style={v2 ? editorialLabelStyle : undefined}>
+                Vinculada a
+              </Label>
+              <div
+                className={cn(
+                  'text-sm p-2',
+                  v2
+                    ? 'border border-[var(--border)] bg-[var(--paper-2)] text-[var(--ink-2)] rounded-[3px]'
+                    : 'text-muted-foreground bg-muted rounded-md'
+                )}
+                style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+              >
                 {task.contact && `Contacto: ${task.contact.name}`}
                 {task.order && `Pedido: $${task.order.total_value.toLocaleString()}`}
                 {task.conversation && `Conversacion: ${task.conversation.phone}`}
@@ -416,13 +565,37 @@ export function TaskForm({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-3 p-4 border-t">
+      <div
+        className={cn(
+          'flex items-center justify-end gap-3 p-4 border-t',
+          v2 && 'bg-[var(--paper-1)]'
+        )}
+        style={v2 ? { borderTopColor: 'var(--ink-1)' } : undefined}
+      >
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isPending}
+            className={cn(
+              v2 &&
+                'bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)] hover:bg-[var(--paper-2)] shadow-[0_1px_0_var(--ink-1)] rounded-[3px] font-semibold'
+            )}
+            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+          >
             Cancelar
           </Button>
         )}
-        <Button type="submit" disabled={isPending}>
+        <Button
+          type="submit"
+          disabled={isPending}
+          className={cn(
+            v2 &&
+              'bg-[var(--rubric-2)] text-[var(--paper-0)] border border-[var(--rubric-1)] shadow-[0_1px_0_var(--rubric-1)] hover:bg-[var(--rubric-1)] rounded-[3px] font-semibold'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+        >
           {isPending && <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />}
           {mode === 'edit' ? 'Guardar cambios' : 'Crear tarea'}
         </Button>
@@ -445,7 +618,13 @@ export function TaskFormDialog({
   trigger,
   onSuccess,
 }: TaskFormDialogProps) {
+  const v2 = useDashboardV2()
   const [open, setOpen] = React.useState(false)
+
+  const portalTarget =
+    typeof document !== 'undefined'
+      ? document.querySelector<HTMLElement>('.theme-editorial')
+      : null
 
   const handleSuccess = () => {
     setOpen(false)
@@ -457,10 +636,29 @@ export function TaskFormDialog({
       <SheetTrigger asChild>
         {trigger || <Button>Nueva tarea</Button>}
       </SheetTrigger>
-      <SheetContent className="sm:max-w-[500px] p-0 flex flex-col h-full max-h-screen overflow-hidden">
-        <SheetHeader className="px-6 pt-6 pb-4 border-b">
-          <SheetTitle>Nueva tarea</SheetTitle>
-          <SheetDescription>
+      <SheetContent
+        portalContainer={v2 ? portalTarget ?? undefined : undefined}
+        className={cn(
+          'sm:max-w-[500px] p-0 flex flex-col h-full max-h-screen overflow-hidden',
+          v2 && 'bg-[var(--paper-1)] border-l border-[var(--ink-1)]'
+        )}
+      >
+        <SheetHeader
+          className={cn(
+            'px-6 pt-6 pb-4 border-b',
+            v2 && 'border-[var(--ink-1)] bg-[var(--paper-0)]'
+          )}
+        >
+          <SheetTitle
+            className={cn(v2 && 'text-[20px] font-bold tracking-[-0.01em]')}
+            style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}
+          >
+            Nueva tarea
+          </SheetTitle>
+          <SheetDescription
+            className={cn(v2 && 'italic text-[13px] text-[var(--ink-2)]')}
+            style={v2 ? { fontFamily: 'var(--font-serif)' } : undefined}
+          >
             Crea una nueva tarea para hacer seguimiento
           </SheetDescription>
         </SheetHeader>

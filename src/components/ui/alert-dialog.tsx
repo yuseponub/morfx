@@ -21,10 +21,15 @@ function AlertDialogTrigger({
 }
 
 function AlertDialogPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
   return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+    <AlertDialogPrimitive.Portal
+      data-slot="alert-dialog-portal"
+      container={container}
+      {...props}
+    />
   )
 }
 
@@ -47,12 +52,22 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  portalContainer,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
+  /**
+   * Optional DOM element to mount the Radix portal into. When omitted,
+   * Radix defaults to document.body (current shadcn behavior — BC).
+   * Pass the `.theme-editorial` wrapper to keep the alert dialog inside
+   * a specific CSS token scope — e.g., so the dashboard editorial
+   * tokens cascade into the dialog when the v2 flag is ON
+   * (standalone ui-redesign-dashboard Plan 04 + D-DASH-09 + D-DASH-10).
+   */
+  portalContainer?: HTMLElement | null
 }) {
   return (
-    <AlertDialogPortal>
+    <AlertDialogPortal container={portalContainer ?? undefined}>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"

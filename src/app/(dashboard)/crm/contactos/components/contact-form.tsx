@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PhoneInput } from '@/components/contacts/phone-input'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import { createContact, updateContactFromForm } from '@/app/actions/contacts'
 import { LoaderIcon } from 'lucide-react'
 
@@ -37,8 +38,10 @@ export function ContactForm({
   contactId,
   onSuccess,
 }: ContactFormProps) {
+  const v2 = useDashboardV2()
   const [isPending, setIsPending] = React.useState(false)
   const [serverError, setServerError] = React.useState<string | null>(null)
+  const labelCn = v2 ? 'mx-smallcaps text-[10px] tracking-[0.12em] uppercase text-[var(--ink-2)]' : undefined
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactFormSchema),
@@ -108,7 +111,7 @@ export function ContactForm({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="name">Nombre *</Label>
+        <Label htmlFor="name" className={labelCn}>Nombre *</Label>
         <Input
           id="name"
           {...form.register('name')}
@@ -130,7 +133,7 @@ export function ContactForm({
       />
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className={labelCn}>Email</Label>
         <Input
           id="email"
           type="email"
@@ -147,7 +150,7 @@ export function ContactForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="city">Ciudad</Label>
+          <Label htmlFor="city" className={labelCn}>Ciudad</Label>
           <Input
             id="city"
             {...form.register('city')}
@@ -161,7 +164,7 @@ export function ContactForm({
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="department">Departamento</Label>
+          <Label htmlFor="department" className={labelCn}>Departamento</Label>
           <Input
             id="department"
             {...form.register('department')}
@@ -172,7 +175,7 @@ export function ContactForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="address">Direccion</Label>
+        <Label htmlFor="address" className={labelCn}>Direccion</Label>
         <Textarea
           id="address"
           {...form.register('address')}
@@ -188,7 +191,12 @@ export function ContactForm({
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={isPending}>
+        <Button
+          type="submit"
+          disabled={isPending}
+          className={v2 ? 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)]' : ''}
+          style={v2 ? { fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' } : undefined}
+        >
           {isPending && <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />}
           {mode === 'edit' ? 'Guardar cambios' : 'Crear contacto'}
         </Button>

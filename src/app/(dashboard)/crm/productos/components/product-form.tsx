@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
+import { cn } from '@/lib/utils'
 import { createProduct, updateProduct } from '@/app/actions/products'
 import { LoaderIcon } from 'lucide-react'
 import type { Product } from '@/lib/orders/types'
@@ -35,8 +37,10 @@ export function ProductForm({
   productId,
   onSuccess,
 }: ProductFormProps) {
+  const v2 = useDashboardV2()
   const [isPending, setIsPending] = React.useState(false)
   const [serverError, setServerError] = React.useState<string | null>(null)
+  const labelCn = v2 ? 'mx-smallcaps text-[10px] tracking-[0.12em] uppercase text-[var(--ink-2)]' : undefined
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -106,7 +110,7 @@ export function ProductForm({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="sku">SKU *</Label>
+        <Label htmlFor="sku" className={labelCn}>SKU *</Label>
         <Input
           id="sku"
           {...form.register('sku')}
@@ -122,7 +126,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="title">Titulo *</Label>
+        <Label htmlFor="title" className={labelCn}>Titulo *</Label>
         <Input
           id="title"
           {...form.register('title')}
@@ -137,7 +141,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="price">Precio (COP) *</Label>
+        <Label htmlFor="price" className={labelCn}>Precio (COP) *</Label>
         <Input
           id="price"
           value={formatPriceInput(form.watch('price').toString())}
@@ -154,7 +158,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="shopify_product_id">Shopify Product ID</Label>
+        <Label htmlFor="shopify_product_id" className={labelCn}>Shopify Product ID</Label>
         <Input
           id="shopify_product_id"
           {...form.register('shopify_product_id')}
@@ -162,7 +166,10 @@ export function ProductForm({
           disabled={isPending}
           className="text-muted-foreground"
         />
-        <p className="text-xs text-muted-foreground">
+        <p
+          className={cn(v2 ? 'text-[11px] text-[var(--ink-3)]' : 'text-xs text-muted-foreground')}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+        >
           Se llenara automaticamente al sincronizar con Shopify
         </p>
       </div>
@@ -176,13 +183,21 @@ export function ProductForm({
           }
           disabled={isPending}
         />
-        <Label htmlFor="is_active" className="cursor-pointer">
+        <Label
+          htmlFor="is_active"
+          className={cn('cursor-pointer', v2 && 'text-[12px] font-medium text-[var(--ink-1)]')}
+        >
           Producto activo
         </Label>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={isPending}>
+        <Button
+          type="submit"
+          disabled={isPending}
+          className={v2 ? 'bg-[var(--ink-1)] text-[var(--paper-0)] hover:bg-[var(--ink-2)] shadow-[0_1px_0_var(--ink-1)] border border-[var(--ink-1)]' : ''}
+          style={v2 ? { fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '13px', borderRadius: 'var(--radius-3)' } : undefined}
+        >
           {isPending && <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />}
           {mode === 'edit' ? 'Guardar cambios' : 'Crear producto'}
         </Button>

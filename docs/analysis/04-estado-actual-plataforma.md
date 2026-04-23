@@ -201,6 +201,14 @@ WHERE id = '<workspace-uuid>';
 - **Orchestrator:** Claude Sonnet decide acciones basado en intent + conversation state
 - **System prompts:** Intent (103L), Orchestrator (223L), Data Extractor (302L)
 
+#### Agente Somnio Recompra (`src/lib/agents/somnio-recompra/` — standalone `somnio-recompra-v1`)
+- **Proposito:** Bot de recompra para clientes Somnio que ya compraron (flujo simplificado, datos preloaded via crm-reader).
+- **Catalogo independiente** desde 2026-04-23 (phase standalone `somnio-recompra-template-catalog` SHIPPED): `agent_id='somnio-recompra-v1'` en `agent_templates` con 34+ filas. Ya NO comparte catalogo con `somnio-sales-v3` (fix provisional commit `cdc06d9` revertido; `TEMPLATE_LOOKUP_AGENT_ID = 'somnio-recompra-v1'` locked).
+- **State machine:** `resolveTransition` en `transitions.ts` — 2 escenarios initial: (1) `quiero_comprar` → `preguntar_direccion` con timerSignal L5 (D-04), (2) `datos` espontaneos → `ofrecer_promos` si datosCriticos. Saludo NO dispara accion (D-05): cae a response-track como informational, emitiendo texto CORE + imagen ELIXIR COMPLEMENTARIA.
+- **`{{direccion_completa}}`:** `[direccion, ciudad, departamento].filter(Boolean).join(', ')` — incluye departamento desde D-12.
+- **INFORMATIONAL_INTENTS (10):** saludo, precio, promociones, pago, envio, ubicacion, contraindicaciones, dependencia, tiempo_entrega, registro_sanitario.
+- **Tests:** 4 test suites (32 tests) en `__tests__/` — transitions.test.ts (9) + response-track.test.ts (6) + crm-context-poll.test.ts (7) + comprehension-prompt.test.ts (10).
+
 #### UnifiedEngine (`src/lib/agents/engine/unified-engine.ts`)
 - **Arquitectura:** Ports/Adapters (Hexagonal) — 1 engine, 2 modos
 - **Sandbox adapters:** In-memory state, no-op timers, display messaging, dry-run orders, debug collection
@@ -896,4 +904,6 @@ Range pushado: `cfd447d..9642e36` (13 commits).
 ### Preparación 2026-04-23 — Mega-fase dashboard planificada
 
 Fase `ui-redesign-dashboard` con CONTEXT + PLAN committed, **ready-to-execute** en próxima sesión. Re-skinea 7 módulos (CRM, Pedidos, Tareas, Agentes, Automatizaciones, Analytics/Métricas, Configuración) gated por flag `ui_dashboard_v2.enabled`. 4 waves (infra → 3‖ → 2‖ → 2‖ → close), ~6-8h con paralelización. Artefactos en `.planning/standalone/ui-redesign-dashboard/`.
+
+*Actualizado: 23 abril 2026 — Standalone `somnio-recompra-template-catalog` SHIPPED. Recompra independizado a nivel de templates: `TEMPLATE_LOOKUP_AGENT_ID = 'somnio-recompra-v1'` (revierte fix T2 `cdc06d9`). Scope redefinido tras audit D-11 — los 3 templates que el plan iba a tocar ya existian en prod con copy equivalente o mejor (saludo/preguntar_direccion_recompra/registro_sanitario), y los gaps reales eran otros 3 intents (contraindicaciones, tiempo_entrega_1_3_days, tiempo_entrega_2_4_days zona DEFAULT) ahora cerrados via migration `20260423142420_recompra_template_catalog_gaps.sql` (aplicada en prod ANTES del push — Regla 5). Cambios de codigo: `response-track.ts` (TEMPLATE_LOOKUP_AGENT_ID + `{{direccion_completa}}` incluye departamento D-12 + export `resolveSalesActionTemplates`), `constants.ts` (agrega `'registro_sanitario'` a `INFORMATIONAL_INTENTS` D-06 — cierra deuda), `transitions.ts` (elimina entry `saludo` D-05 + `quiero_comprar → preguntar_direccion` con L5 D-04). Tests: 15 nuevos (9 transitions.test.ts + 6 response-track.test.ts) → suite recompra 32/32 green. Bug `.planning/debug/recompra-greeting-bugs.md` movido a `resolved/`. Ver `.planning/standalone/somnio-recompra-template-catalog/LEARNINGS.md`.*
 

@@ -90,6 +90,24 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
   - Agent ID registrado: `'config-builder-whatsapp-templates'`
   - stopWhen: `stepCountIs(6)` — ciclo maximo list -> draft -> preview -> validate -> upload -> submit
 
+### Somnio Recompra Agent (`somnio-recompra-v1` — webhook WhatsApp inbound)
+- **PUEDE:**
+  - Responder a clientes que reagendan/recompran ELIXIR DEL SUEÑO via WhatsApp.
+  - Emitir templates del catalogo propio bajo `agent_id='somnio-recompra-v1'` (`INFORMATIONAL_INTENTS`: saludo, precio, promociones, pago, envio, ubicacion, contraindicaciones, dependencia, tiempo_entrega, registro_sanitario) + sales actions templates (resumen_*, confirmacion_orden_*, preguntar_direccion_recompra, pendiente_*, no_interesa, rechazar, retoma_inicial).
+  - Crear pedido en CRM Somnio via `crear_orden` sales action (call a domain `orders.createOrder`).
+  - Preguntar confirmacion de direccion antes de promos cuando el cliente dice "quiero comprar" (D-04 somnio-recompra-template-catalog).
+- **NO PUEDE:**
+  - Compartir catalogo con `somnio-sales-v3` — catalogo independiente bajo `agent_id='somnio-recompra-v1'` desde 2026-04-23 (phase `somnio-recompra-template-catalog`). Fix provisional commit `cdc06d9` revertido.
+  - Auto-disparar promos en saludo inicial (D-05): `saludo` cae al fallback null de `resolveTransition` y response-track lo maneja como informational (texto CORE + imagen ELIXIR COMPLEMENTARIA). NO genera accion `ofrecer_promos`.
+  - Acceder a templates de otros agentes (sales-v3, godentist, etc.).
+  - Escribir en tablas fuera del scope Somnio workspace (`a3843b3f-c337-4836-92b5-89c58bb98490`).
+- **Validacion:**
+  - `TEMPLATE_LOOKUP_AGENT_ID = 'somnio-recompra-v1'` en `src/lib/agents/somnio-recompra/response-track.ts:36` (locked post phase 2026-04-23).
+  - `{{direccion_completa}}` = `[direccion, ciudad, departamento].filter(Boolean).join(', ')` (D-12).
+  - 4 test suites (32 tests) en `src/lib/agents/somnio-recompra/__tests__/` — transitions.test.ts + response-track.test.ts cubren D-03/D-04/D-05/D-06/D-12.
+  - Agent ID registrado: `'somnio-recompra-v1'` (sessions, observability, rate-limit, templates).
+- **Consumidor upstream:** Inngest function `recompra-preload-context` (`crm-reader` via agent-to-agent in-process) — ver seccion CRM Reader Bot §Consumidores.
+
 ## OBLIGATORIO al Crear un Agente Nuevo
 
 Cuando se programe CUALQUIER agente nuevo en el sistema, se DEBE:

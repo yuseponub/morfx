@@ -1,12 +1,13 @@
 ---
-status: handed_off
+status: resolved
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
+resolved: 2026-04-23
 reporter: Jose
 affected_agent: somnio-recompra-v1
 workspace: a3843b3f-c337-4836-92b5-89c58bb98490 (Somnio)
 related_phase: somnio-recompra-crm-reader (closed — enabler for turn 1+ context, NOT the cause of these bugs)
-handoff_to: .planning/standalone/somnio-recompra-template-catalog/CONTEXT.md
+resolved_by: .planning/standalone/somnio-recompra-template-catalog/ (shipped 2026-04-23)
 trigger: "Recompra agent turn-0 greeting broken — 3 bugs catalogued during smoke test of somnio-recompra-crm-reader phase close-out."
 ---
 

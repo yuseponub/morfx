@@ -4,6 +4,7 @@ import * as React from 'react'
 import { FilterIcon, XIcon, SettingsIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TagBadge } from '@/components/contacts/tag-badge'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 import type { Tag } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,8 @@ export function TagFilter({
   onSelectionChange,
   onManageTags,
 }: TagFilterProps) {
+  const v2 = useDashboardV2()
+
   // Toggle a tag in the selection
   const toggleTag = (tagId: string) => {
     if (selectedTagIds.includes(tagId)) {
@@ -41,12 +44,17 @@ export function TagFilter({
     onSelectionChange([])
   }
 
+  // Preserve TagBadge import for potential future usage (Regla 6 / D-DASH-07)
+  void TagBadge
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {tags.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className={cn('flex items-center gap-2 text-sm', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}>
           <FilterIcon className="h-4 w-4" />
-          <span>Filtrar por etiquetas:</span>
+          <span style={v2 ? { fontFamily: 'var(--font-sans)', fontSize: '12px' } : undefined}>
+            Filtrar por etiquetas:
+          </span>
         </div>
       )}
 
@@ -55,6 +63,24 @@ export function TagFilter({
         <div className="flex items-center gap-1.5 flex-wrap">
           {tags.map((tag) => {
             const isSelected = selectedTagIds.includes(tag.id)
+            if (v2) {
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  className={cn(
+                    'inline-flex items-center rounded-full px-[10px] py-[3px] text-[11px] font-semibold border transition-colors',
+                    isSelected
+                      ? 'bg-[var(--ink-1)] text-[var(--paper-0)] border-[var(--ink-1)]'
+                      : 'bg-[var(--paper-0)] text-[var(--ink-2)] border-[var(--border)] hover:border-[var(--ink-2)]'
+                  )}
+                  style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.01em' }}
+                >
+                  {tag.name}
+                </button>
+              )
+            }
             return (
               <button
                 key={tag.id}
@@ -82,7 +108,7 @@ export function TagFilter({
       {/* Selected count and clear button */}
       {selectedTagIds.length > 0 && (
         <div className="flex items-center gap-2 ml-2">
-          <span className="text-sm text-muted-foreground">
+          <span className={cn('text-sm', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}>
             {selectedTagIds.length} etiqueta{selectedTagIds.length > 1 ? 's' : ''} seleccionada
             {selectedTagIds.length > 1 ? 's' : ''}
           </span>
@@ -90,7 +116,7 @@ export function TagFilter({
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="h-7 px-2 text-muted-foreground hover:text-foreground"
+            className={cn('h-7 px-2', v2 ? 'text-[var(--ink-2)] hover:text-[var(--rubric-2)]' : 'text-muted-foreground hover:text-foreground')}
           >
             <XIcon className="h-3 w-3 mr-1" />
             Limpiar filtros
@@ -104,7 +130,7 @@ export function TagFilter({
           variant="outline"
           size="sm"
           onClick={onManageTags}
-          className="h-7 px-2 ml-auto"
+          className={cn('h-7 px-2 ml-auto', v2 && 'border-[var(--ink-1)] bg-[var(--paper-0)] text-[var(--ink-1)] hover:bg-[var(--paper-3)]')}
         >
           <SettingsIcon className="h-3.5 w-3.5 mr-1" />
           Gestionar etiquetas

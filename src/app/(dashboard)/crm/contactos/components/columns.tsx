@@ -16,6 +16,7 @@ import type { ContactWithTags } from '@/lib/types/database'
 import { formatPhoneDisplay } from '@/lib/utils/phone'
 import { getCityByValue } from '@/lib/data/colombia-cities'
 import { TagBadge } from '@/components/contacts/tag-badge'
+import { cn } from '@/lib/utils'
 
 // Format relative time (e.g., "hace 2 horas")
 function formatRelativeTime(date: string): string {
@@ -42,13 +43,21 @@ interface ColumnsProps {
   onEdit: (contact: ContactWithTags) => void
   onDelete: (contact: ContactWithTags) => void
   onViewDetail: (contact: ContactWithTags) => void
+  v2?: boolean
 }
 
 export function createColumns({
   onEdit,
   onDelete,
   onViewDetail,
+  v2 = false,
 }: ColumnsProps): ColumnDef<ContactWithTags>[] {
+  const sortHeaderCn = v2
+    ? 'text-[10px] uppercase tracking-[0.08em] font-semibold text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-transparent'
+    : ''
+  const sortHeaderStyle = v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+  const arrowCn = v2 ? 'ml-2 h-3 w-3' : 'ml-2 h-4 w-4'
+
   return [
     {
       id: 'select',
@@ -78,17 +87,24 @@ export function createColumns({
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="-ml-4"
+          className={cn('-ml-4', sortHeaderCn)}
+          style={sortHeaderStyle}
         >
           Nombre
-          <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+          <ArrowUpDownIcon className={arrowCn} />
         </Button>
       ),
       cell: ({ row }) => (
         <button
           type="button"
           onClick={() => onViewDetail(row.original)}
-          className="font-medium text-left hover:underline hover:text-primary cursor-pointer"
+          className={cn(
+            'text-left cursor-pointer',
+            v2
+              ? 'font-semibold text-[13px] text-[var(--ink-1)] hover:text-[var(--rubric-2)] transition-colors'
+              : 'font-medium hover:underline hover:text-primary'
+          )}
+          style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
         >
           {row.getValue('name')}
         </button>
@@ -96,11 +112,24 @@ export function createColumns({
     },
     {
       accessorKey: 'phone',
-      header: 'Telefono',
+      header: () =>
+        v2 ? (
+          <span
+            className="text-[10px] uppercase tracking-[0.08em] font-semibold text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            Teléfono
+          </span>
+        ) : (
+          'Telefono'
+        ),
       cell: ({ row }) => {
         const phone = row.getValue('phone') as string
         return (
-          <div className="text-muted-foreground">
+          <div
+            className={v2 ? 'text-[12px] text-[var(--ink-2)] font-medium' : 'text-muted-foreground'}
+            style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+          >
             {formatPhoneDisplay(phone)}
           </div>
         )
@@ -108,12 +137,29 @@ export function createColumns({
     },
     {
       accessorKey: 'address',
-      header: 'Direccion',
+      header: () =>
+        v2 ? (
+          <span
+            className="text-[10px] uppercase tracking-[0.08em] font-semibold text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            Dirección
+          </span>
+        ) : (
+          'Direccion'
+        ),
       cell: ({ row }) => {
         const address = row.getValue('address') as string | null
-        if (!address) return <span className="text-muted-foreground">-</span>
+        if (!address) {
+          return (
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>-</span>
+          )
+        }
         return (
-          <div className="text-sm max-w-[200px] truncate" title={address}>
+          <div
+            className={cn('max-w-[200px] truncate', v2 ? 'text-[13px] text-[var(--ink-2)]' : 'text-sm')}
+            title={address}
+          >
             {address}
           </div>
         )
@@ -125,21 +171,26 @@ export function createColumns({
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="-ml-4"
+          className={cn('-ml-4', sortHeaderCn)}
+          style={sortHeaderStyle}
         >
           Ciudad
-          <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+          <ArrowUpDownIcon className={arrowCn} />
         </Button>
       ),
       cell: ({ row }) => {
         const cityValue = row.getValue('city') as string | null
-        if (!cityValue) return <span className="text-muted-foreground">-</span>
+        if (!cityValue) {
+          return (
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>-</span>
+          )
+        }
 
         const city = getCityByValue(cityValue)
         return city ? (
-          <div className="text-sm">{city.label}</div>
+          <div className={v2 ? 'text-[13px] text-[var(--ink-3)]' : 'text-sm'}>{city.label}</div>
         ) : (
-          <div className="text-sm">{cityValue}</div>
+          <div className={v2 ? 'text-[13px] text-[var(--ink-3)]' : 'text-sm'}>{cityValue}</div>
         )
       },
     },
@@ -149,25 +200,44 @@ export function createColumns({
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="-ml-4"
+          className={cn('-ml-4', sortHeaderCn)}
+          style={sortHeaderStyle}
         >
           Departamento
-          <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+          <ArrowUpDownIcon className={arrowCn} />
         </Button>
       ),
       cell: ({ row }) => {
         const department = row.original.department
-        if (!department) return <span className="text-muted-foreground">-</span>
-        return <span className="text-sm">{department}</span>
+        if (!department) {
+          return (
+            <span className={v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground'}>-</span>
+          )
+        }
+        return (
+          <span className={v2 ? 'text-[13px] text-[var(--ink-3)]' : 'text-sm'}>{department}</span>
+        )
       },
     },
     {
       accessorKey: 'tags',
-      header: 'Etiquetas',
+      header: () =>
+        v2 ? (
+          <span
+            className="text-[10px] uppercase tracking-[0.08em] font-semibold text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            Etiquetas
+          </span>
+        ) : (
+          'Etiquetas'
+        ),
       cell: ({ row }) => {
         const tags = row.original.tags
         if (!tags || tags.length === 0) {
-          return <span className="text-muted-foreground text-sm">-</span>
+          return (
+            <span className={cn('text-sm', v2 ? 'text-[var(--ink-3)]' : 'text-muted-foreground')}>-</span>
+          )
         }
 
         return (
@@ -175,11 +245,14 @@ export function createColumns({
             {tags.slice(0, 3).map((tag) => (
               <TagBadge key={tag.id} tag={tag} />
             ))}
-            {tags.length > 3 && (
-              <span className="text-muted-foreground text-xs">
-                +{tags.length - 3}
-              </span>
-            )}
+            {tags.length > 3 &&
+              (v2 ? (
+                <span className="mx-tag mx-tag--ink">+{tags.length - 3}</span>
+              ) : (
+                <span className="text-muted-foreground text-xs">
+                  +{tags.length - 3}
+                </span>
+              ))}
           </div>
         )
       },
@@ -191,16 +264,20 @@ export function createColumns({
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="-ml-4"
+          className={cn('-ml-4', sortHeaderCn)}
+          style={sortHeaderStyle}
         >
           Actualizado
-          <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+          <ArrowUpDownIcon className={arrowCn} />
         </Button>
       ),
       cell: ({ row }) => {
         const date = row.getValue('updated_at') as string
         return (
-          <div className="text-muted-foreground text-sm">
+          <div
+            className={cn(v2 ? 'text-[12px] text-[var(--ink-3)]' : 'text-muted-foreground text-sm')}
+            style={v2 ? { fontFamily: 'var(--font-mono)' } : undefined}
+          >
             {formatRelativeTime(date)}
           </div>
         )
@@ -214,13 +291,19 @@ export function createColumns({
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('h-8 w-8', v2 && 'hover:bg-[var(--paper-3)] text-[var(--ink-2)] hover:text-[var(--ink-1)]')}
+              >
                 <span className="sr-only">Abrir menu</span>
                 <MoreHorizontalIcon className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+              <DropdownMenuLabel className={v2 ? 'mx-smallcaps text-[var(--ink-3)]' : ''}>
+                Acciones
+              </DropdownMenuLabel>
               <DropdownMenuItem onClick={() => onViewDetail(contact)}>
                 Ver detalles
               </DropdownMenuItem>

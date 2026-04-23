@@ -97,6 +97,80 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Bugs conocidos:**
   - Rate limiting no implementado en API de envio (W-1 audit)
 
+#### UI Editorial v2 — Inbox Re-skin (in rollout, 2026-04-22)
+
+- **Standalone:** `.planning/standalone/ui-redesign-conversaciones/` — 6 plans (01 infra → 05 polish) + 06 DoD/docs.
+- **Status:** ✅ SHIPPED detrás de feature flag per-workspace (Regla 6). Default `false` en todos los workspaces. Production deploy: 2026-04-22 (commits `1d72504` → `0e6c703` en `main`).
+- **Primera activación productiva:** workspace **Somnio** (id `a3843b3f-c337-4836-92b5-89c58bb98490`) activado 2026-04-22 después de QA lado a lado aprobado por el usuario en Vercel prod.
+- **Scope confinado:** SOLO ruta `/whatsapp` (D-07). Sidebar global, módulos CRM/Tareas/Automatizaciones/etc. intactos — ver standalone futuro `ui-redesign-dashboard-chrome`.
+- **Dark mode:** explícitamente forzado a light dentro de `.theme-editorial` (UI-SPEC §12.4). El toggle global `next-themes` no invierte los tokens paper/ink/rubric.
+
+**Feature flag:** `workspaces.settings.ui_inbox_v2.enabled` (boolean, JSONB).
+
+**Activación per-workspace (manual via SQL — UI admin diferida a standalone futuro):**
+
+```sql
+-- IMPORTANTE: dos jsonb_set anidados o COALESCE para parent key.
+-- Un jsonb_set plano NO crea llaves intermedias inexistentes.
+UPDATE workspaces
+SET settings = jsonb_set(
+  COALESCE(settings, '{}'::jsonb),
+  '{ui_inbox_v2,enabled}',
+  'true'::jsonb,
+  true  -- create_missing = true para crear `ui_inbox_v2` como parent si no existe
+)
+WHERE id = '<workspace-uuid>';
+```
+
+**Rollback inmediato (cero downtime, cero migración):**
+
+```sql
+UPDATE workspaces
+SET settings = jsonb_set(settings, '{ui_inbox_v2,enabled}', 'false'::jsonb)
+WHERE id = '<workspace-uuid>';
+```
+
+**Componentes re-skineados (8 archivos visuales):**
+- `inbox-layout.tsx` — wrapper `.theme-editorial` condicional + `Esc` keyboard shortcut (cierra drawer <1280px)
+- `conversation-list.tsx` — header eyebrow "Módulo · whatsapp" + display title "Conversaciones" (EB Garamond 26px) + 4 tabs underlined (Todas / Sin asignar / Mías / Cerradas) + search editorial + shortcuts `/` (focus search) + `[`/`]` (prev/next conversación) + empty states D-15/D-16 + loading skeletons `.mx-skeleton` (6 items)
+- `conversation-item.tsx` — avatar paper-3 con borde ink-1, selected rail 3px rubric-2 con compensación pl-[13px], unread dot 8px (≤9) / pill 22px (>9) / "99+" (>99), timestamp JetBrains Mono 11px
+- `chat-view.tsx` — DaySeparator editorial em-dash smallcaps (`— Martes 21 de abril —`) + 3 bubble skeletons alternando + `role="log"` + `aria-live="polite"` + **fix universal del bug `hsl(var(--background))`** (aplica a slate Y editorial — tokens shadcn post-v4 son bare OKLCH, el wrapper `hsl()` era inválido)
+- `chat-header.tsx` — avatar ink-1 sólido, eyebrow "Contacto · activo", nombre EB Garamond 20px, meta JetBrains Mono 11px, hard rule border-b ink-1, 9 aria-labels universales, DropdownMenu portal re-rooting para AssignDropdown
+- `contact-panel.tsx` — paper-2 bg, section headings smallcaps (tracking 0.12em), `<dl>` grid 1fr/1.4fr para dirección/ciudad, order cards rounded-xl, MxTag stage pills (gold/verdigris/rubric/indigo/ink mapeados por nombre de stage), 6 aria-labels adicionales. **839 → 1132 LOC puramente aditivo — cero refactor estructural (D-20 preservado).**
+- `message-bubble.tsx` — radius 10px con corner 2px (letter/note shape, UI-SPEC §5.1 pixel-perfect), padding 10x14, paper-0/ink-1 fills, eyebrow ❦ "bot · respuesta sugerida" smallcaps rubric-2 serif cuando `isAgentMessage`
+- `message-input.tsx` — composer con hard rule ink-1 border-top, input paper-1 (jerarquía dentro de paper-0), Send button ink-1 sólido con label "Enviar" + press affordance `translate-y-px`, rubric-tinted 24h-closed banner con `AlertTriangle` (D-17 pattern), `aria-label="Enviar mensaje"` universal
+
+**Componentes/archivos nuevos (6):**
+- `src/lib/auth/inbox-v2.ts` — resolver server-side `getIsInboxV2Enabled(workspaceId)` fail-closed (mirror de `getIsSuperUser`)
+- `src/app/(dashboard)/whatsapp/fonts.ts` — EB Garamond (400/500/600/700/800 + italic) + Inter variable + JetBrains Mono (400/500) via `next/font/google` **per-route** (no se cargan en otras rutas del dashboard — ahorra ~150KB). Cormorant Garamond NO se carga (cascade fallback a EB Garamond, UI-SPEC §6.3).
+- `src/app/(dashboard)/whatsapp/components/inbox-v2-context.tsx` — `InboxV2Provider` + hook `useInboxV2()` para gate de NEW JSX sin prop drilling
+- `src/app/(dashboard)/whatsapp/components/mx-tag.tsx` — pill editorial wrapper, 5 variants (rubric/gold/indigo/verdigris/ink)
+- `src/app/(dashboard)/whatsapp/components/icon-button.tsx` — 32×32 ibtn con `aria-label` como prop OBLIGATORIO (TS compile error si se omite — D-24)
+- `src/app/(dashboard)/whatsapp/components/day-separator.tsx` — separador editorial `— EEEE d 'de' MMMM —` con `date-fns` + locale `es`
+
+**Cambios CSS (bloque único):**
+- `src/app/globals.css` — bloque `.theme-editorial { ... }` (~310 líneas) con tokens custom paper/ink/rubric/accent-verdigris/gold/indigo + shadcn semantic token overrides (`--primary` → `--ink-1`, `--destructive` → `--rubric-2`, `--background` → `--paper-1`, etc. — 60/30/10 color contract preservado) + utilities `mx-*` scoped (display/h1..h4/body/caption/smallcaps/rubric/marginalia/mono/rule*/tag/tag--*/skeleton) + `@keyframes mx-pulse` + `prefers-reduced-motion` auto-disable
+- Preserva `:root` shadcn-slate intacto fuera del scope (Regla 6 zero-regression)
+- Shadcn primitives extendidos con prop opcional `portalContainer` (aditivo, byte-identical default): `src/components/ui/dropdown-menu.tsx` (Plan 04) + `src/components/ui/popover.tsx` (Plan 05) para re-rooting de portales Radix dentro de `.theme-editorial`
+
+**Out-of-scope (diferidos):**
+- Modales y sheets internos (NewConversationModal, TemplateSendModal, ViewOrderSheet, CreateContactSheet, CreateOrderSheet, AgentConfigSlider) — fase de seguimiento `ui-redesign-conversaciones-modales`
+- Sidebar global re-skin + lockup `morf·x` — standalone `ui-redesign-dashboard-chrome`
+- Dark mode editorial — explícitamente fuera de scope v1 (handoff §8)
+- `<Brand />` component — depende de sidebar global
+- Refactor estructural de `contact-panel.tsx` — preservado por D-20 (solo re-skin local)
+- **D-17 channel-down banner** DIFERIDO: `useConversations` y `useMessages` NO exponen signal de conexión (`isConnected`). Extenderlos violaría D-19. Requiere follow-up que extienda los hooks con `isConnected: boolean` sourcing del Supabase Realtime channel state (que sí expone `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` pero no los surfacea a consumers).
+- **D-18 snoozed state** DIFERIDO con artifact: `ConversationWithDetails` no expone field `bot_mute_until`. Ver `.planning/standalone/ui-redesign-conversaciones/DEFERRED-D18.md` para checklist de 7 pasos de un-defer (migration → type → hook SELECT → domain mutation → server action → UI trigger → agent rule).
+
+**Stack aditivo cero npm packages.** Todas las fuentes via `next/font/google` (zero install). Lucide `AlertTriangle` + `Moon` ya estaban en deps.
+
+**Reglas verificadas:**
+- **Regla 6 (proteger agente productivo):** 18 paths NO-TOUCH verificados con `git diff main` → **0 líneas cambiadas** en hooks (`use-conversations.ts`, `use-messages.ts`), realtime, action handlers, webhooks, `DebugPanelProduction`, `AgentConfigSlider`, `AvailabilityToggle`, `WindowIndicator`, `BoldPaymentLinkButton`, sheets, `conversation-tag-input`, `src/lib/agents/`, `src/lib/inngest/`, `src/lib/domain/`, `src/components/layout/sidebar.tsx`. Verificable en `dod-verification.txt` Check 4.
+- **Regla 1 (push a Vercel):** commits Plan 01-06 pusheados a `origin main` 2026-04-22.
+- **Regla 4 (docs):** este documento actualizado.
+
+**DoD UI-SPEC §16 (12 items):** ✅ verificados — ver `.planning/standalone/ui-redesign-conversaciones/06-SUMMARY.md` + `dod-verification.txt` + `axe-report.txt` + QA aprobado por el usuario en Vercel prod con Somnio workspace.
+
 ---
 
 ### 2.5. Client Activation Badge
@@ -737,3 +811,4 @@ Todos los handlers delegan al domain layer. `initializeTools()` requerido en cua
 *Actualizado: 19 abril 2026 — Phase 44.1 (CRM Bots Config DB) SHIPPED: 3 env vars de CRM bots relocadas a tabla `platform_config` en Supabase. Nuevo helper `src/lib/domain/platform-config.ts` con cache in-memory 30s TTL. Kill-switch ahora flipeable via SQL sin redeploy (resuelve Blocker 6). `RESEND_API_KEY` permanece en Vercel (secret). QA kill-switch procedure actualizado — ver seccion 11.1.*
 *Actualizado: 21 abril 2026 — Standalone `somnio-recompra-crm-reader` SHIPPED (codigo) con feature flag default `false` (Regla 6 rollout gradual): `somnio-recompra-v1` ahora enriquece la sesion con contexto rico del cliente (ultimo pedido, tags, total pedidos, direccion) via Inngest function `recompra-preload-context` que invoca al agente `crm-reader` en paralelo al saludo. Comprehension del turno 1+ inyecta seccion dedicada `## CONTEXTO CRM DEL CLIENTE (precargado)` cuando `_v3:crm_context_status === 'ok'`. 26 unit tests passing. Activacion manual via SQL en `platform_config.somnio_recompra_crm_reader_enabled`. Ver seccion 11.2.*
 *Actualizado: 22 abril 2026 — Standalone `crm-stage-integrity` SHIPPED (codigo) con feature flags default `false` (Regla 6 rollout gradual). Fix del bug "pedidos se devuelven" reportado 2026-04-21: 6 capas compuestas (domain CAS + audit log append-only + Inngest concurrency per-orderId + runtime kill-switch + build-time cycle detection recursiva + Kanban Realtime + toast rollback). Flags `crm_stage_integrity_cas_enabled` y `crm_stage_integrity_killswitch_enabled` en `platform_config` — flipeable via SQL sin redeploy. Audit log (`order_stage_history`), Inngest concurrency, cycle detection y Kanban Realtime operativos desde deploy (additive, sin flag). Ver seccion CRM Pedidos + `.planning/standalone/crm-stage-integrity/LEARNINGS.md` para rollout guide.*
+*Actualizado: 22 abril 2026 — Standalone `ui-redesign-conversaciones` SHIPPED (6 plans + 06 DoD/docs). Re-skin editorial del modulo Inbox WhatsApp detrás de feature flag per-workspace `workspaces.settings.ui_inbox_v2.enabled` (default `false`, Regla 6). 8 componentes visuales re-skineados (inbox-layout/conversation-list/conversation-item/chat-view/chat-header/contact-panel/message-bubble/message-input) + 6 archivos nuevos (getIsInboxV2Enabled helper + fonts per-route + InboxV2 context + MxTag/IconButton/DaySeparator primitives) + bloque `.theme-editorial` en globals.css (~310 lineas) con tokens paper/ink/rubric + shadcn overrides scoped. Scope confinado a `/whatsapp` (D-07). Dark mode forzado a light (UI-SPEC §12.4). Fix universal del bug pre-existente `hsl(var(--background))` en chat-view post Tailwind v4. Shadcn primitives `dropdown-menu.tsx` + `popover.tsx` extendidos con prop opcional `portalContainer` (aditivo, byte-identical default) para re-rooting Radix portals dentro del scope editorial. D-17 (channel-down banner) y D-18 (snoozed state) diferidos — ver `.planning/standalone/ui-redesign-conversaciones/DEFERRED-D18.md` + LEARNINGS.md para checklist de un-defer. Primera activacion productiva: workspace Somnio (id `a3843b3f-c337-4836-92b5-89c58bb98490`) tras QA lado a lado aprobado por el usuario en Vercel prod. Ver seccion 2. WhatsApp → subseccion "UI Editorial v2 — Inbox Re-skin" + `.planning/standalone/ui-redesign-conversaciones/LEARNINGS.md`.*

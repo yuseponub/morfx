@@ -20,9 +20,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { getAgentConfig, updateAgentConfig } from '@/app/actions/agent-config'
 import type { AgentConfig } from '@/lib/agents/production/agent-config'
 import { AGENT_CATALOG } from '@/lib/agents/agent-catalog'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 // ============================================================================
 // CONSTANTS
@@ -60,6 +62,7 @@ export function ConfigPanel() {
   const [config, setConfig] = useState<AgentConfig | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const v2 = useDashboardV2()
 
   // Debounce refs
   const handoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -145,7 +148,18 @@ export function ConfigPanel() {
 
   // Loading state
   if (isLoading || !config) {
-    return (
+    return v2 ? (
+      <div className="max-w-3xl space-y-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-[var(--paper-2)] border border-[var(--border)] h-[120px]"
+            style={{ animation: 'mx-pulse 1.5s ease-in-out infinite' }}
+            aria-hidden
+          />
+        ))}
+      </div>
+    ) : (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
@@ -156,104 +170,282 @@ export function ConfigPanel() {
     <div className="max-w-3xl space-y-6">
       {/* Saving indicator */}
       {isSaving && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Save className="h-3 w-3 animate-pulse" />
-          Guardando...
-        </div>
+        v2 ? (
+          <div
+            className="flex items-center gap-2 text-[11px] text-[var(--ink-3)]"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            <Save className="h-3 w-3 animate-pulse text-[var(--ink-3)]" aria-hidden />
+            Guardando…
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Save className="h-3 w-3 animate-pulse" />
+            Guardando...
+          </div>
+        )
       )}
 
       {/* Section 1: Global toggle */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
-                config.agent_enabled
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-muted text-muted-foreground'
-              }`}>
+      {v2 ? (
+        <article
+          className="border border-[var(--ink-1)] bg-[var(--paper-2)] p-6"
+          style={{ boxShadow: '0 1px 0 var(--ink-1)' }}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div
+                className={cn(
+                  'h-10 w-10 grid place-items-center border flex-shrink-0',
+                  config.agent_enabled
+                    ? 'bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--rubric-2)]'
+                    : 'bg-[var(--paper-2)] border-[var(--ink-3)] text-[var(--ink-3)]'
+                )}
+              >
                 <Bot className="h-5 w-5" />
               </div>
-              <div>
-                <CardTitle className="text-base">Agente activo</CardTitle>
-                <CardDescription>
+              <div className="flex-1 min-w-0">
+                <h3
+                  className="text-[16px] font-semibold leading-tight text-[var(--ink-1)]"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  Agente activo
+                </h3>
+                <p
+                  className="mt-1 text-[13px] italic text-[var(--ink-3)] leading-[1.5]"
+                  style={{ fontFamily: 'var(--font-serif)' }}
+                >
                   {config.agent_enabled
                     ? 'El agente esta procesando mensajes de WhatsApp'
                     : 'El agente esta desactivado. Los mensajes no seran procesados automaticamente.'}
-                </CardDescription>
+                </p>
               </div>
             </div>
-            <Switch
-              checked={config.agent_enabled}
-              onCheckedChange={handleToggleAgent}
-            />
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Section 2: Conversational agent */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Agente Conversacional</CardTitle>
-          </div>
-          <CardDescription>
-            El agente que maneja las conversaciones de WhatsApp. Detecta intenciones, captura datos y ofrece promos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={config.conversational_agent_id}
-            onValueChange={handleSelectAgent}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleccionar agente" />
-            </SelectTrigger>
-            <SelectContent>
-              {AGENT_CATALOG.map((agent) => (
-                <SelectItem key={agent.id} value={agent.id}>
-                  <div className="flex flex-col">
-                    <span>{agent.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id) && (
-            <p className="text-xs text-muted-foreground mt-2">
-              {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id)?.description}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 3: CRM agents */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Agentes CRM</CardTitle>
-          </div>
-          <CardDescription>
-            Agentes que ejecutan acciones en el CRM automaticamente cuando el agente conversacional lo solicita.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {CRM_AGENTS.map((agent) => (
-            <div key={agent.id} className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <span className="text-sm font-medium">{agent.name}</span>
-                <p className="text-xs text-muted-foreground">{agent.description}</p>
-              </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <span
+                className={cn('mx-tag', config.agent_enabled ? 'mx-tag--verdigris' : 'mx-tag--ink')}
+                aria-label={config.agent_enabled ? 'Estado activo' : 'Estado pausado'}
+              >
+                {config.agent_enabled ? '● Activo' : '◐ Pausado'}
+              </span>
               <Switch
-                checked={config.crm_agents_enabled[agent.id] ?? false}
-                onCheckedChange={(checked) => handleToggleCrmAgent(agent.id, checked)}
+                checked={config.agent_enabled}
+                onCheckedChange={handleToggleAgent}
               />
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          </div>
+        </article>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+                  config.agent_enabled
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Agente activo</CardTitle>
+                  <CardDescription>
+                    {config.agent_enabled
+                      ? 'El agente esta procesando mensajes de WhatsApp'
+                      : 'El agente esta desactivado. Los mensajes no seran procesados automaticamente.'}
+                  </CardDescription>
+                </div>
+              </div>
+              <Switch
+                checked={config.agent_enabled}
+                onCheckedChange={handleToggleAgent}
+              />
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
+      {/* Section 2: Conversational agent */}
+      {v2 ? (
+        <article
+          className="border border-[var(--ink-1)] bg-[var(--paper-2)]"
+          style={{ boxShadow: '0 1px 0 var(--ink-1)' }}
+        >
+          <header className="px-6 pt-5 pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-1">
+              <MessageSquare className="h-[14px] w-[14px] text-[var(--rubric-2)]" aria-hidden />
+              <h3
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                Agente Conversacional
+              </h3>
+            </div>
+            <p
+              className="text-[13px] italic text-[var(--ink-3)] leading-[1.5]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              El agente que maneja las conversaciones de WhatsApp. Detecta intenciones, captura datos y ofrece promos.
+            </p>
+          </header>
+          <div className="px-6 py-5">
+            <Select
+              value={config.conversational_agent_id}
+              onValueChange={handleSelectAgent}
+            >
+              <SelectTrigger
+                className="w-full bg-[var(--paper-0)] border-[var(--ink-1)] text-[var(--ink-1)] rounded-[3px] focus-visible:ring-[var(--ink-1)] focus-visible:ring-offset-0"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                <SelectValue placeholder="Seleccionar agente" />
+              </SelectTrigger>
+              <SelectContent>
+                {AGENT_CATALOG.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    <div className="flex flex-col">
+                      <span>{agent.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id) && (
+              <p
+                className="text-[12px] italic text-[var(--ink-3)] mt-3"
+                style={{ fontFamily: 'var(--font-serif)' }}
+              >
+                {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id)?.description}
+              </p>
+            )}
+          </div>
+        </article>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Agente Conversacional</CardTitle>
+            </div>
+            <CardDescription>
+              El agente que maneja las conversaciones de WhatsApp. Detecta intenciones, captura datos y ofrece promos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={config.conversational_agent_id}
+              onValueChange={handleSelectAgent}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Seleccionar agente" />
+              </SelectTrigger>
+              <SelectContent>
+                {AGENT_CATALOG.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    <div className="flex flex-col">
+                      <span>{agent.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id) && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {AGENT_CATALOG.find(a => a.id === config.conversational_agent_id)?.description}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Section 3: CRM agents */}
+      {v2 ? (
+        <article
+          className="border border-[var(--ink-1)] bg-[var(--paper-2)]"
+          style={{ boxShadow: '0 1px 0 var(--ink-1)' }}
+        >
+          <header className="px-6 pt-5 pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="h-[14px] w-[14px] text-[var(--rubric-2)]" aria-hidden />
+              <h3
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--rubric-2)]"
+                style={{ fontFamily: 'var(--font-sans)' }}
+              >
+                Agentes CRM
+              </h3>
+            </div>
+            <p
+              className="text-[13px] italic text-[var(--ink-3)] leading-[1.5]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              Agentes que ejecutan acciones en el CRM automaticamente cuando el agente conversacional lo solicita.
+            </p>
+          </header>
+          <div className="px-6 py-4 space-y-3">
+            {CRM_AGENTS.map((agent) => {
+              const enabled = config.crm_agents_enabled[agent.id] ?? false
+              return (
+                <div
+                  key={agent.id}
+                  className="flex items-start justify-between gap-4 py-2 border-b border-dotted border-[var(--border)] last:border-b-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[14px] font-semibold text-[var(--ink-1)]"
+                        style={{ fontFamily: 'var(--font-sans)' }}
+                      >
+                        {agent.name}
+                      </span>
+                      <span
+                        className={cn('mx-tag', enabled ? 'mx-tag--verdigris' : 'mx-tag--ink')}
+                        aria-label={enabled ? 'Activo' : 'Inactivo'}
+                      >
+                        {enabled ? '● Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                    <p
+                      className="mt-1 text-[12px] italic text-[var(--ink-3)] leading-[1.5]"
+                      style={{ fontFamily: 'var(--font-serif)' }}
+                    >
+                      {agent.description}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={enabled}
+                    onCheckedChange={(checked) => handleToggleCrmAgent(agent.id, checked)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </article>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Agentes CRM</CardTitle>
+            </div>
+            <CardDescription>
+              Agentes que ejecutan acciones en el CRM automaticamente cuando el agente conversacional lo solicita.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {CRM_AGENTS.map((agent) => (
+              <div key={agent.id} className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-sm font-medium">{agent.name}</span>
+                  <p className="text-xs text-muted-foreground">{agent.description}</p>
+                </div>
+                <Switch
+                  checked={config.crm_agents_enabled[agent.id] ?? false}
+                  onCheckedChange={(checked) => handleToggleCrmAgent(agent.id, checked)}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 4: Handoff message */}
       <Card>

@@ -42,13 +42,18 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, CheckCircle2, XCircle, Plug, Trash2, Eye, EyeOff } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useDashboardV2 } from '@/components/layout/dashboard-v2-context'
 
 interface ShopifyFormProps {
   integration: ShopifyIntegration | null
   pipelines: Array<Pipeline & { stages: PipelineStage[] }>
+  v2?: boolean
 }
 
-export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
+export function ShopifyForm({ integration, pipelines, v2: v2Prop }: ShopifyFormProps) {
+  const v2Hook = useDashboardV2()
+  const v2 = v2Prop ?? v2Hook
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isTesting, setIsTesting] = useState(false)
@@ -170,17 +175,52 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
     })
   }
 
+  // Editorial token classes (applied only when v2)
+  const inputV2 = v2
+    ? 'border border-[var(--border)] bg-[var(--paper-0)] px-[10px] py-[8px] rounded-[var(--radius-3)] text-[13px] text-[var(--ink-1)] focus-visible:outline-none focus-visible:border-[var(--ink-1)] focus-visible:shadow-[0_0_0_3px_var(--paper-3)] focus-visible:ring-0'
+    : ''
+  const labelV2 = v2 ? 'text-[12px] font-semibold text-[var(--ink-1)] tracking-[0.02em]' : ''
+  const hintV2 = v2 ? 'text-[11px] text-[var(--ink-3)]' : 'text-xs text-muted-foreground'
+  const errorV2 = v2 ? 'text-[12px] text-[oklch(0.45_0.14_28)]' : 'text-sm text-destructive'
+  const sectionHeadingV2 = v2 ? 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--rubric-2)] m-0' : 'text-sm font-medium'
+  const switchV2 = v2
+    ? 'data-[state=checked]:bg-[oklch(0.58_0.14_150)] data-[state=unchecked]:bg-[var(--paper-3)] data-[state=unchecked]:border data-[state=unchecked]:border-[var(--border)]'
+    : ''
+  const selectTriggerV2 = v2
+    ? 'border border-[var(--border)] bg-[var(--paper-0)] text-[13px] text-[var(--ink-1)] rounded-[var(--radius-3)] focus:border-[var(--ink-1)] focus:ring-0 focus:shadow-[0_0_0_3px_var(--paper-3)]'
+    : ''
+  const selectContentV2 = v2 ? 'bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_1px_0_var(--ink-1)]' : ''
+  const selectItemV2 = v2 ? 'text-[13px] text-[var(--ink-1)] focus:bg-[var(--paper-2)]' : ''
+  const btnGhostV2 = v2 ? 'text-[var(--ink-2)] hover:bg-[var(--paper-2)] hover:text-[var(--ink-1)]' : ''
+  const btnSecondaryV2 = v2
+    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] border border-[var(--border)] bg-[var(--paper-0)] text-[var(--ink-2)] text-[13px] font-semibold shadow-none hover:bg-[var(--paper-2)]'
+    : ''
+  const btnPrimaryV2 = v2
+    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] !bg-[var(--ink-1)] !text-[var(--paper-0)] hover:!bg-[var(--ink-2)] !border !border-[var(--ink-1)] !shadow-[0_1px_0_var(--ink-1)] text-[13px] font-semibold'
+    : ''
+  const btnDangerV2 = v2
+    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-3)] !border !border-[oklch(0.75_0.10_28)] !bg-[var(--paper-0)] !text-[oklch(0.38_0.14_28)] !shadow-[0_1px_0_oklch(0.75_0.10_28)] hover:!bg-[oklch(0.98_0.02_28)] text-[13px] font-semibold'
+    : ''
+  const v2FontSans = v2 ? { fontFamily: 'var(--font-sans)' } : undefined
+  const v2FontMono = v2 ? { fontFamily: 'var(--font-mono)' } : undefined
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Status Badge */}
       {integration && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Badge variant={integration.is_active ? 'default' : 'secondary'}>
-              {integration.is_active ? 'Activa' : 'Inactiva'}
-            </Badge>
+            {v2 ? (
+              <span className={cn('mx-tag', integration.is_active ? 'mx-tag--verdigris' : 'mx-tag--ink')}>
+                {integration.is_active ? 'Activa' : 'Inactiva'}
+              </span>
+            ) : (
+              <Badge variant={integration.is_active ? 'default' : 'secondary'}>
+                {integration.is_active ? 'Activa' : 'Inactiva'}
+              </Badge>
+            )}
             {integration.config.shop_domain && (
-              <span className="text-sm text-muted-foreground">
+              <span className={cn('text-sm text-muted-foreground', v2 && '!text-[12px] !text-[var(--ink-3)]')} style={v2FontMono}>
                 {integration.config.shop_domain}
               </span>
             )}
@@ -190,6 +230,7 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
               checked={integration.is_active}
               onCheckedChange={handleToggleActive}
               disabled={isPending}
+              className={switchV2}
             />
           </div>
         </div>
@@ -197,19 +238,21 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
 
       {/* Integration Name Section */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Identificacion</h3>
+        <h3 className={sectionHeadingV2} style={v2FontSans}>Identificacion</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="name">Nombre de la integracion</Label>
+          <Label htmlFor="name" className={labelV2} style={v2FontSans}>Nombre de la integracion</Label>
           <Input
             id="name"
             placeholder="Mi Tienda Shopify"
+            className={inputV2}
+            style={v2FontSans}
             {...register('name', { required: 'Requerido' })}
           />
           {errors.name && (
-            <p className="text-sm text-destructive">{errors.name.message}</p>
+            <p className={errorV2} style={v2FontSans}>{errors.name.message}</p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className={hintV2} style={v2FontSans}>
             Un nombre para identificar esta integracion en el sistema
           </p>
         </div>
@@ -217,31 +260,34 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
 
       {/* Credentials Section */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Credenciales</h3>
+        <h3 className={sectionHeadingV2} style={v2FontSans}>Credenciales</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="shop_domain">Dominio de la tienda</Label>
+          <Label htmlFor="shop_domain" className={labelV2} style={v2FontSans}>Dominio de la tienda</Label>
           <Input
             id="shop_domain"
             placeholder="mitienda.myshopify.com"
+            className={inputV2}
+            style={v2FontSans}
             {...register('shop_domain', { required: 'Requerido' })}
           />
           {errors.shop_domain && (
-            <p className="text-sm text-destructive">{errors.shop_domain.message}</p>
+            <p className={errorV2} style={v2FontSans}>{errors.shop_domain.message}</p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className={hintV2} style={v2FontSans}>
             Solo el subdominio de Shopify (ej: mitienda.myshopify.com)
           </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="access_token">Access Token</Label>
+            <Label htmlFor="access_token" className={labelV2} style={v2FontSans}>Access Token</Label>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => setShowSecrets(!showSecrets)}
+              className={btnGhostV2}
             >
               {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
@@ -250,23 +296,27 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
             id="access_token"
             type={showSecrets ? 'text' : 'password'}
             placeholder="shpat_xxxxx"
+            className={inputV2}
+            style={v2FontMono}
             {...register('access_token', { required: 'Requerido' })}
           />
           {errors.access_token && (
-            <p className="text-sm text-destructive">{errors.access_token.message}</p>
+            <p className={errorV2} style={v2FontSans}>{errors.access_token.message}</p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="api_secret">API Secret Key</Label>
+          <Label htmlFor="api_secret" className={labelV2} style={v2FontSans}>API Secret Key</Label>
           <Input
             id="api_secret"
             type={showSecrets ? 'text' : 'password'}
             placeholder="shpss_xxxxx"
+            className={inputV2}
+            style={v2FontMono}
             {...register('api_secret', { required: 'Requerido' })}
           />
           {errors.api_secret && (
-            <p className="text-sm text-destructive">{errors.api_secret.message}</p>
+            <p className={errorV2} style={v2FontSans}>{errors.api_secret.message}</p>
           )}
         </div>
 
@@ -277,6 +327,8 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
             variant="outline"
             onClick={handleTestConnection}
             disabled={isTesting}
+            className={btnSecondaryV2}
+            style={v2FontSans}
           >
             {isTesting ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -289,13 +341,13 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
             <div className="flex items-center gap-1">
               {testResult.success ? (
                 <>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-green-600">{testResult.shopName}</span>
+                  <CheckCircle2 className={cn('h-4 w-4', v2 ? 'text-[oklch(0.55_0.14_150)]' : 'text-green-500')} />
+                  <span className={cn('text-sm', v2 ? 'text-[13px] text-[oklch(0.35_0.10_150)]' : 'text-green-600')} style={v2FontSans}>{testResult.shopName}</span>
                 </>
               ) : (
                 <>
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm text-red-600">{testResult.error}</span>
+                  <XCircle className={cn('h-4 w-4', v2 ? 'text-[oklch(0.55_0.18_28)]' : 'text-red-500')} />
+                  <span className={cn('text-sm', v2 ? 'text-[13px] text-[oklch(0.45_0.14_28)]' : 'text-red-600')} style={v2FontSans}>{testResult.error}</span>
                 </>
               )}
             </div>
@@ -305,21 +357,21 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
 
       {/* Configuration Section */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Configuracion de pedidos</h3>
+        <h3 className={sectionHeadingV2} style={v2FontSans}>Configuracion de pedidos</h3>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Pipeline destino</Label>
+            <Label className={labelV2} style={v2FontSans}>Pipeline destino</Label>
             <Select
               value={selectedPipelineId}
               onValueChange={handlePipelineChange}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerV2} style={v2FontSans}>
                 <SelectValue placeholder="Seleccionar pipeline" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={selectContentV2}>
                 {pipelines.map(pipeline => (
-                  <SelectItem key={pipeline.id} value={pipeline.id}>
+                  <SelectItem key={pipeline.id} value={pipeline.id} className={selectItemV2} style={v2FontSans}>
                     {pipeline.name}
                   </SelectItem>
                 ))}
@@ -328,17 +380,17 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Etapa inicial</Label>
+            <Label className={labelV2} style={v2FontSans}>Etapa inicial</Label>
             <Select
               value={watch('default_stage_id')}
               onValueChange={(value) => setValue('default_stage_id', value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerV2} style={v2FontSans}>
                 <SelectValue placeholder="Seleccionar etapa" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={selectContentV2}>
                 {stages.map(stage => (
-                  <SelectItem key={stage.id} value={stage.id}>
+                  <SelectItem key={stage.id} value={stage.id} className={selectItemV2} style={v2FontSans}>
                     <div className="flex items-center gap-2">
                       <div
                         className="h-3 w-3 rounded-full"
@@ -354,44 +406,45 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label>Matching de productos</Label>
+          <Label className={labelV2} style={v2FontSans}>Matching de productos</Label>
           <Select
             value={watch('product_matching')}
             onValueChange={(value: 'sku' | 'name' | 'value') => setValue('product_matching', value)}
           >
-            <SelectTrigger>
+            <SelectTrigger className={selectTriggerV2} style={v2FontSans}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sku">Por SKU (exacto)</SelectItem>
-              <SelectItem value="name">Por nombre (aproximado)</SelectItem>
-              <SelectItem value="value">Por precio (exacto)</SelectItem>
+            <SelectContent className={selectContentV2}>
+              <SelectItem value="sku" className={selectItemV2} style={v2FontSans}>Por SKU (exacto)</SelectItem>
+              <SelectItem value="name" className={selectItemV2} style={v2FontSans}>Por nombre (aproximado)</SelectItem>
+              <SelectItem value="value" className={selectItemV2} style={v2FontSans}>Por precio (exacto)</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
+          <p className={hintV2} style={v2FontSans}>
             Como se vinculan los productos de Shopify con tu catalogo
           </p>
         </div>
 
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label>Matching inteligente de contactos</Label>
-            <p className="text-xs text-muted-foreground">
+            <Label className={labelV2} style={v2FontSans}>Matching inteligente de contactos</Label>
+            <p className={hintV2} style={v2FontSans}>
               Busca contactos similares por nombre y ciudad si no hay coincidencia por telefono
             </p>
           </div>
           <Switch
             checked={watch('enable_fuzzy_matching')}
             onCheckedChange={(checked) => setValue('enable_fuzzy_matching', checked)}
+            className={switchV2}
           />
         </div>
 
         {/* Auto-sync toggle - only shown when integration is configured and active */}
         {integration && integration.is_active && (
-          <div className="flex items-center justify-between pt-2 border-t">
+          <div className={cn('flex items-center justify-between pt-2 border-t', v2 && 'border-[var(--border)]')}>
             <div className="space-y-0.5">
-              <Label>Crear ordenes automaticamente</Label>
-              <p className="text-xs text-muted-foreground max-w-md">
+              <Label className={labelV2} style={v2FontSans}>Crear ordenes automaticamente</Label>
+              <p className={cn(hintV2, 'max-w-md')} style={v2FontSans}>
                 Cuando esta activado, las ordenes de Shopify crean automaticamente contactos y
                 pedidos en MorfX. Cuando esta desactivado, solo se disparan automatizaciones.
               </p>
@@ -400,32 +453,33 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
               checked={autoSyncOrders}
               onCheckedChange={handleAutoSyncToggle}
               disabled={isPending}
+              className={switchV2}
             />
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t">
+      <div className={cn('flex items-center justify-between pt-4 border-t', v2 && 'border-[var(--border)]')}>
         <div>
           {integration && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" size="sm">
+                <Button type="button" variant="destructive" size="sm" className={btnDangerV2} style={v2FontSans}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Eliminar
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className={cn(v2 && 'bg-[var(--paper-0)] border border-[var(--ink-1)] shadow-[0_2px_0_var(--ink-1)]')}>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Eliminar integracion</AlertDialogTitle>
-                  <AlertDialogDescription>
+                  <AlertDialogTitle className={cn(v2 && 'text-[20px] font-bold tracking-[-0.01em]')} style={v2 ? { fontFamily: 'var(--font-display)' } : undefined}>Eliminar integracion</AlertDialogTitle>
+                  <AlertDialogDescription className={cn(v2 && 'text-[13px] text-[var(--ink-2)]')} style={v2FontSans}>
                     Se desconectara la tienda Shopify. Los pedidos ya importados no se eliminaran.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>
+                  <AlertDialogCancel className={btnSecondaryV2} style={v2FontSans}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className={btnDangerV2} style={v2FontSans}>
                     Eliminar
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -434,7 +488,7 @@ export function ShopifyForm({ integration, pipelines }: ShopifyFormProps) {
           )}
         </div>
 
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className={btnPrimaryV2} style={v2FontSans}>
           {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           {integration ? 'Guardar cambios' : 'Conectar tienda'}
         </Button>

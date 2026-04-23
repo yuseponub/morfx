@@ -663,6 +663,39 @@ Para futuras fases UI editoriales:
 
 **Cuándo activar productivamente en otros workspaces:** después que el flag haya estado activo en Somnio por al menos 1-2 semanas sin reports negativos, y solo después de QA equivalente per-workspace.
 
+### §9.1.1 Verificación post-push (el flag SIGUE OFF para todos los workspaces)
+
+Inmediatamente después del push, el usuario puede correr estas 2 queries informacionales en Supabase Studio para confirmar que NINGÚN workspace tiene el flag ON (defensa final — la Regla 6 dice "agente productivo intacto hasta activación explícita"):
+
+```sql
+-- Query 1: Confirmar que ningún workspace tiene ui_dashboard_v2 explícitamente seteado a true
+SELECT id, name, settings->'ui_dashboard_v2' AS state
+FROM workspaces
+WHERE settings->'ui_dashboard_v2'->>'enabled' = 'true';
+-- Esperado: 0 rows.
+
+-- Query 2: Confirmar que el default per-workspace es false|NULL
+SELECT
+  COUNT(*) FILTER (WHERE settings->'ui_dashboard_v2' IS NULL)             AS sin_llave,
+  COUNT(*) FILTER (WHERE settings->'ui_dashboard_v2'->>'enabled' = 'false') AS explicito_false,
+  COUNT(*) FILTER (WHERE settings->'ui_dashboard_v2'->>'enabled' = 'true')  AS explicito_true
+FROM workspaces;
+-- Esperado: sin_llave = total_workspaces (o cercano); explicito_true = 0.
+```
+
+Si Query 1 retorna 0 rows y Query 2 muestra `explicito_true = 0`, Regla 6 está verificada post-push: el código shipeado NO alteró el comportamiento productivo de ningún workspace. La activación es un paso operativo separado a voluntad del usuario.
+
+### §9.1.2 Tracking de la activación una vez ejecutada
+
+Post-activación (el usuario corre `activacion-somnio.sql` PASO 2), agregar una nota a MEMORY.md del proyecto con:
+
+- Fecha de activación
+- Workspace UUID
+- Resumen del QA visual (OK o issues detectados)
+- Si rollback, motivo
+
+Esto mantiene el log de milestones v5.0 sincronizado.
+
 ---
 
 ## Self-Check: PASSED

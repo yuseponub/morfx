@@ -433,3 +433,75 @@ Reporte completo en `.planning/standalone/ui-redesign-landing/dod-verification.t
 - `ui-redesign-dashboard-chrome` — sidebar global + `<Brand />` component + shell del dashboard (fuera de `/whatsapp`). Reutilizará los mismos tokens `.theme-editorial`.
 - `ui-redesign-conversaciones-modales` — modales/sheets internos del inbox que quedaron slate en v1 editorial del inbox.
 - Eventual blog / docs / pricing page bajo `(marketing)/` — aplicar el mismo pattern de esta fase.
+
+---
+
+## 13. Appendix: Plan 04 realignment al mock v2.1 (post-ship correction)
+
+**Qué pasó (post-mortem honesto):**
+
+Plan 01 (shipped 2026-04-22) construyó una landing editorial **extrapolada** a partir del lenguaje visual del inbox. No había mock específico de landing en el design handoff v1/v2 del zip que yo encontré (`morfx Design System.zip` + `(1).zip`). Lo que sí había eran 8 mocks de módulos de dashboard (agentes/analytics/automatizaciones/configuracion/conversaciones/crm/pedidos/tareas) — ninguno de landing.
+
+El mismo día (pocas horas después), el usuario apuntó a que existía un archivo v2.1 (`morfx Design System (2).zip`) que incluía `mocks/landing.html` (868 líneas, mock pixel-perfect de landing pública) + CHANGELOG documentando la adición (v2.1 · landing añadida). Ese zip no existía o no lo detecté en la búsqueda inicial.
+
+**Correcciones requeridas (capturadas en Plan 04):**
+
+Lo que construí en Plan 01 era una landing editorial genérica. El mock v2.1 es específico y mucho más rico. Deltas materiales:
+
+1. **D-LND-10 incorrecta en Plan 01:** primary CTA usaba `var(--ink-1)` negro (pattern del Send button del composer). **Mock v2.1:** primary CTA es `bg: var(--rubric-2)` rojo rubric con `box-shadow: 0 1px 0 var(--rubric-1)` stamp. Coherencia product↔marketing se mantiene pero por OTRO pattern: el "stamp press" con shadow offset + border de color igual al fondo sombra. Plan 04 T1 corrige.
+
+2. **D-LND-08 incorrecta en Plan 01:** header usaba `<Image src="/logo-light.png" />`. **Mock v2.1:** wordmark tipográfico `morf<b>·</b>x` con la `·` en `var(--rubric-2)`. Consecuencia: no hace falta el logo image en marketing; `/public/logo-light.png` sigue en el repo pero no se referencia. Plan 04 T1 reemplaza.
+
+3. **Hero completamente distinto:**
+   - Plan 01: 1-col center/left text, eyebrow smallcaps, `mx-display`, CTAs, subhead.
+   - Mock v2.1: **2-col grid (1.1fr / 1fr)**. Left: stamp chip (bordered rubric-2 + dot + "MORFX S.A.S. · Empresa colombiana") + h1 serif 44-68px con `<em>automatizados</em>` italic rubric-2 + subhead serif 19px + CTAs + meta line con clock icon. Right: **mockup-frame** — frame rotado `transform: rotate(0.6deg)` con `box-shadow: 0 1px 0 ink-1, 0 24px 48px -20px ink/35%` + **4 tape corners dorados** (accent-gold 35% + paper-0 mix) rotados individualmente -4°/+5°/+3°/-4° en las esquinas, conteniendo adentro una **miniatura funcional del inbox WhatsApp** (`wa-mock`: grid 140px 1fr × 420px altura, con wa-list de 5 chats mock + wa-convo activa con header avatar C + 3 msgs incluyendo una out.ai con eyebrow `✦ Agente IA` rubric-2 + composer con fake-input + suggest chip). Plan 04 T2 replica.
+
+4. **Secciones nuevas que no existían en código post-Plan-01:**
+   - **Manifest strip** (entre hero y modules): sección bg `paper-2`, borders dashed arriba y abajo (`repeating-linear-gradient(90deg, ink-1 0 8px, transparent 8px 16px)` height 4px), contenido centrado con eyebrow `Nuestra tesis` rubric-2 + h2 "Un *sistema* para vender, responder y entregar. No cinco herramientas pegadas con cinta." (`em` italic rubric-2). → Plan 04 T3 crea `manifest.tsx`.
+   - **Modules grid 12-col** (reemplaza `product-section.tsx` removido): 5 cards con data-num `"01".."05"`, `::before` pseudo-element absolute top-right rendering `attr(data-num)`, spans variables (`.wide` = 8col / `.narrow` = 4col / `.half` = 6col). Cada card contiene mini-mockup visual distinto: (01 CRM wide) tabla-diccionario con 4 rows contactos (nombre + teléfono mono + ciudad italic + tag); (02 Agentes narrow) agent card con header nombre+status.ok, `claude-4-sonnet · tono formal-cercano`, 3 stats grandes (847 turnos hoy / 94% auto-resol / 1.8s respuesta); (03 Automations narrow) auto mini con 3 nodes conectados (trigger zap "Nuevo pedido Shopify" → cond git-branch "Si ciudad = Bogotá" → action send "Enviar confirmación WA"); (04 Integrations half) grid de 6 logos (Shopify/WhatsApp/Coordinadora/InterRapidísimo `.ok` + Claude/GPT default); (05 Multi-channel half) lista 4 filas (WhatsApp `.on` / Messenger `.soon` / Instagram `.soon` / Correo `.soon`). Section-head con `sec-label` vertical (writing-mode: vertical-rl + rotate 180°) "§ Producto". → Plan 04 T4 crea `modules-grid.tsx`, borra `product-section.tsx`.
+   - **Flow diagram 3-col** (sección "Cómo funciona"): grid 3 columnas con nodes bordered ink-1 paper-0 con lucide icons; col izquierda Origen (Shopify shopping-bag + WhatsApp message-circle) → col centro Hub (Agente IA + CRM con sparkles icon + lista `steps` de 4 items) → col derecha Destino (Coordinadora truck + Inter Rapidísimo package). → Plan 04 T5 crea `flow.tsx`.
+
+5. **About rehecho:**
+   - Plan 01: heading + párrafos + ornament — genérico.
+   - Mock v2.1: 2-col. Left: h2 "Una empresa *colombiana*..." rubric-em + intro paragraph + **objeto social block** (eyebrow rubric-2 sans bold "Objeto social" + blockquote italic large + source line "— Acta de constitución bajo la Ley 1258 de 2008, República de Colombia."). Right: **ledger card** (bg paper-0 + border ink-1 + shadow stamp + padding generoso) con `<dl>` de 6 rows: Razón social / NIT (mono) / Domicilio / Año constitución (mono) / Código CIIU (mono) / Representante legal. → Plan 04 T6 rehace `about.tsx`.
+
+6. **CTA closing:** ornament `❊ ❊ ❊` rubric-3 (3 stars/flowers Unicode), h2 "¿Listo para *empezar?*" rubric-em, paragraph serif, 2 CTAs (primary rubric-2 press "Escribir por WhatsApp" + secondary ink-1 outline "Enviar un correo"), contact line. → Plan 04 T7 reemplaza `cta.tsx`.
+
+7. **Footer DARK:**
+   - Plan 01: bg `paper-3` claro.
+   - Mock v2.1: **bg `var(--ink-1)` (oscuro)**, color default `var(--paper-0)`, 4-col grid (1.4fr / 1fr / 1fr / 1.2fr): wordmark `morf<b>·</b>x` (punto en `rubric-3` — diferente del header que usa `rubric-2`) + tagline serif 14px paper-0 70% / Producto col (4 links) / Legal col (3 links) / Contacto col (phone + email + WhatsApp con label sans uppercase 10px). Bottom legal strip mono 11px con 3 líneas: copyright+NIT / dirección / CIIU. → Plan 04 T7 reemplaza `footer.tsx`.
+
+**Qué se preservó del Plan 01-03 (no se re-trabajó):**
+
+- `src/app/(marketing)/fonts.ts` (Plan 01 T1 — loader de 3 fuentes, intacto).
+- `src/app/(marketing)/[locale]/terms/page.tsx` + `privacy/page.tsx` (Plan 02 T2 + T3 — layout editorial con marginalia sirve bien para el mock v2.1 también; cero re-trabajo).
+- `src/components/marketing/legal/legal-section.tsx` (Plan 02 T1 — API editorial con marginalia + body-long + ornament se mantiene).
+- `.theme-editorial` en `globals.css` (zero cambios — tokens + utilities ya existían desde `ui-redesign-conversaciones` Plan 01).
+- `src/app/(marketing)/[locale]/layout.tsx` (Plan 01 T2 — `.theme-editorial` + font vars aplicados al wrapper, preservado).
+
+**Qué se relajó (D-LND-06):**
+
+- **Copy intacto** era la promesa original. Al adaptar el mock v2.1, varias secciones nuevas (Manifest eyebrow/headline, ModulesGrid section-head + 15 bullets + 5 mini-mockups decorativos, Flow diagram entera, About ledger rows + objeto social blockquote, Footer dark contenido) no tienen keys correspondientes en `src/messages/{es,en}.json`. **Decisión práctica:** hardcode en español directamente en los componentes Server Components. i18n para estas secciones queda como deuda técnica para fase posterior.
+- Keys existentes (`Landing.Hero.*`, `Landing.About.*`, `Header.*`, `Footer.*`, etc.) se preservan byte-exact donde aplican.
+
+**Commits del realignment (Plan 04):**
+
+Plan 04 produjo 9 commits (8 tasks + 1 summary) en rango `7ac1c5a..9642e36`:
+- `7ac1c5a` docs: add design handoff v2.1 con landing.html mock
+- `67d4538` docs: add 04-PLAN.md
+- `fc2a802` T1: header wordmark morf·x + nav primary + locale box + CTA rubric-2
+- `1a4f3e8` T2: hero 2-col con stamp + mockup-frame WhatsApp
+- `0d75d60` T3: manifest.tsx NEW
+- `f47e6ae` T4: modules-grid.tsx NEW + product-section.tsx removed
+- `9974351` T5: flow.tsx NEW
+- `61889f4` T6: about rehecho con ledger legal
+- `78c48fd` T7: cta ornament ❊ + footer dark 4-col
+- `389aefa` T8: page.tsx wire-up final
+- `9642e36` 04-SUMMARY.md
+- push a origin/main: `cfd447d..9642e36` (13 commits, Vercel auto-deploy).
+
+**Lesson learned (aplicable a fases futuras):**
+
+Antes de extrapolar un aesthetic a un módulo nuevo, **buscar exhaustivamente** si existe mock específico. Los design handoffs pueden venir en versiones incrementales (v1 → v2 → v2.1) y el scope del handoff puede expandirse. Fuentes a checar: todos los zips en `Downloads/` con nombre del proyecto, Desktop, folders compartidos, chats de diseño, etc. Si no hay mock específico para el artefacto que vas a construir, PAUSAR y preguntar al usuario explícitamente — "no encuentro mock de X, ¿existe en algún lado o extrapolo?".
+
+El costo de extrapolar cuando hay mock específico fue ~40min de Plan 01 tirado + ~50min de Plan 04 para re-hacer = ~90min de trabajo duplicado. Si la primera vez hubiera preguntado "¿hay mock específico de landing que no encontré?", me habría ahorrado los 40min de Plan 01.

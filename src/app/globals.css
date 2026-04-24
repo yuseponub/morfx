@@ -878,7 +878,14 @@
  * → card medio → hover saturado. app y sidebar son los 2 primeros.
  */
 .theme-editorial {
-  --bg-app: #f5ecd5;
+  /* CD 2026-04-24 clarification: #f5ecd5 era POST-grain (con multiply
+   * blend aplicado). morfx NO aplica grain en body — solo dentro del
+   * `.theme-editorial` wrapper, pero sobre surfaces ya opacos. Para
+   * matchear el look percibido del mock sin duplicar el SVG noise,
+   * usamos el valor intermedio `#faf4e6` (CD explicit fallback). Si
+   * se decide implementar grain SVG en body, cambiar a `#fffcf5`.
+   */
+  --bg-app: #faf4e6;
   --bg-sidebar: #ede3cb;
 }
 .theme-editorial,

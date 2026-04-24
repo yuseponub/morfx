@@ -237,6 +237,13 @@ export async function processMessageWithAgent(
         preloadedData: lastOrderData,
       })
 
+      // D-10, D-12 (agent-forensics-panel Plan 01): capture the
+      // responding agent BEFORE `processMessage`. Set-before-run
+      // ensures the schema records the routing even if the runner
+      // throws (anti-pattern: setting after would swallow the audit
+      // trail on failure paths — RESEARCH.md line 470).
+      getCollector()?.setRespondingAgentId('somnio-recompra-v1')
+
       const engineOutput = await runner.processMessage({
         sessionId: '',
         conversationId,
@@ -439,6 +446,9 @@ export async function processMessageWithAgent(
       const { V3ProductionRunner } = await import('../engine/v3-production-runner')
       const runner = new V3ProductionRunner(adapters, { workspaceId })
 
+      // D-10, D-12: capture responder BEFORE processMessage (set-before-run).
+      getCollector()?.setRespondingAgentId('somnio-v3')
+
       engineOutput = await runner.processMessage({
         sessionId: '',
         conversationId,
@@ -461,6 +471,9 @@ export async function processMessageWithAgent(
       await import('../godentist')
       const { V3ProductionRunner } = await import('../engine/v3-production-runner')
       const runner = new V3ProductionRunner(adapters, { workspaceId, agentModule: 'godentist' })
+
+      // D-10, D-12: capture responder BEFORE processMessage (set-before-run).
+      getCollector()?.setRespondingAgentId('godentist')
 
       engineOutput = await runner.processMessage({
         sessionId: '',

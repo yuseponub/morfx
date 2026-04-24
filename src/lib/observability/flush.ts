@@ -114,6 +114,12 @@ export async function flushCollector(collector: ObservabilityCollector): Promise
         conversation_id: collector.conversationId,
         workspace_id: collector.workspaceId,
         agent_id: collector.agentId,
+        // D-10 (agent-forensics-panel Plan 01): the agent that actually
+        // produced the response. `collector.agentId` is the entry/routing
+        // id (from workspace_agent_config); `responding_agent_id` reflects
+        // the branch taken in webhook-processor.ts. Stays NULL when the
+        // entry agent is also the responder (no routing).
+        responding_agent_id: collector.respondingAgentId ?? null,
         // ObservabilityCollectorInit does not currently expose
         // `turnNumber`; the schema column is nullable so we leave it
         // as NULL until a future plan threads it through.

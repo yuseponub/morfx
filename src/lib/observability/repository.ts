@@ -29,7 +29,19 @@ export interface TurnSummary {
   id: string
   conversationId: string
   workspaceId: string
+  /**
+   * Entry agent id — resolved from `workspace_agent_config.conversational_agent_id`
+   * at turn start. Preserved untouched for audit. Prefer `respondingAgentId`
+   * when non-null for display (D-10, standalone agent-forensics-panel Plan 01).
+   */
   agentId: string
+  /**
+   * The agent that actually produced the response after webhook-processor
+   * routing. NULL when the entry agent is also the responder (no branching).
+   * D-10, D-12 standalone agent-forensics-panel Plan 01. UI should render
+   * `respondingAgentId ?? agentId` via `getDisplayAgentId`.
+   */
+  respondingAgentId: string | null
   startedAt: string
   finishedAt: string | null
   durationMs: number | null
@@ -68,7 +80,7 @@ export async function listTurnsForConversation(
   const { data, error } = await supabase
     .from('agent_observability_turns')
     .select(
-      'id, conversation_id, workspace_id, agent_id, started_at, finished_at, duration_ms, event_count, query_count, ai_call_count, total_tokens, total_cost_usd, error, trigger_kind, current_mode, new_mode',
+      'id, conversation_id, workspace_id, agent_id, responding_agent_id, started_at, finished_at, duration_ms, event_count, query_count, ai_call_count, total_tokens, total_cost_usd, error, trigger_kind, current_mode, new_mode',
     )
     .eq('conversation_id', conversationId)
     .order('started_at', { ascending: false })
@@ -82,6 +94,8 @@ export async function listTurnsForConversation(
     conversationId: r.conversation_id as string,
     workspaceId: r.workspace_id as string,
     agentId: r.agent_id as string,
+    // D-10: NULL when entry agent is also the responder (no routing).
+    respondingAgentId: (r.responding_agent_id as string | null) ?? null,
     startedAt: r.started_at as string,
     finishedAt: (r.finished_at as string | null) ?? null,
     durationMs: (r.duration_ms as number | null) ?? null,
@@ -307,6 +321,8 @@ export async function getTurnDetail(
       conversationId: t.conversation_id as string,
       workspaceId: t.workspace_id as string,
       agentId: t.agent_id as string,
+      // D-10: NULL when entry agent is also the responder (no routing).
+      respondingAgentId: (t.responding_agent_id as string | null) ?? null,
       startedAt: t.started_at as string,
       finishedAt: (t.finished_at as string | null) ?? null,
       durationMs: (t.duration_ms as number | null) ?? null,

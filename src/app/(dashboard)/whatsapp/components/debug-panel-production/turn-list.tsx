@@ -29,6 +29,7 @@ import {
   getTurnsByConversationAction,
   type GetTurnsResult,
 } from '@/app/actions/observability'
+import { getDisplayAgentId } from './get-display-agent-id'
 
 const POLL_INTERVAL_MS = 15_000
 
@@ -153,7 +154,7 @@ export function TurnList({ conversationId, selectedTurnId, onSelectTurn }: Props
               <span>{turn.durationMs !== null ? `${turn.durationMs}ms` : '—'}</span>
             </div>
             <div className="text-sm text-foreground mt-1 truncate">
-              {turn.agentId} · {turn.triggerKind ?? 'event'}
+              {getDisplayAgentId(turn)} · {turn.triggerKind ?? 'event'}
               {turn.hasError && (
                 <span className="ml-2 text-destructive text-xs font-medium">ERROR</span>
               )}

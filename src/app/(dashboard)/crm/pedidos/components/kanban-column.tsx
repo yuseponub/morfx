@@ -115,9 +115,9 @@ export function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, backgroundColor: '#ffffff' }}
       className={cn(
-        'flex flex-col w-72 min-w-72 bg-muted/30 rounded-lg border',
+        'flex flex-col w-72 min-w-72 rounded-lg border',
         isOver && 'ring-2 ring-primary/50',
         isAtLimit && !isOverLimit && 'border-amber-400/50',
         isOverLimit && 'border-destructive/50',
@@ -125,7 +125,10 @@ export function KanbanColumn({
       )}
     >
       {/* Column header */}
-      <div className="group flex items-center gap-2 p-3 border-b bg-muted/50 rounded-t-lg">
+      <div
+        className="group flex items-center gap-2 p-3 border-b rounded-t-lg"
+        style={{ backgroundColor: '#ffffff' }}
+      >
         {/* Drag handle - suppressHydrationWarning for DndKit aria-describedby mismatch */}
         <button
           {...attributes}

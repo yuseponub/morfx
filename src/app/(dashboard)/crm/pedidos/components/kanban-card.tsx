@@ -94,12 +94,13 @@ export function KanbanCard({
     <div
       ref={setNodeRef}
       style={style}
+      data-selected={isSelected ? 'true' : undefined}
       {...attributes}
       {...listeners}
       suppressHydrationWarning
       onClick={handleClick}
       className={cn(
-        'group relative bg-background border rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing',
+        'kcard group relative border rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing',
         'hover:border-foreground/20 hover:shadow-md transition-all',
         dragging && 'opacity-50 shadow-lg ring-2 ring-primary/50',
         isSelected && 'ring-2 ring-primary border-primary',

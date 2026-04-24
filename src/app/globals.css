@@ -867,6 +867,26 @@
   border-color: oklch(0.80 0.04 180);
 }
 
+/* -- Kanban card background states (Pedidos, CD iteration 2026-04-24)
+ * Tokens definidos por Claude Design para el módulo real de pedidos.
+ * 3 estados: default cream, hover beige stronger, selected soft amber.
+ * Los estados de selected + drag mantienen border/shadow como el
+ * diferenciador principal (D-RETRO convención editorial restraint).
+ *
+ * Nota: el hover beige `#f7efd6` es TENTATIVO — CD dijo "salto notorio
+ * crema → beige" sin hex específico. Ajustar si el usuario confirma otro.
+ */
+.kcard {
+  background-color: #fffefa;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.kcard:hover {
+  background-color: #f7efd6;
+}
+.kcard[data-selected="true"] {
+  background-color: #fffaf0;
+}
+
 /* -- Overlay-style thin scrollbar ------------------------------
  * Scrollbar invisible en reposo, aparece momentáneamente al hover
  * (interacción) como una barra delgada sin track-box blanco. Uso:

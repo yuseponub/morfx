@@ -867,24 +867,29 @@
   border-color: oklch(0.80 0.04 180);
 }
 
-/* -- Kanban card background states (Pedidos, CD iteration 2026-04-24)
- * Tokens definidos por Claude Design para el módulo real de pedidos.
- * 3 estados: default cream, hover beige stronger, selected soft amber.
- * Los estados de selected + drag mantienen border/shadow como el
- * diferenciador principal (D-RETRO convención editorial restraint).
+/* -- Kanban card + stage backgrounds (Pedidos, CD Option B 2026-04-24)
+ * Tokens de Claude Design "Opción B" — valores pre-flattened asumiendo
+ * que NO se aplica grain texture multiply sobre estos surfaces. Matcha
+ * la captura de diseño sin depender de blend modes ni SVGs inline.
  *
- * Nota: el hover beige `#f7efd6` es TENTATIVO — CD dijo "salto notorio
- * crema → beige" sin hex específico. Ajustar si el usuario confirma otro.
+ * Jerarquía declarada por CD: sidebar oscuro → app medio → stage claro
+ * → card medio → hover saturado. Solo aplicamos `stage` y `card` acá
+ * — los tokens `bg-app` y `bg-sidebar` de Option B afectarían TODO
+ * el dashboard y requieren decisión separada (fuera de scope Pedidos).
+ *
+ * Stage bgs (#fafaf5) vive inline en kanban-column.tsx, no acá.
+ * Card bgs usan `.kcard` class + `data-selected` attribute para que
+ * el hover pseudo-class funcione correctamente.
  */
 .kcard {
-  background-color: #fffefa;
+  background-color: #f8f2e0;
   transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .kcard:hover {
-  background-color: #f7efd6;
+  background-color: #ebdfb8;
 }
 .kcard[data-selected="true"] {
-  background-color: #fffaf0;
+  background-color: #f5ead0;
 }
 
 /* -- Overlay-style thin scrollbar ------------------------------

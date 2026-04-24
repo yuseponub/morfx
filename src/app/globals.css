@@ -933,7 +933,12 @@ html:has(.theme-editorial) body {
   transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .kcard:hover {
-  background-color: #f0e4bf;
+  /* CD 2026-04-24: suavizado del hover. Antes #f0e4bf (beige saturado
+   * con salto fuerte). Ahora #fff9eb — tono cálido sutil que preserva
+   * la jerarquía light del conjunto (#fcf7f0 app / #fffefa card /
+   * #fff9eb hover / #f9efd9 selected).
+   */
+  background-color: #fff9eb;
 }
 .kcard[data-selected="true"] {
   background-color: #f9efd9;

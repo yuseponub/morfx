@@ -29,6 +29,7 @@
 import { estimateCost } from './pricing'
 import { hashPrompt } from './prompt-version'
 import type {
+  AgentId,
   EventCategory,
   ObservabilityAiCall,
   ObservabilityCollectorInit,
@@ -79,6 +80,19 @@ export class ObservabilityCollector {
   readonly currentMode?: string
   newMode?: string
 
+  /**
+   * The agent that actually produced the response. Populated mid-turn
+   * from the routing branches of webhook-processor.ts via
+   * `setRespondingAgentId(...)`. Remains `null` when the entry agent is
+   * also the responder (no branching). The UI prefers this value over
+   * `agentId` when non-null (D-10, D-12).
+   *
+   * Mutable — violates the otherwise-immutable identity block above. The
+   * mutation is first-write-wins (see `setRespondingAgentId`) so the
+   * routing audit trail is preserved across cascading routes.
+   */
+  respondingAgentId: AgentId | null
+
   // Record bags
   readonly events: ObservabilityEvent[] = []
   readonly queries: ObservabilityQuery[] = []
@@ -99,6 +113,37 @@ export class ObservabilityCollector {
     this.triggerKind = init.triggerKind
     this.currentMode = init.currentMode
     this.newMode = init.newMode
+    this.respondingAgentId = init.respondingAgentId ?? null
+  }
+
+  // -------------------------------------------------------------------------
+  // Responding-agent mutation (D-10, D-12 — standalone agent-forensics-panel)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Set the agent that actually produced the response. Called by the
+   * recompra / godentist / somnio-v3 branches of webhook-processor.ts
+   * once routing is resolved — always BEFORE `runner.processMessage` so
+   * the capture survives even if the runner throws.
+   *
+   * Semantics:
+   *   - First-write-wins: once a non-null value is set, a subsequent
+   *     call with a DIFFERENT value is silently ignored (preserves the
+   *     routing audit trail — if we accidentally cascade through two
+   *     branches, the first branch is the "true" responder).
+   *   - Idempotent on same value.
+   *   - Never throws (REGLA 6 — observability must never break prod).
+   */
+  setRespondingAgentId(id: AgentId): void {
+    try {
+      if (this.respondingAgentId && this.respondingAgentId !== id) {
+        // Preserve first-write-wins semantics.
+        return
+      }
+      this.respondingAgentId = id
+    } catch {
+      // Defensive: never throw from a record/setter call (REGLA 6).
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -216,6 +261,14 @@ export class ObservabilityCollector {
     events: readonly unknown[]
     queries: readonly unknown[]
     aiCalls: readonly unknown[]
+    /**
+     * Optional responding-agent id captured by the inner step collector
+     * (D-10, D-12). Propagated via the `setRespondingAgentId` setter so
+     * first-write-wins semantics still apply at the merge boundary —
+     * the outer collector keeps its existing value if one was already
+     * set, otherwise it inherits the step's value.
+     */
+    respondingAgentId?: AgentId | null
   }): void {
     try {
       // When merging from a step.run output, Inngest has serialized the
@@ -277,6 +330,14 @@ export class ObservabilityCollector {
       // append later in the same iteration (e.g. turn_completed event
       // fired after the merge).
       this.sequenceCounter = seq
+
+      // Propagate respondingAgentId through the setter so first-write-
+      // wins is honored at the merge boundary too (D-10, D-12). If the
+      // outer already has a value, the setter silently ignores the
+      // incoming one — preserves routing audit trail across replays.
+      if (other.respondingAgentId) {
+        this.setRespondingAgentId(other.respondingAgentId)
+      }
     } catch {
       // Defensive: never throw from observability bookkeeping (REGLA 6).
     }

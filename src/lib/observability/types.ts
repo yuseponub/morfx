@@ -22,11 +22,19 @@
  * - 'crm-reader' and 'crm-writer' added in Phase 44 (API-only tool providers,
  *   no conversation). They emit observability turns per API call with
  *   triggerKind='api' and a synthetic conversationId.
+ * - 'somnio-recompra-v1' added in standalone `agent-forensics-panel` Plan 01
+ *   (D-10, D-12). The legacy bucket `'somnio-recompra'` is preserved for
+ *   backwards compatibility with rows already flushed via
+ *   `resolveAgentIdForWorkspace()`. New routing captures from
+ *   webhook-processor.ts use the explicit `-v1` suffix (matches the agent
+ *   registry id documented in `.claude/rules/agent-scope.md` §Somnio
+ *   Recompra Agent).
  */
 export type AgentId =
   | 'somnio-v3'
   | 'godentist'
   | 'somnio-recompra'
+  | 'somnio-recompra-v1'
   | 'somnio-v2'
   | 'crm-reader'
   | 'crm-writer'
@@ -178,4 +186,14 @@ export interface ObservabilityCollectorInit {
   currentMode?: string
   /** Mode/state at turn end (filled by the pipeline). */
   newMode?: string
+  /**
+   * Seed value for the `respondingAgentId` collector field (D-10 standalone
+   * `agent-forensics-panel` Plan 01). Optional; defaults to null and is
+   * populated mid-turn via `setRespondingAgentId()` from the routing
+   * branches of webhook-processor.ts. Passed explicitly when cloning a
+   * collector into a step.run inner scope so the step-level collector
+   * inherits any value the outer collector already captured (e.g. merged
+   * from a previous step's __obs payload).
+   */
+  respondingAgentId?: AgentId | null
 }

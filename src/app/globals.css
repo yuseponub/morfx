@@ -249,10 +249,24 @@
   --ring: var(--ink-1);
   --radius: var(--radius-3);
 
-  /* -- Root visual application (UI-SPEC §2.10) ------------------ */
-  background-color: var(--paper-1);
-  background-image: var(--paper-grain), var(--paper-fibers);
-  background-blend-mode: multiply;
+  /* -- Root visual application (UI-SPEC §2.10) ------------------
+   * QA feedback 2026-04-24 (CD iteration): the multiply blend of
+   * paper-grain + paper-fibers darkened the declared background
+   * (#fcf7f0 rendered as ~#f5ecd5 post-grain). CD instruction:
+   * "arreglar el filter/overlay primero, no compensar hex".
+   *
+   * Approach: flat color on the root `.theme-editorial`. The
+   * `--paper-grain` + `--paper-fibers` tokens remain defined so any
+   * specific surface that WANTS texture (brand wordmark, ornamental
+   * editorial section) can apply them manually via local CSS.
+   *
+   * If texture is desired back on the root at some point, this block
+   * can be re-enabled but requires compensating `--bg-app` hex OR
+   * lowering the SVG alpha (feColorMatrix ... 0.035 → 0.015).
+   */
+  background-color: var(--bg-app);
+  /* background-image: var(--paper-grain), var(--paper-fibers); */
+  /* background-blend-mode: multiply; */
   /* QA feedback 2026-04-23 — base sans (Inter) en vez de serif (EB
    * Garamond). Motivo: módulos no-retrofit (Pedidos, Analytics, etc.)
    * que heredan vía .theme-editorial se veían serif en sus shadcn
@@ -878,14 +892,12 @@
  * → card medio → hover saturado. app y sidebar son los 2 primeros.
  */
 .theme-editorial {
-  /* CD 2026-04-24 clarification: #f5ecd5 era POST-grain (con multiply
-   * blend aplicado). morfx NO aplica grain en body — solo dentro del
-   * `.theme-editorial` wrapper, pero sobre surfaces ya opacos. Para
-   * matchear el look percibido del mock sin duplicar el SVG noise,
-   * usamos el valor intermedio `#faf4e6` (CD explicit fallback). Si
-   * se decide implementar grain SVG en body, cambiar a `#fffcf5`.
+  /* CD 2026-04-24 final values (medidos desde design canvas).
+   * Aplican true-rendered porque el grain multiply fue removido
+   * del root (ver bloque background-color arriba). Si se re-habilita
+   * el grain, cambiar a valores pre-grain: `--bg-app: #fffcf5`.
    */
-  --bg-app: #faf4e6;
+  --bg-app: #fcf7f0;
   --bg-sidebar: #ede3cb;
 }
 .theme-editorial,
@@ -913,10 +925,11 @@ html:has(.theme-editorial) body {
  * el hover pseudo-class funcione correctamente.
  */
 .kcard {
-  /* User QA 2026-04-24: cards subidas +3% L — CD dijo "un poquito mas
-   * claras". Before: #f8f2e0 / #ebdfb8 / #f5ead0. Ahora:
+  /* CD 2026-04-24 final values (medidos desde design canvas).
+   * Default muy claro, casi off-white cremoso. Hover y selected
+   * ajustados proporcionalmente para mantener la jerarquía.
    */
-  background-color: #fbf6ea;
+  background-color: #fffefa;
   transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .kcard:hover {

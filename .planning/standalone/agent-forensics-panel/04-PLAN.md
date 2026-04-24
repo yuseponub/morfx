@@ -141,21 +141,23 @@ const runAudit = () => sendMessage({ text: 'Auditar' })  // server ignores text
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Instalar dependencies `react-markdown@^10.1.0` + `remark-gfm@^4.0.1` (one-shot npm install)</name>
+  <name>Task 1: Instalar dependencies `react-markdown@^10.1.0` + `remark-gfm@^4.0.1` + RE-AGREGAR `outputFileTracingIncludes` en next.config.ts (rollback recovery desde Plan 01)</name>
   <read_first>
     - .planning/standalone/agent-forensics-panel/RESEARCH.md §Standard Stack (versions verified via npm view), §Environment Availability
     - package.json (verificar estado actual — grep `react-markdown\|remark` debe devolver vacio)
     - .planning/standalone/agent-forensics-panel/PATTERNS.md §No Analog Found (react-markdown es nuevo en codebase)
+    - **.planning/standalone/agent-forensics-panel/01-SUMMARY.md §Post-ship issues §Issue 1** — contexto del rollback de `next.config.ts` hecho en commit `6ddebbb` durante Plan 01. La route `/api/agent-forensics/audit` SI se crea en este Plan 04 (Task 4), por lo tanto esta vez Vercel aceptara la key.
+    - `next.config.ts` — verificar que NO tiene ya `outputFileTracingIncludes` (fue removido). Confirmar con `grep outputFileTracingIncludes next.config.ts`.
   </read_first>
   <action>
-    **Paso 1 — Verificar que no esten ya instaladas:**
+    **Paso 1 — Verificar que dependencies no esten ya instaladas:**
     ```bash
     grep -E '"react-markdown"|"remark-gfm"' package.json || echo "not installed"
     ```
 
-    **Paso 2 — Instalar:**
+    **Paso 2 — Instalar (pnpm, NO npm — el proyecto usa pnpm):**
     ```bash
-    npm install react-markdown@^10.1.0 remark-gfm@^4.0.1
+    pnpm add react-markdown@^10.1.0 remark-gfm@^4.0.1
     ```
 
     **Paso 3 — Verificar instalacion:**
@@ -167,20 +169,41 @@ const runAudit = () => sendMessage({ text: 'Auditar' })  // server ignores text
 
     **Paso 4 — Verificar peer-deps:**
     ```bash
-    npm ls react-markdown remark-gfm 2>&1 | head -20
+    pnpm ls react-markdown remark-gfm 2>&1 | head -20
     ```
 
     No debe haber WARN de peer-dep conflicts con React 19. Si hay, investigar (react-markdown@10.x soporta React 19 — si hay warn, reportar).
 
-    **Paso 5 — Verify build NO roto:**
+    **Paso 5 — RE-AGREGAR `outputFileTracingIncludes` en `next.config.ts`:**
+
+    Este bloque fue rollbackeado en Plan 01 (commit `6ddebbb`) porque Vercel rechazaba la key apuntando a una route que no existia. Ahora que Plan 04 Task 4 va a crear la route `/api/agent-forensics/audit` en el mismo plan, la key es valida.
+
+    Editar `next.config.ts` y re-agregar el bloque DESPUES de `serverExternalPackages` y ANTES de `experimental`:
+
+    ```typescript
+      // pdfkit needs filesystem access to .afm font files bundled in node_modules
+      // bwip-js has native bindings that break when bundled
+      serverExternalPackages: ['pdfkit', 'bwip-js'],
+      // agent-forensics-panel Plan 04: bundle agent spec markdown files into the
+      // audit API route lambda. Next.js 15 does NOT bundle arbitrary fs-read
+      // files by default — only `import`-ed modules. Without this include, the
+      // audit route's `fs.readFile(src/lib/agent-specs/<id>.md)` fails in Vercel
+      // lambdas with ENOENT.
+      outputFileTracingIncludes: {
+        '/api/agent-forensics/audit': ['./src/lib/agent-specs/**/*.md'],
+      },
+      experimental: {
+    ```
+
+    **Paso 6 — Verify build NO roto:**
     ```bash
     npx tsc --noEmit
     ```
 
-    **Paso 6 — Commit local:**
+    **Paso 7 — Commit local:**
     ```bash
-    git add package.json package-lock.json
-    git commit -m "chore(agent-forensics-panel): Plan 04 Task 1 — install react-markdown@10.1.0 + remark-gfm@4.0.1 (D-09)
+    git add package.json pnpm-lock.yaml next.config.ts
+    git commit -m "chore(agent-forensics-panel): Plan 04 Task 1 — deps react-markdown + remark-gfm + re-add outputFileTracingIncludes (D-09, rollback recovery Plan 01)
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
     ```

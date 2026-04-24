@@ -160,7 +160,23 @@ ORDER BY 1, 2;
 
 ### UI + build config
 - `src/app/(dashboard)/whatsapp/components/debug-panel-production/turn-list.tsx` — renderiza `{getDisplayAgentId(turn)}` en lugar de `{turn.agentId}`.
-- `next.config.ts` — `outputFileTracingIncludes` pre-registrado para `/api/agent-forensics/audit` apuntando a `./src/lib/agent-specs/**/*.md` (Plans 03/04).
+- `next.config.ts` — ~~`outputFileTracingIncludes` pre-registrado~~ **ROLLBACKED** (commit `6ddebbb`, ver Post-ship issues abajo). Shift right a Plan 04.
+
+## Post-ship issues
+
+**Issue 1 — `outputFileTracingIncludes` pre-register bloquea Vercel (rollback commit `6ddebbb`).**
+- **Sintoma:** 4 deploys consecutivos en Error post-build (commits `93ea700`, `f8eff70`, `9be4949`, `aa30492`) aunque el build completa limpio.
+- **Root cause:** Vercel/Next.js 16 rechaza keys de `outputFileTracingIncludes` que apuntan a routes inexistentes. `/api/agent-forensics/audit` no existe todavia (Plan 04 la crea). Pitfall 3 "pre-register" del RESEARCH.md era razonable conceptualmente pero Vercel lo gatea.
+- **Fix:** Rollback del bloque entero del `next.config.ts` — `git log --oneline -1 6ddebbb` = `fix(agent-forensics-panel): Plan 01 Task 8 rollback — remover outputFileTracingIncludes prematuro`.
+- **Shift right:** Plan 04 Task 1 debe RE-AGREGAR el bloque cuando cree la route (ahi la key es valida).
+- **Impact:** Ninguno sobre runtime. `fs.readFile` desde la audit API route funcionara una vez que Plan 04 la cree — Next.js igual bundlee lo que es reachable desde un `import`. Si Plan 04 necesita files no-importables, re-agrega el config.
+
+**Issue 2 — Inngest 3.51.0 bloqueado por Vercel CVE gate (hotfix commit `450a0e4`).**
+- **Sintoma:** Build pasa, deploy falla silenciosamente (log termina con warning `"Vulnerable version of inngest detected (3.51.0). Please update to version 3.54.0 or later."`).
+- **Root cause:** Vercel introdujo gate de seguridad nuevo que rechaza deploys con inngest < 3.54.0. No es del phase.
+- **Fix:** `pnpm add inngest@3.54.0` (pinned al ultimo 3.x — el 4.x tiene breaking changes). Commit `450a0e4 chore(hotfix): inngest 3.51.0 → 3.54.0 (unblock Vercel deploys)`.
+- **Scope:** Solo `package.json` + `pnpm-lock.yaml`. Unrelated al agent-forensics-panel, pero sin este hotfix el Plan 01 nunca llega a produccion.
+- **Verificaciones pre-push:** `npx tsc --noEmit` → 0 errors. `npx vitest run` → 153 passed / 7 skipped / 0 failed por codigo.
 
 ## Deviations from Plan
 

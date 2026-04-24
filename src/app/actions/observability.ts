@@ -27,6 +27,10 @@ import {
   type TurnDetail,
 } from '@/lib/observability/repository'
 import { assertSuperUser } from '@/lib/auth/super-user'
+import {
+  condenseTimeline,
+  type CondensedTimelineItem,
+} from '@/lib/agent-forensics/condense-timeline'
 
 export type GetTurnsResult =
   | { status: 'disabled'; flagName: string }
@@ -71,4 +75,49 @@ export async function getTurnDetailAction(
 ): Promise<TurnDetail> {
   await assertSuperUser()
   return getTurnDetail(turnId, startedAt)
+}
+
+/**
+ * Discriminated result for the forensics view (Plan 02 / standalone
+ * `agent-forensics-panel`). The UI needs to distinguish the "observability
+ * disabled" state (surface env var name) from the "ok" state (render the
+ * condensed timeline). Same pattern as `getTurnsByConversationAction`.
+ */
+export type GetForensicsViewResult =
+  | { status: 'disabled'; flagName: string }
+  | { status: 'ok'; turn: TurnSummary; condensed: CondensedTimelineItem[] }
+
+/**
+ * Return the condensed forensics view for a single turn: the turn summary
+ * (including `respondingAgentId` from Plan 01) + the filtered timeline
+ * items per the whitelist defined in `condenseTimeline` (D-04 whitelist,
+ * D-05 strict query exclusion).
+ *
+ * Super-user gated (same policy as the rest of this module).
+ *
+ * @param turnId          Canonical turn id from the master pane selection.
+ * @param startedAt       ISO timestamp surfaced by the list; used by
+ *                        `getTurnDetail` to partition-prune.
+ * @param respondingAgentId
+ *                        Passed through to `condenseTimeline`. Reserved
+ *                        for per-bot label boosting in future plans — the
+ *                        current filter is agent-agnostic.
+ *
+ * @throws Error('FORBIDDEN') when the caller is not the super-user.
+ * @throws When the turn row cannot be found inside the started_at window.
+ */
+export async function getForensicsViewAction(
+  turnId: string,
+  startedAt: string,
+  respondingAgentId: string | null,
+): Promise<GetForensicsViewResult> {
+  await assertSuperUser()
+
+  if (!isObservabilityEnabled()) {
+    return { status: 'disabled', flagName: OBSERVABILITY_FLAG_NAME }
+  }
+
+  const detail = await getTurnDetail(turnId, startedAt)
+  const condensed = condenseTimeline(detail, respondingAgentId)
+  return { status: 'ok', turn: detail.turn, condensed }
 }

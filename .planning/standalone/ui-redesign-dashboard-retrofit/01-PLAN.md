@@ -63,8 +63,8 @@ mock_coverage:
     - id: pipelines_config_tabs
       mock_lines: "123-124"
       description: "Tabs 'Pipelines' + 'Configuración' en el CRM hub"
-      status: deferred
-      waive_reason: "Rutas /crm/pipelines y /crm/configuracion no existen en codebase actual. Plan futuro del retrofit abordará. Por ahora: tabs renderean como links deshabilitados con tooltip 'Próximamente'"
+      status: partial
+      note: "Configuración → /crm/configuracion YA EXISTE en codebase (bajo `src/app/(dashboard)/crm/configuracion/{pipelines,estados-pedido,campos-custom}/`). La tab navega a la ruta real. Pipelines → queda como stub href='#' con toast 'Próximamente' (ruta /crm/pipelines no existe; la subruta bajo configuracion/pipelines es distinta)."
 
 requirements:
   - D-RETRO-01  # fresh rewrite

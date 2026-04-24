@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx · Pedidos</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+
+  /* ---------- Hidden scrollbars (content still scrolls) ---------- */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  /* ---------- Shared shell (mirrors CRM kit) ---------- */
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+
+  main { overflow: hidden; display: flex; flex-direction: column; }
+  .topbar { padding: 18px 28px 14px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: flex-end; justify-content: space-between; flex-shrink: 0; }
+  .eye { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; margin: 2px 0 0; letter-spacing: -0.015em; }
+  h1 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 16px; color: var(--ink-3); margin-left: 8px; }
+
+  .actions { display: flex; gap: 8px; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.pri:hover { background: var(--ink-2); }
+
+  /* ---------- KPI strip ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-bottom: 1px solid var(--border); background: var(--paper-1); flex-shrink: 0; }
+  .kpi { padding: 14px 20px 14px 28px; border-right: 1px solid var(--border); }
+  .kpi:last-child { border-right: 0; }
+  .kpi .lb { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); margin-bottom: 4px; }
+  .kpi .val { font-family: var(--font-display); font-weight: 700; font-size: 24px; color: var(--ink-1); letter-spacing: -0.01em; }
+  .kpi .val .unit { font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-3); margin-left: 6px; letter-spacing: 0; }
+  .kpi .delta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 3px; font-weight: 500; }
+  .kpi .delta.up { color: var(--semantic-success); }
+  .kpi .delta.dn { color: var(--rubric-2); }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar { padding: 14px 28px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); background: var(--paper-1); flex-shrink: 0; }
+  .search { flex: 1; max-width: 340px; position: relative; }
+  .search input { width: 100%; border: 1px solid var(--border); background: var(--paper-0); padding: 8px 10px 8px 30px; border-radius: var(--radius-3); font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  .chip { font-family: var(--font-sans); font-weight: 500; font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); cursor: pointer; background: var(--paper-0); }
+  .chip.on { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-3); overflow: hidden; background: var(--paper-0); margin-left: auto; }
+  .seg button { font-family: var(--font-sans); font-weight: 500; font-size: 12px; padding: 6px 11px; background: transparent; border: 0; color: var(--ink-3); cursor: pointer; display:flex; align-items:center; gap:5px; border-right: 1px solid var(--border); }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--ink-1); color: var(--paper-0); font-weight: 600; }
+
+  /* ---------- Kanban ---------- */
+  .kanban-wrap { flex: 1; overflow: hidden; display: grid; grid-template-columns: 1fr 420px; min-height: 0; }
+  .kanban-wrap.closed { grid-template-columns: 1fr 0px; }
+  .kanban { padding: 18px 28px; overflow: auto; display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 16px; }
+
+  .col { background: var(--paper-0); border: 1px solid var(--ink-1); border-radius: var(--radius-3); display:flex; flex-direction:column; max-height: calc(100vh - 280px); }
+  .col .hd { padding: 11px 13px; border-bottom: 1px solid var(--ink-1); display:flex; align-items:center; gap: 8px; background: var(--paper-1); border-radius: var(--radius-3) var(--radius-3) 0 0; }
+  .col .hd .dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .col.nuevo  .hd .dot { background: var(--accent-indigo); }
+  .col.prep   .hd .dot { background: var(--accent-gold); }
+  .col.listo  .hd .dot { background: var(--accent-verdigris); }
+  .col.ent    .hd .dot { background: var(--semantic-success); }
+  .col .hd .t { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; color: var(--ink-1); }
+  .col .hd .c { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; margin-left: auto; background: var(--paper-3); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); }
+  .col .hd .add { background: transparent; border: 0; width: 22px; height: 22px; border-radius: var(--radius-2); color: var(--ink-3); display:flex; align-items:center; justify-content:center; cursor: pointer; }
+  .col .hd .add:hover { background: var(--paper-3); color: var(--ink-1); }
+  .col .sum { padding: 6px 13px 9px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; background: var(--paper-1); display: flex; justify-content: space-between; }
+  .col .sum b { color: var(--ink-1); font-weight: 600; }
+  .col .body { padding: 10px; overflow: auto; display:flex; flex-direction:column; gap: 10px; }
+
+  .card { background: var(--paper-1); border: 1px solid var(--border); border-radius: var(--radius-3); padding: 11px 12px; box-shadow: 0 1px 0 var(--border); cursor: pointer; }
+  .card:hover { background: var(--paper-2); border-color: var(--ink-2); }
+  .card.sel { background: var(--paper-0); border-color: var(--ink-1); box-shadow: 0 1px 0 var(--ink-1), 0 4px 10px -4px oklch(0.3 0.04 60 / 0.18); }
+  .card .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .card .id { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+  .card .val { font-family: var(--font-mono); font-size: 12px; color: var(--ink-1); font-weight: 600; }
+  .card .nm { font-family: var(--font-sans); font-weight: 600; font-size: 13.5px; color: var(--ink-1); margin-top: 3px; letter-spacing: -0.005em; }
+  .card .pv { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); margin-top: 3px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .foot { margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border); display:flex; gap: 8px; align-items:center; }
+  .card .av { width: 20px; height: 20px; border-radius: 999px; background: var(--paper-3); border: 1px solid var(--ink-2); font-family: var(--font-sans); font-size: 10px; font-weight: 700; display:flex; align-items:center; justify-content:center; color: var(--ink-1); }
+  .card .date { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; }
+  .card .ch { display:inline-flex; align-items:center; gap: 3px; font-family: var(--font-sans); font-size: 10px; font-weight: 600; color: var(--ink-3); }
+  .card .flags { margin-left: auto; display: flex; gap: 4px; }
+  .card .flag { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-sans); font-weight: 600; font-size: 10px; padding: 2px 6px; border-radius: 999px; border: 1px solid transparent; }
+  .flag.late  { background: oklch(0.92 0.045 28); color: oklch(0.38 0.09 28); border-color: oklch(0.82 0.07 28); }
+  .flag.vip   { background: oklch(0.94 0.055 80); color: oklch(0.38 0.065 70); border-color: oklch(0.82 0.07 80); }
+  .flag.mayor { background: oklch(0.93 0.03 180); color: oklch(0.32 0.04 180); border-color: oklch(0.80 0.04 180); }
+  .flag.pago  { background: oklch(0.93 0.035 260); color: oklch(0.30 0.06 260); border-color: oklch(0.80 0.05 260); }
+
+  /* ---------- Drawer ---------- */
+  .drawer { border-left: 1px solid var(--ink-1); background: var(--paper-0); overflow: auto; display: flex; flex-direction: column; }
+  .dr-hd { padding: 16px 20px 12px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); position: sticky; top: 0; z-index: 2; }
+  .dr-hd .row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .dr-hd .id { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+  .dr-hd h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 2px 0 0; letter-spacing: -0.01em; color: var(--ink-1); }
+  .dr-hd .meta { font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); margin-top: 6px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .dr-hd .meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .dr-hd .close { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-2); width: 28px; height: 28px; display:flex; align-items:center; justify-content:center; cursor: pointer; color: var(--ink-2); }
+  .dr-hd .close:hover { background: var(--paper-3); color: var(--ink-1); }
+
+  /* Current-stage chip (replaces 4-step pipeline) */
+  .stage-bar { padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--paper-1); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .stage-bar .lb { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); }
+  .stage-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px 6px 11px; border-radius: 999px; font-family: var(--font-sans); font-weight: 600; font-size: 12px; letter-spacing: 0.02em; border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); }
+  .stage-chip .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent-verdigris); }
+  .stage-chip.nuevo .dot { background: var(--accent-indigo); }
+  .stage-chip.prep  .dot { background: var(--accent-gold); }
+  .stage-chip.listo .dot { background: var(--accent-verdigris); }
+  .stage-chip.ent   .dot { background: var(--semantic-success); }
+  .stage-bar .adv { margin-left: auto; display: flex; gap: 6px; }
+  .stage-bar .adv button { font-family: var(--font-sans); font-weight: 500; font-size: 11px; padding: 5px 10px; border-radius: var(--radius-3); background: var(--paper-0); border: 1px solid var(--border); color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .stage-bar .adv button:hover { background: var(--paper-3); color: var(--ink-1); border-color: var(--ink-2); }
+  .stage-bar .adv .next { border-color: var(--ink-1); color: var(--ink-1); font-weight: 600; }
+
+  .dr-sec { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .dr-sec h3 { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); margin: 0 0 10px; }
+
+  /* Line items table */
+  .lines { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 13px; }
+  .lines th { text-align: left; padding: 6px 8px 6px 0; font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); border-bottom: 1px solid var(--border); }
+  .lines th.r, .lines td.r { text-align: right; padding-right: 0; }
+  .lines td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--border); color: var(--ink-1); vertical-align: top; }
+  .lines td.qty { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-weight: 500; width: 40px; }
+  .lines td.p, .lines td.tot { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+  .lines td.p { color: var(--ink-3); width: 90px; }
+  .lines td.tot { color: var(--ink-1); font-weight: 600; width: 100px; }
+  .lines td.item .code { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; margin-top: 2px; display: block; }
+  .totals { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 4px 20px; font-family: var(--font-sans); font-size: 13px; }
+  .totals .lb { color: var(--ink-3); font-weight: 500; }
+  .totals .vl { font-family: var(--font-mono); font-weight: 500; color: var(--ink-1); text-align: right; }
+  .totals .grand .lb { color: var(--ink-1); font-weight: 600; font-size: 14px; padding-top: 6px; border-top: 1px solid var(--ink-1); margin-top: 4px; }
+  .totals .grand .vl { font-family: var(--font-display); font-weight: 700; color: var(--ink-1); font-size: 18px; padding-top: 6px; border-top: 1px solid var(--ink-1); margin-top: 4px; letter-spacing: -0.005em; }
+
+  /* Customer mini */
+  .cust { display: flex; gap: 10px; align-items: center; }
+  .cust .av { width: 36px; height: 36px; border-radius: 999px; background: var(--ink-1); color: var(--paper-0); display:flex; align-items:center; justify-content:center; font-family: var(--font-sans); font-weight: 700; font-size: 14px; }
+  .cust .nm { font-family: var(--font-sans); font-weight: 600; font-size: 14px; color: var(--ink-1); }
+  .cust .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+  .cust-actions { margin-top: 10px; display: flex; gap: 6px; }
+  .cust-actions .btn { padding: 6px 10px; font-size: 12px; }
+
+  /* Timeline */
+  .activity summary { list-style: none; display: flex; align-items: center; cursor: pointer; gap: 8px; margin: 0 0 10px; }
+  .activity summary::-webkit-details-marker { display: none; }
+  .activity .sum-label { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); }
+  .activity .chev { margin-left: auto; color: var(--ink-3); transition: transform 0.2s; }
+  .activity[open] .chev { transform: rotate(180deg); }
+  .tl { display: flex; flex-direction: column; gap: 10px; }
+  .tl-item { display: grid; grid-template-columns: 70px 1fr; gap: 10px; align-items: baseline; font-family: var(--font-sans); font-size: 13px; }
+  .tl-t { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .tl-b { color: var(--ink-2); line-height: 1.45; }
+  .tl-b b { color: var(--ink-1); font-weight: 600; }
+
+  .dr-actions { padding: 14px 20px; display: flex; gap: 8px; border-top: 1px solid var(--ink-1); background: var(--paper-1); position: sticky; bottom: 0; }
+  .dr-actions .btn { flex: 1; justify-content: center; }
+</style>
+</head>
+<body class="mx-doc">
+  <div class="app">
+    <!-- ---------- Sidebar ---------- -->
+    <aside class="sb">
+      <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Pedidos · tablero operativo</div></div>
+      <nav>
+        <div class="cat">Operación</div>
+        <ul>
+          <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+          <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+          <li><a class="active"><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+          <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+        </ul>
+        <div class="cat">Automatización</div>
+        <ul>
+          <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+          <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+        </ul>
+        <div class="cat">Análisis</div>
+        <ul>
+          <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+          <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- ---------- Main ---------- -->
+    <main>
+      <div class="topbar">
+        <div>
+          <div class="eye">Módulo · pedidos</div>
+          <h1>Tablero de pedidos <em>— Papelería Andina</em></h1>
+        </div>
+        <div class="actions">
+          <button class="btn"><i data-lucide="printer" width="14" height="14"></i>Imprimir hoja de ruta</button>
+          <button class="btn"><i data-lucide="download" width="14" height="14"></i>Exportar</button>
+          <button class="btn pri"><i data-lucide="plus" width="14" height="14"></i>Nuevo pedido</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="lb">Pedidos abiertos</div>
+          <div class="val">14</div>
+          <div class="delta up">+3 vs. ayer</div>
+        </div>
+        <div class="kpi">
+          <div class="lb">Valor en curso</div>
+          <div class="val">$ 18.420.000</div>
+          <div class="delta up">+$ 4.1M esta semana</div>
+        </div>
+        <div class="kpi">
+          <div class="lb">Promedio prep.</div>
+          <div class="val">2h 14m</div>
+          <div class="delta">meta 2h 30m</div>
+        </div>
+        <div class="kpi">
+          <div class="lb">Entregados hoy</div>
+          <div class="val">6<span class="unit">/ 9 planificados</span></div>
+          <div class="delta dn">3 atrasados</div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search"><i data-lucide="search" width="14" height="14"></i><input placeholder="Buscar por cliente, id de pedido o producto…"></div>
+        <span class="chip on">Hoy · 9</span>
+        <span class="chip">Esta semana</span>
+        <span class="chip">Mes</span>
+        <span class="chip">Todos</span>
+        <div class="seg">
+          <button class="on"><i data-lucide="kanban-square" width="13" height="13"></i>Tablero</button>
+          <button><i data-lucide="list" width="13" height="13"></i>Lista</button>
+          <button><i data-lucide="calendar" width="13" height="13"></i>Calendario</button>
+        </div>
+      </div>
+
+      <!-- Kanban + drawer -->
+      <div class="kanban-wrap" id="wrap">
+        <div class="kanban" id="kanban"></div>
+
+        <aside class="drawer" id="drawer">
+          <div class="dr-hd">
+            <div class="row">
+              <div>
+                <div class="id">Pedido · <span id="d-id">#0427</span></div>
+                <h2 id="d-title">Distribuciones Norte</h2>
+                <div class="meta">
+                  <span><i data-lucide="calendar" width="12" height="12"></i><span id="d-date">Martes 22 abr · entrega mañana</span></span>
+                  <span><i data-lucide="map-pin" width="12" height="12"></i><span id="d-city">Barranquilla</span></span>
+                  <span><i data-lucide="truck" width="12" height="12"></i><span id="d-ship">Envío terrestre</span></span>
+                </div>
+              </div>
+              <button class="close" onclick="closeDrawer()"><i data-lucide="x" width="14" height="14"></i></button>
+            </div>
+          </div>
+
+          <div class="stage-bar">
+            <span class="lb">Estado actual</span>
+            <span class="stage-chip listo"><span class="dot"></span>Listo para entrega</span>
+            <div class="adv">
+              <button><i data-lucide="chevron-left" width="12" height="12"></i>Preparando</button>
+              <button class="next">Entregado<i data-lucide="chevron-right" width="12" height="12"></i></button>
+            </div>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Cliente</h3>
+            <div class="cust">
+              <div class="av">DN</div>
+              <div>
+                <div class="nm">Distribuciones Norte</div>
+                <div class="sub">+57 604 312 0040 · Barranquilla</div>
+              </div>
+            </div>
+            <div class="cust-actions">
+              <button class="btn"><i data-lucide="message-square" width="13" height="13"></i>WhatsApp</button>
+              <button class="btn"><i data-lucide="phone" width="13" height="13"></i>Llamar</button>
+              <button class="btn"><i data-lucide="user" width="13" height="13"></i>Ficha CRM</button>
+            </div>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Líneas del pedido</h3>
+            <table class="lines" id="lines"></table>
+            <div class="totals" id="totals"></div>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Notas</h3>
+            <div style="font-family: var(--font-sans); font-size: 13px; color: var(--ink-2); line-height: 1.5;">
+              Cliente pide factura electrónica a nombre de <b style="color:var(--ink-1);">Distribuciones Norte S.A.S.</b> — NIT 900.412.881-4. Dejar caja sellada en bodega #3, recepción hasta las 17:00.
+            </div>
+          </div>
+
+          <details class="dr-sec activity" open>
+            <summary>
+              <span class="sum-label">Actividad</span>
+              <i data-lucide="chevron-down" width="14" height="14" class="chev"></i>
+            </summary>
+            <div class="tl">
+              <div class="tl-item"><span class="tl-t">hoy 14:22</span><span class="tl-b"><b>Mariana</b> marcó el pedido como <b>listo</b></span></div>
+              <div class="tl-item"><span class="tl-t">hoy 11:08</span><span class="tl-b">Comprobante de pago recibido por WhatsApp</span></div>
+              <div class="tl-item"><span class="tl-t">hoy 09:41</span><span class="tl-b"><b>Yésica</b> confirmó el pedido con el cliente</span></div>
+              <div class="tl-item"><span class="tl-t">ayer 17:32</span><span class="tl-b">Pedido creado desde conversación WhatsApp</span></div>
+            </div>
+          </details>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Stages
+    const stages = [
+      { key: "nuevo", t: "Nuevo", c: 5, sum: "$ 2.940.000", orders: [
+        { id:"#0431", cust:"Juan Carlos Pérez", init:"JP", val:"$ 420.000", pv:"Cuadernos Norma oficio × 12, esferos BIC × 24", date:"jue 24 abr", ch:"WhatsApp", flags:["vip"] },
+        { id:"#0432", cust:"Andrés Ramírez",    init:"AR", val:"$ 180.000", pv:"Resma carta × 5",                                      date:"lun 28 abr", ch:"WhatsApp", flags:[] },
+        { id:"#0433", cust:"Felipe Torres",     init:"FT", val:"$ 86.000",  pv:"Cartulina pliego × 30, marcadores × 4",                date:"mar 29 abr", ch:"Tienda",   flags:[] },
+        { id:"#0434", cust:"Carolina López",    init:"CL", val:"$ 240.000", pv:"Agendas 2026 × 8, post-its surtidos × 12",              date:"mié 30 abr", ch:"WhatsApp", flags:["pago"] },
+        { id:"#0435", cust:"Papelería Central", init:"PC", val:"$ 2.014.000", pv:"Pedido mensual — resmas oficio × 80, carpetas × 40",date:"lun 05 may", ch:"WhatsApp", flags:["mayor"] },
+      ]},
+      { key: "prep", t: "Preparando", c: 3, sum: "$ 4.080.000", orders: [
+        { id:"#0428", cust:"Laura Mendoza",      init:"LM", val:"$ 860.000", pv:"Packs escolar × 20 — incluye cuadernos, lápices, colores", date:"mañana", ch:"WhatsApp", flags:["vip"] },
+        { id:"#0429", cust:"María Fernanda",     init:"MF", val:"$ 96.000",  pv:"Cartulina × 30",                                       date:"mañana", ch:"WhatsApp", flags:[] },
+        { id:"#0430", cust:"Esteban Vélez",      init:"EV", val:"$ 3.124.000", pv:"Resmas oficio × 120, tóneres × 6",                   date:"vie 25 abr", ch:"Llamada", flags:["pago"] },
+      ]},
+      { key: "listo", t: "Listo", c: 2, sum: "$ 5.680.000", orders: [
+        { id:"#0427", cust:"Distribuciones Norte", init:"DN", val:"$ 4.200.000", pv:"Pedido mensual completo — 4 cajas selladas",     date:"mañana", ch:"WhatsApp", flags:["mayor","vip"], selected:true },
+        { id:"#0426", cust:"Colegio Santa Clara",  init:"SC", val:"$ 1.480.000", pv:"Uniformes académicos 3º — 28 packs",              date:"hoy 16:00", ch:"Correo", flags:["late"] },
+      ]},
+      { key: "ent", t: "Entregado", c: 4, sum: "$ 5.720.000", orders: [
+        { id:"#0425", cust:"Papelería El Dorado", init:"PD", val:"$ 2.520.000", pv:"Resmas oficio × 200",                             date:"20 abr", ch:"WhatsApp", flags:["mayor"] },
+        { id:"#0424", cust:"Andrea Castillo",     init:"AC", val:"$ 180.000",   pv:"Kit fin de período — cuadernos × 10",             date:"20 abr", ch:"WhatsApp", flags:[] },
+        { id:"#0423", cust:"Juan Carlos Pérez",   init:"JP", val:"$ 640.000",   pv:"Repedido oficina — esferos, grapas, sobres",       date:"19 abr", ch:"WhatsApp", flags:["vip"] },
+        { id:"#0422", cust:"Taller La 73",        init:"T7", val:"$ 2.380.000", pv:"Blocks técnicos × 120",                             date:"19 abr", ch:"Tienda", flags:[] },
+      ]},
+    ];
+
+    const flagLabels = { late: "atrasado", vip: "vip", mayor: "mayorista", pago: "por pagar" };
+    const flagIcons  = { late: "clock-alert", vip: "star", mayor: "warehouse", pago: "credit-card" };
+
+    document.getElementById('kanban').innerHTML = stages.map(s => `
+      <div class="col ${s.key}">
+        <div class="hd">
+          <span class="dot"></span>
+          <span class="t">${s.t}</span>
+          <span class="c">${s.c}</span>
+          <button class="add" title="Agregar"><i data-lucide="plus" width="14" height="14"></i></button>
+        </div>
+        <div class="sum"><span>${s.c} pedidos</span><b>${s.sum}</b></div>
+        <div class="body">
+          ${s.orders.map(o => `
+            <article class="card${o.selected ? ' sel' : ''}" data-id="${o.id}">
+              <div class="top">
+                <span class="id">${o.id}</span>
+                <span class="val">${o.val}</span>
+              </div>
+              <div class="nm">${o.cust}</div>
+              <div class="pv">${o.pv}</div>
+              <div class="foot">
+                <div class="av">${o.init}</div>
+                <span class="date">${o.date}</span>
+                <span class="flags">
+                  ${o.flags.map(f => `<span class="flag ${f}"><i data-lucide="${flagIcons[f]}" width="10" height="10"></i>${flagLabels[f]}</span>`).join('')}
+                </span>
+              </div>
+            </article>`).join('')}
+        </div>
+      </div>`).join('');
+
+    // Drawer detail data — matches selected card (#0427)
+    const lineItems = [
+      { item: "Resma oficio 75g — Reprograf",   code: "RES-OFC-75",  qty: 80, p: "$ 28.500", tot: "$ 2.280.000" },
+      { item: "Resma carta 75g — Reprograf",    code: "RES-CRT-75",  qty: 40, p: "$ 22.000", tot: "$   880.000" },
+      { item: "Cuaderno argollado 100h",         code: "CUA-ARG-100", qty: 60, p: "$ 12.500", tot: "$   750.000" },
+      { item: "Marcador permanente — pack × 12", code: "MRC-PRM-12",  qty: 20, p: "$ 14.500", tot: "$   290.000" },
+    ];
+    document.getElementById('lines').innerHTML = `
+      <thead><tr><th>Artículo</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Total</th></tr></thead>
+      <tbody>
+        ${lineItems.map(l => `
+          <tr>
+            <td class="item">${l.item}<span class="code">${l.code}</span></td>
+            <td class="qty r">${l.qty}</td>
+            <td class="p r">${l.p}</td>
+            <td class="tot r">${l.tot}</td>
+          </tr>`).join('')}
+      </tbody>`;
+    document.getElementById('totals').innerHTML = `
+      <div class="lb">Subtotal</div><div class="vl">$ 4.200.000</div>
+      <div class="lb">Descuento mayorista · 8%</div><div class="vl">− $ 336.000</div>
+      <div class="lb">IVA · 19%</div><div class="vl">$ 734.160</div>
+      <div class="lb grand"><span>Total</span></div><div class="vl grand"><span>$ 4.598.160</span></div>
+    `;
+
+    // Card click -> select + fake open drawer
+    document.querySelectorAll('.card').forEach(c => {
+      c.addEventListener('click', () => {
+        document.querySelectorAll('.card.sel').forEach(x => x.classList.remove('sel'));
+        c.classList.add('sel');
+        document.getElementById('wrap').classList.remove('closed');
+      });
+    });
+
+    function closeDrawer(){
+      document.getElementById('wrap').classList.add('closed');
+      document.querySelectorAll('.card.sel').forEach(x => x.classList.remove('sel'));
+    }
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

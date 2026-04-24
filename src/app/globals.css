@@ -867,6 +867,30 @@
   border-color: oklch(0.80 0.04 180);
 }
 
+/* -- App + sidebar backgrounds (CD Option B — 2026-04-24 global)
+ * Tokens globales del dashboard editorial. Cambian el tono del body
+ * y sidebar cuando `.theme-editorial` está aplicado. Scope impacta
+ * TODOS los módulos (CRM Contactos piloto incluido) — QA requerido
+ * post-deploy para verificar que ningún componente que asuma paper-1
+ * (chips, hover states, shipped v2 components) rompa visualmente.
+ *
+ * Jerarquía declarada: sidebar oscuro → app medio → stage claro
+ * → card medio → hover saturado. app y sidebar son los 2 primeros.
+ */
+.theme-editorial {
+  --bg-app: #f5ecd5;
+  --bg-sidebar: #ede3cb;
+}
+.theme-editorial,
+html:has(.theme-editorial) body {
+  background-color: var(--bg-app);
+}
+/* Override the sidebar's `bg-[var(--paper-1)]` class when v2 + under
+ * editorial theme. Uses attribute-escaped Tailwind arbitrary selector. */
+.theme-editorial aside.bg-\[var\(--paper-1\)\] {
+  background-color: var(--bg-sidebar);
+}
+
 /* -- Kanban card + stage backgrounds (Pedidos, CD Option B 2026-04-24)
  * Tokens de Claude Design "Opción B" — valores pre-flattened asumiendo
  * que NO se aplica grain texture multiply sobre estos surfaces. Matcha

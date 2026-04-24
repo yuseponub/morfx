@@ -31,6 +31,7 @@ import {
   condenseTimeline,
   type CondensedTimelineItem,
 } from '@/lib/agent-forensics/condense-timeline'
+import { loadSessionSnapshot } from '@/lib/agent-forensics/load-session-snapshot'
 
 export type GetTurnsResult =
   | { status: 'disabled'; flagName: string }
@@ -120,4 +121,29 @@ export async function getForensicsViewAction(
   const detail = await getTurnDetail(turnId, startedAt)
   const condensed = condenseTimeline(detail, respondingAgentId)
   return { status: 'ok', turn: detail.turn, condensed }
+}
+
+/**
+ * Return the full `session_state` JSON snapshot for a conversation.
+ *
+ * Super-user gated (same policy as the rest of this module).
+ *
+ * D-06 (agent-forensics-panel DISCUSSION-LOG.md): no filtering / no
+ * projection. The raw JSON is returned as-is and may contain PII (nombre,
+ * telefono, direccion, etc.). This is sent to the same Anthropic API that
+ * already processes conversational data in production, so no new leakage
+ * vector is introduced. Documented in `src/lib/agent-specs/README.md`
+ * §Pitfall 6.
+ *
+ * A7 LIMITATION: `session_state` is mutated in-place by the agent — for a
+ * HISTORICAL turn this returns the CURRENT state (possibly mutated by later
+ * turns). The UI labels this "snapshot actual, no historico".
+ *
+ * @throws Error('FORBIDDEN') when the caller is not the super-user.
+ */
+export async function getSessionSnapshotAction(
+  conversationId: string,
+): Promise<{ snapshot: unknown; sessionId: string | null }> {
+  await assertSuperUser()
+  return loadSessionSnapshot(conversationId)
 }

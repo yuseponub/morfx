@@ -15,11 +15,12 @@
  *     entry agent), plus the entry agent id in parens when they differ
  *     (captures the "entró a X → ruteó a Y → Y respondió" signal).
  *   - Counters: duration, tokens, cost, condensed item count, ERROR flag.
- *   - Scrollable body: <CondensedTimeline> followed by a snapshot
- *     placeholder. Plan 03 replaces the placeholder with the real
- *     <SessionSnapshot conversationId={conversationId} />.
+ *   - Scrollable body: <CondensedTimeline> followed by the
+ *     <SessionSnapshot conversationId={conversationId} /> — full
+ *     `session_state` JSON dump with no filtering (D-06).
  *
  * Introduced by standalone phase `agent-forensics-panel` Plan 02.
+ * Snapshot wired in Plan 03 (replaces the original placeholder).
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -29,6 +30,7 @@ import {
 } from '@/app/actions/observability'
 import { CondensedTimeline } from './condensed-timeline'
 import { getDisplayAgentId } from './get-display-agent-id'
+import { SessionSnapshot } from './session-snapshot'
 
 interface Props {
   turnId: string
@@ -146,10 +148,9 @@ export function ForensicsTab({
       <div className="flex-1 overflow-y-auto">
         <CondensedTimeline items={condensed} />
 
-        {/* Snapshot placeholder — Plan 03 lo reemplaza con <SessionSnapshot conversationId=... /> */}
-        <div className="border-t mt-2 px-3 py-3 text-xs text-muted-foreground italic">
-          Snapshot de session_state — disponible en Plan 03 (conversationId=
-          {conversationId.slice(0, 8)}…).
+        {/* Session state snapshot (D-06 — full, no filtering) */}
+        <div className="border-t mt-2">
+          <SessionSnapshot conversationId={conversationId} />
         </div>
       </div>
     </div>

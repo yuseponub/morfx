@@ -318,6 +318,10 @@ export const whatsappAgentProcessor = inngest.createFunction(
             conversationId: collector.conversationId,
             workspaceId: collector.workspaceId,
             agentId: collector.agentId,
+            // D-10 (agent-forensics-panel Plan 01): seed the step-level
+            // collector from the outer one so subsequent routing captures
+            // still honor first-write-wins across the step boundary.
+            respondingAgentId: collector.respondingAgentId,
             turnStartedAt: collector.turnStartedAt,
             triggerMessageId: collector.triggerMessageId,
             triggerKind: collector.triggerKind,
@@ -349,6 +353,14 @@ export const whatsappAgentProcessor = inngest.createFunction(
               events: stepCollector.events,
               queries: stepCollector.queries,
               aiCalls: stepCollector.aiCalls,
+              // D-10 (Pitfall 1 fix — agent-forensics-panel Plan 01):
+              // mutations to the in-memory stepCollector are lost across
+              // Inngest replays because the step output is CACHED and
+              // the callback never re-runs. Encode the responding agent
+              // id in the return payload so it survives serialization
+              // and the outer merge (below) can propagate it to the
+              // flush iteration's collector.
+              respondingAgentId: stepCollector.respondingAgentId,
             }
           : null,
       }
@@ -364,6 +376,14 @@ export const whatsappAgentProcessor = inngest.createFunction(
     // before flush.
     if (collector && stepResult.__obs) {
       collector.mergeFrom(stepResult.__obs)
+      // D-10 belt-and-suspenders: mergeFrom already propagates the
+      // respondingAgentId via setRespondingAgentId (first-write-wins),
+      // but this explicit call documents the invariant at the merge
+      // site and is idempotent-safe (the setter silently ignores a
+      // second different value).
+      if (stepResult.__obs.respondingAgentId) {
+        collector.setRespondingAgentId(stepResult.__obs.respondingAgentId)
+      }
     }
 
     // Phase 42.1: snapshot the engine result onto the timeline. The deep

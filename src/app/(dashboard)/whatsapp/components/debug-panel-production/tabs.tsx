@@ -3,18 +3,18 @@
 /**
  * 3-tab wrapper for the production debug panel right pane (D-02).
  *
- * - `forensics` (default): condensed timeline + session snapshot placeholder.
- *   Plan 03 replaces the snapshot placeholder with a real <SessionSnapshot>.
+ * - `forensics` (default): condensed timeline + session snapshot (Plan 02 + Plan 03).
  * - `raw`: existing `TurnDetailView` reused verbatim — the full event/query/
  *   ai-call timeline remains one click away (Pitfall 5 mitigation).
- * - `auditor`: placeholder until Plan 04 lands the auditor AI.
+ * - `auditor`: AuditorTab con useChat + ReactMarkdown + Copiar (Plan 04).
  *
- * Introduced by standalone phase `agent-forensics-panel` Plan 02.
+ * Introduced by standalone phase `agent-forensics-panel` Plan 02; Auditor wired in Plan 04.
  */
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ForensicsTab } from './forensics-tab'
 import { TurnDetailView } from './turn-detail'
+import { AuditorTab } from './auditor-tab'
 
 interface Props {
   turnId: string
@@ -69,11 +69,12 @@ export function DebugPanelTabs({
       </TabsContent>
 
       <TabsContent value="auditor" className="flex-1 min-h-0 mt-0">
-        <div className="h-full flex items-center justify-center p-4">
-          <div className="text-sm text-muted-foreground italic">
-            Auditor AI — disponible en Plan 04.
-          </div>
-        </div>
+        <AuditorTab
+          turnId={turnId}
+          startedAt={startedAt}
+          respondingAgentId={respondingAgentId}
+          conversationId={conversationId}
+        />
       </TabsContent>
     </Tabs>
   )

@@ -22,7 +22,7 @@
 
 import { useState } from 'react'
 import { TurnList } from './turn-list'
-import { TurnDetailView } from './turn-detail'
+import { DebugPanelTabs } from './tabs'
 
 interface Props {
   conversationId: string
@@ -32,6 +32,7 @@ export function DebugPanelProduction({ conversationId }: Props) {
   const [selectedTurn, setSelectedTurn] = useState<{
     id: string
     startedAt: string
+    respondingAgentId: string | null
   } | null>(null)
 
   return (
@@ -48,15 +49,19 @@ export function DebugPanelProduction({ conversationId }: Props) {
           <TurnList
             conversationId={conversationId}
             selectedTurnId={selectedTurn?.id ?? null}
-            onSelectTurn={(id, startedAt) => setSelectedTurn({ id, startedAt })}
+            onSelectTurn={(id, startedAt, respondingAgentId) =>
+              setSelectedTurn({ id, startedAt, respondingAgentId })
+            }
           />
         </div>
         <div className="flex-1 min-w-0 min-h-0">
           {selectedTurn ? (
-            <TurnDetailView
+            <DebugPanelTabs
               key={selectedTurn.id}
               turnId={selectedTurn.id}
               startedAt={selectedTurn.startedAt}
+              respondingAgentId={selectedTurn.respondingAgentId}
+              conversationId={conversationId}
             />
           ) : (
             <div className="h-full flex items-center justify-center p-4">

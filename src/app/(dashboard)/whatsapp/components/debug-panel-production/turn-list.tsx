@@ -36,7 +36,17 @@ const POLL_INTERVAL_MS = 15_000
 interface Props {
   conversationId: string
   selectedTurnId: string | null
-  onSelectTurn: (turnId: string, startedAt: string) => void
+  /**
+   * Called when the user clicks a turn row. Receives the canonical
+   * `turnId`, its `startedAt` (used by the detail pane for partition
+   * pruning), and the `respondingAgentId` (Plan 01) so the Tabs wrapper
+   * can pass it to the forensics view without another round-trip.
+   */
+  onSelectTurn: (
+    turnId: string,
+    startedAt: string,
+    respondingAgentId: string | null,
+  ) => void
 }
 
 type ViewState =
@@ -135,7 +145,9 @@ export function TurnList({ conversationId, selectedTurnId, onSelectTurn }: Props
         return (
           <button
             key={turn.id}
-            onClick={() => onSelectTurn(turn.id, turn.startedAt)}
+            onClick={() =>
+              onSelectTurn(turn.id, turn.startedAt, turn.respondingAgentId ?? null)
+            }
             className={`w-full text-left p-3 hover:bg-muted/50 transition-colors ${
               isSelected ? 'bg-muted' : ''
             }`}

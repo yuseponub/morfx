@@ -906,14 +906,17 @@ html:has(.theme-editorial) body {
  * el hover pseudo-class funcione correctamente.
  */
 .kcard {
-  background-color: #f8f2e0;
+  /* User QA 2026-04-24: cards subidas +3% L — CD dijo "un poquito mas
+   * claras". Before: #f8f2e0 / #ebdfb8 / #f5ead0. Ahora:
+   */
+  background-color: #fbf6ea;
   transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .kcard:hover {
-  background-color: #ebdfb8;
+  background-color: #f0e4bf;
 }
 .kcard[data-selected="true"] {
-  background-color: #f5ead0;
+  background-color: #f9efd9;
 }
 
 /* -- Overlay-style thin scrollbar ------------------------------

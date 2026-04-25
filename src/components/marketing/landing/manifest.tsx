@@ -1,10 +1,16 @@
+import { getTranslations } from 'next-intl/server';
+
 /**
  * Manifest strip — "Nuestra tesis" editorial callout con dashed borders + headline rubric-em.
  *
- * Copy hardcoded español por D-LND-06 relajada (Plan 04). El mock v2.1 introduce esta sección
- * nueva que no existe en messages/*.json. i18n full pass queda para fase posterior.
+ * El headline tiene la palabra "sistema" (ES) o "system" (EN) marcada con <em rubric-2>.
+ * Para preservar el énfasis sin codificar HTML en el JSON, usamos t.rich con el placeholder
+ * <em>...</em>. El resto del headline viene en headlineLead (antes del em) y headlineTail
+ * (después del em).
  */
-export function Manifest() {
+export async function Manifest() {
+  const t = await getTranslations('Landing.Manifest');
+
   return (
     <section
       className="relative border-b border-[var(--ink-1)]"
@@ -42,7 +48,7 @@ export function Manifest() {
             color: 'var(--rubric-2)',
           }}
         >
-          Nuestra tesis
+          {t('eyebrow')}
         </p>
         <h2
           className="mt-[14px] text-[var(--ink-1)]"
@@ -55,13 +61,17 @@ export function Manifest() {
             textWrap: 'balance',
           }}
         >
-          Un{' '}
-          <em className="italic" style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}>
-            sistema
-          </em>{' '}
-          para vender, responder y entregar.{' '}
-          <br className="hidden md:inline" />
-          No cinco herramientas pegadas con cinta.
+          {t.rich('headline', {
+            em: (chunks) => (
+              <em
+                className="italic"
+                style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
+              >
+                {chunks}
+              </em>
+            ),
+            br: () => <br className="hidden md:inline" />,
+          })}
         </h2>
       </div>
     </section>

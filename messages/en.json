@@ -100,6 +100,10 @@
       "primaryButton": "Message us on WhatsApp",
       "secondaryButton": "Send an email",
       "contactLine": "You can also call us at {phone} or write to {email}."
+    },
+    "Manifest": {
+      "eyebrow": "Our thesis",
+      "headline": "One <em>system</em> to sell, reply and deliver.<br></br>Not five tools held together with tape."
     }
   },
   "Terms": {

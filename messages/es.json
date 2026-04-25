@@ -100,6 +100,10 @@
       "primaryButton": "Escribir por WhatsApp",
       "secondaryButton": "Enviar un correo",
       "contactLine": "También puedes llamarnos al {phone} o escribirnos a {email}."
+    },
+    "Manifest": {
+      "eyebrow": "Nuestra tesis",
+      "headline": "Un <em>sistema</em> para vender, responder y entregar.<br></br>No cinco herramientas pegadas con cinta."
     }
   },
   "Terms": {

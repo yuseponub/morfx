@@ -52,16 +52,21 @@ Construir un sistema de **routing de agentes basado en lifecycle del cliente** q
 
   **Nota:** "X meses" en `reactivation_window` queda como parámetro configurable en la regla, no hardcoded. Default sugerido: 90 días.
 
-### Override Tags v1
+### Tags consumidas por el router v1
 
-- **D-04:** Set inicial de **5 override tags** (consumidos por las decision tables como inputs):
+- **D-04:** Tags son rows normales en `contact_tags` (sin migración para crear tags nuevos — ya existe la plomería). Lo que las hace "consumidas por el router" es que las reglas las referencian como inputs. Dos categorías conceptuales (técnicamente idénticas en DB):
+
+  **Hard override** — bypasean lifecycle logic, fuerzan resultado:
   - `forzar_humano` — escala a operador, no atiende ningún agente
   - `pausar_agente` — desactiva todo agente para este contacto temporalmente
   - `forzar_sales_v3` — bypassa lifecycle, rutea siempre a sales-v3
   - `forzar_recompra` — bypassa lifecycle, rutea siempre a recompra-v1
-  - `vip` — disponible como input para reglas custom (no rutea por sí solo, las reglas deciden cómo usarlo)
 
-  Tags adicionales como `no_recompra`, `prioritario`, etc. se pueden agregar después sin migración (son strings en `contact_tags`).
+  **Soft attribute** — disponibles como inputs combinables, las reglas deciden cómo usarlas:
+  - `vip` — cliente prioritario (regla puede mandarlo a concierge, dar prioridad de respuesta, etc.)
+  - `pago_anticipado` — cliente que paga antes de despacho (regla puede skipear flow de confirmación de pago, mandarlo a agente que sabe del esquema, etc.)
+
+  Tags adicionales (`mayorista`, `no_recompra`, `prioritario`, etc.) se pueden crear desde la UI de tags actual de Morfx en cualquier momento — sin migración, sin deploy. El router solo "los conoce" cuando agregas una regla que los referencia.
 
 ### Scope v1
 

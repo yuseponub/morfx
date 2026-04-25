@@ -70,13 +70,31 @@ Construir un sistema de **routing de agentes basado en lifecycle del cliente** q
 
 ### Scope v1
 
-- **D-06:** **Core router + admin form simple.** Incluye:
+- **D-06:** **Core router + admin form ergonómico.** Incluye:
   - Engine + reglas en Supabase JSONB
-  - Admin form web básico para CRUD de reglas (sin SQL Studio dependency)
   - Observability completa
   - Dry-run simulator integrado en el form (D-10)
 
-  **NO incluye:** `routing-builder` agent conversacional (deferido a v2).
+  **Admin form — surfaces obligatorias:**
+
+  1. **Lista de reglas** — vista tipo tabla con columnas: prioridad, nombre, tipo (classifier/router), output (lifecycle_state o agent_id), activa (toggle), última edición. Reordenable por prioridad drag-and-drop.
+
+  2. **Editor de regla** — formulario que arma el JSON de la regla sin que el usuario escriba JSON:
+     - Selector de tipo (lifecycle_classifier vs agent_router)
+     - **Builder visual de condiciones** — botones para agregar `all`/`any` groups anidables, cada hoja es un picker de `fact + operator + value`
+     - **Tag picker inline** — cuando el fact es `tags`, autocomplete sobre los tags existentes en el workspace + botón "Crear tag nuevo" inline (llama al domain layer existente de tags, no bypassa Regla 3) → tag queda disponible inmediatamente sin salir del form
+     - **Fact picker** — dropdown que lista los facts del catálogo (D-08) con sus descriptions visibles, para que sepas qué puedes preguntar sin leer código
+     - Selector de output (state enum o agent_id desde `agentRegistry`)
+     - Slider de prioridad
+     - Validación contra JSON Schema (D-12) en cada cambio, errores inline
+
+  3. **Botón "Simular cambio"** — antes de guardar, dispara dry-run (D-10) y muestra resultado en panel lateral
+
+  4. **Vista del catálogo de facts** — read-only, accesible desde el editor, lista qué facts existen, qué tipo retornan, ejemplos de uso
+
+  5. **Audit log viewer** — historial de cambios de reglas (quién, cuándo, qué cambió, antes/después)
+
+  **NO incluye:** `routing-builder` agent conversacional (deferido a v2). El admin form de v1 es para editores humanos; el agente conversacional v2 lo usa el cliente final.
 
 ### Safety y Observabilidad
 

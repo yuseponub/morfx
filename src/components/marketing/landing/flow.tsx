@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import {
   MessageCircle,
   Package,
@@ -8,9 +9,14 @@ import {
 
 /**
  * Flow diagram "Cómo funciona" — 3-col grid Origen → Núcleo → Destino.
- * Copy hardcoded español (D-LND-06 relajada).
+ * Strings i18n via getTranslations('Landing.Flow').
  */
-export function Flow() {
+export async function Flow() {
+  const t = await getTranslations('Landing.Flow');
+
+  const sourceLabel = t('sources.label');
+  const destLabel = t('destinations.label');
+
   return (
     <section
       id="como-funciona"
@@ -35,7 +41,7 @@ export function Flow() {
               paddingLeft: '10px',
             }}
           >
-            § Cómo funciona
+            {t('sectionMarker')}
           </div>
           <div>
             <h2
@@ -49,14 +55,16 @@ export function Flow() {
                 textWrap: 'balance',
               }}
             >
-              El recorrido de{' '}
-              <em
-                className="italic"
-                style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
-              >
-                un pedido
-              </em>
-              , de punta a punta.
+              {t.rich('headline', {
+                em: (chunks) => (
+                  <em
+                    className="italic"
+                    style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
+                  >
+                    {chunks}
+                  </em>
+                ),
+              })}
             </h2>
             <p
               style={{
@@ -68,9 +76,7 @@ export function Flow() {
                 margin: '12px 0 0',
               }}
             >
-              Un pedido puede originarse en tu tienda Shopify o en un mensaje de WhatsApp. Sin
-              importar de dónde venga, converge en el Agente IA, queda archivado en el CRM y
-              termina en la transportadora correcta.
+              {t('description')}
             </p>
           </div>
         </div>
@@ -82,22 +88,28 @@ export function Flow() {
             <FlowNode
               kind="src"
               icon={<ShoppingBag style={{ width: '18px', height: '18px' }} aria-hidden />}
-              title="Shopify"
-              body="Un cliente compra en tu tienda online. El pedido llega con productos, dirección y método de pago."
-              label="Origen"
+              title={t('sources.shopify.title')}
+              body={t('sources.shopify.body')}
+              label={sourceLabel}
             />
             <FlowNode
               kind="src"
               icon={<MessageCircle style={{ width: '18px', height: '18px' }} aria-hidden />}
-              title="WhatsApp"
-              body="Un cliente escribe para pedir algo, cotizar o consultar. El agente lo atiende en segundos."
-              label="Origen"
+              title={t('sources.whatsapp.title')}
+              body={t('sources.whatsapp.body')}
+              label={sourceLabel}
             />
           </div>
 
           {/* Núcleo */}
           <div className="flex flex-col items-center justify-center gap-4">
-            <HubNode />
+            <HubNode
+              label={t('hub.label')}
+              titleLine1={t('hub.titleLine1')}
+              titleLine2={t('hub.titleLine2')}
+              body={t('hub.body')}
+              bullets={t.raw('hub.bullets') as string[]}
+            />
           </div>
 
           {/* Destino */}
@@ -105,16 +117,16 @@ export function Flow() {
             <FlowNode
               kind="dst"
               icon={<Truck style={{ width: '18px', height: '18px' }} aria-hidden />}
-              title="Coordinadora"
-              body="Guía creada automáticamente. Seguimiento en tiempo real y notificaciones al cliente."
-              label="Destino"
+              title={t('destinations.coordinadora.title')}
+              body={t('destinations.coordinadora.body')}
+              label={destLabel}
             />
             <FlowNode
               kind="dst"
               icon={<Package style={{ width: '18px', height: '18px' }} aria-hidden />}
-              title="Inter Rapidísimo"
-              body="Alternativa nacional cuando la ruta o la tarifa lo requiera. Igualmente auditable."
-              label="Destino"
+              title={t('destinations.interRapidisimo.title')}
+              body={t('destinations.interRapidisimo.body')}
+              label={destLabel}
             />
           </div>
         </div>
@@ -210,7 +222,19 @@ function FlowNode({
   );
 }
 
-function HubNode() {
+function HubNode({
+  label,
+  titleLine1,
+  titleLine2,
+  body,
+  bullets,
+}: {
+  label: string;
+  titleLine1: string;
+  titleLine2: string;
+  body: string;
+  bullets: string[];
+}) {
   return (
     <div
       className="relative"
@@ -240,7 +264,7 @@ function HubNode() {
           color: 'var(--rubric-2)',
         }}
       >
-        El núcleo
+        {label}
       </span>
 
       {/* Icon box inverted */}
@@ -267,8 +291,9 @@ function HubNode() {
           letterSpacing: '-0.01em',
         }}
       >
-        Agente IA
-        <br />+ CRM
+        {titleLine1}
+        <br />
+        {titleLine2}
       </h4>
       <p
         style={{
@@ -279,8 +304,7 @@ function HubNode() {
           color: 'color-mix(in oklch, var(--paper-0) 88%, transparent)',
         }}
       >
-        Entiende la intención, valida inventario, confirma dirección, registra al contacto y mueve
-        el pedido por las etapas correctas.
+        {body}
       </p>
 
       <ul
@@ -293,12 +317,7 @@ function HubNode() {
           gap: '6px',
         }}
       >
-        {[
-          'Intención + contexto',
-          'Contacto unificado',
-          'Etapa actualizada',
-          'Historial auditado',
-        ].map((s) => (
+        {bullets.map((s) => (
           <li
             key={s}
             className="relative"

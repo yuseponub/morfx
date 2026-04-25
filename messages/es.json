@@ -111,6 +111,45 @@
       "primaryButton": "Escribir por WhatsApp",
       "secondaryButton": "Enviar un correo",
       "contactLine": "También puedes llamarnos al <phone></phone> o escribirnos a <email></email>."
+    },
+    "Flow": {
+      "sectionMarker": "§ Cómo funciona",
+      "headline": "El recorrido de <em>un pedido</em>, de punta a punta.",
+      "description": "Un pedido puede originarse en tu tienda Shopify o en un mensaje de WhatsApp. Sin importar de dónde venga, converge en el Agente IA, queda archivado en el CRM y termina en la transportadora correcta.",
+      "sources": {
+        "label": "Origen",
+        "shopify": {
+          "title": "Shopify",
+          "body": "Un cliente compra en tu tienda online. El pedido llega con productos, dirección y método de pago."
+        },
+        "whatsapp": {
+          "title": "WhatsApp",
+          "body": "Un cliente escribe para pedir algo, cotizar o consultar. El agente lo atiende en segundos."
+        }
+      },
+      "hub": {
+        "label": "El núcleo",
+        "titleLine1": "Agente IA",
+        "titleLine2": "+ CRM",
+        "body": "Entiende la intención, valida inventario, confirma dirección, registra al contacto y mueve el pedido por las etapas correctas.",
+        "bullets": [
+          "Intención + contexto",
+          "Contacto unificado",
+          "Etapa actualizada",
+          "Historial auditado"
+        ]
+      },
+      "destinations": {
+        "label": "Destino",
+        "coordinadora": {
+          "title": "Coordinadora",
+          "body": "Guía creada automáticamente. Seguimiento en tiempo real y notificaciones al cliente."
+        },
+        "interRapidisimo": {
+          "title": "Inter Rapidísimo",
+          "body": "Alternativa nacional cuando la ruta o la tarifa lo requiera. Igualmente auditable."
+        }
+      }
     }
   },
   "Terms": {

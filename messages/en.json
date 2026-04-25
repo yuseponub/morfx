@@ -111,6 +111,45 @@
       "primaryButton": "Message us on WhatsApp",
       "secondaryButton": "Send an email",
       "contactLine": "You can also call us at <phone></phone> or write to <email></email>."
+    },
+    "Flow": {
+      "sectionMarker": "§ How it works",
+      "headline": "The journey of <em>an order</em>, end to end.",
+      "description": "An order can start in your Shopify store or in a WhatsApp message. Wherever it comes from, it converges on the AI Agent, gets filed in the CRM and ends up with the right carrier.",
+      "sources": {
+        "label": "Source",
+        "shopify": {
+          "title": "Shopify",
+          "body": "A customer buys from your online store. The order arrives with products, address and payment method."
+        },
+        "whatsapp": {
+          "title": "WhatsApp",
+          "body": "A customer writes to order, quote or ask. The agent answers them in seconds."
+        }
+      },
+      "hub": {
+        "label": "The core",
+        "titleLine1": "AI Agent",
+        "titleLine2": "+ CRM",
+        "body": "Understands intent, validates inventory, confirms address, registers the contact and moves the order through the right stages.",
+        "bullets": [
+          "Intent + context",
+          "Unified contact",
+          "Stage updated",
+          "Audited history"
+        ]
+      },
+      "destinations": {
+        "label": "Destination",
+        "coordinadora": {
+          "title": "Coordinadora",
+          "body": "Shipping label created automatically. Real-time tracking and customer notifications."
+        },
+        "interRapidisimo": {
+          "title": "Inter Rapidísimo",
+          "body": "Nationwide alternative when the route or rate calls for it. Equally auditable."
+        }
+      }
     }
   },
   "Terms": {

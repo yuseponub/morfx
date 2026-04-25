@@ -1,12 +1,21 @@
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 
 import { Link as LocaleLink } from '@/i18n/navigation';
 
 /**
  * Footer dark — bg ink-1, color paper-1. 4-col grid (1.4fr/1fr/1fr/1.2fr) + legal bottom mono.
- * Copy hardcoded español (D-LND-06 relajada). El mock v2.1 migra footer de paper-3 claro a ink-1 oscuro.
+ * Strings i18n via getTranslations('Footer'). Reusa keys ya existentes a nivel root
+ * (tagline, product, crm, agents, automations, integrations, legal, privacy, terms, login,
+ * contact, phone, email, whatsapp). Agrega keys nuevas para el bottom legal strip.
+ *
+ * Hardcoded por ser datos legales/contacto: NIT, dirección física, código CIIU,
+ * razón social MORFX S.A.S., +57 313 754 9286, morfx.colombia@gmail.com,
+ * wa.me/573137549286.
  */
-export function Footer() {
+export async function Footer() {
+  const t = await getTranslations('Footer');
+
   const linkBase: React.CSSProperties = {
     color: 'color-mix(in oklch, var(--paper-0) 85%, transparent)',
     textDecoration: 'none',
@@ -81,22 +90,22 @@ export function Footer() {
                 margin: 0,
               }}
             >
-              CRM y automatización de WhatsApp Business con IA para e-commerce.
+              {t('tagline')}
             </p>
           </div>
 
           {/* Col 2: Producto */}
           <div>
-            <h5 style={colHead}>Producto</h5>
+            <h5 style={colHead}>{t('product')}</h5>
             <ul className="m-0 flex list-none flex-col gap-[10px] p-0">
               <li style={liItem}>
                 <LocaleLink href="/#crm" style={linkBase} className={linkHover}>
-                  CRM unificado
+                  {t('crm')}
                 </LocaleLink>
               </li>
               <li style={liItem}>
                 <LocaleLink href="/#agentes" style={linkBase} className={linkHover}>
-                  Agentes de IA
+                  {t('agents')}
                 </LocaleLink>
               </li>
               <li style={liItem}>
@@ -105,7 +114,7 @@ export function Footer() {
                   style={linkBase}
                   className={linkHover}
                 >
-                  Automatizaciones
+                  {t('automations')}
                 </LocaleLink>
               </li>
               <li style={liItem}>
@@ -114,7 +123,7 @@ export function Footer() {
                   style={linkBase}
                   className={linkHover}
                 >
-                  Integraciones
+                  {t('integrations')}
                 </LocaleLink>
               </li>
             </ul>
@@ -122,21 +131,21 @@ export function Footer() {
 
           {/* Col 3: Legal */}
           <div>
-            <h5 style={colHead}>Legal</h5>
+            <h5 style={colHead}>{t('legal')}</h5>
             <ul className="m-0 flex list-none flex-col gap-[10px] p-0">
               <li style={liItem}>
                 <LocaleLink href="/privacy" style={linkBase} className={linkHover}>
-                  Política de privacidad
+                  {t('privacy')}
                 </LocaleLink>
               </li>
               <li style={liItem}>
                 <LocaleLink href="/terms" style={linkBase} className={linkHover}>
-                  Términos de servicio
+                  {t('terms')}
                 </LocaleLink>
               </li>
               <li style={liItem}>
                 <Link href="/login" style={linkBase} className={linkHover}>
-                  Iniciar sesión
+                  {t('login')}
                 </Link>
               </li>
             </ul>
@@ -144,10 +153,10 @@ export function Footer() {
 
           {/* Col 4: Contacto */}
           <div>
-            <h5 style={colHead}>Contacto</h5>
+            <h5 style={colHead}>{t('contact')}</h5>
             <ul className="m-0 flex list-none flex-col gap-[10px] p-0">
               <li style={liItem}>
-                <span style={contactLabel}>Teléfono</span>
+                <span style={contactLabel}>{t('phone')}</span>
                 <a
                   href="tel:+573137549286"
                   style={linkBase}
@@ -157,7 +166,7 @@ export function Footer() {
                 </a>
               </li>
               <li style={liItem}>
-                <span style={contactLabel}>Email</span>
+                <span style={contactLabel}>{t('email')}</span>
                 <a
                   href="mailto:morfx.colombia@gmail.com"
                   style={linkBase}
@@ -167,7 +176,7 @@ export function Footer() {
                 </a>
               </li>
               <li style={liItem}>
-                <span style={contactLabel}>WhatsApp</span>
+                <span style={contactLabel}>{t('whatsapp')}</span>
                 <a
                   href="https://wa.me/573137549286"
                   target="_blank"
@@ -193,13 +202,9 @@ export function Footer() {
             color: 'color-mix(in oklch, var(--paper-0) 55%, transparent)',
           }}
         >
-          <p style={{ margin: '2px 0' }}>© 2026 MORFX S.A.S. — NIT 902.052.328-5</p>
-          <p style={{ margin: '2px 0' }}>
-            Carrera 38 # 42 - 17 Apartamento 1601B, Bucaramanga, Santander, Colombia
-          </p>
-          <p style={{ margin: '2px 0' }}>
-            CIIU 6201 — Actividades de desarrollo de sistemas informáticos
-          </p>
+          <p style={{ margin: '2px 0' }}>{t('legalCopyright')}</p>
+          <p style={{ margin: '2px 0' }}>{t('legalAddress')}</p>
+          <p style={{ margin: '2px 0' }}>{t('legalCiiu')}</p>
         </div>
       </div>
     </footer>

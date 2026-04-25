@@ -18,7 +18,10 @@
     "contact": "Contacto",
     "phone": "Teléfono",
     "email": "Email",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "legalCopyright": "© 2026 MORFX S.A.S. — NIT 902.052.328-5",
+    "legalAddress": "Carrera 38 # 42 - 17 Apartamento 1601B, Bucaramanga, Santander, Colombia",
+    "legalCiiu": "CIIU 6201 — Actividades de desarrollo de sistemas informáticos"
   },
   "Landing": {
     "Meta": {

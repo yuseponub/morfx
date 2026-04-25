@@ -104,6 +104,13 @@
     "Manifest": {
       "eyebrow": "Nuestra tesis",
       "headline": "Un <em>sistema</em> para vender, responder y entregar.<br></br>No cinco herramientas pegadas con cinta."
+    },
+    "Cta": {
+      "headline": "¿Listo para <em>empezar?</em>",
+      "description": "Conversamos contigo para entender tu operación, mostrarte la plataforma en vivo y proponerte un plan de implementación alineado a tus procesos de venta y logística.",
+      "primaryButton": "Escribir por WhatsApp",
+      "secondaryButton": "Enviar un correo",
+      "contactLine": "También puedes llamarnos al <phone></phone> o escribirnos a <email></email>."
     }
   },
   "Terms": {

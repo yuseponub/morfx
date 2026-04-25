@@ -104,6 +104,13 @@
     "Manifest": {
       "eyebrow": "Our thesis",
       "headline": "One <em>system</em> to sell, reply and deliver.<br></br>Not five tools held together with tape."
+    },
+    "Cta": {
+      "headline": "Ready to <em>get started?</em>",
+      "description": "Let's talk about your operation, show you the platform live and propose an implementation plan aligned with your sales and logistics processes.",
+      "primaryButton": "Message us on WhatsApp",
+      "secondaryButton": "Send an email",
+      "contactLine": "You can also call us at <phone></phone> or write to <email></email>."
     }
   },
   "Terms": {

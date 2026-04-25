@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { Mail, MessageSquare } from 'lucide-react';
 
 const WA_URL = 'https://wa.me/573137549286';
@@ -7,9 +8,18 @@ const PHONE_TEL = '+573137549286';
 
 /**
  * CTA closing — cta-card con ornament ❊ ❊ ❊ + headline rubric-em + contact line.
- * Copy hardcoded español (D-LND-06 relajada) — mock v2.1 cambia de structure del anterior.
+ *
+ * El headline contiene un <em rubric-2> alrededor de "empezar?" / "started?";
+ * usamos t.rich con placeholder <em>...</em>.
+ *
+ * El contact-line tiene 2 anchors inline (teléfono + email) — usamos t.rich
+ * con placeholders <phone>/<email> que renderizan los <a> con tel:/mailto:
+ * y los valores hardcoded de PHONE_DISPLAY / EMAIL (datos de contacto reales,
+ * no traducibles).
  */
-export function CTA() {
+export async function CTA() {
+  const t = await getTranslations('Landing.Cta');
+
   return (
     <section
       className="relative border-b border-[var(--ink-1)]"
@@ -52,13 +62,16 @@ export function CTA() {
               textWrap: 'balance',
             }}
           >
-            ¿Listo para{' '}
-            <em
-              className="italic"
-              style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
-            >
-              empezar?
-            </em>
+            {t.rich('headline', {
+              em: (chunks) => (
+                <em
+                  className="italic"
+                  style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
+                >
+                  {chunks}
+                </em>
+              ),
+            })}
           </h2>
 
           <p
@@ -73,8 +86,7 @@ export function CTA() {
               textWrap: 'pretty',
             }}
           >
-            Conversamos contigo para entender tu operación, mostrarte la plataforma en vivo y
-            proponerte un plan de implementación alineado a tus procesos de venta y logística.
+            {t('description')}
           </p>
 
           <div className="flex flex-wrap justify-center gap-3">
@@ -90,7 +102,7 @@ export function CTA() {
               }}
             >
               <MessageSquare className="h-4 w-4" aria-hidden />
-              Escribir por WhatsApp
+              {t('primaryButton')}
             </a>
 
             {/* Secondary — editorial outline */}
@@ -103,7 +115,7 @@ export function CTA() {
               }}
             >
               <Mail className="h-4 w-4" aria-hidden />
-              Enviar un correo
+              {t('secondaryButton')}
             </a>
           </div>
 
@@ -117,31 +129,34 @@ export function CTA() {
               color: 'var(--ink-3)',
             }}
           >
-            También puedes llamarnos al{' '}
-            <a
-              href={`tel:${PHONE_TEL}`}
-              style={{
-                color: 'var(--rubric-2)',
-                textDecoration: 'none',
-                fontStyle: 'normal',
-                fontWeight: 500,
-              }}
-            >
-              {PHONE_DISPLAY}
-            </a>{' '}
-            o escribirnos a{' '}
-            <a
-              href={`mailto:${EMAIL}`}
-              style={{
-                color: 'var(--rubric-2)',
-                textDecoration: 'none',
-                fontStyle: 'normal',
-                fontWeight: 500,
-              }}
-            >
-              {EMAIL}
-            </a>
-            .
+            {t.rich('contactLine', {
+              phone: () => (
+                <a
+                  href={`tel:${PHONE_TEL}`}
+                  style={{
+                    color: 'var(--rubric-2)',
+                    textDecoration: 'none',
+                    fontStyle: 'normal',
+                    fontWeight: 500,
+                  }}
+                >
+                  {PHONE_DISPLAY}
+                </a>
+              ),
+              email: () => (
+                <a
+                  href={`mailto:${EMAIL}`}
+                  style={{
+                    color: 'var(--rubric-2)',
+                    textDecoration: 'none',
+                    fontStyle: 'normal',
+                    fontWeight: 500,
+                  }}
+                >
+                  {EMAIL}
+                </a>
+              ),
+            })}
           </p>
         </div>
       </div>

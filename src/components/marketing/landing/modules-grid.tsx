@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import {
   ArrowRight,
   GitBranch,
@@ -10,56 +11,55 @@ import {
 
 /**
  * Modules grid — 5 cards en 12-col layout + mini-mockups inline.
- * Copy hardcoded español (D-LND-06 relajada). Reemplaza product-section.tsx (Plan 01 T7).
+ * Strings i18n via getTranslations('Landing.ModulesGrid').
+ *
+ * Hardcoded por ser strings técnicas/no traducibles:
+ * - "claude-4-sonnet" (model name)
+ * - "when order.created", "condition", "template: order_conf_bog" (DSL/code references)
+ * - "WhatsApp Business Platform", "Messenger", "Instagram Direct", "Meta Direct"
+ *   (product names propios)
+ * - Logo names (Shopify, WhatsApp, Coordinadora, Inter Rapidísimo, Claude, GPT)
  */
+
+// ============================================================================
+// Types for mockup data
+// ============================================================================
+
+type CrmRow = {
+  name: string;
+  def: string;
+  phone: string;
+  city: string;
+  tag: string;
+  tagVariant?: 'red' | 'gold' | 'default';
+};
+
+type AgStat = { n: string; l: string };
+
+type IntLogo = { nm: string; tp: string; ok: boolean; small?: boolean };
+
+type ChCopy = {
+  whatsapp: { title: string; status: string };
+  messenger: { titleSuffix: string; status: string };
+  instagram: { title: string; status: string };
+  email: { title: string; status: string };
+};
 
 // ============================================================================
 // Sub-mockups (decorativos — no data real)
 // ============================================================================
 
-function CrmMini() {
-  const rows: Array<{
-    name: string;
-    def: string;
-    phone: string;
-    city: string;
-    tag: string;
-    tagVariant?: 'red' | 'gold' | 'default';
-  }> = [
-    {
-      name: 'Carolina Rodríguez',
-      def: 'cliente VIP',
-      phone: '+57 312 488 1092',
-      city: 'Bogotá',
-      tag: 'Pedido',
-      tagVariant: 'red',
-    },
-    {
-      name: 'Jorge Medina',
-      def: 'recurrente',
-      phone: '+57 301 772 0458',
-      city: 'Medellín',
-      tag: 'Seguimiento',
-      tagVariant: 'gold',
-    },
-    {
-      name: 'Mateo Suárez',
-      def: 'nuevo',
-      phone: '+57 320 911 3374',
-      city: 'Cali',
-      tag: 'Contacto',
-      tagVariant: 'default',
-    },
-    {
-      name: 'Andrea López',
-      def: 'fidelizada',
-      phone: '+57 315 223 6908',
-      city: 'Bucaramanga',
-      tag: 'Pedido',
-      tagVariant: 'red',
-    },
-  ];
-
+function CrmMini({
+  tableTitle,
+  pagination,
+  headers,
+  rows,
+}: {
+  tableTitle: string;
+  pagination: string;
+  headers: string[];
+  rows: CrmRow[];
+}) {
   const tagStyleFor = (variant: 'red' | 'gold' | 'default' | undefined) => {
     switch (variant) {
       case 'red':
@@ -103,7 +103,7 @@ function CrmMini() {
             fontWeight: 700,
           }}
         >
-          Contactos
+          {tableTitle}
         </h4>
         <span
           style={{
@@ -112,13 +112,13 @@ function CrmMini() {
             color: 'var(--ink-3)',
           }}
         >
-          p. 247 · 1.284 registros
+          {pagination}
         </span>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            {['Contacto', 'Teléfono', 'Ciudad', 'Etapa'].map((h) => (
+            {headers.map((h) => (
               <th
                 key={h}
                 style={{
@@ -204,7 +204,17 @@ function CrmMini() {
   );
 }
 
-function AgMini() {
+function AgMini({
+  agentName,
+  active,
+  modelTone,
+  stats,
+}: {
+  agentName: string;
+  active: string;
+  modelTone: string;
+  stats: AgStat[];
+}) {
   return (
     <div
       style={{
@@ -224,7 +234,7 @@ function AgMini() {
           <div
             style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '12px' }}
           >
-            Agente · Ventas
+            {agentName}
           </div>
           <div
             style={{
@@ -236,7 +246,7 @@ function AgMini() {
               color: 'var(--semantic-success)',
             }}
           >
-            ● Activo
+            {`● ${active}`}
           </div>
         </div>
         <div
@@ -247,14 +257,10 @@ function AgMini() {
             margin: '6px 0 10px',
           }}
         >
-          claude-4-sonnet · tono formal-cercano
+          {modelTone}
         </div>
         <div className="flex gap-4">
-          {[
-            { n: '847', l: 'Turnos hoy' },
-            { n: '94%', l: 'Auto-resol.' },
-            { n: '1.8s', l: 'Respuesta' },
-          ].map((s) => (
+          {stats.map((s) => (
             <div key={s.l}>
               <div
                 style={{
@@ -286,7 +292,15 @@ function AgMini() {
   );
 }
 
-function AutoMini() {
+function AutoMini({
+  triggerTitle,
+  conditionTitle,
+  actionTitle,
+}: {
+  triggerTitle: string;
+  conditionTitle: string;
+  actionTitle: string;
+}) {
   const arrowStyle: React.CSSProperties = {
     textAlign: 'center',
     fontSize: '12px',
@@ -325,7 +339,7 @@ function AutoMini() {
               fontWeight: 600,
             }}
           >
-            Nuevo pedido Shopify
+            {triggerTitle}
           </div>
           <div
             style={{
@@ -363,7 +377,7 @@ function AutoMini() {
               fontWeight: 600,
             }}
           >
-            Si ciudad = Bogotá
+            {conditionTitle}
           </div>
           <div
             style={{
@@ -401,7 +415,7 @@ function AutoMini() {
               fontWeight: 600,
             }}
           >
-            Enviar confirmación WA
+            {actionTitle}
           </div>
           <div
             style={{
@@ -419,16 +433,7 @@ function AutoMini() {
   );
 }
 
-function IntMini() {
-  const logos: Array<{ nm: string; tp: string; ok: boolean; small?: boolean }> = [
-    { nm: 'Shopify', tp: 'E-commerce', ok: true },
-    { nm: 'WhatsApp', tp: 'Business', ok: true },
-    { nm: 'Coordinadora', tp: 'Envíos', ok: true },
-    { nm: 'Inter Rapidísimo', tp: 'Envíos', ok: true, small: true },
-    { nm: 'Claude', tp: 'LLM', ok: false },
-    { nm: 'GPT', tp: 'LLM', ok: false },
-  ];
-
+function IntMini({ logos }: { logos: IntLogo[] }) {
   return (
     <div
       className="grid"
@@ -482,7 +487,7 @@ function IntMini() {
   );
 }
 
-function ChMini() {
+function ChMini({ copy }: { copy: ChCopy }) {
   return (
     <div
       style={{
@@ -525,7 +530,7 @@ function ChMini() {
             fontWeight: 600,
           }}
         >
-          WhatsApp Business Platform
+          {copy.whatsapp.title}
         </div>
         <span
           style={{
@@ -539,7 +544,7 @@ function ChMini() {
             color: 'var(--semantic-success)',
           }}
         >
-          En vivo
+          {copy.whatsapp.status}
         </span>
       </div>
 
@@ -585,7 +590,7 @@ function ChMini() {
               fontSize: '11px',
             }}
           >
-            — Meta Direct
+            {copy.messenger.titleSuffix}
           </span>
         </div>
         <span
@@ -600,7 +605,7 @@ function ChMini() {
             color: 'var(--ink-3)',
           }}
         >
-          Próximo
+          {copy.messenger.status}
         </span>
       </div>
 
@@ -648,7 +653,7 @@ function ChMini() {
             fontWeight: 600,
           }}
         >
-          Instagram Direct
+          {copy.instagram.title}
         </div>
         <span
           style={{
@@ -662,7 +667,7 @@ function ChMini() {
             color: 'var(--ink-3)',
           }}
         >
-          Próximo
+          {copy.instagram.status}
         </span>
       </div>
 
@@ -699,7 +704,7 @@ function ChMini() {
             fontWeight: 600,
           }}
         >
-          Correo electrónico
+          {copy.email.title}
         </div>
         <span
           style={{
@@ -713,7 +718,7 @@ function ChMini() {
             color: 'var(--ink-3)',
           }}
         >
-          Explorando
+          {copy.email.status}
         </span>
       </div>
     </div>
@@ -896,7 +901,52 @@ function ModuleCard({
 // Main grid
 // ============================================================================
 
-export function ModulesGrid() {
+export async function ModulesGrid() {
+  const t = await getTranslations('Landing.ModulesGrid');
+
+  // CRM mockup
+  const crmRows = t.raw('modules.crm.mockup.rows') as CrmRow[];
+  const crmHeaders = t.raw('modules.crm.mockup.headers') as string[];
+
+  // Agents mockup
+  const agStats = t.raw('modules.agents.mockup.stats') as AgStat[];
+
+  // Integrations mockup — logos with names hardcoded (product names),
+  // type label translated.
+  const intLogos: IntLogo[] = [
+    { nm: 'Shopify', tp: t('modules.integrations.mockup.types.ecommerce'), ok: true },
+    { nm: 'WhatsApp', tp: t('modules.integrations.mockup.types.business'), ok: true },
+    { nm: 'Coordinadora', tp: t('modules.integrations.mockup.types.shipping'), ok: true },
+    {
+      nm: 'Inter Rapidísimo',
+      tp: t('modules.integrations.mockup.types.shipping'),
+      ok: true,
+      small: true,
+    },
+    { nm: 'Claude', tp: 'LLM', ok: false },
+    { nm: 'GPT', tp: 'LLM', ok: false },
+  ];
+
+  // Channels mockup
+  const chCopy: ChCopy = {
+    whatsapp: {
+      title: 'WhatsApp Business Platform',
+      status: t('modules.channels.mockup.whatsapp.status'),
+    },
+    messenger: {
+      titleSuffix: '— Meta Direct',
+      status: t('modules.channels.mockup.messenger.status'),
+    },
+    instagram: {
+      title: 'Instagram Direct',
+      status: t('modules.channels.mockup.instagram.status'),
+    },
+    email: {
+      title: t('modules.channels.mockup.email.title'),
+      status: t('modules.channels.mockup.email.status'),
+    },
+  };
+
   return (
     <section
       id="producto"
@@ -921,7 +971,7 @@ export function ModulesGrid() {
               paddingLeft: '10px',
             }}
           >
-            § Producto
+            {t('sectionMarker')}
           </div>
           <div>
             <h2
@@ -935,14 +985,16 @@ export function ModulesGrid() {
                 textWrap: 'balance',
               }}
             >
-              Cinco módulos,{' '}
-              <em
-                className="italic"
-                style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
-              >
-                un solo hilo
-              </em>
-              .
+              {t.rich('headline', {
+                em: (chunks) => (
+                  <em
+                    className="italic"
+                    style={{ color: 'var(--rubric-2)', fontStyle: 'italic' }}
+                  >
+                    {chunks}
+                  </em>
+                ),
+              })}
             </h2>
             <p
               style={{
@@ -954,8 +1006,7 @@ export function ModulesGrid() {
                 margin: '12px 0 0',
               }}
             >
-              Cada interacción queda asociada al cliente correcto, con historial completo y estado
-              sincronizado entre WhatsApp, pedidos y pipelines.
+              {t('description')}
             </p>
           </div>
         </div>
@@ -965,92 +1016,86 @@ export function ModulesGrid() {
           <ModuleCard
             id="crm"
             num="01"
-            modNum="Módulo 01"
-            titleLead="CRM unificado para"
-            titleEm="comercio electrónico"
-            desc="Concentramos contactos, conversaciones, pedidos y etapas comerciales en una sola vista. Cada interacción queda asociada al cliente correcto."
-            bullets={[
-              'Contactos unificados con historial completo de mensajes y pedidos.',
-              'Pipelines configurables por línea de negocio, con etapas personalizables.',
-              'Tags, notas y tareas sincronizadas entre CRM y bandeja de WhatsApp.',
-            ]}
-            linkLabel="Ver módulo CRM"
+            modNum={t('modules.crm.label')}
+            titleLead={t('modules.crm.titleLead')}
+            titleEm={t('modules.crm.titleEm')}
+            desc={t('modules.crm.description')}
+            bullets={t.raw('modules.crm.bullets') as string[]}
+            linkLabel={t('modules.crm.ctaLabel')}
             size="wide"
           >
-            <CrmMini />
+            <CrmMini
+              tableTitle={t('modules.crm.mockup.tableTitle')}
+              pagination={t('modules.crm.mockup.pagination')}
+              headers={crmHeaders}
+              rows={crmRows}
+            />
           </ModuleCard>
 
           <ModuleCard
             id="agentes"
             num="02"
-            modNum="Módulo 02"
-            titleLead="Agentes"
-            titleEm="IA"
-            desc="Agentes de atención y ventas sobre Claude y GPT, con guardrails y control total del tono."
-            bullets={[
-              'Atención 24/7 con estilo configurable por marca.',
-              'Observabilidad por turno: eventos auditables.',
-              'Escala a humano cuando detecta ambigüedad.',
-            ]}
-            linkLabel="Ver agentes"
+            modNum={t('modules.agents.label')}
+            titleLead={t('modules.agents.titleLead')}
+            titleEm={t('modules.agents.titleEm')}
+            desc={t('modules.agents.description')}
+            bullets={t.raw('modules.agents.bullets') as string[]}
+            linkLabel={t('modules.agents.ctaLabel')}
             size="narrow"
           >
-            <AgMini />
+            <AgMini
+              agentName={t('modules.agents.mockup.agentName')}
+              active={t('modules.agents.mockup.active')}
+              modelTone={t('modules.agents.mockup.modelTone')}
+              stats={agStats}
+            />
           </ModuleCard>
 
           <ModuleCard
             id="automatizaciones"
             num="03"
-            modNum="Módulo 03"
-            titleLead="Automatizaciones"
-            titleEm="sin código"
-            desc="Constructor visual con asistente de IA. 10 triggers y 11 acciones sobre contactos, pedidos, etapas y mensajes."
-            bullets={[
-              'Pedidos nuevos, cambios de etapa, mensajes entrantes.',
-              'Enviar mensaje, mover etapa, asignar tag, crear tarea.',
-              'Asistente IA que explica y valida cada flujo.',
-            ]}
-            linkLabel="Ver automatizaciones"
+            modNum={t('modules.automations.label')}
+            titleLead={t('modules.automations.titleLead')}
+            titleEm={t('modules.automations.titleEm')}
+            desc={t('modules.automations.description')}
+            bullets={t.raw('modules.automations.bullets') as string[]}
+            linkLabel={t('modules.automations.ctaLabel')}
             size="narrow"
           >
-            <AutoMini />
+            <AutoMini
+              triggerTitle={t('modules.automations.mockup.triggerTitle')}
+              conditionTitle={t('modules.automations.mockup.conditionTitle')}
+              actionTitle={t('modules.automations.mockup.actionTitle')}
+            />
           </ModuleCard>
 
           <ModuleCard
             id="integraciones"
             num="04"
-            modNum="Módulo 04"
-            titleLead="Integraciones con tu"
-            titleEm="stack de e-commerce"
-            desc="Conectamos con las plataformas que ya usan las empresas colombianas. Pedidos, guías y pagos fluyen sin planillas intermedias."
-            bullets={[
-              'Shopify: pedidos, productos y clientes en tiempo real.',
-              'Coordinadora e Inter Rapidísimo: creación y seguimiento de guías.',
-              'Webhooks y API interna para sistemas propios.',
-            ]}
-            linkLabel="Ver integraciones"
+            modNum={t('modules.integrations.label')}
+            titleLead={t('modules.integrations.titleLead')}
+            titleEm={t('modules.integrations.titleEm')}
+            desc={t('modules.integrations.description')}
+            bullets={t.raw('modules.integrations.bullets') as string[]}
+            linkLabel={t('modules.integrations.ctaLabel')}
             size="half"
           >
-            <IntMini />
+            <IntMini logos={intLogos} />
           </ModuleCard>
 
           <ModuleCard
             id="canales"
             num="05"
-            modNum="Módulo 05"
-            titleLead="Multi-canal,"
-            titleEm="WhatsApp"
-            titleTail=" primero"
-            desc="Operamos hoy sobre WhatsApp Business Platform. Facebook Messenger e Instagram Direct en habilitación vía Meta Direct."
-            bullets={[
-              'Plantillas, sesiones y campañas sobre WhatsApp Business.',
-              'Un solo hilo por contacto, independiente del canal.',
-              'Registro auditable de cada mensaje entrante y saliente.',
-            ]}
-            linkLabel="Ver canales"
+            modNum={t('modules.channels.label')}
+            titleLead={t('modules.channels.titleLead')}
+            titleEm={t('modules.channels.titleEm')}
+            titleTail={t('modules.channels.titleTail')}
+            desc={t('modules.channels.description')}
+            bullets={t.raw('modules.channels.bullets') as string[]}
+            linkLabel={t('modules.channels.ctaLabel')}
             size="half"
           >
-            <ChMini />
+            <ChMini copy={chCopy} />
           </ModuleCard>
         </div>
       </div>

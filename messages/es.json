@@ -150,6 +150,141 @@
           "body": "Alternativa nacional cuando la ruta o la tarifa lo requiera. Igualmente auditable."
         }
       }
+    },
+    "ModulesGrid": {
+      "sectionMarker": "§ Producto",
+      "headline": "Cinco módulos, <em>un solo hilo</em>.",
+      "description": "Cada interacción queda asociada al cliente correcto, con historial completo y estado sincronizado entre WhatsApp, pedidos y pipelines.",
+      "modules": {
+        "crm": {
+          "label": "Módulo 01",
+          "titleLead": "CRM unificado para",
+          "titleEm": "comercio electrónico",
+          "description": "Concentramos contactos, conversaciones, pedidos y etapas comerciales en una sola vista. Cada interacción queda asociada al cliente correcto.",
+          "bullets": [
+            "Contactos unificados con historial completo de mensajes y pedidos.",
+            "Pipelines configurables por línea de negocio, con etapas personalizables.",
+            "Tags, notas y tareas sincronizadas entre CRM y bandeja de WhatsApp."
+          ],
+          "ctaLabel": "Ver módulo CRM",
+          "mockup": {
+            "tableTitle": "Contactos",
+            "pagination": "p. 247 · 1.284 registros",
+            "headers": ["Contacto", "Teléfono", "Ciudad", "Etapa"],
+            "rows": [
+              {
+                "name": "Carolina Rodríguez",
+                "def": "cliente VIP",
+                "phone": "+57 312 488 1092",
+                "city": "Bogotá",
+                "tag": "Pedido",
+                "tagVariant": "red"
+              },
+              {
+                "name": "Jorge Medina",
+                "def": "recurrente",
+                "phone": "+57 301 772 0458",
+                "city": "Medellín",
+                "tag": "Seguimiento",
+                "tagVariant": "gold"
+              },
+              {
+                "name": "Mateo Suárez",
+                "def": "nuevo",
+                "phone": "+57 320 911 3374",
+                "city": "Cali",
+                "tag": "Contacto",
+                "tagVariant": "default"
+              },
+              {
+                "name": "Andrea López",
+                "def": "fidelizada",
+                "phone": "+57 315 223 6908",
+                "city": "Bucaramanga",
+                "tag": "Pedido",
+                "tagVariant": "red"
+              }
+            ]
+          }
+        },
+        "agents": {
+          "label": "Módulo 02",
+          "titleLead": "Agentes",
+          "titleEm": "IA",
+          "description": "Agentes de atención y ventas sobre Claude y GPT, con guardrails y control total del tono.",
+          "bullets": [
+            "Atención 24/7 con estilo configurable por marca.",
+            "Observabilidad por turno: eventos auditables.",
+            "Escala a humano cuando detecta ambigüedad."
+          ],
+          "ctaLabel": "Ver agentes",
+          "mockup": {
+            "agentName": "Agente · Ventas",
+            "active": "Activo",
+            "modelTone": "claude-4-sonnet · tono formal-cercano",
+            "stats": [
+              { "n": "847", "l": "Turnos hoy" },
+              { "n": "94%", "l": "Auto-resol." },
+              { "n": "1.8s", "l": "Respuesta" }
+            ]
+          }
+        },
+        "automations": {
+          "label": "Módulo 03",
+          "titleLead": "Automatizaciones",
+          "titleEm": "sin código",
+          "description": "Constructor visual con asistente de IA. 10 triggers y 11 acciones sobre contactos, pedidos, etapas y mensajes.",
+          "bullets": [
+            "Pedidos nuevos, cambios de etapa, mensajes entrantes.",
+            "Enviar mensaje, mover etapa, asignar tag, crear tarea.",
+            "Asistente IA que explica y valida cada flujo."
+          ],
+          "ctaLabel": "Ver automatizaciones",
+          "mockup": {
+            "triggerTitle": "Nuevo pedido Shopify",
+            "conditionTitle": "Si ciudad = Bogotá",
+            "actionTitle": "Enviar confirmación WA"
+          }
+        },
+        "integrations": {
+          "label": "Módulo 04",
+          "titleLead": "Integraciones con tu",
+          "titleEm": "stack de e-commerce",
+          "description": "Conectamos con las plataformas que ya usan las empresas colombianas. Pedidos, guías y pagos fluyen sin planillas intermedias.",
+          "bullets": [
+            "Shopify: pedidos, productos y clientes en tiempo real.",
+            "Coordinadora e Inter Rapidísimo: creación y seguimiento de guías.",
+            "Webhooks y API interna para sistemas propios."
+          ],
+          "ctaLabel": "Ver integraciones",
+          "mockup": {
+            "types": {
+              "ecommerce": "E-commerce",
+              "business": "Business",
+              "shipping": "Envíos"
+            }
+          }
+        },
+        "channels": {
+          "label": "Módulo 05",
+          "titleLead": "Multi-canal,",
+          "titleEm": "WhatsApp",
+          "titleTail": " primero",
+          "description": "Operamos hoy sobre WhatsApp Business Platform. Facebook Messenger e Instagram Direct en habilitación vía Meta Direct.",
+          "bullets": [
+            "Plantillas, sesiones y campañas sobre WhatsApp Business.",
+            "Un solo hilo por contacto, independiente del canal.",
+            "Registro auditable de cada mensaje entrante y saliente."
+          ],
+          "ctaLabel": "Ver canales",
+          "mockup": {
+            "whatsapp": { "status": "En vivo" },
+            "messenger": { "status": "Próximo" },
+            "instagram": { "status": "Próximo" },
+            "email": { "title": "Correo electrónico", "status": "Explorando" }
+          }
+        }
+      }
     }
   },
   "Terms": {

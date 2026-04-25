@@ -150,6 +150,141 @@
           "body": "Nationwide alternative when the route or rate calls for it. Equally auditable."
         }
       }
+    },
+    "ModulesGrid": {
+      "sectionMarker": "§ Product",
+      "headline": "Five modules, <em>one thread</em>.",
+      "description": "Every interaction is attached to the right customer, with complete history and synchronized status across WhatsApp, orders and pipelines.",
+      "modules": {
+        "crm": {
+          "label": "Module 01",
+          "titleLead": "Unified CRM for",
+          "titleEm": "e-commerce",
+          "description": "We consolidate contacts, conversations, orders and sales stages in a single view. Every interaction is attached to the right customer.",
+          "bullets": [
+            "Unified contacts with complete message and order history.",
+            "Pipelines configurable by line of business, with custom stages.",
+            "Tags, notes and tasks synced between CRM and the WhatsApp inbox."
+          ],
+          "ctaLabel": "See CRM module",
+          "mockup": {
+            "tableTitle": "Contacts",
+            "pagination": "p. 247 · 1,284 records",
+            "headers": ["Contact", "Phone", "City", "Stage"],
+            "rows": [
+              {
+                "name": "Carolina Rodríguez",
+                "def": "VIP customer",
+                "phone": "+57 312 488 1092",
+                "city": "Bogotá",
+                "tag": "Order",
+                "tagVariant": "red"
+              },
+              {
+                "name": "Jorge Medina",
+                "def": "recurring",
+                "phone": "+57 301 772 0458",
+                "city": "Medellín",
+                "tag": "Follow-up",
+                "tagVariant": "gold"
+              },
+              {
+                "name": "Mateo Suárez",
+                "def": "new",
+                "phone": "+57 320 911 3374",
+                "city": "Cali",
+                "tag": "Contact",
+                "tagVariant": "default"
+              },
+              {
+                "name": "Andrea López",
+                "def": "loyal",
+                "phone": "+57 315 223 6908",
+                "city": "Bucaramanga",
+                "tag": "Order",
+                "tagVariant": "red"
+              }
+            ]
+          }
+        },
+        "agents": {
+          "label": "Module 02",
+          "titleLead": "AI",
+          "titleEm": "agents",
+          "description": "Customer service and sales agents on Claude and GPT, with guardrails and full tone control.",
+          "bullets": [
+            "24/7 attention with brand-configurable style.",
+            "Per-turn observability: auditable events.",
+            "Hand-off to human when ambiguity is detected."
+          ],
+          "ctaLabel": "See agents",
+          "mockup": {
+            "agentName": "Agent · Sales",
+            "active": "Active",
+            "modelTone": "claude-4-sonnet · formal-friendly tone",
+            "stats": [
+              { "n": "847", "l": "Convos today" },
+              { "n": "94%", "l": "Auto-resol." },
+              { "n": "1.8s", "l": "Response" }
+            ]
+          }
+        },
+        "automations": {
+          "label": "Module 03",
+          "titleLead": "No-code",
+          "titleEm": "automations",
+          "description": "Visual builder with an AI assistant. 10 triggers and 11 actions over contacts, orders, stages and messages.",
+          "bullets": [
+            "New orders, stage changes, inbound messages.",
+            "Send message, move stage, assign tag, create task.",
+            "AI assistant that explains and validates each flow."
+          ],
+          "ctaLabel": "See automations",
+          "mockup": {
+            "triggerTitle": "New Shopify order",
+            "conditionTitle": "If city = Bogotá",
+            "actionTitle": "Send WA confirmation"
+          }
+        },
+        "integrations": {
+          "label": "Module 04",
+          "titleLead": "Integrations with your",
+          "titleEm": "e-commerce stack",
+          "description": "We connect with the platforms Colombian companies already use. Orders, shipping labels and payments flow without intermediate spreadsheets.",
+          "bullets": [
+            "Shopify: orders, products and customers in real time.",
+            "Coordinadora and Inter Rapidísimo: label creation and tracking.",
+            "Webhooks and internal API for in-house systems."
+          ],
+          "ctaLabel": "See integrations",
+          "mockup": {
+            "types": {
+              "ecommerce": "E-commerce",
+              "business": "Business",
+              "shipping": "Shipping"
+            }
+          }
+        },
+        "channels": {
+          "label": "Module 05",
+          "titleLead": "Multi-channel,",
+          "titleEm": "WhatsApp",
+          "titleTail": " first",
+          "description": "We run today on WhatsApp Business Platform. Facebook Messenger and Instagram Direct are being enabled via Meta Direct.",
+          "bullets": [
+            "Templates, sessions and campaigns over WhatsApp Business.",
+            "One thread per contact, independent of channel.",
+            "Auditable log of every inbound and outbound message."
+          ],
+          "ctaLabel": "See channels",
+          "mockup": {
+            "whatsapp": { "status": "Live" },
+            "messenger": { "status": "Coming soon" },
+            "instagram": { "status": "Coming soon" },
+            "email": { "title": "Email", "status": "Exploring" }
+          }
+        }
+      }
     }
   },
   "Terms": {

@@ -656,3 +656,30 @@ export async function getContactById(
     return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+// ============================================================================
+// Read helper — is_client flag (Phase: agent-lifecycle-router Plan 03)
+// ============================================================================
+
+/**
+ * Returns the contacts.is_client boolean for a single contact, scoped to the
+ * workspace. Returns false if the row is missing (legacy default — matches
+ * webhook-processor.ts:174 `if (contactData?.is_client)` semantic).
+ *
+ * Used by Plan 03 facts.ts → `isClient` fact resolver. Read-only; writes to
+ * is_client live in src/lib/domain/client-activation.ts (do not mirror here).
+ */
+export async function getContactIsClient(
+  contactId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('is_client')
+    .eq('workspace_id', workspaceId)
+    .eq('id', contactId)
+    .single()
+  if (error || !data) return false
+  return Boolean((data as { is_client: boolean | null }).is_client)
+}

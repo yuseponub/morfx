@@ -2,7 +2,7 @@
 // Surface 5 (D-06.5) — Audit log viewer.
 // Server component que llama listAuditLog({ workspaceId }, filter) via
 // domain layer. Filtros via searchParams: reason, agent_id, from, to.
-// Regla 3: NO createAdminClient en este archivo.
+// Regla 3: este archivo solo lee via domain layer (Plan 02).
 // ============================================================================
 
 import Link from 'next/link'

@@ -1,7 +1,7 @@
 // ============================================================================
 // Surface 1 (D-06.1) — Lista de routing rules.
 // Server component que llama listRules({ workspaceId }) via domain layer.
-// Regla 3: NO createAdminClient en este archivo (verificable: grep VACIO).
+// Regla 3: este archivo solo lee via domain layer (Plan 02).
 // ============================================================================
 
 import Link from 'next/link'

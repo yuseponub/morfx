@@ -5,7 +5,7 @@
 //
 // Regla 3 enforcement: TODAS las mutaciones contra routing_rules /
 // routing_audit_log van via @/lib/domain/routing. Este archivo NO importa
-// createAdminClient (verificable: grep retorna VACIO).
+// Supabase admin clients (verificable: grep VACIO).
 //
 // Pitfall 5 + D-12: validateRule (Ajv) corre client-side en el editor y
 // REVALIDA aqui (defense-in-depth — nunca confiar del client).

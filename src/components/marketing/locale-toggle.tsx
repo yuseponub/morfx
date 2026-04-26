@@ -1,43 +1,34 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { usePathname } from 'next/navigation';
+
+import { usePathname } from '@/i18n/navigation';
 
 /**
- * Bug 2026-04-25 (iteration 2): el fix previo con `<Link>` de next-intl
- * + `localeDetection: false` arregló la traducción parcial pero el
- * segundo toggle ES→EN→ES seguía redirigiendo al /login.
+ * Bug 2026-04-25 (iteration 3 — definitivo confirmado por curl):
  *
- * Root cause v2: el `<Link>` de next-intl hace soft client-side
- * navigation que en `localePrefix: 'as-needed'` mode termina pasando
- * por un flujo intermedio (cookie write + RSC fetch) que no matcha
- * el exact-match del PUBLIC_MARKETING_ROUTES set en middleware.ts
- * para algunos requests intermedios.
+ * Root cause real: `usePathname` de `next/navigation` retorna el
+ * internal route segment (con `[locale]` resuelto) — ej. `/es` cuando
+ * el usuario está en `/`. Eso causaba que mi código generara
+ * `<a href="/es">ES</a>` y `<a href="/en/es">EN</a>` (ambos wrong).
+ * `/en/es` NO está en PUBLIC_MARKETING_ROUTES → cae a updateSession
+ * → user no auth → redirect /login.
  *
- * Fix definitivo: `<a>` puro con href absoluto computado client-side.
- * Hard browser navigation, sin cookies, sin client routing magic.
+ * Fix: usar `usePathname` de `@/i18n/navigation` (next-intl wrapper)
+ * que SÍ strippea el locale segment automáticamente. En `/` retorna
+ * `/`, en `/en/privacy` retorna `/privacy`, etc. — locale-agnostic.
  *
- * Computación del href:
- * - usePathname de next/navigation retorna la URL actual COMPLETA
- *   (con prefix /en si aplica). Ej: '/en/privacy' o '/'.
- * - Para ES (default, sin prefix): strip '/en' del path → '/' o '/privacy'.
- * - Para EN (prefix /en): asegurar prefix '/en' → '/en' o '/en/privacy'.
+ * Hrefs absolutos hard-nav:
+ * - ES (default, no prefix): href = pathname.
+ * - EN (prefix `/en`): href = '/en' o '/en' + pathname.
  */
 export function LocaleToggle() {
   const t = useTranslations('Header');
   const locale = useLocale();
   const pathname = usePathname() || '/';
 
-  // Strip the /en prefix to get the locale-agnostic path.
-  // Examples: '/en' → '/', '/en/privacy' → '/privacy', '/' → '/', '/privacy' → '/privacy'.
-  const basePath = pathname === '/en'
-    ? '/'
-    : pathname.startsWith('/en/')
-      ? pathname.slice(3) // '/en/privacy' → '/privacy'
-      : pathname;
-
-  const esHref = basePath; // ES default = no prefix
-  const enHref = basePath === '/' ? '/en' : `/en${basePath}`;
+  const esHref = pathname; // ES default = no prefix
+  const enHref = pathname === '/' ? '/en' : `/en${pathname}`;
 
   const baseSpan = 'px-[9px] py-[5px] transition-colors select-none inline-block no-underline';
   const activeSpan = 'bg-[var(--ink-1)] text-[var(--paper-0)]';

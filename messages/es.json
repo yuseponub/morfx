@@ -2,7 +2,11 @@
   "Header": {
     "login": "Iniciar sesión",
     "contactSales": "Contactar ventas",
-    "localeToggleLabel": "Cambiar idioma"
+    "localeToggleLabel": "Cambiar idioma",
+    "navProducto": "Producto",
+    "navComoFunciona": "Cómo funciona",
+    "navIntegraciones": "Integraciones",
+    "navNosotros": "Nosotros"
   },
   "Footer": {
     "tagline": "CRM y automatización de WhatsApp Business con IA para e-commerce",

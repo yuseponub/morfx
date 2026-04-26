@@ -2,7 +2,11 @@
   "Header": {
     "login": "Login",
     "contactSales": "Contact sales",
-    "localeToggleLabel": "Switch language"
+    "localeToggleLabel": "Switch language",
+    "navProducto": "Product",
+    "navComoFunciona": "How it works",
+    "navIntegraciones": "Integrations",
+    "navNosotros": "About us"
   },
   "Footer": {
     "tagline": "AI-powered CRM and WhatsApp Business automation for e-commerce",

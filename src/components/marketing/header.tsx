@@ -36,28 +36,28 @@ export async function Header() {
             className="border-b border-transparent py-1 text-[12px] font-medium uppercase text-[var(--ink-2)] no-underline hover:border-[var(--ink-1)] hover:text-[var(--ink-1)]"
             style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.12em' }}
           >
-            Producto
+            {t('navProducto')}
           </a>
           <a
             href="#como-funciona"
             className="border-b border-transparent py-1 text-[12px] font-medium uppercase text-[var(--ink-2)] no-underline hover:border-[var(--ink-1)] hover:text-[var(--ink-1)]"
             style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.12em' }}
           >
-            Cómo funciona
+            {t('navComoFunciona')}
           </a>
           <a
             href="#integraciones"
             className="border-b border-transparent py-1 text-[12px] font-medium uppercase text-[var(--ink-2)] no-underline hover:border-[var(--ink-1)] hover:text-[var(--ink-1)]"
             style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.12em' }}
           >
-            Integraciones
+            {t('navIntegraciones')}
           </a>
           <a
             href="#nosotros"
             className="border-b border-transparent py-1 text-[12px] font-medium uppercase text-[var(--ink-2)] no-underline hover:border-[var(--ink-1)] hover:text-[var(--ink-1)]"
             style={{ fontFamily: 'var(--font-sans)', letterSpacing: '0.12em' }}
           >
-            Nosotros
+            {t('navNosotros')}
           </a>
         </nav>
 

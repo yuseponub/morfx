@@ -18,6 +18,14 @@ export interface AgentConfig {
   workspace_id: string
   agent_enabled: boolean
   recompra_enabled: boolean
+  /**
+   * Plan 04 (agent-lifecycle-router) — feature flag that gates the new
+   * declarative routing engine. Default false per Regla 6 (proteger agente
+   * productivo). When false, webhook-processor.ts:174-188 keeps running its
+   * legacy if/else inline (D-15). When true, routeAgent() decides agent_id.
+   * Migration: 20260425220000_agent_lifecycle_router.sql adds the column.
+   */
+  lifecycle_routing_enabled: boolean
   conversational_agent_id: string
   crm_agents_enabled: Record<string, boolean>
   handoff_message: string
@@ -33,6 +41,7 @@ export interface AgentConfig {
 export const DEFAULT_AGENT_CONFIG: Omit<AgentConfig, 'workspace_id' | 'created_at' | 'updated_at'> = {
   agent_enabled: false,
   recompra_enabled: true,
+  lifecycle_routing_enabled: false, // Plan 04 — Regla 6 default OFF until per-workspace flip
   conversational_agent_id: 'somnio-sales-v1',
   crm_agents_enabled: { 'order-manager': true },
   handoff_message: 'Regalame 1 min, ya te comunico con un asesor',

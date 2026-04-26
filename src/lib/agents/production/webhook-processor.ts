@@ -24,6 +24,15 @@ import { createModuleLogger } from '@/lib/audit/logger'
 import { isAgentEnabledForConversation, getWorkspaceAgentConfig } from './agent-config'
 import type { SomnioEngineResult } from '../somnio/somnio-engine'
 import type { EngineOutput } from '../engine/types'
+// Plan 04 (agent-lifecycle-router) — feature-flag-gated routing engine.
+// Imports are flat (no dynamic) so tsc enforces the contract; the routing
+// modules are tree-shaken when the flag is OFF (default per Regla 6).
+import { routeAgent } from '@/lib/agents/routing/route'
+import {
+  applyRouterDecision,
+  dispositionForRouterThrow,
+  type RouterDisposition,
+} from '@/lib/agents/routing/integrate'
 
 const logger = createModuleLogger('webhook-processor')
 
@@ -171,8 +180,134 @@ export async function processMessageWithAgent(
   const globalAgentConfig = await getWorkspaceAgentConfig(workspaceId)
   const recompraEnabled = globalAgentConfig?.recompra_enabled ?? true
 
-  if (contactData?.is_client) {
-    if (!recompraEnabled) {
+  // ============================================================================
+  // Plan 04: agent-lifecycle-router — feature-flag-gated routing
+  // ============================================================================
+  // D-15 strict: legacy if/else (lines below) stays INLINE intact. This block
+  // RUNs when lifecycle_routing_enabled=true; otherwise legacy executes as
+  // before (Regla 6 — proteger agente productivo).
+  //
+  // Pitfall 4 mitigation: router engine errors fall through to legacy via
+  // disposition kind='fallback-to-legacy' (no behavior change vs flag OFF).
+  //
+  // The disposition (4 kinds — see integrate.ts) tells webhook-processor:
+  //   - 'silence'             → return success, no runner (human_handoff).
+  //   - 'use-agent'           → set routerDecidedAgentId, skip legacy gate,
+  //                             dispatch via downstream branches with the
+  //                             router's chosen agent_id (matched OR fallback
+  //                             to conversational_agent_id when no_rule_matched).
+  //   - 'fallback-to-legacy'  → leave routerHandledMessage=false; legacy
+  //                             if/else runs unchanged (engine err / router throw).
+  //
+  // Collector event names (D-16, emitted via getCollector()?.recordEvent
+  // 'pipeline_decision'). Names are produced by integrate.ts but enumerated
+  // here verbatim so grep at the integration site finds them:
+  //   - 'router_matched'                    (kind='use-agent', reason='matched')
+  //   - 'router_human_handoff'              (kind='silence',   reason='human_handoff')
+  //   - 'router_fallback_default_agent'     (kind='use-agent', reason='no_rule_matched')
+  //   - 'router_failed_fallback_legacy'     (kind='fallback-to-legacy', engine threw)
+  //   - 'router_threw_fallback_legacy'      (kind='fallback-to-legacy', routeAgent threw)
+  // ============================================================================
+  const routerEnabled = globalAgentConfig?.lifecycle_routing_enabled ?? false
+  let routerDecidedAgentId: string | null = null
+  let routerHandledMessage = false
+
+  if (routerEnabled && contactId) {
+    let disposition: RouterDisposition
+    try {
+      const decision = await routeAgent({
+        contactId,
+        workspaceId,
+        conversationId,
+        // ProcessMessageInput does not carry the WhatsApp messageId today;
+        // pass null so audit log records the routing decision without it.
+        // If/when ProcessMessageInput grows a messageId field, plumb it here.
+        inboundMessageId: null,
+      })
+      disposition = applyRouterDecision(
+        decision,
+        globalAgentConfig?.conversational_agent_id ?? 'somnio-sales-v1',
+      )
+    } catch (routerErr) {
+      // Defense-in-depth: routeAgent itself wraps everything in try/catch and
+      // emits reason='fallback_legacy' on any internal throw, so this branch
+      // should never execute in practice. If it does, fall through to legacy.
+      logger.error(
+        {
+          err: routerErr instanceof Error ? routerErr.message : String(routerErr),
+          conversationId,
+          contactId,
+        },
+        'routeAgent threw uncaught — falling through to legacy if/else',
+      )
+      disposition = dispositionForRouterThrow()
+    }
+
+    // Emit collector event for every disposition (D-16 observability).
+    getCollector()?.recordEvent('pipeline_decision', disposition.collectorEvent.name, {
+      conversationId,
+      contactId,
+      agentId: disposition.agentId,
+      lifecycleState: disposition.lifecycleState,
+      firedRouterRuleId: disposition.collectorEvent.firedRouterRuleId,
+      firedClassifierRuleId: disposition.collectorEvent.firedClassifierRuleId,
+      latencyMs: disposition.collectorEvent.latencyMs,
+    })
+
+    switch (disposition.kind) {
+      case 'silence': {
+        logger.info(
+          { conversationId, contactId, lifecycleState: disposition.lifecycleState },
+          'router emitted human_handoff — bot stays silent',
+        )
+        return { success: true } // intentional silence
+      }
+      case 'use-agent': {
+        logger.info(
+          {
+            conversationId,
+            contactId,
+            agentId: disposition.agentId,
+            reason: disposition.reason,
+            lifecycleState: disposition.lifecycleState,
+          },
+          `router ${disposition.reason} — using agent_id=${disposition.agentId}`,
+        )
+        routerDecidedAgentId = disposition.agentId
+        routerHandledMessage = true
+        break
+      }
+      case 'fallback-to-legacy': {
+        logger.warn(
+          { conversationId, contactId, reason: disposition.reason },
+          'router fallback-to-legacy — running legacy if/else (D-15 + Pitfall 4)',
+        )
+        // routerHandledMessage stays false → legacy block runs below.
+        break
+      }
+    }
+  }
+
+  // ============================================================================
+  // LEGACY if/else (D-15: stays inline intact — cleanup is Phase v1.1)
+  // Runs when:
+  //   - lifecycle_routing_enabled === false (default per Regla 6)
+  //   - router emitted disposition.kind='fallback-to-legacy' (engine error)
+  //   - routeAgent threw uncaught (defense-in-depth)
+  // When routerHandledMessage=true with a router-decided agent_id, we skip the
+  // legacy is_client gate and route based on the router's choice instead:
+  //   - agent_id === 'somnio-recompra-v1' → enter recompra branch
+  //   - any other agent_id                → fall through to non-client v3 dispatch
+  // ============================================================================
+  const useRecompraBranch = routerHandledMessage
+    ? routerDecidedAgentId === 'somnio-recompra-v1'
+    : Boolean(contactData?.is_client)
+
+  if (useRecompraBranch) {
+    // Legacy `recompra_enabled=false` skip ONLY applies when the router did NOT
+    // decide (D-15 — legacy gate inline intact). When router decided to route
+    // here, its rules already considered the workspace state.
+    if (!routerHandledMessage && !recompraEnabled) {
       // Client contact but recompra agent disabled for this workspace → skip bot entirely.
       // Falling through to v3 would treat the client as a new lead (wrong UX), so the admin's
       // intent when flipping the UI slider OFF is "no automated response for clients".
@@ -227,7 +362,8 @@ export async function processMessageWithAgent(
         conversationId,
         phoneNumber: phone,
         responseSpeed: agentConfig?.response_speed,
-        agentId: 'somnio-recompra-v1',
+        // Plan 04: when router decided, use its agent_id; else legacy literal.
+        agentId: routerDecidedAgentId ?? 'somnio-recompra-v1',
         contactId: contactId!,
       })
 
@@ -242,7 +378,17 @@ export async function processMessageWithAgent(
       // ensures the schema records the routing even if the runner
       // throws (anti-pattern: setting after would swallow the audit
       // trail on failure paths — RESEARCH.md line 470).
-      getCollector()?.setRespondingAgentId('somnio-recompra-v1')
+      // Plan 04: setRespondingAgentId expects the AgentId union — use the
+      // router's choice when it's a known recompra-family id; else fall back
+      // to the legacy literal. Other agents (e.g. somnio-v3 if router decides
+      // it inside the recompra branch — currently impossible because we gate
+      // entry by routerDecidedAgentId === 'somnio-recompra-v1') stay observable
+      // via the collector event already emitted above.
+      getCollector()?.setRespondingAgentId(
+        routerDecidedAgentId === 'somnio-recompra-v1' || routerDecidedAgentId === 'somnio-recompra'
+          ? routerDecidedAgentId
+          : 'somnio-recompra-v1',
+      )
 
       const engineOutput = await runner.processMessage({
         sessionId: '',
@@ -426,7 +572,11 @@ export async function processMessageWithAgent(
   try {
     // Load agent config for response speed and agent routing
     const agentConfig = await getWorkspaceAgentConfig(workspaceId)
-    const agentId = agentConfig?.conversational_agent_id ?? 'somnio-sales-v1'
+    // Plan 04: when the lifecycle router decided, its choice wins; legacy
+    // fallback otherwise (D-15 — minimal change, original semantics preserved
+    // when routerDecidedAgentId is null).
+    const agentId =
+      routerDecidedAgentId ?? agentConfig?.conversational_agent_id ?? 'somnio-sales-v1'
 
     const { createProductionAdapters } = await import('../engine-adapters/production')
     const adapters = createProductionAdapters({

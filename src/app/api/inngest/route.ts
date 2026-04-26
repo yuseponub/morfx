@@ -30,6 +30,7 @@ import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling
 import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
 import { crmBotExpireProposalsCron } from '@/inngest/functions/crm-bot-expire-proposals'
 import { recompraPreloadContextFunctions } from '@/inngest/functions/recompra-preload-context'
+import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
 
 /**
  * Serve all Inngest functions.
@@ -69,5 +70,6 @@ export const { GET, POST, PUT } = serve({
     observabilityPurgeCron,
     enviaStatusPollingCron,
     crmBotExpireProposalsCron,
+    routingAuditCleanup,
   ],
 })

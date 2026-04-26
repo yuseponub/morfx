@@ -53,9 +53,15 @@ export async function updateSession(request: NextRequest) {
     '/en/terms',
   ]
 
+  // Normalize trailing slash for marketing route matching (Vercel sometimes
+  // serves URLs with trailing slash that break exact-match — 2026-04-25 fix)
+  const rawPath = request.nextUrl.pathname
+  const normalizedPath =
+    rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath
+
   const isPublicRoute = publicRoutes.some(
     (route) =>
-      request.nextUrl.pathname === route ||
+      normalizedPath === route ||
       request.nextUrl.pathname.startsWith('/auth/') ||
       request.nextUrl.pathname.startsWith('/invite/')
   )

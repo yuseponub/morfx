@@ -7,15 +7,27 @@ import { routing } from '@/i18n/routing'
 const intlMiddleware = createMiddleware(routing)
 
 // Phase 37.5: Public marketing routes served by next-intl + (marketing) route group.
-// Exact-match list (not prefix) to avoid accidentally whitelisting authed /en/* routes later.
-const PUBLIC_MARKETING_ROUTES = new Set([
-  '/',
-  '/en',
-  '/privacy',
-  '/en/privacy',
-  '/terms',
-  '/en/terms',
-])
+// Defensive matcher (2026-04-25 update): exact-match Set fallaba en edge cases
+// (trailing slash de Vercel, redirect intermedios de next-intl con as-needed
+// localePrefix). Migrado a función con normalización + lista explicita de
+// pathnames marketing. NO usa startsWith para evitar whitelistear /en/dashboard
+// etc. accidentalmente.
+function isPublicMarketingRoute(rawPathname: string): boolean {
+  // Normalize trailing slash (e.g. '/en/' → '/en')
+  const pathname =
+    rawPathname.length > 1 && rawPathname.endsWith('/')
+      ? rawPathname.slice(0, -1)
+      : rawPathname
+
+  return (
+    pathname === '/' ||
+    pathname === '/en' ||
+    pathname === '/privacy' ||
+    pathname === '/en/privacy' ||
+    pathname === '/terms' ||
+    pathname === '/en/terms'
+  )
+}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -24,7 +36,7 @@ export async function middleware(request: NextRequest) {
   // Bypass Supabase session middleware for marketing pages so unauthenticated
   // visitors (and Meta reviewers) can load / /privacy /terms /en /en/privacy /en/terms.
   // next-intl handles locale detection + rewrites into (marketing)/[locale]/.
-  if (PUBLIC_MARKETING_ROUTES.has(pathname)) {
+  if (isPublicMarketingRoute(pathname)) {
     return intlMiddleware(request)
   }
 

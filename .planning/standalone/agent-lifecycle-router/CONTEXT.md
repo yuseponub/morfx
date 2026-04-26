@@ -117,6 +117,26 @@ Construir un sistema de **routing de agentes basado en lifecycle del cliente** q
 ### Cache y Performance
 
 - **D-05 (Claude's Discretion):** Cache de reglas en memoria con TTL 60s + invalidación pub/sub al editar. Implementación detallada queda para `gsd-planner`.
+- **D-13 (resuelta post-research 2026-04-25):** **Cache TTL = 10s con `lru-cache@11`**, `max: 100` workspaces por lambda, expiración lazy (evaluada en `.get()`). Razón: balance entre escalabilidad (queries DB planas con tráfico alto) y staleness aceptable (10s invisibles UX-wise). NO Supabase Realtime para invalidación (research verificó que serverless lambdas no pueden mantener WebSocket subscriptions). NO version-counter en v1 — si en el futuro se necesita invalidación instantánea, agregar columna `routing_rules_version` en `workspace_agent_config` y bumpear al editar (mejora trivial v1.1, no en scope v1). Reemplaza/clarifica D-05.
+
+### Dry-run simulator
+
+- **D-14 (resuelta post-research 2026-04-25):** **Dry-run evalúa con facts AS-OF-NOW**, no as-of-event-time. Para cada mensaje histórico de los últimos N días (default 7), el simulador mira el estado **actual** del contacto (orders, tags, lifecycle hoy) y aplica las reglas candidatas. Razón: responde "qué decisiones cambiarían si las reglas nuevas estuvieran activas hoy" — pregunta operativa real del editor. NO reconstruye estado histórico (requeriría event sourcing/snapshots inexistentes hoy). Sin disclaimer en UI (decisión del usuario — el editor del form se asume informado).
+
+### Migración del legacy if/else
+
+- **D-15 (resuelta post-research 2026-04-25):** **Migración completa en 2 fases con feature flag de seguridad durante rollout.**
+  - **Fase v1 (esta phase):** El if/else legacy en `webhook-processor.ts:174-188` se queda **inline e intacto** dentro del `else` del `lifecycle_routing_enabled` flag. Plan 01 NO mueve código legacy a `legacyRouter.ts` separado. Razón: minimiza riesgo (Regla 6 — proteger agente productivo), respeta principio "el agente actual debe seguir funcionando sin cambios."
+  - **Configurar reglas Somnio que repliquen exactamente el if/else actual** + validar parity 100% via dry-run contra últimos 30 días antes de flip flag ON.
+  - **Fase v1.1 (cleanup standalone posterior, ~1-2 semanas después de rollout exitoso):** Standalone separado (`agent-lifecycle-router-cleanup` o similar) borra (a) el if/else legacy en webhook-processor, (b) el feature flag, (c) cualquier campo legacy obsoleto. Resultado: router queda como ÚNICA ruta de routing. NO pre-extraer a `legacyRouter.ts` ahora (cambio innecesario hoy).
+
+### Output del router (3 casos distintos)
+
+- **D-16 (resuelta post-research 2026-04-25):** **Router emite 3 outputs semánticamente distintos:**
+  1. `{ agent_id: '<id>', reason: 'matched', rule_fired: '<rule-id>' }` → atender con ese agente
+  2. `{ agent_id: null, reason: 'human_handoff', rule_fired: '<rule-id-de-forzar_humano-o-pausar_agente>' }` → silencio intencional, humano atiende. Bot NO responde, log dice "human handoff."
+  3. `{ agent_id: null, reason: 'no_rule_matched' }` → ninguna regla matcheó (config incompleta o edge case). Downstream **fallback al `workspace.conversational_agent_id`** (preserva comportamiento actual de "siempre hay un agente default"). Log dice "fallback used, please add a rule."
+  - Audit log distingue los 3 casos para que el admin vea métricas: cuántos messages a human handoff vs cuántos a fallback (señal de cobertura insuficiente de reglas).
 
 ### Claude's Discretion
 

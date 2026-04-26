@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://morfx.app/schemas/routing/rule-v1.json",
+  "title": "Routing Rule v1",
+  "description": "Schema for agent-lifecycle-router rules. Validated on write (admin form) and on-load (engine cache reload). Pitfall 2 mitigation: leafCondition disallows `path` field via additionalProperties:false (jsonpath-plus CVE-2025-1302 RCE surface).",
+  "type": "object",
+  "required": ["schema_version", "rule_type", "name", "priority", "conditions", "event"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "v1" },
+    "rule_type": { "enum": ["lifecycle_classifier", "agent_router"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "priority": { "type": "integer", "minimum": 1, "maximum": 100000 },
+    "conditions": { "$ref": "#/$defs/topLevelCondition" },
+    "event": {
+      "type": "object",
+      "required": ["type", "params"],
+      "properties": {
+        "type": { "const": "route" },
+        "params": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["lifecycle_state"],
+              "additionalProperties": false,
+              "properties": {
+                "lifecycle_state": {
+                  "enum": [
+                    "new_prospect",
+                    "order_in_progress",
+                    "in_transit",
+                    "just_received",
+                    "dormant_buyer",
+                    "abandoned_cart",
+                    "reactivation_window",
+                    "blocked"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["agent_id"],
+              "additionalProperties": false,
+              "properties": {
+                "agent_id": { "type": ["string", "null"] }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "active": { "type": "boolean" }
+  },
+  "$defs": {
+    "topLevelCondition": {
+      "oneOf": [
+        { "type": "object", "required": ["all"], "additionalProperties": false, "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/anyCondition" } } } },
+        { "type": "object", "required": ["any"], "additionalProperties": false, "properties": { "any": { "type": "array", "items": { "$ref": "#/$defs/anyCondition" } } } },
+        { "type": "object", "required": ["not"], "additionalProperties": false, "properties": { "not": { "$ref": "#/$defs/anyCondition" } } }
+      ]
+    },
+    "anyCondition": {
+      "oneOf": [
+        { "$ref": "#/$defs/topLevelCondition" },
+        { "$ref": "#/$defs/leafCondition" }
+      ]
+    },
+    "leafCondition": {
+      "type": "object",
+      "required": ["fact", "operator", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "fact": { "type": "string", "minLength": 1 },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "equal", "notEqual",
+            "lessThan", "lessThanInclusive",
+            "greaterThan", "greaterThanInclusive",
+            "in", "notIn",
+            "contains", "doesNotContain",
+            "daysSinceAtMost", "daysSinceAtLeast",
+            "tagMatchesPattern",
+            "arrayContainsAny", "arrayContainsAll"
+          ]
+        },
+        "value": {}
+      }
+    }
+  }
+}

@@ -289,8 +289,50 @@ export async function listFactsCatalog(): Promise<DomainResult<RoutingFact[]>> {
 }
 
 // ============================================================================
-// AUDIT LOG — writes only (reads via UI in Plan 06)
+// AUDIT LOG — writes + filtered reads (Plan 06 viewer)
 // ============================================================================
+
+export interface AuditLogFilter {
+  reason?: RoutingReason
+  /** undefined = no filter; null = filter to rows with NULL agent_id (e.g. handoff). */
+  agent_id?: string | null
+  /** ISO timestamp (inclusive lower bound). */
+  from?: string
+  /** ISO timestamp (inclusive upper bound). */
+  to?: string
+  /** default 50, min 1, soft cap 500 to keep the page tractable. */
+  limit?: number
+}
+
+/**
+ * Lists routing audit log rows for a workspace, ordered by decided_at DESC.
+ * Used by Plan 06 audit viewer (Surface 5, D-06.5). Filters are optional and
+ * AND-combined; absent filters are no-ops.
+ */
+export async function listAuditLog(
+  ctx: DomainContext,
+  filter: AuditLogFilter = {},
+): Promise<DomainResult<Record<string, unknown>[]>> {
+  const supabase = createAdminClient()
+  let query = supabase
+    .from('routing_audit_log')
+    .select('*')
+    .eq('workspace_id', ctx.workspaceId)
+    .order('decided_at', { ascending: false })
+    .limit(Math.min(Math.max(filter.limit ?? 50, 1), 500))
+  if (filter.reason) query = query.eq('reason', filter.reason)
+  if (filter.agent_id !== undefined) {
+    query =
+      filter.agent_id === null
+        ? query.is('agent_id', null)
+        : query.eq('agent_id', filter.agent_id)
+  }
+  if (filter.from) query = query.gte('decided_at', filter.from)
+  if (filter.to) query = query.lte('decided_at', filter.to)
+  const { data, error } = await query
+  if (error) return { success: false, error: error.message }
+  return { success: true, data: (data ?? []) as Record<string, unknown>[] }
+}
 
 /**
  * Insert a routing decision into routing_audit_log.

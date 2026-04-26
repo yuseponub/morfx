@@ -578,15 +578,17 @@ export async function getLastInboundMessageAt(
   workspaceId: string,
 ): Promise<string | null> {
   const supabase = createAdminClient()
+  // messages table has conversation_id (FK to conversations.contact_id),
+  // not contact_id directly. Join via inner select on conversations.
   const { data } = await supabase
-    .from('whatsapp_messages')
-    .select('created_at')
+    .from('messages')
+    .select('created_at, conversations!inner(contact_id)')
     .eq('workspace_id', workspaceId)
-    .eq('contact_id', contactId)
+    .eq('conversations.contact_id', contactId)
     .eq('direction', 'inbound')
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
   return (data as { created_at?: string } | null)?.created_at ?? null
 }
 
@@ -605,9 +607,11 @@ export async function getInboundConversationsLastNDays(
 ): Promise<Array<{ conversation_id: string; contact_id: string; inbound_message_at: string }>> {
   const supabase = createAdminClient()
   const since = new Date(Date.now() - daysBack * 86_400_000).toISOString()
+  // messages table has conversation_id (FK), not contact_id directly. Join via
+  // inner select on conversations to retrieve contact_id.
   const { data } = await supabase
-    .from('whatsapp_messages')
-    .select('conversation_id, contact_id, created_at')
+    .from('messages')
+    .select('conversation_id, created_at, conversations!inner(contact_id)')
     .eq('workspace_id', workspaceId)
     .eq('direction', 'inbound')
     .gte('created_at', since)
@@ -617,15 +621,18 @@ export async function getInboundConversationsLastNDays(
   const out: Array<{ conversation_id: string; contact_id: string; inbound_message_at: string }> = []
   for (const row of (data ?? []) as Array<{
     conversation_id: string | null
-    contact_id: string | null
     created_at: string
+    conversations: { contact_id: string | null } | { contact_id: string | null }[] | null
   }>) {
-    if (!row.conversation_id || !row.contact_id) continue
+    if (!row.conversation_id) continue
     if (seen.has(row.conversation_id)) continue
+    const conv = Array.isArray(row.conversations) ? row.conversations[0] : row.conversations
+    const contactId = conv?.contact_id ?? null
+    if (!contactId) continue
     seen.add(row.conversation_id)
     out.push({
       conversation_id: row.conversation_id,
-      contact_id: row.contact_id,
+      contact_id: contactId,
       inbound_message_at: row.created_at,
     })
   }

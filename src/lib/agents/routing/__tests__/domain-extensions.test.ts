@@ -215,29 +215,32 @@ describe('tags extensions (B-4)', () => {
 
 describe('messages extensions (B-4)', () => {
   it('getLastInboundMessageAt returns ISO timestamp when inbound exists', async () => {
-    const singleMock = vi.fn().mockResolvedValue({
+    // New chain: from('messages').select(...).eq(workspace_id).eq(conversations.contact_id).eq(direction).order().limit().maybeSingle()
+    const maybeSingleMock = vi.fn().mockResolvedValue({
       data: { created_at: '2026-04-25T10:00:00Z' },
       error: null,
     })
-    const limitMock = vi.fn().mockReturnValue({ single: singleMock })
+    const limitMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
     const orderMock = vi.fn().mockReturnValue({ limit: limitMock })
     const eq3 = vi.fn().mockReturnValue({ order: orderMock })
     const eq2 = vi.fn().mockReturnValue({ eq: eq3 })
     const eq1 = vi.fn().mockReturnValue({ eq: eq2 })
-    mockSupabase.from.mockReturnValue({
+    const fromMock = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({ eq: eq1 }),
     })
+    mockSupabase.from.mockImplementation(fromMock)
 
     const result = await getLastInboundMessageAt(contactId, ws)
     expect(result).toBe('2026-04-25T10:00:00Z')
+    expect(fromMock).toHaveBeenCalledWith('messages')
     expect(eq1).toHaveBeenCalledWith('workspace_id', ws)
-    expect(eq2).toHaveBeenCalledWith('contact_id', contactId)
+    expect(eq2).toHaveBeenCalledWith('conversations.contact_id', contactId)
     expect(eq3).toHaveBeenCalledWith('direction', 'inbound')
   })
 
   it('getLastInboundMessageAt returns null when none', async () => {
-    const singleMock = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } })
-    const limitMock = vi.fn().mockReturnValue({ single: singleMock })
+    const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: null })
+    const limitMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
     const orderMock = vi.fn().mockReturnValue({ limit: limitMock })
     const eq3 = vi.fn().mockReturnValue({ order: orderMock })
     const eq2 = vi.fn().mockReturnValue({ eq: eq3 })
@@ -252,9 +255,9 @@ describe('messages extensions (B-4)', () => {
   it('getInboundConversationsLastNDays dedupes by conversation_id', async () => {
     const limitMock = vi.fn().mockResolvedValue({
       data: [
-        { conversation_id: 'c1', contact_id: 'ct1', created_at: '2026-04-25T10:00:00Z' },
-        { conversation_id: 'c1', contact_id: 'ct1', created_at: '2026-04-25T09:00:00Z' }, // dup
-        { conversation_id: 'c2', contact_id: 'ct2', created_at: '2026-04-24T10:00:00Z' },
+        { conversation_id: 'c1', created_at: '2026-04-25T10:00:00Z', conversations: { contact_id: 'ct1' } },
+        { conversation_id: 'c1', created_at: '2026-04-25T09:00:00Z', conversations: { contact_id: 'ct1' } }, // dup
+        { conversation_id: 'c2', created_at: '2026-04-24T10:00:00Z', conversations: { contact_id: 'ct2' } },
       ],
       error: null,
     })
@@ -262,13 +265,17 @@ describe('messages extensions (B-4)', () => {
     const gteMock = vi.fn().mockReturnValue({ order: orderMock })
     const eq2 = vi.fn().mockReturnValue({ gte: gteMock })
     const eq1 = vi.fn().mockReturnValue({ eq: eq2 })
-    mockSupabase.from.mockReturnValue({
+    const fromMock = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({ eq: eq1 }),
     })
+    mockSupabase.from.mockImplementation(fromMock)
 
     const result = await getInboundConversationsLastNDays(ws, 7, 500)
+    expect(fromMock).toHaveBeenCalledWith('messages')
     expect(result.length).toBe(2)
     expect(result.map((r) => r.conversation_id).sort()).toEqual(['c1', 'c2'])
+    expect(result.find((r) => r.conversation_id === 'c1')?.contact_id).toBe('ct1')
+    expect(result.find((r) => r.conversation_id === 'c2')?.contact_id).toBe('ct2')
   })
 
   it('getInboundConversationsLastNDays handles null data', async () => {

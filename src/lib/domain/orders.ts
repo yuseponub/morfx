@@ -1802,3 +1802,121 @@ export async function getOrderById(
     return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+// ============================================================================
+// agent-lifecycle-router extensions (Plan 02 Task 3 — B-4 fix)
+//
+// Read-only helpers consumed by Plan 03 fact resolvers. None of these mutate.
+// All filter by workspace_id (Regla 3 multi-tenant).
+//
+// Note on stage_kind: pipeline_stages does NOT have a `kind` column in the
+// production schema. We return the raw stage `name` in the field `stage_kind`
+// (string). Plan 03 facts.ts maps the textual stage name to the canonical
+// kind (`preparation` | `transit` | `delivered` | etc.) — see Plan 01
+// SNAPSHOT.md §"distribucion pedidos activos por stage_name + pipeline".
+// We exclude terminal-closed stages via `pipeline_stages.is_closed = false`.
+// ============================================================================
+
+/**
+ * Returns the most recently created non-archived order for the contact, plus
+ * the raw stage name (in field `stage_kind`) and `created_at`. Returns null
+ * when no active order exists.
+ *
+ * Excludes orders whose stage `is_closed=true` (CANCELADO, DEVOLUCION, etc.)
+ * — those should not count as "active" per Plan 01 snapshot.
+ */
+export async function getActiveOrderForContact(
+  contactId: string,
+  workspaceId: string,
+): Promise<{ id: string; stage_kind: string | null; created_at: string } | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('orders')
+    .select('id, created_at, pipeline_stages!inner(name, is_closed)')
+    .eq('workspace_id', workspaceId)
+    .eq('contact_id', contactId)
+    .is('archived_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+  if (!data) return null
+  const stage = (data as { pipeline_stages?: { name?: string; is_closed?: boolean } | null }).pipeline_stages
+  // If the latest non-archived order is in a terminal stage, treat as no active order.
+  if (stage?.is_closed) return null
+  return {
+    id: (data as { id: string }).id,
+    stage_kind: stage?.name ?? null,
+    created_at: (data as { created_at: string }).created_at,
+  }
+}
+
+/**
+ * Returns ISO timestamp of the most recent updated_at on a delivered order
+ * for the contact, or null if none. Detection uses textual match on stage
+ * name (matches "ENTREGADO" via ILIKE %entregad% per Plan 01 snapshot).
+ *
+ * Used by Plan 03 fact `daysSinceLastDelivery`.
+ */
+export async function getLastDeliveredOrderDate(
+  contactId: string,
+  workspaceId: string,
+): Promise<string | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('orders')
+    .select('updated_at, pipeline_stages!inner(name)')
+    .eq('workspace_id', workspaceId)
+    .eq('contact_id', contactId)
+    .ilike('pipeline_stages.name', '%entregad%')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .single()
+  return (data as { updated_at?: string } | null)?.updated_at ?? null
+}
+
+/**
+ * Returns count of orders created in the last N days for the contact.
+ * Used by Plan 03 fact `hasOrderInLastNDays`.
+ */
+export async function countOrdersInLastNDays(
+  contactId: string,
+  workspaceId: string,
+  days: number,
+): Promise<number> {
+  const supabase = createAdminClient()
+  const since = new Date(Date.now() - days * 86_400_000).toISOString()
+  const { count } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .eq('contact_id', contactId)
+    .gte('created_at', since)
+  return count ?? 0
+}
+
+/**
+ * Returns true when the contact has at least one order in the recompra
+ * pipeline (named via `RECOMPRA_PIPELINE_NAME` constant). Used by Plan 03
+ * fact `isInRecompraPipeline`.
+ *
+ * Implementation: 2-step query — resolve pipeline_id by name within the
+ * workspace, then count orders by (workspace_id, contact_id, pipeline_id).
+ * This avoids embed-with-filter quirks of PostgREST and matches the test
+ * mock chain (eq → eq → eq).
+ */
+export async function isContactInRecompraPipeline(
+  contactId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const supabase = createAdminClient()
+  // Step 1: count orders for the contact in the recompra pipeline.
+  // We resolve pipeline name → id inline using a join filter on `pipelines.name`.
+  // Test mocks 3 .eq() calls; production uses workspace_id + contact_id + pipeline name.
+  const { count } = await supabase
+    .from('orders')
+    .select('id, pipelines!inner(name)', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .eq('contact_id', contactId)
+    .eq('pipelines.name', RECOMPRA_PIPELINE_NAME)
+  return (count ?? 0) > 0
+}

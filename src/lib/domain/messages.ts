@@ -560,3 +560,74 @@ function buildInboundPreview(messageType: string, messageContent: string): strin
 
   return typeLabels[messageType] || '[Mensaje]'
 }
+
+// ============================================================================
+// agent-lifecycle-router extensions (Plan 02 Task 3 — B-4 fix)
+//
+// Read-only helpers consumed by Plan 03 fact resolvers (lastInteractionAt,
+// daysSinceLastInteraction) and Plan 05 dry-run replay. None mutate.
+// ============================================================================
+
+/**
+ * Returns the ISO timestamp of the contact's most recent inbound WhatsApp
+ * message, or null if none. Used by Plan 03 fact `lastInteractionAt` /
+ * `daysSinceLastInteraction`.
+ */
+export async function getLastInboundMessageAt(
+  contactId: string,
+  workspaceId: string,
+): Promise<string | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('whatsapp_messages')
+    .select('created_at')
+    .eq('workspace_id', workspaceId)
+    .eq('contact_id', contactId)
+    .eq('direction', 'inbound')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+  return (data as { created_at?: string } | null)?.created_at ?? null
+}
+
+/**
+ * Returns up to `limit` distinct conversations that received at least one
+ * inbound message in the last `daysBack` days, deduplicated by
+ * `conversation_id`. Each entry carries the most-recent inbound timestamp.
+ *
+ * Used by Plan 05 dry-run simulator to replay historical decisions against
+ * a candidate rule set.
+ */
+export async function getInboundConversationsLastNDays(
+  workspaceId: string,
+  daysBack: number,
+  limit = 500,
+): Promise<Array<{ conversation_id: string; contact_id: string; inbound_message_at: string }>> {
+  const supabase = createAdminClient()
+  const since = new Date(Date.now() - daysBack * 86_400_000).toISOString()
+  const { data } = await supabase
+    .from('whatsapp_messages')
+    .select('conversation_id, contact_id, created_at')
+    .eq('workspace_id', workspaceId)
+    .eq('direction', 'inbound')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  const seen = new Set<string>()
+  const out: Array<{ conversation_id: string; contact_id: string; inbound_message_at: string }> = []
+  for (const row of (data ?? []) as Array<{
+    conversation_id: string | null
+    contact_id: string | null
+    created_at: string
+  }>) {
+    if (!row.conversation_id || !row.contact_id) continue
+    if (seen.has(row.conversation_id)) continue
+    seen.add(row.conversation_id)
+    out.push({
+      conversation_id: row.conversation_id,
+      contact_id: row.contact_id,
+      inbound_message_at: row.created_at,
+    })
+  }
+  return out
+}

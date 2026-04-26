@@ -343,3 +343,48 @@ export async function getTagById(
     return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+// ============================================================================
+// agent-lifecycle-router extensions (Plan 02 Task 3 — B-4 fix)
+// ============================================================================
+
+/**
+ * Returns the array of tag names attached to a contact within the workspace.
+ * Used by Plan 03 fact resolvers `tags`, `hasPagoAnticipadoTag`, and the
+ * router's hard-override checks (forzar_humano, etc.). Returns [] when the
+ * contact has no tags or the query failed (no exceptions thrown — fact
+ * resolvers depend on a non-throwing read per Pitfall 4).
+ */
+export async function getContactTags(
+  contactId: string,
+  workspaceId: string,
+): Promise<string[]> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('contact_tags')
+    .select('tags!inner(name, workspace_id)')
+    .eq('contact_id', contactId)
+    .eq('tags.workspace_id', workspaceId)
+  // PostgREST `tags!inner` returns the related row inline; supabase-js types
+  // it as an array union (multi-row), so cast to any[] for the iteration.
+  return ((data ?? []) as any[])
+    .map((row) => row?.tags?.name)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0)
+}
+
+/**
+ * Returns all tags in the workspace (name + color), ordered by name. Used by
+ * Plan 06 admin form (TagPicker autocomplete).
+ */
+export async function listAllTags(
+  ctx: { workspaceId: string },
+): Promise<DomainResult<{ name: string; color: string | null }[]>> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('tags')
+    .select('name, color')
+    .eq('workspace_id', ctx.workspaceId)
+    .order('name', { ascending: true })
+  if (error) return { success: false, error: error.message }
+  return { success: true, data: (data ?? []) as { name: string; color: string | null }[] }
+}

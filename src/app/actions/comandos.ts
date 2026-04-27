@@ -133,11 +133,10 @@ function buildPedidoInputFromOrder(
     apellidos = parts.slice(1).join(' ')
   }
 
-  // Derive shipping units: try raw value first, then rounded to nearest hundred
+  // Derive shipping units from order total
   const rawValue = order.total_value || 0
-  const roundedValue = Math.floor(rawValue / 100) * 100
-  const unidadesPorValor: Record<number, number> = { 77900: 1, 109900: 2, 139900: 3 }
-  const unidades = unidadesPorValor[rawValue] ?? unidadesPorValor[roundedValue] ?? 1
+  const unidadesPorValor: Record<number, number> = { 79900: 1, 129900: 2, 169900: 3 }
+  const unidades = unidadesPorValor[rawValue] ?? 1
 
   // P/A (pago anticipado): no cobrar al destinatario, pero unidades se calcula igual
   const esPagoAnticipado = order.tags.some(t => t.toUpperCase() === 'P/A')

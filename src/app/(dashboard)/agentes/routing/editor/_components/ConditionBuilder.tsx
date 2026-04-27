@@ -23,6 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { MultiSelect } from './MultiSelect'
+
+/** Operators whose value is a string[] instead of a single value. */
+const MULTI_VALUE_OPERATORS = new Set([
+  'in',
+  'notIn',
+  'arrayContainsAny',
+  'arrayContainsAll',
+])
 
 const OPERATORS = [
   'equal',
@@ -199,90 +208,146 @@ export function ConditionBuilder({
             </Select>
           </div>
           <div className="col-span-4">
-            {value.fact === 'tags' && tags && tags.length > 0 ? (
-              <Select
-                value={typeof value.value === 'string' ? value.value : ''}
-                onValueChange={(v) => onChange({ ...value, value: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="tag..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tags.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : value.fact === 'activeOrderPipeline' && pipelines && pipelines.length > 0 ? (
-              <Select
-                value={typeof value.value === 'string' ? value.value : ''}
-                onValueChange={(v) => onChange({ ...value, value: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="pipeline..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map((p) => (
-                    <SelectItem key={p.name} value={p.name}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : value.fact === 'activeOrderStageRaw' && pipelines && pipelines.length > 0 ? (
-              <Select
-                value={typeof value.value === 'string' ? value.value : ''}
-                onValueChange={(v) => onChange({ ...value, value: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="stage..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map((p) => (
-                    <div key={p.name}>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        {p.name}
-                      </div>
-                      {p.stages.map((s) => (
-                        <SelectItem
-                          key={`${p.name}::${s}`}
-                          value={s}
-                          className="pl-4"
-                        >
-                          {s}
+            {(() => {
+              const isMulti = MULTI_VALUE_OPERATORS.has(value.operator)
+              const arr = Array.isArray(value.value) ? (value.value as string[]) : []
+              const single = typeof value.value === 'string' ? value.value : ''
+
+              // tags fact
+              if (value.fact === 'tags' && tags && tags.length > 0) {
+                return isMulti ? (
+                  <MultiSelect
+                    value={arr}
+                    onChange={(next) => onChange({ ...value, value: next })}
+                    options={tags}
+                    placeholder="Selecciona tags..."
+                  />
+                ) : (
+                  <Select
+                    value={single}
+                    onValueChange={(v) => onChange({ ...value, value: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="tag..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tags.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
                         </SelectItem>
                       ))}
-                    </div>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : value.fact === 'activeOrderStage' ? (
-              <Select
-                value={typeof value.value === 'string' ? value.value : ''}
-                onValueChange={(v) => onChange({ ...value, value: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="kind..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACTIVE_ORDER_STAGE_KINDS.map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {k}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                value={valueToInput(value.value)}
-                placeholder="value (JSON, number, bool, string)"
-                onChange={(e) =>
-                  onChange({ ...value, value: tryParseValue(e.target.value) })
-                }
-              />
-            )}
+                    </SelectContent>
+                  </Select>
+                )
+              }
+
+              // activeOrderPipeline fact
+              if (value.fact === 'activeOrderPipeline' && pipelines && pipelines.length > 0) {
+                const pipelineNames = pipelines.map((p) => p.name)
+                return isMulti ? (
+                  <MultiSelect
+                    value={arr}
+                    onChange={(next) => onChange({ ...value, value: next })}
+                    options={pipelineNames}
+                    placeholder="Selecciona pipelines..."
+                  />
+                ) : (
+                  <Select
+                    value={single}
+                    onValueChange={(v) => onChange({ ...value, value: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="pipeline..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelines.map((p) => (
+                        <SelectItem key={p.name} value={p.name}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )
+              }
+
+              // activeOrderStageRaw fact (grouped by pipeline)
+              if (value.fact === 'activeOrderStageRaw' && pipelines && pipelines.length > 0) {
+                return isMulti ? (
+                  <MultiSelect
+                    value={arr}
+                    onChange={(next) => onChange({ ...value, value: next })}
+                    groups={pipelines.map((p) => ({ label: p.name, options: p.stages }))}
+                    placeholder="Selecciona stages..."
+                  />
+                ) : (
+                  <Select
+                    value={single}
+                    onValueChange={(v) => onChange({ ...value, value: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="stage..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelines.map((p) => (
+                        <div key={p.name}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            {p.name}
+                          </div>
+                          {p.stages.map((s) => (
+                            <SelectItem
+                              key={`${p.name}::${s}`}
+                              value={s}
+                              className="pl-4"
+                            >
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )
+              }
+
+              // activeOrderStage fact (canonical kinds)
+              if (value.fact === 'activeOrderStage') {
+                return isMulti ? (
+                  <MultiSelect
+                    value={arr}
+                    onChange={(next) => onChange({ ...value, value: next })}
+                    options={[...ACTIVE_ORDER_STAGE_KINDS]}
+                    placeholder="Selecciona kinds..."
+                  />
+                ) : (
+                  <Select
+                    value={single}
+                    onValueChange={(v) => onChange({ ...value, value: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="kind..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACTIVE_ORDER_STAGE_KINDS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {k}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )
+              }
+
+              // Fallback: free-text input (for facts without dropdown options)
+              return (
+                <Input
+                  value={valueToInput(value.value)}
+                  placeholder="value (JSON, number, bool, string)"
+                  onChange={(e) =>
+                    onChange({ ...value, value: tryParseValue(e.target.value) })
+                  }
+                />
+              )
+            })()}
           </div>
         </div>
       </div>

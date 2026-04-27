@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, BarChart3, Settings } from 'lucide-react'
+import { Bot, BarChart3, Settings, Sparkles, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/agentes', label: 'Dashboard', icon: BarChart3, exact: true },
+  { href: '/agentes/routing', label: 'Router', icon: Sparkles, exact: true },
+  { href: '/agentes/routing/audit', label: 'Auditoria', icon: ScrollText, exact: false },
   { href: '/agentes/config', label: 'Configuracion', icon: Settings, exact: false },
 ]
 
@@ -29,7 +31,7 @@ export default function AgentesLayout({
             <div>
               <h1 className="text-2xl font-bold">Agentes</h1>
               <p className="text-sm text-muted-foreground">
-                Metricas de rendimiento y configuracion del agente
+                Metricas, enrutamiento y configuracion de agentes IA en produccion
               </p>
             </div>
           </div>

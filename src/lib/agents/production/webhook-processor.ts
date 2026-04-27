@@ -213,6 +213,19 @@ export async function processMessageWithAgent(
   let routerHandledMessage = false
 
   if (routerEnabled && contactId) {
+    // Pre-warm agentRegistry — router validates emitted agent_id against the
+    // registry (route.ts:138). On cold Vercel lambdas these modules wouldn't
+    // be imported yet (lazy imports happen later in agent-specific branches),
+    // so route.ts would throw "unregistered agent_id" → fallback_legacy.
+    // Importing at the top of the gate ensures the registry is populated
+    // before routeAgent runs.
+    await Promise.all([
+      import('../somnio-recompra'),
+      import('../somnio-v3'),
+      import('../somnio'),
+      import('../godentist'),
+    ])
+
     let disposition: RouterDisposition
     try {
       const decision = await routeAgent({

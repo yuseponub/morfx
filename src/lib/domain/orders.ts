@@ -1819,20 +1819,28 @@ export async function getOrderById(
 
 /**
  * Returns the most recently created non-archived order for the contact, plus
- * the raw stage name (in field `stage_kind`) and `created_at`. Returns null
- * when no active order exists.
+ * the raw stage name (in field `stage_kind`), the pipeline name (in field
+ * `pipeline_name`), and `created_at`. Returns null when no active order exists.
  *
  * Excludes orders whose stage `is_closed=true` (CANCELADO, DEVOLUCION, etc.)
  * — those should not count as "active" per Plan 01 snapshot.
+ *
+ * `pipeline_name` is consumed by Plan 03 fact `activeOrderPipeline` — added
+ * post-rollout 2026-04-27 to support pipeline-scoped routing rules.
  */
 export async function getActiveOrderForContact(
   contactId: string,
   workspaceId: string,
-): Promise<{ id: string; stage_kind: string | null; created_at: string } | null> {
+): Promise<{
+  id: string
+  stage_kind: string | null
+  pipeline_name: string | null
+  created_at: string
+} | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('orders')
-    .select('id, created_at, pipeline_stages!inner(name, is_closed)')
+    .select('id, created_at, pipeline_stages!inner(name, is_closed, pipelines!inner(name))')
     .eq('workspace_id', workspaceId)
     .eq('contact_id', contactId)
     .is('archived_at', null)
@@ -1840,12 +1848,22 @@ export async function getActiveOrderForContact(
     .limit(1)
     .single()
   if (!data) return null
-  const stage = (data as { pipeline_stages?: { name?: string; is_closed?: boolean } | null }).pipeline_stages
+  const stage = (
+    data as {
+      pipeline_stages?: {
+        name?: string
+        is_closed?: boolean
+        pipelines?: { name?: string } | { name?: string }[] | null
+      } | null
+    }
+  ).pipeline_stages
   // If the latest non-archived order is in a terminal stage, treat as no active order.
   if (stage?.is_closed) return null
+  const pipeline = Array.isArray(stage?.pipelines) ? stage?.pipelines[0] : stage?.pipelines
   return {
     id: (data as { id: string }).id,
     stage_kind: stage?.name ?? null,
+    pipeline_name: pipeline?.name ?? null,
     created_at: (data as { created_at: string }).created_at,
   }
 }

@@ -117,6 +117,33 @@ export function registerFacts(engine: Engine, ctx: FactContext): void {
     }
   })
 
+  // activeOrderStageRaw — literal pipeline_stages.name (e.g., "CONFIRMADO", "REPARTO").
+  // Use this when you need fine-grained control over a specific stage name; use
+  // `activeOrderStage` (canonical kind) for coarser preparation/transit/delivered logic.
+  engine.addFact('activeOrderStageRaw', async () => {
+    try {
+      const order = await getActiveOrderForContact(ctx.contactId, ctx.workspaceId)
+      return order?.stage_kind ?? null
+    } catch (err) {
+      console.error('[routing.facts] activeOrderStageRaw failed:', err)
+      return null
+    }
+  })
+
+  // activeOrderPipeline — literal pipelines.name of the active order (e.g.,
+  // "Logistica", "Ventas Somnio Standard"). null if no active order.
+  // Combinable with activeOrderStage/activeOrderStageRaw for "stage X within
+  // pipeline Y" rules.
+  engine.addFact('activeOrderPipeline', async () => {
+    try {
+      const order = await getActiveOrderForContact(ctx.contactId, ctx.workspaceId)
+      return order?.pipeline_name ?? null
+    } catch (err) {
+      console.error('[routing.facts] activeOrderPipeline failed:', err)
+      return null
+    }
+  })
+
   // lastInteractionAt — ISO string of last inbound message, or null.
   // Registered before daysSinceLastInteraction so the latter can pull from almanac.
   engine.addFact('lastInteractionAt', async () => {

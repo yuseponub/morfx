@@ -77,12 +77,18 @@ interface AgentOption {
   name: string
 }
 
+interface PipelineOption {
+  name: string
+  stages: string[]
+}
+
 interface Props {
   initialRule: RoutingRule | null
   facts: FactItem[]
   tags: string[]
   workspaceId: string
   agents: AgentOption[]
+  pipelines: PipelineOption[]
 }
 
 const HUMAN_HANDOFF_VALUE = '__human_handoff__'
@@ -114,6 +120,7 @@ export function RoutingRuleEditorClient({
   tags,
   workspaceId: _workspaceId,
   agents,
+  pipelines,
 }: Props) {
   void _workspaceId // workspaceId is provided by the server action; UI label only
   const router = useRouter()
@@ -333,6 +340,7 @@ export function RoutingRuleEditorClient({
               onChange={(c) => setRule({ ...rule, conditions: c as never })}
               facts={visibleFacts}
               tags={tags}
+              pipelines={pipelines}
             />
           </div>
 

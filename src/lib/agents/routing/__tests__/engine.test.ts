@@ -82,6 +82,7 @@ describe('fact resolvers — happy path', () => {
     ;(orders.getActiveOrderForContact as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'o1',
       stage_kind: 'REPARTO', // raw stage name → 'transit' kind per Plan 01 mapping
+      pipeline_name: 'Logistica',
       created_at: 'x',
     })
     const engine = buildEngine(ctx)

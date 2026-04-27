@@ -41,12 +41,16 @@ beforeEach(() => {
 // ----------------------------------------------------------------------------
 
 describe('orders extensions (B-4)', () => {
-  it('getActiveOrderForContact returns { id, stage_kind, created_at } shape', async () => {
+  it('getActiveOrderForContact returns { id, stage_kind, pipeline_name, created_at } shape', async () => {
     const singleMock = vi.fn().mockResolvedValue({
       data: {
         id: 'o1',
         created_at: '2026-04-25T10:00:00Z',
-        pipeline_stages: { name: 'REPARTO', is_closed: false },
+        pipeline_stages: {
+          name: 'REPARTO',
+          is_closed: false,
+          pipelines: { name: 'Logistica' },
+        },
       },
       error: null,
     })
@@ -63,6 +67,7 @@ describe('orders extensions (B-4)', () => {
     expect(result).toEqual({
       id: 'o1',
       stage_kind: 'REPARTO',
+      pipeline_name: 'Logistica',
       created_at: '2026-04-25T10:00:00Z',
     })
     expect(mockSupabase.from).toHaveBeenCalledWith('orders')

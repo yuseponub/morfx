@@ -17,6 +17,7 @@ import {
   type RoutingRule,
 } from '@/lib/domain/routing'
 import { listAllTags } from '@/lib/domain/tags'
+import { listPipelines } from '@/lib/domain/pipelines'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { RoutingRuleEditorClient } from './_components/editor-client'
 // Trigger agentRegistry side-effects so the editor can populate a dropdown
@@ -64,6 +65,16 @@ export default async function RuleEditorPage({ searchParams }: EditorPageProps) 
     .map((a) => ({ id: a.id, name: a.name ?? a.id }))
     .sort((a, b) => a.id.localeCompare(b.id))
 
+  // Pipelines + nested stages for the workspace — populates the dropdowns for
+  // facts `activeOrderPipeline` and `activeOrderStageRaw` in ConditionBuilder.
+  const pipelinesResult = await listPipelines({ workspaceId, source: 'server-action' })
+  const pipelines = (pipelinesResult.success && pipelinesResult.data ? pipelinesResult.data : []).map((p) => ({
+    name: p.name,
+    stages: p.stages
+      .map((s) => s.name)
+      .filter((n): n is string => typeof n === 'string' && n.length > 0),
+  }))
+
   return (
     <RoutingRuleEditorClient
       initialRule={initialRule}
@@ -71,6 +82,7 @@ export default async function RuleEditorPage({ searchParams }: EditorPageProps) 
       tags={tags}
       workspaceId={workspaceId}
       agents={agents}
+      pipelines={pipelines}
     />
   )
 }

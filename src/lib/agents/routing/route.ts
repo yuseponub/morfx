@@ -61,6 +61,8 @@ export interface RouteAgentInput {
  */
 const FACT_NAMES_TO_SNAPSHOT = [
   'activeOrderStage',
+  'activeOrderStageRaw',
+  'activeOrderPipeline',
   'daysSinceLastDelivery',
   'daysSinceLastInteraction',
   'isClient',

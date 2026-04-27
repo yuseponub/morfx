@@ -55,15 +55,25 @@ type AnyCondition =
   | { not: AnyCondition }
   | { fact: string; operator: string; value: unknown }
 
+export interface PipelineOption {
+  name: string
+  stages: string[]
+}
+
 interface Props {
   value: AnyCondition
   onChange: (value: AnyCondition) => void
   facts: FactItem[]
   /** Optional list of tag names — used when fact == 'tags' */
   tags?: string[]
+  /** Optional pipelines+stages — drives dropdowns for activeOrderPipeline /
+   *  activeOrderStageRaw / activeOrderStage facts. */
+  pipelines?: PipelineOption[]
   /** Recursion depth for indentation. */
   depth?: number
 }
+
+const ACTIVE_ORDER_STAGE_KINDS = ['preparation', 'transit', 'delivered'] as const
 
 function isLeaf(
   c: AnyCondition,
@@ -133,6 +143,7 @@ export function ConditionBuilder({
   onChange,
   facts,
   tags,
+  pipelines,
   depth = 0,
 }: Props) {
   const indentStyle = { marginLeft: depth * 12 }
@@ -200,6 +211,65 @@ export function ConditionBuilder({
                   {tags.map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : value.fact === 'activeOrderPipeline' && pipelines && pipelines.length > 0 ? (
+              <Select
+                value={typeof value.value === 'string' ? value.value : ''}
+                onValueChange={(v) => onChange({ ...value, value: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="pipeline..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : value.fact === 'activeOrderStageRaw' && pipelines && pipelines.length > 0 ? (
+              <Select
+                value={typeof value.value === 'string' ? value.value : ''}
+                onValueChange={(v) => onChange({ ...value, value: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="stage..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((p) => (
+                    <div key={p.name}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {p.name}
+                      </div>
+                      {p.stages.map((s) => (
+                        <SelectItem
+                          key={`${p.name}::${s}`}
+                          value={s}
+                          className="pl-4"
+                        >
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : value.fact === 'activeOrderStage' ? (
+              <Select
+                value={typeof value.value === 'string' ? value.value : ''}
+                onValueChange={(v) => onChange({ ...value, value: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="kind..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTIVE_ORDER_STAGE_KINDS.map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {k}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -276,6 +346,7 @@ export function ConditionBuilder({
                   }}
                   facts={facts}
                   tags={tags}
+                  pipelines={pipelines}
                   depth={depth + 1}
                 />
               </div>
@@ -358,6 +429,7 @@ export function ConditionBuilder({
                   }}
                   facts={facts}
                   tags={tags}
+                  pipelines={pipelines}
                   depth={depth + 1}
                 />
               </div>
@@ -400,6 +472,7 @@ export function ConditionBuilder({
           onChange={(v) => onChange({ not: v })}
           facts={facts}
           tags={tags}
+          pipelines={pipelines}
           depth={depth + 1}
         />
       </div>

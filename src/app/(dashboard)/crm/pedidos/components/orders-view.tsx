@@ -64,6 +64,7 @@ import type { Tag } from '@/lib/types/database'
 const VIEW_MODE_STORAGE_KEY = 'morfx_orders_view_mode'
 const SORT_FIELD_STORAGE_KEY = 'morfx_kanban_sort_field'
 const SORT_DIR_STORAGE_KEY = 'morfx_kanban_sort_dir'
+const ACTIVE_PIPELINE_STORAGE_KEY_PREFIX = 'morfx_active_pipeline:'   // D-05 (Standalone ui-pipeline-persistence-and-crm-routing)
 
 type KanbanSortField = 'created_at' | 'updated_at' | 'total_value' | 'name' | 'closing_date'
 type KanbanSortDirection = 'asc' | 'desc'
@@ -121,6 +122,7 @@ interface OrdersViewProps {
   user: User | null
   currentUserId?: string
   isAdminOrOwner?: boolean
+  activeWorkspaceId: string | null
 }
 
 /**
@@ -136,6 +138,7 @@ export function OrdersView({
   user,
   currentUserId,
   isAdminOrOwner,
+  activeWorkspaceId,
 }: OrdersViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -154,6 +157,36 @@ export function OrdersView({
   const [activePipelineId, setActivePipelineId] = React.useState<string | null>(
     defaultPipelineId || pipelines[0]?.id || null
   )
+
+  // Wrapper que compone setActivePipelineId + localStorage WRITE (D-05) + URL replaceState (D-01).
+  // CRITICAL — Pitfall 1: usa window.history.replaceState en vez de router.replace para
+  // evitar re-fetch de OrdersPage's 4-way Promise.all (getOrders/getPipelines/getActiveProducts/
+  // getTagsForScope) en cada click de tab. replaceState integra con useSearchParams en Next 16
+  // sin disparar transition del Router.
+  const handlePipelineChange = React.useCallback((newId: string) => {
+    setActivePipelineId(newId)
+
+    // Persist to localStorage scoped por workspace (D-05). Si no hay workspace, skip silencioso (Pitfall 6).
+    if (activeWorkspaceId) {
+      try {
+        localStorage.setItem(
+          `${ACTIVE_PIPELINE_STORAGE_KEY_PREFIX}${activeWorkspaceId}`,
+          newId,
+        )
+      } catch {
+        // localStorage disabled / quota — silent (matches existing idiom L460).
+      }
+    }
+
+    // Reflect in URL (D-01). Use replaceState (NOT router.replace) — Pitfall 1.
+    try {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('pipeline', newId)
+      window.history.replaceState(null, '', `/crm/pedidos?${params.toString()}`)
+    } catch {
+      // Defensive — should never throw on the client.
+    }
+  }, [activeWorkspaceId, searchParams])
 
   // Open pipelines for tabs
   const [openPipelineIds, setOpenPipelineIds] = React.useState<string[]>([])
@@ -270,14 +303,14 @@ export function OrdersView({
       if (order) {
         // Switch to the order's pipeline if different
         if (order.pipeline_id !== activePipelineId) {
-          setActivePipelineId(order.pipeline_id)
+          handlePipelineChange(order.pipeline_id)
         }
         setViewingOrder(order)
         // Clear the URL param after opening
         router.replace('/crm/pedidos', { scroll: false })
       }
     }
-  }, [searchParams, router, orders, activePipelineId])
+  }, [searchParams, router, orders, activePipelineId, handlePipelineChange])
 
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -449,6 +482,36 @@ export function OrdersView({
     } catch {
       // Ignore localStorage errors
     }
+  }, [])
+
+  // Hydrate active pipeline desde localStorage on mount IF la URL no especifica ?pipeline= (D-02).
+  // One-shot post-mount; deps intencionalmente vacias (Pitfall 2 — searchParams en deps + replaceState
+  // adentro NO causa loop con replaceState [vs router.replace], pero queremos one-shot post-mount).
+  React.useEffect(() => {
+    // URL takes precedence — server ya resolvio el pipeline desde el query param.
+    if (searchParams.get('pipeline')) return
+    // Sin workspace, no hay scope para localStorage (Pitfall 6).
+    if (!activeWorkspaceId) return
+
+    try {
+      const stored = localStorage.getItem(
+        `${ACTIVE_PIPELINE_STORAGE_KEY_PREFIX}${activeWorkspaceId}`,
+      )
+      if (!stored) return
+      // D-03 validacion contra pipelines[] del workspace (RLS-filtered upstream).
+      if (!pipelines.some(p => p.id === stored)) return
+      // Already correct — el server-resolved default coincide con el stored.
+      if (stored === activePipelineId) return
+
+      setActivePipelineId(stored)
+      // Reflect in URL para que F5 subsiguiente mantenga la eleccion.
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('pipeline', stored)
+      window.history.replaceState(null, '', `/crm/pedidos?${params.toString()}`)
+    } catch {
+      // Silent — matches existing idiom (lineas 449-451).
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Save view mode to localStorage
@@ -947,7 +1010,7 @@ export function OrdersView({
       <PipelineTabs
         pipelines={pipelines}
         activePipelineId={activePipelineId}
-        onPipelineChange={setActivePipelineId}
+        onPipelineChange={handlePipelineChange}
         onOpenPipelines={setOpenPipelineIds}
       />
 

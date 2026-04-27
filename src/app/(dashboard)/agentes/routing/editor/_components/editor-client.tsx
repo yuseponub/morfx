@@ -72,12 +72,20 @@ type RuleDraft = Partial<RoutingRule> & {
   active: boolean
 }
 
+interface AgentOption {
+  id: string
+  name: string
+}
+
 interface Props {
   initialRule: RoutingRule | null
   facts: FactItem[]
   tags: string[]
   workspaceId: string
+  agents: AgentOption[]
 }
+
+const HUMAN_HANDOFF_VALUE = '__human_handoff__'
 
 function defaultRule(): RuleDraft {
   return {
@@ -105,6 +113,7 @@ export function RoutingRuleEditorClient({
   facts,
   tags,
   workspaceId: _workspaceId,
+  agents,
 }: Props) {
   void _workspaceId // workspaceId is provided by the server action; UI label only
   const router = useRouter()
@@ -278,25 +287,37 @@ export function RoutingRuleEditorClient({
               </Select>
             ) : (
               <div className="space-y-1">
-                <Input
-                  placeholder="agent_id (ej: somnio-recompra-v1) o vacio para human_handoff"
+                <Select
                   value={
                     (rule.event.params as { agent_id?: string | null })
-                      .agent_id ?? ''
+                      .agent_id ?? HUMAN_HANDOFF_VALUE
                   }
-                  onChange={(e) =>
+                  onValueChange={(v) =>
                     setRule({
                       ...rule,
                       event: {
                         type: 'route',
                         params: {
-                          agent_id:
-                            e.target.value.length > 0 ? e.target.value : null,
+                          agent_id: v === HUMAN_HANDOFF_VALUE ? null : v,
                         },
                       },
                     })
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un agente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={HUMAN_HANDOFF_VALUE}>
+                      Bot no responde (human handoff)
+                    </SelectItem>
+                    {agents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} ({a.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
                   Vacio = human_handoff (bot no responde)
                 </p>

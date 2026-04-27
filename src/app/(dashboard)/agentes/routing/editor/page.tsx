@@ -19,6 +19,13 @@ import {
 import { listAllTags } from '@/lib/domain/tags'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { RoutingRuleEditorClient } from './_components/editor-client'
+// Trigger agentRegistry side-effects so the editor can populate a dropdown
+// of valid agent_ids (instead of a free-text input that's typo-prone).
+import '@/lib/agents/somnio-recompra'
+import '@/lib/agents/somnio-v3'
+import '@/lib/agents/somnio'
+import '@/lib/agents/godentist'
+import { agentRegistry } from '@/lib/agents/registry'
 
 interface EditorPageProps {
   searchParams: Promise<{ id?: string; new?: string }>
@@ -49,12 +56,21 @@ export default async function RuleEditorPage({ searchParams }: EditorPageProps) 
     if (r.success) initialRule = r.data
   }
 
+  // Build the list of agents available to route to, sorted alphabetically.
+  // The dropdown in editor-client.tsx renders these + a "Bot no responde
+  // (human handoff)" entry for null.
+  const agents = agentRegistry
+    .list()
+    .map((a) => ({ id: a.id, name: a.name ?? a.id }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+
   return (
     <RoutingRuleEditorClient
       initialRule={initialRule}
       facts={facts}
       tags={tags}
       workspaceId={workspaceId}
+      agents={agents}
     />
   )
 }

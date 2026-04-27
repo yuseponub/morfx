@@ -103,6 +103,11 @@ const navItems: NavItem[] = [
     href: '/agentes',
     label: 'Agentes',
     icon: Bot,
+    subLink: {
+      href: '/agentes/routing',
+      label: 'Router de agentes',
+      icon: Sparkles,
+    },
   },
   {
     href: '/confirmaciones',
@@ -153,7 +158,16 @@ const navCategoriesV2: SidebarCategoryV2[] = [
     label: 'Automatización',
     items: [
       { href: '/automatizaciones', label: 'Automatizaciones', icon: Zap, badgeType: 'automations' },
-      { href: '/agentes', label: 'Agentes', icon: Bot },
+      {
+        href: '/agentes',
+        label: 'Agentes',
+        icon: Bot,
+        subLink: {
+          href: '/agentes/routing',
+          label: 'Router de agentes',
+          icon: Sparkles,
+        },
+      },
       { href: '/comandos', label: 'Comandos', icon: Terminal, adminOnly: true },
     ],
   },

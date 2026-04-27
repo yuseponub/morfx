@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp, Package, FlaskConical } from 'lucide-react'
+import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp, FlaskConical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -143,7 +143,6 @@ const navCategoriesV2: SidebarCategoryV2[] = [
     items: [
       { href: '/crm', label: 'CRM', icon: Building2 },
       { href: '/whatsapp', label: 'WhatsApp', icon: MessageSquare },
-      { href: '/crm/pedidos', label: 'Pedidos', icon: Package },
       { href: '/tareas', label: 'Tareas', icon: ListTodo, badgeType: 'tasks' },
       { href: '/confirmaciones', label: 'Confirmaciones', icon: CalendarCheck },
       { href: '/sms', label: 'SMS', icon: MessageSquareText },

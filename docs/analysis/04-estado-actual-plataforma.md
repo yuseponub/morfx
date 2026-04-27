@@ -643,6 +643,27 @@ Emite 5 eventos `pipeline_decision:*` consumibles desde el dashboard de observab
 
 ---
 
+### 11.3 Agent Lifecycle Router (Standalone: agent-lifecycle-router)
+
+- **Estado:** ✅ SHIPPED v1 — 2026-04-27 (Somnio rollout, flag flippeado per-workspace)
+- **Standalone:** `.planning/standalone/agent-lifecycle-router/` (7 plans, 28 commits)
+- **Capability:** Decision engine declarativo para enrutar agentes basado en lifecycle del contacto. Reemplaza el if/else hardcoded en `webhook-processor.ts:174-188` (`is_client+recompra_enabled vs default`) por reglas editables sin redeploy.
+- **Stack:** `json-rules-engine@7.3.1` + `lru-cache@11` (TTL 10s, max 100 workspaces) + `ajv@8` (Draft 2020-12 schema validation)
+- **Tablas:** `routing_rules`, `routing_facts_catalog` (11 facts seedeados), `routing_audit_log` (retention 30d para `matched` only via Inngest cron) + `workspace_agent_config.lifecycle_routing_enabled` (feature flag per-workspace, default false — Regla 6)
+- **Admin UI:** `/agentes/routing` — 5 surfaces (list, editor con condition builder, fact picker, simulate panel, audit log). Server Actions invocan domain layer (Regla 3, cero `createAdminClient`).
+- **3-layer model:** webhook → flag check → Layer 1 lifecycle_classifier → Layer 2 agent_router → audit log → emit `{ agent_id, reason }` (4 reasons: matched | human_handoff | no_rule_matched | fallback_legacy)
+- **Somnio rollout:** 3 reglas parity creadas via SQL (`forzar_humano_kill_switch` priority 1000, `legacy_parity_recompra_disabled_client_to_default` priority 900 para B-1, `is_client_to_recompra` priority 800). Dry-run 100% parity validation antes del flip. Hotfix post-rollout: pre-warm `agentRegistry` antes de `routeAgent` (cold lambda race fix, commit `c8de14a`).
+- **Pending v1.1 cleanup (deuda técnica documentada):** Borrar legacy if/else inline en `webhook-processor.ts`, borrar columna `lifecycle_routing_enabled`, fix B-001 (`daysSinceLast*` retorna `-1` por race ms-future), fix B-002 (timestamps mixtos UTC vs Bogota en facts_snapshot). Agendar standalone `agent-lifecycle-router-cleanup` ~1-2 semanas post-rollout exitoso.
+- **Tests:** 105 vitest tests (10 schema + 13 domain + 17 domain-ext + 11 operators + 7 engine + 8 cache + 9 route + 12 dry-run + 14 integrate/webhook + 4 contacts).
+
+#### Referencias
+- **Código:** `src/lib/agents/routing/{operators,facts,engine,cache,route,dry-run,integrate}.ts`, `src/lib/domain/routing.ts` + `workspace-agent-config.ts`, `src/app/(dashboard)/agentes/routing/`, `src/inngest/functions/routing-audit-cleanup.ts`.
+- **Schema:** `supabase/migrations/20260425220000_agent_lifecycle_router.sql` + `src/lib/agents/routing/schema/rule-v1.schema.json`.
+- **Architecture doc:** `docs/architecture/06-agent-lifecycle-router.md`.
+- **Plan artifacts:** `.planning/standalone/agent-lifecycle-router/` (CONTEXT + RESEARCH + VALIDATION + DISCUSSION-LOG + 01..07 PLAN + SUMMARY + SOMNIO-PARITY-RULES + DRY-RUN-RESULT + FLIP-PLAN + SNAPSHOT).
+
+---
+
 ## API Endpoints
 
 | Endpoint | Metodos | Auth | Status | Funcion |

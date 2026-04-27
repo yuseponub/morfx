@@ -529,6 +529,7 @@ Conversation Tags to Contact decisions:
 | 042 | Correo electronico al crear pedido desde WhatsApp (orders.email + prefill contacto + propagacion contacts.email) | 2026-04-15 | c38ddbc | [042-correo-crear-pedido-whatsapp](./quick/042-correo-crear-pedido-whatsapp/) |
 | 043 | Restringir boton Recompra al pipeline "Ventas Somnio Standard" + selector multiple de productos en dialogo | 2026-04-15 | 2029115 | [043-recompra-solo-ventas-somnio-standard](./quick/043-recompra-solo-ventas-somnio-standard/) |
 | 044 | Crear nueva etiqueta inline desde popover WhatsApp (applies_to='whatsapp', auto-aplicar a conversacion) | 2026-04-20 | 3bf7814 | [044-whatsapp-crear-etiqueta-inline](./quick/044-whatsapp-crear-etiqueta-inline/) |
+| 045 | Actualizar tabla unidadesPorValor robot Coordinadora a precios nuevos Somnio (79900/129900/169900) + eliminar fallback roundedValue | 2026-04-27 | fa0b04d | [045-update-coord-pricing-table](./quick/045-update-coord-pricing-table/) |
 
 ### Roadmap Evolution
 

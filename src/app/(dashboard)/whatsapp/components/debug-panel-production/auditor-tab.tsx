@@ -157,7 +157,7 @@ export function AuditorTab({
   const hasMessages = messagesForRender.length > 0
 
   return (
-    <div className="h-full flex flex-col min-h-0">
+    <div className="h-full flex flex-col min-h-0 min-w-0 overflow-hidden">
       {/* Top section: hypothesis + audit button (only when no messages yet) */}
       {!hasMessages && (
         <div className="px-3 py-3 border-b flex-shrink-0 space-y-2">
@@ -230,7 +230,7 @@ export function AuditorTab({
       )}
 
       {/* Messages list (scrollable) */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 px-3 py-3">
         {!hasMessages && !isStreaming && !error && (
           <div className="h-full flex items-center justify-center">
             <div className="text-xs text-muted-foreground italic text-center max-w-sm">

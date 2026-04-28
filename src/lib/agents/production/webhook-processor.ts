@@ -306,6 +306,134 @@ export async function processMessageWithAgent(
   }
 
   // ============================================================================
+  // PW-Confirmation branch (Standalone: somnio-sales-v3-pw-confirmation, Plan 11)
+  // ============================================================================
+  // D-05 BLOQUEANTE: when router decided 'somnio-sales-v3-pw-confirmation', we
+  // do NOT invoke the runner inline (unlike recompra branch below). Instead:
+  //   1. Ensure session exists (Inngest function step 2 needs a sessionId).
+  //   2. Dispatch event 'pw-confirmation/preload-and-invoke' to Inngest.
+  //   3. Return success immediately so the webhook responds 200 within Vercel
+  //      <5s SLA (MEMORY: 'NEVER fire-and-forget inngest.send in webhooks/API
+  //      routes. Always await.' — we await the inngest.send but NOT the function).
+  //
+  // The Inngest function (Plan 09) then runs 2 steps:
+  //   step 1 — call-reader-and-persist (CRM reader BLOQUEANTE, AbortController 25s)
+  //   step 2 — invoke-agent (V3ProductionRunner with agentModule='somnio-pw-confirmation')
+  //
+  // No inline runner invocation here — D-05 BLOQUEANTE means the agent waits for
+  // the reader. Doing it via Inngest decouples the webhook response from the
+  // 5-30s reader latency budget.
+  //
+  // Position: BEFORE the recompra branch because routerDecidedAgentId is checked
+  // first; if it matches PW, we early-return and never evaluate useRecompraBranch.
+  // ============================================================================
+  if (routerHandledMessage && routerDecidedAgentId === 'somnio-sales-v3-pw-confirmation') {
+    if (!contactId) {
+      logger.error(
+        { conversationId, workspaceId },
+        'PW-confirmation router decision but no contactId — falling through to legacy',
+      )
+      // Fall through (don't return) so the legacy gate handles this anomaly.
+    } else {
+      try {
+        // Pre-warm + create session (the Inngest function step 2 needs sessionId
+        // to instantiate V3ProductionRunner; the runner itself will load it).
+        await import('../somnio-pw-confirmation') // anti-B-001 cold-import pre-warm
+        const { SessionManager } = await import('../session-manager')
+        const sm = new SessionManager()
+
+        // Idempotent: try to find existing active session for this (conversation, agent),
+        // create if missing (the createSession path also recovers from 23505 races).
+        const PW_AGENT_ID = 'somnio-sales-v3-pw-confirmation'
+        let session = await sm.getSessionByConversation(conversationId, PW_AGENT_ID)
+        if (!session) {
+          session = await sm.createSession({
+            agentId: PW_AGENT_ID,
+            conversationId,
+            contactId,
+            workspaceId,
+            initialMode: 'awaiting_confirmation',
+          })
+        }
+        const sessionId = session.id
+
+        getCollector()?.recordEvent('pipeline_decision', 'pw_confirmation_routed', {
+          agent: PW_AGENT_ID,
+          conversationId,
+          contactId,
+          sessionId,
+          workspaceId,
+        })
+
+        // Dispatch the Inngest 2-step BLOQUEANTE function. Per MEMORY this MUST
+        // be awaited (NEVER fire-and-forget in serverless / webhooks).
+        const { inngest } = await import('@/inngest/client')
+        await inngest.send({
+          name: 'pw-confirmation/preload-and-invoke',
+          data: {
+            sessionId,
+            contactId,
+            conversationId,
+            workspaceId,
+            messageContent,
+            messageId: '', // ProcessMessageInput does not carry WhatsApp messageId today
+            messageTimestamp: input.messageTimestamp ?? new Date().toISOString(),
+            phone,
+            invoker: 'somnio-sales-v3-pw-confirmation' as const,
+          },
+        })
+
+        getCollector()?.recordEvent('pipeline_decision', 'crm_reader_dispatched', {
+          agent: PW_AGENT_ID,
+          sessionId,
+          contactId,
+          workspaceId,
+        })
+
+        logger.info(
+          { conversationId, contactId, sessionId, workspaceId },
+          'Dispatched pw-confirmation/preload-and-invoke (Inngest function will run reader BLOQUEANTE + invoke agent)',
+        )
+
+        // Mark inbound messages as processed so they don't re-trigger.
+        try {
+          await supabase
+            .from('messages')
+            .update({ processed_by_agent: true })
+            .eq('conversation_id', conversationId)
+            .eq('workspace_id', workspaceId)
+            .eq('direction', 'inbound')
+            .eq('processed_by_agent', false)
+        } catch (markError) {
+          logger.warn(
+            { error: markError, conversationId },
+            'Failed to mark inbound messages as processed_by_agent (PW dispatch fail-open)',
+          )
+        }
+
+        return { success: true }
+      } catch (dispatchErr) {
+        const errorMsg = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr)
+        logger.error(
+          { error: errorMsg, conversationId, contactId },
+          'PW-confirmation dispatch failed — bot stays silent (fail-closed for D-05 BLOQUEANTE)',
+        )
+        // Fail-closed: if we cannot dispatch, do NOT fall through to a different
+        // agent (would surprise the user with an unrelated response). Return
+        // success so the message is marked processed and no retry storm starts.
+        return {
+          success: false,
+          error: {
+            code: 'PW_CONFIRMATION_DISPATCH_FAILED',
+            message: errorMsg,
+            retryable: false,
+          },
+        }
+      }
+    }
+  }
+
+  // ============================================================================
   // LEGACY if/else (D-15: stays inline intact — cleanup is Phase v1.1)
   // Runs when:
   //   - lifecycle_routing_enabled === false (default per Regla 6)

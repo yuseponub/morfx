@@ -26,6 +26,7 @@ import '@/lib/agents/somnio-recompra'
 import '@/lib/agents/somnio-v3'
 import '@/lib/agents/somnio'
 import '@/lib/agents/godentist'
+import '@/lib/agents/somnio-pw-confirmation' // Standalone: somnio-sales-v3-pw-confirmation (D-02)
 import { agentRegistry } from '@/lib/agents/registry'
 
 interface EditorPageProps {

@@ -15,7 +15,7 @@ Ejecutar un blast masivo del template WhatsApp `nuevo_numero` (ya aprobado en pr
 
 **Objetivo:** Medir si el SMS adicional incrementa el % de respuesta (inbound message en 3 días post-envío) vs WA solo.
 
-**Cadencia:** 1 cron diario lun-vie a 10:30 Bogotá, 1.800 contactos/día (900 grupo A + 900 grupo B), tasa 60/min interna, ~5 días hábiles total (~1 semana).
+**Cadencia:** 1 cron diario lun-vie a 10:30 Bogotá, 1.800 contactos/día (900 grupo A + 900 grupo B), tasa 60/min interna, **4 días completos + día 5 parcial 1.084 (542/542)** total. Lista real post-dedup = **8.284 phones únicos** (no 8.832 — research RESEARCH.md detectó 413 dupes internos + 127 inválidos).
 
 **Workspace target:** GoDentist (`36a74890-aad6-4804-838c-57904b1c9328`).
 
@@ -43,10 +43,11 @@ Ejecutar un blast masivo del template WhatsApp `nuevo_numero` (ya aprobado en pr
 
 ### Diseño A/B
 
-- **D-05: Asignación determinista hash(phone) split exacto 900/900 por día.** Para cada día de envío, tomar el slice diario de 1.800 pacientes (en orden secuencial del JSON), ordenar dentro del slice por `hash(phone)` (ej. SHA-256 mod 1800), partir a la mitad: primeros 900 = grupo A, últimos 900 = grupo B. Garantiza:
+- **D-05: Asignación determinista hash(phone) split exacto 900/900 por día (días 1-4) + 542/542 día 5.** Para cada día de envío, tomar el slice diario del JSON dedup'd (8.284 phones únicos), ordenar dentro del slice por `hash(phone)` (SHA-256 mod N donde N = tamaño del slice), partir a la mitad: primera mitad = grupo A, segunda mitad = grupo B. Garantiza:
   - Determinista (mismo phone siempre → mismo grupo si re-corres tras crash)
   - Pseudo-randomizado respecto al orden original del xlsx
-  - Exactly 900/900 split diario (no fluctuación estadística)
+  - Split diario exacto (días 1-4: 900/900, día 5: 542/542 — total A=4.142, B=4.142)
+  - **Día 5 parcial (1.084 contactos)** confirmado por usuario 2026-04-28: split simple 542/542, último día parcial es estadísticamente irrelevante porque ya hay 4 días completos de muestra previa.
 - **D-06: Tracking en archivo JSON local, NO en DB.** Crear `godentist/pacientes-data/blast-experiment-assignments.json` con shape:
   ```json
   [{"phone":"+57...","nombre":"...","group":"A|B","sent_wa_at":"ISO","sent_sms_at":"ISO|null","day":1}]
@@ -76,8 +77,8 @@ Ejecutar un blast masivo del template WhatsApp `nuevo_numero` (ya aprobado en pr
 - **D-12: source='campaign' en sendSMS.** Activa el guard de ventana 8AM-9PM Colombia (CRC Res. 5111/2017). Cron 10:30 cae dentro de ventana. Compliance limpia con `MARKETING_SOURCES = ['campaign', 'marketing']` en `src/lib/sms/constants.ts`.
 - **D-13: Pre-flight checks obligatorios antes del primer batch:**
   1. **Balance Onurix wholesale:** Query saldo cuenta Onurix (admin) + verificar >= ~$83.000 COP estimado wholesale (con margen 20%, recargar a ~$100.000 COP si menor). El admin tiene la responsabilidad de tener saldo suficiente.
-  2. **Balance morfx GoDentist:** Query `sms_workspace_config.balance_cop` del workspace GoDentist + verificar >= ~$428.000 COP estimado interno (4.416 SMS × $97). Si menor, admin recarga via `/super-admin/sms` antes del blast.
-  3. **`sms_workspace_config.is_active=true`** para workspace GoDentist. Si false, activar primero.
+  2. **Balance morfx GoDentist:** Query `sms_workspace_config.balance_cop` del workspace GoDentist + verificar >= ~$428.000 COP estimado interno (4.142 SMS × $97 ≈ $401k, con margen 12% recargar a ~$450k). **VERIFICADO 2026-04-28: GoDentist NO tiene fila en `sms_workspace_config` — solo Somnio existe ($17.990).** Plan 02 debe **CREAR** la fila (`workspace_id, balance_cop=450000, is_active=true`) antes del primer batch. Recarga via `/super-admin/sms` o INSERT directo.
+  3. **`sms_workspace_config.is_active=true`** para workspace GoDentist. Cubierto en step 2 (INSERT con `is_active=true` desde el inicio).
   4. **Test 5 SMS reales:** Antes del primer cron run, mandar 5 SMS a teléfonos del equipo (Jose + 4 más) para verificar:
      - Sender ID renderiza OK (default Onurix)
      - Texto llega completo en 1 segmento (no se corta)
@@ -88,7 +89,7 @@ Ejecutar un blast masivo del template WhatsApp `nuevo_numero` (ya aprobado en pr
 
 ### Cadencia + operativa
 
-- **D-14: Días lun-vie (cron `0 30 10 * * 1-5`).** Cambiar el crontab actual (`30 10 * * 2-6` mar-sáb) a lun-vie:
+- **D-14: Días lun-vie (cron `30 10 * * 1-5`).** **VERIFICADO 2026-04-28: crontab actual tiene 2 entries activas** (`30 10 * * 2-6` + `30 14 * * 2-6` ambas apuntando a `godentist-send-cron.sh` de la campaña anterior). Plan 05 debe **eliminar AMBAS** y agregar la nueva entry única:
   ```
   30 10 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
   ```

@@ -6,7 +6,7 @@
 -- workspace_id: NULL (catalog global, accesible por workspace Somnio)
 -- visit_type: 'primera_vez' (single-track per RESEARCH §A.1 sales-v3 pattern)
 --
--- Cambios (~36 INSERTs across ~27 distinct intents):
+-- Cambios (post-checkpoint usuario 2026-04-27 — eliminados 3 templates):
 --   INFORMACIONALES (clonados verbatim de sales-v3 — D-15, D-27):
 --     saludo (CORE+COMP), precio (CORE+COMP+OPC), promociones (CORE),
 --     contenido (CORE+COMP), formula (CORE+COMP+OPC),
@@ -24,14 +24,19 @@
 --     migration 20260317210000 "comunicara")
 --     confirmacion_orden_transportadora (CORE+COMP)
 --
---   NUEVOS / ADAPTADOS (D-11, D-12, D-14, D-21):
+--   NUEVOS / ADAPTADOS (D-11, D-12, D-14):
 --     pedir_datos_post_compra (D-12)
---     confirmar_direccion_post_compra (D-12)
 --     agendar_pregunta (D-11)
 --     claro_que_si_esperamos (D-14, copy lockeado verbatim en CONTEXT)
---     cancelado_handoff (D-21 stub)
 --     fallback (clonado verbatim de sales-v3)
---     error_carga_pedido (degradacion reader timeout — Pitfall 2 RESEARCH §J)
+--
+--   ELIMINADOS (post-checkpoint usuario 2026-04-27):
+--     - confirmar_direccion_post_compra (D-12) — REDUNDANTE: la pregunta de
+--       direccion ya la hace `direccion_entrega` pre-activacion (Plan 01 audit).
+--     - cancelado_handoff (D-21) — handoff es SILENCIOSO en somnio-v3/recompra
+--       (engine retorna messages:[]). State machine emite event sin enviar texto.
+--     - error_carga_pedido — tambien handoff silencioso (mismo patron). Plan 11
+--       trata crm_context_status='error' como handoff sin envio.
 --
 -- DESVIACION del plan template documentada:
 --   La URL imagen ELIXIR del template `saludo` orden=1 usa Shopify CDN
@@ -445,23 +450,6 @@ BEGIN
   END IF;
 END $$;
 
--- confirmar_direccion_post_compra (D-12) — preguntar si direccion es correcta
--- Variables: {{direccion_completa}}
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM agent_templates
-    WHERE agent_id = 'somnio-sales-v3-pw-confirmation'
-      AND intent = 'confirmar_direccion_post_compra' AND visit_type = 'primera_vez' AND orden = 0
-      AND workspace_id IS NULL
-    LIMIT 1
-  ) THEN
-    INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
-    VALUES (gen_random_uuid(), 'somnio-sales-v3-pw-confirmation', NULL, 'confirmar_direccion_post_compra', 'primera_vez', 'CORE', 0, 'texto',
-            E'¡Claro que si! Seria para esta direccion?\n\n📍 {{direccion_completa}}', 0);
-  END IF;
-END $$;
-
 -- agendar_pregunta (D-11) — preguntar si quiere agendar para fecha futura
 DO $$
 BEGIN
@@ -495,21 +483,9 @@ BEGIN
   END IF;
 END $$;
 
--- cancelado_handoff (D-21 stub) — cliente cancela definitivo, escala a humano
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM agent_templates
-    WHERE agent_id = 'somnio-sales-v3-pw-confirmation'
-      AND intent = 'cancelado_handoff' AND visit_type = 'primera_vez' AND orden = 0
-      AND workspace_id IS NULL
-    LIMIT 1
-  ) THEN
-    INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
-    VALUES (gen_random_uuid(), 'somnio-sales-v3-pw-confirmation', NULL, 'cancelado_handoff', 'primera_vez', 'CORE', 0, 'texto',
-            'Entendido. Te conectamos con un asesor humano para procesar tu solicitud 🤝', 0);
-  END IF;
-END $$;
+-- NOTE: NO `cancelado_handoff` template — handoff es silencioso en somnio-v3/recompra
+-- (engine retorna messages: [] cuando action='handoff', solo emite observability event).
+-- D-21 stub se materializa via state.requires_human=true + newMode='handoff', sin envio al cliente.
 
 -- fallback (CORE — verbatim sales-v3:49)
 DO $$
@@ -527,21 +503,9 @@ BEGIN
   END IF;
 END $$;
 
--- error_carga_pedido (degradacion reader timeout — Pitfall 2 RESEARCH §J)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM agent_templates
-    WHERE agent_id = 'somnio-sales-v3-pw-confirmation'
-      AND intent = 'error_carga_pedido' AND visit_type = 'primera_vez' AND orden = 0
-      AND workspace_id IS NULL
-    LIMIT 1
-  ) THEN
-    INSERT INTO agent_templates (id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s)
-    VALUES (gen_random_uuid(), 'somnio-sales-v3-pw-confirmation', NULL, 'error_carga_pedido', 'primera_vez', 'CORE', 0, 'texto',
-            E'Hubo un problema cargando los datos de tu pedido. ¿Podrías indicarme tu número de pedido o nombre completo para ayudarte? 🙏', 0);
-  END IF;
-END $$;
+-- NOTE: NO `error_carga_pedido` template — degradacion por reader timeout/error
+-- se trata como handoff silencioso (engine retorna messages: [], emite observability event).
+-- Plan 11 engine: si crm_context_status='error' AND no se puede recuperar → action='handoff'.
 
 -- ========================================================================
 -- GRANTs defensivos (LEARNING 1 Phase 44.1)

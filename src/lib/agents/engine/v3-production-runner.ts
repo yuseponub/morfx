@@ -157,6 +157,17 @@ export class V3ProductionRunner {
       } else if (this.config.agentModule === 'somnio-recompra') {
         const { processMessage } = await import('../somnio-recompra/somnio-recompra-agent')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (this.config.agentModule === 'somnio-pw-confirmation') {
+        // Standalone: somnio-sales-v3-pw-confirmation Plan 11 (Wave 5).
+        // Same v3Input shape (V3AgentInput) — agent reads message/history/
+        // datosCapturados/sessionId/workspaceId from it. Output also v3-shape.
+        // Dispatched only via the Inngest function `pw-confirmation/preload-and-invoke`
+        // (Plan 09 step 2) which sets agentModule='somnio-pw-confirmation' on
+        // the runner instance. Webhook-processor (Plan 11 Task 4) does NOT
+        // invoke the runner inline for this agent — it only dispatches the
+        // Inngest event (D-05 BLOQUEANTE).
+        const { processMessage } = await import('../somnio-pw-confirmation')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else {
         const { processMessage } = await import('../somnio-v3/somnio-v3-agent')
         output = await processMessage(v3Input)

@@ -13,6 +13,8 @@ import {
   createAuditSession,
   appendToAuditSession,
   loadAuditSession,
+  listAuditSessionsForTurn,
+  loadAuditSessionById,
 } from '../audit-session-store'
 
 describe('createAuditSession (D-17 insert)', () => {
@@ -316,5 +318,256 @@ describe('loadAuditSession (read)', () => {
       createdAt: '2026-04-28T10:00:00Z',
       updatedAt: '2026-04-28T10:00:01Z',
     })
+  })
+})
+
+describe('listAuditSessionsForTurn (Plan 05 extension — history listing)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('Test 11: returns [] when no audits exist for turnId', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    const result = await listAuditSessionsForTurn('turn-empty')
+
+    expect(mocks.fromMock).toHaveBeenCalledWith('agent_audit_sessions')
+    expect(chain.eq).toHaveBeenCalledWith('turn_id', 'turn-empty')
+    expect(result).toEqual([])
+  })
+
+  it('Test 12: orders by updated_at DESC (not created_at) so recent follow-ups bubble up', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    await listAuditSessionsForTurn('turn-x')
+
+    expect(chain.order).toHaveBeenCalledWith('updated_at', { ascending: false })
+  })
+
+  it('Test 13: projection excludes messages JSONB and system_prompt to keep payload small', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    await listAuditSessionsForTurn('turn-x')
+
+    const selectArg = chain.select.mock.calls[0][0] as string
+    // `messages` MUST NOT appear as a plain projected field. It MAY appear as
+    // part of an alias like `message_count:messages` because PostgREST needs
+    // the source column for jsonb projection. We assert there is no `messages`
+    // token NOT preceded by `:` (i.e. not the rhs of an alias).
+    expect(selectArg).not.toMatch(/(^|[\s,])messages([\s,]|$)/)
+    expect(selectArg).not.toMatch(/\bsystem_prompt\b/)
+    // But MUST include the metadata fields the UI consumes
+    expect(selectArg).toMatch(/\bid\b/)
+    expect(selectArg).toMatch(/\bhypothesis\b/)
+    expect(selectArg).toMatch(/\bcost_usd\b/)
+    expect(selectArg).toMatch(/\btotal_turns_in_context\b/)
+    expect(selectArg).toMatch(/\btrimmed_count\b/)
+    expect(selectArg).toMatch(/\bcreated_at\b/)
+    expect(selectArg).toMatch(/\bupdated_at\b/)
+  })
+
+  it('Test 14: maps rows to AuditSessionSummary shape with messageCount derived from JSONB array length', async () => {
+    // PostgREST cannot return jsonb_array_length without an RPC; we instead
+    // request `messages` as a plain field but project array-length via a
+    // computed column trick OR the function maps locally. The contract here:
+    // the function returns `messageCount` — implementation detail (whether it
+    // came from a count(*) RPC, jsonb_array_length on server, or in-memory
+    // length on a tiny shipped messages array) is hidden behind the projection.
+    //
+    // For this test we assert the shape; impl uses a Postgres expression
+    // alias `message_count` when selecting (jsonb_array_length(messages)).
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'audit-recent',
+            hypothesis: 'recent test',
+            message_count: 4,
+            cost_usd: '0.012345',
+            total_turns_in_context: 5,
+            trimmed_count: 0,
+            created_at: '2026-04-28T10:00:00Z',
+            updated_at: '2026-04-28T11:00:00Z',
+          },
+          {
+            id: 'audit-older',
+            hypothesis: null,
+            message_count: 2,
+            cost_usd: '0.005',
+            total_turns_in_context: 3,
+            trimmed_count: 1,
+            created_at: '2026-04-27T10:00:00Z',
+            updated_at: '2026-04-27T10:01:00Z',
+          },
+        ],
+        error: null,
+      }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    const result = await listAuditSessionsForTurn('turn-x')
+
+    expect(result).toHaveLength(2)
+    expect(result[0]).toEqual({
+      id: 'audit-recent',
+      hypothesis: 'recent test',
+      messageCount: 4,
+      costUsd: 0.012345,
+      totalTurnsInContext: 5,
+      trimmedCount: 0,
+      createdAt: '2026-04-28T10:00:00Z',
+      updatedAt: '2026-04-28T11:00:00Z',
+    })
+    expect(result[1].hypothesis).toBeNull()
+    expect(result[1].messageCount).toBe(2)
+  })
+
+  it('Test 15: throws when select returns an error', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi
+        .fn()
+        .mockResolvedValue({ data: null, error: { message: 'db down' } }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    await expect(listAuditSessionsForTurn('turn-x')).rejects.toBeDefined()
+  })
+})
+
+describe('loadAuditSessionById (Plan 05 extension — full audit load)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('Test 16: returns full row with messages JSONB parsed into array', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: 'a1',
+          turn_id: 't1',
+          workspace_id: 'w1',
+          user_id: 'u1',
+          responding_agent_id: 'somnio-recompra-v1',
+          conversation_id: 'c1',
+          hypothesis: 'h',
+          messages: [
+            { id: 'm1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
+            { id: 'm2', role: 'assistant', parts: [{ type: 'text', text: 'ok' }] },
+          ],
+          system_prompt: 'sys',
+          total_turns_in_context: 5,
+          trimmed_count: 0,
+          cost_usd: '0.01',
+          created_at: '2026-04-28T10:00:00Z',
+          updated_at: '2026-04-28T10:00:01Z',
+        },
+        error: null,
+      }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    const result = await loadAuditSessionById('a1')
+
+    expect(result).not.toBeNull()
+    expect(result!.id).toBe('a1')
+    expect(result!.turnId).toBe('t1')
+    expect(result!.messages).toHaveLength(2)
+    expect((result!.messages[0] as any).role).toBe('user')
+    expect((result!.messages[1] as any).role).toBe('assistant')
+    expect(result!.systemPrompt).toBe('sys')
+    expect(result!.costUsd).toBeCloseTo(0.01, 6)
+  })
+
+  it('Test 17: returns null when row does not exist (silences 404)', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    const result = await loadAuditSessionById('missing-id')
+    expect(result).toBeNull()
+  })
+
+  it('Test 18: queries by id with select(*) maybeSingle', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    await loadAuditSessionById('a1')
+
+    expect(mocks.fromMock).toHaveBeenCalledWith('agent_audit_sessions')
+    expect(chain.select).toHaveBeenCalledWith('*')
+    expect(chain.eq).toHaveBeenCalledWith('id', 'a1')
+    expect(chain.maybeSingle).toHaveBeenCalled()
+  })
+
+  it('Test 19: throws when select returns an error', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi
+        .fn()
+        .mockResolvedValue({ data: null, error: { message: 'db down' } }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    await expect(loadAuditSessionById('a1')).rejects.toBeDefined()
+  })
+
+  it('Test 20: maps messages array even when JSONB returns empty', async () => {
+    const chain: any = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: 'a1',
+          turn_id: 't1',
+          workspace_id: 'w1',
+          user_id: 'u1',
+          responding_agent_id: 'a',
+          conversation_id: 'c1',
+          hypothesis: null,
+          messages: [],
+          system_prompt: 'sys',
+          total_turns_in_context: 0,
+          trimmed_count: 0,
+          cost_usd: '0',
+          created_at: '2026-04-28T10:00:00Z',
+          updated_at: '2026-04-28T10:00:00Z',
+        },
+        error: null,
+      }),
+    }
+    mocks.fromMock.mockReturnValueOnce(chain)
+
+    const result = await loadAuditSessionById('a1')
+    expect(result!.messages).toEqual([])
+    expect(result!.hypothesis).toBeNull()
   })
 })

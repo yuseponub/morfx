@@ -49,7 +49,7 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
     - Observability: emite 5 eventos `pipeline_decision:*` (`crm_reader_dispatched`, `crm_reader_completed`, `crm_reader_failed`, `crm_context_used`, `crm_context_missing_after_wait`).
     - Timeout: 12s inner AbortController; retries=1; concurrency=1 por `event.data.sessionId`.
     - Consumo HTTP: NO (invocacion in-process dentro del mismo Vercel deployment).
-  - `somnio-sales-v3-pw-confirmation` (Phase standalone `somnio-sales-v3-pw-confirmation`, shipped <fecha post-Plan 12>):
+  - `somnio-sales-v3-pw-confirmation` (Phase standalone `somnio-sales-v3-pw-confirmation`, shipped 2026-04-28 con activación diferida — sin regla en `routing_rules` = sin tráfico):
     - Invoca `processReaderMessage(...)` desde la funcion Inngest `pw-confirmation-preload-and-invoke` (`src/inngest/functions/pw-confirmation-preload-and-invoke.ts`) al crear sesion — **BLOQUEANTE** (a diferencia de recompra non-blocking): el webhook responde 200 inmediato pero el dispatch corre primero el reader y luego invoca al agente con contexto ya en sesion (sin polling).
     - Invoker propagado: el dispatch + function pasan `invoker: 'somnio-sales-v3-pw-confirmation'` → reader loggea este valor.
     - Workspace isolation: `workspaceId` del event validado contra el workspace del session_state; reader filtra queries por workspace (Regla 3).

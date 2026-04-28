@@ -68,7 +68,7 @@ ORDER BY template_name;
 SELECT
   id,
   name,
-  enabled,
+  is_enabled,
   trigger_config,
   actions
 FROM automations

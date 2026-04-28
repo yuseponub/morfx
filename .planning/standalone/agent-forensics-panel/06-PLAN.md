@@ -1,9 +1,9 @@
 ---
 phase: agent-forensics-panel
-plan: 05
+plan: 06
 type: execute
-wave: 4
-depends_on: [04]
+wave: 5
+depends_on: [05]
 files_modified:
   - .planning/standalone/agent-forensics-panel/LEARNINGS.md
   - docs/analysis/04-estado-actual-plataforma.md

@@ -115,3 +115,79 @@ El auditor, cuando diagnostica un problema, emite markdown con:
 5. Arquitectura de invocación del auditor: desde dónde se llama, cómo recibe contexto, cómo retorna markdown al panel (D-03 + D-13).
 6. Estructura del módulo paralelo de forensics (D-02).
 7. Patterns existentes de markdown + file:line rendering en la codebase (si los hay).
+
+---
+
+## Sesión 2 — 2026-04-25 (post Plan 04 smoke test)
+
+**Trigger:** Tras shipping de Plan 04 y validacion del auditor base, el usuario identifico 2 limitaciones criticas del auditor v1:
+1. **Audita por turno aislado** — sin contexto de los demas turns de la sesion → se confunde, infiere mal, genera falsas alarmas (ej. "gap de 11s suspicioso" verificado falso, ver Plan 04 SUMMARY §Pitfalls).
+2. **No hay forma de inyectar hipotesis del usuario** — el auditor analiza blind, sin aprovechar que el usuario YA sabe que sospecha del bot.
+
+**Decision estructural:** insertar nuevo Plan 05 (`auditor-multi-turn-and-hypothesis`) ANTES del cierre del phase. El Plan 05 viejo (LEARNINGS + docs + tests) se renumera a Plan 06.
+
+### Decisiones lockeadas
+
+**D-14. Multi-turn context: sesion actual completa, granularidad media.**
+El audit de un turn N debe incluir contexto de TODOS los turns previos de la misma sesion. Granularidad:
+- **Turn auditado (N):** timeline condensado COMPLETO + session snapshot completo (igual que hoy).
+- **Turns previos de la sesion (1..N-1):** version "ligeramente condensada" — NO ultra-resumen, sino: intent detectado + salesAction emitida + templates enviados + transition reason + key state changes (datos capturados nuevos, mode change si aplica) + duracion + cualquier pipeline_decision relevante.
+- **Razon (user quote):** "no super condensada, sino ligeramente condensada con suficiente contexto para entender bien la logica de cada turno". Permite al auditor entender la linea de la conversacion sin saturar el prompt.
+- **Implicacion arquitectural:** debe incluir TAMBIEN turns de crm-reader (cuando existen para esa sesion) — el reader emite eventos `crm_reader_completed/failed/empty/timeout` que afectan la interpretacion del comportamiento del agente.
+
+**D-15. Cap de tokens: 50K total prompt.**
+- Cap suave. Si la sesion excede 50K tokens en contexto multi-turn, truncar a los **ultimos N turns** + flag visual al usuario en la UI: "sesion trimmed (mostrando ultimos N de M turns)".
+- **Razon (user quote):** "no lo estaremos usando mucho que digamos" — el cap alto cubre la mayoria de sesiones reales (Somnio promedia 3-15 turns) sin gating prematuro.
+- **Costo estimado por audit con cap maximo:** ~50K tokens prompt × $3/1M = $0.15 input + ~3K tokens response × $15/1M = $0.045 output = ~$0.20 por audit en el peor caso. Tipico: $0.05-0.10.
+
+**D-16. Input de hipotesis: hibrido text-box pre-audit + chat de seguimiento.**
+- **Pre-audit (opcional):** text-box arriba del boton "Auditar sesion" donde el usuario escribe su hipotesis ANTES del primer audit. Si esta llena, el system prompt incluye: "El usuario sospecha: <hipotesis>. Investiga especificamente si esto es correcto o incorrecto, citando evidence del timeline + spec."
+- **Chat de seguimiento (continuo):** despues del primer audit (sea blind o con hipotesis), aparece un input "Pregunta de seguimiento" debajo del markdown renderizado. Permite refinar ("no, no me importa eso, fijate en el template del segundo turn"), pedir mas detalle, contradecir el diagnostico. Backend mantiene historial de mensajes del audit en memoria de la session UI.
+- **Razon:** la text-box pre-audit es trivial de agregar y muy util cuando ya sabes que buscar. El chat es el verdadero unlock — convierte el auditor de oracle one-shot en assistant interactivo. Ambos juntos cubren ambos modos de uso (blind exploration vs guided investigation).
+
+**D-17. Persistencia: tabla nueva `agent_audit_sessions`.**
+Schema:
+- `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- `turn_id UUID NOT NULL` — FK al turn auditado en `agent_observability_turns(id)`
+- `workspace_id UUID NOT NULL` — para RLS/scoping
+- `user_id UUID NOT NULL` — quien corrio el audit (super-user)
+- `responding_agent_id TEXT NOT NULL` — agente del turn auditado
+- `conversation_id UUID NOT NULL` — para indexar por conversation
+- `hypothesis TEXT NULL` — la hipotesis del usuario si fue pre-audit (D-16), NULL si fue blind
+- `messages JSONB NOT NULL DEFAULT '[]'::jsonb` — array de `{ role: 'user' | 'assistant', content: string, timestamp: timestamptz }` con todo el chat (audit + follow-ups)
+- `cost_usd NUMERIC(10,6) NOT NULL DEFAULT 0` — costo acumulado (input + output tokens × pricing)
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('America/Bogota', NOW())` — Regla 2
+- `updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('America/Bogota', NOW())`
+- Indices: `(workspace_id, conversation_id, created_at DESC)` para listado en UI futuro, `(turn_id, created_at DESC)` para reabrir audits del mismo turn.
+- **Razon:** permite reabrir audits viejos, ver historial de hipotesis correctas/incorrectas, busqueda futura por workspace/agent/conversacion. Base para mejora continua del auditor (ej. captura de patrones de hipotesis frecuentes).
+- **Regla 5:** la migracion SQL se aplica en Supabase prod ANTES del push de codigo que la usa.
+
+**D-18. Sin prompt caching en esta version.**
+- Cache requiere 2+ audits del mismo agente en <5min para amortizar la complejidad de implementacion + cache reads vs ahorro real.
+- Bajo volumen esperado de uso del auditor — no justifica el overhead.
+- **Razon (user quote):** "no vamos a utilizar muchisimos audits tampoco". Si el uso aumenta en el futuro, agregamos en standalone trivial (es solo flag de configuracion).
+- **Aclaracion importante:** prompt caching NO degrada calidad — el modelo ve el mismo contenido. Es solo optimizacion de billing/latencia que aplica cuando hay re-uso temporal cercano. Skip por ROI, no por riesgo.
+
+**D-19. Multi-turn context incluye crm-reader turns cuando existen.**
+- Si la sesion auditada tiene turns con `responding_agent_id='crm-reader'` (porque el feature flag `platform_config.somnio_recompra_crm_reader_enabled` estaba on para ese workspace y el flow disparó al reader), esos turns deben incluirse en el contexto multi-turn — no solo los turns conversacionales.
+- **Razon:** el comportamiento del agente conversacional (somnio-recompra-v1, somnio-sales-v3-pw-confirmation) depende del resultado del crm-reader. Si el reader retorno `_v3:crm_context` con histórico de pedidos, eso afecta cómo el agente interpreta `quiero_comprar` (ej. "ya conozco al cliente, salto direccion"). Auditar el agente sin ver el reader es analisis incompleto.
+- **Implicacion:** el query de carga del contexto debe `JOIN` o `IN (SELECT ...)` para traer todos los turns con misma `conversation_id` y `started_at` overlapping con la sesion (no solo filtrar por `responding_agent_id` del agente principal).
+
+---
+
+## Siguiente paso (sesion 2)
+
+```
+/gsd-research-phase agent-forensics-panel  # solo para Plan 05 nuevo
+/gsd-plan-phase agent-forensics-panel       # produce 05-PLAN.md detallado
+```
+
+**Research-phase Sesion 2 debe cerrar:**
+
+1. Estrategia exacta de cargar todos los turns de la sesion (incluyendo crm-reader) — query SQL + cursor de paginacion si necesario (D-14, D-19).
+2. Algoritmo de "ligeramente condensado" para turns previos — que campos exactos del timeline y session snapshot incluir, formato JSON optimizado para tokens (D-14).
+3. Cap de tokens — como medir tokens del prompt antes de mandarlo al modelo, biblioteca/funcion a usar, fallback de truncado (D-15).
+4. Pattern de chat continuo en AI SDK v6 con `useChat` — como mantener conversacion multi-message contra el mismo endpoint, persistir cada round en `agent_audit_sessions.messages` (D-16, D-17).
+5. Schema migration para `agent_audit_sessions` — validar que indices propuestos cubren los queries reales del UI (D-17, Regla 5).
+6. UI patterns existentes en codebase para text-box + chat (revisar componentes shadcn ya en uso) (D-16).
+7. Ejemplo concreto del system prompt extendido con "El usuario sospecha: ..." — verificar que no rompe la regla de los 4 headers obligatorios del Plan 04 (D-16, alinear con D-09).

@@ -16,7 +16,7 @@ must_haves:
     - "Single-batch dry-run de godentist-blast-experiment.ts ejecutado contra una lista reducida (10-15 phones del equipo + voluntarios)"
     - "Output del dry-run muestra A/B split funcionando, WA enviados a todos, SMS solo a grupo B"
     - "blast-experiment-state.json, assignments.json, skipped.csv generados con shape correcto"
-    - "Crontab final tiene EXACTAMENTE 1 entry de godentist-blast-experiment-cron.sh (lun-vie 10:30)"
+    - "Crontab final tiene EXACTAMENTE 2 entries de godentist-blast-experiment-cron.sh (lun-vie 10:30 + 14:30)"
     - "Crontab tiene 0 entries de godentist-send-cron.sh (las 2 viejas eliminadas)"
     - "Crontab muestra exit code 0 al final (`crontab -l` no error)"
   artifacts:
@@ -26,12 +26,12 @@ must_haves:
   key_links:
     - from: "crontab"
       to: "scripts/godentist-blast-experiment-cron.sh"
-      via: "cron entry 30 10 * * 1-5"
+      via: "cron entries 30 10 * * 1-5 + 30 14 * * 1-5"
       pattern: "godentist-blast-experiment-cron"
 ---
 
 <objective>
-Validar end-to-end el script del Plan 04 con un dry-run controlado a una lista pequeña (10-15 phones del equipo morfx + voluntarios), luego hacer el swap del crontab: eliminar las 2 entries viejas (`godentist-send-cron.sh` mar-sáb 10:30 y 14:30 — campaña anterior completada) y agregar la nueva entry única (`godentist-blast-experiment-cron.sh` lun-vie 10:30).
+Validar end-to-end el script del Plan 04 con un dry-run controlado a una lista pequeña (10-15 phones del equipo morfx + voluntarios), luego hacer el swap del crontab: eliminar las 2 entries viejas (`godentist-send-cron.sh` mar-sáb 10:30 y 14:30 — campaña anterior completada) y agregar las 2 nuevas entries (`godentist-blast-experiment-cron.sh` lun-vie 10:30 + 14:30, post-D-15 override 2026-04-28).
 
 Purpose: Defense en producción. El blast masivo arranca con el primer cron run lun-vie 10:30 después de este plan. Si hay bugs (path, env, A/B split mal calculado, sendSMS error), los detectamos en el dry-run controlado de 10-15 phones, NO en producción de 1.800.
 
@@ -40,7 +40,7 @@ Output:
 - Single-batch dry-run ejecutado, validado
 - Crontab actualizado en producción WSL del usuario
 
-Cumple D-14 (`30 10 * * 1-5`) + D-15 (1 cron run/día). Limpia las entries viejas de campaña anterior (NO comentar — eliminar, RESEARCH.md Pre-flight 7).
+Cumple D-14 (`30 10 * * 1-5` + `30 14 * * 1-5`) + D-15 (2 cron runs/día — override 2026-04-28). Limpia las entries viejas de campaña anterior (NO comentar — eliminar, RESEARCH.md Pre-flight 7).
 </objective>
 
 <execution_context>
@@ -213,7 +213,7 @@ Crear el archivo de instrucciones `.planning/standalone/godentist-blast-sms-expe
 
 ## Objetivo
 
-Reemplazar las 2 entries viejas del crontab WSL (campaña anterior `nuevo_numerov2` 2023-2026, completada el 2026-03-28) con 1 entry nueva del experimento A/B.
+Reemplazar las 2 entries viejas del crontab WSL (campaña anterior `nuevo_numero` 2023-2026, completada el 2026-03-28) con 2 entries nuevas del experimento A/B (post-D-15 override 2026-04-28: 2 runs/día, 900 contactos cada uno).
 
 ## Estado actual del crontab (verificado 2026-04-28)
 
@@ -228,18 +228,20 @@ Reemplazar las 2 entries viejas del crontab WSL (campaña anterior `nuevo_numero
 
 ```
 30 10 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
+30 14 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
 ```
 
-(lun-vie 10:30 — apunta a `godentist-blast-experiment-cron.sh` que es el experimento nuevo).
+(lun-vie 10:30 + 14:30 — apuntan a `godentist-blast-experiment-cron.sh` que es el experimento nuevo).
 
 ## Cambios
 
 | Aspecto | Antes | Después |
 |---------|-------|---------|
-| Frecuencia | 2x/día (10:30 + 14:30) | 1x/día (10:30) — **D-15** |
+| Frecuencia | 2x/día (10:30 + 14:30) | 2x/día (10:30 + 14:30) — **D-15 override 2026-04-28** |
 | Días | mar-sáb (`2-6`) | lun-vie (`1-5`) — **D-14** |
 | Script | godentist-send-cron.sh | godentist-blast-experiment-cron.sh — **D-17** |
-| Total entries | 2 | 1 |
+| Batch size por run | 1.000 | 900 (= 1.800/día total — **D-16 override 2026-04-28**) |
+| Total entries | 2 | 2 |
 
 ## Pasos
 
@@ -269,9 +271,10 @@ Acciones en el editor:
   30 10 * * 2-6 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-send-cron.sh
   30 14 * * 2-6 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-send-cron.sh
   ```
-- **AGREGAR** (línea nueva al final del crontab):
+- **AGREGAR** (2 líneas nuevas al final del crontab — D-15 override 2026-04-28):
   ```
   30 10 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
+  30 14 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
   ```
 
 Guardar y salir:
@@ -286,7 +289,7 @@ Comando único de verificación:
 echo "=== Total entries de godentist-send-cron.sh (esperado: 0) ==="
 crontab -l | grep -c "godentist-send-cron.sh"
 
-echo "=== Total entries de godentist-blast-experiment-cron.sh (esperado: 1) ==="
+echo "=== Total entries de godentist-blast-experiment-cron.sh (esperado: 2) ==="
 crontab -l | grep -c "godentist-blast-experiment-cron.sh"
 
 echo "=== Crontab completo ==="
@@ -298,10 +301,11 @@ crontab -l
 ```
 === Total entries de godentist-send-cron.sh (esperado: 0) ===
 0
-=== Total entries de godentist-blast-experiment-cron.sh (esperado: 1) ===
-1
+=== Total entries de godentist-blast-experiment-cron.sh (esperado: 2) ===
+2
 === Crontab completo ===
 30 10 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
+30 14 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
 ```
 
 (Puede haber otras entries de otros proyectos — solo nos importan estas dos counts).
@@ -326,11 +330,11 @@ Monitorear en tiempo real durante el primer run:
 tail -f /mnt/c/Users/Usuario/Proyectos/morfx-new/godentist/pacientes-data/blast-experiment/logs/cron_$(TZ='America/Bogota' date '+%Y-%m-%d')_*.log
 ```
 
-## Verificación post-primer-run (después del primer cron real)
+## Verificación post-primer-día (después de los 2 cron runs del día 1: 10:30 + 14:30)
 
 Ejecutar Plan 06 (analyze-blast-experiment.ts) al final del primer día para ver:
-- 1.800 contactos procesados
-- ~900 grupo A + ~900 grupo B
+- 1.800 contactos procesados (2 runs × 900)
+- ~900 grupo A + ~900 grupo B (cada run: 450/450, daily aggregate 900/900)
 - ~900 SMS enviados con cost_cop=$87.300 debitados al workspace
 - Saldo workspace post-día-1 ≈ $450.000 - $87.300 - $485 (test del Plan 03) = $362.215
 ```
@@ -375,7 +379,7 @@ Decisiones del documento:
    ```bash
    echo "=== Total entries de godentist-send-cron.sh (esperado: 0) ==="
    crontab -l | grep -c "godentist-send-cron.sh"
-   echo "=== Total entries de godentist-blast-experiment-cron.sh (esperado: 1) ==="
+   echo "=== Total entries de godentist-blast-experiment-cron.sh (esperado: 2) ==="
    crontab -l | grep -c "godentist-blast-experiment-cron.sh"
    echo "=== Crontab completo ==="
    crontab -l
@@ -390,7 +394,7 @@ Decisiones del documento:
    /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
    ```
 
-   Esto va a invocar el script — pero como ya se reseteó el state file en Task 1 (paso 10), va a procesar el primer batch real (1.800 phones). **NO ejecutar este pre-validación si todavía no son las 10:30 del día deseado para empezar el blast** — sino estarías arrancando el experimento HOY antes de tiempo.
+   Esto va a invocar el script — pero como ya se reseteó el state file en Task 1 (paso 10), va a procesar el primer batch real (900 phones por run). **NO ejecutar este pre-validación si todavía no son las 10:30 (o 14:30) del día deseado para empezar el blast** — sino estarías arrancando el experimento HOY antes de tiempo.
 
    Alternativa para validar wrapper sin disparar el blast: simplemente verificar que el archivo es ejecutable y muestra `Blast cron started` en el log:
    ```bash
@@ -400,7 +404,7 @@ Decisiones del documento:
 
 6. Si todo OK: **el experimento arranca solo en el próximo día hábil 10:30 Bogotá.**
   </how-to-verify>
-  <resume-signal>Type "swap done: <paste output of `crontab -l | grep godentist`>" so the cron state is recorded in conversation evidence. The output should show ONLY the new line `30 10 * * 1-5 .../godentist-blast-experiment-cron.sh` (the 2 old `godentist-send-cron.sh` entries must be absent). Type "blocked: ..." if the swap failed or if old entries remain.</resume-signal>
+  <resume-signal>Type "swap done: <paste output of `crontab -l | grep godentist`>" so the cron state is recorded in conversation evidence. The output should show ONLY the 2 new lines `30 10 * * 1-5 .../godentist-blast-experiment-cron.sh` y `30 14 * * 1-5 .../godentist-blast-experiment-cron.sh` (las 2 antiguas `godentist-send-cron.sh` ausentes). Type "blocked: ..." if the swap failed or if old entries remain.</resume-signal>
 </task>
 
 </tasks>
@@ -426,16 +430,16 @@ Decisiones del documento:
 <verification>
 - Dry-run con 10-15 phones ejecutado; A/B split, WA, SMS, archivos validados.
 - JSON real restaurado; state file reseteado para offset=0.
-- Crontab muestra: 0 entries de godentist-send-cron.sh + 1 entry de godentist-blast-experiment-cron.sh.
+- Crontab muestra: 0 entries de godentist-send-cron.sh + 2 entries de godentist-blast-experiment-cron.sh (10:30 + 14:30).
 - Wrapper ejecutable con syntax OK.
 </verification>
 
 <success_criteria>
 - 10-15 SMS/WA dry-run delivered y validados via DB audit
-- Crontab clean: 2 entries viejas eliminadas, 1 entry nueva agregada
+- Crontab clean: 2 entries viejas eliminadas, 2 entries nuevas agregadas (10:30 + 14:30)
 - `pacientes-2019-2022.json` real restaurado
 - `blast-experiment-state.json` ausente / con `nextOffset=0` (sino el primer cron real saltaría a offset=10-15)
-- Próximo cron run sucederá automáticamente lun-vie 10:30 Bogotá
+- Próximo cron run sucederá automáticamente lun-vie 10:30 Bogotá (luego 14:30, repitiendo lun-vie hasta agotar 8.291 contactos)
 </success_criteria>
 
 <output>

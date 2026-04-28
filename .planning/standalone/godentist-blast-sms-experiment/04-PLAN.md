@@ -187,7 +187,8 @@ Crear el archivo NUEVO `scripts/godentist-blast-experiment.ts` (NO modificar `sc
  * Scope: Re-envía template `nuevo_numerov2` a 8.284 pacientes únicos GoDentist 2019-2022,
  * con split A/B 50/50 determinista por hash(phone). Grupo A = solo WA, Grupo B = WA + SMS Onurix.
  *
- * Cadencia: lun-vie 10:30 Bogotá, 1.800 contactos/día (días 1-4) + 1.084 día 5 (542/542),
+ * Cadencia: lun-vie 10:30 + 14:30 Bogotá, 900 contactos/run × 2 runs/día = 1.800/día
+ * (días 1-4) + 1.091 día 5 (AM 900 + PM 191 parciales),
  * tasa interna 60/min (DELAY_MS=1000, SMS dentro de loop ~+500ms).
  *
  * D-09: SMS via domain layer (sendSMS) — billing al workspace GoDentist a $97 COP/seg.
@@ -226,7 +227,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const WORKSPACE_ID = '36a74890-aad6-4804-838c-57904b1c9328'  // GoDentist
 const TEMPLATE_NAME = 'nuevo_numerov2'
 const TEMPLATE_LANGUAGE = 'es'
-const BATCH_SIZE = 1800              // D-16: 1.800 contactos/día
+const BATCH_SIZE = 900               // D-16 (override 2026-04-28): 900/run × 2 runs/día = 1.800 contactos/día
 const DELAY_MS = 1000                // D-16: 60/min interna (1 op/sec)
 const SMS_INTRA_DELAY_MS = 500       // ~500ms entre WA y SMS del mismo paciente
 const D360_BASE_URL = 'https://waba-v2.360dialog.io'
@@ -298,8 +299,8 @@ function isGSM7(s: string): boolean {
 
 function buildSMSText(rawName: string): string {
   const safeName = stripAccents(rawName).trim().split(/\s+/)[0]
-  const personalized = `Hola ${safeName}, GoDentist cambio de numero. Para cita o duda escribenos por WhatsApp https://wa.me/573016262603`
-  const fallback = `Hola, GoDentist cambio de numero. Para cita o duda escribenos por WhatsApp https://wa.me/573016262603`
+  const personalized = `Hola ${safeName}, GoDentist cambio de numero. Para agendar tu cita odontologica escribenos por WhatsApp https://wa.me/573016262603`
+  const fallback = `Hola, GoDentist cambio de numero. Para agendar tu cita odontologica escribenos por WhatsApp https://wa.me/573016262603`
   // Two-gate fallback: encoding (defense vs missed-strip) OR length (defensive — won't trigger on this dataset)
   if (!isGSM7(personalized) || personalized.length > 160) {
     return fallback

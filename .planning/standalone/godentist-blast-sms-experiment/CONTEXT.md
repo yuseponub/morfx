@@ -65,15 +65,16 @@ Ejecutar un blast masivo del template WhatsApp `nuevo_numero` (ya aprobado en pr
   - Razón: GoDentist es cliente de morfx, debe pagar por el servicio. Audit completa en `sms_messages` table. Margen morfx legítimo del modelo de negocio.
 - **D-10: Texto SMS — Opción B (personalizado, sin acentos, sin emojis, con link wa.me, sin precarga):**
   ```
-  Hola {nombre}, GoDentist cambio de numero. Para cita o duda escribenos por WhatsApp https://wa.me/573016262603
+  Hola {nombre}, GoDentist cambio de numero. Para agendar tu cita odontologica escribenos por WhatsApp https://wa.me/573016262603
   ```
-  - ~110 chars con nombre promedio "Maria" → **1 segmento GSM-7** ($97 COP debitado a GoDentist, $18.75 COP costo Onurix)
-  - Sin emojis (👋🏻 ®️ 😱 📲) y sin acentos (numero/cambio/Clinicas) para forzar GSM-7 y mantener 1 seg
+  - **OVERRIDE 2026-04-28 post-test 5 SMS:** texto cambió de "Para cita o duda" → "Para agendar tu cita odontologica" (decisión usuario — más claro el call-to-action)
+  - ~123-128 chars con nombre promedio "Maria"/"Jose"/"Carlos" → **1 segmento GSM-7** ($97 COP debitado a GoDentist, $18.75 COP costo Onurix). Verificado con `calculateSMSSegments` para nombres `Jose/Maria/Andres/Carlos/MARIA/ALEJANDRA/GUADALUPE/FRANCISCO` — todos 1 seg.
+  - Sin emojis (👋🏻 ®️ 😱 📲) y sin acentos (numero/cambio/odontologica/Clinicas) para forzar GSM-7 y mantener 1 seg
   - Link `wa.me/573016262603` se vuelve tappable en celular del paciente (abre WhatsApp con el número de GoDentist)
   - Sin `?text=Hola` precarga (decisión usuario — paciente escribe libre)
-- **D-11: Edge case nombre largo.** Si `Hola {nombre}, GoDentist...` excede 160 chars (e.g. nombre "MARIA DEL CARMEN BUSTAMANTE GOMEZ" → ~143+34=177 chars), fallback automático del script a versión sin personalización:
+- **D-11: Edge case nombre largo.** Si `Hola {nombre}, GoDentist...` excede 160 chars (e.g. nombre con primer-token largo como "GUADALUPEDELPILAR"), fallback automático del script a versión sin personalización:
   ```
-  Hola, GoDentist cambio de numero. Para cita o duda escribenos por WhatsApp https://wa.me/573016262603
+  Hola, GoDentist cambio de numero. Para agendar tu cita odontologica escribenos por WhatsApp https://wa.me/573016262603
   ```
   Mantener 1 seg garantizado. Implementar en el script como `template.length + name.length > 160 ? fallback : personalized`.
 - **D-12: source='campaign' en sendSMS.** Activa el guard de ventana 8AM-9PM Colombia (CRC Res. 5111/2017). Cron 10:30 cae dentro de ventana. Compliance limpia con `MARKETING_SOURCES = ['campaign', 'marketing']` en `src/lib/sms/constants.ts`.
@@ -91,17 +92,20 @@ Ejecutar un blast masivo del template WhatsApp `nuevo_numero` (ya aprobado en pr
 
 ### Cadencia + operativa
 
-- **D-14: Días lun-vie (cron `30 10 * * 1-5`).** **VERIFICADO 2026-04-28: crontab actual tiene 2 entries activas** (`30 10 * * 2-6` + `30 14 * * 2-6` ambas apuntando a `godentist-send-cron.sh` de la campaña anterior). Plan 05 debe **eliminar AMBAS** y agregar la nueva entry única:
+- **D-14: Días lun-vie, 2 entries cron (10:30 + 14:30).** **VERIFICADO 2026-04-28: crontab actual tiene 2 entries activas** (`30 10 * * 2-6` + `30 14 * * 2-6` ambas apuntando a `godentist-send-cron.sh` de la campaña anterior). Plan 05 debe **eliminar AMBAS** y agregar las nuevas:
   ```
   30 10 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
+  30 14 * * 1-5 /mnt/c/Users/Usuario/Proyectos/morfx-new/scripts/godentist-blast-experiment-cron.sh
   ```
   Sin sábado (decisión usuario — odontólogos algunos cierran sábado, menor probabilidad de respuesta inmediata).
-- **D-15: 1 cron run diario a 10:30 Bogotá.** Eliminar el cron de 14:30 para este experimento (vs campaña anterior que tenía 2 batches diarios). 1 solo run por día simplifica el split A/B garantizado y reduce complejidad operativa.
-  - Run dura ~45 min (10:30 → 11:15) con 2.700 ops a 60/min
-  - Termina dentro de ventana legal SMS (8AM-9PM ✓)
-- **D-16: Tasa 60/min interna (1 mensaje por segundo, `DELAY_MS=1000`).** Balance entre velocidad y robustez:
-  - Run completo en 45 min vs 13 min de campaña anterior (200/min) — más margen para retry/error handling
-  - 1.800 WA × 1s = 30 min + 900 SMS × 1s = 15 min adicionales = 45 min total
+- **D-15: 2 cron runs diarios (10:30 + 14:30 Bogotá).** OVERRIDE 2026-04-28 (post-research): el usuario decidió mantener la cadencia original de la campaña anterior (AM + PM). Cambio del split por-run (no por-día):
+  - Cada run: 900 contactos = 450A + 450B (hash split per-batch)
+  - Daily aggregate: 1.800 contactos = 900A + 900B (sigue cumpliendo D-05 a nivel diario)
+  - No-double-send garantizado por `state.offset` JSON: AM run avanza 0→900, PM run lee 900 y avanza a 1.800. Si el cron dispara dos veces accidentalmente el mismo run, lee el offset post-incrementado y avanza al siguiente slice — never re-envía.
+  - Run dura ~22 min (~22 min × 2 runs/día) — termina cómodo dentro de ventana legal SMS 8AM-9PM ✓
+  - 5 días envío (mié 29 abr → mar 5 may), día 5 parcial: AM 900 + PM 191 (`8.291 - 7.200 = 1.091` restantes).
+- **D-16: BATCH_SIZE=900, tasa 60/min interna (1 mensaje por segundo, `DELAY_MS=1000`).** Override post-D-15 (de 1.800 a 900 per run):
+  - 900 WA × 1s = 15 min + 450 SMS × 1s = 7.5 min adicionales = 22.5 min por run
   - Para grupo B (WA+SMS combo), serial dentro de la misma iteración (~2s entre WA y SMS del mismo paciente)
 - **D-17: Nuevo script `scripts/godentist-blast-experiment.ts`.** Copiar el patrón de `scripts/godentist-send-scheduled.ts` extendido con:
   - Parser xlsx → JSON al primer run (idempotente — si JSON existe, skip parser)

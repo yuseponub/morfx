@@ -188,8 +188,8 @@ function isGSM7(s: string): boolean {
 
 function buildSMSText(rawName: string): string {
   const safeName = stripAccents(rawName).trim().split(/\s+/)[0]
-  const personalized = `Hola ${safeName}, GoDentist cambio de numero. Para cita o duda escribenos por WhatsApp https://wa.me/573016262603`
-  const fallback = `Hola, GoDentist cambio de numero. Para cita o duda escribenos por WhatsApp https://wa.me/573016262603`
+  const personalized = `Hola ${safeName}, GoDentist cambio de numero. Para agendar tu cita odontologica escribenos por WhatsApp https://wa.me/573016262603`
+  const fallback = `Hola, GoDentist cambio de numero. Para agendar tu cita odontologica escribenos por WhatsApp https://wa.me/573016262603`
 
   if (!isGSM7(personalized) || personalized.length > 160) {
     return fallback

@@ -30,6 +30,7 @@ import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling
 import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
 import { crmBotExpireProposalsCron } from '@/inngest/functions/crm-bot-expire-proposals'
 import { recompraPreloadContextFunctions } from '@/inngest/functions/recompra-preload-context'
+import { pwConfirmationPreloadAndInvokeFunctions } from '@/inngest/functions/pw-confirmation-preload-and-invoke'
 import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
 
 /**
@@ -52,6 +53,7 @@ import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
  * - envia-status-polling: 2h cron polling Envia shipment status API (Standalone: envia-status-polling)
  * - crm-bot-expire-proposals: Every 1 min cron that marks crm_bot_actions proposed rows as expired past TTL+30s (Phase 44)
  * - recompra-preload-context: Triggered by 'recompra/preload-context' event after webhook-processor creates a new recompra session; calls crm-reader via AI SDK, persists `_v3:crm_context` into session_state (Standalone: somnio-recompra-crm-reader)
+ * - pw-confirmation-preload-and-invoke: 2-step (reader BLOCKING -> invoke agent) for somnio-sales-v3-pw-confirmation (Standalone: somnio-sales-v3-pw-confirmation, D-05)
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -65,6 +67,7 @@ export const { GET, POST, PUT } = serve({
     ...smsDeliveryFunctions,
     ...mobilePushFunctions,
     ...recompraPreloadContextFunctions,
+    ...pwConfirmationPreloadAndInvokeFunctions,  // Standalone: somnio-sales-v3-pw-confirmation (D-05 BLOQUEANTE)
     taskOverdueCron,
     closeStaleSessionsCron,
     observabilityPurgeCron,

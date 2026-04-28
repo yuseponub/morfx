@@ -774,10 +774,53 @@ export type RecompraPreloadEvents = {
   }
 }
 
+// ============================================================================
+// Somnio Sales v3 — PW-Confirmation Preload + Invoke Events
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + recompra preload).
+ * Somnio sales v3 PW-confirmation — preload-and-invoke events.
+ *
+ * Patron NUEVO en codebase: BLOQUEANTE (D-05). A diferencia de
+ * `recompra/preload-context` que es non-blocking (saludo INSTANT y
+ * enriquecimiento async + polling), aqui el webhook responde 200 inmediato
+ * pero el dispatcher Inngest hace 2 steps en orden:
+ *   step 1 — call-reader-and-persist (BLOQUEANTE, AbortController 25s)
+ *   step 2 — invoke-agent (V3ProductionRunner con agentModule='somnio-pw-confirmation')
+ *
+ * Resultado: el agente arranca con `_v3:crm_context` + `_v3:active_order`
+ * ya persistidos en `session_state.datos_capturados` — sin polling.
+ *
+ * Consumed by: src/inngest/functions/pw-confirmation-preload-and-invoke.ts
+ * Dispatched by: src/lib/agents/production/webhook-processor.ts (Plan 11 branch
+ *   cuando routerDecidedAgentId === 'somnio-sales-v3-pw-confirmation').
+ *
+ * Concurrency-keyed por sessionId (limit 1) para serializar turns por sesion
+ * y evitar race con segundo mensaje del cliente en <5s.
+ *
+ * Idempotency: step.run garantiza que cada step se serializa — Inngest retry
+ * NO re-llama reader ni re-invoca al agente si el step ya completo.
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & RecompraPreloadEvents
+export type PwConfirmationPreloadAndInvokeEvents = {
+  'pw-confirmation/preload-and-invoke': {
+    data: {
+      sessionId: string
+      contactId: string
+      conversationId: string
+      workspaceId: string
+      messageContent: string
+      messageId: string
+      messageTimestamp: string
+      phone: string
+      invoker: 'somnio-sales-v3-pw-confirmation'
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + recompra preload + pw-confirmation preload-and-invoke).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents
 
 /**
  * Type helper for extracting event data by name

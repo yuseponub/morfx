@@ -32,6 +32,12 @@ import {
   type CondensedTimelineItem,
 } from '@/lib/agent-forensics/condense-timeline'
 import { loadSessionSnapshot } from '@/lib/agent-forensics/load-session-snapshot'
+import {
+  listAuditSessionsForTurn,
+  loadAuditSessionById,
+  type AuditSessionSummary,
+  type FullAuditSession,
+} from '@/lib/agent-forensics/audit-session-store'
 
 export type GetTurnsResult =
   | { status: 'disabled'; flagName: string }
@@ -146,4 +152,44 @@ export async function getSessionSnapshotAction(
 ): Promise<{ snapshot: unknown; sessionId: string | null }> {
   await assertSuperUser()
   return loadSessionSnapshot(conversationId)
+}
+
+/**
+ * Plan 05 EXTENSION — list previous audit sessions for a turn, used by the
+ * AuditorTab v2 history dropdown.
+ *
+ * Returns metadata-only summaries (no `messages` JSONB, no `system_prompt`)
+ * sorted by `updated_at DESC` so the most-recently touched audit (including
+ * audits with recent follow-ups) bubbles to the top.
+ *
+ * Super-user gated. The underlying store uses `createRawAdminClient()`
+ * (bypass RLS) — same admin pattern as `getSessionSnapshotAction`. Caller
+ * has already authenticated as the platform owner; the data shipped is
+ * inert metadata of audits the same caller already created.
+ *
+ * @throws Error('FORBIDDEN') when the caller is not the super-user.
+ */
+export async function listAuditSessionsAction(
+  turnId: string,
+): Promise<AuditSessionSummary[]> {
+  await assertSuperUser()
+  return listAuditSessionsForTurn(turnId)
+}
+
+/**
+ * Plan 05 EXTENSION — load a full audit session by id (chat history +
+ * system prompt + meta), used by the dropdown's "click to restore" flow.
+ *
+ * Returns `null` when the row does not exist; the UI decides UX (toast +
+ * remove from list, or refetch).
+ *
+ * Super-user gated.
+ *
+ * @throws Error('FORBIDDEN') when the caller is not the super-user.
+ */
+export async function loadAuditSessionAction(
+  id: string,
+): Promise<FullAuditSession | null> {
+  await assertSuperUser()
+  return loadAuditSessionById(id)
 }

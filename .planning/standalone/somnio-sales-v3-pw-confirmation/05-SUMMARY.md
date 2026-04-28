@@ -195,3 +195,25 @@ exit: 0
 - [x] D-05 honrado (CRM context section conditional con degradación graceful).
 
 **Self-Check: PASSED**
+
+## Self-Check (post-creation verification)
+
+```
+=== Files self-check ===
+FOUND: src/lib/agents/somnio-pw-confirmation/comprehension-schema.ts (192 LoC)
+FOUND: src/lib/agents/somnio-pw-confirmation/comprehension-prompt.ts (246 LoC)
+FOUND: src/lib/agents/somnio-pw-confirmation/comprehension.ts (154 LoC)
+FOUND: .planning/standalone/somnio-sales-v3-pw-confirmation/05-SUMMARY.md
+
+=== Commits self-check ===
+FOUND: 03c87a9 (Task 1 schema)
+FOUND: b1ba1be (Task 2 prompt)
+FOUND: db787d8 (Task 3 entry)
+FOUND: 8ed388d (SUMMARY.md)
+
+=== typecheck ===
+$ npx tsc --noEmit
+exit: 0 (zero TS errors)
+```
+
+## Self-Check: PASSED

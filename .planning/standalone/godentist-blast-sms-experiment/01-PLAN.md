@@ -22,7 +22,7 @@ must_haves:
     - "El JSON contiene SOLO phones únicos normalizables Colombian mobile (+57 3XX XXX XXXX) — dedup intra-lista aplicada"
     - "Existe godentist/pacientes-data/pacientes-2019-2022-skipped-prelist.csv listando rows descartadas (phone_invalid, phone_foreign, phone_multiple, phone_duplicate)"
     - "Total únicos en JSON ≥ 8.000 (esperado ~8.284 según RESEARCH.md)"
-    - "Template `nuevo_numero` confirmed APPROVED en 360dialog (manual via panel o curl)"
+    - "Template `nuevo_numerov2` confirmed APPROVED en 360dialog (manual via panel o curl)"
     - "Onurix wholesale balance manual-confirmado ≥ $83.000 COP (admin)"
   artifacts:
     - path: "scripts/parse-godentist-xlsx-2019-2022.ts"
@@ -46,7 +46,7 @@ must_haves:
 ---
 
 <objective>
-Pre-flight + parsing del dataset 2019-2022. Convierte el xlsx (~8.832 rows) a JSON único deduped (~8.284 phones únicos normalizables Colombian mobile), genera CSV pre-list de rows descartadas, y verifica manualmente las 2 dependencias externas que no podemos automatizar (template `nuevo_numero` APPROVED, saldo Onurix wholesale).
+Pre-flight + parsing del dataset 2019-2022. Convierte el xlsx (~8.832 rows) a JSON único deduped (~8.284 phones únicos normalizables Colombian mobile), genera CSV pre-list de rows descartadas, y verifica manualmente las 2 dependencias externas que no podemos automatizar (template `nuevo_numerov2` APPROVED, saldo Onurix wholesale).
 
 Purpose: Plan 04 (script de blast) requiere un JSON limpio + verifications externas confirmadas. Si el parser produce <8.000 únicos o el template está PAUSED, abortamos antes de ejecutar Plan 02-06.
 
@@ -338,9 +338,9 @@ Si exit 2 del parser (count < 8.000), STOP y reportar al usuario antes de contin
     - CSV pre-list con rows descartadas listo para entregar a GoDentist al cierre.
   </what-built>
   <how-to-verify>
-**Pre-flight 5 (D-13.5): Template `nuevo_numero` APPROVED en 360dialog**
+**Pre-flight 5 (D-13.5): Template `nuevo_numerov2` APPROVED en 360dialog**
    1. Abrir panel 360dialog para workspace GoDentist (`36a74890-aad6-4804-838c-57904b1c9328`).
-   2. Buscar template `nuevo_numero` (idioma `es`, 1 var body).
+   2. Buscar template `nuevo_numerov2` (idioma `es`, 1 var body).
    3. Verificar status = `APPROVED` (NO `PAUSED`, NO `REJECTED`, NO `PENDING`).
    4. Si status ≠ `APPROVED`: STOP. Reportar al usuario que abortamos el experimento.
 
@@ -349,7 +349,7 @@ Si exit 2 del parser (count < 8.000), STOP y reportar al usuario antes de contin
    # Obtener API key del workspace
    psql ... -c "SELECT settings->>'whatsapp_api_key' FROM workspaces WHERE id='36a74890-aad6-4804-838c-57904b1c9328'"
    # GET templates (reemplazar API_KEY)
-   curl -s -H "D360-API-KEY: ${API_KEY}" https://waba-v2.360dialog.io/v1/configs/templates | jq '.waba_templates[] | select(.name=="nuevo_numero") | {name, status, language}'
+   curl -s -H "D360-API-KEY: ${API_KEY}" https://waba-v2.360dialog.io/v1/configs/templates | jq '.waba_templates[] | select(.name=="nuevo_numerov2") | {name, status, language}'
    ```
 
 **Pre-flight 1 (D-13.1): Saldo Onurix wholesale del admin morfx**
@@ -359,7 +359,7 @@ Si exit 2 del parser (count < 8.000), STOP y reportar al usuario antes de contin
    4. Capturar screenshot o anotar el saldo actual para tracking.
 
 Reportar al usuario:
-   - "Template `nuevo_numero` status: [APPROVED|PAUSED|REJECTED|PENDING]"
+   - "Template `nuevo_numerov2` status: [APPROVED|PAUSED|REJECTED|PENDING]"
    - "Onurix wholesale balance: $XXX.XXX COP"
    - "Procedemos a Plan 02? [yes / no — recargar primero]"
   </how-to-verify>
@@ -393,7 +393,7 @@ Reportar al usuario:
 <success_criteria>
 - `godentist/pacientes-data/pacientes-2019-2022.json` existe con ≥8.000 entries shape `{nombre, apellido, celular, email, fecha_creacion}`
 - `godentist/pacientes-data/pacientes-2019-2022-skipped-prelist.csv` existe con header `numero,nombre,razon_skip` y ≥100 rows descartadas
-- Manual gate confirmado: template `nuevo_numero` APPROVED + Onurix balance ≥ $83.000 COP
+- Manual gate confirmado: template `nuevo_numerov2` APPROVED + Onurix balance ≥ $83.000 COP
 </success_criteria>
 
 <output>

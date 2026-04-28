@@ -3,7 +3,9 @@
 **Gathered:** 2026-04-28
 **Status:** Ready for research/planning
 **Type:** Standalone (no phase number)
-**Trigger:** Re-ejecutar campaña `nuevo_numero` sobre lista pacientes 2019-2022 con experimento A/B (50% solo WA, 50% WA+SMS) para medir lift en respuesta del paciente.
+**Trigger:** Re-ejecutar campaña `nuevo_numerov2` sobre lista pacientes 2019-2022 con experimento A/B (50% solo WA, 50% WA+SMS) para medir lift en respuesta del paciente.
+
+**Correction 2026-04-28 (post-research, pre-execute):** Template real es `nuevo_numerov2` (UTILITY, APPROVED) — NO `nuevo_numero`. El nombre antiguo se reemplaza en plans 01/04/05; RESEARCH.md preserva el nombre original como registro histórico. Categoría `UTILITY` (no MARKETING) levanta restricciones de ventana 24h de WA, pero el SMS sigue como `source='campaign'` (D-12) por compliance CRC 8AM-9PM.
 
 <domain>
 ## Phase Boundary

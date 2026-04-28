@@ -153,7 +153,7 @@ El script lee `pacientes-2019-2022.json` (8.284 entries — Plan 01 output). Par
    ```
 
 7. **Validaciones en celulares:**
-   - Grupo A: solo recibe el WA template `nuevo_numero` (no SMS)
+   - Grupo A: solo recibe el WA template `nuevo_numerov2` (no SMS)
    - Grupo B: recibe WA template + SMS ~2s después
    - Verificar `result.data.segmentsUsed === 1` para todos los SMS (revisar logs)
 
@@ -162,7 +162,7 @@ El script lee `pacientes-2019-2022.json` (8.284 entries — Plan 01 output). Par
    -- Mensajes WA enviados
    SELECT COUNT(*) FROM messages
    WHERE workspace_id='36a74890-aad6-4804-838c-57904b1c9328'
-     AND template_name='nuevo_numero'
+     AND template_name='nuevo_numerov2'
      AND created_at >= NOW() - INTERVAL '10 minutes';
    -- Esperado: 10-15
 
@@ -213,7 +213,7 @@ Crear el archivo de instrucciones `.planning/standalone/godentist-blast-sms-expe
 
 ## Objetivo
 
-Reemplazar las 2 entries viejas del crontab WSL (campaña anterior `nuevo_numero` 2023-2026, completada el 2026-03-28) con 1 entry nueva del experimento A/B.
+Reemplazar las 2 entries viejas del crontab WSL (campaña anterior `nuevo_numerov2` 2023-2026, completada el 2026-03-28) con 1 entry nueva del experimento A/B.
 
 ## Estado actual del crontab (verificado 2026-04-28)
 

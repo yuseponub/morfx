@@ -184,7 +184,7 @@ Crear el archivo NUEVO `scripts/godentist-blast-experiment.ts` (NO modificar `sc
 /**
  * Blast Experiment GoDentist 2019-2022 — A/B WhatsApp + SMS
  *
- * Scope: Re-envía template `nuevo_numero` a 8.284 pacientes únicos GoDentist 2019-2022,
+ * Scope: Re-envía template `nuevo_numerov2` a 8.284 pacientes únicos GoDentist 2019-2022,
  * con split A/B 50/50 determinista por hash(phone). Grupo A = solo WA, Grupo B = WA + SMS Onurix.
  *
  * Cadencia: lun-vie 10:30 Bogotá, 1.800 contactos/día (días 1-4) + 1.084 día 5 (542/542),
@@ -224,7 +224,7 @@ import type { DomainContext } from '@/lib/domain/types'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const WORKSPACE_ID = '36a74890-aad6-4804-838c-57904b1c9328'  // GoDentist
-const TEMPLATE_NAME = 'nuevo_numero'
+const TEMPLATE_NAME = 'nuevo_numerov2'
 const TEMPLATE_LANGUAGE = 'es'
 const BATCH_SIZE = 1800              // D-16: 1.800 contactos/día
 const DELAY_MS = 1000                // D-16: 60/min interna (1 op/sec)

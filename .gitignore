@@ -46,6 +46,9 @@ next-env.d.ts
 # migration data (216MB+)
 scripts/bigin-migration/data/
 
+# GoDentist patient PII (names + phones + emails) — never commit
+godentist/pacientes-data/
+
 # supabase temp
 supabase/.temp/
 .env*.local

@@ -1745,6 +1745,8 @@ export interface OrderDetail {
   shippingDepartment: string | null
   createdAt: string
   archivedAt: string | null
+  /** Soft-close timestamp (Standalone crm-mutation-tools D-11). NULL = abierto. Independent of archivedAt. */
+  closedAt: string | null
   items: Array<{
     id: string
     sku: string
@@ -1764,7 +1766,7 @@ export async function getOrderById(
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('id, contact_id, pipeline_id, stage_id, total_value, description, shipping_address, shipping_city, shipping_department, created_at, archived_at, order_products(id, sku, title, unit_price, quantity, subtotal)')
+      .select('id, contact_id, pipeline_id, stage_id, total_value, description, shipping_address, shipping_city, shipping_department, created_at, archived_at, closed_at, order_products(id, sku, title, unit_price, quantity, subtotal)')
       .eq('workspace_id', ctx.workspaceId)
       .eq('id', params.orderId)
       .maybeSingle()
@@ -1801,9 +1803,90 @@ export async function getOrderById(
         shippingDepartment: data.shipping_department,
         createdAt: data.created_at,
         archivedAt: data.archived_at,
+        closedAt: (data as { closed_at?: string | null }).closed_at ?? null,
         items,
       },
     }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+// ============================================================================
+// closeOrder (Standalone crm-mutation-tools — Wave 0, D-11 Resolución A)
+// Mirror del patrón de archiveOrder. Soft-close — el pedido sigue visible en
+// histórico (closed_at distinto de archived_at). Idempotente: si ya está
+// cerrado, retorna el mismo OrderDetail sin re-mutar.
+// TODO Standalone follow-up: emit trigger automatización 'order.closed' si y
+// cuando se agregue al TRIGGER_CATALOG (D-11 indica "no hay eventos triggers
+// para 'closed' hoy").
+// ============================================================================
+
+export interface CloseOrderParams {
+  orderId: string
+}
+
+/**
+ * Close an order by setting `closed_at`. Soft-close — order remains visible
+ * in history. Idempotent: if already closed, returns the existing OrderDetail
+ * sin re-mutar `closed_at`.
+ *
+ * Standalone crm-mutation-tools D-11 (Resolution A). Independent of archived_at.
+ * Distinct semantics from archiveOrder:
+ *   closeOrder   → "pedido finalizado/entregado/cancelado por flujo de negocio"
+ *   archiveOrder → "soft-delete (oculto del UI por defecto)"
+ *
+ * Re-hidrata vía getOrderById (D-09 — siempre fresh post-mutación).
+ */
+export async function closeOrder(
+  ctx: DomainContext,
+  params: CloseOrderParams,
+): Promise<DomainResult<OrderDetail>> {
+  const supabase = createAdminClient()
+
+  try {
+    // Pre-check existence within workspace (mirror archiveOrder pattern).
+    const { data: existing, error: fetchError } = await supabase
+      .from('orders')
+      .select('id, closed_at')
+      .eq('id', params.orderId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { success: false, error: 'Pedido no encontrado en este workspace' }
+    }
+
+    // Idempotent: only update si no está cerrado todavía.
+    if (!(existing as { closed_at?: string | null }).closed_at) {
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ closed_at: new Date().toISOString() })
+        .eq('id', params.orderId)
+        .eq('workspace_id', ctx.workspaceId)
+
+      if (updateError) {
+        return {
+          success: false,
+          error: `Error al cerrar el pedido: ${updateError.message}`,
+        }
+      }
+    }
+
+    // Re-hidratar vía getOrderById (D-09). includeArchived=true para no perder
+    // pedidos que estén archivados Y cerrados al mismo tiempo (caso edge —
+    // archived_at y closed_at son independientes; el caller decidió cerrar).
+    const detail = await getOrderById(ctx, {
+      orderId: params.orderId,
+      includeArchived: true,
+    })
+    if (!detail.success) {
+      return { success: false, error: detail.error ?? 'Error al re-hidratar el pedido tras cerrar' }
+    }
+    if (!detail.data) {
+      return { success: false, error: 'Pedido no encontrado tras cerrar' }
+    }
+    return { success: true, data: detail.data }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) }
   }

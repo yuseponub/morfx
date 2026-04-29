@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, BarChart3, Settings, Sparkles, ScrollText } from 'lucide-react'
+import { Bot, BarChart3, Settings, Sparkles, ScrollText, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/agentes', label: 'Dashboard', icon: BarChart3, exact: true },
   { href: '/agentes/routing', label: 'Router', icon: Sparkles, exact: true },
   { href: '/agentes/routing/audit', label: 'Auditoria', icon: ScrollText, exact: false },
+  { href: '/agentes/crm-tools', label: 'Herramientas CRM', icon: Wrench, exact: false },
   { href: '/agentes/config', label: 'Configuracion', icon: Settings, exact: false },
 ]
 

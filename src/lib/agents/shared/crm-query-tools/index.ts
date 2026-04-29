@@ -11,7 +11,7 @@
  */
 
 import { makeContactQueryTools } from './contacts'
-// Plan 04 adds: import { makeOrderQueryTools } from './orders'
+import { makeOrderQueryTools } from './orders'
 
 export type {
   CrmQueryToolsContext,
@@ -23,6 +23,6 @@ export type {
 export function createCrmQueryTools(ctx: import('./types').CrmQueryToolsContext) {
   return {
     ...makeContactQueryTools(ctx),
-    // Plan 04: ...makeOrderQueryTools(ctx),
+    ...makeOrderQueryTools(ctx),
   }
 }

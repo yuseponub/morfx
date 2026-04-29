@@ -96,16 +96,16 @@ export async function processMessageWithAgent(
     return { success: true }
   }
 
-  // 1b. Check if conversation has "WPP" or "P/W" tag (bot should stop).
-  // RECO tag intentionally removed 2026-04-27 — RECO contacts (~2,600 in
-  // Somnio) were previously silenced; now they flow through to the router
-  // and get routed to somnio-recompra-v1 via Rule 3 (is_client_to_recompra).
-  const hasSkipTag = await conversationHasAnyTag(conversationId, workspaceId, ['WPP', 'P/W'])
+  // 1b. Check if conversation has "WPP" tag (bot should stop).
+  // RECO tag removed 2026-04-27 (~2,600 contacts) — flow through to router → somnio-recompra-v1.
+  // P/W tag removed 2026-04-29 — flow through to router so somnio-sales-v3-pw-confirmation
+  // can be selected via routing rule when activeOrderStageRaw matches PW stages.
+  const hasSkipTag = await conversationHasAnyTag(conversationId, workspaceId, ['WPP'])
   if (hasSkipTag) {
     getCollector()?.recordEvent('pipeline_decision', 'skip_tag_detected', {
       conversationId,
     })
-    logger.info({ conversationId }, 'Conversation has WPP or P/W tag, skipping agent')
+    logger.info({ conversationId }, 'Conversation has WPP tag, skipping agent')
     return { success: true }
   }
 

@@ -383,3 +383,75 @@ export async function deleteTask(
 
   return { success: true, data: { taskId: params.taskId } }
 }
+
+// ============================================================================
+// getTaskById (Standalone crm-mutation-tools — Wave 0)
+// Rehydrate prerequisite for Plan 04 (D-09). A11 gap closure: previously
+// tasks domain did not expose a by-id reader, forcing tools to fabricate
+// snapshots from input (Pitfall 6). Filtra por workspace_id (Regla 3) y
+// retorna null si no existe en este workspace (caller mapea a
+// resource_not_found).
+// Nota: schema real (migración 20260203000004_tasks_foundation.sql) NO tiene
+// columna archived_at — soft-delete en tasks usa completed_at. El interface
+// TaskDetail no expone archivedAt por eso (A11 ajuste).
+// Columna real es `due_date` (no due_at).
+// ============================================================================
+
+export interface TaskDetail {
+  taskId: string
+  workspaceId: string
+  title: string
+  description: string | null
+  status: string
+  priority: string
+  contactId: string | null
+  orderId: string | null
+  conversationId: string | null
+  assignedTo: string | null
+  /** Mapeado desde columna DB `due_date`. */
+  dueDate: string | null
+  completedAt: string | null
+  createdAt: string
+}
+
+/**
+ * Lookup a task by id. Filtered by workspace_id (Regla 3).
+ * Returns DomainResult<TaskDetail | null> — null = not found en este workspace.
+ *
+ * Standalone crm-mutation-tools Wave 0 (A11 gap closure for Plan 04 rehydrate, D-09).
+ */
+export async function getTaskById(
+  ctx: DomainContext,
+  params: { taskId: string },
+): Promise<DomainResult<TaskDetail | null>> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(
+      'id, workspace_id, title, description, status, priority, contact_id, order_id, conversation_id, assigned_to, due_date, completed_at, created_at',
+    )
+    .eq('id', params.taskId)
+    .eq('workspace_id', ctx.workspaceId)
+    .maybeSingle()
+
+  if (error) return { success: false, error: error.message }
+  if (!data) return { success: true, data: null }
+  return {
+    success: true,
+    data: {
+      taskId: data.id as string,
+      workspaceId: data.workspace_id as string,
+      title: data.title as string,
+      description: (data.description as string | null) ?? null,
+      status: data.status as string,
+      priority: data.priority as string,
+      contactId: (data.contact_id as string | null) ?? null,
+      orderId: (data.order_id as string | null) ?? null,
+      conversationId: (data.conversation_id as string | null) ?? null,
+      assignedTo: (data.assigned_to as string | null) ?? null,
+      dueDate: (data.due_date as string | null) ?? null,
+      completedAt: (data.completed_at as string | null) ?? null,
+      createdAt: data.created_at as string,
+    },
+  }
+}

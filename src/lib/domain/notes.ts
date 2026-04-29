@@ -716,3 +716,100 @@ export async function archiveOrderNote(
     return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+// ============================================================================
+// getContactNoteById + getOrderNoteById (Standalone crm-mutation-tools — Wave 0)
+// Rehydrate prerequisite for Plan 04 (D-09). A11 gap closure: previously notes
+// domain did not expose by-id readers, forcing tools to fabricate snapshots
+// from input (Pitfall 6). Both getters filter por workspace_id (Regla 3) y
+// retornan null si no existe en este workspace (caller mapea a
+// resource_not_found).
+// Nota: tablas `contact_notes` y `order_notes` usan columna `content`; el
+// contract público es `body` (camelCase consistente con snapshot rehydrate).
+// ============================================================================
+
+export interface ContactNoteDetail {
+  noteId: string
+  contactId: string
+  workspaceId: string
+  /** Mapeado desde columna DB `content`. */
+  body: string
+  createdAt: string
+  archivedAt: string | null
+}
+
+/**
+ * Lookup a contact note by id. Filtered by workspace_id (Regla 3).
+ * Returns DomainResult<ContactNoteDetail | null> — null = not found en este workspace.
+ *
+ * Standalone crm-mutation-tools Wave 0 (A11 gap closure for Plan 04 rehydrate, D-09).
+ */
+export async function getContactNoteById(
+  ctx: DomainContext,
+  params: { noteId: string },
+): Promise<DomainResult<ContactNoteDetail | null>> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('contact_notes')
+    .select('id, contact_id, workspace_id, content, created_at, archived_at')
+    .eq('id', params.noteId)
+    .eq('workspace_id', ctx.workspaceId)
+    .maybeSingle()
+
+  if (error) return { success: false, error: error.message }
+  if (!data) return { success: true, data: null }
+  return {
+    success: true,
+    data: {
+      noteId: data.id as string,
+      contactId: data.contact_id as string,
+      workspaceId: data.workspace_id as string,
+      body: data.content as string,
+      createdAt: data.created_at as string,
+      archivedAt: (data.archived_at as string | null) ?? null,
+    },
+  }
+}
+
+export interface OrderNoteDetail {
+  noteId: string
+  orderId: string
+  workspaceId: string
+  /** Mapeado desde columna DB `content`. */
+  body: string
+  createdAt: string
+  archivedAt: string | null
+}
+
+/**
+ * Lookup an order note by id. Filtered by workspace_id (Regla 3).
+ * Returns DomainResult<OrderNoteDetail | null> — null = not found en este workspace.
+ *
+ * Standalone crm-mutation-tools Wave 0 (A11 gap closure for Plan 04 rehydrate, D-09).
+ */
+export async function getOrderNoteById(
+  ctx: DomainContext,
+  params: { noteId: string },
+): Promise<DomainResult<OrderNoteDetail | null>> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('order_notes')
+    .select('id, order_id, workspace_id, content, created_at, archived_at')
+    .eq('id', params.noteId)
+    .eq('workspace_id', ctx.workspaceId)
+    .maybeSingle()
+
+  if (error) return { success: false, error: error.message }
+  if (!data) return { success: true, data: null }
+  return {
+    success: true,
+    data: {
+      noteId: data.id as string,
+      orderId: data.order_id as string,
+      workspaceId: data.workspace_id as string,
+      body: data.content as string,
+      createdAt: data.created_at as string,
+      archivedAt: (data.archived_at as string | null) ?? null,
+    },
+  }
+}

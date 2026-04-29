@@ -29,6 +29,7 @@ import { smsDeliveryFunctions } from '@/inngest/functions/sms-delivery-check'
 import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling'
 import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
 import { crmBotExpireProposalsCron } from '@/inngest/functions/crm-bot-expire-proposals'
+import { crmMutationIdempotencyCleanupCron } from '@/inngest/functions/crm-mutation-idempotency-cleanup'
 import { recompraPreloadContextFunctions } from '@/inngest/functions/recompra-preload-context'
 import { pwConfirmationPreloadAndInvokeFunctions } from '@/inngest/functions/pw-confirmation-preload-and-invoke'
 import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
@@ -73,6 +74,7 @@ export const { GET, POST, PUT } = serve({
     observabilityPurgeCron,
     enviaStatusPollingCron,
     crmBotExpireProposalsCron,
+    crmMutationIdempotencyCleanupCron,  // Standalone: crm-mutation-tools (D-03 — daily 03:00 Bogota TTL sweep)
     routingAuditCleanup,
   ],
 })

@@ -77,6 +77,10 @@ Las tools leen una **configuración persistente por workspace** (qué stages son
 - **D-25:** **Rollout cambió de scope** (decisión D-22). En este standalone NO hay rollout a agentes. El standalone entrega: (a) tools listas, (b) UI configurable, (c) `INTEGRATION-HANDOFF.md` con todo el contexto necesario para integrar cada agente Somnio en standalones separados.
 - **D-26:** **Handoff = `INTEGRATION-HANDOFF.md`** en `.planning/standalone/crm-query-tools/` + project skill descubrible (`crm-query-tools` en `.claude/skills/` o equivalente). El MD contiene: cómo invocar cada tool, qué retornan (con ejemplos JSON), cómo cleanup Inngest preload por agente Somnio (snippet de qué borrar/modificar), ejemplos de wiring en `tools: { ... }`, scope CLAUDE.md update template. Snapshot del momento de ship — no cambia post-merge. Project skill es la versión "viva" descubrible.
 
+### Empty config behavior (post-research, locked 2026-04-29)
+
+- **D-27:** Cuando la config de stages activos del workspace está vacía (operador nunca configuró), `getActiveOrderByPhone` retorna `{ status: 'config_not_set', contact: ContactDetail }`. NUEVO status — distinto de `no_active_order` (que significa "config existe pero ningún pedido del contacto está en stages activos"). Razón: el agente puede distinguir "operador necesita configurar" vs "cliente sin pedido activo" y escalar/guiar diferente. Aplica solo a `getActiveOrderByPhone` (las otras 4 tools no leen config). Resuelve Open Q10 del RESEARCH.md.
+
 ### Claude's Discretion
 
 Áreas donde el usuario delegó al builder:

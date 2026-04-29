@@ -179,7 +179,7 @@ WHERE id = '<workspace-uuid>';
 #### Configuracion (`/settings/activacion-cliente`)
 - **is_client flag:** Campo boolean en contacts, activado por trigger DB cuando orden llega a etapa configurable
 - **client_activation_config:** Tabla por workspace con enabled, all_are_clients, activation_stage_ids[]
-- **Trigger DB:** `mark_client_on_stage_change()` — INSERT OR UPDATE en orders, chequea config y marca is_client + tag "Cliente"
+- **Trigger DB:** `mark_client_on_stage_change()` — INSERT OR UPDATE en orders, **bidireccional desde 2026-04-28**: SET is_client=true al cruzar IN del set activador, SET is_client=false al cruzar OUT cuando no quedan otras ordenes activas del contacto en el set (D-01..D-03 standalone client-activation-auto-revoke). Tag "Cliente" legacy removido — era dead code (zero consumers en src/, D-05).
 - **Badge visual:** Circulo amber-500 con check en bottom-left del avatar en inbox WhatsApp
 - **all_are_clients:** Modo frontend-only que muestra badge para todos sin escribir DB
 - **Backfill:** Recalcula is_client para todo el workspace cuando cambian los stage_ids configurados
@@ -727,7 +727,7 @@ Emite 5 eventos `pipeline_decision:*` consumibles desde el dashboard de observab
 - `log_contact_changes()` — JSONB diff para activity
 - `log_task_changes()` — JSONB diff para task activity
 - `set_task_completed_at()` — Auto-set timestamp en status='completed'
-- `mark_client_on_stage_change()` — Marca is_client=true y auto-tag "Cliente" cuando orden llega a etapa de activacion configurable
+- `mark_client_on_stage_change()` — Bidireccional desde 2026-04-28 (standalone client-activation-auto-revoke): SET is_client=true en cruce IN del set activador, SET is_client=false en cruce OUT si no hay otra orden viva del contacto en el set (EXISTS sobre OLD.contact_id). Backfill global ejecutado en la misma migracion. Tag "Cliente" auto-asignacion removida (dead code, D-05).
 
 ---
 

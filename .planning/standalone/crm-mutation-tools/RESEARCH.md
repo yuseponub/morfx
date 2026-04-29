@@ -1166,7 +1166,9 @@ Key adaptations: `vi.hoisted` block names new domain mocks (createContactMock, u
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All questions below were resolved during /gsd-discuss-phase (CONTEXT.md decisions D-01..D-11) and the planning checker pass. Per-question resolution stamps appended below for traceability.
 
 ### Q1: `closeOrder` semantics — Resolution A, B, or C?
 
@@ -1174,11 +1176,15 @@ Key adaptations: `vi.hoisted` block names new domain mocks (createContactMock, u
 - **What's unclear:** User intent — did they assume `closed_at` exists (it doesn't), did they want a new column, or is "close" synonymous with "archive" semantically?
 - **Recommendation:** Surface to user in plan-phase opening. **Default position:** Resolution A (add column + domain function in Wave 0). One-line clarification suffices: *"closeOrder semantics — add `orders.closed_at` column + domain function (Resolution A) OR descope to V1.1 (Resolution C)?"*
 
+**RESOLVED:** Resolution A (add `orders.closed_at` column + new `closeOrder` domain function in Wave 0) locked per CONTEXT D-11 (2026-04-29). Implementation owned by Plan 01 Tasks 1.2 + 1.5.
+
 ### Q2: Polymorphic `result_id` vs. per-tool tables for idempotency?
 
 - **What we know:** A single `crm_mutation_idempotency_keys` table with `result_id UUID NOT NULL` (no FK constraint) is the simplest design. Per-tool tables (`crm_mutation_idempotency_keys_contacts`, `_orders`, `_notes`, `_tasks`) gives FK referential integrity.
 - **What's unclear:** Forensics value of FK enforcement vs. operational cost of N tables.
 - **Recommendation:** Polymorphic single table (A10). The TTL cron sweeps everything; FK CASCADE is already on `workspace_id` (via `workspaces` FK) so workspace deletion cleans up. Per-tool tables = unnecessary fragmentation.
+
+**RESOLVED:** Single polymorphic `crm_mutation_idempotency_keys` table with `result_id UUID NOT NULL` and NO FK constraint per A10. Implementation owned by Plan 01 Wave 0 Task 1.1.
 
 ### Q3: Email PII redaction — needed in observability payload?
 
@@ -1186,11 +1192,15 @@ Key adaptations: `vi.hoisted` block names new domain mocks (createContactMock, u
 - **What's unclear:** Whether mutation observability needs to redact email or pass through.
 - **Recommendation:** Redact local-part of email in observability payload — `joserome…@gmail.com` (first 8 chars + masked). Implement as inline helper in `helpers.ts`. Cost: 5 lines.
 
+**RESOLVED:** `emailRedact()` helper inline in `helpers.ts` with `helpers.test.ts` coverage. Implementation owned by Plan 02 Task 2.2.
+
 ### Q4: Should `validation_error` map zod errors automatically?
 
 - **What we know:** AI SDK `tool({ inputSchema })` parses input via zod automatically. Invalid input throws BEFORE `execute` is called — caller sees zod error, not `MutationResult.validation_error`.
 - **What's unclear:** Whether we need a wrapper that catches zod errors and converts them. The existing query-tools doesn't (zod errors throw upstream).
 - **Recommendation:** No wrapper. Match query-tools behavior. Caller (agent loop) handles zod errors at AI SDK layer. Document in INTEGRATION-HANDOFF: *"Invalid input → AI SDK throws zod error before execute; this is NOT a MutationResult.validation_error. Use `validation_error` for cross-field validation errors detected inside execute (e.g., contactId+orderId both provided in createTask)."*
+
+**RESOLVED:** No wrapper — match query-tools behavior; AI SDK throws zod errors upstream of `execute`. Documented in INTEGRATION-HANDOFF (Plan 06 Task 6.4).
 
 ### Q5: Should the runner endpoint expose internal idempotency state?
 
@@ -1198,17 +1208,23 @@ Key adaptations: `vi.hoisted` block names new domain mocks (createContactMock, u
 - **What's unclear:** Whether runner returns the full MutationResult with this metadata or strips it.
 - **Recommendation:** Pass through verbatim. The runner endpoint already returns the tool's result raw (`return NextResponse.json(result)` at line 79 of query-tools runner). Test assertions read `result.status === 'duplicate'` directly.
 
+**RESOLVED:** Runner returns the `MutationResult` verbatim via `NextResponse.json(result)`. Implementation owned by Plan 05 Task 5.1.
+
 ### Q6: Should we add a per-tool README or just one INTEGRATION-HANDOFF?
 
 - **What we know:** crm-query-tools has one INTEGRATION-HANDOFF + one project skill.
 - **What's unclear:** Mutation tools' surface is larger (15 vs 5). Single doc may grow long.
 - **Recommendation:** Mirror query-tools — one INTEGRATION-HANDOFF + one skill. Use clear `### Tool: createContact` section headers; let readers Cmd+F.
 
+**RESOLVED:** Single `INTEGRATION-HANDOFF.md` + single `.claude/skills/crm-mutation-tools.md`, mirroring sibling crm-query-tools structure. Implementation owned by Plan 06 Tasks 6.1 + 6.4.
+
 ### Q7: Should `updateContact` accept partial-update semantics or replace-all?
 
 - **What we know:** Domain `UpdateContactParams` accepts optional fields (partial). `updateContact` at `src/lib/domain/contacts.ts:189` performs partial update (only changes provided fields).
 - **What's unclear:** Whether to expose all fields in tool input schema or a subset.
 - **Recommendation:** All fields except `customFields` — `customFields` is JSONB and complex schema. Defer to V1.1. Match query-tools' D-pre-06 "entity-complete operations" interpretation: tool accepts partial update but operates on a whole entity.
+
+**RESOLVED:** Defer `customFields` to V1.1; `updateContact` input schema OMITS `customFields`. Implementation owned by Plan 03 Task 3.1.
 
 ---
 

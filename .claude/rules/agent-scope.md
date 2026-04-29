@@ -82,6 +82,12 @@ Cuando un agente necesita un recurso que NO existe (tag, pipeline, etapa, templa
   - Agent ID registrado: `'crm-writer'`; rate-limit bucket `'crm-bot'` compartido con reader
   - **Error contract `stage_changed_concurrently` (Standalone `crm-stage-integrity`, D-06):** cuando `domain.moveOrderToStage` retorna este error (CAS reject — otra fuente movio el pedido entre el SELECT y el UPDATE serializado), el writer lo persiste verbatim en `crm_bot_actions.error.code`. La sandbox UI lo consume para mostrar toast "pedido stale / movido por otra fuente". NO convertir a mensaje generico; NO mapear a `not_found`. La integridad del error code es parte del contract con consumidores (UI + agent loop + observability).
 
+### Module Scope: crm-query-tools (`src/lib/agents/shared/crm-query-tools/`)
+Shared read-only query tools any conversational agent can register. NOT an agent itself.
+Full PUEDE / NO PUEDE / Validation / Consumers in `.claude/skills/crm-query-tools.md`.
+UI de configuracion: `/agentes/crm-tools`.
+Standalone: `.planning/standalone/crm-query-tools/` (shipped 2026-04-29).
+
 ### Config Builder: WhatsApp Templates (`config-builder-whatsapp-templates` — UI `/configuracion/whatsapp/templates/builder`)
 - **PUEDE:**
   - Crear templates de WhatsApp (SOLO via domain `createTemplate` en `src/lib/domain/whatsapp-templates.ts`)

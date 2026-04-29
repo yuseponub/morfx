@@ -596,6 +596,7 @@ export interface ContactDetail {
   email: string | null
   address: string | null
   city: string | null
+  department: string | null
   createdAt: string
   archivedAt: string | null
   tags: Array<{ id: string; name: string }>
@@ -616,7 +617,7 @@ export async function getContactById(
   try {
     const { data, error } = await supabase
       .from('contacts')
-      .select('id, name, phone, email, address, city, custom_fields, created_at, archived_at, contact_tags(tag_id, tags(id, name))')
+      .select('id, name, phone, email, address, city, department, custom_fields, created_at, archived_at, contact_tags(tag_id, tags(id, name))')
       .eq('workspace_id', ctx.workspaceId)
       .eq('id', params.contactId)
       .maybeSingle()
@@ -646,6 +647,7 @@ export async function getContactById(
         email: data.email,
         address: data.address,
         city: data.city,
+        department: data.department,
         createdAt: data.created_at,
         archivedAt: data.archived_at,
         tags,

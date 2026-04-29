@@ -1740,6 +1740,9 @@ export interface OrderDetail {
   stageId: string
   totalValue: number
   description: string | null
+  shippingAddress: string | null
+  shippingCity: string | null
+  shippingDepartment: string | null
   createdAt: string
   archivedAt: string | null
   items: Array<{
@@ -1761,7 +1764,7 @@ export async function getOrderById(
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('id, contact_id, pipeline_id, stage_id, total_value, description, created_at, archived_at, order_products(id, sku, title, unit_price, quantity, subtotal)')
+      .select('id, contact_id, pipeline_id, stage_id, total_value, description, shipping_address, shipping_city, shipping_department, created_at, archived_at, order_products(id, sku, title, unit_price, quantity, subtotal)')
       .eq('workspace_id', ctx.workspaceId)
       .eq('id', params.orderId)
       .maybeSingle()
@@ -1793,6 +1796,9 @@ export async function getOrderById(
         stageId: data.stage_id,
         totalValue: Number(data.total_value),
         description: data.description,
+        shippingAddress: data.shipping_address,
+        shippingCity: data.shipping_city,
+        shippingDepartment: data.shipping_department,
         createdAt: data.created_at,
         archivedAt: data.archived_at,
         items,

@@ -127,6 +127,15 @@ Las tools leen domain layer directo (cero `createAdminClient` en el módulo). Id
 
   Para mutations sin UI directa (notes, tasks), E2E usa una segunda query Supabase post-mutación para verificar persistencia + observability event emitido. Cubre el round-trip completo.
 
+### closeOrder gap resolution (post-research, 2026-04-29)
+
+- **D-11:** **Resolución A locked.** Research detectó que `closeOrder` es el único de los 15 tools sin función domain ni columna DB. Se agrega:
+  - **Migración:** `ALTER TABLE orders ADD COLUMN closed_at TIMESTAMPTZ NULL` + index parcial `WHERE closed_at IS NOT NULL` para filtros Kanban.
+  - **Domain function:** `closeOrder(orderId)` en `src/lib/domain/orders.ts` con patrón espejo de `archiveOrder` (admin client + filtro `workspace_id` + emit trigger automatización + retorna `OrderDetail` re-hidratado).
+  - **Wave 0 (planning):** ambos tasks (migración + función) ANTES de las tools — el resto de tools no depende de esto pero alinea la simetría 15/15.
+  - **No conflicto con `archiveOrder`:** `closed_at` y `archived_at` son campos independientes. `closeOrder` = "pedido finalizado/entregado/cancelado por flujo de negocio, sigue visible histórico". `archiveOrder` = "soft-delete, oculto del UI por defecto".
+  - **Razón:** mantener los 15 tools en V1 (D-pre-02 Full suite locked); el costo es ~30 líneas de SQL + ~50 líneas de TS, trivial vs partir el módulo. Resolución B (reusar archive) descartada por conflicto con doc-comment de `archiveOrder` que explícitamente recomienda mover a stage cerrado en vez de toggle. Resolución C (deferir a V1.1) descartada por preferencia del usuario de shippear suite completa.
+
 ### Claude's Discretion
 
 Áreas donde el usuario delegó al builder:

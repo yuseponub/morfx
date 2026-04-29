@@ -52,3 +52,7 @@ godentist/pacientes-data/
 # supabase temp
 supabase/.temp/
 .env*.local
+
+# Playwright
+playwright-report/
+test-results/

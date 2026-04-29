@@ -112,6 +112,33 @@ Razon: El incidente de 20h de mensajes perdidos fue causado por codigo desplegad
 
 ---
 
+## Scopes por Agente
+
+### Module Scope: crm-query-tools (`src/lib/agents/shared/crm-query-tools/`)
+- **PUEDE (solo lectura):**
+  - `getContactByPhone(phone)` — contacto + tags + custom_fields + duplicates flag
+  - `getLastOrderByPhone(phone)` — ultimo pedido del contacto + items + direccion
+  - `getOrdersByPhone(phone, { limit?, offset? })` — historial paginado (lista de OrderListItem)
+  - `getActiveOrderByPhone(phone, { pipelineId? })` — pedido en stage activo (config-driven; retorna `config_not_set` si workspace nunca configuro stages — D-27)
+  - `getOrderById(orderId)` — pedido especifico con items + shipping
+- **NO PUEDE:**
+  - Mutar NADA (crear/editar/archivar contactos, pedidos, notas, tareas — esas operaciones son scope crm-writer)
+  - Acceder a otros workspaces (workspace_id viene del execution context del agente, NUNCA del input — D-05)
+  - Cachear resultados (cada tool-call llega a domain layer fresh — D-19)
+  - Escribir keys legacy `_v3:crm_context*` o `_v3:active_order` en session_state (D-21 — el caller decide persistencia)
+  - Hardcodear nombres de stages — la lista de stages "activos" se lee de `crm_query_tools_config` + `crm_query_tools_active_stages` (D-11/D-13 config-driven UUID)
+- **Validacion:**
+  - Tool handlers importan EXCLUSIVAMENTE desde `@/lib/domain/*` — cero `createAdminClient` en `src/lib/agents/shared/crm-query-tools/**` (verificable via grep)
+  - Todas las queries pasan por domain layer que filtra por `workspace_id` (Regla 3)
+  - Configuracion persistente por workspace en tabla `crm_query_tools_config` (singleton) + `crm_query_tools_active_stages` (junction)
+  - UI de configuracion en `/agentes/crm-tools` (operador escoge stages activos + pipeline scope)
+  - Project skill descubrible: `.claude/skills/crm-query-tools.md`
+  - Standalone shipped: `.planning/standalone/crm-query-tools/` (2026-04-29)
+- **Consumidores documentados:**
+  - (Pendientes — los agentes Somnio se migraran en standalones follow-up: `crm-query-tools-recompra-integration` y `crm-query-tools-pw-confirmation-integration`. Hasta entonces, el modulo esta listo pero sin consumidores en produccion.)
+
+---
+
 ## Stack Tecnologico
 
 - Next.js 15 (App Router) + React 19

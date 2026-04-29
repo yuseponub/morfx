@@ -414,9 +414,9 @@ async function main() {
 
       // Send WA template — body uses {{1}}=nombre (1 var). 360dialog renders the template body.
       const components = [{ type: 'body', parameters: [{ type: 'text', text: p.nombre || fullName }] }]
-      // Local rendered preview for messages.content.body (UI display in inbox).
-      // Note: actual body comes from the template defined in 360dialog for `nuevo_numerov2`.
-      const renderedText = `[Template ${TEMPLATE_NAME}] Hola ${p.nombre}`
+      // Body hidratado para messages.content.body (UI inbox lo muestra al humano).
+      // Mirror exacto del template `nuevo_numerov2` (UTILITY, APPROVED) con {{1}} sustituido.
+      const renderedText = `Hola ${p.nombre} 👋🏻 Te saluda Clínicas Odontológicas GoDentist®️.\n\nNuestro número de WhatsApp cambió😱. \n\nSi deseas agendar una cita o tienes alguna duda, escribenos a ESTE número 📲 3016262603.`
 
       const sendResult = await send360Template(apiKey, p.phone, TEMPLATE_NAME, TEMPLATE_LANGUAGE, components)
       const wamid = sendResult?.messages?.[0]?.id

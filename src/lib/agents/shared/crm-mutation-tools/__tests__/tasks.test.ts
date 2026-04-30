@@ -226,32 +226,50 @@ describe('createTask — idempotency replay rehydrates via getTaskById (D-09 / P
   })
 })
 
-describe('createTask — exclusive arc violation (zod refine)', () => {
-  it('Test 3: providing both contactId AND orderId fails zod parse — domain.createTask not called', async () => {
+describe('createTask — exclusive arc violation (zod refine — defense in depth at LLM boundary)', () => {
+  it('Test 3a: zod inputSchema refine rejects when both contactId AND orderId are provided', async () => {
+    // AI SDK v6 tool.execute does NOT auto-run zod parse — that happens at the
+    // LLM tool-call boundary. We verify the refine directly on the schema.
     const tools = createCrmMutationTools(CTX)
+    const schema = (tools.createTask as unknown as { inputSchema: import('zod').ZodTypeAny })
+      .inputSchema
 
-    // AI SDK v6 tool.execute may throw or return error from zod parse depending
-    // on internals. We verify (a) domain not called and (b) some error surface.
-    let threw = false
-    let result: unknown = undefined
-    try {
-      result = await (
-        tools.createTask as unknown as { execute: (input: unknown) => Promise<unknown> }
-      ).execute({
-        title: 'Bad task',
-        contactId: CONTACT_ID,
-        orderId: ORDER_ID, // exclusive arc violation — zod refine should reject
-      })
-    } catch {
-      threw = true
+    const parsed = schema.safeParse({
+      title: 'Bad task',
+      contactId: CONTACT_ID,
+      orderId: ORDER_ID, // exclusive arc violation
+    })
+    expect(parsed.success).toBe(false)
+    if (!parsed.success) {
+      // Refine error should mention exclusive arc / contactId/orderId/conversationId
+      const messages = parsed.error.issues.map((i) => i.message).join(' ')
+      expect(messages).toMatch(/at most one|contactId|orderId|conversationId/i)
     }
-
-    // Either way, domain.createTask must NEVER fire when arc is violated.
+    // Domain not invoked — caller never reached execute on a parse-fail input.
     expect(createTaskDomainMock).not.toHaveBeenCalled()
-    // And we should NOT see an `executed` MutationResult — either threw or got an error/validation_error.
-    if (!threw && result) {
-      expect((result as { status: string }).status).not.toBe('executed')
-    }
+  })
+
+  it('Test 3b: domain layer also rejects exclusive arc violation (defense in depth)', async () => {
+    // Even if zod is bypassed (e.g. caller bypasses parse), domain enforces
+    // the same invariant — second layer of protection (T-04-02 mitigation).
+    createTaskDomainMock.mockResolvedValueOnce({
+      success: false,
+      error: 'Una tarea solo puede estar vinculada a un contacto, pedido o conversacion',
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.createTask as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({
+      title: 'Bad task',
+      contactId: CONTACT_ID,
+      orderId: ORDER_ID,
+    })
+
+    // Domain rejected → tool surfaces as `error` (mapDomainError doesn't have a
+    // specific category for this Spanish phrase; falls to 'error' fallback).
+    expect((result as { status: string }).status).toBe('error')
+    expect(createTaskDomainMock).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -123,3 +123,143 @@ export async function cleanupTestFixture(seeded: SeededData): Promise<void> {
     await supabase.from('pipelines').delete().eq('id', seeded.pipelineId)
   }
 }
+
+// ============================================================================
+// Mutation-tools E2E fixtures (Standalone crm-mutation-tools Plan 05 / Wave 4)
+// ============================================================================
+
+export interface MutationSeededData {
+  pipelineId: string
+  stageIds: { initial: string; second: string }
+  contactId: string
+}
+
+const E2E_MUT_PIPELINE_NAME = 'X-E2E-Mutation-Pipeline crm-mutation-tools'
+
+/**
+ * Mutation-tools E2E fixture: ensures a pipeline with at least 2 stages exists
+ * in TEST_WORKSPACE_ID and seeds a contact for createOrder/createTask scenarios.
+ * Pipeline + stages are reused across runs (idempotent ensure-or-create);
+ * contact is unique per run.
+ */
+export async function seedMutationToolsFixture(): Promise<MutationSeededData> {
+  const supabase = admin()
+  const ws = process.env.TEST_WORKSPACE_ID
+  if (!ws) throw new Error('seedMutationToolsFixture requires TEST_WORKSPACE_ID')
+
+  // Ensure pipeline (idempotent — reused across runs).
+  let pipelineId: string
+  const existingPipeline = await supabase
+    .from('pipelines')
+    .select('id')
+    .eq('workspace_id', ws)
+    .eq('name', E2E_MUT_PIPELINE_NAME)
+    .maybeSingle()
+  if (existingPipeline.error) {
+    throw new Error(`pipeline lookup failed: ${existingPipeline.error.message}`)
+  }
+  if (existingPipeline.data) {
+    pipelineId = existingPipeline.data.id as string
+  } else {
+    const created = await supabase
+      .from('pipelines')
+      .insert({ workspace_id: ws, name: E2E_MUT_PIPELINE_NAME })
+      .select('id')
+      .single()
+    if (created.error || !created.data) {
+      throw new Error(`pipeline insert failed: ${created.error?.message}`)
+    }
+    pipelineId = created.data.id as string
+  }
+
+  // Ensure 2 stages — initial (position 0) + second (position 1).
+  let initial: string
+  let second: string
+  const stagesQuery = await supabase
+    .from('pipeline_stages')
+    .select('id, name, position')
+    .eq('pipeline_id', pipelineId)
+    .order('position', { ascending: true })
+  if (stagesQuery.error) {
+    throw new Error(`stages lookup failed: ${stagesQuery.error.message}`)
+  }
+  const stages = stagesQuery.data ?? []
+  if (stages.length >= 2) {
+    initial = stages[0].id as string
+    second = stages[1].id as string
+  } else {
+    // Insert any missing stages.
+    const missing: Array<{ pipeline_id: string; name: string; position: number }> = []
+    if (stages.length === 0) {
+      missing.push({ pipeline_id: pipelineId, name: 'X-E2E-Mut Initial', position: 0 })
+      missing.push({ pipeline_id: pipelineId, name: 'X-E2E-Mut Second', position: 1 })
+    } else {
+      missing.push({ pipeline_id: pipelineId, name: 'X-E2E-Mut Second', position: 1 })
+    }
+    const ins = await supabase
+      .from('pipeline_stages')
+      .insert(missing)
+      .select('id, position')
+    if (ins.error) throw new Error(`stage insert failed: ${ins.error.message}`)
+    // Re-query in deterministic order to bind initial / second.
+    const reread = await supabase
+      .from('pipeline_stages')
+      .select('id, position')
+      .eq('pipeline_id', pipelineId)
+      .order('position', { ascending: true })
+    if (reread.error || !reread.data) {
+      throw new Error(`stages reread failed: ${reread.error?.message}`)
+    }
+    initial = reread.data[0].id as string
+    second = reread.data[1].id as string
+  }
+
+  // Fresh contact per run (unique name to enable cleanup).
+  const contactInsert = await supabase
+    .from('contacts')
+    .insert({
+      workspace_id: ws,
+      name: `X-E2E-Mut Contact ${Date.now()}`,
+    })
+    .select('id')
+    .single()
+  if (contactInsert.error || !contactInsert.data) {
+    throw new Error(`contact insert failed: ${contactInsert.error?.message}`)
+  }
+
+  return {
+    pipelineId,
+    stageIds: { initial, second },
+    contactId: contactInsert.data.id as string,
+  }
+}
+
+/**
+ * Cleanup mutation-tools fixture. Hard-deletes orders + tasks + notes for the
+ * seeded contact, then deletes the contact. Pipeline + stages are intentionally
+ * preserved for re-use across runs (idempotent seed).
+ */
+export async function cleanupMutationToolsFixture(seed: {
+  contactId: string
+}): Promise<void> {
+  const supabase = admin()
+  const ws = process.env.TEST_WORKSPACE_ID
+  if (!ws) return
+  // Delete dependents first (orders → contact_notes → tasks → contact).
+  await supabase
+    .from('orders')
+    .delete()
+    .eq('workspace_id', ws)
+    .eq('contact_id', seed.contactId)
+  await supabase
+    .from('contact_notes')
+    .delete()
+    .eq('workspace_id', ws)
+    .eq('contact_id', seed.contactId)
+  await supabase
+    .from('tasks')
+    .delete()
+    .eq('workspace_id', ws)
+    .eq('contact_id', seed.contactId)
+  await supabase.from('contacts').delete().eq('id', seed.contactId).eq('workspace_id', ws)
+}

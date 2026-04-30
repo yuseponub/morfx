@@ -137,6 +137,33 @@ Razon: El incidente de 20h de mensajes perdidos fue causado por codigo desplegad
 - **Consumidores documentados:**
   - (Pendientes — los agentes Somnio se migraran en standalones follow-up: `crm-query-tools-recompra-integration` y `crm-query-tools-pw-confirmation-integration`. Hasta entonces, el modulo esta listo pero sin consumidores en produccion.)
 
+### Module Scope: crm-mutation-tools (`src/lib/agents/shared/crm-mutation-tools/`)
+- **PUEDE (15 mutation tools deterministas, in-loop, latencia 50-150ms):**
+  - **Contactos (3):** `createContact` (idempotency-eligible), `updateContact`, `archiveContact` (soft-delete via `archived_at`)
+  - **Pedidos (5):** `createOrder` (idempotency-eligible), `updateOrder` (NO products en V1 — V1.1 deferred), `moveOrderToStage` (CAS-protected, propaga `stage_changed_concurrently` verbatim sin retry — Pitfall 1), `archiveOrder` (soft-delete via `archived_at`), `closeOrder` (soft-close via `closed_at` — D-11 Resolución A; distinto de archive)
+  - **Notas (4):** `addContactNote` (idempotency-eligible), `addOrderNote` (idempotency-eligible), `archiveContactNote`, `archiveOrderNote`
+  - **Tareas (3):** `createTask` (idempotency-eligible + exclusive arc contactId/orderId/conversationId), `updateTask`, `completeTask` (toggle `completed_at`)
+- **NO PUEDE:**
+  - Mutar recursos base (tags/pipelines/stages/templates/usuarios) — D-pre-05; retorna `resource_not_found` con `missing.resource` discriminator
+  - Hard-DELETE de NADA — soft-delete vía `archived_at` / `closed_at` / `completed_at` (D-pre-04)
+  - Retry implícito en `stage_changed_concurrently` — propaga verbatim al agent loop (Pitfall 1, mismo contract que crm-writer)
+  - Cachear resultados — cada tool-call llega a domain layer fresh + re-hidrata via `getXxxById` (D-09)
+  - Editar items de un pedido (`updateOrder.products`) — V1.1 deferred; V1 escala a handoff humano
+  - Acceder a otros workspaces — `ctx.workspaceId` viene del execution context, NUNCA del input (D-pre-03)
+  - Importar `createAdminClient` o `@supabase/supabase-js` directamente — toda mutación pasa por `@/lib/domain/*` (Regla 3, D-pre-02; verificable via grep)
+- **Validación (gates verificables):**
+  - `grep -rn "createAdminClient\|@supabase/supabase-js" src/lib/agents/shared/crm-mutation-tools/` retorna 0 matches no-comentario
+  - `grep -E "workspaceId.*z\.string|workspaceId.*\.uuid" src/lib/agents/shared/crm-mutation-tools/{contacts,orders,notes,tasks}.ts` retorna 0 matches (Pitfall 2)
+  - `grep -E "deleteContact|deleteOrder|deleteTask|deleteNote\b" src/lib/agents/shared/crm-mutation-tools/` retorna 0 matches (Pitfall 4)
+  - Idempotencia persistente en tabla `crm_mutation_idempotency_keys` (PK `workspace_id, tool_name, key`); TTL 30 días vía cron Inngest `crm-mutation-idempotency-cleanup` (TZ=America/Bogota 0 3 * * *)
+  - Audit trail emite 3 eventos `pipeline_decision:crm_mutation_*` (`invoked` / `completed` / `failed`) a `agent_observability_events` con PII redaction (phone last 4, email local-part masked, body truncated 200 chars)
+  - Project skill descubrible: `.claude/skills/crm-mutation-tools.md`
+  - Standalone shipped: `.planning/standalone/crm-mutation-tools/` (2026-04-29)
+- **Coexistencia con crm-writer (D-01):** crm-writer (two-step propose+confirm + tabla `crm_bot_actions`) sigue VIVO sin cambios. mutation-tools es alternativa NUEVA, no reemplazo. Cuándo usar cada uno:
+  - **mutation-tools:** in-loop tool calls deterministas, baja latencia (~50-150ms), audit en `agent_observability_events`. Default para agentes nuevos.
+  - **crm-writer:** sandbox UI con preview operador antes de commit, audit trail estructurado en `crm_bot_actions`, two-step idempotencia + TTL. Default cuando el flujo requiere humano-en-el-loop.
+- **Consumidores documentados:** (pendientes — agentes que migren se documentarán en standalones follow-up por agente: `crm-mutation-tools-pw-confirmation-integration` y otros. Sin consumidores en prod al ship — D-08 sin feature flag).
+
 ---
 
 ## Stack Tecnologico

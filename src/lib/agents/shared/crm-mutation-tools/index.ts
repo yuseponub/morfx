@@ -15,6 +15,7 @@
 
 import { makeContactMutationTools } from './contacts'
 import { makeOrderMutationTools } from './orders'
+import { makeNoteMutationTools } from './notes'
 import type { CrmMutationToolsContext } from './types'
 
 export type {
@@ -29,6 +30,7 @@ export function createCrmMutationTools(ctx: CrmMutationToolsContext) {
   return {
     ...makeContactMutationTools(ctx),
     ...makeOrderMutationTools(ctx),
-    // Plan 04 → notes + tasks mutation tools (addContactNote, addOrderNote, archive*, createTask, updateTask, completeTask).
+    ...makeNoteMutationTools(ctx),
+    // Plan 04 Task 4.2 → tasks mutation tools (createTask, updateTask, completeTask).
   }
 }

@@ -88,6 +88,11 @@ Full PUEDE / NO PUEDE / Validation / Consumers in `.claude/skills/crm-query-tool
 UI de configuracion: `/agentes/crm-tools`.
 Standalone: `.planning/standalone/crm-query-tools/` (shipped 2026-04-29).
 
+### Module Scope: crm-mutation-tools (`src/lib/agents/shared/crm-mutation-tools/`)
+Shared mutation tools any conversational agent can register. NOT an agent itself.
+Full PUEDE / NO PUEDE / Validation / Consumers / Idempotency / Coexistence with crm-writer in `.claude/skills/crm-mutation-tools.md`.
+Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
+
 ### Config Builder: WhatsApp Templates (`config-builder-whatsapp-templates` — UI `/configuracion/whatsapp/templates/builder`)
 - **PUEDE:**
   - Crear templates de WhatsApp (SOLO via domain `createTemplate` en `src/lib/domain/whatsapp-templates.ts`)

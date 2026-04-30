@@ -1,18 +1,27 @@
 /**
- * Unit tests for createContact tool (Plan 02 / Wave 1).
+ * Unit tests for createContact + updateContact + archiveContact tools (Plans 02 + 03).
  *
  * Mocks:
- *   - @/lib/domain/contacts (createContact, getContactById)
+ *   - @/lib/domain/contacts (createContact, updateContact, archiveContact, getContactById)
  *   - @/lib/domain/crm-mutation-idempotency (getIdempotencyRow, insertIdempotencyRow)
  *   - @/lib/observability (getCollector → recordEvent spy)
  *
  * Coverage:
+ *   Plan 02 (createContact) — Tests 1-6:
  *   - Test 1: happy path (no idempotency) → executed + ContactDetail.
  *   - Test 2: idempotency replay → first call executed, second call duplicate same id.
  *   - Test 3: validation_error from domain → MutationResult.validation_error.
  *   - Test 4: unexpected error from domain → MutationResult.error.
  *   - Test 5: observability emits invoked + completed (or failed).
  *   - Test 6: PII redaction (phoneSuffix='4567', emailRedact masks local part).
+ *
+ *   Plan 03 (updateContact + archiveContact) — Tests 7-12:
+ *   - Test 7: updateContact resource_not_found → pre-check fails fast.
+ *   - Test 8: updateContact happy path → executed + re-hydrated ContactDetail.
+ *   - Test 9: updateContact validation_error from domain → MutationResult.validation_error.
+ *   - Test 10: archiveContact resource_not_found → pre-check fails fast.
+ *   - Test 11: archiveContact already-archived → executed (idempotent).
+ *   - Test 12: archiveContact newly-archived → executed.
  *
  * Two-step cast pattern (Pitfall 3 — AI SDK v6):
  *   await (tool as unknown as { execute: (input: unknown) => Promise<unknown> }).execute(...)
@@ -22,12 +31,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const {
   createContactDomainMock,
+  updateContactDomainMock,
+  archiveContactDomainMock,
   getContactByIdMock,
   getIdempotencyRowMock,
   insertIdempotencyRowMock,
   recordEventMock,
 } = vi.hoisted(() => ({
   createContactDomainMock: vi.fn(),
+  updateContactDomainMock: vi.fn(),
+  archiveContactDomainMock: vi.fn(),
   getContactByIdMock: vi.fn(),
   getIdempotencyRowMock: vi.fn(),
   insertIdempotencyRowMock: vi.fn(),
@@ -36,6 +49,8 @@ const {
 
 vi.mock('@/lib/domain/contacts', () => ({
   createContact: createContactDomainMock,
+  updateContact: updateContactDomainMock,
+  archiveContact: archiveContactDomainMock,
   getContactById: getContactByIdMock,
 }))
 
@@ -73,6 +88,8 @@ function buildContactDetail(id: string, overrides: Record<string, unknown> = {})
 
 beforeEach(() => {
   createContactDomainMock.mockReset()
+  updateContactDomainMock.mockReset()
+  archiveContactDomainMock.mockReset()
   getContactByIdMock.mockReset()
   getIdempotencyRowMock.mockReset()
   insertIdempotencyRowMock.mockReset()
@@ -300,5 +317,214 @@ describe('createContact — PII redaction (D-23 / Pattern 5)', () => {
     expect(serialized).not.toContain('+57 300 123 4567')
     expect(serialized).not.toContain('3001234567')
     expect(serialized).not.toContain('alice@example.com')
+  })
+})
+
+// ============================================================================
+// Test 7: updateContact — resource_not_found short-circuit
+// ============================================================================
+
+describe('updateContact — resource_not_found', () => {
+  it('Test 7: when getContactById returns no data, returns resource_not_found without calling domain.updateContact', async () => {
+    getContactByIdMock.mockResolvedValueOnce({ success: true, data: null })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.updateContact as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ contactId: '22222222-2222-2222-2222-222222222222', name: 'Alice Updated' })
+
+    expect(result).toMatchObject({
+      status: 'resource_not_found',
+      error: {
+        code: 'contact_not_found',
+        missing: { resource: 'contact', id: '22222222-2222-2222-2222-222222222222' },
+      },
+    })
+    expect(updateContactDomainMock).not.toHaveBeenCalled()
+
+    const failed = recordEventMock.mock.calls.find((c) => c[1] === 'crm_mutation_failed')
+    expect(failed?.[2]).toMatchObject({ errorCode: 'resource_not_found' })
+  })
+})
+
+// ============================================================================
+// Test 8: updateContact — happy path with re-hydration
+// ============================================================================
+
+describe('updateContact — happy path', () => {
+  it('Test 8: pre-check succeeds, domain succeeds, returns executed with re-hydrated ContactDetail', async () => {
+    // Pre-check: contact exists.
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-1'),
+    })
+    // Domain update succeeds.
+    updateContactDomainMock.mockResolvedValueOnce({
+      success: true,
+      data: { contactId: 'c-1' },
+    })
+    // Re-hydrate with fresh data.
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-1', { name: 'Alice Updated' }),
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.updateContact as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ contactId: 'c-1', name: 'Alice Updated' })
+
+    expect(result).toMatchObject({
+      status: 'executed',
+      data: { id: 'c-1', name: 'Alice Updated' },
+    })
+
+    expect(updateContactDomainMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: WORKSPACE_ID }),
+      expect.objectContaining({ contactId: 'c-1', name: 'Alice Updated' }),
+    )
+
+    const completed = recordEventMock.mock.calls.find((c) => c[1] === 'crm_mutation_completed')
+    expect(completed?.[2]).toMatchObject({
+      tool: 'updateContact',
+      resultStatus: 'executed',
+      resultId: 'c-1',
+    })
+  })
+})
+
+// ============================================================================
+// Test 9: updateContact — validation_error from domain
+// ============================================================================
+
+describe('updateContact — validation_error', () => {
+  it('Test 9: maps domain "Numero de telefono invalido" → validation_error', async () => {
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-1'),
+    })
+    updateContactDomainMock.mockResolvedValueOnce({
+      success: false,
+      error: 'Numero de telefono invalido',
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.updateContact as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ contactId: 'c-1', phone: 'no-numerico' })
+
+    expect(result).toMatchObject({
+      status: 'validation_error',
+      error: { code: 'validation_error', message: 'Numero de telefono invalido' },
+    })
+
+    const failed = recordEventMock.mock.calls.find((c) => c[1] === 'crm_mutation_failed')
+    expect(failed?.[2]).toMatchObject({ errorCode: 'validation_error' })
+  })
+})
+
+// ============================================================================
+// Test 10: archiveContact — resource_not_found short-circuit
+// ============================================================================
+
+describe('archiveContact — resource_not_found', () => {
+  it('Test 10: when getContactById returns no data, returns resource_not_found without calling domain.archiveContact', async () => {
+    getContactByIdMock.mockResolvedValueOnce({ success: true, data: null })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.archiveContact as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ contactId: '33333333-3333-3333-3333-333333333333' })
+
+    expect(result).toMatchObject({
+      status: 'resource_not_found',
+      error: {
+        code: 'contact_not_found',
+        missing: { resource: 'contact', id: '33333333-3333-3333-3333-333333333333' },
+      },
+    })
+    expect(archiveContactDomainMock).not.toHaveBeenCalled()
+  })
+})
+
+// ============================================================================
+// Test 11: archiveContact — already-archived (idempotent)
+// ============================================================================
+
+describe('archiveContact — already archived (idempotent)', () => {
+  it('Test 11: returns executed with archivedAt set when contact already archived', async () => {
+    const archivedAt = '2026-04-01T00:00:00.000Z'
+    // Pre-check: contact exists (archived).
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-archived', { archivedAt }),
+    })
+    // Domain archive — already archived returns same archivedAt.
+    archiveContactDomainMock.mockResolvedValueOnce({
+      success: true,
+      data: { contactId: 'c-archived', archivedAt },
+    })
+    // Re-hydrate.
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-archived', { archivedAt }),
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.archiveContact as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ contactId: 'c-archived' })
+
+    expect(result).toMatchObject({
+      status: 'executed',
+      data: { id: 'c-archived', archivedAt },
+    })
+
+    const completed = recordEventMock.mock.calls.find((c) => c[1] === 'crm_mutation_completed')
+    expect(completed?.[2]).toMatchObject({
+      tool: 'archiveContact',
+      resultStatus: 'executed',
+      resultId: 'c-archived',
+    })
+  })
+})
+
+// ============================================================================
+// Test 12: archiveContact — newly archived (executed)
+// ============================================================================
+
+describe('archiveContact — newly archived', () => {
+  it('Test 12: returns executed with fresh archivedAt when contact was active', async () => {
+    const archivedAt = '2026-04-29T12:00:00.000Z'
+    // Pre-check: contact exists, not archived yet.
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-active'),
+    })
+    // Domain archive — new archived_at timestamp.
+    archiveContactDomainMock.mockResolvedValueOnce({
+      success: true,
+      data: { contactId: 'c-active', archivedAt },
+    })
+    // Re-hydrate (now archived).
+    getContactByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildContactDetail('c-active', { archivedAt }),
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.archiveContact as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ contactId: 'c-active' })
+
+    expect(result).toMatchObject({
+      status: 'executed',
+      data: { id: 'c-active', archivedAt },
+    })
+
+    expect(archiveContactDomainMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: WORKSPACE_ID }),
+      { contactId: 'c-active' },
+    )
   })
 })

@@ -31,12 +31,17 @@
  * Re-hydration (D-09): after createContact returns `{ contactId }`, we always
  * re-fetch via getContactById and return the full ContactDetail. Idempotency
  * `duplicate` path also re-hydrates fresh (Pitfall 6: NUNCA fabricar snapshot).
+ *
+ * BLOCKER invariants (Pitfalls 2+4+10): no workspaceId in input, no deleteContact
+ * import, no @/lib/agents/crm-writer imports. Verified via grep gates.
  */
 
 import { tool } from 'ai'
 import { z } from 'zod'
 import {
   createContact as domainCreateContact,
+  updateContact as domainUpdateContact,
+  archiveContact as domainArchiveContact,
   getContactById,
   type ContactDetail,
 } from '@/lib/domain/contacts'
@@ -50,6 +55,7 @@ import {
   emitFailed,
   phoneSuffix,
   emailRedact,
+  idSuffix,
   mapDomainError,
 } from './helpers'
 
@@ -201,6 +207,231 @@ export function makeContactMutationTools(ctx: CrmMutationToolsContext) {
             status: 'error',
             error: { code: 'create_contact_failed', message },
           }
+        }
+      },
+    }),
+
+    // ========================================================================
+    // updateContact (Plan 03 / Wave 2 — MUT-CT-02)
+    // Pre-check via getContactById → resource_not_found short-circuit.
+    // Happy path → domain.updateContact → re-hydrate via getContactById.
+    // Domain `Contacto no encontrado` mapped to resource_not_found.
+    // Domain `Numero de telefono invalido` mapped to validation_error.
+    // ========================================================================
+    updateContact: tool({
+      description:
+        'Actualiza campos de un contacto existente en el workspace del agente. ' +
+        'Partial update — solo los campos provistos se actualizan. ' +
+        'Pre-check de existencia: si el contacto no existe en el workspace retorna ' +
+        '{ status: "resource_not_found" } sin mutar.',
+      inputSchema: z.object({
+        contactId: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        phone: z.string().min(7).optional(),
+        email: z.string().email().optional(),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        department: z.string().optional(),
+      }),
+      execute: async (input): Promise<MutationResult<ContactDetail>> => {
+        const startedAt = Date.now()
+        const base = {
+          tool: 'updateContact' as const,
+          workspaceId: ctx.workspaceId,
+          invoker: ctx.invoker,
+        }
+
+        emitInvoked(base, {
+          contactIdSuffix: idSuffix(input.contactId),
+          ...(input.phone ? { phoneSuffix: phoneSuffix(input.phone) } : {}),
+          ...(input.email ? { email: emailRedact(input.email) } : {}),
+          fields: Object.keys(input).filter((k) => k !== 'contactId'),
+        })
+
+        // Pre-check existence (D-pre-03 / Pattern 3 — RESEARCH).
+        const existing = await getContactById(domainCtx, {
+          contactId: input.contactId,
+        })
+        if (!existing.success || !existing.data) {
+          emitFailed(base, {
+            errorCode: 'resource_not_found',
+            latencyMs: Date.now() - startedAt,
+          })
+          return {
+            status: 'resource_not_found',
+            error: {
+              code: 'contact_not_found',
+              missing: { resource: 'contact', id: input.contactId },
+            },
+          }
+        }
+
+        try {
+          const updated = await domainUpdateContact(domainCtx, {
+            contactId: input.contactId,
+            name: input.name,
+            phone: input.phone,
+            email: input.email,
+            address: input.address,
+            city: input.city,
+            department: input.department,
+          })
+          if (!updated.success) {
+            const message = updated.error ?? ''
+            const mapped = mapDomainError(message)
+            emitFailed(base, {
+              errorCode: mapped,
+              latencyMs: Date.now() - startedAt,
+            })
+            if (mapped === 'resource_not_found') {
+              return {
+                status: 'resource_not_found',
+                error: {
+                  code: 'contact_not_found',
+                  message,
+                  missing: { resource: 'contact', id: input.contactId },
+                },
+              }
+            }
+            if (mapped === 'validation_error') {
+              return {
+                status: 'validation_error',
+                error: { code: 'validation_error', message },
+              }
+            }
+            return {
+              status: 'error',
+              error: { code: 'update_contact_failed', message },
+            }
+          }
+
+          // D-09: re-hydrate fresh via getContactById.
+          const detail = await getContactById(domainCtx, {
+            contactId: input.contactId,
+          })
+          if (!detail.success || !detail.data) {
+            emitFailed(base, {
+              errorCode: 'rehydrate_failed',
+              latencyMs: Date.now() - startedAt,
+            })
+            return {
+              status: 'error',
+              error: { code: 'rehydrate_failed' },
+            }
+          }
+          emitCompleted(base, {
+            resultStatus: 'executed',
+            latencyMs: Date.now() - startedAt,
+            resultId: input.contactId,
+          })
+          return { status: 'executed', data: detail.data }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          logger.warn(
+            { err: message, tool: 'updateContact', workspaceId: ctx.workspaceId },
+            'updateContact failed',
+          )
+          emitFailed(base, {
+            errorCode: 'unhandled',
+            latencyMs: Date.now() - startedAt,
+          })
+          return { status: 'error', error: { code: 'unhandled', message } }
+        }
+      },
+    }),
+
+    // ========================================================================
+    // archiveContact (Plan 03 / Wave 2 — MUT-CT-03)
+    // Soft-delete only (D-pre-04 — NEVER hard-delete). Domain idempotent: archiving
+    // an already-archived contact returns the same archived_at timestamp.
+    // Pre-check via getContactById → resource_not_found short-circuit.
+    // ========================================================================
+    archiveContact: tool({
+      description:
+        'Soft-delete de un contacto (set archived_at). Idempotent — si ya estaba ' +
+        'archivado, retorna executed con archived_at original (no se sobreescribe). ' +
+        'NUNCA hard-delete.',
+      inputSchema: z.object({
+        contactId: z.string().uuid(),
+      }),
+      execute: async (input): Promise<MutationResult<ContactDetail>> => {
+        const startedAt = Date.now()
+        const base = {
+          tool: 'archiveContact' as const,
+          workspaceId: ctx.workspaceId,
+          invoker: ctx.invoker,
+        }
+        emitInvoked(base, {
+          contactIdSuffix: idSuffix(input.contactId),
+        })
+
+        // Pre-check (Pattern 3): note that getContactById with includeArchived defaulting
+        // to false would mask already-archived contacts. The domain `getContactById`
+        // does not implement includeArchived for contacts — it returns the row regardless.
+        const existing = await getContactById(domainCtx, {
+          contactId: input.contactId,
+        })
+        if (!existing.success || !existing.data) {
+          emitFailed(base, {
+            errorCode: 'resource_not_found',
+            latencyMs: Date.now() - startedAt,
+          })
+          return {
+            status: 'resource_not_found',
+            error: {
+              code: 'contact_not_found',
+              missing: { resource: 'contact', id: input.contactId },
+            },
+          }
+        }
+
+        try {
+          const archived = await domainArchiveContact(domainCtx, {
+            contactId: input.contactId,
+          })
+          if (!archived.success) {
+            const message = archived.error ?? ''
+            emitFailed(base, {
+              errorCode: 'archive_failed',
+              latencyMs: Date.now() - startedAt,
+            })
+            return {
+              status: 'error',
+              error: { code: 'archive_contact_failed', message },
+            }
+          }
+
+          // D-09: re-hydrate fresh.
+          const detail = await getContactById(domainCtx, {
+            contactId: input.contactId,
+          })
+          if (!detail.success || !detail.data) {
+            emitFailed(base, {
+              errorCode: 'rehydrate_failed',
+              latencyMs: Date.now() - startedAt,
+            })
+            return {
+              status: 'error',
+              error: { code: 'rehydrate_failed' },
+            }
+          }
+          emitCompleted(base, {
+            resultStatus: 'executed',
+            latencyMs: Date.now() - startedAt,
+            resultId: input.contactId,
+          })
+          return { status: 'executed', data: detail.data }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          logger.warn(
+            { err: message, tool: 'archiveContact', workspaceId: ctx.workspaceId },
+            'archiveContact failed',
+          )
+          emitFailed(base, {
+            errorCode: 'unhandled',
+            latencyMs: Date.now() - startedAt,
+          })
+          return { status: 'error', error: { code: 'unhandled', message } }
         }
       },
     }),

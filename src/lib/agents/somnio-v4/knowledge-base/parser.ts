@@ -33,7 +33,10 @@ export interface ParsedKbDoc {
  */
 export function parseKbDoc(raw: string, filePath: string): ParsedKbDoc {
   const { data, content } = matter(raw)
-  const parsed = FrontmatterSchema.safeParse(data)
+  // gray-matter parsea YAML "2026-05-01" como Date automáticamente. Lo normalizamos
+  // a string YYYY-MM-DD para que el regex del FrontmatterSchema valide formato.
+  const normalized = normalizeFrontmatterDates(data)
+  const parsed = FrontmatterSchema.safeParse(normalized)
   if (!parsed.success) {
     throw new Error(
       `Frontmatter inválido en ${filePath}: ${parsed.error.issues
@@ -46,6 +49,19 @@ export function parseKbDoc(raw: string, filePath: string): ParsedKbDoc {
     body: content,
     sections: parseSections(content),
   }
+}
+
+/**
+ * Convierte campos Date (auto-parseados por YAML/gray-matter) a string YYYY-MM-DD
+ * para que la validación de regex en FrontmatterSchema funcione correctamente.
+ * Solo afecta `last_reviewed` por ahora, pero es defensivo para cualquier campo Date.
+ */
+function normalizeFrontmatterDates(data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...data }
+  if (out.last_reviewed instanceof Date) {
+    out.last_reviewed = out.last_reviewed.toISOString().slice(0, 10)
+  }
+  return out
 }
 
 /**

@@ -57,8 +57,13 @@ function asExec<I, O>(t: { execute?: unknown }): ExecMut<I, O> {
  * como bridge mientras se cablea config-driven lookup en standalones futuros.
  * Si no está definido, ningún `cancelar` se dispara (fail-closed seguro — la
  * acción se omite + se loggea event observability).
+ *
+ * Evaluación lazy (function call) en lugar de const top-level porque tests pueden
+ * inyectar la var via process.env en `beforeEach` sin requerir module re-import.
  */
-const CANCELED_STAGE_UUID = process.env.SOMNIO_CANCELED_STAGE_UUID ?? null
+function getCanceledStageUuid(): string | null {
+  return process.env.SOMNIO_CANCELED_STAGE_UUID ?? null
+}
 
 export interface InvocationContext {
   workspaceId: string
@@ -174,7 +179,8 @@ export async function executeInvocations(args: ExecuteInvocationsArgs): Promise<
   // escale a sub-loop reason='cas_reject' (Pitfall 1 — propagar verbatim, NO retry).
   // ---------------------------------------------------------------------------
   if (args.salesAccion === 'cancelar' && orderId) {
-    if (!CANCELED_STAGE_UUID) {
+    const canceledStageUuid = getCanceledStageUuid()
+    if (!canceledStageUuid) {
       // Fail-closed: stage UUID no configurado → no movemos, solo loggeamos.
       getCollector()?.recordEvent('pipeline_decision', 'moveOrderToStage_skipped', {
         agent: SOMNIO_V4_AGENT_ID,
@@ -187,7 +193,7 @@ export async function executeInvocations(args: ExecuteInvocationsArgs): Promise<
       const exec = asExec<MoveStageInput, unknown>(tools.moveOrderToStage)
       const result = await exec({
         orderId,
-        stageId: CANCELED_STAGE_UUID,
+        stageId: canceledStageUuid,
       })
       if (result.status !== 'executed' && result.status !== 'duplicate') {
         const code = 'error' in result ? result.error?.code ?? 'unknown' : 'unknown'

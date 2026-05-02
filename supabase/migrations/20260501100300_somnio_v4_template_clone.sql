@@ -46,31 +46,37 @@ WHERE v3.agent_id = 'somnio-sales-v3'
       AND v4.workspace_id IS NOT DISTINCT FROM v3.workspace_id
   );
 
--- D-59: garantizar template handoff_humano para v4 (si v3 no lo tiene, agregarlo nuevo)
+-- D-59: garantizar template handoff_humano para v4
+-- visit_type es NOT NULL + CHECK IN ('primera_vez','siguientes') — creamos un row por cada
+-- valor válido para que el agente encuentre handoff sin importar la visita del cliente.
+INSERT INTO public.agent_templates (
+  id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s
+)
+SELECT
+  gen_random_uuid(),
+  'somnio-sales-v4',
+  'a3843b3f-c337-4836-92b5-89c58bb98490',  -- Somnio workspace
+  'handoff_humano',
+  vt.visit_type,
+  'CORE',
+  0,
+  'texto',
+  'Un asesor te responde en breve. Gracias por tu paciencia.',
+  0
+FROM (VALUES ('primera_vez'), ('siguientes')) AS vt(visit_type)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.agent_templates t
+  WHERE t.agent_id = 'somnio-sales-v4'
+    AND t.intent = 'handoff_humano'
+    AND t.visit_type = vt.visit_type
+);
+
 DO $$
+DECLARE handoff_count INT;
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.agent_templates
-    WHERE agent_id = 'somnio-sales-v4' AND intent = 'handoff_humano'
-  ) THEN
-    INSERT INTO public.agent_templates (
-      id, agent_id, workspace_id, intent, visit_type, priority, orden, content_type, content, delay_s
-    ) VALUES (
-      gen_random_uuid(),
-      'somnio-sales-v4',
-      'a3843b3f-c337-4836-92b5-89c58bb98490',  -- Somnio workspace
-      'handoff_humano',
-      NULL,                                     -- aplica a cualquier visit_type
-      'CORE',
-      0,
-      'texto',
-      'Un asesor te responde en breve. Gracias por tu paciencia.',
-      0
-    );
-    RAISE NOTICE 'Template handoff_humano creado nuevo para somnio-sales-v4 (no existía en v3)';
-  ELSE
-    RAISE NOTICE 'Template handoff_humano ya existe en somnio-sales-v4 (clonado de v3)';
-  END IF;
+  SELECT COUNT(*) INTO handoff_count FROM public.agent_templates
+  WHERE agent_id='somnio-sales-v4' AND intent='handoff_humano';
+  RAISE NOTICE 'Templates handoff_humano para somnio-sales-v4: % (esperado >= 2)', handoff_count;
 END $$;
 
 -- Post-check: confirmar conteos parejos

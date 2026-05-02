@@ -228,6 +228,7 @@ export async function processMessageWithAgent(
       import('../somnio'),
       import('../godentist'),
       import('../somnio-pw-confirmation'), // Standalone: somnio-sales-v3-pw-confirmation (D-02)
+      import('../somnio-v4'), // Standalone: somnio-sales-v4 (D-13, D-16 — sin preload branch)
     ])
 
     let disposition: RouterDisposition

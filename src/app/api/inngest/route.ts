@@ -25,6 +25,7 @@ import { observabilityPurgeCron } from '@/inngest/functions/observability-purge'
 import { robotOrchestratorFunctions } from '@/inngest/functions/robot-orchestrator'
 import { godentistReminderFunctions } from '@/inngest/functions/godentist-reminders'
 import { v3TimerFunctions } from '@/inngest/functions/agent-timers-v3'
+import { v4TimerFunctions } from '@/inngest/functions/agent-timers-v4'
 import { smsDeliveryFunctions } from '@/inngest/functions/sms-delivery-check'
 import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling'
 import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
@@ -50,6 +51,7 @@ import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
  * - ocr-guide-orchestrator: OCR guide extraction + matching + order update (Phase 27)
  * - godentist-reminder-send: Sleep until scheduled time, send WhatsApp reminder (Standalone: Scraping General)
  * - v3-timer: V3 agent timer — generic L0-L8 via systemEvent (Quick-028)
+ * - v4-timer: V4 agent timer — clone of v3 with crm-mutation-tools.createOrder INLINE (Standalone: somnio-sales-v4, D-22)
  * - sms-delivery-check: 2-stage SMS delivery verification via Onurix (Standalone: SMS Module)
  * - envia-status-polling: 2h cron polling Envia shipment status API (Standalone: envia-status-polling)
  * - crm-bot-expire-proposals: Every 1 min cron that marks crm_bot_actions proposed rows as expired past TTL+30s (Phase 44)
@@ -65,6 +67,7 @@ export const { GET, POST, PUT } = serve({
     ...robotOrchestratorFunctions,
     ...godentistReminderFunctions,
     ...v3TimerFunctions,
+    ...v4TimerFunctions,  // Standalone: somnio-sales-v4 (D-22 — separate Inngest function from v3)
     ...smsDeliveryFunctions,
     ...mobilePushFunctions,
     ...recompraPreloadContextFunctions,

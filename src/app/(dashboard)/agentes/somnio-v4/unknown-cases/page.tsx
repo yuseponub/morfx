@@ -7,8 +7,8 @@
  * D-23 + Regla 6: la página solo es accesible para miembros del workspace Somnio
  * (`a3843b3f-c337-4836-92b5-89c58bb98490`). Otros workspaces ven 403-style.
  *
- * Server component que fetchea via domain layer (Regla 3 — cero `createAdminClient`
- * directo aquí; toda lectura pasa por `src/lib/domain/unknown-cases.ts`).
+ * Server component que fetchea via domain layer (Regla 3 — cero uso del admin
+ * Supabase client aquí; toda lectura pasa por `src/lib/domain/unknown-cases.ts`).
  */
 
 import { redirect } from 'next/navigation'

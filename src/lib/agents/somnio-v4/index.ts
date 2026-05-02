@@ -26,4 +26,4 @@ agentRegistry.register(somnioV4Config)
 // Re-export public API
 export { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } from './config'
 export type { V4AgentInput, V4AgentOutput } from './types'
-// processMessage se exporta en Plan 07 cuando exista somnio-v4-agent.ts.
+export { processMessage } from './somnio-v4-agent'

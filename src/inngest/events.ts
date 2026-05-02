@@ -817,10 +817,57 @@ export type PwConfirmationPreloadAndInvokeEvents = {
   }
 }
 
+// ============================================================================
+// V4 Timer Events (somnio-sales-v4 standalone — Plan 08)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + recompra preload + pw-confirmation preload-and-invoke).
+ * V4 agent timer events — clone of V3TimerEvents with a distinct event name
+ * (Pitfall 10: NO collision with the v3-timer Inngest function listener).
+ *
+ * Flow: V4 sales-track emits TimerSignal → orchestrator timer adapter (Plan 12) →
+ *       inngest.send → v4Timer function (src/inngest/functions/agent-timers-v4.ts).
+ * Cancellation: agent/customer.message with matching sessionId (shared mechanism).
+ *
+ * Standalone: somnio-sales-v4 / Plan 08.
+ * Decisions: D-22 (separate Inngest function), D-21 (durations identical to v3),
+ * D-24 (independent agent — no shared types with v3 module beyond this Inngest
+ * registry which is shared infrastructure).
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents
+export type V4TimerEvents = {
+  /**
+   * Emitted when v4 sales-track outputs a 'start' TimerSignal. Triggers the
+   * generic v4-timer Inngest function which sleeps, then calls v4 processMessage
+   * with systemEvent { type: 'timer_expired', level }.
+   */
+  'agent/v4.timer.started': {
+    data: {
+      sessionId: string
+      conversationId: string
+      workspaceId: string
+      level: number          // 0-8
+      timerDurationMs: number // duration from V4_TIMER_DURATIONS (D-21 identical to v3)
+      phoneNumber: string
+      contactId: string
+    }
+  }
+
+  /**
+   * Emitted for logging/tracking purposes when a v4 timer is cancelled.
+   * NOT used for actual cancellation (that's via agent/customer.message waitForEvent match).
+   */
+  'agent/v4.timer.cancelled': {
+    data: {
+      sessionId: string
+      reason: string          // 'customer_replied' | 'ingest_complete' | etc
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + v4 timer + recompra preload + pw-confirmation preload-and-invoke).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & V4TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents
 
 /**
  * Type helper for extracting event data by name

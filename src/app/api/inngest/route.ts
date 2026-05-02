@@ -26,6 +26,8 @@ import { robotOrchestratorFunctions } from '@/inngest/functions/robot-orchestrat
 import { godentistReminderFunctions } from '@/inngest/functions/godentist-reminders'
 import { v3TimerFunctions } from '@/inngest/functions/agent-timers-v3'
 import { v4TimerFunctions } from '@/inngest/functions/agent-timers-v4'
+import { unknownCasesClusterV4Functions } from '@/inngest/functions/unknown-cases-cluster-v4'
+import { knowledgeSyncV4Functions } from '@/inngest/functions/knowledge-sync-v4'
 import { smsDeliveryFunctions } from '@/inngest/functions/sms-delivery-check'
 import { enviaStatusPollingCron } from '@/inngest/functions/envia-status-polling'
 import { mobilePushFunctions } from '@/inngest/functions/mobile-push-on-new-message'
@@ -68,6 +70,8 @@ export const { GET, POST, PUT } = serve({
     ...godentistReminderFunctions,
     ...v3TimerFunctions,
     ...v4TimerFunctions,  // Standalone: somnio-sales-v4 (D-22 — separate Inngest function from v3)
+    ...unknownCasesClusterV4Functions,  // Standalone: somnio-sales-v4 Plan 09 (D-05/D-06 — daily 04:00 Bogota cluster cron)
+    ...knowledgeSyncV4Functions,  // Standalone: somnio-sales-v4 Plan 09 (D-53/D-54 — KB sync post-deploy hook + W-05 observability)
     ...smsDeliveryFunctions,
     ...mobilePushFunctions,
     ...recompraPreloadContextFunctions,

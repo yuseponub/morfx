@@ -45,6 +45,7 @@ import { getLowConfidenceThreshold } from './threshold'
 import { runSubLoop } from './sub-loop'
 import { executeInvocations } from './invocations'
 import type { LoopOutcome } from './sub-loop/output-schema'
+import { captureUnknownCase } from './unknown-cases/capture'
 import { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } from './config'
 import { getCollector } from '@/lib/observability'
 import type {
@@ -152,7 +153,31 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             .map((m) => ({ role: m.role, content: m.content })),
         },
       })
-      // W-08: Plan 09 hookea captureUnknownCase aquí cuando outcome.status === 'no_match'
+      // W-08 (Plan 09): captureUnknownCase HOISTED aquí — Option 2 ÚNICA.
+      // NUNCA dentro de mapOutcomeToAgentOutput (evita doble-firing).
+      if (outcome.status === 'no_match') {
+        // D-58 fire-and-forget capture — fallos no rompen el turn.
+        void captureUnknownCase({
+          workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
+          conversationId: input.sessionId ?? '',
+          message: input.message,
+          intent: analysis.intent.primary,
+          intentConfidence: analysis.intent.intent_confidence,
+          knowledgeQueried: outcome.knowledgeQueried,
+          reason: outcome.reason,
+        })
+        getCollector()?.recordEvent(
+          'pipeline_decision',
+          'handoff_low_confidence_fallback',
+          {
+            agent: SOMNIO_V4_AGENT_ID,
+            sessionId: input.sessionId ?? null,
+            conversationId: input.sessionId ?? '',
+            knowledgeQueried: outcome.knowledgeQueried,
+            reason: outcome.reason,
+          },
+        )
+      }
       return mapOutcomeToAgentOutput({
         outcome,
         state: mergedState,
@@ -288,6 +313,31 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             .map((m) => ({ role: m.role, content: m.content })),
         },
       })
+      // W-08 (Plan 09): captureUnknownCase HOISTED post-runSubLoop — Option 2 ÚNICA.
+      if (outcome.status === 'no_match') {
+        // D-58 fire-and-forget capture — fallos no rompen el turn.
+        void captureUnknownCase({
+          workspaceId: invCtx.workspaceId,
+          conversationId: invCtx.conversationId,
+          message: input.message,
+          intent: analysis.intent.primary,
+          intentConfidence: analysis.intent.intent_confidence,
+          knowledgeQueried: outcome.knowledgeQueried,
+          reason: outcome.reason,
+        })
+        getCollector()?.recordEvent(
+          'pipeline_decision',
+          'handoff_low_confidence_fallback',
+          {
+            agent: SOMNIO_V4_AGENT_ID,
+            sessionId: input.sessionId ?? null,
+            conversationId: invCtx.conversationId,
+            knowledgeQueried: outcome.knowledgeQueried,
+            reason: outcome.reason,
+            via: 'cas_reject_subloop',
+          },
+        )
+      }
       return mapOutcomeToAgentOutput({
         outcome,
         state: mergedState,

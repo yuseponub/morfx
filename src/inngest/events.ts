@@ -864,10 +864,33 @@ export type V4TimerEvents = {
   }
 }
 
+// ============================================================================
+// V4 Knowledge Sync Events (somnio-sales-v4 standalone — Plan 09)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + v4 timer + recompra preload + pw-confirmation preload-and-invoke).
+ * V4 knowledge sync events — disparado por Vercel deploy webhook (Plan 11) o
+ * manualmente vía CLI `pnpm knowledge:sync` (Plan 11) para re-sincronizar el
+ * corpus `.md` curado en `agent_knowledge_base`.
+ *
+ * Standalone: somnio-sales-v4 / Plan 09. D-53 (sync DB automático post-deploy),
+ * D-54 (sync fail no bloquea deploy — observability event en su lugar).
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & V4TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents
+export type V4KnowledgeSyncEvents = {
+  'somnio-v4/knowledge.sync': {
+    data: {
+      /** Origen del trigger — útil para debug en Inngest dashboard. */
+      source?: 'vercel-deploy' | 'cli-pnpm' | 'manual'
+      /** ISO timestamp del trigger. Opcional. */
+      triggeredAt?: string
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + v4 timer + recompra preload + pw-confirmation preload-and-invoke + v4 knowledge sync).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & V4TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents & V4KnowledgeSyncEvents
 
 /**
  * Type helper for extracting event data by name

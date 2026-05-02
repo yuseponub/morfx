@@ -167,6 +167,17 @@ export interface V4AgentOutput {
   templates?: ProcessedMessage[]
   newMode?: string
 
+  /**
+   * D-60: cuando outcome=no_match en el sub-loop, el agente flagga la sesión
+   * con `requiresHuman=true` para que el inbox UI filtre/destaque y un operador
+   * tome la conversación. El runner persiste esta flag (Plan 12 wires up
+   * webhook-processor + storage adapter para que session_state.requires_human
+   * refleje este valor).
+   *
+   * También se setea en handoff por timer-error (Plan 07 mapErrorOutputForTimer).
+   */
+  requiresHuman?: boolean
+
   /** State updates for persistence */
   intentsVistos: string[]
   templatesEnviados: string[]

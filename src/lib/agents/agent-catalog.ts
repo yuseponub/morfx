@@ -28,6 +28,11 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     description: 'Agente conversacional v3. Pipeline modular con comprehension, sales-track y response-track.',
   },
   {
+    id: 'somnio-sales-v4',
+    name: 'Somnio Sales v4',
+    description: 'Agente v4 con sub-loop AI SDK + KB pgvector + observation loop (unknown_cases). Sucesor de v3.',
+  },
+  {
     id: 'godentist',
     name: 'GoDentist Valoraciones',
     description: 'Agente de agendamiento de citas para GoDentist. Agenda valoraciones GRATIS en 4 sedes.',
@@ -36,11 +41,21 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
 
 /**
  * Get catalog entries filtered for a specific workspace.
- * Returns only the agent configured for the workspace.
+ * Returns the agent configured for the workspace plus its sibling versions
+ * (same product family, e.g. all `somnio-sales-vN`). This lets sandbox QA
+ * test newer versions of the same conversational agent without changing
+ * the workspace's production conversational_agent_id.
  * Falls back to full catalog if agentId not found (safety net).
  */
 export function getAgentsForWorkspace(conversationalAgentId: string | undefined): AgentCatalogEntry[] {
   if (!conversationalAgentId) return AGENT_CATALOG
+  // Sibling family — for `somnio-sales-vN`, expose every `somnio-sales-vM`.
+  const familyMatch = conversationalAgentId.match(/^(.+)-v\d+$/)
+  if (familyMatch) {
+    const familyPrefix = familyMatch[1] + '-v'
+    const siblings = AGENT_CATALOG.filter(a => a.id.startsWith(familyPrefix))
+    if (siblings.length > 0) return siblings
+  }
   const match = AGENT_CATALOG.filter(a => a.id === conversationalAgentId)
   return match.length > 0 ? match : AGENT_CATALOG
 }

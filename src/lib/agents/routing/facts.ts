@@ -40,6 +40,7 @@ import { getContactTags } from '@/lib/domain/tags'
 import { getContactIsClient } from '@/lib/domain/contacts'
 import { getLastInboundMessageAt } from '@/lib/domain/messages'
 import { getWorkspaceRecompraEnabled } from '@/lib/domain/workspace-agent-config'
+import { getConversationChannel } from '@/lib/domain/conversations'
 
 const BOGOTA = 'America/Bogota'
 
@@ -103,6 +104,13 @@ export function mapStageNameToKind(
 export interface FactContext {
   contactId: string
   workspaceId: string
+  /**
+   * Optional — present when routing is invoked from a webhook with a known
+   * conversation. Required by the `channel` fact resolver. When absent, the
+   * resolver returns null without touching DB (D-05 backward compat for
+   * tests/dry-run that build engines without conversation context).
+   */
+  conversationId?: string | null
 }
 
 export function registerFacts(engine: Engine, ctx: FactContext): void {
@@ -244,6 +252,19 @@ export function registerFacts(engine: Engine, ctx: FactContext): void {
     } catch (err) {
       console.error('[routing.facts] recompraEnabled failed:', err)
       return true // legacy default — preserves behavior on transient DB errors
+    }
+  })
+
+  // channel — conversation channel (whatsapp | facebook | instagram | null).
+  // Standalone: routing-channel-fact (D-01). Returns null when conversationId
+  // is absent OR query fails (Pitfall 4 — fail-safe). Rules with operators
+  // `equal` / `in` simply do not match when the value is null.
+  engine.addFact('channel', async () => {
+    try {
+      return await getConversationChannel(ctx.conversationId, ctx.workspaceId)
+    } catch (err) {
+      console.error('[routing.facts] channel failed:', err)
+      return null
     }
   })
 }

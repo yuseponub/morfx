@@ -371,3 +371,42 @@ export async function findOrCreateConversation(
 
   return { success: true, data: { conversationId: created.id, created: true } }
 }
+
+// ============================================================================
+// getConversationChannel — read-only helper for routing fact resolver
+// ============================================================================
+
+/**
+ * Returns the channel of a conversation: 'whatsapp' | 'facebook' | 'instagram' | null.
+ *
+ * Used by src/lib/agents/routing/facts.ts → `channel` fact resolver
+ * (standalone: routing-channel-fact, D-04).
+ *
+ * Behavior:
+ *   - Short-circuits to null when conversationId is null/undefined WITHOUT
+ *     touching DB (D-04 — avoid useless query when caller has no conversation).
+ *   - Filters by workspace_id (Regla 3 multi-tenant safety).
+ *   - Returns null on query error or missing row (consistent with
+ *     getContactIsClient legacy-default-on-miss pattern).
+ *   - Read-only — no mutation, no triggers (D-04 explicitly read-only despite
+ *     domain layer being the canonical mutation surface).
+ */
+export async function getConversationChannel(
+  conversationId: string | null | undefined,
+  workspaceId: string,
+): Promise<'whatsapp' | 'facebook' | 'instagram' | null> {
+  if (!conversationId) return null
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('channel')
+    .eq('workspace_id', workspaceId)
+    .eq('id', conversationId)
+    .single()
+  if (error || !data) return null
+  const channel = (data as { channel: string | null }).channel
+  if (channel === 'whatsapp' || channel === 'facebook' || channel === 'instagram') {
+    return channel
+  }
+  return null
+}

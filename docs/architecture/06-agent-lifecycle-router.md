@@ -55,7 +55,7 @@ src/lib/agents/routing/
 │   ├── rule-v1.schema.json        # JSON Schema (Pitfall 2: leafCondition.additionalProperties:false rechaza `path` field — CVE-2025-1302 jsonpath-plus RCE)
 │   └── validate.ts                 # Ajv compiled validator
 ├── operators.ts                    # 5 custom operators (daysSinceAtMost/AtLeast, tagMatchesPattern, arrayContainsAny/All) — todos honoran America/Bogota tz (Regla 2)
-├── facts.ts                        # 10 fact resolvers (activeOrderStage, isClient, recompraEnabled, etc.) + 1 runtime fact (lifecycle_state)
+├── facts.ts                        # 11 fact resolvers (activeOrderStage, isClient, recompraEnabled, channel, etc.) + 1 runtime fact (lifecycle_state). `channel` agregado por standalone routing-channel-fact (2026-05-04) — lee `conversations.channel` via `getConversationChannel` domain helper.
 ├── engine.ts                       # buildEngine factory (per-request, Pitfall 7: no singleton)
 ├── cache.ts                        # LRU 10s + version-based revalidation via getMaxUpdatedAt
 ├── route.ts                        # routeAgent — orquesta Layer 1 → Layer 2 → audit log → output (D-16: 4 reasons)

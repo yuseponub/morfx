@@ -26,11 +26,17 @@ vi.mock('@/lib/domain/messages', () => ({ getLastInboundMessageAt: vi.fn() }))
 vi.mock('@/lib/domain/workspace-agent-config', () => ({
   getWorkspaceRecompraEnabled: vi.fn(),
 }))
+// Standalone routing-channel-fact — Plan 01 Task 2: stub the conversations
+// domain so the `channel` fact resolver can be exercised without a real DB.
+vi.mock('@/lib/domain/conversations', () => ({
+  getConversationChannel: vi.fn().mockResolvedValue(null),
+}))
 
 import * as orders from '@/lib/domain/orders'
 import * as tagsDomain from '@/lib/domain/tags'
 import * as contactsDomain from '@/lib/domain/contacts'
 import * as wsConfig from '@/lib/domain/workspace-agent-config'
+import * as conversationsDomain from '@/lib/domain/conversations'
 import { buildEngine } from '../engine'
 
 const ctx = {
@@ -49,6 +55,7 @@ beforeEach(() => {
   ;(tagsDomain.getContactTags as ReturnType<typeof vi.fn>).mockResolvedValue([])
   ;(contactsDomain.getContactIsClient as ReturnType<typeof vi.fn>).mockResolvedValue(false)
   ;(wsConfig.getWorkspaceRecompraEnabled as ReturnType<typeof vi.fn>).mockResolvedValue(true)
+  ;(conversationsDomain.getConversationChannel as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 })
 
 describe('buildEngine — basic factory', () => {
@@ -201,5 +208,92 @@ describe('runtime facts override', () => {
     })
     await engine.run({})
     expect(fired).toBe(true)
+  })
+})
+
+describe('channel fact — standalone routing-channel-fact', () => {
+  it('rule with { fact: channel, operator: in, value: [facebook, instagram] } matches FB conversation', async () => {
+    ;(conversationsDomain.getConversationChannel as ReturnType<typeof vi.fn>).mockResolvedValue(
+      'facebook',
+    )
+    const engine = buildEngine({ ...ctx, conversationId: 'conv-fb' })
+    let fired = false
+    engine.addRule({
+      conditions: {
+        all: [{ fact: 'channel', operator: 'in', value: ['facebook', 'instagram'] }],
+      },
+      event: { type: 'route', params: { agent_id: 'godentist-fb' } },
+      onSuccess: () => {
+        fired = true
+      },
+    })
+    await engine.run({})
+    expect(fired).toBe(true)
+    expect(conversationsDomain.getConversationChannel).toHaveBeenCalledWith(
+      'conv-fb',
+      ctx.workspaceId,
+    )
+  })
+
+  it('rule with { fact: channel, operator: in, value: [facebook, instagram] } does NOT match WhatsApp conversation', async () => {
+    ;(conversationsDomain.getConversationChannel as ReturnType<typeof vi.fn>).mockResolvedValue(
+      'whatsapp',
+    )
+    const engine = buildEngine({ ...ctx, conversationId: 'conv-wa' })
+    let fired = false
+    engine.addRule({
+      conditions: {
+        all: [{ fact: 'channel', operator: 'in', value: ['facebook', 'instagram'] }],
+      },
+      event: { type: 'route', params: { agent_id: 'godentist-fb' } },
+      onSuccess: () => {
+        fired = true
+      },
+    })
+    await engine.run({})
+    expect(fired).toBe(false)
+  })
+
+  it('channel fact returns null when conversationId is absent (D-12 backward compat)', async () => {
+    // Default mock returns null; resolver itself short-circuits when ctx.conversationId is null.
+    const engine = buildEngine(ctx) // no conversationId
+    let fired = false
+    engine.addRule({
+      conditions: { all: [{ fact: 'channel', operator: 'equal', value: 'whatsapp' }] },
+      event: { type: 'route', params: {} },
+      onSuccess: () => {
+        fired = true
+      },
+    })
+    await engine.run({})
+    expect(fired).toBe(false)
+    // Even though the domain helper itself short-circuits inside, what matters
+    // for the engine contract is that the rule did NOT match — the channel
+    // fact resolved to null. We do not assert on the helper call count here
+    // because the resolver does invoke getConversationChannel(null, ...) which
+    // short-circuits inside the helper (D-04 short-circuit) without touching DB.
+  })
+
+  it('channel fact returns null and logs error when domain helper throws (Pitfall 4)', async () => {
+    ;(conversationsDomain.getConversationChannel as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('DB hiccup'),
+    )
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const engine = buildEngine({ ...ctx, conversationId: 'conv-x' })
+    let fired = false
+    engine.addRule({
+      conditions: { all: [{ fact: 'channel', operator: 'equal', value: 'whatsapp' }] },
+      event: { type: 'route', params: {} },
+      onSuccess: () => {
+        fired = true
+      },
+    })
+    await expect(engine.run({})).resolves.toBeDefined()
+    expect(fired).toBe(false)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[routing.facts] channel failed:',
+      expect.any(Error),
+    )
+    consoleErrorSpy.mockRestore()
   })
 })

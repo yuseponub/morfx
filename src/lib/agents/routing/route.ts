@@ -71,6 +71,7 @@ const FACT_NAMES_TO_SNAPSHOT = [
   'isInRecompraPipeline',
   'lastInteractionAt',
   'recompraEnabled',
+  'channel',
 ] as const
 
 const DEFAULT_LIFECYCLE_STATE = 'new_prospect'
@@ -91,6 +92,7 @@ export async function routeAgent(input: RouteAgentInput): Promise<RouteDecision>
     const e1 = buildEngine({
       contactId: input.contactId,
       workspaceId: input.workspaceId,
+      conversationId: input.conversationId ?? null,
       rules: [], // attach via addRule below to wire onSuccess
     })
     for (const r of ruleSet.classifierRules) {
@@ -113,6 +115,7 @@ export async function routeAgent(input: RouteAgentInput): Promise<RouteDecision>
     const e2 = buildEngine({
       contactId: input.contactId,
       workspaceId: input.workspaceId,
+      conversationId: input.conversationId ?? null,
       rules: [],
       runtimeFacts: { lifecycle_state: lifecycleState },
     })

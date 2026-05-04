@@ -29,6 +29,11 @@ vi.mock('@/lib/domain/messages', () => ({
 vi.mock('@/lib/domain/workspace-agent-config', () => ({
   getWorkspaceRecompraEnabled: vi.fn().mockResolvedValue(true),
 }))
+// Standalone routing-channel-fact — Plan 01 Task 2: stub the channel resolver
+// so route-level tests don't need to wire a Supabase mock for conversations.
+vi.mock('@/lib/domain/conversations', () => ({
+  getConversationChannel: vi.fn().mockResolvedValue(null),
+}))
 
 // --- Routing-domain mocks (audit log + cache feed) --------------------------
 const mockRecordAuditLog = vi.fn().mockResolvedValue({ success: true, data: undefined })
@@ -299,6 +304,10 @@ describe('routeAgent — audit log + telemetry', () => {
     expect(decision.facts_snapshot).toHaveProperty('tags')
     expect(decision.facts_snapshot).toHaveProperty('isClient')
     expect(decision.facts_snapshot).toHaveProperty('recompraEnabled')
+    // Standalone routing-channel-fact (D-03): channel must always appear in
+    // facts_snapshot — value is null here because the conversations mock
+    // returns null and no conversationId was passed to routeAgent.
+    expect(decision.facts_snapshot).toHaveProperty('channel')
   })
 
   it('audit log failure does NOT throw or alter the decision (fire-and-forget)', async () => {

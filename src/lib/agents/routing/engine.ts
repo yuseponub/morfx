@@ -15,6 +15,12 @@ export interface BuildEngineInput {
   rules: RuleProperties[]
   /** Static facts injected at engine build time (e.g. `lifecycle_state` for Layer 2). */
   runtimeFacts?: Record<string, unknown>
+  /**
+   * Optional — when provided, the `channel` fact resolver reads
+   * `conversations.channel` for this conversation. When absent, `channel`
+   * returns null. Standalone: routing-channel-fact (D-06).
+   */
+  conversationId?: string | null
 }
 
 /**
@@ -34,7 +40,11 @@ export function buildEngine(input: BuildEngineInput): Engine {
     replaceFactsInEventParams: false,
   })
   registerOperators(engine)
-  registerFacts(engine, { contactId: input.contactId, workspaceId: input.workspaceId })
+  registerFacts(engine, {
+    contactId: input.contactId,
+    workspaceId: input.workspaceId,
+    conversationId: input.conversationId ?? null,
+  })
   // Static runtime facts (e.g. lifecycle_state set between Layer 1 and Layer 2).
   for (const [factId, value] of Object.entries(input.runtimeFacts ?? {})) {
     engine.addFact(factId, value as never)

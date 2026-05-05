@@ -1,24 +1,22 @@
 ---
 topic: contenido
-keywords: [contenido, presentacion, frasco, tamano, gotas, cuantas noches, rinde, dura]
+keywords: [contenido, presentacion, frasco, tamano, cuantos comprimidos, comprimidos, pastillas, cuantas noches, rinde, dura]
 category: product
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-04
 reviewed_by: jose
 related_topics: [formula, como_se_toma, precio]
 ---
 
 ## Respuesta canónica
-ELIXIR DEL SUEÑO viene en presentación de gotas. Un frasco te puede acompañar alrededor de 2 a 3 meses de uso continuo según la dosis personal dentro del rango recomendado en la etiqueta. La presentación en gotas te permite ajustar la cantidad sin desperdicio. Si tomas la dosis mínima sugerida, te rinde más; si necesitas la dosis máxima del rango, rinde menos. La etiqueta indica el rango exacto a seguir.
+ELIXIR DEL SUEÑO viene en presentación de 90 comprimidos por frasco. Tomando 1 comprimido diario (la dosis estándar), un frasco te alcanza para 90 días, es decir 3 meses de uso continuo. La pastilla se toma entera, pasada con agua, 30 minutos antes de dormir.
 
 ## Si el cliente insiste
-Si pregunta por una cantidad exacta de "días" o "noches", le aclaras que depende de la dosis individual y le sugieres revisar la etiqueta al recibir el producto.
+Si pregunta por una cantidad de "días" o "noches" distinta, le aclaras que la presentación es fija de 90 comprimidos y la duración estándar es 90 días con la dosis de 1 diaria.
 
 ## NUNCA decir
-- prometer un número exacto fijo de noches sin explicar la variable de dosis
-- afirmar que un frasco "siempre" dura X días
+- inventar un número de comprimidos distinto a 90 por frasco
+- decir que el producto se vende en presentación de gotas (es comprimidos)
+- prometer rendimiento variable según "rango de dosis" — la dosis es fija de 1 comprimido
 - inventar mililitros o tamaño del frasco si no lo tienes verificado
-- decir que el producto se vende en presentación de pastillas (es solo gotas)
-
-## Sources / Notas
-- Etiqueta producto ELIXIR DEL SUEÑO
-- v3 INFORMATIONAL_INTENTS: contenido
+- mencionar valeriana ni cualquier otro ingrediente que no sea melatonina + citrato de magnesio
+- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota" — atiendes tú misma

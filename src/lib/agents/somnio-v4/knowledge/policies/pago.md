@@ -1,26 +1,28 @@
 ---
 topic: pago
-keywords: [pago, como pago, contraentrega, transferencia, link de pago, tarjeta, nequi, daviplata, efectivo]
+keywords: [pago, como pago, contraentrega, transferencia, link de pago, tarjeta, nequi, daviplata, bancolombia, efectivo]
 category: policies
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-04
 reviewed_by: jose
-escalate_if: [cliente pide dar datos de tarjeta directamente en chat]
+escalate_if: [cliente pide pagar con transferencia, cliente pide pagar con Nequi, cliente pide pagar con Daviplata, cliente pide pagar con tarjeta crédito o débito, cliente pide link de pago, cliente intenta dar datos de tarjeta directamente en chat]
 related_topics: [envio, devoluciones]
 ---
 
 ## Respuesta canónica
-Tienes varias formas de pago disponibles para tu pedido: pago contraentrega cuando el domiciliario te entregue (en las ciudades donde aplica), transferencia bancaria, o link de pago seguro que te enviamos por WhatsApp para que pagues en línea con tarjeta o billetera digital. La forma más cómoda depende de tu ciudad y preferencia. Cuando confirmemos tu pedido, te indico exactamente cuál aplica para ti y te paso los datos correspondientes.
+Como métodos de pago manejamos:
+- Pago contra-entrega (pagas al recibir, en efectivo)
+- Transferencias (Bancolombia, Nequi, Daviplata)
+- Tarjeta débito/crédito vía link de pago
+
+La opción más común es contra-entrega.
 
 ## Si el cliente insiste
-Si insiste en darte número de tarjeta o CVV en el chat, le explicas con calma que por seguridad nunca pedimos esos datos en WhatsApp y le envías el link de pago oficial. Escalas a humano si presiona.
+Si después de informar los métodos elige uno distinto a contra-entrega (transferencia, Nequi, Daviplata o tarjeta), no respondes — el caso queda en cola. Si pide número de tarjeta o CVV en chat, le explicas con tono cálido que por seguridad no pedimos esos datos por mensaje y dejas la conversación abierta.
 
 ## NUNCA decir
 - pedir número completo de tarjeta o CVV en el chat
-- prometer descuentos por pago contado sin confirmar
-- inventar comisiones o recargos por método de pago
+- inventar números de cuenta, links de pago o datos bancarios
+- prometer descuentos por método de pago
 - garantizar contraentrega en ciudades donde no aplique
-- compartir datos bancarios sin verificar la identidad del cliente
-
-## Sources / Notas
-- v3 INFORMATIONAL_INTENTS: pago
-- Métodos disponibles según workspace Somnio
+- listar SOLO efectivo cuando el cliente pregunta "otros métodos de pago"
+- usar palabras como "te derivo", "te paso con un asesor", "agente humano", "tomo nota" — atiendes tú misma

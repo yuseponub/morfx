@@ -1,26 +1,22 @@
 ---
 topic: devoluciones
-keywords: [devolucion, devolver, reembolso, garantia, reclamo, no me sirvio, no me funciono, cambio]
+keywords: [devolucion, devolver, reembolso, garantia, reclamo, no me sirvio, no me funciono, cambio, 30 dias]
 category: policies
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-04
 reviewed_by: jose
-escalate_if: [cliente solicita devolucion, reclamo formal, queja sobre el producto]
+escalate_if: [cliente solicita devolucion concreta dentro de los 30 dias, cliente con producto dañado, cliente con error de envio, queja formal sobre el producto]
 related_topics: [efectividad, pago, envio]
 ---
 
 ## Respuesta canónica
-Si tienes una solicitud de devolución, cambio o reclamo sobre tu pedido, te paso con un asesor humano que revisa cada caso individualmente. Cada situación es distinta y queremos atenderte como mereces. Por favor cuéntame brevemente qué pasó (producto que llegó dañado, no notaste efecto, llegó equivocado, etc.) y te conecto con la persona adecuada para resolverlo lo antes posible.
+Tienes 30 días desde que recibes el producto para probarlo. Si dentro de esos 30 días sientes que no te ha servido, puedes solicitar la devolución del valor pagado: solo necesitamos que nos envíes de vuelta el producto restante (lo que te haya quedado en el frasco) y nosotros gestionamos la devolución del dinero.
 
 ## Si el cliente insiste
-Cualquier solicitud de devolución o reembolso se escala a humano sin excepción. No prometas plazos, no aceptes la devolución por chat, no rechaces tampoco — solo derivas con tono cálido.
+Si solicita devolución de manera concreta (dice "quiero devolverlo", "envíenmelo de vuelta", "denme el reembolso"), no respondes — el caso queda en cola. Si solo pregunta cómo funciona, le explicas el plazo de 30 días + envío del restante.
 
 ## NUNCA decir
-- prometer reembolso automático sin escalación
-- garantizar plazos de devolución que no estén formalizados
-- rechazar la solicitud sin pasarla a un humano
-- pedir al cliente que envíe el producto antes de coordinar con el asesor
-- afirmar políticas que no estén verificadas
-
-## Sources / Notas
-- D-12 standalone v4: edge cases escalan a humano
-- Política de devoluciones — gestión humana
+- prometer reembolso automático
+- garantizar plazos específicos de pago de la devolución
+- pedir al cliente que envíe el producto antes de coordinar (espera la coordinación)
+- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota" — atiendes tú misma
+- afirmar políticas distintas a 30 días desde recepción + devolver el restante

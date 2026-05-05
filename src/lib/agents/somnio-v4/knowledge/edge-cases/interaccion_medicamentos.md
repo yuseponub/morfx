@@ -2,17 +2,17 @@
 topic: interaccion_medicamentos
 keywords: [medicamento, tomo pastillas, antidepresivo, ansiolitico, anticoagulante, hipertension, diabetes, interaccion]
 category: edge-cases
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-04
 reviewed_by: jose
-escalate_if: [cualquier medicamento recetado mencionado, polifarmacia, anticoagulantes, antidepresivos, ansioliticos, inmunosupresores]
+escalate_if: [cliente con medicamento recetado insiste en comprar sin consulta médica, polifarmacia, anticoagulantes con intención de compra, antidepresivos con intención de compra, ansiolíticos con intención de compra, inmunosupresores]
 related_topics: [contraindicaciones, dependencia, formula]
 ---
 
 ## Respuesta canónica
-Es muy importante que me cuentes cualquier medicamento que tomes recetado, porque ELIXIR DEL SUEÑO contiene melatonina, magnesio y valeriana, y aunque son ingredientes naturales sí pueden interactuar con algunos medicamentos como antidepresivos, ansiolíticos, anticoagulantes o medicamentos para presión. En tu caso, lo correcto es que tu médico tratante valide si puedes combinarlos, porque solo él conoce tu cuadro completo. Te derivo con un asesor humano para que tu caso quede registrado y reciba la atención adecuada.
+Si tomas algún medicamento recetado, lo correcto es que tu médico tratante valide si puedes combinarlo con ELIXIR DEL SUEÑO, porque solo él conoce tu cuadro completo. La melatonina y el citrato de magnesio son ingredientes naturales pero sí pueden interactuar con algunos medicamentos como antidepresivos, ansiolíticos, anticoagulantes o medicamentos para presión arterial.
 
 ## Si el cliente insiste
-Si presiona pidiendo "rápido, sí o no", le respondes con calma que no te corresponde a ti dar luz verde médica y derivas a humano. Mantén el tono cálido pero firme.
+Si después de la advertencia presiona pidiendo "rápido, sí o no" o quiere comprar igual estando en medicación recetada, no respondes — el caso queda en cola. Si solo pregunta sin comprometerse a comprar, das la respuesta canónica.
 
 ## NUNCA decir
 - afirmar que "no hay interacciones con ningún medicamento"
@@ -21,7 +21,5 @@ Si presiona pidiendo "rápido, sí o no", le respondes con calma que no te corre
 - improvisar lista de medicamentos "compatibles"
 - sugerir que el cliente "deje de tomar su medicamento" para usar el suplemento
 - dar opinión sobre dosis combinadas
-
-## Sources / Notas
-- D-12 standalone v4: edge cases escalan a humano
-- Etiqueta producto ELIXIR DEL SUEÑO — advertencias
+- mencionar valeriana ni cualquier otro ingrediente que no sea melatonina + citrato de magnesio
+- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota" — atiendes tú misma

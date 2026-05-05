@@ -1,26 +1,23 @@
 ---
 topic: uso_en_ninos
-keywords: [niño, niña, hijo, hija, menor, pediatra, edad, años, bebe, adolescente]
+keywords: [niño, niña, hijo, hija, menor, pediatra, edad, años, bebe, adolescente, "14"]
 category: edge-cases
-last_reviewed: 2026-05-01
+last_reviewed: 2026-05-04
 reviewed_by: jose
-escalate_if: [cliente menciona menor de edad, edad explicita menor a 18, hijo/hija con problemas de sueño]
+escalate_if: [cliente quiere comprar para un menor de 14 años, cliente insiste en dar producto a un menor de 14 sin pediatra]
 related_topics: [contraindicaciones, formula]
 ---
 
 ## Respuesta canónica
-ELIXIR DEL SUEÑO está formulado para población adulta. No recomendamos su uso en niños, niñas ni adolescentes sin acompañamiento de un pediatra, porque las dosis y la respuesta del cuerpo de un menor son diferentes a las de un adulto. Si tu hijo o hija tiene dificultades para dormir, lo correcto es consultar con un pediatra que pueda evaluar su caso. Te derivo con un asesor humano para que conversen los detalles si quieres.
+ELIXIR DEL SUEÑO no se recomienda en menores de 14 años. A partir de los 14 años puede tomarse pero siempre con acompañamiento de un médico que evalúe el caso, porque la respuesta del cuerpo de un adolescente puede diferir de la de un adulto. Si tu hijo o hija tiene dificultades para dormir, lo correcto es consultar con un pediatra que pueda evaluar su situación particular.
 
 ## Si el cliente insiste
-Si presiona pidiendo "una dosis pequeña" para un menor, no transijas: le respondes que es responsabilidad médica decidirlo y derivas a humano sin importar la insistencia.
+Si después de la advertencia presiona pidiendo el producto para un menor de 14, no respondes — el caso queda en cola. Si el menor tiene 14 o más, recomiendas supervisión médica antes de iniciar y queda como información.
 
 ## NUNCA decir
-- aprobar uso en menores de edad
+- aprobar uso en menores de 14 años
 - recomendar dosis "más pequeñas" para niños
 - afirmar "es natural, no le hace nada al niño"
 - minimizar la importancia de un pediatra
 - dar consejos de higiene de sueño para menores (no es nuestro rol)
-
-## Sources / Notas
-- Producto formulado para adultos
-- D-12 standalone v4: edge cases escalan a humano
+- usar palabras como "te derivo", "te paso", "asesor", "tomo nota" — atiendes tú misma

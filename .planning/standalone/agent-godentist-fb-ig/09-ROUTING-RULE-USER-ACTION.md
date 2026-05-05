@@ -55,7 +55,7 @@ INSERT INTO routing_rules (
 )
 VALUES (
   'f0241182-f79b-4bc6-b0ed-b5f6eb20c514',
-  'router',
+  'agent_router',            -- CHECK constraint: must be 'lifecycle_classifier' or 'agent_router'
   100,                       -- adjust if priority 100 is taken (see pre-flight check above)
   true,
   jsonb_build_object(

@@ -209,6 +209,19 @@ WHERE id = '<workspace-uuid>';
 - **INFORMATIONAL_INTENTS (10):** saludo, precio, promociones, pago, envio, ubicacion, contraindicaciones, dependencia, tiempo_entrega, registro_sanitario.
 - **Tests:** 4 test suites (32 tests) en `__tests__/` — transitions.test.ts (9) + response-track.test.ts (6) + crm-context-poll.test.ts (7) + comprehension-prompt.test.ts (10).
 
+#### Agente GoDentist FB/IG Sibling (`src/lib/agents/godentist-fb-ig/` — standalone `agent-godentist-fb-ig`)
+- **Estado:** Shipped 2026-05-05 (codigo + migration aplicada en prod). **Sin trafico** hasta que el operador cree la routing rule manual en `/agentes/routing/editor` (D-15 del standalone).
+- **Proposito:** Sibling del agente `godentist` que atiende mensajes inbound de Facebook Messenger + Instagram Direct (`channel in ['facebook', 'instagram']`) en el workspace **GoDentist Valoraciones** (`f0241182-f79b-4bc6-b0ed-b5f6eb20c514`). El agente `godentist` original queda intacto sirviendo WhatsApp como default (D-04 ADITIVO, Regla 6).
+- **Diferencia clave vs godentist:** saludo lead-capture (pide nombre+celular upfront + disclaimer Habeas Data inline conforme Ley 1581/2011) — asegura contacto WhatsApp post-FB/IG donde el cliente puede perderse si no responde despues. Resto del pipeline (~78 templates restantes, comprehension Haiku, state machine, dentos-availability) clonado verbatim del godentist.
+- **Catalogo independiente:** `agent_id='godentist-fb-ig'` en `agent_templates` con 79 filas (clonadas de godentist con saludo D-05 distinto). NO comparte catalogo con godentist (D-08 — anti-regresion del fix provisional `cdc06d9` revertido en somnio-recompra).
+- **Lead capture parser (D-09):** turn 1 + intent='datos' + datos parciales → directo a `pedir_datos_parcial` con `{{campos_faltantes}}` calculado via helper puro `lead-capture.ts`.
+- **Activacion:** routing rule manual del operador (D-15). Sin feature flag (D-14). Sin regla = sin trafico = aislamiento Regla 6. Patron identico a `somnio-sales-v3-pw-confirmation` (shipped 2026-04-28).
+- **Habilitado por:** standalone `routing-channel-fact` (shipped 2026-05-04, commit `c410085`) que agrego el fact `channel` al motor de reglas. Este sibling es el **primer caso de uso real del fact `channel`** y deberia servir como pattern reusable para futuros siblings (D-20 — ej: `somnio-fb-ig`).
+- **Tests:** 6 test suites (93 tests) en `__tests__/` — transitions, comprehension, lead-capture (Pitfall 5), sales-track, response-track (D-08 anti-regresion), agent (E2E).
+- **Spec:** `src/lib/agent-specs/godentist-fb-ig.md`.
+- **Scope completo:** `.claude/rules/agent-scope.md` §Godentist FB/IG Sibling Agent.
+- **Standalone:** `.planning/standalone/agent-godentist-fb-ig/`.
+
 #### UnifiedEngine (`src/lib/agents/engine/unified-engine.ts`)
 - **Arquitectura:** Ports/Adapters (Hexagonal) — 1 engine, 2 modos
 - **Sandbox adapters:** In-memory state, no-op timers, display messaging, dry-run orders, debug collection

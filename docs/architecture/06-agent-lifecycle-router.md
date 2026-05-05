@@ -110,3 +110,48 @@ src/inngest/functions/
 - **Editor visual avanzado** (`dmn-js`) si crece a 25+ rules.
 - **Migration a DMN** si compliance externo lo exige.
 - **ML/LLM-based router** para casos de routing semántico (intent en texto libre).
+
+## Casos de uso reales
+
+### Caso de uso: agente sibling por canal alterno (`godentist-fb-ig`)
+
+**Primer caso de uso real del fact `channel`** (shipped 2026-05-04 standalone `routing-channel-fact`, commit `c410085`).
+
+El agente `godentist-fb-ig` (standalone shipped 2026-05-05, `.planning/standalone/agent-godentist-fb-ig/`) es el primer ejemplo en el codebase de un agente sibling activado 100% via routing rule con condicion `channel in ['facebook', 'instagram']`. Este patron es reusable para futuros siblings por canal:
+
+- **`godentist`** atiende WhatsApp del workspace GoDentist original (saludo conversacional clasico).
+- **`godentist-fb-ig`** atiende FB Messenger + Instagram Direct del workspace `GoDentist Valoraciones` (`f0241182-f79b-4bc6-b0ed-b5f6eb20c514`) con saludo lead-capture pidiendo nombre+celular upfront + disclaimer Habeas Data inline.
+- **`somnio-fb-ig`** (futuro D-20 deferred) podria atender FB/IG de Somnio si el patron prueba ser efectivo.
+
+**Activacion** del sibling es 100% manual del operador en `/agentes/routing/editor` (D-15 del standalone). Sin regla en `routing_rules` = sin trafico = aislamiento Regla 6 sin necesidad de feature flag (D-14). Mismo patron que `somnio-sales-v3-pw-confirmation` (shipped 2026-04-28).
+
+**Rule shape (SQL pre-formado en `.claude/rules/agent-scope.md` §Godentist FB/IG):**
+
+```sql
+INSERT INTO routing_rules (workspace_id, name, rule_type, priority, conditions, event, active)
+VALUES (
+  'f0241182-f79b-4bc6-b0ed-b5f6eb20c514',
+  'GoDentist FB/IG sibling routing',
+  'router',
+  100,  -- Wave 0 audit confirmo: 0 active rules en el workspace, priority 100 libre
+  jsonb_build_object('all', jsonb_build_array(
+    jsonb_build_object('fact', 'channel', 'operator', 'in', 'value', ARRAY['facebook', 'instagram'])
+  )),
+  jsonb_build_object('type', 'route', 'params', jsonb_build_object('agent_id', 'godentist-fb-ig')),
+  true
+);
+```
+
+**Documentacion del sibling:**
+- Spec completo: `src/lib/agent-specs/godentist-fb-ig.md`
+- Scope agent rules: `.claude/rules/agent-scope.md` §Godentist FB/IG Sibling Agent
+- Standalone phase: `.planning/standalone/agent-godentist-fb-ig/`
+
+**Pattern reusable para futuros siblings por canal:**
+
+1. Standalone `agent-<base>-<canal>` que clona el codebase del agente base
+2. Catalog de templates independiente (`agent_id='<base>-<canal>'`) — D-08 anti-Pitfall 1
+3. Pre-warm import en `webhook-processor.ts` para evitar cold-lambda race (Pitfall 2 / B-001)
+4. Registro en `agent-catalog.ts` para que aparezca en dropdown del routing-editor
+5. Routing rule manual del operador con condicion `channel in [...]` — D-15 (sin feature flag, sin auto-activacion)
+6. Cobertura del side-effect runner si aplica (Pitfall 6 — ej: VAL tag check de godentist extendido a ambos agentes)

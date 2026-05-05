@@ -82,11 +82,11 @@ ORDER BY intent, orden;
 SELECT
   priority,
   name,
-  enabled,
+  active,
   rule_type,
   conditions,
   event
 FROM routing_rules
 WHERE workspace_id = 'f0241182-f79b-4bc6-b0ed-b5f6eb20c514'
-  AND enabled = true
+  AND active = true
 ORDER BY priority;

@@ -39,7 +39,11 @@ import type { StateChanges } from '../transitions'
 // Fixtures
 // ============================================================================
 
-function makeState(overrides: Partial<AgentState> & { datos?: Partial<AgentState['datos']> } = {}): AgentState {
+type StateOverrides = Omit<Partial<AgentState>, 'datos'> & {
+  datos?: Partial<AgentState['datos']>
+}
+
+function makeState(overrides: StateOverrides = {}): AgentState {
   const base = createInitialState()
   const { datos, ...rest } = overrides
   return {

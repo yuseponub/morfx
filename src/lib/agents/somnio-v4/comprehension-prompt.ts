@@ -7,47 +7,132 @@
  * Standalone: somnio-sales-v4
  * Cloned mecánicamente desde somnio-v3/comprehension-prompt.ts (D-24).
  *
- * EXTENSIÓN v4 (D-66, D-72, D-79, D-74):
- *   Append final block "## EJEMPLOS DE CALIBRACIÓN DE CONFIDENCE" con 8 few-shot
- *   examples curados:
- *     - 3 universal-claros (0.85-0.95) — D-66
- *     - 3 context-dependientes (0.50-0.70) — D-71
- *     - 2 sumidero / 'otro' (<0.40) — D-69 (intent 'otro' como sumidero por construcción)
- *   + instrucción D-74: "Tu output es sobre este mensaje individual..."
+ * EXTENSIÓN v4 (Plan 12.1 — 2026-05-05):
+ *   Reemplaza el bloque genérico de 8 ejemplos (Plan 06) por:
+ *     1. Reglas globales explícitas (NUNCA ≥0.85 para casos médicos/comparativos/etarios)
+ *     2. Bloques per-intent para los 8 intents de mayor tráfico (saludo, precio,
+ *        quiero_comprar, rechazar, pago, tiempo_entrega, contraindicaciones, efectividad)
+ *        con confidence values validados contra templates v3 + data real prod
+ *     3. Generic fallback (4 ejemplos) para los ~20 intents restantes
+ *   Razón: el few-shot genérico no enseñaba casos médicos/comparativos/etarios
+ *   específicos, lo que causaba overconfidence sistémico (Haiku siempre ≥0.75).
  *
- * Anti-patterns (Pitfall 4):
+ * Anti-patterns:
  *   - NO parafrasear ejemplos — calibration depende de exact distribution.
- *   - NO skip sumidero examples — model defaults to high confidence sin ellos.
+ *   - NO eliminar reglas globales — el modelo ignora calibración sin pista explícita.
+ *   - NO usar contexto de fase previa para subir confidence (D-74).
  */
 
 const CONFIDENCE_FEW_SHOT = `
 
-## EJEMPLOS DE CALIBRACIÓN DE CONFIDENCE (intent_confidence)
+## REGLAS GLOBALES DE CALIBRACIÓN DE CONFIDENCE (intent_confidence)
 
-# Universal-claros (alta confianza, 0.85-0.95):
-1. "cuanto cuesta el producto" → intent.primary='precio', intent_confidence=0.95
-   reasoning: "Pregunta directa por precio sin ambigüedad."
-2. "no me interesa, gracias" → intent.primary='no_interesa', intent_confidence=0.92
-   reasoning: "Frase clara de rechazo explícita."
-3. "quiero comprar 2" → intent.primary='seleccion_pack', intent_confidence=0.88
-   reasoning: "Pack 2x explícito + verbo de compra."
+Después de elegir intent.primary, evalúa qué tan bien encaja con un número entre 0 y 1.
 
-# Context-dependientes (confianza media, 0.50-0.70):
-4. "ok" → intent.primary='confirmar', intent_confidence=0.55
-   reasoning: "Sin contexto previo, podría ser acknowledgment o confirmación."
-5. "si" → intent.primary='confirmar', intent_confidence=0.60
-   reasoning: "Aceptación afirmativa pero podría ser respuesta a múltiples preguntas previas."
-6. "tengo dudas" → intent.primary='otro', intent_confidence=0.50
-   reasoning: "Frase ambigua sin objeto claro de duda."
+NUNCA des ≥0.85 cuando el mensaje pregunte por:
+- Una condición médica específica no listada (apnea, fibromialgia, lupus, post-quirúrgico, oncológico, hipertensión, etc.)
+- Una comparación con otros fármacos (zolpidem, melatoxina, sertralina, anticoagulantes específicos, etc.)
+- Una circunstancia personal (embarazo, lactancia, niños menores de 14, edad avanzada como "96 años")
+- Una opinión subjetiva o juicio de tercero ("mi tía dice que es magia", "vale la pena?")
+- Un mensaje vago, off-topic, broma, emoji solo, o tema fuera de Somnio
+- Un método de pago NO automatizado (tarjeta, Nequi, PSE, transferencia) — solo contraentrega es high confidence
 
-# Sumideros (baja confianza, <0.40 — D-69 'otro' sumidero por construcción):
-7. "y mi tía dice que esto es magia" → intent.primary='otro', intent_confidence=0.20
-   reasoning: "Mensaje no relacionado con flujo de venta directamente; razonamiento libre."
-8. "lol jajaja 😂" → intent.primary='otro', intent_confidence=0.30
-   reasoning: "Reacción no informativa; clasificación nominal pero sin certeza."
+## EJEMPLOS DE CALIBRACIÓN PER-INTENT
 
-INSTRUCCIÓN CRÍTICA (D-74):
-Tu output es sobre este mensaje individual y su match con un intent universal. NO uses contexto de fase previa para resolver ambiguedad — reporta ambigüedad como confianza baja.
+### intent="saludo"
+- "hola" → 0.95 (saludo puro)
+- "buenos días" → 0.95
+- "Hola buenos días" → 0.92
+- "Buenas noches q precio tiene" → 0.50 (saludo + precio multi-intent)
+- "hola, una pregunta sobre algo médico" → 0.45 (saludo + médico ambiguo)
+- "hola, mi sobrina toma esto y se siente rara" → 0.30 (saludo + caso médico/etario)
+
+### intent="precio"
+- "cuánto cuesta?" → 0.95
+- "qué precio tiene?" → 0.95
+- "Precio" → 0.90 (corto pero claro)
+- "Valor" → 0.90
+- "Me recuerdas el valor?" → 0.88
+- "Que precio tiene los 2x" → 0.80 (precio de pack específico)
+- "es muy caro?" → 0.30 (juicio subjetivo)
+- "vale la pena al precio?" → 0.30 (opinión)
+- "Información... dirección y valor... contenido" → 0.40 (multi-intent)
+
+### intent="quiero_comprar"
+- "lo quiero comprar" → 0.92
+- "Me interesa" → 0.88
+- "Hola! Me interesa comprar un ELIXIR DEL SUEÑO" → 0.92 (templated trigger)
+- "Solo quiero 2 frascos" → 0.65 (multi: comprar + seleccion_pack)
+- "y si quiero comprar?" → 0.35 (hipotético)
+- "¿cómo funciona la compra?" → 0.40 (info, no compromiso)
+
+### intent="rechazar"
+- "no me interesa" → 0.92
+- "no gracias" → 0.92
+- "no quiero" → 0.90
+- "No" (solo) → 0.55 (sin contexto)
+- "déjalo así" → 0.50
+- "no estoy seguro" → 0.35
+- "ahorita no" → 0.50
+- "No quiero seguir botando plata" → 0.50 (rechazo emocional)
+
+### intent="pago"
+- "cómo pago?" → 0.85 (cubierto por template oferta)
+- "se puede pagar contraentrega?" → 0.92
+- "aceptan efectivo?" → 0.90
+- "SI EN EFECTIVO" → 0.88
+- "aceptan tarjeta?" → 0.40 (NO cubierto automatizado)
+- "Puedo pagar por nequi?" → 0.40 (NO cubierto automatizado)
+- "Para pagar con tarjeta o PSE" → 0.35 (NO cubierto)
+- "PSE?" → 0.40
+- "pago a cuotas con qué tarjeta?" → 0.30
+- "Listo es mejor nequi" → 0.40 (método NO automatizado)
+
+### intent="tiempo_entrega"
+- "en cuánto llega?" → 0.88
+- "Cuando llega?" → 0.88
+- "cuándo me lo entregan?" → 0.88
+- "Cuando llegará el somnio?" → 0.85
+- "es rápido?" → 0.50 (juicio subjetivo)
+- "llega antes del jueves?" → 0.40 (condicional + temporal)
+- "si pago hoy cuándo llega a Cartagena?" → 0.40 (condicional)
+
+### intent="contraindicaciones"
+- "tiene efectos secundarios?" → 0.92
+- "puedo si tomo licor?" → 0.92 (cubierto por KB interaccion_alcohol)
+- "Tiene alguna contraindicación?" → 0.88
+- "Yo no tomo anticoagulante" → 0.85 (cubierto inverso)
+- "es muy fuerte?" → 0.55 (juicio subjetivo)
+- "Hipertensión?" → 0.30 (NO cubierto, condición específica)
+- "soy paciente oncológica, tiene contraindicación?" → 0.25 (NO cubierto)
+- "funciona si tengo apnea?" → 0.30 (condición específica no listada)
+- "qué tan adictivo es vs zolpidem?" → 0.25 (comparación con fármaco)
+- "puedo si estoy embarazada?" → 0.25 (circunstancia personal)
+- "interactúa con sertralina?" → 0.30 (interacción específica)
+- "puedo darle a mi hijo de 10 años?" → 0.30 (menor de 14)
+
+### intent="efectividad"
+- "funciona?" → 0.92
+- "es efectivo?" → 0.92
+- "Pero quiero saber si es verdad que sirve para dormir" → 0.88
+- "qué resultados ha dado?" → 0.55
+- "Si pero es de verdad que sirve tiene garantía" → 0.40 (multi-intent)
+- "Para la ansiedad y el estrés sirve" → 0.45 (caso específico)
+- "funciona para insomnio crónico de 10 años?" → 0.35 (caso crónico específico)
+- "Deseo saber si funciona en una persona de 96 años" → 0.30 (caso etario)
+- "es más efectivo que melatoxina pura?" → 0.30 (comparación)
+- "qué dicen los médicos sobre su efectividad?" → 0.35
+- "funciona si ya he probado de todo?" → 0.30 (caso refractario)
+
+## EJEMPLOS DE FALLBACK (otros intents)
+
+- "no me interesa, gracias" → intent='no_interesa', confidence=0.92
+- "ok" → intent='confirmar' o 'acknowledgment', confidence=0.55 (ack ambiguo)
+- "lol jajaja 😂" → intent='otro', confidence=0.30 (off-topic)
+- "y mi tía dice que esto es magia" → intent='otro', confidence=0.20 (opinión tercero)
+
+INSTRUCCIÓN CRÍTICA:
+Tu output es sobre este mensaje individual y su match con un intent universal. NO uses contexto de fase previa para subir la confianza por encima de 0.70 cuando el mensaje cae en alguna de las REGLAS GLOBALES de arriba — reporta ambigüedad como confianza baja.
 `
 
 export function buildSystemPrompt(existingData: Record<string, string>, recentBotMessages: string[] = []): string {

@@ -28,6 +28,7 @@ import '@/lib/agents/somnio'
 import '@/lib/agents/godentist'
 import '@/lib/agents/somnio-pw-confirmation' // Standalone: somnio-sales-v3-pw-confirmation (D-02)
 import '@/lib/agents/somnio-v4' // Standalone: somnio-sales-v4 (D-13)
+import '@/lib/agents/godentist-fb-ig' // Standalone: agent-godentist-fb-ig (D-03)
 import { agentRegistry } from '@/lib/agents/registry'
 
 interface EditorPageProps {

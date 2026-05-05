@@ -37,6 +37,11 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     name: 'GoDentist Valoraciones',
     description: 'Agente de agendamiento de citas para GoDentist. Agenda valoraciones GRATIS en 4 sedes.',
   },
+  {
+    id: 'godentist-fb-ig',
+    name: 'GoDentist Valoraciones — FB/IG',
+    description: 'Sibling de GoDentist para FB Messenger / Instagram Direct. Saludo lead-capture (nombre+celular upfront + Habeas Data inline).',
+  },
 ]
 
 /**

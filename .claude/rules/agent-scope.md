@@ -160,6 +160,85 @@ Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
 - **Consumidor upstream:** Inngest function `pw-confirmation-preload-and-invoke` (`crm-reader` + agente PW via agent-to-agent in-process) — ver seccion CRM Reader Bot §Consumidores. Webhook `webhook-processor.ts` dispatcha el event `pw-confirmation/preload-and-invoke` cuando el routing decide `agent_id='somnio-sales-v3-pw-confirmation'`.
 - **Consumidor downstream:** CRM Writer Bot — el agente invoca `proposeAction + confirmAction` directo (in-process). Workspace isolation via headers no aplica (in-process); el adapter pasa `workspaceId` explicitamente al domain layer.
 
+### Godentist FB/IG Sibling Agent (`godentist-fb-ig` — webhook FB/IG inbound)
+- **PUEDE:**
+  - Atender mensajes inbound de Facebook Messenger (`channel='facebook'`) e Instagram Direct (`channel='instagram'`) en el workspace `f0241182-f79b-4bc6-b0ed-b5f6eb20c514` ("GoDentist Valoraciones") (D-01 + D-02).
+  - Emitir templates del catalogo propio bajo `agent_id='godentist-fb-ig'` (79 rows en `agent_templates`, locked Plan 07 APPLY-EVIDENCE 2026-05-05):
+    - Saludo D-05 lead-capture (pide nombre+celular upfront + disclaimer Habeas Data inline conforme Ley 1581/2011) — UNICO cambio vs godentist.
+    - ~78 templates clonados verbatim del godentist (precios, sedes, escape, follow-ups, english_response, etc.).
+  - Procesar primer mensaje del cliente (turn 1) con LEAD CAPTURE (D-09):
+    - Si Haiku clasifica `intent='datos'` + datos parciales → directo a `pedir_datos_parcial` con `{{campos_faltantes}}` (via helper puro `lead-capture.ts`).
+    - Si datos criticos completos (nombre + celular + sede) → directo a `pedir_fecha`.
+    - Si turn 1 + intent informational (ej: "cuanto cuestan los brackets?") → sales-track normal (D-07 reusa logica retomas existentes).
+  - Consultar disponibilidad real en Dentos via robot Railway compartido — `dentos-availability.ts` clonado verbatim (mismo robot `godentist-production.up.railway.app`, mismas credenciales, mismo workspace string `'godentist-valoraciones'` literal hardcoded — Q3 RESUELTA Wave 0).
+  - Recibir tag `VAL` automaticamente al completar datos criticos (Pitfall 6 mitigated en `v3-production-runner.ts:597` — extension del check `agentModule !== 'godentist' && agentModule !== 'godentist-fb-ig'`). Los leads FB/IG cuentan en metricas igual que los WhatsApp.
+- **NO PUEDE:**
+  - Atender otros canales (web chat, WhatsApp del workspace target, etc.) — D-01; si surgen requieren standalone separado.
+  - Operar fuera del workspace target `f0241182-f79b-4bc6-b0ed-b5f6eb20c514` — D-02; routing rule del usuario lo acota.
+  - Compartir catalog con godentist — D-08; tiene su propio `TEMPLATE_LOOKUP_AGENT_ID` constant en `response-track.ts`. Anti-regresion del fix provisional `cdc06d9` revertido en somnio-recompra (Pitfall 1).
+  - Detectar nuevo intent `consentimiento_habeas` — D-10; el consentimiento es implicito al enviar datos (D-06).
+  - Cambiar modelo de comprehension — D-12; siempre Haiku (variable confusa para debug).
+  - Modificar el state machine de godentist — D-13; reusa `validTransitions` verbatim (cero deuda de schema).
+  - Activarse automaticamente — D-14; SIN feature flag, requiere routing rule manual del usuario en `/agentes/routing/editor` (D-15).
+  - Auto-crear su routing rule — D-15; el operador la crea con priority slot libre (Pitfall 4 — UNIQUE INDEX `uq_routing_rules_priority WHERE active=true`).
+  - Acceder a templates de otros agentes — D-08.
+  - Modificar agente godentist original — D-04; el sibling es ADITIVO. Cualquier cambio que se "filtre" al godentist viola Regla 6.
+  - Importar `createAdminClient` o `@supabase/supabase-js` directamente — Regla 3 CLAUDE.md; toda mutacion via `@/lib/domain/*`.
+- **Validacion (gates verificables):**
+  - `grep -rn "createAdminClient\|@supabase/supabase-js" src/lib/agents/godentist-fb-ig/` retorna 0 matches no-comentario.
+  - `grep -rn "GODENTIST_AGENT_ID\b" src/lib/agents/godentist-fb-ig/` retorna 0 matches (anti-regresion D-08, Pitfall 1 — el sibling NUNCA referencia la constante del godentist original).
+  - `grep -c "import('../godentist-fb-ig')" src/lib/agents/production/webhook-processor.ts` retorna >=2 (pre-warm + dispatch — anti-Pitfall 2 / B-001 cold-lambda race).
+  - `grep -E "agentModule !== 'godentist' && (this\.config\.)?agentModule !== 'godentist-fb-ig'" src/lib/agents/engine/v3-production-runner.ts` retorna match (anti-Pitfall 6 — VAL tag side-effect cubre ambos agentes).
+  - Suite tests: `npx vitest run src/lib/agents/godentist-fb-ig/__tests__/` 6 suites + 93/93 tests passed (lock baseline post-Plan 06).
+  - DB sanity: `SELECT COUNT(*) FROM agent_templates WHERE agent_id='godentist-fb-ig'` retorna 79 (matches godentist baseline locked Wave 0).
+  - DB sanity: saludo D-05 verbatim — `SELECT content FROM agent_templates WHERE agent_id='godentist-fb-ig' AND intent='saludo' AND priority='CORE'` contiene "goBot" + "Habeas Data" + "Ley 1581" (Plan 07 APPLY-EVIDENCE).
+  - Project skill descubrible: `src/lib/agent-specs/godentist-fb-ig.md`.
+  - Standalone shipped: `.planning/standalone/agent-godentist-fb-ig/` (2026-05-05).
+- **Coexistencia con godentist original (D-04):** El agente `godentist` queda **intacto y funcionando** como default para WhatsApp del workspace original. El sibling es ADITIVO. Patron identico a `somnio-sales-v3-pw-confirmation` vs `somnio-sales-v3` (shipped 2026-04-28). Cuando usar cada uno:
+  - **godentist:** WhatsApp inbound al workspace original. Saludo conversacional clasico.
+  - **godentist-fb-ig:** FB Messenger / Instagram Direct inbound al workspace `f0241182-...` ("GoDentist Valoraciones"). Saludo lead-capture (asegura contacto WhatsApp post-FB/IG donde el cliente puede perderse si no responde despues).
+- **Activacion (D-15 manual) — SQL pre-formado:**
+
+  Post-deploy, el operador va a `/agentes/routing/editor` y crea la regla. SQL pre-formado para evitar Pitfall 3 (workspace mismatch) + Pitfall 4 (priority collision):
+
+  ```sql
+  -- Pre-check 1: verificar feature flag del lifecycle router activo en el workspace target
+  SELECT lifecycle_routing_enabled
+  FROM workspace_agent_config
+  WHERE workspace_id='f0241182-f79b-4bc6-b0ed-b5f6eb20c514';
+  -- Esperado: true. Si false:
+  -- UPDATE workspace_agent_config SET lifecycle_routing_enabled=true WHERE workspace_id='f0241182-f79b-4bc6-b0ed-b5f6eb20c514';
+
+  -- Pre-check 2: verificar priority libres
+  SELECT priority, name FROM routing_rules
+  WHERE workspace_id='f0241182-f79b-4bc6-b0ed-b5f6eb20c514' AND active=true
+  ORDER BY priority;
+  -- Wave 0 audit confirmo: 0 active rules en el workspace target → priority 100 libre.
+
+  -- Crear la rule:
+  INSERT INTO routing_rules (workspace_id, name, rule_type, priority, conditions, event, active)
+  VALUES (
+    'f0241182-f79b-4bc6-b0ed-b5f6eb20c514',
+    'GoDentist FB/IG sibling routing',
+    'router',
+    100,
+    jsonb_build_object(
+      'all', jsonb_build_array(
+        jsonb_build_object('fact', 'channel', 'operator', 'in', 'value', ARRAY['facebook', 'instagram'])
+      )
+    ),
+    jsonb_build_object('type', 'route', 'params', jsonb_build_object('agent_id', 'godentist-fb-ig')),
+    true
+  );
+
+  -- Para desactivar (rollback rapido — recovery time <10s tras cache TTL):
+  -- UPDATE routing_rules SET active=false
+  -- WHERE name='GoDentist FB/IG sibling routing'
+  --   AND workspace_id='f0241182-f79b-4bc6-b0ed-b5f6eb20c514';
+  ```
+- **Consumidores upstream:** webhook FB/IG inbound — `webhook-processor.ts` branch `agentId === 'godentist-fb-ig'` (paralelo al branch `'godentist'` linea 765, dispatch in-process).
+- **Consumidores downstream:** TemplateManager (cache propio agent_id) + Anthropic Haiku (comprehension via `runWithPurpose('godentist_fb_ig_comprehension', ...)`) + robot Railway Dentos (compartido con godentist) + VAL tag side-effect runner (`v3-production-runner.ts:597`).
+
 ## OBLIGATORIO al Crear un Agente Nuevo
 
 Cuando se programe CUALQUIER agente nuevo en el sistema, se DEBE:

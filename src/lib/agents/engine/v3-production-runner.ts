@@ -154,6 +154,11 @@ export class V3ProductionRunner {
         const { processMessage } = await import('../godentist/godentist-agent')
         // GoDentist uses same V3AgentInput shape minus packSeleccionado
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
+      } else if (this.config.agentModule === 'godentist-fb-ig') {
+        // Standalone: agent-godentist-fb-ig (D-03)
+        // Sibling de godentist para FB Messenger / Instagram Direct.
+        const { processMessage } = await import('../godentist-fb-ig')
+        output = await processMessage(v3Input as any) as unknown as V3AgentOutput
       } else if (this.config.agentModule === 'somnio-recompra') {
         const { processMessage } = await import('../somnio-recompra/somnio-recompra-agent')
         output = await processMessage(v3Input as any) as unknown as V3AgentOutput
@@ -594,7 +599,10 @@ export class V3ProductionRunner {
     output: V3AgentOutput,
     previousDatos: Record<string, string>,
   ): Promise<void> {
-    if (this.config.agentModule !== 'godentist') return
+    // Standalone: agent-godentist-fb-ig (D-03, Pitfall 6) — extendido para incluir el sibling
+    // Sin esta extension, los leads FB/IG capturados por godentist-fb-ig NO recibiran tag VAL
+    // y las metricas de valoraciones FB/IG mostraran 0 falsamente.
+    if (this.config.agentModule !== 'godentist' && this.config.agentModule !== 'godentist-fb-ig') return
     if (!input.contactId) return
 
     // Must stay in sync with src/lib/agents/godentist/constants.ts::CRITICAL_FIELDS

@@ -27,6 +27,26 @@ export type ClaudeModelId = typeof CLAUDE_MODELS[keyof typeof CLAUDE_MODELS]
  */
 export type ClaudeModel = ClaudeModelId
 
+/**
+ * Non-Anthropic model identifiers consumed por sandbox debug + observability.
+ *
+ * Standalone: somnio-sales-v4-runtime-wiring (D-30 — stack mixto definitivo).
+ * - `gemini-2.5-flash-lite`: comprehension + nunca-decir (Plan 05)
+ * - `gpt-4o-mini`: sub-loop (Plan 05; único viable para tools+Output.object)
+ *
+ * El alias se mantiene aditivo y solo se consume en `ModelTokenEntry.model`
+ * — los runtime calls a estos providers viven en somnio-v4/{comprehension,
+ * sub-loop}/* (gated por D-30 y wired en Plan 05).
+ */
+export type NonAnthropicModelId = 'gemini-2.5-flash-lite' | 'gpt-4o-mini'
+
+/**
+ * Union de modelos válidos para metadata de token tracking.
+ * Mantiene `ClaudeModel` como subset; extiende a otros providers vía
+ * `NonAnthropicModelId` (D-30 stack mixto).
+ */
+export type AnyModelId = ClaudeModel | NonAnthropicModelId
+
 // ============================================================================
 // Agent Configuration
 // ============================================================================
@@ -472,11 +492,16 @@ export const MAX_TOKENS_PER_CONVERSATION = 50_000
 // ============================================================================
 
 /**
- * Token usage detail for a single Claude API call, with model identity.
+ * Token usage detail for a single API call, with model identity.
+ *
+ * `model` admite ClaudeModelId (Anthropic) y NonAnthropicModelId (Gemini /
+ * GPT — D-30 standalone somnio-sales-v4-runtime-wiring stack mixto).
+ * Cero impacto a v3/godentist/recompra/pw-confirmation que ya pasaban
+ * ClaudeModelId — la unión es aditiva (ClaudeModel ⊂ AnyModelId).
  */
 export interface ModelTokenEntry {
-  /** Model used for this call (e.g., 'claude-haiku-4-5', 'claude-sonnet-4-5') */
-  model: ClaudeModel
+  /** Model used for this call (e.g., 'claude-haiku-4-5', 'gemini-2.5-flash-lite') */
+  model: AnyModelId
   /** Input tokens consumed */
   inputTokens: number
   /** Output tokens consumed */

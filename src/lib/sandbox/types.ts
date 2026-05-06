@@ -183,6 +183,21 @@ export interface DebugTurn {
   /** Two-track decision debug (tt-02) */
   salesTrack?: { accion?: string; reason: string; enterCaptura?: boolean }
   responseTrack?: { salesIntents: string[]; infoIntents: string[]; totalMessages: number }
+  // ============================================================================
+  // V4 extensions (standalone: somnio-sales-v4-runtime-wiring / Plan 03 / D-20)
+  // Opcionales — solo populados cuando v4 path activo. NO crear tab nueva en UI;
+  // la UI debug renderiza condicional si campos existen.
+  // Mapping efectivo lo wirea Plan 06 cuando V4AgentOutput suba esta metadata
+  // del observability event al top-level del agent output.
+  // ============================================================================
+  /** Sub-loop trigger reason (D-02) — undefined si no se invocó sub-loop */
+  subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre'
+  /** KB pgvector retrieval results del sub-loop (topic + similarity score) */
+  kbHits?: Array<{ topic: string; score: number }>
+  /** NUNCA-decir rule matches sobre el output del sub-loop */
+  nuncaDecirMatches?: string[]
+  /** Confidence threshold actual (platform_config.somnio_v4_low_confidence_threshold — D-11) */
+  threshold?: number
 }
 
 /**

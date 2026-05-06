@@ -156,6 +156,10 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       // W-08 (Plan 09): captureUnknownCase HOISTED aquí — Option 2 ÚNICA.
       // NUNCA dentro de mapOutcomeToAgentOutput (evita doble-firing).
       if (outcome.status === 'no_match') {
+        // Plan 02 D-29: tras flat schema, knowledgeQueried es nullable. Default
+        // a [] si null (defensive — invariant validator garantiza non-null en
+        // este path, pero el null guard mantiene type safety).
+        const knowledgeQueried = outcome.knowledgeQueried ?? []
         // D-58 fire-and-forget capture — fallos no rompen el turn.
         void captureUnknownCase({
           workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
@@ -163,7 +167,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           message: input.message,
           intent: analysis.intent.primary,
           intentConfidence: analysis.intent.intent_confidence,
-          knowledgeQueried: outcome.knowledgeQueried,
+          knowledgeQueried,
           reason: outcome.reason,
         })
         getCollector()?.recordEvent(
@@ -173,7 +177,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             agent: SOMNIO_V4_AGENT_ID,
             sessionId: input.sessionId ?? null,
             conversationId: input.sessionId ?? '',
-            knowledgeQueried: outcome.knowledgeQueried,
+            knowledgeQueried,
             reason: outcome.reason,
           },
         )
@@ -315,6 +319,8 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       })
       // W-08 (Plan 09): captureUnknownCase HOISTED post-runSubLoop — Option 2 ÚNICA.
       if (outcome.status === 'no_match') {
+        // Plan 02 D-29: knowledgeQueried nullable post-flat schema — null guard.
+        const knowledgeQueried = outcome.knowledgeQueried ?? []
         // D-58 fire-and-forget capture — fallos no rompen el turn.
         void captureUnknownCase({
           workspaceId: invCtx.workspaceId,
@@ -322,7 +328,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           message: input.message,
           intent: analysis.intent.primary,
           intentConfidence: analysis.intent.intent_confidence,
-          knowledgeQueried: outcome.knowledgeQueried,
+          knowledgeQueried,
           reason: outcome.reason,
         })
         getCollector()?.recordEvent(
@@ -332,7 +338,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             agent: SOMNIO_V4_AGENT_ID,
             sessionId: input.sessionId ?? null,
             conversationId: invCtx.conversationId,
-            knowledgeQueried: outcome.knowledgeQueried,
+            knowledgeQueried,
             reason: outcome.reason,
             via: 'cas_reject_subloop',
           },
@@ -733,6 +739,10 @@ function mapOutcomeToAgentOutput(args: {
     },
   }
 
+  // Plan 02 D-29: tras flat schema, narrowing por outcome.status sigue válido,
+  // pero los campos canonicalText/sourceTopic/responseTemplate son nullable.
+  // Añadimos null guards explícitos — si null (no debería ocurrir post-invariantCheck
+  // del sub-loop, pero defensivo) → fallback a handoff humano.
   if (outcome.status === 'no_match') {
     return {
       ...baseOutput,
@@ -747,6 +757,21 @@ function mapOutcomeToAgentOutput(args: {
   }
 
   if (outcome.status === 'canonical') {
+    // Defensive null check — invariantCheck en sub-loop ya enforca canonicalText
+    // non-null, pero el null-guard mantiene type safety + protección defensiva
+    // si código se cambia. Si null (bug) → handoff humano.
+    if (outcome.canonicalText === null || outcome.sourceTopic === null) {
+      return {
+        ...baseOutput,
+        messages: [],
+        newMode: 'handoff',
+        requiresHuman: true,
+        decisionInfo: {
+          action: 'handoff',
+          reason: `canonical_null_field: ${outcome.reason}`,
+        },
+      }
+    }
     return {
       ...baseOutput,
       messages: [outcome.canonicalText],
@@ -760,6 +785,19 @@ function mapOutcomeToAgentOutput(args: {
   }
 
   // template outcome
+  // Defensive null check — invariantCheck garantiza non-null aquí.
+  if (outcome.responseTemplate === null) {
+    return {
+      ...baseOutput,
+      messages: [],
+      newMode: 'handoff',
+      requiresHuman: true,
+      decisionInfo: {
+        action: 'handoff',
+        reason: `template_null_responseTemplate: ${outcome.reason}`,
+      },
+    }
+  }
   return {
     ...baseOutput,
     messages: [], // engine resolverá template via responseTemplate intent

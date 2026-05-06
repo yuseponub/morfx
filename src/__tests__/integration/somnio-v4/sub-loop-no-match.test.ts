@@ -61,12 +61,18 @@ beforeEach(() => {
 
 describe('sub-loop no_match path — KB empty → handoff_humano', () => {
   // Setup compartido: KB RPC retorna 0 hits + LLM emite outcome no_match.
+  // Plan 02 D-29: schema flat requiere todos los campos nullable explícitos
+  // (canonicalText, sourceTopic, nuncaDecirRules) — pasados como null para que
+  // `validateLoopOutcomeInvariants` no escale por invariante rota.
   function setupNoMatch() {
     rpcMock.mockResolvedValueOnce({ data: [], error: null })
     generateTextMock.mockResolvedValueOnce({
       output: {
         status: 'no_match',
         responseTemplate: 'handoff_humano',
+        canonicalText: null,
+        sourceTopic: null,
+        nuncaDecirRules: null,
         requiresHuman: true,
         reason: 'low_confidence_no_knowledge_match',
         knowledgeQueried: ['precio'],
@@ -136,8 +142,10 @@ describe('sub-loop no_match path — KB empty → handoff_humano', () => {
     })
     expect(outcome.status).toBe('no_match')
     if (outcome.status === 'no_match') {
+      // Plan 02 D-29: knowledgeQueried es nullable post-flat schema.
+      expect(outcome.knowledgeQueried).not.toBeNull()
       expect(outcome.knowledgeQueried).toBeDefined()
-      expect(outcome.knowledgeQueried.length).toBeGreaterThanOrEqual(1)
+      expect((outcome.knowledgeQueried ?? []).length).toBeGreaterThanOrEqual(1)
     }
   })
 })

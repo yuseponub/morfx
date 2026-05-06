@@ -1,7 +1,12 @@
 import { generateText, Output, stepCountIs } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { runWithPurpose, getCollector } from '@/lib/observability'
-import { LoopOutcomeSchema, type LoopOutcome, type SubLoopReason } from './output-schema'
+import {
+  LoopOutcomeSchema,
+  validateLoopOutcomeInvariants,
+  type LoopOutcome,
+  type SubLoopReason,
+} from './output-schema'
 import { buildSubLoopTools, type SubLoopToolsContext } from './tools'
 import { buildSubLoopPrompt } from './prompt'
 import { checkNuncaDecir } from './nunca-decir-check'
@@ -69,11 +74,49 @@ export async function runSubLoop(args: {
     })
   )
 
+  // D-29 post-hoc invariant validation — Plan 02 RE-SHAPE.
+  // The flat schema (no discriminated union) permite combinaciones inválidas
+  // que el shape previo no permitía: ej. status='canonical' con canonicalText=null.
+  // validateLoopOutcomeInvariants enforce las reglas semánticas que el schema flat
+  // no captura. Si la invariante se rompe → escalación suave a no_match (NO throw —
+  // consistent con D-57 handoff humano).
+  const invariantCheck = validateLoopOutcomeInvariants(output)
+  if (!invariantCheck.ok) {
+    getCollector()?.recordEvent(
+      'pipeline_decision',
+      'subloop_invariant_violation',
+      {
+        agent: SOMNIO_V4_AGENT_ID,
+        reason: args.reason,
+        violation: invariantCheck.violation ?? 'unknown',
+        rawStatus: output.status,
+      }
+    )
+    const escalated: LoopOutcome = {
+      status: 'no_match',
+      responseTemplate: 'handoff_humano',
+      canonicalText: null,
+      sourceTopic: null,
+      nuncaDecirRules: null,
+      knowledgeQueried: [],
+      requiresHuman: true,
+      reason: `invariant_violation: ${invariantCheck.violation ?? 'unspecified'}`,
+    }
+    return escalated
+  }
+
   // D-51: post-gen NUNCA-decir check solo en outcome 'canonical' (D-50 verbatim KB).
+  // Plan 02: tras flat schema canonicalText/sourceTopic son string|null. La
+  // invariante anterior ya garantizó non-null aquí (sin invariantCheck pasamos),
+  // por lo que es seguro asumir non-null. El non-null assertion (!) está
+  // protegido defensivamente — si en el futuro alguien remueve invariantCheck
+  // arriba, este bloque fallaría en runtime con un error claro.
   if (output.status === 'canonical') {
+    const canonicalText = output.canonicalText!
+    const sourceTopic = output.sourceTopic!
     const rules = output.nuncaDecirRules ?? []
     const check = await checkNuncaDecir({
-      candidateText: output.canonicalText,
+      candidateText: canonicalText,
       nuncaDecirRules: rules,
     })
     if (!check.ok) {
@@ -81,9 +124,12 @@ export async function runSubLoop(args: {
       const escalated: LoopOutcome = {
         status: 'no_match',
         responseTemplate: 'handoff_humano',
+        canonicalText: null,
+        sourceTopic: null,
+        nuncaDecirRules: null,
+        knowledgeQueried: [sourceTopic],
         requiresHuman: true,
         reason: `nunca_decir_violation: ${check.violation ?? 'unspecified'}`,
-        knowledgeQueried: [output.sourceTopic],
       }
       getCollector()?.recordEvent(
         'pipeline_decision',
@@ -91,7 +137,7 @@ export async function runSubLoop(args: {
         {
           agent: SOMNIO_V4_AGENT_ID,
           reason: args.reason,
-          sourceTopic: output.sourceTopic,
+          sourceTopic,
           violation: check.violation ?? null,
         }
       )

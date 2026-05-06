@@ -1,5 +1,5 @@
 import { generateText, Output, stepCountIs } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createOpenAI } from '@ai-sdk/openai'
 import { runWithPurpose, getCollector } from '@/lib/observability'
 import {
   LoopOutcomeSchema,
@@ -13,6 +13,31 @@ import { checkNuncaDecir } from './nunca-decir-check'
 import { SOMNIO_V4_AGENT_ID } from '../config'
 
 export type { SubLoopReason } from './output-schema'
+
+/**
+ * Lazy singleton — OpenAI client con key custom OPENAI_API_KEY_SALESV4 (D-30).
+ *
+ * El sufijo `_SALESV4` aísla esta key de la antigua OPENAI_API_KEY (KB sync,
+ * scopes restringidos), que sigue intacta para otros consumidores. Usar
+ * `createOpenAI({ apiKey })` en vez del default `openai()` (que auto-lee
+ * `OPENAI_API_KEY`) garantiza el aislamiento.
+ *
+ * Lazy para evitar leer env var en cold-boot si el sub-loop no se invoca en
+ * un lambda cycle determinado (D-01: sub-loop solo dispara bajo triggers D-02).
+ */
+let openaiClient: ReturnType<typeof createOpenAI> | null = null
+function getOpenAI() {
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY_SALESV4
+    if (!apiKey) {
+      throw new Error(
+        '[somnio-v4 sub-loop] OPENAI_API_KEY_SALESV4 not set — required for sub-loop (D-30 Plan 05)',
+      )
+    }
+    openaiClient = createOpenAI({ apiKey })
+  }
+  return openaiClient
+}
 
 /**
  * Contexto que el caller del sub-loop debe pasar.
@@ -30,7 +55,10 @@ export interface SubLoopContext extends SubLoopToolsContext {
  * Entrypoint del sub-loop AI SDK v6 (D-01, D-09, D-62).
  *
  * - D-01: solo se invoca bajo triggers D-02. NO es el path por defecto.
- * - D-09: Haiku, 3-5 tools por reason, stopWhen=stepCountIs(4), latencia ~600ms-1.5s.
+ * - D-09 (post-D-30 swap): GPT-4o mini, 3-5 tools por reason,
+ *   stopWhen=stepCountIs(4), latencia ~600ms-1.5s. Plan 05 migró de Haiku 4.5 a
+ *   GPT-4o mini porque Gemini API NO soporta tools + Output.object combinados
+ *   (RESEARCH H-2) y GPT-4o mini es la única option viable para esa combinación.
  * - D-62: output ESTRICTAMENTE LoopOutcome (template / canonical / no_match) — sin
  *         texto libre. ENFORCED por `Output.object({ schema: LoopOutcomeSchema })`,
  *         NO por toolChoice — see RESEARCH §Pattern 2 line 406. `toolChoice='required'`
@@ -56,7 +84,7 @@ export async function runSubLoop(args: {
 
   const { output } = await runWithPurpose('subloop', () =>
     generateText({
-      model: anthropic('claude-haiku-4-5-20251001'),
+      model: getOpenAI()('gpt-4o-mini'),
       system: buildSubLoopPrompt(args.reason),
       messages: [
         ...args.ctx.recentMessages.map((m) => ({ role: m.role, content: m.content })),

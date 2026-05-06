@@ -6,6 +6,7 @@
  */
 
 export { UnifiedEngine } from './unified-engine'
+export { V4ProductionRunner } from './v4-production-runner'
 
 export type {
   EngineInput,

@@ -1,49 +1,47 @@
 /**
  * Somnio Sales Agent v4 — Comprehension Layer (Capa 2)
  *
- * Single Claude call with structured output.
+ * Single LLM call con structured output via AI SDK v6.
  * Extracts intent, data fields, classification, and negations.
  *
- * Uses claude-haiku-4-5 for cost efficiency (~$0.001/call).
- * Prompt caching via cache_control on the system prompt.
+ * **Stack mixto post-Plan 05 (D-30):** Gemini 2.5 Flash-Lite (~$0.0001/call,
+ * ~14x más barato que Haiku 4.5). RESEARCH 5/5 match con Plan 12.1 calibration —
+ * D-12 NO necesaria (re-calibración no requerida).
  *
- * Standalone: somnio-sales-v4
- * Cloned mecánicamente desde somnio-v3/comprehension.ts (D-24).
+ * Standalone: somnio-sales-v4-runtime-wiring / Plan 05.
  *
  * EXTENSIÓN v4 (D-68):
  *   Observability emit incluye agent='somnio-sales-v4' + intent_confidence +
  *   intent_confidence_reasoning. threshold + scaledToSubLoop quedan en null —
  *   los completa el orquestador en Plan 07 (lee platform_config.somnio_v4_low_confidence_threshold).
  *
- * Anti-patterns (RESEARCH "stay raw" + Pitfall 4):
- *   - NO migrar a AI SDK v6 generateText — preserva @anthropic-ai/sdk con zodOutputFormat.
- *   - NO skip parseAnalysis sanitization fallback — Haiku ocasionalmente emite intents
- *     fuera del enum; v4 mapea a 'otro' (D-69 sumidero por construcción).
- *   - temperature=0 preservada (default Anthropic).
+ * Anti-patterns (post-RESEARCH H-2 + H-3):
+ *   - NO Anthropic SDK directo (RESEARCH H-2: AI SDK + Anthropic rechaza min/max en number).
+ *     El "stay raw" del Plan 12.1 padre asumía que Anthropic SDK directo era la única vía
+ *     portable; eso era cierto SOLO mientras el provider era Anthropic. Cambio a Gemini
+ *     permite migrar a AI SDK v6 (Pitfall 4 inverted).
+ *   - NO mock provider — runtime real Gemini API (env var GOOGLE_GENERATIVE_AI_API_KEY).
+ *   - NO modificar comprehension-schema.ts ni comprehension-prompt.ts (D-25 lockea Plan 12.1).
+ *   - NO recalibrar few-shot (D-12 — Plan 12.1 funciona en Gemini sin ajuste).
+ *   - NO triple-fallback (W-4): el patrón canónico es `output: Output.object(...)`
+ *     + `result.output` directo, validado por research-scripts/test-comprehension.ts.
+ *     No defensive chaining sobre fields del result (ej. exp-output / parsed / text).
+ *     Si AI SDK cambia la API, fallará en compile/runtime de forma dirigida y se
+ *     arregla puntualmente.
+ *   - NO type-assertion cast defensivo en `result.output` (el tipo se infiere del schema).
+ *   - NO skip parseAnalysis sanitization fallback — Gemini ocasionalmente puede emitir
+ *     intents fuera del enum; v4 mapea a 'otro' (D-69 sumidero por construcción).
+ *   - temperature=0 preservada (default Gemini para JSON-schema output).
  */
 
-import type Anthropic from '@anthropic-ai/sdk'
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
-import { createInstrumentedAnthropic } from '@/lib/observability/anthropic-instrumented'
+import { generateText, Output } from 'ai'
+import { google } from '@ai-sdk/google'
 import { runWithPurpose, getCollector } from '@/lib/observability'
 import { MessageAnalysisSchema, type MessageAnalysis } from './comprehension-schema'
 import { buildSystemPrompt } from './comprehension-prompt'
 import { V4_INTENTS } from './constants'
 
 const V4_INTENTS_SET = new Set<string>(V4_INTENTS)
-
-// ============================================================================
-// Client Singleton
-// ============================================================================
-
-let client: Anthropic | null = null
-
-function getClient(): Anthropic {
-  if (!client) {
-    client = createInstrumentedAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  }
-  return client
-}
 
 // ============================================================================
 // Comprehension Function
@@ -55,7 +53,7 @@ export interface ComprehensionResult {
 }
 
 /**
- * Analyze a customer message using Claude structured output.
+ * Analyze a customer message using Gemini Flash-Lite structured output.
  *
  * @param message - Current customer message
  * @param history - Conversation history (last N turns)
@@ -69,38 +67,32 @@ export async function comprehend(
   existingData: Record<string, string>,
   recentBotMessages: string[] = [],
 ): Promise<ComprehensionResult> {
-  const anthropic = getClient()
-
-  const messages: Anthropic.MessageParam[] = [
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
     ...history.slice(-6).map(h => ({
-      role: h.role as 'user' | 'assistant',
+      role: h.role,
       content: h.content,
     })),
     { role: 'user', content: message },
   ]
 
-  const response = await runWithPurpose('comprehension', () =>
-    anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      system: [{
-        type: 'text',
-        text: buildSystemPrompt(existingData, recentBotMessages),
-        cache_control: { type: 'ephemeral' },
-      }],
+  const result = await runWithPurpose('comprehension', () =>
+    generateText({
+      model: google('gemini-2.5-flash-lite'),
+      system: buildSystemPrompt(existingData, recentBotMessages),
       messages,
-      output_config: { format: zodOutputFormat(MessageAnalysisSchema) },
+      output: Output.object({ schema: MessageAnalysisSchema }),
     })
   )
 
-  const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0)
+  // Canonical access path — validado por research-scripts/test-comprehension.ts (W-4):
+  // `result.output` es la instancia parseada del schema (typed por z.infer<MessageAnalysisSchema>).
+  // Sin fallbacks defensivos: si AI SDK cambia el shape en upgrade, fallará dirigido.
+  // Re-serialize → parseAnalysis para preservar la pipeline de sanitization (D-69) que
+  // mapea intents fuera del enum a 'otro' antes de retornar al consumer.
+  const analysis = parseAnalysis(JSON.stringify(result.output))
 
-  const textBlock = response.content.find(b => b.type === 'text')
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('[Comprehension-v4] No text content in Claude response')
-  }
-
-  const analysis = parseAnalysis(textBlock.text)
+  const tokensUsed =
+    (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0)
 
   // D-68: observability completa de comprehension.
   // threshold + scaledToSubLoop son null aquí — los rellena el orquestador (Plan 07)
@@ -116,7 +108,9 @@ export async function comprehend(
     scaledToSubLoop: null,  // Plan 07 decide
     category: analysis.classification.category,
     sentiment: analysis.classification.sentiment,
-    fieldsExtracted: Object.keys(analysis.extracted_fields).filter(k => analysis.extracted_fields[k as keyof typeof analysis.extracted_fields] !== null),
+    fieldsExtracted: Object.keys(analysis.extracted_fields).filter(
+      k => analysis.extracted_fields[k as keyof typeof analysis.extracted_fields] !== null
+    ),
     tokensUsed,
   })
 
@@ -132,7 +126,7 @@ function parseAnalysis(rawText: string): MessageAnalysis {
   try {
     raw = JSON.parse(rawText)
   } catch {
-    throw new Error(`[Comprehension-v4] Invalid JSON from Claude: ${rawText.slice(0, 200)}`)
+    throw new Error(`[Comprehension-v4] Invalid JSON from Gemini: ${rawText.slice(0, 200)}`)
   }
 
   // 1. Try strict parse

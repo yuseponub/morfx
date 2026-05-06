@@ -1,5 +1,5 @@
 import { generateText, Output } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { google } from '@ai-sdk/google'
 import { z } from 'zod'
 import { runWithPurpose } from '@/lib/observability'
 
@@ -9,9 +9,11 @@ const CheckSchema = z.object({
 })
 
 /**
- * D-51: post-gen check Haiku que valida si `candidateText` viola alguna regla "NUNCA decir".
+ * D-51: post-gen check Gemini Flash-Lite que valida si `candidateText` viola alguna regla "NUNCA decir".
+ * D-30 (Plan 05): migrado de Haiku 4.5 a Gemini Flash-Lite — schema simple sin tools,
+ *   Gemini ~4x más barato y CheckSchema 2/2 match en RESEARCH §CheckSchema results.
  * D-50: solo se invoca en outcomes 'canonical' del sub-loop (verbatim del KB).
- * Latencia ~150ms (toma sólo si hay rules; early-return si vacío).
+ * Latencia ~150ms-500ms (toma sólo si hay rules; early-return si vacío).
  *
  * Early-return cuando `nuncaDecirRules` está vacío — no consume tokens innecesarios.
  *
@@ -31,7 +33,7 @@ export async function checkNuncaDecir(args: {
 
   const { output } = await runWithPurpose('subloop_nunca_decir', () =>
     generateText({
-      model: anthropic('claude-haiku-4-5-20251001'),
+      model: google('gemini-2.5-flash-lite'),
       system:
         'You are a content compliance checker. Return whether the candidate text violates any of the given rules.',
       messages: [

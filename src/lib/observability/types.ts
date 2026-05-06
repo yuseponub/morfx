@@ -37,6 +37,7 @@ export type AgentId =
   | 'somnio-recompra'
   | 'somnio-recompra-v1'
   | 'somnio-v2'
+  | 'somnio-sales-v4' // Standalone: somnio-sales-v4-runtime-wiring (Plan 04, D-1)
   | 'crm-reader'
   | 'crm-writer'
 

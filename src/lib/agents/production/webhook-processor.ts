@@ -816,6 +816,41 @@ export async function processMessageWithAgent(
         contactId,
       })
       logger.info({ conversationId, agentId }, 'GoDentist FB/IG sibling processing complete')
+    } else if (agentId === 'somnio-sales-v4') {
+      // Standalone: somnio-sales-v4-runtime-wiring (Plan 04, D-1, D-13, D-15)
+      // V4 path — uses V4ProductionRunner clonado de V3 (D-13).
+      // Anti-Pitfall 2 / B-001 cold-lambda race: double pre-warm
+      //   (1) Promise.all top (línea ~231) ya importa '../somnio-v4'.
+      //   (2) await import('../somnio-v4') aquí dentro del branch garantiza
+      //       que agentRegistry.register(somnioV4Config) (side-effect de
+      //       src/lib/agents/somnio-v4/index.ts) esté hidratado antes de
+      //       instanciar el runner. DYNAMIC IMPORT ONLY — consistente con
+      //       godentist-fb-ig precedent. NO static `import { V4ProductionRunner }
+      //       from '../engine/v4-production-runner'` al top-level del archivo.
+      await import('../somnio-v4')
+      const { V4ProductionRunner } = await import('../engine/v4-production-runner')
+      const runner = new V4ProductionRunner(adapters, { workspaceId, agentModule: 'somnio-v4' })
+
+      // D-10, D-12: capture responder BEFORE processMessage (set-before-run).
+      getCollector()?.setRespondingAgentId('somnio-sales-v4')
+
+      engineOutput = await runner.processMessage({
+        sessionId: '',
+        conversationId,
+        contactId: contactId!,
+        message: messageContent,
+        workspaceId,
+        history: [],
+        phoneNumber: phone,
+        messageTimestamp: input.messageTimestamp,
+      })
+
+      getCollector()?.recordEvent('pipeline_decision', 'webhook_agent_routed', {
+        agentId,
+        conversationId,
+        contactId,
+      })
+      logger.info({ conversationId, agentId }, 'V4 agent processing complete')
     } else {
       // V1 path — unchanged (default)
       await import('../somnio')

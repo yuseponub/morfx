@@ -125,6 +125,26 @@ export async function POST(request: NextRequest) {
     }
 
     // ================================================================
+    // V4 Agent: separate engine, completely isolated from v1/v2/v3/recompra
+    // Standalone: somnio-sales-v4-runtime-wiring / Plan 03 (D-1, D-19)
+    // Dynamic import — evita carga del agentRegistry de v4 en cold-start
+    // cuando agentId !== 'somnio-sales-v4'.
+    // ================================================================
+    if (agentId === 'somnio-sales-v4') {
+      const { SomnioV4Engine } = await import('@/lib/agents/somnio-v4/engine-v4')
+      const v4Engine = new SomnioV4Engine()
+      const v4Result = await v4Engine.processMessage({
+        message,
+        state,
+        history: history ?? [],
+        turnNumber: turnNumber ?? 1,
+        workspaceId: workspaceId ?? 'sandbox-workspace',
+        systemEvent,
+      })
+      return NextResponse.json(v4Result)
+    }
+
+    // ================================================================
     // V1 Agent: existing UnifiedEngine (unchanged)
     // ================================================================
 

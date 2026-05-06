@@ -20,8 +20,9 @@
  *   keys for parity. Si v3 sessions se cierran al flip — D-38 padre — v4 arranca con
  *   sessions nuevas y los keys nuevos son irrelevantes).
  * - Path A / Path B interruption handling clonado verbatim.
- * - NoRepetitionFilter wiring con flag `USE_NO_REPETITION` (Plan 06 lo refactoriza
- *   a `USE_NO_REPETITION_V4` — D-16).
+ * - NoRepetitionFilter wiring con flag `USE_NO_REPETITION_V4` (D-16 — flag separado
+ *   de v3 prod, default OFF). Filter aplica a TODOS los templates emitidos en el turn
+ *   (response-track + sub-loop template_match merged en `output.templates`) — D-17.
  *
  * Interruption handling (mirrors sandbox Path A / Path B):
  * - Path A (0 templates sent): discard turn, rollback intents_vistos, save pending
@@ -266,10 +267,12 @@ export class V4ProductionRunner {
       if (output.templates && output.templates.length > 0) {
         let templatesToSend: ProcessedMessage[] = output.templates
 
-        // No-repetition filter (if USE_NO_REPETITION=true)
-        // NOTE: Plan 06 (D-16) refactoriza este flag a `USE_NO_REPETITION_V4`. Por ahora
-        // se preserva el flag legacy para mantener clone fidelity con v3.
-        if (process.env.USE_NO_REPETITION === 'true') {
+        // No-repetition filter (if USE_NO_REPETITION_V4=true)
+        // D-16: flag separado v4 (no compartir con v3 prod). Default OFF — activa SOLO
+        //       cuando futuro standalone decida turn ON el filter en v4. Plan 06.
+        // D-17: filter aplica a TODOS los templates emitidos en el turn (response-track +
+        //       outputs sub-loop template_match merged en `output.templates`).
+        if (process.env.USE_NO_REPETITION_V4 === 'true') {
           try {
             const { NoRepetitionFilter } = await import('../somnio/no-repetition-filter')
             const { buildOutboundRegistry } = await import('../somnio/outbound-registry')

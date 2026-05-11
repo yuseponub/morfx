@@ -63,6 +63,10 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
        - Nombre: `MorfX`
        - Distribution: **Custom distribution** (NO Public app — no queremos App Store)
        - URL de la app: `https://morfx.app`
+       - **CRITICAL (D-13 2026-05-12):** Custom distribution **bloqueará el install en cualquier tienda que no esté autorizada explícitamente** por vos. Inmediatamente después de crear la app, ir a Partner Dashboard → App distribution → MorfX → "Add stores" y autorizar:
+         - `6xvhnx-1v.myshopify.com` (tienda dev — Plan 07 smoke test)
+         - El dominio `<storename>.myshopify.com` de la tienda $65 USD productiva de Somnio (Plan 08 cutover)
+       - **Si una de estas dos no está autorizada al momento del OAuth, Shopify devolverá `application cannot be found` en vez del install prompt.** Es el causante #1 de bugs reportados en foros.
 
     2. Configuration → API access scopes → marcar exactamente estos 3 (NI UNO MÁS):
        - `read_orders`

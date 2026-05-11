@@ -45,7 +45,14 @@ Añadir a MorfX un flujo OAuth (Authorization Code Grant) que permita conectar t
 
 ### App Model
 
-- **D-01:** Crear UNA app compartida llamada "MorfX" en el Dev Dashboard de Shopify (cuenta del usuario / Somnio Colombia). Todas las tiendas Shopify (cualquier workspace de MorfX) instalan esa misma app. Credenciales (`Client ID`, `Client Secret`) se guardan en variables de entorno de Vercel (`SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET`). **Razón:** UX 1-click para conectar; arquitectura limpia para futuro escalamiento; aprovecha que MorfX es la plataforma central.
+- **D-01:** Crear UNA app llamada "MorfX" en el Dev Dashboard de Shopify (cuenta del usuario / Somnio Colombia). Credenciales (`Client ID`, `Client Secret`) se guardan en variables de entorno de Vercel (`SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET`). **Razón:** UX 1-click para conectar; aprovecha que MorfX es la plataforma central.
+
+- **D-13 (Distribution model — REVISIÓN 2026-05-12):** La app MorfX se registra como **Custom distribution**, **scope inicial = solo tiendas de Somnio Colombia**. Razón: Shopify prohíbe explícitamente que apps Custom se instalen en tiendas de merchants no relacionados ("Custom apps are not intended to be used by multiple merchants. Installing it on unrelated merchants' stores violates the API terms" — [Shopify dev docs](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method) + [forum oficial](https://community.shopify.dev/t/self-serve-installation-for-custom-non-public-shopify-apps/28011/1)). Crear N apps Custom (una por cliente) también es violación de ToS ("private public apps"). **Implicaciones:**
+  - El standalone shippea funcional **solo para Somnio** (resuelve el trigger original = cambiar la tienda $65 USD por la nueva Basic).
+  - Workspaces no-Somnio que intenten conectar Shopify: el OAuth flow se inicia pero Shopify rechazará el install porque la tienda no está autorizada en Custom distribution. El error UX se cubre con D-12 (`reason=shopify_error`).
+  - Multi-tenant SaaS (otros clientes MorfX con Shopify) queda **deferred** a un standalone futuro `shopify-public-app-distribution` que requerirá App Store review (semanas, branding, demo video, etc.).
+  - **Decisión locked vía Shopify Settings:** "You can't change the distribution method after you select it." Si en el futuro se necesita Public app, será una NUEVA app del Dev Dashboard, no esta. **Razón:** ship rápido del problema operativo de Somnio HOY sin bloquearse meses por App Store review.
+  - **Anula la promesa de D-01 original** ("todas las tiendas Shopify de cualquier workspace de MorfX instalan esa misma app"). D-01 quedó simplificada para reflejar el alcance real.
 
 ### Multi-store
 
@@ -158,8 +165,8 @@ Añadir a MorfX un flujo OAuth (Authorization Code Grant) que permita conectar t
 
 - **Multi-tienda por workspace** — si en futuro se quieren 2+ Shopifys en el mismo workspace, requiere: quitar UNIQUE, refactor UI a lista de tiendas, lógica de dedupe SKU/contactos, decidir qué tienda "ownéa" cada pedido. Standalone separado.
 - **Token rotation UI** — botón "Renovar token" que dispare OAuth re-install. Útil si Shopify rota credenciales o el usuario revoca permisos. Standalone separado.
-- **App pública en Shopify App Store** — convertir la app MorfX en una app pública listada en el App Store de Shopify (para que cualquier merchant la encuentre). Requiere app review de Shopify, branding, screenshots, etc. Mucho más allá de este scope.
-- **Soporte multi-tenant SaaS** — para que clientes externos de MorfX usen sus propias apps de Shopify (en vez de la compartida MorfX). Implica refactor de auth model para soportar credentials per-workspace + per-app. No necesario para uso actual.
+- **App pública en Shopify App Store** (PROMOVIDO 2026-05-12 a "futuro standalone obligatorio si llega cliente nuevo con Shopify"): convertir la app MorfX en una app pública listada en el App Store de Shopify. **Es la única vía que Shopify autoriza** para multi-merchant (D-13). Requiere app review (semanas/meses), branding, screenshots, demo video, security questionnaire. Cuando llegue el primer cliente MorfX no-Somnio que necesite Shopify, se abre el standalone `shopify-public-app-distribution`.
+- **Soporte multi-tenant SaaS sin Public app** — DESCARTADO. Shopify prohíbe explícitamente "N apps Custom, una por cliente" como violación de ToS ("private public apps"). La única vía técnica + legal es Public app (ver punto anterior).
 - **Upgrade API version** — pasar de `2024-01` a `2025-x` o más reciente. Requiere validar que los webhook payloads y los endpoints REST/GraphQL sigan compatibles con el código actual. Riesgoso, mejor en standalone aparte.
 
 ---

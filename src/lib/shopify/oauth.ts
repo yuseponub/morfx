@@ -1,0 +1,441 @@
+// ============================================================================
+// Shopify OAuth Primitives (Standalone shopify-dev-dashboard-oauth)
+//
+// CRITICAL: This file is SEPARATE from src/lib/shopify/hmac.ts.
+//   - verifyOauthCallbackHmac (here): HEX digest over sorted query params (OAuth)
+//   - verifyShopifyHmac (hmac.ts):    BASE64 digest over raw body  (webhook)
+//   These use DIFFERENT algorithms — DO NOT MERGE.
+//   See RESEARCH.md Pitfall 1 + Q4. Shopify docs quote:
+//     "The HMAC verification procedure for authorization code grant is
+//      different from the procedure for verifying webhooks."
+//
+// Runtime: this module uses node:crypto (createHmac, timingSafeEqual,
+//   randomUUID). The route handler that imports it MUST declare
+//   `export const runtime = 'nodejs'`. See RESEARCH.md Pitfall 5.
+//
+// Credentials (D-15 OVERRIDE):
+//   The 3 secrets (clientId, clientSecret, stateSecret) live in `platform_config`
+//   and are read via `getShopifyOAuthConfig()` (Plan 02). This module NEVER
+//   touches `process.env.SHOPIFY_*` — verifiable via:
+//     grep -E "process\.env\.SHOPIFY_(CLIENT|OAUTH)" src/lib/shopify/oauth.ts
+//     → must return 0 matches.
+//   All functions that need secrets are async and `await getShopifyOAuthConfig()`
+//   in their body (fail-CLOSED: helper THROWS if any credential is missing or weak).
+// ============================================================================
+
+import crypto from 'crypto'                  // project style — see hmac.ts:1 (NOT 'node:crypto')
+import { SignJWT, jwtVerify } from 'jose'    // first use of jose in src/ (already in package.json)
+
+import { getShopifyOAuthConfig } from './oauth-config'
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const ISSUER = 'morfx-shopify-oauth'
+const TTL_SECONDS = 600 // 10 minutes (D-08)
+
+// ============================================================================
+// State JWT primitives (D-08)
+// ============================================================================
+
+/**
+ * Payload carried in the `state` query parameter across the OAuth redirect.
+ *
+ * Why JWT (vs random nonce + DB lookup): the Shopify callback arrives
+ * cross-origin without our cookies — we cannot read `morfx_workspace`. The
+ * signed JWT carries the workspace_id self-contained, with a 10-min `exp`
+ * making it stateless and replay-resistant inside the TTL window.
+ *
+ * `nonce` makes each token globally unique (future replay-blacklist hook).
+ */
+export interface StatePayload {
+  workspaceId: string
+  userId: string
+  nonce: string
+}
+
+/**
+ * Generates a cryptographically random nonce for the state JWT payload.
+ * Wraps `crypto.randomUUID()` (Node 20+).
+ */
+export function generateNonce(): string {
+  return crypto.randomUUID()
+}
+
+/**
+ * Signs a `StatePayload` into a compact JWS using HS256.
+ *
+ * Reads `stateSecret` via `getShopifyOAuthConfig()` (D-15 fail-CLOSED). The
+ * helper throws if the secret is missing or shorter than 32 chars (RFC 7518
+ * §3.2 minimum for HS256), so this function propagates that error to its
+ * caller. The error message NEVER contains the secret value.
+ *
+ * Token shape:
+ *   header  = { alg: 'HS256' }
+ *   payload = { workspaceId, userId, nonce, iss, sub: workspaceId, iat, exp }
+ */
+export async function signStateJwt(payload: StatePayload): Promise<string> {
+  const { stateSecret } = await getShopifyOAuthConfig()
+  const key = new TextEncoder().encode(stateSecret)
+
+  return await new SignJWT({
+    workspaceId: payload.workspaceId,
+    userId: payload.userId,
+    nonce: payload.nonce,
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer(ISSUER)
+    .setSubject(payload.workspaceId)
+    .setIssuedAt()
+    .setExpirationTime(`${TTL_SECONDS}s`)
+    .sign(key)
+}
+
+/**
+ * Verifies a state JWT and returns the typed payload.
+ *
+ * Throws if:
+ *   - signature is invalid (wrong secret, tampered token)
+ *   - token is expired (>10 min since `signStateJwt`)
+ *   - issuer claim doesn't match `ISSUER`
+ *   - payload is missing any of `workspaceId`, `userId`, `nonce`
+ *
+ * The caller (Plan 05 callback) catches and maps to `reason=state_expired`
+ * (per D-12 — we treat all state failures uniformly to avoid leaking info
+ * about why validation failed).
+ */
+export async function verifyStateJwt(token: string): Promise<StatePayload> {
+  const { stateSecret } = await getShopifyOAuthConfig()
+  const key = new TextEncoder().encode(stateSecret)
+
+  const { payload } = await jwtVerify(token, key, { issuer: ISSUER })
+  // jose throws if exp expired or signature invalid; reaching here = valid
+
+  if (!payload.workspaceId || !payload.userId || !payload.nonce) {
+    throw new Error('state-malformed')
+  }
+
+  return {
+    workspaceId: String(payload.workspaceId),
+    userId: String(payload.userId),
+    nonce: String(payload.nonce),
+  }
+}
+
+// ============================================================================
+// Scopes (D-14: corrected list — write_webhooks does NOT exist)
+// ============================================================================
+
+/**
+ * OAuth scopes solicitados al merchant en el authorize URL (D-14).
+ *
+ * - `read_orders`        — leer pedidos + recibir webhooks `orders/*`
+ * - `read_customers`     — leer datos del customer en orders/draft_orders
+ * - `read_draft_orders`  — recibir webhook `draft_orders/create` (Required per
+ *                          WebhookSubscriptionTopic GraphQL docs)
+ *
+ * NOTA HISTORICA (D-14 vs D-05):
+ *   `write_webhooks` apareció en RESEARCH original — **es incorrecto**, ese
+ *   scope no existe en Shopify. La creación de webhook subscriptions vía
+ *   Admin API NO requiere un scope dedicado; basta tener el `read_*` del
+ *   resource subscribed.
+ *
+ * Si Shopify retorna un subset de estos scopes en el token exchange, el
+ * caller (Plan 05) lo trata como `reason=denied` (Pitfall 2 scope drift).
+ */
+export const SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'read_draft_orders'] as const
+export type ShopifyScope = (typeof SHOPIFY_SCOPES)[number]
+
+// ============================================================================
+// HMAC validation (Pitfall 1 — HEX, NOT BASE64)
+// ============================================================================
+
+/**
+ * Verifies the HMAC of an OAuth callback redirect from Shopify.
+ *
+ * CRITICAL: This is DIFFERENT from `verifyShopifyHmac` (webhook HMAC) in
+ * `src/lib/shopify/hmac.ts`:
+ *   - OAuth callback HMAC: HEX digest over sorted query params (no URL encoding,
+ *     RAW values), excluding the `hmac` param itself.
+ *   - Webhook HMAC:        BASE64 digest over the raw request body.
+ *
+ * Algorithm per Shopify docs (verbatim from
+ *   https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
+ *   "The HMAC verification procedure for authorization code grant is
+ *    different from the procedure for verifying webhooks."):
+ *
+ *   1. Remove `hmac` from query params.
+ *   2. Sort the remaining params alphabetically by key.
+ *   3. Build message: `key1=value1&key2=value2&...` with RAW (decoded) values.
+ *      Do NOT use `URLSearchParams.toString()` — it re-encodes (Pitfall 6).
+ *   4. HMAC-SHA256(message, clientSecret) -> HEX digest.
+ *   5. Compare with the received `hmac` using `crypto.timingSafeEqual`
+ *      (constant-time, never `===` — Pitfall 1).
+ *
+ * @param params         All callback query params (already URL-decoded by Next.js).
+ * @param receivedHmac   Value of the `hmac` query param.
+ * @param clientSecret   Dev Dashboard Client Secret (read from platform_config
+ *                       via `getShopifyOAuthConfig()` upstream — passed as
+ *                       parameter so this function stays pure + testable).
+ * @returns true iff the HMAC is valid.
+ */
+export function verifyOauthCallbackHmac(
+  params: Record<string, string>,
+  receivedHmac: string,
+  clientSecret: string,
+): boolean {
+  // Step 1: Remove hmac from params (do not mutate original).
+  const filtered = { ...params }
+  delete filtered.hmac
+
+  // Step 2 + 3: Sort alphabetically and build message with RAW (decoded) values.
+  // CRITICAL (Pitfall 6): Do NOT use URLSearchParams.toString() — it re-encodes.
+  // The caller hands us already-decoded values from request.nextUrl.searchParams.
+  const message = Object.keys(filtered)
+    .sort()
+    .map((key) => `${key}=${filtered[key]}`)
+    .join('&')
+
+  // Step 4: HMAC-SHA256, HEX digest (Pitfall 1: NOT base64 — that's the webhook algorithm).
+  const computed = crypto
+    .createHmac('sha256', clientSecret)
+    .update(message, 'utf8')
+    .digest('hex')
+
+  // Step 5: Timing-safe comparison (Pitfall 1: never use ===).
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(computed, 'hex'),
+      Buffer.from(receivedHmac, 'hex'),
+    )
+  } catch {
+    // Mismatched lengths or invalid hex chars in receivedHmac.
+    return false
+  }
+}
+
+// ============================================================================
+// Authorize URL (consumed by server action in Plan 04)
+// ============================================================================
+
+/**
+ * Builds the Shopify authorize URL the merchant is redirected to in step 3
+ * of the flow (browser → Shopify admin).
+ *
+ * The `redirect_uri` param MUST exactly match (no trailing slash) what's
+ * configured in Dev Dashboard → app → Settings → Redirection URLs (Pitfall 10).
+ * The caller is responsible for building it consistently — typically:
+ *   `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/shopify/oauth/callback`
+ *
+ * `grant_options[]` is OMITTED → Shopify defaults to **offline** (non-expiring)
+ * access token (D-09).
+ *
+ * D-15 OVERRIDE: `clientId` is read from `platform_config` (NOT env vars).
+ * The function is `async` so it can `await getShopifyOAuthConfig()` — Plan 02
+ * helper throws if the credential is missing or weak.
+ */
+export async function buildAuthorizeUrl(opts: {
+  shop: string // pre-validated: ^[a-z0-9][a-z0-9-]*\.myshopify\.com$
+  state: string // signed state JWT
+  redirectUri: string // exact match with Dev Dashboard config (no trailing slash)
+}): Promise<string> {
+  const { clientId } = await getShopifyOAuthConfig()
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    scope: SHOPIFY_SCOPES.join(','),
+    redirect_uri: opts.redirectUri,
+    state: opts.state,
+    // grant_options[] OMITTED → offline (non-expiring) token by default (D-09)
+  })
+
+  return `https://${opts.shop}/admin/oauth/authorize?${params.toString()}`
+}
+
+// ============================================================================
+// Code → Token exchange (consumed by callback route in Plan 05)
+// ============================================================================
+
+/**
+ * Result of a successful exchange of `code` for an offline access token.
+ *
+ * `scope` is a comma-joined string returned verbatim by Shopify — pass to
+ * `detectScopeDrift` to detect when the merchant granted a subset of what
+ * we requested (Pitfall 2).
+ */
+export interface TokenExchangeResult {
+  accessToken: string
+  scope: string
+}
+
+/**
+ * Exchanges the authorization `code` (received in the callback redirect) for
+ * an offline access token.
+ *
+ * D-15 OVERRIDE: `clientId` + `clientSecret` are read from `platform_config`
+ * via `getShopifyOAuthConfig()` (Plan 02 helper, fail-CLOSED).
+ *
+ * D-09: the `expiring` param is OMITTED → Shopify returns a non-expiring
+ * offline token (the modern equivalent of the legacy `shpat_*`).
+ *
+ * THROWS on:
+ *   - non-2xx response from Shopify (network error, invalid code, etc.) —
+ *     error message includes status + first 200 chars of response body for
+ *     debugging. The body NEVER contains the secret (we send it; Shopify
+ *     does not echo it).
+ *   - 2xx response missing `access_token` field (defensive — never observed).
+ *
+ * The caller (Plan 05) catches and maps to `reason=shopify_error`.
+ */
+export async function exchangeCodeForToken(opts: {
+  shop: string
+  code: string
+}): Promise<TokenExchangeResult> {
+  const { clientId, clientSecret } = await getShopifyOAuthConfig()
+
+  const url = `https://${opts.shop}/admin/oauth/access_token`
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    code: opts.code,
+    // 'expiring' OMITTED → non-expiring offline token (D-09)
+  })
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '<no body>')
+    throw new Error(`shopify-token-exchange-failed:${res.status}:${text.slice(0, 200)}`)
+  }
+
+  const json = (await res.json()) as { access_token?: string; scope?: string }
+  if (!json.access_token) {
+    throw new Error('shopify-token-exchange-no-token')
+  }
+
+  return {
+    accessToken: json.access_token,
+    scope: json.scope ?? '',
+  }
+}
+
+/**
+ * Verifies that the scope returned by Shopify includes ALL required scopes.
+ * Returns the array of missing scopes (empty if all granted).
+ *
+ * Why needed (Pitfall 2): Shopify documents that the merchant can edit the
+ * `scope` query string mid-authorize and grant a subset of what the app
+ * requested. The token will still be valid, but our downstream API calls
+ * (e.g., `read_draft_orders` for the draft_orders/create webhook) will 403.
+ * We treat this as `reason=denied` — the merchant must restart the OAuth
+ * flow and grant all requested scopes.
+ *
+ * @param returnedScope  Comma-joined scopes from `TokenExchangeResult.scope`.
+ * @param required       The `SHOPIFY_SCOPES` tuple (or any subset).
+ * @returns Array of scopes that are required but were NOT granted.
+ */
+export function detectScopeDrift(
+  returnedScope: string,
+  required: readonly string[],
+): string[] {
+  const granted = new Set(returnedScope.split(',').map((s) => s.trim()))
+  return required.filter((s) => !granted.has(s))
+}
+
+// ============================================================================
+// Webhook auto-creation (D-04 — 3 topics, Pitfall 9 idempotency)
+// ============================================================================
+
+/** D-04: 3 webhook topics auto-creados post-OAuth */
+const WEBHOOK_TOPICS = ['orders/create', 'orders/updated', 'draft_orders/create'] as const
+
+/** D-06: API version literal (no upgrade in this standalone) */
+const SHOPIFY_API_VERSION = '2024-01'
+
+/**
+ * Result of attempting to create a single webhook subscription.
+ *
+ * `ok=true` covers both fresh creation (201) AND idempotent re-install
+ * (422 "address has already been taken" — Pitfall 9).
+ */
+export interface WebhookCreationResult {
+  topic: string
+  ok: boolean
+  status: number
+  error?: string
+}
+
+/**
+ * Creates the 3 webhook subscriptions in parallel after a successful OAuth.
+ *
+ * Why parallel (Promise.allSettled): one failed webhook does not block the
+ * others. The caller (Plan 05) logs each failure and CONTINUES the OAuth
+ * flow — webhooks can be retried by reconnecting; failing the whole OAuth
+ * over a transient webhook error would be worse UX.
+ *
+ * Idempotency (Pitfall 9): when the merchant disconnects and reconnects
+ * (D-03b), the old webhooks remain in Shopify (we don't DELETE on
+ * disconnect). Shopify rejects re-creation with 422 "address has already
+ * been taken" — we treat this as success (`ok=true`) so a clean reconnect
+ * doesn't surface a fake error.
+ *
+ * @param opts.shop          Validated shop domain `*.myshopify.com`.
+ * @param opts.accessToken   Offline access token from `exchangeCodeForToken`.
+ * @param opts.webhookUrl    URL Shopify will POST to. Typically:
+ *                           `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/shopify`
+ * @returns One result per topic in `WEBHOOK_TOPICS` order. Caller decides
+ *          whether any failure warrants UX/log surfacing.
+ */
+export async function createWebhooksAfterOauth(opts: {
+  shop: string
+  accessToken: string
+  webhookUrl: string
+}): Promise<WebhookCreationResult[]> {
+  const results = await Promise.allSettled(
+    WEBHOOK_TOPICS.map(async (topic): Promise<WebhookCreationResult> => {
+      const res = await fetch(
+        `https://${opts.shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Shopify-Access-Token': opts.accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            webhook: {
+              topic,
+              address: opts.webhookUrl,
+              format: 'json',
+            },
+          }),
+        },
+      )
+
+      // Pitfall 9: 422 "address has already been taken" = idempotent re-install,
+      // treat as success. Other 4xx/5xx = real failure.
+      const ok = res.ok || res.status === 422
+      let errorMsg: string | undefined
+      if (!ok) {
+        const text = await res.text().catch(() => '<no body>')
+        errorMsg = text.slice(0, 200)
+      }
+      return { topic, ok, status: res.status, error: errorMsg }
+    }),
+  )
+
+  return results.map((r, i): WebhookCreationResult =>
+    r.status === 'fulfilled'
+      ? r.value
+      : {
+          topic: WEBHOOK_TOPICS[i],
+          ok: false,
+          status: 0,
+          error: String(r.reason).slice(0, 200),
+        },
+  )
+}

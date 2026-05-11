@@ -130,11 +130,59 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return fail('state_expired', err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200))
   }
 
-  // ... Steps 4-10 added in subsequent tasks ...
+  // === Step 4: Owner re-check (defense in depth — user could be demoted mid-flow) ===
+  // The callback arrives cross-origin without cookies, so we cannot reuse the
+  // server-action auth gate (cookie + workspace_members lookup via SSR client).
+  // We use the admin client (RLS-bypass) ONLY to query workspace_members for the
+  // user/workspace pair encoded in the verified state JWT. NO writes here.
+  const adminSupabase = createAdminClient()
+  const { data: member, error: memberErr } = await adminSupabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', statePayload.workspaceId)
+    .eq('user_id', statePayload.userId)
+    .maybeSingle()
 
-  // TEMP placeholder for Task A verification — Tasks B/C/D replace this entire tail.
-  void statePayload
-  void code
+  if (memberErr) {
+    return fail('shopify_error', `owner-recheck: ${memberErr.message.slice(0, 200)}`)
+  }
+  if (!member || member.role !== 'owner') {
+    return fail(
+      'denied',
+      `user=${statePayload.userId.slice(0, 8)} no longer owner of workspace=${statePayload.workspaceId.slice(0, 8)}`,
+    )
+  }
+
+  // === Step 5: Exchange authorization code for offline access token ===
+  // exchangeCodeForToken throws on non-2xx, missing token, or network errors.
+  // The error message includes status + first 200 chars of response body for
+  // debugging — NEVER includes the secret (Shopify does not echo client_secret).
+  let tokenResult: { accessToken: string; scope: string }
+  try {
+    tokenResult = await exchangeCodeForToken({ shop, code })
+  } catch (err) {
+    return fail(
+      'shopify_error',
+      `token-exchange: ${err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200)}`,
+    )
+  }
+
+  // === Step 6: Scope drift detection (Pitfall 2) ===
+  // Shopify documents that the merchant can edit `scope` mid-authorize and grant
+  // a subset. The token would still work for granted scopes but our downstream
+  // (e.g. draft_orders/create webhook needs read_draft_orders) would 403.
+  // We treat scope drift as `reason=denied` — security: do not distinguish from
+  // outright denial so the UX is uniform (T-shopify-oauth-27).
+  const missingScopes = detectScopeDrift(tokenResult.scope, SHOPIFY_SCOPES)
+  if (missingScopes.length > 0) {
+    return fail('denied', `missing scopes: ${missingScopes.join(',')}`)
+  }
+
+  // ... Steps 7-10 added in subsequent tasks ...
+
+  // TEMP placeholder for Task B verification — Tasks C/D replace this entire tail.
+  void clientSecret
+  void tokenResult
   void startTime
-  return fail('shopify_error', 'pipeline incomplete (placeholder — Tasks B/C/D add steps 4-10)')
+  return fail('shopify_error', 'pipeline incomplete (placeholder — Tasks C/D add steps 7-10)')
 }

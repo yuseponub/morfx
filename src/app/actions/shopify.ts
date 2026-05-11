@@ -8,9 +8,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { testShopifyConnection, normalizeShopDomain, ConnectionTestResult } from '@/lib/shopify/connection-test'
 import { deleteShopifyIntegration as domainDeleteShopifyIntegration } from '@/lib/domain/integrations'
-import type { ShopifyIntegration, ShopifyConfig, IntegrationFormData } from '@/lib/shopify/types'
+import type { ShopifyIntegration } from '@/lib/shopify/types'
 import type { Pipeline, PipelineStage } from '@/lib/orders/types'
 import { cookies } from 'next/headers'
 
@@ -144,164 +143,21 @@ export async function getPipelinesForConfig(): Promise<Array<Pipeline & { stages
 // ============================================================================
 // WRITE OPERATIONS (Owner only)
 // ============================================================================
-
-/**
- * Tests Shopify connection without saving.
- * Can be called by any workspace member to preview connection.
- */
-export async function testConnection(formData: IntegrationFormData): Promise<ConnectionTestResult> {
-  // Validate required fields
-  if (!formData.shop_domain) {
-    return { success: false, error: 'Dominio de tienda requerido' }
-  }
-  if (!formData.access_token) {
-    return { success: false, error: 'Access Token requerido' }
-  }
-  if (!formData.api_secret) {
-    return { success: false, error: 'API Secret requerido' }
-  }
-
-  const normalized = normalizeShopDomain(formData.shop_domain)
-  if (!normalized) {
-    return { success: false, error: 'Dominio de tienda invalido' }
-  }
-
-  return testShopifyConnection(
-    normalized,
-    formData.access_token,
-    formData.api_secret
-  )
-}
-
-/**
- * Saves Shopify integration (create or update).
- * Only workspace Owner can perform this action.
- */
-export async function saveShopifyIntegration(formData: IntegrationFormData): Promise<{
-  success: boolean
-  error?: string
-  integration?: ShopifyIntegration
-}> {
-  const supabase = await createClient()
-  const adminSupabase = createAdminClient()
-
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, error: 'No autenticado' }
-  }
-
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { success: false, error: 'No hay workspace seleccionado' }
-  }
-
-  // Verify Owner role
-  const { data: member } = await supabase
-    .from('workspace_members')
-    .select('role')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!member || member.role !== 'owner') {
-    return { success: false, error: 'Solo el Owner puede configurar integraciones' }
-  }
-
-  // Validate required fields
-  if (!formData.shop_domain || !formData.access_token || !formData.api_secret) {
-    return { success: false, error: 'Todos los campos de credenciales son requeridos' }
-  }
-
-  if (!formData.default_pipeline_id || !formData.default_stage_id) {
-    return { success: false, error: 'Pipeline y etapa por defecto son requeridos' }
-  }
-
-  // Normalize shop domain
-  const normalizedDomain = normalizeShopDomain(formData.shop_domain)
-  if (!normalizedDomain) {
-    return { success: false, error: 'Dominio de tienda invalido' }
-  }
-
-  // Test connection before saving
-  const testResult = await testShopifyConnection(
-    normalizedDomain,
-    formData.access_token,
-    formData.api_secret
-  )
-
-  if (!testResult.success) {
-    return { success: false, error: testResult.error || 'Error de conexion' }
-  }
-
-  // Check if integration exists (read config to preserve auto_sync_orders)
-  const { data: existing } = await adminSupabase
-    .from('integrations')
-    .select('id, config')
-    .eq('workspace_id', workspaceId)
-    .eq('type', 'shopify')
-    .single()
-
-  // Build config object — preserve auto_sync_orders from existing config
-  const existingConfig = existing?.config as Record<string, unknown> | undefined
-  const config: ShopifyConfig = {
-    shop_domain: normalizedDomain,
-    access_token: formData.access_token,
-    api_secret: formData.api_secret,
-    default_pipeline_id: formData.default_pipeline_id,
-    default_stage_id: formData.default_stage_id,
-    enable_fuzzy_matching: formData.enable_fuzzy_matching ?? false,
-    product_matching: formData.product_matching ?? 'sku',
-    ...(existingConfig?.auto_sync_orders !== undefined && {
-      auto_sync_orders: existingConfig.auto_sync_orders as boolean,
-    }),
-  }
-
-  let integration: ShopifyIntegration
-
-  if (existing) {
-    // Update existing - don't change is_active (use toggle for that)
-    const { data: updated, error } = await adminSupabase
-      .from('integrations')
-      .update({
-        name: formData.name || `Shopify - ${testResult.shopName}`,
-        config,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existing.id)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error updating integration:', error)
-      return { success: false, error: 'Error al actualizar integracion' }
-    }
-    integration = updated as ShopifyIntegration
-  } else {
-    // Create new
-    const { data: created, error } = await adminSupabase
-      .from('integrations')
-      .insert({
-        workspace_id: workspaceId,
-        type: 'shopify',
-        name: formData.name || `Shopify - ${testResult.shopName}`,
-        config,
-        is_active: true,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating integration:', error)
-      return { success: false, error: 'Error al crear integracion' }
-    }
-    integration = created as ShopifyIntegration
-  }
-
-  return { success: true, integration }
-}
+//
+// NOTE: las funciones legacy `testConnection` + `saveShopifyIntegration` que
+// vivian aqui (acceso manual con shpat_/shpss_ pegados desde el form) fueron
+// eliminadas en el standalone shopify-dev-dashboard-oauth (Plan 06, D-03):
+//   - El flow OAuth (Plan 04 startShopifyOauth + Plan 05 callback) reemplaza
+//     ambos: el callback ya hace test-before-persist (Pattern G) y persiste
+//     via domain layer `upsertShopifyIntegration` (Regla 3, D-10).
+//   - El UI legacy (form de credenciales manuales) fue reemplazado por el
+//     branch DISCONNECTED de `shopify-form.tsx` (Plan 06).
+//
+// Las funciones GET (`getShopifyIntegration`, `getWebhookEvents`,
+// `getPipelinesForConfig`, `getIntegrationStatus`) y las MUTACIONES restantes
+// `toggleShopifyIntegration` (active/inactive) y `deleteShopifyIntegration`
+// permanecen porque siguen siendo invocadas desde la UI / callers existentes.
+// `deleteShopifyIntegration` ahora delega al domain layer (Regla 3, Plan 06).
 
 /**
  * Toggles integration active status.

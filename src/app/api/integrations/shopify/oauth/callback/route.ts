@@ -178,11 +178,67 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return fail('denied', `missing scopes: ${missingScopes.join(',')}`)
   }
 
-  // ... Steps 7-10 added in subsequent tasks ...
+  // === Step 7: Connection test (reuse existing connection-test, unchanged) ===
+  // Pattern G — Test Before Persist. Verify the offline access token actually
+  // works against /shop.json before writing it to the DB. Also retrieves the
+  // shop name we'll persist as integration label.
+  const testResult = await testShopifyConnection(shop, tokenResult.accessToken, clientSecret)
+  if (!testResult.success) {
+    return fail('shopify_error', `connection-test: ${(testResult.error ?? 'unknown').slice(0, 200)}`)
+  }
+  const shopName = testResult.shopName ?? shop
 
-  // TEMP placeholder for Task B verification — Tasks C/D replace this entire tail.
-  void clientSecret
-  void tokenResult
+  // === Step 8: Auto-create 3 webhooks (D-04 + Pattern 4 — failures NON-blocking) ===
+  // createWebhooksAfterOauth uses Promise.allSettled internally. One failed
+  // webhook does NOT fail the OAuth — the merchant can retry by reconnecting.
+  // Pitfall 9: 422 "address has already been taken" is treated as success
+  // (idempotent re-install when disconnect+reconnect — D-03b).
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const webhookUrl = `${baseUrl}/api/webhooks/shopify`
+  const webhookResults = await createWebhooksAfterOauth({
+    shop,
+    accessToken: tokenResult.accessToken,
+    webhookUrl,
+  })
+  for (const r of webhookResults) {
+    if (r.ok) {
+      console.log(`[oauth-callback] webhook ${r.topic} OK status=${r.status}`)
+    } else {
+      console.warn(
+        `[oauth-callback] webhook ${r.topic} FAILED status=${r.status} error=${(r.error ?? '').slice(0, 200)}`,
+      )
+    }
+  }
+
+  // === Step 9: Persist via domain layer (Regla 3, D-10) ===
+  // Open Question 8: persist `granted_scope` so future drift detection (e.g.
+  // background job) can compare against SHOPIFY_SCOPES.join(',').
+  // `apiSecret: clientSecret` because the existing webhook handler reads
+  // `integrations.config.api_secret` to verify HMAC of inbound webhooks
+  // (src/app/api/webhooks/shopify/route.ts) — same Dev Dashboard secret.
+  const upsertResult = await upsertShopifyIntegration(
+    {
+      workspaceId: statePayload.workspaceId,
+      source: 'oauth-callback',
+      actorId: statePayload.userId,
+      actorLabel: `user:${statePayload.userId.slice(0, 8)}`,
+    },
+    {
+      shopDomain: shop,
+      accessToken: tokenResult.accessToken,
+      apiSecret: clientSecret,
+      shopName,
+      grantedScope: tokenResult.scope,
+    },
+  )
+  if (!upsertResult.success) {
+    return fail('shopify_error', `domain-upsert: ${(upsertResult.error ?? 'unknown').slice(0, 200)}`)
+  }
+
+  // ... Step 10 added in next task ...
+
+  // TEMP placeholder for Task C verification — Task D replaces this tail.
   void startTime
-  return fail('shopify_error', 'pipeline incomplete (placeholder — Tasks C/D add steps 7-10)')
+  void webhookResults
+  return fail('shopify_error', 'pipeline incomplete (placeholder — Task D adds step 10)')
 }

@@ -252,3 +252,98 @@ export async function buildAuthorizeUrl(opts: {
 
   return `https://${opts.shop}/admin/oauth/authorize?${params.toString()}`
 }
+
+// ============================================================================
+// Code → Token exchange (consumed by callback route in Plan 05)
+// ============================================================================
+
+/**
+ * Result of a successful exchange of `code` for an offline access token.
+ *
+ * `scope` is a comma-joined string returned verbatim by Shopify — pass to
+ * `detectScopeDrift` to detect when the merchant granted a subset of what
+ * we requested (Pitfall 2).
+ */
+export interface TokenExchangeResult {
+  accessToken: string
+  scope: string
+}
+
+/**
+ * Exchanges the authorization `code` (received in the callback redirect) for
+ * an offline access token.
+ *
+ * D-15 OVERRIDE: `clientId` + `clientSecret` are read from `platform_config`
+ * via `getShopifyOAuthConfig()` (Plan 02 helper, fail-CLOSED).
+ *
+ * D-09: the `expiring` param is OMITTED → Shopify returns a non-expiring
+ * offline token (the modern equivalent of the legacy `shpat_*`).
+ *
+ * THROWS on:
+ *   - non-2xx response from Shopify (network error, invalid code, etc.) —
+ *     error message includes status + first 200 chars of response body for
+ *     debugging. The body NEVER contains the secret (we send it; Shopify
+ *     does not echo it).
+ *   - 2xx response missing `access_token` field (defensive — never observed).
+ *
+ * The caller (Plan 05) catches and maps to `reason=shopify_error`.
+ */
+export async function exchangeCodeForToken(opts: {
+  shop: string
+  code: string
+}): Promise<TokenExchangeResult> {
+  const { clientId, clientSecret } = await getShopifyOAuthConfig()
+
+  const url = `https://${opts.shop}/admin/oauth/access_token`
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    code: opts.code,
+    // 'expiring' OMITTED → non-expiring offline token (D-09)
+  })
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '<no body>')
+    throw new Error(`shopify-token-exchange-failed:${res.status}:${text.slice(0, 200)}`)
+  }
+
+  const json = (await res.json()) as { access_token?: string; scope?: string }
+  if (!json.access_token) {
+    throw new Error('shopify-token-exchange-no-token')
+  }
+
+  return {
+    accessToken: json.access_token,
+    scope: json.scope ?? '',
+  }
+}
+
+/**
+ * Verifies that the scope returned by Shopify includes ALL required scopes.
+ * Returns the array of missing scopes (empty if all granted).
+ *
+ * Why needed (Pitfall 2): Shopify documents that the merchant can edit the
+ * `scope` query string mid-authorize and grant a subset of what the app
+ * requested. The token will still be valid, but our downstream API calls
+ * (e.g., `read_draft_orders` for the draft_orders/create webhook) will 403.
+ * We treat this as `reason=denied` — the merchant must restart the OAuth
+ * flow and grant all requested scopes.
+ *
+ * @param returnedScope  Comma-joined scopes from `TokenExchangeResult.scope`.
+ * @param required       The `SHOPIFY_SCOPES` tuple (or any subset).
+ * @returns Array of scopes that are required but were NOT granted.
+ */
+export function detectScopeDrift(
+  returnedScope: string,
+  required: readonly string[],
+): string[] {
+  const granted = new Set(returnedScope.split(',').map((s) => s.trim()))
+  return required.filter((s) => !granted.has(s))
+}
+

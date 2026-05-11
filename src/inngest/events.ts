@@ -887,10 +887,42 @@ export type V4KnowledgeSyncEvents = {
   }
 }
 
+// ============================================================================
+// BOLD Robot Events (Standalone: bold-auth0-migration — D-07)
+// ============================================================================
+
 /**
- * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + v4 timer + recompra preload + pw-confirmation preload-and-invoke + v4 knowledge sync).
+ * BOLD robot telemetry events.
+ *
+ * Fired from `src/lib/bold/client.ts recordFailureAndMaybeAlert` when the
+ * callBoldRobot fails 3+ consecutive times with an error matching
+ * REGRESSION_SIGNATURES (Auth0 widget locator timeout / login falló / MFA /
+ * sigue en auth.bold.co — symptoms of upstream BOLD login changes).
+ *
+ * Consumed by `src/inngest/functions/bold-upstream-broken.ts` which writes
+ * a row to `agent_observability_events` (event_type='bold_robot_upstream_broken')
+ * so the operator sees the alert in the dashboard within minutes.
+ *
+ * Single-flight via concurrency: [{ limit: 1 }] — the upstream regression is
+ * global (single-tenant BOLD setup), not per-tenant.
+ *
+ * Standalone: bold-auth0-migration / Plan 03.
  */
-export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & V4TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents & V4KnowledgeSyncEvents
+export type BoldRobotEvents = {
+  'bold-robot/upstream-broken': {
+    data: {
+      consecutiveFailures: number
+      lastErrorMessage: string
+      workspaceId: string
+      detectedAt: string  // ISO timestamp
+    }
+  }
+}
+
+/**
+ * All agent-related events (base + ingest + automation + robot + godentist + v3 timer + v4 timer + recompra preload + pw-confirmation preload-and-invoke + v4 knowledge sync + bold robot).
+ */
+export type AllAgentEvents = AgentEvents & IngestEvents & AutomationEvents & RobotEvents & GodentistEvents & V3TimerEvents & V4TimerEvents & RecompraPreloadEvents & PwConfirmationPreloadAndInvokeEvents & V4KnowledgeSyncEvents & BoldRobotEvents
 
 /**
  * Type helper for extracting event data by name

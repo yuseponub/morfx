@@ -177,6 +177,7 @@ export async function createPaymentLinkAction(input: {
       amount: input.amount,
       description: input.description.trim(),
       ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
+      workspaceId: ctx.workspaceId,
     })
 
     return { success: true, url: result.url }

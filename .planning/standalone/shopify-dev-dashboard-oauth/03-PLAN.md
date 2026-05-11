@@ -14,7 +14,7 @@ must_haves:
     - "Existe `src/lib/shopify/oauth.ts` con: `SHOPIFY_SCOPES`, `signStateJwt`, `verifyStateJwt`, `generateNonce`, `verifyOauthCallbackHmac`, `buildAuthorizeUrl`, `exchangeCodeForToken`, `detectScopeDrift`, `createWebhooksAfterOauth`"
     - "`verifyOauthCallbackHmac` usa HEX digest (NO base64) sobre query params sorted alphabetically, RAW values, excluyendo `hmac` (Pitfall 1)"
     - "`verifyOauthCallbackHmac` usa `crypto.timingSafeEqual` (Pitfall 1 + best practice)"
-    - "`SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'write_webhooks']` exportado como const tuple"
+    - "`SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'read_draft_orders']` exportado como const tuple"
     - "`getStateSecret()` throws si `SHOPIFY_OAUTH_STATE_SECRET` está vacío o tiene <32 chars (Assumption A2)"
     - "`createWebhooksAfterOauth` trata 422 como success (idempotency, Pitfall 9)"
     - "Module está separado de `src/lib/shopify/hmac.ts` (que sigue intacto para webhooks)"
@@ -67,7 +67,7 @@ Output: módulo standalone funcional. Plan 04 + Plan 05 lo consumen en Wave 2.
 ```typescript
 // Module exports (signatures the executor MUST produce verbatim or near-verbatim):
 
-export const SHOPIFY_SCOPES: readonly ['read_orders', 'read_customers', 'write_webhooks']
+export const SHOPIFY_SCOPES: readonly ['read_orders', 'read_customers', 'read_draft_orders']
 export type ShopifyScope = typeof SHOPIFY_SCOPES[number]
 
 export interface StatePayload {
@@ -269,7 +269,7 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string, apiSecret
     1. **`SHOPIFY_SCOPES` + `ShopifyScope` type** (RESEARCH Example 3 líneas 549-550):
        ```typescript
        /** Scopes solicitados (D-05). Si Shopify retorna scope subset → reject as 'denied' (Pitfall 2). */
-       export const SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'write_webhooks'] as const
+       export const SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'read_draft_orders'] as const
        export type ShopifyScope = typeof SHOPIFY_SCOPES[number]
        ```
 
@@ -346,14 +346,14 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string, apiSecret
     <automated>grep -c "digest('hex')" src/lib/shopify/oauth.ts</automated>
     <automated>grep -c "timingSafeEqual" src/lib/shopify/oauth.ts</automated>
     <automated>grep -c "SHOPIFY_SCOPES" src/lib/shopify/oauth.ts</automated>
-    <automated>grep -E "'read_orders'.*'read_customers'.*'write_webhooks'" src/lib/shopify/oauth.ts</automated>
+    <automated>grep -E "'read_orders'.*'read_customers'.*'read_draft_orders'" src/lib/shopify/oauth.ts</automated>
     <automated>grep -E "export (function|const) (verifyOauthCallbackHmac|buildAuthorizeUrl|SHOPIFY_SCOPES)" src/lib/shopify/oauth.ts | wc -l</automated>
     <automated>! grep "digest('base64')" src/lib/shopify/oauth.ts && echo "OK: no base64 (would be Pitfall 1)"</automated>
   </verify>
   <done>
     - `verifyOauthCallbackHmac` con HEX + timingSafeEqual + sorted params (NO URLSearchParams.toString para construir message)
     - JSDoc warning explícito sobre diferencia con `verifyShopifyHmac`
-    - `SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'write_webhooks'] as const`
+    - `SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'read_draft_orders'] as const`
     - `buildAuthorizeUrl` no añade trailing slash
     - **CERO `digest('base64')`** en este archivo (eso es para webhooks)
   </done>
@@ -591,7 +591,7 @@ console.log(Object.keys(m).sort())
 - [ ] `verifyOauthCallbackHmac` usa **HEX** digest + `timingSafeEqual`
 - [ ] CERO `digest('base64')` en el archivo (gate explícito Pitfall 1)
 - [ ] `src/lib/shopify/hmac.ts` intacto — webhook HMAC sigue usando base64
-- [ ] `SHOPIFY_SCOPES` exportado como tuple readonly literal `['read_orders', 'read_customers', 'write_webhooks']`
+- [ ] `SHOPIFY_SCOPES` exportado como tuple readonly literal `['read_orders', 'read_customers', 'read_draft_orders']`
 - [ ] `getStateSecret()` throws si secret <32 chars (cover Assumption A2)
 - [ ] `createWebhooksAfterOauth` trata 422 como success
 - [ ] `WEBHOOK_TOPICS = ['orders/create', 'orders/updated', 'draft_orders/create']` const literal

@@ -68,10 +68,12 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
          - El dominio `<storename>.myshopify.com` de la tienda $65 USD productiva de Somnio (Plan 08 cutover)
        - **Si una de estas dos no está autorizada al momento del OAuth, Shopify devolverá `application cannot be found` en vez del install prompt.** Es el causante #1 de bugs reportados en foros.
 
-    2. Configuration → API access scopes → marcar exactamente estos 3 (NI UNO MÁS):
+    2. Configuration → API access scopes → marcar exactamente estos 3 (NI UNO MÁS) — **D-14 2026-05-12 (corregidos):**
        - `read_orders`
        - `read_customers`
-       - `write_webhooks`
+       - `read_draft_orders`
+
+       **Por qué cambió desde D-05 original:** `write_webhooks` NO existe como scope en Shopify (era error del RESEARCH original). Y `draft_orders/create` webhook (que el código ya procesa) requiere `read_draft_orders` para crearse vía Admin API. Ver D-14 en CONTEXT.md.
 
     3. Configuration → URLs → **Allowed redirection URLs** — agregar EXACTAMENTE estas 2 (cada una en su línea, **sin trailing slash**):
        - `https://morfx.app/api/integrations/shopify/oauth/callback`

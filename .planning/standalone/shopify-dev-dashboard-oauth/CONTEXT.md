@@ -70,10 +70,13 @@ Añadir a MorfX un flujo OAuth (Authorization Code Grant) que permita conectar t
 
 ### Scopes Solicitados
 
-- **D-05:** `read_orders, read_customers, write_webhooks`
-  - `read_orders` — leer pedidos (igual que hoy)
-  - `read_customers` — leer contactos del pedido (igual que hoy)
-  - `write_webhooks` — auto-crear los 3 webhooks post-OAuth (D-04)
+- **D-05 (REVISIÓN 2026-05-12 — D-14 reemplaza este):** ~~`read_orders, read_customers, write_webhooks`~~ — **OBSOLETA.** Ver D-14.
+
+- **D-14 (Scopes corregidos — descubierto durante Plan 01):** `read_orders, read_customers, read_draft_orders`. Razón:
+  - **`write_webhooks` NO existe** como scope en Shopify (verificado en docs oficiales y community 2026-05-12). Era un error en el RESEARCH original. La creación de webhook subscriptions vía Admin API está siempre permitida si tenés el scope del resource — no hay scope "permission to create webhooks" separado.
+  - **`draft_orders/create` webhook (D-04) requiere `read_draft_orders`** (verificado en [WebhookSubscriptionTopic GraphQL docs](https://shopify.dev/docs/api/admin-graphql/latest/enums/WebhookSubscriptionTopic): "DRAFT_ORDERS_CREATE — Requires the read_draft_orders scope"). Sin este scope, el callback OAuth Plan 05 step 8 fallaría al crear el webhook número 3.
+  - El codebase YA procesa `draft_orders/create` (`src/app/api/webhooks/shopify/route.ts:91`, `src/lib/shopify/webhook-handler.ts:340`) — sin el scope nuevo, el OAuth no replica la funcionalidad existente.
+  - Lista final: `read_orders` (orders/* webhooks), `read_customers` (customer data), `read_draft_orders` (draft_orders/create webhook).
 
 ### Technical Defaults
 

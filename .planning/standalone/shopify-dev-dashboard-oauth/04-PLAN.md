@@ -305,7 +305,7 @@ Smoke test del flow start (manual, opcional en este plan — Plan 07 lo cubre E2
 
 1. Owner ya autenticado en `/configuracion/integraciones` (existe esa sesión).
 2. Tipear `6xvhnx-1v.myshopify.com` en form (Plan 06 todavía no existe — usar curl o un test scratch).
-3. Esperar response `{ success: true, redirectUrl: 'https://6xvhnx-1v.myshopify.com/admin/oauth/authorize?client_id=...&scope=read_orders,read_customers,write_webhooks&redirect_uri=https%3A%2F%2Fmorfx.app%2Fapi%2Fintegrations%2Fshopify%2Foauth%2Fcallback&state=eyJ...' }`.
+3. Esperar response `{ success: true, redirectUrl: 'https://6xvhnx-1v.myshopify.com/admin/oauth/authorize?client_id=...&scope=read_orders,read_customers,read_draft_orders&redirect_uri=https%3A%2F%2Fmorfx.app%2Fapi%2Fintegrations%2Fshopify%2Foauth%2Fcallback&state=eyJ...' }`.
 4. Verificar `state` es un JWT (3 partes separadas por `.`).
 5. Decodear el JWT payload con `jose` (o jwt.io) y verificar `{ workspaceId, userId, nonce, exp, sub, iss }`.
 

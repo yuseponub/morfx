@@ -69,7 +69,7 @@ Output: route handler funcional, listo para smoke test (Plan 07).
 
 From Plan 03 (`src/lib/shopify/oauth.ts`):
 ```typescript
-export const SHOPIFY_SCOPES: readonly ['read_orders', 'read_customers', 'write_webhooks']
+export const SHOPIFY_SCOPES: readonly ['read_orders', 'read_customers', 'read_draft_orders']
 export function verifyOauthCallbackHmac(params: Record<string, string>, receivedHmac: string, clientSecret: string): boolean
 export function verifyStateJwt(token: string): Promise<{ workspaceId: string; userId: string; nonce: string }>  // throws if invalid/expired
 export function exchangeCodeForToken(opts: { shop: string; code: string }): Promise<{ accessToken: string; scope: string }>  // throws on non-2xx
@@ -470,5 +470,5 @@ Tras completar este plan, crear `.planning/standalone/shopify-dev-dashboard-oaut
 - Confirmación de cada step (1-10) con línea aproximada
 - Output de los grep gates (Regla 3, access_token, runtime, dynamic)
 - Hand-off para Plan 06 (UI): callback redirige con `?error=oauth_failed&reason=<X>` o `?success=oauth_connected` — UI debe consumir vía `useSearchParams` + `useEffect` toast
-- Hand-off para Plan 07 (smoke): tienda dev `6xvhnx-1v.myshopify.com`, flow completo, debe terminar con (a) row en `integrations` para Somnio workspace con `config.access_token` no-shpat_ y `config.granted_scope='read_orders,read_customers,write_webhooks'`, (b) 3 webhooks visibles en Shopify Admin del dev store, (c) toast verde "Tienda Shopify conectada exitosamente".
+- Hand-off para Plan 07 (smoke): tienda dev `6xvhnx-1v.myshopify.com`, flow completo, debe terminar con (a) row en `integrations` para Somnio workspace con `config.access_token` no-shpat_ y `config.granted_scope='read_orders,read_customers,read_draft_orders'`, (b) 3 webhooks visibles en Shopify Admin del dev store, (c) toast verde "Tienda Shopify conectada exitosamente".
 </output>

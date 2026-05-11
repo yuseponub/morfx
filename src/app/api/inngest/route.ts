@@ -36,6 +36,7 @@ import { crmMutationIdempotencyCleanupCron } from '@/inngest/functions/crm-mutat
 import { recompraPreloadContextFunctions } from '@/inngest/functions/recompra-preload-context'
 import { pwConfirmationPreloadAndInvokeFunctions } from '@/inngest/functions/pw-confirmation-preload-and-invoke'
 import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
+import { boldUpstreamBroken } from '@/inngest/functions/bold-upstream-broken'
 
 /**
  * Serve all Inngest functions.
@@ -83,5 +84,6 @@ export const { GET, POST, PUT } = serve({
     crmBotExpireProposalsCron,
     crmMutationIdempotencyCleanupCron,  // Standalone: crm-mutation-tools (D-03 — daily 03:00 Bogota TTL sweep)
     routingAuditCleanup,
+    boldUpstreamBroken,  // Standalone: bold-auth0-migration (D-07 — telemetry receiver)
   ],
 })

@@ -15,7 +15,7 @@ must_haves:
     - "`verifyOauthCallbackHmac` usa HEX digest (NO base64) sobre query params sorted alphabetically, RAW values, excluyendo `hmac` (Pitfall 1)"
     - "`verifyOauthCallbackHmac` usa `crypto.timingSafeEqual` (Pitfall 1 + best practice)"
     - "`SHOPIFY_SCOPES = ['read_orders', 'read_customers', 'read_draft_orders']` exportado como const tuple"
-    - "`getStateSecret()` throws si `SHOPIFY_OAUTH_STATE_SECRET` está vacío o tiene <32 chars (Assumption A2)"
+    - "**OVERRIDE D-15 (2026-05-12):** TODAS las funciones que necesitan client_id / client_secret / state_secret leen vía `await getShopifyOAuthConfig()` del helper de Plan 02 (`src/lib/shopify/oauth-config.ts`). PROHIBIDO `process.env.SHOPIFY_CLIENT_ID|SECRET|OAUTH_STATE_SECRET` en este módulo (verificable: `grep -E 'process\\.env\\.SHOPIFY_(CLIENT|OAUTH)' src/lib/shopify/oauth.ts` retorna 0 matches). El `getStateSecret()` interno deja de existir — su lógica (validar >=32 chars + throw) vive ahora en `getShopifyOAuthConfig`. Las funciones `signStateJwt`, `verifyStateJwt`, `buildAuthorizeUrl`, `exchangeCodeForToken` se vuelven `async` (si no lo eran ya) y reciben los secrets implícitamente vía await del helper en su body."
     - "`createWebhooksAfterOauth` trata 422 como success (idempotency, Pitfall 9)"
     - "Module está separado de `src/lib/shopify/hmac.ts` (que sigue intacto para webhooks)"
   artifacts:

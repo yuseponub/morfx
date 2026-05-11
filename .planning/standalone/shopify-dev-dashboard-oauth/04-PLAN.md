@@ -15,7 +15,8 @@ must_haves:
     - "Auth gate idéntico al de `saveShopifyIntegration` (auth.getUser + cookie morfx_workspace + Owner check) — copy-paste de líneas 184-210"
     - "Domain regex STRICT `/^[a-z0-9][a-z0-9-]*\\.myshopify\\.com$/` aplicado POST-`normalizeShopDomain` (defense in depth, Pitfall 3)"
     - "Envelope shape `{ success, error }` (NO `{ ok }`) — match convención del proyecto"
-    - "Redirect URI construido como `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/shopify/oauth/callback` (sin trailing slash, Pitfall 10)"
+    - "Redirect URI construido como `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/shopify/oauth/callback` (sin trailing slash, Pitfall 10) — NEXT_PUBLIC_APP_URL sigue siendo env var (no se mueve a DB, no es secret)"
+    - "**OVERRIDE D-15 (2026-05-12):** El server action consume el client_id implícitamente via las funciones async de Plan 03 (`buildAuthorizeUrl` ya internamente llama `getShopifyOAuthConfig`). PROHIBIDO `process.env.SHOPIFY_CLIENT_ID|SECRET|OAUTH_STATE_SECRET` en este archivo (verificable: `grep -E 'process\\.env\\.SHOPIFY_(CLIENT|OAUTH)' src/app/actions/shopify-oauth.ts` retorna 0 matches). Si una función de oauth.ts requiere `await`, este archivo lo hace correctamente."
   artifacts:
     - path: "src/app/actions/shopify-oauth.ts"
       provides: "Entry point del flow OAuth — UI llama a esto"

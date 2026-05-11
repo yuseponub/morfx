@@ -18,6 +18,7 @@ must_haves:
     - "Cero `adminSupabase.from('integrations').*` directo — solo via `upsertShopifyIntegration` del domain (Regla 3)"
     - "`access_token` jamás aparece en logs"
     - "Persiste `granted_scope` en config para drift detection futura (Open Question 8)"
+    - "**OVERRIDE D-15 (2026-05-12):** El callback consume client_id, client_secret, state_secret implícitamente via funciones async de Plan 03 (`verifyOauthCallbackHmac`, `verifyStateJwt`, `exchangeCodeForToken` internamente llaman `getShopifyOAuthConfig`). PROHIBIDO `process.env.SHOPIFY_CLIENT_ID|SECRET|OAUTH_STATE_SECRET` en este archivo (verificable: `grep -E 'process\\.env\\.SHOPIFY_(CLIENT|OAUTH)' src/app/api/integrations/shopify/oauth/callback/route.ts` retorna 0 matches). Si DB no tiene las 3 keys, las funciones throws y el callback redirige con `reason=shopify_error` (D-12)."
   artifacts:
     - path: "src/app/api/integrations/shopify/oauth/callback/route.ts"
       provides: "GET handler que cierra el OAuth flow"

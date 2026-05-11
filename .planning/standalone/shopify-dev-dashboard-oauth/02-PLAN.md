@@ -8,8 +8,9 @@ files_modified:
   - src/lib/domain/integrations.ts
   - src/lib/domain/index.ts
   - src/lib/shopify/types.ts
+  - src/lib/shopify/oauth-config.ts
 autonomous: true
-estimated_minutes: 40
+estimated_minutes: 50
 requirements_addressed: []
 must_haves:
   truths:
@@ -19,6 +20,9 @@ must_haves:
     - "`upsertShopifyIntegration` preserva `default_pipeline_id`, `default_stage_id`, `enable_fuzzy_matching`, `product_matching`, `auto_sync_orders` del config existente al re-conectar"
     - "El barrel `src/lib/domain/index.ts` re-exporta `./integrations`"
     - "`ShopifyConfig` type opcionalmente incluye `granted_scope?: string` (Open Question 8 de RESEARCH)"
+    - "Existe `src/lib/shopify/oauth-config.ts` con `getShopifyOAuthConfig()` que lee 3 keys de `platform_config` (D-15) via `getPlatformConfig` con fallback null y THROWS Error si cualquiera falta o el state_secret tiene <32 chars (fail-CLOSED override del default fail-open)"
+    - "`getShopifyOAuthConfig` retorna `{ clientId: string; clientSecret: string; stateSecret: string }` (3 fields obligatorios, no opcionales)"
+    - "Las 3 keys leídas: `shopify_oauth_client_id`, `shopify_oauth_client_secret`, `shopify_oauth_state_secret` (verificable por grep)"
   artifacts:
     - path: "src/lib/domain/integrations.ts"
       provides: "Single source of truth para mutaciones en tabla integrations type='shopify'"
@@ -30,6 +34,10 @@ must_haves:
     - path: "src/lib/shopify/types.ts"
       provides: "Updated ShopifyConfig with granted_scope optional field"
       contains: "granted_scope?:"
+    - path: "src/lib/shopify/oauth-config.ts"
+      provides: "Wrapper fail-CLOSED sobre getPlatformConfig para credenciales OAuth de Shopify (D-15)"
+      min_lines: 30
+      exports: ["getShopifyOAuthConfig", "ShopifyOAuthConfig"]
   key_links:
     - from: "src/lib/domain/integrations.ts"
       to: "src/lib/supabase/admin.ts → createAdminClient"

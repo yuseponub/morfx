@@ -78,6 +78,14 @@ Añadir a MorfX un flujo OAuth (Authorization Code Grant) que permita conectar t
   - El codebase YA procesa `draft_orders/create` (`src/app/api/webhooks/shopify/route.ts:91`, `src/lib/shopify/webhook-handler.ts:340`) — sin el scope nuevo, el OAuth no replica la funcionalidad existente.
   - Lista final: `read_orders` (orders/* webhooks), `read_customers` (customer data), `read_draft_orders` (draft_orders/create webhook).
 
+- **D-15 (Credentials storage — REVISIÓN 2026-05-12):** Las 3 credenciales OAuth (`client_id`, `client_secret`, `state_secret`) se almacenan en la tabla **`platform_config`** (Phase 44.1, ya construida) en vez de Vercel env vars. **Razón:** decisión del usuario para evitar saturar env vars y mantener config OAuth en un solo lugar accesible vía SQL (operacionalmente más simple para 1 tienda Somnio).
+  - Keys nuevas: `shopify_oauth_client_id`, `shopify_oauth_client_secret`, `shopify_oauth_state_secret`. Tipo JSONB string en cada caso.
+  - Migración necesaria: `INSERT INTO platform_config (key, value) VALUES (...)` aplicada a prod **ANTES del code push** (Regla 5 CLAUDE.md).
+  - Lectura runtime via helper existente `getPlatformConfig(key, fallback)` (`src/lib/domain/platform-config.ts`) con cache 30s.
+  - **Política fail-CLOSED:** A diferencia del default fail-open de `getPlatformConfig`, las credenciales OAuth se leen vía wrapper nuevo `getShopifyOAuthConfig()` que **THROWS** si cualquiera falta — no podemos hacer OAuth sin secret. Wrapper vive en `src/lib/shopify/oauth-config.ts` (creado en Plan 02 o Plan 03).
+  - **Riesgo aceptado:** secret en plaintext en BD. Threat surface equivalente a Vercel env vars (ambos requieren team-level auth = service_role / Vercel team). No se encripta porque Supabase Vault añadiría complejidad y el threat model actual lo justifica.
+  - **Anula instrucciones de env vars en Plan 01 originales.** Plan 01 Task 2 reemplazado por: generar migración + aplicarla en prod + verificar via SELECT. Plans 03/04/05 reemplazan `process.env.SHOPIFY_*` por `await getShopifyOAuthConfig()`.
+
 ### Technical Defaults
 
 - **D-06 (API version):** `2024-01` para todas las llamadas Admin API y los webhooks. **No upgrade** en este standalone — mantener paridad con código existente para evitar incompatibilidades de schema en webhook payloads.

@@ -95,60 +95,78 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
 </task>
 
 <task type="checkpoint:human-action" gate="blocking">
-  <name>Task 2: Generar SHOPIFY_OAUTH_STATE_SECRET (>=32 chars) y agregar 3 env vars a Vercel + .env.local</name>
-  <what-built>Variables de entorno cargadas en 4 lugares: Vercel Production, Vercel Preview, Vercel Development, y `.env.local` (local dev en puerto 3020). Cero código.</what-built>
+  <name>Task 2 (REVISIÓN D-15 2026-05-12): Aplicar migración platform_config + insertar 3 credenciales OAuth via SQL</name>
+  <what-built>Tabla `platform_config` (Phase 44.1) recibe 3 keys nuevas: `shopify_oauth_client_id`, `shopify_oauth_client_secret`, `shopify_oauth_state_secret`. Cero env vars. Cero código fuera del archivo de migración.</what-built>
   <read_first>
-    - CONTEXT.md §Code Context §Integration Points §Env vars NUEVAS
-    - RESEARCH.md §Standard Stack §Installation block (líneas 121-128 — comando `openssl rand -base64 32`)
-    - RESEARCH.md §Code Examples §Example 1 líneas 444-450 (`getStateSecret()` throws si <32 chars — A2)
-    - CLAUDE.md Regla 5 (env vars no son migraciones de DB pero sí son prerequisito antes del push)
+    - CONTEXT.md §D-15 (decisión 2026-05-12 de DB-stored credentials)
+    - `supabase/migrations/20260420000443_platform_config.sql` (schema base + helper pattern)
+    - `src/lib/domain/platform-config.ts` (helper getPlatformConfig + cache 30s)
+    - CLAUDE.md Regla 5 (migración aplicada en prod ANTES del code push)
   </read_first>
   <how-to-verify>
-    1. Generar el secret state (en cualquier terminal local):
+    1. **Generar el state secret** (en cualquier terminal local, output a buffer temporal):
        ```bash
        openssl rand -base64 32
-       # output: ej. "vBN7m...JxQ4=" (44 chars en base64)
-       ```
-       Guardar el output. **Debe tener >=32 chars** (base64 de 32 bytes son 44 chars siempre, así que OK).
-
-    2. Vercel CLI o Dashboard — agregar las 3 env vars en **los 3 environments** (Production, Preview, Development):
-       ```
-       SHOPIFY_CLIENT_ID          = <Client ID de Dev Dashboard>
-       SHOPIFY_CLIENT_SECRET      = <Client Secret de Dev Dashboard>
-       SHOPIFY_OAUTH_STATE_SECRET = <output de openssl rand>
+       # output ej: "vBN7m...JxQ4=" (44 chars en base64)
        ```
 
-       Via Vercel CLI (recomendado):
+    2. **Verificar archivo de migración existe** (creado por Claude en Plan 01):
        ```bash
-       vercel env add SHOPIFY_CLIENT_ID production
-       vercel env add SHOPIFY_CLIENT_ID preview
-       vercel env add SHOPIFY_CLIENT_ID development
-       # repetir para SHOPIFY_CLIENT_SECRET y SHOPIFY_OAUTH_STATE_SECRET
+       ls supabase/migrations/20260512000000_shopify_oauth_credentials.sql
+       cat supabase/migrations/20260512000000_shopify_oauth_credentials.sql
+       ```
+       El archivo INSERT con placeholders `<REPLACE_*>` para evitar credenciales en git.
+
+    3. **Aplicar migración en Supabase Studio** (PROD) — `https://supabase.com/dashboard/project/expslvzsszymljafhppi/sql/new`:
+       - Pegar el contenido del archivo de migración
+       - Run → debe insertar 3 rows (o no-op si ya existían vía ON CONFLICT DO NOTHING)
+       - Verificar:
+         ```sql
+         SELECT key, value FROM platform_config WHERE key LIKE 'shopify_oauth_%';
+         -- esperado: 3 rows con value="<REPLACE_*>" placeholder
+         ```
+
+    4. **Reemplazar placeholders con valores reales** — 3 UPDATE en Supabase Studio:
+       ```sql
+       UPDATE platform_config
+         SET value = '"<CLIENT_ID_REAL_DE_DEV_DASHBOARD>"'::jsonb,
+             updated_at = timezone('America/Bogota', NOW())
+         WHERE key = 'shopify_oauth_client_id';
+
+       UPDATE platform_config
+         SET value = '"<CLIENT_SECRET_REAL_DE_DEV_DASHBOARD>"'::jsonb,
+             updated_at = timezone('America/Bogota', NOW())
+         WHERE key = 'shopify_oauth_client_secret';
+
+       UPDATE platform_config
+         SET value = '"<OUTPUT_DE_OPENSSL_RAND_BASE64_32>"'::jsonb,
+             updated_at = timezone('America/Bogota', NOW())
+         WHERE key = 'shopify_oauth_state_secret';
        ```
 
-       Via Dashboard: Project Settings → Environment Variables → Add → marcar los 3 scopes.
+       **NOTA**: el formato JSONB string requiere doble-comillas adentro: `'"valor"'::jsonb`. Sin comillas internas, falla.
 
-    3. `.env.local` (NO commitear, ya está en `.gitignore`) — agregar las mismas 3 vars para dev en `localhost:3020`:
-       ```
-       SHOPIFY_CLIENT_ID=...
-       SHOPIFY_CLIENT_SECRET=...
-       SHOPIFY_OAUTH_STATE_SECRET=...
+    5. **Verificar lectura final**:
+       ```sql
+       SELECT
+         key,
+         length(value::text) AS value_length,
+         CASE
+           WHEN value::text LIKE '%REPLACE%' THEN 'PLACEHOLDER — falta UPDATE'
+           ELSE 'OK'
+         END AS status
+       FROM platform_config
+       WHERE key LIKE 'shopify_oauth_%';
+       -- esperado: 3 rows todas status='OK', state_secret value_length >= 34 (32 + 2 quotes)
        ```
 
-    4. Verificar longitud del state secret (en .env.local):
-       ```bash
-       grep '^SHOPIFY_OAUTH_STATE_SECRET=' .env.local | cut -d= -f2- | tr -d '\n' | wc -c
-       # debe imprimir >= 32
-       ```
-
-    5. **Confirmar `NEXT_PUBLIC_APP_URL` ya está configurado** (existe en proyecto desde antes):
+    6. **Confirmar `NEXT_PUBLIC_APP_URL` ya está en Vercel production** (cero env vars nuevas, pero esta sigue siendo necesaria para construir redirect URLs):
        ```bash
        vercel env ls | grep NEXT_PUBLIC_APP_URL
        # esperado: presente en production = https://morfx-sandy.vercel.app
        ```
-       Si no está, el callback no podrá construir URLs absolutas — agregarlo.
   </how-to-verify>
-  <resume-signal>Escribe "env vars listas" (no compartir secrets en el chat)</resume-signal>
+  <resume-signal>Escribe "credenciales en BD" (NO pegar valores en el chat — la última verificación de SQL ya confirma lectura)</resume-signal>
 </task>
 
 <task type="checkpoint:decision" gate="blocking">
@@ -215,25 +233,32 @@ Ejecutar al final (manual, por el usuario):
 
 1. Dev Dashboard muestra:
    - App "MorfX" creada con scopes `read_orders, read_customers, read_draft_orders`
-   - Redirect URLs: 2 entries, sin trailing slash, EXACTOS como CONTEXT.md
-2. Vercel:
-   - `vercel env ls` lista las 3 nuevas vars en Production + Preview + Development
-3. Local:
-   - `grep -c '^SHOPIFY_' .env.local` retorna `3`
-   - `grep '^SHOPIFY_OAUTH_STATE_SECRET=' .env.local | cut -d= -f2- | tr -d '\n' | wc -c` retorna `>= 32`
-4. Decisiones A1 + A6 registradas en el plan como ADRs (anota en el resume signal).
+   - Redirect URLs: 2 entries (morfx-sandy.vercel.app + localhost:3020), sin trailing slash, EXACTOS como CONTEXT.md
+   - 2 tiendas autorizadas (Custom distribution): tienda dev `6xvhnx-1v.myshopify.com` + tienda Somnio del $65 USD
+2. Supabase prod (`platform_config` table):
+   ```sql
+   SELECT key, value FROM platform_config WHERE key LIKE 'shopify_oauth_%';
+   -- 3 rows, ningún value contiene 'REPLACE', state_secret tiene >=32 chars descomillados
+   ```
+3. **NO existen env vars Shopify** en Vercel ni `.env.local`:
+   - `vercel env ls | grep -i SHOPIFY` retorna 0 lines
+   - `grep -c '^SHOPIFY_' .env.local` retorna 0
+4. `NEXT_PUBLIC_APP_URL` sigue presente en Vercel production = `https://morfx-sandy.vercel.app`.
+5. Decisiones A1 + A6 registradas en el plan como ADRs (anota en el resume signal).
 </verification>
 
 <success_criteria>
-- [ ] App "MorfX" creada en Dev Dashboard con scopes y redirect URLs exactos
-- [ ] 3 env vars cargadas en Vercel × 3 environments (9 entries totales)
-- [ ] 3 env vars en `.env.local` (dev)
-- [ ] `SHOPIFY_OAUTH_STATE_SECRET` tiene >=32 chars
-- [ ] `NEXT_PUBLIC_APP_URL` confirmado presente en Vercel production
-- [ ] A1 decidido (plan Vercel) + A6 decidido (naming approach)
+- [ ] App reusada/creada en Dev Dashboard con scopes y redirect URLs exactos
+- [ ] 2 tiendas autorizadas en Custom distribution (dev + Somnio prod)
+- [ ] Migración `20260512000000_shopify_oauth_credentials.sql` aplicada en prod (3 rows en `platform_config`)
+- [ ] 3 placeholders reemplazados con valores reales via UPDATE en Supabase Studio
+- [ ] `state_secret` tiene >=32 chars (verificado con SQL)
+- [ ] `NEXT_PUBLIC_APP_URL` confirmado presente en Vercel production (env var pre-existente, no nueva)
+- [ ] A1 decidido (plan Vercel = Pro 60s) + A6 decidido (Opción A: import alias)
 - [ ] Resume signal del usuario recibido para los 3 checkpoints
+- [ ] Cero env vars `SHOPIFY_*` en Vercel ni `.env.local` (D-15)
 
-**Wave 1+ NO PUEDE iniciar hasta que este plan esté 100% completo.** El executor de Plan 02/03 dependerá de leer las env vars en runtime (Plan 03 las usa en `getStateSecret()`, `buildAuthorizeUrl`, etc.).
+**Wave 1+ NO PUEDE iniciar hasta que este plan esté 100% completo.** Plan 02 incluirá `getShopifyOAuthConfig()` (helper fail-CLOSED que lee de `platform_config`) — sin las 3 keys persistidas vía Task 2, los executors de Plan 03/04/05 fallarán al construir authorize URL / verificar HMAC / firmar JWT.
 </success_criteria>
 
 <output>

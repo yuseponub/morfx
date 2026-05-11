@@ -235,10 +235,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return fail('shopify_error', `domain-upsert: ${(upsertResult.error ?? 'unknown').slice(0, 200)}`)
   }
 
-  // ... Step 10 added in next task ...
+  // === Step 10: Success — structured log + redirect ===
+  // Structured log lets ops grep `[oauth-callback] success` to count installs
+  // and inspect webhook coverage per workspace.
+  const duration = Date.now() - startTime
+  const webhooksOk = webhookResults.filter((r) => r.ok).length
+  console.log(
+    `[oauth-callback] success shop=${shop} workspace=${statePayload.workspaceId.slice(0, 8)} ` +
+      `webhooks_ok=${webhooksOk}/${webhookResults.length} duration_ms=${duration}`,
+  )
 
-  // TEMP placeholder for Task C verification — Task D replaces this tail.
-  void startTime
-  void webhookResults
-  return fail('shopify_error', 'pipeline incomplete (placeholder — Task D adds step 10)')
+  return NextResponse.redirect(
+    `${baseUrl}/configuracion/integraciones?success=oauth_connected`,
+  )
 }

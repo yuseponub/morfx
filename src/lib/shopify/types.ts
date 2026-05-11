@@ -46,6 +46,12 @@ export interface ShopifyConfig {
   field_mappings?: Record<string, string>
   /** Auto-create contacts+orders from webhooks (default: true for backward compatibility) */
   auto_sync_orders?: boolean
+  /**
+   * Comma-separated scope granted by Shopify at OAuth time. Persisted for future
+   * drift detection (RESEARCH Open Question 8 of standalone shopify-dev-dashboard-oauth).
+   * Undefined for legacy `shpat_` integrations created via the manual form (D-11).
+   */
+  granted_scope?: string
 }
 
 /**

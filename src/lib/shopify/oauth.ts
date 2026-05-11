@@ -347,3 +347,95 @@ export function detectScopeDrift(
   return required.filter((s) => !granted.has(s))
 }
 
+// ============================================================================
+// Webhook auto-creation (D-04 — 3 topics, Pitfall 9 idempotency)
+// ============================================================================
+
+/** D-04: 3 webhook topics auto-creados post-OAuth */
+const WEBHOOK_TOPICS = ['orders/create', 'orders/updated', 'draft_orders/create'] as const
+
+/** D-06: API version literal (no upgrade in this standalone) */
+const SHOPIFY_API_VERSION = '2024-01'
+
+/**
+ * Result of attempting to create a single webhook subscription.
+ *
+ * `ok=true` covers both fresh creation (201) AND idempotent re-install
+ * (422 "address has already been taken" — Pitfall 9).
+ */
+export interface WebhookCreationResult {
+  topic: string
+  ok: boolean
+  status: number
+  error?: string
+}
+
+/**
+ * Creates the 3 webhook subscriptions in parallel after a successful OAuth.
+ *
+ * Why parallel (Promise.allSettled): one failed webhook does not block the
+ * others. The caller (Plan 05) logs each failure and CONTINUES the OAuth
+ * flow — webhooks can be retried by reconnecting; failing the whole OAuth
+ * over a transient webhook error would be worse UX.
+ *
+ * Idempotency (Pitfall 9): when the merchant disconnects and reconnects
+ * (D-03b), the old webhooks remain in Shopify (we don't DELETE on
+ * disconnect). Shopify rejects re-creation with 422 "address has already
+ * been taken" — we treat this as success (`ok=true`) so a clean reconnect
+ * doesn't surface a fake error.
+ *
+ * @param opts.shop          Validated shop domain `*.myshopify.com`.
+ * @param opts.accessToken   Offline access token from `exchangeCodeForToken`.
+ * @param opts.webhookUrl    URL Shopify will POST to. Typically:
+ *                           `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/shopify`
+ * @returns One result per topic in `WEBHOOK_TOPICS` order. Caller decides
+ *          whether any failure warrants UX/log surfacing.
+ */
+export async function createWebhooksAfterOauth(opts: {
+  shop: string
+  accessToken: string
+  webhookUrl: string
+}): Promise<WebhookCreationResult[]> {
+  const results = await Promise.allSettled(
+    WEBHOOK_TOPICS.map(async (topic): Promise<WebhookCreationResult> => {
+      const res = await fetch(
+        `https://${opts.shop}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Shopify-Access-Token': opts.accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            webhook: {
+              topic,
+              address: opts.webhookUrl,
+              format: 'json',
+            },
+          }),
+        },
+      )
+
+      // Pitfall 9: 422 "address has already been taken" = idempotent re-install,
+      // treat as success. Other 4xx/5xx = real failure.
+      const ok = res.ok || res.status === 422
+      let errorMsg: string | undefined
+      if (!ok) {
+        const text = await res.text().catch(() => '<no body>')
+        errorMsg = text.slice(0, 200)
+      }
+      return { topic, ok, status: res.status, error: errorMsg }
+    }),
+  )
+
+  return results.map((r, i): WebhookCreationResult =>
+    r.status === 'fulfilled'
+      ? r.value
+      : {
+          topic: WEBHOOK_TOPICS[i],
+          ok: false,
+          status: 0,
+          error: String(r.reason).slice(0, 200),
+        },
+  )
+}

@@ -10,7 +10,7 @@ estimated_minutes: 25
 requirements_addressed: []
 must_haves:
   truths:
-    - "Shopify Dev Dashboard tiene una app llamada 'MorfX' con los 3 scopes (read_orders, read_customers, write_webhooks) y las 2 redirect URLs (prod + localhost) registradas verbatim sin trailing slash"
+    - "Shopify Dev Dashboard tiene una app llamada 'MorfX' con los 3 scopes (read_orders, read_customers, read_draft_orders) y las 2 redirect URLs (prod + localhost) registradas verbatim sin trailing slash"
     - "Vercel project tiene SHOPIFY_CLIENT_ID, SHOPIFY_CLIENT_SECRET, SHOPIFY_OAUTH_STATE_SECRET configurados en Production + Preview + Development scopes"
     - ".env.local del repo local tiene las 3 vars (para dev en puerto 3020)"
     - "SHOPIFY_OAUTH_STATE_SECRET tiene >=32 chars (verificable: `echo -n $SHOPIFY_OAUTH_STATE_SECRET | wc -c`)"
@@ -62,7 +62,7 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
     1. Crear nueva app:
        - Nombre: `MorfX`
        - Distribution: **Custom distribution** (NO Public app — no queremos App Store)
-       - URL de la app: `https://morfx.app`
+       - URL de la app: `https://morfx-sandy.vercel.app`
        - **CRITICAL (D-13 2026-05-12):** Custom distribution **bloqueará el install en cualquier tienda que no esté autorizada explícitamente** por vos. Inmediatamente después de crear la app, ir a Partner Dashboard → App distribution → MorfX → "Add stores" y autorizar:
          - `6xvhnx-1v.myshopify.com` (tienda dev — Plan 07 smoke test)
          - El dominio `<storename>.myshopify.com` de la tienda $65 USD productiva de Somnio (Plan 08 cutover)
@@ -76,7 +76,7 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
        **Por qué cambió desde D-05 original:** `write_webhooks` NO existe como scope en Shopify (era error del RESEARCH original). Y `draft_orders/create` webhook (que el código ya procesa) requiere `read_draft_orders` para crearse vía Admin API. Ver D-14 en CONTEXT.md.
 
     3. Configuration → URLs → **Allowed redirection URLs** — agregar EXACTAMENTE estas 2 (cada una en su línea, **sin trailing slash**):
-       - `https://morfx.app/api/integrations/shopify/oauth/callback`
+       - `https://morfx-sandy.vercel.app/api/integrations/shopify/oauth/callback`
        - `http://localhost:3020/api/integrations/shopify/oauth/callback`
 
     4. Configuration → Save (asegurar que cambios persisten).
@@ -144,7 +144,7 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
     5. **Confirmar `NEXT_PUBLIC_APP_URL` ya está configurado** (existe en proyecto desde antes):
        ```bash
        vercel env ls | grep NEXT_PUBLIC_APP_URL
-       # esperado: presente en production = https://morfx.app
+       # esperado: presente en production = https://morfx-sandy.vercel.app
        ```
        Si no está, el callback no podrá construir URLs absolutas — agregarlo.
   </how-to-verify>
@@ -214,7 +214,7 @@ Output: Dev Dashboard configurado + Vercel + `.env.local` listos. Cero código.
 Ejecutar al final (manual, por el usuario):
 
 1. Dev Dashboard muestra:
-   - App "MorfX" creada con scopes `read_orders, read_customers, write_webhooks`
+   - App "MorfX" creada con scopes `read_orders, read_customers, read_draft_orders`
    - Redirect URLs: 2 entries, sin trailing slash, EXACTOS como CONTEXT.md
 2. Vercel:
    - `vercel env ls` lista las 3 nuevas vars en Production + Preview + Development

@@ -12,7 +12,7 @@ must_haves:
   truths:
     - "La tienda Shopify productiva del plan $65 USD se desconecta vía UI de MorfX (botón Eliminar en /configuracion/integraciones) — soft delete via domain layer; legacy `shpat_` token retirado de prod"
     - "La misma tienda se reconecta vía OAuth flow (botón Conectar con Shopify) — nuevo offline access token persistido + 3 webhooks Shopify creados o idempotent-422"
-    - "Workspace Somnio (productivo) tiene en `integrations` row con `access_token` que NO empieza con `shpat_` + `granted_scope='read_orders,read_customers,write_webhooks'` + `is_active=true`"
+    - "Workspace Somnio (productivo) tiene en `integrations` row con `access_token` que NO empieza con `shpat_` + `granted_scope='read_orders,read_customers,read_draft_orders'` + `is_active=true`"
     - "Pedidos de la tienda productiva siguen llegando a `/api/webhooks/shopify` sin interrupción medible (RTO < 5 min — el tiempo entre disconnect y reconnect debe ser breve)"
     - "Ningún cliente final perdió pedidos durante la ventana de cutover (verificable en logs entre los timestamps de disconnect y reconnect — buscar webhooks rejected por shop_not_found)"
   artifacts:
@@ -111,7 +111,7 @@ Output: ningún `shpat_` activo en prod. Standalone shipped.
        esperado: 0 (la row fue eliminada por el domain layer).
     10. **Verificar logs Vercel:** server action `deleteShopifyIntegration` debe loguear success.
 
-    **NOTA Pitfall 9 (relevant para Task 3):** los 3 webhooks viejos en Shopify Admin de la tienda $65 USD NO se eliminan automáticamente (delete en MorfX NO llama Shopify Admin API DELETE webhook). Eso es OK — el reconnect (Task 3) hará create de los nuevos, que retornarán 422 (idempotent) porque las direcciones (`https://morfx.app/api/webhooks/shopify`) ya están registradas. Esto se trata como success en `oauth.ts` Plan 03.
+    **NOTA Pitfall 9 (relevant para Task 3):** los 3 webhooks viejos en Shopify Admin de la tienda $65 USD NO se eliminan automáticamente (delete en MorfX NO llama Shopify Admin API DELETE webhook). Eso es OK — el reconnect (Task 3) hará create de los nuevos, que retornarán 422 (idempotent) porque las direcciones (`https://morfx-sandy.vercel.app/api/webhooks/shopify`) ya están registradas. Esto se trata como success en `oauth.ts` Plan 03.
 
     **CRÍTICO:** Anotar timestamp exacto del delete (UTC + Colombia time) para Task 4 audit.
   </how-to-verify>
@@ -146,7 +146,7 @@ Output: ningún `shpat_` activo en prod. Standalone shipped.
        **Verificar:**
        - 1 row exactamente.
        - `is_legacy_token = false` (CRUCIAL — esto valida D-03b).
-       - `granted_scope = 'read_orders,read_customers,write_webhooks'`.
+       - `granted_scope = 'read_orders,read_customers,read_draft_orders'`.
        - `pipeline` y `stage` están **vacíos** (la integración nueva no preservó esos campos — esperado).
        - `is_active = true`.
 
@@ -156,7 +156,7 @@ Output: ningún `shpat_` activo en prod. Standalone shipped.
        - En `/configuracion/integraciones` branch CONNECTED, usar los selectors para volver a configurar `default_pipeline_id` y `default_stage_id` con los valores anotados en Task 2.
        - Guardar (el server action update que use el form actual — esto es código existente, no nuevo).
 
-    9. **Verificar Shopify Admin:** los 3 webhooks productivos siguen apuntando a `https://morfx.app/api/webhooks/shopify` API version `2024-01` formato JSON. NO debería haber duplicados (los viejos + los del callback son los mismos por idempotency).
+    9. **Verificar Shopify Admin:** los 3 webhooks productivos siguen apuntando a `https://morfx-sandy.vercel.app/api/webhooks/shopify` API version `2024-01` formato JSON. NO debería haber duplicados (los viejos + los del callback son los mismos por idempotency).
 
     **CRÍTICO:** Anotar timestamp exacto del success del reconnect.
   </how-to-verify>
@@ -203,7 +203,7 @@ Output: ningún `shpat_` activo en prod. Standalone shipped.
        - El `shpat_` que aún existe en Shopify (no usado por nadie tras Task 2) se invalida automáticamente cuando se uninstala la app legacy.
 
     5. **Update CLAUDE.md (Regla 4 — documentación):**
-       - Si el standalone está shipped, ajustar `docs/analysis/04-estado-actual-plataforma.md` (módulo de integraciones Shopify) — cambiar de "shpat_ manual" a "OAuth Dev Dashboard, offline access token, 3 webhooks auto-creados, scope `read_orders,read_customers,write_webhooks`".
+       - Si el standalone está shipped, ajustar `docs/analysis/04-estado-actual-plataforma.md` (módulo de integraciones Shopify) — cambiar de "shpat_ manual" a "OAuth Dev Dashboard, offline access token, 3 webhooks auto-creados, scope `read_orders,read_customers,read_draft_orders`".
        - O dejar TODO en LEARNINGS para futuro standalone si fuera del scope.
   </how-to-verify>
   <resume-signal>"audit OK" + share gap duration + share resultado audit (0 pedidos / X pedidos perdidos)</resume-signal>

@@ -321,7 +321,7 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string, apiSecret
        export function buildAuthorizeUrl(opts: {
          shop: string         // pre-validated: ^[a-z0-9][a-z0-9-]*\.myshopify\.com$
          state: string        // signed state JWT
-         redirectUri: string  // e.g. https://morfx.app/api/integrations/shopify/oauth/callback
+         redirectUri: string  // e.g. https://morfx-sandy.vercel.app/api/integrations/shopify/oauth/callback
        }): string {
          const clientId = process.env.SHOPIFY_CLIENT_ID
          if (!clientId) throw new Error('SHOPIFY_CLIENT_ID not set')
@@ -448,7 +448,7 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string, apiSecret
        export async function createWebhooksAfterOauth(opts: {
          shop: string
          accessToken: string
-         webhookUrl: string  // e.g. https://morfx.app/api/webhooks/shopify
+         webhookUrl: string  // e.g. https://morfx-sandy.vercel.app/api/webhooks/shopify
        }): Promise<WebhookCreationResult[]> {
          const results = await Promise.allSettled(
            WEBHOOK_TOPICS.map(async (topic): Promise<WebhookCreationResult> => {

@@ -11,7 +11,7 @@ requirements_addressed: []
 must_haves:
   truths:
     - "Usuario completa el flow OAuth real desde la UI productiva en tienda dev `6xvhnx-1v.myshopify.com`"
-    - "Tras OAuth, row en `integrations` para algún workspace de testing (NO Somnio productivo) con `config.access_token` que NO empieza con `shpat_` + `config.granted_scope='read_orders,read_customers,write_webhooks'`"
+    - "Tras OAuth, row en `integrations` para algún workspace de testing (NO Somnio productivo) con `config.access_token` que NO empieza con `shpat_` + `config.granted_scope='read_orders,read_customers,read_draft_orders'`"
     - "Los 3 webhooks visibles en Shopify Admin Dev Store: `https://6xvhnx-1v.myshopify.com/admin/settings/notifications` (o `/admin/webhooks` según UI), apuntando a `${NEXT_PUBLIC_APP_URL}/api/webhooks/shopify`, formato JSON, API version 2024-01"
     - "Toast verde 'Tienda Shopify conectada exitosamente' visible en UI tras redirect"
     - "Logs de Vercel del callback muestran `[oauth-callback] success ...` con duration < 10s y `webhooks_ok=3/3`"
@@ -79,13 +79,13 @@ Output: confirmación E2E + logs guardados + 1 row OK en `integrations`. Plan 08
     3. **Verificar env vars en runtime** (sin exponerlas):
        ```bash
        # Validación 1: la ruta callback responde (sin params)
-       curl -i -X GET "https://morfx.app/api/integrations/shopify/oauth/callback" 2>&1 | head -20
+       curl -i -X GET "https://morfx-sandy.vercel.app/api/integrations/shopify/oauth/callback" 2>&1 | head -20
        # esperado: 307 redirect a /configuracion/integraciones?error=oauth_failed&reason=shopify_error
        #           (porque sin params, Zod parse falla, callback redirige)
        # MUY importante: NO esperar 500 — eso significa env var faltante o crash de import
 
        # Validación 2: la ruta de start (server action) compila — abrir la UI
-       # Abrir https://morfx.app/configuracion/integraciones en navegador
+       # Abrir https://morfx-sandy.vercel.app/configuracion/integraciones en navegador
        # esperado: branch disconnected visible (input dominio + botón Conectar)
        ```
 
@@ -100,7 +100,7 @@ Output: confirmación E2E + logs guardados + 1 row OK en `integrations`. Plan 08
     Manual:
     1. `git push origin main` exitoso (sin error).
     2. Vercel deploy READY (visualmente o vía CLI).
-    3. `curl -i -X GET "https://morfx.app/api/integrations/shopify/oauth/callback"` retorna 307 con Location = `/configuracion/integraciones?error=oauth_failed&reason=shopify_error`.
+    3. `curl -i -X GET "https://morfx-sandy.vercel.app/api/integrations/shopify/oauth/callback"` retorna 307 con Location = `/configuracion/integraciones?error=oauth_failed&reason=shopify_error`.
     4. UI `/configuracion/integraciones` muestra branch disconnected.
   </verify>
   <done>
@@ -127,25 +127,25 @@ Output: confirmación E2E + logs guardados + 1 row OK en `integrations`. Plan 08
        - Abrir Vercel logs en otra tab: `vercel logs --follow` o dashboard.
 
     2. **Iniciar OAuth:**
-       - Ir a `https://morfx.app/configuracion/integraciones`.
+       - Ir a `https://morfx-sandy.vercel.app/configuracion/integraciones`.
        - **Verificar:** branch disconnected visible (Input "Dominio de tu tienda" + botón "Conectar con Shopify").
        - Tipear: `6xvhnx-1v.myshopify.com`.
        - Click "Conectar con Shopify".
        - **Verificar:** loading state breve (Loader2 spinner).
 
     3. **Authorize en Shopify:**
-       - Browser redirige a `https://6xvhnx-1v.myshopify.com/admin/oauth/authorize?client_id=...&scope=read_orders,read_customers,write_webhooks&redirect_uri=https%3A%2F%2Fmorfx.app%2Fapi%2Fintegrations%2Fshopify%2Foauth%2Fcallback&state=eyJ...`
+       - Browser redirige a `https://6xvhnx-1v.myshopify.com/admin/oauth/authorize?client_id=...&scope=read_orders,read_customers,read_draft_orders&redirect_uri=https%3A%2F%2Fmorfx-sandy.vercel.app%2Fapi%2Fintegrations%2Fshopify%2Foauth%2Fcallback&state=eyJ...`
        - **Verificar URL:**
          - `client_id` no vacío
-         - `scope=read_orders,read_customers,write_webhooks` exacto
-         - `redirect_uri` URL-encoded de `https://morfx.app/api/integrations/shopify/oauth/callback` (sin trailing slash)
+         - `scope=read_orders,read_customers,read_draft_orders` exacto
+         - `redirect_uri` URL-encoded de `https://morfx-sandy.vercel.app/api/integrations/shopify/oauth/callback` (sin trailing slash)
          - `state` = JWT (3 partes separadas por `.`)
        - Login a Shopify si pide.
        - Verificar la pantalla muestra: "MorfX wants permission to:" + lista de 3 scopes en español/inglés.
        - Click "Install app" / "Authorize".
 
     4. **Callback handling:**
-       - Browser redirige back a `https://morfx.app/configuracion/integraciones?success=oauth_connected`.
+       - Browser redirige back a `https://morfx-sandy.vercel.app/configuracion/integraciones?success=oauth_connected`.
        - **Verificar:**
          - URL post-redirect = `/configuracion/integraciones` SIN query params (porque `router.replace` los limpió ~1s después).
          - Toast verde "Tienda Shopify conectada exitosamente" aparece.
@@ -181,16 +181,16 @@ Output: confirmación E2E + logs guardados + 1 row OK en `integrations`. Plan 08
        - 1 row exactamente.
        - `shop_domain = '6xvhnx-1v.myshopify.com'`.
        - `is_legacy_token = false` (access_token NO empieza con `shpat_`).
-       - `granted_scope = 'read_orders,read_customers,write_webhooks'`.
+       - `granted_scope = 'read_orders,read_customers,read_draft_orders'`.
        - `is_active = true`.
 
     7. **Shopify Admin verificación:**
        - Login a Shopify Admin: `https://admin.shopify.com/store/6xvhnx-1v`.
        - Ir a Settings → Notifications → Webhooks (o `Apps and channels` → MorfX → Configuration).
        - **Verificar 3 webhooks creados:**
-         - `orders/create` → `https://morfx.app/api/webhooks/shopify` formato JSON
-         - `orders/updated` → `https://morfx.app/api/webhooks/shopify` formato JSON
-         - `draft_orders/create` → `https://morfx.app/api/webhooks/shopify` formato JSON
+         - `orders/create` → `https://morfx-sandy.vercel.app/api/webhooks/shopify` formato JSON
+         - `orders/updated` → `https://morfx-sandy.vercel.app/api/webhooks/shopify` formato JSON
+         - `draft_orders/create` → `https://morfx-sandy.vercel.app/api/webhooks/shopify` formato JSON
        - **API version:** debe decir `2024-01` en cada uno.
 
     8. **End-to-end test de webhook (opcional pero recomendado):**

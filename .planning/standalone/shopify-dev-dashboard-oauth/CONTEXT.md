@@ -149,7 +149,7 @@ Añadir a MorfX un flujo OAuth (Authorization Code Grant) que permita conectar t
 
 ## Specifics
 
-- **App de Shopify a crear:** "MorfX" en el Dev Dashboard, scopes `read_orders, read_customers, write_webhooks`, redirect URL `https://morfx.app/api/integrations/shopify/oauth/callback` (y `http://localhost:3020/...` para dev).
+- **App de Shopify a crear:** "MorfX" en el Dev Dashboard, scopes `read_orders, read_customers, write_webhooks`, redirect URL `https://morfx-sandy.vercel.app/api/integrations/shopify/oauth/callback` (y `http://localhost:3020/...` para dev).
 - **Tienda nueva en cuestión:** `6xvhnx-1v.myshopify.com` (plan Basic). El usuario ya creó la app `morfxconect` en esa tienda, pero **se descarta** — usaremos la app compartida MorfX en su lugar (D-01).
 - **Tienda actual conectada (a desconectar al ship):** la tienda Shopify $65 USD plan, conectada vía legacy custom app con `shpat_` viejo. Se desconecta y reconecta vía OAuth (D-03b).
 - **Flujo end-to-end deseado:**

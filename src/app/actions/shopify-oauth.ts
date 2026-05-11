@@ -108,12 +108,63 @@ export async function startShopifyOauth(input: { shopDomain: string }): Promise<
     }
   }
 
-  // === Build authorize URL (Plan 05 takeover from here) ==================
-  // TODO Task B: sign state JWT + buildAuthorizeUrl. The skeleton commit
-  // returns a deterministic placeholder error so the function is callable
-  // end-to-end during Wave 2 development.
-  return {
-    success: false,
-    error: 'OAuth start: state + authorize URL pending (Plan 04 Task B)',
+  // === Sign state JWT (D-08) =============================================
+  // The state carries { workspaceId, userId, nonce } self-contained so the
+  // callback (Plan 05) can re-establish identity cross-origin (Shopify's
+  // redirect arrives without our cookies). signStateJwt awaits
+  // getShopifyOAuthConfig() internally and throws fail-CLOSED if the
+  // platform_config secret is missing or weak (<32 chars).
+  let state: string
+  try {
+    state = await signStateJwt({
+      workspaceId,
+      userId: user.id,
+      nonce: generateNonce(),
+    })
+  } catch (err) {
+    // Never log the secret value; getShopifyOAuthConfig errors include only
+    // the key name + remediation hint. Log with shop for correlation.
+    console.error('[startShopifyOauth] state JWT sign failed:', {
+      message: err instanceof Error ? err.message : String(err),
+      shop,
+    })
+    return {
+      success: false,
+      error: 'Configuracion OAuth incompleta. Contacta al administrador.',
+    }
   }
+
+  // === Build redirect URI (Pitfall 10 — must match Dev Dashboard EXACTLY) =
+  // NEXT_PUBLIC_APP_URL is the only env var read in this file (public, NOT a
+  // Shopify secret). NO trailing slash — the URL string must be byte-identical
+  // to what's registered in Shopify Dev Dashboard → Settings → Redirection URLs.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!baseUrl) {
+    console.error('[startShopifyOauth] NEXT_PUBLIC_APP_URL not set', { shop })
+    return {
+      success: false,
+      error: 'Configuracion OAuth incompleta. Contacta al administrador.',
+    }
+  }
+  const redirectUri = `${baseUrl}/api/integrations/shopify/oauth/callback`
+
+  // === Build authorize URL (Plan 03 helper) ==============================
+  // buildAuthorizeUrl awaits getShopifyOAuthConfig() internally for clientId
+  // (D-15) and joins SHOPIFY_SCOPES. Returns the absolute URL the client must
+  // navigate to via window.location.href (cross-origin → NOT router.push).
+  let redirectUrl: string
+  try {
+    redirectUrl = await buildAuthorizeUrl({ shop, state, redirectUri })
+  } catch (err) {
+    console.error('[startShopifyOauth] buildAuthorizeUrl failed:', {
+      message: err instanceof Error ? err.message : String(err),
+      shop,
+    })
+    return {
+      success: false,
+      error: 'Configuracion OAuth incompleta. Contacta al administrador.',
+    }
+  }
+
+  return { success: true, redirectUrl }
 }

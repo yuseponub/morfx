@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { getBoldIntegration } from '@/app/actions/bold'
+import { getBoldIntegration, checkBoldRobotHealth } from '@/app/actions/bold'
 import { boldLinkStore, type BoldLinkState } from '@/lib/bold/link-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +36,7 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
   const [linkState, setLinkState] = useState<BoldLinkState | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [robotHealthy, setRobotHealthy] = useState<boolean>(true)
 
   // Sync state from the global store
   const syncState = useCallback(() => {
@@ -71,6 +72,24 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
     window.addEventListener('bold-link-update', handler)
     return () => window.removeEventListener('bold-link-update', handler)
   }, [conversationId, syncState])
+
+  // D-06: Health-check passive UX degradation.
+  // Polls every 60s while button is mounted (only if BOLD is configured).
+  // Server action checkBoldRobotHealth is cached 30s server-side (Pitfall 9).
+  useEffect(() => {
+    if (isConfigured !== true) return
+    let cancelled = false
+    const poll = async () => {
+      const result = await checkBoldRobotHealth().catch(() => ({ healthy: false }))
+      if (!cancelled) setRobotHealthy(result.healthy)
+    }
+    poll()
+    const interval = setInterval(poll, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [isConfigured])
 
   if (isConfigured !== true) return null
 
@@ -142,9 +161,10 @@ export function BoldPaymentLinkButton({ conversationId }: Props) {
       <Button
         variant="ghost"
         size="sm"
-        className="h-8 gap-1 text-xs relative"
+        className={`h-8 gap-1 text-xs relative ${!robotHealthy ? 'opacity-50 cursor-not-allowed' : ''}`}
         onClick={handleOpen}
-        title="Generar link de pago BOLD"
+        disabled={!robotHealthy}
+        title={!robotHealthy ? 'Temporalmente no disponible — BOLD actualizando login' : 'Generar link de pago BOLD'}
       >
         {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         {isCompleted && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}

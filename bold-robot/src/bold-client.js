@@ -122,61 +122,103 @@ async function createPaymentLink({ username, password, amount, description, imag
     }
 
     if (!isLoggedIn) {
-      // ===== STEP 1: LOGIN =====
-      console.log('[bold] navigating to landing...')
-      await page.goto(BOLD_LOGIN_URL, { waitUntil: 'networkidle' })
-      await saveScreenshot(page, '01-landing-page')
-
-      // panel.bold.co is a LANDING page with "Registrarme" + "Iniciar sesión" buttons,
-      // not the login form directly. Click "Iniciar sesión" first.
-      const iniciarSesionSelector =
-        'a:has-text("Iniciar sesión"), button:has-text("Iniciar sesión"), a:has-text("Iniciar"), button:has-text("Iniciar")'
-      await page.waitForSelector(iniciarSesionSelector, { timeout: LOGIN_FIELD_TIMEOUT })
-      await Promise.all([
-        page.waitForLoadState('networkidle').catch(() => {}),
-        page.click(iniciarSesionSelector),
-      ])
-      await page.waitForTimeout(1500)
+      // ===== STEP 1: LOGIN via Auth0 New Universal Login =====
+      // Post-2026-05-11 BOLD migrated to Auth0 NUL.
+      // The BFF (panel.bold.co/api/auth/login) emits the OAuth2 authorize redirect.
+      // Playwright follows the full chain as a top-level navigation:
+      //   panel.bold.co/api/auth/login → auth.bold.co/authorize → auth.bold.co/u/login/identifier
+      console.log('[bold] navigating to BFF login initiator...')
+      await page.goto(
+        'https://panel.bold.co/api/auth/login?audience=PAYMENTS&redirect=login-redirect',
+        { waitUntil: 'networkidle' }
+      )
+      await page.waitForTimeout(1500) // allow Auth0 NUL JS to attach validation hooks
       await saveScreenshot(page, '01b-login-form')
 
-      // Bold uses a 2-step login: first email + "Ingresar", then password + "Ingresar"
-      const emailSelector =
-        'input[type="email"], input[name="email"], input[name="username"], input[id*="email" i], input[placeholder*="correo" i], input[placeholder*="email" i]'
-      const passwordSelector = 'input[type="password"], input[name="password"], input[id*="password" i]'
-      const ingresarSelector =
-        'button[type="submit"], button:has-text("Ingresar"), button:has-text("Continuar"), button:has-text("Siguiente")'
+      // Auth0 NUL canonical selectors. Cosmetic classes (cf28009b3 etc.) change per
+      // Auth0 deploy — DO NOT use them. The cascade keeps legacy BOLD selectors at the
+      // end so a partial rollback by BOLD doesn't break us.
+      const usernameSelector = [
+        'input#username',                              // Auth0 NUL primary
+        'input[name="username"]',                      // Auth0 NUL alias
+        'input[autocomplete="email"]',                 // Semantic
+        'input[type="email"]',                         // Legacy BOLD form fallback
+        'input[name="email"]',                         // Legacy BOLD form fallback
+      ].join(', ')
 
-      // Step 1a: fill email
-      await page.waitForSelector(emailSelector, { timeout: LOGIN_FIELD_TIMEOUT })
-      await page.fill(emailSelector, username)
+      // Honeypot guard: Auth0 NUL identifier page has <input class="hide" type="password"
+      // aria-hidden="true">. Our cascade must NOT match it. We restrict to elements with
+      // type="password" AND not aria-hidden AND not class="hide".
+      const passwordSelector = [
+        'input#password:not(.hide):not([aria-hidden="true"])',
+        'input[name="password"]:not(.hide):not([aria-hidden="true"])',
+        'input[autocomplete="current-password"]',
+        // Legacy BOLD form fallback (no honeypot existed there)
+        'input[type="password"][name="password"]',
+      ].join(', ')
+
+      // Auth0 NUL submit. data-action-button-primary is the stable hook.
+      const submitSelector = [
+        'button[data-action-button-primary="true"]',
+        'button[name="action"][value="default"]',
+        'button._button-login-id',
+        // Legacy BOLD form fallback
+        'button[type="submit"]:has-text("Ingresar")',
+        'button:has-text("Continuar")',
+      ].join(', ')
+
+      // Step 1a: fill identifier (email or username)
+      // Wait longer than LOGIN_FIELD_TIMEOUT because Auth0 NUL hydration includes
+      // device-fingerprinting (CSIDE + Stytch telemetry.js) which adds 1-3s.
+      await page.waitForSelector(usernameSelector, { timeout: 45_000, state: 'visible' })
+      await page.fill(usernameSelector, username)
       await saveScreenshot(page, '02a-email-filled')
 
-      // Step 1b: click Ingresar to advance to password page
+      // Step 1b: submit identifier → Auth0 routes to /u/login/password
       await Promise.all([
         page.waitForLoadState('networkidle').catch(() => {}),
-        page.click(ingresarSelector),
+        page.click(submitSelector),
       ])
       await page.waitForTimeout(1500)
       await saveScreenshot(page, '02b-password-page')
 
+      // Sanity check: if we hit MFA at this point (rare per probe — current account
+      // has no MFA enrolled — but tenant supports it per discovery doc), escalate.
+      if (page.url().match(/\/u\/mfa-|\/mfa\/challenge/)) {
+        await saveScreenshot(page, 'error-mfa-required')
+        throw new Error(
+          'BOLD ahora requiere MFA. Este flujo no esta automatizado. ' +
+          'Configura el agente sin MFA o contacta a BOLD para deshabilitarlo.'
+        )
+      }
+
       // Step 2a: fill password
-      await page.waitForSelector(passwordSelector, { timeout: LOGIN_FIELD_TIMEOUT })
+      await page.waitForSelector(passwordSelector, { timeout: 30_000, state: 'visible' })
       await page.fill(passwordSelector, password)
       await saveScreenshot(page, '02c-password-filled')
 
-      // Step 2b: click Ingresar to actually log in
+      // Step 2b: submit password → Auth0 redirects to /api/auth/callback?code=...
+      // BFF exchanges code → sets session cookie → final redirect to /misventas.
       await Promise.all([
         page.waitForLoadState('networkidle').catch(() => {}),
-        page.click(ingresarSelector),
+        page.click(submitSelector),
       ])
-      await page.waitForTimeout(2500) // extra time for post-login redirect
+      await page.waitForTimeout(2500) // post-login redirect chain
       await saveScreenshot(page, '03-post-login')
 
-      // ===== STEP 1.5: HANDLE VERIFICATION CODE CHALLENGE =====
-      // Bold sends a 6-digit code to SMS/email when logging in from a new IP.
-      // Detect the challenge screen and wait for the user to submit the code via /api/submit-code.
-      const codeInputSelector =
-        'input[maxlength="6"], input[placeholder*="6 dígitos" i], input[placeholder*="código" i], input[placeholder*="codigo" i], input[name*="code" i], input[name*="codigo" i], input[aria-label*="código" i], input[aria-label*="codigo" i]'
+      // ===== STEP 1.5: HANDLE VERIFICATION CODE CHALLENGE (Auth0 NUL or legacy) =====
+      // BOLD's old form used a custom 6-digit input. Auth0 NUL uses input[name="code"]
+      // with autocomplete="one-time-code". Cascade covers both.
+      const codeInputSelector = [
+        'input[name="code"]',                          // Auth0 NUL primary
+        'input[autocomplete="one-time-code"]',         // Auth0 NUL alias
+        'input[maxlength="6"]',                        // Legacy BOLD form
+        'input[placeholder*="código" i]',              // Legacy BOLD form
+        'input[placeholder*="codigo" i]',
+        'input[name*="code" i]',
+        'input[aria-label*="código" i]',
+      ].join(', ')
+
       const codeInput = await page.$(codeInputSelector)
       if (codeInput && (await codeInput.isVisible().catch(() => false))) {
         console.log('[bold] verification code screen detected — waiting for /api/submit-code...')
@@ -188,10 +230,9 @@ async function createPaymentLink({ username, password, amount, description, imag
         await page.fill(codeInputSelector, code)
         await saveScreenshot(page, '02e-code-filled')
 
-        // Click "Continuar" on the code screen
         await Promise.all([
           page.waitForLoadState('networkidle').catch(() => {}),
-          page.click('button:has-text("Continuar"), button[type="submit"], button:has-text("Ingresar")'),
+          page.click(submitSelector),
         ])
         await page.waitForTimeout(2500)
         await saveScreenshot(page, '02f-post-code')
@@ -199,16 +240,13 @@ async function createPaymentLink({ username, password, amount, description, imag
 
       await dismissNpsPopup(page)
 
-      // Sanity check: the password field should NOT still be visible
-      const stillOnLogin = await page.$(passwordSelector)
-      if (stillOnLogin) {
-        const visible = await stillOnLogin.isVisible().catch(() => false)
-        if (visible) {
-          await saveScreenshot(page, 'error-still-on-login')
-          throw new Error(
-            'Login falló — la página sigue mostrando el campo de contraseña. Credenciales incorrectas o captcha.'
-          )
-        }
+      // Sanity check: should be back on panel.bold.co, not still on auth.bold.co
+      if (page.url().includes('auth.bold.co')) {
+        await saveScreenshot(page, 'error-still-on-auth0')
+        throw new Error(
+          'Login falló — Playwright sigue en auth.bold.co después de submit. ' +
+          'Credenciales incorrectas o Auth0 muestra error.'
+        )
       }
 
       // Persist the session state so future requests skip login entirely

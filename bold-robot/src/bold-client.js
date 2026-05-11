@@ -110,6 +110,14 @@ async function createPaymentLink({ username, password, amount, description, imag
         isLoggedIn = true
       } else {
         console.log(`[bold] saved session expired (landed on ${currentUrl}), falling back to full login`)
+        try {
+          fs.unlinkSync(STATE_FILE)
+          console.log('[bold] deleted stale storageState file to ensure clean login')
+        } catch (err) {
+          console.warn(`[bold] could not delete storageState: ${err.message}`)
+        }
+        // Also navigate to BFF logout to clear Auth0 SSO cookies on .bold.co
+        await page.goto('https://panel.bold.co/api/auth/logout', { waitUntil: 'networkidle' }).catch(() => {})
       }
     }
 

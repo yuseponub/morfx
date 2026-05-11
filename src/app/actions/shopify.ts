@@ -9,6 +9,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { testShopifyConnection, normalizeShopDomain, ConnectionTestResult } from '@/lib/shopify/connection-test'
+import { deleteShopifyIntegration as domainDeleteShopifyIntegration } from '@/lib/domain/integrations'
 import type { ShopifyIntegration, ShopifyConfig, IntegrationFormData } from '@/lib/shopify/types'
 import type { Pipeline, PipelineStage } from '@/lib/orders/types'
 import { cookies } from 'next/headers'
@@ -387,14 +388,18 @@ export async function deleteShopifyIntegration(): Promise<{
     return { success: false, error: 'Solo el Owner puede eliminar integraciones' }
   }
 
-  const { error } = await adminSupabase
-    .from('integrations')
-    .delete()
-    .eq('workspace_id', workspaceId)
-    .eq('type', 'shopify')
+  // Regla 3 (D-10): toda mutacion via domain layer.
+  // Standalone shopify-dev-dashboard-oauth Plan 06 — refactor del delete path
+  // para llamar a `src/lib/domain/integrations.ts` (Opcion A6: import alias).
+  const result = await domainDeleteShopifyIntegration({
+    workspaceId,
+    source: 'server-action',
+    actorId: user.id,
+    actorLabel: `user:${user.id.slice(0, 8)}`,
+  })
 
-  if (error) {
-    console.error('Error deleting integration:', error)
+  if (!result.success) {
+    console.error('Error deleting integration:', result.error)
     return { success: false, error: 'Error al eliminar integracion' }
   }
 

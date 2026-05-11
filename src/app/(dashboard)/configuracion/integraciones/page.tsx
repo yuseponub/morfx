@@ -132,35 +132,18 @@ export default async function IntegracionesPage() {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle>Como configurar</CardTitle>
+              <CardTitle>Como conectar</CardTitle>
+              <CardDescription>
+                Ingresa el dominio de tu tienda Shopify (ej:
+                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-xs">mitienda.myshopify.com</code>)
+                y haz click en "Conectar con Shopify". Te redirigiremos a
+                Shopify para autorizar el acceso a pedidos, clientes y borradores
+                de pedidos. Al volver, configuras el pipeline y la etapa donde
+                se crearan los pedidos. Los webhooks (orders/create,
+                orders/updated, draft_orders/create) se crean automaticamente
+                — no es necesario configurarlos a mano.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="prose prose-sm max-w-none">
-              <ol className="list-decimal pl-4 space-y-2">
-                <li>
-                  En tu admin de Shopify, ve a <strong>Settings &gt; Apps and sales channels &gt; Develop apps</strong>
-                </li>
-                <li>
-                  Crea una nueva app o selecciona una existente
-                </li>
-                <li>
-                  En <strong>Configuration</strong>, habilita los permisos: <code>read_orders</code>, <code>read_customers</code>
-                </li>
-                <li>
-                  En <strong>API credentials</strong>, copia el <strong>Admin API access token</strong> y el <strong>API secret key</strong>
-                </li>
-                <li>
-                  Pega las credenciales en el formulario y prueba la conexion
-                </li>
-                <li>
-                  Configura el webhook en Shopify:
-                  <ul className="list-disc pl-4 mt-1">
-                    <li>Topic: <code>orders/create</code></li>
-                    <li>URL: <code>{process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/shopify</code></li>
-                    <li>Format: JSON</li>
-                  </ul>
-                </li>
-              </ol>
-            </CardContent>
           </Card>
         </TabsContent>
 

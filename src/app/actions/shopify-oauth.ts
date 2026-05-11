@@ -1,0 +1,119 @@
+'use server'
+
+// ============================================================================
+// Server Action: Start Shopify OAuth (Standalone shopify-dev-dashboard-oauth)
+//
+// Plan 04 / Wave 2.
+//
+// Called by src/app/(dashboard)/configuracion/integraciones/components/shopify-form.tsx
+// (Plan 06) when the user clicks "Conectar con Shopify". On success the client
+// performs `window.location.href = redirectUrl` (cross-origin → NOT router.push).
+//
+// Auth gate (copy of saveShopifyIntegration pattern in shopify.ts:184-210):
+//   1. supabase.auth.getUser()
+//   2. cookie morfx_workspace
+//   3. workspace_members.role === 'owner'
+//
+// Domain validation (defense in depth — Pitfall 3 anti-injection):
+//   normalizeShopDomain (existing helper) → STRICT regex below.
+//
+// Credentials (D-15 OVERRIDE):
+//   This file NEVER touches `process.env.SHOPIFY_*`. The only env var read here
+//   is `NEXT_PUBLIC_APP_URL` (public, used to build the callback redirect_uri).
+//   All Shopify OAuth secrets (clientId, clientSecret, stateSecret) live in
+//   `platform_config` and are read implicitly by the async helpers in
+//   `src/lib/shopify/oauth.ts` (Plan 03), which await `getShopifyOAuthConfig()`
+//   internally (Plan 02 fail-CLOSED helper).
+//   Verifiable: `grep -E "process\.env\.SHOPIFY_(CLIENT|OAUTH)" \
+//   src/app/actions/shopify-oauth.ts` returns 0 matches.
+//
+// Regla 3: NO domain mutations here. The only DB read is workspace_members
+// (auth check, identical to shopify.ts). Plan 05 callback handles the upsert.
+// ============================================================================
+
+import { cookies } from 'next/headers'
+
+import { normalizeShopDomain } from '@/lib/shopify/connection-test'
+import { buildAuthorizeUrl, generateNonce, signStateJwt } from '@/lib/shopify/oauth'
+import { createClient } from '@/lib/supabase/server'
+
+/**
+ * STRICT shop domain regex (Pitfall 3, defense in depth).
+ *
+ * `normalizeShopDomain` already validates the format (lowercase a-z0-9 and
+ * hyphens, ending in `.myshopify.com`), but we re-validate here against an
+ * explicit anchored regex so any future change to the helper does not silently
+ * weaken the OAuth start path. The shop is interpolated into the authorize URL
+ * (`https://${shop}/admin/oauth/authorize?...`) so any unexpected character
+ * could become a Host-header injection or open redirect vector.
+ *
+ * Accepts shop names that begin with a digit (e.g. `6xvhnx-1v.myshopify.com`),
+ * which matches Shopify's own conventions for development-store handles.
+ */
+const SHOP_DOMAIN_REGEX = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/
+
+/**
+ * Entry point of the Shopify OAuth flow.
+ *
+ * Returns the authorize URL the client should navigate to (cross-origin).
+ * Envelope shape `{ success, error | redirectUrl }` matches the convention of
+ * the other server actions in `src/app/actions/shopify.ts`.
+ *
+ * Errors are surfaced as Spanish messages suitable for a toast (D-12). Server
+ * logs include the failure detail; the client message is generic when the
+ * failure could leak which env var / credential is missing.
+ */
+export async function startShopifyOauth(input: { shopDomain: string }): Promise<
+  | { success: true; redirectUrl: string }
+  | { success: false; error: string }
+> {
+  // === Auth gate (copy of shopify.ts:184-210) ============================
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, error: 'No autenticado' }
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { success: false, error: 'No hay workspace seleccionado' }
+  }
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'owner') {
+    return { success: false, error: 'Solo el Owner puede conectar integraciones' }
+  }
+
+  // === Validate shop domain (defense in depth — Pitfall 3) ===============
+  const shop = normalizeShopDomain(input.shopDomain)
+  if (!shop) {
+    return {
+      success: false,
+      error: 'Dominio invalido. Debe ser tu-tienda.myshopify.com',
+    }
+  }
+
+  if (!SHOP_DOMAIN_REGEX.test(shop)) {
+    return {
+      success: false,
+      error: 'Dominio invalido. Debe ser tu-tienda.myshopify.com',
+    }
+  }
+
+  // === Build authorize URL (Plan 05 takeover from here) ==================
+  // TODO Task B: sign state JWT + buildAuthorizeUrl. The skeleton commit
+  // returns a deterministic placeholder error so the function is callable
+  // end-to-end during Wave 2 development.
+  return {
+    success: false,
+    error: 'OAuth start: state + authorize URL pending (Plan 04 Task B)',
+  }
+}

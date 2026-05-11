@@ -6,6 +6,7 @@
 // Generate payment link via Railway robot
 // ============================================================================
 
+import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getIntegrationAuthContext,
@@ -188,3 +189,43 @@ export async function createPaymentLinkAction(input: {
     return { success: false, error: message }
   }
 }
+
+// ============================================================================
+// 4. Check BOLD Robot Health (D-06 passive UX degradation)
+// ============================================================================
+
+/**
+ * Pings the BOLD robot /api/health endpoint with a 5s timeout.
+ * Result is cached for 30s to dedupe across operators (Pitfall 9 mitigation).
+ *
+ * Consumed by BoldPaymentLinkButton to disable the button when robot is down.
+ * Never throws — returns { healthy: false } on any error.
+ *
+ * @see RESEARCH.md Example 3 + Pitfall 9
+ * @see CONTEXT.md D-06
+ */
+export const checkBoldRobotHealth = unstable_cache(
+  async (): Promise<{ healthy: boolean; checkedAt: string }> => {
+    const robotUrl = process.env.BOLD_ROBOT_URL
+    if (!robotUrl) {
+      return { healthy: false, checkedAt: new Date().toISOString() }
+    }
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), 5_000)
+    try {
+      const res = await fetch(`${robotUrl}/api/health`, {
+        method: 'GET',
+        signal: ctl.signal,
+        // Tell Next not to cache this fetch itself — we cache the action result instead
+        cache: 'no-store',
+      })
+      return { healthy: res.ok, checkedAt: new Date().toISOString() }
+    } catch {
+      return { healthy: false, checkedAt: new Date().toISOString() }
+    } finally {
+      clearTimeout(timer)
+    }
+  },
+  ['bold-robot-health'],
+  { revalidate: 30, tags: ['bold-robot-health'] }
+)

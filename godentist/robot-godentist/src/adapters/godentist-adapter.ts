@@ -252,6 +252,9 @@ export class GoDentistAdapter {
     await this.setHour('6:00 am')
     await this.takeScreenshot('after-set-hour')
 
+    // Baseline fingerprint for table-refresh guard (CONTEXT.md D-07)
+    let prevFingerprint = await this.captureFingerprint()
+
     // Step 3: Discover sucursales from the ExtJS combo
     let sucursales = await this.discoverSucursales()
     console.log(`[GoDentist] Found ${sucursales.length} sucursales: ${sucursales.map(s => s.label).join(', ')}`)
@@ -275,13 +278,19 @@ export class GoDentistAdapter {
         console.log(`[GoDentist] ── Sucursal: ${sucursal.label} ──`)
         await this.selectSucursal(sucursal)
         await this.clickBuscar()
-        await this.page.waitForTimeout(3000)
+        prevFingerprint = await this.waitForSucursalRefresh(prevFingerprint, sucursal)
         await this.takeScreenshot(`citas-${sucursal.label.replace(/\s+/g, '-').toLowerCase()}`)
 
         const appointments = await this.extractAllPages(sucursal.label)
         allAppointments.push(...appointments)
         console.log(`[GoDentist] ${sucursal.label}: ${appointments.length} citas (todas las páginas)`)
       } catch (err) {
+        // Per CONTEXT.md D-08: SedeRefreshFailedError aborts the entire scrape — must propagate
+        // up to scrapeAppointments caller (Express handler in server.ts maps to HTTP 502).
+        // Without this re-throw, the catch swallows the abort signal and scrape returns 200
+        // with partial data, breaking SPEC Acceptance #4 (Pitfall 2 in RESEARCH.md).
+        if (err instanceof SedeRefreshFailedError) throw err
+
         const msg = `Error en ${sucursal.label}: ${err instanceof Error ? err.message : String(err)}`
         console.error(`[GoDentist] ${msg}`)
         errors.push(msg)

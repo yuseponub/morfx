@@ -1,7 +1,7 @@
 import express from 'express'
 import * as fs from 'fs'
 import * as path from 'path'
-import { GoDentistAdapter } from '../adapters/godentist-adapter.js'
+import { GoDentistAdapter, SedeRefreshFailedError } from '../adapters/godentist-adapter.js'
 import type { ScrapeAppointmentsRequest, ScrapeAppointmentsResponse, HealthResponse, ConfirmAppointmentRequest, ConfirmAppointmentResponse, CheckAvailabilityRequest } from '../types/index.js'
 
 const ARTIFACTS_DIR = path.resolve('storage/artifacts')
@@ -70,6 +70,23 @@ export function createServer() {
     } catch (err) {
       console.error('[Server] Scrape error:', err)
       await adapter.takeScreenshot('server-error')
+
+      // Per CONTEXT.md D-08: SedeRefreshFailedError (thrown by adapter when a sede exhausts
+      // 3 refresh attempts) maps to HTTP 502 — semantically correct because the portal Dentos
+      // (upstream of the robot) didn't respond as expected. Discriminator code allows
+      // forensics distinction from other 5xx responses.
+      if (err instanceof SedeRefreshFailedError) {
+        res.status(502).json({
+          success: false,
+          status: 'error',
+          code: 'sede_refresh_failed',
+          sucursal: err.sucursal,
+          attempts: err.attempts,
+          error: err.message,
+        })
+        return
+      }
+
       res.status(500).json({
         success: false,
         error: err instanceof Error ? err.message : 'Unknown error',

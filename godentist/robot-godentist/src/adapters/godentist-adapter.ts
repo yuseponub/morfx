@@ -11,6 +11,62 @@ const ARTIFACTS_DIR = path.join(STORAGE_DIR, 'artifacts')
 const BASE_URL = 'https://godentist.dentos.co'
 const APPOINTMENTS_URL = `${BASE_URL}/citas/index/listcitassimple`
 
+// ── Table-refresh guard primitives (standalone: godentist-scraper-table-refresh-guard) ──
+
+/**
+ * Per CONTEXT.md D-04/D-05: timeout máximo por intento de refresh de tabla y polling rate
+ * usados por waitForSucursalRefresh (definido en Plan 02). 8s da ~2x margen sobre el peor caso
+ * medido (~3.5s) en logs Railway históricos.
+ */
+const SUCURSAL_REFRESH_TIMEOUT_MS = 8000
+const SUCURSAL_REFRESH_POLL_MS = 250
+
+/**
+ * Per CONTEXT.md D-01: fingerprint capturado de la tabla del portal Dentos para detectar
+ * cambios DOM cross-sede. Tres campos cubren el espacio de mutaciones posibles
+ * (sede distinta, paginación, filas distintas).
+ */
+interface Fingerprint {
+  phone: string
+  hora: string
+  rowCount: number
+}
+
+/**
+ * Pure equality check de dos Fingerprint per CONTEXT.md D-02.
+ * Iguales si los tres campos (phone, hora, rowCount) coinciden exactamente.
+ * `null` semantics se manejan en el caller (D-03 lógica en waitForSucursalRefresh, Plan 02).
+ * Module-level + no exportada: testable en futuro pero no parte del contract público.
+ */
+function fingerprintsEqual(a: Fingerprint | null, b: Fingerprint | null): boolean {
+  if (a === null && b === null) return true
+  if (a === null || b === null) return false
+  return a.phone === b.phone && a.hora === b.hora && a.rowCount === b.rowCount
+}
+
+/**
+ * Per CONTEXT.md D-08: error thrown por waitForSucursalRefresh (Plan 02) cuando una sede
+ * agota 3 intentos sin refresh detectado. Propaga sin try/catch hasta el Express handler
+ * en server.ts (Plan 04), que lo mapea a HTTP 502 con body discriminado
+ * `{ status: 'error', code: 'sede_refresh_failed', sucursal, attempts, message }`.
+ *
+ * Primera clase Error custom del robot. Discriminador `instanceof` permite type-safety
+ * en server.ts sin recurrir a `.code` string-matching.
+ */
+export class SedeRefreshFailedError extends Error {
+  constructor(
+    public readonly sucursal: string,
+    public readonly attempts: number,
+    public readonly stuckFingerprint: Fingerprint | null,
+  ) {
+    const fp = stuckFingerprint
+      ? `{phone:${stuckFingerprint.phone},hora:${stuckFingerprint.hora},rowCount:${stuckFingerprint.rowCount}}`
+      : 'null'
+    super(`Sede ${sucursal}: tabla no se refrescó tras ${attempts} intentos. Fingerprint stuck at ${fp}`)
+    this.name = 'SedeRefreshFailedError'
+  }
+}
+
 interface Sucursal {
   value: string
   label: string

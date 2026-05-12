@@ -1610,6 +1610,126 @@ export class GoDentistAdapter {
     })
   }
 
+  /**
+   * Per CONTEXT.md D-04..D-08: guard de table-refresh entre cambios de sede.
+   *
+   * Estrategia:
+   * - Si prev === null (D-03 edge case): no esperamos, capturamos curr y retornamos. Una sede
+   *   con tabla vacía es legítima en el portal Dentos; no debe gatillar retry infinito.
+   * - Si prev !== null: invocar page.waitForFunction polling 250ms con timeout 8000ms.
+   *   La función inyectada calcula el fingerprint del DOM actual y retorna truthy cuando difiere
+   *   de prev (rowCount/phone/hora cambiaron, o rowCount=0 mientras prev no-null).
+   * - Tras success: log "Table refresh confirmed for ${label} after attempt ${n}", retornar
+   *   captureFingerprint() (Fingerprint | null).
+   * - Tras timeout: log "Table refresh failed for ${label} attempt ${n}/3 — retrying selectSucursal";
+   *   antes de re-intentar, page.keyboard.press('Escape') para limpiar combo abierto (Pitfall 3);
+   *   re-invocar selectSucursal + clickBuscar; loop al próximo attempt.
+   * - Tras 3 attempts agotados: log "Table refresh FAILED for ${label} after 3 attempts — aborting
+   *   scrape. Fingerprint stuck at {...}", throw SedeRefreshFailedError. El throw se propaga
+   *   hasta scrapeAppointments (re-throw en catch — Plan 03) y de ahí al Express handler (Plan 04).
+   */
+  private async waitForSucursalRefresh(
+    prev: Fingerprint | null,
+    sucursal: Sucursal,
+  ): Promise<Fingerprint | null> {
+    if (!this.page) throw new Error('Browser not initialized')
+
+    // D-03 edge case: prev null ⇒ no esperamos, sede anterior estaba vacía / estado inicial.
+    if (prev === null) {
+      const curr = await this.captureFingerprint()
+      const fpStr = curr
+        ? `{phone:${curr.phone},hora:${curr.hora},rowCount:${curr.rowCount}}`
+        : 'null'
+      console.log(`[GoDentist] Table refresh confirmed for ${sucursal.label} after attempt 1: prev=null → curr=${fpStr}`)
+      return curr
+    }
+
+    let lastSeen: Fingerprint | null = prev
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.page.waitForFunction(
+          (p) => {
+            const rows = Array.from(document.querySelectorAll('table tbody tr'))
+            const validRows: HTMLTableRowElement[] = []
+            for (const r of rows) {
+              const cs = Array.from(r.querySelectorAll('td'))
+                .map(c => (c.textContent || '').trim())
+                .filter(c => c.length > 0)
+              if (cs.length >= 3) validRows.push(r as HTMLTableRowElement)
+            }
+            const rowCount = validRows.length
+
+            // rowCount 0 vs prev non-null ⇒ refreshed (transition non-null → null)
+            if (rowCount === 0) return true
+
+            // Compute phone+hora from first valid row using same heuristics as captureFingerprint
+            const firstRow = validRows[0]
+            const cells = Array.from(firstRow.querySelectorAll('td'))
+              .map(c => (c.textContent || '').trim())
+              .filter(c => c.length > 0)
+
+            let phone = ''
+            let hora = ''
+            for (const cell of cells) {
+              if (!hora) {
+                const tm = cell.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\b/)
+                if (tm) {
+                  hora = tm[1].trim()
+                  continue
+                }
+              }
+              if (!phone) {
+                const pm = cell.match(/(\+?\d{10,}|\b3\d{9}\b)/)
+                if (pm) {
+                  let raw = pm[1].replace(/\D/g, '')
+                  if (raw.length === 10 && raw.startsWith('3')) raw = '57' + raw
+                  phone = raw
+                  continue
+                }
+              }
+            }
+
+            // Refresh iff any field differs from prev
+            return p.phone !== phone || p.hora !== hora || p.rowCount !== rowCount
+          },
+          prev,
+          { polling: SUCURSAL_REFRESH_POLL_MS, timeout: SUCURSAL_REFRESH_TIMEOUT_MS },
+        )
+
+        // Success — capture current fingerprint and log verbatim D-10 string
+        const curr = await this.captureFingerprint()
+        const prevStr = `{phone:${prev.phone},hora:${prev.hora},rowCount:${prev.rowCount}}`
+        const currStr = curr
+          ? `{phone:${curr.phone},hora:${curr.hora},rowCount:${curr.rowCount}}`
+          : 'null'
+        console.log(`[GoDentist] Table refresh confirmed for ${sucursal.label} after attempt ${attempt}: prev=${prevStr} → curr=${currStr}`)
+        return curr
+      } catch (err) {
+        // Capture current fingerprint to enrich logs (still stuck)
+        lastSeen = await this.captureFingerprint()
+
+        if (attempt < 3) {
+          console.log(`[GoDentist] Table refresh failed for ${sucursal.label} attempt ${attempt}/3 — retrying selectSucursal`)
+          // Defensive Escape per Pitfall 3 — ensure combo dropdown not lingering open from previous attempt
+          await this.page.keyboard.press('Escape').catch(() => undefined)
+          await this.selectSucursal(sucursal)
+          await this.clickBuscar()
+          // continue to next iteration of for-loop
+        } else {
+          const stuckStr = lastSeen
+            ? `{phone:${lastSeen.phone},hora:${lastSeen.hora},rowCount:${lastSeen.rowCount}}`
+            : 'null'
+          console.log(`[GoDentist] Table refresh FAILED for ${sucursal.label} after 3 attempts — aborting scrape. Fingerprint stuck at ${stuckStr}`)
+          throw new SedeRefreshFailedError(sucursal.label, 3, lastSeen)
+        }
+      }
+    }
+
+    // Unreachable — loop body either returns or throws on every iteration
+    throw new SedeRefreshFailedError(sucursal.label, 3, lastSeen)
+  }
+
   // ── Pagination ──
 
   /**

@@ -31,6 +31,7 @@ import { toast } from 'sonner'
 import {
   toggleShopifyIntegration,
   deleteShopifyIntegration,
+  updateShopifyConfig,
 } from '@/app/actions/shopify'
 import { startShopifyOauth } from '@/app/actions/shopify-oauth'
 import { updateShopifyAutoSync } from '@/app/actions/integrations'
@@ -241,24 +242,21 @@ function ConnectedBranch({ integration, pipelines }: ConnectedBranchProps) {
     }
   }
 
-  // Save (pipeline / stage / matching) — actualiza solo los campos editables
-  // por el operador via updateShopifyAutoSync para consistency. NOTE: V1 deja
-  // los selectors funcionalmente atados al toggle auto-sync; un futuro plan
-  // puede agregar un endpoint domain-layer dedicado para "save config" si se
-  // necesita persistir pipeline_id / stage_id / matching desde la UI sin OAuth.
-  // Por ahora, los Selects controlan local state; el operador ve los valores
-  // pero la persistencia productiva ocurre via OAuth callback (preserve-on-
-  // update logic en upsertShopifyIntegration, ver Plan 02 SUMMARY).
-  const onSubmit = (_data: ConnectedFormValues) => {
-    // Placeholder: V1 no expone un endpoint para mutar SOLO la config del
-    // operador (pipeline/stage/matching) sin re-correr OAuth. La UI mantiene
-    // los selectors para visibility; persistencia editorial queda para un
-    // standalone follow-up. Si el operador quiere cambiar los valores hoy:
-    // disconnect + reconnect via OAuth (D-03b limpia el config; en el
-    // siguiente OAuth los selectors de la UI conservan los valores actuales).
-    toast.info(
-      'Para cambiar pipeline / etapa / matching: desconecta y reconecta via OAuth.'
-    )
+  const onSubmit = (data: ConnectedFormValues) => {
+    startTransition(async () => {
+      const result = await updateShopifyConfig({
+        default_pipeline_id: data.default_pipeline_id,
+        default_stage_id: data.default_stage_id,
+        enable_fuzzy_matching: data.enable_fuzzy_matching,
+        product_matching: data.product_matching,
+      })
+      if (result.success) {
+        toast.success('Configuracion guardada')
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Error al guardar configuracion')
+      }
+    })
   }
 
   const handleToggleActive = () => {

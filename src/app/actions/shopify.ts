@@ -8,7 +8,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { deleteShopifyIntegration as domainDeleteShopifyIntegration } from '@/lib/domain/integrations'
+import {
+  deleteShopifyIntegration as domainDeleteShopifyIntegration,
+  updateShopifyConfig as domainUpdateShopifyConfig,
+  type UpdateShopifyConfigParams,
+} from '@/lib/domain/integrations'
 import type { ShopifyIntegration } from '@/lib/shopify/types'
 import type { Pipeline, PipelineStage } from '@/lib/orders/types'
 import { cookies } from 'next/headers'
@@ -257,6 +261,57 @@ export async function deleteShopifyIntegration(): Promise<{
   if (!result.success) {
     console.error('Error deleting integration:', result.error)
     return { success: false, error: 'Error al eliminar integracion' }
+  }
+
+  return { success: true }
+}
+
+/**
+ * Updates the operator-editable Shopify integration config fields
+ * (default_pipeline_id, default_stage_id, enable_fuzzy_matching, product_matching).
+ * Does NOT touch OAuth fields. Owner only. Regla 3 — calls domain layer.
+ */
+export async function updateShopifyConfig(params: UpdateShopifyConfigParams): Promise<{
+  success: boolean
+  error?: string
+}> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, error: 'No autenticado' }
+  }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) {
+    return { success: false, error: 'No hay workspace seleccionado' }
+  }
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'owner') {
+    return { success: false, error: 'Solo el Owner puede modificar integraciones' }
+  }
+
+  const result = await domainUpdateShopifyConfig(
+    {
+      workspaceId,
+      source: 'server-action',
+      actorId: user.id,
+      actorLabel: `user:${user.id.slice(0, 8)}`,
+    },
+    params
+  )
+
+  if (!result.success) {
+    console.error('Error updating shopify config:', result.error)
+    return { success: false, error: 'Error al actualizar configuracion' }
   }
 
   return { success: true }

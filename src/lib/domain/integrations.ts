@@ -227,3 +227,72 @@ export async function deleteShopifyIntegration(
     }
   }
 }
+
+// ============================================================================
+// updateShopifyConfig — operator-editable fields only (no OAuth re-flow)
+// ============================================================================
+
+export interface UpdateShopifyConfigParams {
+  default_pipeline_id?: string
+  default_stage_id?: string
+  enable_fuzzy_matching?: boolean
+  product_matching?: 'sku' | 'name' | 'value'
+}
+
+export async function updateShopifyConfig(
+  ctx: DomainContext,
+  params: UpdateShopifyConfigParams
+): Promise<DomainResult<ShopifyIntegration>> {
+  const supabase = createAdminClient()
+
+  try {
+    const { data: existing, error: existingErr } = await supabase
+      .from('integrations')
+      .select('id, config')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('type', 'shopify')
+      .maybeSingle()
+
+    if (existingErr) return { success: false, error: existingErr.message }
+    if (!existing) return { success: false, error: 'shopify_integration_not_found' }
+
+    const existingConfig = (existing.config ?? {}) as Partial<ShopifyConfig>
+
+    const config: ShopifyConfig = {
+      shop_domain: existingConfig.shop_domain ?? '',
+      access_token: existingConfig.access_token ?? '',
+      api_secret: existingConfig.api_secret ?? '',
+      default_pipeline_id: params.default_pipeline_id ?? existingConfig.default_pipeline_id ?? '',
+      default_stage_id: params.default_stage_id ?? existingConfig.default_stage_id ?? '',
+      enable_fuzzy_matching: params.enable_fuzzy_matching ?? existingConfig.enable_fuzzy_matching ?? false,
+      product_matching: params.product_matching ?? existingConfig.product_matching ?? 'sku',
+      ...(existingConfig.field_mappings !== undefined && {
+        field_mappings: existingConfig.field_mappings,
+      }),
+      ...(existingConfig.auto_sync_orders !== undefined && {
+        auto_sync_orders: existingConfig.auto_sync_orders,
+      }),
+      ...(existingConfig.granted_scope !== undefined && {
+        granted_scope: existingConfig.granted_scope,
+      }),
+    }
+
+    const { data: updated, error } = await supabase
+      .from('integrations')
+      .update({
+        config,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select()
+      .single()
+
+    if (error) return { success: false, error: error.message }
+    return { success: true, data: updated as ShopifyIntegration }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'unknown error in updateShopifyConfig',
+    }
+  }
+}

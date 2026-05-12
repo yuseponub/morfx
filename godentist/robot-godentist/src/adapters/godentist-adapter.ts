@@ -1555,6 +1555,61 @@ export class GoDentistAdapter {
     }
   }
 
+  // ── Table-refresh guard helpers (standalone: godentist-scraper-table-refresh-guard) ──
+
+  /**
+   * Per CONTEXT.md D-01: captura fingerprint de la tabla actual del portal Dentos.
+   * Lee `table tbody tr` con el mismo filtro que extractAppointments (cleanCells.length >= 3)
+   * para coherencia. Retorna null si no hay filas válidas (tabla vacía es comportamiento legítimo).
+   *
+   * Usado por waitForSucursalRefresh para comparar pre/post-cambio de sede.
+   */
+  private async captureFingerprint(): Promise<Fingerprint | null> {
+    if (!this.page) return null
+
+    return await this.page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('table tbody tr'))
+      const validRows: HTMLTableRowElement[] = []
+      for (const r of rows) {
+        const cells = Array.from(r.querySelectorAll('td'))
+          .map(c => (c.textContent || '').trim())
+          .filter(c => c.length > 0)
+        if (cells.length >= 3) validRows.push(r as HTMLTableRowElement)
+      }
+      const rowCount = validRows.length
+      if (rowCount === 0) return null
+
+      // Extract phone + hora from first valid row (heuristics consistent with extractAppointments)
+      const firstRow = validRows[0]
+      const cells = Array.from(firstRow.querySelectorAll('td'))
+        .map(c => (c.textContent || '').trim())
+        .filter(c => c.length > 0)
+
+      let phone = ''
+      let hora = ''
+      for (const cell of cells) {
+        if (!hora) {
+          const t = cell.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\b/)
+          if (t) {
+            hora = t[1].trim()
+            continue
+          }
+        }
+        if (!phone) {
+          const p = cell.match(/(\+?\d{10,}|\b3\d{9}\b)/)
+          if (p) {
+            let raw = p[1].replace(/\D/g, '')
+            if (raw.length === 10 && raw.startsWith('3')) raw = '57' + raw
+            phone = raw
+            continue
+          }
+        }
+      }
+
+      return { phone, hora, rowCount }
+    })
+  }
+
   // ── Pagination ──
 
   /**

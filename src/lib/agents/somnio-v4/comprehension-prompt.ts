@@ -36,6 +36,7 @@ NUNCA des ≥0.85 cuando el mensaje pregunte por:
 - Una opinión subjetiva o juicio de tercero ("mi tía dice que es magia", "vale la pena?")
 - Un mensaje vago, off-topic, broma, emoji solo, o tema fuera de Somnio
 - Un método de pago NO automatizado (tarjeta, Nequi, PSE, transferencia) — solo contraentrega es high confidence
+- Una sustancia específica de consumo (alcohol, licor, cerveza, vino, aguardiente, ron, whisky, marihuana, cannabis, cafeína) — requiere respuesta puntual, no genérica
 
 ## EJEMPLOS DE CALIBRACIÓN PER-INTENT
 
@@ -99,7 +100,11 @@ NUNCA des ≥0.85 cuando el mensaje pregunte por:
 
 ### intent="contraindicaciones"
 - "tiene efectos secundarios?" → 0.92
-- "puedo si tomo licor?" → 0.92 (cubierto por KB interaccion_alcohol)
+- "puedo si tomo licor?" → 0.30 (sustancia específica, requiere sub-loop)
+- "puedo tomar alcohol?" → 0.30 (sustancia específica)
+- "tomar cerveza con esto?" → 0.30 (sustancia específica)
+- "puedo si tomo trago?" → 0.30 (sustancia específica)
+- "si tomo vino puedo?" → 0.30 (sustancia específica)
 - "Tiene alguna contraindicación?" → 0.88
 - "Yo no tomo anticoagulante" → 0.85 (cubierto inverso)
 - "es muy fuerte?" → 0.55 (juicio subjetivo)

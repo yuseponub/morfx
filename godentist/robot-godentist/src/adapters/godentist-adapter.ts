@@ -1794,6 +1794,84 @@ export class GoDentistAdapter {
   }
 
   /**
+   * Per RESEARCH.md Paradigm F: selects a sede in the combo, then verifies the
+   * hidden #idsucursalgrid.value matches expectedId (via assertFilterIs).
+   *
+   * Replaces selectSucursal for paradigm F (does NOT delete the old; Plan 05 wires
+   * the call sites).
+   */
+  private async selectSucursalF(label: string, expectedId: string): Promise<void> {
+    console.log(`[GoDentist] selectSucursalF: ${label} (expectedId=${expectedId})`)
+
+    // Step 1: find the visible combo input by walking from #idsucursalgrid parent.
+    // The visible input has dynamic id (ext-comp-XXXX); the hidden input has stable id.
+    const comboInputSelector = await this.page!.evaluate(() => {
+      const hidden = document.getElementById('idsucursalgrid')
+      if (!hidden) return null
+      const parent = hidden.parentElement
+      if (!parent) return null
+      const inputs = parent.querySelectorAll('input')
+      for (const inp of Array.from(inputs)) {
+        if (inp !== hidden && (inp as HTMLElement).offsetParent !== null) return `#${inp.id}`
+      }
+      return null
+    })
+
+    if (!comboInputSelector) {
+      throw new Error(`selectSucursalF(${label}): combo input not found in DOM`)
+    }
+
+    // Step 2: close any open combos defensively.
+    await this.page!.keyboard.press('Escape').catch(() => {})
+    await this.page!.waitForTimeout(200)
+
+    // Step 3: click the visible combo to open the dropdown.
+    await this.page!.click(comboInputSelector)
+    await this.page!.waitForSelector('.x-combo-list-item:visible', { timeout: 2000 })
+
+    // Step 4: click the matching item. Filter visible to avoid hour items (RESEARCH.md Common Pitfalls).
+    const itemSelector = `.x-combo-list-item:visible:has-text("${label}")`
+    await this.page!.click(itemSelector, { timeout: 2000 })
+
+    // Step 5: wait for ExtJS to propagate to hidden input.
+    await this.page!.waitForTimeout(500)
+
+    // Step 6: verify postcondition.
+    await this.assertFilterIs(expectedId, `post-select-${label}`)
+
+    console.log(`[GoDentist] selectSucursalF: ${label} confirmed (hidden=${expectedId})`)
+  }
+
+  /**
+   * Per RESEARCH.md Paradigm F: clicks the Buscar button and waits for the
+   * citas table to render with the new filter applied.
+   *
+   * Does NOT throw FilterDriftError itself; the caller calls assertFilterIs immediately
+   * after for the postcondition.
+   */
+  private async clickBuscarAndWait(): Promise<void> {
+    console.log('[GoDentist] clickBuscarAndWait: clicking Buscar')
+
+    // Step 1: click the button (text-based selector since button id is not stable).
+    await this.page!.click('button:has-text("Buscar")', { timeout: 5000 })
+
+    // Step 2: wait for the table to render with new content.
+    await this.page!.waitForFunction(() => {
+      const rt = document.querySelector('table.x-grid3-row-table')
+      if (!rt) return false
+      const firstRow = rt.querySelector('tr')
+      if (!firstRow) return false
+      const cells = Array.from(firstRow.querySelectorAll('td')).map(c => (c.textContent || '').trim())
+      return (cells[1] || '').length > 0 && (cells[5] || '').length > 0
+    }, undefined, { timeout: 8000, polling: 100 })
+
+    // Defensive settle window for ExtJS toolbar updates.
+    await this.page!.waitForTimeout(500)
+
+    console.log('[GoDentist] clickBuscarAndWait: table rendered')
+  }
+
+  /**
    * Per CONTEXT.md D-04..D-08: guard de table-refresh entre cambios de sede.
    *
    * Estrategia:

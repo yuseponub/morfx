@@ -1701,21 +1701,21 @@ export class GoDentistAdapter {
   private async selectSucursalF(label: string, expectedId: string): Promise<void> {
     console.log(`[GoDentist] selectSucursalF: ${label} (expectedId=${expectedId})`)
 
-    // Step 1: find the visible combo input by walking from #idsucursalgrid parent.
+    // Step 1: find the visible combo input id by walking from #idsucursalgrid parent.
     // The visible input has dynamic id (ext-comp-XXXX); the hidden input has stable id.
-    const comboInputSelector = await this.page!.evaluate(() => {
+    const comboInputId = await this.page!.evaluate(() => {
       const hidden = document.getElementById('idsucursalgrid')
       if (!hidden) return null
       const parent = hidden.parentElement
       if (!parent) return null
       const inputs = parent.querySelectorAll('input')
       for (const inp of Array.from(inputs)) {
-        if (inp !== hidden && (inp as HTMLElement).offsetParent !== null) return `#${inp.id}`
+        if (inp !== hidden && (inp as HTMLElement).offsetParent !== null) return inp.id
       }
       return null
     })
 
-    if (!comboInputSelector) {
+    if (!comboInputId) {
       throw new Error(`selectSucursalF(${label}): combo input not found in DOM`)
     }
 
@@ -1723,18 +1723,29 @@ export class GoDentistAdapter {
     await this.page!.keyboard.press('Escape').catch(() => {})
     await this.page!.waitForTimeout(200)
 
-    // Step 3: click the visible combo to open the dropdown.
-    await this.page!.click(comboInputSelector)
-    await this.page!.waitForSelector('.x-combo-list-item:visible', { timeout: 2000 })
+    // Step 3: open the dropdown. ExtJS combos open via .x-form-trigger arrow,
+    // NOT by clicking the <input> directly (legacy openComboDropdown pattern).
+    // Click-on-input is a fallback for combos without a trigger.
+    const trigger = this.page!.locator(`#${comboInputId}`).locator('..').locator('.x-form-trigger')
+    const triggerCount = await trigger.count()
+    if (triggerCount > 0) {
+      await trigger.first().click()
+    } else {
+      await this.page!.click(`#${comboInputId}`)
+    }
 
-    // Step 4: click the matching item. Filter visible to avoid hour items (RESEARCH.md Common Pitfalls).
+    // Step 4: wait for dropdown items to appear. Generous timeout because
+    // ExtJS combos render slower in headless prod than headed local.
+    await this.page!.waitForSelector('.x-combo-list-item:visible', { timeout: 6000 })
+
+    // Step 5: click the matching item. Filter visible to avoid hour items (RESEARCH.md Common Pitfalls).
     const itemSelector = `.x-combo-list-item:visible:has-text("${label}")`
-    await this.page!.click(itemSelector, { timeout: 2000 })
+    await this.page!.click(itemSelector, { timeout: 4000 })
 
-    // Step 5: wait for ExtJS to propagate to hidden input.
+    // Step 6: wait for ExtJS to propagate to hidden input.
     await this.page!.waitForTimeout(500)
 
-    // Step 6: verify postcondition.
+    // Step 7: verify postcondition.
     await this.assertFilterIs(expectedId, `post-select-${label}`)
 
     console.log(`[GoDentist] selectSucursalF: ${label} confirmed (hidden=${expectedId})`)
@@ -1750,8 +1761,32 @@ export class GoDentistAdapter {
   private async clickBuscarAndWait(): Promise<void> {
     console.log('[GoDentist] clickBuscarAndWait: clicking Buscar')
 
-    // Step 1: click the button (text-based selector since button id is not stable).
-    await this.page!.click('button:has-text("Buscar")', { timeout: 5000 })
+    // Step 1: locate the Buscar button. ExtJS renders buttons as <table class="x-btn">,
+    // not as <button>, so `button:has-text(...)` alone fails in production.
+    // Use the same fallback chain as legacy clickBuscar (paradigm A).
+    const searchBtn = await this.page!.$('button:has-text("Buscar")')
+      || await this.page!.$('button:has-text("Filtrar")')
+      || await this.page!.$('button:has-text("Consultar")')
+      || await this.page!.$('.x-btn:has-text("Buscar")')
+      || await this.page!.$('.x-btn:has-text("Filtrar")')
+      || await this.page!.$('button[type="submit"]')
+
+    if (!searchBtn) {
+      // Last-resort diagnostic: log all buttons for postmortem.
+      const buttons = await this.page!.evaluate(() => {
+        return Array.from(document.querySelectorAll('button, .x-btn, input[type="submit"]')).map(b => ({
+          tag: b.tagName,
+          text: (b.textContent || '').trim().substring(0, 50),
+          className: b.className,
+          id: b.id,
+        }))
+      })
+      console.error(`[GoDentist] clickBuscarAndWait: NO Buscar button found. Buttons on page: ${JSON.stringify(buttons)}`)
+      throw new Error('clickBuscarAndWait: Buscar button not found')
+    }
+
+    await searchBtn.click()
+    console.log('[GoDentist] clickBuscarAndWait: button clicked')
 
     // Step 2: wait for the table to render with new content.
     await this.page!.waitForFunction(() => {

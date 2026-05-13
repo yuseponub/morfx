@@ -163,6 +163,9 @@ export class SomnioV4Engine {
           // threshold = platform_config.somnio_v4_low_confidence_threshold value used.
           subLoopReason: output.subLoopReason ?? undefined,
           threshold: output.threshold,
+          // Standalone: v4-subloop-debug-view / Plan 03 (D-02).
+          // Sub-loop debug payload propagated when sub-loop fired (otherwise undefined).
+          subLoopDebug: output.subLoopDebug,
           timerSignals: output.timerSignals.map(s => ({
             type: s.type,
             level: s.level,

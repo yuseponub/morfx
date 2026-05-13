@@ -43,6 +43,7 @@ import { CRM_ACTIONS, CREATE_ORDER_ACTIONS } from './constants'
 import { decideSubLoopReason } from './escalation'
 import { getLowConfidenceThreshold } from './threshold'
 import { runSubLoop } from './sub-loop'
+import type { SubLoopDebugPayload } from './sub-loop/debug-payload'
 import { executeInvocations } from './invocations'
 import type { LoopOutcome } from './sub-loop/output-schema'
 import { captureUnknownCase } from './unknown-cases/capture'
@@ -77,6 +78,9 @@ export async function processMessage(input: V4AgentInput): Promise<V4AgentOutput
 
 async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
   const timerSignals: TimerSignal[] = []
+  // Plan 03 D-03: closure var captures sub-loop debug payload across all
+  // runSubLoop invocations + error path. Survives throws (Pitfall 7 option a).
+  let capturedSubLoopDebug: SubLoopDebugPayload | undefined = undefined
 
   try {
     // 1. Restore state from session
@@ -152,6 +156,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             .slice(-4)
             .map((m) => ({ role: m.role, content: m.content })),
         },
+        onDebug: (p) => {
+          capturedSubLoopDebug = p
+        },
       })
       // W-08 (Plan 09): captureUnknownCase HOISTED aquí — Option 2 ÚNICA.
       // NUNCA dentro de mapOutcomeToAgentOutput (evita doble-firing).
@@ -190,6 +197,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         timerSignals,
         subLoopReason: earlyReason,
         threshold,
+        subLoopDebug: capturedSubLoopDebug,
       })
     }
 
@@ -228,6 +236,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         },
         subLoopReason: null,
         threshold,
+        subLoopDebug: capturedSubLoopDebug,
         totalTokens: tokensUsed,
         shouldCreateOrder: false,
         timerSignals,
@@ -321,6 +330,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
             .slice(-4)
             .map((m) => ({ role: m.role, content: m.content })),
         },
+        onDebug: (p) => {
+          capturedSubLoopDebug = p
+        },
       })
       // W-08 (Plan 09): captureUnknownCase HOISTED post-runSubLoop — Option 2 ÚNICA.
       if (outcome.status === 'no_match') {
@@ -357,6 +369,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         timerSignals,
         subLoopReason: 'cas_reject',
         threshold,
+        subLoopDebug: capturedSubLoopDebug,
       })
     }
 
@@ -479,6 +492,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         },
         subLoopReason: null,
         threshold,
+        subLoopDebug: capturedSubLoopDebug,
         totalTokens: tokensUsed,
         shouldCreateOrder: false,
         timerSignals,
@@ -532,6 +546,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       },
       subLoopReason: null,
       threshold,
+      subLoopDebug: capturedSubLoopDebug,
       totalTokens: tokensUsed,
       shouldCreateOrder: isCreateOrder,
       orderData: isCreateOrder
@@ -586,6 +601,10 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       totalTokens: 0,
       shouldCreateOrder: false,
       timerSignals: [],
+      // Pitfall 7 option (a): closure var preserves payload across the throw
+      // — surface it on the error output so the Sub-Loop tab can render the
+      // catch-before-throw snapshot from runSubLoop.
+      subLoopDebug: capturedSubLoopDebug,
     }
   }
 }
@@ -730,8 +749,10 @@ function mapOutcomeToAgentOutput(args: {
   subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
   /** Threshold used in this turn — surfaced to debug panel (Plan 07). */
   threshold?: number
+  /** Sub-loop debug payload — Plan 03 v4-subloop-debug-view (D-02). */
+  subLoopDebug?: SubLoopDebugPayload
 }): V4AgentOutput {
-  const { outcome, state, analysis, tokensUsed, timerSignals, subLoopReason, threshold } = args
+  const { outcome, state, analysis, tokensUsed, timerSignals, subLoopReason, threshold, subLoopDebug } = args
   const serialized = serializeState(state)
 
   const baseOutput = {
@@ -752,6 +773,7 @@ function mapOutcomeToAgentOutput(args: {
     },
     subLoopReason: subLoopReason ?? null,
     threshold,
+    subLoopDebug,
     totalTokens: tokensUsed,
     shouldCreateOrder: false,
     timerSignals,

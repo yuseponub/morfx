@@ -67,6 +67,81 @@ export class SedeRefreshFailedError extends Error {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Paradigm F primitives (standalone: godentist-scraping-structural-v2)
+// Inert scaffolding — consumed by selectSucursalF/clickBuscarAndWait (Plan 04)
+// and rewritten scrapeAppointments (Plan 05).
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per RESEARCH.md §Standard Stack: hardcoded sede label → numeric id mapping,
+ * empirically verified across 8 research scripts.
+ *
+ * The portal Dentos uses `#idsucursalgrid.value` (hidden input) as source of truth
+ * for the active filter. Map below was captured by clicking each sede in the combo
+ * and reading the hidden value (see research-scripts/01-baseline-and-combo.cjs).
+ *
+ * Stability: per RESEARCH.md "MEDIUM confidence" — if Godentist adds a sede,
+ * its numericId must be added here. A runtime discovery fallback is NOT included
+ * in V1 (over-engineering); if SEDE_ID_MAP[sede] is undefined, scrapeAppointments
+ * pushes an error message and skips the sede (see Plan 05).
+ */
+const SEDE_ID_MAP: Record<string, string> = {
+  'CABECERA': '1',
+  'FLORIDABLANCA': '3',
+  'JUMBO EL BOSQUE': '5',
+  'MEJORAS PUBLICAS': '4',
+}
+
+/**
+ * Per CONTEXT.md D-07 + RESEARCH.md Pattern 1: thrown by `assertFilterIs` helper
+ * when `#idsucursalgrid.value !== expectedId` after selectSucursal, clickBuscar,
+ * or pagination. Indicates the portal's filter drifted from the value we set —
+ * any extracted rows would belong to a different sede than the loop iteration.
+ *
+ * Propagates without try/catch to Express handler in server.ts (Plan 05), which
+ * maps to HTTP 502 with body `{ status: 'error', code: 'filter_drift', when, expected, actual }`.
+ *
+ * Discriminator `instanceof FilterDriftError` allows type-safe handling in server.ts
+ * without `.code` string-matching (same pattern as existing SedeRefreshFailedError lines 56-67).
+ */
+export class FilterDriftError extends Error {
+  constructor(
+    public readonly sede: string,
+    public readonly expectedId: string,
+    public readonly actualId: string,
+    public readonly when: string,
+  ) {
+    super(`Filter drift in ${sede} at ${when}: expected idsucursalgrid=${expectedId}, got ${actualId}`)
+    this.name = 'FilterDriftError'
+  }
+}
+
+/**
+ * Per CONTEXT.md D-11 + RESEARCH.md Pattern 2: thrown by `clickNextPageWithGuard`
+ * (Plan 04) when the pagination postcondition fails — `pageInput.value` did not
+ * increment AND first row did not change after the click + 1 retry.
+ *
+ * Indicates either:
+ *   (a) The portal served a disabled next-page button without us detecting it
+ *       (D-11 redundant defensive check), OR
+ *   (b) Network/ExtJS rendering stalled longer than the 5s waitForFunction.
+ *
+ * Maps to HTTP 502 in server.ts (Plan 05).
+ */
+export class PaginationStuckError extends Error {
+  constructor(
+    public readonly sede: string,
+    public readonly currentPage: number,
+    public readonly totalPages: number,
+    public readonly pageInputBefore: string,
+    public readonly pageInputAfter: string,
+  ) {
+    super(`Pagination stuck in ${sede} at page ${currentPage}/${totalPages}: pageInput ${pageInputBefore} → ${pageInputAfter}`)
+    this.name = 'PaginationStuckError'
+  }
+}
+
 interface Sucursal {
   value: string
   label: string

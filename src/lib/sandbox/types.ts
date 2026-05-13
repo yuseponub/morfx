@@ -9,6 +9,7 @@
 import type { IntentResult, SessionState, ToolCallRecord, PackSelection, ModelTokenEntry } from '@/lib/agents/types'
 import type { MessageClassification } from '@/lib/agents/somnio/message-classifier'
 import type { AccionRegistrada } from '@/lib/agents/somnio-v3/types'
+import type { SubLoopDebugPayload } from '@/lib/agents/somnio-v4/sub-loop/debug-payload'
 
 /**
  * Message in sandbox conversation
@@ -205,6 +206,12 @@ export interface DebugTurn {
   nuncaDecirMatches?: string[]
   /** Confidence threshold actual (platform_config.somnio_v4_low_confidence_threshold — D-11) */
   threshold?: number
+  /**
+   * Sub-loop debug payload (D-02 v4-subloop-debug-view standalone).
+   * Populated by engine-v4.ts when V4AgentOutput.subLoopDebug is set.
+   * Undefined when sub-loop did not fire OR for non-v4 agents.
+   */
+  subLoopDebug?: SubLoopDebugPayload
 }
 
 /**
@@ -341,7 +348,7 @@ export interface IngestTimelineEntry {
 // ============================================================================
 
 /** Available debug panel tab IDs */
-export type DebugPanelTabId = 'pipeline' | 'classify' | 'bloques' | 'tools' | 'state' | 'tokens' | 'ingest' | 'config'
+export type DebugPanelTabId = 'pipeline' | 'classify' | 'bloques' | 'tools' | 'state' | 'tokens' | 'ingest' | 'config' | 'subloop'
 
 /** Response delay in ms for sandbox message delays (slider-based, replaces presets) */
 

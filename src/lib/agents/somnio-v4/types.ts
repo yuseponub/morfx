@@ -13,6 +13,7 @@
  */
 
 import type { StateChanges } from './state'
+import type { SubLoopDebugPayload } from './sub-loop/debug-payload'
 
 // ============================================================================
 // Agent State
@@ -215,6 +216,14 @@ export interface V4AgentOutput {
   subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
   /** platform_config.somnio_v4_low_confidence_threshold value used in this turn (D-11). */
   threshold?: number
+
+  /**
+   * Sub-loop debug payload (D-02 v4-subloop-debug-view standalone).
+   * Populated by somnio-v4-agent.ts via onDebug callback passed to runSubLoop.
+   * Undefined when sub-loop did not fire OR when caller did not wire onDebug.
+   * Runtime-only — never persisted (D-07).
+   */
+  subLoopDebug?: SubLoopDebugPayload
 
   totalTokens: number
   shouldCreateOrder: boolean

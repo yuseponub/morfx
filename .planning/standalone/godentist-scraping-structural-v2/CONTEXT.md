@@ -44,9 +44,31 @@ El cambio cubre ambos flujos consumidores (`sendConfirmations` envío inmediato 
   - **Why:** Evidencia productiva muestra que ambos mecanismos están rotos simultáneamente: `clickNextPage` lee páginas falsas (JOSE DELGADO ×4 en FLO 10:00 AM; ALVARO/OSCAR/EDDY ×3 cada uno en MEJORAS) y cambio de sede contamina (JOHANNA/YARINETH de JUMBO etiquetadas como MEJORAS; EDDY de CABECERA etiquetada como MEJORAS).
   - **How to apply:** Research-phase tiene 2 sub-investigaciones obligatorias: (1) paginación robusta + cómo determinar fin-de-páginas sin clicks falsos, (2) cambio de sede atomicidad — opciones: combo readback post-search, espera de marker DOM específico del filtro nuevo, scrape sin filtro leyendo sede por fila si Dentos lo expone.
 
-- **D-04:** **Tab "Programación de Recordatorios" con historial de scrape persistente** en la UI dashboard. Query: JOIN `godentist_scheduled_reminders` con `godentist_scrape_history` ON `scrape_history_id`, agrupado por scrape. Permite al operador post-mortem cuando algo falle: ver qué scrape produjo qué reminders, con metadata (created_at, sucursales, total_appointments).
-  - **Why:** Hoy `godentist_scheduled_reminders` tiene `scrape_history_id` (poblado en `scheduleReminders` línea 709) pero la UI no agrupa por scrape — solo lista reminders sueltos sin contexto del origen. Para diagnosticar "por qué este cliente recibió esto" hay que ir a SQL manual.
-  - **How to apply:** Plan-phase incluye task de UI nueva (página o componente que se monta en el tab existente). Mismo pattern del tab "Historial Confirmaciones" (que ya muestra scrapes agrupados con send_results) — extraer base shared si conviene.
+- **D-04:** **Rediseño del tab "Programación de Recordatorios"** en la UI dashboard — de flat-list de reminders sueltos a **cards-por-scrape replicando el pattern del tab "Historial Confirmaciones"** (`confirmaciones-panel.tsx:680-792`). Mandato usuario verbatim 2026-05-13: "muestre cada scrape por individual aparte de los recordatorios (revisar historial confirmaciones y replicar + ui actual)".
+
+  **Estado actual** (`confirmaciones-panel.tsx:798-880+`): tab "programacion" con date picker + 2 secciones (Pendientes / Historial enviados) + tabla flat de reminders (nombre, teléfono, hora cita, hora envío, sucursal, acción cancelar). Cero agrupación por scrape. Cero metadata del scrape origen.
+
+  **Estado objetivo:**
+  - **Card por scrape** (replicar `confirmaciones-panel.tsx:704-756`) mostrando:
+    - Timestamp del scrape (`created_at` desde `godentist_scrape_history`)
+    - Badge fecha de las citas (`scraped_date`)
+    - Badge total reminders programados desde ese scrape
+    - Badges de sucursales involucradas
+    - Badges de estado agregado: X pendientes / Y sent / Z failed / W cancelled
+    - **Badge `inconsistent`** (D-08) si el detector cross-sede disparó — rojo, visible, accionable
+    - Botón "Ver detalle" → abre detail view con la tabla flat actual (reusar componente)
+  - **Detail view**: tabla actual de reminders por scrape (preserva date picker dentro del detail si conviene, preserva botón cancelar por fila — D-04 "+ ui actual")
+  - **Sección "Sin scrape origen"** o equivalente para reminders huérfanos (si los hay por data legacy)
+
+  **Query nueva en server-action**: `getScheduledRemindersGroupedByScrape(workspaceId, dateFilter?)` que retorna array de `{ scrape: ScrapeHistoryEntry, reminders: ScheduledReminderEntry[], stats: { pending, sent, failed, cancelled }, inconsistent: boolean }`.
+
+  **Why:** Hoy `godentist_scheduled_reminders` tiene `scrape_history_id` poblado (`scheduleReminders` línea 709) pero la UI no lo usa — para diagnosticar "por qué este cliente recibió esto" hay que ir a SQL manual (lo que el usuario rechazó explícitamente: "el #2 no lo voy a hacer manual malparido"). Cards-por-scrape habilita post-mortem visual sin SQL.
+
+  **How to apply:** Plan-phase incluye task de UI con:
+  - Nueva query server-action (`getScheduledRemindersGroupedByScrape`)
+  - Rediseño componente del tab "programacion" en `confirmaciones-panel.tsx` (extraer a sub-componente si pasa de ~200 líneas)
+  - Reuso máximo de `HistoryDetail` o pattern equivalente del tab history
+  - Badge `inconsistent` consumido del scrape (D-08 garantiza que la columna existe)
 
 - **D-05:** **El fix cubre AMBOS flujos** — `sendConfirmations` (envío inmediato del scrape) + `scheduleReminders` (reminders programados via Inngest). Ambos consumen el mismo output del scrape; rediseñar uno sin el otro deja la mitad del bug intacta.
   - **Why:** Evidencia productiva confirma bug en ambos: scrape `13e6354a-...` (14:03 UTC) disparó scheduleReminders con cross-sede; scrape de hoy 10:02 AM disparó sendConfirmations con cross-sede (EDDY) y duplicados (ALVARO/OSCAR/EDDY ×3).
@@ -158,8 +180,14 @@ El cambio cubre ambos flujos consumidores (`sendConfirmations` envío inmediato 
   - §835+ `getFollowupPreview` — patrón de query agrupada por scrape_history_id (referencia para D-04 UI)
 - `src/inngest/functions/godentist-reminders.ts` — Consumer del evento `godentist/reminder.send`; verificar si necesita cambios (probablemente no, ya que recibe data del reminder no del scrape)
 
-### UI dashboard (a agregar tab)
-- `src/app/(dashboard)/confirmaciones/page.tsx` + `confirmaciones-panel.tsx` — Pattern actual del tab "Historial Confirmaciones" (referencia para D-04)
+### UI dashboard (rediseño del tab "programacion" — D-04)
+- `src/app/(dashboard)/confirmaciones/page.tsx` — Hosta el panel; no requiere cambios estructurales
+- `src/app/(dashboard)/confirmaciones/confirmaciones-panel.tsx` (1409 líneas) — Contiene los 3 tabs:
+  - **`Tab = 'scrape' | 'history' | 'programacion'`** (line 26) — tipo del state del tab activo
+  - **§680-792 tab `history`** — pattern a REPLICAR para programacion. Cards-por-scrape con timestamp, fecha, total citas, badges sucursales, badge enviado (X/Y), badge seguimiento, botón "Ver" + "Reenviar". `HistoryDetail` component para vista detalle.
+  - **§798-880+ tab `programacion`** — código actual a REDISEÑAR. Hoy: date picker + sección "Pendientes" con tabla flat (nombre/teléfono/hora cita/hora envío/sucursal/acción) + sección "Historial enviados" (presumido más abajo). Flat list sin agrupación.
+  - **§122-140 `loadReminders`** — query actual `getScheduledReminders(reminderDate)` retorna flat list. Esta es la que se reemplaza por `getScheduledRemindersGroupedByScrape` (D-04).
+  - **§704-756 estructura Card** — copy-paste reference para el rediseño del tab programacion (badges, timestamp formatter `es-CO` America/Bogota, botones Ver/Reenviar)
 
 ### Migrations DB
 - `supabase/migrations/20260312100000_godentist_scheduled_reminders.sql` — Tabla `godentist_scheduled_reminders` (tiene `scrape_history_id` ya — D-04 UI lo usa)

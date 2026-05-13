@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Loader2, Search, Send, CheckCircle2, XCircle, Ban, History, Clock, Eye, RotateCcw, Calendar } from 'lucide-react'
+import { Loader2, Search, Send, CheckCircle2, XCircle, Ban, History, Clock, Eye, RotateCcw, Calendar, AlertTriangle } from 'lucide-react'
 import {
   scrapeAppointments,
   sendConfirmations,
@@ -13,12 +13,14 @@ import {
   getFollowupPreview,
   scheduleReminders,
   getScheduledReminders,
+  getScheduledRemindersGroupedByScrape,
   cancelScheduledReminder,
   type GodentistAppointment,
   type SendResult,
   type ScrapeHistoryEntry,
   type ScheduleResult,
   type ScheduledReminderEntry,
+  type ScrapeWithReminders,
   type FollowupResult,
 } from '@/app/actions/godentist'
 
@@ -80,6 +82,13 @@ export function ConfirmacionesPanel() {
   const [historyReminderPage, setHistoryReminderPage] = useState(0)
   const REMINDERS_PER_PAGE = 30
 
+  // ── Programacion tab (rediseñado D-04): cards-por-scrape ──
+  const [grouped, setGrouped] = useState<ScrapeWithReminders[]>([])
+  const [orphans, setOrphans] = useState<ScheduledReminderEntry[]>([])
+  const [progView, setProgView] = useState<'list' | 'detail'>('list')
+  const [selectedProgEntry, setSelectedProgEntry] = useState<ScrapeWithReminders | null>(null)
+  const [loadingGrouped, setLoadingGrouped] = useState(false)
+
   // Filtered appointments
   const sucursalFiltered = allAppointments.filter(a => activeSucursales.has(a.sucursal.toUpperCase()))
 
@@ -120,9 +129,11 @@ export function ConfirmacionesPanel() {
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load reminders when switching to programacion tab or changing date
+  // (Plan 09 D-04 redesign: also load grouped-by-scrape for cards view)
   useEffect(() => {
     if (tab === 'programacion') {
       loadReminders()
+      loadGrouped(reminderDate || undefined)
     }
   }, [tab, reminderDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,6 +150,21 @@ export function ConfirmacionesPanel() {
     const res = await getScheduledReminders(reminderDate || undefined)
     if (res.data) setReminders(res.data)
     setRemindersLoading(false)
+  }
+
+  // ── Programacion tab (rediseñado D-04): cards-por-scrape loader ──
+  async function loadGrouped(date?: string) {
+    setLoadingGrouped(true)
+    const res = await getScheduledRemindersGroupedByScrape(date || undefined)
+    if (res.error) {
+      console.error('[godentist] loadGrouped error:', res.error)
+      setGrouped([])
+      setOrphans([])
+    } else {
+      setGrouped(res.data || [])
+      setOrphans(res.orphans || [])
+    }
+    setLoadingGrouped(false)
   }
 
   async function handleCancelReminder(id: string) {

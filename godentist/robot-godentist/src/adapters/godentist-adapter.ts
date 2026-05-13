@@ -1941,6 +1941,86 @@ export class GoDentistAdapter {
   }
 
   /**
+   * Per RESEARCH.md Paradigm F: extracts rows from the CURRENT page of the citas
+   * table, tagging each with the `sede` argument (which the caller has verified
+   * via assertFilterIs matches the active filter).
+   *
+   * Replaces extractAppointments(sucursal) for paradigm F. Same DOM contract
+   * (cell heuristic: hora=cells[1], nombre=cells[3], phone=cells[5], doctor=cells[7])
+   * + same phone normalization (3xxxxxxxxx -> 57xxxxxxxxxx) + DOCTOR_PRIORITY
+   * lookup BY SEDE (the priority list is Record<sede, string[]>; the legacy
+   * `extractAppointments` did NOT persist `doctor` on the Appointment because the
+   * `Appointment` type has no such field — same convention preserved here).
+   *
+   * Defensive filter: `tr.offsetParent !== null` excludes hidden rows that some
+   * ExtJS configurations cache off-screen (research-scripts/07-extjs-grid-dom-cache.cjs
+   * REFUTED the hypothesis that hidden rows exist in this portal, but the filter
+   * stays as cheap defense-in-depth).
+   */
+  private async extractCurrentPageRows(sede: string): Promise<Appointment[]> {
+    console.log(`[GoDentist] extractCurrentPageRows: sede=${sede}`)
+
+    const rawRows = await this.page!.evaluate(() => {
+      const rt = document.querySelector('table.x-grid3-row-table')
+      if (!rt) return [] as Array<{ cells: string[] }>
+      const trs = Array.from(rt.querySelectorAll('tr')) as HTMLElement[]
+      // Defensive: only visible rows.
+      const visible = trs.filter(tr => tr.offsetParent !== null)
+      return visible.map(tr => ({
+        cells: Array.from(tr.querySelectorAll('td')).map(c => (c.textContent || '').trim()),
+      }))
+    })
+
+    // DOCTOR_PRIORITY is keyed by sede (Record<sede, string[]>). The per-sede
+    // list is computed once outside the row loop for the doctor tiebreak heuristic
+    // (kept for parity with legacy logic — value not persisted on Appointment
+    // because the type has no `doctor` field; reserved for future extension).
+    const sedeDoctorPriority: string[] = DOCTOR_PRIORITY[sede] ?? []
+
+    const appointments: Appointment[] = []
+    for (const row of rawRows) {
+      const cells = row.cells
+      const hora = cells[1] || ''
+      const nombre = cells[3] || ''
+      let telefono = cells[5] || ''
+      const doctorRaw = cells[7] || ''
+      const estado = cells[9] || ''
+
+      // Skip rows with missing core fields (header rows, separator rows).
+      if (!hora || !nombre || !telefono) continue
+
+      // Phone normalization (preserved from legacy extractAppointments).
+      if (telefono.startsWith('3') && telefono.length === 10) {
+        telefono = `57${telefono}`
+      }
+
+      // Doctor tiebreak heuristic — pick first DOCTOR_PRIORITY[sede] match if multiple.
+      // Result NOT persisted on Appointment (type has no `doctor` field — matches
+      // legacy extractAppointments convention). Computation preserved for forensic
+      // logging + future-proofing if the schema gains a `doctor` field.
+      let _doctor = doctorRaw
+      for (const priority of sedeDoctorPriority) {
+        if (doctorRaw.toUpperCase().includes(priority.toUpperCase())) {
+          _doctor = priority
+          break
+        }
+      }
+      void _doctor
+
+      appointments.push({
+        nombre,
+        telefono,
+        hora,
+        sucursal: sede,
+        estado,
+      })
+    }
+
+    console.log(`[GoDentist] extractCurrentPageRows: extracted ${appointments.length} rows for sede=${sede}`)
+    return appointments
+  }
+
+  /**
    * Per CONTEXT.md D-04..D-08: guard de table-refresh entre cambios de sede.
    *
    * Estrategia:

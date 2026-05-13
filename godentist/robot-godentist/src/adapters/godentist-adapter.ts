@@ -1840,15 +1840,18 @@ export class GoDentistAdapter {
       }
 
       try {
-        await this.page!.waitForFunction(({ pageBefore, fpBefore }: { pageBefore: string; fpBefore: { phone: string; hora: string } }) => {
+        // Detect page advance via pageInput.value (primary signal — more
+        // reliable than first-row content which can theoretically repeat
+        // across pages). Headless prod is slower than headed local; bumped
+        // timeout 5s -> 12s after iter 3 hit PaginationStuckError on MEJORAS
+        // 2/4 in production.
+        await this.page!.waitForFunction(({ pageBefore }: { pageBefore: string }) => {
           const pageInput = document.querySelector('input.x-tbar-page-number') as HTMLInputElement | null
           if (!pageInput) return false
-          if (pageInput.value === pageBefore) return false
-          const rt = document.querySelector('table.x-grid3-row-table')
-          if (!rt) return false
-          const cells = Array.from(rt.querySelectorAll('td')).map(c => (c.textContent || '').trim())
-          return (cells[5] || '') !== fpBefore.phone || (cells[1] || '') !== fpBefore.hora
-        }, { pageBefore, fpBefore }, { timeout: 5000, polling: 100 })
+          return pageInput.value !== pageBefore
+        }, { pageBefore }, { timeout: 12000, polling: 100 })
+        // Defensive: give ExtJS a moment to paint rows after pageInput updates.
+        await this.page!.waitForTimeout(300)
         return true
       } catch {
         return false
@@ -1857,8 +1860,13 @@ export class GoDentistAdapter {
 
     let ok = await attemptClick()
     if (!ok) {
-      console.warn(`[GoDentist] clickNextPageWithGuard ${sede}: first attempt failed, retrying after 500ms`)
-      await this.page!.waitForTimeout(500)
+      console.warn(`[GoDentist] clickNextPageWithGuard ${sede}: attempt 1 failed, retry in 1s`)
+      await this.page!.waitForTimeout(1000)
+      ok = await attemptClick()
+    }
+    if (!ok) {
+      console.warn(`[GoDentist] clickNextPageWithGuard ${sede}: attempt 2 failed, retry in 2s`)
+      await this.page!.waitForTimeout(2000)
       ok = await attemptClick()
     }
     if (!ok) {
@@ -1866,6 +1874,7 @@ export class GoDentistAdapter {
       console.error(`[GoDentist] clickNextPageWithGuard ${sede}: PaginationStuckError pageBefore=${pageBefore} pageAfter=${pageAfter}`)
       throw new PaginationStuckError(sede, currentPage, totalPages, pageBefore, pageAfter)
     }
+    void fpBefore
     // Defensive settle for ExtJS row painting.
     await this.page!.waitForTimeout(500)
 
@@ -1892,39 +1901,87 @@ export class GoDentistAdapter {
   private async extractCurrentPageRows(sede: string): Promise<Appointment[]> {
     console.log(`[GoDentist] extractCurrentPageRows: sede=${sede}`)
 
+    // Heuristic field detection (replicating legacy extractAppointments — verified
+    // 2026-05-13: fixed column indices DO NOT match the live ExtJS grid; only
+    // content-based detection survives portal layout variations). Source: smoke
+    // iter 3 returned status text "Sin confirmar" at cells[3] where nombre was
+    // expected; legacy approach finds fields by regex/keyword match regardless
+    // of position.
+    //
+    // Selector: `table tbody tr` (legacy) instead of `table.x-grid3-row-table`
+    // (new) — the latter is the inner row container, often duplicated per row
+    // in ExtJS DOM cache. Outer `table tbody tr` is more reliable.
     const rawRows = await this.page!.evaluate(() => {
-      const rt = document.querySelector('table.x-grid3-row-table')
-      if (!rt) return [] as Array<{ cells: string[] }>
-      const trs = Array.from(rt.querySelectorAll('tr')) as HTMLElement[]
-      // Defensive: only visible rows.
-      const visible = trs.filter(tr => tr.offsetParent !== null)
+      const allRows = Array.from(document.querySelectorAll('table tbody tr')) as HTMLElement[]
+      const visible = allRows.filter(tr => tr.offsetParent !== null)
       return visible.map(tr => ({
         cells: Array.from(tr.querySelectorAll('td')).map(c => (c.textContent || '').trim()),
       }))
     })
 
-    // DOCTOR_PRIORITY is keyed by sede (Record<sede, string[]>). The per-sede
-    // list is computed once outside the row loop for the doctor tiebreak heuristic
-    // (kept for parity with legacy logic — value not persisted on Appointment
-    // because the type has no `doctor` field; reserved for future extension).
+    console.log(`[GoDentist] extractCurrentPageRows sede=${sede}: ${rawRows.length} raw rows`)
+
+    const estadoKeywords = ['confirmada', 'cancelada', 'pendiente', 'no asistió', 'asistió', 'atendido', 'en espera', 'sin confirmar']
     const sedeDoctorPriority: string[] = DOCTOR_PRIORITY[sede] ?? []
 
     const appointments: Appointment[] = []
     for (const row of rawRows) {
-      const cells = row.cells
-      const hora = cells[1] || ''
-      const nombre = cells[3] || ''
-      let telefono = cells[5] || ''
-      const doctorRaw = cells[7] || ''
-      const estado = cells[9] || ''
+      const rawCells = row.cells
+      const cleanCells = rawCells.filter(c => c.length > 0)
+
+      // Skip separator/empty rows.
+      if (cleanCells.length < 3) continue
+
+      // Find estado by content keyword.
+      let estado = ''
+      for (const cell of rawCells) {
+        if (cell && estadoKeywords.some(k => cell.toLowerCase().includes(k))) {
+          estado = cell
+          break
+        }
+      }
+
+      // Find hora, telefono, nombre by content pattern.
+      let hora = ''
+      let nombre = ''
+      let telefono = ''
+      let doctorRaw = ''
+
+      for (const cell of cleanCells) {
+        // Time pattern: "8:00 AM" or "8:00 AM - 8:30 AM"
+        const timeMatch = cell.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)?)\b/)
+        if (timeMatch && !hora) {
+          hora = timeMatch[1].trim()
+          continue
+        }
+
+        // Phone: 10+ digits or 3XX Colombian mobile (10 digits starting with 3).
+        const phoneMatch = cell.match(/(\+?\d{10,}|\b3\d{9}\b)/)
+        if (phoneMatch && !telefono) {
+          telefono = phoneMatch[1].replace(/\D/g, '')
+          if (telefono.length === 10 && telefono.startsWith('3')) {
+            telefono = '57' + telefono
+          }
+          continue
+        }
+
+        // Name: alphabetic, >3 chars, has spaces (full names like "JUAN PEREZ"),
+        // not a digit-only string, NOT a known estado value.
+        const cellLower = cell.toLowerCase()
+        const isEstado = estadoKeywords.some(k => cellLower.includes(k))
+        if (!nombre && !isEstado && cell.length > 3 && /[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(cell) && cell.includes(' ') && !/^\d+$/.test(cell)) {
+          nombre = cell
+          continue
+        }
+
+        // Doctor: alphabetic single token or "DR ..." pattern — collect for tiebreak.
+        if (!doctorRaw && /^(DR\.?|DRA\.?|DOCTOR)/i.test(cell)) {
+          doctorRaw = cell
+        }
+      }
 
       // Skip rows with missing core fields (header rows, separator rows).
       if (!hora || !nombre || !telefono) continue
-
-      // Phone normalization (preserved from legacy extractAppointments).
-      if (telefono.startsWith('3') && telefono.length === 10) {
-        telefono = `57${telefono}`
-      }
 
       // Doctor tiebreak heuristic — pick first DOCTOR_PRIORITY[sede] match if multiple.
       // Result NOT persisted on Appointment (type has no `doctor` field — matches

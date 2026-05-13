@@ -82,25 +82,46 @@ export async function runSubLoop(args: {
 }): Promise<LoopOutcome> {
   const tools = buildSubLoopTools(args.reason, args.ctx)
 
-  const { output } = await runWithPurpose('subloop', () =>
-    generateText({
-      model: getOpenAI()('gpt-4o-mini'),
-      system: buildSubLoopPrompt(args.reason),
-      messages: [
-        ...args.ctx.recentMessages.map((m) => ({ role: m.role, content: m.content })),
-        { role: 'user' as const, content: args.ctx.userMessage },
-      ],
-      tools,
-      // W-06 — D-62 enforced by Output.object() schema, not by toolChoice. See
-      // RESEARCH §Pattern 2 line 406: 'required' would block the structured-output
-      // final step. 'auto' lets the model search KB / call CRM tools and then emit
-      // the LoopOutcome object as the last step.
-      toolChoice: 'auto',
-      // 1 KB search + 1 CRM call + 1 final → margen 4 (D-09 scope acotado).
-      stopWhen: stepCountIs(4),
-      output: Output.object({ schema: LoopOutcomeSchema }),
-    })
-  )
+  // Diagnostic wrap (Plan 07 debug iter 4): captura errores del generateText
+  // (AI_NoOutputGeneratedError u otros) con context completo del provider.
+  let subLoopResult: Awaited<ReturnType<typeof generateText>>
+  try {
+    subLoopResult = await runWithPurpose('subloop', () =>
+      generateText({
+        model: getOpenAI()('gpt-4o-mini'),
+        system: buildSubLoopPrompt(args.reason),
+        messages: [
+          ...args.ctx.recentMessages.map((m) => ({ role: m.role, content: m.content })),
+          { role: 'user' as const, content: args.ctx.userMessage },
+        ],
+        tools,
+        // W-06 — D-62 enforced by Output.object() schema, not by toolChoice. See
+        // RESEARCH §Pattern 2 line 406: 'required' would block the structured-output
+        // final step. 'auto' lets the model search KB / call CRM tools and then emit
+        // the LoopOutcome object as the last step.
+        toolChoice: 'auto',
+        // 1 KB search + 1 CRM call + 1 final → margen 4 (D-09 scope acotado).
+        stopWhen: stepCountIs(4),
+        output: Output.object({ schema: LoopOutcomeSchema }),
+      })
+    )
+  } catch (genErr) {
+    const e = genErr as Record<string, unknown>
+    const errName = (e?.name as string) ?? 'Error'
+    const errMsg = (e?.message as string) ?? String(genErr)
+    const cause = e?.cause ? JSON.stringify(e.cause).slice(0, 300) : 'no-cause'
+    const text = (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
+    const finishReason = (e?.finishReason as string) ?? 'no-finishReason'
+    const responseStr = e?.response
+      ? JSON.stringify(e.response).slice(0, 500)
+      : 'no-response'
+    throw new Error(
+      `[SubLoop generateText reason=${args.reason}] ${errName}: ${errMsg} | ` +
+      `finishReason="${finishReason}" | text="${(text as string).slice(0, 200)}" | ` +
+      `cause="${cause}" | response="${responseStr}"`
+    )
+  }
+  const { output } = subLoopResult
 
   // D-29 post-hoc invariant validation — Plan 02 RE-SHAPE.
   // The flat schema (no discriminated union) permite combinaciones inválidas

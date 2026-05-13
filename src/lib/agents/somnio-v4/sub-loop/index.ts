@@ -82,11 +82,14 @@ export async function runSubLoop(args: {
 }): Promise<LoopOutcome> {
   const tools = buildSubLoopTools(args.reason, args.ctx)
 
-  // Diagnostic wrap (Plan 07 debug iter 4): captura errores del generateText
+  // Diagnostic wrap (Plan 07 debug iter 4 + iter 8): captura errores del generateText
   // (AI_NoOutputGeneratedError u otros) con context completo del provider.
-  let subLoopResult: Awaited<ReturnType<typeof generateText>>
+  // Iter 8 fix: el destructure `const { output } = subLoopResult` también dispara el
+  // getter de output que puede throw AI_NoOutputGeneratedError si GPT-4o mini no produjo
+  // un LoopOutcome parseable. Por eso movemos el destructure ADENTRO del try/catch.
+  let output: LoopOutcome
   try {
-    subLoopResult = await runWithPurpose('subloop', () =>
+    const subLoopResult = await runWithPurpose('subloop', () =>
       generateText({
         model: getOpenAI()('gpt-4o-mini'),
         system: buildSubLoopPrompt(args.reason),
@@ -105,6 +108,8 @@ export async function runSubLoop(args: {
         output: Output.object({ schema: LoopOutcomeSchema }),
       })
     )
+    // Destructure DENTRO del try — el getter puede throw AI_NoOutputGeneratedError
+    output = subLoopResult.output
   } catch (genErr) {
     const e = genErr as Record<string, unknown>
     const errName = (e?.name as string) ?? 'Error'
@@ -121,7 +126,6 @@ export async function runSubLoop(args: {
       `cause="${cause}" | response="${responseStr}"`
     )
   }
-  const { output } = subLoopResult
 
   // D-29 post-hoc invariant validation — Plan 02 RE-SHAPE.
   // The flat schema (no discriminated union) permite combinaciones inválidas

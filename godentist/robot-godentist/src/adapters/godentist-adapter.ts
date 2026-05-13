@@ -294,7 +294,7 @@ export class GoDentistAdapter {
 
   // ── Scrape All Sucursales ──
 
-  async scrapeAppointments(filterSucursales?: string[], targetDate?: string): Promise<{ date: string; appointments: Appointment[]; errors: string[] }> {
+  async scrapeAppointments(filterSucursales?: string[], targetDate?: string): Promise<{ date: string; appointments: Appointment[]; errors: string[]; totalCitas: number | null }> {
     if (!this.page) throw new Error('Browser not initialized')
 
     let target: Date
@@ -308,71 +308,84 @@ export class GoDentistAdapter {
     const dateStr = this.formatDateDD_MM_YYYY(target)
     const dateLabel = this.formatDateYYYY_MM_DD(target)
 
-    console.log(`[GoDentist] Target date: ${dateLabel} (${dateStr})`)
-    if (filterSucursales?.length) {
-      console.log(`[GoDentist] Filtering sucursales: ${filterSucursales.join(', ')}`)
-    }
+    // Per CONTEXT.md D-07: correctness by construction via fresh state per sede.
+    // Per RESEARCH.md Paradigm F: page.goto(APPOINTMENTS_URL) before each sede eliminates
+    // ALL inter-sede state contamination (verified 5/5 PASS in 08-paradigm-f-validation.cjs).
 
-    const allAppointments: Appointment[] = []
+    const allRows: Appointment[] = []
     const errors: string[] = []
+    const sedesToScrape = filterSucursales ?? Object.keys(SEDE_ID_MAP)
+    let lastTotalCitas: number | null = null
 
-    // Navigate to appointments page
-    await this.page.goto(APPOINTMENTS_URL, { waitUntil: 'networkidle', timeout: 30000 })
-    await this.page.waitForTimeout(2000)
+    console.log(`[GoDentist] scrapeAppointments (paradigm F): sedes=${JSON.stringify(sedesToScrape)} date=${dateLabel} (${dateStr})`)
 
-    // Step 1: Set date filter (DD-MM-YYYY format for ExtJS)
-    await this.setDate(dateStr)
+    for (const sede of sedesToScrape) {
+      const expectedId = SEDE_ID_MAP[sede]
+      if (!expectedId) {
+        const msg = `Unknown sede: ${sede} (not in SEDE_ID_MAP)`
+        console.warn(`[GoDentist] ${msg}`)
+        errors.push(msg)
+        continue
+      }
 
-    // Step 2: Set hour to 6:00 am (earliest)
-    await this.setHour('6:00 am')
-    await this.takeScreenshot('after-set-hour')
-
-    // Baseline fingerprint for table-refresh guard (CONTEXT.md D-07)
-    let prevFingerprint = await this.captureFingerprint()
-
-    // Step 3: Discover sucursales from the ExtJS combo
-    let sucursales = await this.discoverSucursales()
-    console.log(`[GoDentist] Found ${sucursales.length} sucursales: ${sucursales.map(s => s.label).join(', ')}`)
-
-    // Apply sucursal filter if provided
-    if (filterSucursales?.length && sucursales.length > 0) {
-      const filterSet = new Set(filterSucursales.map(s => s.toUpperCase()))
-      sucursales = sucursales.filter(s => filterSet.has(s.label.toUpperCase()))
-      console.log(`[GoDentist] After filter: ${sucursales.length} sucursales: ${sucursales.map(s => s.label).join(', ')}`)
-    }
-
-    if (sucursales.length === 0) {
-      console.log('[GoDentist] No sucursales to scrape')
-      errors.push('No se encontraron sucursales para scrappear')
-      return { date: dateLabel, appointments: allAppointments, errors }
-    }
-
-    // Step 4: Iterate each sucursal
-    for (const sucursal of sucursales) {
       try {
-        console.log(`[GoDentist] ── Sucursal: ${sucursal.label} ──`)
-        await this.selectSucursal(sucursal)
-        await this.clickBuscar()
-        prevFingerprint = await this.waitForSucursalRefresh(prevFingerprint, sucursal)
-        await this.takeScreenshot(`citas-${sucursal.label.replace(/\s+/g, '-').toLowerCase()}`)
+        // FRESH NAVIGATION — eliminates ALL inter-sede state (paradigm F D-07).
+        console.log(`[GoDentist] scrapeAppointments: fresh-nav for sede=${sede}`)
+        await this.page.goto(APPOINTMENTS_URL, { waitUntil: 'networkidle', timeout: 30000 })
+        await this.page.waitForTimeout(2000)
 
-        const appointments = await this.extractAllPages(sucursal.label)
-        allAppointments.push(...appointments)
-        console.log(`[GoDentist] ${sucursal.label}: ${appointments.length} citas (todas las páginas)`)
+        // Form setup.
+        await this.setDate(dateStr)
+        await this.setHour('6:00 am')
+
+        // Select sede only if NOT already at expectedId post-nav.
+        // (Default post-nav is CABECERA=1; skip select for sede=CABECERA to save ~500ms.)
+        const currentHidden = await this.readHidden()
+        if (currentHidden !== expectedId) {
+          await this.selectSucursalF(sede, expectedId)
+        } else {
+          console.log(`[GoDentist] scrapeAppointments: ${sede} already active (skipping selectSucursalF)`)
+        }
+        await this.assertFilterIs(expectedId, `post-select-${sede}`)
+
+        // Search.
+        await this.clickBuscarAndWait()
+        await this.assertFilterIs(expectedId, `post-buscar-${sede}`)
+        await this.takeScreenshot(`citas-${sede.replace(/\s+/g, '-').toLowerCase()}`)
+
+        // Audit total citas (D-15 sanity check from toolbar "Total de citas: N").
+        const sedeTotalCitas = await this.readTotalCitas()
+        if (sedeTotalCitas !== null) {
+          lastTotalCitas = (lastTotalCitas ?? 0) + sedeTotalCitas
+          console.log(`[GoDentist] ${sede}: total citas (toolbar) = ${sedeTotalCitas}`)
+        }
+
+        // Paginate.
+        const totalPages = (await this.getTotalPages()) || 1
+        console.log(`[GoDentist] ${sede}: totalPages=${totalPages}`)
+        for (let p = 1; p <= totalPages; p++) {
+          await this.assertFilterIs(expectedId, `page-${p}-${sede}`)
+          const rows = await this.extractCurrentPageRows(sede)
+          allRows.push(...rows)
+          console.log(`[GoDentist] ${sede} page ${p}/${totalPages}: ${rows.length} citas`)
+          if (p < totalPages) {
+            await this.clickNextPageWithGuard(sede, p, totalPages)
+          }
+        }
       } catch (err) {
-        // Per CONTEXT.md D-08: SedeRefreshFailedError aborts the entire scrape — must propagate
-        // up to scrapeAppointments caller (Express handler in server.ts maps to HTTP 502).
-        // Without this re-throw, the catch swallows the abort signal and scrape returns 200
-        // with partial data, breaking SPEC Acceptance #4 (Pitfall 2 in RESEARCH.md).
-        if (err instanceof SedeRefreshFailedError) throw err
-
-        const msg = `Error en ${sucursal.label}: ${err instanceof Error ? err.message : String(err)}`
+        // Propagate paradigm F errors verbatim to Express handler for HTTP 502 mapping.
+        if (err instanceof FilterDriftError || err instanceof PaginationStuckError) {
+          console.error(`[GoDentist] scrapeAppointments: propagating ${err.name}`, err.message)
+          throw err
+        }
+        const msg = `${sede}: ${err instanceof Error ? err.message : String(err)}`
         console.error(`[GoDentist] ${msg}`)
         errors.push(msg)
       }
     }
 
-    return { date: dateLabel, appointments: allAppointments, errors }
+    console.log(`[GoDentist] scrapeAppointments done: ${allRows.length} appointments, ${errors.length} errors, totalCitas=${lastTotalCitas}`)
+    return { date: dateLabel, appointments: allRows, errors, totalCitas: lastTotalCitas }
   }
 
   // ── Confirm Appointment ──

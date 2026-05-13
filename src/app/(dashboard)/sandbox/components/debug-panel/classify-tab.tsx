@@ -27,16 +27,31 @@ interface ClassifyTabProps {
 // Helpers (confidence logic migrated from intent-tab.tsx)
 // ============================================================================
 
+/**
+ * Normalize confidence value to 0-100 scale.
+ * Gemini Flash-Lite calibration (Plan 12.1) sometimes returns 0..1 scale
+ * (e.g., 0.85) and sometimes 0-100 (e.g., 85) — the few-shot examples are
+ * inconsistent and the schema is permissive (number type without range).
+ * Heuristic: if value ≤ 1, assume 0..1 scale → multiply by 100.
+ * Otherwise assume already 0-100.
+ * Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug iter 5.
+ */
+function normalizeConfidence(confidence: number): number {
+  return confidence <= 1 ? Math.round(confidence * 100) : confidence
+}
+
 function getConfidenceColor(confidence: number): string {
-  if (confidence >= 85) return 'text-green-600 dark:text-green-400'
-  if (confidence >= 60) return 'text-yellow-600 dark:text-yellow-400'
-  if (confidence >= 40) return 'text-orange-600 dark:text-orange-400'
+  const c = normalizeConfidence(confidence)
+  if (c >= 85) return 'text-green-600 dark:text-green-400'
+  if (c >= 60) return 'text-yellow-600 dark:text-yellow-400'
+  if (c >= 40) return 'text-orange-600 dark:text-orange-400'
   return 'text-red-600 dark:text-red-400'
 }
 
 function getConfidenceBadge(confidence: number): 'default' | 'secondary' | 'destructive' {
-  if (confidence >= 85) return 'default'
-  if (confidence >= 60) return 'secondary'
+  const c = normalizeConfidence(confidence)
+  if (c >= 85) return 'default'
+  if (c >= 60) return 'secondary'
   return 'destructive'
 }
 
@@ -82,15 +97,15 @@ function IntentSection({ turn }: { turn: DebugTurn }) {
         </Badge>
       </div>
 
-      {/* Confidence bar */}
+      {/* Confidence bar — normalized to 0-100 (Gemini may return 0..1 scale, see normalizeConfidence) */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">Confianza</span>
           <span className={cn('font-medium', getConfidenceColor(turn.intent.confidence))}>
-            {turn.intent.confidence}%
+            {normalizeConfidence(turn.intent.confidence)}%
           </span>
         </div>
-        <Progress value={turn.intent.confidence} className="h-2" />
+        <Progress value={normalizeConfidence(turn.intent.confidence)} className="h-2" />
       </div>
 
       {/* V4 escalation surface — intent_confidence (0..1, D-10 / Plan 12.1) + threshold + subLoopReason.
@@ -130,7 +145,7 @@ function IntentSection({ turn }: { turn: DebugTurn }) {
           <div className="flex flex-wrap gap-1 mt-1">
             {turn.intent.alternatives.map((alt, altIdx) => (
               <Badge key={altIdx} variant="outline" className="text-xs">
-                {alt.intent} ({alt.confidence}%)
+                {alt.intent} ({normalizeConfidence(alt.confidence)}%)
               </Badge>
             ))}
           </div>

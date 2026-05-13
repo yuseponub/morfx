@@ -284,6 +284,25 @@ export async function sendConfirmations(
   const apiKey = wsData?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (!apiKey) return { error: 'API key de WhatsApp no configurada' }
 
+  // ── D-08: gate on scrape inconsistent flag (early-return) ──
+  // Per CONTEXT.md D-08 + PATTERNS.md §3: if the scrape (looked up by historyId) was
+  // flagged inconsistent by the canary in scrapeAppointments (Task 1), abort the send
+  // before the loop to avoid spending DB reads per appointment. The check happens at
+  // server-action entry; downstream fns trust the audit-trail flag (single source of truth).
+  if (historyId) {
+    const adminGate = createAdminClient()
+    const { data: scrapeRow } = await adminGate
+      .from('godentist_scrape_history')
+      .select('inconsistent')
+      .eq('id', historyId)
+      .eq('workspace_id', workspaceId)
+      .single()
+    if (scrapeRow?.inconsistent) {
+      console.error(`[godentist] sendConfirmations BLOCKED: scrape ${historyId} marked inconsistent`)
+      return { error: 'Scrape marcado como inconsistent — envío bloqueado. Revisar diagnóstico del scrape antes de reintentar.' }
+    }
+  }
+
   const fechaFormateada = formatDateSpanish(date)
   const domainCtx = { workspaceId, source: 'server-action' }
   const result: SendResult = { total: appointments.length, sent: 0, failed: 0, excluded: 0, details: [] }
@@ -745,6 +764,24 @@ export async function scheduleReminders(
   const cookieStore = await cookies()
   const workspaceId = cookieStore.get('morfx_workspace')?.value
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  // ── D-08: gate on scrape inconsistent flag (early-return) ──
+  // Per CONTEXT.md D-08 + PATTERNS.md §3: same gate as sendConfirmations. If the
+  // scrape is inconsistent, abort scheduling — don't queue reminders that will fire
+  // tomorrow with bad data.
+  if (historyId) {
+    const adminGate = createAdminClient()
+    const { data: scrapeRow } = await adminGate
+      .from('godentist_scrape_history')
+      .select('inconsistent')
+      .eq('id', historyId)
+      .eq('workspace_id', workspaceId)
+      .single()
+    if (scrapeRow?.inconsistent) {
+      console.error(`[godentist] scheduleReminders BLOCKED: scrape ${historyId} marked inconsistent`)
+      return { error: 'Scrape marcado como inconsistent — programación bloqueada. Revisar diagnóstico del scrape antes de reintentar.' }
+    }
+  }
 
   const admin = createAdminClient()
   const now = new Date()

@@ -1694,6 +1694,105 @@ export class GoDentistAdapter {
     })
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Paradigm F helpers (standalone: godentist-scraping-structural-v2)
+  // Consumed by selectSucursalF / clickBuscarAndWait / clickNextPageWithGuard
+  // (added in Plan 04) and the rewritten scrapeAppointments (Plan 05).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Reads the hidden input `#idsucursalgrid.value` — source of truth for the
+   * currently active sede filter per RESEARCH.md §Standard Stack.
+   *
+   * Returns empty string '' if the input is missing (caller decides if that
+   * is fatal). Never throws.
+   *
+   * NOTE: do NOT trust `window.Sucursal` JS global — verified `undefined` in
+   * research-scripts/02-sede-switching-timeline.cjs.
+   */
+  private async readHidden(): Promise<string> {
+    return await this.page!.evaluate(() => {
+      const el = document.getElementById('idsucursalgrid') as HTMLInputElement | null
+      return el?.value ?? ''
+    })
+  }
+
+  /**
+   * Reads `input.x-tbar-page-number.value` (the page number input in the
+   * pagination toolbar). Used by clickNextPageWithGuard to verify the page
+   * actually advanced post-click (D-11 + RESEARCH.md Pattern 2).
+   *
+   * Returns empty string '' if the input is missing.
+   */
+  private async readPageInputValue(): Promise<string> {
+    return await this.page!.evaluate(() => {
+      const input = document.querySelector('input.x-tbar-page-number') as HTMLInputElement | null
+      return input?.value ?? ''
+    })
+  }
+
+  /**
+   * Reads a 2-field fingerprint of the first visible row in the citas table:
+   * { phone: cells[5], hora: cells[1] }. Used by clickNextPageWithGuard's
+   * postcondition (RESEARCH.md Pattern 2): a page-advance must change EITHER
+   * pageInput.value OR firstRow phone/hora (typically both).
+   *
+   * Cell indices are empirical per the current Dentos HTML — same as the
+   * legacy captureFingerprint (column 1 = hora, column 5 = phone).
+   *
+   * Returns { phone: '', hora: '' } if the table or first row is missing.
+   */
+  private async readFirstRowFingerprint(): Promise<{ phone: string; hora: string }> {
+    return await this.page!.evaluate(() => {
+      const rt = document.querySelector('table.x-grid3-row-table')
+      if (!rt) return { phone: '', hora: '' }
+      const cells = Array.from(rt.querySelectorAll('td')).map(c => (c.textContent || '').trim())
+      return { phone: cells[5] || '', hora: cells[1] || '' }
+    })
+  }
+
+  /**
+   * Per RESEARCH.md Wave 0 / D-15 audit: parses "Total de citas: N" from the
+   * toolbar `.xtb-text` elements. Returns null if the toolbar text is missing
+   * or N is not a number.
+   *
+   * Result is persisted on godentist_scrape_history.total_citas by the
+   * server-action (Plan 06) and used for sanity comparison against
+   * `appointments.length` post-extraction.
+   */
+  private async readTotalCitas(): Promise<number | null> {
+    return await this.page!.evaluate(() => {
+      const texts = Array.from(document.querySelectorAll('.xtb-text')).map(e => (e.textContent || '').trim())
+      for (const t of texts) {
+        const m = t.match(/Total de citas:\s*(\d+)/i)
+        if (m) return Number.parseInt(m[1], 10)
+      }
+      return null
+    })
+  }
+
+  /**
+   * Per CONTEXT.md D-07: assert the active filter (`#idsucursalgrid.value`)
+   * matches `expectedId`. If not, throw `FilterDriftError` with diagnostics.
+   *
+   * Called multiple times in the scrape lifecycle per paradigm F:
+   *   1. post-select-{sede}    — after selectSucursalF
+   *   2. post-buscar-{sede}    — after clickBuscarAndWait
+   *   3. page-{p}-{sede}       — at the START of each page iteration
+   *
+   * Multiple call sites are intentional: RESEARCH.md Run 5 of paradigm E proved
+   * that the hidden value can drift between pagination steps if the portal's
+   * ExtJS reuses a stale request.
+   */
+  private async assertFilterIs(expectedId: string, when: string): Promise<void> {
+    const actual = await this.readHidden()
+    if (actual !== expectedId) {
+      const sede = Object.entries(SEDE_ID_MAP).find(([, id]) => id === expectedId)?.[0] ?? expectedId
+      console.error(`[GoDentist] FilterDriftError at ${when}: expected idsucursalgrid=${expectedId} (${sede}), got '${actual}'`)
+      throw new FilterDriftError(sede, expectedId, actual, when)
+    }
+  }
+
   /**
    * Per CONTEXT.md D-04..D-08: guard de table-refresh entre cambios de sede.
    *

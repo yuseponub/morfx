@@ -17,6 +17,7 @@ import { BloquesTab } from './bloques-tab'
 import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
+import { SubloopTab } from './subloop-tab'
 import type { DebugPanelTabId, DebugTurn, SandboxState, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
@@ -72,6 +73,8 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
           onTimerConfigChange={props.onTimerConfigChange}
         />
       )
+    case 'subloop':
+      return <SubloopTab debugTurns={props.debugTurns} />
     default:
       return null
   }

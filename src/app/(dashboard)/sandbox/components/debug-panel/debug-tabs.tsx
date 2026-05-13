@@ -22,6 +22,7 @@ const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'tokens', label: 'Tokens', visible: false },
   { id: 'ingest', label: 'Ingest', visible: false },
   { id: 'config', label: 'Config', visible: false },
+  { id: 'subloop', label: 'Sub-Loop', visible: false },
 ]
 
 const MAX_VISIBLE = 3

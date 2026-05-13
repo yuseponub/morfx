@@ -1761,6 +1761,17 @@ export class GoDentistAdapter {
   private async clickBuscarAndWait(): Promise<void> {
     console.log('[GoDentist] clickBuscarAndWait: triggering search')
 
+    // CRITICAL: capture first-row fingerprint BEFORE triggering the search.
+    // Without this, paradigm F leaks the PREVIOUS sede's rows when the grid
+    // doesn't fully refresh before we extract (verified 2026-05-13 iter 4
+    // smoke: FLO=17 / JUMBO=17 with 17 phones overlapping CABECERA — the
+    // CABECERA rows were still displayed when extractCurrentPageRows ran).
+    //
+    // We then wait for the fingerprint to CHANGE, which is a strong signal
+    // that ExtJS finished swapping the grid body for the new filter.
+    const fpBefore = await this.readFirstRowFingerprint()
+    console.log(`[GoDentist] clickBuscarAndWait: fpBefore=${JSON.stringify(fpBefore)}`)
+
     // Step 1: locate the Buscar button. ExtJS renders buttons as <table class="x-btn">,
     // not as <button>, so `button:has-text(...)` alone fails in production.
     // Use the same fallback chain as legacy clickBuscar (paradigm A).
@@ -1783,22 +1794,37 @@ export class GoDentistAdapter {
       await this.page!.locator('#df_fecha').press('Enter')
     }
 
-    // Step 2: wait for the table to render. The table may already exist post-nav
-    // (empty grid skeleton) — we wait for the FIRST ROW to have non-empty cells[1] (name)
-    // and cells[5] (sucursal). If the query returns zero appointments legitimately
-    // (e.g., date with no citas), waitForFunction will time out — caller's try/catch
-    // converts that to an error string per sede.
-    await this.page!.waitForFunction(() => {
-      const rt = document.querySelector('table.x-grid3-row-table')
-      if (!rt) return false
-      const firstRow = rt.querySelector('tr')
-      if (!firstRow) return false
-      const cells = Array.from(firstRow.querySelectorAll('td')).map(c => (c.textContent || '').trim())
-      return (cells[1] || '').length > 0 && (cells[5] || '').length > 0
-    }, undefined, { timeout: 8000, polling: 100 })
+    // Step 2: wait for the GRID TO ACTUALLY REFRESH. Two scenarios:
+    //   (a) Filter changed -> fingerprint changes -> we proceed
+    //   (b) Filter unchanged (CABECERA after fresh-nav, no select) -> fingerprint stays;
+    //       we time out gracefully AND assume the data is already correct.
+    try {
+      await this.page!.waitForFunction(({ before }: { before: { phone: string; hora: string } }) => {
+        const rt = document.querySelector('table.x-grid3-row-table')
+        if (!rt) return false
+        const firstRow = rt.querySelector('tr')
+        if (!firstRow) return false
+        const cells = Array.from(firstRow.querySelectorAll('td')).map(c => (c.textContent || '').trim())
+        const phone = cells[5] || ''
+        const hora = cells[1] || ''
+        // Need both phone and hora populated AND different from before.
+        if (!phone || !hora) return false
+        return phone !== before.phone || hora !== before.hora
+      }, { before: fpBefore }, { timeout: 10000, polling: 150 })
+      console.log('[GoDentist] clickBuscarAndWait: fingerprint changed — grid refreshed')
+    } catch {
+      // Fingerprint didn't change in 10s. Two valid reasons:
+      //   1. CABECERA skip-select path: page is already showing CABECERA, no change expected.
+      //   2. New sede has zero appointments: empty grid stays empty.
+      // Both are OK — the assertFilterIs postcondition (called by scrapeAppointments
+      // AFTER us) guarantees we're reading the correct sede's data.
+      console.log('[GoDentist] clickBuscarAndWait: no fingerprint change in 10s (same filter or empty result — OK, assertFilterIs guards correctness)')
+    }
 
-    // Defensive settle window for ExtJS toolbar updates.
-    await this.page!.waitForTimeout(500)
+    // Defensive settle window for ExtJS row painting. Bumped 500ms -> 1500ms in
+    // headless prod to give ExtJS more time to fully repaint all rows after
+    // the body swap (not just first row).
+    await this.page!.waitForTimeout(1500)
 
     console.log('[GoDentist] clickBuscarAndWait: table rendered')
   }

@@ -36,9 +36,11 @@ export function buildSubLoopPrompt(reason: SubLoopReason): string {
       return (
         common +
         `\n\nReason actual: low_confidence. ` +
-        `El comprehension Haiku no pudo clasificar con certeza el mensaje del cliente. ` +
-        `Usa kb_search agresivamente (varias queries con sinónimos si hace falta). ` +
-        `Si KB no tiene topic relevante, no_match.`
+        `El comprehension Gemini no pudo clasificar con certeza el mensaje del cliente. ` +
+        `Estrategia kb_search: máximo 2 búsquedas (una directa + una con sinónimos si la primera no da hits relevantes). ` +
+        `Si tras esas 2 búsquedas no hay topic relevante (similarity baja o hits irrelevantes), ` +
+        `emite INMEDIATAMENTE status='no_match' con responseTemplate='handoff_humano'. ` +
+        `NUNCA repitas kb_search más de 2 veces seguidas — eso agota el step budget sin producir output.`
       )
     case 'razonamiento_libre':
       return (

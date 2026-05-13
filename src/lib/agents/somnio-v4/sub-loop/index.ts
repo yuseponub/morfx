@@ -106,8 +106,12 @@ export async function runSubLoop(args: {
         // final step. 'auto' lets the model search KB / call CRM tools and then emit
         // the LoopOutcome object as the last step.
         toolChoice: 'auto',
-        // 1 KB search + 1 CRM call + 1 final → margen 4 (D-09 scope acotado).
-        stopWhen: stepCountIs(4),
+        // Iter 7d: bump 4 → 6. Con stopWhen=4, GPT-4o mini en low_confidence con KB
+        // vacio loopeaba 4x kb_search sin emitir LoopOutcome final (finishReason=
+        // 'tool-calls'). 6 da headroom para 2-3 kb_search retries + step final
+        // que emite output. El prompt low_confidence ahora obliga no_match tras
+        // 2 búsquedas vacías (forzando convergencia incluso con headroom extra).
+        stopWhen: stepCountIs(6),
         output: Output.object({ schema: LoopOutcomeSchema }),
       })
     )
@@ -120,27 +124,32 @@ export async function runSubLoop(args: {
     const cause = e?.cause ? JSON.stringify(e.cause).slice(0, 300) : 'no-cause'
 
     // Peek subLoopResult fields if generateText succeeded but .output getter threw.
+    // Iter 7d: AI SDK v6 usa `input` (no `args`) y `output` (no `result`) en los
+    // tool calls/results de step. Por eso antes los toolResults se veian vacios.
     const sr = subLoopResult as Record<string, unknown> | null
     const srFinishReason = (sr?.finishReason as string) ?? null
     const srText = (sr?.text as string) ?? null
     const srSteps = sr?.steps as Array<{
-      toolCalls?: Array<{ toolName?: string; args?: unknown }>
-      toolResults?: Array<{ toolName?: string; result?: unknown }>
+      toolCalls?: Array<{ toolName?: string; input?: unknown }>
+      toolResults?: Array<{ toolName?: string; input?: unknown; output?: unknown }>
     }> | undefined
     const stepCount = srSteps?.length ?? 0
     const toolCallsBrief = srSteps
       ? srSteps.flatMap((s) => s.toolCalls ?? []).map((tc) => ({
           toolName: tc.toolName,
-          args: typeof tc.args === 'string' ? tc.args.slice(0, 100) : tc.args,
+          input:
+            typeof tc.input === 'string'
+              ? tc.input.slice(0, 120)
+              : JSON.stringify(tc.input).slice(0, 120),
         }))
       : []
     const toolResultsBrief = srSteps
       ? srSteps.flatMap((s) => s.toolResults ?? []).map((tr) => ({
           toolName: tr.toolName,
-          result:
-            typeof tr.result === 'string'
-              ? tr.result.slice(0, 150)
-              : JSON.stringify(tr.result).slice(0, 150),
+          output:
+            typeof tr.output === 'string'
+              ? tr.output.slice(0, 180)
+              : JSON.stringify(tr.output).slice(0, 180),
         }))
       : []
 

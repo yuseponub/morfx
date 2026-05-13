@@ -73,14 +73,16 @@ export function ConfirmacionesPanel() {
   const [selectedEntry, setSelectedEntry] = useState<ScrapeHistoryEntry | null>(null)
   const [detailSelected, setDetailSelected] = useState<Set<number>>(new Set())
 
-  // Programacion state
+  // Programacion state (back-compat — flat-list driven UI removed by Plan 09 D-04)
   const [reminders, setReminders] = useState<ScheduledReminderEntry[]>([])
+  // remindersLoading + reminderPage retained so loadReminders() keeps compiling
+  // (the fn is no longer called automatically but kept as a reusable API surface).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [remindersLoading, setRemindersLoading] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [reminderDate, setReminderDate] = useState<string>(getColombiaToday())
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [reminderPage, setReminderPage] = useState(0)
-  const [historyReminderPage, setHistoryReminderPage] = useState(0)
-  const REMINDERS_PER_PAGE = 30
 
   // ── Programacion tab (rediseñado D-04): cards-por-scrape ──
   const [grouped, setGrouped] = useState<ScrapeWithReminders[]>([])
@@ -121,22 +123,6 @@ export function ConfirmacionesPanel() {
   const cancelledCount = appointments.filter(a => a.estado.toLowerCase().includes('cancelada')).length
   const validCount = selected.size
 
-  // Load history when switching to tab
-  useEffect(() => {
-    if (tab === 'history' && history.length === 0) {
-      loadHistory()
-    }
-  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load reminders when switching to programacion tab or changing date
-  // (Plan 09 D-04 redesign: also load grouped-by-scrape for cards view)
-  useEffect(() => {
-    if (tab === 'programacion') {
-      loadReminders()
-      loadGrouped(reminderDate || undefined)
-    }
-  }, [tab, reminderDate]) // eslint-disable-line react-hooks/exhaustive-deps
-
   async function loadHistory() {
     setHistoryLoading(true)
     const res = await getScrapeHistory()
@@ -167,11 +153,45 @@ export function ConfirmacionesPanel() {
     setLoadingGrouped(false)
   }
 
+  // Plan 09 D-04: useEffects placed AFTER loader declarations so the references
+  // resolve at the function-hoist boundary (avoids react-hooks/immutability
+  // "accessed before declared" errors that were preexisting for loadHistory).
+  // Load history when switching to tab
+  useEffect(() => {
+    if (tab === 'history' && history.length === 0) {
+      loadHistory()
+    }
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load grouped-by-scrape for cards view (programacion tab redesign).
+  // loadReminders (flat) is no longer called in this tab — detail view reads
+  // reminders directly from `selectedProgEntry.reminders`.
+  useEffect(() => {
+    if (tab === 'programacion') {
+      loadGrouped(reminderDate || undefined)
+    }
+  }, [tab, reminderDate]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleCancelReminder(id: string) {
     setCancellingId(id)
     const res = await cancelScheduledReminder(id)
     if (res.success) {
+      // Update legacy flat state (kept for back-compat with any other consumer).
       setReminders(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled' } : r))
+      // Plan 09: refresh grouped state for the redesigned tab + selectedProgEntry
+      // so the detail view reflects the cancellation without a full reload.
+      await loadGrouped(reminderDate || undefined)
+      if (progView === 'detail' && selectedProgEntry) {
+        // We can't read `grouped` after the setState above (React batches), so
+        // call the server action again to get a fresh selectedProgEntry. This
+        // is acceptable — cancel is a low-frequency action and the round-trip
+        // keeps the UI consistent with the DB.
+        const refreshed = await getScheduledRemindersGroupedByScrape(reminderDate || undefined)
+        if (refreshed.data) {
+          const match = refreshed.data.find(g => g.scrape.id === selectedProgEntry.scrape.id)
+          if (match) setSelectedProgEntry(match)
+        }
+      }
     }
     setCancellingId(null)
   }
@@ -322,18 +342,11 @@ export function ConfirmacionesPanel() {
     setTab('scrape')
   }
 
-  const pendingReminders = reminders.filter(r => r.status === 'pending')
-  const historyReminders = reminders.filter(r => r.status !== 'pending')
-  const totalReminderPages = Math.ceil(pendingReminders.length / REMINDERS_PER_PAGE)
-  const paginatedPending = pendingReminders.slice(
-    reminderPage * REMINDERS_PER_PAGE,
-    (reminderPage + 1) * REMINDERS_PER_PAGE
-  )
-  const totalHistoryPages = Math.ceil(historyReminders.length / REMINDERS_PER_PAGE)
-  const paginatedHistory = historyReminders.slice(
-    historyReminderPage * REMINDERS_PER_PAGE,
-    (historyReminderPage + 1) * REMINDERS_PER_PAGE
-  )
+  // Plan 09 D-04 redesign: the flat pendingReminders / historyReminders / paginatedPending
+  // / paginatedHistory / totalReminderPages / totalHistoryPages derived state was removed —
+  // the redesigned programacion tab consumes `grouped` + `orphans` (cards-por-scrape) instead.
+  // `loadReminders` + flat `reminders` state + handleCancelReminder's setReminders call are
+  // preserved as back-compat for any future consumer; they no longer drive the tab UI.
 
   return (
     <div className="space-y-4">
@@ -819,53 +832,197 @@ export function ConfirmacionesPanel() {
       )}
 
       {/* =============================================== */}
-      {/* TAB: PROGRAMACION                               */}
+      {/* TAB: PROGRAMACION (rediseñado D-04)             */}
       {/* =============================================== */}
       {tab === 'programacion' && (
         <>
-          <div>
-            <h2 className="text-lg font-semibold">Programacion de recordatorios</h2>
-            <p className="text-sm text-muted-foreground">Recordatorios 1h antes de la cita (pendientes + historial)</p>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground">Recordatorios programados</p>
-              <input
-                type="date"
-                value={reminderDate}
-                onChange={(e) => setReminderDate(e.target.value)}
-                className="text-xs border rounded px-2 py-1"
-              />
-              <Badge variant="outline">{reminders.length} total</Badge>
-            </div>
-            <Button variant="outline" size="sm" onClick={loadReminders} disabled={remindersLoading}>
-              {remindersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-            </Button>
-          </div>
+          {progView === 'list' && (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold">Programacion de recordatorios</h2>
+                <p className="text-sm text-muted-foreground">
+                  Recordatorios 1h antes de la cita agrupados por scrape origen
+                </p>
+              </div>
 
-          {remindersLoading && reminders.length === 0 && (
-            <Card>
-              <CardContent className="pt-6 flex justify-center">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </CardContent>
-            </Card>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="date"
+                    value={reminderDate}
+                    onChange={e => setReminderDate(e.target.value)}
+                    className="text-xs border rounded px-2 py-1"
+                  />
+                  <Badge variant="outline">{grouped.length} scrapes</Badge>
+                  {orphans.length > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      {orphans.length} sin scrape origen
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadGrouped(reminderDate || undefined)}
+                  disabled={loadingGrouped}
+                >
+                  {loadingGrouped ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                </Button>
+              </div>
+
+              {loadingGrouped && grouped.length === 0 && orphans.length === 0 && (
+                <Card>
+                  <CardContent className="pt-6 flex justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </CardContent>
+                </Card>
+              )}
+
+              {!loadingGrouped && grouped.length === 0 && orphans.length === 0 && (
+                <Card>
+                  <CardContent className="pt-6 text-center text-muted-foreground text-sm">
+                    No hay recordatorios programados para esta fecha.
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cards por scrape — mirror exacto del tab history */}
+              <div className="space-y-2">
+                {grouped.map(entry => (
+                  <Card key={entry.scrape.id} className="hover:bg-muted/30 transition-colors">
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">
+                              {new Date(entry.scrape.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
+                            </span>
+                          </div>
+                          <Badge variant="secondary">Fecha: {entry.scrape.scraped_date}</Badge>
+                          <Badge variant="outline">{entry.reminders.length} reminders</Badge>
+                          <div className="flex gap-1">
+                            {entry.scrape.sucursales.map(s => (
+                              <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                            ))}
+                          </div>
+                          {entry.stats.pending > 0 && (
+                            <Badge variant="default" className="bg-blue-600">
+                              {entry.stats.pending} pendientes
+                            </Badge>
+                          )}
+                          {entry.stats.sent > 0 && (
+                            <Badge variant="default" className="bg-green-600">
+                              {entry.stats.sent} sent
+                            </Badge>
+                          )}
+                          {entry.stats.failed > 0 && (
+                            <Badge variant="destructive">
+                              {entry.stats.failed} failed
+                            </Badge>
+                          )}
+                          {entry.stats.cancelled > 0 && (
+                            <Badge variant="outline">
+                              {entry.stats.cancelled} cancelled
+                            </Badge>
+                          )}
+                          {entry.scrape.inconsistent && (
+                            <Badge variant="destructive" className="bg-red-700">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              inconsistent
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setSelectedProgEntry(entry); setProgView('detail') }}
+                          >
+                            <Eye className="mr-1 h-3 w-3" />
+                            Ver detalle
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Orphans bucket: reminders sin scrape origen (legacy data pre-Plan 01) */}
+              {orphans.length > 0 && (
+                <>
+                  <div className="mt-6 pt-4 border-t">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Sin scrape origen ({orphans.length} reminders legacy)
+                    </p>
+                  </div>
+                  <Card>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="p-3 text-left">Nombre</th>
+                            <th className="p-3 text-left">Telefono</th>
+                            <th className="p-3 text-left">Hora cita</th>
+                            <th className="p-3 text-left">Sucursal</th>
+                            <th className="p-3 text-left">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orphans.map(r => (
+                            <tr key={r.id} className="border-b hover:bg-muted/30">
+                              <td className="p-3 font-medium">{r.nombre}</td>
+                              <td className="p-3 font-mono text-xs">{r.telefono}</td>
+                              <td className="p-3">{r.hora_cita}</td>
+                              <td className="p-3">{r.sucursal}</td>
+                              <td className="p-3">
+                                <Badge
+                                  variant={r.status === 'sent' ? 'default' : r.status === 'failed' ? 'destructive' : 'secondary'}
+                                  className={r.status === 'sent' ? 'bg-green-600' : ''}
+                                >
+                                  {r.status === 'sent' ? 'Enviado' : r.status === 'failed' ? 'Fallido' : r.status === 'cancelled' ? 'Cancelado' : r.status}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </>
+              )}
+            </>
           )}
 
-          {/* Pendientes section */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <p className="text-sm font-medium">Pendientes</p>
-              {pendingReminders.length > 0 && (
-                <Badge variant="default">{pendingReminders.length} pendientes</Badge>
-              )}
-            </div>
-            {pendingReminders.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground text-sm">
-                  No hay recordatorios pendientes
-                </CardContent>
-              </Card>
-            ) : (
+          {progView === 'detail' && selectedProgEntry && (
+            <>
+              {/* Detail view header: back button + scrape metadata */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setProgView('list'); setSelectedProgEntry(null) }}
+                >
+                  ← Volver
+                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary">
+                    Scrape: {new Date(selectedProgEntry.scrape.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
+                  </Badge>
+                  <Badge variant="outline">Fecha cita: {selectedProgEntry.scrape.scraped_date}</Badge>
+                  <Badge variant="outline">{selectedProgEntry.reminders.length} reminders</Badge>
+                  {selectedProgEntry.scrape.inconsistent && (
+                    <Badge variant="destructive" className="bg-red-700">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      inconsistent
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Detail view body: tabla flat (preserves D-04 "+ ui actual" — nombre/telefono/hora cita/hora envio/sucursal/estado/cancelar) */}
               <Card>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -876,11 +1033,12 @@ export function ConfirmacionesPanel() {
                         <th className="p-3 text-left">Hora cita</th>
                         <th className="p-3 text-left">Hora envio</th>
                         <th className="p-3 text-left">Sucursal</th>
+                        <th className="p-3 text-left">Estado</th>
                         <th className="p-3 text-left w-24">Accion</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedPending.map(r => (
+                      {selectedProgEntry.reminders.map(r => (
                         <tr key={r.id} className="border-b hover:bg-muted/30">
                           <td className="p-3 font-medium">{r.nombre}</td>
                           <td className="p-3 font-mono text-xs">{r.telefono}</td>
@@ -890,107 +1048,63 @@ export function ConfirmacionesPanel() {
                           </td>
                           <td className="p-3">{r.sucursal}</td>
                           <td className="p-3">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleCancelReminder(r.id)}
-                              disabled={cancellingId === r.id}
-                            >
-                              {cancellingId === r.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                'Cancelar'
-                              )}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {totalReminderPages > 1 && (
-                  <div className="flex items-center justify-between p-3 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      Pagina {reminderPage + 1} de {totalReminderPages} ({pendingReminders.length} pendientes)
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setReminderPage(p => p - 1)} disabled={reminderPage === 0}>
-                        Anterior
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setReminderPage(p => p + 1)} disabled={reminderPage >= totalReminderPages - 1}>
-                        Siguiente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            )}
-          </div>
-
-          {/* Historial section */}
-          <div>
-            <p className="text-sm font-medium mb-2">Historial de recordatorios</p>
-            {historyReminders.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground text-sm">
-                  No hay historial de recordatorios
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="p-3 text-left">Nombre</th>
-                        <th className="p-3 text-left">Telefono</th>
-                        <th className="p-3 text-left">Sucursal</th>
-                        <th className="p-3 text-left">Estado</th>
-                        <th className="p-3 text-left">Fecha envio</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedHistory.map(r => (
-                        <tr key={r.id} className="border-b hover:bg-muted/30">
-                          <td className="p-3 font-medium">{r.nombre}</td>
-                          <td className="p-3 font-mono text-xs">{r.telefono}</td>
-                          <td className="p-3">{r.sucursal}</td>
-                          <td className="p-3">
                             <Badge
                               variant={r.status === 'sent' ? 'default' : r.status === 'failed' ? 'destructive' : 'secondary'}
                               className={r.status === 'sent' ? 'bg-green-600' : ''}
                             >
-                              {r.status === 'sent' ? 'Enviado' : r.status === 'failed' ? 'Fallido' : r.status === 'cancelled' ? 'Cancelado' : r.status}
+                              {r.status === 'sent' ? 'Enviado' : r.status === 'failed' ? 'Fallido' : r.status === 'cancelled' ? 'Cancelado' : r.status === 'pending' ? 'Pendiente' : r.status}
                             </Badge>
                           </td>
-                          <td className="p-3 text-xs">
-                            {r.sent_at
-                              ? new Date(r.sent_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-                              : new Date(r.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
+                          <td className="p-3">
+                            {r.status === 'pending' ? (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleCancelReminder(r.id)}
+                                disabled={cancellingId === r.id}
+                              >
+                                {cancellingId === r.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  'Cancelar'
+                                )}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
                           </td>
                         </tr>
                       ))}
+                      {selectedProgEntry.reminders.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                            Sin reminders para este scrape
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
-                {totalHistoryPages > 1 && (
-                  <div className="flex items-center justify-between p-3 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      Pagina {historyReminderPage + 1} de {totalHistoryPages} ({historyReminders.length} registros)
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setHistoryReminderPage(p => p - 1)} disabled={historyReminderPage === 0}>
-                        Anterior
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setHistoryReminderPage(p => p + 1)} disabled={historyReminderPage >= totalHistoryPages - 1}>
-                        Siguiente
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </Card>
-            )}
-          </div>
+
+              {/* Inconsistency diagnostic (D-08) if applicable */}
+              {selectedProgEntry.scrape.inconsistent && selectedProgEntry.scrape.inconsistency_details && (
+                <Card className="border-red-700 bg-red-50 dark:bg-red-950/20">
+                  <CardHeader>
+                    <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Diagnóstico cross-sede (D-08 canary)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
+                      {JSON.stringify(selectedProgEntry.scrape.inconsistency_details, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
         </>
       )}
     </div>

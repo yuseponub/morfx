@@ -197,10 +197,24 @@ export interface V4AgentOutput {
   intentInfo?: {
     intent: string
     confidence: number
+    /**
+     * 0..1 scale (D-10) — Plan 12.1 calibration value used by `decideSubLoopReason`.
+     * Different field from `confidence` (legacy 0-100). Surfaced in debug panel
+     * to diagnose escalation decisions. Standalone: somnio-sales-v4-runtime-wiring / Plan 07.
+     */
+    intent_confidence?: number
     secondary?: string
     reasoning?: string
     timestamp: string
   }
+
+  /**
+   * Sub-loop diagnostic surface (Plan 03 D-20 TODO honored Plan 07 debug).
+   * Populated by somnio-v4-agent.ts; consumed by engine-v4.ts debugTurn mapping.
+   */
+  subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
+  /** platform_config.somnio_v4_low_confidence_threshold value used in this turn (D-11). */
+  threshold?: number
 
   totalTokens: number
   shouldCreateOrder: boolean

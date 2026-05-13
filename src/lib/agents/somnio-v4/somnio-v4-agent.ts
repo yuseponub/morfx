@@ -188,6 +188,8 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         analysis,
         tokensUsed,
         timerSignals,
+        subLoopReason: earlyReason,
+        threshold,
       })
     }
 
@@ -218,11 +220,14 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
+          intent_confidence: analysis.intent.intent_confidence,
           secondary:
             analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
           reasoning: analysis.intent.reasoning,
           timestamp: new Date().toISOString(),
         },
+        subLoopReason: null,
+        threshold,
         totalTokens: tokensUsed,
         shouldCreateOrder: false,
         timerSignals,
@@ -350,6 +355,8 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         analysis,
         tokensUsed,
         timerSignals,
+        subLoopReason: 'cas_reject',
+        threshold,
       })
     }
 
@@ -464,11 +471,14 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
+          intent_confidence: analysis.intent.intent_confidence,
           secondary:
             analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
           reasoning: analysis.intent.reasoning,
           timestamp: new Date().toISOString(),
         },
+        subLoopReason: null,
+        threshold,
         totalTokens: tokensUsed,
         shouldCreateOrder: false,
         timerSignals,
@@ -514,11 +524,14 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       intentInfo: {
         intent: analysis.intent.primary,
         confidence: analysis.intent.confidence,
+        intent_confidence: analysis.intent.intent_confidence,
         secondary:
           analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
         reasoning: analysis.intent.reasoning,
         timestamp: new Date().toISOString(),
       },
+      subLoopReason: null,
+      threshold,
       totalTokens: tokensUsed,
       shouldCreateOrder: isCreateOrder,
       orderData: isCreateOrder
@@ -713,8 +726,12 @@ function mapOutcomeToAgentOutput(args: {
   analysis: import('./comprehension-schema').MessageAnalysis
   tokensUsed: number
   timerSignals: TimerSignal[]
+  /** Sub-loop trigger reason — surfaced to debug panel (Plan 07). */
+  subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
+  /** Threshold used in this turn — surfaced to debug panel (Plan 07). */
+  threshold?: number
 }): V4AgentOutput {
-  const { outcome, state, analysis, tokensUsed, timerSignals } = args
+  const { outcome, state, analysis, tokensUsed, timerSignals, subLoopReason, threshold } = args
   const serialized = serializeState(state)
 
   const baseOutput = {
@@ -727,11 +744,14 @@ function mapOutcomeToAgentOutput(args: {
     intentInfo: {
       intent: analysis.intent.primary,
       confidence: analysis.intent.confidence,
+      intent_confidence: analysis.intent.intent_confidence,
       secondary:
         analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
       reasoning: analysis.intent.reasoning,
       timestamp: new Date().toISOString(),
     },
+    subLoopReason: subLoopReason ?? null,
+    threshold,
     totalTokens: tokensUsed,
     shouldCreateOrder: false,
     timerSignals,

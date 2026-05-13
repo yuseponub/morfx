@@ -43,6 +43,13 @@ export interface ToolExecution {
 export interface IntentInfo {
   intent: string
   confidence: number
+  /**
+   * 0..1 scale confidence (D-10) — Plan 12.1 calibration uses this for sub-loop trigger.
+   * Populated only by somnio-v4 path; v3/godentist/recompra omit. Surfaced in debug panel
+   * separately from legacy `confidence` (0-100) — useful for diagnosing escalation behavior.
+   * Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug surface.
+   */
+  intent_confidence?: number
   alternatives?: { intent: string; confidence: number }[]
   reasoning?: string
   timestamp: string

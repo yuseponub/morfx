@@ -93,6 +93,36 @@ function IntentSection({ turn }: { turn: DebugTurn }) {
         <Progress value={turn.intent.confidence} className="h-2" />
       </div>
 
+      {/* V4 escalation surface — intent_confidence (0..1, D-10 / Plan 12.1) + threshold + subLoopReason.
+          Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug. */}
+      {(turn.intent.intent_confidence !== undefined || turn.threshold !== undefined || turn.subLoopReason) && (
+        <div className="pt-1 border-t border-dashed border-muted-foreground/20 space-y-1">
+          {turn.intent.intent_confidence !== undefined && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">intent_confidence (0..1)</span>
+              <span className="font-mono font-medium">{turn.intent.intent_confidence.toFixed(3)}</span>
+            </div>
+          )}
+          {turn.threshold !== undefined && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">threshold</span>
+              <span className="font-mono">{turn.threshold.toFixed(2)}</span>
+            </div>
+          )}
+          {turn.subLoopReason && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">sub-loop trigger</span>
+              <Badge variant="outline" className="text-[10px]">{turn.subLoopReason}</Badge>
+            </div>
+          )}
+          {turn.intent.intent_confidence !== undefined && turn.threshold !== undefined && !turn.subLoopReason && (
+            <div className="text-[10px] text-muted-foreground/70 italic">
+              no sub-loop fired ({turn.intent.intent_confidence.toFixed(3)} ≥ {turn.threshold.toFixed(2)})
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Alternatives */}
       {turn.intent.alternatives && turn.intent.alternatives.length > 0 && (
         <div className="pt-1">

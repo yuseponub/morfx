@@ -105,6 +105,7 @@ export class SomnioV4Engine {
           intent: output.intentInfo ? {
             intent: output.intentInfo.intent,
             confidence: output.intentInfo.confidence,
+            intent_confidence: output.intentInfo.intent_confidence,
             reasoning: output.intentInfo.reasoning,
             timestamp: output.intentInfo.timestamp,
           } : output.errorMessage ? {
@@ -157,6 +158,11 @@ export class SomnioV4Engine {
             infoIntents: output.responseTrackInfo.infoTemplateIntents,
             totalMessages: output.responseTrackInfo.totalMessages,
           } : undefined,
+          // V4 escalation visibility (Plan 03 D-20 TODO honored in Plan 07 debug):
+          // subLoopReason populated when sub-loop fired (otherwise null/undefined).
+          // threshold = platform_config.somnio_v4_low_confidence_threshold value used.
+          subLoopReason: output.subLoopReason ?? undefined,
+          threshold: output.threshold,
           timerSignals: output.timerSignals.map(s => ({
             type: s.type,
             level: s.level,

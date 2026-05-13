@@ -27,6 +27,10 @@ export interface ScrapeAppointmentsResponse {
   totalAppointments: number
   appointments: Appointment[]
   errors?: string[]
+  // Per CONTEXT.md D-15 (paradigm F audit): total citas parsed from toolbar "Total de citas: N"
+  // summed across sedes scraped. null if toolbar unavailable / no sedes audited.
+  // Plan 06 server-action will persist this in godentist_scrape_history.total_citas.
+  totalCitas?: number | null
 }
 
 export interface HealthResponse {

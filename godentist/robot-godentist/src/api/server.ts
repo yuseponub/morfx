@@ -1,7 +1,7 @@
 import express from 'express'
 import * as fs from 'fs'
 import * as path from 'path'
-import { GoDentistAdapter, SedeRefreshFailedError } from '../adapters/godentist-adapter.js'
+import { GoDentistAdapter, SedeRefreshFailedError, FilterDriftError, PaginationStuckError } from '../adapters/godentist-adapter.js'
 import type { ScrapeAppointmentsRequest, ScrapeAppointmentsResponse, HealthResponse, ConfirmAppointmentRequest, ConfirmAppointmentResponse, CheckAvailabilityRequest } from '../types/index.js'
 
 const ARTIFACTS_DIR = path.resolve('storage/artifacts')
@@ -64,6 +64,7 @@ export function createServer() {
         totalAppointments: result.appointments.length,
         appointments: result.appointments,
         errors: result.errors.length > 0 ? result.errors : undefined,
+        totalCitas: result.totalCitas ?? undefined,
       }
 
       res.json(response)
@@ -71,10 +72,46 @@ export function createServer() {
       console.error('[Server] Scrape error:', err)
       await adapter.takeScreenshot('server-error')
 
-      // Per CONTEXT.md D-08: SedeRefreshFailedError (thrown by adapter when a sede exhausts
-      // 3 refresh attempts) maps to HTTP 502 — semantically correct because the portal Dentos
-      // (upstream of the robot) didn't respond as expected. Discriminator code allows
-      // forensics distinction from other 5xx responses.
+      // Per CONTEXT.md D-07 + RESEARCH.md Paradigm F: FilterDriftError thrown by
+      // assertFilterIs when `#idsucursalgrid.value !== expectedId`. Maps to HTTP 502 —
+      // semantically correct because the portal Dentos (upstream) didn't apply our filter.
+      if (err instanceof FilterDriftError) {
+        res.status(502).json({
+          success: false,
+          status: 'error',
+          code: 'filter_drift',
+          sede: err.sede,
+          expectedId: err.expectedId,
+          actualId: err.actualId,
+          when: err.when,
+          error: err.message,
+        })
+        return
+      }
+
+      // Per CONTEXT.md D-11 + RESEARCH.md Paradigm F: PaginationStuckError thrown by
+      // clickNextPageWithGuard after retry. Maps to HTTP 502.
+      if (err instanceof PaginationStuckError) {
+        res.status(502).json({
+          success: false,
+          status: 'error',
+          code: 'pagination_stuck',
+          sede: err.sede,
+          currentPage: err.currentPage,
+          totalPages: err.totalPages,
+          pageInputBefore: err.pageInputBefore,
+          pageInputAfter: err.pageInputAfter,
+          error: err.message,
+        })
+        return
+      }
+
+      // Legacy paradigm A error class — kept for backward compatibility with any external
+      // consumers. Paradigm F does NOT throw this anymore (waitForSucursalRefresh deleted
+      // in Plan 05 LEGACY-DELETE) but the export is preserved as inert + the mapping block
+      // stays in place defensively (PATTERNS.md §2 Risks: "If SedeRefreshFailedError is
+      // kept for safety, leave its mapping block in place even though it should never
+      // be thrown by paradigm F").
       if (err instanceof SedeRefreshFailedError) {
         res.status(502).json({
           success: false,

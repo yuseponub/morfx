@@ -1759,7 +1759,7 @@ export class GoDentistAdapter {
    * after for the postcondition.
    */
   private async clickBuscarAndWait(): Promise<void> {
-    console.log('[GoDentist] clickBuscarAndWait: clicking Buscar')
+    console.log('[GoDentist] clickBuscarAndWait: triggering search')
 
     // Step 1: locate the Buscar button. ExtJS renders buttons as <table class="x-btn">,
     // not as <button>, so `button:has-text(...)` alone fails in production.
@@ -1771,41 +1771,23 @@ export class GoDentistAdapter {
       || await this.page!.$('.x-btn:has-text("Filtrar")')
       || await this.page!.$('button[type="submit"]')
 
-    if (!searchBtn) {
-      // Last-resort diagnostic: dump page state INTO the error message so it surfaces
-      // in the smoke JSON response (Railway logs are not accessible from local).
-      const diag = await this.page!.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button, .x-btn, input[type="submit"]')).map(b => ({
-          tag: b.tagName,
-          text: (b.textContent || '').trim().substring(0, 50),
-          cls: (b as HTMLElement).className || '',
-          id: b.id || '',
-          visible: (b as HTMLElement).offsetParent !== null,
-        }))
-        // Also dump any element containing "Buscar" / "Filtrar" / "Consultar" text.
-        const buscarTexts = Array.from(document.querySelectorAll('*')).filter(el =>
-          /Buscar|Filtrar|Consultar/i.test((el.textContent || '').trim().substring(0, 50))
-        ).slice(0, 20).map(el => ({
-          tag: el.tagName,
-          cls: (el as HTMLElement).className || '',
-          id: el.id || '',
-          text: (el.textContent || '').trim().substring(0, 80),
-        }))
-        return {
-          url: window.location.href,
-          title: document.title,
-          buttons: buttons.slice(0, 30),
-          buscarTexts,
-        }
-      })
-      console.error(`[GoDentist] clickBuscarAndWait: NO Buscar button found. Diag: ${JSON.stringify(diag)}`)
-      throw new Error(`clickBuscarAndWait: Buscar button not found. Diag: ${JSON.stringify(diag)}`)
+    if (searchBtn) {
+      await searchBtn.click()
+      console.log('[GoDentist] clickBuscarAndWait: button clicked')
+    } else {
+      // Production reality (verified 2026-05-13 via diag instrumentation):
+      // the listcitassimple view does NOT have a visible Buscar button. Legacy
+      // clickBuscar's Enter-on-#df_fecha fallback was always the actual trigger
+      // in prod. Replicating that here.
+      console.log('[GoDentist] clickBuscarAndWait: no Buscar button — pressing Enter on #df_fecha')
+      await this.page!.locator('#df_fecha').press('Enter')
     }
 
-    await searchBtn.click()
-    console.log('[GoDentist] clickBuscarAndWait: button clicked')
-
-    // Step 2: wait for the table to render with new content.
+    // Step 2: wait for the table to render. The table may already exist post-nav
+    // (empty grid skeleton) — we wait for the FIRST ROW to have non-empty cells[1] (name)
+    // and cells[5] (sucursal). If the query returns zero appointments legitimately
+    // (e.g., date with no citas), waitForFunction will time out — caller's try/catch
+    // converts that to an error string per sede.
     await this.page!.waitForFunction(() => {
       const rt = document.querySelector('table.x-grid3-row-table')
       if (!rt) return false

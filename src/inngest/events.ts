@@ -699,6 +699,25 @@ export type GodentistEvents = {
       scheduledAt: string
     }
   }
+
+  /**
+   * Per CONTEXT.md D-08 + RESEARCH.md Pattern 4: emitted by
+   * src/app/actions/godentist.ts:scrapeAppointments when the cross-sede canary
+   * detects (phone) appearing in >1 sede within the same scrape. Indicates D-07
+   * invariant violated (paradigm F has a grieta in production).
+   *
+   * Consumed by src/inngest/functions/godentist-scrape-inconsistent.ts which
+   * logs to agent_observability_events. sendConfirmations + scheduleReminders
+   * abort if the scrape row has inconsistent=true.
+   */
+  'godentist/scrape.inconsistent': {
+    data: {
+      workspaceId: string
+      scrapedDate: string  // YYYY-MM-DD
+      crossSedePhones: Array<{ phone: string; sedes: string[] }>
+      detectedAt: string  // ISO timestamp
+    }
+  }
 }
 
 // ============================================================================

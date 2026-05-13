@@ -11,6 +11,11 @@ import { buildSubLoopTools, type SubLoopToolsContext } from './tools'
 import { buildSubLoopPrompt } from './prompt'
 import { checkNuncaDecir } from './nunca-decir-check'
 import { SOMNIO_V4_AGENT_ID } from '../config'
+import type {
+  SubLoopDebugPayload,
+  SubLoopToolCallSnapshot,
+  SubLoopKbHitSnapshot,
+} from './debug-payload'
 
 export type { SubLoopReason } from './output-schema'
 
@@ -79,8 +84,103 @@ export interface SubLoopContext extends SubLoopToolsContext {
 export async function runSubLoop(args: {
   reason: SubLoopReason
   ctx: SubLoopContext
+  /**
+   * Optional debug callback (D-03) — fires before each return/throw with a
+   * snapshot of telemetry (toolCalls, toolResults, kbHits, outcome, violations,
+   * errorMessage, latencyMs). Caller can capture into a closure variable to
+   * propagate to V4AgentOutput.subLoopDebug. Synchronous — not awaited.
+   * Standalone: v4-subloop-debug-view / Plan 02.
+   */
+  onDebug?: (payload: SubLoopDebugPayload) => void
 }): Promise<LoopOutcome> {
+  // Latency timer for SubLoopDebugPayload (Plan 02). performance.now() is
+  // available in Vercel Node 18+ runtime without import.
+  const t0 = performance.now()
+
   const tools = buildSubLoopTools(args.reason, args.ctx)
+
+  // Extract AI SDK v6 step data using CORRECT field names (Pitfall 1: input/output, NOT args/result).
+  // Canonical pattern from src/lib/agents/crm-reader/index.ts:59-68.
+  function extractStepData(
+    result: Awaited<ReturnType<typeof generateText>> | null,
+  ): {
+    toolCalls: SubLoopToolCallSnapshot[]
+    toolResults: SubLoopToolCallSnapshot[]
+    kbHits?: SubLoopKbHitSnapshot[]
+    stepCount: number
+    finishReason?: string
+  } {
+    if (!result) {
+      return { toolCalls: [], toolResults: [], stepCount: 0 }
+    }
+    const steps = result.steps ?? []
+    const toolCalls: SubLoopToolCallSnapshot[] = steps.flatMap((step) =>
+      (step.toolCalls ?? []).map((tc) => ({
+        toolName: tc.toolName,
+        input: tc.input,
+        output: null,
+        outputPreview: undefined,
+      })),
+    )
+    // Build toolResults — separate flat list keyed for the UI per D-02 verbatim.
+    const toolResults: SubLoopToolCallSnapshot[] = steps.flatMap((step) =>
+      (step.toolResults ?? []).map((tr) => {
+        const out: unknown = tr.output
+        // Pitfall 6: truncate at emission site, capped 500 chars.
+        const outputPreview =
+          typeof out === 'string'
+            ? out.slice(0, 500)
+            : JSON.stringify(out).slice(0, 500)
+        return {
+          toolName: tr.toolName,
+          input: tr.input,
+          output: out,
+          outputPreview,
+        }
+      }),
+    )
+
+    // D-06: extract kb_search hits with structural type check; silent omission on shape mismatch.
+    let kbHits: SubLoopKbHitSnapshot[] | undefined = undefined
+    const kbResult = toolResults.find((tr) => tr.toolName === 'kb_search')
+    if (kbResult) {
+      const hits = kbResult.output
+      if (Array.isArray(hits)) {
+        if (hits.length === 0) {
+          kbHits = []
+        } else {
+          const first = hits[0] as Record<string, unknown>
+          if (
+            typeof first?.topic === 'string' &&
+            typeof first?.similarity === 'number'
+          ) {
+            // Structural check passed — safe to cast.
+            // Cast targets the runtime shape returned by kb-search-tool.ts (KbHit[]).
+            type KbHitRow = {
+              topic: string
+              similarity: number
+              canonicalResponse: string | null
+              nuncaDecirRules?: string[]
+            }
+            kbHits = (hits as KbHitRow[]).map((h) => ({
+              topic: h.topic,
+              similarity: h.similarity,
+              contentPreview: (h.canonicalResponse ?? '').slice(0, 200),
+              hasNuncaDecir: (h.nuncaDecirRules?.length ?? 0) > 0,
+            }))
+          }
+        }
+      }
+    }
+
+    return {
+      toolCalls,
+      toolResults,
+      kbHits,
+      stepCount: steps.length,
+      finishReason: result.finishReason,
+    }
+  }
 
   // Diagnostic wrap (Plan 07 debug iter 4 + iter 8 + iter 9): captura errores
   // del generateText con context completo del provider Y del result object.
@@ -157,6 +257,21 @@ export async function runSubLoop(args: {
     const finishReason = srFinishReason ?? (e?.finishReason as string) ?? 'no-finishReason'
     const text = srText ?? (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
 
+    // D-03: emit debug payload BEFORE throw so caller closure captures it (Pitfall 7 option a).
+    const errStep = extractStepData(subLoopResult)
+    args.onDebug?.({
+      fired: true,
+      reason: args.reason,
+      finishReason: errStep.finishReason ?? srFinishReason ?? undefined,
+      stepCount: errStep.stepCount,
+      toolCalls: errStep.toolCalls,
+      toolResults: errStep.toolResults,
+      kbHits: errStep.kbHits,
+      outcome: undefined,
+      latencyMs: performance.now() - t0,
+      errorMessage: `${errName}: ${errMsg}`,
+    })
+
     throw new Error(
       `[SubLoop generateText reason=${args.reason}] ${errName}: ${errMsg} | ` +
       `finishReason="${finishReason}" | steps=${stepCount} | ` +
@@ -194,6 +309,20 @@ export async function runSubLoop(args: {
       requiresHuman: true,
       reason: `invariant_violation: ${invariantCheck.violation ?? 'unspecified'}`,
     }
+    // D-03: emit debug payload before returning escalated outcome.
+    const invStep = extractStepData(subLoopResult)
+    args.onDebug?.({
+      fired: true,
+      reason: args.reason,
+      finishReason: invStep.finishReason,
+      stepCount: invStep.stepCount,
+      toolCalls: invStep.toolCalls,
+      toolResults: invStep.toolResults,
+      kbHits: invStep.kbHits,
+      outcome: escalated,
+      invariantViolation: invariantCheck.violation ?? 'unspecified',
+      latencyMs: performance.now() - t0,
+    })
     return escalated
   }
 
@@ -233,6 +362,20 @@ export async function runSubLoop(args: {
           violation: check.violation ?? null,
         }
       )
+      // D-03: emit debug payload before returning escalated outcome.
+      const ndStep = extractStepData(subLoopResult)
+      args.onDebug?.({
+        fired: true,
+        reason: args.reason,
+        finishReason: ndStep.finishReason,
+        stepCount: ndStep.stepCount,
+        toolCalls: ndStep.toolCalls,
+        toolResults: ndStep.toolResults,
+        kbHits: ndStep.kbHits,
+        outcome: escalated,
+        nuncaDecirViolation: check.violation ?? 'unspecified',
+        latencyMs: performance.now() - t0,
+      })
       return escalated
     }
   }
@@ -244,6 +387,20 @@ export async function runSubLoop(args: {
     outcome: output.status,
     sourceTopic: output.status === 'canonical' ? output.sourceTopic : null,
     requiresHuman: output.requiresHuman,
+  })
+
+  // D-03: emit debug payload on success path.
+  const okStep = extractStepData(subLoopResult)
+  args.onDebug?.({
+    fired: true,
+    reason: args.reason,
+    finishReason: okStep.finishReason,
+    stepCount: okStep.stepCount,
+    toolCalls: okStep.toolCalls,
+    toolResults: okStep.toolResults,
+    kbHits: okStep.kbHits,
+    outcome: output,
+    latencyMs: performance.now() - t0,
   })
 
   return output

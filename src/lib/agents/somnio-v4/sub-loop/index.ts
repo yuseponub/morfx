@@ -82,14 +82,17 @@ export async function runSubLoop(args: {
 }): Promise<LoopOutcome> {
   const tools = buildSubLoopTools(args.reason, args.ctx)
 
-  // Diagnostic wrap (Plan 07 debug iter 4 + iter 8): captura errores del generateText
-  // (AI_NoOutputGeneratedError u otros) con context completo del provider.
-  // Iter 8 fix: el destructure `const { output } = subLoopResult` también dispara el
-  // getter de output que puede throw AI_NoOutputGeneratedError si GPT-4o mini no produjo
-  // un LoopOutcome parseable. Por eso movemos el destructure ADENTRO del try/catch.
+  // Diagnostic wrap (Plan 07 debug iter 4 + iter 8 + iter 9): captura errores
+  // del generateText con context completo del provider Y del result object.
+  //
+  // Iter 9 fix: AI_NoOutputGeneratedError no carga finishReason/text/cause en sí
+  // mismo — esos datos viven en `result` (subLoopResult). Por eso declaramos
+  // subLoopResult ANTES del try, así el catch puede peek-ear sus campos
+  // (finishReason, text, steps con tool calls) para diagnostico real.
   let output: LoopOutcome
+  let subLoopResult: Awaited<ReturnType<typeof generateText>> | null = null
   try {
-    const subLoopResult = await runWithPurpose('subloop', () =>
+    subLoopResult = await runWithPurpose('subloop', () =>
       generateText({
         model: getOpenAI()('gpt-4o-mini'),
         system: buildSubLoopPrompt(args.reason),
@@ -115,15 +118,42 @@ export async function runSubLoop(args: {
     const errName = (e?.name as string) ?? 'Error'
     const errMsg = (e?.message as string) ?? String(genErr)
     const cause = e?.cause ? JSON.stringify(e.cause).slice(0, 300) : 'no-cause'
-    const text = (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
-    const finishReason = (e?.finishReason as string) ?? 'no-finishReason'
-    const responseStr = e?.response
-      ? JSON.stringify(e.response).slice(0, 500)
-      : 'no-response'
+
+    // Peek subLoopResult fields if generateText succeeded but .output getter threw.
+    const sr = subLoopResult as Record<string, unknown> | null
+    const srFinishReason = (sr?.finishReason as string) ?? null
+    const srText = (sr?.text as string) ?? null
+    const srSteps = sr?.steps as Array<{
+      toolCalls?: Array<{ toolName?: string; args?: unknown }>
+      toolResults?: Array<{ toolName?: string; result?: unknown }>
+    }> | undefined
+    const stepCount = srSteps?.length ?? 0
+    const toolCallsBrief = srSteps
+      ? srSteps.flatMap((s) => s.toolCalls ?? []).map((tc) => ({
+          toolName: tc.toolName,
+          args: typeof tc.args === 'string' ? tc.args.slice(0, 100) : tc.args,
+        }))
+      : []
+    const toolResultsBrief = srSteps
+      ? srSteps.flatMap((s) => s.toolResults ?? []).map((tr) => ({
+          toolName: tr.toolName,
+          result:
+            typeof tr.result === 'string'
+              ? tr.result.slice(0, 150)
+              : JSON.stringify(tr.result).slice(0, 150),
+        }))
+      : []
+
+    // Prefer subLoopResult fields (post-generation) over error fields (pre).
+    const finishReason = srFinishReason ?? (e?.finishReason as string) ?? 'no-finishReason'
+    const text = srText ?? (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
+
     throw new Error(
       `[SubLoop generateText reason=${args.reason}] ${errName}: ${errMsg} | ` +
-      `finishReason="${finishReason}" | text="${(text as string).slice(0, 200)}" | ` +
-      `cause="${cause}" | response="${responseStr}"`
+      `finishReason="${finishReason}" | steps=${stepCount} | ` +
+      `toolCalls=${JSON.stringify(toolCallsBrief).slice(0, 250)} | ` +
+      `toolResults=${JSON.stringify(toolResultsBrief).slice(0, 250)} | ` +
+      `text="${(text as string).slice(0, 200)}" | cause="${cause}"`
     )
   }
 

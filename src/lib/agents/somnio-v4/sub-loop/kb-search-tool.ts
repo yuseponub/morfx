@@ -103,7 +103,7 @@ export function kbSearchTool(ctx: KbSearchContext) {
         query,
         category: category ?? null,
         hitCount: hits.length,
-        topHits: hits.map((h) => ({ topic: h.topic, category: h.category, similarity: Number(h.similarity.toFixed(4)) })),
+        topHits: hits.map((h: KbHit) => ({ topic: h.topic, category: h.category, similarity: Number(h.similarity.toFixed(4)) })),
         tEmbedMs: tEmbed,
         tRpcMs: tRpc,
       }))

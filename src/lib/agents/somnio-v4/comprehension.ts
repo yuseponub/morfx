@@ -81,15 +81,42 @@ export async function comprehend(
       system: buildSystemPrompt(existingData, recentBotMessages),
       messages,
       output: Output.object({ schema: MessageAnalysisSchema }),
+      // Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug.
+      // Disable safety filters: Somnio vende un sueño/suplemento; preguntas
+      // sobre dependencia, adicción, contraindicaciones, dosis son CORE
+      // business. El filter DANGEROUS_CONTENT bloqueaba "qué tan adictivo es
+      // vs zolpidem?" en Smoke A iter 1. RESEARCH §H-3 testó con mensajes
+      // inocuos — gap descubierto en Smoke A.
+      providerOptions: {
+        google: {
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        },
+      },
     })
   )
 
   // Canonical access path — validado por research-scripts/test-comprehension.ts (W-4):
   // `result.output` es la instancia parseada del schema (typed por z.infer<MessageAnalysisSchema>).
-  // Sin fallbacks defensivos: si AI SDK cambia el shape en upgrade, fallará dirigido.
-  // Re-serialize → parseAnalysis para preservar la pipeline de sanitization (D-69) que
-  // mapea intents fuera del enum a 'otro' antes de retornar al consumer.
-  const analysis = parseAnalysis(JSON.stringify(result.output))
+  // Diagnostic guard: si la lectura del getter throws (AI_NoOutputGeneratedError),
+  // logueamos finishReason + text para diagnose (Plan 07 debug). Sin esto, el catch
+  // upstream solo ve "No output generated" sin context.
+  let parsedOutput: MessageAnalysis
+  try {
+    parsedOutput = result.output as MessageAnalysis
+  } catch (outputErr) {
+    const finishReason = result.finishReason ?? 'unknown'
+    const rawText = (result.text ?? '').slice(0, 200)
+    const errMsg = outputErr instanceof Error ? outputErr.message : String(outputErr)
+    throw new Error(
+      `[Comprehension-v4] No output generated. finishReason="${finishReason}" text="${rawText}" inner="${errMsg}"`,
+    )
+  }
+  const analysis = parseAnalysis(JSON.stringify(parsedOutput))
 
   const tokensUsed =
     (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0)

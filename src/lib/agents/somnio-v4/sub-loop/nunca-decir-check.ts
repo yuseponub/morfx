@@ -47,6 +47,21 @@ export async function checkNuncaDecir(args: {
         },
       ],
       output: Output.object({ schema: CheckSchema }),
+      // Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug.
+      // Disable safety filters — Somnio CORE business incluye medication
+      // content (dependencia, contraindicaciones, dosis). El check de NUNCA
+      // decir analiza texto canonical del KB que puede mencionar substancias
+      // por contexto educativo. Gap descubierto en Smoke A iter 1.
+      providerOptions: {
+        google: {
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        },
+      },
     })
   )
 

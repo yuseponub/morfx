@@ -909,6 +909,37 @@ export interface ScheduledReminderEntry {
   error: string | null
   sent_at: string | null
   created_at: string
+  // Plan 08 (godentist-scraping-structural-v2): FK al scrape origen.
+  // Nullable para data legacy pre-Plan 01 + reminders insertados sin historyId.
+  scrape_history_id?: string | null
+}
+
+/**
+ * Per CONTEXT.md D-04 + PATTERNS.md §4: shape consumed by UI tab "programacion" (Plan 09).
+ * Replicates the cards-por-scrape pattern of tab "Historial Confirmaciones"
+ * (confirmaciones-panel.tsx lines 680-792).
+ *
+ * Includes the inconsistent flag + inconsistency_details so the UI can render
+ * a red AlertTriangle badge when D-08 canary fired (also blocks downstream sends).
+ */
+export interface ScrapeWithReminders {
+  scrape: {
+    id: string
+    scraped_date: string
+    sucursales: string[]
+    total_appointments: number
+    created_at: string
+    inconsistent: boolean
+    inconsistency_details: Record<string, unknown> | null
+    total_citas: number | null
+  }
+  reminders: ScheduledReminderEntry[]
+  stats: {
+    pending: number
+    sent: number
+    failed: number
+    cancelled: number
+  }
 }
 
 export async function getScheduledReminders(fechaCita?: string): Promise<{ error?: string; data?: ScheduledReminderEntry[] }> {
@@ -938,6 +969,101 @@ export async function getScheduledReminders(fechaCita?: string): Promise<{ error
   if (error) return { error: error.message }
 
   return { data: data as ScheduledReminderEntry[] }
+}
+
+/**
+ * Per CONTEXT.md D-04 + PATTERNS.md §4: returns reminders grouped by their
+ * source scrape, with per-scrape stats and the inconsistent flag. UI tab
+ * "programacion" (Plan 09) consumes this to render cards-per-scrape replicating
+ * the tab "Historial Confirmaciones" pattern.
+ *
+ * Workspace-scoped (CLAUDE.md REGLA 3). Returns orphans bucket for reminders
+ * with scrape_history_id IS NULL (legacy data pre-Plan 01).
+ *
+ * @param dateFilter — optional YYYY-MM-DD filter on godentist_scheduled_reminders.fecha_cita.
+ *                     If omitted, returns ALL workspace reminders up to limit.
+ */
+export async function getScheduledRemindersGroupedByScrape(
+  dateFilter?: string,
+): Promise<{ error?: string; data?: ScrapeWithReminders[]; orphans?: ScheduledReminderEntry[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const cookieStore = await cookies()
+  const workspaceId = cookieStore.get('morfx_workspace')?.value
+  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+
+  const admin = createAdminClient()
+
+  // Step 1: fetch reminders, workspace-scoped, optionally date-filtered.
+  let remQuery = admin
+    .from('godentist_scheduled_reminders')
+    .select('id, nombre, telefono, hora_cita, sucursal, fecha_cita, scheduled_at, status, error, sent_at, created_at, scrape_history_id')
+    .eq('workspace_id', workspaceId)
+  if (dateFilter) remQuery = remQuery.eq('fecha_cita', dateFilter)
+  const { data: rems, error: remErr } = await remQuery
+    .order('scheduled_at', { ascending: true })
+    .limit(2000) // wider than flat getScheduledReminders (500) since grouped covers wider date range
+  if (remErr) return { error: remErr.message }
+
+  // Step 2: collect distinct scrape_history_ids, fetch scrape rows in one batch.
+  const scrapeIds = [...new Set((rems || [])
+    .map(r => r.scrape_history_id)
+    .filter((id): id is string => Boolean(id))
+  )]
+
+  let scrapes: Array<{
+    id: string
+    scraped_date: string
+    sucursales: string[]
+    total_appointments: number
+    created_at: string
+    inconsistent: boolean
+    inconsistency_details: Record<string, unknown> | null
+    total_citas: number | null
+  }> = []
+
+  if (scrapeIds.length > 0) {
+    const { data: scrapeRows, error: scrapeErr } = await admin
+      .from('godentist_scrape_history')
+      .select('id, scraped_date, sucursales, total_appointments, created_at, inconsistent, inconsistency_details, total_citas')
+      .in('id', scrapeIds)
+      .eq('workspace_id', workspaceId)
+    if (scrapeErr) return { error: scrapeErr.message }
+    scrapes = (scrapeRows || []) as typeof scrapes
+  }
+
+  // Step 3: group reminders by scrape_history_id; collect orphans (NULL FK).
+  const byScrapeId = new Map<string, ScheduledReminderEntry[]>()
+  const orphans: ScheduledReminderEntry[] = []
+  for (const r of (rems || []) as ScheduledReminderEntry[]) {
+    if (!r.scrape_history_id) {
+      orphans.push(r)
+      continue
+    }
+    if (!byScrapeId.has(r.scrape_history_id)) byScrapeId.set(r.scrape_history_id, [])
+    byScrapeId.get(r.scrape_history_id)!.push(r)
+  }
+
+  // Step 4: build ScrapeWithReminders entries with stats per scrape.
+  const grouped: ScrapeWithReminders[] = []
+  for (const scrape of scrapes) {
+    const scrapeReminders = byScrapeId.get(scrape.id) || []
+    const stats = { pending: 0, sent: 0, failed: 0, cancelled: 0 }
+    for (const r of scrapeReminders) {
+      if (r.status === 'pending') stats.pending++
+      else if (r.status === 'sent') stats.sent++
+      else if (r.status === 'failed') stats.failed++
+      else if (r.status === 'cancelled') stats.cancelled++
+    }
+    grouped.push({ scrape, reminders: scrapeReminders, stats })
+  }
+
+  // Step 5: sort by scrape.created_at DESC (most recent first).
+  grouped.sort((a, b) => b.scrape.created_at.localeCompare(a.scrape.created_at))
+
+  return { data: grouped, orphans }
 }
 
 export async function cancelScheduledReminder(reminderId: string): Promise<{ error?: string; success?: boolean }> {

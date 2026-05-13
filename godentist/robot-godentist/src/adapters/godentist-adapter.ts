@@ -11,53 +11,27 @@ const ARTIFACTS_DIR = path.join(STORAGE_DIR, 'artifacts')
 const BASE_URL = 'https://godentist.dentos.co'
 const APPOINTMENTS_URL = `${BASE_URL}/citas/index/listcitassimple`
 
-// ── Table-refresh guard primitives (standalone: godentist-scraper-table-refresh-guard) ──
-
 /**
- * Per CONTEXT.md D-04/D-05: timeout máximo por intento de refresh de tabla y polling rate
- * usados por waitForSucursalRefresh (definido en Plan 02). 8s da ~2x margen sobre el peor caso
- * medido (~3.5s) en logs Railway históricos.
- */
-const SUCURSAL_REFRESH_TIMEOUT_MS = 8000
-const SUCURSAL_REFRESH_POLL_MS = 250
-
-/**
- * Per CONTEXT.md D-01: fingerprint capturado de la tabla del portal Dentos para detectar
- * cambios DOM cross-sede. Tres campos cubren el espacio de mutaciones posibles
- * (sede distinta, paginación, filas distintas).
- */
-interface Fingerprint {
-  phone: string
-  hora: string
-  rowCount: number
-}
-
-/**
- * Pure equality check de dos Fingerprint per CONTEXT.md D-02.
- * Iguales si los tres campos (phone, hora, rowCount) coinciden exactamente.
- * `null` semantics se manejan en el caller (D-03 lógica en waitForSucursalRefresh, Plan 02).
- * Module-level + no exportada: testable en futuro pero no parte del contract público.
- */
-function fingerprintsEqual(a: Fingerprint | null, b: Fingerprint | null): boolean {
-  if (a === null && b === null) return true
-  if (a === null || b === null) return false
-  return a.phone === b.phone && a.hora === b.hora && a.rowCount === b.rowCount
-}
-
-/**
- * Per CONTEXT.md D-08: error thrown por waitForSucursalRefresh (Plan 02) cuando una sede
- * agota 3 intentos sin refresh detectado. Propaga sin try/catch hasta el Express handler
- * en server.ts (Plan 04), que lo mapea a HTTP 502 con body discriminado
- * `{ status: 'error', code: 'sede_refresh_failed', sucursal, attempts, message }`.
+ * LEGACY (paradigm A — standalone godentist-scraper-table-refresh-guard, shipped 12-may).
  *
- * Primera clase Error custom del robot. Discriminador `instanceof` permite type-safety
- * en server.ts sin recurrir a `.code` string-matching.
+ * Originally thrown by `waitForSucursalRefresh` when a sede exhausted 3 refresh attempts.
+ * Paradigm F (standalone godentist-scraping-structural-v2, Plan 05) replaces the
+ * fingerprint-based refresh-guard with `page.goto(APPOINTMENTS_URL)` fresh-nav per sede +
+ * `assertFilterIs` postcondition, which throws `FilterDriftError` instead.
+ *
+ * This class is **no longer thrown** by the adapter (`waitForSucursalRefresh` deleted in
+ * Plan 05 Task 2), but the export is preserved because `server.ts` still imports it for
+ * the `instanceof` mapping block (defense in depth — Plan 05 PATTERNS.md §1 LEGACY-DELETE
+ * note: "keep file present if anything else imports").
+ *
+ * The `stuckFingerprint` field shape is preserved verbatim for downstream JSON consumers
+ * that may parse it from Railway error logs.
  */
 export class SedeRefreshFailedError extends Error {
   constructor(
     public readonly sucursal: string,
     public readonly attempts: number,
-    public readonly stuckFingerprint: Fingerprint | null,
+    public readonly stuckFingerprint: { phone: string; hora: string; rowCount: number } | null,
   ) {
     const fp = stuckFingerprint
       ? `{phone:${stuckFingerprint.phone},hora:${stuckFingerprint.hora},rowCount:${stuckFingerprint.rowCount}}`
@@ -1133,9 +1107,25 @@ export class GoDentistAdapter {
         return { rowIndex: i, estadoText, estadoCellIndex }
       }
 
-      // If not last page, go to next
+      // If not last page, go to next.
+      // (Inline click — legacy clickNextPage method deleted in Plan 05 LEGACY-DELETE;
+      // confirmAppointment pagination is scope-confined and does NOT need the paradigm F
+      // pagination guard contract — that flow only ever needs to walk pages forward,
+      // and any drift here would simply mean the patient is not in the grid for the date.)
       if (pageNum < pagesToCheck) {
-        await this.clickNextPage()
+        const clicked = await this.page.evaluate(() => {
+          const nextBtn = document.querySelector('button.x-tbar-page-next') as HTMLElement | null
+          if (nextBtn) {
+            nextBtn.click()
+            return true
+          }
+          return false
+        })
+        if (clicked) {
+          console.log('[GoDentist] findPatientRow: clicked next page')
+        } else {
+          console.warn('[GoDentist] findPatientRow: no next page button found')
+        }
         await this.page.waitForTimeout(2000)
       }
     }
@@ -1548,56 +1538,6 @@ export class GoDentistAdapter {
     await this.page.waitForTimeout(1000)
   }
 
-  private async discoverSucursales(): Promise<Sucursal[]> {
-    if (!this.page) return []
-
-    try {
-      const comboId = await this.getSucursalComboInputId()
-      if (!comboId) {
-        console.error('[GoDentist] Could not find sucursal combo input via #idsucursalgrid')
-        return []
-      }
-
-      await this.openComboDropdown(comboId)
-      await this.takeScreenshot('sucursal-dropdown-open')
-
-      // .x-combo-list-item is correct (confirmed from logs), but multiple
-      // combo dropdowns exist in DOM (hora, sucursal, etc). Use :visible.
-      const items = this.page.locator('.x-combo-list-item:visible')
-      const count = await items.count()
-      console.log(`[GoDentist] Visible dropdown items: ${count}`)
-
-      if (count === 0) {
-        // Debug: log all items including hidden
-        const allItems = this.page.locator('.x-combo-list-item')
-        const allCount = await allItems.count()
-        console.log(`[GoDentist] Total items (incl hidden): ${allCount}`)
-        for (let i = 0; i < Math.min(allCount, 10); i++) {
-          const text = (await allItems.nth(i).textContent())?.trim() || ''
-          const visible = await allItems.nth(i).isVisible()
-          console.log(`[GoDentist]   [${i}] "${text}" visible=${visible}`)
-        }
-        await this.page.keyboard.press('Escape')
-        return []
-      }
-
-      const sucursales: Sucursal[] = []
-      for (let i = 0; i < count; i++) {
-        const text = (await items.nth(i).textContent())?.trim() || ''
-        if (text) {
-          sucursales.push({ value: text, label: text })
-        }
-      }
-
-      await this.page.keyboard.press('Escape')
-      await this.page.waitForTimeout(300)
-      return sucursales
-    } catch (err) {
-      console.error('[GoDentist] Error discovering sucursales:', err)
-      return []
-    }
-  }
-
   private async selectSucursal(sucursal: Sucursal): Promise<void> {
     if (!this.page) return
 
@@ -1650,61 +1590,6 @@ export class GoDentistAdapter {
       console.log('[GoDentist] No Buscar button found, pressing Enter on date field')
       await this.page.locator('#df_fecha').press('Enter')
     }
-  }
-
-  // ── Table-refresh guard helpers (standalone: godentist-scraper-table-refresh-guard) ──
-
-  /**
-   * Per CONTEXT.md D-01: captura fingerprint de la tabla actual del portal Dentos.
-   * Lee `table tbody tr` con el mismo filtro que extractAppointments (cleanCells.length >= 3)
-   * para coherencia. Retorna null si no hay filas válidas (tabla vacía es comportamiento legítimo).
-   *
-   * Usado por waitForSucursalRefresh para comparar pre/post-cambio de sede.
-   */
-  private async captureFingerprint(): Promise<Fingerprint | null> {
-    if (!this.page) return null
-
-    return await this.page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll('table tbody tr'))
-      const validRows: HTMLTableRowElement[] = []
-      for (const r of rows) {
-        const cells = Array.from(r.querySelectorAll('td'))
-          .map(c => (c.textContent || '').trim())
-          .filter(c => c.length > 0)
-        if (cells.length >= 3) validRows.push(r as HTMLTableRowElement)
-      }
-      const rowCount = validRows.length
-      if (rowCount === 0) return null
-
-      // Extract phone + hora from first valid row (heuristics consistent with extractAppointments)
-      const firstRow = validRows[0]
-      const cells = Array.from(firstRow.querySelectorAll('td'))
-        .map(c => (c.textContent || '').trim())
-        .filter(c => c.length > 0)
-
-      let phone = ''
-      let hora = ''
-      for (const cell of cells) {
-        if (!hora) {
-          const t = cell.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\b/)
-          if (t) {
-            hora = t[1].trim()
-            continue
-          }
-        }
-        if (!phone) {
-          const p = cell.match(/(\+?\d{10,}|\b3\d{9}\b)/)
-          if (p) {
-            let raw = p[1].replace(/\D/g, '')
-            if (raw.length === 10 && raw.startsWith('3')) raw = '57' + raw
-            phone = raw
-            continue
-          }
-        }
-      }
-
-      return { phone, hora, rowCount }
-    })
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -2033,167 +1918,15 @@ export class GoDentistAdapter {
     return appointments
   }
 
-  /**
-   * Per CONTEXT.md D-04..D-08: guard de table-refresh entre cambios de sede.
-   *
-   * Estrategia:
-   * - Si prev === null (D-03 edge case): no esperamos, capturamos curr y retornamos. Una sede
-   *   con tabla vacía es legítima en el portal Dentos; no debe gatillar retry infinito.
-   * - Si prev !== null: invocar page.waitForFunction polling 250ms con timeout 8000ms.
-   *   La función inyectada calcula el fingerprint del DOM actual y retorna truthy cuando difiere
-   *   de prev (rowCount/phone/hora cambiaron, o rowCount=0 mientras prev no-null).
-   * - Tras success: log "Table refresh confirmed for ${label} after attempt ${n}", retornar
-   *   captureFingerprint() (Fingerprint | null).
-   * - Tras timeout: log "Table refresh failed for ${label} attempt ${n}/3 — retrying selectSucursal";
-   *   antes de re-intentar, page.keyboard.press('Escape') para limpiar combo abierto (Pitfall 3);
-   *   re-invocar selectSucursal + clickBuscar; loop al próximo attempt.
-   * - Tras 3 attempts agotados: log "Table refresh FAILED for ${label} after 3 attempts — aborting
-   *   scrape. Fingerprint stuck at {...}", throw SedeRefreshFailedError. El throw se propaga
-   *   hasta scrapeAppointments (re-throw en catch — Plan 03) y de ahí al Express handler (Plan 04).
-   */
-  private async waitForSucursalRefresh(
-    prev: Fingerprint | null,
-    sucursal: Sucursal,
-  ): Promise<Fingerprint | null> {
-    if (!this.page) throw new Error('Browser not initialized')
-
-    // D-03 edge case: prev null ⇒ no esperamos, sede anterior estaba vacía / estado inicial.
-    if (prev === null) {
-      const curr = await this.captureFingerprint()
-      const fpStr = curr
-        ? `{phone:${curr.phone},hora:${curr.hora},rowCount:${curr.rowCount}}`
-        : 'null'
-      console.log(`[GoDentist] Table refresh confirmed for ${sucursal.label} after attempt 1: prev=null → curr=${fpStr}`)
-      return curr
-    }
-
-    let lastSeen: Fingerprint | null = prev
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await this.page.waitForFunction(
-          (p) => {
-            const rows = Array.from(document.querySelectorAll('table tbody tr'))
-            const validRows: HTMLTableRowElement[] = []
-            for (const r of rows) {
-              const cs = Array.from(r.querySelectorAll('td'))
-                .map(c => (c.textContent || '').trim())
-                .filter(c => c.length > 0)
-              if (cs.length >= 3) validRows.push(r as HTMLTableRowElement)
-            }
-            const rowCount = validRows.length
-
-            // rowCount 0 vs prev non-null ⇒ refreshed (transition non-null → null)
-            if (rowCount === 0) return true
-
-            // Compute phone+hora from first valid row using same heuristics as captureFingerprint
-            const firstRow = validRows[0]
-            const cells = Array.from(firstRow.querySelectorAll('td'))
-              .map(c => (c.textContent || '').trim())
-              .filter(c => c.length > 0)
-
-            let phone = ''
-            let hora = ''
-            for (const cell of cells) {
-              if (!hora) {
-                const tm = cell.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\b/)
-                if (tm) {
-                  hora = tm[1].trim()
-                  continue
-                }
-              }
-              if (!phone) {
-                const pm = cell.match(/(\+?\d{10,}|\b3\d{9}\b)/)
-                if (pm) {
-                  let raw = pm[1].replace(/\D/g, '')
-                  if (raw.length === 10 && raw.startsWith('3')) raw = '57' + raw
-                  phone = raw
-                  continue
-                }
-              }
-            }
-
-            // Refresh iff any field differs from prev
-            return p.phone !== phone || p.hora !== hora || p.rowCount !== rowCount
-          },
-          prev,
-          { polling: SUCURSAL_REFRESH_POLL_MS, timeout: SUCURSAL_REFRESH_TIMEOUT_MS },
-        )
-
-        // Success — capture current fingerprint and log verbatim D-10 string
-        const curr = await this.captureFingerprint()
-        const prevStr = `{phone:${prev.phone},hora:${prev.hora},rowCount:${prev.rowCount}}`
-        const currStr = curr
-          ? `{phone:${curr.phone},hora:${curr.hora},rowCount:${curr.rowCount}}`
-          : 'null'
-        console.log(`[GoDentist] Table refresh confirmed for ${sucursal.label} after attempt ${attempt}: prev=${prevStr} → curr=${currStr}`)
-        return curr
-      } catch (err) {
-        // Capture current fingerprint to enrich logs (still stuck)
-        lastSeen = await this.captureFingerprint()
-
-        if (attempt < 3) {
-          console.log(`[GoDentist] Table refresh failed for ${sucursal.label} attempt ${attempt}/3 — retrying selectSucursal`)
-          // Defensive Escape per Pitfall 3 — ensure combo dropdown not lingering open from previous attempt
-          await this.page.keyboard.press('Escape').catch(() => undefined)
-          await this.selectSucursal(sucursal)
-          await this.clickBuscar()
-          // continue to next iteration of for-loop
-        } else {
-          const stuckStr = lastSeen
-            ? `{phone:${lastSeen.phone},hora:${lastSeen.hora},rowCount:${lastSeen.rowCount}}`
-            : 'null'
-          console.log(`[GoDentist] Table refresh FAILED for ${sucursal.label} after 3 attempts — aborting scrape. Fingerprint stuck at ${stuckStr}`)
-          throw new SedeRefreshFailedError(sucursal.label, 3, lastSeen)
-        }
-      }
-    }
-
-    // Unreachable — loop body either returns or throws on every iteration
-    throw new SedeRefreshFailedError(sucursal.label, 3, lastSeen)
-  }
-
   // ── Pagination ──
-
-  /**
-   * Extract appointments from ALL pages for a sucursal.
-   * Reads total page count from ExtJS PagingToolbar "of X" text,
-   * then navigates exactly that many pages.
-   */
-  private async extractAllPages(sucursal: string): Promise<Appointment[]> {
-    if (!this.page) return []
-
-    const allAppointments: Appointment[] = []
-
-    // Read total pages from the paging toolbar
-    const totalPages = await this.getTotalPages()
-    console.log(`[GoDentist] ${sucursal}: ${totalPages} total page(s)`)
-
-    if (totalPages <= 0) {
-      // No paging info found, just extract current page
-      const pageAppointments = await this.extractAppointments(sucursal)
-      return pageAppointments
-    }
-
-    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-      const pageAppointments = await this.extractAppointments(sucursal)
-      allAppointments.push(...pageAppointments)
-      console.log(`[GoDentist] ${sucursal} page ${pageNum}/${totalPages}: ${pageAppointments.length} citas`)
-
-      // If not last page, click next
-      if (pageNum < totalPages) {
-        await this.clickNextPage()
-        await this.page.waitForTimeout(2000)
-      }
-    }
-
-    return allAppointments
-  }
 
   /**
    * Read total page count from the ExtJS PagingToolbar.
    * The toolbar has: [first] [prev] [input: pageNum] "of X" [next] [last] ... "Displaying A - B of C"
    * We look for the "of X" text next to the page input.
+   *
+   * Preserved post-Plan 05 LEGACY-DELETE — consumed by scrapeAppointments paradigm F
+   * (page loop driver). Returns 0 if no toolbar info found; caller treats 0 as "single page".
    */
   private async getTotalPages(): Promise<number> {
     if (!this.page) return 0
@@ -2224,107 +1957,6 @@ export class GoDentistAdapter {
 
       return 0
     })
-  }
-
-  /**
-   * Click the "next page" button in the ExtJS PagingToolbar.
-   */
-  private async clickNextPage(): Promise<void> {
-    if (!this.page) return
-
-    const clicked = await this.page.evaluate(() => {
-      // The next button has a <button> with class x-tbar-page-next inside a <table>
-      const nextBtn = document.querySelector('button.x-tbar-page-next') as HTMLElement
-      if (nextBtn) {
-        nextBtn.click()
-        return true
-      }
-      return false
-    })
-
-    if (clicked) {
-      console.log('[GoDentist] Clicked next page')
-    } else {
-      console.warn('[GoDentist] Could not find next page button')
-    }
-  }
-
-  // ── Data Extraction ──
-
-  private async extractAppointments(sucursal: string): Promise<Appointment[]> {
-    if (!this.page) return []
-    const appointments: Appointment[] = []
-
-    try {
-      await this.page.waitForSelector('table', { timeout: 10000 })
-
-      // Get all table rows
-      const rows = this.page.locator('table tbody tr')
-      const rowCount = await rows.count()
-      console.log(`[GoDentist] Table rows: ${rowCount}`)
-
-      for (let i = 0; i < rowCount; i++) {
-        const row = rows.nth(i)
-        const cells = await row.locator('td').allTextContents()
-        const rawCells = cells.map(c => c.trim())
-        const cleanCells = rawCells.filter(c => c.length > 0)
-
-        if (cleanCells.length < 3) continue // Skip separator/empty rows
-
-        // Log first row's raw cells to diagnose column positions
-        if (i === 0) {
-          console.log(`[GoDentist] Row 0 raw cells (${rawCells.length}):`, JSON.stringify(rawCells))
-        }
-
-        // Find estado: look for known estado values in rawCells
-        let estado = ''
-        const estadoKeywords = ['confirmada', 'cancelada', 'pendiente', 'no asistió', 'asistió', 'atendido', 'en espera']
-        for (const cell of rawCells) {
-          if (cell && estadoKeywords.some(k => cell.toLowerCase().includes(k))) {
-            estado = cell
-            break
-          }
-        }
-
-        // Parse other fields with heuristics (existing logic)
-        let hora = ''
-        let nombre = ''
-        let telefono = ''
-
-        for (const cell of cleanCells) {
-          // Time pattern: H:MM AM/PM or HH:MM
-          const timeMatch = cell.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\b/)
-          if (timeMatch && !hora) {
-            hora = timeMatch[1].trim()
-            continue
-          }
-
-          // Phone: 10+ digits or 3XX Colombian mobile
-          const phoneMatch = cell.match(/(\+?\d{10,}|\b3\d{9}\b)/)
-          if (phoneMatch && !telefono) {
-            telefono = phoneMatch[1].replace(/\D/g, '')
-            if (telefono.length === 10 && telefono.startsWith('3')) {
-              telefono = '57' + telefono
-            }
-            continue
-          }
-
-          // Name: alphabetic, > 3 chars, has spaces (full names)
-          if (!nombre && cell.length > 3 && /[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(cell) && cell.includes(' ') && !/^\d+$/.test(cell)) {
-            nombre = cell
-          }
-        }
-
-        if (nombre && telefono) {
-          appointments.push({ nombre, telefono, hora, sucursal, estado })
-        }
-      }
-    } catch (err) {
-      console.error(`[GoDentist] Extraction error (${sucursal}):`, err)
-      await this.takeScreenshot(`extraction-error`)
-    }
-
-    return appointments
   }
 
   // ── Date Helpers ──

@@ -75,36 +75,54 @@ export async function comprehend(
     { role: 'user', content: message },
   ]
 
-  const result = await runWithPurpose('comprehension', () =>
-    generateText({
-      model: google('gemini-2.5-flash-lite'),
-      system: buildSystemPrompt(existingData, recentBotMessages),
-      messages,
-      output: Output.object({ schema: MessageAnalysisSchema }),
-      // Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug.
-      // Disable safety filters: Somnio vende un sueño/suplemento; preguntas
-      // sobre dependencia, adicción, contraindicaciones, dosis son CORE
-      // business. El filter DANGEROUS_CONTENT bloqueaba "qué tan adictivo es
-      // vs zolpidem?" en Smoke A iter 1. RESEARCH §H-3 testó con mensajes
-      // inocuos — gap descubierto en Smoke A.
-      providerOptions: {
-        google: {
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-          ],
+  // Diagnostic wrap (Plan 07 debug iter 3): el error AI_NoOutputGeneratedError
+  // puede ser arrojado dentro del await generateText (no en result.output access).
+  // Capturamos el error con todas sus props para identificar la causa real
+  // (finishReason, candidates, raw text, safetyRatings, etc.).
+  let result: Awaited<ReturnType<typeof generateText>>
+  try {
+    result = await runWithPurpose('comprehension', () =>
+      generateText({
+        model: google('gemini-2.5-flash-lite'),
+        system: buildSystemPrompt(existingData, recentBotMessages),
+        messages,
+        output: Output.object({ schema: MessageAnalysisSchema }),
+        providerOptions: {
+          google: {
+            safetySettings: [
+              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            ],
+          },
         },
-      },
-    })
-  )
+      })
+    )
+  } catch (genErr) {
+    // Extract diagnostic info from AI SDK error
+    const e = genErr as Record<string, unknown>
+    const errName = (e?.name as string) ?? 'Error'
+    const errMsg = (e?.message as string) ?? String(genErr)
+    const cause = e?.cause ? JSON.stringify(e.cause).slice(0, 300) : 'no-cause'
+    // AI SDK errors often carry .text, .finishReason, .response, .responseBody
+    const text = (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
+    const finishReason = (e?.finishReason as string) ?? 'no-finishReason'
+    // safetyRatings live on candidates — peek at response if present
+    const responseStr = e?.response
+      ? JSON.stringify(e.response).slice(0, 500)
+      : 'no-response'
+    throw new Error(
+      `[Comprehension-v4 generateText] ${errName}: ${errMsg} | ` +
+      `finishReason="${finishReason}" | text="${(text as string).slice(0, 200)}" | ` +
+      `cause="${cause}" | response="${responseStr}"`
+    )
+  }
 
   // Canonical access path — validado por research-scripts/test-comprehension.ts (W-4):
   // `result.output` es la instancia parseada del schema (typed por z.infer<MessageAnalysisSchema>).
-  // Diagnostic guard: si la lectura del getter throws (AI_NoOutputGeneratedError),
-  // logueamos finishReason + text para diagnose (Plan 07 debug). Sin esto, el catch
-  // upstream solo ve "No output generated" sin context.
+  // Defensive: si por algún path raro generateText resolvió sin throw pero result.output
+  // sigue ausente, capturamos también aquí.
   let parsedOutput: MessageAnalysis
   try {
     parsedOutput = result.output as MessageAnalysis

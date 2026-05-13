@@ -1,0 +1,18 @@
+{
+  "CABECERA": {
+    "numericId": "1",
+    "visibleValue": "CABECERA"
+  },
+  "FLORIDABLANCA": {
+    "numericId": "3",
+    "visibleValue": "FLORIDABLANCA"
+  },
+  "JUMBO EL BOSQUE": {
+    "numericId": "5",
+    "visibleValue": "JUMBO EL BOSQUE"
+  },
+  "MEJORAS PUBLICAS": {
+    "numericId": "4",
+    "visibleValue": "MEJORAS PUBLICAS"
+  }
+}

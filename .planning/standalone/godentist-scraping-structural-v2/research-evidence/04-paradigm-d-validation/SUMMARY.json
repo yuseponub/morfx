@@ -1,0 +1,106 @@
+{
+  "paradigm": "D — combo + idsucursalgrid verification + pageInput.value pagination check",
+  "totalRuns": 5,
+  "successfulRuns": 4,
+  "runsThatPassedAllInvariants": 0,
+  "runs": [
+    {
+      "run": 1,
+      "totalAppointments": 90,
+      "validationPass": false,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 63
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 2,
+      "totalAppointments": 90,
+      "validationPass": false,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 63
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 3,
+      "totalAppointments": 90,
+      "validationPass": false,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 63
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 4,
+      "error": "Pagination stuck: sede=CABECERA page=3/4 pageInput before=3 after=3",
+      "errorName": "PaginationStuckError",
+      "totalAppointments": 0
+    },
+    {
+      "run": 5,
+      "totalAppointments": 90,
+      "validationPass": false,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 63
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    }
+  ]
+}

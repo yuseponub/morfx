@@ -1,0 +1,261 @@
+{
+  "sede": "JUMBO EL BOSQUE",
+  "expectedId": "5",
+  "pages": [
+    {
+      "pageNum": 1,
+      "state": {
+        "ts": 1778687867007,
+        "hiddenSucursal": "5",
+        "ofX": 1,
+        "ofXFullText": "Usuario: Total de citas: 3              Pageof 1",
+        "displayingText": null,
+        "buttons": {
+          "x-tbar-page-first": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen94\" class=\" x-btn-text x-tbar-page-first\">&nbsp;</button>"
+          },
+          "x-tbar-page-prev": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen96\" class=\" x-btn-text x-tbar-page-prev\">&nbsp;</button>"
+          },
+          "x-tbar-page-next": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen105\" class=\" x-btn-text x-tbar-page-next\">&nbsp;</button>"
+          },
+          "x-tbar-page-last": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen107\" class=\" x-btn-text x-tbar-page-last\">&nbsp;</button>"
+          }
+        },
+        "pageInputs": [
+          {
+            "id": "df_fecha",
+            "value": "14-05-2026",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "cb_doctor",
+            "value": "Seleccione un Doctor...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1075",
+            "value": "Escriba nombre o documento...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "estados_multi",
+            "value": "Todos",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1051",
+            "value": "JUMBO EL BOSQUE",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "ext-comp-1053",
+            "value": "Hora",
+            "className": " x-form-text x-form-field x-trigger-noedit"
+          },
+          {
+            "id": "ext-comp-1052",
+            "value": "Todos",
+            "className": " x-form-text x-form-field"
+          },
+          {
+            "id": "ext-comp-1089",
+            "value": "6:00 AM",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "ext-comp-1054",
+            "value": "Todas",
+            "className": " x-form-text x-form-field x-trigger-noedit"
+          },
+          {
+            "id": "ext-comp-1055",
+            "value": "",
+            "className": " x-form-text x-form-field"
+          },
+          {
+            "id": "cb_especialidad_principal",
+            "value": "Seleccione opcion",
+            "className": " x-form-text x-form-field x-trigger-noedit x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1067",
+            "value": "Escriba algunos caracteres...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1080",
+            "value": "1",
+            "className": " x-form-text x-form-field x-form-num-field x-tbar-page-number"
+          }
+        ],
+        "rowCount": 3,
+        "firstRows": [
+          {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122"
+          },
+          {
+            "hora": "4:00 PM - 4:45 PM",
+            "paciente": "MARTHA JANNETH OSORIO VARGAS",
+            "phone": "3153490753"
+          },
+          {
+            "hora": "5:00 PM - 5:20 PM",
+            "paciente": "NANCY  RICO CALDERON",
+            "phone": "3142682006"
+          }
+        ]
+      }
+    }
+  ],
+  "matchesExpectedId": true,
+  "initialPage": {
+    "ts": 1778687867007,
+    "hiddenSucursal": "5",
+    "ofX": 1,
+    "ofXFullText": "Usuario: Total de citas: 3              Pageof 1",
+    "displayingText": null,
+    "buttons": {
+      "x-tbar-page-first": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen94\" class=\" x-btn-text x-tbar-page-first\">&nbsp;</button>"
+      },
+      "x-tbar-page-prev": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen96\" class=\" x-btn-text x-tbar-page-prev\">&nbsp;</button>"
+      },
+      "x-tbar-page-next": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen105\" class=\" x-btn-text x-tbar-page-next\">&nbsp;</button>"
+      },
+      "x-tbar-page-last": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen107\" class=\" x-btn-text x-tbar-page-last\">&nbsp;</button>"
+      }
+    },
+    "pageInputs": [
+      {
+        "id": "df_fecha",
+        "value": "14-05-2026",
+        "className": " x-form-text x-form-field "
+      },
+      {
+        "id": "cb_doctor",
+        "value": "Seleccione un Doctor...",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1075",
+        "value": "Escriba nombre o documento...",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "estados_multi",
+        "value": "Todos",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1051",
+        "value": "JUMBO EL BOSQUE",
+        "className": " x-form-text x-form-field "
+      },
+      {
+        "id": "ext-comp-1053",
+        "value": "Hora",
+        "className": " x-form-text x-form-field x-trigger-noedit"
+      },
+      {
+        "id": "ext-comp-1052",
+        "value": "Todos",
+        "className": " x-form-text x-form-field"
+      },
+      {
+        "id": "ext-comp-1089",
+        "value": "6:00 AM",
+        "className": " x-form-text x-form-field "
+      },
+      {
+        "id": "ext-comp-1054",
+        "value": "Todas",
+        "className": " x-form-text x-form-field x-trigger-noedit"
+      },
+      {
+        "id": "ext-comp-1055",
+        "value": "",
+        "className": " x-form-text x-form-field"
+      },
+      {
+        "id": "cb_especialidad_principal",
+        "value": "Seleccione opcion",
+        "className": " x-form-text x-form-field x-trigger-noedit x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1067",
+        "value": "Escriba algunos caracteres...",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1080",
+        "value": "1",
+        "className": " x-form-text x-form-field x-form-num-field x-tbar-page-number"
+      }
+    ],
+    "rowCount": 3,
+    "firstRows": [
+      {
+        "hora": "11:40 AM - 12:00 PM",
+        "paciente": "CARMELA ROSA VILLERO MONTERO",
+        "phone": "3242541122"
+      },
+      {
+        "hora": "4:00 PM - 4:45 PM",
+        "paciente": "MARTHA JANNETH OSORIO VARGAS",
+        "phone": "3153490753"
+      },
+      {
+        "hora": "5:00 PM - 5:20 PM",
+        "paciente": "NANCY  RICO CALDERON",
+        "phone": "3142682006"
+      }
+    ]
+  },
+  "totalPagesFromToolbar": 1,
+  "totalPagesFromDisplaying": null,
+  "totalPagesAgree": false,
+  "bogusClickTest": {
+    "wasDisabled": false,
+    "changedState": false,
+    "before": {
+      "rowCount": 3,
+      "firstPhone": "3242541122"
+    },
+    "after": {
+      "rowCount": 3,
+      "firstPhone": "3242541122"
+    }
+  }
+}

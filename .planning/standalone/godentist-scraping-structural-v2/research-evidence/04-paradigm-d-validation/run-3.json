@@ -1,0 +1,720 @@
+{
+  "date": "2026-05-14",
+  "appointments": [
+    {
+      "nombre": "YEIMY PAOLA VELASQUEZ MORENO",
+      "telefono": "573158276330",
+      "hora": "8:00 AM - 8:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "KAREN DAYANNA FLOREZ VILLAMIZAR",
+      "telefono": "573137980485",
+      "hora": "8:15 AM - 8:20 AM",
+      "sucursal": "CABECERA",
+      "estado": "Cancelada"
+    },
+    {
+      "nombre": "MAYERLY PAOLA RODRIGUEZ WINTERDAL",
+      "telefono": "573012362641",
+      "hora": "8:20 AM - 8:35 AM",
+      "sucursal": "CABECERA",
+      "estado": "Cancelada"
+    },
+    {
+      "nombre": "MARTHA CECILIA ACEVEDO",
+      "telefono": "573188568218",
+      "hora": "8:30 AM - 10:00 AM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "BRAYAN SANTIAGO SARMIENTO GOMEZ",
+      "telefono": "573150507785",
+      "hora": "9:00 AM - 9:20 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "DANIEL SANTIAGO GARCIA CRISTANCHO",
+      "telefono": "573152096902",
+      "hora": "9:00 AM - 9:15 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA NELLY BARON AVILA",
+      "telefono": "573153333360",
+      "hora": "9:00 AM - 10:00 AM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "MARITZA  INDRIAGO",
+      "telefono": "573232211801",
+      "hora": "9:00 AM - 9:20 AM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "MARIA DEL CARMEN RINCON SILVA",
+      "telefono": "573204255198",
+      "hora": "9:15 AM - 9:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "OMAIRA  OSPINA",
+      "telefono": "573014104123",
+      "hora": "9:30 AM - 9:45 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ESMERALDA  SILVA",
+      "telefono": "73142833713",
+      "hora": "9:40 AM - 10:00 AM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "MARIO ANDRES RUBIO RUGELES",
+      "telefono": "573022930195",
+      "hora": "9:45 AM - 10:00 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARTHA CECILIA ACEVEDO",
+      "telefono": "573188568218",
+      "hora": "10:00 AM - 11:00 AM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "SANDRA MILENA QUINTANILLA RINCON",
+      "telefono": "573187654114",
+      "hora": "10:00 AM - 10:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "LINEIDY  GARCIA MOGOLLON",
+      "telefono": "573174253512",
+      "hora": "10:00 AM - 10:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "LILIANA  MORENO",
+      "telefono": "573165449057",
+      "hora": "10:00 AM - 10:20 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA EUGENIA VILLAMIZAR DUARTE",
+      "telefono": "3143353017, 3152580227",
+      "hora": "10:30 AM - 11:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "WILDO FAJITT MOSCOTE SANTANA",
+      "telefono": "573008636385",
+      "hora": "10:30 AM - 10:45 AM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "MARIA EUGENIA VILLAMIZAR DUARTE",
+      "telefono": "3143353017, 3152580227",
+      "hora": "10:30 AM - 11:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "SINDY PAOLA SARMIENTO GOMEZ",
+      "telefono": "573044848133",
+      "hora": "10:45 AM - 11:00 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "LEISLY JOHANNA MARTINEZ GOMEZ",
+      "telefono": "573227099746",
+      "hora": "11:00 AM - 11:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Cancelada"
+    },
+    {
+      "nombre": "JACOBO ANDRES PEREZ ARDILA",
+      "telefono": "573163544924",
+      "hora": "11:00 AM - 11:15 AM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "MARILU  ARGUELLO GOMEZ",
+      "telefono": "6491601, 3182050379",
+      "hora": "11:15 AM - 11:30 AM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "ANLLY PAOLA LANDAZABAL RODRIGUEZ",
+      "telefono": "573173278888",
+      "hora": "11:30 AM - 11:40 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "VALERY  TORRES JACOME",
+      "telefono": "573155890297",
+      "hora": "11:40 AM - 11:45 AM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MILENA  FERNANDEZ AVILA",
+      "telefono": "6897917, 3153760781",
+      "hora": "11:45 AM - 12:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "LUZ AMPARO PEDRAZA",
+      "telefono": "6367632, 3189845443",
+      "hora": "2:00 PM - 3:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "DIEGO ANDRES RICO SUAREZ",
+      "telefono": "573147042445",
+      "hora": "2:00 PM - 2:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "DILIA ROSA ORTIZ ROZO",
+      "telefono": "3178516975, 3184324162",
+      "hora": "2:00 PM - 3:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "SIXTO ANDRES CANONIGO CONTRERAS",
+      "telefono": "573113359388",
+      "hora": "2:15 PM - 2:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "SILY YULIETH CALDERON GUZMAN",
+      "telefono": "573158669222",
+      "hora": "2:30 PM - 2:45 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA FERNANDA MORENO CALDERON",
+      "telefono": "573158669222",
+      "hora": "2:45 PM - 3:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "YULI PAOLA ORDOÑEZ RODRIGUEZ",
+      "telefono": "573166408712",
+      "hora": "3:00 PM - 3:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA PAULA NIETO ORTEGON",
+      "telefono": "573104235984",
+      "hora": "3:00 PM - 3:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "YULI PAOLA ORDOÑEZ RODRIGUEZ",
+      "telefono": "573166408712",
+      "hora": "3:00 PM - 3:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "JOHAN SEBASTIAN JAIMES FIGUEROA",
+      "telefono": "573108145064",
+      "hora": "3:15 PM - 3:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "DANIEL ALEJANDRO GORDILLO MATEUS",
+      "telefono": "573175020444",
+      "hora": "3:30 PM - 3:45 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "RUBEN DRIGELIO PIEDRAHITA PORRAS",
+      "telefono": "573183440287",
+      "hora": "3:30 PM - 4:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "JUAN SEBASTIAN GUERRERO PRADA",
+      "telefono": "573203318198",
+      "hora": "3:30 PM - 4:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARITZA  INDRIAGO",
+      "telefono": "573232211801",
+      "hora": "3:40 PM - 4:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Cancelada"
+    },
+    {
+      "nombre": "JERONIMO  ORTIZ CONTRERAS",
+      "telefono": "573167556106",
+      "hora": "3:45 PM - 3:50 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "JOSE IGNACIO MONOGA CARREÑO",
+      "telefono": "573143147282",
+      "hora": "3:50 PM - 4:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "DIANA MARIA RUEDA PARRA",
+      "telefono": "573152819253",
+      "hora": "4:00 PM - 4:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "WILMA  MENDOZA",
+      "telefono": "573166094931",
+      "hora": "4:00 PM - 4:20 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "BLANCA ROSA RUIZ DE DELGADO",
+      "telefono": "6437681, 3157233728",
+      "hora": "4:00 PM - 5:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "ARLENA MARGARITA GALLARDO RANGEL",
+      "telefono": "573133908606",
+      "hora": "4:00 PM - 4:20 PM",
+      "sucursal": "CABECERA",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "MICHAEL STIVEN SALAZAR ARDILA",
+      "telefono": "573163724502",
+      "hora": "4:00 PM - 4:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "CHRISTIAN JULIAN VERA PAEZ",
+      "telefono": "573103805299",
+      "hora": "4:15 PM - 4:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ELDA  LEON ORELLAN",
+      "telefono": "573228503609",
+      "hora": "4:20 PM - 5:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "EMILY SOFIA GALVIS GONZALEZ",
+      "telefono": "573214823492",
+      "hora": "4:30 PM - 4:45 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "HELEN VALENTINA MENDOZA",
+      "telefono": "573015122774",
+      "hora": "4:45 PM - 5:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ANA PAULA BARAJAS RUEDA",
+      "telefono": "573005089227",
+      "hora": "5:00 PM - 5:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "JOSE GIOVANNY GUERRERO BLANCO",
+      "telefono": "573188738824",
+      "hora": "5:00 PM - 5:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "BLANCA ROSA RUIZ DE DELGADO",
+      "telefono": "6437681, 3157233728",
+      "hora": "5:00 PM - 6:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "MAYRA JULIETH FONSECA GONZALEZ",
+      "telefono": "573167878899",
+      "hora": "5:00 PM - 5:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "LADY KATHERINE VALDERRAMA LEON",
+      "telefono": "573160422778",
+      "hora": "5:15 PM - 5:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA ALEJANDRA ANGULO SAGRA",
+      "telefono": "573174310070",
+      "hora": "5:30 PM - 5:40 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MIGUEL ARTURO BAYONA GOMEZ",
+      "telefono": "573115117797",
+      "hora": "5:30 PM - 6:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "LUISA DAYANNARA ROJAS LEGUIZAMO",
+      "telefono": "573015650304",
+      "hora": "5:40 PM - 6:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "NICOLAS ANDRES MELENDEZ LEAL",
+      "telefono": "573024592316",
+      "hora": "5:45 PM - 6:00 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "JOSE  PINTO MORENO",
+      "telefono": "573153932330",
+      "hora": "6:00 PM - 6:15 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "JUAN FELIPE MORENO SEPULVEDA",
+      "telefono": "6891410, 3205782326",
+      "hora": "6:15 PM - 6:25 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "LEIDY KATHERINE ORTIZ GONZALEZ",
+      "telefono": "573132839542",
+      "hora": "6:25 PM - 6:30 PM",
+      "sucursal": "CABECERA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "EDINSON ANDRES RINCON VALENCIA",
+      "telefono": "573246738184",
+      "hora": "11:30 AM - 11:45 AM",
+      "sucursal": "FLORIDABLANCA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ARCENIO  MONSALVE",
+      "telefono": "573102621473",
+      "hora": "5:00 PM - 5:20 PM",
+      "sucursal": "FLORIDABLANCA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "YULI  ESLAVA LEON",
+      "telefono": "573104262255",
+      "hora": "5:20 PM - 5:40 PM",
+      "sucursal": "FLORIDABLANCA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "GUSTAVO  BAUTISTA MARTINEZ",
+      "telefono": "573172227636",
+      "hora": "5:45 PM - 6:00 PM",
+      "sucursal": "FLORIDABLANCA",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "CARMELA ROSA VILLERO MONTERO",
+      "telefono": "573242541122",
+      "hora": "11:40 AM - 12:00 PM",
+      "sucursal": "JUMBO EL BOSQUE",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARTHA JANNETH OSORIO VARGAS",
+      "telefono": "573153490753",
+      "hora": "4:00 PM - 4:45 PM",
+      "sucursal": "JUMBO EL BOSQUE",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "NANCY  RICO CALDERON",
+      "telefono": "573142682006",
+      "hora": "5:00 PM - 5:20 PM",
+      "sucursal": "JUMBO EL BOSQUE",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARCO ANTONIO LOPEZ CARDONA",
+      "telefono": "573502550497",
+      "hora": "8:30 AM - 9:00 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "SANDRA PATRICIA AREVALO CASTAÑO",
+      "telefono": "573183296667",
+      "hora": "9:00 AM - 9:20 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA LUCILA GOMEZ VERA",
+      "telefono": "573164509848",
+      "hora": "9:00 AM - 10:00 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "JAVIER  RUEDA",
+      "telefono": "573177338755",
+      "hora": "9:20 AM - 9:40 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "YOLIMAR  RODRIGUEZ",
+      "telefono": "573112577807",
+      "hora": "9:40 AM - 10:00 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA TERESA GONZALEZ SUAREZ",
+      "telefono": "573176589432",
+      "hora": "10:00 AM - 11:00 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ERIKA  GONZALEZ",
+      "telefono": "573508085848",
+      "hora": "10:00 AM - 10:20 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ROSALBA PALOMINO LOPEZ",
+      "telefono": "573166811542",
+      "hora": "11:00 AM - 11:45 AM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "KAREN JULIANA RODRIGUEZ PEREZ",
+      "telefono": "573158587486",
+      "hora": "2:00 PM - 2:45 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Confirmada"
+    },
+    {
+      "nombre": "MARTHA ISABEL GOMEZ PLATA",
+      "telefono": "573202859630",
+      "hora": "2:00 PM - 4:00 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "THIAGO  DELGADO",
+      "telefono": "573013030722",
+      "hora": "2:45 PM - 3:00 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "SALOME ISABELLA SANTOS",
+      "telefono": "573112382619",
+      "hora": "3:00 PM - 3:15 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "MARIA ALEJANDRA AMADO VALDERRAMA",
+      "telefono": "573153584996",
+      "hora": "3:15 PM - 3:45 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "EVER DANIEL VILLAMIL CASTRO",
+      "telefono": "573160414308",
+      "hora": "3:45 PM - 4:15 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "PEDRO RAFAEL PIÑA RICO",
+      "telefono": "573013978286",
+      "hora": "4:15 PM - 4:30 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "FREDY DAVID PRADA PEREZ",
+      "telefono": "573165059082",
+      "hora": "4:30 PM - 4:45 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Reagendado"
+    },
+    {
+      "nombre": "XIOMARA ANDREA BRETON ROJAS",
+      "telefono": "573155417006",
+      "hora": "4:45 PM - 5:00 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "ALVARO FABIAN ROJAS LOZANO",
+      "telefono": "573163163200",
+      "hora": "5:00 PM - 5:15 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "OSCAR  TORRES JACOME",
+      "telefono": "3176896124, 3152921955",
+      "hora": "5:30 PM - 5:45 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    },
+    {
+      "nombre": "EDDY JANNETH CARRILLO BLANCO",
+      "telefono": "573167984847",
+      "hora": "5:45 PM - 6:30 PM",
+      "sucursal": "MEJORAS PUBLICAS",
+      "estado": "Sin confirmar"
+    }
+  ],
+  "sedeStats": {
+    "CABECERA": {
+      "totalPages": 4,
+      "rowCount": 63
+    },
+    "FLORIDABLANCA": {
+      "totalPages": 1,
+      "rowCount": 4
+    },
+    "JUMBO EL BOSQUE": {
+      "totalPages": 1,
+      "rowCount": 3
+    },
+    "MEJORAS PUBLICAS": {
+      "totalPages": 2,
+      "rowCount": 20
+    }
+  },
+  "validation": {
+    "pass": false,
+    "invariant_a_ratio": {
+      "pass": false,
+      "details": {
+        "CABECERA": {
+          "total": 63,
+          "unique": 61,
+          "ratio": 1.0327868852459017
+        },
+        "FLORIDABLANCA": {
+          "total": 4,
+          "unique": 4,
+          "ratio": 1
+        },
+        "JUMBO EL BOSQUE": {
+          "total": 3,
+          "unique": 3,
+          "ratio": 1
+        },
+        "MEJORAS PUBLICAS": {
+          "total": 20,
+          "unique": 20,
+          "ratio": 1
+        }
+      }
+    },
+    "invariant_b_overlap": {
+      "pass": true,
+      "overlaps": [
+        {
+          "pair": "CABECERA ∩ FLORIDABLANCA",
+          "count": 0,
+          "samples": []
+        },
+        {
+          "pair": "CABECERA ∩ JUMBO EL BOSQUE",
+          "count": 0,
+          "samples": []
+        },
+        {
+          "pair": "CABECERA ∩ MEJORAS PUBLICAS",
+          "count": 0,
+          "samples": []
+        },
+        {
+          "pair": "FLORIDABLANCA ∩ JUMBO EL BOSQUE",
+          "count": 0,
+          "samples": []
+        },
+        {
+          "pair": "FLORIDABLANCA ∩ MEJORAS PUBLICAS",
+          "count": 0,
+          "samples": []
+        },
+        {
+          "pair": "JUMBO EL BOSQUE ∩ MEJORAS PUBLICAS",
+          "count": 0,
+          "samples": []
+        }
+      ]
+    },
+    "invariant_c_cross_sede": {
+      "pass": true,
+      "crossSedePhones": []
+    }
+  }
+}

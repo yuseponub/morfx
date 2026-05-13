@@ -1,0 +1,2802 @@
+[
+  {
+    "from": "CABECERA",
+    "to": "FLORIDABLANCA",
+    "clickStartTs": 1778687665285,
+    "buscarStartTs": 1778687669333,
+    "selectSamples": [
+      {
+        "ts": 1778687664747,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": -1,
+        "label": "before-select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687665330,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687665436,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687665581,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687665833,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687666332,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687667332,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687669332,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "select(CABECERA→FLORIDABLANCA)"
+      }
+    ],
+    "buscarSamples": [
+      {
+        "ts": 1778687669361,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687669461,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687669613,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687669863,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687670363,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687671365,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      },
+      {
+        "ts": 1778687673364,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "buscar(CABECERA→FLORIDABLANCA)"
+      }
+    ]
+  },
+  {
+    "from": "FLORIDABLANCA",
+    "to": "JUMBO EL BOSQUE",
+    "clickStartTs": 1778687678302,
+    "buscarStartTs": 1778687682354,
+    "selectSamples": [
+      {
+        "ts": 1778687677754,
+        "hidden": {
+          "value": "3",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "FLORIDABLANCA"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": -1,
+        "label": "before-select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687678349,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687678450,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687678599,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687678860,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 4              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 4,
+          "firstRow": {
+            "hora": "11:30 AM - 11:45 AM",
+            "paciente": "EDINSON ANDRES RINCON VALENCIA",
+            "phone": "3246738184",
+            "allCells": [
+              "",
+              "11:30 AM - 11:45 AM",
+              "EDINSON ANDRES RINCON VALENCIA",
+              "Sin confirmar",
+              "",
+              "3246738184",
+              "A R E Q",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENERAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687679352,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687680366,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687682353,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "select(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      }
+    ],
+    "buscarSamples": [
+      {
+        "ts": 1778687682388,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687682488,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687682652,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687682884,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687682230,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687684383,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      },
+      {
+        "ts": 1778687686384,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "buscar(FLORIDABLANCA→JUMBO EL BOSQUE)"
+      }
+    ]
+  },
+  {
+    "from": "JUMBO EL BOSQUE",
+    "to": "MEJORAS PUBLICAS",
+    "clickStartTs": 1778687691339,
+    "buscarStartTs": 1778687695398,
+    "selectSamples": [
+      {
+        "ts": 1778687690797,
+        "hidden": {
+          "value": "5",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "JUMBO EL BOSQUE"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": -1,
+        "label": "before-select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687691398,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687691498,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687691649,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687691895,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 1,
+          "fullText": "Usuario: Total de citas: 3              Pageof 1"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 3,
+          "firstRow": {
+            "hora": "11:40 AM - 12:00 PM",
+            "paciente": "CARMELA ROSA VILLERO MONTERO",
+            "phone": "3242541122",
+            "allCells": [
+              "",
+              "11:40 AM - 12:00 PM",
+              "CARMELA ROSA VILLERO MONTERO",
+              "Sin confirmar",
+              "",
+              "3242541122",
+              "A F V B",
+              "VAL",
+              "",
+              "",
+              "PC:  Comentarios: VAL GENRAL OFRECER FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687692396,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687693397,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687695397,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "select(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      }
+    ],
+    "buscarSamples": [
+      {
+        "ts": 1778687695426,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687695526,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687695681,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687695928,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687696430,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687697426,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      },
+      {
+        "ts": 1778687699427,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "buscar(JUMBO EL BOSQUE→MEJORAS PUBLICAS)"
+      }
+    ]
+  },
+  {
+    "from": "MEJORAS PUBLICAS",
+    "to": "CABECERA",
+    "clickStartTs": 1778687704354,
+    "buscarStartTs": 1778687708411,
+    "selectSamples": [
+      {
+        "ts": 1778687703817,
+        "hidden": {
+          "value": "4",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "MEJORAS PUBLICAS"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": -1,
+        "label": "before-select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687704408,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687704516,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687704659,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687704909,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 2,
+          "fullText": "Usuario: Total de citas: 20              Pageof 2"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497",
+            "allCells": [
+              "",
+              "8:30 AM - 9:00 AM",
+              "MARCO ANTONIO LOPEZ CARDONA",
+              "Sin confirmar",
+              "",
+              "3502550497",
+              "F  A J",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: revisar rx",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687705426,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687706408,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687708410,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "select(MEJORAS PUBLICAS→CABECERA)"
+      }
+    ],
+    "buscarSamples": [
+      {
+        "ts": 1778687708440,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 0,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687708539,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 100,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687708689,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 250,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687708940,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 500,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687709439,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 1000,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687710443,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 2000,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      },
+      {
+        "ts": 1778687712442,
+        "hidden": {
+          "value": "1",
+          "name": "idsucursalgrid"
+        },
+        "visible": {
+          "id": "ext-comp-1051",
+          "value": "CABECERA"
+        },
+        "toolbar": {
+          "ofX": 4,
+          "fullText": "Usuario: Total de citas: 61              Pageof 4"
+        },
+        "pagingButtons": {
+          "x-tbar-page-first": false,
+          "x-tbar-page-prev": false,
+          "x-tbar-page-next": false,
+          "x-tbar-page-last": false
+        },
+        "grid": {
+          "rowCount": 17,
+          "firstRow": {
+            "hora": "8:00 AM - 8:30 AM",
+            "paciente": "YEIMY PAOLA VELASQUEZ MORENO",
+            "phone": "3158276330",
+            "allCells": [
+              "",
+              "8:00 AM - 8:30 AM",
+              "YEIMY PAOLA VELASQUEZ MORENO",
+              "Sin confirmar",
+              "",
+              "3158276330",
+              "J C R G",
+              "PRCD",
+              "",
+              "",
+              "PC:  Comentarios: FH",
+              "",
+              ""
+            ]
+          }
+        },
+        "intervalMs": 4000,
+        "label": "buscar(MEJORAS PUBLICAS→CABECERA)"
+      }
+    ]
+  }
+]

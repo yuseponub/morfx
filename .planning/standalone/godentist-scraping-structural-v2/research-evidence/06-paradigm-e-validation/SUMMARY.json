@@ -1,0 +1,138 @@
+{
+  "paradigm": "E — D + waitForFunction(pageInput+firstRow) + 1 retry",
+  "totalRuns": 5,
+  "successfulRuns": 5,
+  "runsPassingAllInvariants": 0,
+  "runs": [
+    {
+      "run": 1,
+      "totalApps": 91,
+      "pass": false,
+      "invariantA": false,
+      "invariantB": true,
+      "invariantC": true,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 64
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 2,
+      "totalApps": 91,
+      "pass": false,
+      "invariantA": false,
+      "invariantB": true,
+      "invariantC": true,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 64
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 3,
+      "totalApps": 91,
+      "pass": false,
+      "invariantA": false,
+      "invariantB": true,
+      "invariantC": true,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 64
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 4,
+      "totalApps": 91,
+      "pass": false,
+      "invariantA": false,
+      "invariantB": true,
+      "invariantC": true,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 64
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 2,
+          "rowCount": 20
+        }
+      }
+    },
+    {
+      "run": 5,
+      "totalApps": 74,
+      "pass": false,
+      "invariantA": true,
+      "invariantB": false,
+      "invariantC": false,
+      "sedeStats": {
+        "CABECERA": {
+          "totalPages": 4,
+          "rowCount": 64
+        },
+        "FLORIDABLANCA": {
+          "totalPages": 1,
+          "rowCount": 4
+        },
+        "JUMBO EL BOSQUE": {
+          "totalPages": 1,
+          "rowCount": 3
+        },
+        "MEJORAS PUBLICAS": {
+          "totalPages": 1,
+          "rowCount": 3
+        }
+      }
+    }
+  ]
+}

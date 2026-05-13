@@ -1,0 +1,91 @@
+{
+  "sedeIdMap": {
+    "CABECERA": {
+      "numericId": "1",
+      "visibleValue": "CABECERA"
+    },
+    "FLORIDABLANCA": {
+      "numericId": "3",
+      "visibleValue": "FLORIDABLANCA"
+    },
+    "JUMBO EL BOSQUE": {
+      "numericId": "5",
+      "visibleValue": "JUMBO EL BOSQUE"
+    },
+    "MEJORAS PUBLICAS": {
+      "numericId": "4",
+      "visibleValue": "MEJORAS PUBLICAS"
+    }
+  },
+  "pairsAnalyzed": 4,
+  "keyFindings": [
+    {
+      "switch": "CABECERA → FLORIDABLANCA",
+      "beforeState": {
+        "hidden": "1",
+        "ofX": 4,
+        "rowCount": 17,
+        "firstPhone": "3158276330"
+      },
+      "hiddenUpdatedAtMs": 0,
+      "toolbarUpdatedSelectMs": 1000,
+      "toolbarUpdatedBuscarMs": 0,
+      "firstRowChangedMs": 0,
+      "finalHidden": "3",
+      "finalOfX": 1,
+      "finalRowCount": 4,
+      "finalFirstPhone": "3246738184"
+    },
+    {
+      "switch": "FLORIDABLANCA → JUMBO EL BOSQUE",
+      "beforeState": {
+        "hidden": "3",
+        "ofX": 1,
+        "rowCount": 4,
+        "firstPhone": "3246738184"
+      },
+      "hiddenUpdatedAtMs": 0,
+      "toolbarUpdatedSelectMs": "never (waiting for buscar)",
+      "toolbarUpdatedBuscarMs": "never within timeline",
+      "firstRowChangedMs": 0,
+      "finalHidden": "5",
+      "finalOfX": 1,
+      "finalRowCount": 3,
+      "finalFirstPhone": "3242541122"
+    },
+    {
+      "switch": "JUMBO EL BOSQUE → MEJORAS PUBLICAS",
+      "beforeState": {
+        "hidden": "5",
+        "ofX": 1,
+        "rowCount": 3,
+        "firstPhone": "3242541122"
+      },
+      "hiddenUpdatedAtMs": 0,
+      "toolbarUpdatedSelectMs": 1000,
+      "toolbarUpdatedBuscarMs": 0,
+      "firstRowChangedMs": 0,
+      "finalHidden": "4",
+      "finalOfX": 2,
+      "finalRowCount": 17,
+      "finalFirstPhone": "3502550497"
+    },
+    {
+      "switch": "MEJORAS PUBLICAS → CABECERA",
+      "beforeState": {
+        "hidden": "4",
+        "ofX": 2,
+        "rowCount": 17,
+        "firstPhone": "3502550497"
+      },
+      "hiddenUpdatedAtMs": 0,
+      "toolbarUpdatedSelectMs": 1000,
+      "toolbarUpdatedBuscarMs": 0,
+      "firstRowChangedMs": 0,
+      "finalHidden": "1",
+      "finalOfX": 4,
+      "finalRowCount": 17,
+      "finalFirstPhone": "3158276330"
+    }
+  ]
+}

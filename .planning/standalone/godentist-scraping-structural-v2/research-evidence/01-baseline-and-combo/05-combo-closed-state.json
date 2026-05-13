@@ -1,0 +1,11 @@
+{
+  "hiddenId": "idsucursalgrid",
+  "hiddenName": "idsucursalgrid",
+  "hiddenValue": "1",
+  "hiddenParent": "<div class=\"x-form-field-wrap x-form-field-trigger-wrap x-column\" id=\"ext-gen42\" style=\"width: 130px; display: block;\"><input type=\"hidden\" name=\"idsucursalgrid\" id=\"idsucursalgrid\" value=\"1\" style=\"\"><input type=\"text\" size=\"24\" autocomplete=\"off\" id=\"ext-comp-1051\" class=\" x-form-text x-form-field\" style=\"width: 105px; margin: 0px 0px 0px -17px;\"><img src=\"/images/odontograma/s.gif\" class=\"x-form-trigger x-form-arrow-trigger\" id=\"ext-gen43\"></div>",
+  "visibleId": "ext-comp-1051",
+  "visibleValue": "CABECERA",
+  "visibleClassName": " x-form-text x-form-field",
+  "visibleOuterHTML": "<input type=\"text\" size=\"24\" autocomplete=\"off\" id=\"ext-comp-1051\" class=\" x-form-text x-form-field\" style=\"width: 105px; margin: 0px 0px 0px -17px;\">",
+  "wrapper": "<div class=\"x-form-field-wrap x-form-field-trigger-wrap x-column\" id=\"ext-gen42\" style=\"width: 130px; display: block;\"><input type=\"hidden\" name=\"idsucursalgrid\" id=\"idsucursalgrid\" value=\"1\" style=\"\"><input type=\"text\" size=\"24\" autocomplete=\"off\" id=\"ext-comp-1051\" class=\" x-form-text x-form-field\" style=\"width: 105px; margin: 0px 0px 0px -17px;\"><img src=\"/images/odontograma/s.gif\" class=\"x-form-trigger x-form-arrow-trigger\" id=\"ext-gen43\"></div>"
+}

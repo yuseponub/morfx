@@ -1,0 +1,406 @@
+{
+  "sede": "MEJORAS PUBLICAS",
+  "expectedId": "4",
+  "pages": [
+    {
+      "pageNum": 1,
+      "state": {
+        "ts": 1778687872514,
+        "hiddenSucursal": "4",
+        "ofX": 2,
+        "ofXFullText": "Usuario: Total de citas: 20              Pageof 2",
+        "displayingText": null,
+        "buttons": {
+          "x-tbar-page-first": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen94\" class=\" x-btn-text x-tbar-page-first\">&nbsp;</button>"
+          },
+          "x-tbar-page-prev": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen96\" class=\" x-btn-text x-tbar-page-prev\">&nbsp;</button>"
+          },
+          "x-tbar-page-next": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon ",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen105\" class=\" x-btn-text x-tbar-page-next\">&nbsp;</button>"
+          },
+          "x-tbar-page-last": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon ",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen107\" class=\" x-btn-text x-tbar-page-last\">&nbsp;</button>"
+          }
+        },
+        "pageInputs": [
+          {
+            "id": "df_fecha",
+            "value": "14-05-2026",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "cb_doctor",
+            "value": "Seleccione un Doctor...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1075",
+            "value": "Escriba nombre o documento...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "estados_multi",
+            "value": "Todos",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1051",
+            "value": "MEJORAS PUBLICAS",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "ext-comp-1053",
+            "value": "Hora",
+            "className": " x-form-text x-form-field x-trigger-noedit"
+          },
+          {
+            "id": "ext-comp-1052",
+            "value": "Todos",
+            "className": " x-form-text x-form-field"
+          },
+          {
+            "id": "ext-comp-1089",
+            "value": "6:00 AM",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "ext-comp-1054",
+            "value": "Todas",
+            "className": " x-form-text x-form-field x-trigger-noedit"
+          },
+          {
+            "id": "ext-comp-1055",
+            "value": "",
+            "className": " x-form-text x-form-field"
+          },
+          {
+            "id": "cb_especialidad_principal",
+            "value": "Seleccione opcion",
+            "className": " x-form-text x-form-field x-trigger-noedit x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1067",
+            "value": "Escriba algunos caracteres...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1080",
+            "value": "1",
+            "className": " x-form-text x-form-field x-form-num-field x-tbar-page-number"
+          }
+        ],
+        "rowCount": 17,
+        "firstRows": [
+          {
+            "hora": "8:30 AM - 9:00 AM",
+            "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+            "phone": "3502550497"
+          },
+          {
+            "hora": "9:00 AM - 9:20 AM",
+            "paciente": "SANDRA PATRICIA AREVALO CASTAÑO",
+            "phone": "3183296667"
+          },
+          {
+            "hora": "9:00 AM - 10:00 AM",
+            "paciente": "MARIA LUCILA GOMEZ VERA",
+            "phone": "3164509848"
+          },
+          {
+            "hora": "9:20 AM - 9:40 AM",
+            "paciente": "JAVIER  RUEDA",
+            "phone": "3177338755"
+          },
+          {
+            "hora": "9:40 AM - 10:00 AM",
+            "paciente": "YOLIMAR  RODRIGUEZ",
+            "phone": "3112577807"
+          }
+        ]
+      }
+    },
+    {
+      "pageNum": 2,
+      "clickResult": {
+        "found": true,
+        "wasDisabled": false
+      },
+      "state": {
+        "ts": 1778687875044,
+        "hiddenSucursal": "4",
+        "ofX": 2,
+        "ofXFullText": "Usuario: Total de citas: 20              Pageof 2",
+        "displayingText": null,
+        "buttons": {
+          "x-tbar-page-first": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon ",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen94\" class=\" x-btn-text x-tbar-page-first\">&nbsp;</button>"
+          },
+          "x-tbar-page-prev": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon ",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen96\" class=\" x-btn-text x-tbar-page-prev\">&nbsp;</button>"
+          },
+          "x-tbar-page-next": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen105\" class=\" x-btn-text x-tbar-page-next\">&nbsp;</button>"
+          },
+          "x-tbar-page-last": {
+            "disabled": false,
+            "ariaDisabled": null,
+            "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+            "outerHTML": "<button type=\"button\" id=\"ext-gen107\" class=\" x-btn-text x-tbar-page-last\">&nbsp;</button>"
+          }
+        },
+        "pageInputs": [
+          {
+            "id": "df_fecha",
+            "value": "14-05-2026",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "cb_doctor",
+            "value": "Seleccione un Doctor...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1075",
+            "value": "Escriba nombre o documento...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "estados_multi",
+            "value": "Todos",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1051",
+            "value": "MEJORAS PUBLICAS",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "ext-comp-1053",
+            "value": "Hora",
+            "className": " x-form-text x-form-field x-trigger-noedit"
+          },
+          {
+            "id": "ext-comp-1052",
+            "value": "Todos",
+            "className": " x-form-text x-form-field"
+          },
+          {
+            "id": "ext-comp-1089",
+            "value": "6:00 AM",
+            "className": " x-form-text x-form-field "
+          },
+          {
+            "id": "ext-comp-1054",
+            "value": "Todas",
+            "className": " x-form-text x-form-field x-trigger-noedit"
+          },
+          {
+            "id": "ext-comp-1055",
+            "value": "",
+            "className": " x-form-text x-form-field"
+          },
+          {
+            "id": "cb_especialidad_principal",
+            "value": "Seleccione opcion",
+            "className": " x-form-text x-form-field x-trigger-noedit x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1067",
+            "value": "Escriba algunos caracteres...",
+            "className": " x-form-text x-form-field x-form-empty-field"
+          },
+          {
+            "id": "ext-comp-1080",
+            "value": "2",
+            "className": " x-form-text x-form-field x-form-num-field x-tbar-page-number"
+          }
+        ],
+        "rowCount": 3,
+        "firstRows": [
+          {
+            "hora": "5:00 PM - 5:15 PM",
+            "paciente": "ALVARO FABIAN ROJAS LOZANO",
+            "phone": "3163163200"
+          },
+          {
+            "hora": "5:30 PM - 5:45 PM",
+            "paciente": "OSCAR  TORRES JACOME",
+            "phone": "3176896124, 3152921955"
+          },
+          {
+            "hora": "5:45 PM - 6:30 PM",
+            "paciente": "EDDY JANNETH CARRILLO BLANCO",
+            "phone": "3167984847"
+          }
+        ]
+      }
+    }
+  ],
+  "matchesExpectedId": true,
+  "initialPage": {
+    "ts": 1778687872514,
+    "hiddenSucursal": "4",
+    "ofX": 2,
+    "ofXFullText": "Usuario: Total de citas: 20              Pageof 2",
+    "displayingText": null,
+    "buttons": {
+      "x-tbar-page-first": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen94\" class=\" x-btn-text x-tbar-page-first\">&nbsp;</button>"
+      },
+      "x-tbar-page-prev": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon  x-item-disabled",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen96\" class=\" x-btn-text x-tbar-page-prev\">&nbsp;</button>"
+      },
+      "x-tbar-page-next": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon ",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen105\" class=\" x-btn-text x-tbar-page-next\">&nbsp;</button>"
+      },
+      "x-tbar-page-last": {
+        "disabled": false,
+        "ariaDisabled": null,
+        "parentTable": "x-btn   x-btn-icon ",
+        "outerHTML": "<button type=\"button\" id=\"ext-gen107\" class=\" x-btn-text x-tbar-page-last\">&nbsp;</button>"
+      }
+    },
+    "pageInputs": [
+      {
+        "id": "df_fecha",
+        "value": "14-05-2026",
+        "className": " x-form-text x-form-field "
+      },
+      {
+        "id": "cb_doctor",
+        "value": "Seleccione un Doctor...",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1075",
+        "value": "Escriba nombre o documento...",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "estados_multi",
+        "value": "Todos",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1051",
+        "value": "MEJORAS PUBLICAS",
+        "className": " x-form-text x-form-field "
+      },
+      {
+        "id": "ext-comp-1053",
+        "value": "Hora",
+        "className": " x-form-text x-form-field x-trigger-noedit"
+      },
+      {
+        "id": "ext-comp-1052",
+        "value": "Todos",
+        "className": " x-form-text x-form-field"
+      },
+      {
+        "id": "ext-comp-1089",
+        "value": "6:00 AM",
+        "className": " x-form-text x-form-field "
+      },
+      {
+        "id": "ext-comp-1054",
+        "value": "Todas",
+        "className": " x-form-text x-form-field x-trigger-noedit"
+      },
+      {
+        "id": "ext-comp-1055",
+        "value": "",
+        "className": " x-form-text x-form-field"
+      },
+      {
+        "id": "cb_especialidad_principal",
+        "value": "Seleccione opcion",
+        "className": " x-form-text x-form-field x-trigger-noedit x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1067",
+        "value": "Escriba algunos caracteres...",
+        "className": " x-form-text x-form-field x-form-empty-field"
+      },
+      {
+        "id": "ext-comp-1080",
+        "value": "1",
+        "className": " x-form-text x-form-field x-form-num-field x-tbar-page-number"
+      }
+    ],
+    "rowCount": 17,
+    "firstRows": [
+      {
+        "hora": "8:30 AM - 9:00 AM",
+        "paciente": "MARCO ANTONIO LOPEZ CARDONA",
+        "phone": "3502550497"
+      },
+      {
+        "hora": "9:00 AM - 9:20 AM",
+        "paciente": "SANDRA PATRICIA AREVALO CASTAÑO",
+        "phone": "3183296667"
+      },
+      {
+        "hora": "9:00 AM - 10:00 AM",
+        "paciente": "MARIA LUCILA GOMEZ VERA",
+        "phone": "3164509848"
+      },
+      {
+        "hora": "9:20 AM - 9:40 AM",
+        "paciente": "JAVIER  RUEDA",
+        "phone": "3177338755"
+      },
+      {
+        "hora": "9:40 AM - 10:00 AM",
+        "paciente": "YOLIMAR  RODRIGUEZ",
+        "phone": "3112577807"
+      }
+    ]
+  },
+  "totalPagesFromToolbar": 2,
+  "totalPagesFromDisplaying": null,
+  "totalPagesAgree": false,
+  "bogusClickTest": {
+    "wasDisabled": false,
+    "changedState": false,
+    "before": {
+      "rowCount": 3,
+      "firstPhone": "3163163200"
+    },
+    "after": {
+      "rowCount": 3,
+      "firstPhone": "3163163200"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "candidates": [
+    {
+      "tag": "DIV",
+      "className": "x-panel-bbar",
+      "text": "Usuario: Total de citas: 61              Pageof 4",
+      "outerHTML": "<div class=\"x-panel-bbar\" id=\"ext-gen18\" style=\"width: 1116px;\"><div id=\"ext-comp-1120\" class=\"x-toolbar x-small-editor x-toolbar-layout-ct\" style=\"width: 1110px;\"><table cellspacing=\"0\" class=\"x-toolbar-ct\"><tbody><tr><td class=\"x-toolbar-left\" align=\"left\"><table cellspacing=\"0\"><tbody><tr class=\""
+    },
+    {
+      "tag": "DIV",
+      "className": "x-toolbar x-small-editor x-toolbar-layout-ct",
+      "text": "Usuario: Total de citas: 61              Pageof 4",
+      "outerHTML": "<div id=\"ext-comp-1120\" class=\"x-toolbar x-small-editor x-toolbar-layout-ct\" style=\"width: 1110px;\"><table cellspacing=\"0\" class=\"x-toolbar-ct\"><tbody><tr><td class=\"x-toolbar-left\" align=\"left\"><table cellspacing=\"0\"><tbody><tr class=\"x-toolbar-left-row\"><td class=\"x-toolbar-cell\" id=\"ext-gen77\"><s"
+    },
+    {
+      "tag": "TD",
+      "className": "x-toolbar-right",
+      "text": "Total de citas: 61              Pageof 4",
+      "outerHTML": "<td class=\"x-toolbar-right\" align=\"right\"><table cellspacing=\"0\" class=\"x-toolbar-right-ct\"><tbody><tr><td><table cellspacing=\"0\"><tbody><tr class=\"x-toolbar-right-row\"><td class=\"x-toolbar-cell\" id=\"ext-gen91\"><div class=\"xtb-text\" id=\"ext-comp-1130\"><div style=\"display:flex;align-items:center;\"><a"
+    },
+    {
+      "tag": "TD",
+      "className": "",
+      "text": "Total de citas: 61              Pageof 4",
+      "outerHTML": "<td><table cellspacing=\"0\"><tbody><tr class=\"x-toolbar-right-row\"><td class=\"x-toolbar-cell\" id=\"ext-gen91\"><div class=\"xtb-text\" id=\"ext-comp-1130\"><div style=\"display:flex;align-items:center;\"><a style=\"margin: 0px 8px;cursor:pointer;\" onclick=\"descripcion()\"><img src=\"https://godentist.dentos.co/"
+    },
+    {
+      "tag": "TD",
+      "className": "x-toolbar-cell",
+      "text": "Pageof 4",
+      "outerHTML": "<td class=\"x-toolbar-cell\" id=\"ext-gen92\"><div id=\"ext-comp-1077\" class=\"x-toolbar x-small-editor x-toolbar-layout-ct\"><table cellspacing=\"0\" class=\"x-toolbar-ct\"><tbody><tr><td class=\"x-toolbar-left\" align=\"left\"><table cellspacing=\"0\"><tbody><tr class=\"x-toolbar-left-row\"><td class=\"x-toolbar-cell"
+    },
+    {
+      "tag": "DIV",
+      "className": "x-toolbar x-small-editor x-toolbar-layout-ct",
+      "text": "Pageof 4",
+      "outerHTML": "<div id=\"ext-comp-1077\" class=\"x-toolbar x-small-editor x-toolbar-layout-ct\"><table cellspacing=\"0\" class=\"x-toolbar-ct\"><tbody><tr><td class=\"x-toolbar-left\" align=\"left\"><table cellspacing=\"0\"><tbody><tr class=\"x-toolbar-left-row\"><td class=\"x-toolbar-cell\" id=\"ext-gen93\"><table id=\"ext-comp-1078\""
+    },
+    {
+      "tag": "TD",
+      "className": "x-toolbar-left",
+      "text": "Pageof 4",
+      "outerHTML": "<td class=\"x-toolbar-left\" align=\"left\"><table cellspacing=\"0\"><tbody><tr class=\"x-toolbar-left-row\"><td class=\"x-toolbar-cell\" id=\"ext-gen93\"><table id=\"ext-comp-1078\" cellspacing=\"0\" class=\"x-btn   x-btn-icon x-item-disabled\"><tbody class=\"x-btn-small x-btn-icon-small-left\"><tr><td class=\"x-btn-tl"
+    },
+    {
+      "tag": "TD",
+      "className": "x-toolbar-cell",
+      "text": "of 4",
+      "outerHTML": "<td class=\"x-toolbar-cell\" id=\"ext-gen101\"><div class=\"xtb-text\" id=\"ext-comp-1081\">of 4</div></td>"
+    },
+    {
+      "tag": "DIV",
+      "className": "xtb-text",
+      "text": "of 4",
+      "outerHTML": "<div class=\"xtb-text\" id=\"ext-comp-1081\">of 4</div>"
+    }
+  ],
+  "pagingButtons": [
+    {
+      "className": " x-btn-text x-tbar-page-first",
+      "disabled": false,
+      "ariaDisabled": null,
+      "outerHTML": "<button type=\"button\" id=\"ext-gen94\" class=\" x-btn-text x-tbar-page-first\">&nbsp;</button>"
+    },
+    {
+      "className": " x-btn-text x-tbar-page-prev",
+      "disabled": false,
+      "ariaDisabled": null,
+      "outerHTML": "<button type=\"button\" id=\"ext-gen96\" class=\" x-btn-text x-tbar-page-prev\">&nbsp;</button>"
+    },
+    {
+      "className": " x-btn-text x-tbar-page-next",
+      "disabled": false,
+      "ariaDisabled": null,
+      "outerHTML": "<button type=\"button\" id=\"ext-gen105\" class=\" x-btn-text x-tbar-page-next\">&nbsp;</button>"
+    },
+    {
+      "className": " x-btn-text x-tbar-page-last",
+      "disabled": false,
+      "ariaDisabled": null,
+      "outerHTML": "<button type=\"button\" id=\"ext-gen107\" class=\" x-btn-text x-tbar-page-last\">&nbsp;</button>"
+    }
+  ]
+}

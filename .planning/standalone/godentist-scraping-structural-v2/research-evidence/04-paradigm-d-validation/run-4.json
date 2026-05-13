@@ -1,0 +1,6 @@
+{
+  "error": "Pagination stuck: sede=CABECERA page=3/4 pageInput before=3 after=3",
+  "errorName": "PaginationStuckError",
+  "appointments": [],
+  "validation": null
+}

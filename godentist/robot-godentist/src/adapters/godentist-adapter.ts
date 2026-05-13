@@ -1872,6 +1872,75 @@ export class GoDentistAdapter {
   }
 
   /**
+   * Per RESEARCH.md Paradigm F + CONTEXT.md D-11: clicks the next-page button
+   * and verifies via waitForFunction that BOTH pageInput.value changed AND first
+   * row phone+hora changed. 1 retry tras 500ms si la primera attempt timeout.
+   * Si la retry tambien falla, throw PaginationStuckError.
+   *
+   * D-11 defense: x-item-disabled lives on the <table> ancestor of the button
+   * (verified research-scripts/03-pagination-investigation.cjs). Check ancestor
+   * BEFORE clicking to avoid burning a retry attempt on a known-disabled button.
+   *
+   * The new paradigm F should never enter this method if the previous page already
+   * was the last (the outer loop checks `p < totalPages` before invoking). But the
+   * defensive x-item-disabled check is mandated by D-11 regardless.
+   */
+  private async clickNextPageWithGuard(sede: string, currentPage: number, totalPages: number): Promise<void> {
+    const fpBefore = await this.readFirstRowFingerprint()
+    const pageBefore = await this.readPageInputValue()
+
+    console.log(`[GoDentist] clickNextPageWithGuard ${sede}: page ${currentPage}/${totalPages}, pageBefore=${pageBefore}, fpBefore=${JSON.stringify(fpBefore)}`)
+
+    const attemptClick = async (): Promise<boolean> => {
+      const clicked = await this.page!.evaluate(() => {
+        const btn = document.querySelector('button.x-tbar-page-next') as HTMLButtonElement | null
+        if (!btn) return { clicked: false, reason: 'button-missing' }
+        // D-11 defensive: x-item-disabled lives on <table> ancestor, not button.
+        const ancestor = btn.closest('table.x-btn')
+        if (ancestor?.classList.contains('x-item-disabled')) return { clicked: false, reason: 'disabled' }
+        btn.click()
+        return { clicked: true, reason: 'ok' }
+      })
+
+      if (!clicked.clicked) {
+        console.warn(`[GoDentist] clickNextPageWithGuard ${sede}: cannot click (reason=${clicked.reason})`)
+        return false
+      }
+
+      try {
+        await this.page!.waitForFunction(({ pageBefore, fpBefore }: { pageBefore: string; fpBefore: { phone: string; hora: string } }) => {
+          const pageInput = document.querySelector('input.x-tbar-page-number') as HTMLInputElement | null
+          if (!pageInput) return false
+          if (pageInput.value === pageBefore) return false
+          const rt = document.querySelector('table.x-grid3-row-table')
+          if (!rt) return false
+          const cells = Array.from(rt.querySelectorAll('td')).map(c => (c.textContent || '').trim())
+          return (cells[5] || '') !== fpBefore.phone || (cells[1] || '') !== fpBefore.hora
+        }, { pageBefore, fpBefore }, { timeout: 5000, polling: 100 })
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    let ok = await attemptClick()
+    if (!ok) {
+      console.warn(`[GoDentist] clickNextPageWithGuard ${sede}: first attempt failed, retrying after 500ms`)
+      await this.page!.waitForTimeout(500)
+      ok = await attemptClick()
+    }
+    if (!ok) {
+      const pageAfter = await this.readPageInputValue()
+      console.error(`[GoDentist] clickNextPageWithGuard ${sede}: PaginationStuckError pageBefore=${pageBefore} pageAfter=${pageAfter}`)
+      throw new PaginationStuckError(sede, currentPage, totalPages, pageBefore, pageAfter)
+    }
+    // Defensive settle for ExtJS row painting.
+    await this.page!.waitForTimeout(500)
+
+    console.log(`[GoDentist] clickNextPageWithGuard ${sede}: advanced page ${currentPage} -> ${currentPage + 1}`)
+  }
+
+  /**
    * Per CONTEXT.md D-04..D-08: guard de table-refresh entre cambios de sede.
    *
    * Estrategia:

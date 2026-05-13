@@ -168,6 +168,14 @@ export interface V4AgentOutput {
   newMode?: string
 
   /**
+   * Error message surfaced when processUserMessage's catch block fires.
+   * Standalone: somnio-sales-v4-runtime-wiring / debug Plan 07.
+   * Engine-v4 lo usa para reemplazar el fallback engañoso "Timer event - no comprehension"
+   * con el error real en debugTurn (visible en sandbox UI inspector).
+   */
+  errorMessage?: string
+
+  /**
    * D-60: cuando outcome=no_match en el sub-loop, el agente flagga la sesión
    * con `requiresHuman=true` para que el inbox UI filtre/destaque y un operador
    * tome la conversación. El runner persiste esta flag (Plan 12 wires up

@@ -107,6 +107,14 @@ export class SomnioV4Engine {
             confidence: output.intentInfo.confidence,
             reasoning: output.intentInfo.reasoning,
             timestamp: output.intentInfo.timestamp,
+          } : output.errorMessage ? {
+            // Standalone: somnio-sales-v4-runtime-wiring / Plan 07 debug.
+            // Surface real catch-block errors instead of the misleading
+            // "Timer event - no comprehension" fallback.
+            intent: 'error',
+            confidence: 0,
+            reasoning: `ERROR: ${output.errorMessage}`,
+            timestamp,
           } : {
             intent: 'system_event',
             confidence: 0,

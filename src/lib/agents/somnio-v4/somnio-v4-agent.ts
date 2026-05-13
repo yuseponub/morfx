@@ -559,10 +559,12 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
-    console.error('[SomnioV4] Error processing message:', errMsg)
+    const errStack = error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 4).join(' | ') : undefined
+    console.error('[SomnioV4] Error processing message:', errMsg, errStack ?? '')
     return {
       success: false,
       messages: [],
+      errorMessage: errStack ? `${errMsg} :: ${errStack}` : errMsg,
       intentsVistos: input.intentsVistos,
       templatesEnviados: input.templatesEnviados,
       datosCapturados: input.datosCapturados,

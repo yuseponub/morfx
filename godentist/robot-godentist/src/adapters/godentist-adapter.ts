@@ -358,8 +358,27 @@ export class GoDentistAdapter {
       }
     }
 
-    console.log(`[GoDentist] scrapeAppointments done: ${allRows.length} appointments, ${errors.length} errors, totalCitas=${lastTotalCitas}`)
-    return { date: dateLabel, appointments: allRows, errors, totalCitas: lastTotalCitas }
+    // Defense-in-depth dedupe at robot level by (sucursal|telefono|hora).
+    // Server-action (Plan 06) also dedupes per D-12, but the smoke validator
+    // checks raw robot output for per-sede uniqueness. ExtJS pagination
+    // occasionally returns a boundary row twice (page 1 last == page 2 first)
+    // — verified iter 5 smoke: CABECERA consistently 1 dup per scrape.
+    const dedupeKey = (a: Appointment) => `${a.sucursal}|${a.telefono}|${a.hora}`
+    const seen = new Set<string>()
+    const dedupedRows: Appointment[] = []
+    for (const row of allRows) {
+      const key = dedupeKey(row)
+      if (seen.has(key)) continue
+      seen.add(key)
+      dedupedRows.push(row)
+    }
+    const droppedDups = allRows.length - dedupedRows.length
+    if (droppedDups > 0) {
+      console.log(`[GoDentist] scrapeAppointments: dropped ${droppedDups} duplicates by (sucursal|telefono|hora)`)
+    }
+
+    console.log(`[GoDentist] scrapeAppointments done: ${dedupedRows.length} appointments (${droppedDups} dups dropped), ${errors.length} errors, totalCitas=${lastTotalCitas}`)
+    return { date: dateLabel, appointments: dedupedRows, errors, totalCitas: lastTotalCitas }
   }
 
   // ── Confirm Appointment ──

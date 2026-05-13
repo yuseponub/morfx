@@ -25,6 +25,8 @@ interface ScrapeResult {
   totalAppointments: number
   appointments: GodentistAppointment[]
   errors?: string[]
+  // Plan 05: robot returns total citas observed por sede (audit D-15)
+  totalCitas?: number | null
 }
 
 export interface SendResult {
@@ -114,6 +116,35 @@ export async function scrapeAppointments(sucursales?: string[], targetDate?: str
   const workspaceId = cookieStore.get('morfx_workspace')?.value
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
+  // ── D-10: feature flag with kill-switch semantics (Option A) ──
+  // Per CONTEXT.md D-10 + PATTERNS.md §3 + RESEARCH.md §"Implementation Roadmap" Wave 2.
+  // fallback=true is MANDATORY (D-10 default ON). If platform_config row missing,
+  // helper returns fallback => paradigm F endpoint is used.
+  //
+  // SEMANTICA: flag=true => paradigm F (default). flag=false => ABORT con error explicito,
+  // NO fetch a ningun endpoint. Razon: paradigma A fue borrado del adapter en Plan 05;
+  // no existe endpoint legacy en server.ts. Fetchear uno produciria 404 que
+  // confundiria al operador (rollback aparente que no funciona). El kill-switch correcto
+  // es "abortar nuevos scrapes" hasta que se decida el path de rollback.
+  //
+  // ROLLBACK REAL a paradigma A: `git revert HEAD del commit del standalone + git push`.
+  // Vercel + Railway redeployan; paradigma A vuelve a main. Flag se queda en false hasta
+  // que el operador la flipee back a true en el deployment con paradigma A.
+  //
+  // ROLLBACK SOFT (preventivo, mientras se diagnostica un bug nuevo de paradigma F):
+  //   UPDATE platform_config SET value='false'::jsonb WHERE key='use_new_godentist_scraping'
+  //   → bloquea nuevos scrapes con error explicito en ≤30s (cache TTL).
+  const { getPlatformConfig } = await import('@/lib/domain/platform-config')
+  const useNewScraping = await getPlatformConfig<boolean>('use_new_godentist_scraping', true)
+  console.log(`[godentist] scrapeAppointments: useNewScraping=${useNewScraping}`)
+
+  if (!useNewScraping) {
+    console.error('[godentist] FLAG OFF: aborting scrape (paradigm A removed in standalone godentist-scraping-structural-v2)')
+    return {
+      error: 'Feature flag use_new_godentist_scraping=false. Paradigm A removed in standalone godentist-scraping-structural-v2. To rollback to paradigm A, git revert the standalone + redeploy.'
+    }
+  }
+
   try {
     const res = await fetch(`${ROBOT_URL}/api/scrape-appointments`, {
       method: 'POST',
@@ -133,7 +164,66 @@ export async function scrapeAppointments(sucursales?: string[], targetDate?: str
 
     const data: ScrapeResult = await res.json()
 
-    // Save to history
+    // ── D-12: dedupe by (sucursal|telefono|hora) ──
+    // Per CONTEXT.md D-12 + RESEARCH.md §Pattern 3: portal Dentos intermitently serves
+    // duplicate rows in CABECERA (1-2 per scrape). Silent defense: descarta exactos
+    // antes de persistir. NO alarma (es safety net barato, no canary).
+    const seen = new Set<string>()
+    const dedupedAppointments: GodentistAppointment[] = []
+    let dedupedCount = 0
+    for (const apt of data.appointments) {
+      const key = `${apt.sucursal}|${apt.telefono}|${apt.hora}`
+      if (seen.has(key)) {
+        dedupedCount++
+        continue
+      }
+      seen.add(key)
+      dedupedAppointments.push(apt)
+    }
+    if (dedupedCount > 0) {
+      console.log(`[godentist] D-12 dedupe: removed ${dedupedCount} duplicates from ${data.appointments.length} raw appointments`)
+    }
+    data.appointments = dedupedAppointments
+
+    // ── D-08: cross-sede canary detector ──
+    // Per CONTEXT.md D-08: a phone appearing in >1 sede within the same scrape
+    // = paradigm F invariant violated (correctness by construction failed). Should
+    // NEVER fire under paradigm F + dedupe (verified 5/5 in RESEARCH.md). If it
+    // fires, signal of bug — block downstream + alert developer via Inngest event.
+    const phoneToSedes = new Map<string, Set<string>>()
+    for (const apt of data.appointments) {
+      if (!phoneToSedes.has(apt.telefono)) phoneToSedes.set(apt.telefono, new Set())
+      phoneToSedes.get(apt.telefono)!.add(apt.sucursal)
+    }
+    const crossSedePhones = [...phoneToSedes]
+      .filter(([, s]) => s.size > 1)
+      .map(([phone, sedes]) => ({ phone, sedes: [...sedes] }))
+    const isInconsistent = crossSedePhones.length > 0
+
+    let inconsistencyDetails: Record<string, unknown> | null = null
+    if (isInconsistent) {
+      inconsistencyDetails = {
+        crossSedePhones,
+        detectedAt: new Date().toISOString(),
+        totalAppointments: data.appointments.length,
+      }
+      console.error(`[godentist] D-08 CROSS-SEDE CANARY FIRED: ${crossSedePhones.length} phones in >1 sede`, JSON.stringify(crossSedePhones))
+
+      // CRITICAL Pitfall (per CLAUDE.md MEMORY): ALWAYS await inngest.send in serverless.
+      // Vercel terminates lambda right after res.json(); in-flight unawaited
+      // inngest.send Promises are DROPPED.
+      await (inngest.send as any)({
+        name: 'godentist/scrape.inconsistent',
+        data: {
+          workspaceId,
+          scrapedDate: data.date,
+          crossSedePhones,
+          detectedAt: new Date().toISOString(),
+        },
+      })
+    }
+
+    // ── Save to history with new columns ──
     let savedHistoryId: string | undefined
     try {
       const admin = createAdminClient()
@@ -143,8 +233,13 @@ export async function scrapeAppointments(sucursales?: string[], targetDate?: str
         sucursales: sucursales || ['CABECERA', 'FLORIDABLANCA', 'JUMBO EL BOSQUE', 'MEJORAS PUBLICAS'],
         appointments: JSON.parse(JSON.stringify(data.appointments)),
         total_appointments: data.appointments.length,
+        // ── D-08 columns (Plan 01 migration applied) ──
+        inconsistent: isInconsistent,
+        inconsistency_details: inconsistencyDetails,
+        // ── D-15 audit (Plan 01 migration applied + Plan 05 robot returns) ──
+        total_citas: data.totalCitas ?? null,
       }
-      console.log('[godentist] Saving history, workspace:', workspaceId, 'date:', data.date, 'count:', data.appointments.length)
+      console.log('[godentist] Saving history, workspace:', workspaceId, 'date:', data.date, 'count:', data.appointments.length, 'inconsistent:', isInconsistent)
       const { data: historyRow, error: historyError } = await admin
         .from('godentist_scrape_history')
         .insert(insertPayload)
@@ -155,7 +250,7 @@ export async function scrapeAppointments(sucursales?: string[], targetDate?: str
         console.error('[godentist] History insert FAILED:', JSON.stringify(historyError))
       } else {
         savedHistoryId = historyRow?.id
-        console.log('[godentist] History saved:', savedHistoryId)
+        console.log('[godentist] History saved:', savedHistoryId, 'inconsistent:', isInconsistent)
       }
     } catch (histErr) {
       console.error('[godentist] History save threw:', histErr)

@@ -1772,17 +1772,34 @@ export class GoDentistAdapter {
       || await this.page!.$('button[type="submit"]')
 
     if (!searchBtn) {
-      // Last-resort diagnostic: log all buttons for postmortem.
-      const buttons = await this.page!.evaluate(() => {
-        return Array.from(document.querySelectorAll('button, .x-btn, input[type="submit"]')).map(b => ({
+      // Last-resort diagnostic: dump page state INTO the error message so it surfaces
+      // in the smoke JSON response (Railway logs are not accessible from local).
+      const diag = await this.page!.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, .x-btn, input[type="submit"]')).map(b => ({
           tag: b.tagName,
           text: (b.textContent || '').trim().substring(0, 50),
-          className: b.className,
-          id: b.id,
+          cls: (b as HTMLElement).className || '',
+          id: b.id || '',
+          visible: (b as HTMLElement).offsetParent !== null,
         }))
+        // Also dump any element containing "Buscar" / "Filtrar" / "Consultar" text.
+        const buscarTexts = Array.from(document.querySelectorAll('*')).filter(el =>
+          /Buscar|Filtrar|Consultar/i.test((el.textContent || '').trim().substring(0, 50))
+        ).slice(0, 20).map(el => ({
+          tag: el.tagName,
+          cls: (el as HTMLElement).className || '',
+          id: el.id || '',
+          text: (el.textContent || '').trim().substring(0, 80),
+        }))
+        return {
+          url: window.location.href,
+          title: document.title,
+          buttons: buttons.slice(0, 30),
+          buscarTexts,
+        }
       })
-      console.error(`[GoDentist] clickBuscarAndWait: NO Buscar button found. Buttons on page: ${JSON.stringify(buttons)}`)
-      throw new Error('clickBuscarAndWait: Buscar button not found')
+      console.error(`[GoDentist] clickBuscarAndWait: NO Buscar button found. Diag: ${JSON.stringify(diag)}`)
+      throw new Error(`clickBuscarAndWait: Buscar button not found. Diag: ${JSON.stringify(diag)}`)
     }
 
     await searchBtn.click()

@@ -76,8 +76,8 @@ export async function checkDentosAvailability(
     const mananaSlots = data.slots.filter(s => s.jornada === 'manana')
     const tardeSlots = data.slots.filter(s => s.jornada === 'tarde')
 
-    const mergedManana = mergeIntervals(mananaSlots)
-    const mergedTarde = mergeIntervals(tardeSlots)
+    const mergedManana = mergeIntervals(mananaSlots, 'manana')
+    const mergedTarde = mergeIntervals(tardeSlots, 'tarde')
 
     console.log(`[dentos-availability] Merged: ${mergedManana.length} mañana + ${mergedTarde.length} tarde blocks`)
 
@@ -122,12 +122,19 @@ function minutesToTime(mins: number): string {
   return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`
 }
 
+// Cierre operativo: no ofrecer slots al filo del cierre (12pm almuerzo / 6:30pm fin de jornada).
+// Cap uniforme aplicado tras el merge, sin importar la hora real de cierre de cada sede.
+const MORNING_CAP_MINUTES = 11 * 60 + 40 // 11:40 AM
+const AFTERNOON_CAP_MINUTES = 18 * 60 + 15 // 6:15 PM
+
 /**
  * Merge overlapping/adjacent time intervals into continuous blocks.
- * Returns formatted strings like "8:00 AM - 12:00 PM".
+ * Caps the end of each block at the business-hours operative limit per jornada.
+ * Returns formatted strings like "8:00 AM - 11:40 AM".
  */
 function mergeIntervals(
-  slots: { horaInicio: string; horaFin: string }[]
+  slots: { horaInicio: string; horaFin: string }[],
+  jornada: 'manana' | 'tarde'
 ): string[] {
   if (slots.length === 0) return []
 
@@ -157,6 +164,12 @@ function mergeIntervals(
     }
   }
 
+  // Apply operative cap per jornada and drop blocks that collapse to empty.
+  const cap = jornada === 'manana' ? MORNING_CAP_MINUTES : AFTERNOON_CAP_MINUTES
+  const capped = merged
+    .map(m => ({ start: m.start, end: Math.min(m.end, cap) }))
+    .filter(m => m.end > m.start)
+
   // Format back to strings
-  return merged.map(m => `${minutesToTime(m.start)} - ${minutesToTime(m.end)}`)
+  return capped.map(m => `${minutesToTime(m.start)} - ${minutesToTime(m.end)}`)
 }

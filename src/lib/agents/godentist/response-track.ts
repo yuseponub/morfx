@@ -386,10 +386,10 @@ function resolveSalesActionTemplates(
 
         const slotsManana = horarios
           ? (isSaturday ? (horarios.sabado_manana ?? horarios.manana) : horarios.manana)
-          : '8:00 AM - 12:00 PM'
+          : '8:00 AM - 11:40 AM'
         const slotsTarde = horarios
           ? (isSaturday ? (horarios.sabado_tarde ?? '') : horarios.tarde)
-          : '2:00 PM - 6:30 PM'
+          : '2:00 PM - 6:15 PM'
 
         return {
           intents: ['mostrar_disponibilidad'],

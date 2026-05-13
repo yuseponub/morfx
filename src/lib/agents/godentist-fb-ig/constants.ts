@@ -203,10 +203,10 @@ export const GD_META_PREFIX = '_gd:'
 // ============================================================================
 
 export const HORARIOS_GENERALES_SEDE: Record<string, { manana: string; tarde: string; sabado_manana: string; sabado_tarde?: string }> = {
-  cabecera: { manana: '8:00 AM - 12:00 PM', tarde: '2:00 PM - 7:00 PM', sabado_manana: '8:00 AM - 5:00 PM (jornada continua)' },
-  mejoras_publicas: { manana: '8:30 AM - 12:00 PM', tarde: '2:00 PM - 6:30 PM', sabado_manana: '8:00 AM - 12:00 PM' },
-  floridablanca: { manana: '8:00 AM - 12:00 PM', tarde: '2:00 PM - 6:00 PM', sabado_manana: '8:00 AM - 12:00 PM' },
-  canaveral: { manana: '8:30 AM - 12:00 PM', tarde: '2:00 PM - 6:30 PM', sabado_manana: '8:00 AM - 12:00 PM' },
+  cabecera: { manana: '8:00 AM - 11:40 AM', tarde: '2:00 PM - 6:15 PM', sabado_manana: '8:00 AM - 5:00 PM (jornada continua)' },
+  mejoras_publicas: { manana: '8:30 AM - 11:40 AM', tarde: '2:00 PM - 6:15 PM', sabado_manana: '8:00 AM - 11:40 AM' },
+  floridablanca: { manana: '8:00 AM - 11:40 AM', tarde: '2:00 PM - 6:00 PM', sabado_manana: '8:00 AM - 11:40 AM' },
+  canaveral: { manana: '8:30 AM - 11:40 AM', tarde: '2:00 PM - 6:15 PM', sabado_manana: '8:00 AM - 11:40 AM' },
 }
 
 // ============================================================================

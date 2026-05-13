@@ -57,12 +57,15 @@ export function kbSearchTool(ctx: KbSearchContext) {
         .describe('Optional: scope search to a category'),
     }),
     async execute({ query, category }): Promise<KbHit[]> {
+      const t0 = Date.now()
       const queryEmbedding = await generateEmbedding(query)
+      const tEmbed = Date.now() - t0
       const supabase = createAdminClient()
 
       // RPC `match_knowledge_base` creada en Plan 02 (Wave 0).
       // RETURNS columns: topic, canonical_response, nunca_decir, escalate_triggers,
       // related_topics, category, distance.
+      const tRpc0 = Date.now()
       const { data, error } = await supabase.rpc('match_knowledge_base', {
         p_workspace_id: ctx.workspaceId,
         p_agent_id: SOMNIO_V4_AGENT_ID,
@@ -70,8 +73,13 @@ export function kbSearchTool(ctx: KbSearchContext) {
         p_category: category ?? null,
         p_limit: 3,
       })
+      const tRpc = Date.now() - tRpc0
 
       if (error) {
+        // Iter 7e: log error case too.
+        console.log('[kb_search]', JSON.stringify({
+          query, category: category ?? null, error: error.message, tEmbedMs: tEmbed, tRpcMs: tRpc,
+        }))
         // Si la RPC falla en runtime, propagamos al sub-loop que decidirá no_match
         // (handoff humano vía D-57). NO fallback a SELECT directo — el HNSW index
         // está diseñado para usarse vía esta RPC.
@@ -79,7 +87,7 @@ export function kbSearchTool(ctx: KbSearchContext) {
       }
 
       // Map RPC rows → KbHit[]. nunca_decir viene del DB column directamente (W-09).
-      return (data ?? []).map((row: any) => ({
+      const hits = (data ?? []).map((row: any) => ({
         topic: row.topic,
         canonicalResponse: row.canonical_response,
         nuncaDecirRules: (row.nunca_decir as string[] | null) ?? [],
@@ -87,6 +95,20 @@ export function kbSearchTool(ctx: KbSearchContext) {
         category: row.category,
         similarity: 1 - Number(row.distance),
       }))
+
+      // Iter 7e: structured log for Vercel logs grep. Capturamos query + category
+      // + cuántos hits volvieron + top 3 con topic+similarity. Asi podemos ver
+      // EXACTAMENTE qué llamó GPT-4o mini y qué le devolvio la RPC.
+      console.log('[kb_search]', JSON.stringify({
+        query,
+        category: category ?? null,
+        hitCount: hits.length,
+        topHits: hits.map((h) => ({ topic: h.topic, category: h.category, similarity: Number(h.similarity.toFixed(4)) })),
+        tEmbedMs: tEmbed,
+        tRpcMs: tRpc,
+      }))
+
+      return hits
     },
   })
 }

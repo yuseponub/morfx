@@ -37,6 +37,7 @@ import { recompraPreloadContextFunctions } from '@/inngest/functions/recompra-pr
 import { pwConfirmationPreloadAndInvokeFunctions } from '@/inngest/functions/pw-confirmation-preload-and-invoke'
 import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
 import { boldUpstreamBroken } from '@/inngest/functions/bold-upstream-broken'
+import { godentistScrapeInconsistent } from '@/inngest/functions/godentist-scrape-inconsistent'
 
 /**
  * Serve all Inngest functions.
@@ -85,5 +86,6 @@ export const { GET, POST, PUT } = serve({
     crmMutationIdempotencyCleanupCron,  // Standalone: crm-mutation-tools (D-03 — daily 03:00 Bogota TTL sweep)
     routingAuditCleanup,
     boldUpstreamBroken,  // Standalone: bold-auth0-migration (D-07 — telemetry receiver)
+    godentistScrapeInconsistent,  // Standalone: godentist-scraping-structural-v2 (D-08 — cross-sede canary receiver)
   ],
 })

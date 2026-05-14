@@ -1,143 +1,157 @@
 /**
  * Somnio Sales Agent v4 — Comprehension Prompt
  *
- * System prompt for Claude Haiku structured output (Capa 2).
+ * System prompt for Gemini Flash-Lite structured output (Capa 2).
  * Includes product info, extraction rules, and existing data context.
  *
  * Standalone: somnio-sales-v4
  * Cloned mecánicamente desde somnio-v3/comprehension-prompt.ts (D-24).
  *
- * EXTENSIÓN v4 (Plan 12.1 — 2026-05-05):
- *   Reemplaza el bloque genérico de 8 ejemplos (Plan 06) por:
- *     1. Reglas globales explícitas (NUNCA ≥0.85 para casos médicos/comparativos/etarios)
- *     2. Bloques per-intent para los 8 intents de mayor tráfico (saludo, precio,
- *        quiero_comprar, rechazar, pago, tiempo_entrega, contraindicaciones, efectividad)
- *        con confidence values validados contra templates v3 + data real prod
- *     3. Generic fallback (4 ejemplos) para los ~20 intents restantes
- *   Razón: el few-shot genérico no enseñaba casos médicos/comparativos/etarios
- *   específicos, lo que causaba overconfidence sistémico (Haiku siempre ≥0.75).
+ * EXTENSIÓN v4 — Plan 07 Smoke A Iter 7f (2026-05-13):
+ *   Re-frame calibration de "pattern matching contra few-shots" a "template-fit
+ *   reasoning". Bug encontrado en Iter 7e: Gemini hacía nearest-neighbor matching
+ *   contra few-shots; mensajes con phrasing distinta a los ejemplos exactos
+ *   bypaseaban el sub-loop con confidence 0.75-0.85 aunque la pregunta caía en
+ *   un caso explícitamente NO CUBIERTO por la regla global.
  *
- * Anti-patterns:
- *   - NO parafrasear ejemplos — calibration depende de exact distribution.
- *   - NO eliminar reglas globales — el modelo ignora calibración sin pista explícita.
- *   - NO usar contexto de fase previa para subir confidence (D-74).
+ *   Nuevo framing: por cada intent con few-shots damos el CONTENIDO real del
+ *   template CORE + lista explícita ✅ CUBRE / ❌ NO CUBRE. El modelo razona
+ *   "¿puede este template responder ESTA pregunta?" en vez de "¿se parece a
+ *   alguno de los ejemplos?".
+ *
+ *   Ventajas:
+ *     - Escala a cualquier phrasing (no exemplar match)
+ *     - Robusto a paraphrasing
+ *     - Single filter semántico
+ *     - Synced con templates: cuando cambies un template (Iter 8), actualizá el
+ *       CUBRE/NO CUBRE del scope correspondiente.
+ *
+ *   Anti-patterns:
+ *     - NO volver a "NUNCA des ≥0.85 cuando..." — esa rule producía bypass en
+ *       la zona 0.70-0.84 (gap entre rule limit 0.85 y threshold 0.70).
+ *     - NO eliminar el contenido del template del scope — es lo que ancla la
+ *       calibración. Sin el contenido el modelo vuelve a hacer pattern matching.
+ *     - NO usar contexto de fase previa para subir confidence (D-74).
+ *     - NO usar símbolos como `≥` en reglas duras (Gemini puede interpretar
+ *       como `>` estricto). Usar palabras: "máximo 0.40", "mínimo 0.85".
  */
 
 const CONFIDENCE_FEW_SHOT = `
 
-## REGLAS GLOBALES DE CALIBRACIÓN DE CONFIDENCE (intent_confidence)
+## CALIBRACIÓN DE intent_confidence (FRAMING)
 
-Después de elegir intent.primary, evalúa qué tan bien encaja con un número entre 0 y 1.
+intent_confidence NO mide qué tan claro es el intent.
+Mide UNA SOLA cosa: "¿La respuesta automática que tenemos para ese intent puede responder ESTA pregunta específica del cliente?"
 
-NUNCA des ≥0.85 cuando el mensaje pregunte por:
-- Una condición médica específica no listada (apnea, fibromialgia, lupus, post-quirúrgico, oncológico, hipertensión, etc.)
-- Una comparación con otros fármacos (zolpidem, melatoxina, sertralina, anticoagulantes específicos, etc.)
-- Una circunstancia personal (embarazo, lactancia, niños menores de 14, edad avanzada como "96 años")
-- Una opinión subjetiva o juicio de tercero ("mi tía dice que es magia", "vale la pena?")
-- Un mensaje vago, off-topic, broma, emoji solo, o tema fuera de Somnio
-- Un método de pago NO automatizado (tarjeta, Nequi, PSE, transferencia) — solo contraentrega es high confidence
-- Una sustancia específica de consumo (alcohol, licor, cerveza, vino, aguardiente, ron, whisky, marihuana, cannabis, cafeína) — requiere respuesta puntual, no genérica
+- Si nuestra respuesta automática responde DIRECTAMENTE la pregunta → confidence entre 0.85 y 0.95
+- Si la pregunta requiere información FUERA del scope de la respuesta automática
+  (caso específico, comparación, circunstancia personal, sustancia/condición/edad
+  no listada, opinión subjetiva, hipotético, condicional) → confidence entre 0.20 y 0.40
+- Si es ambiguo / multi-intent / parcialmente cubierto → confidence entre 0.45 y 0.65
 
-## EJEMPLOS DE CALIBRACIÓN PER-INTENT
+Esto activa el sub-loop que busca en KB cuando la pregunta NO está cubierta.
+
+## SCOPE POR INTENT (CONTENIDO REAL del template + qué cubre)
 
 ### intent="saludo"
-- "hola" → 0.95 (saludo puro)
-- "buenos días" → 0.95
-- "Hola buenos días" → 0.92
-- "Buenas noches q precio tiene" → 0.50 (saludo + precio multi-intent)
-- "hola, una pregunta sobre algo médico" → 0.45 (saludo + médico ambiguo)
-- "hola, mi sobrina toma esto y se siente rara" → 0.30 (saludo + caso médico/etario)
+RESPUESTA AUTOMÁTICA: "Hola💁 Bienvenido a Somnio, donde tus sueños se hacen realidad 😴"
+✅ CUBRE: saludo puro de apertura ("hola", "buenos días", "buenas")
+❌ NO CUBRE: saludo + pregunta médica/etaria, saludo + datos personales, saludo + pregunta específica que requiera otra respuesta
 
 ### intent="precio"
-- "cuánto cuesta?" → 0.95
-- "qué precio tiene?" → 0.95
-- "Precio" → 0.90 (corto pero claro)
-- "Valor" → 0.90
-- "Me recuerdas el valor?" → 0.88
-- "Que precio tiene los 2x" → 0.80 (precio de pack específico)
-- "es muy caro?" → 0.30 (juicio subjetivo)
-- "vale la pena al precio?" → 0.30 (opinión)
-- "Información... dirección y valor... contenido" → 0.40 (multi-intent)
+RESPUESTA AUTOMÁTICA: "Nuestro ELIXIR DEL SUEÑO tiene un valor de $79,900 con envío gratis, este contiene 90 comprimidos de melatonina y magnesio. También manejamos promociones extra si compras el combo 2X o 3X🤗"
+✅ CUBRE: pregunta directa por precio del producto ("cuánto cuesta?", "qué precio tiene?", "Valor", "Precio")
+❌ NO CUBRE: descuentos especiales / cupones, juicios subjetivos ("es muy caro?", "vale la pena al precio?"), comparativas de precio con otras marcas, precio en otros formatos no listados
 
 ### intent="quiero_comprar"
-- "lo quiero comprar" → 0.92
-- "Me interesa" → 0.88
-- "Hola! Me interesa comprar un ELIXIR DEL SUEÑO" → 0.92 (templated trigger)
-- "Solo quiero 2 frascos" → 0.65 (multi: comprar + seleccion_pack)
-- "y si quiero comprar?" → 0.35 (hipotético)
-- "¿cómo funciona la compra?" → 0.40 (info, no compromiso)
+RESPUESTA AUTOMÁTICA: flujo de captura de datos → "Por supuesto, para poder despachar tu pedido nos haría falta: {campos_faltantes}"
+✅ CUBRE: intención de compra CLARA Y DIRECTA ("lo quiero", "me interesa", "quiero comprar", "lo voy a comprar")
+❌ NO CUBRE: hipotético ("y si quiero comprar?"), info-seeking sin compromiso ("¿cómo funciona la compra?"), compra + selección de pack ambigua, condicional ("si tuviera plata")
 
 ### intent="rechazar"
-- "no me interesa" → 0.92
-- "no gracias" → 0.92
-- "no quiero" → 0.90
-- "No" (solo) → 0.55 (sin contexto)
-- "déjalo así" → 0.50
-- "no estoy seguro" → 0.35
-- "ahorita no" → 0.50
-- "No quiero seguir botando plata" → 0.50 (rechazo emocional)
+RESPUESTA AUTOMÁTICA: "Entiendo. ¿Deseas que te comparta nuevamente las promociones o prefieres que te contacte un asesor humano? 🙌"
+✅ CUBRE: rechazo CLARO de oferta previa ("no me interesa", "no gracias", "no quiero")
+❌ NO CUBRE: rechazo ambiguo ("ahorita no", "déjalo así"), rechazo emocional con razón ("no quiero seguir botando plata"), respuesta sin contexto ("No" solo), duda ("no estoy seguro")
 
 ### intent="pago"
-- "cómo pago?" → 0.85 (cubierto por template oferta)
-- "se puede pagar contraentrega?" → 0.92
-- "aceptan efectivo?" → 0.90
-- "SI EN EFECTIVO" → 0.88
-- "aceptan tarjeta?" → 0.40 (NO cubierto automatizado)
-- "Puedo pagar por nequi?" → 0.40 (NO cubierto automatizado)
-- "Para pagar con tarjeta o PSE" → 0.35 (NO cubierto)
-- "PSE?" → 0.40
-- "pago a cuotas con qué tarjeta?" → 0.30
-- "Listo es mejor nequi" → 0.40 (método NO automatizado)
+RESPUESTA AUTOMÁTICA: "Recuerda que el pago lo haces una vez recibes el producto en tu hogar y lo pagas en efectivo💴🏡"
+✅ CUBRE: pregunta sobre método de pago en general → confirma contraentrega + efectivo ("se puede pagar contraentrega?", "aceptan efectivo?", "cómo pago?")
+❌ NO CUBRE: NINGÚN método específico que NO sea contraentrega/efectivo — tarjeta, Nequi, Daviplata, Bancolombia, PSE, transferencia, link de pago, cuotas. Si el cliente nombra cualquiera de estos, la respuesta automática NO le sirve.
 
 ### intent="tiempo_entrega"
-- "en cuánto llega?" → 0.88
-- "Cuando llega?" → 0.88
-- "cuándo me lo entregan?" → 0.88
-- "Cuando llegará el somnio?" → 0.85
-- "es rápido?" → 0.50 (juicio subjetivo)
-- "llega antes del jueves?" → 0.40 (condicional + temporal)
-- "si pago hoy cuándo llega a Cartagena?" → 0.40 (condicional)
+RESPUESTA AUTOMÁTICA: si NO hay ciudad capturada → "En que municipio te encuentras? El tiempo de entrega depende de tu ubicacion". Si hay ciudad → estimado por tier (same-day / next-day / 1-3 days / 2-4 days).
+✅ CUBRE: pregunta directa sobre tiempo de entrega ("cuándo llega?", "en cuánto llega?", "cuánto se demora?", "cuándo me lo entregan?")
+❌ NO CUBRE: condicional temporal ("antes del jueves?"), hipotético ("si pago hoy cuándo llega?"), subjetivo ("es rápido?"), comparativo, pregunta sobre logística general (eso es intent=envio)
 
 ### intent="contraindicaciones"
-- "tiene efectos secundarios?" → 0.92
-- "puedo si tomo licor?" → 0.30 (sustancia específica, requiere sub-loop)
-- "puedo tomar alcohol?" → 0.30 (sustancia específica)
-- "tomar cerveza con esto?" → 0.30 (sustancia específica)
-- "puedo si tomo trago?" → 0.30 (sustancia específica)
-- "si tomo vino puedo?" → 0.30 (sustancia específica)
-- "Tiene alguna contraindicación?" → 0.88
-- "Yo no tomo anticoagulante" → 0.85 (cubierto inverso)
-- "es muy fuerte?" → 0.55 (juicio subjetivo)
-- "Hipertensión?" → 0.30 (NO cubierto, condición específica)
-- "soy paciente oncológica, tiene contraindicación?" → 0.25 (NO cubierto)
-- "funciona si tengo apnea?" → 0.30 (condición específica no listada)
-- "qué tan adictivo es vs zolpidem?" → 0.25 (comparación con fármaco)
-- "puedo si estoy embarazada?" → 0.25 (circunstancia personal)
-- "interactúa con sertralina?" → 0.30 (interacción específica)
-- "puedo darle a mi hijo de 10 años?" → 0.30 (menor de 14)
+RESPUESTA AUTOMÁTICA CORE: "La melatonina es un compuesto orgánico natural, y el citrato de magnesio es un mineral. Ambos siendo productos orgánicos no tienen ningún tipo de efecto secundario."
+RESPUESTA AUTOMÁTICA COMPLEMENTARIA: "Sin embargo, en casos de toma de anticoagulantes recomendamos consultar con tu médico de confianza antes de consumirlo, ya que combinar la melatonina con estos podría generar efectos adversos."
+✅ CUBRE:
+  - Pregunta general sobre efectos secundarios ("tiene efectos secundarios?", "tiene alguna contraindicación?", "es seguro?")
+  - Pregunta sobre anticoagulantes específicamente
+  - Cliente afirma que NO toma anticoagulantes (ack del aviso)
+❌ NO CUBRE (toda pregunta específica fuera de "efectos secundarios genéricos" + "anticoagulantes"):
+  - Sustancias de consumo: alcohol, licor, cerveza, vino, aguardiente, ron, whisky, trago, marihuana, cannabis, cafeína. Cualquier forma de preguntar ("puedo tomar X?", "lo puedo tomar si tomo X?", "si tomo X lo puedo tomar?", "tomar X con esto?", "X y este producto?")
+  - Circunstancias personales: embarazo, lactancia, niños menores de 14, edad avanzada (cualquier edad mencionada explícitamente, 60+, 78, 85, 96)
+  - Condiciones médicas específicas: apnea, fibromialgia, lupus, oncológica, hipertensión, diabetes, post-quirúrgico, depresión, ansiedad severa
+  - Comparaciones con otros fármacos: zolpidem, melatoxina, sertralina, ansiolíticos, antidepresivos
+  - Interacciones medicamentosas específicas más allá de anticoagulantes
 
 ### intent="efectividad"
-- "funciona?" → 0.92
-- "es efectivo?" → 0.92
-- "Pero quiero saber si es verdad que sirve para dormir" → 0.88
-- "qué resultados ha dado?" → 0.55
-- "Si pero es de verdad que sirve tiene garantía" → 0.40 (multi-intent)
-- "Para la ansiedad y el estrés sirve" → 0.45 (caso específico)
-- "funciona para insomnio crónico de 10 años?" → 0.35 (caso crónico específico)
-- "Deseo saber si funciona en una persona de 96 años" → 0.30 (caso etario)
-- "es más efectivo que melatoxina pura?" → 0.30 (comparación)
-- "qué dicen los médicos sobre su efectividad?" → 0.35
-- "funciona si ya he probado de todo?" → 0.30 (caso refractario)
+RESPUESTA AUTOMÁTICA: "Claro que sí! El tiempo en el que el suplemento empezará a hacer efecto depende de la severidad de tu insomnio"
+✅ CUBRE: pregunta general de efectividad ("funciona?", "es efectivo?", "sirve?", "¿es verdad que sirve para dormir?")
+❌ NO CUBRE:
+  - Caso específico crónico ("insomnio crónico de 10 años", "ya probé de todo")
+  - Edad específica ("funciona en una persona de 96 años?")
+  - Comparativas con otras marcas/productos ("más efectivo que melatoxina pura?")
+  - Casos refractarios ("funciona si ya he probado de todo?")
+  - Garantías ("tiene garantía?")
+  - Validación médica ("qué dicen los médicos?")
 
-## EJEMPLOS DE FALLBACK (otros intents)
+## REGLA OPERACIONAL
 
-- "no me interesa, gracias" → intent='no_interesa', confidence=0.92
-- "ok" → intent='confirmar' o 'acknowledgment', confidence=0.55 (ack ambiguo)
-- "lol jajaja 😂" → intent='otro', confidence=0.30 (off-topic)
-- "y mi tía dice que esto es magia" → intent='otro', confidence=0.20 (opinión tercero)
+Después de elegir intent.primary:
+1. Identifica el SCOPE de ese intent arriba.
+2. Pregúntate: "¿Esta pregunta del cliente cae en ✅ CUBRE o en ❌ NO CUBRE?"
+3. Asigna confidence:
+   - ✅ CUBRE → 0.85 a 0.95
+   - ❌ NO CUBRE → 0.20 a 0.40
+   - Ambiguo / multi-intent / parcial → 0.45 a 0.65
 
-INSTRUCCIÓN CRÍTICA:
-Tu output es sobre este mensaje individual y su match con un intent universal. NO uses contexto de fase previa para subir la confianza por encima de 0.70 cuando el mensaje cae en alguna de las REGLAS GLOBALES de arriba — reporta ambigüedad como confianza baja.
+REGLAS DURAS:
+- Si la pregunta menciona una sustancia / fármaco / condición / circunstancia / edad explícita / método de pago NO listado en CUBRE → SIEMPRE NO CUBRE → confidence máximo 0.40
+- NO uses contexto de fase previa para subir confidence cuando la pregunta cae en NO CUBRE
+- Si dudas entre CUBRE y NO CUBRE, prefiere NO CUBRE (mejor disparar sub-loop y buscar KB que enviar respuesta genérica que no aplica)
+- Para intents sin SCOPE arriba (registro_sanitario, envio, ubicacion, contenido, formula, como_se_toma, dependencia, datos, asesor, queja, cancelar, no_interesa, acknowledgment, otro, confirmar, seleccion_pack, promociones): usá tu mejor juicio basado en el principio general — si la pregunta es directa y específica al intent, confidence alta; si requiere caso específico no genérico, baja.
+
+EJEMPLOS DE APLICACIÓN (estos son ANCLAS, no patrones a copiar):
+
+- "cuanto cuesta?" → intent=precio, CUBRE → 0.92
+- "es muy caro?" → intent=precio, NO CUBRE (subjetivo) → 0.30
+- "puedo tomar alcohol?" → intent=contraindicaciones, NO CUBRE (sustancia) → 0.25
+- "si tomo alcohol lo puedo tomar?" → intent=contraindicaciones, NO CUBRE → 0.25
+- "lo puedo tomar si tomo licor?" → intent=contraindicaciones, NO CUBRE → 0.25
+- "tomar cerveza con esto?" → intent=contraindicaciones, NO CUBRE → 0.25
+- "tiene efectos secundarios?" → intent=contraindicaciones, CUBRE (genérico) → 0.92
+- "Yo no tomo anticoagulante" → intent=contraindicaciones, CUBRE (ack del aviso) → 0.85
+- "puedo si estoy embarazada?" → intent=contraindicaciones, NO CUBRE (circunstancia) → 0.25
+- "puede tomarlo mi abuela de 78?" → intent=contraindicaciones, NO CUBRE (edad explícita) → 0.25
+- "tiene azúcar?" → intent=contenido o formula, NO CUBRE (ingrediente específico) → 0.30
+- "qué tan adictivo es vs zolpidem?" → intent=contraindicaciones o dependencia, NO CUBRE (comparación) → 0.25
+- "funciona?" → intent=efectividad, CUBRE → 0.92
+- "funciona para insomnio crónico de 10 años?" → intent=efectividad, NO CUBRE (caso específico) → 0.30
+- "lo quiero comprar" → intent=quiero_comprar, CUBRE → 0.92
+- "y si quiero comprar?" → intent=quiero_comprar, NO CUBRE (hipotético) → 0.30
+- "hola" → intent=saludo, CUBRE → 0.95
+- "buenas, una pregunta médica" → intent=saludo, NO CUBRE (saludo + médico) → 0.35
+- "se puede pagar contraentrega?" → intent=pago, CUBRE → 0.92
+- "Puedo pagar por nequi?" → intent=pago, NO CUBRE (no automatizado) → 0.30
+- "en cuánto llega?" → intent=tiempo_entrega, CUBRE → 0.88
+- "llega antes del jueves?" → intent=tiempo_entrega, NO CUBRE (condicional) → 0.35
+- "no me interesa" → intent=rechazar o no_interesa, CUBRE → 0.92
+- "ahorita no" → intent=rechazar, NO CUBRE (ambiguo) → 0.40
+- "ok" → intent=acknowledgment, depende de contexto → 0.55
+- "lol jajaja 😂" → intent=otro, off-topic → 0.20
 `
 
 export function buildSystemPrompt(existingData: Record<string, string>, recentBotMessages: string[] = []): string {

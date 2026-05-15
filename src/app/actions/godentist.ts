@@ -185,19 +185,22 @@ export async function scrapeAppointments(sucursales?: string[], targetDate?: str
     }
     data.appointments = dedupedAppointments
 
-    // ── D-08: cross-sede canary detector ──
-    // Per CONTEXT.md D-08: a phone appearing in >1 sede within the same scrape
-    // = paradigm F invariant violated (correctness by construction failed). Should
-    // NEVER fire under paradigm F + dedupe (verified 5/5 in RESEARCH.md). If it
-    // fires, signal of bug — block downstream + alert developer via Inngest event.
-    const phoneToSedes = new Map<string, Set<string>>()
+    // ── D-08: cross-sede canary detector (refined 2026-05-15) ──
+    // A phone+nombre appearing in >1 sede within the same scrape = paradigm F
+    // invariant violated (same patient cannot be in 2 sedes the same day).
+    // Distinct nombres sharing a phone (family sharing contact number) is legitimate
+    // and must NOT fire the canary — was causing false positives in prod.
+    const normalizeName = (n: string) =>
+      (n || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase().replace(/\s+/g, ' ').trim()
+    const keyToInfo = new Map<string, { phone: string; nombre: string; sedes: Set<string> }>()
     for (const apt of data.appointments) {
-      if (!phoneToSedes.has(apt.telefono)) phoneToSedes.set(apt.telefono, new Set())
-      phoneToSedes.get(apt.telefono)!.add(apt.sucursal)
+      const k = `${apt.telefono}|${normalizeName(apt.nombre)}`
+      if (!keyToInfo.has(k)) keyToInfo.set(k, { phone: apt.telefono, nombre: apt.nombre, sedes: new Set() })
+      keyToInfo.get(k)!.sedes.add(apt.sucursal)
     }
-    const crossSedePhones = [...phoneToSedes]
-      .filter(([, s]) => s.size > 1)
-      .map(([phone, sedes]) => ({ phone, sedes: [...sedes] }))
+    const crossSedePhones = [...keyToInfo.values()]
+      .filter(v => v.sedes.size > 1)
+      .map(v => ({ phone: v.phone, nombre: v.nombre, sedes: [...v.sedes] }))
     const isInconsistent = crossSedePhones.length > 0
 
     let inconsistencyDetails: Record<string, unknown> | null = null

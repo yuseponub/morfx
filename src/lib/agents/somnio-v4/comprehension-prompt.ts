@@ -86,16 +86,17 @@ RESPUESTA AUTOMÁTICA: si NO hay ciudad capturada → "En que municipio te encue
 ### intent="contraindicaciones"
 RESPUESTA AUTOMÁTICA CORE: "La melatonina es un compuesto orgánico natural, y el citrato de magnesio es un mineral. Ambos siendo productos orgánicos no tienen ningún tipo de efecto secundario."
 RESPUESTA AUTOMÁTICA COMPLEMENTARIA: "Sin embargo, en casos de toma de anticoagulantes recomendamos consultar con tu médico de confianza antes de consumirlo, ya que combinar la melatonina con estos podría generar efectos adversos."
+SCOPE REAL DEL PRODUCTO: la ÚNICA contraindicación conocida del ELIXIR DEL SUEÑO son los medicamentos para el corazón (anticoagulantes, antihipertensivos, antiarrítmicos, beta-bloqueadores, warfarina, etc.). Para esos casos el template responde recomendando consultar al médico. Cualquier otra interacción medicamentosa NO está cubierta por el template — debe pasar a sub-loop.
 ✅ CUBRE:
   - Pregunta general sobre efectos secundarios ("tiene efectos secundarios?", "tiene alguna contraindicación?", "es seguro?")
-  - Pregunta sobre anticoagulantes específicamente
-  - Cliente afirma que NO toma anticoagulantes (ack del aviso)
-❌ NO CUBRE (toda pregunta específica fuera de "efectos secundarios genéricos" + "anticoagulantes"):
+  - Cliente menciona toma (positivo o negativo) de medicamentos para el CORAZÓN — incluye: anticoagulantes, warfarina, antihipertensivos, medicamentos para la presión arterial, beta-bloqueadores, antiarrítmicos, "medicamentos para el corazón" genérico. El template responde con la recomendación de consultar médico.
+  - Cliente afirma que NO toma medicamentos cardíacos / anticoagulantes (ack del aviso, sigue interesado)
+❌ NO CUBRE (toda pregunta específica fuera del scope cardíaco):
   - Sustancias de consumo: alcohol, licor, cerveza, vino, aguardiente, ron, whisky, trago, marihuana, cannabis, cafeína. Cualquier forma de preguntar ("puedo tomar X?", "lo puedo tomar si tomo X?", "si tomo X lo puedo tomar?", "tomar X con esto?", "X y este producto?")
   - Circunstancias personales: embarazo, lactancia, niños menores de 14, edad avanzada (cualquier edad mencionada explícitamente, 60+, 78, 85, 96)
-  - Condiciones médicas específicas: apnea, fibromialgia, lupus, oncológica, hipertensión, diabetes, post-quirúrgico, depresión, ansiedad severa
-  - Comparaciones con otros fármacos: zolpidem, melatoxina, sertralina, ansiolíticos, antidepresivos
-  - Interacciones medicamentosas específicas más allá de anticoagulantes
+  - Condiciones médicas específicas NO cardíacas: apnea, fibromialgia, lupus, oncológica, diabetes, post-quirúrgico, depresión, ansiedad severa, tiroides, riñón, hígado
+  - Otros medicamentos NO cardíacos: antidepresivos (sertralina, fluoxetina), ansiolíticos (clonazepam, alprazolam), hipnóticos (zolpidem), medicamentos para diabetes (metformina, insulina), antibióticos, medicamentos tiroideos, anticonceptivos, etc.
+  - Comparaciones con otros fármacos NO cardíacos: zolpidem, melatoxina, sertralina
 
 ### intent="efectividad"
 RESPUESTA AUTOMÁTICA: "Claro que sí! El tiempo en el que el suplemento empezará a hacer efecto depende de la severidad de tu insomnio"
@@ -134,6 +135,13 @@ EJEMPLOS DE APLICACIÓN (estos son ANCLAS, no patrones a copiar):
 - "tomar cerveza con esto?" → intent=contraindicaciones, NO CUBRE → 0.25
 - "tiene efectos secundarios?" → intent=contraindicaciones, CUBRE (genérico) → 0.92
 - "Yo no tomo anticoagulante" → intent=contraindicaciones, CUBRE (ack del aviso) → 0.85
+- "yo tomo anticoagulantes, se puede tomar?" → intent=contraindicaciones, CUBRE (positivo cardíaco, template responde "consultar médico") → 0.85
+- "tomo warfarina, hay problema?" → intent=contraindicaciones, CUBRE (cardíaco específico) → 0.85
+- "tomo medicamentos para la presión arterial" → intent=contraindicaciones, CUBRE (antihipertensivo = cardíaco) → 0.85
+- "tengo medicamentos para el corazón" → intent=contraindicaciones, CUBRE (genérico cardíaco) → 0.85
+- "tomo sertralina, hay problema?" → intent=contraindicaciones, NO CUBRE (antidepresivo NO cardíaco) → 0.25
+- "tomo medicamentos para la tiroides" → intent=contraindicaciones, NO CUBRE (tiroides NO cardíaco) → 0.25
+- "tomo clonazepam, se puede?" → intent=contraindicaciones, NO CUBRE (ansiolítico NO cardíaco) → 0.25
 - "puedo si estoy embarazada?" → intent=contraindicaciones, NO CUBRE (circunstancia) → 0.25
 - "puede tomarlo mi abuela de 78?" → intent=contraindicaciones, NO CUBRE (edad explícita) → 0.25
 - "tiene azúcar?" → intent=contenido o formula, NO CUBRE (ingrediente específico) → 0.30

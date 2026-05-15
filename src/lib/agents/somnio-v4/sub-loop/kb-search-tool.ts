@@ -34,9 +34,19 @@ export interface KbHit {
  *       como `nuncaDecirRules` para que el orquestador del sub-loop lo pase a
  *       `checkNuncaDecir()` en outcome 'canonical' (D-51).
  *
+ * Iter 7i (Q1 Opción B): `category` removido del inputSchema. El modelo asignaba
+ *   semánticas literales a los enum values (ej. interpretaba `faqs-no-templated`
+ *   como "preguntas sin template") y filtraba topics relevantes que vivían en otra
+ *   categoría (ej. `interaccion_alcohol` en `edge-cases` quedaba invisible). La
+ *   búsqueda ahora siempre escanea todas las categorías; el ranking por similarity
+ *   top-3 ya filtra correctamente con 18 topics. `category` se mantiene en DB
+ *   schema (D-47/D-48 source organization) y se expone en el output `KbHit.category`
+ *   para que el orquestador y los logs lo vean.
+ *
  * Anti-patterns aplicados:
  * - NO cachear resultados en module scope (RESEARCH Anti-pattern; D-19 query-tools).
  * - NO `workspaceId` en `inputSchema` (Pitfall 2).
+ * - NO `category` en `inputSchema` (Iter 7i Opción B — model misuse).
  * - NO parser markdown de "## NUNCA decir" — la columna DB es la fuente (W-09).
  * - NO imports desde `@/lib/agents/somnio-v3/*` (D-24).
  *
@@ -45,18 +55,14 @@ export interface KbHit {
 export function kbSearchTool(ctx: KbSearchContext) {
   return tool({
     description:
-      'Search the curated Somnio v4 knowledge base via vector similarity. ' +
+      'Search the curated Somnio v4 knowledge base via vector similarity across ALL categories. ' +
       'Returns up to 3 hits with topic, canonical response (verbatim text to quote), ' +
       'NUNCA-decir rules (forbidden statements), and similarity score. ' +
       'Use this when the user asks something the state machine cannot resolve.',
     inputSchema: z.object({
       query: z.string().describe('User message or sub-question to look up'),
-      category: z
-        .enum(['product', 'policies', 'edge-cases', 'faqs-no-templated'])
-        .optional()
-        .describe('Optional: scope search to a category'),
     }),
-    async execute({ query, category }): Promise<KbHit[]> {
+    async execute({ query }): Promise<KbHit[]> {
       const t0 = Date.now()
       const queryEmbedding = await generateEmbedding(query)
       const tEmbed = Date.now() - t0
@@ -65,20 +71,20 @@ export function kbSearchTool(ctx: KbSearchContext) {
       // RPC `match_knowledge_base` creada en Plan 02 (Wave 0).
       // RETURNS columns: topic, canonical_response, nunca_decir, escalate_triggers,
       // related_topics, category, distance.
+      // Iter 7i: p_category siempre null — escaneamos todas las categorías.
       const tRpc0 = Date.now()
       const { data, error } = await supabase.rpc('match_knowledge_base', {
         p_workspace_id: ctx.workspaceId,
         p_agent_id: SOMNIO_V4_AGENT_ID,
         p_query_embedding: queryEmbedding,
-        p_category: category ?? null,
+        p_category: null,
         p_limit: 3,
       })
       const tRpc = Date.now() - tRpc0
 
       if (error) {
-        // Iter 7e: log error case too.
         console.log('[kb_search]', JSON.stringify({
-          query, category: category ?? null, error: error.message, tEmbedMs: tEmbed, tRpcMs: tRpc,
+          query, error: error.message, tEmbedMs: tEmbed, tRpcMs: tRpc,
         }))
         // Si la RPC falla en runtime, propagamos al sub-loop que decidirá no_match
         // (handoff humano vía D-57). NO fallback a SELECT directo — el HNSW index
@@ -96,12 +102,11 @@ export function kbSearchTool(ctx: KbSearchContext) {
         similarity: 1 - Number(row.distance),
       }))
 
-      // Iter 7e: structured log for Vercel logs grep. Capturamos query + category
-      // + cuántos hits volvieron + top 3 con topic+similarity. Asi podemos ver
-      // EXACTAMENTE qué llamó GPT-4o mini y qué le devolvio la RPC.
+      // Iter 7e: structured log for Vercel logs grep. Capturamos query + cuántos hits
+      // volvieron + top 3 con topic+category+similarity. La category sigue en el output
+      // (no en el input) para validar qué bucket terminó ganando el ranking.
       console.log('[kb_search]', JSON.stringify({
         query,
-        category: category ?? null,
         hitCount: hits.length,
         topHits: hits.map((h: KbHit) => ({ topic: h.topic, category: h.category, similarity: Number(h.similarity.toFixed(4)) })),
         tEmbedMs: tEmbed,

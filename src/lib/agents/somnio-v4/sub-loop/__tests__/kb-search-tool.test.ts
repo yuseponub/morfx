@@ -49,12 +49,14 @@ describe('kbSearchTool — factory shape', () => {
     expect(typeof t.execute).toBe('function')
   })
 
-  it('Test 2: inputSchema NO acepta workspaceId (Pitfall 2)', () => {
+  it('Test 2: inputSchema NO acepta workspaceId (Pitfall 2) ni category (Iter 7i)', () => {
     const t = kbSearchTool({ workspaceId: 'foo' }) as any
-    // Zod object: shape contiene query y category (opcional). NO workspaceId.
+    // Zod object: shape contiene SOLO query. NO workspaceId (Pitfall 2).
+    // NO category (Iter 7i Q1 Opción B — el modelo misusaba el enum literal).
     const keys = Object.keys(t.inputSchema.shape ?? t.inputSchema._def?.shape?.() ?? {})
     expect(keys).toContain('query')
     expect(keys).not.toContain('workspaceId')
+    expect(keys).not.toContain('category')
   })
 })
 

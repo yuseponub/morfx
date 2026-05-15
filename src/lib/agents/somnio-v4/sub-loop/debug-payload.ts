@@ -27,7 +27,7 @@ import type { LoopOutcome, SubLoopReason } from './output-schema'
  */
 export interface SubLoopToolCallSnapshot {
   toolName: string
-  /** Tool's inputSchema-validated input (varies by tool — kb_search uses {query, category?}) */
+  /** Tool's inputSchema-validated input (varies by tool — kb_search uses {query}, post Iter 7i) */
   input: unknown
   /** Tool's execute() return value (varies by tool — kb_search returns KbHit[]) */
   output: unknown

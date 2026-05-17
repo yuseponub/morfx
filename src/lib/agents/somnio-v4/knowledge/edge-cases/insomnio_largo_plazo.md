@@ -2,19 +2,29 @@
 topic: insomnio_largo_plazo
 keywords: [insomnio cronico, llevo meses sin dormir, no duermo hace, depresion, ansiedad severa, no me deja vivir, medicamento para dormir, zolpidem, clonazepam, alprazolam]
 category: edge-cases
-last_reviewed: 2026-05-04
+last_reviewed: 2026-05-16
 reviewed_by: jose
-escalate_if: [cliente menciona depresion o ansiedad severa, cliente menciona ideacion negativa, cliente expresa sufrimiento extremo sin pregunta concreta]
 related_topics: [efectividad, contraindicaciones, interaccion_medicamentos, dependencia]
+escalate_if:
+  - cliente menciona depresion o ansiedad severa
+  - cliente menciona ideacion negativa
+  - cliente expresa sufrimiento extremo sin pregunta concreta
+tone_override: null
 ---
 
-## Respuesta canónica
-Lamento mucho lo que estás viviendo. Si actualmente estás tomando algún medicamento recetado para dormir y quieres pasarte a un suplemento natural, el proceso debe ser progresivo — el fármaco que tomas no se debe dejar de manera abrupta.
+## Hechos del producto
+ELIXIR DEL SUEÑO es un suplemento natural a base de melatonina (10mg) + citrato de magnesio (50mg) pensado para acompañar el ritmo del sueño en población adulta sana. NO es un medicamento recetado para insomnio crónico ni reemplaza fármacos como zolpidem, clonazepam o alprazolam. Los medicamentos recetados para dormir no se deben dejar de manera abrupta — la transición a un suplemento natural debe ser progresiva y, idealmente, con acompañamiento médico.
 
-Lo recomendable es disminuir el medicamento en lapsos de 15 días: primero la pastilla completa con ELIXIR DEL SUEÑO, después media pastilla del fármaco, después un cuarto, mientras consumes ELIXIR DEL SUEÑO una pastilla diaria, media hora antes de dormir. Lo ideal es que tu organismo se adapte de forma progresiva al producto natural 🤗
+## Posición del negocio
+Para casos de insomnio crónico que ya están en tratamiento con medicación recetada, recomendamos un protocolo de bajada paulatina (~15 días por escalón): primero pastilla completa del fármaco junto a ELIXIR DEL SUEÑO 1 comprimido diario media hora antes de dormir; luego media pastilla del fármaco; luego un cuarto; mientras el ELIXIR DEL SUEÑO se mantiene constante. Lo ideal es que el organismo se adapte progresivamente al producto natural. Casos con componente de salud mental severo (depresión, ansiedad aguda, ideación negativa) NO se atienden por chat — se escalan a humano.
 
-## Si el cliente insiste
-Si menciona depresión severa, ansiedad muy aguda, o ideación negativa, no respondes — el caso queda en cola. Si solo describe insomnio crónico sin esos riesgos, das el protocolo de bajada paulatina.
+## Debe contener la respuesta
+- [SIEMPRE] Empezar con empatía breve ("lamento lo que estás viviendo" o equivalente cálido)
+- [SIEMPRE] NO prometer que el producto resuelve insomnio crónico ni que dormirá "como antes en pocos días"
+- [SIEMPRE] NO recomendar dejar el medicamento recetado de manera abrupta
+- [SI APLICA] Si el cliente está tomando medicamento recetado y quiere pasar al producto natural → explicar protocolo de bajada paulatina (15 días por escalón)
+- [SI APLICA] Si solo describe insomnio crónico sin medicación recetada → mencionar que el producto puede acompañar pero requiere consistencia + sugerir consultar profesional si lleva meses sin dormir
+- [SI APLICA] Si menciona componente mental severo (depresión, ansiedad aguda, ideación negativa) → escalar a humano sin dar protocolo
 
 ## NUNCA decir
 - afirmar que el producto "resuelve cualquier tipo de insomnio"
@@ -23,4 +33,11 @@ Si menciona depresión severa, ansiedad muy aguda, o ideación negativa, no resp
 - diagnosticar (depresión, ansiedad, apnea, etc.)
 - recomendar dejar tratamiento médico previo de manera abrupta
 - dar consejos psicológicos o terapéuticos por chat
-- usar palabras como "te derivo", "asesor humano", "te conecto con alguien", "tomo nota" — atiendes tú directamente
+- usar palabras como "te derivo", "asesor humano", "te conecto con alguien", "tomo nota"
+
+## Cuándo escalar a humano
+- cliente menciona depresión o ansiedad severa
+- cliente menciona ideación negativa o sufrimiento extremo
+- cliente expresa sufrimiento extremo sin pregunta concreta
+- cliente menciona apnea del sueño u otra condición que requiere diagnóstico médico
+- cliente con polifarmacia (varios recetados activos) pide protocolo específico

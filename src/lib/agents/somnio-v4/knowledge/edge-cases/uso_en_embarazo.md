@@ -2,17 +2,27 @@
 topic: uso_en_embarazo
 keywords: [embarazo, embarazada, lactancia, dando pecho, gestacion, prenatal, postparto]
 category: edge-cases
-last_reviewed: 2026-05-04
+last_reviewed: 2026-05-16
 reviewed_by: jose
-escalate_if: [cliente embarazada insiste en comprar a pesar de la advertencia, cliente en lactancia insiste en comprar a pesar de la advertencia]
 related_topics: [contraindicaciones, formula, interaccion_medicamentos]
+escalate_if:
+  - cliente embarazada insiste en comprar a pesar de la advertencia
+  - cliente en lactancia insiste en comprar a pesar de la advertencia
+tone_override: null
 ---
 
-## Respuesta canónica
-Durante el embarazo y la lactancia no recomendamos usar ELIXIR DEL SUEÑO. Aunque sus ingredientes son naturales, en estas etapas todo lo que la mamá consume puede afectar al bebé, y la decisión sobre qué suplementos tomar la debe tomar el ginecólogo o pediatra que te acompañe en tu proceso.
+## Hechos del producto
+ELIXIR DEL SUEÑO está formulado para población adulta sana. Durante el embarazo y la lactancia, todo lo que la madre consume puede afectar al bebé, incluyendo suplementos naturales como melatonina + citrato de magnesio. La decisión sobre qué suplementos tomar en estas etapas la debe tomar el ginecólogo (durante embarazo) o el pediatra (durante lactancia) que acompaña el proceso. NO existe evidencia que respalde el uso seguro del producto en estas poblaciones.
 
-## Si el cliente insiste
-Si después de la advertencia presiona ("solo unas gotitas, ¿qué tanto puede pasar?"), no respondes — el caso queda en cola. Si solo pregunta sin comprometerse a comprar, respondes con la advertencia de arriba.
+## Posición del negocio
+NO recomendamos usar ELIXIR DEL SUEÑO durante embarazo o lactancia. La empresa prioriza la salud de la madre y del bebé sobre cualquier conveniencia comercial. Si el cliente insiste tras la advertencia (intención clara de compra a pesar del riesgo), se escala a humano.
+
+## Debe contener la respuesta
+- [SIEMPRE] NO recomendar el uso durante embarazo o lactancia
+- [SIEMPRE] Mencionar que la decisión la debe tomar el ginecólogo o pediatra que acompañe el proceso
+- [SIEMPRE] No afirmar "es natural, no pasa nada" — los naturales también pueden afectar
+- [SI APLICA] Si solo pregunta sin intención clara de compra → respuesta canónica + queda como información
+- [SI APLICA] Si la cliente insiste tras la advertencia ("solo unas gotitas, ¿qué tanto puede pasar?") → escalar a humano
 
 ## NUNCA decir
 - aprobar uso durante embarazo o lactancia
@@ -20,4 +30,10 @@ Si después de la advertencia presiona ("solo unas gotitas, ¿qué tanto puede p
 - afirmar "es natural, no pasa nada"
 - minimizar la importancia de consultar al ginecólogo
 - recomendar producto para "ayudar con el insomnio del embarazo"
-- usar palabras como "te derivo", "asesor", "agente humano", "te paso", "tomo nota" — debe parecer que tú misma estás atendiendo
+- usar palabras como "te derivo", "asesor", "agente humano", "te paso", "tomo nota"
+
+## Cuándo escalar a humano
+- cliente embarazada insiste en comprar a pesar de la advertencia
+- cliente en lactancia insiste en comprar a pesar de la advertencia
+- cliente postparto pregunta por uso específico durante recuperación
+- cliente menciona estar buscando embarazo y pregunta por contraindicaciones específicas

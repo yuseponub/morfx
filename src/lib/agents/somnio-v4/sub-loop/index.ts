@@ -8,8 +8,12 @@ import {
   type SubLoopReason,
 } from './output-schema'
 import { buildSubLoopTools, type SubLoopToolsContext } from './tools'
-import { buildSubLoopPrompt } from './prompt'
+import { buildToolingPrompt, buildGenerationPrompt } from './prompt'
+import { TONE_BASE } from './tone-base'
 import { checkNuncaDecir } from './nunca-decir-check'
+import { runToolingCall } from './tooling-call'
+import { runGenerationCall } from './generation-call'
+import { safeAccessOutput } from './safe-output'
 import { SOMNIO_V4_AGENT_ID } from '../config'
 import type {
   SubLoopDebugPayload,
@@ -20,15 +24,18 @@ import type {
 export type { SubLoopReason } from './output-schema'
 
 /**
+ * Threshold post-generation: si responseConfidence < THRESHOLD → handoff (D-19).
+ * Default 0.70. Plan 04+ podría leerlo de platform_config.somnio_v4_low_confidence_threshold.
+ */
+const RESPONSE_CONFIDENCE_THRESHOLD = 0.70
+
+/**
  * Lazy singleton — OpenAI client con key custom OPENAI_API_KEY_SALESV4 (D-30).
+ * Usado SOLO por el path LEGACY (crm_mutation / cas_reject D-12). El path RAG
+ * nuevo tiene su propio singleton lazy dentro de tooling-call.ts (Plan 03 Task 3.4).
  *
  * El sufijo `_SALESV4` aísla esta key de la antigua OPENAI_API_KEY (KB sync,
- * scopes restringidos), que sigue intacta para otros consumidores. Usar
- * `createOpenAI({ apiKey })` en vez del default `openai()` (que auto-lee
- * `OPENAI_API_KEY`) garantiza el aislamiento.
- *
- * Lazy para evitar leer env var en cold-boot si el sub-loop no se invoca en
- * un lambda cycle determinado (D-01: sub-loop solo dispara bajo triggers D-02).
+ * scopes restringidos), que sigue intacta para otros consumidores.
  */
 let openaiClient: ReturnType<typeof createOpenAI> | null = null
 function getOpenAI() {
@@ -36,7 +43,7 @@ function getOpenAI() {
     const apiKey = process.env.OPENAI_API_KEY_SALESV4
     if (!apiKey) {
       throw new Error(
-        '[somnio-v4 sub-loop] OPENAI_API_KEY_SALESV4 not set — required for sub-loop (D-30 Plan 05)',
+        '[somnio-v4 sub-loop legacy] OPENAI_API_KEY_SALESV4 not set — required for sub-loop (D-30 Plan 05)',
       )
     }
     openaiClient = createOpenAI({ apiKey })
@@ -57,175 +64,513 @@ export interface SubLoopContext extends SubLoopToolsContext {
 }
 
 /**
- * Entrypoint del sub-loop AI SDK v6 (D-01, D-09, D-62).
- *
- * - D-01: solo se invoca bajo triggers D-02. NO es el path por defecto.
- * - D-09 (post-D-30 swap): GPT-4o mini, 3-5 tools por reason,
- *   stopWhen=stepCountIs(4), latencia ~600ms-1.5s. Plan 05 migró de Haiku 4.5 a
- *   GPT-4o mini porque Gemini API NO soporta tools + Output.object combinados
- *   (RESEARCH H-2) y GPT-4o mini es la única option viable para esa combinación.
- * - D-62: output ESTRICTAMENTE LoopOutcome (template / canonical / no_match) — sin
- *         texto libre. ENFORCED por `Output.object({ schema: LoopOutcomeSchema })`,
- *         NO por toolChoice — see RESEARCH §Pattern 2 line 406. `toolChoice='required'`
- *         bloquearía el structured output final step (W-06).
- * - D-51: si outcome 'canonical', post-gen NUNCA-decir check (latencia +150ms).
- *         W-09: rules vienen de `output.nuncaDecirRules` que el LLM copió del
- *         hit de kb_search (que a su vez vienen del DB column nunca_decir vía RPC
- *         match_knowledge_base).
- *
- * Anti-patterns aplicados:
- * - NO `generateObject` (deprecated AI SDK v6) — usamos `generateText + Output.object()`.
- * - NO `toolChoice: 'required'` — bloquea el structured output final (W-06).
- * - NO `stopWhen` > 4 — D-09 scope acotado.
- * - NO imports desde `@/lib/agents/somnio-v3/*` (D-24).
- *
- * Standalone: somnio-sales-v4 / Plan 05 / Task 4.
+ * Args del orchestrator del sub-loop.
  */
-export async function runSubLoop(args: {
+export interface RunSubLoopArgs {
   reason: SubLoopReason
   ctx: SubLoopContext
   /**
    * Optional debug callback (D-03) — fires before each return/throw with a
-   * snapshot of telemetry (toolCalls, toolResults, kbHits, outcome, violations,
-   * errorMessage, latencyMs). Caller can capture into a closure variable to
-   * propagate to V4AgentOutput.subLoopDebug. Synchronous — not awaited.
+   * snapshot of telemetry. Plan 03 RAG-generative refactor: para low_confidence /
+   * razonamiento_libre el callback recibe payload con toolingCall + generationCall
+   * fields. Para crm_mutation / cas_reject sigue siendo el shape legacy.
    * Standalone: v4-subloop-debug-view / Plan 02.
    */
   onDebug?: (payload: SubLoopDebugPayload) => void
-}): Promise<LoopOutcome> {
-  // Latency timer for SubLoopDebugPayload (Plan 02). performance.now() is
-  // available in Vercel Node 18+ runtime without import.
+}
+
+/**
+ * Helper para extraer step data de un rawResult de generateText (AI SDK v6).
+ * Patrón verbatim del flujo legacy (sub-loop/index.ts:104-183 pre-refactor),
+ * usado por ambos paths para construir el debug payload.
+ */
+function extractStepData(rawResult: any): {
+  toolCalls: SubLoopToolCallSnapshot[]
+  toolResults: SubLoopToolCallSnapshot[]
+  kbHits?: SubLoopKbHitSnapshot[]
+  stepCount: number
+  finishReason?: string
+} {
+  if (!rawResult) {
+    return { toolCalls: [], toolResults: [], stepCount: 0 }
+  }
+  const steps = rawResult.steps ?? []
+  const toolCalls: SubLoopToolCallSnapshot[] = steps.flatMap((step: any) =>
+    (step.toolCalls ?? []).map((tc: any) => ({
+      toolName: tc.toolName,
+      input: tc.input,
+      output: null,
+      outputPreview: undefined,
+    })),
+  )
+  const toolResults: SubLoopToolCallSnapshot[] = steps.flatMap((step: any) =>
+    (step.toolResults ?? []).map((tr: any) => {
+      const out: unknown = tr.output
+      const outputPreview =
+        typeof out === 'string'
+          ? out.slice(0, 500)
+          : JSON.stringify(out).slice(0, 500)
+      return {
+        toolName: tr.toolName,
+        input: tr.input,
+        output: out,
+        outputPreview,
+      }
+    }),
+  )
+
+  let kbHits: SubLoopKbHitSnapshot[] | undefined = undefined
+  const kbResult = toolResults.find((tr) => tr.toolName === 'kb_search')
+  if (kbResult) {
+    const hits = kbResult.output
+    if (Array.isArray(hits)) {
+      if (hits.length === 0) {
+        kbHits = []
+      } else {
+        const first = hits[0] as Record<string, unknown>
+        if (
+          typeof first?.topic === 'string' &&
+          typeof first?.similarity === 'number'
+        ) {
+          type KbHitRow = {
+            topic: string
+            similarity: number
+            canonicalResponse: string | null
+            nuncaDecirRules?: string[]
+          }
+          kbHits = (hits as KbHitRow[]).map((h) => ({
+            topic: h.topic,
+            similarity: h.similarity,
+            contentPreview: (h.canonicalResponse ?? '').slice(0, 200),
+            hasNuncaDecir: (h.nuncaDecirRules?.length ?? 0) > 0,
+          }))
+        }
+      }
+    }
+  }
+
+  return {
+    toolCalls,
+    toolResults,
+    kbHits,
+    stepCount: steps.length,
+    finishReason: rawResult.finishReason,
+  }
+}
+
+/**
+ * Entrypoint del sub-loop AI SDK v6.
+ *
+ * Plan 03 RAG-generative refactor — switch por reason:
+ *
+ * - `low_confidence | razonamiento_libre` → flujo NUEVO RAG-generative split:
+ *     Call 1 tooling (GPT-4o mini + kb_search) → selecciona topic + emite material parseado
+ *     Call 2 generation (Gemini Flash + Output.object SIN tools) → redacta respuesta
+ *     Threshold 0.70 (D-19) + M3 binary backstop (FALTA_INFO/FUERA_SCOPE) + NUNCA-decir check
+ *     Outcome success: status='generated' con responseText + responseConfidence + sourceTopic.
+ *
+ * - `crm_mutation | cas_reject` → flujo LEGACY preservado verbatim (D-12):
+ *     Single generateText con tools + Output.object con LoopOutcomeSchema.
+ *     Outcome posibles: 'template' (success) o 'no_match' (handoff).
+ *     NOTA: el agente legacy emitía status='canonical' verbatim del KB en algunos
+ *     casos — post Plan 03 schema refactor ese path emite 'no_match' (la canonical
+ *     verbatim path queda obsoleta; el orchestrator escala suave). El path
+ *     mutation/cas_reject conceptualmente NO debería tirar canonical (siempre
+ *     era para low_confidence/razonamiento_libre), así que en la práctica solo
+ *     emite template o no_match.
+ *
+ * Standalone: somnio-v4-rag-generative / Plan 03.
+ */
+export async function runSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
+  // === SWITCH POR REASON ===
+  if (args.reason === 'crm_mutation' || args.reason === 'cas_reject') {
+    return runLegacySubLoop(args)
+  }
+
+  // === FLUJO NUEVO RAG-generative — low_confidence | razonamiento_libre ===
+  return runRagSubLoop(args)
+}
+
+// ============================================================================
+// FLUJO RAG-GENERATIVE (Plan 03 nuevo) — low_confidence | razonamiento_libre
+// ============================================================================
+
+async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
+  const t0 = performance.now()
+
+  // CALL 1 — Tooling (GPT-4o mini + kb_search + Output.object)
+  let toolingResult: Awaited<ReturnType<typeof runToolingCall>>
+  try {
+    toolingResult = await runToolingCall({
+      reason: args.reason as 'low_confidence' | 'razonamiento_libre',
+      ctx: {
+        workspaceId: args.ctx.workspaceId,
+        userMessage: args.ctx.userMessage,
+        recentMessages: args.ctx.recentMessages,
+      },
+      systemPrompt: buildToolingPrompt(args.reason),
+    })
+  } catch (err) {
+    return emitRagError(args, err, t0, 'tooling_call_error', undefined, undefined)
+  }
+
+  const tooling = toolingResult.output
+  const toolingStep = extractStepData(toolingResult.rawResult)
+
+  // Si tooling decidió handoff (no topic relevante) → escalar inmediato.
+  if (
+    tooling.should_handoff ||
+    !tooling.topic_seleccionado ||
+    !tooling.material_del_topic
+  ) {
+    const escalated: LoopOutcome = {
+      status: 'no_match',
+      responseText: null,
+      sourceTopic: null,
+      responseConfidence: null,
+      confidenceRationale: null,
+      nuncaDecirRules: null,
+      responseTemplate: 'handoff_humano',
+      knowledgeQueried: tooling.topic_seleccionado ? [tooling.topic_seleccionado] : [],
+      requiresHuman: true,
+      reason: tooling.handoff_reason ?? 'no_relevant_hit',
+    }
+    const inv = validateLoopOutcomeInvariants(escalated)
+    if (!inv.ok) {
+      return emitRagError(
+        args,
+        new Error(`Invariant violation post-tooling-handoff: ${inv.violation}`),
+        t0,
+        `invariant_violation: ${inv.violation}`,
+        toolingResult,
+        undefined,
+      )
+    }
+    getCollector()?.recordEvent('pipeline_decision', 'subloop_completed', {
+      agent: SOMNIO_V4_AGENT_ID,
+      reason: args.reason,
+      outcome: escalated.status,
+      sourceTopic: null,
+      requiresHuman: escalated.requiresHuman,
+    })
+    args.onDebug?.({
+      fired: true,
+      reason: args.reason,
+      finishReason: toolingStep.finishReason,
+      stepCount: toolingStep.stepCount,
+      toolCalls: toolingStep.toolCalls,
+      toolResults: toolingStep.toolResults,
+      kbHits: toolingStep.kbHits,
+      outcome: escalated,
+      latencyMs: performance.now() - t0,
+      toolingCall: {
+        stepCount: toolingStep.stepCount,
+        finishReason: toolingStep.finishReason ?? 'unknown',
+        output: tooling,
+        latencyMs: toolingResult.latencyMs,
+      },
+    })
+    return escalated
+  }
+
+  // CALL 2 — Generation (Gemini Flash + Output.object SIN tools)
+  let generationResult: Awaited<ReturnType<typeof runGenerationCall>>
+  try {
+    generationResult = await runGenerationCall({
+      systemPrompt: buildGenerationPrompt(
+        tooling.material_del_topic,
+        TONE_BASE,
+        /* fewShots — Plan 04 inyectará */ [],
+      ),
+      userMessage: args.ctx.userMessage,
+      recentMessages: args.ctx.recentMessages,
+    })
+  } catch (err) {
+    return emitRagError(
+      args,
+      err,
+      t0,
+      'generation_call_error',
+      toolingResult,
+      undefined,
+    )
+  }
+
+  const generation = generationResult.output
+
+  // D-19 — threshold check
+  if (generation.responseConfidence < RESPONSE_CONFIDENCE_THRESHOLD) {
+    return emitRagHandoff(
+      args,
+      t0,
+      toolingResult,
+      generationResult,
+      tooling,
+      generation,
+      'low_response_confidence',
+    )
+  }
+
+  // M3 — binary backstop (RESEARCH A1)
+  if (generation.binary === 'FALTA_INFO' || generation.binary === 'FUERA_SCOPE') {
+    return emitRagHandoff(
+      args,
+      t0,
+      toolingResult,
+      generationResult,
+      tooling,
+      generation,
+      `binary_backstop_${generation.binary}`,
+    )
+  }
+
+  // D-09 / D-20 — NUNCA-decir check (sin cambios al archivo nunca-decir-check.ts)
+  const nuncaCheck = await checkNuncaDecir({
+    candidateText: generation.responseText,
+    nuncaDecirRules: tooling.material_del_topic.nunca_decir ?? [],
+  })
+  if (!nuncaCheck.ok) {
+    getCollector()?.recordEvent(
+      'pipeline_decision',
+      'subloop_nunca_decir_violation',
+      {
+        agent: SOMNIO_V4_AGENT_ID,
+        reason: args.reason,
+        sourceTopic: tooling.topic_seleccionado,
+        violation: nuncaCheck.violation ?? null,
+      },
+    )
+    return emitRagHandoff(
+      args,
+      t0,
+      toolingResult,
+      generationResult,
+      tooling,
+      generation,
+      `nunca_decir_violation: ${nuncaCheck.violation ?? 'unspecified'}`,
+      nuncaCheck.violation ?? 'unspecified',
+    )
+  }
+
+  // SUCCESS — status='generated'
+  const outcome: LoopOutcome = {
+    status: 'generated',
+    responseText: generation.responseText,
+    sourceTopic: tooling.topic_seleccionado,
+    responseConfidence: generation.responseConfidence,
+    confidenceRationale: generation.confidenceRationale,
+    nuncaDecirRules: tooling.material_del_topic.nunca_decir ?? null,
+    responseTemplate: null,
+    knowledgeQueried: [tooling.topic_seleccionado],
+    requiresHuman: false,
+    reason: 'rag_generated',
+  }
+  const inv = validateLoopOutcomeInvariants(outcome)
+  if (!inv.ok) {
+    return emitRagError(
+      args,
+      new Error(`Invariant violation post-generation: ${inv.violation}`),
+      t0,
+      `invariant_violation: ${inv.violation}`,
+      toolingResult,
+      generationResult,
+    )
+  }
+
+  getCollector()?.recordEvent('pipeline_decision', 'subloop_completed', {
+    agent: SOMNIO_V4_AGENT_ID,
+    reason: args.reason,
+    outcome: outcome.status,
+    sourceTopic: outcome.sourceTopic,
+    requiresHuman: outcome.requiresHuman,
+  })
+
+  const generationStep = extractStepData(generationResult.rawResult)
+  args.onDebug?.({
+    fired: true,
+    reason: args.reason,
+    finishReason: generationStep.finishReason,
+    stepCount: generationStep.stepCount,
+    // En el RAG path los toolCalls vienen del Call 1 (tooling). El Call 2 es sin tools.
+    toolCalls: toolingStep.toolCalls,
+    toolResults: toolingStep.toolResults,
+    kbHits: toolingStep.kbHits,
+    outcome,
+    latencyMs: performance.now() - t0,
+    toolingCall: {
+      stepCount: toolingStep.stepCount,
+      finishReason: toolingStep.finishReason ?? 'unknown',
+      output: tooling,
+      latencyMs: toolingResult.latencyMs,
+    },
+    generationCall: {
+      finishReason: generationStep.finishReason ?? 'unknown',
+      output: generation,
+      latencyMs: generationResult.latencyMs,
+    },
+  })
+
+  return outcome
+}
+
+/**
+ * Emit handoff outcome del RAG path con debug payload.
+ */
+function emitRagHandoff(
+  args: RunSubLoopArgs,
+  t0: number,
+  toolingResult: Awaited<ReturnType<typeof runToolingCall>>,
+  generationResult: Awaited<ReturnType<typeof runGenerationCall>>,
+  tooling: Awaited<ReturnType<typeof runToolingCall>>['output'],
+  generation: Awaited<ReturnType<typeof runGenerationCall>>['output'],
+  reason: string,
+  nuncaDecirViolation?: string,
+): LoopOutcome {
+  const outcome: LoopOutcome = {
+    status: 'no_match',
+    responseText: null,
+    sourceTopic: tooling.topic_seleccionado,
+    responseConfidence: generation.responseConfidence,
+    confidenceRationale: generation.confidenceRationale,
+    nuncaDecirRules: tooling.material_del_topic?.nunca_decir ?? null,
+    responseTemplate: 'handoff_humano',
+    knowledgeQueried: tooling.topic_seleccionado ? [tooling.topic_seleccionado] : [],
+    requiresHuman: true,
+    reason,
+  }
+
+  getCollector()?.recordEvent('pipeline_decision', 'subloop_completed', {
+    agent: SOMNIO_V4_AGENT_ID,
+    reason: args.reason,
+    outcome: outcome.status,
+    sourceTopic: outcome.sourceTopic,
+    requiresHuman: outcome.requiresHuman,
+  })
+
+  const toolingStep = extractStepData(toolingResult.rawResult)
+  const generationStep = extractStepData(generationResult.rawResult)
+  args.onDebug?.({
+    fired: true,
+    reason: args.reason,
+    finishReason: generationStep.finishReason,
+    stepCount: generationStep.stepCount,
+    toolCalls: toolingStep.toolCalls,
+    toolResults: toolingStep.toolResults,
+    kbHits: toolingStep.kbHits,
+    outcome,
+    nuncaDecirViolation,
+    latencyMs: performance.now() - t0,
+    toolingCall: {
+      stepCount: toolingStep.stepCount,
+      finishReason: toolingStep.finishReason ?? 'unknown',
+      output: tooling,
+      latencyMs: toolingResult.latencyMs,
+    },
+    generationCall: {
+      finishReason: generationStep.finishReason ?? 'unknown',
+      output: generation,
+      latencyMs: generationResult.latencyMs,
+    },
+  })
+
+  return outcome
+}
+
+/**
+ * Emit error outcome del RAG path. Throw — preserva el contrato del legacy (D-22).
+ * NOTA: si el caller (somnio-v4-agent) prefiere no throw, mantenerse como ahora — el
+ * pipeline upstream tiene try/catch a turno-level (response-track) que captura.
+ */
+function emitRagError(
+  args: RunSubLoopArgs,
+  err: unknown,
+  t0: number,
+  reason: string,
+  toolingResult: Awaited<ReturnType<typeof runToolingCall>> | undefined,
+  generationResult: Awaited<ReturnType<typeof runGenerationCall>> | undefined,
+): never {
+  const e = err as Record<string, unknown>
+  const errName = (e?.name as string) ?? 'Error'
+  const errMsg = (e?.message as string) ?? String(err)
+
+  const toolingStep = toolingResult ? extractStepData(toolingResult.rawResult) : undefined
+  const generationStep = generationResult ? extractStepData(generationResult.rawResult) : undefined
+
+  args.onDebug?.({
+    fired: true,
+    reason: args.reason,
+    finishReason: generationStep?.finishReason ?? toolingStep?.finishReason,
+    stepCount: generationStep?.stepCount ?? toolingStep?.stepCount ?? 0,
+    toolCalls: toolingStep?.toolCalls ?? [],
+    toolResults: toolingStep?.toolResults ?? [],
+    kbHits: toolingStep?.kbHits,
+    outcome: undefined,
+    latencyMs: performance.now() - t0,
+    errorMessage: `${errName}: ${errMsg}`,
+    toolingCall: toolingResult
+      ? {
+          stepCount: toolingStep?.stepCount ?? 0,
+          finishReason: toolingStep?.finishReason ?? 'unknown',
+          output: toolingResult.output,
+          latencyMs: toolingResult.latencyMs,
+        }
+      : undefined,
+    generationCall: generationResult
+      ? {
+          finishReason: generationStep?.finishReason ?? 'unknown',
+          output: generationResult.output,
+          latencyMs: generationResult.latencyMs,
+        }
+      : undefined,
+  })
+
+  throw new Error(`[SubLoop RAG reason=${args.reason} stage=${reason}] ${errName}: ${errMsg}`)
+}
+
+// ============================================================================
+// FLUJO LEGACY (D-12 preservado verbatim) — crm_mutation | cas_reject
+// ============================================================================
+
+/**
+ * Path legacy preservado verbatim (D-12). Single generateText con tools + Output.object
+ * usando LoopOutcomeSchema. Outcomes posibles: 'template' (success — apuntar a un intent
+ * template del catálogo) o 'no_match' (handoff humano).
+ *
+ * Plan 03 NOTE: post-refactor schema, este path NO debería emitir 'generated' (es para
+ * RAG nuevo) ni 'canonical' (eliminado del enum). El prompt LEGACY explícitamente lista
+ * solo 2 status válidos para mutations. Si el modelo intenta emitir un status inválido,
+ * Zod schema parse falla y se escala suave via invariantCheck (`no_match`).
+ */
+async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   const t0 = performance.now()
 
   const tools = buildSubLoopTools(args.reason, args.ctx)
 
-  // Extract AI SDK v6 step data using CORRECT field names (Pitfall 1: input/output, NOT args/result).
-  // Canonical pattern from src/lib/agents/crm-reader/index.ts:59-68.
-  function extractStepData(
-    result: Awaited<ReturnType<typeof generateText>> | null,
-  ): {
-    toolCalls: SubLoopToolCallSnapshot[]
-    toolResults: SubLoopToolCallSnapshot[]
-    kbHits?: SubLoopKbHitSnapshot[]
-    stepCount: number
-    finishReason?: string
-  } {
-    if (!result) {
-      return { toolCalls: [], toolResults: [], stepCount: 0 }
-    }
-    const steps = result.steps ?? []
-    const toolCalls: SubLoopToolCallSnapshot[] = steps.flatMap((step) =>
-      (step.toolCalls ?? []).map((tc) => ({
-        toolName: tc.toolName,
-        input: tc.input,
-        output: null,
-        outputPreview: undefined,
-      })),
-    )
-    // Build toolResults — separate flat list keyed for the UI per D-02 verbatim.
-    const toolResults: SubLoopToolCallSnapshot[] = steps.flatMap((step) =>
-      (step.toolResults ?? []).map((tr) => {
-        const out: unknown = tr.output
-        // Pitfall 6: truncate at emission site, capped 500 chars.
-        const outputPreview =
-          typeof out === 'string'
-            ? out.slice(0, 500)
-            : JSON.stringify(out).slice(0, 500)
-        return {
-          toolName: tr.toolName,
-          input: tr.input,
-          output: out,
-          outputPreview,
-        }
-      }),
-    )
-
-    // D-06: extract kb_search hits with structural type check; silent omission on shape mismatch.
-    let kbHits: SubLoopKbHitSnapshot[] | undefined = undefined
-    const kbResult = toolResults.find((tr) => tr.toolName === 'kb_search')
-    if (kbResult) {
-      const hits = kbResult.output
-      if (Array.isArray(hits)) {
-        if (hits.length === 0) {
-          kbHits = []
-        } else {
-          const first = hits[0] as Record<string, unknown>
-          if (
-            typeof first?.topic === 'string' &&
-            typeof first?.similarity === 'number'
-          ) {
-            // Structural check passed — safe to cast.
-            // Cast targets the runtime shape returned by kb-search-tool.ts (KbHit[]).
-            type KbHitRow = {
-              topic: string
-              similarity: number
-              canonicalResponse: string | null
-              nuncaDecirRules?: string[]
-            }
-            kbHits = (hits as KbHitRow[]).map((h) => ({
-              topic: h.topic,
-              similarity: h.similarity,
-              contentPreview: (h.canonicalResponse ?? '').slice(0, 200),
-              hasNuncaDecir: (h.nuncaDecirRules?.length ?? 0) > 0,
-            }))
-          }
-        }
-      }
-    }
-
-    return {
-      toolCalls,
-      toolResults,
-      kbHits,
-      stepCount: steps.length,
-      finishReason: result.finishReason,
-    }
-  }
-
-  // Diagnostic wrap (Plan 07 debug iter 4 + iter 8 + iter 9): captura errores
-  // del generateText con context completo del provider Y del result object.
-  //
-  // Iter 9 fix: AI_NoOutputGeneratedError no carga finishReason/text/cause en sí
-  // mismo — esos datos viven en `result` (subLoopResult). Por eso declaramos
-  // subLoopResult ANTES del try, así el catch puede peek-ear sus campos
-  // (finishReason, text, steps con tool calls) para diagnostico real.
   let output: LoopOutcome
-  let subLoopResult: Awaited<ReturnType<typeof generateText>> | null = null
+  let subLoopResult: any = null
   try {
     subLoopResult = await runWithPurpose('subloop', () =>
       generateText({
         model: getOpenAI()('gpt-4o-mini'),
-        system: buildSubLoopPrompt(args.reason),
+        system: buildToolingPrompt(args.reason),
         messages: [
           ...args.ctx.recentMessages.map((m) => ({ role: m.role, content: m.content })),
           { role: 'user' as const, content: args.ctx.userMessage },
         ],
         tools,
-        // W-06 — D-62 enforced by Output.object() schema, not by toolChoice. See
-        // RESEARCH §Pattern 2 line 406: 'required' would block the structured-output
-        // final step. 'auto' lets the model search KB / call CRM tools and then emit
-        // the LoopOutcome object as the last step.
         toolChoice: 'auto',
-        // Iter 7d: bump 4 → 6. Con stopWhen=4, GPT-4o mini en low_confidence con KB
-        // vacio loopeaba 4x kb_search sin emitir LoopOutcome final (finishReason=
-        // 'tool-calls'). 6 da headroom para 2-3 kb_search retries + step final
-        // que emite output. El prompt low_confidence ahora obliga no_match tras
-        // 2 búsquedas vacías (forzando convergencia incluso con headroom extra).
         stopWhen: stepCountIs(6),
         output: Output.object({ schema: LoopOutcomeSchema }),
-      })
+      }),
     )
-    // Destructure DENTRO del try — el getter puede throw AI_NoOutputGeneratedError
-    output = subLoopResult.output
+    // safeAccessOutput wraps NoObjectGeneratedError (vercel/ai#11348) — beneficio del wrapper también para legacy path.
+    output = safeAccessOutput(subLoopResult, LoopOutcomeSchema)
   } catch (genErr) {
     const e = genErr as Record<string, unknown>
     const errName = (e?.name as string) ?? 'Error'
     const errMsg = (e?.message as string) ?? String(genErr)
     const cause = e?.cause ? JSON.stringify(e.cause).slice(0, 300) : 'no-cause'
 
-    // Peek subLoopResult fields if generateText succeeded but .output getter threw.
-    // Iter 7d: AI SDK v6 usa `input` (no `args`) y `output` (no `result`) en los
-    // tool calls/results de step. Por eso antes los toolResults se veian vacios.
     const sr = subLoopResult as Record<string, unknown> | null
     const srFinishReason = (sr?.finishReason as string) ?? null
     const srText = (sr?.text as string) ?? null
@@ -253,11 +598,9 @@ export async function runSubLoop(args: {
         }))
       : []
 
-    // Prefer subLoopResult fields (post-generation) over error fields (pre).
     const finishReason = srFinishReason ?? (e?.finishReason as string) ?? 'no-finishReason'
     const text = srText ?? (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
 
-    // D-03: emit debug payload BEFORE throw so caller closure captures it (Pitfall 7 option a).
     const errStep = extractStepData(subLoopResult)
     args.onDebug?.({
       fired: true,
@@ -273,20 +616,16 @@ export async function runSubLoop(args: {
     })
 
     throw new Error(
-      `[SubLoop generateText reason=${args.reason}] ${errName}: ${errMsg} | ` +
+      `[SubLoop legacy reason=${args.reason}] ${errName}: ${errMsg} | ` +
       `finishReason="${finishReason}" | steps=${stepCount} | ` +
       `toolCalls=${JSON.stringify(toolCallsBrief).slice(0, 250)} | ` +
       `toolResults=${JSON.stringify(toolResultsBrief).slice(0, 250)} | ` +
-      `text="${(text as string).slice(0, 200)}" | cause="${cause}"`
+      `text="${(text as string).slice(0, 200)}" | cause="${cause}"`,
     )
   }
 
-  // D-29 post-hoc invariant validation — Plan 02 RE-SHAPE.
-  // The flat schema (no discriminated union) permite combinaciones inválidas
-  // que el shape previo no permitía: ej. status='canonical' con canonicalText=null.
-  // validateLoopOutcomeInvariants enforce las reglas semánticas que el schema flat
-  // no captura. Si la invariante se rompe → escalación suave a no_match (NO throw —
-  // consistent con D-57 handoff humano).
+  // Post-hoc invariant validation. Schema flat permite combinaciones inválidas;
+  // si invariante roto → escalación suave a no_match (consistent con D-57 handoff).
   const invariantCheck = validateLoopOutcomeInvariants(output)
   if (!invariantCheck.ok) {
     getCollector()?.recordEvent(
@@ -297,19 +636,20 @@ export async function runSubLoop(args: {
         reason: args.reason,
         violation: invariantCheck.violation ?? 'unknown',
         rawStatus: output.status,
-      }
+      },
     )
     const escalated: LoopOutcome = {
       status: 'no_match',
-      responseTemplate: 'handoff_humano',
-      canonicalText: null,
+      responseText: null,
       sourceTopic: null,
+      responseConfidence: null,
+      confidenceRationale: null,
       nuncaDecirRules: null,
+      responseTemplate: 'handoff_humano',
       knowledgeQueried: [],
       requiresHuman: true,
       reason: `invariant_violation: ${invariantCheck.violation ?? 'unspecified'}`,
     }
-    // D-03: emit debug payload before returning escalated outcome.
     const invStep = extractStepData(subLoopResult)
     args.onDebug?.({
       fired: true,
@@ -326,70 +666,15 @@ export async function runSubLoop(args: {
     return escalated
   }
 
-  // D-51: post-gen NUNCA-decir check solo en outcome 'canonical' (D-50 verbatim KB).
-  // Plan 02: tras flat schema canonicalText/sourceTopic son string|null. La
-  // invariante anterior ya garantizó non-null aquí (sin invariantCheck pasamos),
-  // por lo que es seguro asumir non-null. El non-null assertion (!) está
-  // protegido defensivamente — si en el futuro alguien remueve invariantCheck
-  // arriba, este bloque fallaría en runtime con un error claro.
-  if (output.status === 'canonical') {
-    const canonicalText = output.canonicalText!
-    const sourceTopic = output.sourceTopic!
-    const rules = output.nuncaDecirRules ?? []
-    const check = await checkNuncaDecir({
-      candidateText: canonicalText,
-      nuncaDecirRules: rules,
-    })
-    if (!check.ok) {
-      // Forzar handoff humano (D-51 violation → D-57 no_match).
-      const escalated: LoopOutcome = {
-        status: 'no_match',
-        responseTemplate: 'handoff_humano',
-        canonicalText: null,
-        sourceTopic: null,
-        nuncaDecirRules: null,
-        knowledgeQueried: [sourceTopic],
-        requiresHuman: true,
-        reason: `nunca_decir_violation: ${check.violation ?? 'unspecified'}`,
-      }
-      getCollector()?.recordEvent(
-        'pipeline_decision',
-        'subloop_nunca_decir_violation',
-        {
-          agent: SOMNIO_V4_AGENT_ID,
-          reason: args.reason,
-          sourceTopic,
-          violation: check.violation ?? null,
-        }
-      )
-      // D-03: emit debug payload before returning escalated outcome.
-      const ndStep = extractStepData(subLoopResult)
-      args.onDebug?.({
-        fired: true,
-        reason: args.reason,
-        finishReason: ndStep.finishReason,
-        stepCount: ndStep.stepCount,
-        toolCalls: ndStep.toolCalls,
-        toolResults: ndStep.toolResults,
-        kbHits: ndStep.kbHits,
-        outcome: escalated,
-        nuncaDecirViolation: check.violation ?? 'unspecified',
-        latencyMs: performance.now() - t0,
-      })
-      return escalated
-    }
-  }
-
-  // Observability D-58 (familia D-2): outcome del sub-loop.
+  // Observability outcome del sub-loop.
   getCollector()?.recordEvent('pipeline_decision', 'subloop_completed', {
     agent: SOMNIO_V4_AGENT_ID,
     reason: args.reason,
     outcome: output.status,
-    sourceTopic: output.status === 'canonical' ? output.sourceTopic : null,
+    sourceTopic: output.status === 'generated' ? output.sourceTopic : null,
     requiresHuman: output.requiresHuman,
   })
 
-  // D-03: emit debug payload on success path.
   const okStep = extractStepData(subLoopResult)
   args.onDebug?.({
     fired: true,

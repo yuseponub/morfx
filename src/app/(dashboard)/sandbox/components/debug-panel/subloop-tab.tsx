@@ -9,7 +9,7 @@
  *   - Fired=false explainer (turns where v4 ran but sub-loop didn't fire)
  *   - Tool calls timeline (expandable, AI SDK v6 input/output)
  *   - KB Hits section (similarity bar, nunca-decir flag) — Pitfall 5: handle undefined
- *   - Outcome (status badge + responseTemplate + canonicalText preview)
+ *   - Outcome (status badge + responseTemplate + responseText preview + confidence)
  *   - Violation banners (invariantViolation, nuncaDecirViolation, errorMessage)
  *
  * Mirrors classify-tab.tsx structure for visual consistency.
@@ -59,8 +59,21 @@ function getSimilarityColor(s: number): string {
 
 function getOutcomeStatusBadge(status: string | undefined): 'default' | 'secondary' | 'destructive' {
   if (!status) return 'secondary'
-  if (status === 'canonical' || status === 'template') return 'default'
+  // Plan 03 RAG-generative: 'generated' (nuevo) reemplaza 'canonical' (eliminado).
+  if (status === 'generated' || status === 'template') return 'default'
   return 'destructive' // no_match
+}
+
+/**
+ * Plan 03 RAG-generative: color del responseConfidence (D-19 threshold 0.70).
+ * - >= 0.80: verde (alta confianza).
+ * - >= 0.70: amarillo (apenas pasa threshold).
+ * - < 0.70: rojo (handoff territory — el orchestrator dispara handoff).
+ */
+function getConfidenceColor(confidence: number): string {
+  if (confidence >= 0.80) return 'text-green-600 dark:text-green-400'
+  if (confidence >= 0.70) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-red-600 dark:text-red-400'
 }
 
 function getReasonBadgeColor(reason: string): string {
@@ -335,12 +348,25 @@ function OutcomeSection({ payload }: { payload: SubLoopDebugPayload }) {
           </Badge>
         )}
       </div>
-      {outcome.canonicalText && (
+      {outcome.responseText && (
         <div>
-          <span className="text-xs text-muted-foreground">canonical text:</span>
+          <span className="text-xs text-muted-foreground">response text (Plan 03 RAG-generative):</span>
           <pre className="mt-1 p-2 bg-muted/40 rounded text-xs overflow-auto max-h-24 whitespace-pre-wrap">
-            {outcome.canonicalText}
+            {outcome.responseText}
           </pre>
+        </div>
+      )}
+      {outcome.responseConfidence !== null && outcome.responseConfidence !== undefined && (
+        <div className="text-xs flex gap-2 items-baseline">
+          <span className="text-muted-foreground">confidence:</span>
+          <span className={getConfidenceColor(outcome.responseConfidence)}>
+            {outcome.responseConfidence.toFixed(2)}
+          </span>
+          {outcome.confidenceRationale && (
+            <span className="text-muted-foreground/80 italic truncate">
+              — {outcome.confidenceRationale}
+            </span>
+          )}
         </div>
       )}
       {outcome.reason && (

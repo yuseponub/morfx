@@ -734,7 +734,8 @@ async function processSystemEvent(
  * Map LoopOutcome → V4AgentOutput.
  *
  * D-60: outcome.status === 'no_match' → requiresHuman=true + newMode='handoff'.
- * D-50: outcome.status === 'canonical' → texto verbatim del KB en messages[0].
+ * Plan 03 RAG-generative: outcome.status === 'generated' → responseText redactado
+ *   por Gemini Flash en messages[0]. Reemplaza el path 'canonical' verbatim del KB.
  * outcome.status === 'template' → templates[] resuelto con responseTemplate intent.
  *
  * Comprehension info se incluye porque el sub-loop SÍ ejecutó comprehension.
@@ -783,9 +784,9 @@ function mapOutcomeToAgentOutput(args: {
     },
   }
 
-  // Plan 02 D-29: tras flat schema, narrowing por outcome.status sigue válido,
-  // pero los campos canonicalText/sourceTopic/responseTemplate son nullable.
-  // Añadimos null guards explícitos — si null (no debería ocurrir post-invariantCheck
+  // Plan 03 RAG-generative refactor: narrowing por outcome.status sigue válido,
+  // pero los campos responseText/sourceTopic/responseTemplate son nullable.
+  // Null guards explícitos — si null (no debería ocurrir post-invariantCheck
   // del sub-loop, pero defensivo) → fallback a handoff humano.
   if (outcome.status === 'no_match') {
     return {
@@ -800,11 +801,11 @@ function mapOutcomeToAgentOutput(args: {
     }
   }
 
-  if (outcome.status === 'canonical') {
-    // Defensive null check — invariantCheck en sub-loop ya enforca canonicalText
-    // non-null, pero el null-guard mantiene type safety + protección defensiva
-    // si código se cambia. Si null (bug) → handoff humano.
-    if (outcome.canonicalText === null || outcome.sourceTopic === null) {
+  if (outcome.status === 'generated') {
+    // Defensive null check — invariantCheck en sub-loop ya enforca responseText/
+    // sourceTopic/responseConfidence non-null para status='generated', pero el
+    // null-guard mantiene type safety + protección defensiva. Si null (bug) → handoff.
+    if (outcome.responseText === null || outcome.sourceTopic === null) {
       return {
         ...baseOutput,
         messages: [],
@@ -812,18 +813,18 @@ function mapOutcomeToAgentOutput(args: {
         requiresHuman: true,
         decisionInfo: {
           action: 'handoff',
-          reason: `canonical_null_field: ${outcome.reason}`,
+          reason: `generated_null_field: ${outcome.reason}`,
         },
       }
     }
     return {
       ...baseOutput,
-      messages: [outcome.canonicalText],
+      messages: [outcome.responseText],
       newMode: computeMode(state),
       decisionInfo: {
         action: 'respond',
         reason: outcome.reason,
-        templateIntents: [`canonical:${outcome.sourceTopic}`],
+        templateIntents: [`generated:${outcome.sourceTopic}`],
       },
     }
   }

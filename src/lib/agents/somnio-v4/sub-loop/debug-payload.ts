@@ -86,6 +86,25 @@ export interface SubLoopDebugPayload {
   latencyMs?: number
   /** Error message captured in runSubLoop's catch block before throw (Pitfall 7 option a). */
   errorMessage?: string
+  /**
+   * Plan 03 RAG-generative: snapshot del Call 1 (tooling). Presente para
+   * low_confidence/razonamiento_libre. Absent para crm_mutation/cas_reject (path legacy).
+   */
+  toolingCall?: {
+    stepCount: number
+    finishReason: string
+    output: import('./tooling-call').ToolingOutput
+    latencyMs?: number
+  }
+  /**
+   * Plan 03 RAG-generative: snapshot del Call 2 (generation Gemini Flash). Solo presente
+   * cuando tooling success y se procedió a Call 2. Absent si tooling decidió handoff inmediato.
+   */
+  generationCall?: {
+    finishReason: string
+    output: import('./generation-call').GenerationOutput
+    latencyMs?: number
+  }
 }
 
 // Re-export LoopOutcome + SubLoopReason for downstream consumers (sandbox/types.ts,

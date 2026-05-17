@@ -2,22 +2,37 @@
 topic: pago
 keywords: [pago, como pago, contraentrega, transferencia, link de pago, tarjeta, nequi, daviplata, bancolombia, efectivo]
 category: policies
-last_reviewed: 2026-05-04
+last_reviewed: 2026-05-16
 reviewed_by: jose
-escalate_if: [cliente pide pagar con transferencia, cliente pide pagar con Nequi, cliente pide pagar con Daviplata, cliente pide pagar con tarjeta crédito o débito, cliente pide link de pago, cliente intenta dar datos de tarjeta directamente en chat]
 related_topics: [envio, devoluciones]
+escalate_if:
+  - cliente pide pagar con transferencia
+  - cliente pide pagar con Nequi
+  - cliente pide pagar con Daviplata
+  - cliente pide pagar con tarjeta crédito o débito
+  - cliente pide link de pago
+  - cliente intenta dar datos de tarjeta directamente en chat
+tone_override: null
 ---
 
-## Respuesta canónica
-Como métodos de pago manejamos:
-- Pago contra-entrega (pagas al recibir, en efectivo)
-- Transferencias (Bancolombia, Nequi, Daviplata)
+## Hechos del producto
+Métodos de pago aceptados para ELIXIR DEL SUEÑO en Colombia:
+- Pago contra-entrega (efectivo al recibir)
+- Transferencias: Bancolombia, Nequi, Daviplata
 - Tarjeta débito/crédito vía link de pago
 
-La opción más común es contra-entrega.
+La opción más común es contra-entrega. NO existen otros métodos (no criptomonedas, no pagos en moneda extranjera, no PayPal, no Bitcoin). Los datos sensibles de tarjeta (número completo, CVV, fecha de expiración) NUNCA se piden por chat — se manejan exclusivamente a través del link de pago seguro.
 
-## Si el cliente insiste
-Si después de informar los métodos elige uno distinto a contra-entrega (transferencia, Nequi, Daviplata o tarjeta), no respondes — el caso queda en cola. Si pide número de tarjeta o CVV en chat, le explicas con tono cálido que por seguridad no pedimos esos datos por mensaje y dejas la conversación abierta.
+## Posición del negocio
+Contra-entrega es la opción que más comunicamos por seguridad y comodidad del cliente. Las otras opciones (transferencias, link de pago) están disponibles pero requieren coordinación con humano para garantizar trazabilidad y evitar errores. Si el cliente elige uno de esos métodos NO contra-entrega o pide datos específicos (números de cuenta, link), se escala a humano. Si intenta dar datos de tarjeta en el chat, se le aclara con tono cálido que por seguridad no pedimos esos datos por mensaje y se deja la conversación abierta para coordinación.
+
+## Debe contener la respuesta
+- [SIEMPRE] Listar los 3 grupos de métodos: contra-entrega, transferencias (Bancolombia, Nequi, Daviplata), tarjeta vía link de pago
+- [SIEMPRE] Mencionar que contra-entrega es la opción más común
+- [SI APLICA] Si elige contra-entrega → continuar el flujo normal
+- [SI APLICA] Si elige transferencia / Nequi / Daviplata / tarjeta → escalar a humano para coordinación
+- [SI APLICA] Si pide número de tarjeta o CVV en chat → aclarar con calidez que por seguridad no se piden esos datos por mensaje
+- [SI APLICA] Si pregunta por métodos no listados (cripto, PayPal, Bitcoin, etc.) → escalar a humano
 
 ## NUNCA decir
 - pedir número completo de tarjeta o CVV en el chat
@@ -25,4 +40,12 @@ Si después de informar los métodos elige uno distinto a contra-entrega (transf
 - prometer descuentos por método de pago
 - garantizar contraentrega en ciudades donde no aplique
 - listar SOLO efectivo cuando el cliente pregunta "otros métodos de pago"
-- usar palabras como "te derivo", "te paso con un asesor", "agente humano", "tomo nota" — atiendes tú misma
+- aprobar pagos con criptomonedas / PayPal / Bitcoin / moneda extranjera
+- usar palabras como "te derivo", "te paso con un asesor", "agente humano", "tomo nota"
+
+## Cuándo escalar a humano
+- cliente pide pagar con criptomonedas, Bitcoin, PayPal o método no listado
+- cliente pide pagar con transferencia (Bancolombia, Nequi, Daviplata) — requiere coordinación
+- cliente pide pagar con tarjeta crédito o débito (link de pago)
+- cliente pide número de cuenta, link de pago o datos bancarios específicos
+- cliente intenta dar datos de tarjeta directamente en chat

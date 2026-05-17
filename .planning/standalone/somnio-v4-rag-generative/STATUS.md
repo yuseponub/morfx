@@ -1,8 +1,8 @@
 # Somnio v4 RAG Generative — STATUS (LIVE)
 
-**Last updated:** 2026-05-16 (creación del standalone)
-**HEAD git:** pendiente (commit inicial post-creación)
-**v4 status en prod:** DORMANT (sin routing rule)
+**Last updated:** 2026-05-16 (Plan 01 SHIPPED post-Task 1.6)
+**HEAD git:** pendiente push (commit final Task 1.7)
+**v4 status en prod:** DORMANT (sin routing rule — `active_v4_rules = 0`)
 **v3 status en prod:** ACTIVO (atendiendo clientes — Regla 6 intocado)
 
 ---
@@ -11,11 +11,11 @@
 
 - [x] **Discuss-phase informal** (sesión 2026-05-15/16, 30 D's capturados en `DISCUSSION-LOG.md`)
 - [x] **Standalone setup** (CONTEXT.md + DISCUSSION-LOG.md + este STATUS.md)
-- [ ] **Research-phase** — pendiente. Comando: `/gsd:research-phase somnio-v4-rag-generative`
-- [ ] **Plan-phase** — pendiente. Comando: `/gsd:plan-phase somnio-v4-rag-generative`
-- [ ] **Execute-phase plan 01** — pendiente
-- [ ] **Execute-phase plan 02** — pendiente
-- [ ] **Execute-phase plan 03** — pendiente
+- [x] **Research-phase** (`RESEARCH.md` shipped)
+- [x] **Plan-phase** (planes 01..08 committeados)
+- [x] **Execute-phase plan 01** — **DONE 2026-05-16** (6 commits, migración aplicada en prod, 32/32 tests verdes)
+- [ ] **Execute-phase plan 02** — NEXT (atómico con 03)
+- [ ] **Execute-phase plan 03** — NEXT (atómico con 02)
 - [ ] **Execute-phase plan 04** — pendiente
 - [ ] **Execute-phase plan 05 (Smoke A)** — pendiente
 - [ ] **Execute-phase plan 06 (Smoke B)** — pendiente
@@ -30,7 +30,7 @@
 
 | Plan | Título | Status | HEAD |
 |---|---|---|---|
-| 01 | KB schema update (parser, sync, RPC, migración DB) | pending | — |
+| 01 | KB schema update (parser, sync, RPC, migración DB) | **DONE 2026-05-16** | `b6c6e20` (tests) — final commit Task 1.7 pendiente push |
 | 02 | Reescribir 18 KBs en formato nuevo | pending | — |
 | 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | pending | — |
 | 04 | Few-shots calibración Gemini Flash | pending | — |
@@ -38,6 +38,23 @@
 | 06 | Smoke B — regression 10 casos | pending | — |
 | 07 | Iter sobre smoke results (HOLD) | hold | — |
 | 08 | Flip productivo (SQL routing_rule) | pending | — |
+
+---
+
+## Plan 01 SHIPPED — resumen
+
+**Migración aplicada en prod Supabase 2026-05-16 (Regla 5).** 5 columnas nuevas + RPC con RETURNS shape extendido. Parser TS reconoce 5 markdown headers nuevos + `tone_override` frontmatter (D-05). Sync upsertea las 5 columnas + `canonical_response = null` para somnio-v4 (D-24). Coherence-check valida secciones + prefijos `[SIEMPRE]/[SI APLICA]` (D-03). 32/32 tests verdes (15 parser + 17 coherence-check).
+
+Commits Plan 01 (6 total + Task 1.7 push):
+
+1. `c55aed4` Task 1.1 — parser.ts
+2. `d35f645` Task 1.2 — sync.ts
+3. `f7d666b` Task 1.3 — coherence-check.ts
+4. `eea5e14` Task 1.4 — migración SQL
+5. `b6c6e20` Task 1.6 — tests
+6. **(Task 1.7)** docs SUMMARY + STATUS + STATE — final push commit
+
+Ver `01-SUMMARY.md` para detalle completo, los 4 verify queries de Regla 5 y plan de continuación.
 
 ---
 
@@ -163,21 +180,38 @@ Jose FAIL:      ___ / 10 (bloqueante)
 
 ## Next action AHORA
 
-**Próximo paso:** Correr research-phase formal.
+**Próximo paso:** Ejecutar Plans 02 + 03 atómico (Wave 2).
 
 ```
-/gsd:research-phase somnio-v4-rag-generative
+/gsd-execute-phase somnio-v4-rag-generative --wave 2
 ```
 
-El research-phase debe investigar:
+Plans 02 (reescritura de 18 KBs en formato nuevo) y 03 (sub-loop split tooling/generación + borrar canonical) son **atómicos por D-23 + D-24**:
+- Plan 03 borra el canonical_response del sub-loop runtime.
+- Plan 02 puebla las 5 columnas nuevas con material fuente (Hechos / Posición / Debe contener / NUNCA / Cuándo escalar).
+- Push de Plan 03 SIN Plan 02 deja v4 sin nada para generar respuestas — los 18 KBs en prod tienen las 5 columnas nuevas como `null/[]` post-Plan 01.
 
-1. **Limitación H-2 actualizada:** ¿Sigue Gemini API rechazando tools + Output combinados en 2026-05? Verificar contra docs oficiales de Google.
-2. **Best practices de RAG generativo con AI SDK v6:** patrones canónicos, ejemplos de production-grade.
-3. **Calibración de auto-reported confidence en LLMs:** cómo enseñar al modelo a dudar bien. Few-shots vs reglas vs scoring rubrics.
-4. **Performance de Gemini Flash vs Flash-Lite en redacción matizada en español:** evidencia comparativa concreta.
-5. **Pitfalls específicos:** schema parsing failures con Output.object, overconfidence en confidence reporting, timeouts en chains de 2 modelos.
+**Verificaciones disponibles tras Plans 02+03:**
 
-Output esperado del research-phase: `RESEARCH.md` en esta carpeta.
+```sql
+-- 1. Las 5 columnas pobladas para somnio-v4:
+SELECT topic, jsonb_pretty(jsonb_build_object(
+  'hechos', hechos_del_producto IS NOT NULL,
+  'posicion', posicion_del_negocio IS NOT NULL,
+  'debe_contener', array_length(debe_contener, 1) > 0,
+  'nunca_decir', array_length(nunca_decir, 1) > 0,
+  'cuando_escalar', array_length(cuando_escalar, 1) > 0
+))
+FROM agent_knowledge_base
+WHERE agent_id='somnio-sales-v4';
+-- Esperado: 18 rows con todos los flags 'true' en hechos/posicion/debe_contener.
+
+-- 2. v4 sigue dormant:
+SELECT count(*) FROM routing_rules
+WHERE workspace_id='a3843b3f-c337-4836-92b5-89c58bb98490'
+  AND active=true AND event::text LIKE '%somnio-sales-v4%';
+-- Esperado: 0.
+```
 
 ---
 

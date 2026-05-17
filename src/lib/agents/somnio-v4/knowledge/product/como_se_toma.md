@@ -2,17 +2,27 @@
 topic: como_se_toma
 keywords: [como se toma, dosis, comprimido, pastilla, cuando, antes de dormir, agua, modo de uso]
 category: product
-last_reviewed: 2026-05-04
+last_reviewed: 2026-05-16
 reviewed_by: jose
-escalate_if: [cliente con condicion medica preexistente, cliente toma medicamentos recetados]
 related_topics: [formula, contenido, contraindicaciones, dependencia]
+escalate_if:
+  - cliente con condicion medica preexistente
+  - cliente toma medicamentos recetados
+tone_override: null
 ---
 
-## Respuesta canónica
-ELIXIR DEL SUEÑO se toma 1 comprimido entero, 30 minutos antes de acostarte, pasándolo con agua. La pastilla no se mastica ni se disuelve — se traga entera. Lo importante es ser consistente con la hora cada noche para que tu cuerpo se vaya acostumbrando al ritmo.
+## Hechos del producto
+ELIXIR DEL SUEÑO se presenta en comprimidos (no gotas, no jarabe). La dosis estándar es 1 comprimido diario, 30 minutos antes de acostarse, pasándolo con agua. El comprimido se traga entero — no se mastica, no se chupa, no se disuelve. La consistencia con la hora cada noche favorece que el cuerpo se vaya acostumbrando al ritmo del sueño. La formulación es melatonina (10mg) + citrato de magnesio (50mg) por comprimido.
 
-## Si el cliente insiste
-Si pide una dosis distinta a 1 comprimido (más, menos, dividida) le respondes que la dosis estándar es 1 diaria; cualquier ajuste debe consultarlo con su médico tratante.
+## Posición del negocio
+La dosis de 1 comprimido diario es estándar para población adulta sana. Cualquier ajuste (dosis distinta, partición de pastilla, frecuencia diferente) debe consultarse con el médico tratante — no improvisamos dosis personalizadas por chat. Si el cliente reporta condición médica preexistente o toma medicamentos recetados, derivamos a su médico antes de iniciar.
+
+## Debe contener la respuesta
+- [SIEMPRE] Indicar dosis: 1 comprimido diario, 30 minutos antes de acostarse, pasado con agua
+- [SIEMPRE] Aclarar que se traga entero (no se mastica, no se disuelve)
+- [SIEMPRE] Mencionar la importancia de ser consistente con la hora cada noche
+- [SI APLICA] Si pide una dosis distinta (más, menos, dividida) → reiterar dosis estándar + sugerir consultar al médico tratante
+- [SI APLICA] Si menciona condición médica preexistente o medicamento recetado → consultar al médico tratante antes de iniciar
 
 ## NUNCA decir
 - recomendar dosis distinta a 1 comprimido diario
@@ -22,4 +32,10 @@ Si pide una dosis distinta a 1 comprimido (más, menos, dividida) le respondes q
 - afirmar que "más comprimidos = más efecto"
 - mezclar con alcohol u otros sedantes
 - recomendar uso por más de un mes continuo sin sugerir consultar profesional
-- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota" — atiendes tú misma
+- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota"
+
+## Cuándo escalar a humano
+- cliente con condición médica preexistente pregunta por dosis específica
+- cliente que toma medicamentos recetados pregunta por interacción con la dosis
+- cliente reporta efecto adverso tras tomar dosis estándar
+- cliente menciona embarazo, lactancia o menor de edad (cruzar con KBs específicos)

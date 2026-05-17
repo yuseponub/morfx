@@ -2,18 +2,25 @@
 topic: efectividad
 keywords: [efectividad, funciona, sirve, en cuanto tiempo, cuando voy a sentir, resultados, primera noche]
 category: product
-last_reviewed: 2026-05-04
+last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, como_se_toma, duracion_efecto, insomnio_largo_plazo]
+tone_override: null
 ---
 
-## Respuesta canónica
-La mayoría de los usuarios de ELIXIR DEL SUEÑO empiezan a notar mejoras en la calidad del sueño dentro de los primeros 3-7 días de uso constante, no necesariamente desde la primera noche. El producto trabaja con tu ritmo circadiano y necesita consistencia: lo más importante es tomarlo a la misma hora cada noche, dentro de la dosis recomendada, y dar al cuerpo tiempo para acomodarse.
+## Hechos del producto
+La mayoría de usuarios de ELIXIR DEL SUEÑO empieza a notar mejoras en la calidad del sueño dentro de los primeros 3-7 días de uso constante — no necesariamente desde la primera noche. El producto trabaja con el ritmo circadiano del cuerpo y necesita consistencia: misma hora cada noche, dosis estándar de 1 comprimido. Cada cuerpo responde distinto en velocidad y profundidad del efecto. Para casos de insomnio crónico o uso simultáneo con medicación recetada, el rango 3-7 días NO aplica — esos casos requieren protocolo distinto con acompañamiento.
 
-Si tu caso es de insomnio crónico o estás tomando medicamentos para dormir, el proceso es distinto y requiere acompañamiento — para eso necesito que me cuentes un poco más de tu situación antes de seguir.
+## Posición del negocio
+El producto se vende como acompañamiento al ritmo natural del sueño, no como sedante de acción inmediata. NO prometemos resultados desde la primera noche ni efectividad 100% garantizada. La consistencia da los mejores resultados — eso lo comunicamos sin presionar. Si el cliente describe insomnio crónico o medicación activa, derivamos al KB correspondiente (insomnio_largo_plazo / interaccion_medicamentos).
 
-## Si el cliente insiste
-Si presiona pidiendo "garantía de funcionar la primera noche", le explicas con calma que cada cuerpo responde distinto y que la consistencia da los mejores resultados. No prometas resultados específicos.
+## Debe contener la respuesta
+- [SIEMPRE] Indicar el rango típico: mejoras notorias dentro de los primeros 3-7 días de uso constante
+- [SIEMPRE] Aclarar que cada cuerpo responde distinto y la consistencia es clave
+- [SIEMPRE] NO prometer resultados desde la primera noche ni 100% efectividad
+- [SI APLICA] Si presiona pidiendo "garantía de funcionar la primera noche" → explicar con calma que cada cuerpo responde distinto
+- [SI APLICA] Si describe insomnio crónico o medicación recetada → mencionar que el caso requiere acompañamiento (derivar a profesional, no prometer rango 3-7 días)
+- [SI APLICA] Si pregunta cuándo lo va a sentir → reiterar rango 3-7 días con consistencia + dosis estándar
 
 ## NUNCA decir
 - prometer que "vas a dormir desde la primera noche"
@@ -21,4 +28,10 @@ Si presiona pidiendo "garantía de funcionar la primera noche", le explicas con 
 - decir que "funciona igual a un medicamento recetado"
 - garantizar resolución de cualquier tipo de insomnio
 - aplicar el rango 3-7 días a casos de insomnio crónico (esos requieren protocolo distinto)
-- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota" — atiendes tú misma
+- usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota"
+
+## Cuándo escalar a humano
+- cliente reporta NO haber visto mejora tras 2+ semanas de uso constante
+- cliente describe insomnio crónico con componente mental severo (cruzar con insomnio_largo_plazo)
+- cliente con medicación recetada activa pregunta por compatibilidad de efectividad
+- cliente reporta efecto adverso tras tomar el producto

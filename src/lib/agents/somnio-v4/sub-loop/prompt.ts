@@ -1,4 +1,5 @@
 import { TONE_BASE } from './tone-base'
+import { FEW_SHOTS } from './few-shots'
 import type { ToolingOutput } from './tooling-call'
 import type { SubLoopReason } from './output-schema'
 
@@ -14,8 +15,9 @@ import type { SubLoopReason } from './output-schema'
  *
  *   - buildGenerationPrompt(material, toneBase, fewShots) → system prompt para CALL 2
  *     (Gemini Flash con Output.object SIN tools). Compone tono + reglas anti-invención
- *     duras + calibración M1 (PROBABILIDAD framing) + M3 backstop (binary enum) + few-shots
- *     (placeholder Plan 04) + material del topic ganador.
+ *     duras + calibración M1 (PROBABILIDAD framing) + M2 (5 buckets discretos) + M3
+ *     backstop (binary enum) + M4 few-shots (FEW_SHOTS by default — Plan 04 wired) +
+ *     material del topic ganador.
  *
  * Anti-patterns aplicados:
  * - D-09: scope acotado por reason — el prompt no le da autonomía amplia.
@@ -26,9 +28,16 @@ import type { SubLoopReason } from './output-schema'
  */
 
 /**
- * Few-shot calibration example shape (Plan 04 inyecta los reales).
- * Plan 03 acepta array vacío como default — el placeholder en buildGenerationPrompt
- * deja el slot reservado para que Plan 04 inserte los 8-10 examples calibrados.
+ * Few-shot calibration example shape (Plan 04 — wired).
+ *
+ * Plan 03 acepta `fewShots: FewShot[] = []` como default; Plan 04 lo cambia a
+ * `fewShots: FewShot[] = FEW_SHOTS` (importado de './few-shots') — los 10 examples
+ * calibrados del corpus REAL ya se inyectan by default.
+ *
+ * Aplicación M1+M2+M3+M4 (RESEARCH A1):
+ * - M2 (discretización): cada few-shot usa confidence ∈ {0.20, 0.40, 0.60, 0.80, 0.95}.
+ * - M3 (binary backstop): binary ∈ {RESPONDE_BIEN, FALTA_INFO, FUERA_SCOPE}.
+ * - M4 (cobertura): 10 few-shots — 2 por cada uno de los 5 buckets de confidence.
  */
 export type FewShot = {
   pregunta: string
@@ -154,12 +163,12 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
  *
  * @param material - de tooling-call.ToolingOutput.material_del_topic (non-null por contrato — orchestrator only calls cuando topic_seleccionado !== null).
  * @param toneBase - default TONE_BASE (D-05). Override per-topic via parser.tone_override en futuro.
- * @param fewShots - default [] (Plan 04 inyecta calibration examples).
+ * @param fewShots - default FEW_SHOTS (10 calibration examples del corpus real — Plan 04 wired).
  */
 export function buildGenerationPrompt(
   material: NonNullable<ToolingOutput['material_del_topic']>,
   toneBase: string = TONE_BASE,
-  fewShots: FewShot[] = [],
+  fewShots: FewShot[] = FEW_SHOTS,
 ): string {
   const debeContener = (material.debe_contener_aplicables ?? [])
     .map((item) => `- ${item}`)
@@ -174,14 +183,15 @@ export function buildGenerationPrompt(
     .join('\n') || '(sin triggers explícitos)'
 
   const fewShotsBlock = fewShots.length === 0
-    ? `[FEW_SHOTS PLACEHOLDER — Plan 04 inyectará 8-10 examples calibrados acá]`
-    : fewShots.map((fs, i) =>
+    ? `(sin few-shots — el modelo confía en las reglas duras + M2 buckets discretos arriba)`
+    : `EJEMPLOS DE CALIBRACIÓN (few-shots — M4 cobertura del rango completo 0.20-0.95):\n\n` +
+      fewShots.map((fs, i) =>
         `### Few-shot ${i + 1}:\n` +
         `Pregunta del cliente: ${fs.pregunta}\n` +
-        `Material disponible: ${fs.material}\n` +
-        `Respuesta esperada: ${fs.respuesta}\n` +
-        `Confidence: ${fs.confidence} — ${fs.rationale}\n` +
-        `Binary: ${fs.binary}`,
+        `Material disponible:\n${fs.material}\n` +
+        `Respuesta esperada: ${fs.respuesta || '(handoff silente — responseText vacío)'}\n` +
+        `responseConfidence: ${fs.confidence} — ${fs.rationale}\n` +
+        `binary: ${fs.binary}`,
       ).join('\n\n')
 
   return (

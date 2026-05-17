@@ -2,7 +2,13 @@ import matter from 'gray-matter'
 import { z } from 'zod'
 
 /**
- * D-45: Frontmatter schema (7 fields, 5 required + 2 optional).
+ * Frontmatter schema (D-45 + D-05 RAG-generative).
+ *
+ * 5 campos required (topic, keywords, category, last_reviewed, reviewed_by)
+ * + 3 opcionales (escalate_if, related_topics, tone_override).
+ *
+ * `tone_override` (D-05): si está presente, override del Tono Somnio global.
+ * Null/ausente → usar TONE_BASE del system prompt.
  */
 export const FrontmatterSchema = z.object({
   topic: z.string().min(1),
@@ -12,23 +18,39 @@ export const FrontmatterSchema = z.object({
   reviewed_by: z.string().min(1),
   escalate_if: z.array(z.string()).optional(),
   related_topics: z.array(z.string()).optional(),
+  tone_override: z.string().nullable().optional(),
 })
 
 export type Frontmatter = z.infer<typeof FrontmatterSchema>
 
+/**
+ * Parsed KB doc shape post somnio-v4-rag-generative Plan 01 (D-01 6 elementos:
+ * frontmatter + 5 markdown sections).
+ *
+ * Headers reconocidos en body (D-01 #2..#6):
+ * - `## Hechos del producto`      → hechosDelProducto: string
+ * - `## Posición del negocio`     → posicionDelNegocio: string
+ * - `## Debe contener la respuesta` → debeContener: string[] (items con prefijo [SIEMPRE]/[SI APLICA])
+ * - `## NUNCA decir`              → nuncaDecir: string[]
+ * - `## Cuándo escalar a humano`  → cuandoEscalar: string[]
+ *
+ * Headers DEPRECATED (somnio-v4-rag-generative kills canonical-verbatim):
+ * `Respuesta canónica`, `Si el cliente insiste`, `Sources` — ignorados silenciosamente.
+ */
 export interface ParsedKbDoc {
   frontmatter: Frontmatter
   body: string
   sections: {
-    canonica?: string
-    alternativa?: string
+    hechosDelProducto: string
+    posicionDelNegocio: string
+    debeContener: string[]
     nuncaDecir: string[]
-    sources?: string
+    cuandoEscalar: string[]
   }
 }
 
 /**
- * Parsea un .md de knowledge base (D-45 frontmatter + D-49 body sections).
+ * Parsea un .md de knowledge base (D-45 frontmatter + D-01 body sections).
  * Lanza si frontmatter inválido (Zod schema fail).
  */
 export function parseKbDoc(raw: string, filePath: string): ParsedKbDoc {
@@ -65,29 +87,52 @@ function normalizeFrontmatterDates(data: Record<string, unknown>): Record<string
 }
 
 /**
- * Extrae secciones por header `## ` (D-49).
- * Headers reconocidos: 'Respuesta canónica', 'Si el cliente insiste', 'NUNCA decir', 'Sources'.
- * Cualquier header desconocido se ignora silenciosamente (extensibilidad D-46).
- * 'NUNCA decir' se parsea como lista bullet `- item` → string[].
+ * Extrae secciones por header `## ` (D-01 RAG-generative).
+ *
+ * Headers reconocidos (case-insensitive, acentos opcionales para defensive):
+ * - 'Hechos del producto'                  → hechosDelProducto (string continuo)
+ * - 'Posición del negocio' / 'Posicion'    → posicionDelNegocio (string continuo)
+ * - 'Debe contener la respuesta' / 'Debe contener' → debeContener (bullets `- item`)
+ * - 'NUNCA decir'                          → nuncaDecir (bullets `- item`)
+ * - 'Cuándo escalar a humano' / 'Cuando escalar' → cuandoEscalar (bullets `- item`)
+ *
+ * Headers DEPRECATED (`Respuesta canónica`, `Si el cliente insiste`, `Sources`)
+ * e headers desconocidos: ignorados silenciosamente.
  */
 function parseSections(body: string): ParsedKbDoc['sections'] {
   const lines = body.split('\n')
-  const sections: ParsedKbDoc['sections'] = { nuncaDecir: [] }
-  let current: string | null = null
+  const sections: ParsedKbDoc['sections'] = {
+    hechosDelProducto: '',
+    posicionDelNegocio: '',
+    debeContener: [],
+    nuncaDecir: [],
+    cuandoEscalar: [],
+  }
+  let current: 'hechos' | 'posicion' | 'debeContener' | 'nuncaDecir' | 'cuandoEscalar' | null = null
   let buffer: string[] = []
 
+  const parseBullets = (lines: string[]): string[] =>
+    lines
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith('- '))
+      .map((l) => l.slice(2).trim())
+      .filter(Boolean)
+
   const flush = () => {
-    if (!current) return
-    const text = buffer.join('\n').trim()
-    if (current === 'canonica') sections.canonica = text || undefined
-    else if (current === 'alternativa') sections.alternativa = text || undefined
-    else if (current === 'sources') sections.sources = text || undefined
-    else if (current === 'nuncaDecir') {
-      sections.nuncaDecir = buffer
-        .map((l) => l.trim())
-        .filter((l) => l.startsWith('- '))
-        .map((l) => l.slice(2).trim())
-        .filter(Boolean)
+    if (!current) {
+      buffer = []
+      return
+    }
+    if (current === 'hechos') {
+      sections.hechosDelProducto = buffer.join('\n').trim()
+    } else if (current === 'posicion') {
+      sections.posicionDelNegocio = buffer.join('\n').trim()
+    } else if (current === 'debeContener') {
+      sections.debeContener = parseBullets(buffer)
+    } else if (current === 'nuncaDecir') {
+      sections.nuncaDecir = parseBullets(buffer)
+    } else if (current === 'cuandoEscalar') {
+      sections.cuandoEscalar = parseBullets(buffer)
     }
     buffer = []
   }
@@ -96,11 +141,24 @@ function parseSections(body: string): ParsedKbDoc['sections'] {
     if (line.startsWith('## ')) {
       flush()
       const header = line.slice(3).trim().toLowerCase()
-      if (header.includes('respuesta canónica') || header.includes('respuesta canonica')) current = 'canonica'
-      else if (header.includes('si el cliente insiste')) current = 'alternativa'
-      else if (header.includes('nunca decir')) current = 'nuncaDecir'
-      else if (header.includes('sources') || header.includes('notas')) current = 'sources'
-      else current = null
+      // D-01 #2..#6 — 5 headers nuevos (con defensive sin tilde).
+      if (header.includes('hechos del producto')) {
+        current = 'hechos'
+      } else if (header.includes('posición del negocio') || header.includes('posicion del negocio')) {
+        current = 'posicion'
+      } else if (header.includes('debe contener')) {
+        // Acepta 'Debe contener la respuesta' y 'Debe contener'.
+        current = 'debeContener'
+      } else if (header.includes('nunca decir')) {
+        current = 'nuncaDecir'
+      } else if (header.includes('cuándo escalar') || header.includes('cuando escalar')) {
+        // Acepta 'Cuándo escalar a humano' y 'Cuándo escalar'.
+        current = 'cuandoEscalar'
+      } else {
+        // Headers deprecated (`Respuesta canónica`, `Si el cliente insiste`, `Sources`)
+        // o desconocidos: ignorar silenciosamente.
+        current = null
+      }
     } else if (current) {
       buffer.push(line)
     }

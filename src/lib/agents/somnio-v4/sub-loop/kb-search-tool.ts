@@ -10,6 +10,12 @@ export interface KbSearchContext {
 
 export interface KbHit {
   topic: string
+  /**
+   * DEPRECATED para somnio-v4 (post-Plan 02 RAG-generative). El sub-loop nuevo
+   * NO usa canonicalResponse — la respuesta la redacta Gemini Flash usando el
+   * material parseado (hechosDelProducto/posicionDelNegocio/debeContener). El
+   * field sigue en el DB schema (backwards compat) pero el sub-loop lo ignora.
+   */
   canonicalResponse: string | null
   /**
    * W-09: viene directo del DB column `nunca_decir TEXT[]` vía RPC `match_knowledge_base`.
@@ -20,6 +26,12 @@ export interface KbHit {
   relatedTopics: string[]
   category: string
   similarity: number
+  // NUEVAS columnas RAG-generative (Plan 01 RPC RETURNS update + Plan 02 KB rewrite):
+  hechosDelProducto: string | null
+  posicionDelNegocio: string | null
+  debeContener: string[]
+  cuandoEscalar: string[]
+  toneOverride: string | null
 }
 
 /**
@@ -93,6 +105,8 @@ export function kbSearchTool(ctx: KbSearchContext) {
       }
 
       // Map RPC rows → KbHit[]. nunca_decir viene del DB column directamente (W-09).
+      // Plan 03 (RAG-generative): 5 columnas nuevas (hechos_del_producto, posicion_del_negocio,
+      // debe_contener, cuando_escalar, tone_override) — el RPC RETURNS las expone post-Plan 01.
       const hits = (data ?? []).map((row: any) => ({
         topic: row.topic,
         canonicalResponse: row.canonical_response,
@@ -100,6 +114,12 @@ export function kbSearchTool(ctx: KbSearchContext) {
         relatedTopics: row.related_topics ?? [],
         category: row.category,
         similarity: 1 - Number(row.distance),
+        // NUEVAS (Plan 01 + Plan 02 schema + reescritura KB markdown):
+        hechosDelProducto: row.hechos_del_producto ?? null,
+        posicionDelNegocio: row.posicion_del_negocio ?? null,
+        debeContener: (row.debe_contener as string[] | null) ?? [],
+        cuandoEscalar: (row.cuando_escalar as string[] | null) ?? [],
+        toneOverride: row.tone_override ?? null,
       }))
 
       // Iter 7e: structured log for Vercel logs grep. Capturamos query + cuántos hits

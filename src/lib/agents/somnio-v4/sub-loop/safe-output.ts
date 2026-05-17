@@ -9,13 +9,17 @@
  * Uso:
  *   const result = await generateText({ output: Output.object({ schema }), ... })
  *   const parsed = safeAccessOutput(result, schema)  // siempre devuelve T válido o throwea con diagnostic
+ *
+ * `result` se tipa como `unknown` para evitar TS variance issues con
+ * `GenerateTextResult<ToolSet, Output<...>>` (cada call inferencia un shape distinto
+ * por sus tools/output generics, no asignable al default ToolSet del type).
+ * El wrapper accede defensivamente por property name — no requiere type narrowing.
  */
 import { NoObjectGeneratedError } from 'ai'
-import type { generateText } from 'ai'
 import { z } from 'zod'
 
 export function safeAccessOutput<T>(
-  result: Awaited<ReturnType<typeof generateText>>,
+  result: unknown,
   schema: z.ZodSchema<T>,
 ): T {
   try {

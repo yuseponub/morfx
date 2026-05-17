@@ -20,8 +20,13 @@ export interface SyncResult {
  * Frontmatter changes solamente → re-upsert metadata, embedding cacheado.
  *
  * W-09 / D-51: persiste `parsed.sections.nuncaDecir` en la columna `nunca_decir TEXT[]`
- * (creada por Plan 01). Plan 05 kb-search-tool lee esta columna desde el RPC y la
+ * (creada por Plan 01 v4). Plan 05 kb-search-tool lee esta columna desde el RPC y la
  * pasa al post-gen check del sub-loop.
+ *
+ * Standalone somnio-v4-rag-generative Plan 01 (D-24):
+ *   - canonical_response = null (deprecated para somnio-v4; otros agentes pueden usarlo).
+ *   - Persiste 5 columnas nuevas: hechos_del_producto, posicion_del_negocio,
+ *     debe_contener, cuando_escalar, tone_override (D-01 #2..#6 + D-05).
  */
 export async function syncKbDoc(filePath: string, raw: string): Promise<SyncResult> {
   const parsed = parseKbDoc(raw, filePath)
@@ -55,8 +60,18 @@ export async function syncKbDoc(filePath: string, raw: string): Promise<SyncResu
     keywords: parsed.frontmatter.keywords,
     category: parsed.frontmatter.category,
     embedding,
-    canonical_response: parsed.sections.canonica ?? null,
+    // D-24: canonical-verbatim eliminado para somnio-v4. La columna queda en la tabla
+    // por backwards-compat con otros agentes, pero somnio-v4 deja de poblarla.
+    canonical_response: null,
     nunca_decir: parsed.sections.nuncaDecir, // W-09: alimenta post-gen check (Plan 05)
+    // D-01 #2..#6 (RAG-generative): material fuente que el modelo de generación
+    // (Plan 03) consume para redactar respuestas adaptadas.
+    hechos_del_producto: parsed.sections.hechosDelProducto,
+    posicion_del_negocio: parsed.sections.posicionDelNegocio,
+    debe_contener: parsed.sections.debeContener,
+    cuando_escalar: parsed.sections.cuandoEscalar,
+    // D-05: override opcional del Tono Somnio global (per-topic).
+    tone_override: parsed.frontmatter.tone_override ?? null,
     escalate_triggers: parsed.frontmatter.escalate_if ?? [],
     related_topics: parsed.frontmatter.related_topics ?? [],
     source_md_path: filePath,

@@ -1,16 +1,15 @@
 // ============================================================================
-// E2E test: LoopOutcomeSchema flat contra GPT-4o mini REAL.
+// E2E test: LoopOutcomeSchema flat contra GPT-4o mini REAL (Plan 03 refactor).
 //
-// Standalone: somnio-sales-v4-runtime-wiring / Plan 02 / Task 3.
+// Standalone: somnio-v4-rag-generative / Plan 03.
 //
-// RESEARCH H-1: el schema previo (z.discriminatedUnion + z.literal + z.record)
-// NUNCA corrió contra API real — los unit tests del v4 sub-loop eran mocks. Tras
-// D-29 RE-SHAPE (Task 1), este test prueba que el schema flat ES aceptado por
-// GPT-4o mini (modelo target del sub-loop por D-30 — única option viable para
-// tools+Output.object combinados; Gemini API no soporta esa combinación).
+// Plan 03 RAG-generative refactor del schema:
+// - status 'canonical' ELIMINADO → 'generated' nuevo.
+// - canonicalText ELIMINADO → responseText.
+// - responseConfidence + confidenceRationale agregados.
 //
-// H-2: GPT-4o mini es el provider target del sub-loop. H-3: schema flat-nullable
-// debe ser portable a OpenAI strict mode (no .optional(), no boolean literals).
+// El schema FLAT sigue compatible con todos los providers (OpenAI strict + Gemini +
+// Anthropic) — los E2E tests validan eso contra GPT-4o mini real.
 //
 // Skipea cuando OPENAI_API_KEY_SALESV4 no está seteada (CI sin secret leak).
 // Para correr local:
@@ -27,7 +26,7 @@ import { LoopOutcomeSchema, validateLoopOutcomeInvariants } from '../output-sche
 // E2E block — gated por OPENAI_API_KEY_SALESV4 (D-30 env var custom name).
 // ----------------------------------------------------------------------------
 describe.skipIf(!process.env.OPENAI_API_KEY_SALESV4)(
-  'sub-loop E2E (real GPT-4o mini — D-29 schema flat acceptance)',
+  'sub-loop E2E (real GPT-4o mini — Plan 03 schema acceptance)',
   () => {
     const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY_SALESV4 })
 
@@ -41,11 +40,11 @@ describe.skipIf(!process.env.OPENAI_API_KEY_SALESV4)(
       })
 
       // Schema validation passed if we got here without throw.
-      expect(output.status).toMatch(/^(template|canonical|no_match)$/)
+      expect(output.status).toMatch(/^(generated|template|no_match)$/)
       expect(typeof output.requiresHuman).toBe('boolean')
       expect(typeof output.reason).toBe('string')
 
-      // Invariants pass post-hoc (D-29).
+      // Invariants pass post-hoc.
       const invariantCheck = validateLoopOutcomeInvariants(output)
       expect(invariantCheck.ok).toBe(true)
     }, 60000) // 60s timeout — first call cold
@@ -54,21 +53,21 @@ describe.skipIf(!process.env.OPENAI_API_KEY_SALESV4)(
       const { output } = await generateText({
         model: openai('gpt-4o-mini'),
         system:
-          'Eres un agente comercial de un suplemento natural para dormir. Si el cliente pregunta algo filosófico u off-topic, devuelve status="no_match" con responseTemplate="handoff_humano", requiresHuman=true, knowledgeQueried=["sentido_vida"], canonicalText=null, sourceTopic=null, nuncaDecirRules=null. De lo contrario, devuelve template/canonical apropiado. SIEMPRE incluye reason.',
+          'Eres un agente comercial de un suplemento natural para dormir. Si el cliente pregunta algo filosófico u off-topic, devuelve status="no_match" con responseTemplate="handoff_humano", requiresHuman=true, knowledgeQueried=["sentido_vida"], responseText=null, sourceTopic=null, responseConfidence=null, confidenceRationale=null, nuncaDecirRules=null. De lo contrario, devuelve template/generated apropiado. SIEMPRE incluye reason.',
         messages: [
           { role: 'user', content: 'cual es el sentido de la vida?' },
         ],
         output: Output.object({ schema: LoopOutcomeSchema }),
       })
 
-      expect(output.status).toMatch(/^(template|canonical|no_match)$/)
+      expect(output.status).toMatch(/^(generated|template|no_match)$/)
       expect(typeof output.requiresHuman).toBe('boolean')
       // Schema acepta cualquier outcome válido — el invariant check valida la
       // coherencia interna del output.
       const invariantCheck = validateLoopOutcomeInvariants(output)
       expect(invariantCheck.ok).toBe(true)
     }, 60000)
-  }
+  },
 )
 
 // ----------------------------------------------------------------------------
@@ -79,8 +78,10 @@ describe('LoopOutcomeSchema syntactic validation (no API)', () => {
     const valid = {
       status: 'template' as const,
       responseTemplate: 'saludo',
-      canonicalText: null,
+      responseText: null,
       sourceTopic: null,
+      responseConfidence: null,
+      confidenceRationale: null,
       nuncaDecirRules: null,
       knowledgeQueried: null,
       requiresHuman: false,
@@ -94,13 +95,52 @@ describe('LoopOutcomeSchema syntactic validation (no API)', () => {
     const invalid = {
       status: 'unknown_status',
       responseTemplate: null,
-      canonicalText: null,
+      responseText: null,
       sourceTopic: null,
+      responseConfidence: null,
+      confidenceRationale: null,
       nuncaDecirRules: null,
       knowledgeQueried: null,
       requiresHuman: false,
       reason: 'invalid',
     }
     expect(LoopOutcomeSchema.safeParse(invalid).success).toBe(false)
+  })
+
+  it('rejects legacy "canonical" status (Plan 03 schema eliminated this value — D-24)', () => {
+    const invalid = {
+      status: 'canonical',
+      responseText: 'text',
+      sourceTopic: 'topic',
+      responseConfidence: 0.9,
+      confidenceRationale: 'r',
+      nuncaDecirRules: null,
+      responseTemplate: null,
+      knowledgeQueried: null,
+      requiresHuman: false,
+      reason: 'r',
+    }
+    expect(LoopOutcomeSchema.safeParse(invalid).success).toBe(false)
+  })
+
+  it('accepts generated status with all required RAG fields', () => {
+    const valid = {
+      status: 'generated' as const,
+      responseText: 'Texto redactado por Gemini Flash.',
+      sourceTopic: 'producto_ingredientes',
+      responseConfidence: 0.80,
+      confidenceRationale: 'Material cubre la pregunta.',
+      nuncaDecirRules: ['no inventar dosis'],
+      responseTemplate: null,
+      knowledgeQueried: ['producto_ingredientes'],
+      requiresHuman: false,
+      reason: 'rag_generated',
+    }
+    const result = LoopOutcomeSchema.safeParse(valid)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      const inv = validateLoopOutcomeInvariants(result.data)
+      expect(inv.ok).toBe(true)
+    }
   })
 })

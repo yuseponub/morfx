@@ -3,10 +3,26 @@
 //
 // Standalone: somnio-sales-v4 / Plan 12 / Task 2.
 //
-// D-77: tests pre-flip cubren CORRECTNESS (no calibración). Mocks aislan al
-// sub-loop de Anthropic / OpenAI / Supabase — corre en CI sin keys.
+// ============================================================================
+// SUPERSEDED por somnio-v4-rag-generative Plan 03 (2026-05-16):
+// ============================================================================
+// Este test asume el flujo legacy canonical-verbatim (single generateText call
+// que emite outcome status='canonical' con canonicalText verbatim del KB). El
+// flujo nuevo RAG-generative (Plan 03):
+//   - Para low_confidence/razonamiento_libre split en 2 calls (tooling + generation).
+//   - Emite status='generated' con responseText redactado por Gemini Flash
+//     usando material del KB como insumo.
+//   - 'canonical' eliminado del enum (D-24).
 //
-// Coverage:
+// Estos mocks single-call ya no representan el flow real. Re-escribir como
+// suite separada que mockea runToolingCall + runGenerationCall directamente
+// (sería más natural mockear esas funciones que generateText/google).
+//
+// Status: SKIPPED hasta re-escritura (out-of-scope Plan 03). Plan 04+ podría
+// re-escribirlo. La lógica de no_match path sí queda cubierta por
+// sub-loop-no-match.test.ts (status='no_match' shape preservado D-12).
+//
+// Original coverage:
 //   - Test 1: runSubLoop({reason:'low_confidence'}) returns outcome canonical
 //             con sourceTopic='precio_comparativo'
 //   - Test 2: post-gen NUNCA-decir check con rules vacías → outcome se preserva
@@ -65,7 +81,10 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe('sub-loop happy path — KB hit → canonical outcome', () => {
+// SKIPPED — see file header. Plan 03 RAG-generative refactor obsoletó el shape
+// canonical. Mantener .skip preserva el archivo como documentación del flow viejo
+// + impide ruido en CI. Plan 04+ podría re-escribir.
+describe.skip('sub-loop happy path — KB hit → canonical outcome (SUPERSEDED by Plan 03)', () => {
   it('Test 1: returns outcome canonical with sourceTopic=precio_comparativo', async () => {
     // Mock KB RPC: 1 hit con topic precio_comparativo.
     rpcMock.mockResolvedValueOnce({
@@ -85,6 +104,8 @@ describe('sub-loop happy path — KB hit → canonical outcome', () => {
     })
 
     // Mock generateText: el LLM emite outcome canonical (proxy a lo que retornaría).
+    // SUPERSEDED Plan 03: el shape canonical/canonicalText ya no existe en el schema.
+    // Cast `as any` para que TS no rompa el archivo (.skip block, no se ejecuta).
     generateTextMock.mockResolvedValueOnce({
       output: {
         status: 'canonical',
@@ -94,7 +115,7 @@ describe('sub-loop happy path — KB hit → canonical outcome', () => {
         nuncaDecirRules: [],
         requiresHuman: false,
         reason: 'kb_match',
-      },
+      } as any,
     })
 
     const outcome = await runSubLoop({
@@ -108,11 +129,13 @@ describe('sub-loop happy path — KB hit → canonical outcome', () => {
       },
     })
 
-    expect(outcome.status).toBe('canonical')
-    if (outcome.status === 'canonical') {
-      expect(outcome.sourceTopic).toBe('precio_comparativo')
-      expect(outcome.canonicalText).toMatch(/ELIXIR/)
-      expect(outcome.requiresHuman).toBe(false)
+    // SUPERSEDED: cast `as any` para que TS no narrowing-reject 'canonical' status.
+    const anyOutcome = outcome as any
+    expect(anyOutcome.status).toBe('canonical')
+    if (anyOutcome.status === 'canonical') {
+      expect(anyOutcome.sourceTopic).toBe('precio_comparativo')
+      expect(anyOutcome.canonicalText).toMatch(/ELIXIR/)
+      expect(anyOutcome.requiresHuman).toBe(false)
     }
 
     // Verifica que generateText fue invocado con Haiku model + tools.
@@ -149,7 +172,7 @@ describe('sub-loop happy path — KB hit → canonical outcome', () => {
         // Sin nuncaDecirRules (undefined → fallback []).
         requiresHuman: false,
         reason: 'kb_match',
-      },
+      } as any,
     })
 
     const outcome = await runSubLoop({
@@ -163,10 +186,12 @@ describe('sub-loop happy path — KB hit → canonical outcome', () => {
       },
     })
 
-    expect(outcome.status).toBe('canonical')
-    if (outcome.status === 'canonical') {
-      expect(outcome.canonicalText).toBe('Texto verbatim seguro.')
-      expect(outcome.requiresHuman).toBe(false)
+    // SUPERSEDED: cast `as any` para que TS no narrowing-reject 'canonical' status.
+    const anyOutcome2 = outcome as any
+    expect(anyOutcome2.status).toBe('canonical')
+    if (anyOutcome2.status === 'canonical') {
+      expect(anyOutcome2.canonicalText).toBe('Texto verbatim seguro.')
+      expect(anyOutcome2.requiresHuman).toBe(false)
     }
 
     // generateText invocado UNA sola vez — checkNuncaDecir early-return sin

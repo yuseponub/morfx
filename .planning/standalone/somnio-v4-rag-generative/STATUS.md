@@ -1,9 +1,11 @@
 # Somnio v4 RAG Generative — STATUS (LIVE)
 
-**Last updated:** 2026-05-16 (Plan 02 + Plan 03 SHIPPED — Wave 2 atomic complete)
-**HEAD git:** pendiente push final atómico Plan 02 + Plan 03 (Task 3.13)
+**Last updated:** 2026-05-17 (Plan 04 SHIPPED — Wave 3 complete)
+**HEAD git:** pendiente push Plan 04 (3 commits Plan 04 + 1 docs)
 **v4 status en prod:** DORMANT (sin routing rule — `active_v4_rules = 0`)
 **v3 status en prod:** ACTIVO (atendiendo clientes — Regla 6 intocado)
+
+> **⚠ BLOQUEANTE para Plan 05:** `pnpm knowledge:sync` pendiente (Plan 02 Task 2.4 deferred por auth-gate Vercel). Sin sync, Plan 05 Smoke A correrá contra rows con `hechos_del_producto IS NULL` → falsos-negativos. Ver 03-SUMMARY.md "Open debt" + 04-SUMMARY.md "Open debt — STILL BLOCKING".
 
 ---
 
@@ -16,8 +18,8 @@
 - [x] **Execute-phase plan 01** — **DONE 2026-05-16** (6 commits, migración aplicada en prod, 32/32 tests verdes)
 - [x] **Execute-phase plan 02** — **DONE 2026-05-16** (3 commits, 18 KBs reescritos, DB sync DEFERIDO — ver 03-SUMMARY "Open debt")
 - [x] **Execute-phase plan 03** — **DONE 2026-05-16** (9 commits + 1 docs, sub-loop RAG-generative split, push atómico con 02)
-- [ ] **Execute-phase plan 04** — NEXT (few-shots calibración)
-- [ ] **Execute-phase plan 05 (Smoke A)** — pendiente (requiere DB sync resuelto — Open debt)
+- [x] **Execute-phase plan 04** — **DONE 2026-05-17** (3 commits + 1 docs, FEW_SHOTS calibration wired, 19/19 tests verdes)
+- [ ] **Execute-phase plan 05 (Smoke A)** — NEXT (⚠ requiere `pnpm knowledge:sync` BLOQUEANTE — Plan 02 Open debt)
 - [ ] **Execute-phase plan 06 (Smoke B)** — pendiente
 - [ ] **Execute-phase plan 07** — HOLD (iter sobre smoke results)
 - [ ] **Execute-phase plan 08 (flip productivo)** — pendiente
@@ -32,9 +34,9 @@
 |---|---|---|---|
 | 01 | KB schema update (parser, sync, RPC, migración DB) | **DONE 2026-05-16** | `728ac6a` |
 | 02 | Reescribir 18 KBs en formato nuevo | **DONE 2026-05-16** | `a8313b1` (atomic con Plan 03) |
-| 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | **DONE 2026-05-16** | pending push (HEAD local post-Task 3.10) |
-| 04 | Few-shots calibración Gemini Flash | pending | — |
-| 05 | Smoke A — low_confidence 17 casos + LLM-as-judge | pending | — |
+| 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | **DONE 2026-05-16** | `a165c8f` (push 2026-05-17) |
+| 04 | Few-shots calibración Gemini Flash | **DONE 2026-05-17** | `15f8bbf` (last task commit) |
+| 05 | Smoke A — low_confidence 17 casos + LLM-as-judge | pending (⚠ requiere DB sync) | — |
 | 06 | Smoke B — regression 10 casos | pending | — |
 | 07 | Iter sobre smoke results (HOLD) | hold | — |
 | 08 | Flip productivo (SQL routing_rule) | pending | — |

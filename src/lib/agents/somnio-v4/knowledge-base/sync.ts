@@ -30,7 +30,7 @@ export interface SyncResult {
  */
 export async function syncKbDoc(filePath: string, raw: string): Promise<SyncResult> {
   const parsed = parseKbDoc(raw, filePath)
-  coherenceCheck(filePath, parsed.frontmatter.category)
+  coherenceCheck(filePath, parsed.frontmatter.category, parsed.sections)
 
   const bodyHash = createHash('sha256').update(parsed.body).digest('hex')
   const supabase = createAdminClient()

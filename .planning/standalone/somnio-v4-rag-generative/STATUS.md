@@ -1,7 +1,7 @@
 # Somnio v4 RAG Generative — STATUS (LIVE)
 
-**Last updated:** 2026-05-16 (Plan 01 SHIPPED post-Task 1.6)
-**HEAD git:** pendiente push (commit final Task 1.7)
+**Last updated:** 2026-05-16 (Plan 02 + Plan 03 SHIPPED — Wave 2 atomic complete)
+**HEAD git:** pendiente push final atómico Plan 02 + Plan 03 (Task 3.13)
 **v4 status en prod:** DORMANT (sin routing rule — `active_v4_rules = 0`)
 **v3 status en prod:** ACTIVO (atendiendo clientes — Regla 6 intocado)
 
@@ -14,10 +14,10 @@
 - [x] **Research-phase** (`RESEARCH.md` shipped)
 - [x] **Plan-phase** (planes 01..08 committeados)
 - [x] **Execute-phase plan 01** — **DONE 2026-05-16** (6 commits, migración aplicada en prod, 32/32 tests verdes)
-- [ ] **Execute-phase plan 02** — NEXT (atómico con 03)
-- [ ] **Execute-phase plan 03** — NEXT (atómico con 02)
-- [ ] **Execute-phase plan 04** — pendiente
-- [ ] **Execute-phase plan 05 (Smoke A)** — pendiente
+- [x] **Execute-phase plan 02** — **DONE 2026-05-16** (3 commits, 18 KBs reescritos, DB sync DEFERIDO — ver 03-SUMMARY "Open debt")
+- [x] **Execute-phase plan 03** — **DONE 2026-05-16** (9 commits + 1 docs, sub-loop RAG-generative split, push atómico con 02)
+- [ ] **Execute-phase plan 04** — NEXT (few-shots calibración)
+- [ ] **Execute-phase plan 05 (Smoke A)** — pendiente (requiere DB sync resuelto — Open debt)
 - [ ] **Execute-phase plan 06 (Smoke B)** — pendiente
 - [ ] **Execute-phase plan 07** — HOLD (iter sobre smoke results)
 - [ ] **Execute-phase plan 08 (flip productivo)** — pendiente
@@ -30,9 +30,9 @@
 
 | Plan | Título | Status | HEAD |
 |---|---|---|---|
-| 01 | KB schema update (parser, sync, RPC, migración DB) | **DONE 2026-05-16** | `b6c6e20` (tests) — final commit Task 1.7 pendiente push |
-| 02 | Reescribir 18 KBs en formato nuevo | pending | — |
-| 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | pending | — |
+| 01 | KB schema update (parser, sync, RPC, migración DB) | **DONE 2026-05-16** | `728ac6a` |
+| 02 | Reescribir 18 KBs en formato nuevo | **DONE 2026-05-16** | `a8313b1` (atomic con Plan 03) |
+| 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | **DONE 2026-05-16** | pending push (HEAD local post-Task 3.10) |
 | 04 | Few-shots calibración Gemini Flash | pending | — |
 | 05 | Smoke A — low_confidence 17 casos + LLM-as-judge | pending | — |
 | 06 | Smoke B — regression 10 casos | pending | — |
@@ -180,21 +180,29 @@ Jose FAIL:      ___ / 10 (bloqueante)
 
 ## Next action AHORA
 
-**Próximo paso:** Ejecutar Plans 02 + 03 atómico (Wave 2).
+**Próximo paso:** Ejecutar Plan 04 (Wave 3) — calibración few-shots Gemini Flash.
 
 ```
-/gsd-execute-phase somnio-v4-rag-generative --wave 2
+/gsd-execute-phase somnio-v4-rag-generative --wave 3
 ```
 
-Plans 02 (reescritura de 18 KBs en formato nuevo) y 03 (sub-loop split tooling/generación + borrar canonical) son **atómicos por D-23 + D-24**:
-- Plan 03 borra el canonical_response del sub-loop runtime.
-- Plan 02 puebla las 5 columnas nuevas con material fuente (Hechos / Posición / Debe contener / NUNCA / Cuándo escalar).
-- Push de Plan 03 SIN Plan 02 deja v4 sin nada para generar respuestas — los 18 KBs en prod tienen las 5 columnas nuevas como `null/[]` post-Plan 01.
+Plan 04 wirearáo los few-shots reales en `buildGenerationPrompt(material, toneBase, fewShots)` — el slot está reservado en el system prompt como placeholder (`[FEW_SHOTS PLACEHOLDER — Plan 04 inyectará 8-10 examples calibrados acá]`).
 
-**Verificaciones disponibles tras Plans 02+03:**
+### ⚠️ Pre-requisito CRÍTICO antes de Plan 05 (Smoke A): DB sync
+
+Plan 02 Task 2.4 (sync DB) quedó DEFERIDO por auth-gate. El usuario debe correr antes de Plan 05:
+
+```bash
+# .env.local debe tener: OPENAI_API_KEY_SALESV4 + GOOGLE_GENERATIVE_AI_API_KEY + SUPABASE_SERVICE_ROLE_KEY
+pnpm knowledge:sync
+```
+
+Ver `03-SUMMARY.md` sección "Open debt — DB sync deferred" para SQL verification queries.
+
+**Verificaciones post-push:**
 
 ```sql
--- 1. Las 5 columnas pobladas para somnio-v4:
+-- 1. Las 5 columnas pobladas para somnio-v4 (post-sync):
 SELECT topic, jsonb_pretty(jsonb_build_object(
   'hechos', hechos_del_producto IS NOT NULL,
   'posicion', posicion_del_negocio IS NOT NULL,

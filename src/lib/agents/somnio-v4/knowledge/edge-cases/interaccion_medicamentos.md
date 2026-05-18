@@ -29,13 +29,13 @@ Si el cliente toma cualquier medicamento recetado, la respuesta correcta es deri
 - [SI APLICA] Si el cliente con medicamento recetado insiste en comprar sin consulta médica → escalar a humano
 
 ## NUNCA decir
-- afirmar que "no hay interacciones con ningún medicamento"
-- decir "es natural, no afecta nada"
-- aprobar la combinación con cualquier medicamento recetado
-- improvisar lista de medicamentos "compatibles"
-- sugerir que el cliente "deje de tomar su medicamento" para usar el suplemento
-- dar opinión sobre dosis combinadas
-- mencionar valeriana ni cualquier otro ingrediente que no sea melatonina + citrato de magnesio
+- El producto no tiene interacciones con ningún medicamento.
+- Por ser natural, el producto no afecta nada al combinarse con medicamentos.
+- Combinar el producto con un medicamento recetado es seguro o aprobado por el bot.
+- Los siguientes medicamentos son compatibles con el producto: [lista improvisada].
+- El cliente debería dejar de tomar su medicamento recetado para usar el producto.
+- La dosis combinada recomendada con un medicamento recetado es [valor específico].
+- El producto contiene valeriana u otro ingrediente además de melatonina y citrato de magnesio.
 - usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota"
 
 ## Cuándo escalar a humano

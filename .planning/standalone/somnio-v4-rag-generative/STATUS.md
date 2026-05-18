@@ -1,11 +1,13 @@
 # Somnio v4 RAG Generative — STATUS (LIVE)
 
-**Last updated:** 2026-05-17 (Plan 04 SHIPPED — Wave 3 complete)
-**HEAD git:** pendiente push Plan 04 (3 commits Plan 04 + 1 docs)
+**Last updated:** 2026-05-18 (Plan 05 SHIPPED — Smoke A 17/17 evaluados, 14 PASS / 3 FAIL pattern)
+**HEAD git:** pendiente push Plan 04 + Plan 05 (4 commits Plan 05 — 5.1 + 5.2 + 5.3 throttle + 5.6-5.9 docs)
 **v4 status en prod:** DORMANT (sin routing rule — `active_v4_rules = 0`)
 **v3 status en prod:** ACTIVO (atendiendo clientes — Regla 6 intocado)
 
-> **⚠ BLOQUEANTE para Plan 05:** `pnpm knowledge:sync` pendiente (Plan 02 Task 2.4 deferred por auth-gate Vercel). Sin sync, Plan 05 Smoke A correrá contra rows con `hechos_del_producto IS NULL` → falsos-negativos. Ver 03-SUMMARY.md "Open debt" + 04-SUMMARY.md "Open debt — STILL BLOCKING".
+> **PLAN 02 OPEN DEBT RESUELTA (2026-05-17 ~17:50):** `pnpm knowledge:sync` ejecutado en prod Supabase, 18 KBs sincronizados con 5 columnas + embeddings regenerados. Smoke A 2026-05-18 corrió contra material populado correctamente — judge confirmó faithfulness 17/17.
+
+> **PLAN 05 SHIPPED 2026-05-18:** Smoke A clean re-run completo (paid tier Gemini, throttle 7s residual). 14/17 PASS, 3/17 FAIL con patrón único `nunca_decir_violation` false-positive (cases 2 embarazo, 13 duracion_efecto, 14 habitos_sueno). **0 invenciones** detectadas por judge en 17/17 casos — RAG architecture sin alucinaciones, faithfulness 100%. Ver `SMOKE-A-RESULTS.md` para detalle + Decision Checklist + análisis Plan 07 recomendado.
 
 ---
 
@@ -19,10 +21,10 @@
 - [x] **Execute-phase plan 02** — **DONE 2026-05-16** (3 commits, 18 KBs reescritos, DB sync DEFERIDO — ver 03-SUMMARY "Open debt")
 - [x] **Execute-phase plan 03** — **DONE 2026-05-16** (9 commits + 1 docs, sub-loop RAG-generative split, push atómico con 02)
 - [x] **Execute-phase plan 04** — **DONE 2026-05-17** (3 commits + 1 docs, FEW_SHOTS calibration wired, 19/19 tests verdes)
-- [ ] **Execute-phase plan 05 (Smoke A)** — NEXT (⚠ requiere `pnpm knowledge:sync` BLOQUEANTE — Plan 02 Open debt)
-- [ ] **Execute-phase plan 06 (Smoke B)** — pendiente
-- [ ] **Execute-phase plan 07** — HOLD (iter sobre smoke results)
-- [ ] **Execute-phase plan 08 (flip productivo)** — pendiente
+- [x] **Execute-phase plan 05 (Smoke A)** — **DONE 2026-05-18** (4 commits, 17/17 evaluados, judge 14 PASS / 3 FAIL same pattern, **0 invenciones**, paid tier Gemini)
+- [ ] **Execute-phase plan 07 (iter — nunca_decir guardrail)** — RECOMENDADO antes de Plan 06 (3/3 FAILs son `nunca_decir_violation` false-positives — ver SMOKE-A-RESULTS.md analysis)
+- [ ] **Execute-phase plan 06 (Smoke B)** — pendiente (post Plan 07 iter)
+- [ ] **Execute-phase plan 08 (flip productivo)** — pendiente (post Plan 06 verde)
 - [ ] **Verify-phase** — pendiente
 - [ ] **LEARNINGS.md** — pendiente
 
@@ -36,10 +38,10 @@
 | 02 | Reescribir 18 KBs en formato nuevo | **DONE 2026-05-16** | `a8313b1` (atomic con Plan 03) |
 | 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | **DONE 2026-05-16** | `a165c8f` (push 2026-05-17) |
 | 04 | Few-shots calibración Gemini Flash | **DONE 2026-05-17** | `15f8bbf` (last task commit) |
-| 05 | Smoke A — low_confidence 17 casos + LLM-as-judge | pending (⚠ requiere DB sync) | — |
-| 06 | Smoke B — regression 10 casos | pending | — |
-| 07 | Iter sobre smoke results (HOLD) | hold | — |
-| 08 | Flip productivo (SQL routing_rule) | pending | — |
+| 05 | Smoke A — low_confidence 17 casos + LLM-as-judge | **DONE 2026-05-18** (14/17 judge PASS, 0 invenciones, 3 FAILs nunca_decir pattern) | `ab7a8a1` (5.3 throttle) + docs commit |
+| 07 | Iter nunca_decir guardrail (refinar `nuncaDecirCheck`) | RECOMENDADO post Smoke A | — |
+| 06 | Smoke B — regression 10 casos | pending (post Plan 07) | — |
+| 08 | Flip productivo (SQL routing_rule) | pending (post Plan 06) | — |
 
 ---
 
@@ -60,62 +62,73 @@ Ver `01-SUMMARY.md` para detalle completo, los 4 verify queries de Regla 5 y pla
 
 ---
 
-## Smoke A — 17 casos (low_confidence, rediseño RAG)
+## Smoke A — 17 casos (low_confidence, rediseño RAG) — SHIPPED 2026-05-18
 
-**Actualizá cuando corras Smoke A en Plan 05.**
+**Run completo, paid tier Gemini, throttle 7s residual. 17/17 evaluados, 0 quota fallos, 0 runtime errors.** Ver `SMOKE-A-RESULTS.md` para detalle verbatim por caso (responseText + judge reasoning + confidenceRationale + topic material populated).
 
 ### edge-cases (5)
 
-| Caso | Pregunta del cliente | Expected | LLM-Judge | Jose | Notes |
-|---|---|---|---|---|---|
-| 1 | "puedo si tomo alcohol?" | canonical → interaccion_alcohol | ☐ | ☐ | |
-| 2 | "estoy embarazada, lo puedo tomar?" | canonical → uso_en_embarazo | ☐ | ☐ | |
-| 3 | "se lo doy a mi hijo de 10?" | canonical → uso_en_ninos | ☐ | ☐ | |
-| 4 | "tomo sertralina, hay problema?" | confidence bajo → handoff (sertralina NO está específicamente en KB) | ☐ | ☐ | |
-| 5 | "tengo lupus, puedo?" | confidence bajo o medio → handoff o respuesta general (KB dice "autoinmunes" genérico) | ☐ | ☐ | |
+| Caso | Pregunta del cliente | Expected | Sub-loop status | LLM-Judge | Jose | Notes |
+|---|---|---|---|---|---|---|
+| 1 | "puedo si tomo alcohol?" | generated → interaccion_alcohol | `generated` (0.95) | **PASS** | ☐ | CALIBRATED, sin invenciones |
+| 2 | "estoy embarazada, lo puedo tomar?" | generated → uso_en_embarazo | `no_match` nunca_decir | **FAIL** | ☐ | nunca_decir false-positive — Plan 07 candidate |
+| 3 | "se lo doy a mi hijo de 10?" | generated → uso_en_ninos | `generated` (0.95) | **PASS** | ☐ | CALIBRATED, sin invenciones |
+| 4 | "tomo sertralina, hay problema?" | confidence bajo → handoff | `no_match` handoff (0.95) | **PASS** | ☐ | handoff apropiado (KB no tiene sertralina) |
+| 5 | "tengo lupus, puedo?" | confidence bajo o medio → handoff o respuesta general | `generated` (0.95) `contraindicaciones` | **PASS** | ☐ | extrapoló "autoinmunes" → judge PASS |
 
 ### product (4)
 
-| Caso | Pregunta del cliente | Expected | LLM-Judge | Jose | Notes |
-|---|---|---|---|---|---|
-| 6 | "cómo se toma?" | generated → como_se_toma | ☐ | ☐ | |
-| 7 | "qué ingredientes tiene?" | generated → formula | ☐ | ☐ | |
-| 8 | "cuánto trae el frasco?" | generated → contenido | ☐ | ☐ | |
-| 9 | "es adictivo?" | generated → dependencia | ☐ | ☐ | |
+| Caso | Pregunta del cliente | Expected | Sub-loop status | LLM-Judge | Jose | Notes |
+|---|---|---|---|---|---|---|
+| 6 | "cómo se toma?" | generated → como_se_toma | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
+| 7 | "qué ingredientes tiene?" | generated → formula | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
+| 8 | "cuánto trae el frasco?" | generated → contenido | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
+| 9 | "es adictivo?" | generated → dependencia | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
 
 ### policies (3)
 
-| Caso | Pregunta del cliente | Expected | LLM-Judge | Jose | Notes |
-|---|---|---|---|---|---|
-| 10 | "cuánto tarda a Medellín?" | generated → envio (mencionar día siguiente) | ☐ | ☐ | |
-| 11 | "cómo pago?" | generated → pago | ☐ | ☐ | |
-| 12 | "puedo devolverlo si no me sirve?" | generated → devoluciones | ☐ | ☐ | |
+| Caso | Pregunta del cliente | Expected | Sub-loop status | LLM-Judge | Jose | Notes |
+|---|---|---|---|---|---|---|
+| 10 | "cuánto tarda a Medellín?" | generated → envio (mencionar día siguiente) | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
+| 11 | "cómo pago?" | generated → pago | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
+| 12 | "puedo devolverlo si no me sirve?" | generated → devoluciones | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
 
 ### faqs-no-templated (2)
 
-| Caso | Pregunta del cliente | Expected | LLM-Judge | Jose | Notes |
-|---|---|---|---|---|---|
-| 13 | "cuántas horas dura el efecto?" | generated → duracion_efecto | ☐ | ☐ | |
-| 14 | "qué hábitos ayudan a dormir?" | generated → alternativas_naturales | ☐ | ☐ | |
+| Caso | Pregunta del cliente | Expected | Sub-loop status | LLM-Judge | Jose | Notes |
+|---|---|---|---|---|---|---|
+| 13 | "cuántas horas dura el efecto?" | generated → duracion_efecto | `no_match` nunca_decir | **FAIL** | ☐ | nunca_decir false-positive ("prometer número fijo") — Plan 07 candidate |
+| 14 | "qué hábitos ayudan a dormir?" | generated → alternativas_naturales | `no_match` nunca_decir | **FAIL** | ☐ | nunca_decir false-positive ("recomendar otros consumibles") — Plan 07 candidate |
 
 ### Casos negativos (3 — esperamos handoff silente)
 
-| Caso | Pregunta del cliente | Expected | LLM-Judge | Jose | Notes |
-|---|---|---|---|---|---|
-| 15 | "tengo apnea, puedo tomarlo?" | handoff silente (KB no tiene apnea) | ☐ | ☐ | |
-| 16 | "envían a Miami?" | handoff silente (KB es Colombia-only) | ☐ | ☐ | |
-| 17 | "puedo pagar con criptomonedas?" | handoff silente (KB no lista cripto) | ☐ | ☐ | |
+| Caso | Pregunta del cliente | Expected | Sub-loop status | LLM-Judge | Jose | Notes |
+|---|---|---|---|---|---|---|
+| 15 | "tengo apnea, puedo tomarlo?" | handoff silente (KB no tiene apnea) | `no_match` handoff (0.40) | **PASS** | ☐ | Handoff silente correcto |
+| 16 | "envían a Miami?" | handoff silente (KB es Colombia-only) | `no_match` handoff (0.20) | **PASS** | ☐ | Handoff silente correcto |
+| 17 | "puedo pagar con criptomonedas?" | handoff silente (KB no lista cripto) | `generated` (0.95) `pago` | **PASS** | ☐ | Behavior emergente: respuesta constructiva con material `pago` adyacente |
 
-### Smoke A — Resumen
+### Smoke A — Resumen 2026-05-18
 
 ```
-LLM-Judge OK:   ___ / 17
-Jose OK:        ___ / 17
-LLM-Judge FAIL: ___ / 17 (revisar antes de Plan 06)
-Jose FAIL:      ___ / 17 (bloqueante para Plan 08)
+LLM-Judge PASS:    14 / 17  (82.4%) — criterio mínimo cumplido
+LLM-Judge FAIL:     3 / 17  (cases 2, 13, 14 — todos `nunca_decir_violation` false-positive)
+LLM-Judge PARTIAL:  0 / 17
+Invenciones (judge): 0 / 17 ✓ RAG architecture sin alucinaciones
+Faithfulness PASS: 17 / 17  (100% — generation no inventa)
+Calibration CALIBRATED: 14 / 17
+Calibration MISCALIBRATED_HIGH: 3 / 17 (mismas 3 FAILs)
+Runtime errors: 0 / 17 ✓
+Avg latency: 37.1s / caso (tooling + generation + judge)
+Jose OK:           ___ / 17  (pendiente revisión manual)
+Jose FAIL:         ___ / 17  (bloqueante para Plan 08)
 ```
 
-**Criterio de éxito:** ≥15/17 OK según Jose. Si <15, abrir Plan 07 (iter) antes de Plan 06.
+**Criterio de éxito (judge):** ✓ 14/17 PASS + 0 invenciones cumple criterio mínimo.
+
+**Hallazgo crítico:** Los 3 FAILs comparten patrón único — `nuncaDecirCheck` guardrail dispara false-positive con string match plano que ignora polaridad. Recomendación: **Plan 07 iter para refinar el check ANTES de Plan 06 (Smoke B)**. Si no, Smoke B tendrá los mismos falsos-positivos.
+
+**Negativos:** 2/3 handoff silente correcto (15, 16) + 1/3 respuesta constructiva con material adyacente (17 → pago). Judge confirmó los 3 PASS.
 
 ---
 
@@ -182,45 +195,43 @@ Jose FAIL:      ___ / 10 (bloqueante)
 
 ## Next action AHORA
 
-**Próximo paso:** Ejecutar Plan 04 (Wave 3) — calibración few-shots Gemini Flash.
+**Plan 05 (Smoke A) SHIPPED 2026-05-18.** Resultados completos en `SMOKE-A-RESULTS.md` y `05-SUMMARY.md`.
+
+**Próximo paso recomendado:** Jose revisa los 17 casos manualmente en `SMOKE-A-RESULTS.md` (Jose final ☐ checkbox por caso). Después decidir camino:
+
+### Camino A (recomendado) — Plan 07 iter antes de Plan 06
+
+Si Jose confirma que los 3 FAILs (cases 2, 13, 14) son realmente `nunca_decir_violation` false-positives:
+
+1. Definir el alcance de Plan 07 (opciones A/B/C en `SMOKE-A-RESULTS.md` per-case failure analysis).
+2. Discuss + research + plan-phase Plan 07.
+3. Ejecutar Plan 07 (refinar `nuncaDecirCheck`).
+4. Re-correr Smoke A (espera-se 17/17 PASS post-fix).
+5. Después Plan 06 (Smoke B).
+
+### Camino B — si Jose decide que 14/17 es suficiente para Smoke B
 
 ```
-/gsd-execute-phase somnio-v4-rag-generative --wave 3
+/gsd-execute-phase somnio-v4-rag-generative --wave 4  # Plan 06
 ```
 
-Plan 04 wirearáo los few-shots reales en `buildGenerationPrompt(material, toneBase, fewShots)` — el slot está reservado en el system prompt como placeholder (`[FEW_SHOTS PLACEHOLDER — Plan 04 inyectará 8-10 examples calibrados acá]`).
+Pero los falsos-positivos del nunca_decir van a reaparecer en Smoke B (los 10 casos tocan los mismos topics). Espera más FAILs si no se arregla primero.
 
-### ⚠️ Pre-requisito CRÍTICO antes de Plan 05 (Smoke A): DB sync
-
-Plan 02 Task 2.4 (sync DB) quedó DEFERIDO por auth-gate. El usuario debe correr antes de Plan 05:
-
-```bash
-# .env.local debe tener: OPENAI_API_KEY_SALESV4 + GOOGLE_GENERATIVE_AI_API_KEY + SUPABASE_SERVICE_ROLE_KEY
-pnpm knowledge:sync
-```
-
-Ver `03-SUMMARY.md` sección "Open debt — DB sync deferred" para SQL verification queries.
-
-**Verificaciones post-push:**
+### v4 sigue dormant — verificar antes de push
 
 ```sql
--- 1. Las 5 columnas pobladas para somnio-v4 (post-sync):
-SELECT topic, jsonb_pretty(jsonb_build_object(
-  'hechos', hechos_del_producto IS NOT NULL,
-  'posicion', posicion_del_negocio IS NOT NULL,
-  'debe_contener', array_length(debe_contener, 1) > 0,
-  'nunca_decir', array_length(nunca_decir, 1) > 0,
-  'cuando_escalar', array_length(cuando_escalar, 1) > 0
-))
-FROM agent_knowledge_base
-WHERE agent_id='somnio-sales-v4';
--- Esperado: 18 rows con todos los flags 'true' en hechos/posicion/debe_contener.
-
--- 2. v4 sigue dormant:
+-- v4 sigue dormant:
 SELECT count(*) FROM routing_rules
 WHERE workspace_id='a3843b3f-c337-4836-92b5-89c58bb98490'
   AND active=true AND event::text LIKE '%somnio-sales-v4%';
 -- Esperado: 0.
+
+-- KB sync sigue válido:
+SELECT count(*) FROM agent_knowledge_base
+WHERE agent_id='somnio-sales-v4'
+  AND hechos_del_producto IS NOT NULL
+  AND posicion_del_negocio IS NOT NULL;
+-- Esperado: 18.
 ```
 
 ---

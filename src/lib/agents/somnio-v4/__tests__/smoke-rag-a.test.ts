@@ -61,6 +61,18 @@ const RESULTS_PATH = path.resolve(
   '.planning/standalone/somnio-v4-rag-generative/SMOKE-A-RESULTS.md',
 )
 
+/**
+ * THROTTLE_MS — pausa entre casos para no reventar el free-tier de Gemini Flash.
+ *
+ * Cada caso hace 2 Gemini calls (generation + judge). Free tier Gemini 2.5 Flash
+ * RPM=10-15 (varía por proyecto). 17 casos × 2 calls = 34 Gemini calls.
+ * Con 7s entre casos: ~17 calls/min < 20 RPM → safe.
+ *
+ * Plan 05 Task 5.3 inline-fix (Rule 1+3): la corrida 2026-05-17 sin throttle pegó
+ * quota-exceeded después de caso 2. Sin esto los runs nunca completarán las 17.
+ */
+const THROTTLE_MS = 7000
+
 type SmokeCase = {
   idx: number
   category: 'edge-cases' | 'product' | 'policies' | 'faqs-no-templated' | 'negativos'
@@ -236,6 +248,13 @@ describe.skipIf(!SHOULD_RUN)(
 
     for (const c of CASES) {
       it(`${c.idx}. ${c.category} — ${c.userMessage}`, async () => {
+        // THROTTLE — saltea pausa en caso 1, espera THROTTLE_MS entre casos
+        // siguientes. Sin esto Gemini Flash free-tier (~10-20 RPM) revienta
+        // después de ~3-5 casos consecutivos (corrida 2026-05-17 13:55).
+        if (c.idx > 1) {
+          await new Promise((resolve) => setTimeout(resolve, THROTTLE_MS))
+        }
+
         const t0 = Date.now()
         let outcome: LoopOutcome | null = null
         let judge: JudgeOutput | null = null
@@ -311,7 +330,7 @@ describe.skipIf(!SHOULD_RUN)(
         if (errorMsg) {
           throw new Error(`Case ${c.idx} runtime error: ${errorMsg}`)
         }
-      }, 90_000)
+      }, 120_000)
     }
 
     // Append aggregate después del último caso. Vitest no garantiza orden de

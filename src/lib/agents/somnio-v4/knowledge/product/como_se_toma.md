@@ -25,13 +25,14 @@ La dosis de 1 comprimido diario es estándar para población adulta sana. Cualqu
 - [SI APLICA] Si menciona condición médica preexistente o medicamento recetado → consultar al médico tratante antes de iniciar
 
 ## NUNCA decir
-- recomendar dosis distinta a 1 comprimido diario
-- recomendar masticar, chupar, disolver en agua o jugo (es comprimido para tragar entero)
-- describir el producto como "gotas" o sugerir un rango de dosis variable
-- dar dosis personalizadas por edad, peso o condición específica
-- afirmar que "más comprimidos = más efecto"
-- mezclar con alcohol u otros sedantes
-- recomendar uso por más de un mes continuo sin sugerir consultar profesional
+- La dosis recomendada del producto es distinta a 1 comprimido diario.
+- Masticar, chupar o disolver el comprimido en agua o jugo es una forma recomendada de tomar el producto.
+- El producto se presenta en formato de gotas.
+- La dosis del producto es un rango variable.
+- La dosis del producto se personaliza según edad, peso o condición específica del cliente.
+- Tomar más comprimidos del producto produce más efecto.
+- Mezclar el producto con alcohol u otros sedantes es seguro o recomendable.
+- El uso continuo del producto por más de un mes está recomendado sin necesidad de consultar a un profesional.
 - usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota"
 
 ## Cuándo escalar a humano

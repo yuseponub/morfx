@@ -92,6 +92,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// Robot v2 captura el rango ("8:00 AM - 8:30 AM") en apt.hora.
+// Guardrail: dejamos solo la hora de inicio para mensajes al paciente.
+function stripTimeRange(hora: string): string {
+  return hora.split(/\s*-\s*/)[0].trim()
+}
+
 // ── Server Actions ──
 
 export interface ScrapeHistoryEntry {
@@ -324,8 +330,10 @@ export async function sendConfirmations(
     // Normalize phone: ensure +57 prefix to match WhatsApp format
     const phone = apt.telefono.startsWith('+') ? apt.telefono : `+${apt.telefono}`
 
+    const horaInicio = stripTimeRange(apt.hora)
+
     // Rendered text for DB storage (what the client sees)
-    const renderedText = `¡Hola, ${nombreTitleCase}! ☺️ Te esperamos en godentist®️ ${sucursalTitleCase} el ${fechaFormateada} a las ${apt.hora}. 📍Dirección: ${address} Llega 5 minutos antes con tu documento para el registro.`
+    const renderedText = `¡Hola, ${nombreTitleCase}! ☺️ Te esperamos en godentist®️ ${sucursalTitleCase} el ${fechaFormateada} a las ${horaInicio}. 📍Dirección: ${address} Llega 5 minutos antes con tu documento para el registro.`
 
     try {
       const tagName = SUCURSAL_TAGS[apt.sucursal.toUpperCase()]
@@ -381,7 +389,7 @@ export async function sendConfirmations(
               { type: 'text', text: nombreTitleCase },
               { type: 'text', text: sucursalTitleCase },
               { type: 'text', text: fechaFormateada },
-              { type: 'text', text: apt.hora },
+              { type: 'text', text: horaInicio },
               { type: 'text', text: address },
             ],
           },

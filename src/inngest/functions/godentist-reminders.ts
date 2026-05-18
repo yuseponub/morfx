@@ -70,6 +70,12 @@ function formatDateSpanish(dateStr: string): string {
   return `${days[date.getDay()]} ${day} de ${months[date.getMonth()]}`
 }
 
+// Robot v2 captura el rango ("8:00 AM - 8:30 AM") en hora.
+// Guardrail: dejamos solo la hora de inicio para mensajes al paciente.
+function stripTimeRange(hora: string): string {
+  return hora.split(/\s*-\s*/)[0].trim()
+}
+
 /**
  * Tags que bloquean envio de mensajes automaticos al contacto:
  * - 'C'   = cita ya confirmada por el paciente
@@ -241,8 +247,10 @@ const godentistReminderSend = inngest.createFunction(
         throw new Error('WhatsApp API key not configured')
       }
 
+      const horaInicio = stripTimeRange(horaCita)
+
       // Build rendered text for DB storage
-      const renderedText = `Hola, ${nombreTitleCase}! Te recordamos tu cita en godentist ${sucursalTitleCase} hoy ${fechaFormateada} a las ${horaCita}. Direccion: ${address}. Te esperamos!`
+      const renderedText = `Hola, ${nombreTitleCase}! Te recordamos tu cita en godentist ${sucursalTitleCase} hoy ${fechaFormateada} a las ${horaInicio}. Direccion: ${address}. Te esperamos!`
 
       // Send template via domain function
       const result = await sendTemplateMessage(domainCtx, {
@@ -257,7 +265,7 @@ const godentistReminderSend = inngest.createFunction(
               { type: 'text', text: nombreTitleCase },
               { type: 'text', text: sucursalTitleCase },
               { type: 'text', text: fechaFormateada },
-              { type: 'text', text: horaCita },
+              { type: 'text', text: horaInicio },
               { type: 'text', text: address },
             ],
           },
@@ -488,7 +496,7 @@ const godentistFollowupCheck = inngest.createFunction(
         // Format: "MARTES 17 de marzo a las 2:30 PM"
         const dateStr = formatDateSpanish(patient.scrapedDate)
         const dayUpper = dateStr.split(' ')[0].toUpperCase()
-        const dateFormatted = dayUpper + dateStr.substring(dateStr.indexOf(' ')) + ' a las ' + matchedApt.hora
+        const dateFormatted = dayUpper + dateStr.substring(dateStr.indexOf(' ')) + ' a las ' + stripTimeRange(matchedApt.hora)
 
         const nombreTC = toTitleCase(patient.nombre)
 

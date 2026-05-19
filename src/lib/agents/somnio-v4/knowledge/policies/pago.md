@@ -4,7 +4,7 @@ keywords: [pago, como pago, contraentrega, transferencia, link de pago, tarjeta,
 category: policies
 last_reviewed: 2026-05-16
 reviewed_by: jose
-related_topics: [envio, devoluciones]
+related_topics: [envio]
 escalate_if:
   - cliente pide pagar con transferencia
   - cliente pide pagar con Nequi

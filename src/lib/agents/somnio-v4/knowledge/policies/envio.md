@@ -4,7 +4,7 @@ keywords: [envio, despacho, cuanto tarda, cuando llega, transportadora, domicili
 category: policies
 last_reviewed: 2026-05-16
 reviewed_by: jose
-related_topics: [pago, devoluciones, duracion_efecto]
+related_topics: [pago, duracion_efecto]
 tone_override: null
 ---
 

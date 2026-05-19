@@ -187,7 +187,7 @@ export function buildSystemPrompt(existingData: Record<string, string>, recentBo
     ? `\nULTIMOS MENSAJES DEL BOT (para contexto de respuestas cortas del cliente):
 ${recentBotMessages.map((m, i) => `[${i + 1}] "${m}"`).join('\n')}
 
-REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale", "asi es", "claro", "listo") o negativo ("no", "ahora no", "dejame pensarlo"), analiza los ultimos mensajes del bot para entender A QUE esta respondiendo el cliente:
+REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale", "asi es", "claro", "listo", "ok", "vale", "perfecto") o negativo ("no", "ahora no", "dejame pensarlo"), analiza los ultimos mensajes del bot para entender A QUE esta respondiendo el cliente:
 - Si el bot pregunto sobre compra/adquisicion ("deseas adquirirlo?", "te gustaria llevarlo?") y el cliente dice "si" → intent = quiero_comprar
 - Si el bot mostro un resumen/confirmacion y el cliente dice "si" → intent = confirmar
 - Si el bot ofrecio opciones de pack y el cliente dice "si" o "ese" → intent = seleccion_pack

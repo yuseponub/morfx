@@ -109,6 +109,18 @@ RESPUESTA AUTOMÁTICA: "Claro que sí! El tiempo en el que el suplemento empezar
   - Garantías ("tiene garantía?")
   - Validación médica ("qué dicen los médicos?")
 
+### intent="acknowledgment"
+ACCIÓN AUTOMÁTICA: silencio (no responder) + retoma automática tras ~5 min via timer L5
+✅ CUBRE: ack puro SIN contenido informativo nuevo, cuando NO hay pregunta abierta del bot:
+  - "ok", "vale", "ya", "dale", "listo", "entendido", "perfecto"
+  - "gracias", "muchas gracias", "te agradezco"
+  - emojis solos: "👍", "🙏", "😊", "ok 👌"
+  - "jajaja", "lol" sin contenido sustancial
+❌ NO CUBRE: ack acompañado de pregunta / dato / intento nuevo (es multi-intent — el secondary captura la pregunta real):
+  - "ok pero la entrega cuándo?" → primary=acknowledgment + secondary=tiempo_entrega
+  - "vale, soy de Bogotá" → multi-intent con datos
+  - "gracias, y promociones?" → multi-intent
+
 ## REGLA OPERACIONAL
 
 Después de elegir intent.primary:
@@ -123,7 +135,7 @@ REGLAS DURAS:
 - Si la pregunta menciona una sustancia / fármaco / condición / circunstancia / edad explícita / método de pago NO listado en CUBRE → SIEMPRE NO CUBRE → confidence máximo 0.40
 - NO uses contexto de fase previa para subir confidence cuando la pregunta cae en NO CUBRE
 - Si dudas entre CUBRE y NO CUBRE, prefiere NO CUBRE (mejor disparar sub-loop y buscar KB que enviar respuesta genérica que no aplica)
-- Para intents sin SCOPE arriba (registro_sanitario, envio, ubicacion, contenido, formula, como_se_toma, dependencia, datos, asesor, queja, cancelar, no_interesa, acknowledgment, otro, confirmar, seleccion_pack, promociones): usá tu mejor juicio basado en el principio general — si la pregunta es directa y específica al intent, confidence alta; si requiere caso específico no genérico, baja.
+- Para intents sin SCOPE arriba (registro_sanitario, envio, ubicacion, contenido, formula, como_se_toma, dependencia, datos, asesor, queja, cancelar, no_interesa, otro, confirmar, seleccion_pack, promociones): usá tu mejor juicio basado en el principio general — si la pregunta es directa y específica al intent, confidence alta; si requiere caso específico no genérico, baja.
 
 EJEMPLOS DE APLICACIÓN (estos son ANCLAS, no patrones a copiar):
 
@@ -158,7 +170,11 @@ EJEMPLOS DE APLICACIÓN (estos son ANCLAS, no patrones a copiar):
 - "llega antes del jueves?" → intent=tiempo_entrega, NO CUBRE (condicional) → 0.35
 - "no me interesa" → intent=rechazar o no_interesa, CUBRE → 0.92
 - "ahorita no" → intent=rechazar, NO CUBRE (ambiguo) → 0.40
-- "ok" → intent=acknowledgment, depende de contexto → 0.55
+- "ok" → intent=acknowledgment, CUBRE (ack puro, sin pregunta del bot abierta) → 0.92
+- "gracias" → intent=acknowledgment, CUBRE → 0.92
+- "listo!" → intent=acknowledgment, CUBRE → 0.90
+- "👍" → intent=acknowledgment, CUBRE → 0.90
+- "ok pero la entrega cuanto?" → intent=acknowledgment, secondary=tiempo_entrega, NO CUBRE solo (multi-intent) → 0.45
 - "lol jajaja 😂" → intent=otro, off-topic → 0.20
 `
 

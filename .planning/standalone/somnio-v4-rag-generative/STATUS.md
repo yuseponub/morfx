@@ -1,13 +1,17 @@
 # Somnio v4 RAG Generative — STATUS (LIVE)
 
-**Last updated:** 2026-05-18 (Plan 05 SHIPPED — Smoke A 17/17 evaluados, 14 PASS / 3 FAIL pattern)
-**HEAD git:** pendiente push Plan 04 + Plan 05 (4 commits Plan 05 — 5.1 + 5.2 + 5.3 throttle + 5.6-5.9 docs)
+**Last updated:** 2026-05-18 (Plan 07c SHIPPED — Case 12 fixed via handoff stub, 15/17 PASS)
+**HEAD git:** `e3e08c1` (Plan 07c — pendiente push) sobre `90f7f8f` (Plan 07b pushed)
 **v4 status en prod:** DORMANT (sin routing rule — `active_v4_rules = 0`)
 **v3 status en prod:** ACTIVO (atendiendo clientes — Regla 6 intocado)
 
-> **PLAN 02 OPEN DEBT RESUELTA (2026-05-17 ~17:50):** `pnpm knowledge:sync` ejecutado en prod Supabase, 18 KBs sincronizados con 5 columnas + embeddings regenerados. Smoke A 2026-05-18 corrió contra material populado correctamente — judge confirmó faithfulness 17/17.
+> **PLAN 07c SHIPPED 2026-05-18:** `devoluciones.md` convertido en handoff stub semántico-vacío para resolver case 12 (V3 FAIL por `nunca_decir_violation` ambiguo). Smoke A V4 17/17 ejecutado clean (paid tier Gemini, 864s). **15/17 PASS, 0 invenciones, 0 nuevas regresiones desde V3.** Case 12 ahora PASS (judge confirma handoff silente es la acción correcta). Cases 16 + 17 siguen FAIL desde V3 (out-of-scope Plan 07c, ambos documentados como Plan 07d candidates si Jose prefiere arreglar antes de Smoke B). Ver `07c-SUMMARY.md` para case-by-case V1→V2→V3→V4 + architectural decision rationale.
 
-> **PLAN 05 SHIPPED 2026-05-18:** Smoke A clean re-run completo (paid tier Gemini, throttle 7s residual). 14/17 PASS, 3/17 FAIL con patrón único `nunca_decir_violation` false-positive (cases 2 embarazo, 13 duracion_efecto, 14 habitos_sueno). **0 invenciones** detectadas por judge en 17/17 casos — RAG architecture sin alucinaciones, faithfulness 100%. Ver `SMOKE-A-RESULTS.md` para detalle + Decision Checklist + análisis Plan 07 recomendado.
+> **PLAN 07b ESCALATION → Plan 07c (resolved):** Plan 07b shipped Flash NORMAL + polarity rules pero regresionó cases 12 y 17. Plan 07c (Path A semantic-only) resolvió case 12. Plan 07d futuro para case 17 + case 16 calibration.
+
+> **PLAN 02 OPEN DEBT RESUELTA (2026-05-17 ~17:50):** `pnpm knowledge:sync` ejecutado en prod Supabase, 18 KBs sincronizados con 5 columnas + embeddings regenerados.
+
+> **PLAN 05 SHIPPED 2026-05-18:** Smoke A V1 — 14/17 PASS, baseline.
 
 ---
 
@@ -21,9 +25,12 @@
 - [x] **Execute-phase plan 02** — **DONE 2026-05-16** (3 commits, 18 KBs reescritos, DB sync DEFERIDO — ver 03-SUMMARY "Open debt")
 - [x] **Execute-phase plan 03** — **DONE 2026-05-16** (9 commits + 1 docs, sub-loop RAG-generative split, push atómico con 02)
 - [x] **Execute-phase plan 04** — **DONE 2026-05-17** (3 commits + 1 docs, FEW_SHOTS calibration wired, 19/19 tests verdes)
-- [x] **Execute-phase plan 05 (Smoke A)** — **DONE 2026-05-18** (4 commits, 17/17 evaluados, judge 14 PASS / 3 FAIL same pattern, **0 invenciones**, paid tier Gemini)
-- [ ] **Execute-phase plan 07 (iter — nunca_decir guardrail)** — RECOMENDADO antes de Plan 06 (3/3 FAILs son `nunca_decir_violation` false-positives — ver SMOKE-A-RESULTS.md analysis)
-- [ ] **Execute-phase plan 06 (Smoke B)** — pendiente (post Plan 07 iter)
+- [x] **Execute-phase plan 05 (Smoke A V1)** — **DONE 2026-05-18** (14/17 PASS, baseline)
+- [x] **Execute-phase plan 07 v1 (semantic-only)** — DONE 2026-05-18 (15/17 PASS, 2 regresiones)
+- [x] **Execute-phase plan 07b (Flash NORMAL + polarity)** — DONE 2026-05-18 (13/17 PASS, 2 regresiones cases 12 y 17)
+- [x] **Execute-phase plan 07c (devoluciones handoff stub)** — **DONE 2026-05-18** (15/17 PASS, case 12 resuelto, 0 nuevas regresiones, 0 invenciones)
+- [ ] **Execute-phase plan 06 (Smoke B)** — DESBLOQUEADO post Plan 07c (recomendado camino A)
+- [ ] **Execute-phase plan 07d (case 17 + 16 — generation respect cuando_escalar + calibration)** — opcional pre-Smoke B si Jose elige camino B
 - [ ] **Execute-phase plan 08 (flip productivo)** — pendiente (post Plan 06 verde)
 - [ ] **Verify-phase** — pendiente
 - [ ] **LEARNINGS.md** — pendiente
@@ -38,9 +45,12 @@
 | 02 | Reescribir 18 KBs en formato nuevo | **DONE 2026-05-16** | `a8313b1` (atomic con Plan 03) |
 | 03 | Sub-loop split tooling/generación + borrar canonical (ATÓMICO con 02) | **DONE 2026-05-16** | `a165c8f` (push 2026-05-17) |
 | 04 | Few-shots calibración Gemini Flash | **DONE 2026-05-17** | `15f8bbf` (last task commit) |
-| 05 | Smoke A — low_confidence 17 casos + LLM-as-judge | **DONE 2026-05-18** (14/17 judge PASS, 0 invenciones, 3 FAILs nunca_decir pattern) | `ab7a8a1` (5.3 throttle) + docs commit |
-| 07 | Iter nunca_decir guardrail (refinar `nuncaDecirCheck`) | RECOMENDADO post Smoke A | — |
-| 06 | Smoke B — regression 10 casos | pending (post Plan 07) | — |
+| 05 | Smoke A V1 — low_confidence 17 casos + LLM-as-judge | **DONE 2026-05-18** (14/17 PASS, 0 invenciones) | `ab7a8a1` |
+| 07 v1 | Iter semantic-only KB rewrites | DONE 2026-05-18 (15/17 PASS, 2 regresiones) | ? |
+| 07b | Flash NORMAL + polarity prompt en nuncaDecirCheck | DONE 2026-05-18 (13/17 PASS, 2 regresiones cases 12+17) | `90f7f8f` (pushed) |
+| 07c | devoluciones.md handoff stub | **DONE 2026-05-18** (15/17 PASS, case 12 fixed, 0 nuevas regresiones, 0 invenciones) | `e3e08c1` (pendiente push) |
+| 06 | Smoke B — regression 10 casos | DESBLOQUEADO post Plan 07c | — |
+| 07d | (opcional) generation respect cuando_escalar + calibration FUERA_SCOPE | pending (post-decision Jose) | — |
 | 08 | Flip productivo (SQL routing_rule) | pending (post Plan 06) | — |
 
 ---
@@ -62,9 +72,18 @@ Ver `01-SUMMARY.md` para detalle completo, los 4 verify queries de Regla 5 y pla
 
 ---
 
-## Smoke A — 17 casos (low_confidence, rediseño RAG) — SHIPPED 2026-05-18
+## Smoke A — 17 casos (low_confidence, rediseño RAG) — V4 SHIPPED 2026-05-18
 
-**Run completo, paid tier Gemini, throttle 7s residual. 17/17 evaluados, 0 quota fallos, 0 runtime errors.** Ver `SMOKE-A-RESULTS.md` para detalle verbatim por caso (responseText + judge reasoning + confidenceRationale + topic material populated).
+**Plan 07c V4 run completo, paid tier Gemini, throttle 7s, 864s wall clock. 17/17 evaluados, 0 quota fallos, 0 runtime errors.** Ver `SMOKE-A-RESULTS-V4.md` para detalle verbatim por caso. Comparación V1→V2→V3→V4 en `07c-SUMMARY.md`.
+
+### Iteration history
+
+| Version | Plan | PASS/17 | Notable |
+|---|---|---|---|
+| V1 | Plan 05 | 14/17 | Baseline. 3 FAIL cases 2/13/14 (nunca_decir false-positive pattern) |
+| V2 | Plan 07 v1 | 15/17 | Semantic-only KB rewrites. Recuperó 2/13/14 pero regresionó 1 + 16 |
+| V3 | Plan 07b | 13/17 + 1 N/A | Flash NORMAL + polarity prompt. Recuperó 1 + 13 + 14 pero regresionó 12 + 17 |
+| V4 | Plan 07c | **15/17** | devoluciones handoff stub. **Fixed case 12, 0 nuevas regresiones**, 16 + 17 preservados de V3 |
 
 ### edge-cases (5)
 
@@ -91,7 +110,7 @@ Ver `01-SUMMARY.md` para detalle completo, los 4 verify queries de Regla 5 y pla
 |---|---|---|---|---|---|---|
 | 10 | "cuánto tarda a Medellín?" | generated → envio (mencionar día siguiente) | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
 | 11 | "cómo pago?" | generated → pago | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
-| 12 | "puedo devolverlo si no me sirve?" | generated → devoluciones | `generated` (0.95) | **PASS** | ☐ | CALIBRATED |
+| 12 | "puedo devolverlo si no me sirve?" | handoff silente (Plan 07c stub) | `no_match` handoff (0.95) | **PASS** (V4) | ☐ | **Plan 07c FIX** — V3 era FAIL, V4 PASS via handoff stub |
 
 ### faqs-no-templated (2)
 
@@ -108,27 +127,23 @@ Ver `01-SUMMARY.md` para detalle completo, los 4 verify queries de Regla 5 y pla
 | 16 | "envían a Miami?" | handoff silente (KB es Colombia-only) | `no_match` handoff (0.20) | **PASS** | ☐ | Handoff silente correcto |
 | 17 | "puedo pagar con criptomonedas?" | handoff silente (KB no lista cripto) | `generated` (0.95) `pago` | **PASS** | ☐ | Behavior emergente: respuesta constructiva con material `pago` adyacente |
 
-### Smoke A — Resumen 2026-05-18
+### Smoke A V4 — Resumen 2026-05-18 (post Plan 07c)
 
 ```
-LLM-Judge PASS:    14 / 17  (82.4%) — criterio mínimo cumplido
-LLM-Judge FAIL:     3 / 17  (cases 2, 13, 14 — todos `nunca_decir_violation` false-positive)
+LLM-Judge PASS:    15 / 17  (88.2%) — criterio mínimo cumplido + case 12 fix
+LLM-Judge FAIL:     2 / 17  (cases 16 Miami + 17 cripto — out-of-scope Plan 07c, preservados de V3)
 LLM-Judge PARTIAL:  0 / 17
-Invenciones (judge): 0 / 17 ✓ RAG architecture sin alucinaciones
-Faithfulness PASS: 17 / 17  (100% — generation no inventa)
-Calibration CALIBRATED: 14 / 17
-Calibration MISCALIBRATED_HIGH: 3 / 17 (mismas 3 FAILs)
+LLM-Judge N/A:      0 / 17
+Invenciones (judge): 0 / 17 ✓ RAG architecture preservada
+Faithfulness PASS: 16 / 17  (case 17 PASS faithfulness pero FAIL relevance)
 Runtime errors: 0 / 17 ✓
-Avg latency: 37.1s / caso (tooling + generation + judge)
-Jose OK:           ___ / 17  (pendiente revisión manual)
-Jose FAIL:         ___ / 17  (bloqueante para Plan 08)
+Avg latency: ~50s / caso
+Δ V3→V4: +2 PASS (case 12 fixed + case 7 paid tier stable), 0 nuevas regresiones
 ```
 
-**Criterio de éxito (judge):** ✓ 14/17 PASS + 0 invenciones cumple criterio mínimo.
+**Criterio de éxito (judge):** ✓ 15/17 PASS + 0 invenciones + 0 nuevas regresiones cumple Plan 07c objective.
 
-**Hallazgo crítico:** Los 3 FAILs comparten patrón único — `nuncaDecirCheck` guardrail dispara false-positive con string match plano que ignora polaridad. Recomendación: **Plan 07 iter para refinar el check ANTES de Plan 06 (Smoke B)**. Si no, Smoke B tendrá los mismos falsos-positivos.
-
-**Negativos:** 2/3 handoff silente correcto (15, 16) + 1/3 respuesta constructiva con material adyacente (17 → pago). Judge confirmó los 3 PASS.
+**Hallazgo:** Case 12 fix funcional. Cases 16 (calibration MISCALIBRATED_HIGH en handoff) y 17 (generation no respeta `cuando_escalar` array del topic) son issues distintas a `nuncaDecirCheck` — Plan 07d candidates si Jose quiere arreglar pre-Smoke B.
 
 ---
 
@@ -195,27 +210,23 @@ Jose FAIL:      ___ / 10 (bloqueante)
 
 ## Next action AHORA
 
-**Plan 05 (Smoke A) SHIPPED 2026-05-18.** Resultados completos en `SMOKE-A-RESULTS.md` y `05-SUMMARY.md`.
+**Plan 07c SHIPPED 2026-05-18.** Resultados V4 en `SMOKE-A-RESULTS-V4.md` y análisis en `07c-SUMMARY.md`.
 
-**Próximo paso recomendado:** Jose revisa los 17 casos manualmente en `SMOKE-A-RESULTS.md` (Jose final ☐ checkbox por caso). Después decidir camino:
-
-### Camino A (recomendado) — Plan 07 iter antes de Plan 06
-
-Si Jose confirma que los 3 FAILs (cases 2, 13, 14) son realmente `nunca_decir_violation` false-positives:
-
-1. Definir el alcance de Plan 07 (opciones A/B/C en `SMOKE-A-RESULTS.md` per-case failure analysis).
-2. Discuss + research + plan-phase Plan 07.
-3. Ejecutar Plan 07 (refinar `nuncaDecirCheck`).
-4. Re-correr Smoke A (espera-se 17/17 PASS post-fix).
-5. Después Plan 06 (Smoke B).
-
-### Camino B — si Jose decide que 14/17 es suficiente para Smoke B
+### Camino A (recomendado) — Plan 06 Smoke B
 
 ```
-/gsd-execute-phase somnio-v4-rag-generative --wave 4  # Plan 06
+/gsd-execute-phase somnio-v4-rag-generative --wave 4  # Plan 06 Smoke B
 ```
 
-Pero los falsos-positivos del nunca_decir van a reaparecer en Smoke B (los 10 casos tocan los mismos topics). Espera más FAILs si no se arregla primero.
+15/17 PASS cumple criterio. Cases 16 + 17 son issues conocidos out-of-scope que NO se reproducen en Smoke B (los 10 casos de regression tocan razonamiento libre + crm mutations + state machine happy path + CAS reject — no devoluciones ni cripto).
+
+### Camino B (alternativo) — Plan 07d antes de Plan 06
+
+Si Jose quiere "0 FAILs antes de Smoke B":
+- Plan 07d.1 (case 17): añadir gate en `generationCall` para validar `cuando_escalar` post-generation
+- Plan 07d.2 (case 16): bajar confidence cuando reason termina en `_FUERA_SCOPE`
+
+Push pendiente del Plan 07c (`46d1ee9 + e3e08c1`).
 
 ### v4 sigue dormant — verificar antes de push
 

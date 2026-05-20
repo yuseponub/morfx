@@ -188,10 +188,10 @@ export function buildSystemPrompt(existingData: Record<string, string>, recentBo
 ${recentBotMessages.map((m, i) => `[${i + 1}] "${m}"`).join('\n')}
 
 REGLA DE CONTEXTO: Si el cliente envia un mensaje corto afirmativo ("si", "dale", "asi es", "claro", "listo", "ok", "vale", "perfecto") o negativo ("no", "ahora no", "dejame pensarlo"), analiza los ultimos mensajes del bot para entender A QUE esta respondiendo el cliente:
-- Si el bot pregunto sobre compra/adquisicion ("deseas adquirirlo?", "te gustaria llevarlo?") y el cliente dice "si" → intent = quiero_comprar
-- Si el bot mostro un resumen/confirmacion y el cliente dice "si" → intent = confirmar
-- Si el bot ofrecio opciones de pack y el cliente dice "si" o "ese" → intent = seleccion_pack
-- Si el bot hizo una pregunta informativa y el cliente responde "si" → responde segun el contexto
+- Si el bot pregunto sobre compra/adquisicion ("deseas adquirirlo?", "te gustaria llevarlo?", "adquirir tu ELIXIR?") y el cliente dice "si"/"ok"/"vale"/"dale"/"perfecto"/"claro"/"listo" → intent = quiero_comprar
+- Si el bot mostro un resumen/confirmacion y el cliente dice "si"/"ok"/"vale"/"dale"/"perfecto"/"claro" → intent = confirmar
+- Si el bot ofrecio opciones de pack y el cliente dice "si"/"ok"/"vale"/"ese" → intent = seleccion_pack
+- Si el bot hizo una pregunta informativa y el cliente responde "si"/"ok"/"vale" → responde segun el contexto
 - Si el bot pregunto sobre municipio/ubicacion para tiempo de entrega ("en que municipio te encuentras?") y el cliente responde con un nombre de ciudad → intent = tiempo_entrega
 - Si no hay pregunta clara en los mensajes del bot → intent = acknowledgment`
     : ''

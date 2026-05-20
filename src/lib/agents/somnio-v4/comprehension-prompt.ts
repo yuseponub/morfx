@@ -116,10 +116,16 @@ ACCIÓN AUTOMÁTICA: silencio (no responder) + retoma automática tras ~5 min vi
   - "gracias", "muchas gracias", "te agradezco"
   - emojis solos: "👍", "🙏", "😊", "ok 👌"
   - "jajaja", "lol" sin contenido sustancial
-❌ NO CUBRE: ack acompañado de pregunta / dato / intento nuevo (es multi-intent — el secondary captura la pregunta real):
-  - "ok pero la entrega cuándo?" → primary=acknowledgment + secondary=tiempo_entrega
-  - "vale, soy de Bogotá" → multi-intent con datos
-  - "gracias, y promociones?" → multi-intent
+❌ NO CUBRE:
+  - ack acompañado de pregunta / dato / intento nuevo del cliente (multi-intent — el secondary captura la pregunta real):
+    - "ok pero la entrega cuándo?" → primary=acknowledgment + secondary=tiempo_entrega
+    - "vale, soy de Bogotá" → multi-intent con datos
+    - "gracias, y promociones?" → multi-intent
+  - "ok"/"si"/"vale"/"dale"/"claro"/"listo" DESPUÉS de pregunta del bot sobre adquisición
+    ("Deseas adquirirlo?", "Deseas adquirir el tuyo?", "Te gustaría llevarlo?", "adquirir tu ELIXIR?")
+    → eso es intent=quiero_comprar, NO acknowledgment. Aunque el cliente solo diga "ok"
+    sin más palabras, el bot acaba de hacer una oferta de compra y "ok" es respuesta
+    afirmativa a esa oferta. Confidence quiero_comprar 0.85, no acknowledgment.
 
 ## REGLA OPERACIONAL
 

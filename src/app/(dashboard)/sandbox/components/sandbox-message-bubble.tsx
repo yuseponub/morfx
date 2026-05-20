@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 import type { SandboxMessage } from '@/lib/sandbox/types'
 
 // Regex to detect image URLs in message content
-const IMAGE_URL_REGEX = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/gi
+const IMAGE_URL_REGEX = /(https?:\/\/[^\s|]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s|]*)?)/gi
 
 /** Render message content with inline images for detected image URLs */
 function MessageContent({ content }: { content: string }) {

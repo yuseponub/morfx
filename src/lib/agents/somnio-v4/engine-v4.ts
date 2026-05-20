@@ -127,7 +127,7 @@ export class SomnioV4Engine {
             turnNumber: input.turnNumber,
             tokensUsed: output.totalTokens,
             models: [{
-              model: 'gemini-2.5-flash-lite' as const,
+              model: 'gemini-2.5-flash' as const,
               inputTokens: Math.round(output.totalTokens * 0.7),
               outputTokens: Math.round(output.totalTokens * 0.3),
             }],

@@ -38,7 +38,7 @@ export type ClaudeModel = ClaudeModelId
  * — los runtime calls a estos providers viven en somnio-v4/{comprehension,
  * sub-loop}/* (gated por D-30 y wired en Plan 05).
  */
-export type NonAnthropicModelId = 'gemini-2.5-flash-lite' | 'gpt-4o-mini'
+export type NonAnthropicModelId = 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gpt-4o-mini'
 
 /**
  * Union de modelos válidos para metadata de token tracking.

@@ -98,6 +98,13 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       .slice(-2)
       .map((h) => h.content)
 
+    // TEMP DEBUG — remove after diagnosis
+    console.log('[V4 DEBUG] turn:', input.turnNumber, '| message:', JSON.stringify(input.message))
+    console.log('[V4 DEBUG] history.length:', input.history.length)
+    console.log('[V4 DEBUG] history items:', input.history.map((h, i) => `[${i}] ${h.role}: ${JSON.stringify(h.content).slice(0, 120)}`).join('\n'))
+    console.log('[V4 DEBUG] recentBotMessages count:', recentBotMessages.length)
+    console.log('[V4 DEBUG] recentBotMessages:', recentBotMessages.map((m, i) => `[${i}] ${JSON.stringify(m)}`).join('\n'))
+
     const { analysis, tokensUsed } = await comprehend(
       input.message,
       input.history,

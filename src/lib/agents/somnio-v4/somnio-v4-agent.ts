@@ -98,20 +98,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       .slice(-2)
       .map((h) => h.content)
 
-    // TEMP DEBUG — remove after diagnosis. Single console.log consolidated to
-    // avoid Vercel logs swallowing multiple log entries per request.
-    console.log('[V4 DEBUG] ' + JSON.stringify({
-      turn: input.turnNumber,
-      message: input.message,
-      historyLength: input.history.length,
-      historyItems: input.history.map((h) => ({
-        role: h.role,
-        content: h.content.length > 200 ? h.content.slice(0, 200) + '...' : h.content,
-      })),
-      recentBotMessagesCount: recentBotMessages.length,
-      recentBotMessages: recentBotMessages.map((m) => m.length > 200 ? m.slice(0, 200) + '...' : m),
-    }))
-
     const { analysis, tokensUsed } = await comprehend(
       input.message,
       input.history,

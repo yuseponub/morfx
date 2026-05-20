@@ -141,6 +141,35 @@ export async function POST(request: NextRequest) {
         workspaceId: workspaceId ?? 'sandbox-workspace',
         systemEvent,
       })
+
+      // TEMP DEBUG — full structured turn dump for diagnosis. Remove after.
+      try {
+        const truncate = (s: string, n = 250) => s.length > n ? s.slice(0, n) + '...' : s
+        const recentBotMsgs = (history ?? [])
+          .filter((h) => h.role === 'assistant')
+          .slice(-2)
+          .map((h) => truncate(h.content))
+        console.log('[V4 TURN] ' + JSON.stringify({
+          ts: new Date().toISOString(),
+          turn: turnNumber ?? 1,
+          inMessage: message,
+          inHistoryLength: (history ?? []).length,
+          inHistory: (history ?? []).map((h) => ({ role: h.role, content: truncate(h.content) })),
+          inSystemEvent: systemEvent ?? null,
+          recentBotMsgs,
+          outIntent: v4Result.debugTurn?.intent ?? null,
+          outMessages: v4Result.messages?.map(truncate) ?? [],
+          outAction: v4Result.debugTurn?.salesTrack?.accion ?? null,
+          outNewMode: v4Result.newState?.currentMode ?? null,
+          outIntentsVistos: v4Result.newState?.intentsVistos ?? [],
+          outTemplatesEnviados: v4Result.newState?.templatesEnviados ?? [],
+          outTimerSignal: v4Result.timerSignal ?? null,
+          outError: v4Result.error ?? null,
+        }))
+      } catch (logErr) {
+        console.log('[V4 TURN ERROR] failed to serialize debug log:', logErr)
+      }
+
       return NextResponse.json(v4Result)
     }
 

@@ -28,6 +28,7 @@ export function loadSandboxSessions(): SavedSandboxSession[] {
 /**
  * Save a sandbox session to localStorage.
  * Prunes old sessions if over MAX_SESSIONS limit.
+ * Fire-and-forget mirror to DB via /api/sandbox/save-session.
  */
 export function saveSandboxSession(session: SavedSandboxSession): void {
   try {
@@ -49,10 +50,23 @@ export function saveSandboxSession(session: SavedSandboxSession): void {
     // localStorage quota exceeded or private browsing
     console.warn('Failed to save sandbox session:', error)
   }
+
+  // Fire-and-forget mirror to DB. NO await — UX no debe esperar a DB.
+  // Si falla, localStorage queda como fallback funcional.
+  if (typeof window !== 'undefined') {
+    fetch('/api/sandbox/save-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(session),
+    }).catch(err => {
+      console.warn('[sandbox] DB mirror failed (localStorage still active):', err)
+    })
+  }
 }
 
 /**
  * Delete a sandbox session from localStorage.
+ * Fire-and-forget mirror to DB via /api/sandbox/delete-session.
  */
 export function deleteSandboxSession(sessionId: string): void {
   try {
@@ -61,6 +75,17 @@ export function deleteSandboxSession(sessionId: string): void {
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(filtered))
   } catch {
     // Ignore errors
+  }
+
+  // Fire-and-forget mirror to DB.
+  if (typeof window !== 'undefined') {
+    fetch('/api/sandbox/delete-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    }).catch(err => {
+      console.warn('[sandbox] DB delete mirror failed:', err)
+    })
   }
 }
 

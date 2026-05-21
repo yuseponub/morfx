@@ -26,7 +26,7 @@ NO existe cobertura internacional — solo Colombia.
 La empresa solo despacha dentro de Colombia. Los tiempos son estimados de la transportadora, excepto para mismo-día dentro del horario de corte. Si la ciudad del cliente no aparece en ninguna lista, se asume 2-4 días hábiles. NO inventamos fechas garantizadas fuera del mismo-día. Cualquier envío fuera de Colombia (Miami, Madrid, etc.) se escala a humano para confirmar si hay opción especial o se rechaza el pedido.
 
 ## Debe contener la respuesta
-- [SIEMPRE] Confirmar que despachamos a Colombia (NO internacional)
+- [SI APLICA] Si la pregunta es marco general SIN mencionar ciudad (ej. "¿hacen envíos?", "¿a dónde llegan?") → confirmar que despachamos a todo Colombia. Si menciona una ciudad colombiana, NO repitas "despachamos a Colombia" (es obvio) — enfocate en el tiempo de su ciudad.
 - [SI APLICA] Si el cliente menciona su ciudad → ubicarla en el rango correspondiente (mismo día / día siguiente / 1-3 días / 2-4 días)
 - [SI APLICA] Si la ciudad no aparece listada → asumir 2-4 días hábiles y aclarar que es estimado
 - [SI APLICA] Si pregunta por mismo-día → confirmar solo en Bucaramanga, Floridablanca, Girón, Piedecuesta (corte 14:30) y Bogotá (corte 09:00)

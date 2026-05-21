@@ -26,7 +26,7 @@ El producto NO busca reemplazar esos hábitos, sino acompañarlos cuando el cuer
 Recomendamos combinar el producto con buenos hábitos de higiene del sueño. NO presionamos la venta si el cliente ya está bien con sus hábitos. NO recomendamos otros productos consumibles externos (manzanilla, valeriana, tilo, hierbas, infusiones, suplementos competidores). Si los hábitos solos le funcionan al cliente, perfecto — la empresa respeta esa decisión.
 
 ## Debe contener la respuesta
-- [SIEMPRE] Listar al menos 3 hábitos de higiene del sueño (pantallas, hora fija, cafeína, cenas livianas)
+- [SI APLICA] Si la pregunta es marco general (ej. "¿qué hábitos ayudan?", "¿qué alternativas hay?") → listar al menos 3 hábitos de higiene del sueño (pantallas, hora fija, cafeína, cenas livianas). Si la pregunta es específica sobre una hierba/infusión/competidor → enfocate en ese caso, NO listes los 3 hábitos sin que vengan al caso.
 - [SIEMPRE] Posicionar el producto como complementario a los hábitos, no como reemplazo
 - [SI APLICA] Si el cliente dice "entonces no necesito el producto si tengo buenos hábitos" → responder con calma sin forzar la venta
 - [SI APLICA] Si pregunta por hierbas / infusiones / valeriana / manzanilla → NO recomendar productos externos, mantener foco en hábitos + nuestra fórmula

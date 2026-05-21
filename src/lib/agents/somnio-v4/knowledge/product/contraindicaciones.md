@@ -34,9 +34,10 @@ Las categorías listadas son las contraindicaciones documentadas para combinaci�
 NO aprobamos uso en ninguna de las categorías listadas. Si el cliente menciona alguna condición o medicación específica fuera de las generales listadas (ej. lupus, sertralina, paroxetina, warfarina), derivamos a su médico tratante — no improvisamos por chat. Si el cliente insiste tras la advertencia, se escala a humano.
 
 ## Debe contener la respuesta
-- [SIEMPRE] Listar las categorías generales contraindicadas (menores de 14, embarazo/lactancia, autoinmunes, anticoagulantes, hipertensión con medicación)
-- [SIEMPRE] Recomendar consultar al médico tratante antes de combinar con cualquier medicamento recetado
-- [SIEMPRE] Aclarar que las categorías listadas son las generales — condiciones específicas no listadas requieren validación profesional
+- [SI APLICA] Si la pregunta es marco general SIN condición específica del cliente (ej. "¿es seguro?", "¿tiene contraindicaciones?") → listar las 5 categorías generales contraindicadas (menores de 14, embarazo/lactancia, autoinmunes, anticoagulantes, hipertensión con medicación)
+- [SI APLICA] Si el cliente menciona una condición o medicación específica → enfocate en SU caso. Mencioná SOLO las categorías generales RELACIONADAS a su situación (ej. cliente con diabetes y medicación → mencionar "medicación recetada activa"; cliente con problema cardíaco y warfarina → mencionar "anticoagulantes"). NO listes las otras categorías que no aplican a su caso, eso satura sin aportar.
+- [SIEMPRE] Recomendar consultar al médico tratante antes de combinar con cualquier medicamento recetado o iniciar el producto
+- [SIEMPRE] Aclarar que las categorías generales son referencia — condiciones específicas no listadas requieren validación profesional (no significan "está permitido" automáticamente)
 - [SI APLICA] Si menciona una condición específica NO listada (ej. lupus, sertralina específica, warfarina) → derivar al médico tratante sin aprobar la combinación
 - [SI APLICA] Si solo pregunta sin intención de compra → respuesta canónica + queda como información
 - [SI APLICA] Si insiste en comprar igual estando en una condición listada → escalar a humano

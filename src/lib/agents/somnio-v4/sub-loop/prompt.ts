@@ -215,8 +215,13 @@ export function buildGenerationPrompt(
     `   no tenés base. El silencio cuesta menos que la información incorrecta.\n\n` +
     `CALIBRACIÓN DEL responseConfidence (M1 — RESEARCH A1):\n\n` +
     `El responseConfidence (0.0 a 1.0) debe ser tu mejor estimación de:\n\n` +
-    `  "¿Cuál es la PROBABILIDAD de que un compañero humano experto en Somnio diría que\n` +
-    `   tu respuesta es completa y NO requiere consultarlo con un humano?"\n\n` +
+    `  "¿Cuál es la PROBABILIDAD de que tu respuesta cumpla FIELMENTE la Posición del negocio\n` +
+    `   y los items 'Debe contener' aplicables del material, SIN inventar contenido fuera del KB?"\n\n` +
+    `Nota importante: si la Posición del KB indica una acción (ej: 'derivar al médico tratante',\n` +
+    `'recomendar consulta profesional', 'sugerir validación') y tu respuesta cumple esa acción\n` +
+    `con el material disponible, ESA ES una respuesta FIEL — independiente de si el KB cubre\n` +
+    `el caso del cliente de forma literal o sólo genérica. NO confundas 'cumplir la posición\n` +
+    `del KB' con 'tener data específica del caso del cliente'.\n\n` +
     `Usá SÓLO estos 5 buckets (M2 — discretizada): 0.20, 0.40, 0.60, 0.80, 0.95.\n` +
     `NO uses valores intermedios tipo 0.42, 0.67, 0.89.\n\n` +
     `BACKSTOP BINARIO (M3):\n\n` +

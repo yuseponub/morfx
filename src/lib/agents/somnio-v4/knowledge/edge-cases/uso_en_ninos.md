@@ -9,6 +9,10 @@ escalate_if:
   - cliente quiere comprar para un menor de 14 años
   - cliente insiste en dar producto a un menor de 14 sin pediatra
 tone_override: null
+scope_summary: |
+  Preguntas sobre si el producto sirve para un niño, hijo, hija, adolescente o menor de
+  edad, desde qué edad se puede dar, si los menores de 14 lo pueden tomar, si requiere
+  pediatra, o si una dosis menor sirve para edades chicas.
 ---
 
 ## Hechos del producto

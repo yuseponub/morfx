@@ -9,6 +9,10 @@ escalate_if:
   - cliente pregunta por nombre del fabricante o laboratorio
   - cliente pregunta por número INVIMA específico
 tone_override: null
+scope_summary: |
+  Preguntas sobre qué tiene el producto, sus ingredientes activos (melatonina, magnesio),
+  cuáles son sus componentes, su composición, de qué está hecho, qué incluye la fórmula,
+  o si tiene algún otro ingrediente además de los listados.
 ---
 
 ## Hechos del producto

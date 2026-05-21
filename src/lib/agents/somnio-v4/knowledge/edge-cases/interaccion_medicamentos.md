@@ -13,6 +13,11 @@ escalate_if:
   - ansiolíticos con intención de compra
   - inmunosupresores
 tone_override: null
+scope_summary: |
+  Preguntas del cliente que ya está tomando un medicamento recetado específico y quiere
+  saber si puede combinarlo con el producto. Incluye familias farmacológicas como
+  antidepresivos, ansiolíticos, anticoagulantes, medicamentos para hipertensión, diabetes
+  o tiroides, y casos de polifarmacia (varios recetados a la vez).
 ---
 
 ## Hechos del producto

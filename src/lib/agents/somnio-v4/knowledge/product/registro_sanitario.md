@@ -10,6 +10,10 @@ escalate_if:
   - cliente pregunta por nombre del fabricante o laboratorio
   - cliente pide documento formal de registro
 tone_override: null
+scope_summary: |
+  Preguntas sobre si el producto está aprobado o registrado legalmente, si tiene registro
+  sanitario INVIMA, si está certificado por FDA o alguna autoridad, si es legal de vender,
+  quién es el fabricante o laboratorio, o si tiene número de certificado oficial.
 ---
 
 ## Hechos del producto

@@ -10,6 +10,10 @@ escalate_if:
   - pide tabla comparativa
   - queja de precio explícita
 tone_override: null
+scope_summary: |
+  Preguntas sobre si el producto es caro o más barato comparado con otras marcas,
+  alternativas en farmacia (melatonina sola, magnesio solo), competidores con nombre
+  específico, si vale la pena pagar el precio, o tablas comparativas de precio.
 ---
 
 ## Hechos del producto

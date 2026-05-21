@@ -32,7 +32,17 @@ export async function syncKbDoc(filePath: string, raw: string): Promise<SyncResu
   const parsed = parseKbDoc(raw, filePath)
   coherenceCheck(filePath, parsed.frontmatter.category, parsed.sections)
 
-  const bodyHash = createHash('sha256').update(parsed.body).digest('hex')
+  // Contenido a embebear (2026-05-20): scope_summary del frontmatter PREPENDIDO
+  // al body. Esto sube el match semántico cuando la query del cliente usa
+  // términos que están en el scope_summary pero NO en el body literal
+  // (ej. "hipotiroidismo" debe matchear con interaccion_medicamentos aunque
+  // el body sólo mencione "tiroides" como familia genérica).
+  // El hash incluye scope_summary también — cambios en scope_summary regeneran
+  // el embedding aunque el body no cambie.
+  const contentToEmbed = parsed.frontmatter.scope_summary
+    ? `${parsed.frontmatter.scope_summary}\n\n${parsed.body}`
+    : parsed.body
+  const bodyHash = createHash('sha256').update(contentToEmbed).digest('hex')
   const supabase = createAdminClient()
 
   const { data: existing } = await supabase
@@ -47,9 +57,9 @@ export async function syncKbDoc(filePath: string, raw: string): Promise<SyncResu
   let action: SyncResult['action']
   if (existing && existing.body_hash === bodyHash) {
     embedding = existing.embedding as number[]
-    action = 'updated_meta_only' // body sin cambios; metadata puede haber cambiado
+    action = 'updated_meta_only' // body+scope sin cambios; metadata puede haber cambiado
   } else {
-    embedding = await generateEmbedding(parsed.body)
+    embedding = await generateEmbedding(contentToEmbed)
     action = existing ? 'updated_with_embedding' : 'inserted'
   }
 

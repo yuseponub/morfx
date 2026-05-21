@@ -12,6 +12,11 @@ escalate_if:
   - cliente con anticoagulantes insiste sin acompañamiento médico
   - cliente quiere comprar para un menor de 14 años
 tone_override: null
+scope_summary: |
+  Preguntas marco sobre si el producto es seguro de tomar, si tiene contraindicaciones,
+  riesgos generales, efectos secundarios, o si puede tomarse teniendo alguna condición
+  médica diagnosticada (autoinmune, lupus, diabetes, tiroides, hipertensión) o tomando
+  medicación recetada de forma genérica.
 ---
 
 ## Hechos del producto

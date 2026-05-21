@@ -6,6 +6,11 @@ last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, como_se_toma, efectividad]
 tone_override: null
+scope_summary: |
+  Preguntas sobre si el producto genera adicción, dependencia o vicio, si el cuerpo se
+  acostumbra, si después se puede dejar de tomar sin problema, si hay que retirarlo
+  paulatinamente, o cómo se compara con sedantes recetados como zolpidem o clonazepam
+  respecto a generar dependencia.
 ---
 
 ## Hechos del producto

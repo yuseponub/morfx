@@ -6,6 +6,10 @@ last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [pago, duracion_efecto]
 tone_override: null
+scope_summary: |
+  Preguntas sobre cuánto tarda el envío, cuándo llega el pedido, si llega el mismo día,
+  qué ciudades cubren, si hay envío a una ciudad específica, qué transportadora usan,
+  o si despachan al exterior (Miami, Madrid, México, EEUU, Europa).
 ---
 
 ## Hechos del producto

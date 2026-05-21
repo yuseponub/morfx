@@ -9,6 +9,10 @@ escalate_if:
   - cliente embarazada insiste en comprar a pesar de la advertencia
   - cliente en lactancia insiste en comprar a pesar de la advertencia
 tone_override: null
+scope_summary: |
+  Preguntas sobre si el producto puede tomarse durante el embarazo, estando embarazada,
+  en lactancia, dando pecho, postparto, o buscando embarazo, y si hay alguna restricción
+  específica para mujeres gestantes o madres lactantes.
 ---
 
 ## Hechos del producto

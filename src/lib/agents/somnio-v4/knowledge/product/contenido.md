@@ -6,6 +6,10 @@ last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, como_se_toma, precio]
 tone_override: null
+scope_summary: |
+  Preguntas sobre cuántos comprimidos trae el frasco, cuántas pastillas vienen, qué tamaño
+  es la presentación, cuánto rinde un frasco, para cuántos días o noches alcanza, si hay
+  frascos más chicos o más grandes, o si viene en gotas.
 ---
 
 ## Hechos del producto

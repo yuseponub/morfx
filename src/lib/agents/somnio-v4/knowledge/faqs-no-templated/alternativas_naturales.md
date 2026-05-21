@@ -6,6 +6,10 @@ last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, efectividad, dependencia]
 tone_override: null
+scope_summary: |
+  Preguntas sobre alternativas naturales al producto, hábitos para dormir mejor sin tomar
+  nada (higiene del sueño), hierbas o infusiones (manzanilla, valeriana, tilo), remedios
+  caseros, o si solo con buenos hábitos basta sin necesidad de comprar nada.
 ---
 
 ## Hechos del producto

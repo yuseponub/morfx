@@ -6,6 +6,10 @@ last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, como_se_toma, efectividad]
 tone_override: null
+scope_summary: |
+  Preguntas sobre cuántas horas dura el efecto del producto, si va a permitir dormir toda
+  la noche, si despierta a media noche, si deja "resaca" o pesadez al día siguiente, o
+  cómo se compara la duración con la de un medicamento recetado para dormir.
 ---
 
 ## Hechos del producto

@@ -8,6 +8,10 @@ related_topics: []
 escalate_if:
   - cualquier consulta sobre devoluciones, reembolsos, garantía o cambios
 tone_override: null
+scope_summary: |
+  Cualquier consulta sobre devoluciones, reembolsos, garantía, cambios del producto,
+  reclamos por producto dañado, o solicitudes tipo "no me sirvió, lo quiero devolver".
+  Todas estas se gestionan por equipo humano, el bot no redacta respuesta.
 ---
 
 ## Hechos del producto

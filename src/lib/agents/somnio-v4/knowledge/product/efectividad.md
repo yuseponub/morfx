@@ -6,6 +6,10 @@ last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, como_se_toma, duracion_efecto, insomnio_largo_plazo]
 tone_override: null
+scope_summary: |
+  Preguntas sobre si el producto funciona, si sirve, en cuánto tiempo se sienten los efectos,
+  cuándo va a notar resultados, si se siente desde la primera noche, o por qué tras varios
+  días aún no nota cambios.
 ---
 
 ## Hechos del producto

@@ -9,6 +9,10 @@ escalate_if:
   - cliente con condicion medica preexistente
   - cliente toma medicamentos recetados
 tone_override: null
+scope_summary: |
+  Preguntas sobre cómo se toma el producto, cuál es la dosis, cuándo tomarlo, a qué hora,
+  cuántos comprimidos al día, si se mastica o se traga entero, con agua o sin agua, si se
+  puede partir el comprimido, o si una dosis distinta a la estándar es válida.
 ---
 
 ## Hechos del producto

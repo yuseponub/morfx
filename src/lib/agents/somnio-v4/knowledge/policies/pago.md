@@ -13,6 +13,10 @@ escalate_if:
   - cliente pide link de pago
   - cliente intenta dar datos de tarjeta directamente en chat
 tone_override: null
+scope_summary: |
+  Preguntas sobre cómo pagar, métodos de pago aceptados (contra-entrega, transferencia
+  Bancolombia, Nequi, Daviplata, tarjeta crédito o débito, link de pago), si reciben
+  efectivo, o si aceptan métodos no listados como criptomonedas, Bitcoin o PayPal.
 ---
 
 ## Hechos del producto

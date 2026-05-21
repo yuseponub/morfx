@@ -10,6 +10,11 @@ escalate_if:
   - cliente menciona ideacion negativa
   - cliente expresa sufrimiento extremo sin pregunta concreta
 tone_override: null
+scope_summary: |
+  Preguntas de clientes con insomnio crónico que llevan meses o años sin poder dormir,
+  que ya toman medicamentos recetados para dormir (zolpidem, clonazepam, alprazolam,
+  pastillas para dormir), o que mencionan depresión, ansiedad severa o sufrimiento
+  emocional fuerte ligado al sueño.
 ---
 
 ## Hechos del producto

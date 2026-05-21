@@ -8,6 +8,10 @@ related_topics: [como_se_toma, contraindicaciones, dependencia]
 escalate_if:
   - cliente insiste en combinar tras advertencia
 tone_override: null
+scope_summary: |
+  Preguntas sobre si puede tomarse el producto junto con alcohol, trago, cerveza, vino,
+  ron o licor, si una copa o cerveza es seguro, o qué hacer si la persona ya bebió esa
+  noche y quiere igual tomar la dosis.
 ---
 
 ## Hechos del producto

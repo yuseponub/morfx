@@ -2,13 +2,18 @@ import matter from 'gray-matter'
 import { z } from 'zod'
 
 /**
- * Frontmatter schema (D-45 + D-05 RAG-generative).
+ * Frontmatter schema (D-45 + D-05 RAG-generative + 2026-05-20 scope_summary).
  *
- * 5 campos required (topic, keywords, category, last_reviewed, reviewed_by)
+ * 6 campos required (topic, keywords, category, last_reviewed, reviewed_by, scope_summary)
  * + 3 opcionales (escalate_if, related_topics, tone_override).
  *
  * `tone_override` (D-05): si está presente, override del Tono Somnio global.
  * Null/ausente → usar TONE_BASE del system prompt.
+ *
+ * `scope_summary` (2026-05-20): descripción natural de qué preguntas atiende el KB.
+ * Se PREPENDE al body para generar el embedding — mejora drásticamente el ranking
+ * de kb_search cuando la query del cliente no usa las palabras literales del body.
+ * Cada KB tiene su scope_summary específico al topic (NO patrón cookie-cutter).
  */
 export const FrontmatterSchema = z.object({
   topic: z.string().min(1),
@@ -16,6 +21,7 @@ export const FrontmatterSchema = z.object({
   category: z.enum(['product', 'policies', 'edge-cases', 'faqs-no-templated']),
   last_reviewed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'last_reviewed debe ser YYYY-MM-DD'),
   reviewed_by: z.string().min(1),
+  scope_summary: z.string().min(1).optional(),
   escalate_if: z.array(z.string()).optional(),
   related_topics: z.array(z.string()).optional(),
   tone_override: z.string().nullable().optional(),

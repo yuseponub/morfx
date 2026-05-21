@@ -81,20 +81,47 @@ export async function runToolingCall(args: {
   systemPrompt: string
 }): Promise<ToolingCallResult> {
   const t0 = performance.now()
-  const rawResult = await runWithPurpose('subloop_tooling', () =>
-    generateText({
-      model: getOpenAI()('gpt-4o-mini'),
-      system: args.systemPrompt,
-      messages: [
-        ...args.ctx.recentMessages,
-        { role: 'user' as const, content: args.ctx.userMessage },
-      ],
-      tools: { kb_search: kbSearchTool({ workspaceId: args.ctx.workspaceId }) },
-      toolChoice: 'auto',  // NO 'required' (W-06 — bloquearía output final)
-      stopWhen: stepCountIs(4),
-      output: Output.object({ schema: ToolingOutputSchema }),
-    }),
-  )
+
+  // Diagnostic wrap (Plan 07d debug 2026-05-20): same pattern as
+  // comprehension.ts — captura finishReason/text/response/cause del error
+  // para diagnosticar AI_NoOutputGeneratedError (stepCount=0, toolCalls=[]).
+  // El payload va al sub-loop emitRagError → subLoopDebug.errorMessage en DB.
+  // `rawResult` tipado como any por la misma razón que en ToolingCallResult:
+  // el shape concreto del GenerateTextResult con generics inferidos
+  // (tools + Output.object) no es asignable al ToolSet genérico.
+  let rawResult: any
+  try {
+    rawResult = await runWithPurpose('subloop_tooling', () =>
+      generateText({
+        model: getOpenAI()('gpt-4o-mini'),
+        system: args.systemPrompt,
+        messages: [
+          ...args.ctx.recentMessages,
+          { role: 'user' as const, content: args.ctx.userMessage },
+        ],
+        tools: { kb_search: kbSearchTool({ workspaceId: args.ctx.workspaceId }) },
+        toolChoice: 'auto',  // NO 'required' (W-06 — bloquearía output final)
+        stopWhen: stepCountIs(4),
+        output: Output.object({ schema: ToolingOutputSchema }),
+      }),
+    )
+  } catch (genErr) {
+    const e = genErr as Record<string, unknown>
+    const errName = (e?.name as string) ?? 'Error'
+    const errMsg = (e?.message as string) ?? String(genErr)
+    const cause = e?.cause ? JSON.stringify(e.cause).slice(0, 400) : 'no-cause'
+    const text = (e?.text as string) ?? (e?.responseBody as string) ?? 'no-text'
+    const finishReason = (e?.finishReason as string) ?? 'no-finishReason'
+    const responseStr = e?.response
+      ? JSON.stringify(e.response).slice(0, 600)
+      : 'no-response'
+    throw new Error(
+      `[ToolingCall-v4 generateText] ${errName}: ${errMsg} | ` +
+      `finishReason="${finishReason}" | text="${(text as string).slice(0, 300)}" | ` +
+      `cause="${cause}" | response="${responseStr}"`
+    )
+  }
+
   const latencyMs = performance.now() - t0
   const output = safeAccessOutput(rawResult, ToolingOutputSchema)
   return { output, rawResult, latencyMs }

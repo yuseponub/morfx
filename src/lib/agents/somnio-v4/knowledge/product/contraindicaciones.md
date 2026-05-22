@@ -1,8 +1,8 @@
 ---
 topic: contraindicaciones
-keywords: [contraindicaciones, puedo tomar si, embarazo, lactancia, autoinmune, hipertension, anticoagulantes, medicamentos, riesgos, menor de 14]
+keywords: [contraindicaciones, puedo tomar si, embarazo, lactancia, autoinmune, hipertension, anticoagulantes, medicamentos, riesgos, menor de 14, adulto mayor, edad, tercera edad, condicion medica, enfermedad, gastritis, migrana, ansiedad, depresion, tiroides, diabetes, asma, EPOC, cardiaca, renal, hepatica, cronica, aguda, gastrointestinal, digestiva]
 category: product
-last_reviewed: 2026-05-16
+last_reviewed: 2026-05-22
 reviewed_by: jose
 related_topics: [formula, dependencia, como_se_toma, uso_en_embarazo, interaccion_medicamentos]
 escalate_if:
@@ -11,12 +11,22 @@ escalate_if:
   - cliente con autoinmune insiste sin acompañamiento médico
   - cliente con anticoagulantes insiste sin acompañamiento médico
   - cliente quiere comprar para un menor de 14 años
+  - cliente menciona ser adulto mayor (60+) sin más contexto
 tone_override: null
 scope_summary: |
-  Preguntas marco sobre si el producto es seguro de tomar, si tiene contraindicaciones,
-  riesgos generales, efectos secundarios, o si puede tomarse teniendo alguna condición
-  médica diagnosticada (autoinmune, lupus, diabetes, tiroides, hipertensión) o tomando
-  medicación recetada de forma genérica.
+  Preguntas sobre si el producto es seguro de tomar, si tiene contraindicaciones,
+  riesgos, efectos secundarios, o si puede tomarse teniendo CUALQUIER condición
+  médica preexistente o diagnosticada. Cubre tanto las 5 categorías generales
+  explícitas (autoinmune, lupus, anticoagulantes, hipertensión con medicación,
+  embarazo/lactancia, menores de 14) como cualquier otra condición no listada
+  (gastritis, gastrointestinal, digestiva, migrañas, ansiedad, depresión, tiroides,
+  hipotiroidismo, hipertiroidismo, diabetes tipo 1 o 2, asma, EPOC, cardíaca,
+  renal, hepática, neurológica, fibromialgia, artritis, condición crónica,
+  condición aguda, post-operatorio, etc.). También cubre rango etario válido
+  (14 años en adelante, sin límite superior — incluye adultos mayores 60+/65+
+  /tercera edad por defecto a handoff humano por comorbilidades comunes a esa
+  edad). Patrón típico: "tengo X condición, puedo tomarlo / me sirve / me afecta /
+  es seguro / lo recomiendan".
 ---
 
 ## Hechos del producto

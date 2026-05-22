@@ -10,7 +10,7 @@ import {
 import { buildSubLoopTools, type SubLoopToolsContext } from './tools'
 import { buildToolingPrompt, buildGenerationPrompt } from './prompt'
 import { TONE_BASE } from './tone-base'
-import { checkNuncaDecir } from './nunca-decir-check'
+import { checkCompliance } from './compliance-check'
 import { runToolingCall } from './tooling-call'
 import { runGenerationCall } from './generation-call'
 import { safeAccessOutput } from './safe-output'
@@ -333,12 +333,18 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
     )
   }
 
-  // D-09 / D-20 — NUNCA-decir check (sin cambios al archivo nunca-decir-check.ts)
-  const nuncaCheck = await checkNuncaDecir({
+  // 2026-05-22: compliance check post-generación — Gemini Flash independiente.
+  // Single call evalúa 2 dimensiones (D-09 NUNCA-decir + escalation gate).
+  // Reemplaza checkNuncaDecir; mismo costo + latencia (~150-500ms), 0 sesgo
+  // de auto-evaluación (otro modelo, no compuso la respuesta).
+  const compliance = await checkCompliance({
+    userMessage: args.ctx.userMessage,
     candidateText: generation.responseText,
     nuncaDecirRules: tooling.material_del_topic.nunca_decir ?? [],
+    cuandoEscalar: tooling.material_del_topic.cuando_escalar ?? [],
   })
-  if (!nuncaCheck.ok) {
+
+  if (compliance.nuncaDecirViolation) {
     getCollector()?.recordEvent(
       'pipeline_decision',
       'subloop_nunca_decir_violation',
@@ -346,7 +352,7 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
         agent: SOMNIO_V4_AGENT_ID,
         reason: args.reason,
         sourceTopic: tooling.topic_seleccionado,
-        violation: nuncaCheck.violation ?? null,
+        violation: compliance.nuncaDecirViolation,
       },
     )
     return emitRagHandoff(
@@ -356,8 +362,31 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
       generationResult,
       tooling,
       generation,
-      `nunca_decir_violation: ${nuncaCheck.violation ?? 'unspecified'}`,
-      nuncaCheck.violation ?? 'unspecified',
+      `nunca_decir_violation: ${compliance.nuncaDecirViolation}`,
+      compliance.nuncaDecirViolation,
+    )
+  }
+
+  if (compliance.escalationTrigger || (!compliance.ok && !compliance.nuncaDecirViolation)) {
+    const trigger = compliance.escalationTrigger ?? 'unspecified'
+    getCollector()?.recordEvent(
+      'pipeline_decision',
+      'subloop_escalation_trigger_match',
+      {
+        agent: SOMNIO_V4_AGENT_ID,
+        reason: args.reason,
+        sourceTopic: tooling.topic_seleccionado,
+        matchedTrigger: trigger,
+      },
+    )
+    return emitRagHandoff(
+      args,
+      t0,
+      toolingResult,
+      generationResult,
+      tooling,
+      generation,
+      `escalation_trigger_match: ${trigger}`,
     )
   }
 

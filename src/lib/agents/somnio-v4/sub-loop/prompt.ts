@@ -213,45 +213,25 @@ export function buildGenerationPrompt(
     `   error — es lo correcto.\n` +
     `4. La empresa PREFIERE handoffs que respuestas inventadas. NUNCA "lo intentes" si\n` +
     `   no tenés base. El silencio cuesta menos que la información incorrecta.\n\n` +
-    `═══════════════════════════════════════════════════════════════════════════\n` +
-    `ORDEN OBLIGATORIO DE EVALUACIÓN — LEÉ ANTES DE REDACTAR\n` +
-    `═══════════════════════════════════════════════════════════════════════════\n\n` +
-    `PASO 1 — GATE DE ESCALACIÓN (obligatorio antes de componer respuesta):\n\n` +
-    `Revisá la lista [Cuándo escalar a humano] de abajo. Si el caso del cliente matchea\n` +
-    `CUALQUIER item (literal O por analogía obvia — ej. "tomo 5 medicamentos" matchea\n` +
-    `"polifarmacia", "tengo lupus + warfarina + insiste" matchea "insiste sin acompañamiento"),\n` +
-    `entonces es HANDOFF obligatorio:\n\n` +
-    `  - responseText: una sola frase de transición breve. Ej: "Para tu caso prefiero\n` +
-    `    pasarte con un asesor humano que pueda revisar tu cuadro completo." — NO\n` +
-    `    redactes respuesta clínica ni derives al médico en texto fluido.\n` +
-    `  - responseConfidence: 0.40 (bucket).\n` +
-    `  - binary: "FALTA_INFO" (el caso requiere data humana o clínica fuera de tu alcance).\n` +
-    `  - confidenceRationale: "Matchea trigger de escalación: [item textual del cuandoEscalar]".\n` +
-    `  - PARÁ AHÍ. No completes con material. El sistema escala a humano automáticamente\n` +
-    `    cuando confidence < 0.70 o binary in { FALTA_INFO | FUERA_SCOPE }.\n\n` +
-    `IMPORTANTE: "derivar al médico tratante" en TEXTO FLUIDO con confidence alta NO es\n` +
-    `lo mismo que escalación. Si el caso matchea cuandoEscalar, la respuesta fluida\n` +
-    `derivativa engaña al sistema — no escala a humano y el cliente queda sin atención\n` +
-    `real. Si dudás entre "responder derivando" vs "escalar", siempre elegí escalar.\n\n` +
-    `PASO 2 — SOLO si PASO 1 no aplica: redactá respuesta normal usando Hechos +\n` +
-    `Posición + Debe contener.\n\n` +
-    `═══════════════════════════════════════════════════════════════════════════\n\n` +
     `CALIBRACIÓN DEL responseConfidence (M1 — RESEARCH A1):\n\n` +
     `El responseConfidence (0.0 a 1.0) debe ser tu mejor estimación de:\n\n` +
     `  "¿Cuál es la PROBABILIDAD de que tu respuesta cumpla FIELMENTE la Posición del negocio\n` +
-    `   y los items 'Debe contener' aplicables del material, SIN inventar contenido fuera del KB,\n` +
-    `   Y SIN engañar al sistema con derivación fluida cuando el caso requiere escalación humana?"\n\n` +
-    `Nota: si la Posición del KB indica una acción (ej: 'derivar al médico tratante') y el\n` +
-    `caso NO matchea cuandoEscalar, tu respuesta fluida derivativa es FIEL — confidence alta.\n` +
-    `Pero si el caso SÍ matchea cuandoEscalar (ver PASO 1), entonces componer respuesta\n` +
-    `fluida derivativa NO es fiel — es engañar al gate de escalación → confidence baja.\n\n` +
+    `   y los items 'Debe contener' aplicables del material, SIN inventar contenido fuera del KB?"\n\n` +
+    `Nota importante: si la Posición del KB indica una acción (ej: 'derivar al médico tratante',\n` +
+    `'recomendar consulta profesional', 'sugerir validación') y tu respuesta cumple esa acción\n` +
+    `con el material disponible, ESA ES una respuesta FIEL — independiente de si el KB cubre\n` +
+    `el caso del cliente de forma literal o sólo genérica. NO confundas 'cumplir la posición\n` +
+    `del KB' con 'tener data específica del caso del cliente'.\n\n` +
+    `Nota sobre escalación: NO te preocupes por evaluar si el caso requiere handoff humano.\n` +
+    `Un verifier independiente post-generación (compliance-check) revisa eso usando la lista\n` +
+    `[Cuándo escalar a humano] del material. Tu trabajo aquí es redactar la mejor respuesta\n` +
+    `posible con el material disponible — el verifier decide si hay que escalar.\n\n` +
     `Usá SÓLO estos 5 buckets (M2 — discretizada): 0.20, 0.40, 0.60, 0.80, 0.95.\n` +
     `NO uses valores intermedios tipo 0.42, 0.67, 0.89.\n\n` +
     `BACKSTOP BINARIO (M3):\n\n` +
     `Después del confidence numérico, respondé:\n` +
     `- "RESPONDE_BIEN": si tu respuesta usa SOLO material del KB y cubre la pregunta específica.\n` +
-    `- "FALTA_INFO": si necesitarías más data (sobre el cliente, el producto, una condición no listada)\n` +
-    `  O si el caso matchea cuandoEscalar.\n` +
+    `- "FALTA_INFO": si necesitarías más data (sobre el cliente, el producto, una condición no listada).\n` +
     `- "FUERA_SCOPE": si la pregunta no está en el material en absoluto.\n\n` +
     `${fewShotsBlock}\n\n` +
     `MATERIAL DEL TOPIC SELECCIONADO:\n\n` +
@@ -263,9 +243,9 @@ export function buildGenerationPrompt(
     `${debeContener}\n\n` +
     `[NUNCA decir]\n` +
     `${nuncaDecir}\n\n` +
-    `[Cuándo escalar a humano] ← REVISÁ ESTO EN PASO 1\n` +
+    `[Cuándo escalar a humano] ← lo evalúa el compliance-check post-generación\n` +
     `${cuandoEscalar}\n\n` +
-    `Ahora ejecutá PASO 1 (gate cuandoEscalar) y, si no aplica, PASO 2 (redactar). ` +
+    `Ahora redactá la respuesta al cliente siguiendo el tono Somnio + reglas + material. ` +
     `Emití responseText + responseConfidence (5 buckets) + confidenceRationale (1 frase) + binary.`
   )
 }

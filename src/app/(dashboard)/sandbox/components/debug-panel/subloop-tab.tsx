@@ -251,7 +251,13 @@ function ToolCallsTimeline({ payload }: { payload: SubLoopDebugPayload }) {
   )
 }
 
-function KbHitsSection({ hits }: { hits: SubLoopKbHitSnapshot[] }) {
+function KbHitsSection({
+  hits,
+  selectedTopic,
+}: {
+  hits: SubLoopKbHitSnapshot[]
+  selectedTopic?: string | null
+}) {
   if (hits.length === 0) {
     return (
       <div className="space-y-2 pt-2 border-t">
@@ -269,34 +275,57 @@ function KbHitsSection({ hits }: { hits: SubLoopKbHitSnapshot[] }) {
     <div className="space-y-2 pt-2 border-t">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Database className="h-3.5 w-3.5" />
-        KB Hits ({hits.length})
+        KB Hits ({hits.length}){' '}
+        {selectedTopic && (
+          <span className="text-muted-foreground/70 font-normal">
+            — ganador: <span className="font-mono">{selectedTopic}</span>
+          </span>
+        )}
       </div>
-      {hits.map((hit, idx) => (
-        <div key={idx} className="space-y-1.5 border rounded-lg p-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-xs truncate flex-1">{hit.topic}</span>
-            {hit.hasNuncaDecir && (
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                nunca-decir
-              </Badge>
+      {hits.map((hit, idx) => {
+        const isSelected = selectedTopic === hit.topic
+        return (
+          <div
+            key={idx}
+            className={cn(
+              'space-y-1.5 border rounded-lg p-2',
+              isSelected &&
+                'border-green-500 dark:border-green-600 bg-green-50/40 dark:bg-green-900/10 ring-1 ring-green-400/30',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs truncate flex-1">
+                {isSelected && '✓ '}
+                {hit.topic}
+              </span>
+              {isSelected && (
+                <Badge variant="default" className="shrink-0 text-[10px] bg-green-600 hover:bg-green-600">
+                  selected
+                </Badge>
+              )}
+              {hit.hasNuncaDecir && (
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  nunca-decir
+                </Badge>
+              )}
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">similarity</span>
+                <span className={cn('font-mono font-medium', getSimilarityColor(hit.similarity))}>
+                  {normalizeSimilarity(hit.similarity)}%
+                </span>
+              </div>
+              <Progress value={normalizeSimilarity(hit.similarity)} className="h-1.5" />
+            </div>
+            {hit.contentPreview && (
+              <p className="text-[11px] text-muted-foreground/80 line-clamp-3">
+                {hit.contentPreview}
+              </p>
             )}
           </div>
-          <div className="space-y-0.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">similarity</span>
-              <span className={cn('font-mono font-medium', getSimilarityColor(hit.similarity))}>
-                {normalizeSimilarity(hit.similarity)}%
-              </span>
-            </div>
-            <Progress value={normalizeSimilarity(hit.similarity)} className="h-1.5" />
-          </div>
-          {hit.contentPreview && (
-            <p className="text-[11px] text-muted-foreground/80 line-clamp-2">
-              {hit.contentPreview}
-            </p>
-          )}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -350,29 +379,120 @@ function OutcomeSection({ payload }: { payload: SubLoopDebugPayload }) {
       </div>
       {outcome.responseText && (
         <div>
-          <span className="text-xs text-muted-foreground">response text (Plan 03 RAG-generative):</span>
+          <span className="text-xs text-muted-foreground">response text:</span>
           <pre className="mt-1 p-2 bg-muted/40 rounded text-xs overflow-auto max-h-24 whitespace-pre-wrap">
             {outcome.responseText}
           </pre>
-        </div>
-      )}
-      {outcome.responseConfidence !== null && outcome.responseConfidence !== undefined && (
-        <div className="text-xs flex gap-2 items-baseline">
-          <span className="text-muted-foreground">confidence:</span>
-          <span className={getConfidenceColor(outcome.responseConfidence)}>
-            {outcome.responseConfidence.toFixed(2)}
-          </span>
-          {outcome.confidenceRationale && (
-            <span className="text-muted-foreground/80 italic truncate">
-              — {outcome.confidenceRationale}
-            </span>
-          )}
         </div>
       )}
       {outcome.reason && (
         <div className="text-xs">
           <span className="text-muted-foreground">reason:</span>{' '}
           <span className="text-muted-foreground/90">{outcome.reason}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Razonamiento del modelo (2026-05-22):
+ * - Call 1 (tooling, GPT-4o-mini): topic ganador + should_handoff + handoff_reason.
+ * - Call 2 (generation, Gemini Flash): binary backstop + responseConfidence +
+ *   confidenceRationale FULL (sin truncate).
+ *
+ * Se renderiza entre KB Hits y Outcome para que el usuario lea el flujo:
+ *   retrieved (3 KBs) → seleccionó X → generó con confidence Y por razón Z → outcome.
+ */
+function getBinaryBadgeColor(binary: string): string {
+  if (binary === 'RESPONDE_BIEN') {
+    return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-300'
+  }
+  if (binary === 'FALTA_INFO') {
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-300'
+  }
+  // FUERA_SCOPE
+  return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300'
+}
+
+function ReasoningSection({ payload }: { payload: SubLoopDebugPayload }) {
+  const tooling = payload.toolingCall
+  const generation = payload.generationCall
+  if (!tooling && !generation) return null
+  return (
+    <div className="space-y-2 pt-2 border-t">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Activity className="h-3.5 w-3.5" />
+        Razonamiento del modelo
+      </div>
+
+      {tooling && (
+        <div className="space-y-1.5 border rounded-lg p-2 bg-muted/20">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Call 1 — Tooling (GPT-4o-mini + kb_search)
+            </span>
+            {tooling.latencyMs !== undefined && (
+              <span className="text-[10px] text-muted-foreground/70 inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {Math.round(tooling.latencyMs)}ms
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground">topic ganador:</span>
+            <span className="font-mono font-medium">
+              {tooling.output.topic_seleccionado ?? '— (handoff)'}
+            </span>
+          </div>
+          {tooling.output.should_handoff && (
+            <div className="text-xs">
+              <Badge variant="destructive" className="text-[10px]">
+                should_handoff
+              </Badge>
+              {tooling.output.handoff_reason && (
+                <span className="ml-2 text-muted-foreground/80 italic">
+                  {tooling.output.handoff_reason}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {generation && (
+        <div className="space-y-1.5 border rounded-lg p-2 bg-muted/20">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Call 2 — Generation (Gemini Flash)
+            </span>
+            {generation.latencyMs !== undefined && (
+              <span className="text-[10px] text-muted-foreground/70 inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {Math.round(generation.latencyMs)}ms
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border',
+                getBinaryBadgeColor(generation.output.binary),
+              )}
+            >
+              {generation.output.binary}
+            </span>
+            <span className="text-muted-foreground">confidence:</span>
+            <span className={cn('font-mono', getConfidenceColor(generation.output.responseConfidence))}>
+              {generation.output.responseConfidence.toFixed(2)}
+            </span>
+          </div>
+          {generation.output.confidenceRationale && (
+            <div className="text-[11px] text-muted-foreground/90 leading-relaxed">
+              <span className="text-muted-foreground/70">razón: </span>
+              {generation.output.confidenceRationale}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -455,14 +575,18 @@ export function SubloopTab({ debugTurns }: SubloopTabProps) {
                 {payload.nuncaDecirViolation && (
                   <ViolationBanner kind="nunca_decir" message={payload.nuncaDecirViolation} />
                 )}
-                <ToolCallsTimeline payload={payload} />
                 {/* Pitfall 5: undefined kbHits = kb_search not invoked OR shape mismatch. */}
                 {payload.kbHits !== undefined ? (
-                  <KbHitsSection hits={payload.kbHits} />
+                  <KbHitsSection
+                    hits={payload.kbHits}
+                    selectedTopic={payload.outcome?.sourceTopic ?? null}
+                  />
                 ) : (
                   <KbNotConsulted />
                 )}
+                <ReasoningSection payload={payload} />
                 <OutcomeSection payload={payload} />
+                <ToolCallsTimeline payload={payload} />
               </>
             ) : (
               <FiredFalseExplainer turn={turn} />

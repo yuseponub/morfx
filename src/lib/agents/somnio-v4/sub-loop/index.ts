@@ -137,13 +137,22 @@ function extractStepData(rawResult: any): {
             similarity: number
             canonicalResponse: string | null
             nuncaDecirRules?: string[]
+            hechosDelProducto?: string | null
+            posicionDelNegocio?: string | null
           }
-          kbHits = (hits as KbHitRow[]).map((h) => ({
-            topic: h.topic,
-            similarity: h.similarity,
-            contentPreview: (h.canonicalResponse ?? '').slice(0, 200),
-            hasNuncaDecir: (h.nuncaDecirRules?.length ?? 0) > 0,
-          }))
+          // 2026-05-22: contentPreview ahora usa hechosDelProducto || posicionDelNegocio
+          // (RAG-generative columns). canonicalResponse era el source legacy y es null
+          // para todos los topics v4 — por eso el preview salía vacío en la UI.
+          kbHits = (hits as KbHitRow[]).map((h) => {
+            const previewSource =
+              h.hechosDelProducto ?? h.posicionDelNegocio ?? h.canonicalResponse ?? ''
+            return {
+              topic: h.topic,
+              similarity: h.similarity,
+              contentPreview: previewSource.slice(0, 200),
+              hasNuncaDecir: (h.nuncaDecirRules?.length ?? 0) > 0,
+            }
+          })
         }
       }
     }

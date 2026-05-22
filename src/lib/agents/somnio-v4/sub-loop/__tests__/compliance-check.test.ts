@@ -58,7 +58,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       nuncaDecirRules: [],
       cuandoEscalar: [],
     })
-    expect(result).toEqual({ ok: true })
+    expect(result).toMatchObject({ ok: true })
     expect(generateTextMock).not.toHaveBeenCalled()
   })
 
@@ -78,7 +78,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       cuandoEscalar: ['cliente reporta insomnio crónico de años'],
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       nuncaDecirViolation: 'El producto cura el insomnio.',
       escalationTrigger: undefined,
@@ -102,7 +102,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       cuandoEscalar: ['cliente reporta polifarmacia (varios recetados activos)'],
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       nuncaDecirViolation: undefined,
       escalationTrigger: 'cliente reporta polifarmacia (varios recetados activos)',
@@ -127,7 +127,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       cuandoEscalar: ['embarazada insiste en comprar a pesar de la advertencia'],
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       nuncaDecirViolation: 'El producto es seguro durante el embarazo.',
       escalationTrigger: 'embarazada insiste en comprar a pesar de la advertencia',
@@ -149,7 +149,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       cuandoEscalar: ['cliente menciona medicamento específico no listado'],
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
       nuncaDecirViolation: undefined,
       escalationTrigger: undefined,
@@ -171,7 +171,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       cuandoEscalar: [],
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
       nuncaDecirViolation: undefined,
       escalationTrigger: undefined,
@@ -194,7 +194,7 @@ describe('checkCompliance (2026-05-22 refactor — D1 nunca-decir + D2 escalatio
       cuandoEscalar: ['cliente reporta efecto adverso tras haber tomado el producto'],
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
       nuncaDecirViolation: undefined,
       escalationTrigger: undefined,

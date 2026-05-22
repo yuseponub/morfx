@@ -364,6 +364,7 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
       generation,
       `nunca_decir_violation: ${compliance.nuncaDecirViolation}`,
       compliance.nuncaDecirViolation,
+      compliance,
     )
   }
 
@@ -387,6 +388,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
       tooling,
       generation,
       `escalation_trigger_match: ${trigger}`,
+      undefined,
+      compliance,
     )
   }
 
@@ -446,6 +449,7 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
       output: generation,
       latencyMs: generationResult.latencyMs,
     },
+    complianceCheck: { output: compliance.raw, latencyMs: compliance.latencyMs },
   })
 
   return outcome
@@ -453,6 +457,11 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
 
 /**
  * Emit handoff outcome del RAG path con debug payload.
+ *
+ * `compliance` opcional — solo presente para handoffs disparados por el verifier
+ * post-generación (nunca_decir / escalation_trigger). Para handoffs disparados por
+ * threshold/binary del generator (low_response_confidence/binary_backstop_*) la
+ * compliance call no llegó a correr, así que se omite del debug payload.
  */
 function emitRagHandoff(
   args: RunSubLoopArgs,
@@ -463,6 +472,7 @@ function emitRagHandoff(
   generation: Awaited<ReturnType<typeof runGenerationCall>>['output'],
   reason: string,
   nuncaDecirViolation?: string,
+  compliance?: Awaited<ReturnType<typeof checkCompliance>>,
 ): LoopOutcome {
   const outcome: LoopOutcome = {
     status: 'no_match',
@@ -509,6 +519,9 @@ function emitRagHandoff(
       output: generation,
       latencyMs: generationResult.latencyMs,
     },
+    complianceCheck: compliance
+      ? { output: compliance.raw, latencyMs: compliance.latencyMs }
+      : undefined,
   })
 
   return outcome

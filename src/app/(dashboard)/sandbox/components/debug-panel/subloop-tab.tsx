@@ -18,8 +18,8 @@
 import { useState } from 'react'
 import {
   Activity,
-  Database,
   AlertTriangle,
+  ShieldCheck,
   Wrench,
   CheckCircle,
   XCircle,
@@ -28,13 +28,11 @@ import {
   Clock,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import type { DebugTurn } from '@/lib/sandbox/types'
 import type {
   SubLoopDebugPayload,
   SubLoopToolCallSnapshot,
-  SubLoopKbHitSnapshot,
 } from '@/lib/agents/somnio-v4/sub-loop/debug-payload'
 
 interface SubloopTabProps {
@@ -44,18 +42,6 @@ interface SubloopTabProps {
 // ============================================================================
 // Helpers (mirror classify-tab.tsx — keep visual consistency)
 // ============================================================================
-
-function normalizeSimilarity(s: number): number {
-  return s <= 1 ? Math.round(s * 100) : Math.round(s)
-}
-
-function getSimilarityColor(s: number): string {
-  const n = normalizeSimilarity(s)
-  if (n >= 85) return 'text-green-600 dark:text-green-400'
-  if (n >= 60) return 'text-yellow-600 dark:text-yellow-400'
-  if (n >= 40) return 'text-orange-600 dark:text-orange-400'
-  return 'text-red-600 dark:text-red-400'
-}
 
 function getOutcomeStatusBadge(status: string | undefined): 'default' | 'secondary' | 'destructive' {
   if (!status) return 'secondary'
@@ -251,94 +237,86 @@ function ToolCallsTimeline({ payload }: { payload: SubLoopDebugPayload }) {
   )
 }
 
-function KbHitsSection({
-  hits,
-  selectedTopic,
-}: {
-  hits: SubLoopKbHitSnapshot[]
-  selectedTopic?: string | null
-}) {
-  if (hits.length === 0) {
-    return (
-      <div className="space-y-2 pt-2 border-t">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <Database className="h-3.5 w-3.5" />
-          KB Hits
-        </div>
-        <div className="text-xs text-muted-foreground/70 italic">
-          kb_search returned 0 hits.
-        </div>
-      </div>
-    )
-  }
+/**
+ * 2026-05-22: nueva sección — Compliance check (verifier independiente post-generación).
+ * Surface las 2 dimensiones que el checker evalúa (nunca-decir + escalation).
+ * Reemplaza la sección KB Hits anterior (redundante — el ganador ya está en Tooling Call).
+ */
+function ComplianceCheckSection({ payload }: { payload: SubLoopDebugPayload }) {
+  const compliance = payload.complianceCheck
+  if (!compliance) return null
+  const out = compliance.output
+  const anyFail = out.violatesNuncaDecir || out.shouldEscalate
   return (
     <div className="space-y-2 pt-2 border-t">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Database className="h-3.5 w-3.5" />
-        KB Hits ({hits.length}){' '}
-        {selectedTopic && (
-          <span className="text-muted-foreground/70 font-normal">
-            — ganador: <span className="font-mono">{selectedTopic}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <ShieldCheck
+            className={cn(
+              'h-3.5 w-3.5',
+              anyFail ? 'text-red-500' : 'text-green-500',
+            )}
+          />
+          Compliance check (verifier independiente)
+        </div>
+        {compliance.latencyMs !== undefined && (
+          <span className="text-[10px] text-muted-foreground/70 inline-flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {Math.round(compliance.latencyMs)}ms
           </span>
         )}
       </div>
-      {hits.map((hit, idx) => {
-        const isSelected = selectedTopic === hit.topic
-        return (
-          <div
-            key={idx}
-            className={cn(
-              'space-y-1.5 border rounded-lg p-2',
-              isSelected &&
-                'border-green-500 dark:border-green-600 bg-green-50/40 dark:bg-green-900/10 ring-1 ring-green-400/30',
-            )}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs truncate flex-1">
-                {isSelected && '✓ '}
-                {hit.topic}
-              </span>
-              {isSelected && (
-                <Badge variant="default" className="shrink-0 text-[10px] bg-green-600 hover:bg-green-600">
-                  selected
-                </Badge>
-              )}
-              {hit.hasNuncaDecir && (
-                <Badge variant="outline" className="text-[10px] shrink-0">
-                  nunca-decir
-                </Badge>
-              )}
-            </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">similarity</span>
-                <span className={cn('font-mono font-medium', getSimilarityColor(hit.similarity))}>
-                  {normalizeSimilarity(hit.similarity)}%
-                </span>
-              </div>
-              <Progress value={normalizeSimilarity(hit.similarity)} className="h-1.5" />
-            </div>
-            {hit.contentPreview && (
-              <p className="text-[11px] text-muted-foreground/80 line-clamp-3">
-                {hit.contentPreview}
-              </p>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
-function KbNotConsulted() {
-  return (
-    <div className="space-y-2 pt-2 border-t">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Database className="h-3.5 w-3.5" />
-        KB Hits
+      <div
+        className={cn(
+          'space-y-1.5 border rounded-lg p-2',
+          out.violatesNuncaDecir &&
+            'border-red-400 dark:border-red-700 bg-red-50/40 dark:bg-red-900/10',
+        )}
+      >
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-medium text-muted-foreground">
+            D1 — Nunca-decir
+          </span>
+          <Badge
+            variant={out.violatesNuncaDecir ? 'destructive' : 'default'}
+            className="text-[10px]"
+          >
+            {out.violatesNuncaDecir ? 'VIOLATES' : 'OK'}
+          </Badge>
+        </div>
+        {out.violatesNuncaDecir && out.violatedRule && (
+          <p className="text-[11px] text-red-700 dark:text-red-300 leading-relaxed">
+            <span className="text-muted-foreground/70">regla afirmada: </span>
+            {out.violatedRule}
+          </p>
+        )}
       </div>
-      <div className="text-xs text-muted-foreground/60 italic">
-        KB not consulted in this turn.
+
+      <div
+        className={cn(
+          'space-y-1.5 border rounded-lg p-2',
+          out.shouldEscalate &&
+            'border-orange-400 dark:border-orange-700 bg-orange-50/40 dark:bg-orange-900/10',
+        )}
+      >
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-medium text-muted-foreground">
+            D2 — Escalation gate
+          </span>
+          <Badge
+            variant={out.shouldEscalate ? 'destructive' : 'default'}
+            className="text-[10px]"
+          >
+            {out.shouldEscalate ? 'ESCALATE' : 'OK'}
+          </Badge>
+        </div>
+        {out.shouldEscalate && out.matchedTrigger && (
+          <p className="text-[11px] text-orange-700 dark:text-orange-300 leading-relaxed">
+            <span className="text-muted-foreground/70">trigger matcheado: </span>
+            {out.matchedTrigger}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -575,16 +553,8 @@ export function SubloopTab({ debugTurns }: SubloopTabProps) {
                 {payload.nuncaDecirViolation && (
                   <ViolationBanner kind="nunca_decir" message={payload.nuncaDecirViolation} />
                 )}
-                {/* Pitfall 5: undefined kbHits = kb_search not invoked OR shape mismatch. */}
-                {payload.kbHits !== undefined ? (
-                  <KbHitsSection
-                    hits={payload.kbHits}
-                    selectedTopic={payload.outcome?.sourceTopic ?? null}
-                  />
-                ) : (
-                  <KbNotConsulted />
-                )}
                 <ReasoningSection payload={payload} />
+                <ComplianceCheckSection payload={payload} />
                 <OutcomeSection payload={payload} />
                 <ToolCallsTimeline payload={payload} />
               </>

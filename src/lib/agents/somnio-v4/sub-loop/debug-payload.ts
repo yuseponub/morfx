@@ -105,6 +105,16 @@ export interface SubLoopDebugPayload {
     output: import('./generation-call').GenerationOutput
     latencyMs?: number
   }
+  /**
+   * 2026-05-22: snapshot del Call 3 (compliance verifier Gemini Flash). Presente cuando
+   * tooling success y generación produjo responseText (incluso handoff por threshold del
+   * generator). Absent cuando tooling decidió handoff inmediato (no hubo respuesta que
+   * verificar). Surface las 2 dimensiones independientes (nunca-decir + escalation).
+   */
+  complianceCheck?: {
+    output: import('./compliance-check').ComplianceCheckOutput
+    latencyMs?: number
+  }
 }
 
 // Re-export LoopOutcome + SubLoopReason for downstream consumers (sandbox/types.ts,

@@ -50,6 +50,10 @@ export interface ComplianceCheckResult {
   nuncaDecirViolation?: string
   /** Solo presente cuando shouldEscalate=true. */
   escalationTrigger?: string
+  /** Raw output del verifier — para debug payload (subloop-tab.tsx). */
+  raw: ComplianceCheckOutput
+  /** performance.now() delta — solo cuando se invocó el LLM (no early-return). */
+  latencyMs?: number
 }
 
 /**
@@ -67,9 +71,13 @@ export async function checkCompliance(args: {
   cuandoEscalar: string[]
 }): Promise<ComplianceCheckResult> {
   if (args.nuncaDecirRules.length === 0 && args.cuandoEscalar.length === 0) {
-    return { ok: true }
+    return {
+      ok: true,
+      raw: { violatesNuncaDecir: false, shouldEscalate: false },
+    }
   }
 
+  const t0 = performance.now()
   const nuncaDecirBlock = args.nuncaDecirRules.length === 0
     ? '(sin reglas — saltá esta dimensión y emití violatesNuncaDecir=false)'
     : args.nuncaDecirRules.map((r, i) => `${i + 1}. ${r}`).join('\n')
@@ -202,5 +210,7 @@ export async function checkCompliance(args: {
     ok,
     nuncaDecirViolation: output.violatesNuncaDecir ? output.violatedRule : undefined,
     escalationTrigger: output.shouldEscalate ? output.matchedTrigger : undefined,
+    raw: output,
+    latencyMs: performance.now() - t0,
   }
 }

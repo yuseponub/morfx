@@ -75,23 +75,50 @@ export interface ToolingCallResult {
   latencyMs: number
 }
 
-export async function runToolingCall(args: {
+/**
+ * Detecta errores transitorios del LLM (cold start GPT-4o-mini, rate limits,
+ * network blips) que justifican 1 retry. Errores no-transitorios (auth, schema
+ * validation persistente) NO se reintentan — propagan al primer fallo.
+ *
+ * 2026-05-22: agregado tras incidente sesión 31f597ab ("tengo gastritis...")
+ * donde GPT-4o-mini retornó stepCount=0 + AI_NoOutputGeneratedError. La causa
+ * raíz es flakeo intermitente del API de OpenAI; el 90%+ de los retries funcionan.
+ */
+function isTransientToolingError(err: unknown): boolean {
+  const e = err as Record<string, unknown>
+  const name = (e?.name as string) ?? ''
+  const originalName = (e?.originalName as string) ?? ''
+  const msg = (e?.message as string) ?? ''
+  const composite = `${name} ${originalName} ${msg}`.toLowerCase()
+  // AI SDK transient error names
+  if (composite.includes('nooutputgenerated')) return true
+  if (composite.includes('ai_retryerror')) return true
+  if (composite.includes('ai_apicallerror')) return true
+  if (composite.includes('no output generated')) return true
+  // HTTP transient codes
+  if (composite.includes('429')) return true       // rate limit
+  if (composite.includes('503')) return true       // service unavailable
+  if (composite.includes('504')) return true       // gateway timeout
+  // Network transient errors
+  if (composite.includes('econnreset')) return true
+  if (composite.includes('etimedout')) return true
+  if (composite.includes('socket hang up')) return true
+  return false
+}
+
+/**
+ * Un solo intento del tooling call. Wrap diagnostic incluye AHORA tanto
+ * generateText como safeAccessOutput (el bug previo: safeAccessOutput estaba
+ * FUERA del try/catch, así AI_NoOutputGeneratedError lazy-thrown al acceder
+ * .output escapaba el wrap).
+ */
+async function attemptToolingCall(args: {
   reason: 'low_confidence' | 'razonamiento_libre'
   ctx: ToolingCallContext
   systemPrompt: string
-}): Promise<ToolingCallResult> {
-  const t0 = performance.now()
-
-  // Diagnostic wrap (Plan 07d debug 2026-05-20): same pattern as
-  // comprehension.ts — captura finishReason/text/response/cause del error
-  // para diagnosticar AI_NoOutputGeneratedError (stepCount=0, toolCalls=[]).
-  // El payload va al sub-loop emitRagError → subLoopDebug.errorMessage en DB.
-  // `rawResult` tipado como any por la misma razón que en ToolingCallResult:
-  // el shape concreto del GenerateTextResult con generics inferidos
-  // (tools + Output.object) no es asignable al ToolSet genérico.
-  let rawResult: any
+}): Promise<{ rawResult: any; output: ToolingOutput }> {
   try {
-    rawResult = await runWithPurpose('subloop_tooling', () =>
+    const rawResult = await runWithPurpose('subloop_tooling', () =>
       generateText({
         model: getOpenAI()('gpt-4o-mini'),
         system: args.systemPrompt,
@@ -100,11 +127,15 @@ export async function runToolingCall(args: {
           { role: 'user' as const, content: args.ctx.userMessage },
         ],
         tools: { kb_search: kbSearchTool({ workspaceId: args.ctx.workspaceId }) },
-        toolChoice: 'auto',  // NO 'required' (W-06 — bloquearía output final)
+        toolChoice: 'auto',
         stopWhen: stepCountIs(4),
         output: Output.object({ schema: ToolingOutputSchema }),
       }),
     )
+    // safeAccessOutput ahora dentro del try — captures lazy-thrown
+    // AI_NoOutputGeneratedError al acceder rawResult.output.
+    const output = safeAccessOutput(rawResult, ToolingOutputSchema)
+    return { rawResult, output }
   } catch (genErr) {
     const e = genErr as Record<string, unknown>
     const errName = (e?.name as string) ?? 'Error'
@@ -115,14 +146,62 @@ export async function runToolingCall(args: {
     const responseStr = e?.response
       ? JSON.stringify(e.response).slice(0, 600)
       : 'no-response'
-    throw new Error(
-      `[ToolingCall-v4 generateText] ${errName}: ${errMsg} | ` +
+    const wrapped = new Error(
+      `[ToolingCall-v4] ${errName}: ${errMsg} | ` +
       `finishReason="${finishReason}" | text="${(text as string).slice(0, 300)}" | ` +
       `cause="${cause}" | response="${responseStr}"`
     )
+    // Preservar el nombre original del error para que isTransientToolingError lo detecte
+    // — el new Error() default name es "Error" pero el original puede ser
+    // AI_NoOutputGeneratedError.
+    ;(wrapped as any).originalName = errName
+    throw wrapped
+  }
+}
+
+/**
+ * Tooling call con 1 retry automático en errores transitorios.
+ *
+ * Flow:
+ *   - attempt 1 → success → return
+ *   - attempt 1 → transient error → wait 500ms → attempt 2 → return o throw final
+ *   - attempt 1 → non-transient error → throw immediato (sin retry)
+ *
+ * Si attempt 2 falla, propaga el SEGUNDO error (también tiene diagnostic wrap)
+ * al sub-loop orchestrator que lo manda a emitRagError.
+ */
+export async function runToolingCall(args: {
+  reason: 'low_confidence' | 'razonamiento_libre'
+  ctx: ToolingCallContext
+  systemPrompt: string
+}): Promise<ToolingCallResult> {
+  const t0 = performance.now()
+
+  let attempt: { rawResult: any; output: ToolingOutput }
+  try {
+    attempt = await attemptToolingCall(args)
+  } catch (firstErr) {
+    if (!isTransientToolingError(firstErr)) {
+      // Non-transient: no retry, propagate first error directly.
+      throw firstErr
+    }
+    console.log(
+      '[somnio-v4 tooling] transient error attempt 1, retrying in 500ms:',
+      (firstErr as Error).message?.slice(0, 200) ?? String(firstErr),
+    )
+    await new Promise((r) => setTimeout(r, 500))
+    try {
+      attempt = await attemptToolingCall(args)
+      console.log('[somnio-v4 tooling] retry attempt 2 succeeded')
+    } catch (secondErr) {
+      console.log(
+        '[somnio-v4 tooling] retry attempt 2 also failed:',
+        (secondErr as Error).message?.slice(0, 200) ?? String(secondErr),
+      )
+      throw secondErr
+    }
   }
 
   const latencyMs = performance.now() - t0
-  const output = safeAccessOutput(rawResult, ToolingOutputSchema)
-  return { output, rawResult, latencyMs }
+  return { output: attempt.output, rawResult: attempt.rawResult, latencyMs }
 }

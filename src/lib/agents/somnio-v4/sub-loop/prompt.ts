@@ -129,10 +129,23 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
     `Tu trabajo NO es redactar la respuesta al cliente. ` +
     `La redacción la hace OTRO modelo después usando el material que vos emitís.\n\n` +
     `PROCEDIMIENTO:\n` +
-    `1. Llamá la tool kb_search(query) con la pregunta del cliente o sub-pregunta relevante.\n` +
+    `1. PRIMERA búsqueda — OBLIGATORIO: llamá kb_search(query) con la pregunta del cliente\n` +
+    `   VERBATIM (textual, sin reformular, sin extraer keywords, sin agregar contexto).\n` +
+    `   Si la pregunta es "tengo gastritis ocasional, puedo tomarlo?", la query DEBE ser\n` +
+    `   exactamente esa frase. NO la conviertas a "gastritis Elixir del Sueño" ni a\n` +
+    `   "contraindicaciones X" ni a ningún otro reformulado.\n` +
+    `   Razón: el KB se indexa con embedding del scope_summary completo. El verbatim del\n` +
+    `   cliente conserva verbos y patrones ("tengo X + puedo Y") que matchean mejor los\n` +
+    `   anclajes semánticos del scope_summary. Reformular pierde ese matching.\n` +
     `2. Razoná sobre los hits (hasta 3, ordenados por similarity).\n` +
-    `3. SELECCIONÁ UN topic ganador (D-11) — el que mejor responda la pregunta ESPECÍFICA del cliente.\n` +
-    `4. Emití el output schema:\n` +
+    `3. Si el top-1 de la primera búsqueda parece encajar claramente (sim ≥ 0.30 + topic\n` +
+    `   conceptualmente relevante al caso del cliente), USALO. NO hagas búsqueda extra.\n` +
+    `4. SEGUNDA búsqueda — SOLO si el top-1 de la primera no encaja: podés hacer 1 búsqueda\n` +
+    `   adicional reformulada (sinónimo o paráfrasis amplia, no extracción de keywords).\n` +
+    `5. SELECCIONÁ UN topic ganador (D-11) — el que mejor responda la pregunta ESPECÍFICA\n` +
+    `   del cliente. RESTRICCIÓN: SOLO podés elegir un topic que aparezca en los hits\n` +
+    `   retrievados por kb_search. NUNCA un topic que no haya sido devuelto.\n` +
+    `6. Emití el output schema:\n` +
     `   - topic_seleccionado: nombre del topic ganador (o null si ninguno aplica).\n` +
     `   - material_del_topic: copiá VERBATIM del hit ganador:\n` +
     `       * hechos: contenido de "hechosDelProducto" del hit.\n` +
@@ -147,7 +160,8 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
     `- Máximo 2 búsquedas kb_search. Si tras 2 búsquedas no hay topic relevante, emite\n` +
     `  should_handoff=true con material_del_topic=null + topic_seleccionado=null.\n` +
     `- NO inventes contenido del material — TODO viene VERBATIM del hit ganador.\n` +
-    `- NO emitas texto destinado al cliente — sólo el material parseado para CALL 2.`
+    `- NO emitas texto destinado al cliente — sólo el material parseado para CALL 2.\n` +
+    `- NO elijas un topic_seleccionado que no esté en los hits retornados por kb_search.`
   )
 }
 

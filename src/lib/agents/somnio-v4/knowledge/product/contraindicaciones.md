@@ -62,8 +62,6 @@ NO aprobamos uso en ninguna de las categorías listadas. Si el cliente menciona 
 - usar palabras como "te derivo", "te paso", "asesor humano", "tomo nota"
 
 ## Cuándo escalar a humano
-- cliente menciona condición médica no listada (ej. lupus, fibromialgia, hipotiroidismo, etc.)
-- cliente menciona medicamento específico no listado (ej. sertralina, paroxetina, warfarina, levotiroxina)
 - cliente embarazada o en lactancia insiste en comprar
 - cliente con autoinmune o anticoagulantes insiste sin acompañamiento médico
 - cliente quiere comprar para un menor de 14 años

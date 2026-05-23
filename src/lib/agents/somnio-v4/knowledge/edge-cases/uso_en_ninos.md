@@ -13,7 +13,7 @@ scope_summary: |
 ---
 
 ## Hechos del producto
-ELIXIR DEL SUEÑO está formulado para población adulta sana. NO se recomienda en menores de 14 años. A partir de los 14 años puede tomarse pero siempre con acompañamiento médico (pediatra o médico tratante), porque la respuesta del cuerpo de un adolescente puede diferir de la de un adulto en cuanto a metabolismo, ciclo circadiano y desarrollo hormonal. Para dificultades de sueño en menores, la indicación correcta es consultar al pediatra.
+ELIXIR DEL SUEÑO está formulado para personas adultas. NO se recomienda en menores de 14 años. A partir de los 14 años puede tomarse pero siempre con acompañamiento médico (pediatra o médico tratante), porque la respuesta del cuerpo de un adolescente puede diferir de la de un adulto en cuanto a metabolismo, ciclo circadiano y desarrollo hormonal. Para dificultades de sueño en menores, la indicación correcta es consultar al pediatra.
 
 ## Posición del negocio
 NO recomendamos uso en menores de 14 años. Para adolescentes (14+), recomendamos supervisión médica antes de iniciar — el producto puede tomarse pero la decisión la debe acompañar un profesional que evalúe el caso. Si el cliente insiste en comprar para un menor de 14 a pesar de la advertencia, se escala a humano.

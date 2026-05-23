@@ -23,7 +23,7 @@ scope_summary: |
 ---
 
 ## Hechos del producto
-ELIXIR DEL SUEÑO está formulado para población adulta sana. NO se recomienda su uso en:
+ELIXIR DEL SUEÑO está formulado para personas adultas. NO se recomienda su uso en:
 - Menores de 14 años
 - Mujeres embarazadas o en lactancia
 - Personas con enfermedades autoinmunes (la melatonina puede modular respuesta inmune)

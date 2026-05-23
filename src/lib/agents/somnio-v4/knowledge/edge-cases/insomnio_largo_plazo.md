@@ -14,7 +14,7 @@ scope_summary: |
 ---
 
 ## Hechos del producto
-ELIXIR DEL SUEÑO es un suplemento natural a base de melatonina (10mg) + citrato de magnesio (50mg) pensado para acompañar el ritmo del sueño en población adulta sana. NO es un medicamento recetado para insomnio crónico ni reemplaza fármacos como zolpidem, clonazepam o alprazolam. Los medicamentos recetados para dormir no se deben dejar de manera abrupta — la transición a un suplemento natural debe ser progresiva y, idealmente, con acompañamiento médico.
+ELIXIR DEL SUEÑO es un suplemento natural a base de melatonina (10mg) + citrato de magnesio (50mg) pensado para acompañar el ritmo del sueño en personas adultas. NO es un medicamento recetado para insomnio crónico ni reemplaza fármacos como zolpidem, clonazepam o alprazolam. Los medicamentos recetados para dormir no se deben dejar de manera abrupta — la transición a un suplemento natural debe ser progresiva y, idealmente, con acompañamiento médico.
 
 ## Posición del negocio
 Para casos de insomnio crónico que ya están en tratamiento con medicación recetada, recomendamos un protocolo de bajada paulatina (~15 días por escalón): primero pastilla completa del fármaco junto a ELIXIR DEL SUEÑO 1 comprimido diario media hora antes de dormir; luego media pastilla del fármaco; luego un cuarto; mientras el ELIXIR DEL SUEÑO se mantiene constante. Lo ideal es que el organismo se adapte progresivamente al producto natural. Casos con componente de salud mental severo (depresión, ansiedad aguda, ideación negativa) NO se atienden por chat — se escalan a humano.

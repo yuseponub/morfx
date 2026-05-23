@@ -16,7 +16,7 @@ scope_summary: |
 ELIXIR DEL SUEÑO se presenta en comprimidos (no gotas, no jarabe). La dosis estándar es 1 comprimido diario, 30 minutos antes de acostarse, pasándolo con agua. El comprimido se traga entero — no se mastica, no se chupa, no se disuelve. La consistencia con la hora cada noche favorece que el cuerpo se vaya acostumbrando al ritmo del sueño. La formulación es melatonina (10mg) + citrato de magnesio (50mg) por comprimido.
 
 ## Posición del negocio
-La dosis de 1 comprimido diario es estándar para población adulta sana. Cualquier ajuste (dosis distinta, partición de pastilla, frecuencia diferente) debe consultarse con el médico tratante — no improvisamos dosis personalizadas por chat. Si el cliente reporta condición médica preexistente o toma medicamentos recetados, derivamos a su médico antes de iniciar.
+La dosis de 1 comprimido diario es estándar para personas adultas. Cualquier ajuste (dosis distinta, partición de pastilla, frecuencia diferente) debe consultarse con el médico tratante — no improvisamos dosis personalizadas por chat. Si el cliente reporta condición médica preexistente o toma medicamentos recetados, derivamos a su médico antes de iniciar.
 
 ## Debe contener la respuesta
 - [SIEMPRE] Indicar dosis: 1 comprimido diario, 30 minutos antes de acostarse, pasado con agua

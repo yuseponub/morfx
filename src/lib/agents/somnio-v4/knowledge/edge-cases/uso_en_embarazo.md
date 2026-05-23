@@ -13,7 +13,7 @@ scope_summary: |
 ---
 
 ## Hechos del producto
-ELIXIR DEL SUEÑO está formulado para población adulta sana. Durante el embarazo y la lactancia, todo lo que la madre consume puede afectar al bebé, incluyendo suplementos naturales como melatonina + citrato de magnesio. La decisión sobre qué suplementos tomar en estas etapas la debe tomar el ginecólogo (durante embarazo) o el pediatra (durante lactancia) que acompaña el proceso. NO existe evidencia que respalde el uso seguro del producto en estas poblaciones.
+ELIXIR DEL SUEÑO está formulado para personas adultas. Durante el embarazo y la lactancia, todo lo que la madre consume puede afectar al bebé, incluyendo suplementos naturales como melatonina + citrato de magnesio. La decisión sobre qué suplementos tomar en estas etapas la debe tomar el ginecólogo (durante embarazo) o el pediatra (durante lactancia) que acompaña el proceso. NO existe evidencia que respalde el uso seguro del producto en estas poblaciones.
 
 ## Posición del negocio
 NO recomendamos usar ELIXIR DEL SUEÑO durante embarazo o lactancia. La empresa prioriza la salud de la madre y del bebé sobre cualquier conveniencia comercial. Si el cliente insiste tras la advertencia (intención clara de compra a pesar del riesgo), se escala a humano.

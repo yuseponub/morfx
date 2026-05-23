@@ -137,15 +137,22 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
     `   Razón: el KB se indexa con embedding del scope_summary completo. El verbatim del\n` +
     `   cliente conserva verbos y patrones ("tengo X + puedo Y") que matchean mejor los\n` +
     `   anclajes semánticos del scope_summary. Reformular pierde ese matching.\n` +
-    `2. Razoná sobre los hits (hasta 3, ordenados por similarity).\n` +
-    `3. Si el top-1 de la primera búsqueda parece encajar claramente (sim ≥ 0.30 + topic\n` +
-    `   conceptualmente relevante al caso del cliente), USALO. NO hagas búsqueda extra.\n` +
-    `4. SEGUNDA búsqueda — SOLO si el top-1 de la primera no encaja: podés hacer 1 búsqueda\n` +
-    `   adicional reformulada (sinónimo o paráfrasis amplia, no extracción de keywords).\n` +
-    `5. SELECCIONÁ UN topic ganador (D-11) — el que mejor responda la pregunta ESPECÍFICA\n` +
+    `2. SEGUNDA búsqueda (también obligatoria): reformulación amplia con sinónimos o\n` +
+    `   paráfrasis del mismo intent. Sirve para cubrir variantes de embedding que la\n` +
+    `   primera búsqueda pudo no haber capturado. NO extraigas keywords sueltas — reformulá\n` +
+    `   como una oración natural alternativa. Ejemplo:\n` +
+    `     primera (verbatim): "tengo gastritis ocasional, puedo tomarlo?"\n` +
+    `     segunda (reformulada): "es seguro tomar el producto con problemas gástricos"\n` +
+    `3. Razoná sobre los hits combinados de ambas búsquedas (hasta 6 hits totales).\n` +
+    `4. SELECCIONÁ UN topic ganador (D-11) — el que mejor responda la pregunta ESPECÍFICA\n` +
     `   del cliente. RESTRICCIÓN: SOLO podés elegir un topic que aparezca en los hits\n` +
-    `   retrievados por kb_search. NUNCA un topic que no haya sido devuelto.\n` +
-    `6. Emití el output schema:\n` +
+    `   retornados por kb_search en alguna de las 2 búsquedas. NUNCA un topic que no haya\n` +
+    `   sido devuelto.\n` +
+    `   IMPORTANTE: no te dejes engañar por scores altos en queries reformuladas. La\n` +
+    `   primera búsqueda verbatim es la que mejor refleja el intent del cliente. Si la\n` +
+    `   primera trajo un topic conceptualmente relevante (aunque su score sea más bajo en\n` +
+    `   absoluto), probablemente es el correcto.\n` +
+    `5. Emití el output schema:\n` +
     `   - topic_seleccionado: nombre del topic ganador (o null si ninguno aplica).\n` +
     `   - material_del_topic: copiá VERBATIM del hit ganador:\n` +
     `       * hechos: contenido de "hechosDelProducto" del hit.\n` +
@@ -157,8 +164,9 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
     `   - should_handoff: false si encontraste topic relevante; true si NINGÚN hit aplica.\n` +
     `   - handoff_reason: corto (ej: "no_relevant_hit") — observability.\n\n` +
     `REGLAS:\n` +
-    `- Máximo 2 búsquedas kb_search. Si tras 2 búsquedas no hay topic relevante, emite\n` +
-    `  should_handoff=true con material_del_topic=null + topic_seleccionado=null.\n` +
+    `- Exactamente 2 búsquedas kb_search (1 verbatim + 1 reformulada). Si tras las 2 no\n` +
+    `  hay topic relevante, emite should_handoff=true con material_del_topic=null +\n` +
+    `  topic_seleccionado=null.\n` +
     `- NO inventes contenido del material — TODO viene VERBATIM del hit ganador.\n` +
     `- NO emitas texto destinado al cliente — sólo el material parseado para CALL 2.\n` +
     `- NO elijas un topic_seleccionado que no esté en los hits retornados por kb_search.`

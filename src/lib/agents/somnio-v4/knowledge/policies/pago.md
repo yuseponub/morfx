@@ -5,13 +5,6 @@ category: policies
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [envio]
-escalate_if:
-  - cliente pide pagar con transferencia
-  - cliente pide pagar con Nequi
-  - cliente pide pagar con Daviplata
-  - cliente pide pagar con tarjeta crédito o débito
-  - cliente pide link de pago
-  - cliente intenta dar datos de tarjeta directamente en chat
 tone_override: null
 scope_summary: |
   Preguntas sobre cómo pagar, métodos de pago aceptados (contra-entrega, transferencia

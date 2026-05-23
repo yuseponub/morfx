@@ -5,13 +5,6 @@ category: edge-cases
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [contraindicaciones, dependencia, formula]
-escalate_if:
-  - cliente con medicamento recetado insiste en comprar sin consulta médica
-  - polifarmacia
-  - anticoagulantes con intención de compra
-  - antidepresivos con intención de compra
-  - ansiolíticos con intención de compra
-  - inmunosupresores
 tone_override: null
 scope_summary: |
   Preguntas del cliente que ya está tomando un medicamento recetado específico y quiere

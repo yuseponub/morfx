@@ -5,9 +5,6 @@ category: edge-cases
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [contraindicaciones, formula]
-escalate_if:
-  - cliente quiere comprar para un menor de 14 años
-  - cliente insiste en dar producto a un menor de 14 sin pediatra
 tone_override: null
 scope_summary: |
   Preguntas sobre si el producto sirve para un niño, hijo, hija, adolescente o menor de

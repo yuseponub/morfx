@@ -5,9 +5,6 @@ category: product
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, contenido, contraindicaciones, dependencia]
-escalate_if:
-  - cliente con condicion medica preexistente
-  - cliente toma medicamentos recetados
 tone_override: null
 scope_summary: |
   Preguntas sobre cómo se toma el producto, cuál es la dosis, cuándo tomarlo, a qué hora,

@@ -5,10 +5,6 @@ category: edge-cases
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [efectividad, contraindicaciones, interaccion_medicamentos, dependencia]
-escalate_if:
-  - cliente menciona depresion o ansiedad severa
-  - cliente menciona ideacion negativa
-  - cliente expresa sufrimiento extremo sin pregunta concreta
 tone_override: null
 scope_summary: |
   Preguntas de clientes con insomnio crónico que llevan meses o años sin poder dormir,

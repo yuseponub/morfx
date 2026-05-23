@@ -5,10 +5,6 @@ category: faqs-no-templated
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, contenido, alternativas_naturales, efectividad]
-escalate_if:
-  - pregunta sobre marcas competidoras especificas
-  - pide tabla comparativa
-  - queja de precio explícita
 tone_override: null
 scope_summary: |
   Preguntas sobre si el producto es caro o más barato comparado con otras marcas,

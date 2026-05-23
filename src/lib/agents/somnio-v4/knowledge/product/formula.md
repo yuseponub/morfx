@@ -5,9 +5,6 @@ category: product
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [contenido, como_se_toma, dependencia, registro_sanitario]
-escalate_if:
-  - cliente pregunta por nombre del fabricante o laboratorio
-  - cliente pregunta por número INVIMA específico
 tone_override: null
 scope_summary: |
   Preguntas sobre qué tiene el producto, sus ingredientes activos (melatonina, magnesio),

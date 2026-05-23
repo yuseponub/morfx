@@ -5,8 +5,6 @@ category: policies
 last_reviewed: 2026-05-18
 reviewed_by: jose
 related_topics: []
-escalate_if:
-  - cualquier consulta sobre devoluciones, reembolsos, garantía o cambios
 tone_override: null
 scope_summary: |
   Cualquier consulta sobre devoluciones, reembolsos, garantía, cambios del producto,

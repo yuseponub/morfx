@@ -5,9 +5,6 @@ category: edge-cases
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [contraindicaciones, formula, interaccion_medicamentos]
-escalate_if:
-  - cliente embarazada insiste en comprar a pesar de la advertencia
-  - cliente en lactancia insiste en comprar a pesar de la advertencia
 tone_override: null
 scope_summary: |
   Preguntas sobre si el producto puede tomarse durante el embarazo, estando embarazada,

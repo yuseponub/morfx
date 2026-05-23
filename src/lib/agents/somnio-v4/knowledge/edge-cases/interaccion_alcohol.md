@@ -5,8 +5,6 @@ category: edge-cases
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [como_se_toma, contraindicaciones, dependencia]
-escalate_if:
-  - cliente insiste en combinar tras advertencia
 tone_override: null
 scope_summary: |
   Preguntas sobre si puede tomarse el producto junto con alcohol, trago, cerveza, vino,

@@ -5,13 +5,6 @@ category: product
 last_reviewed: 2026-05-22
 reviewed_by: jose
 related_topics: [formula, dependencia, como_se_toma, uso_en_embarazo, interaccion_medicamentos]
-escalate_if:
-  - cliente embarazada insiste en comprar a pesar de la advertencia
-  - cliente en lactancia insiste en comprar a pesar de la advertencia
-  - cliente con autoinmune insiste sin acompañamiento médico
-  - cliente con anticoagulantes insiste sin acompañamiento médico
-  - cliente quiere comprar para un menor de 14 años
-  - cliente menciona ser adulto mayor (60+) sin más contexto
 tone_override: null
 scope_summary: |
   Preguntas sobre si el producto es seguro de tomar, si tiene contraindicaciones,
@@ -30,7 +23,7 @@ scope_summary: |
 ---
 
 ## Hechos del producto
-ELIXIR DEL SUEÑO está formulado para población adulta sana (a partir de los 14 años). NO se recomienda su uso en:
+ELIXIR DEL SUEÑO está formulado para población adulta sana. NO se recomienda su uso en:
 - Menores de 14 años
 - Mujeres embarazadas o en lactancia
 - Personas con enfermedades autoinmunes (la melatonina puede modular respuesta inmune)
@@ -66,3 +59,4 @@ NO aprobamos uso en ninguna de las categorías listadas. Si el cliente menciona 
 - cliente con autoinmune o anticoagulantes insiste sin acompañamiento médico
 - cliente quiere comprar para un menor de 14 años
 - cliente reporta efecto adverso tras haber tomado el producto
+- cliente menciona ser adulto mayor (60+) sin más contexto

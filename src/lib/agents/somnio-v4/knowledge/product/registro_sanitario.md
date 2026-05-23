@@ -5,10 +5,6 @@ category: product
 last_reviewed: 2026-05-16
 reviewed_by: jose
 related_topics: [formula, contraindicaciones]
-escalate_if:
-  - cliente pide número exacto de registro INVIMA
-  - cliente pregunta por nombre del fabricante o laboratorio
-  - cliente pide documento formal de registro
 tone_override: null
 scope_summary: |
   Preguntas sobre si el producto está aprobado o registrado legalmente, si tiene registro

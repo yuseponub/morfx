@@ -180,9 +180,10 @@ describe('buildGenerationPrompt with explicit empty fewShots', () => {
   const mockMaterial = {
     hechos: 'h',
     posicion: 'p',
-    debe_contener_aplicables: null,
-    nunca_decir: null,
-    cuando_escalar: null,
+    // Plan 09: discriminated union — arrays son required (pueden ser []), no null.
+    debe_contener_aplicables: [],
+    nunca_decir: [],
+    cuando_escalar: [],
   }
 
   it('renders fallback text when fewShots: [] explicit (no broken placeholder)', () => {

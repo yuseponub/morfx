@@ -12,22 +12,39 @@ import { kbSearchTool } from './kb-search-tool'
 import { runWithPurpose } from '@/lib/observability'
 import { safeAccessOutput } from './safe-output'
 
-export const ToolingOutputSchema = z.object({
-  topic_seleccionado: z.string().nullable()
-    .describe('Topic ganador del KB doc, null si ningún hit es relevante.'),
-  material_del_topic: z.object({
-    hechos: z.string().nullable(),
-    posicion: z.string().nullable(),
-    debe_contener_aplicables: z.array(z.string()).nullable(),
-    nunca_decir: z.array(z.string()).nullable(),
-    cuando_escalar: z.array(z.string()).nullable(),
-  }).nullable()
-    .describe('Material del topic ganador para pasar a la generación (D-11). Null si should_handoff.'),
-  should_handoff: z.boolean()
-    .describe('true si ningún hit es relevante a la pregunta del cliente.'),
-  handoff_reason: z.string().nullable()
-    .describe('Razón corta del handoff — observability. Ej: "no_relevant_hit".'),
-})
+/**
+ * Plan 09 (Opción Z) — discriminated union para reducir ambigüedad bajo OpenAI
+ * strict mode. El schema anterior (todos los campos `.nullable()` anidados) generaba
+ * 32+ combinaciones válidas que confundían a GPT-4o-mini bajo response_format strict,
+ * disparando ocasionalmente `AI_NoOutputGeneratedError` con `stepCount=0` (ver
+ * 09-PLAN.md + auditor #10235/#13075). Discriminated union deja al modelo elegir
+ * UN shape (handoff vs success) sin combinatoria.
+ */
+export const ToolingOutputSchema = z.discriminatedUnion('should_handoff', [
+  // SHAPE A — handoff: ningún hit aplica al caso del cliente.
+  z.object({
+    should_handoff: z.literal(true),
+    handoff_reason: z.string()
+      .describe('Razón corta del handoff — observability. Ej: "no_relevant_hit".'),
+    topic_seleccionado: z.null(),
+    material_del_topic: z.null(),
+  }),
+  // SHAPE B — success: topic ganador con material completo (copiado verbatim).
+  z.object({
+    should_handoff: z.literal(false),
+    handoff_reason: z.null(),
+    topic_seleccionado: z.string()
+      .describe('Topic ganador del KB doc.'),
+    material_del_topic: z.object({
+      hechos: z.string(),
+      posicion: z.string(),
+      debe_contener_aplicables: z.array(z.string()),
+      nunca_decir: z.array(z.string()),
+      cuando_escalar: z.array(z.string()),
+    })
+      .describe('Material del topic ganador para pasar a la generación (D-11).'),
+  }),
+])
 
 export type ToolingOutput = z.infer<typeof ToolingOutputSchema>
 

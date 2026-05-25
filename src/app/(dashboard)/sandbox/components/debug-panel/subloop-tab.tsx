@@ -541,7 +541,15 @@ export function SubloopTab({ debugTurns }: SubloopTabProps) {
         return (
           <div key={idx} className="border rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Turno {turn.turnNumber}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Turno {turn.turnNumber}</span>
+                {turn.clientLatencyMs !== undefined && (
+                  <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-1" title="Tiempo total medido en el browser (red + cold start + server)">
+                    <Clock className="h-3 w-3" />
+                    real: {Math.round(turn.clientLatencyMs)}ms
+                  </span>
+                )}
+              </div>
               {payload ? (
                 <Badge variant="default" className="text-[10px]">
                   sub-loop fired

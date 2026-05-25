@@ -212,6 +212,12 @@ export interface DebugTurn {
    * Undefined when sub-loop did not fire OR for non-v4 agents.
    */
   subLoopDebug?: SubLoopDebugPayload
+  /**
+   * 2026-05-25: tiempo TOTAL desde click "enviar" en el browser hasta que llegó la
+   * respuesta JSON (incluye red, cold start Vercel, server-side completo). Wired en
+   * sandbox-layout.tsx.handleSendMessage. Único campo agregado client-side post-fetch.
+   */
+  clientLatencyMs?: number
 }
 
 /**

@@ -191,6 +191,7 @@ export function SandboxLayout() {
 
     try {
       setIsTyping(true)
+      const tClientStart = performance.now()
       const response = await fetch('/api/sandbox/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -206,6 +207,10 @@ export function SandboxLayout() {
         }),
       })
       const result = await response.json()
+      const clientLatencyMs = performance.now() - tClientStart
+      if (result.debugTurn) {
+        result.debugTurn.clientLatencyMs = clientLatencyMs
+      }
       setIsTyping(false)
 
       // Display messages from pipeline
@@ -350,6 +355,8 @@ export function SandboxLayout() {
     try {
       // 5. Process message via server API (use ref to avoid stale closure in async callback)
       const turnNumber = debugTurnsRef.current.length + 1
+      // 2026-05-25: client-side total turn timer (captura red + cold start + server completo).
+      const tClientStart = performance.now()
       const response = await fetch('/api/sandbox/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -365,6 +372,10 @@ export function SandboxLayout() {
       })
 
       const result: SandboxEngineResult = await response.json()
+      const clientLatencyMs = performance.now() - tClientStart
+      if (result.debugTurn) {
+        result.debugTurn.clientLatencyMs = clientLatencyMs
+      }
 
       // 6. Hide typing and add response messages with delays
       // PROD-TRANSLATE: En produccion, el check pre-envio se hace en

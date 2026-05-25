@@ -95,6 +95,9 @@ export interface ToolingCallResult {
   output: ToolingOutput
   rawResult: any
   latencyMs: number
+  /** 2026-05-25: timing diagnostics para detectar retries silenciosos en producción */
+  attempts: number                  // 1 = success first try; 2 = retried once
+  attemptLatencies: number[]        // ms por attempt (incluye attempt fallido si retried)
 }
 
 /**
@@ -207,11 +210,16 @@ export async function runToolingCall(args: {
   systemPrompt: string
 }): Promise<ToolingCallResult> {
   const t0 = performance.now()
+  const attemptLatencies: number[] = []
 
   let attempt: { rawResult: any; output: ToolingOutput }
+  let attempts = 1
+  const tAttempt1 = performance.now()
   try {
     attempt = await attemptToolingCall(args)
+    attemptLatencies.push(performance.now() - tAttempt1)
   } catch (firstErr) {
+    attemptLatencies.push(performance.now() - tAttempt1)
     if (!isTransientToolingError(firstErr)) {
       // Non-transient: no retry, propagate first error directly.
       throw firstErr
@@ -221,10 +229,14 @@ export async function runToolingCall(args: {
       (firstErr as Error).message?.slice(0, 200) ?? String(firstErr),
     )
     await new Promise((r) => setTimeout(r, 500))
+    attempts = 2
+    const tAttempt2 = performance.now()
     try {
       attempt = await attemptToolingCall(args)
+      attemptLatencies.push(performance.now() - tAttempt2)
       console.log('[somnio-v4 tooling] retry attempt 2 succeeded')
     } catch (secondErr) {
+      attemptLatencies.push(performance.now() - tAttempt2)
       console.log(
         '[somnio-v4 tooling] retry attempt 2 also failed:',
         (secondErr as Error).message?.slice(0, 200) ?? String(secondErr),
@@ -234,5 +246,5 @@ export async function runToolingCall(args: {
   }
 
   const latencyMs = performance.now() - t0
-  return { output: attempt.output, rawResult: attempt.rawResult, latencyMs }
+  return { output: attempt.output, rawResult: attempt.rawResult, latencyMs, attempts, attemptLatencies }
 }

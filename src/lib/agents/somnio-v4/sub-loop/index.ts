@@ -277,6 +277,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
         finishReason: toolingStep.finishReason ?? 'unknown',
         output: tooling,
         latencyMs: toolingResult.latencyMs,
+        attempts: toolingResult.attempts,
+        attemptLatencies: toolingResult.attemptLatencies,
       },
     })
     return escalated
@@ -443,6 +445,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
       finishReason: toolingStep.finishReason ?? 'unknown',
       output: tooling,
       latencyMs: toolingResult.latencyMs,
+      attempts: toolingResult.attempts,
+      attemptLatencies: toolingResult.attemptLatencies,
     },
     generationCall: {
       finishReason: generationStep.finishReason ?? 'unknown',
@@ -513,6 +517,8 @@ function emitRagHandoff(
       finishReason: toolingStep.finishReason ?? 'unknown',
       output: tooling,
       latencyMs: toolingResult.latencyMs,
+      attempts: toolingResult.attempts,
+      attemptLatencies: toolingResult.attemptLatencies,
     },
     generationCall: {
       finishReason: generationStep.finishReason ?? 'unknown',
@@ -564,6 +570,8 @@ function emitRagError(
           finishReason: toolingStep?.finishReason ?? 'unknown',
           output: toolingResult.output,
           latencyMs: toolingResult.latencyMs,
+          attempts: toolingResult.attempts,
+          attemptLatencies: toolingResult.attemptLatencies,
         }
       : undefined,
     generationCall: generationResult

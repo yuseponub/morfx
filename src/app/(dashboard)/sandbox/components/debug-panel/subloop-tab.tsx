@@ -408,7 +408,7 @@ function ReasoningSection({ payload }: { payload: SubLoopDebugPayload }) {
         <div className="space-y-1.5 border rounded-lg p-2 bg-muted/20">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-medium text-muted-foreground">
-              Call 1 — Tooling (GPT-4o-mini + kb_search)
+              Call 1 — Tooling (gpt-4.1-mini + kb_search)
             </span>
             {tooling.latencyMs !== undefined && (
               <span className="text-[10px] text-muted-foreground/70 inline-flex items-center gap-1">
@@ -417,6 +417,18 @@ function ReasoningSection({ payload }: { payload: SubLoopDebugPayload }) {
               </span>
             )}
           </div>
+          {tooling.attempts !== undefined && tooling.attempts > 1 && (
+            <div className="text-[11px] text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 flex-wrap">
+              <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-700 dark:text-amber-300">
+                retry × {tooling.attempts - 1}
+              </Badge>
+              {tooling.attemptLatencies && (
+                <span className="text-muted-foreground/80 font-mono">
+                  attempts: {tooling.attemptLatencies.map((ms) => `${Math.round(ms)}ms`).join(' + ')}
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             <span className="text-muted-foreground">topic ganador:</span>
             <span className="font-mono font-medium">

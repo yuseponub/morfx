@@ -95,6 +95,9 @@ export interface SubLoopDebugPayload {
     finishReason: string
     output: import('./tooling-call').ToolingOutput
     latencyMs?: number
+    /** 2026-05-25 Plan 09 iter 3+: detectar retries silenciosos en producción. */
+    attempts?: number              // 1 o 2 — si 2, hubo retry transient
+    attemptLatencies?: number[]    // ms por attempt
   }
   /**
    * Plan 03 RAG-generative: snapshot del Call 2 (generation Gemini Flash). Solo presente

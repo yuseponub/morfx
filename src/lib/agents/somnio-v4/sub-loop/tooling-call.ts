@@ -142,7 +142,16 @@ async function attemptToolingCall(args: {
   try {
     const rawResult = await runWithPurpose('subloop_tooling', () =>
       generateText({
-        model: getOpenAI()('gpt-4o-mini'),
+        // Plan 09 iter 3 (2026-05-25): swap gpt-4o-mini → gpt-4.1-mini tras
+        // experimento empírico (scripts/debug-tooling-call-experiment.mjs +
+        // scripts/debug-tooling-models-experiment.mjs). Resultados:
+        //   - gpt-4o-mini con combo tools+Output.object+schema iter 2: 118/150 fail (78.7%)
+        //   - gpt-4.1-mini con MISMO setup: 0/50 fail
+        //   - gpt-4o full: 0/50 fail pero 17x más caro
+        //   - gemini-flash/lite: 100% fail (rechaza combo a nivel API)
+        // 4.1-mini cuesta ~2.7x el precio nominal pero ~50-100% en costo efectivo
+        // (sin retries por bug). Latencia p50 también baja: 8.3s → 4.5s.
+        model: getOpenAI()('gpt-4.1-mini'),
         system: args.systemPrompt,
         messages: [
           ...args.ctx.recentMessages,

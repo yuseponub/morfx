@@ -1,0 +1,1514 @@
+{
+  "timestamp": "2026-05-25T18:21:51.548Z",
+  "userMessage": "me diagnosticaron apnea del sueño, me ayuda?",
+  "results": {
+    "E_gpt4o": [
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4562.480181000001,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 16388.300898,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 9178.921804000001,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5506.352919,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4818.362709000001,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4306.405065999999,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4014.1268229999987,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3965.8288780000003,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3729.231310000003,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3249.558051,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3201.9914720000015,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3642.436432999999,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2980.3291419999987,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4077.338871,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3364.814334999999,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2857.512216999996,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3099.7562749999997,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3472.5500550000033,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4651.291712999995,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4964.817901000002,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2606.2203210000007,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3227.620332000006,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8293.711531999994,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3080.4976640000023,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3326.606713000001,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2409.6645489999937,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2861.3521889999975,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 11132.226455999997,
+        "toolCallCount": 3
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2753.4037610000014,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2915.2342160000044,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8374.080142000006,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 16937.728264999998,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8466.332115999998,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8537.416797000005,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8675.109659000002,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 16022.598332999987,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7641.487200000003,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 15423.283855999995,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7787.806460000007,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7931.7291190000105,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 15142.915851999991,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8557.814088,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 15983.788795,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 22452.197066000008,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7445.324838,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6411.368740999998,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8784.504543999996,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7937.253503,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 16210.737464000005,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 11205.91334,
+        "toolCallCount": 2
+      }
+    ],
+    "F_gpt41mini": [
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4376.263772999999,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7669.588128999982,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5817.435801,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6069.562762999994,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6713.635234999994,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3796.1689560000086,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 12206.13467,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5205.175427999988,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7640.2954320000135,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4605.389006000012,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7519.3507640000025,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3097.702995999978,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6575.753823999985,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4460.217501000006,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4986.028138999973,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3691.731070000009,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4446.297868000023,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4161.154589999991,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3159.062995000015,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3571.540972000017,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3072.563884000003,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5039.737301000016,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5073.676883000007,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3618.7594910000043,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5057.752486999991,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3256.3599380000087,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3714.63921199998,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7865.025388999988,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3447.6875940000173,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3146.0365849999944,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4233.063385999994,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5544.584115000005,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4141.862578,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4522.10193200002,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5601.803084000014,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4487.657765999989,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3445.970689000009,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4156.854332000017,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3743.3474560000177,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4696.485948999994,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4472.986784999986,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6772.138398999989,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 13855.42063400001,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3894.456543999986,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7276.197125999985,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3550.634951999993,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4353.197921000014,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5787.358107999986,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4499.217172999983,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3493.934249999991,
+        "toolCallCount": 2
+      }
+    ],
+    "G_gemini_flash_lite": [
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 453.2032750000071,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 491.8560559999896,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 545.5339080000122,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 899.8240019999794,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 476.77811899999506,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 257.5138959999895,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 261.46567800000776,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 245.64977300001192,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 261.31552800000645,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 245.0286990000168,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 430.9841139999917,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 466.8667049999931,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 462.66857200002414,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 466.2436790000065,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 464.63048799999524,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 255.96982100000605,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 266.7872260000149,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 255.8609460000007,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 250.41806399999768,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 239.1412169999967,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 443.51979400002165,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 418.334360000008,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 440.2716359999904,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 453.4498420000018,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 444.4392189999926,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 259.1094279999961,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 254.38967099998263,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 257.68072800000664,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 249.5948389999976,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 250.38686400000006,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 429.3552459999919,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 398.9846639999887,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 405.7517700000026,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 398.1495139999897,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 396.74334700001054,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 221.536838,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 220.21493799999007,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 205.68104200001108,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 219.93063799999072,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 233.37643499998376,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 400.74568800002453,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 399.65388800000073,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 415.3941829999967,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 399.5961879999959,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 401.75898700000835,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 224.69763700000476,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 223.70813799998723,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 234.67523499997333,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 222.61153799999738,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 224.7374370000034,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      }
+    ],
+    "H_gemini_flash": [
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 504.60705900000175,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 536.5029499999946,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 536.1380500000087,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 478.14876599999843,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 493.47686199998134,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 344.1778040000063,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 318.31581100000767,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 300.18861599999946,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 318.16021100000944,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 316.62051100001554,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 390.0916900000011,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 405.6277870000049,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 406.0955869999889,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 391.14859099997557,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 421.4646819999907,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 347.7662030000065,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 290.643419,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 334.39650600001914,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 348.1231020000123,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 363.06039800000144,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 399.9418880000012,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 402.9990870000038,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 295.8413170000131,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 384.0934919999854,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 384.831692000007,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 327.107308000006,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 342.67610400001286,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 311.17261299997335,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 354.7760999999882,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 370.1924960000033,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 385.06649199998355,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 398.03848799999105,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 339.14900500001386,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 384.5826919999963,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 340.61950400000205,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 362.7208989999781,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 346.3947029999981,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 318.0549109999847,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 317.6227110000036,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 347.11630299998797,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 394.7406889999984,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 363.9979980000062,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 407.5679850000015,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 394.587388999993,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 365.11169700001483,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 357.3228999999992,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 298.8772170000011,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 341.792803999997,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 297.6713170000003,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 358.28349999999045,
+        "errorName": "AI_APICallError",
+        "errorMsg": "Function calling with a response mime type: 'application/json' is unsupported"
+      }
+    ]
+  }
+}

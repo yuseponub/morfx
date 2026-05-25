@@ -1,0 +1,2232 @@
+{
+  "timestamp": "2026-05-25T17:58:55.012Z",
+  "userMessage": "me diagnosticaron apnea del sueño, me ayuda?",
+  "results": {
+    "A": [
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10488.841181,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 11755.237206000002,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7518.346012999999,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10904.522975,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 29346.266123,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7022.656704000001,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 12317.871563,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6902.452550999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 9495.070923,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10774.990656999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 8968.195206999997,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9049.646783999997,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6661.948991000005,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6651.632635000002,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 12296.741668000002,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8071.411914999997,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6873.366804999998,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6890.483682999999,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7032.430536,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 5359.6981490000035,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 6833.950109000012,
+        "toolCallCount": 5
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 6290.4975669999985,
+        "toolCallCount": 3
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10353.178666000007,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7269.9149529999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7160.682915999991,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 5685.22688100001,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 17671.766659999994,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 12323.799369999993,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 5711.501353,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6791.610633000004,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10000.790420000005,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9338.627603,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 5790.086139999999,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6133.258854,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9158.734331,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7914.290500000003,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 7003.967168999996,
+        "toolCallCount": 3
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6946.635294000007,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 6845.0916549999965,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7856.042384,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9427.396909000003,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 21561.275760000004,
+        "toolCallCount": 3
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7236.487347999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6871.310190999997,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 7504.735123999999,
+        "toolCallCount": 4
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 5456.09145800001,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 51515.565554,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 14811.403877000004,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8487.555468999984,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6553.211779000005,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4626.6148480000265,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 12073.512354000006,
+        "toolCallCount": 6
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7573.559913999983,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8695.98870300001,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9850.433674,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9693.104947000014,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 11822.924232999998,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 6853.503634000022,
+        "toolCallCount": 3
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 10526.854617000005,
+        "toolCallCount": 5
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 9718.641839999997,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9283.299306,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 14771.335373000009,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10235.43301899999,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9748.908911000006,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 32483.834776000003,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7796.238545,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9385.494863,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7291.315785999992,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 7837.596733999992,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8537.897855999996,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9958.869184999989,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9661.78319300001,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8894.076637999999,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 7721.232887999999,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6981.262617,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 20758.632045999984,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 13262.790712000045,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8597.981685999956,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 8558.13734700001,
+        "toolCallCount": 5
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 5868.203223999997,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7922.13797000004,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 6192.557962000021,
+        "toolCallCount": 3
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6949.718957000005,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 5258.823253000039,
+        "toolCallCount": 3
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10448.741080000007,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8390.16344100004,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5169.490063000005,
+        "toolCallCount": 2
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7754.2875249999925,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7628.39016499999,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 5579.477232000034,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7091.2400629999465,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6104.923156999983,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7600.313712999981,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6105.652556999994,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10452.697357000026,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3870.1911969999783,
+        "toolCallCount": 2
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8969.291028999956,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7345.742061000026,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6704.934646999987,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9387.70826299995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10123.74562100001,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9715.386916999996,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9442.455675999983,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6616.532922999992,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9280.043362999975,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10847.943504999974,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 7570.094406999997,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7019.71810899995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8343.080692999996,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 5783.75547600002,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6941.417088999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 10306.486078999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6379.138739000016,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7216.785150000011,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6141.50743899995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8843.16484599997,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 14474.767721000011,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 14641.893565999984,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 33740.115978999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9310.743623999995,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8288.976175999967,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 14044.803202999989,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 21645.110803999996,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7911.747097000014,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7072.138338999997,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7253.045784000016,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 15819.145714999991,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 9157.092539999983,
+        "toolCallCount": 4
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 9909.543531999981,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8263.154386999959,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 9548.595417000004,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 5951.398152999987,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8060.603044999996,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9621.837721999967,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 8546.244235999999,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 13752.319111999997,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9717.92982900003,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9346.12273500004,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 10482.499771000003,
+        "toolCallCount": 5
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 7313.235023999994,
+        "toolCallCount": 4
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 9770.837891999981,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 11983.420163999952,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7735.157620999962,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6748.891336000001,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7087.871117000002,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": true,
+        "stepCount": 4,
+        "finishReason": "stop",
+        "latencyMs": 7017.326433999988,
+        "toolCallCount": 5
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6919.479252999998,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 8308.950176999962,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 7085.857322999975,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      },
+      {
+        "success": false,
+        "stepCount": 0,
+        "finishReason": "error",
+        "latencyMs": 6027.27097500005,
+        "errorName": "AI_NoOutputGeneratedError",
+        "errorMsg": "No output generated."
+      }
+    ],
+    "B": [
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6571.344770000025,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7408.755247000023,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7165.236823000014,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 8416.515292999975,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6201.5404809999745,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8832.362553999992,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6475.204683999997,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 5512.763275000034,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6294.083534000034,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 7050.278049999964,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8213.585059000005,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 9110.774202,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7309.101641999965,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5492.5427280000295,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5901.085989999992,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6578.747273000015,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 12997.348456000036,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 12844.905614999996,
+        "toolCallCount": 3
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7846.679839000048,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 7727.721796000027,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8507.755548999994,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 10960.672495000006,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5435.376555000024,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6567.848418999987,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 7212.309048000025,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 9540.40878899995,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 6058.5468519999995,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 10105.190332999977,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6563.133244999975,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 10620.124290000007,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 7699.514278999995,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4971.293000000063,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6538.399366999976,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5261.235303000081,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6943.621870999923,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7625.302054999978,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 10213.62025399995,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5948.192126000067,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 8198.304555000039,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8464.025621999986,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5726.10378200002,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7362.21772700001,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7414.514113000012,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 9611.281046000076,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7849.950492000091,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7645.885895999963,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 11064.208165999968,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6839.824699999997,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 10516.167859000037,
+        "toolCallCount": 2
+      },
+      {
+        "success": true,
+        "stepCount": 3,
+        "finishReason": "stop",
+        "latencyMs": 6233.685642999946,
+        "toolCallCount": 2
+      }
+    ],
+    "C": [
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 5502.927350999904,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3923.8708789999364,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 6386.394430999993,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2918.2429840000113,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2914.894944000058,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 4267.617547999951,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3879.709184999927,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3167.1161080000456,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3185.1831779999193,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 5180.8707510000095,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3563.601266999962,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3437.680902000051,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3621.6971510000294,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2930.8644840000197,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2681.506286000018,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2732.710594000062,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 6966.586994000012,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2945.1882350000087,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 4076.7478960000444,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 4842.171133999946,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3671.143351000035,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3077.550555999973,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3662.2414029999636,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3470.161306000082,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 23398.59901299991,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3332.9795610000147,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2818.1659529999597,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3924.974072000012,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3462.2643749999115,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2597.583173000021,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3336.4031439999817,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 4232.287446000031,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 4525.030657000025,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3977.1681739999913,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3747.283913000021,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3543.4401349999243,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3215.354468000005,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3799.623115000082,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3215.5743839999195,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2498.8697080001,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2357.774139000103,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3942.9335769999307,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 8043.683719999972,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 5067.899238000042,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 2791.104645000072,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 4515.987683000043,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3890.0558740000706,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3293.9454810000025,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3267.393530000001,
+        "toolCallCount": 0
+      },
+      {
+        "success": true,
+        "stepCount": 1,
+        "finishReason": "stop",
+        "latencyMs": 3314.9812089999905,
+        "toolCallCount": 0
+      }
+    ],
+    "D": [
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2846.5746649999637,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5702.630250000046,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3919.570577000035,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4645.381526000099,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7623.290519000031,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3530.979732000036,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 5972.664339999901,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4624.050413000048,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2107.5466170000145,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2431.9998270000797,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3132.234625999932,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3089.098253999953,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4738.584941000096,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3401.077168000047,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2784.5625060000457,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2555.1171089999843,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 8963.030238000094,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3660.0899620000273,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3354.0068709999323,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2476.832588999998,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2653.4157889999915,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3245.5699089999544,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2923.202132000006,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2957.6741639999673,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6675.72355200001,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3842.960536999977,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3175.244321999955,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6597.289025999955,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3271.7100790000986,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2748.391757000005,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4557.593956999946,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2938.4120709999697,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3474.2649400000228,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2921.2000169999665,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3049.5585730000166,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2690.812489999924,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3539.1749220000347,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 6093.151665000012,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3155.4278110000305,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3539.649313000031,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3035.563876,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 2784.2574959999183,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3612.3669829999562,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3121.2812270000577,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 28112.079102999996,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3251.5497840000317,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3197.131907999981,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 4250.364965999965,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 3459.70551,
+        "toolCallCount": 1
+      },
+      {
+        "success": true,
+        "stepCount": 2,
+        "finishReason": "stop",
+        "latencyMs": 7983.996157000074,
+        "toolCallCount": 1
+      }
+    ]
+  }
+}

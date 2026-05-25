@@ -13,38 +13,43 @@ import { runWithPurpose } from '@/lib/observability'
 import { safeAccessOutput } from './safe-output'
 
 /**
- * Plan 09 (Opción Z) — discriminated union para reducir ambigüedad bajo OpenAI
- * strict mode. El schema anterior (todos los campos `.nullable()` anidados) generaba
- * 32+ combinaciones válidas que confundían a GPT-4o-mini bajo response_format strict,
- * disparando ocasionalmente `AI_NoOutputGeneratedError` con `stepCount=0` (ver
- * 09-PLAN.md + auditor #10235/#13075). Discriminated union deja al modelo elegir
- * UN shape (handoff vs success) sin combinatoria.
+ * Plan 09 iter 2 — schema reformulado para reducir ambigüedad bajo OpenAI strict
+ * mode sin violar la regla "root debe ser type:object" (iter 1 falló con
+ * discriminated union → anyOf en root → rechazado por OpenAI 400).
+ *
+ * Cambios vs original pre-Plan 09:
+ *   1. `z.union([T, z.null()])` en vez de `.nullable()` — patrón canónico de
+ *      OpenAI structured outputs (Zod `.nullable()` se traduce a `"nullable": true`
+ *      que OpenAI ignora silenciosamente, vs `union with null` que se traduce a
+ *      `"type": ["string", "null"]` que OpenAI respeta correctamente).
+ *   2. Campos INTERNOS de material_del_topic son required (no nullable) — elimina
+ *      las 32+ combinaciones de null nesting que confundían al modelo bajo strict
+ *      mode (ver 09-PLAN.md + auditor #10235/#13075).
+ *   3. Top-level sigue como `z.object` (NO discriminated union) para satisfacer
+ *      requisito OpenAI "root debe ser type:object".
+ *
+ * El contract conceptual (should_handoff:true ↔ material null) NO se expresa en
+ * tipo TS, se valida runtime en sub-loop/index.ts:230 (ya existe).
  */
-export const ToolingOutputSchema = z.discriminatedUnion('should_handoff', [
-  // SHAPE A — handoff: ningún hit aplica al caso del cliente.
-  z.object({
-    should_handoff: z.literal(true),
-    handoff_reason: z.string()
-      .describe('Razón corta del handoff — observability. Ej: "no_relevant_hit".'),
-    topic_seleccionado: z.null(),
-    material_del_topic: z.null(),
-  }),
-  // SHAPE B — success: topic ganador con material completo (copiado verbatim).
-  z.object({
-    should_handoff: z.literal(false),
-    handoff_reason: z.null(),
-    topic_seleccionado: z.string()
-      .describe('Topic ganador del KB doc.'),
-    material_del_topic: z.object({
+export const ToolingOutputSchema = z.object({
+  should_handoff: z.boolean()
+    .describe('true si ningún hit es relevante a la pregunta del cliente.'),
+  topic_seleccionado: z.union([z.string(), z.null()])
+    .describe('Topic ganador del KB doc, null si ningún hit es relevante.'),
+  material_del_topic: z.union([
+    z.object({
       hechos: z.string(),
       posicion: z.string(),
       debe_contener_aplicables: z.array(z.string()),
       nunca_decir: z.array(z.string()),
       cuando_escalar: z.array(z.string()),
-    })
-      .describe('Material del topic ganador para pasar a la generación (D-11).'),
-  }),
-])
+    }),
+    z.null(),
+  ])
+    .describe('Material del topic ganador (verbatim) para pasar a la generación. Null si should_handoff.'),
+  handoff_reason: z.union([z.string(), z.null()])
+    .describe('Razón corta del handoff — observability. Ej: "no_relevant_hit". Null si !should_handoff.'),
+})
 
 export type ToolingOutput = z.infer<typeof ToolingOutputSchema>
 

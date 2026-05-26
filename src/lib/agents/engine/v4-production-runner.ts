@@ -41,6 +41,16 @@ import type {
 } from './types'
 import type { V4AgentInput, V4AgentOutput, ProcessedMessage } from '../somnio-v4/types'
 
+// Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3) —
+// REVISION W3: channel/identifier come from input.lockChannel + input.lockIdentifier
+// (populated by Plan 03 webhook → event.data). The runner does NOT introduce a
+// Supabase conversations-table lookup (NO createAdminClient added here).
+import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
+import { releaseLockIfOwner, startHeartbeat } from '@/lib/agents/interruption-system-v2/lock'
+import { readAndClearPending } from '@/lib/agents/interruption-system-v2/pending'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { LostLockError } from '../engine-adapters/production/v4-messaging-adapter'
+
 const MAX_VERSION_CONFLICT_RETRIES = 3
 
 export class V4ProductionRunner {
@@ -59,6 +69,43 @@ export class V4ProductionRunner {
    * business logic to v4 processMessage(), and routes output back through adapters.
    */
   async processMessage(input: EngineInput, retryCount = 0): Promise<EngineOutput> {
+    // ================================================================
+    // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
+    //
+    // D-09 layer 1+2 lifecycle scaffolding. Runs in the main async flow,
+    // NOT inside step.run (RESEARCH Pitfall 2 — heartbeats inside step.run
+    // don't extend the live lock because Inngest replays cache the step
+    // output and don't re-execute the callback).
+    //
+    // REVISION W3: channel + identifier come from input.lockChannel +
+    // input.lockIdentifier (sourced from webhook event.data via Plan 03).
+    // The runner does NOT query the conversations table — preserving
+    // Regla 3 wrapper purity (no createAdminClient added).
+    // ================================================================
+    const startMs = Date.now()
+    const lockCtx = input.lockHandle && input.lockChannel && input.lockIdentifier
+      ? { channel: input.lockChannel, identifier: input.lockIdentifier }
+      : null
+
+    // Defensive: lockHandle present but channel/identifier missing should be
+    // impossible since Plan 03 always populates all three or none. Fail loud
+    // so the contract violation is visible.
+    if (input.lockHandle && !lockCtx) {
+      throw new Error(
+        '[interruption-v2] lockHandle present but lockChannel/lockIdentifier missing — webhook contract violated',
+      )
+    }
+
+    let stopHeartbeat: (() => void) | null = null
+    if (input.lockHandle) {
+      stopHeartbeat = startHeartbeat(input.lockHandle)
+    }
+
+    // Track templates sent so we can branch Path A / Path B on CKPT interrupt
+    // and emit the correct event in the finally block.
+    let templatesSentCount = 0
+
+    try {
     try {
       // 1. Get session via storage adapter
       const session = input.sessionId
@@ -68,6 +115,71 @@ export class V4ProductionRunner {
       // 1b. Set sessionId on V4 timer adapter (needs session for Inngest events)
       if ('setSessionId' in this.adapters.timer && typeof (this.adapters.timer as any).setSessionId === 'function') {
         (this.adapters.timer as any).setSessionId(session.id)
+      }
+
+      // ============================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
+      // CKPT-0 — post-session-resolution, pre-everything-else
+      // (RESEARCH line 845).
+      //
+      // At this point nothing has been sent yet, so Path A (no sends)
+      // is the only possible branch on interrupt. We read the pending
+      // list (which includes followers' messages + the holder's own
+      // entry, RPUSHed by webhook D-16) and emit:
+      //   - msg_aborted_path_a_combined (we're aborting before any send)
+      //   - pending_list_combined (telemetry: how many entries + chars)
+      // ============================================================
+      if (input.lockHandle && lockCtx) {
+        const ck0 = await checkpoint(
+          'ckpt_0_post_acquire',
+          input.lockHandle,
+          this.config.workspaceId,
+          lockCtx.channel,
+          lockCtx.identifier,
+        )
+        if (ck0.lostLock) {
+          throw new LostLockError('ckpt_0_post_acquire')
+        }
+        if (!ck0.proceed && ck0.interrupted) {
+          // Path A — no sends yet. Read pending list and combine for next turn.
+          const pending = await readAndClearPending(
+            this.config.workspaceId,
+            lockCtx.channel,
+            lockCtx.identifier,
+          )
+          const combinedTotalChars =
+            pending.reduce((s, p) => s + p.content.length, 0) + input.message.length
+          emitLockEvent('msg_aborted_path_a_combined', {
+            at_step: 'ckpt_0_post_acquire',
+            combined_msg_count: pending.length + 1,
+            total_chars: combinedTotalChars,
+          })
+          emitLockEvent('pending_list_combined', {
+            at_step: 'ckpt_0_post_acquire',
+            entries_count: pending.length,
+            total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+          })
+
+          // Persist combined message for next turn (matches existing Path A
+          // _v3:pendingUserMessage convention at line ~75).
+          const combinedMessage = [...pending.map((p) => p.content), input.message].join('\n')
+          await this.adapters.storage.saveState(session.id, {
+            datos_capturados: {
+              ...(session.state.datos_capturados ?? {}),
+              '_v3:pendingUserMessage': combinedMessage,
+            },
+          })
+          // Clear stale pending_templates (no partial send to resume).
+          if (this.adapters.storage.clearPendingTemplates) {
+            await this.adapters.storage.clearPendingTemplates(session.id)
+          }
+          return {
+            success: true,
+            messages: [],
+            sessionId: session.id,
+            messagesSent: 0,
+          }
+        }
       }
 
       // 1c. Detect pending message from previous 0-send interruption (Path A accumulation)
@@ -203,6 +315,63 @@ export class V4ProductionRunner {
       const actuallySentIds: string[] = []
       let wasInterruptedWithZeroSends = false
 
+      // ============================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
+      // CKPT-6a — pre-send-loop (pending-templates Path B resume path)
+      // (RESEARCH line 846).
+      //
+      // We're about to send pending templates from a previous interrupted
+      // turn. No templates have been sent in THIS turn yet, but pending
+      // templates from a prior turn count as "sent" for Path A/B purposes
+      // — if interrupt detected now, Path A (no NEW sends in this turn but
+      // previous turn already partially sent). The pending list also gets
+      // accumulated by the heading checkpoint detection.
+      // ============================================================
+      if (input.lockHandle && lockCtx) {
+        const ck6a = await checkpoint(
+          'ckpt_6_pre_send_loop',
+          input.lockHandle,
+          this.config.workspaceId,
+          lockCtx.channel,
+          lockCtx.identifier,
+          { hasSentAnything: false },
+        )
+        if (ck6a.lostLock) {
+          throw new LostLockError('ckpt_6_pre_send_loop_pending_templates')
+        }
+        if (!ck6a.proceed && ck6a.interrupted) {
+          // No sends performed in THIS turn yet — Path A.
+          emitLockEvent('msg_aborted_path_a_combined', {
+            at_step: 'ckpt_6_pre_send_loop_pending_templates',
+            templates_sent_before_abort: 0,
+          })
+          // Persist combined for next turn (same as CKPT-0 path).
+          const pending = await readAndClearPending(
+            this.config.workspaceId,
+            lockCtx.channel,
+            lockCtx.identifier,
+          )
+          emitLockEvent('pending_list_combined', {
+            at_step: 'ckpt_6_pre_send_loop_pending_templates',
+            entries_count: pending.length,
+            total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+          })
+          const combinedMessage = [...pending.map((p) => p.content), input.message].join('\n')
+          await this.adapters.storage.saveState(session.id, {
+            datos_capturados: {
+              ...(session.state.datos_capturados ?? {}),
+              '_v3:pendingUserMessage': combinedMessage,
+            },
+          })
+          return {
+            success: true,
+            messages: [],
+            sessionId: session.id,
+            messagesSent: 0,
+          }
+        }
+      }
+
       // 5h-pre. Load and send pending templates from previous interrupted block (Path B)
       if (this.adapters.storage.getPendingTemplates) {
         try {
@@ -259,6 +428,65 @@ export class V4ProductionRunner {
           console.error('[V4-RUNNER] Failed to send pending templates (fail-open):', pendingError)
           if (this.adapters.storage.clearPendingTemplates) {
             await this.adapters.storage.clearPendingTemplates(session.id)
+          }
+        }
+      }
+
+      // ============================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
+      // CKPT-6b — pre-send-loop (main send block)
+      // (RESEARCH line 846).
+      //
+      // If pending templates from a prior turn were sent above, then
+      // actuallySentIds.length > 0 → Path B (we already sent something).
+      // Otherwise Path A (nothing sent in this turn).
+      // ============================================================
+      if (input.lockHandle && lockCtx) {
+        const ck6b = await checkpoint(
+          'ckpt_6_pre_send_loop',
+          input.lockHandle,
+          this.config.workspaceId,
+          lockCtx.channel,
+          lockCtx.identifier,
+          { hasSentAnything: actuallySentIds.length > 0 },
+        )
+        if (ck6b.lostLock) {
+          throw new LostLockError('ckpt_6_pre_send_loop_main')
+        }
+        if (!ck6b.proceed && ck6b.interrupted) {
+          const sentCount = actuallySentIds.length
+          const eventLabel = sentCount === 0 ? 'msg_aborted_path_a_combined' : 'msg_aborted_path_b_solo'
+          emitLockEvent(eventLabel, {
+            at_step: 'ckpt_6_pre_send_loop_main',
+            templates_sent_before_abort: sentCount,
+          })
+          if (sentCount === 0) {
+            // Path A — combine for next turn.
+            const pending = await readAndClearPending(
+              this.config.workspaceId,
+              lockCtx.channel,
+              lockCtx.identifier,
+            )
+            emitLockEvent('pending_list_combined', {
+              at_step: 'ckpt_6_pre_send_loop_main',
+              entries_count: pending.length,
+              total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+            })
+            const combinedMessage = [...pending.map((p) => p.content), input.message].join('\n')
+            await this.adapters.storage.saveState(session.id, {
+              datos_capturados: {
+                ...(session.state.datos_capturados ?? {}),
+                '_v3:pendingUserMessage': combinedMessage,
+              },
+            })
+          }
+          // Update outer counter for finally block lock_released_normal payload.
+          templatesSentCount = sentCount
+          return {
+            success: true,
+            messages: [],
+            sessionId: session.id,
+            messagesSent: sentCount,
           }
         }
       }
@@ -522,6 +750,9 @@ export class V4ProductionRunner {
       if (output.salesTrackInfo) this.adapters.debug.recordOrchestration(output.salesTrackInfo)
       this.adapters.debug.recordTimerSignals(output.timerSignals)
 
+      // Update outer counter for finally-block lock_released_normal payload.
+      templatesSentCount = actuallySentIds.length
+
       // 6. Return EngineOutput compatible with webhook-processor
       return {
         success: output.success,
@@ -540,6 +771,31 @@ export class V4ProductionRunner {
         },
       }
     } catch (error) {
+      // ============================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
+      // LostLockError handling — D-15 zombie defense.
+      //
+      // V4MessagingAdapter throws LostLockError when its checkpoint
+      // ('ckpt_7_pre_template') detects this lambda no longer owns
+      // the lock. Propagate that signal as a clean failure (don't
+      // retry — another holder owns the lock, retrying would race).
+      // ============================================================
+      if (error instanceof LostLockError) {
+        emitLockEvent('zombie_lambda_exit', {
+          my_uuid: input.lockHandle?.holderUuid ?? 'unknown',
+          current_holder_uuid: 'unknown',  // Don't read lock value — racy.
+          at_step: error.ckptId,
+        })
+        return {
+          success: false,
+          messages: [],
+          error: {
+            code: 'V4_ZOMBIE_LAMBDA_EXIT',
+            message: error.message,
+          },
+        }
+      }
+
       if (error instanceof VersionConflictError && retryCount < MAX_VERSION_CONFLICT_RETRIES) {
         console.warn(`[V4-RUNNER] Version conflict, retrying (${retryCount + 1}/${MAX_VERSION_CONFLICT_RETRIES})`)
         return this.processMessage(input, retryCount + 1)
@@ -557,6 +813,41 @@ export class V4ProductionRunner {
           code: 'V4_ENGINE_ERROR',
           message: errorMessage,
         },
+      }
+    }
+    } finally {
+      // ============================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)
+      // D-09 layer 1+2 cleanup:
+      //   - Layer 2: stop the heartbeat interval (prevents zombie keys)
+      //   - Layer 1: release the lock atomically if we still own it
+      //
+      // Both gated on input.lockHandle — pre-v4 / fail-open callers
+      // skip both ops entirely. Order matters: stop heartbeat BEFORE
+      // release (otherwise the heartbeat could fire one last renewal
+      // between our DEL and the next holder's SET NX, leaving a
+      // brief inconsistent state).
+      // ============================================================
+      if (stopHeartbeat) stopHeartbeat()
+      if (input.lockHandle) {
+        try {
+          const released = await releaseLockIfOwner(input.lockHandle)
+          if (released) {
+            emitLockEvent('lock_released_normal', {
+              holder_uuid: input.lockHandle.holderUuid,
+              duration_ms: Date.now() - startMs,
+              templates_sent: templatesSentCount,
+            })
+          }
+        } catch (releaseError) {
+          // Fail-open: if Upstash is unreachable at release time, the
+          // lock TTL (45s) will reap it naturally + the cron sweep
+          // (Plan 06) is the backstop. Don't throw out of finally.
+          emitLockEvent('redis_unavailable_fallback_failed', {
+            error_message: releaseError instanceof Error ? releaseError.message : String(releaseError),
+            at_step: 'release_lock_in_finally',
+          })
+        }
       }
     }
   }

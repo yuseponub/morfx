@@ -21,6 +21,7 @@ import {
 import { assignTag, removeTag } from './tags'
 import { getPlatformConfig } from '@/lib/domain/platform-config'
 import type { DomainContext, DomainResult } from './types'
+import type { DuplicateError } from '@/lib/orders/types'
 
 // ============================================================================
 // Helpers (standalone crm-stage-integrity — Plan 02)
@@ -956,7 +957,59 @@ export async function duplicateOrder(
           quantity: p.quantity,
         }))
 
-        await supabase.from('order_products').insert(productsToInsert)
+        const { error: productsError } = await supabase
+          .from('order_products')
+          .insert(productsToInsert)
+
+        if (productsError) {
+          // Persist marker to orders.custom_fields.duplicate_error (D-01 + D-pre-06).
+          // Read-merge-write JSON pattern (canonical: src/lib/domain/custom-fields.ts:67-87).
+          // The destination order already exists with sourceOrder.custom_fields cloned (line 906),
+          // so we re-read to avoid clobbering any other key. Best-effort: if the marker write
+          // itself fails, we log + still return the original productsError (don't shadow it).
+          const { data: cur } = await supabase
+            .from('orders')
+            .select('custom_fields')
+            .eq('id', newOrder.id)
+            .eq('workspace_id', ctx.workspaceId)
+            .single()
+
+          const existing = (cur?.custom_fields as Record<string, unknown>) || {}
+          const duplicateError: DuplicateError = {
+            errorCode: productsError.code ?? 'unknown',
+            errorMessage: productsError.message ?? '',
+            failedAt: new Date().toISOString(),
+            sourceOrderId: params.sourceOrderId,
+            attemptedProducts: sourceProducts.map((p) => ({
+              sku: p.sku,
+              title: p.title,
+              unit_price: p.unit_price,
+              quantity: p.quantity,
+            })),
+          }
+          const merged = { ...existing, duplicate_error: duplicateError }
+
+          const { error: markerError } = await supabase
+            .from('orders')
+            .update({ custom_fields: merged })
+            .eq('id', newOrder.id)
+            .eq('workspace_id', ctx.workspaceId)
+
+          if (markerError) {
+            console.error(
+              '[domain/orders.duplicateOrder] failed to persist duplicate_error marker:',
+              markerError,
+            )
+          }
+
+          // Fail-fast (D-02): return success:false so executeDuplicateOrder throws
+          // → automation_executions.actions_log[i].status='failed' + error_message populated.
+          // NO rollback of newOrder (D-01) — leave visible + empty for operator action.
+          return {
+            success: false,
+            error: `Error al copiar productos al duplicar: ${productsError.code ?? '?'} - ${productsError.message ?? 'unknown'}`,
+          }
+        }
       }
     }
 
@@ -1211,6 +1264,70 @@ export async function recompraOrder(
       orderId: newOrderId,
       sourceOrderId: params.sourceOrderId,
     },
+  }
+}
+
+// ============================================================================
+// clearOrderDuplicateError
+// Standalone: crm-duplicate-order-products-integrity (D-05 manual button)
+// ============================================================================
+
+/**
+ * Remove the `duplicate_error` key from `orders.custom_fields` for a given order.
+ *
+ * Called by the server action triggered by the operator clicking
+ * "Marcar resuelto" in the Kanban badge popover (D-05).
+ *
+ * Idempotent: returns success:true when the key is already absent (no-op write
+ * still occurs to keep the call shape uniform, but produces no functional change).
+ *
+ * Regla 3: filters by workspace_id on read AND write. Returns 'Pedido no encontrado'
+ * when the order does not exist in this workspace.
+ */
+export async function clearOrderDuplicateError(
+  ctx: DomainContext,
+  params: { orderId: string }
+): Promise<DomainResult<{ orderId: string }>> {
+  const supabase = createAdminClient()
+
+  try {
+    // Read current custom_fields (filtered by workspace — Regla 3)
+    const { data: cur, error: readError } = await supabase
+      .from('orders')
+      .select('custom_fields')
+      .eq('id', params.orderId)
+      .eq('workspace_id', ctx.workspaceId)
+      .single()
+
+    if (readError || !cur) {
+      return { success: false, error: 'Pedido no encontrado' }
+    }
+
+    const existing = (cur.custom_fields as Record<string, unknown>) || {}
+
+    // Remove the key by destructuring it out (keeps JSONB clean — null would
+    // leave a stale null literal that the UI would have to ignore).
+    const { duplicate_error: _dropped, ...rest } = existing as Record<string, unknown> & {
+      duplicate_error?: unknown
+    }
+    void _dropped // silence unused-var lint without using @ts-ignore
+
+    // Idempotent write — even if `_dropped` was already undefined, this is a no-op
+    // semantically; we keep the write to keep the function shape uniform + bump updated_at.
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ custom_fields: rest })
+      .eq('id', params.orderId)
+      .eq('workspace_id', ctx.workspaceId)
+
+    if (updateError) {
+      return { success: false, error: `Error al limpiar marca de error: ${updateError.message}` }
+    }
+
+    return { success: true, data: { orderId: params.orderId } }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { success: false, error: message }
   }
 }
 

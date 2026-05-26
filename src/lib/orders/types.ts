@@ -238,6 +238,59 @@ export interface OrderProductFormData {
 }
 
 // ============================================================================
+// DUPLICATE ERROR MARKER
+// Standalone: crm-duplicate-order-products-integrity
+// ============================================================================
+
+/**
+ * Marker persisted to `orders.custom_fields.duplicate_error` when
+ * `duplicateOrder` cannot copy products from source. Surfaced in Kanban badge.
+ *
+ * D-01 + D-pre-06: keep destination order empty + visible, don't rollback.
+ * Shape is stable; if a future consumer needs versioning, add `version: 1` then.
+ */
+export interface DuplicateError {
+  /** PostgreSQL SQLSTATE: '23503' (FK), '23514' (CHECK), '23502' (NOT NULL), etc. */
+  errorCode: string
+  /** Raw Postgres error message — surfaced verbatim in UI (truncated to 80 chars in Popover) */
+  errorMessage: string
+  /** ISO timestamp when the failure occurred */
+  failedAt: string
+  /** Duplicates orders.source_order_id for accessibility in UI without re-fetching */
+  sourceOrderId: string
+  /** Snapshot of products the source had at the moment of the failed duplication */
+  attemptedProducts: Array<{
+    sku: string
+    title: string
+    unit_price: number
+    quantity: number
+  }>
+}
+
+/**
+ * Type-safe accessor for the marker. Returns null when absent or malformed.
+ * Use in KanbanCard render to gate the badge.
+ */
+export function getDuplicateError(
+  order: { custom_fields: Record<string, unknown> }
+): DuplicateError | null {
+  const raw = order.custom_fields?.duplicate_error
+  if (!raw || typeof raw !== 'object') return null
+  // Minimal shape validation — if the marker is present we trust the writer
+  const candidate = raw as Partial<DuplicateError>
+  if (
+    typeof candidate.errorCode !== 'string' ||
+    typeof candidate.errorMessage !== 'string' ||
+    typeof candidate.failedAt !== 'string' ||
+    typeof candidate.sourceOrderId !== 'string' ||
+    !Array.isArray(candidate.attemptedProducts)
+  ) {
+    return null
+  }
+  return candidate as DuplicateError
+}
+
+// ============================================================================
 // ORDER TAG TYPES
 // ============================================================================
 

@@ -22,34 +22,14 @@ import {
   runWithCollector,
   type AgentId,
 } from '@/lib/observability'
+// Standalone: debounce-interruption-system-v2 (Plan 03, REVISION B4) —
+// resolveAgentIdForWorkspace moved to a shared module so the webhook
+// layer (whatsapp + manychat handlers) can STATIC-import it without
+// pulling in the entire Inngest functions tree (circular-import risk).
+// Behavior is unchanged for existing callers in this file.
+import { resolveAgentIdForWorkspace } from '@/lib/agents/registry-helpers'
 
 const logger = createModuleLogger('agent-production')
-
-/**
- * Resolve the canonical observability AgentId for a workspace.
- *
- * Reads `workspace_agent_config.conversational_agent_id` and maps the
- * string id (`'somnio-sales-v3'`, `'godentist'`, `'somnio-sales-v1'`,
- * etc.) to the narrow `AgentId` union used by ObservabilityCollector.
- *
- * Fallbacks defensively to `'somnio-v2'` so the collector can still
- * be created if config is missing -- the wrapper must never throw
- * (REGLA 6).
- */
-async function resolveAgentIdForWorkspace(workspaceId: string): Promise<AgentId> {
-  try {
-    const { getWorkspaceAgentConfig } = await import('@/lib/agents/production/agent-config')
-    const config = await getWorkspaceAgentConfig(workspaceId)
-    const id = config?.conversational_agent_id ?? 'somnio-sales-v1'
-    if (id === 'somnio-sales-v3') return 'somnio-v3'
-    if (id === 'godentist') return 'godentist'
-    if (id === 'somnio-recompra' || id === 'somnio-recompra-v1') return 'somnio-recompra'
-    // 'somnio-sales-v1', 'somnio-sales-v2', or anything else -> v2 bucket
-    return 'somnio-v2'
-  } catch {
-    return 'somnio-v2'
-  }
-}
 
 /**
  * WhatsApp Agent Message Processor

@@ -405,6 +405,19 @@ export const whatsappAgentProcessor = inngest.createFunction(
         workspaceId,
         phone,
         messageTimestamp,  // Phase 31: for pre-send check
+        // ================================================================
+        // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.4)
+        //
+        // Thread the 5 lock-correlation fields from event.data → webhook
+        // processor → V4ProductionRunner. Pre-v4 callers (v3/godentist/
+        // recompra/pw-confirmation/godentist-fb-ig) destructure these as
+        // null and the webhook-processor's v4 branch is the only consumer.
+        // ================================================================
+        lockHolderUuid: lockHolderUuid ?? null,
+        lockKey: lockKey ?? null,
+        ownPendingEntryJson: ownPendingEntryJson ?? null,
+        lockChannel: lockChannel ?? null,
+        lockIdentifier: lockIdentifier ?? null,
       })
 
       // Wrap with runWithCollector so fetch wrapper + deep pipeline

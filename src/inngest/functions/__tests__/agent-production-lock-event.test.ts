@@ -70,11 +70,24 @@ vi.mock('../../client', () => ({
   },
 }))
 
-// Mock the media gate so the inner `run()` short-circuits to ignore.
-// This isolates the test to the event-shape destructure + turn_started
-// recordEvent payload, not the full pipeline.
+// Mock the media gate. Default returns 'ignore' so the inner run() short-circuits;
+// individual tests can override the return value to exercise the passthrough path
+// (Task 4.4 — verify the 5 lock-correlation fields flow through to
+// processMessageWithAgent on the v4 path).
+const mockProcessMediaGate = vi.fn(async () => ({ action: 'ignore' }))
 vi.mock('@/lib/agents/media', () => ({
-  processMediaGate: vi.fn(async () => ({ action: 'ignore' })),
+  processMediaGate: mockProcessMediaGate,
+}))
+
+// Mock the webhook-processor so we can capture the input passed to
+// processMessageWithAgent without executing the deep pipeline.
+const mockProcessMessageWithAgent = vi.fn(async () => ({
+  success: true,
+  messagesSent: 0,
+  newMode: 'conversacion',
+}))
+vi.mock('@/lib/agents/production/webhook-processor', () => ({
+  processMessageWithAgent: mockProcessMessageWithAgent,
 }))
 
 // Step.run stub — execute the callback eagerly so deep code paths
@@ -104,6 +117,12 @@ beforeEach(async () => {
   vi.clearAllMocks()
   mockStepRun.mockImplementation(async (_name, fn) => fn())
   mockIsObservabilityEnabled.mockReturnValue(false)
+  mockProcessMediaGate.mockResolvedValue({ action: 'ignore' })
+  mockProcessMessageWithAgent.mockResolvedValue({
+    success: true,
+    messagesSent: 0,
+    newMode: 'conversacion',
+  })
   // Default workspace resolve — overridable per-test.
   mockResolveAgentIdForWorkspace.mockResolvedValue('somnio-v3')
   const mod = await import('../agent-production')
@@ -406,5 +425,83 @@ describe('REVISION W2 — agentId mismatch warning (webhook vs Inngest local res
     expect(mockLoggerWarn).not.toHaveBeenCalled()
     // The local resolve runs exactly once (for the final agentId value).
     expect(mockResolveAgentIdForWorkspace).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Plan 04 Task 4.4 — threading lock fields into processMessageWithAgent', () => {
+  it('forwards lockHolderUuid/lockKey/ownPendingEntryJson/lockChannel/lockIdentifier to processMessageWithAgent (v4 path)', async () => {
+    mockProcessMediaGate.mockResolvedValue({ action: 'passthrough', text: 'hola' } as never)
+    mockResolveAgentIdForWorkspace.mockResolvedValue('somnio-sales-v4')
+
+    await whatsappAgentProcessor.handler({
+      event: {
+        data: {
+          conversationId: 'conv-task44-v4',
+          contactId: 'contact-task44-v4',
+          messageContent: 'hola',
+          workspaceId: 'ws-task44-v4',
+          phone: '+573001234567',
+          messageId: 'wamid.task44.v4',
+          messageTimestamp: '2026-05-26T00:00:00.000Z',
+          messageType: 'text',
+          lockHolderUuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          lockKey: 'lock:ws-task44-v4:whatsapp:+573001234567',
+          ownPendingEntryJson:
+            '{"content":"hola","entry_uuid":"bbbb","msg_id":"wamid.task44.v4","received_at":"2026-05-26T00:00:00.000Z"}',
+          lockChannel: 'whatsapp',
+          lockIdentifier: '+573001234567',
+          agentId: 'somnio-sales-v4',
+        },
+      },
+      step: mockStep,
+    })
+
+    expect(mockProcessMessageWithAgent).toHaveBeenCalledTimes(1)
+    expect(mockProcessMessageWithAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conv-task44-v4',
+        workspaceId: 'ws-task44-v4',
+        lockHolderUuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        lockKey: 'lock:ws-task44-v4:whatsapp:+573001234567',
+        ownPendingEntryJson:
+          '{"content":"hola","entry_uuid":"bbbb","msg_id":"wamid.task44.v4","received_at":"2026-05-26T00:00:00.000Z"}',
+        lockChannel: 'whatsapp',
+        lockIdentifier: '+573001234567',
+      }),
+    )
+  })
+
+  it('forwards nulls when pre-v4 caller omits the lock fields (Regla 6 backward compat)', async () => {
+    mockProcessMediaGate.mockResolvedValue({ action: 'passthrough', text: 'hola' } as never)
+    mockResolveAgentIdForWorkspace.mockResolvedValue('somnio-v3')
+
+    await whatsappAgentProcessor.handler({
+      event: {
+        data: {
+          conversationId: 'conv-task44-v3',
+          contactId: 'contact-task44-v3',
+          messageContent: 'hola',
+          workspaceId: 'ws-task44-v3',
+          phone: '+573009876543',
+          messageId: 'wamid.task44.v3',
+          messageTimestamp: '2026-05-26T00:00:00.000Z',
+          messageType: 'text',
+          // No new fields — pre-v4 caller.
+        },
+      },
+      step: mockStep,
+    })
+
+    expect(mockProcessMessageWithAgent).toHaveBeenCalledTimes(1)
+    expect(mockProcessMessageWithAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conv-task44-v3',
+        lockHolderUuid: null,
+        lockKey: null,
+        ownPendingEntryJson: null,
+        lockChannel: null,
+        lockIdentifier: null,
+      }),
+    )
   })
 })

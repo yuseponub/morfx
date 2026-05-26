@@ -48,6 +48,26 @@ export interface ProcessMessageInput {
   phone: string
   /** ISO timestamp of the trigger message (for pre-send check). Phase 31. */
   messageTimestamp?: string
+  // ================================================================
+  // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.4)
+  //
+  // 5 OPTIONAL fields threaded from agent-production.ts (Plan 03
+  // event.data) → here → V4MessagingAdapter (when v4 path) + the
+  // V4ProductionRunner's processMessage(EngineInput).
+  //
+  // All optional — pre-v4 callers (v3/godentist/recompra/pw-confirmation/
+  // godentist-fb-ig + tests + the inline non-Inngest path) omit them.
+  // ================================================================
+  /** Webhook-resolved lock holder UUID (Plan 03 D-15 fencing). Null on non-v4 path. */
+  lockHolderUuid?: string | null
+  /** Webhook-resolved lock Redis key. Null on non-v4 path. */
+  lockKey?: string | null
+  /** Byte-exact JSON the webhook RPUSHed for the holder's own pending entry. D-16. */
+  ownPendingEntryJson?: string | null
+  /** Channel resolved at webhook. REVISION W3 — eliminates conversations lookup in runner. */
+  lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
+  /** Identifier resolved at webhook (phone or external_subscriber_id). REVISION W3. */
+  lockIdentifier?: string | null
 }
 
 // ============================================================================
@@ -829,7 +849,47 @@ export async function processMessageWithAgent(
       //       from '../engine/v4-production-runner'` al top-level del archivo.
       await import('../somnio-v4')
       const { V4ProductionRunner } = await import('../engine/v4-production-runner')
-      const runner = new V4ProductionRunner(adapters, { workspaceId, agentModule: 'somnio-v4' })
+
+      // ================================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.4)
+      //
+      // Reconstruct the LockHandle from event.data fields populated by
+      // the webhook handler (Plan 03 D-15 fencing). Both fields must be
+      // present to reconstruct — null on Redis-unavailable fail-open path
+      // (RESEARCH Open Question 5) → V4MessagingAdapter falls back to
+      // parent Phase 31 behavior.
+      //
+      // startedAt is approximate (we don't have the webhook's exact
+      // timestamp); used only in lock_released_normal duration_ms
+      // payload — minor imprecision accepted.
+      // ================================================================
+      const v4LockHandle =
+        input.lockHolderUuid && input.lockKey
+          ? {
+              key: input.lockKey,
+              holderUuid: input.lockHolderUuid,
+              startedAt: new Date().toISOString(),
+            }
+          : null
+
+      // Build a V4MessagingAdapter that REPLACES the messaging adapter in
+      // the bundle — uses ckpt_7_pre_template instead of Phase 31 DB query
+      // (D-08 option-a). Other agents continue using ProductionMessagingAdapter.
+      const { V4MessagingAdapter } = await import(
+        '../engine-adapters/production/v4-messaging-adapter'
+      )
+      const v4MessagingAdapter = new V4MessagingAdapter(
+        null, // sessionManager — interface compat (ProductionMessagingAdapter ignores it)
+        conversationId,
+        workspaceId,
+        phone,
+        agentConfig?.response_speed ?? 1.0,
+        v4LockHandle,
+        input.ownPendingEntryJson ?? null,
+      )
+      const v4Adapters = { ...adapters, messaging: v4MessagingAdapter }
+
+      const runner = new V4ProductionRunner(v4Adapters, { workspaceId, agentModule: 'somnio-v4' })
 
       // D-10, D-12: capture responder BEFORE processMessage (set-before-run).
       getCollector()?.setRespondingAgentId('somnio-sales-v4')
@@ -843,6 +903,12 @@ export async function processMessageWithAgent(
         history: [],
         phoneNumber: phone,
         messageTimestamp: input.messageTimestamp,
+        // REVISION W3: 4 lock-correlation fields threaded into EngineInput.
+        // Pre-v4 / fail-open path: all four null → runner skips checkpoints.
+        lockHandle: v4LockHandle,
+        ownPendingEntryJson: input.ownPendingEntryJson ?? null,
+        lockChannel: input.lockChannel ?? null,
+        lockIdentifier: input.lockIdentifier ?? null,
       })
 
       getCollector()?.recordEvent('pipeline_decision', 'webhook_agent_routed', {

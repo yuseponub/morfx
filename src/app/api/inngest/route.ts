@@ -38,6 +38,7 @@ import { pwConfirmationPreloadAndInvokeFunctions } from '@/inngest/functions/pw-
 import { routingAuditCleanup } from '@/inngest/functions/routing-audit-cleanup'
 import { boldUpstreamBroken } from '@/inngest/functions/bold-upstream-broken'
 import { godentistScrapeInconsistent } from '@/inngest/functions/godentist-scrape-inconsistent'
+import { v2LockCleanupCron } from '@/inngest/functions/v2-lock-cleanup-cron'
 
 /**
  * Serve all Inngest functions.
@@ -61,6 +62,7 @@ import { godentistScrapeInconsistent } from '@/inngest/functions/godentist-scrap
  * - crm-bot-expire-proposals: Every 1 min cron that marks crm_bot_actions proposed rows as expired past TTL+30s (Phase 44)
  * - recompra-preload-context: Triggered by 'recompra/preload-context' event after webhook-processor creates a new recompra session; calls crm-reader via AI SDK, persists `_v3:crm_context` into session_state (Standalone: somnio-recompra-crm-reader)
  * - pw-confirmation-preload-and-invoke: 2-step (reader BLOCKING -> invoke agent) for somnio-sales-v3-pw-confirmation (Standalone: somnio-sales-v3-pw-confirmation, D-05)
+ * - debounce-v2-lock-cleanup: Every 5 min cron (TZ=America/Bogota, expression "[asterisk]/5 [asterisk] [asterisk] [asterisk] [asterisk]") that SCANs lock keys, compares against agent_sessions.status='active', sweeps orphans + stale-age (>60s) locks + malformed values; emits lock_orphan_swept_by_cron (14th LockEventLabel — REVISION B1). Standalone: debounce-interruption-system-v2 / Plan 06 (D-09 layer 3 + LOCK-06).
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -87,5 +89,6 @@ export const { GET, POST, PUT } = serve({
     routingAuditCleanup,
     boldUpstreamBroken,  // Standalone: bold-auth0-migration (D-07 — telemetry receiver)
     godentistScrapeInconsistent,  // Standalone: godentist-scraping-structural-v2 (D-08 — cross-sede canary receiver)
+    v2LockCleanupCron,  // Standalone: debounce-interruption-system-v2 / Plan 06 (D-09 layer 3 — every 5 min orphan-lock sweep, REVISION B1)
   ],
 })

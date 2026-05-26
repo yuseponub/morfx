@@ -1,27 +1,35 @@
 # debounce-interruption-system-v2 — Handoff State
 
-Last updated: 2026-05-25 (post Plan 02 ship — Wave 2 complete)
+Last updated: 2026-05-25 (post Plan 03 ship — Wave 3 complete; v4-gated, prod safe)
 
 ## Quick start next session
 
 ```
 /clear
-/gsd-execute-phase debounce-interruption-system-v2 --wave 3
+/gsd-execute-phase debounce-interruption-system-v2 --wave 4
 ```
 
-The orchestrator finds `00..02-SUMMARY.md` → skips Plans 00–02 → starts Plan 03.
+The orchestrator finds `00..03-SUMMARY.md` → skips Plans 00–03 → starts Plan 04.
 
 If the orchestrator stumbles on standalone discovery (this phase is in
 `.planning/standalone/` not `.planning/phases/`), point it manually at
-`.planning/standalone/debounce-interruption-system-v2/03-PLAN.md` and
+`.planning/standalone/debounce-interruption-system-v2/04-PLAN.md` and
 let `gsd-executor` take it from there.
 
-**Branch note for next session:** Plans 01 + 02 were executed on local branches
-`exec/debounce-v2-wave1` and `exec/debounce-v2-wave2` (created because orphan
-worktree `agent-a385e9ef` still holds `main` locked). Commits were pushed via
-`git push origin HEAD:main` (fast-forward, non-destructive). The orphan worktree
-problem is still unsolved — next session will need the same workaround unless
-the worktree gets unlocked/removed first.
+**Branch note for next session:** Plans 01-03 were executed on local branches
+`exec/debounce-v2-wave1`, `exec/debounce-v2-wave2`, `exec/debounce-v2-wave3`
+(created because orphan worktree `agent-a385e9ef` still holds `main` locked).
+Commits were pushed via `git push origin HEAD:main` (fast-forward, non-destructive).
+The orphan worktree problem is still unsolved — next session will need the same
+workaround unless the worktree gets unlocked/removed first.
+
+**v4 dormancy attestation post-Plan 03:** All new lock behavior in WhatsApp +
+ManyChat webhooks + agent-production Inngest is gated behind
+`resolvedAgentId === 'somnio-sales-v4'`. v4 is currently set on ZERO workspaces
+(`SELECT COUNT(*) FROM workspace_agent_config WHERE conversational_agent_id='somnio-sales-v4'`
+returns 0). Non-v4 traffic (v3, godentist, recompra, pw-confirmation, godentist-fb-ig)
+runs byte-identical to pre-Plan 03 behavior. Activate v4 per-workspace via:
+`UPDATE workspace_agent_config SET conversational_agent_id='somnio-sales-v4' WHERE workspace_id='<uuid>';`
 
 **CheckpointId names locked (8 values — spec-verbatim from RESEARCH Pattern 3
 + DISCUSSION-LOG D-18):** Plans 04 + 05 + 07 MUST use these exact strings,
@@ -43,24 +51,80 @@ ckpt_7_pre_template
 executor correctly ignored those and went with the locked spec. Future
 plan prompts: pattern-match the union from `checkpoints.ts` directly.)
 
-## Where Plan 02 left things (snapshot)
+## Where Plan 03 left things (snapshot)
 
 ### Commits on main (most recent → oldest, last 10)
 
 | SHA       | Subject                                                                            |
 |-----------|------------------------------------------------------------------------------------|
+| fae95acd  | docs(debounce-v2 plan-03): SUMMARY.md — Wave 3 webhook integration complete        |
+| f96f7f0d  | feat(debounce-v2 plan-03): extend Inngest event destructure + lock-event test      |
+| 3062598c  | feat(debounce-v2 plan-03): wire HOLDER/FOLLOWER lock into ManyChat webhook (v4)    |
+| 0b1782a4  | feat(debounce-v2 plan-03): wire HOLDER/FOLLOWER lock into WhatsApp webhook (v4)    |
+| 99e4736b  | refactor(debounce-v2 plan-03): extract resolveAgentIdForWorkspace (REVISION B4)    |
+| efae64f1  | docs(debounce-v2 plan-02): HANDOFF.md — Wave 2 complete                            |
 | 5711d8a3  | docs(debounce-v2 plan-02): SUMMARY.md — Wave 2 pending+checkpoint complete         |
 | 06e48b62  | feat(debounce-v2 plan-02): checkpoints.ts helper + CheckpointId union + 8 tests    |
-| 01cd7ab1  | feat(debounce-v2 plan-02): pending.ts RPUSH/LREM/LRANGE + 10 tests (LOCK-04)       |
+| 01cd7ab1  | feat(debounce-v2 plan-02): pending.ts RPUSH/LREM/LRANGE + 10 tests                 |
 | f7380068  | docs(debounce-v2 plan-01): HANDOFF.md — Wave 1 complete                            |
-| b97a6b15  | docs(debounce-v2 plan-01): SUMMARY.md — Wave 1 primitives complete                 |
-| c5587e6c  | feat(debounce-v2 plan-01): observability.ts 14-label typed emitter + tests         |
-| 617d3fc8  | feat(debounce-v2 plan-01): lock primitives + mock-redis helper + lock.test.ts      |
-| 28a2ebde  | feat(debounce-v2 plan-01): redis-client singleton + RELEASE_IF_OWNER_LUA           |
-| 3c04e709  | docs(debounce-v2 plan-00): HANDOFF.md for next-session resume                      |
-| 3972ea70  | docs(debounce-v2 plan-00): SUMMARY.md — Wave 0 foundation complete                 |
 
-All pushed to `origin/main`. Latest: `5711d8a3`.
+All pushed to `origin/main`. Latest: `fae95acd`.
+
+### Wave 3 deliverables (Plan 03)
+
+1 NEW shared module + 3 EDITED live production files + 1 NEW test file:
+
+- **NEW** `src/lib/agents/registry-helpers.ts` — exports
+  `resolveAgentIdForWorkspace(workspaceId): Promise<AgentId>` (REVISION B4 — webhooks
+  can now STATIC-import this without dynamic-import circular risk). Recognizes
+  `'somnio-sales-v4'` as its own bucket (additive). `AgentId` type union ALREADY
+  contained `'somnio-sales-v4'` (no schema change needed).
+- **EDIT** `src/lib/whatsapp/webhook-handler.ts` — added STATIC imports for
+  `acquireLock` + `pushToPending` + `redis` + `emitLockEvent` + `resolveAgentIdForWorkspace`
+  + `randomUUID`. Inside `processIncomingMessage`, added gated branch
+  `if (resolvedAgentId === 'somnio-sales-v4')` covering HOLDER, FOLLOWER, and fail-open
+  paths per RESEARCH Pattern 2. Non-v4 traffic: branch skipped, existing flow runs.
+- **EDIT** `src/lib/manychat/webhook-handler.ts` — same pattern with
+  `channel='facebook'|'instagram'` and `identifier=external_subscriber_id` (D-12).
+  Static imports. v4-gated. v4 currently serves WhatsApp only so this code is
+  doubly-inert for godentist-fb-ig (its `conversational_agent_id` is `'godentist'`).
+- **EDIT** `src/inngest/functions/agent-production.ts` — REMOVED the local
+  `resolveAgentIdForWorkspace` definition (now imported from registry-helpers).
+  EXTENDED `event.data` destructure with 6 OPTIONAL fields:
+  `lockHolderUuid?`, `lockKey?`, `ownPendingEntryJson?`, `lockChannel?`,
+  `lockIdentifier?`, `agentId?` — all backward-compatible (pre-v4 events that
+  omit these fields continue working). **Concurrency limit UNCHANGED at
+  `[{ key: 'event.data.conversationId', limit: 1 }]`** (D-14 invariant).
+- **NEW** `src/inngest/functions/__tests__/agent-production-lock-event.test.ts` —
+  8 tests asserting (a) concurrency literal value (D-14 invariant), (b) function
+  accepts events with all 6 fields populated AND propagates them, (c) function
+  still accepts events WITHOUT them (backward compatibility).
+
+Module test totals: **44/44 PASS** (8 new agent-production tests + 36 Wave 1+2 regression).
+`npx tsc --noEmit` clean for all 5 modified files.
+
+### Regla 6 hand-trace (verified, byte-identical for all non-v4 agents)
+
+| Agent | resolved | v4Path | Status |
+|---|---|---|---|
+| v3 (`somnio-sales-v3`) | `'somnio-v3'` | false | byte-identical |
+| godentist | `'godentist'` | false | byte-identical |
+| recompra (v0/v1) | `'somnio-recompra'` | false | byte-identical |
+| pw-confirmation (routed via `routing_rules`, not via `conversational_agent_id`) | `'somnio-v3'` | false | byte-identical |
+| godentist-fb-ig (routed by lifecycle router on `channel` fact) | `'godentist'` | false | byte-identical |
+
+v4 = ZERO workspaces in prod today (verified at deploy time). Plan 03's new code
+path is INERT in production until v4 is flipped on per-workspace by an explicit
+operator action.
+
+### Two pragmatic deviations documented in 03-SUMMARY.md (production code correct)
+
+1. `existing_holder_uuid: 'unknown'` in follower events — skip extra `redis.get`
+   roundtrip; UUID can be correlated via the matching `lock_acquired` event from
+   the same lock key.
+2. `ttl: 45` inlined as literal in `lock_acquired` payload — avoids dragging
+   `LOCK_TTL_S` import into webhook handlers for a single annotation. Inline
+   comment points at `lock.ts` as source.
 
 ### Wave 2 deliverables (Plan 02)
 
@@ -144,14 +208,14 @@ is NOT byte-guaranteed to match (Pitfall 4). Flag this when planning Plan 04.
 3. **In-region Vercel→Upstash latency unvalidated**: Vercel Auth team-level gated the preview probe; WSL-local pivot captured upper-bound numbers only. Plan 05 E2E smoke + Phase 42.1 observability will close this.
 4. **Orphan Claude-Code worktrees**: ~14 stale `.claude/worktrees/agent-*` debris (one had `main` checked out + locked, blocked our checkout flow this session — used `update-ref` workaround). Out of scope for this standalone; consider a cleanup pass before resuming heavy parallel execution.
 
-## Plans 03–07 dependency graph (from plan frontmatter)
+## Plans 04–07 dependency graph (from plan frontmatter)
 
 ```
 Wave 0 → 00 ✅ DONE
 Wave 1 → 01 ✅ DONE
 Wave 2 → 02 ✅ DONE
-Wave 3 → 03 (depends on: 02)   ← NEXT
-Wave 4 → 04 (depends on: 03)
+Wave 3 → 03 ✅ DONE (v4-gated; prod inert until v4 flip-on)
+Wave 4 → 04 (depends on: 03)   ← NEXT
 Wave 5 → 05 (depends on: 04)
        └ 06 (depends on: 01, 02, 04, 05)
 Wave 6 → 07 (depends on: 04, 05, 06)  ← autonomous: false (Tasks 7.3 + 7.4 are human checkpoints)
@@ -160,16 +224,46 @@ Wave 6 → 07 (depends on: 04, 05, 06)  ← autonomous: false (Tasks 7.3 + 7.4 a
 Wave 5 (Plan 05 + Plan 06) — Plan 06 depends on Plan 05, so they run sequentially within
 the wave regardless of parallelization setting.
 
-## Imports Plan 03 will consume from Waves 1+2
+## Plan 04 planning constraints — surfaced from Wave 3 execution
 
-When Plan 03 (webhook integration) runs, expect it to import:
-- `acquireLock` from `./lock` — returns null when the lock is held by another lambda
-- `pushToPending`, `removeOwnEntry` (caller stores the returned `exactJson`!), `PendingEntry` from `./pending`
-- `emitLockEvent` (labels: `interrupt_written`, `lock_busy_enqueue_pending`, etc.) from `./observability`
-- `redis` from `./redis-client` — for the `SET interrupt:<ws>:<channel>:<identifier> <msg_id>` interrupt-key write
-- `createMockRedis` from `./__tests__/_helpers/mock-redis` (test-only)
+Plan 04 wires the V4 production runner to consume the 6 event fields Plan 03 added.
+Things Plan 04's author MUST know:
 
-Plan 03 webhook follower path (per spec): `acquireLock` returns null → `pushToPending(entry)` → `SET interrupt:...` → emit `interrupt_written` → 200 OK.
+1. **6 event.data fields are OPTIONAL** — runner MUST check `lockHolderUuid && lockKey`
+   before invoking checkpoint helpers. When null (pre-v4 callers OR fail-open path),
+   skip the checkpoint logic and accept residual double-response risk.
+
+2. **`ownPendingEntryJson` MUST be threaded END-TO-END** to
+   `V4MessagingAdapter.onFirstSendCompleted` for D-16 LREM-self. Plan 04 extends
+   `V4AgentInput` with `ownPendingEntryJson: string | null`. Per Plan 02's
+   `pushToPending` contract (Pitfall 4 byte-exact LREM), re-serializing the entry
+   object at LREM time is NOT guaranteed to match.
+
+3. **`lockChannel + lockIdentifier` eliminate a conversations-table lookup** in
+   the runner (REVISION W3 — no `createAdminClient` needed for that purpose).
+
+4. **Concurrency setting is LOCKED at `[{ key: 'event.data.conversationId', limit: 1 }]`**.
+   Plan 04 must NOT modify it. The new test
+   `src/inngest/functions/__tests__/agent-production-lock-event.test.ts` asserts
+   the literal value as an invariant.
+
+5. **Single Inngest function handles both WhatsApp and FB/IG** — both channels
+   arrive at `whatsappAgentProcessor` via `agent/whatsapp.message_received`.
+   Plan 04 reads `lockChannel` from `event.data` to discriminate. Do NOT
+   introduce a separate Inngest function for FB/IG.
+
+6. **`resolveAgentIdForWorkspace` is now in `@/lib/agents/registry-helpers`** —
+   Plan 04's runner can import it directly if needed. Call shape unchanged:
+   `await resolveAgentIdForWorkspace(workspaceId): Promise<AgentId>`. Plan 04
+   will primarily read `agentIdFromWebhook` from `event.data` per REVISION W2 to
+   skip the re-resolve.
+
+7. **CheckpointId names locked** — see the 8 names at the top of this file. Plan 04
+   passes these strings to the `checkpoint(ckptId, handle, ...)` helper from
+   `checkpoints.ts`. Pattern-match the union directly from source, not from any
+   planner prompt.
+
+8. **No DB migrations needed for Plan 03**. v4 activation per workspace is one SQL UPDATE.
 
 ## Useful commands when resuming
 

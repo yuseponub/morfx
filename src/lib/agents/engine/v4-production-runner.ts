@@ -25,8 +25,11 @@
  *   (response-track + sub-loop template_match merged en `output.templates`) — D-17.
  *
  * Interruption handling (mirrors sandbox Path A / Path B):
- * - Path A (0 templates sent): discard turn, rollback intents_vistos, save pending
- *   message → next turn combines both messages into one comprehension call
+ * - Path A (0 templates sent): restart turn with combined effectiveMessage in
+ *   the SAME lambda via outer `while (shouldRestart)` loop (Standalone
+ *   debounce-v2-interrupt-reprocess D-04 + R-01). The legacy CKPT-7.1 edge case
+ *   (`wasInterruptedWithZeroSends`) preserves the save-pending-and-return
+ *   behavior — see Pitfall 5 in standalone RESEARCH.md.
  * - Path B (1+ templates sent): save only actually-sent IDs to templates_enviados,
  *   save unsent as pending_templates for next turn to send first
  */
@@ -105,8 +108,37 @@ export class V4ProductionRunner {
     // and emit the correct event in the finally block.
     let templatesSentCount = 0
 
+    // ============================================================
+    // Standalone: debounce-v2-interrupt-reprocess outer-scope state.
+    // These persist ACROSS restart-loop iterations within a single lambda
+    // invocation; the restart loop body sets/reads them. The outer
+    // declaration here keeps them alive across `continue` statements
+    // (Pitfall 8: NO DB write during restart iterations — combined message
+    // lives in-memory in `effectiveMessage` until the iteration commits).
+    // ============================================================
+    let totalTokensAcrossRestarts = 0  // R-05: accumulate output.totalTokens per iteration
+    let restartIteration = 0           // observability — Pitfall 3 distinguishes restart 1 vs 5
+    let effectiveMessage: string | null = null  // R-03: null on iter 1 (legacy v3 path), non-null after first restart
+
     try {
     try {
+      // ============================================================
+      // Standalone: debounce-v2-interrupt-reprocess restart loop (D-04 + R-01).
+      // Wraps the entire turn body so any Path A interrupt at
+      // CKPT-0/1/2/3/4/5/6a/6b drains pending, combines into
+      // effectiveMessage, and re-runs the turn in the SAME lambda with the
+      // SAME lock (heartbeat keeps it alive — Pitfall 6: outside loop).
+      //
+      // CKPT-7.N (send-loop per-template) does NOT restart (D-05) — once
+      // we've sent ≥1 template, restarting would re-send what the customer
+      // already saw. The existing send-loop branch and
+      // wasInterruptedWithZeroSends block are PRESERVED for the rare
+      // CKPT-7.1 first-byte abort case (Pitfall 5).
+      // ============================================================
+      let shouldRestart = true
+      while (shouldRestart) {
+        shouldRestart = false
+
       // 1. Get session via storage adapter
       const session = input.sessionId
         ? await this.adapters.storage.getSession(input.sessionId)
@@ -141,53 +173,55 @@ export class V4ProductionRunner {
           throw new LostLockError('ckpt_0_post_acquire')
         }
         if (!ck0.proceed && ck0.interrupted) {
-          // Path A — no sends yet. Read pending list and combine for next turn.
+          // ============================================================
+          // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
+          // Path A interrupt at CKPT-0 — restart turn with combined
+          // effectiveMessage instead of silently persisting + returning
+          // (BEFORE FIX: bot stayed mute until a third inbound arrived).
+          // Pitfall 8: NO saveState during restart iterations — the
+          // combined message lives in-memory in `effectiveMessage` until
+          // the iteration completes successfully.
+          // ============================================================
           const pending = await readAndClearPending(
             this.config.workspaceId,
             lockCtx.channel,
             lockCtx.identifier,
           )
+          restartIteration++
+          const priorMsg: string = effectiveMessage ?? input.message
           const combinedTotalChars =
-            pending.reduce((s, p) => s + p.content.length, 0) + input.message.length
+            pending.reduce((s, p) => s + p.content.length, 0) + priorMsg.length
           emitLockEvent('msg_aborted_path_a_combined', {
             at_step: 'ckpt_0_post_acquire',
             combined_msg_count: pending.length + 1,
             total_chars: combinedTotalChars,
+            restart_iteration: restartIteration,
           })
           emitLockEvent('pending_list_combined', {
             at_step: 'ckpt_0_post_acquire',
             entries_count: pending.length,
             total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+            restart_iteration: restartIteration,
           })
-
-          // Persist combined message for next turn (matches existing Path A
-          // _v3:pendingUserMessage convention at line ~75).
-          const combinedMessage = [...pending.map((p) => p.content), input.message].join('\n')
-          await this.adapters.storage.saveState(session.id, {
-            datos_capturados: {
-              ...(session.state.datos_capturados ?? {}),
-              '_v3:pendingUserMessage': combinedMessage,
-            },
-          })
-          // Clear stale pending_templates (no partial send to resume).
-          if (this.adapters.storage.clearPendingTemplates) {
-            await this.adapters.storage.clearPendingTemplates(session.id)
-          }
-          return {
-            success: true,
-            messages: [],
-            sessionId: session.id,
-            messagesSent: 0,
-          }
+          effectiveMessage = [...pending.map((p) => p.content), priorMsg].join('\n')
+          shouldRestart = true
+          continue
         }
       }
 
       // 1c. Detect pending message from previous 0-send interruption (Path A accumulation)
+      //
+      // R-03 (debounce-v2-interrupt-reprocess): on iter 1 of the restart
+      // loop, `effectiveMessage` is null → fall back to legacy v3 path
+      // (combine with `_v3:pendingUserMessage` from session state — used by
+      // the Pitfall 5 wasInterruptedWithZeroSends edge case and by the
+      // first-call-after-cold-start scenario). On restart iterations
+      // (effectiveMessage non-null), use the in-memory combined string
+      // (Pitfall 8: no DB write across iterations).
       const currentDatos = session.state.datos_capturados ?? {}
       const pendingUserMessage = currentDatos['_v3:pendingUserMessage'] as string | undefined
-      const effectiveMessage = pendingUserMessage
-        ? `${pendingUserMessage}\n${input.message}`
-        : input.message
+      const turnEffectiveMessage: string = effectiveMessage
+        ?? (pendingUserMessage ? `${pendingUserMessage}\n${input.message}` : input.message)
 
       if (pendingUserMessage) {
         console.log(`[V4-RUNNER] Path A accumulation: combining pending="${pendingUserMessage}" + new="${input.message}"`)
@@ -198,7 +232,7 @@ export class V4ProductionRunner {
         ? input.history
         : await this.adapters.storage.getHistory(session.id)
 
-      console.log(`[V4-RUNNER] msg="${effectiveMessage}" sessionId=${session.id} historyLen=${history.length}`)
+      console.log(`[V4-RUNNER] msg="${turnEffectiveMessage}" sessionId=${session.id} historyLen=${history.length}`)
 
       // 3. Build V4AgentInput from session state
       const turnNumber = input.turnNumber ?? (history.length + 1)
@@ -228,7 +262,7 @@ export class V4ProductionRunner {
       )
 
       const v4Input: V4AgentInput = {
-        message: effectiveMessage,
+        message: turnEffectiveMessage,
         history,
         currentMode: session.current_mode,
         intentsVistos,
@@ -281,6 +315,58 @@ export class V4ProductionRunner {
       let output: V4AgentOutput
       const { processMessage } = await import('../somnio-v4')
       output = await processMessage(v4Input)
+
+      // R-05 (debounce-v2-interrupt-reprocess): accumulate per-call tokens
+      // across restart iterations. The final return uses
+      // `totalTokensAcrossRestarts` (NOT `output.totalTokens`) as the single
+      // source of truth for cost accounting (Pitfall 2).
+      totalTokensAcrossRestarts += (output.totalTokens ?? 0)
+
+      // ============================================================
+      // R-04 + Pitfall 7 (debounce-v2-interrupt-reprocess): detect Path A
+      // interrupt surfaced by the agent's V4AgentOutput.errorMessage.
+      // Sources of the discriminator prefix `interrupted_at_ckpt_`:
+      //   - in-agent CKPT-1 (post-comprehension) — somnio-v4-agent.ts ~L142
+      //   - in-agent CKPT-2 (post-state-machine) — somnio-v4-agent.ts ~L340
+      //   - sub-loop CKPT-3/4/5 propagated via mapOutcomeToAgentOutput
+      //     (Pitfall 7 fix in Task 1.1 — was silently converting to
+      //     requiresHuman=true handoff before this standalone)
+      // String prefix is the discriminator (NOT a typed boolean — see R-04:
+      // greppable in Vercel logs).
+      // ============================================================
+      if (
+        output.success === false &&
+        typeof output.errorMessage === 'string' &&
+        output.errorMessage.startsWith('interrupted_at_ckpt_')
+      ) {
+        if (!lockCtx) {
+          // Should be impossible (agent only emits this discriminator when
+          // invoked under a lock), but if it happens we fall through to
+          // error handling rather than corrupting state.
+          throw new Error(`[V4-RUNNER] agent emitted ${output.errorMessage} but lockCtx is null`)
+        }
+        const pending = await readAndClearPending(
+          this.config.workspaceId,
+          lockCtx.channel,
+          lockCtx.identifier,
+        )
+        restartIteration++
+        emitLockEvent('msg_aborted_path_a_combined', {
+          at_step: output.errorMessage,
+          combined_msg_count: pending.length + 1,
+          total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
+          restart_iteration: restartIteration,
+        })
+        emitLockEvent('pending_list_combined', {
+          at_step: output.errorMessage,
+          entries_count: pending.length,
+          total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+          restart_iteration: restartIteration,
+        })
+        effectiveMessage = [...pending.map((p) => p.content), turnEffectiveMessage].join('\n')
+        shouldRestart = true
+        continue
+      }
 
       getCollector()?.recordEvent('pipeline_decision', 'agent_routed', {
         agentModule: this.config.agentModule ?? 'somnio-v4',
@@ -340,35 +426,35 @@ export class V4ProductionRunner {
           throw new LostLockError('ckpt_6_pre_send_loop_pending_templates')
         }
         if (!ck6a.proceed && ck6a.interrupted) {
-          // No sends performed in THIS turn yet — Path A.
-          emitLockEvent('msg_aborted_path_a_combined', {
-            at_step: 'ckpt_6_pre_send_loop_pending_templates',
-            templates_sent_before_abort: 0,
-          })
-          // Persist combined for next turn (same as CKPT-0 path).
+          // ============================================================
+          // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
+          // Path A interrupt at CKPT-6a (pending-templates pre-send) —
+          // restart turn with combined effectiveMessage instead of silently
+          // persisting + returning. Pitfall 8: NO saveState during restart
+          // iterations.
+          // ============================================================
           const pending = await readAndClearPending(
             this.config.workspaceId,
             lockCtx.channel,
             lockCtx.identifier,
           )
+          restartIteration++
+          emitLockEvent('msg_aborted_path_a_combined', {
+            at_step: 'ckpt_6_pre_send_loop_pending_templates',
+            templates_sent_before_abort: 0,
+            combined_msg_count: pending.length + 1,
+            total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
+            restart_iteration: restartIteration,
+          })
           emitLockEvent('pending_list_combined', {
             at_step: 'ckpt_6_pre_send_loop_pending_templates',
             entries_count: pending.length,
             total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+            restart_iteration: restartIteration,
           })
-          const combinedMessage = [...pending.map((p) => p.content), input.message].join('\n')
-          await this.adapters.storage.saveState(session.id, {
-            datos_capturados: {
-              ...(session.state.datos_capturados ?? {}),
-              '_v3:pendingUserMessage': combinedMessage,
-            },
-          })
-          return {
-            success: true,
-            messages: [],
-            sessionId: session.id,
-            messagesSent: 0,
-          }
+          effectiveMessage = [...pending.map((p) => p.content), turnEffectiveMessage].join('\n')
+          shouldRestart = true
+          continue
         }
       }
 
@@ -455,31 +541,42 @@ export class V4ProductionRunner {
         }
         if (!ck6b.proceed && ck6b.interrupted) {
           const sentCount = actuallySentIds.length
-          const eventLabel = sentCount === 0 ? 'msg_aborted_path_a_combined' : 'msg_aborted_path_b_solo'
-          emitLockEvent(eventLabel, {
-            at_step: 'ckpt_6_pre_send_loop_main',
-            templates_sent_before_abort: sentCount,
-          })
           if (sentCount === 0) {
-            // Path A — combine for next turn.
+            // ============================================================
+            // Standalone: debounce-v2-interrupt-reprocess (D-01 + D-05).
+            // Path A — restart turn with combined effectiveMessage instead
+            // of silently persisting + returning. Pitfall 8: NO saveState
+            // during restart iterations.
+            // ============================================================
             const pending = await readAndClearPending(
               this.config.workspaceId,
               lockCtx.channel,
               lockCtx.identifier,
             )
+            restartIteration++
+            emitLockEvent('msg_aborted_path_a_combined', {
+              at_step: 'ckpt_6_pre_send_loop_main',
+              templates_sent_before_abort: 0,
+              combined_msg_count: pending.length + 1,
+              total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
+              restart_iteration: restartIteration,
+            })
             emitLockEvent('pending_list_combined', {
               at_step: 'ckpt_6_pre_send_loop_main',
               entries_count: pending.length,
               total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+              restart_iteration: restartIteration,
             })
-            const combinedMessage = [...pending.map((p) => p.content), input.message].join('\n')
-            await this.adapters.storage.saveState(session.id, {
-              datos_capturados: {
-                ...(session.state.datos_capturados ?? {}),
-                '_v3:pendingUserMessage': combinedMessage,
-              },
-            })
+            effectiveMessage = [...pending.map((p) => p.content), turnEffectiveMessage].join('\n')
+            shouldRestart = true
+            continue
           }
+          // D-01 Path B — msg1 already had templates sent; do NOT restart,
+          // do NOT re-include msg1. Preserve existing behavior verbatim.
+          emitLockEvent('msg_aborted_path_b_solo', {
+            at_step: 'ckpt_6_pre_send_loop_main',
+            templates_sent_before_abort: sentCount,
+          })
           // Update outer counter for finally block lock_released_normal payload.
           templatesSentCount = sentCount
           return {
@@ -487,6 +584,7 @@ export class V4ProductionRunner {
             messages: [],
             sessionId: session.id,
             messagesSent: sentCount,
+            tokensUsed: totalTokensAcrossRestarts,
           }
         }
       }
@@ -579,13 +677,18 @@ export class V4ProductionRunner {
           // Interruption handling
           if (sendResult.interrupted) {
             if (sendResult.messagesSent === 0) {
-              // PATH A: 0 templates sent — discard turn, save pending message
+              // PATH A (CKPT-7.1 edge case): 0 templates sent — save pending
+              // message, next inbound's lambda combines via R-03 iter-1 legacy
+              // path. Per D-05 (debounce-v2-interrupt-reprocess), CKPT-7.N
+              // does NOT trigger the restart loop because we're already
+              // mid-send-loop and re-running comprehension would race with
+              // partial-delivery state.
               wasInterruptedWithZeroSends = true
               getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
                 sessionId: session.id,
                 pendingMessage: input.message.substring(0, 100),
               })
-              console.log(`[V4-RUNNER] Path A: 0 sends, discarding turn, saving pending message`)
+              console.log(`[V4-RUNNER] Path A (CKPT-7.1): 0 sends, saving pending for next lambda`)
             } else {
               // PATH B: partial send — save unsent as pending_templates
               const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
@@ -620,9 +723,21 @@ export class V4ProductionRunner {
       // 5-post. POST-SEND: State save + turns (Path A vs Path B decision)
       // ================================================================
 
+      // ============================================================
+      // Pitfall 5 (Standalone debounce-v2-interrupt-reprocess): this block
+      // remains live for the CKPT-7.N Path A edge case (template_1 send
+      // aborted at first byte by V4MessagingAdapter.shouldAbortBeforeTemplate).
+      // Per D-05 explicit: CKPT-7.N does NOT trigger restart. The next
+      // inbound's lambda will see `_v3:pendingUserMessage` in session state
+      // and accumulate via R-03 iter-1 path. Do NOT collapse this into the
+      // restart loop — once we've entered the send-loop, msg1 has either
+      // been delivered or is mid-flight, and re-running comprehension on
+      // the combined message would race with the partially-delivered turn.
+      // ============================================================
       if (wasInterruptedWithZeroSends) {
-        // PATH A: Rollback intents_vistos, save pending message, skip turns
-        // The turn is discarded — next message will combine and re-process
+        // PATH A (CKPT-7.1 edge case): Rollback intents_vistos, save pending
+        // message, skip turns. The next inbound's lambda combines via R-03
+        // iter-1 legacy path.
         await this.adapters.storage.saveState(session.id, {
           intents_vistos: inputIntentsVistos,
           datos_capturados: {
@@ -681,10 +796,13 @@ export class V4ProductionRunner {
           sessionId: session.id,
           turnNumber,
           role: 'user',
-          content: effectiveMessage,
+          content: turnEffectiveMessage,
           intentDetected: output.intentInfo?.intent,
           confidence: output.intentInfo?.confidence,
-          tokensUsed: output.totalTokens,
+          // Pitfall 2 (debounce-v2-interrupt-reprocess): accumulator across
+          // restart iterations — captures total agent work for this lambda
+          // invocation, not just the last iteration's per-call tokens.
+          tokensUsed: totalTokensAcrossRestarts,
         })
 
         // Add intent seen
@@ -743,7 +861,9 @@ export class V4ProductionRunner {
       this.adapters.debug.recordIntent(output.intentInfo)
       this.adapters.debug.recordTokens({
         turnNumber,
-        tokensUsed: output.totalTokens,
+        // Pitfall 2 (debounce-v2-interrupt-reprocess): accumulator across
+        // restart iterations.
+        tokensUsed: totalTokensAcrossRestarts,
         timestamp: new Date().toISOString(),
       })
       if (output.classificationInfo) this.adapters.debug.recordClassification(output.classificationInfo)
@@ -758,7 +878,10 @@ export class V4ProductionRunner {
         success: output.success,
         messages: output.messages,
         newMode: wasInterruptedWithZeroSends ? undefined : output.newMode,
-        tokensUsed: output.totalTokens,
+        // Pitfall 2 (debounce-v2-interrupt-reprocess): single source of truth
+        // for cost accounting across restart iterations — accumulator instead
+        // of per-call output.totalTokens.
+        tokensUsed: totalTokensAcrossRestarts,
         sessionId: session.id,
         messagesSent,
         response: sentMessageContents.join('\n'),
@@ -770,6 +893,12 @@ export class V4ProductionRunner {
           message: 'V4 agent processing failed',
         },
       }
+      }  // end while (shouldRestart)
+
+      // Defensive — exhaustiveness: every code path inside while must return
+      // or set shouldRestart=true. Reaching here means a bug.
+      // eslint-disable-next-line no-unreachable
+      throw new Error('[V4-RUNNER] restart loop exited without return — invariant violation')
     } catch (error) {
       // ============================================================
       // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3)

@@ -239,6 +239,50 @@ Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
 - **Consumidores upstream:** webhook FB/IG inbound — `webhook-processor.ts` branch `agentId === 'godentist-fb-ig'` (paralelo al branch `'godentist'` linea 765, dispatch in-process).
 - **Consumidores downstream:** TemplateManager (cache propio agent_id) + Anthropic Haiku (comprehension via `runWithPurpose('godentist_fb_ig_comprehension', ...)`) + robot Railway Dentos (compartido con godentist) + VAL tag side-effect runner (`v3-production-runner.ts:597`).
 
+### Module Scope: interruption-system-v2 (`src/lib/agents/interruption-system-v2/`)
+Atomic distributed-mutex coordination for the v4 inbound message pipeline. Replaces Phase 31 `hasNewInboundMessage` polling for `somnio-sales-v4` ONLY (D-04 + D-07). v3/godentist/recompra/pw-confirmation paths UNTOUCHED (Regla 6). NOT an agent itself — shared infrastructure module any agent can opt into via the gating in webhook-handler.ts.
+- **PUEDE:**
+  - `acquireLock(workspaceId, channel, identifier)` — SET NX + holder_uuid (D-02 + D-15). Returns `LockHandle | null`; second concurrent caller gets null and follows the follower path.
+  - `releaseLockIfOwner(handle)` — Lua-atomic GET+compare+DEL with `RELEASE_IF_OWNER_LUA` (D-15). Refuses to release if `handle.holderUuid` is not a valid UUID (Security V5 — Lua injection defense).
+  - `renewLockTTL(handle)` / `startHeartbeat(handle)` — keep lock alive every `HEARTBEAT_MS=5000` (D-09 layer 2). Heartbeat returns a stop fn; caller MUST invoke in `finally` block (RESEARCH Pitfall 2 — never wrap heartbeat in Inngest step.run).
+  - `assertHoldsLock(handle)` — fencing-token re-check at every checkpoint (D-15). Detects TTL-expired-then-stolen + Upstash failover split-brain.
+  - `pushToPending` / `removeOwnEntry` / `readAndClearPending` — RPUSH/LREM-by-byte-exact-string/LRANGE+DEL atomic transaction (D-05 + D-16 + D-20 — alphabetical JSON key order is the byte-exact contract).
+  - `checkpoint(ckptId, handle, workspaceId, channel, identifier, opts?)` — single-source-of-truth fencing-token check + interrupt detection at 8 D-18 placements. Fail-open on Redis error per Open Question 5 (accept double-response risk for liveness).
+  - `emitLockEvent(label, payload)` — typed emitter for 14 D-17-extended labels (LOCK-07 + REVISION B1 `lock_orphan_swept_by_cron`). Dual emission: collector recordEvent + `console.log` with `[interruption-v2]` prefix (D-11).
+  - `redis` singleton (Proxy over `@upstash/redis`) — lazy instantiation, fail-fast on missing env vars (D-01). Only `redis-client.ts` instantiates the SDK; the rest of the module consumes the proxy.
+  - Inngest cron `v2-lock-cleanup-cron` sweeps orphaned locks every 5min by comparing against `agent_sessions.status='active'` (D-09 layer 3 + LOCK-06 + REVISION B1). Output shape: `{ swept: N, kept: M, active_sessions_checked: P }`.
+- **NO PUEDE:**
+  - Mutar tablas de negocio (`messages`, `conversations`, `agent_sessions`, `contacts`, `orders`, etc.) — coordina via Redis ONLY. La pipeline real escribe a DB; este módulo solo orquesta exclusión mutua.
+  - Enviar mensajes de WhatsApp / FB / IG — el adapter (V4MessagingAdapter) hace el send; este módulo solo decide si el send procede via `shouldAbortBeforeTemplate` (CKPT-7.N).
+  - Activarse en agentes ≠ `somnio-sales-v4` — el webhook handler en `src/lib/whatsapp/webhook-handler.ts` filtra por `resolveAgentIdForWorkspace === 'somnio-sales-v4'` (D-04). Aplicar a otro agente requiere standalone follow-up (D-04).
+  - Bloquear LLM calls mid-stream con AbortController — solo checkpoints discretos entre steps (D-13). Aborting mid-stream is v2.1 work.
+  - Confiar en Inngest concurrency como mecanismo de correctness — Redis SET NX es el único primario (D-14 + RESEARCH §Inngest); Inngest concurrency=1 queda como belt-and-suspenders por defensa en profundidad.
+  - Cachear estado Redis (lock value, pending list, interrupt key) entre checkpoints — cada checkpoint re-lee fresco (D-15 fencing token requirement; stale cache defeats the whole purpose).
+  - Acceder a workspaces fuera del scope de la lock key — el `key = lock:{workspaceId}:{channel}:{identifier}` literal aísla por workspace. Cross-workspace coordination would require a different keyspace + extra audit.
+  - Bypasear el Lua release-if-owner — `redis.del(key)` directo (sin Lua) abriría una race entre nuestro GET y el DEL de otro holder (RESEARCH Pitfall 3).
+  - Importar `createAdminClient` o `@supabase/supabase-js` directamente dentro de `src/lib/agents/interruption-system-v2/**` (Regla 3 wrapper). Solo `redis-client.ts` instancia `Redis`; el resto consume el proxy. (Excepción documentada: el cron `v2-lock-cleanup-cron.ts` vive en `src/inngest/functions/`, NO bajo `src/lib/agents/interruption-system-v2/**`, y necesita createAdminClient para la query a `agent_sessions` — D-09 verbatim.)
+- **Validación (gates verificables):**
+  - `grep -rn "createAdminClient\|@supabase/supabase-js" src/lib/agents/interruption-system-v2/` retorna 0 matches no-comentario.
+  - `grep -c "@upstash/redis" src/lib/agents/interruption-system-v2/redis-client.ts` ≥ 1.
+  - `grep -c "RELEASE_IF_OWNER_LUA" src/lib/agents/interruption-system-v2/lua-scripts.ts` ≥ 1; cuerpo del script: `redis.call('GET', KEYS[1])` + `cjson.decode` + comparación holder_uuid + `redis.call('DEL', KEYS[1])` en un solo round-trip.
+  - 14 D-17-extended event labels enforceable (REVISION B1): `grep -oE "'(lock_acquired|lock_acquire_failed_follower|interrupt_written|interrupt_detected_at_ckpt_N|msg_aborted_path_a_combined|msg_aborted_path_b_solo|lock_released_normal|follower_woke|lock_force_acquired_after_ttl_expiry|zombie_lambda_exit|heartbeat_renewed|pending_list_combined|redis_unavailable_fallback_failed|lock_orphan_swept_by_cron)'" src/lib/agents/interruption-system-v2/observability.ts | sort -u | wc -l` returns 14.
+  - 8 D-18 CheckpointId values exhaustive (LOCK-05): `grep -oE "'(ckpt_0_post_acquire|ckpt_1_post_comprehension|ckpt_2_post_state_machine|ckpt_3_post_tooling|ckpt_4_post_generation|ckpt_5_post_compliance|ckpt_6_pre_send_loop|ckpt_7_pre_template)'" src/lib/agents/interruption-system-v2/checkpoints.ts | sort -u | wc -l` returns 8. Distribution across runner + agent + sub-loop + adapter documented in `05-SUMMARY.md` coverage matrix.
+  - Test suite: `npx vitest run src/lib/agents/interruption-system-v2/__tests__/` 5 suites + 40/40 tests pass (lock 12 + pending 10 + checkpoints 8 + observability 6 + e2e-scenarios 4).
+  - Project skill descubrible: standalone reference `.planning/standalone/debounce-interruption-system-v2/` (shipped 2026-05-26).
+- **Consumidores documentados:**
+  - `somnio-sales-v4` (DORMANT en prod — D-04 + D-07; activación per-workspace via `UPDATE workspace_agent_config SET conversational_agent_id='somnio-sales-v4' WHERE workspace_id='<uuid>'`):
+    - Webhook handler `src/lib/whatsapp/webhook-handler.ts` adquiere lock cuando `resolveAgentIdForWorkspace === 'somnio-sales-v4'` (STATIC-imported from `src/lib/agents/registry-helpers.ts` per REVISION B4 — no `await import` dynamic resolution in webhook path to avoid B-001 cold-lambda race).
+    - V4 production runner `src/lib/agents/engine/v4-production-runner.ts` ejecuta CKPT-0 (post-acquire) + CKPT-6 (pre-send-loop) + `finally` release (REVISION W3: consume `input.lockChannel` + `input.lockIdentifier` from EngineInput threaded by webhook handler — no createAdminClient introduced in runner).
+    - Agente `src/lib/agents/somnio-v4/somnio-v4-agent.ts` ejecuta CKPT-1 (post-comprehension) + CKPT-2 (post-state-machine).
+    - Sub-loop `src/lib/agents/somnio-v4/sub-loop/index.ts` ejecuta CKPT-3 (post-tooling) + CKPT-4 (post-generation) + CKPT-5 (post-compliance).
+    - Messaging adapter `V4MessagingAdapter` (extends `MessagingProductionAdapter`) ejecuta CKPT-7.N (per-template) via `shouldAbortBeforeTemplate` override — reemplaza Phase 31 `hasNewInboundMessage` polling solo para v4 (D-08).
+  - Inngest cron `v2-lock-cleanup-cron` (Plan 06): sweeper que cada 5min compara locks Redis contra `agent_sessions.status='active'` + workspace-scoped LIVE filter; emite `lock_orphan_swept_by_cron` per orphan removed (REVISION B1 — 14th label).
+  - Sandbox debug-panel Interruption tab (Plan 06): UI consumer en `/sandbox` que lee `agent_observability_events` filtrado por los 14 lifecycle labels + renders timeline en `America/Bogota` timezone.
+  - (FB/IG via ManyChat: webhook handler genéricamente listo per D-12 + `channel` LockChannel union accepts `'facebook' | 'instagram'`, pero solo activa el flujo cuando `agent_id` resuelto = `somnio-sales-v4` — actualmente sin tráfico FB/IG hacia v4. FB/IG dedup gap es forward-looking risk per REVISION W6.)
+- **Coexistencia con Phase 31 (D-04):** Phase 31 (`hasNewInboundMessage` en `MessagingProductionAdapter.send` líneas 173-187) sigue VIVO para v3/godentist/recompra/pw-confirmation. Solo el path v4 lo reemplaza vía `V4MessagingAdapter extends MessagingProductionAdapter` que override `shouldAbortBeforeTemplate`. Migración a otros agentes = standalone follow-up por agente (idéntico patrón a `crm-mutation-tools` vs `crm-writer`: coexistencia no-breaking, opt-in per-agent). Cuándo usar cada uno:
+  - **Phase 31 polling:** Default para v3/godentist/recompra/pw-confirmation. Bajo throughput, latencia OK, sin red distribuida (per-lambda DB query).
+  - **interruption-system-v2:** Solo `somnio-sales-v4` por ahora. High-throughput inbound (multi-msg back-to-back desde misma conversación), cross-lambda exclusión mutua atómica, ~10-20ms checkpoint overhead vs 100-200ms DB polling.
+
 ## OBLIGATORIO al Crear un Agente Nuevo
 
 Cuando se programe CUALQUIER agente nuevo en el sistema, se DEBE:

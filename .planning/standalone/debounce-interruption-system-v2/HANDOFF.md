@@ -1,34 +1,71 @@
 # debounce-interruption-system-v2 — Handoff State
 
-Last updated: 2026-05-26 (post Plan 00 ship)
+Last updated: 2026-05-25 (post Plan 01 ship — Wave 1 complete)
 
 ## Quick start next session
 
 ```
 /clear
-/gsd-execute-phase debounce-interruption-system-v2 --wave 1
+/gsd-execute-phase debounce-interruption-system-v2 --wave 2
 ```
 
-The orchestrator finds `00-SUMMARY.md` → skips Plan 00 → starts Plan 01.
+The orchestrator finds `00-SUMMARY.md` + `01-SUMMARY.md` → skips Plans 00–01 → starts Plan 02.
 
 If the orchestrator stumbles on standalone discovery (this phase is in
 `.planning/standalone/` not `.planning/phases/`), point it manually at
-`.planning/standalone/debounce-interruption-system-v2/01-PLAN.md` and
+`.planning/standalone/debounce-interruption-system-v2/02-PLAN.md` and
 let `gsd-executor` take it from there.
 
-## Where Plan 00 left things (snapshot)
+**Branch note for next session:** Plan 01 was executed on local branch
+`exec/debounce-v2-wave1` (created because orphan worktree `agent-a385e9ef`
+still holds `main` locked — same situation Plan 00 flagged). Commits were
+pushed via `git push origin HEAD:main` (fast-forward, non-destructive).
+The orphan worktree problem is still unsolved — next session will need
+the same workaround unless the worktree gets unlocked/removed first.
 
-### Commits on main (most recent → oldest)
+## Where Plan 01 left things (snapshot)
 
-| SHA      | Subject                                                                                              |
-|----------|------------------------------------------------------------------------------------------------------|
-| 3972ea70 | docs(debounce-v2 plan-00): SUMMARY.md — Wave 0 foundation complete                                   |
-| c8466447 | docs(debounce-v2 plan-00): backfill keepTtl verdict + Multi-Zone defer + WSL latency probe          |
-| 79d49a25 | chore(probe): sync pnpm-lock.yaml with @upstash/redis dep (fix preview build)                       |
-| 2ac81729 | docs(debounce-v2 plan-00): wave 0 measurements — dedup audit + sub-loop baseline + v4 dormancy      |
-| 5fa4515f | chore(debounce-v2 plan-00): install @upstash/redis 1.38.0 + document env vars                       |
+### Commits on main (most recent → oldest, Plan 01 first then Plan 00)
 
-All pushed to `origin/main`.
+| SHA       | Subject                                                                       |
+|-----------|-------------------------------------------------------------------------------|
+| b97a6b15  | docs(debounce-v2 plan-01): SUMMARY.md — Wave 1 primitives complete            |
+| c5587e6c  | feat(debounce-v2 plan-01): observability.ts 14-label typed emitter + tests    |
+| 617d3fc8  | feat(debounce-v2 plan-01): lock primitives + mock-redis helper + lock.test.ts |
+| 28a2ebde  | feat(debounce-v2 plan-01): redis-client singleton + RELEASE_IF_OWNER_LUA      |
+| 3c04e709  | docs(debounce-v2 plan-00): HANDOFF.md for next-session resume                 |
+| 3972ea70  | docs(debounce-v2 plan-00): SUMMARY.md — Wave 0 foundation complete            |
+| c8466447  | docs(debounce-v2 plan-00): backfill keepTtl verdict + Multi-Zone defer + WSL  |
+| 79d49a25  | chore(probe): sync pnpm-lock.yaml with @upstash/redis dep                     |
+| 2ac81729  | docs(debounce-v2 plan-00): wave 0 measurements                                |
+| 5fa4515f  | chore(debounce-v2 plan-00): install @upstash/redis 1.38.0 + env vars          |
+
+All pushed to `origin/main`. Latest: `b97a6b15`.
+
+### Wave 1 deliverables (Plan 01)
+
+7 production files under `src/lib/agents/interruption-system-v2/`:
+
+- `redis-client.ts` — singleton @upstash/redis client (fail-fast env check)
+- `lua-scripts.ts` — `RELEASE_IF_OWNER_LUA` constant (atomic GET+DEL gated on UUID)
+- `lock.ts` — `acquireLock`, `assertHoldsLock`, `renewLockTTL`, `releaseLockIfOwner`,
+  `startHeartbeat`, `LockHandle` type. `LOCK_TTL_S=45` + `HEARTBEAT_MS=5000` exported
+  with inline citation to `00-MEASUREMENTS.md`.
+- `observability.ts` — `emitLockEvent(label, payload)` with `LockEventLabel` union
+  of 14 typed labels (REVISION B1 includes `lock_orphan_swept_by_cron` for Plan 06 cron)
+- `__tests__/_helpers/mock-redis.ts` — shared Vitest mock (9 methods: set, get, del,
+  expire, rpush, lrem, lrange, llen, eval, multi). Reused by Plans 02–07.
+- `__tests__/lock.test.ts` — 12 tests, all PASS
+- `__tests__/observability.test.ts` — 6 tests, all PASS
+
+Combined: **18/18 PASS**. `npx tsc --noEmit` clean for the new files.
+
+### Deviations during Plan 01 (both fixed inline before per-task commits)
+
+1. `vi.mock` factory hoisting — switched to `vi.mock(name, async () => ({ __mock: instance }))`
+   + retrieve via `await import(...)` in `beforeEach`. Pattern reusable for Plans 02 + 07.
+2. `vi.spyOn` typing — `MockInstance` generic awkwardness, typed `consoleSpy` as `any`
+   with explicit ESLint disable + rationale comment.
 
 ### Infrastructure state
 
@@ -59,12 +96,12 @@ All pushed to `origin/main`.
 3. **In-region Vercel→Upstash latency unvalidated**: Vercel Auth team-level gated the preview probe; WSL-local pivot captured upper-bound numbers only. Plan 05 E2E smoke + Phase 42.1 observability will close this.
 4. **Orphan Claude-Code worktrees**: ~14 stale `.claude/worktrees/agent-*` debris (one had `main` checked out + locked, blocked our checkout flow this session — used `update-ref` workaround). Out of scope for this standalone; consider a cleanup pass before resuming heavy parallel execution.
 
-## Plans 01–07 dependency graph (from plan frontmatter)
+## Plans 02–07 dependency graph (from plan frontmatter)
 
 ```
 Wave 0 → 00 ✅ DONE
-Wave 1 → 01 (depends on: 00)   ← NEXT
-Wave 2 → 02 (depends on: 01)
+Wave 1 → 01 ✅ DONE
+Wave 2 → 02 (depends on: 01)   ← NEXT
 Wave 3 → 03 (depends on: 02)
 Wave 4 → 04 (depends on: 03)
 Wave 5 → 05 (depends on: 04)
@@ -72,14 +109,16 @@ Wave 5 → 05 (depends on: 04)
 Wave 6 → 07 (depends on: 04, 05, 06)  ← autonomous: false (Tasks 7.3 + 7.4 are human checkpoints)
 ```
 
-Wave 5 (Plan 05 + Plan 06) can run in parallel because Plan 06 only depends on 01/02/04/05, NOT on 05's intra-wave siblings — wait, 06 DOES depend on 05. So 05 first, then 06. Probably both serially in Wave 5 unless parallelizable safe.
+Wave 5 (Plan 05 + Plan 06) — Plan 06 depends on Plan 05, so they run sequentially within
+the wave regardless of parallelization setting.
 
-## Files Plan 01 will create (per its frontmatter)
+## Imports Plan 02 will consume from Wave 1
 
-When Plan 01 runs, expect commits adding `src/lib/locks/lock.ts` (or similar). The
-`LOCK_TTL_S = 45` constant should land with an inline comment citing
-`.planning/standalone/debounce-interruption-system-v2/00-MEASUREMENTS.md`
-§Sub-loop latency baseline as the rationale.
+When Plan 02 runs, expect it to import:
+- `redis` from `./redis-client`
+- `acquireLock`, `assertHoldsLock`, `LockHandle`, `LOCK_TTL_S` from `./lock`
+- `emitLockEvent`, `LockEventLabel` from `./observability`
+- `createMockRedis` from `./__tests__/_helpers/mock-redis` (test-only)
 
 ## Useful commands when resuming
 

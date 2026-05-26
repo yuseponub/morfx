@@ -85,11 +85,122 @@ Sanity probe (`scripts/wave0-probe-labels.mjs`) — top labels under `pipeline_d
 
 **Reproduce after v4 ships:** re-run the same query for `label='subloop_completed'` (no `agent_id` filter needed once v4 alone emits it) and re-derive P99 against the 17s anchor.
 
+### Deferred decision: Pitfall 1 (Multi-Zone HA) — NOT activated at provisioning
+
+User declined the Prod Pack add-on during Upstash DB creation on 2026-05-26 (presented cost was $200/mo — exceeded the ~$5-10/mo estimate in the original cost analysis). Justified deferral because:
+- v4 is dormant (see §v4 dormancy attestation below) — the lock is not yet on the critical path.
+- A single-zone outage during this build phase has zero customer impact.
+- The Free tier and Pay-as-You-Go single-zone is sufficient for development latency / correctness validation.
+
+**Re-evaluate** when v4 is about to be flipped to active in production. At that point:
+- Validate the $200/mo number against current Upstash pricing.
+- Compare against alternatives: managed Redis on Railway, ElastiCache, etc.
+- If cost is still too high, document acceptance of single-zone risk in the v4-activation standalone.
+
+This deferral is recorded as forward-looking debt; **NOT a blocker** for Plans 01–07.
+
+### Regional note: Vercel is in `gru1` (São Paulo), not `iad1`
+
+Plan text and RESEARCH A1 referenced `iad1` (Virginia, us-east-1) as the Vercel region; verified by user 2026-05-26 that the actual Vercel Function Region for `morfx` project is **`gru1` (São Paulo, sa-east-1)**. Upstash DBs were correctly co-located in São Paulo (sa-east-1) to match. Latency expectations in RESEARCH A1 (P50 5-15ms / P99 20-40ms) should still hold within the sa-east-1 region — the Pitfall is cross-region traffic, which we avoid.
+
 ---
 
 ## Upstash REST latency baseline (RESEARCH A1)
 
-**STATUS: DEFERRED until Task 0.3 (Upstash provisioning) completes.** Once `.env.local` + Vercel envs are populated, Task 0.2 deploys a throwaway `/api/_diagnostics/upstash-latency` route to a preview branch and captures 3 warm runs (N=30 per run). Section will be backfilled here with `p50_ms`, `p95_ms`, `p99_ms`, and the RESEARCH A1 validation verdict.
+### Methodology — pivot from Vercel preview to local WSL probe
+
+Original plan: deploy a `/api/_diagnostics/upstash-latency` route to a Vercel preview branch and curl it 3 times to capture Vercel(gru1) → Upstash(sa-east-1) latency. The Vercel preview was created (branch `probe/upstash-latency`, deployment `morfx-lux5wr2z8`), but Vercel team-level "Vercel Authentication" gated the URL (HTTP 307 → /login) and the project's Free plan does not expose project-level toggles to disable it nor an "Add Bypass Secret" button (those require Advanced Deployment Protection at $150/mo, declined). Shareable Links route was an alternative but ALSO declined — user opted for the cheaper local-probe pivot.
+
+**Pivot:** `scripts/upstash-latency-probe.mjs` (one-off, deleted after capture) executed from the operator's WSL workstation against the DEV Upstash database (`deep-gator-136538.upstash.io`, sa-east-1) on 2026-05-26.
+
+### Captured results
+
+Three runs of 30 samples each (SET + DEL per sample):
+
+| Run | P50 (ms) | P95 (ms) | P99 (ms) | Min (ms) | Max (ms) |
+|-----|----------|----------|----------|----------|----------|
+| 1 (cold-ish) | 177.6 | 181.0 | 199.0 | 175.9 | 877.1 |
+| 2 (warm)     | 176.4 | 181.5 | 185.3 | 175.1 | 186.9 |
+| 3 (warm)     | 176.4 | 178.7 | 179.5 | 176.0 | 180.5 |
+
+### Interpretation — important caveat
+
+These numbers are **NOT** representative of Vercel(gru1) → Upstash(sa-east-1) latency. The WSL probe runs from the operator's home network (physical location Colombia, per project memory + CLAUDE.md timezone `America/Bogota`) — the path is:
+
+```
+WSL → Windows → home Wi-Fi → Colombian ISP → ... → AWS sa-east-1 (São Paulo)
+```
+
+The ~177ms baseline reflects the **cross-country network distance Colombia → Brazil**, not the in-region datacenter latency that Vercel will see. The cold-ish run-1 max of 877ms confirms there's TLS handshake + DNS warm-up overhead the first time around (the subsequent runs settled to ~180ms warm).
+
+For Vercel(gru1) inside AWS sa-east-1 hitting Upstash inside sa-east-1, expected latency is **5-30ms** (same-region intra-AWS) — the RESEARCH A1 claim of 5-15ms P50 / 20-40ms P99 is plausible but **NOT empirically validated** by this probe.
+
+### Validation verdict vs RESEARCH A1
+
+**INDETERMINATE** for in-region Vercel→Upstash. The probe DID confirm:
+- ✅ Upstash REST connectivity works from this codebase (no auth/SDK issues).
+- ✅ Warm runs are tight (P50 ≈ P95, low variance) — Upstash itself is healthy and not saturated.
+- ✅ Even the **worst** observed P99 (199ms) is **well within** the heartbeat-to-TTL safety margin: 5s heartbeat at 199ms each = ~25 heartbeats per TTL → 25x margin (vs target 9x at 5-15ms latency). System tolerates Colombia-WSL latency comfortably.
+- ❌ Did **not** measure the in-region path that production will use. Real Vercel→Upstash P99 should be lower (5-30ms range).
+
+### Re-validation path
+
+Real P50/P95/P99 will be measured by **Plan 05 E2E smoke** (lock acquisition end-to-end timing) and by **Phase 42.1 observability** (which captures per-call latency once v4 begins serving prod). If either flags P99 > 50ms in-region, return here and revise `LOCK_TTL_S` per the rule in §Sub-loop latency baseline.
+
+### Deferred-Vercel-probe rationale (documented)
+
+This deviation from "deploy probe to Vercel preview" is deferred risk acceptance:
+- v4 is dormant (Task 0.5) — zero customer impact during build phase.
+- The 45s TTL has enormous headroom (~25x over the worst measured 199ms; ~3x even at a paranoid 15s lock-acquisition assumption).
+- Plan 05 + Phase 42.1 will catch any real in-region latency issue before v4 ships to customers.
+
+If a future audit needs Vercel→Upstash in-region numbers without going through Plan 05, configure a Vercel Shareable Link or generate a Protection Bypass secret (requires team plan upgrade, currently declined for cost) and re-run the same probe.
+
+---
+
+## REVISION W7 — keepTtl support verdict (@upstash/redis 1.38.0)
+
+### Test methodology
+
+`scripts/verify-keepttl.ts` (one-off, deleted after capture) executed against the DEV Upstash database (`deep-gator-136538.upstash.io`, sa-east-1):
+
+1. `redis.set(key, 'v1', { ex: 30 })` → initial TTL = 30s
+2. `await sleep(2_000)` → TTL observably below 30 (expected ~27-28s)
+3. `redis.set(key, 'v2', { keepTtl: true })` → preserve the remaining TTL
+4. `redis.ttl(key)` + `redis.get(key)` → measure outcome
+
+Interpretation rule:
+- TTL ∈ [25, 29] → SUPPORTED (TTL preserved)
+- TTL = -1 → NOT SUPPORTED (SDK silently dropped TTL)
+- SDK throws → NOT SUPPORTED (option rejected)
+
+### Captured output
+
+```text
+[dotenv@17.3.1] injecting env (26) from .env.local
+initial TTL after ex:30 set: 30
+Result: { setError: null, ttl2_after_keepTtl: 27, value2: 'v2' }
+VERDICT: SUPPORTED (TTL preserved at 27s)
+```
+
+Date executed: 2026-05-26. SDK version: `@upstash/redis@1.38.0`. Probe script: `scripts/verify-keepttl.ts` (deleted post-capture).
+
+### VERDICT: SUPPORTED
+
+`@upstash/redis@1.38.0` **supports** the `{ keepTtl: true }` SET option. The TTL was preserved at 27s (matches the expected 28s minus a few hundred ms of network/processing).
+
+### Plan 04 V4MessagingAdapter.onFirstSendCompleted branch decision
+
+Plan 04 MUST implement the **SUPPORTED branch**:
+
+```ts
+// Re-write lock value (e.g., to mark "first-send completed") WITHOUT resetting TTL.
+await redis.set(key, newValue, { keepTtl: true } as { keepTtl: true })
+```
+
+(The TypeScript `as` assertion is needed because the public `SetCommandOptions` type does not list `keepTtl` even though the SDK accepts it at runtime — this is a known type-vs-implementation gap in the package.)
+
+The fallback "read-then-set" branch (`const ttl = await redis.ttl(key); await redis.set(key, newValue, { ex: Math.max(ttl, 5) })`) is **NOT needed** and should NOT appear in the codebase. If a future SDK upgrade breaks `keepTtl`, re-run this probe and re-decide.
 
 ---
 

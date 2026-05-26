@@ -3,6 +3,7 @@
 // Process incoming messages and status updates from 360dialog
 // ============================================================================
 
+import { randomUUID } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/utils/phone'
 import { normalizeWebsiteGreeting } from '@/lib/agents/somnio/normalizers'
@@ -14,6 +15,16 @@ import {
   linkContactToConversation as domainLinkContactToConversation,
 } from '@/lib/domain/conversations'
 import type { DomainContext } from '@/lib/domain/types'
+// Standalone: debounce-interruption-system-v2 (Plan 03, REVISION B4) —
+// all 5 imports MUST be STATIC (no `await import(...)`). The v4-only
+// gate (resolvedAgentId === 'somnio-sales-v4') ensures these are
+// completely inert for v3/godentist/recompra/pw-confirmation paths
+// (Regla 6 — production agents byte-identical to pre-Plan-03 behavior).
+import { acquireLock } from '@/lib/agents/interruption-system-v2/lock'
+import { pushToPending } from '@/lib/agents/interruption-system-v2/pending'
+import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { resolveAgentIdForWorkspace } from '@/lib/agents/registry-helpers'
 import type {
   WebhookPayload,
   WebhookValue,
@@ -307,6 +318,106 @@ async function processIncomingMessage(
           ? (msg.reaction?.emoji ?? '')
           : buildMessagePreview(msg)
 
+      // ================================================================
+      // Standalone: debounce-interruption-system-v2 (Plan 03)
+      //
+      // v4-gated HOLDER/FOLLOWER lock acquisition (D-03 + D-10 + D-16 +
+      // D-04 + D-08; RESEARCH Pattern 2 lines 351-400; Open Question 1
+      // resolved — NO follower dispatch).
+      //
+      // REGLA 6: ALL behavior below is gated on resolvedAgentId ===
+      // 'somnio-sales-v4'. When the resolved agent is v3, godentist,
+      // recompra, or pw-confirmation, this block is a no-op and the
+      // existing useInngest dispatch (below) runs unchanged — byte-
+      // identical to pre-Plan-03 behavior.
+      //
+      // v4 currently DORMANT in production (00-MEASUREMENTS.md
+      // §v4 dormancy attestation), so this block is inert in prod today.
+      // It activates only when v4 is flipped on by a separate decision.
+      // ================================================================
+      const resolvedAgentId = await resolveAgentIdForWorkspace(workspaceId)
+      const v4Path = resolvedAgentId === 'somnio-sales-v4'
+
+      // REVISION W3 + W2 (Plan 03):
+      // channel + identifier resolved here ONCE; threaded into event.data
+      // so Plan 04 runner does NOT need a conversations-table lookup.
+      const lockChannel = 'whatsapp' as const
+      const lockIdentifier = phone
+
+      let lockHandle: { key: string; holderUuid: string; startedAt: string } | null = null
+      let ownPendingEntryJson: string | null = null
+
+      if (v4Path) {
+        try {
+          lockHandle = await acquireLock(workspaceId, lockChannel, lockIdentifier)
+          const entryUuid = randomUUID()
+          const pendingEntry = {
+            entry_uuid: entryUuid,
+            content: normalizedContent,
+            received_at: new Date().toISOString(),
+            msg_id: msg.id,
+          }
+
+          if (!lockHandle) {
+            // FOLLOWER PATH (D-03 second arm + RESEARCH Pattern 2 + Open
+            // Question 1 resolved). RPUSH our entry, SET interrupt key,
+            // emit lifecycle events, return WITHOUT dispatching Inngest.
+            const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+            await redis.set(
+              `interrupt:${workspaceId}:${lockChannel}:${lockIdentifier}`,
+              msg.id,
+              { ex: 60 },
+            )
+            emitLockEvent('lock_acquire_failed_follower', {
+              // We deliberately do NOT GET the lock value here (too racy).
+              existing_holder_uuid: 'unknown',
+              my_msg_id: msg.id,
+              key: `lock:${workspaceId}:${lockChannel}:${lockIdentifier}`,
+            })
+            emitLockEvent('interrupt_written', {
+              msg_id: msg.id,
+              pending_list_length: push.pendingListLength,
+            })
+            console.log(`[interruption-v2] follower path — no Inngest dispatch for msg ${msg.id}`)
+            return  // 200 OK to webhook caller — NO Inngest dispatch
+          }
+
+          // HOLDER PATH (D-16 — RPUSH self ALWAYS so combined-turn
+          // scenarios see our own message in pending).
+          const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+          ownPendingEntryJson = push.exactJson
+          emitLockEvent('lock_acquired', {
+            holder_uuid: lockHandle.holderUuid,
+            msg_id: msg.id,
+            key: lockHandle.key,
+            ttl: 45, // LOCK_TTL_S — kept inline to avoid pulling lock.ts constants
+            started_at: lockHandle.startedAt,
+          })
+        } catch (lockErr) {
+          // Fail-open per RESEARCH Open Question 5: if Redis is
+          // unreachable, dispatch Inngest as if acquire succeeded but
+          // with lockHolderUuid/lockKey/ownPendingEntryJson = null.
+          // Downstream runner (Plan 04) detects nulls and skips
+          // checkpoints, accepting residual double-response risk.
+          emitLockEvent('redis_unavailable_fallback_failed', {
+            error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
+          })
+          lockHandle = null
+          ownPendingEntryJson = null
+        }
+
+        // v4 requires Inngest dispatch — warn loudly if operator
+        // has USE_INNGEST_PROCESSING disabled (inline fallback path
+        // does NOT consume the lock infrastructure).
+        if (!useInngest) {
+          console.warn(
+            '[interruption-v2] v4 path requires USE_INNGEST_PROCESSING=true — ' +
+              'lock infrastructure inactive in inline mode; ' +
+              `msg ${msg.id} will run via processAgentInline without lock semantics`,
+          )
+        }
+      }
+
       if (useInngest) {
         // Async path: emit Inngest event, return fast (~200ms)
         try {
@@ -324,6 +435,20 @@ async function processIncomingMessage(
               messageType: msg.type,
               mediaUrl: mediaUrl ?? null,
               mediaMimeType: mediaMimeType ?? null,
+              // Standalone: debounce-interruption-system-v2 (Plan 03)
+              // 6 new fields — all optional, all null on non-v4 paths
+              // (Regla 6: pre-v4 callers in Inngest function destructure
+              // safely without these). REVISION W3 + W2: lockChannel /
+              // lockIdentifier / agentId threaded so Plan 04 runner
+              // doesn't need a conversations-table lookup AND so the
+              // agentId resolved here matches what the Inngest function
+              // uses (eliminates routing race window).
+              lockHolderUuid: lockHandle?.holderUuid ?? null,
+              lockKey: lockHandle?.key ?? null,
+              ownPendingEntryJson,
+              lockChannel,
+              lockIdentifier,
+              agentId: resolvedAgentId,
             },
           })
         } catch (inngestError) {

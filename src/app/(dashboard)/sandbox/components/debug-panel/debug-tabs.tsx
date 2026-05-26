@@ -23,6 +23,7 @@ const DEFAULT_TABS: DebugPanelTab[] = [
   { id: 'ingest', label: 'Ingest', visible: false },
   { id: 'config', label: 'Config', visible: false },
   { id: 'subloop', label: 'Sub-Loop', visible: false },
+  { id: 'interruption', label: 'Interruption', visible: false },  // Standalone: debounce-interruption-system-v2 / Plan 06 (D-11 + LOCK-08)
 ]
 
 const MAX_VISIBLE = 3

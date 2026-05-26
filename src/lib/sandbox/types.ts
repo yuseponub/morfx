@@ -354,7 +354,24 @@ export interface IngestTimelineEntry {
 // ============================================================================
 
 /** Available debug panel tab IDs */
-export type DebugPanelTabId = 'pipeline' | 'classify' | 'bloques' | 'tools' | 'state' | 'tokens' | 'ingest' | 'config' | 'subloop'
+export type DebugPanelTabId =
+  | 'pipeline'
+  | 'classify'
+  | 'bloques'
+  | 'tools'
+  | 'state'
+  | 'tokens'
+  | 'ingest'
+  | 'config'
+  | 'subloop'
+  /**
+   * Standalone: debounce-interruption-system-v2 / Plan 06 (D-11 + LOCK-08).
+   * Renders the 14 D-17-extended lock-lifecycle events for the selected
+   * session+turn (lock_acquired → checkpoints → lock_released / msg_aborted /
+   * lock_orphan_swept_by_cron). Post-turn fetch (RESEARCH Open Question 3 —
+   * NO live SSE).
+   */
+  | 'interruption'
 
 /** Response delay in ms for sandbox message delays (slider-based, replaces presets) */
 

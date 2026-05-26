@@ -14,10 +14,13 @@
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, arrayMove, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Wrench, FileJson, Coins, Database, Settings, X, GitBranch, Target, Package, Activity } from 'lucide-react'
+import { Wrench, FileJson, Coins, Database, Settings, X, GitBranch, Target, Package, Activity, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DebugPanelTab, DebugPanelTabId } from '@/lib/sandbox/types'
 
+// Exhaustive Record<DebugPanelTabId, ...> — TypeScript catches missing entries at
+// compile time (anti-Pitfall 6 from v4-subloop-debug-view LEARNINGS 2026-05-13:
+// "TAB_ICONS exhaustivo Record<DebugPanelTabId> es invariante typecheck-per-commit").
 const TAB_ICONS: Record<DebugPanelTabId, React.ComponentType<{ className?: string }>> = {
   pipeline: GitBranch,
   classify: Target,
@@ -28,6 +31,7 @@ const TAB_ICONS: Record<DebugPanelTabId, React.ComponentType<{ className?: strin
   ingest: Database,
   config: Settings,
   subloop: Activity,
+  interruption: Lock,  // Standalone: debounce-interruption-system-v2 / Plan 06 (D-11 + LOCK-08)
 }
 
 interface SortableTabItemProps {

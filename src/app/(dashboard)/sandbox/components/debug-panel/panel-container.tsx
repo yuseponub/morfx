@@ -18,6 +18,7 @@ import { TokensTab } from './tokens-tab'
 import { IngestTab } from './ingest-tab'
 import { ConfigTab } from './config-tab'
 import { SubloopTab } from './subloop-tab'
+import { InterruptionTab } from './interruption-tab'
 import type { DebugPanelTabId, DebugTurn, SandboxState, TimerState, TimerConfig } from '@/lib/sandbox/types'
 
 interface PanelContainerProps {
@@ -75,6 +76,12 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
       )
     case 'subloop':
       return <SubloopTab debugTurns={props.debugTurns} />
+    case 'interruption':
+      // Standalone: debounce-interruption-system-v2 / Plan 06 (D-11 + LOCK-08).
+      // Sandbox has no real session/conversation id (local-only) so the tab
+      // renders the neutral placeholder. In a future plan a dashboard-side
+      // session inspector will mount this same component with real IDs.
+      return <InterruptionTab conversationId={null} sessionId={null} />
     default:
       return null
   }

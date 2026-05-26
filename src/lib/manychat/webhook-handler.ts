@@ -8,6 +8,7 @@
 //   4. Emit Inngest event for agent processing
 // ============================================================================
 
+import { randomUUID } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   findOrCreateConversation as domainFindOrCreateConversation,
@@ -15,6 +16,16 @@ import {
 } from '@/lib/domain/conversations'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
+// Standalone: debounce-interruption-system-v2 (Plan 03, REVISION B4) —
+// all 5 imports MUST be STATIC (no `await import(...)`). The v4-only
+// gate (resolvedAgentId === 'somnio-sales-v4') ensures these are
+// completely inert for godentist-fb-ig and any future FB/IG agents
+// (Regla 6 — production behavior byte-identical to pre-Plan-03).
+import { acquireLock } from '@/lib/agents/interruption-system-v2/lock'
+import { pushToPending } from '@/lib/agents/interruption-system-v2/pending'
+import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { resolveAgentIdForWorkspace } from '@/lib/agents/registry-helpers'
 
 // ============================================================================
 // Types
@@ -146,6 +157,93 @@ export async function processManyChatWebhook(
       .eq('id', conversationId)
       .single()
 
+    // ================================================================
+    // Standalone: debounce-interruption-system-v2 (Plan 03)
+    //
+    // v4-gated HOLDER/FOLLOWER lock acquisition for FB/IG (D-10 + D-12).
+    //
+    // REGLA 6: ALL behavior below is gated on resolvedAgentId ===
+    // 'somnio-sales-v4'. v4 currently serves WhatsApp only per
+    // 00-MEASUREMENTS.md §v4 dormancy attestation, so for godentist-fb-ig
+    // (the only FB/IG agent today) v4Path is false and this block is
+    // inert — pre-Plan-03 behavior byte-identical.
+    //
+    // REVISION W6 — FB/IG dedup gap (messages table lacks UNIQUE on FB/IG
+    // message IDs) is accepted forward-looking risk per Plan 00 Task 0.4.
+    // v4 does not serve FB/IG today; gap closes whenever v4 onboards
+    // FB/IG (separate standalone). Documented in 03-SUMMARY.md.
+    //
+    // D-10: identifier is `external_subscriber_id` (the raw ManyChat
+    // subscriber id), NOT the `mc-` prefixed `phoneIdentifier` we use
+    // for conversation lookup. The lock key is per-subscriber so
+    // followers from the same subscriber collide on the same lock.
+    // ================================================================
+    const resolvedAgentId = await resolveAgentIdForWorkspace(workspaceId)
+    const v4Path = resolvedAgentId === 'somnio-sales-v4'
+
+    // REVISION W3 + W2: channel + identifier resolved here ONCE; threaded
+    // into event.data so Plan 04 runner does NOT need a conversations
+    // lookup. Per D-10, identifier is external_subscriber_id verbatim.
+    const lockChannel: 'facebook' | 'instagram' = channel
+    const lockIdentifier = subscriberId
+
+    let lockHandle: { key: string; holderUuid: string; startedAt: string } | null = null
+    let ownPendingEntryJson: string | null = null
+
+    if (v4Path) {
+      try {
+        lockHandle = await acquireLock(workspaceId, lockChannel, lockIdentifier)
+        const entryUuid = randomUUID()
+        const pendingEntry = {
+          entry_uuid: entryUuid,
+          content: messageText,
+          received_at: new Date().toISOString(),
+          msg_id: waMessageId,
+        }
+
+        if (!lockHandle) {
+          // FOLLOWER PATH (D-03 second arm + RESEARCH Pattern 2)
+          const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+          await redis.set(
+            `interrupt:${workspaceId}:${lockChannel}:${lockIdentifier}`,
+            waMessageId,
+            { ex: 60 },
+          )
+          emitLockEvent('lock_acquire_failed_follower', {
+            existing_holder_uuid: 'unknown',
+            my_msg_id: waMessageId,
+            key: `lock:${workspaceId}:${lockChannel}:${lockIdentifier}`,
+          })
+          emitLockEvent('interrupt_written', {
+            msg_id: waMessageId,
+            pending_list_length: push.pendingListLength,
+          })
+          console.log(
+            `[interruption-v2] follower path — no Inngest dispatch for FB/IG msg ${waMessageId}`,
+          )
+          return { stored: true } // 200 OK to ManyChat — NO Inngest dispatch
+        }
+
+        // HOLDER PATH (D-16 — RPUSH self ALWAYS)
+        const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+        ownPendingEntryJson = push.exactJson
+        emitLockEvent('lock_acquired', {
+          holder_uuid: lockHandle.holderUuid,
+          msg_id: waMessageId,
+          key: lockHandle.key,
+          ttl: 45,
+          started_at: lockHandle.startedAt,
+        })
+      } catch (lockErr) {
+        // Fail-open per RESEARCH Open Question 5
+        emitLockEvent('redis_unavailable_fallback_failed', {
+          error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
+        })
+        lockHandle = null
+        ownPendingEntryJson = null
+      }
+    }
+
     // 5. Emit Inngest event for agent processing (reuse existing event)
     // The agent doesn't care about channel — the messaging adapter handles routing
     try {
@@ -163,6 +261,17 @@ export async function processManyChatWebhook(
           messageType: 'text',
           mediaUrl: null,
           mediaMimeType: null,
+          // Standalone: debounce-interruption-system-v2 (Plan 03)
+          // 6 new fields — all optional, all null on non-v4 paths
+          // (Regla 6 — pre-v4 Inngest function destructure safe).
+          // REVISION W3 + W2: lockChannel/lockIdentifier/agentId
+          // threaded so Plan 04 avoids a conversations-table lookup.
+          lockHolderUuid: lockHandle?.holderUuid ?? null,
+          lockKey: lockHandle?.key ?? null,
+          ownPendingEntryJson,
+          lockChannel,
+          lockIdentifier,
+          agentId: resolvedAgentId,
         },
       })
     } catch (inngestError) {

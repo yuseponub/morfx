@@ -64,18 +64,23 @@ async function getChannelCredentials(
 export class ProductionMessagingAdapter implements MessagingAdapter {
   constructor(
     _sessionManager: unknown, // kept for interface compat
-    private conversationId: string,
-    private workspaceId: string,
-    private phoneNumber?: string,
-    private responseSpeed: number = 1.0
+    protected conversationId: string,
+    protected workspaceId: string,
+    protected phoneNumber?: string,
+    protected responseSpeed: number = 1.0
   ) {}
 
   /**
    * Check if a new inbound message arrived after the trigger message.
    * Uses the existing idx_messages_conversation index on (conversation_id, timestamp DESC).
    * This is a lightweight count query (head: true) — no row data fetched.
+   *
+   * Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.2):
+   * Visibility relaxed from `private` to `protected` so V4MessagingAdapter
+   * subclass can fall back to this Phase 31 behavior when lock infrastructure
+   * is missing (fail-open path).
    */
-  private async hasNewInboundMessage(
+  protected async hasNewInboundMessage(
     conversationId: string,
     afterTimestamp: string
   ): Promise<boolean> {
@@ -87,6 +92,43 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
       .eq('direction', 'inbound')
       .gt('timestamp', afterTimestamp)
     return (count ?? 0) > 0
+  }
+
+  /**
+   * Per-template abort check — extracted from the send() loop so subclasses
+   * (V4MessagingAdapter) can swap the Phase 31 DB query for a Redis-based
+   * checkpoint without duplicating the rest of the send loop.
+   *
+   * Default behavior (this class): Phase 31 hasNewInboundMessage DB query.
+   * V4MessagingAdapter overrides this with checkpoint('ckpt_7_pre_template').
+   *
+   * Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.2 + D-08
+   * Open Question 2 option-a).
+   */
+  protected async shouldAbortBeforeTemplate(
+    params: { conversationId: string; triggerTimestamp?: string; sentCount: number },
+    _opts: { templateIndex: number; channel: ChannelType; recipientIdentifier: string }
+  ): Promise<{ abort: false } | { abort: true; reason: string }> {
+    if (params.triggerTimestamp) {
+      const hasNew = await this.hasNewInboundMessage(params.conversationId, params.triggerTimestamp)
+      if (hasNew) return { abort: true, reason: 'phase31_new_inbound' }
+    }
+    return { abort: false }
+  }
+
+  /**
+   * Hook invoked after the first successful template send (sentCount 0 → 1).
+   *
+   * Default behavior (this class): no-op. V4MessagingAdapter overrides this
+   * to call removeOwnEntry (D-16 LREM-self) + flip has_sent_anything in the
+   * lock value (D-15 REVISION W7 keepTtl SUPPORTED branch).
+   *
+   * Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.2 + D-16).
+   */
+  protected async onFirstSendCompleted(
+    _opts: { channel: ChannelType; identifier: string }
+  ): Promise<void> {
+    // No-op for the parent class.
   }
 
   /**
@@ -169,21 +211,23 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
         }
       }
 
-      // Phase 31: Pre-send check — query DB for new inbound messages after trigger
-      // Runs AFTER delay (customer has time to type during delay) and BEFORE send
-      if (params.triggerTimestamp) {
-        const hasNew = await this.hasNewInboundMessage(convId, params.triggerTimestamp)
-        logger.debug(
-          { conversationId: convId, afterTimestamp: params.triggerTimestamp, hasNew, templateIndex: i },
-          'Pre-send check'
+      // Pre-send abort check — extracted to protected method so subclasses
+      // (V4MessagingAdapter) can swap Phase 31 DB query for Redis checkpoint.
+      // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.2 + D-08).
+      const abortDecision = await this.shouldAbortBeforeTemplate(
+        { conversationId: convId, triggerTimestamp: params.triggerTimestamp, sentCount },
+        { templateIndex: i, channel, recipientIdentifier: recipientId }
+      )
+      logger.debug(
+        { conversationId: convId, afterTimestamp: params.triggerTimestamp, abort: abortDecision.abort, templateIndex: i },
+        'Pre-send check'
+      )
+      if (abortDecision.abort) {
+        logger.info(
+          { conversationId: convId, interruptedAtIndex: i, sentCount, totalTemplates: templates.length, reason: abortDecision.reason },
+          'Send sequence interrupted'
         )
-        if (hasNew) {
-          logger.info(
-            { conversationId: convId, interruptedAtIndex: i, sentCount, totalTemplates: templates.length },
-            'Send sequence interrupted by new inbound message'
-          )
-          return { messagesSent: sentCount, interrupted: true, interruptedAtIndex: i }
-        }
+        return { messagesSent: sentCount, interrupted: true, interruptedAtIndex: i }
       }
 
       try {
@@ -214,11 +258,27 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
         }
 
         if (result.success) {
+          const wasFirstSend = sentCount === 0
           sentCount++
           logger.debug(
             { messageId: result.data?.messageId, position: i + 1, total: templates.length, contentType: template.contentType },
             `Message sent via domain (${channel})`
           )
+          // D-16 hook: when sentCount transitions 0 → 1, give subclasses a chance
+          // to do post-first-send work (V4MessagingAdapter uses this for LREM-self
+          // + flip has_sent_anything in the lock value via keepTtl SUPPORTED branch).
+          // Default parent behavior: no-op.
+          // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.2 + D-16).
+          if (wasFirstSend) {
+            try {
+              await this.onFirstSendCompleted({ channel, identifier: recipientId })
+            } catch (hookError) {
+              logger.warn(
+                { error: hookError instanceof Error ? hookError.message : String(hookError) },
+                'onFirstSendCompleted hook threw (fail-open)'
+              )
+            }
+          }
         } else {
           logger.warn(
             { error: result.error, position: i + 1 },

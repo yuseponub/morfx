@@ -22,6 +22,7 @@ import {
   addOrderTag as domainAddOrderTag,
   removeOrderTag as domainRemoveOrderTag,
   recompraOrder as domainRecompraOrder,
+  clearOrderDuplicateError as domainClearOrderDuplicateError,
 } from '@/lib/domain/orders'
 import type { DomainContext } from '@/lib/domain/types'
 
@@ -672,6 +673,33 @@ export async function deleteOrders(ids: string[]): Promise<ActionResult<{ delete
 
   revalidatePath('/crm/pedidos')
   return { success: true, data: { deleted } }
+}
+
+// ============================================================================
+// Clear Duplicate Error Marker — via domain/orders
+// Standalone: crm-duplicate-order-products-integrity (D-05 manual button)
+// ============================================================================
+
+/**
+ * Clear the duplicate_error marker from an order's custom_fields.
+ * Invoked by the "Marcar resuelto" button in the Kanban badge popover.
+ * Delegates to domain/orders.clearOrderDuplicateError (idempotent + workspace-filtered).
+ */
+export async function clearOrderDuplicateError(
+  orderId: string
+): Promise<ActionResult<{ orderId: string }>> {
+  const auth = await getAuthContext()
+  if ('error' in auth) return { error: auth.error }
+
+  const ctx: DomainContext = { workspaceId: auth.workspaceId, source: 'server-action' }
+  const result = await domainClearOrderDuplicateError(ctx, { orderId })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al limpiar la marca de error' }
+  }
+
+  revalidatePath('/crm/pedidos')
+  return { success: true, data: { orderId } }
 }
 
 // ============================================================================

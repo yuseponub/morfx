@@ -1,71 +1,119 @@
 # debounce-interruption-system-v2 — Handoff State
 
-Last updated: 2026-05-25 (post Plan 01 ship — Wave 1 complete)
+Last updated: 2026-05-25 (post Plan 02 ship — Wave 2 complete)
 
 ## Quick start next session
 
 ```
 /clear
-/gsd-execute-phase debounce-interruption-system-v2 --wave 2
+/gsd-execute-phase debounce-interruption-system-v2 --wave 3
 ```
 
-The orchestrator finds `00-SUMMARY.md` + `01-SUMMARY.md` → skips Plans 00–01 → starts Plan 02.
+The orchestrator finds `00..02-SUMMARY.md` → skips Plans 00–02 → starts Plan 03.
 
 If the orchestrator stumbles on standalone discovery (this phase is in
 `.planning/standalone/` not `.planning/phases/`), point it manually at
-`.planning/standalone/debounce-interruption-system-v2/02-PLAN.md` and
+`.planning/standalone/debounce-interruption-system-v2/03-PLAN.md` and
 let `gsd-executor` take it from there.
 
-**Branch note for next session:** Plan 01 was executed on local branch
-`exec/debounce-v2-wave1` (created because orphan worktree `agent-a385e9ef`
-still holds `main` locked — same situation Plan 00 flagged). Commits were
-pushed via `git push origin HEAD:main` (fast-forward, non-destructive).
-The orphan worktree problem is still unsolved — next session will need
-the same workaround unless the worktree gets unlocked/removed first.
+**Branch note for next session:** Plans 01 + 02 were executed on local branches
+`exec/debounce-v2-wave1` and `exec/debounce-v2-wave2` (created because orphan
+worktree `agent-a385e9ef` still holds `main` locked). Commits were pushed via
+`git push origin HEAD:main` (fast-forward, non-destructive). The orphan worktree
+problem is still unsolved — next session will need the same workaround unless
+the worktree gets unlocked/removed first.
 
-## Where Plan 01 left things (snapshot)
+**CheckpointId names locked (8 values — spec-verbatim from RESEARCH Pattern 3
++ DISCUSSION-LOG D-18):** Plans 04 + 05 + 07 MUST use these exact strings,
+which now live in `src/lib/agents/interruption-system-v2/checkpoints.ts`:
 
-### Commits on main (most recent → oldest, Plan 01 first then Plan 00)
+```
+ckpt_0_post_acquire
+ckpt_1_post_comprehension
+ckpt_2_post_state_machine
+ckpt_3_post_tooling
+ckpt_4_post_generation
+ckpt_5_post_compliance
+ckpt_6_pre_send_loop
+ckpt_7_pre_template
+```
 
-| SHA       | Subject                                                                       |
-|-----------|-------------------------------------------------------------------------------|
-| b97a6b15  | docs(debounce-v2 plan-01): SUMMARY.md — Wave 1 primitives complete            |
-| c5587e6c  | feat(debounce-v2 plan-01): observability.ts 14-label typed emitter + tests    |
-| 617d3fc8  | feat(debounce-v2 plan-01): lock primitives + mock-redis helper + lock.test.ts |
-| 28a2ebde  | feat(debounce-v2 plan-01): redis-client singleton + RELEASE_IF_OWNER_LUA      |
-| 3c04e709  | docs(debounce-v2 plan-00): HANDOFF.md for next-session resume                 |
-| 3972ea70  | docs(debounce-v2 plan-00): SUMMARY.md — Wave 0 foundation complete            |
-| c8466447  | docs(debounce-v2 plan-00): backfill keepTtl verdict + Multi-Zone defer + WSL  |
-| 79d49a25  | chore(probe): sync pnpm-lock.yaml with @upstash/redis dep                     |
-| 2ac81729  | docs(debounce-v2 plan-00): wave 0 measurements                                |
-| 5fa4515f  | chore(debounce-v2 plan-00): install @upstash/redis 1.38.0 + env vars          |
+(The Plan 02 orchestrator prompt initially listed divergent names like
+`ckpt_1_after_persist` / `ckpt_2_pre_router` / `ckpt_4_pre_subloop` — the
+executor correctly ignored those and went with the locked spec. Future
+plan prompts: pattern-match the union from `checkpoints.ts` directly.)
 
-All pushed to `origin/main`. Latest: `b97a6b15`.
+## Where Plan 02 left things (snapshot)
 
-### Wave 1 deliverables (Plan 01)
+### Commits on main (most recent → oldest, last 10)
 
-7 production files under `src/lib/agents/interruption-system-v2/`:
+| SHA       | Subject                                                                            |
+|-----------|------------------------------------------------------------------------------------|
+| 5711d8a3  | docs(debounce-v2 plan-02): SUMMARY.md — Wave 2 pending+checkpoint complete         |
+| 06e48b62  | feat(debounce-v2 plan-02): checkpoints.ts helper + CheckpointId union + 8 tests    |
+| 01cd7ab1  | feat(debounce-v2 plan-02): pending.ts RPUSH/LREM/LRANGE + 10 tests (LOCK-04)       |
+| f7380068  | docs(debounce-v2 plan-01): HANDOFF.md — Wave 1 complete                            |
+| b97a6b15  | docs(debounce-v2 plan-01): SUMMARY.md — Wave 1 primitives complete                 |
+| c5587e6c  | feat(debounce-v2 plan-01): observability.ts 14-label typed emitter + tests         |
+| 617d3fc8  | feat(debounce-v2 plan-01): lock primitives + mock-redis helper + lock.test.ts      |
+| 28a2ebde  | feat(debounce-v2 plan-01): redis-client singleton + RELEASE_IF_OWNER_LUA           |
+| 3c04e709  | docs(debounce-v2 plan-00): HANDOFF.md for next-session resume                      |
+| 3972ea70  | docs(debounce-v2 plan-00): SUMMARY.md — Wave 0 foundation complete                 |
 
-- `redis-client.ts` — singleton @upstash/redis client (fail-fast env check)
-- `lua-scripts.ts` — `RELEASE_IF_OWNER_LUA` constant (atomic GET+DEL gated on UUID)
-- `lock.ts` — `acquireLock`, `assertHoldsLock`, `renewLockTTL`, `releaseLockIfOwner`,
-  `startHeartbeat`, `LockHandle` type. `LOCK_TTL_S=45` + `HEARTBEAT_MS=5000` exported
-  with inline citation to `00-MEASUREMENTS.md`.
-- `observability.ts` — `emitLockEvent(label, payload)` with `LockEventLabel` union
-  of 14 typed labels (REVISION B1 includes `lock_orphan_swept_by_cron` for Plan 06 cron)
-- `__tests__/_helpers/mock-redis.ts` — shared Vitest mock (9 methods: set, get, del,
-  expire, rpush, lrem, lrange, llen, eval, multi). Reused by Plans 02–07.
-- `__tests__/lock.test.ts` — 12 tests, all PASS
-- `__tests__/observability.test.ts` — 6 tests, all PASS
+All pushed to `origin/main`. Latest: `5711d8a3`.
 
-Combined: **18/18 PASS**. `npx tsc --noEmit` clean for the new files.
+### Wave 2 deliverables (Plan 02)
 
-### Deviations during Plan 01 (both fixed inline before per-task commits)
+4 new files under `src/lib/agents/interruption-system-v2/`:
 
-1. `vi.mock` factory hoisting — switched to `vi.mock(name, async () => ({ __mock: instance }))`
-   + retrieve via `await import(...)` in `beforeEach`. Pattern reusable for Plans 02 + 07.
-2. `vi.spyOn` typing — `MockInstance` generic awkwardness, typed `consoleSpy` as `any`
-   with explicit ESLint disable + rationale comment.
+- `pending.ts` — `pushToPending` (returns `{pendingListLength, exactJson}`),
+  `removeOwnEntry` (byte-exact match Pitfall 4), `readAndClearPending`
+  (atomic `multi().del().exec()`), `PendingEntry` interface.
+  Deterministic JSON serialization with alphabetical keys
+  (`content, entry_uuid, msg_id, received_at`).
+- `checkpoints.ts` — `checkpoint(ckptId, handle, ...)` helper combining
+  D-15 fencing (`assertHoldsLock` → `zombie_lambda_exit` + `lostLock:true`)
+  + interrupt detection (`interrupt_detected_at_ckpt_N` + `interrupted: {pendingListLength}`).
+  `CheckpointId` typed union (8 D-18 values — see locked names above).
+- `__tests__/pending.test.ts` — 10 tests including Pitfall 4 negative
+  (reversed-key-order JSON fails to LREM).
+- `__tests__/checkpoints.test.ts` — 8 tests covering proceed / zombie / interrupted-A / interrupted-B + all 8 CheckpointId values.
+
+Module total now: **36/36 vitest PASS** (4 files: lock + observability + pending + checkpoints).
+`npx tsc --noEmit` clean for all 11 new files in the module.
+
+### Module public surface (complete after Plan 02 — Plans 03–07 only consume)
+
+Plans 03–07 import exclusively from `@/lib/agents/interruption-system-v2/{lock,pending,checkpoints,observability,redis-client}`. No further primitives needed.
+
+| Export | From | Consumers |
+|--------|------|-----------|
+| `acquireLock`, `releaseLockIfOwner`, `startHeartbeat`, `assertHoldsLock`, `LockHandle`, `LOCK_TTL_S`, `HEARTBEAT_MS` | `lock.ts` | Plans 04 (runner), 06 (cron), 07 (E2E) |
+| `pushToPending`, `removeOwnEntry`, `readAndClearPending`, `PendingEntry` | `pending.ts` | Plans 03 (webhook), 04 (runner), 05 (adapter) |
+| `checkpoint`, `CheckpointId`, `CheckpointResult` | `checkpoints.ts` | Plans 04 (runner), 05 (agent integration) |
+| `emitLockEvent`, `LockEventLabel` | `observability.ts` | Plans 03–07 (all) |
+| `redis` | `redis-client.ts` | All — but prefer typed helpers above |
+| `createMockRedis` | `__tests__/_helpers/mock-redis.ts` | Test files in Plans 03–07 |
+
+### Plan 04 caveat — thread `exactJson` end-to-end
+
+`pushToPending` returns a tuple `{pendingListLength, exactJson}`. Plan 04
+(V4MessagingAdapter `onFirstSendCompleted` D-16 LREM-self) MUST thread
+`exactJson` through `V4AgentInput` type from runner → adapter, then pass
+it back to `removeOwnEntry`. Re-serializing the entry object at LREM time
+is NOT byte-guaranteed to match (Pitfall 4). Flag this when planning Plan 04.
+
+### Deviations during Plan 02 (both test-only auto-fixes; production code correct)
+
+1. `pending.test.ts` atomic-clear assertion — mock-redis `multi()` stub
+   doesn't back-port `tx.del()` to lists Map (Plan 01 mock kept untouched
+   per critical_constraints). Adjusted test to assert call-shape (`multi`
+   called, `tx.del(key)` scheduled, `tx.exec()` awaited). Plan 07
+   integration tests will validate end-to-end against real Upstash.
+2. `checkpoints.test.ts` Path A assertion — `.toEqual` exact-shape failed
+   because implementation correctly returns `interrupted.interruptMsgId`
+   per RESEARCH spec. Switched to field-by-field asserts (more precise
+   + catches `lostLock: undefined` invariant).
 
 ### Infrastructure state
 
@@ -96,13 +144,13 @@ Combined: **18/18 PASS**. `npx tsc --noEmit` clean for the new files.
 3. **In-region Vercel→Upstash latency unvalidated**: Vercel Auth team-level gated the preview probe; WSL-local pivot captured upper-bound numbers only. Plan 05 E2E smoke + Phase 42.1 observability will close this.
 4. **Orphan Claude-Code worktrees**: ~14 stale `.claude/worktrees/agent-*` debris (one had `main` checked out + locked, blocked our checkout flow this session — used `update-ref` workaround). Out of scope for this standalone; consider a cleanup pass before resuming heavy parallel execution.
 
-## Plans 02–07 dependency graph (from plan frontmatter)
+## Plans 03–07 dependency graph (from plan frontmatter)
 
 ```
 Wave 0 → 00 ✅ DONE
 Wave 1 → 01 ✅ DONE
-Wave 2 → 02 (depends on: 01)   ← NEXT
-Wave 3 → 03 (depends on: 02)
+Wave 2 → 02 ✅ DONE
+Wave 3 → 03 (depends on: 02)   ← NEXT
 Wave 4 → 04 (depends on: 03)
 Wave 5 → 05 (depends on: 04)
        └ 06 (depends on: 01, 02, 04, 05)
@@ -112,13 +160,16 @@ Wave 6 → 07 (depends on: 04, 05, 06)  ← autonomous: false (Tasks 7.3 + 7.4 a
 Wave 5 (Plan 05 + Plan 06) — Plan 06 depends on Plan 05, so they run sequentially within
 the wave regardless of parallelization setting.
 
-## Imports Plan 02 will consume from Wave 1
+## Imports Plan 03 will consume from Waves 1+2
 
-When Plan 02 runs, expect it to import:
-- `redis` from `./redis-client`
-- `acquireLock`, `assertHoldsLock`, `LockHandle`, `LOCK_TTL_S` from `./lock`
-- `emitLockEvent`, `LockEventLabel` from `./observability`
+When Plan 03 (webhook integration) runs, expect it to import:
+- `acquireLock` from `./lock` — returns null when the lock is held by another lambda
+- `pushToPending`, `removeOwnEntry` (caller stores the returned `exactJson`!), `PendingEntry` from `./pending`
+- `emitLockEvent` (labels: `interrupt_written`, `lock_busy_enqueue_pending`, etc.) from `./observability`
+- `redis` from `./redis-client` — for the `SET interrupt:<ws>:<channel>:<identifier> <msg_id>` interrupt-key write
 - `createMockRedis` from `./__tests__/_helpers/mock-redis` (test-only)
+
+Plan 03 webhook follower path (per spec): `acquireLock` returns null → `pushToPending(entry)` → `SET interrupt:...` → emit `interrupt_written` → 200 OK.
 
 ## Useful commands when resuming
 

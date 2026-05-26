@@ -1,37 +1,43 @@
 # debounce-interruption-system-v2 — Handoff State
 
-Last updated: 2026-05-26 (post Plan 04 ship — Wave 4 complete; v4-gated, prod safe)
+Last updated: 2026-05-26 (post Plan 06 ship — Wave 5 complete; v4-gated, prod safe)
 
 ## Quick start next session
 
 ```
 /clear
-/gsd-execute-phase debounce-interruption-system-v2 --wave 5
+/gsd-execute-phase debounce-interruption-system-v2 --wave 6
 ```
 
-The orchestrator finds `00..04-SUMMARY.md` → skips Plans 00–04 → starts Plan 05 then 06.
+The orchestrator finds `00..06-SUMMARY.md` → skips Plans 00–06 → starts Plan 07.
+
+**Plan 07 is `autonomous: false`** — Tasks 7.3 + 7.4 are human checkpoints
+(activation decisions). The orchestrator will pause for user input.
 
 If the orchestrator stumbles on standalone discovery (this phase is in
 `.planning/standalone/` not `.planning/phases/`), point it manually at
-`.planning/standalone/debounce-interruption-system-v2/05-PLAN.md` then
-`06-PLAN.md` and let `gsd-executor` take them from there.
+`.planning/standalone/debounce-interruption-system-v2/07-PLAN.md` and
+let `gsd-executor` take it from there.
 
-**Wave 5 ordering:** Plan 06 depends on Plans 01+02+04+05 (per its frontmatter).
-Run Plan 05 first, then Plan 06 — sequentially within the wave.
-
-**Branch note for next session:** Plans 01-04 were executed on local branches
-`exec/debounce-v2-wave1..4` (created because orphan worktree `agent-a385e9ef`
+**Branch note for next session:** Plans 01-06 were executed on local branches
+`exec/debounce-v2-wave1..5` (created because orphan worktree `agent-a385e9ef`
 still holds `main` locked). Commits were pushed via `git push origin HEAD:main`
 (fast-forward, non-destructive). The orphan worktree problem is still unsolved.
 
-**v4 dormancy attestation post-Plan 04:** Plans 03 + 04 added new code paths
-ALL gated on `resolvedAgentId === 'somnio-sales-v4'`. v4 is currently set on
-ZERO workspaces (`SELECT COUNT(*) FROM workspace_agent_config WHERE
-conversational_agent_id='somnio-sales-v4'` returns 0). All 5 non-v4 agents
-(v3, godentist, recompra, pw-confirmation, godentist-fb-ig) run byte-identical
-to pre-Plan-03 behavior. `ProductionMessagingAdapter` (parent class) preserved
-externally by the Plan 04 strategy-pattern refactor — 3 dedicated Regla 6 tests
-codify this. Activate v4 per-workspace via:
+**Wave 5 push note:** A parallel session's commit `6768f594 docs(crm-duplicate-
+order-products-integrity): standalone discuss-phase complete` landed on the
+working branch between Plan 05 and Plan 06 — content was 2 planning docs + 7
+debug-doralba scripts, zero overlap with debounce-v2. User chose to push it
+together with Plans 05+06 as one fast-forward (recorded for next-session awareness).
+
+**v4 dormancy attestation post-Wave 5:** Plans 03 + 04 + 05 + 06 added new code
+paths ALL gated on `resolvedAgentId === 'somnio-sales-v4'` (Plans 03+04) or
+file-scope V4-only (Plans 05 under `src/lib/agents/somnio-v4/**`). Plan 06 added
+an Inngest cron `v2-lock-cleanup-cron` that sweeps `lock:*` keys — but only v4
+creates locks, so the cron is INERT until v4 is flipped on. v4 currently set on
+ZERO workspaces. All 5 non-v4 agents (v3, godentist, recompra, pw-confirmation,
+godentist-fb-ig) run byte-identical to pre-Plan-03 behavior. Activate v4
+per-workspace via:
 `UPDATE workspace_agent_config SET conversational_agent_id='somnio-sales-v4' WHERE workspace_id='<uuid>';`
 
 **CheckpointId names locked (8 values — spec-verbatim from RESEARCH Pattern 3
@@ -54,24 +60,115 @@ ckpt_7_pre_template
 executor correctly ignored those and went with the locked spec. Future
 plan prompts: pattern-match the union from `checkpoints.ts` directly.)
 
-## Where Plan 04 left things (snapshot)
+## Where Plan 06 left things (snapshot)
 
 ### Commits on main (most recent → oldest, last 10)
 
 | SHA       | Subject                                                                            |
 |-----------|------------------------------------------------------------------------------------|
+| ee601742  | docs(debounce-v2 plan-06): SUMMARY.md — Wave 5 cron+sandbox tab complete           |
+| bccf783f  | feat(debounce-v2 plan-06): sandbox Interruption tab + observability events API     |
+| 3acf80b5  | feat(debounce-v2 plan-06): Inngest cron v2-lock-cleanup — D-09 layer 3 orphan sweep|
+| 6768f594  | docs(crm-duplicate-order-products-integrity): standalone discuss-phase complete    |
+| 68401229  | docs(debounce-v2 plan-05): SUMMARY.md — Wave 5 agent+sub-loop CKPT wiring complete |
+| 1438381e  | feat(debounce-v2 plan-05): CKPT-3 + CKPT-4 + CKPT-5 in RAG sub-loop + combined     |
+| 2b7250d7  | feat(debounce-v2 plan-05): CKPT-1 + CKPT-2 in somnio-v4-agent + lock fields plumb  |
+| 89916918  | docs(debounce-v2 plan-04): HANDOFF.md — Wave 4 complete                            |
 | 92c9a6b9  | docs(debounce-v2 plan-04): SUMMARY.md — Wave 4 runner integration complete         |
 | 6f2a68cc  | feat(debounce-v2 plan-04): wire V4MessagingAdapter + thread lock fields (Task 4.4) |
-| dfbf38b1  | feat(debounce-v2 plan-04): CKPT-0 + CKPT-6 + heartbeat + try/finally release       |
-| 44366f11  | refactor(debounce-v2 plan-04): extract shouldAbortBeforeTemplate + V4 adapter      |
-| 3cfa3fb1  | feat(debounce-v2 plan-04): extend EngineInput + V4AgentInput (4 fields W3)         |
-| 2a004b7a  | docs(debounce-v2 plan-03): HANDOFF.md — Wave 3 complete                            |
-| fae95acd  | docs(debounce-v2 plan-03): SUMMARY.md — Wave 3 webhook integration complete        |
-| f96f7f0d  | feat(debounce-v2 plan-03): extend Inngest event destructure + lock-event test      |
-| 3062598c  | feat(debounce-v2 plan-03): wire HOLDER/FOLLOWER lock into ManyChat webhook (v4)    |
-| 0b1782a4  | feat(debounce-v2 plan-03): wire HOLDER/FOLLOWER lock into WhatsApp webhook (v4)    |
 
-All pushed to `origin/main`. Latest: `92c9a6b9`.
+All pushed to `origin/main`. Latest: `ee601742`. (`6768f594` is unrelated user
+work for the `crm-duplicate-order-products-integrity` standalone — documented above.)
+
+### Wave 5 deliverables (Plans 05 + 06)
+
+**Plan 05** — 3 files (V4-only by file scope under `src/lib/agents/somnio-v4/**`):
+
+- **EDIT** `src/lib/agents/somnio-v4/somnio-v4-agent.ts` — CKPT-1
+  `ckpt_1_post_comprehension` at line 130 (throw 136) + CKPT-2
+  `ckpt_2_post_state_machine` at line 328 (throw 334). `lockHandle/lockChannel/
+  lockIdentifier` threaded into `SubLoopContext` for both `runRagSubLoop` +
+  `runLegacySubLoop` call sites.
+- **EDIT** `src/lib/agents/somnio-v4/sub-loop/index.ts` — `SubLoopContext`
+  extended with 3 OPTIONAL lock fields. Module-scoped helper `ckptInSubLoop()`
+  (line 112) centralizes skip-guard + LostLockError throw. CKPT-3
+  `ckpt_3_post_tooling` line 291, CKPT-4 `ckpt_4_post_generation` line 396,
+  CKPT-5 `ckpt_5_post_compliance` line 454 — all in `runRagSubLoop`. Combined
+  CKPT at line 762 in `runLegacySubLoop` (per coverage matrix line 881).
+- **EDIT** `src/lib/agents/somnio-v4/types.ts` — REVISION W1 verify (no-op:
+  Plan 04 already added the 4 lock fields per grep).
+- `LostLockError` imported from `../engine-adapters/production/v4-messaging-adapter`
+  (existing export from Plan 04; no new export added).
+- **Inter-task tsc dependency** disclosed: Task 5.1 commit alone fails tsc;
+  Task 5.2 commit fixes it. Both must land together (bisect hazard noted in
+  SUMMARY).
+
+**Plan 06** — 7 files (cron + sandbox UI + observability API route):
+
+- **NEW** `src/inngest/functions/v2-lock-cleanup-cron.ts` — Inngest cron
+  `id: 'v2-lock-cleanup-cron'`, schedule `TZ=America/Bogota */5 * * * *`. Uses
+  `redis.scan` cursor loop (NOT `redis.keys` — verified gate). Compares against
+  `agent_sessions WHERE status='active'` (per actual schema — D-09 verbatim
+  with comment citing migration `20260205000000_agent_sessions.sql` line 14).
+  DELs orphans + emits `lock_orphan_swept_by_cron` (14th label per REVISION B1).
+  Defense-in-depth ag-out: sweeps locks older than `MAX_TURN_AGE_S=60s` even when
+  session is active. Wrapped in `step.run` for Inngest retry safety.
+- **EDIT** `src/app/api/inngest/route.ts` — register `v2LockCleanupCron` in the
+  `functions: [...]` array (additive).
+- **NEW** `src/app/api/observability/events/route.ts` — GET endpoint. Auth
+  mirrors `src/app/api/sandbox/process/route.ts` (`createClient()` server +
+  `auth.getUser()` + 401 anonymous). Uses `createRawAdminClient()` for reads.
+  2-step resolution: session → conversation → turn_ids (because
+  `agent_observability_events` is partitioned by `recorded_at` and carries only
+  `turn_id`). Accepts `session_id`, `conversation_id`, `labels` (CSV), `limit`
+  (default 200) query params.
+- **EDIT** `src/lib/sandbox/types.ts` — `DebugPanelTabId` union +
+  `'interruption'` (10th value).
+- **EDIT** `src/app/(dashboard)/sandbox/components/debug-panel/tab-bar.tsx` —
+  `interruption: Lock` added to exhaustive `TAB_ICONS: Record<...>` (anti-Pitfall
+  6 — TS catches missing entries).
+- **NEW** `src/app/(dashboard)/sandbox/components/debug-panel/interruption-tab.tsx`
+  — React client component. Fetches the 14 D-17-extended events from the new
+  API route. Renders a lifecycle timeline (lock_acquired → checkpoints →
+  lock_released_normal / msg_aborted_path_*). NO live SSE (Open Question 3 —
+  post-turn fetch only). Sandbox tab currently mounted with `null` props
+  (placeholder visible; future dashboard inspector can mount with real IDs).
+- **EDIT** `src/app/(dashboard)/sandbox/components/debug-panel/debug-tabs.tsx`
+  + `panel-container.tsx` — wire `<InterruptionTab .../>` into tab content.
+
+Test totals: **69/69 PASS** (12 new cron + 11 V4 adapter + 10 Plan 03/04 lock-event
++ 36 Wave 1-2). `npx tsc --noEmit` clean for all modified files.
+
+### All 14 LockEventLabel values now wired end-to-end across Plans 03-06
+
+| Label | Emitted by | Plan |
+|---|---|---|
+| `lock_acquired` | webhook (holder), V4MessagingAdapter | 03, 04 |
+| `lock_busy_enqueue_pending` | webhook (follower) | 03 |
+| `lock_acquire_failed_follower` | webhook (follower) | 03 |
+| `interrupt_written` | webhook (follower) | 03 |
+| `redis_unavailable_fallback_failed` | webhook (fail-open) | 03 |
+| `interrupt_detected_at_ckpt_0..7` | `checkpoint()` itself | 02 (one of 8 ckpt IDs) |
+| `zombie_lambda_exit` | V4ProductionRunner outer catch (LostLockError) | 04 |
+| `lock_released_normal` | V4ProductionRunner finally | 04 |
+| `msg_aborted_path_a_combined` | V4MessagingAdapter / V4ProductionRunner | 04 |
+| `msg_aborted_path_b_solo` | V4MessagingAdapter | 04 |
+| `pending_list_combined` | V4MessagingAdapter LREM-self | 04 |
+| `lock_orphan_swept_by_cron` | v2-lock-cleanup-cron | 06 |
+
+### Regla 6 hand-trace (still verified, end-to-end)
+
+| Agent | Adapter | Runner | Behavior |
+|---|---|---|---|
+| `somnio-sales-v3` | `ProductionMessagingAdapter` (parent) | V3 production runner | byte-identical |
+| `godentist` | `ProductionMessagingAdapter` (parent) | godentist runner | byte-identical |
+| `godentist-fb-ig` | `ProductionMessagingAdapter` (parent) | godentist-fb-ig runner | byte-identical |
+| `somnio-recompra-v1` | `ProductionMessagingAdapter` (parent) | recompra runner | byte-identical |
+| `somnio-sales-v3-pw-confirmation` | `ProductionMessagingAdapter` (parent) | pw-confirmation runner | byte-identical |
+| `somnio-sales-v4` | `V4MessagingAdapter` (Plan 04) | `V4ProductionRunner` w/ CKPT-0..7 wired | **DORMANT in prod** |
+
+Cron `v2-lock-cleanup-cron`: scans `lock:*` every 5 min. Only v4 creates locks
+→ today the cron sweeps nothing (no lock keys exist). Inert by default.
 
 ### Wave 4 deliverables (Plan 04)
 
@@ -280,7 +377,7 @@ is NOT byte-guaranteed to match (Pitfall 4). Flag this when planning Plan 04.
 3. **In-region Vercel→Upstash latency unvalidated**: Vercel Auth team-level gated the preview probe; WSL-local pivot captured upper-bound numbers only. Plan 05 E2E smoke + Phase 42.1 observability will close this.
 4. **Orphan Claude-Code worktrees**: ~14 stale `.claude/worktrees/agent-*` debris (one had `main` checked out + locked, blocked our checkout flow this session — used `update-ref` workaround). Out of scope for this standalone; consider a cleanup pass before resuming heavy parallel execution.
 
-## Plans 05–07 dependency graph (from plan frontmatter)
+## Plan 07 dependency graph (from plan frontmatter)
 
 ```
 Wave 0 → 00 ✅ DONE
@@ -288,69 +385,63 @@ Wave 1 → 01 ✅ DONE
 Wave 2 → 02 ✅ DONE
 Wave 3 → 03 ✅ DONE (v4-gated; prod inert until v4 flip-on)
 Wave 4 → 04 ✅ DONE (v4-gated; prod inert)
-Wave 5 → 05 (depends on: 04)   ← NEXT
-       └ 06 (depends on: 01, 02, 04, 05)
-Wave 6 → 07 (depends on: 04, 05, 06)  ← autonomous: false (Tasks 7.3 + 7.4 are human checkpoints)
+Wave 5 → 05 ✅ DONE (v4-only by file scope)
+       └ 06 ✅ DONE (cron + sandbox tab; cron inert while v4 dormant)
+Wave 6 → 07 (depends on: 04, 05, 06)  ← NEXT — autonomous: false (Tasks 7.3 + 7.4 are human checkpoints)
 ```
 
-Wave 5 ordering: Plan 06 depends on Plan 05, so they run **sequentially** within
-the wave regardless of parallelization setting.
+## Wave 6 planning constraints — surfaced from Wave 5 execution
 
-## Wave 5 planning constraints — surfaced from Wave 4 execution
+Plan 07 is the final wave: E2E integration tests + activation gates. Module
+public surface is COMPLETE end-to-end (Plans 01-06 shipped, all 14 LockEventLabel
+emission sites wired). Things Plan 07's author MUST know:
 
-Plans 05 + 06 add the remaining CKPT sites and the cron sweep. Plan 04 already
-plumbed `lockHandle + ownPendingEntryJson + lockChannel + lockIdentifier` end-to-end
-via `V4AgentInput` — Plan 05 just CONSUMES them. Things Wave 5 authors MUST know:
+### Plan 07 (E2E + activation — autonomous: false)
 
-### Plan 05 (agent + sub-loop CKPT wiring)
+1. **TWO human checkpoints** (Tasks 7.3 + 7.4 are blocking — non-autonomous).
+   Orchestrator pauses for user input. These typically gate v4 activation per-workspace.
 
-1. **4 CheckpointId values remain unwired** (Plan 04 wired 3 — CKPT-0 + CKPT-6 + CKPT-7.N):
-   - `ckpt_1_post_comprehension` — `somnio-v4-agent.ts` after Haiku comprehension
-   - `ckpt_2_post_state_machine` — `somnio-v4-agent.ts` after state-machine transition
-   - `ckpt_3_post_tooling` — `sub-loop/index.ts` after `kb_search` etc. (RAG path)
-   - `ckpt_4_post_generation` — `sub-loop/index.ts` after Gemini Flash redaction (RAG)
-   - `ckpt_5_post_compliance` — `sub-loop/index.ts` after compliance check (RAG)
+2. **Activation SQL** (single command — no migration needed):
+   ```sql
+   UPDATE workspace_agent_config
+     SET conversational_agent_id='somnio-sales-v4'
+     WHERE workspace_id='<uuid>';
+   ```
+   Rollback: same UPDATE with the previous agent_id value.
 
-2. **Path coverage matrix** (`checkpoints.ts` lines 17-25):
-   - Conventional (no sub-loop) → CKPT-0, 1, 2, 6, 7.N (5 of 8)
-   - Sub-loop RAG → CKPT-0..7.N (all 8)
-   - Sub-loop legacy → CKPT-0, 1, 2, 3+4+5 combined, 6, 7.N
-   - Guard-blocked R0/R1 → CKPT-0, 1 only (early return)
+3. **Cron is INERT in production until v4 activation.** v4 = 0 workspaces today
+   → no `lock:*` keys exist → `v2-lock-cleanup-cron` sweeps nothing. Plan 07
+   Task 7.3 visual checkpoint can include "open `/sandbox`, click Interruption
+   tab in tab bar, confirm placeholder renders" as a 30-second smoke. Tab is dev-only.
 
-3. **LostLockError propagation pattern** — Plan 05's CKPT-1..5 sites should THROW
-   `LostLockError` on `checkpoint.lostLock === true`. The runner's outer
-   try/catch (Plan 04 Task 4.3) already handles it. Don't try to handle locally
-   inside the agent/sub-loop.
+4. **HTTP endpoint available** — Plan 07 E2E can hit `/api/observability/events`
+   directly:
+   ```
+   GET /api/observability/events?conversation_id=<uuid>&labels=lock_acquired,lock_released_normal
+   ```
+   Auth-gated (mirrors `sandbox/process` pattern).
 
-4. **`V4AgentInput` already has lock plumbing** — `lockHandle`, `ownPendingEntryJson`,
-   `lockChannel`, `lockIdentifier` are all OPTIONAL fields threaded from the runner.
-   When null (pre-v4 callers / fail-open), the agent/sub-loop SKIPS checkpoint calls
-   entirely. No new type plumbing needed.
+5. **All 14 LockEventLabel values are wired end-to-end** (Plans 03-06). Plan 07
+   coverage matrix can grep:
+   ```
+   grep -rn "emitLockEvent" src/
+   ```
+   to confirm all label values appear in production code.
 
-5. **The 8 CheckpointId values are spec-locked** in `checkpoints.ts`. Pattern-match
-   directly from source — do NOT trust planner prompts.
+6. **`MAX_TURN_AGE_S = 60` constant** in `src/inngest/functions/v2-lock-cleanup-cron.ts`.
+   Plan 07 baseline should confirm real v4 turn latency stays well below this.
+   Bump to 90s or 120s with a measurement citation if 95th percentile approaches 60s.
 
-### Plan 06 (cron sweep + tab UI)
+### Architectural facts unchanged
 
-6. **Cron emits a new typed event** `lock_orphan_swept_by_cron` (REVISION B1 — already
-   in the 14-label `LockEventLabel` union since Plan 01). Sweep compares Redis lock
-   keys against `agent_sessions` activity per D-09.
-
-7. **Plan 06 depends on Plans 01+02+04+05** — must run AFTER Plan 05 within Wave 5.
-
-### Plan 07 (E2E + activation checkpoints — autonomous: false)
-
-8. **Plan 07 has TWO human checkpoints** (Tasks 7.3 + 7.4 are blocking).
-   Activation per-workspace via SQL is documented in this HANDOFF (above).
-
-### Architectural facts unchanged by Wave 4
-
-- **Concurrency setting LOCKED** at `[{ key: 'event.data.conversationId', limit: 1 }]`.
-  Test `agent-production-lock-event.test.ts` asserts the literal value as an invariant.
+- **Concurrency setting LOCKED** at `[{ key: 'event.data.conversationId', limit: 1 }]`
+  (Plan 03's `agent-production-lock-event.test.ts` asserts the literal value).
 - **Single Inngest function** handles both WhatsApp and FB/IG via `lockChannel`.
 - **`resolveAgentIdForWorkspace` lives in `@/lib/agents/registry-helpers`**
   (Plan 03 REVISION B4).
 - **No DB migrations** needed in this entire phase.
+- **8 CheckpointId values are spec-locked** in `checkpoints.ts` — pattern-match
+  directly from source, not from planner prompts.
 
 ## Useful commands when resuming
 

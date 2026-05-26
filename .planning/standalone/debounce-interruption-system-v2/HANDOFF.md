@@ -1,23 +1,35 @@
 # debounce-interruption-system-v2 — Handoff State
 
-Last updated: 2026-05-26 (post Plan 06 ship — Wave 5 complete; v4-gated, prod safe)
+Last updated: 2026-05-26 (Plan 07 closed — **STANDALONE CLOSED**)
 
-## Quick start next session
+## ⏹ Standalone CLOSED 2026-05-26
 
-```
-/clear
-/gsd-execute-phase debounce-interruption-system-v2 --wave 6
-```
+8 plans shipped (00..07). All commits on `origin/main` (latest `c02453fd`).
 
-The orchestrator finds `00..06-SUMMARY.md` → skips Plans 00–06 → starts Plan 07.
+**Deferrals captured in `UAT.md`:**
+- D-19 Phase 3 (Vercel preview + real WhatsApp smoke) → deferred to v4
+  activation-time (per-workspace smoke when `conversational_agent_id` is flipped
+  to `somnio-sales-v4`).
+- D-19 Phase 4 (sandbox visual smoke) → deferred to follow-up standalone
+  `debounce-v2-sandbox-integration` (cable lock-system into `SomnioV4Engine`
+  so sandbox behaves like WhatsApp real).
 
-**Plan 07 is `autonomous: false`** — Tasks 7.3 + 7.4 are human checkpoints
-(activation decisions). The orchestrator will pause for user input.
+**Ship verdict:** APPROVED to merge to main with the deferrals above
+(see `UAT.md` line 230+ for sign-off + REVISION W4 acknowledgment).
 
-If the orchestrator stumbles on standalone discovery (this phase is in
-`.planning/standalone/` not `.planning/phases/`), point it manually at
-`.planning/standalone/debounce-interruption-system-v2/07-PLAN.md` and
-let `gsd-executor` take it from there.
+**Reusable artifacts produced** (see `LEARNINGS.md` for full list):
+- 14-label `LockEventLabel` typed-union pattern
+- 8-value `CheckpointId` typed-union with skip-guard at every call site
+- V4-only gate at webhook entry pattern (Regla 6 preservation for non-v4 agents)
+- Strategy-pattern refactor on shared adapter base classes
+- `vi.mock + await import + __mock` anti-hoisting test pattern
+
+## Next standalone (follow-up)
+
+`debounce-v2-sandbox-integration` — cable the lock-system into `SomnioV4Engine`
+so the sandbox exercises the same `acquireLock` / `pushToPending` / checkpoint
+behavior as the WhatsApp webhook path in production. Lets you test the
+interruption system iteratively without WhatsApp / 360dialog / Vercel preview.
 
 **Branch note for next session:** Plans 01-06 were executed on local branches
 `exec/debounce-v2-wave1..5` (created because orphan worktree `agent-a385e9ef`

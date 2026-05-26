@@ -84,6 +84,34 @@ export interface EngineInput {
   phoneNumber?: string
   /** ISO timestamp of the inbound message that triggered processing (Phase 31: pre-send check) */
   messageTimestamp?: string
+  /**
+   * Standalone: debounce-interruption-system-v2 (D-03 + RESEARCH line 866).
+   * Populated by the webhook handler when v4 path is detected; null on:
+   * (a) non-v4 agents (preserved Phase 31 behavior — Regla 6),
+   * (b) Redis-unavailable fail-open path (RESEARCH Open Question 5).
+   * Sandbox engine + test fixtures may omit (undefined).
+   *
+   * Type-only import avoids runtime circular imports — `engine/types.ts` is loaded
+   * before the interruption-system-v2 module in some adapter wiring paths.
+   */
+  lockHandle?: import('@/lib/agents/interruption-system-v2/lock').LockHandle | null
+  /**
+   * Standalone: debounce-interruption-system-v2 (D-16 — RPUSH self ALWAYS).
+   * The exact JSON string the webhook RPUSHed into pending for this turn's own message.
+   * Runner uses this to LREM-self after the first successful template send.
+   */
+  ownPendingEntryJson?: string | null
+  /**
+   * REVISION W3 — channel resolved at webhook entry, threaded through event.data → EngineInput
+   * so the runner does NOT need a Supabase conversations-table lookup.
+   * Sourced from webhook payload (Plan 03). Null on non-v4 path (matches lockHandle nullability).
+   */
+  lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
+  /**
+   * REVISION W3 — identifier (phone for WhatsApp, external_subscriber_id for FB/IG).
+   * Same source + nullability semantics as lockChannel.
+   */
+  lockIdentifier?: string | null
 }
 
 /**

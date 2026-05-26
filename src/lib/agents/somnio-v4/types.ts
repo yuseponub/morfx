@@ -160,6 +160,31 @@ export interface V4AgentInput {
    * Optional for backward compat with sandbox / tests that build V4AgentInput by hand.
    */
   sessionId?: string
+  /**
+   * Standalone: debounce-interruption-system-v2 (D-03 + RESEARCH line 866).
+   * Populated by V4ProductionRunner when v4 path is detected; null on:
+   * (a) sandbox / test fixtures that build V4AgentInput by hand,
+   * (b) Redis-unavailable fail-open path (RESEARCH Open Question 5).
+   *
+   * Type-only import avoids runtime circular imports.
+   */
+  lockHandle?: import('@/lib/agents/interruption-system-v2/lock').LockHandle | null
+  /**
+   * Standalone: debounce-interruption-system-v2 (D-16 — RPUSH self ALWAYS).
+   * The exact JSON string the webhook RPUSHed into pending for this turn's own message.
+   * Threaded from runner → sub-loop → V4MessagingAdapter.onFirstSendCompleted for LREM-self.
+   */
+  ownPendingEntryJson?: string | null
+  /**
+   * REVISION W3 — channel sourced from webhook event.data → EngineInput → V4AgentInput.
+   * Plan 05 will use this in sub-loop's readAndClearPending call at acquire-time (combine D-16).
+   */
+  lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
+  /**
+   * REVISION W3 — identifier (phone for WhatsApp, external_subscriber_id for FB/IG).
+   * Same source + nullability semantics as lockChannel.
+   */
+  lockIdentifier?: string | null
 }
 
 export interface V4AgentOutput {

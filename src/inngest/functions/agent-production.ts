@@ -53,6 +53,17 @@ export const whatsappAgentProcessor = inngest.createFunction(
     id: 'whatsapp-agent-processor',
     name: 'WhatsApp Agent Message Processor',
     retries: 2,
+    // ================================================================
+    // Standalone: debounce-interruption-system-v2 (Plan 03, D-14 +
+    // RESEARCH Inngest section lines 918-929):
+    //
+    // KEEP limit=1 — Inngest's per-key concurrency is strict per the
+    // Inngest docs; this is belt-and-suspenders to the Redis SET NX in
+    // interruption-system-v2/lock.ts. Do NOT raise to 10 or remove.
+    // The lock subsystem handles the inter-lambda mutex; this clause
+    // handles the same-lambda replay-storm case (cheaper for Inngest
+    // than spinning N replicas just to discover the lock is held).
+    // ================================================================
     concurrency: [
       {
         key: 'event.data.conversationId',
@@ -62,12 +73,82 @@ export const whatsappAgentProcessor = inngest.createFunction(
   },
   { event: 'agent/whatsapp.message_received' },
   async ({ event, step }) => {
-    const { conversationId, contactId, messageContent, workspaceId, phone, messageId, messageTimestamp } = event.data
+    // ================================================================
+    // Standalone: debounce-interruption-system-v2 (Plan 03, D-03 + D-14
+    // + REVISION W2 + W3):
+    //
+    // 6 new fields — all OPTIONAL — populated by the webhook layer
+    // ONLY when the message is on the v4 path. Pre-v4 callers (v3 /
+    // godentist / recompra / pw-confirmation) and tests that fabricate
+    // events without these fields continue to work unchanged (Regla 6).
+    //
+    // REVISION W3 + W2 rationale:
+    //   - lockChannel + lockIdentifier — eliminate a conversations-
+    //     table lookup inside Plan 04's runner.
+    //   - agentId (from webhook) — eliminate a race window where the
+    //     workspace's routing could change between webhook acquire and
+    //     Inngest dispatch.
+    //
+    // The runner (Plan 04) detects nulls in lockHolderUuid / lockKey /
+    // ownPendingEntryJson and skips checkpoint logic in those cases
+    // (fail-open path from the webhook).
+    // ================================================================
+    const {
+      conversationId,
+      contactId,
+      messageContent,
+      workspaceId,
+      phone,
+      messageId,
+      messageTimestamp,
+      lockHolderUuid,
+      lockKey,
+      ownPendingEntryJson,
+      lockChannel,
+      lockIdentifier,
+      agentId: agentIdFromWebhook,
+    } = event.data as typeof event.data & {
+      lockHolderUuid?: string | null
+      lockKey?: string | null
+      ownPendingEntryJson?: string | null
+      lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
+      lockIdentifier?: string | null
+      agentId?: AgentId | null
+    }
 
     logger.info(
       { conversationId, phone, messageId, workspaceId, messageType: event.data.messageType ?? 'text' },
       'Processing WhatsApp message with agent'
     )
+
+    // ================================================================
+    // Standalone: debounce-interruption-system-v2 (Plan 03, REVISION W2)
+    //
+    // Race elimination: prefer agentIdFromWebhook when present (it's
+    // what the webhook locked on). Fall back to a local resolve for
+    // pre-v4 callers that don't populate the field. Emit a warning
+    // when both are present and disagree — extremely rare (workspace
+    // routing changed between webhook lock acquire and Inngest dispatch)
+    // — and honor the webhook's choice (it gated the lock).
+    // ================================================================
+    const localAgentId = agentIdFromWebhook
+      ? await resolveAgentIdForWorkspace(workspaceId)
+      : null
+    if (agentIdFromWebhook && localAgentId && localAgentId !== agentIdFromWebhook) {
+      logger.warn(
+        {
+          agentIdFromWebhook,
+          localAgentId,
+          conversationId,
+          workspaceId,
+          messageId,
+          label: 'pipeline_decision:agent_id_mismatch_webhook_vs_inngest',
+        },
+        '[interruption-v2] agent_id_mismatch_webhook_vs_inngest — using webhook value',
+      )
+    }
+    const agentId: AgentId =
+      agentIdFromWebhook ?? (await resolveAgentIdForWorkspace(workspaceId))
 
     // ================================================================
     // Phase 42.1: Observability collector (feature-flagged)
@@ -87,7 +168,7 @@ export const whatsappAgentProcessor = inngest.createFunction(
       ? new ObservabilityCollector({
           conversationId,
           workspaceId,
-          agentId: await resolveAgentIdForWorkspace(workspaceId),
+          agentId,
           turnStartedAt: new Date(),
           triggerMessageId: messageId,
           triggerKind: 'user_message',
@@ -96,11 +177,20 @@ export const whatsappAgentProcessor = inngest.createFunction(
 
     const run = async () => {
     // Phase 42.1: register turn start + trigger metadata for the timeline.
+    // debounce-interruption-system-v2 (Plan 03) — extended with lock
+    // correlation fields so observability can join the webhook's lock
+    // acquisition with the Inngest function's turn execution.
     collector?.recordEvent('session_lifecycle', 'turn_started', {
       action: 'turn_started',
       conversationId,
       messageId,
       messageType: event.data.messageType ?? 'text',
+      lockHolderUuid: lockHolderUuid ?? null,
+      lockKey: lockKey ?? null,
+      lockChannel: lockChannel ?? null,
+      lockIdentifier: lockIdentifier ?? null,
+      hasOwnPendingEntry: !!ownPendingEntryJson,
+      agentIdSource: agentIdFromWebhook ? 'webhook' : 'inngest_local_resolve',
     })
 
     // ================================================================

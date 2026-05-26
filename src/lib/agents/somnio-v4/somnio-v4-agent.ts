@@ -49,6 +49,19 @@ import type { LoopOutcome } from './sub-loop/output-schema'
 import { captureUnknownCase } from './unknown-cases/capture'
 import { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } from './config'
 import { getCollector } from '@/lib/observability'
+// ============================================================================
+// Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.1)
+// CKPT-1 (post-comprehension) + CKPT-2 (post-state-machine) fire here.
+// LostLockError is re-thrown so V4ProductionRunner's outer catch (Plan 04
+// Task 4.3) can emit `zombie_lambda_exit`. The interrupt branch returns a
+// V4AgentOutput with success=false + errorMessage discriminator so the runner
+// can detect Path A (no sends yet) and persist pending for next-turn combine.
+// All call sites are skip-gated on the three lock fields being non-null, so
+// sandbox / pre-v4 / fail-open callers are unaffected.
+// ============================================================================
+import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { LostLockError } from '../engine-adapters/production/v4-messaging-adapter'
 import type {
   AgentState,
   V4AgentInput,
@@ -105,6 +118,43 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       recentBotMessages,
     )
 
+    // ========================================================================
+    // CKPT-1 `ckpt_1_post_comprehension` (D-18 + Plan 05 Task 5.1)
+    // Skip-gated on lockHandle/lockChannel/lockIdentifier — sandbox / pre-v4 /
+    // fail-open callers skip the checkpoint entirely. lostLock → throw to
+    // runner outer catch. interrupted → Path A (no sends possible yet); return
+    // a V4AgentOutput with errorMessage discriminator the runner can detect.
+    // ========================================================================
+    if (input.lockHandle && input.lockChannel && input.lockIdentifier) {
+      const ck1 = await checkpoint(
+        'ckpt_1_post_comprehension',
+        input.lockHandle,
+        input.workspaceId,
+        input.lockChannel,
+        input.lockIdentifier,
+      )
+      if (ck1.lostLock) throw new LostLockError('ckpt_1_post_comprehension')
+      if (!ck1.proceed && ck1.interrupted) {
+        emitLockEvent('msg_aborted_path_a_combined', {
+          combined_msg_count: 1, // self only at this point; runner reads pending later
+          total_chars: input.message.length,
+        })
+        return {
+          success: false,
+          messages: [],
+          errorMessage: 'interrupted_at_ckpt_1_post_comprehension',
+          intentsVistos: input.intentsVistos,
+          templatesEnviados: input.templatesEnviados,
+          datosCapturados: input.datosCapturados,
+          packSeleccionado: input.packSeleccionado,
+          accionesEjecutadas: input.accionesEjecutadas ?? [],
+          totalTokens: tokensUsed,
+          shouldCreateOrder: false,
+          timerSignals: [],
+        }
+      }
+    }
+
     // 3. State merge
     const { state: mergedState, changes } = mergeAnalysis(state, analysis)
 
@@ -155,6 +205,13 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           recentMessages: input.history
             .slice(-4)
             .map((m) => ({ role: m.role, content: m.content })),
+          // Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.1)
+          // Thread lock fields into SubLoopContext so the sub-loop can fire
+          // CKPT-3 / CKPT-4 / CKPT-5 (RAG) and combined CKPT (legacy). Skip-gated
+          // downstream when any field is null.
+          lockHandle: input.lockHandle ?? null,
+          lockChannel: input.lockChannel ?? null,
+          lockIdentifier: input.lockIdentifier ?? null,
         },
         onDebug: (p) => {
           capturedSubLoopDebug = p
@@ -258,6 +315,44 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       confidence: analysis.intent.confidence,
     })
 
+    // ========================================================================
+    // CKPT-2 `ckpt_2_post_state_machine` (D-18 + Plan 05 Task 5.1)
+    // Fires after guards pass and BEFORE the sales-track state machine
+    // resolution. lostLock → throw to runner outer catch. interrupted → Path A
+    // (no sends possible yet); return V4AgentOutput with errorMessage
+    // discriminator so runner detects and persists pending for next-turn combine.
+    // Skip-gated on the three lock fields being non-null.
+    // ========================================================================
+    if (input.lockHandle && input.lockChannel && input.lockIdentifier) {
+      const ck2 = await checkpoint(
+        'ckpt_2_post_state_machine',
+        input.lockHandle,
+        input.workspaceId,
+        input.lockChannel,
+        input.lockIdentifier,
+      )
+      if (ck2.lostLock) throw new LostLockError('ckpt_2_post_state_machine')
+      if (!ck2.proceed && ck2.interrupted) {
+        emitLockEvent('msg_aborted_path_a_combined', {
+          combined_msg_count: 1,
+          total_chars: input.message.length,
+        })
+        return {
+          success: false,
+          messages: [],
+          errorMessage: 'interrupted_at_ckpt_2_post_state_machine',
+          intentsVistos: input.intentsVistos,
+          templatesEnviados: input.templatesEnviados,
+          datosCapturados: input.datosCapturados,
+          packSeleccionado: input.packSeleccionado,
+          accionesEjecutadas: input.accionesEjecutadas ?? [],
+          totalTokens: tokensUsed,
+          shouldCreateOrder: false,
+          timerSignals: [],
+        }
+      }
+    }
+
     // 8. Sales track — WHAT TO DO
     const phase = derivePhase(mergedState.accionesEjecutadas)
     const salesResult = resolveSalesTrack({
@@ -329,6 +424,12 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           recentMessages: input.history
             .slice(-4)
             .map((m) => ({ role: m.role, content: m.content })),
+          // Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.1)
+          // Thread lock fields into SubLoopContext for cas_reject path (legacy
+          // sub-loop combined CKPT). Skip-gated downstream when any field is null.
+          lockHandle: input.lockHandle ?? null,
+          lockChannel: input.lockChannel ?? null,
+          lockIdentifier: input.lockIdentifier ?? null,
         },
         onDebug: (p) => {
           capturedSubLoopDebug = p

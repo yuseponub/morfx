@@ -47,6 +47,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.18",
     "@uiw/react-json-view": "^2.0.0-alpha.41",
+    "@upstash/redis": "^1.38.0",
     "@webscopeio/react-textarea-autocomplete": "^4.9.2",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.86",

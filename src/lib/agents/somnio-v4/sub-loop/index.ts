@@ -20,6 +20,18 @@ import type {
   SubLoopToolCallSnapshot,
   SubLoopKbHitSnapshot,
 } from './debug-payload'
+// ============================================================================
+// Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.2)
+// CKPT-3 (post-tooling) + CKPT-4 (post-generation) + CKPT-5 (post-compliance)
+// fire in runRagSubLoop. A single combined CKPT (representing 3+4+5) fires in
+// runLegacySubLoop after its sole generateText call (coverage matrix line 881).
+// All call sites are skip-gated when ctx.lockHandle/lockChannel/lockIdentifier
+// are null — sandbox / pre-v4 / fail-open callers are unaffected.
+// ============================================================================
+import { checkpoint, type CheckpointId } from '@/lib/agents/interruption-system-v2/checkpoints'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import type { LockHandle } from '@/lib/agents/interruption-system-v2/lock'
+import { LostLockError } from '../../engine-adapters/production/v4-messaging-adapter'
 
 export type { SubLoopReason } from './output-schema'
 
@@ -57,10 +69,55 @@ function getOpenAI() {
  * - `workspaceId / conversationId / sessionId`: heredado de SubLoopToolsContext.
  * - `userMessage`: mensaje actual del cliente (último turn).
  * - `recentMessages`: últimos N turnos para contexto del modelo (recomendado 4-6).
+ * - `lockHandle / lockChannel / lockIdentifier` (Plan 05 — debounce-interruption-system-v2):
+ *   threaded from V4ProductionRunner → somnio-v4-agent → here. CKPT-3/4/5 (RAG)
+ *   + combined CKPT (legacy) fire only when all three are non-null. Sandbox / pre-v4
+ *   callers leave them null and skip all checkpoints transparently.
  */
 export interface SubLoopContext extends SubLoopToolsContext {
   userMessage: string
   recentMessages: Array<{ role: 'user' | 'assistant'; content: string }>
+  /** Standalone: debounce-interruption-system-v2 (D-18). Null on sandbox/pre-v4/fail-open. */
+  lockHandle?: LockHandle | null
+  lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
+  lockIdentifier?: string | null
+}
+
+/**
+ * Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.2) — sub-loop checkpoint helper.
+ *
+ * Wraps `checkpoint(ckptId, handle, ws, channel, identifier)` with the sub-loop-specific
+ * skip-guard + throw-on-lostLock + Path A emission. Returns { proceed: true } when:
+ *   - the lock plumbing is missing (sandbox / pre-v4 / fail-open) — caller continues
+ *   - the checkpoint says proceed (happy path)
+ *
+ * Returns { proceed: false } only when the holder was interrupted by a follower.
+ * Throws LostLockError when the holder no longer owns the lock (zombie defense —
+ * propagates to V4ProductionRunner's outer catch which emits `zombie_lambda_exit`).
+ */
+async function ckptInSubLoop(
+  ckptId: CheckpointId,
+  ctx: SubLoopContext,
+): Promise<{ proceed: boolean }> {
+  if (!ctx.lockHandle || !ctx.lockChannel || !ctx.lockIdentifier) {
+    return { proceed: true }
+  }
+  const ck = await checkpoint(
+    ckptId,
+    ctx.lockHandle,
+    ctx.workspaceId,
+    ctx.lockChannel,
+    ctx.lockIdentifier,
+  )
+  if (ck.lostLock) throw new LostLockError(ckptId)
+  if (!ck.proceed && ck.interrupted) {
+    emitLockEvent('msg_aborted_path_a_combined', {
+      combined_msg_count: 1,
+      total_chars: ctx.userMessage.length,
+    })
+    return { proceed: false }
+  }
+  return { proceed: true }
 }
 
 /**
@@ -226,6 +283,27 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   const tooling = toolingResult.output
   const toolingStep = extractStepData(toolingResult.rawResult)
 
+  // ==========================================================================
+  // CKPT-3 `ckpt_3_post_tooling` (D-18 + Plan 05 Task 5.2)
+  // Fires after the tooling call returns. lostLock → throw. interrupted →
+  // escalate to no_match (safe outcome: runner finally-block releases lock).
+  // ==========================================================================
+  const ck3 = await ckptInSubLoop('ckpt_3_post_tooling', args.ctx)
+  if (!ck3.proceed) {
+    return {
+      status: 'no_match',
+      responseText: null,
+      sourceTopic: null,
+      responseConfidence: null,
+      confidenceRationale: null,
+      nuncaDecirRules: null,
+      responseTemplate: 'handoff_humano',
+      knowledgeQueried: [],
+      requiresHuman: true,
+      reason: 'interrupted_at_ckpt_3_post_tooling',
+    }
+  }
+
   // Si tooling decidió handoff (no topic relevante) → escalar inmediato.
   if (
     tooling.should_handoff ||
@@ -309,6 +387,28 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
 
   const generation = generationResult.output
 
+  // ==========================================================================
+  // CKPT-4 `ckpt_4_post_generation` (D-18 + Plan 05 Task 5.2)
+  // Fires after the generation call returns. lostLock → throw. interrupted →
+  // escalate to no_match (the candidate text is discarded — runner releases
+  // the lock; the combined next-turn handles the user's follow-up).
+  // ==========================================================================
+  const ck4 = await ckptInSubLoop('ckpt_4_post_generation', args.ctx)
+  if (!ck4.proceed) {
+    return {
+      status: 'no_match',
+      responseText: null,
+      sourceTopic: tooling.topic_seleccionado,
+      responseConfidence: null,
+      confidenceRationale: null,
+      nuncaDecirRules: null,
+      responseTemplate: 'handoff_humano',
+      knowledgeQueried: tooling.topic_seleccionado ? [tooling.topic_seleccionado] : [],
+      requiresHuman: true,
+      reason: 'interrupted_at_ckpt_4_post_generation',
+    }
+  }
+
   // D-19 — threshold check
   if (generation.responseConfidence < RESPONSE_CONFIDENCE_THRESHOLD) {
     return emitRagHandoff(
@@ -345,6 +445,27 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
     nuncaDecirRules: tooling.material_del_topic.nunca_decir ?? [],
     cuandoEscalar: tooling.material_del_topic.cuando_escalar ?? [],
   })
+
+  // ==========================================================================
+  // CKPT-5 `ckpt_5_post_compliance` (D-18 + Plan 05 Task 5.2)
+  // Fires after the compliance check returns. lostLock → throw. interrupted →
+  // escalate to no_match (response not yet sent; runner releases lock).
+  // ==========================================================================
+  const ck5 = await ckptInSubLoop('ckpt_5_post_compliance', args.ctx)
+  if (!ck5.proceed) {
+    return {
+      status: 'no_match',
+      responseText: null,
+      sourceTopic: tooling.topic_seleccionado,
+      responseConfidence: null,
+      confidenceRationale: null,
+      nuncaDecirRules: tooling.material_del_topic.nunca_decir ?? null,
+      responseTemplate: 'handoff_humano',
+      knowledgeQueried: tooling.topic_seleccionado ? [tooling.topic_seleccionado] : [],
+      requiresHuman: true,
+      reason: 'interrupted_at_ckpt_5_post_compliance',
+    }
+  }
 
   if (compliance.nuncaDecirViolation) {
     getCollector()?.recordEvent(
@@ -624,6 +745,48 @@ async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
     )
     // safeAccessOutput wraps NoObjectGeneratedError (vercel/ai#11348) — beneficio del wrapper también para legacy path.
     output = safeAccessOutput(subLoopResult, LoopOutcomeSchema)
+
+    // ========================================================================
+    // Combined CKPT-3+4+5 for legacy path (Plan 05 Task 5.2 +
+    // RESEARCH coverage matrix line 881)
+    // The legacy sub-loop is a SINGLE generateText call — tooling + generation
+    // + (implicit) compliance happen in one model call. A single checkpoint
+    // after it covers the three RAG-path checkpoints in aggregate. We emit
+    // under the `ckpt_3_post_tooling` CheckpointId (per coverage-matrix
+    // convention). lostLock → throw with a disambiguating suffix in the message
+    // (via LostLockError('ckpt_3_post_tooling_legacy_combined')). interrupted →
+    // escalate to no_match.
+    // ========================================================================
+    if (args.ctx.lockHandle && args.ctx.lockChannel && args.ctx.lockIdentifier) {
+      const ckLegacy = await checkpoint(
+        'ckpt_3_post_tooling',
+        args.ctx.lockHandle,
+        args.ctx.workspaceId,
+        args.ctx.lockChannel,
+        args.ctx.lockIdentifier,
+      )
+      if (ckLegacy.lostLock) {
+        throw new LostLockError('ckpt_3_post_tooling_legacy_combined')
+      }
+      if (!ckLegacy.proceed && ckLegacy.interrupted) {
+        emitLockEvent('msg_aborted_path_a_combined', {
+          combined_msg_count: 1,
+          total_chars: args.ctx.userMessage.length,
+        })
+        return {
+          status: 'no_match',
+          responseText: null,
+          sourceTopic: null,
+          responseConfidence: null,
+          confidenceRationale: null,
+          nuncaDecirRules: null,
+          responseTemplate: 'handoff_humano',
+          knowledgeQueried: [],
+          requiresHuman: true,
+          reason: 'interrupted_at_ckpt_3_post_tooling_legacy_combined',
+        }
+      }
+    }
   } catch (genErr) {
     const e = genErr as Record<string, unknown>
     const errName = (e?.name as string) ?? 'Error'

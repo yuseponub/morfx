@@ -890,6 +890,32 @@ function mapOutcomeToAgentOutput(args: {
   // Null guards explícitos — si null (no debería ocurrir post-invariantCheck
   // del sub-loop, pero defensivo) → fallback a handoff humano.
   if (outcome.status === 'no_match') {
+    // ============================================================
+    // Standalone: debounce-v2-interrupt-reprocess (D-05 + Pitfall 7).
+    // Sub-loop CKPT-3/4/5 interrupts surface here with
+    // outcome.reason = 'interrupted_at_ckpt_3_post_tooling' |
+    //                  'interrupted_at_ckpt_4_post_generation' |
+    //                  'interrupted_at_ckpt_5_post_compliance'.
+    // BEFORE FIX: this branch silently converted them to requiresHuman=true
+    // handoffs (a hidden second bug). AFTER FIX: propagate upward as
+    // errorMessage, identical shape to the agent's in-agent CKPT-1/CKPT-2
+    // interrupt returns (lines ~142-155 + ~340-353). The runner's
+    // discriminator detector (Plan 01 Task 1.2) consumes this prefix to
+    // trigger restart with combined effectiveMessage.
+    //
+    // DO NOT add newMode='handoff' or requiresHuman=true here — those would
+    // have user-facing side effects (mode change persisted to session.state)
+    // for what is really just a "we got interrupted mid-process, please
+    // restart" signal.
+    // ============================================================
+    if (typeof outcome.reason === 'string' && outcome.reason.startsWith('interrupted_at_ckpt_')) {
+      return {
+        ...baseOutput,
+        success: false,
+        messages: [],
+        errorMessage: outcome.reason,
+      }
+    }
     return {
       ...baseOutput,
       messages: [],

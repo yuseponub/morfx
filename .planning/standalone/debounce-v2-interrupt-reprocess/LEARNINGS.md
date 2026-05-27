@@ -512,6 +512,60 @@ Información específica que un agente de documentación de este módulo necesit
 
 ---
 
+## Post-ship correction 2026-05-27 — chronological combine order
+
+**Bug:** The 4 `effectiveMessage = [...pending, priorMsg].join('\n')` sites in
+`v4-production-runner.ts` (CKPT-0, agent-discriminator detector, CKPT-6a,
+CKPT-6b Path A) shipped with **reversed** chronological order — pending entries
+(newer, arrived during processing) came FIRST and `priorMsg` / `turnEffectiveMessage`
+(older, was being processed) came LAST. The order was inherited verbatim from the
+parent standalone's pre-fix silent-persist code without questioning the semantics.
+
+**Symptom:** Haiku comprehension on a restart read the combined string in reverse
+chronological order:
+```
+msg2: "quiero comprar"        ← newer, but read first
+msg1: "hola buenos días"      ← older, but read last
+```
+
+vs the natural / chronological reading the user originally specified in
+DISCUSSION-LOG.md line 40 ("se une 1+2"):
+```
+msg1: "hola buenos días"      ← older, read first
+msg2: "quiero comprar"        ← newer, read last
+```
+
+**Fix:** flip the 4 production sites to `[priorMsg, ...pending].join('\n')` and
+`[turnEffectiveMessage, ...pending].join('\n')` respectively. Updated 2 hard
+asserts in `restart-loop.test.ts` (S2 line 417 + S3 line 510) + ~6 comment lines
+across both test files + UAT.md line 63 (forward-looking checklist).
+
+**What we did NOT touch:**
+- DISCUSSION-LOG.md, RESEARCH.md, 01..04-PLAN.md, 01..04-SUMMARY.md — these are
+  historical artifacts documenting what shipped at the time. Rewriting them
+  would erase the audit trail of the inverted-order period (commits `e5ead607`
+  through `38ead22b` carried inverted order; `<fix-commit>` is the fix-forward).
+- Path B (D-01) — already chronological because it processes pending-only in
+  RPUSH arrival order with NO priorMsg re-included.
+- Legacy `_v3:pendingUserMessage` accumulator on line 224
+  (`${pendingUserMessage}\n${input.message}`) — already chronological because
+  the only writer of `_v3:pendingUserMessage` (line 745 in `wasInterruptedWithZeroSends`
+  legacy block) saves the original `input.message`, so on the next turn the
+  formula `[saved-msg1]\n[new-msg2]` is naturally chronological.
+- Sub-loop + types.ts — still R-04 zero-touch.
+
+**Lesson (12th pattern):** when a fix inherits a code pattern verbatim from
+parent / prior code, audit the **semantic** of the pattern against the user's
+stated intent — not just the control-flow correctness. DISCUSSION-LOG.md
+line 40 verbatim said "se une 1+2" (chronological); the inherited `[pending, input]`
+shape silently subverted that intent. The unit tests passed because they
+asserted the implementation's order, not the user's order — locking in the
+deviation. Lesson reusable: **when migrating a code pattern across a fix, re-read
+the original user requirement and verify the pattern still expresses it.**
+
+---
+
 *Generated at standalone ship time (2026-05-26). Input for training agents that
 document control-flow refactors of distributed-coordination consumer subsystems +
 for the eventual per-agent follow-up standalones listed in section 6.*
+*Post-ship correction appended 2026-05-27 — chronological combine order.*

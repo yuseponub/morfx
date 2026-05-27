@@ -60,7 +60,7 @@ Commits: `f0f80f0d` (test suite) + `30f97a2b` (SUMMARY).
 - [ ] CKPT-4 isolated test asserts same shape for `interrupted_at_ckpt_4_post_generation`.
 - [ ] CKPT-5 isolated test asserts same shape for `interrupted_at_ckpt_5_post_compliance`.
 - [ ] Regression-guard test asserts genuine `no_match` (NOT interrupt) still produces `newMode: 'handoff'` + `requiresHuman: true`.
-- [ ] Full runner integration test asserts real agent + sub-loop interrupt iter 1 → success iter 2 → restart triggers (`msg_aborted_path_a_combined` with `at_step` payload, `restart_iteration: 1`), iter 2 input.message = `"msg2\nmsg1"` (combined), single lock lifetime (`lock_released_normal` exactly once), output.success = true.
+- [ ] Full runner integration test asserts real agent + sub-loop interrupt iter 1 → success iter 2 → restart triggers (`msg_aborted_path_a_combined` with `at_step` payload, `restart_iteration: 1`), iter 2 input.message = `"msg1\nmsg2"` (chronological — priorMsg first, pending last; post-fix 2026-05-27), single lock lifetime (`lock_released_normal` exactly once), output.success = true.
 - [ ] Scope reduction (if applied) documented in 03-SUMMARY.md (it was: 3 in-isolation + 1 regression + 1 integration = 5 tests total, reshape of original mega-test).
 - [ ] `npx vitest run src/lib/agents/interruption-system-v2/__tests__/ src/lib/agents/engine/__tests__/` exits 0 — full corpora green (51/51 across 7 suites).
 

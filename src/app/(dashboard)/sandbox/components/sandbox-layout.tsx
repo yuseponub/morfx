@@ -69,7 +69,7 @@ export function SandboxLayout() {
   // Each tab generates its own uuid on mount via React useState lazy init.
   // localStorage is still used for SavedSandboxSession (conversation save/reload UX) —
   // that is a SEPARATE concern from the lock id.
-  const [sandboxLockSessionId] = useState(() => crypto.randomUUID())
+  const [sandboxLockSessionId, setSandboxLockSessionId] = useState(() => crypto.randomUUID())
   const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
   // Timer state (Phase 15.7, simplified quick-013)
@@ -577,6 +577,11 @@ export function SandboxLayout() {
     // Stop timer on reset
     simulatorRef.current?.stop()
     setTimerState({ active: false, level: null, levelName: '', remainingMs: 0, paused: false })
+    // Post-smoke fix 2026-05-27: regenerate sandbox lock session id so the new
+    // conversation gets a fresh lock key + conversation_id. Otherwise the
+    // Interruption tab keeps showing events from the prior conversation (which
+    // are persisted under the previous UUID in agent_observability_turns).
+    setSandboxLockSessionId(crypto.randomUUID())
   }, [])
 
   // Handle new session (same as reset but through controls)

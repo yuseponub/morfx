@@ -37,6 +37,12 @@ interface PanelContainerProps {
   onTimerToggle: (enabled: boolean) => void
   onTimerConfigChange: (config: TimerConfig) => void
   onTimerPause: () => void
+  // Standalone: debounce-v2-sandbox-integration / Plan 03 (D-08).
+  // Threaded from sandbox-layout via DebugTabs. Used by the 'interruption'
+  // case below to populate InterruptionTab.conversationId so the tab
+  // queries /api/observability/events?conversation_id={sandboxSessionId}.
+  // null when caller does not supply (preserves InterruptionTab placeholder UX).
+  sandboxSessionId?: string | null
 }
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
@@ -77,11 +83,15 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
     case 'subloop':
       return <SubloopTab debugTurns={props.debugTurns} />
     case 'interruption':
-      // Standalone: debounce-interruption-system-v2 / Plan 06 (D-11 + LOCK-08).
-      // Sandbox has no real session/conversation id (local-only) so the tab
-      // renders the neutral placeholder. In a future plan a dashboard-side
-      // session inspector will mount this same component with real IDs.
-      return <InterruptionTab conversationId={null} sessionId={null} />
+      // Standalone: debounce-v2-sandbox-integration / Plan 03 (D-08).
+      // sandboxSessionId is the per-tab runtime lock id (Pitfall 6 — NOT from
+      // localStorage). When non-null, InterruptionTab queries /api/observability/events
+      // for the lock + checkpoint events that the v4 sandbox engine + route emit.
+      // sessionId stays null because sandbox does NOT create agent_sessions rows
+      // (D-11 option c in DISCUSSION-LOG); the events route resolves via
+      // conversation_id directly when session_id is absent (Pitfall 4 RESOLVED
+      // 2026-05-27 — agent_observability_turns.conversation_id is UUID NOT NULL without FK).
+      return <InterruptionTab conversationId={props.sandboxSessionId ?? null} sessionId={null} />
     default:
       return null
   }

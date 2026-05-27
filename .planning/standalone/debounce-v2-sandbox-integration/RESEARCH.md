@@ -1021,3 +1021,41 @@ Does `agent_observability_turns.conversation_id` have an FK to `conversations(id
    - **Plan 03 (optional):** Manual smoke S1/S2/S3 + LEARNINGS.md.
 
 Ready for planning.
+
+---
+
+## Research delta 2026-05-27
+
+### Checkpoints resolved
+
+| # | Item | Resolution |
+|---|------|------------|
+| 1 | D-02 vs D-15 contradiction | **Option C accepted** by user (channel='whatsapp' + identifier prefix `sandbox-{sandboxSessionId}`). DISCUSSION-LOG D-02 amended. |
+| 2 | FOLLOWER waiting mechanism | Long-poll a `sandbox-result:{id}` Redis key con TTL 60s (Pitfall 5 design accepted). |
+| 3 | FK constraint check | **VERIFIED**: `agent_observability_turns.conversation_id` es `UUID NOT NULL` SIN FK a `conversations` (`supabase/migrations/20260408000000_observability_schema.sql:47`). Pitfall 4 Option (a) es safe — sandbox puede escribir `conversation_id=sandboxSessionId` libremente. |
+
+### Restart-loop integration (post sibling ship 2026-05-26 + chronological fix 2026-05-27)
+
+Sibling standalone `debounce-v2-interrupt-reprocess` shipeó el outer `while(shouldRestart)` en `V4ProductionRunner` + Pitfall 7 fix en agent mapper + chronological order (`[priorMsg, ...pending]`). **Pattern 2 ("SomnioV4Engine — mirror V4ProductionRunner lifecycle") debe ahora espejar el restart-loop, no el silent-persist original.**
+
+**Cambios a la mecánica del engine sandbox:**
+- 4 sitios Path A (CKPT-0, agent-discriminator, CKPT-6a, CKPT-6b sentCount==0) → `shouldRestart = true; continue` en mismo request.
+- `effectiveMessage = [turnEffectiveMessage, ...pending].join('\n')` (chronological, post-fix 2026-05-27).
+- Path B (sentCount > 0 en CKPT-6b) → emite `path_b_solo` event, return sin restart.
+- CKPT-7.N preservado sin restart (mismo D-05 del padre).
+- Token accumulator + restart_iteration en cada emit.
+
+**Implicación para FOLLOWER long-poll:** HOLDER debe escribir `sandbox-result:{id}` ANTES de soltar el lock, incluso si entró en restart-loop (escribe DESPUÉS del while, antes del finally). El FOLLOWER long-polea hasta que aparezca la key o expire 30s.
+
+### File-touch list actualizado
+
+| File | Status | Cambio principal |
+|------|--------|------------------|
+| `src/app/api/sandbox/process/route.ts` | EDIT | Nueva rama `if (agentId === 'somnio-sales-v4')` con HOLDER/FOLLOWER pattern + lock acquire + collector wrap |
+| `src/lib/sandbox/engine-v4.ts` (o donde viva SomnioV4Engine) | EDIT | Mirror restart-loop de `V4ProductionRunner` (4 sitios Path A + 8 CKPTs + Pitfall 5 result-key write) |
+| `src/app/api/sandbox/result/[id]/route.ts` | NEW | Long-poll endpoint para FOLLOWER (GET con timeout 30s, retorna `sandbox-result:{id}` cuando exista) |
+| `src/app/(dashboard)/sandbox/components/debug-panel/interruption-tab.tsx` | EDIT | Pasar `sandboxSessionId` + workspaceId real al tab para filtrar events |
+| `src/app/(dashboard)/sandbox/components/debug-panel/panel-container.tsx` | EDIT | Wire `conversationId=sandboxSessionId` al InterruptionTab |
+| Tests: `engine-v4-lock.test.ts` + `route-v4-lock.test.ts` | NEW | Vitest cubriendo HOLDER+FOLLOWER+restart-loop+long-poll |
+
+Ready for `/gsd:plan-phase debounce-v2-sandbox-integration`.

@@ -2,7 +2,14 @@
 
 **Standalone:** `debounce-v2-sandbox-integration`
 **Fecha apertura:** 2026-05-26
-**Status:** discuss-phase **MINIMAL** (directriz única del usuario + decisiones derivadas para acotar scope). Listo para `/gsd:research-phase`.
+**Status:** discuss-phase **AMENDED 2026-05-27** — listo para research-delta + plan-phase.
+
+## Status updates 2026-05-27
+
+- **Sibling standalone `debounce-v2-interrupt-reprocess` SHIPPED 2026-05-26** + chronological order fix 2026-05-27 (HEAD `5f4d0978` on main). Restart-loop ahora es comportamiento canónico de `V4ProductionRunner`. D-06 amended para espejar restart-loop en `SomnioV4Engine`.
+- **D-02 amended a Option C** (`channel='whatsapp'` + identifier prefix `sandbox-{id}`) — flip desde Option B original. Razón: research mostró que B violaba D-15.
+- **Pitfall 4 (FK constraint) RESUELTO**: `agent_observability_turns.conversation_id` es `UUID NOT NULL` sin FK a `conversations` (verificado en `supabase/migrations/20260408000000_observability_schema.sql:47`). Sandbox puede escribir con `conversation_id=sandboxSessionId` libremente — Option (a) de Pitfall 4 es safe.
+- **FOLLOWER waiting mechanism RESUELTO**: long-poll a `sandbox-result:{id}` Redis key con TTL 60s (research recomendó esto en Pitfall 5; aceptado).
 
 ---
 
@@ -40,12 +47,13 @@ El gap concreto:
 **Razón:** Padre limitó scope a v4 dormant por seguridad Regla 6. Este standalone no expande scope; solo añade el path sandbox al mismo agente.
 **Implicación:** No tocar branches v3/recompra/godentist del route handler.
 
-### D-02: Lock key shape en sandbox
-**Decisión:** `lock:{workspaceId}:sandbox:{sandboxSessionId}` — `channel='sandbox'` como literal nuevo agregado al union `LockChannel`.
-**Razón:** El usuario quiere que el sandbox actúe como un canal más (paralelo a `whatsapp`/`facebook`/`instagram`). Aislamiento por `sandboxSessionId` para que múltiples tabs del usuario probando en paralelo no se bloqueen entre sí. `workspaceId` real del workspace activo del usuario (no `'sandbox-workspace'` placeholder cuando sea posible).
+### D-02: Lock key shape en sandbox (AMENDED 2026-05-27 — Option C)
+**Decisión:** `lock:{workspaceId}:whatsapp:sandbox-{sandboxSessionId}` — `channel='whatsapp'` (literal existente, sin tocar union) + `identifier` con prefix `sandbox-` para aislar de tráfico WhatsApp real.
+**Razón (amendment 2026-05-27):** Research surfaced que la decisión original (agregar `'sandbox'` al union `LockChannel`) violaba D-15 ("no tocar módulo interruption-system-v2/") porque requería editar 5 files del módulo + extender parseador del cron sweep. Option C respeta D-15 fully (cero cambios al módulo), respeta D-09/D-10 (lock keys aislados via prefix `sandbox-`), y cron parser funciona sin cambios. Costo: `channel='whatsapp'` semánticamente es una mentira en logs para tráfico sandbox — aceptable porque las lock keys NO se exponen a operadores y el prefix `sandbox-` deja el identifier autodocumentado (`+57300...` vs `sandbox-abc123`).
 **Alternativas descartadas:**
-- `channel='whatsapp'` reutilizando el canal real: contaminaría keys de prod y rompería el aislamiento.
+- ~~`channel='sandbox'` literal nuevo~~ (original Option B): viola D-15, bumps scope a ~5 plans.
 - `identifier=workspaceId` solo: bloquearía múltiples sandboxes paralelos del mismo workspace.
+- `channel='whatsapp'` con `identifier=workspaceId` directo: contaminaría keys con tráfico real.
 
 ### D-03: Source de `sandboxSessionId`
 **Decisión:** Reutilizar el `sessionId` que el sandbox UI ya gestiona vía `SandboxSession` (path `src/lib/sandbox/sandbox-session.ts`). Si no existe en el payload del request, generar `crypto.randomUUID()` server-side y devolverlo al cliente para que persista.
@@ -62,10 +70,10 @@ El gap concreto:
 **Razón:** Si una llamada Gemini se cuelga 60s+ en sandbox, sin heartbeat el TTL=45s expira y otra invocación podría adquirir lock mientras la primera sigue viva — exactamente el bug que el heartbeat resuelve en prod.
 **Implicación:** Sandbox tendrá que importar `startHeartbeat` (ya exportado del módulo padre).
 
-### D-06: Path A / Path B en sandbox
-**Decisión:** Implementar el follower path completo (HOLDER + FOLLOWER + fail-open) en el route handler de sandbox, antes de instanciar `SomnioV4Engine`.
-**Razón:** El test real del sistema es que el usuario pueda mandar msg1 + msg2 rápido en sandbox y observar que msg2 queda como follower (RPUSH pending), msg1 detecta interrupt en algún CKPT, combina ambos y procesa solo. Sin esto, sólo probamos el happy path (1-msg-aislado).
-**Implicación:** El route handler tendrá una rama nueva análoga a `webhook-handler.ts` líneas 200-300 (HOLDER acquires + processes; FOLLOWER pushes to pending + responds 202 immediately).
+### D-06: Path A / Path B en sandbox (AMENDED 2026-05-27 — restart-loop semantics)
+**Decisión:** Implementar el follower path completo (HOLDER + FOLLOWER + fail-open) en el route handler de sandbox, antes de instanciar `SomnioV4Engine`. **`SomnioV4Engine.processMessage` debe espejar el restart-loop de `V4ProductionRunner`** (post-fix `debounce-v2-interrupt-reprocess` shipped 2026-05-26): outer `while(shouldRestart)` que en CKPT-0/1/2/3/4/5/6a/6b Path A drena pending + combina cronológicamente (`[turnEffectiveMessage, ...pending]`, post-fix 2026-05-27) + re-corre en el MISMO request (no nuevo dispatch).
+**Razón:** El test real del sistema es que el usuario pueda mandar msg1 + msg2 rápido en sandbox y observar que msg2 queda como follower (RPUSH pending), msg1 detecta interrupt en algún CKPT, combina cronológicamente (`msg1\nmsg2`) y procesa el combo en una sola respuesta HTTP. Sin restart-loop, el sandbox quedaría con el bug original (silent persist → bot mudo). Path A ahora restartea EN EL MISMO REQUEST del HOLDER; el FOLLOWER long-poll-ea el resultado del HOLDER.
+**Implicación:** El route handler tendrá una rama nueva análoga a `webhook-handler.ts` líneas 200-300 (HOLDER acquires + processes con restart-loop interno; FOLLOWER pushes to pending + long-polls `sandbox-result:{id}`). `SomnioV4Engine.processMessage` espeja la mecánica del runner: 4 sitios de Path A → restart-continue, Path B preserva sentCount > 0 sin restart.
 
 ### D-07: Response del route handler en FOLLOWER path
 **Decisión:** En sandbox, cuando la invocación es FOLLOWER, responder JSON `{ success: true, deferred: true, reason: 'follower_appended_to_pending', pendingListLength: N }` con HTTP 200 (no 202). El UI sandbox no espera dispatch async — el HOLDER al detectar interrupt es quien procesa y devuelve.

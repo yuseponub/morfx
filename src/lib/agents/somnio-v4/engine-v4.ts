@@ -64,7 +64,36 @@ export interface V4EngineInput {
   lockIdentifier?: string | null   // sandbox uses `sandbox-{sandboxSessionId}` per D-02 Option C
   ownPendingEntryJson?: string | null
   sandboxSessionId?: string         // for Pitfall 5 sandbox-result:{id} write before finally release
+  /**
+   * When > 0 AND lockHandle is non-null, the engine inserts ARTIFICIAL DELAYS to
+   * simulate production timing inside the lock-hold window:
+   *
+   *   1. After CKPT-0 (post-acquire) succeeds, sleep `simulateProdTimingMs` ms
+   *      BEFORE invoking the agent's processMessage. This represents the
+   *      production LLM "thinking" time and gives msg2 a window to arrive
+   *      as FOLLOWER → be detected at CKPT-6 (pre-send-loop) → Path A combined
+   *      restart.
+   *
+   *   2. Between CKPT-7.N iterations (per-template), sleep proportional to
+   *      message length. This represents the production template-send pacing
+   *      and gives msg2 a window to arrive during the send loop → be detected
+   *      at the next CKPT-7.N iteration → Path B abort.
+   *
+   * Without these delays the engine completes in microseconds and Path A / B
+   * cannot be triggered from the sandbox UI (the user cannot click "send" fast
+   * enough to overlap a 3-second lock hold).
+   *
+   * Default 0 (no simulation — backward compatible with existing tests and
+   * non-sandbox callers).
+   *
+   * Added post-`debounce-v2-sandbox-integration` smoke discovery 2026-05-27:
+   * users reported that "the system does not interrupt even after 6+ seconds"
+   * because the sandbox engine returns before the second message can land.
+   */
+  simulateProdTimingMs?: number
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export interface V4EngineOutput {
   success: boolean
@@ -151,6 +180,15 @@ export class SomnioV4Engine {
             shouldRestart = true
             continue
           }
+        }
+
+        // Simulate production LLM "thinking" delay (post-smoke fix 2026-05-27).
+        // Lock stays held during this sleep. If msg2 arrives meanwhile, it becomes
+        // FOLLOWER and CKPT-6 (post-processMessage) will detect it for Path A
+        // combined restart. Without this delay, sandbox engine completes in
+        // microseconds and Path A is untestable.
+        if (input.lockHandle && (input.simulateProdTimingMs ?? 0) > 0) {
+          await sleep(input.simulateProdTimingMs!)
         }
 
         const output = await processMessage({
@@ -264,6 +302,24 @@ export class SomnioV4Engine {
         // ============================================================
         const finalMessages: string[] = []
         for (let i = 0; i < output.messages.length; i++) {
+          // Simulate production per-template send pacing (post-smoke fix 2026-05-27).
+          // Lock stays held during these sleeps. If msg2 arrives during a gap, the
+          // NEXT iteration's CKPT-7.N checkpoint detects the interrupt and breaks
+          // (Path B abort). Skip on iteration 0 — match the production behavior where
+          // pacing happens BETWEEN sends, not before the first.
+          if (
+            i > 0 &&
+            input.lockHandle &&
+            (input.simulateProdTimingMs ?? 0) > 0
+          ) {
+            // ~2-6s per template proportional to length (capped). Production
+            // V4MessagingAdapter has variable typing-speed delays in this range.
+            const perTemplateMs = Math.max(
+              2000,
+              Math.min(6000, output.messages[i].length * 25),
+            )
+            await sleep(perTemplateMs)
+          }
           if (input.lockHandle && lockCtx) {
             const ck7 = await checkpoint(
               'ckpt_7_pre_template',

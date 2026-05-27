@@ -281,6 +281,12 @@ export async function POST(request: NextRequest) {
             lockIdentifier,
             ownPendingEntryJson,
             sandboxSessionId,
+            // Hold the lock long enough for msg2 to land as FOLLOWER and trigger
+            // Path A (post-smoke fix 2026-05-27). 8s thinking + ~2-6s per template
+            // ≈ 15-25s total lock hold for a typical 3-template response, matching
+            // production WhatsApp lock duration. Only applied when HOLDER (lockHandle
+            // non-null) — fallback no-Redis path stays instant.
+            simulateProdTimingMs: lockHandle ? 8000 : 0,
           })
 
           // PRESERVE the existing TEMP DEBUG block (lines 145-171 of pre-Plan-02 route.ts).

@@ -454,12 +454,18 @@ export function SandboxLayout() {
       let interruptedAtIndex = -1
       if (result.success && result.messages.length > 0) {
         for (let i = 0; i < result.messages.length; i++) {
-          // Proportional delay based on message length and slider setting
-          const baseDelay = calculateCharDelay(AVG_TEMPLATE_CHARS)
-          const multiplier = baseDelay > 0 ? responseDelayMs / baseDelay : 0
-          const delay = calculateCharDelay(result.messages[i].length) * multiplier
-          if (delay > 0) {
-            await new Promise(resolve => setTimeout(resolve, delay))
+          // Per-template delay. For v4, the SERVER already paced via
+          // engine.simulateProdTimingMs (post-smoke fix 2026-05-27) and the
+          // lock was held during the entire send loop. Adding client delays
+          // here would double-pace the UX. For non-v4 agents, keep the
+          // existing slider-driven client-side animation.
+          if (agentIdRef.current !== 'somnio-sales-v4') {
+            const baseDelay = calculateCharDelay(AVG_TEMPLATE_CHARS)
+            const multiplier = baseDelay > 0 ? responseDelayMs / baseDelay : 0
+            const delay = calculateCharDelay(result.messages[i].length) * multiplier
+            if (delay > 0) {
+              await new Promise(resolve => setTimeout(resolve, delay))
+            }
           }
 
           // Check for interruption: user sent a message during the delay

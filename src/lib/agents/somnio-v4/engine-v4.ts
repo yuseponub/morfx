@@ -31,6 +31,21 @@ import type { SandboxState, DebugTurn } from '@/lib/sandbox/types'
 import type { PackSelection } from '@/lib/agents/types'
 import type { SystemEvent } from './types'
 
+// Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-05 + D-06 + D-15).
+// Wire shipped interruption-system-v2 primitives into the sandbox engine.
+// Module is IMPORTED ONLY — never modified (D-15).
+import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
+import {
+  releaseLockIfOwner,
+  startHeartbeat,
+  type LockHandle,
+  type LockChannel,
+} from '@/lib/agents/interruption-system-v2/lock'
+import { readAndClearPending } from '@/lib/agents/interruption-system-v2/pending'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
+import { LostLockError } from '@/lib/agents/engine-adapters/production/v4-messaging-adapter'
+
 export interface V4EngineInput {
   message: string
   state: SandboxState
@@ -38,6 +53,17 @@ export interface V4EngineInput {
   turnNumber: number
   workspaceId: string
   systemEvent?: SystemEvent
+  // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-15).
+  // All 5 fields OPTIONAL — pre-this-standalone callers (existing tests, dev workflows
+  // that bypass the sandbox lock branch) continue to work without modification.
+  // When null/undefined, the engine skip-guards every checkpoint + heartbeat + release
+  // (sandbox keeps the same behavior as before this standalone).
+  // Plan 02 (sandbox/process/route.ts v4 branch) is the FIRST caller that populates these.
+  lockHandle?: LockHandle | null
+  lockChannel?: LockChannel | null  // 'whatsapp' | 'facebook' | 'instagram' — sandbox uses 'whatsapp' per D-02 Option C
+  lockIdentifier?: string | null   // sandbox uses `sandbox-{sandboxSessionId}` per D-02 Option C
+  ownPendingEntryJson?: string | null
+  sandboxSessionId?: string         // for Pitfall 5 sandbox-result:{id} write before finally release
 }
 
 export interface V4EngineOutput {
@@ -53,6 +79,29 @@ export class SomnioV4Engine {
   async processMessage(input: V4EngineInput): Promise<V4EngineOutput> {
     const timestamp = new Date().toISOString()
 
+    // ============================================================
+    // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-05 + D-06).
+    // Outer-scope state for restart-loop semantics (mirror V4ProductionRunner
+    // post-`debounce-v2-interrupt-reprocess` shipped 2026-05-26 + chronological-fix
+    // commit 494d3bb4 on 2026-05-27).
+    // These persist ACROSS restart-loop iterations within a single processMessage
+    // invocation; reset to zero at the top of each new processMessage call.
+    // ============================================================
+    const startMs = Date.now()
+    const lockCtx = input.lockHandle && input.lockChannel && input.lockIdentifier
+      ? { channel: input.lockChannel as LockChannel, identifier: input.lockIdentifier as string }
+      : null
+    let stopHeartbeat: (() => void) | null = null
+    if (input.lockHandle) {
+      // D-05: heartbeat lifecycle OUTSIDE the while loop (Pitfall 6 — no heartbeat stacking).
+      stopHeartbeat = startHeartbeat(input.lockHandle)
+    }
+    let totalTokensAcrossRestarts = 0
+    let restartIteration = 0
+    let effectiveMessage: string | null = null
+    let templatesSentCount = 0
+
+    try {
     try {
       const output = await processMessage({
         message: input.message,
@@ -202,6 +251,29 @@ export class SomnioV4Engine {
           code: 'V4_ENGINE_ERROR',
           message: errorMsg,
         },
+      }
+    }
+    } finally {
+      // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-05 + Pitfall 6).
+      // Lock + heartbeat lifecycle ALWAYS released exactly once per processMessage,
+      // regardless of which iteration of the restart loop returned/threw.
+      if (stopHeartbeat) stopHeartbeat()
+      if (input.lockHandle) {
+        try {
+          const released = await releaseLockIfOwner(input.lockHandle)
+          if (released) {
+            emitLockEvent('lock_released_normal', {
+              holder_uuid: input.lockHandle.holderUuid,
+              duration_ms: Date.now() - startMs,
+              templates_sent: templatesSentCount,
+            })
+          }
+        } catch (releaseError) {
+          emitLockEvent('redis_unavailable_fallback_failed', {
+            error_message: releaseError instanceof Error ? releaseError.message : String(releaseError),
+            at_step: 'release_lock_in_finally',
+          })
+        }
       }
     }
   }

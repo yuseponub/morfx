@@ -23,7 +23,7 @@ import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, Sand
 import { IngestTimerSimulator, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
-import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
+import { getLastAgentId, setLastAgentId, generateSessionId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
 import { getAgentName } from '@/lib/agents/agent-catalog'
 import { getAgentConfig } from '@/app/actions/agent-config'
@@ -57,6 +57,14 @@ export function SandboxLayout() {
   const [isTyping, setIsTyping] = useState(false)
   const [queuedMessages, setQueuedMessages] = useState<string[]>([])
   const queuedMessagesRef = useRef<string[]>([])
+  // Standalone: debounce-v2-sandbox-integration / Plan 02 (D-03 + D-09 + Pitfall 6).
+  // Runtime-only sandbox session id used as the LOCK identifier (lock:{ws}:whatsapp:sandbox-{id}).
+  // NOT persisted to localStorage — localStorage is origin-scoped and Tab A + Tab B of
+  // the same workspace would share it, breaking D-09 (independence between sandbox tabs).
+  // Each tab generates its own id on mount via React useState lazy init.
+  // localStorage is still used for SavedSandboxSession (conversation save/reload UX) —
+  // that is a SEPARATE concern from the lock id.
+  const [sandboxLockSessionId] = useState(() => generateSessionId())
   const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
   // Timer state (Phase 15.7, simplified quick-013)
@@ -368,10 +376,62 @@ export function SandboxLayout() {
           crmAgents: enabledCrmAgents,
           workspaceId: workspaceRef.current?.id,
           agentId: agentIdRef.current,
+          sandboxSessionId: sandboxLockSessionId,  // Plan 02 D-03
         }),
       })
 
-      const result: SandboxEngineResult = await response.json()
+      // Standalone: debounce-v2-sandbox-integration / Plan 02 (D-07).
+      // El v4 branch puede retornar { deferred: true } cuando este request es FOLLOWER
+      // (otro request inflight del mismo lock key esta procesando). En ese caso, long-poll
+      // a /api/sandbox/lock-result/{id} hasta 30s por la respuesta combinada del HOLDER.
+      const rawJson = await response.json() as
+        | SandboxEngineResult
+        | { success: true; deferred: true; sandboxSessionId: string; reason: string; pendingListLength: number }
+
+      let result: SandboxEngineResult
+
+      if ('deferred' in rawJson && rawJson.deferred === true) {
+        // ============================================================
+        // FOLLOWER path: este request fue queued via pushToPending; el HOLDER
+        // (un request previo inflight para la misma lock key) procesara ambos
+        // mensajes combinados y escribira el resultado a
+        // sandbox-result:{sandboxLockSessionId}. Long-poll el lock-result
+        // endpoint hasta 30s.
+        // ============================================================
+        try {
+          const pollResp = await fetch(`/api/sandbox/lock-result/${rawJson.sandboxSessionId}`)
+          const pollJson = await pollResp.json() as
+            | { ready: true; result: SandboxEngineResult }
+            | { ready: false; timeout?: true; error?: string }
+
+          if ('ready' in pollJson && pollJson.ready === true && pollJson.result) {
+            result = pollJson.result
+          } else {
+            // Timeout o Redis error — surface como chat-visible error.
+            setIsTyping(false)
+            const errorNote: SandboxMessage = {
+              id: `msg-${Date.now()}-system-deferred-timeout`,
+              role: 'assistant',
+              content: `[SANDBOX V4: respuesta combinada no llego en 30s — el HOLDER puede seguir procesando o se cayo. Reintentar enviando un nuevo mensaje.]`,
+              timestamp: new Date().toISOString(),
+            }
+            setMessages(prev => [...prev, errorNote])
+            return  // bail; nada para renderizar en result
+          }
+        } catch (pollErr) {
+          setIsTyping(false)
+          const errorNote: SandboxMessage = {
+            id: `msg-${Date.now()}-system-deferred-error`,
+            role: 'assistant',
+            content: `[SANDBOX V4: error en long-poll — ${pollErr instanceof Error ? pollErr.message : String(pollErr)}]`,
+            timestamp: new Date().toISOString(),
+          }
+          setMessages(prev => [...prev, errorNote])
+          return
+        }
+      } else {
+        result = rawJson as SandboxEngineResult
+      }
       const clientLatencyMs = performance.now() - tClientStart
       if (result.debugTurn) {
         result.debugTurn.clientLatencyMs = clientLatencyMs

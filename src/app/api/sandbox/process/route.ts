@@ -175,164 +175,195 @@ export async function POST(request: NextRequest) {
       const { runWithCollector, ObservabilityCollector } = await import('@/lib/observability')
 
       // ============================================================
-      // Construct collector BEFORE acquireLock so the entire lock
-      // lifecycle (lock_acquired, lock_acquire_failed_follower,
-      // interrupt_written, redis_unavailable_fallback_failed) emits
-      // INSIDE the runWithCollector wrap below. Previously the wrap
-      // started at the engine call only, so route-level emits hit
-      // getCollector() == null and were silent no-ops.
+      // Streaming response (post-smoke fix 2026-05-27).
       //
-      // conversationId: sandboxSessionId is a UUID v4 from
-      // crypto.randomUUID() on the client (sandbox-layout.tsx). The
-      // column agent_observability_turns.conversation_id is `UUID NOT NULL`
-      // (supabase/migrations/20260408000000_observability_schema.sql:47);
-      // non-UUID strings cause INSERT to be rejected by Postgres,
-      // silently dropping the turn + all child events.
+      // The browser opens ONE fetch() that returns a long-lived
+      // application/x-ndjson stream. The route writes one JSON line
+      // per event:
+      //   { type: 'message', content, index } — emitted by the engine
+      //     via the onMessage callback AFTER CKPT-7.N + per-template
+      //     pacing sleep, so the browser sees each template appear
+      //     progressively with prod-like timing while the lock is
+      //     still held.
+      //   { type: 'deferred', ... } — single line, FOLLOWER path.
+      //   { type: 'complete', newState, debugTurn, ... } — final chunk
+      //     for HOLDER path with the engine's aggregated result.
+      //   { type: 'error', message } — engine threw.
       //
-      // collector.flush() is called in the finally block below — without
-      // it, recorded events stay in memory and die at request end.
-      // (Mirror of pw-confirmation-preload-and-invoke.ts:521-523 pattern.)
+      // The whole loop runs inside runWithCollector so emitLockEvent
+      // sees the active collector. collector.flush() is invoked in
+      // finally before closing the stream — without it, events stay
+      // in memory and die at request end (Pitfall 3 of the standalone).
       // ============================================================
       const collector = new ObservabilityCollector({
         workspaceId: wsId,
         conversationId: sandboxSessionId,
         agentId: 'somnio-sales-v4',
-        triggerKind: 'sandbox',  // Task 2.0 extended TriggerKind union with this literal.
+        triggerKind: 'sandbox',
         turnStartedAt: new Date(),
       })
 
-      try {
-        const responseBody = await runWithCollector(collector, async () => {
-          let lockHandle: import('@/lib/agents/interruption-system-v2/lock').LockHandle | null = null
-          let ownPendingEntryJson: string | null = null
-          const entryUuid = randomUUID()
-          const pendingEntry = {
-            entry_uuid: entryUuid,
-            content: message,
-            received_at: new Date().toISOString(),
-            msg_id: entryUuid,
+      const encoder = new TextEncoder()
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const writeChunk = (obj: unknown) => {
+            controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'))
           }
 
           try {
-            lockHandle = await acquireLock(wsId, lockChannel, lockIdentifier)
-
-            if (!lockHandle) {
-              // ============================================================
-              // FOLLOWER PATH (D-06 + D-07)
-              // ============================================================
-              const push = await pushToPending(wsId, lockChannel, lockIdentifier, pendingEntry)
-              await redis.set(
-                `interrupt:${wsId}:${lockChannel}:${lockIdentifier}`,
-                entryUuid,
-                { ex: 60 },
-              )
-              emitLockEvent('lock_acquire_failed_follower', {
-                existing_holder_uuid: 'unknown',
-                my_msg_id: entryUuid,
-                key: `lock:${wsId}:${lockChannel}:${lockIdentifier}`,
-              })
-              emitLockEvent('interrupt_written', {
+            await runWithCollector(collector, async () => {
+              let lockHandle: import('@/lib/agents/interruption-system-v2/lock').LockHandle | null = null
+              let ownPendingEntryJson: string | null = null
+              const entryUuid = randomUUID()
+              const pendingEntry = {
+                entry_uuid: entryUuid,
+                content: message,
+                received_at: new Date().toISOString(),
                 msg_id: entryUuid,
-                pending_list_length: push.pendingListLength,
-              })
-              return {
-                success: true as const,
-                deferred: true as const,
-                sandboxSessionId,
-                reason: 'follower_appended_to_pending' as const,
-                pendingListLength: push.pendingListLength,
               }
+
+              try {
+                lockHandle = await acquireLock(wsId, lockChannel, lockIdentifier)
+
+                if (!lockHandle) {
+                  // ============================================================
+                  // FOLLOWER PATH (D-06 + D-07) — single deferred chunk
+                  // ============================================================
+                  const push = await pushToPending(wsId, lockChannel, lockIdentifier, pendingEntry)
+                  await redis.set(
+                    `interrupt:${wsId}:${lockChannel}:${lockIdentifier}`,
+                    entryUuid,
+                    { ex: 60 },
+                  )
+                  emitLockEvent('lock_acquire_failed_follower', {
+                    existing_holder_uuid: 'unknown',
+                    my_msg_id: entryUuid,
+                    key: `lock:${wsId}:${lockChannel}:${lockIdentifier}`,
+                  })
+                  emitLockEvent('interrupt_written', {
+                    msg_id: entryUuid,
+                    pending_list_length: push.pendingListLength,
+                  })
+                  writeChunk({
+                    type: 'deferred',
+                    success: true,
+                    deferred: true,
+                    sandboxSessionId,
+                    reason: 'follower_appended_to_pending',
+                    pendingListLength: push.pendingListLength,
+                  })
+                  return
+                }
+
+                // ============================================================
+                // HOLDER PATH (D-06)
+                // ============================================================
+                const push = await pushToPending(wsId, lockChannel, lockIdentifier, pendingEntry)
+                ownPendingEntryJson = push.exactJson
+                emitLockEvent('lock_acquired', {
+                  holder_uuid: lockHandle.holderUuid,
+                  msg_id: entryUuid,
+                  key: lockHandle.key,
+                  ttl: 45,
+                  started_at: lockHandle.startedAt,
+                })
+              } catch (lockErr) {
+                emitLockEvent('redis_unavailable_fallback_failed', {
+                  error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
+                  at_step: 'route_acquire_lock',
+                })
+                lockHandle = null
+                ownPendingEntryJson = null
+              }
+
+              const { SomnioV4Engine } = await import('@/lib/agents/somnio-v4/engine-v4')
+              const v4Engine = new SomnioV4Engine()
+              const v4Result = await v4Engine.processMessage({
+                message,
+                state,
+                history: history ?? [],
+                turnNumber: turnNumber ?? 1,
+                workspaceId: wsId,
+                systemEvent,
+                lockHandle,
+                lockChannel,
+                lockIdentifier,
+                ownPendingEntryJson,
+                sandboxSessionId,
+                simulateProdTimingMs: lockHandle ? 8000 : 0,
+                // Progressive reveal: write each template to the stream the
+                // moment the engine "sends" it (post-CKPT-7.N, post-pacing).
+                // Browser sees it immediately while the lock is still held.
+                onMessage: async (content, i) => {
+                  writeChunk({ type: 'message', content, index: i })
+                },
+              })
+
+              try {
+                const truncate = (s: string, n = 250) => s.length > n ? s.slice(0, n) + '...' : s
+                const recentBotMsgs = (history ?? [])
+                  .filter((h) => h.role === 'assistant')
+                  .slice(-2)
+                  .map((h) => truncate(h.content))
+                console.log('[V4 TURN] ' + JSON.stringify({
+                  ts: new Date().toISOString(),
+                  turn: turnNumber ?? 1,
+                  inMessage: message,
+                  inHistoryLength: (history ?? []).length,
+                  inHistory: (history ?? []).map((h) => ({ role: h.role, content: truncate(h.content) })),
+                  inSystemEvent: systemEvent ?? null,
+                  recentBotMsgs,
+                  outIntent: v4Result.debugTurn?.intent ?? null,
+                  outMessages: v4Result.messages?.map(truncate) ?? [],
+                  outAction: v4Result.debugTurn?.salesTrack?.accion ?? null,
+                  outNewMode: v4Result.newState?.currentMode ?? null,
+                  outIntentsVistos: v4Result.newState?.intentsVistos ?? [],
+                  outTemplatesEnviados: v4Result.newState?.templatesEnviados ?? [],
+                  outTimerSignal: v4Result.timerSignal ?? null,
+                  outError: v4Result.error ?? null,
+                  lockAcquired: lockHandle !== null,
+                  sandboxSessionId,
+                }))
+              } catch (logErr) {
+                console.log('[V4 TURN ERROR] failed to serialize debug log:', logErr)
+              }
+
+              writeChunk({
+                type: 'complete',
+                success: v4Result.success,
+                newState: v4Result.newState,
+                debugTurn: v4Result.debugTurn,
+                timerSignal: v4Result.timerSignal,
+                error: v4Result.error,
+                sandboxSessionId,
+                // Include messages for backward-compatible non-streaming
+                // consumers (tests, future polling clients).
+                messages: v4Result.messages,
+              })
+            })
+          } catch (err) {
+            writeChunk({
+              type: 'error',
+              message: err instanceof Error ? err.message : String(err),
+            })
+          } finally {
+            try {
+              await collector.flush()
+            } catch (flushErr) {
+              console.error('[sandbox-v4] collector.flush failed:', flushErr)
             }
-
-            // ============================================================
-            // HOLDER PATH (D-06)
-            // ============================================================
-            const push = await pushToPending(wsId, lockChannel, lockIdentifier, pendingEntry)
-            ownPendingEntryJson = push.exactJson
-            emitLockEvent('lock_acquired', {
-              holder_uuid: lockHandle.holderUuid,
-              msg_id: entryUuid,
-              key: lockHandle.key,
-              ttl: 45,
-              started_at: lockHandle.startedAt,
-            })
-          } catch (lockErr) {
-            // Fail-open: Redis unavailable → emit event + fall through with lockHandle=null.
-            // Engine skip-guards on null (D-04 — pre-this-standalone behavior preserved when Redis down).
-            emitLockEvent('redis_unavailable_fallback_failed', {
-              error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
-              at_step: 'route_acquire_lock',
-            })
-            lockHandle = null
-            ownPendingEntryJson = null
+            controller.close()
           }
+        },
+      })
 
-          const { SomnioV4Engine } = await import('@/lib/agents/somnio-v4/engine-v4')
-          const v4Engine = new SomnioV4Engine()
-          const v4Result = await v4Engine.processMessage({
-            message,
-            state,
-            history: history ?? [],
-            turnNumber: turnNumber ?? 1,
-            workspaceId: wsId,
-            systemEvent,
-            lockHandle,
-            lockChannel,
-            lockIdentifier,
-            ownPendingEntryJson,
-            sandboxSessionId,
-            // Hold the lock long enough for msg2 to land as FOLLOWER and trigger
-            // Path A (post-smoke fix 2026-05-27). 8s thinking + ~2-6s per template
-            // ≈ 15-25s total lock hold for a typical 3-template response, matching
-            // production WhatsApp lock duration. Only applied when HOLDER (lockHandle
-            // non-null) — fallback no-Redis path stays instant.
-            simulateProdTimingMs: lockHandle ? 8000 : 0,
-          })
-
-          // PRESERVE the existing TEMP DEBUG block (lines 145-171 of pre-Plan-02 route.ts).
-          try {
-            const truncate = (s: string, n = 250) => s.length > n ? s.slice(0, n) + '...' : s
-            const recentBotMsgs = (history ?? [])
-              .filter((h) => h.role === 'assistant')
-              .slice(-2)
-              .map((h) => truncate(h.content))
-            console.log('[V4 TURN] ' + JSON.stringify({
-              ts: new Date().toISOString(),
-              turn: turnNumber ?? 1,
-              inMessage: message,
-              inHistoryLength: (history ?? []).length,
-              inHistory: (history ?? []).map((h) => ({ role: h.role, content: truncate(h.content) })),
-              inSystemEvent: systemEvent ?? null,
-              recentBotMsgs,
-              outIntent: v4Result.debugTurn?.intent ?? null,
-              outMessages: v4Result.messages?.map(truncate) ?? [],
-              outAction: v4Result.debugTurn?.salesTrack?.accion ?? null,
-              outNewMode: v4Result.newState?.currentMode ?? null,
-              outIntentsVistos: v4Result.newState?.intentsVistos ?? [],
-              outTemplatesEnviados: v4Result.newState?.templatesEnviados ?? [],
-              outTimerSignal: v4Result.timerSignal ?? null,
-              outError: v4Result.error ?? null,
-              lockAcquired: lockHandle !== null,
-              sandboxSessionId,
-            }))
-          } catch (logErr) {
-            console.log('[V4 TURN ERROR] failed to serialize debug log:', logErr)
-          }
-
-          return v4Result
-        })
-
-        return NextResponse.json(responseBody)
-      } finally {
-        // Flush recorded events to agent_observability_turns + agent_observability_events.
-        // Must run before the response is returned in serverless (lambda can freeze on response).
-        // Swallow errors — observability failure must not break the user-facing response.
-        try {
-          await collector.flush()
-        } catch (flushErr) {
-          console.error('[sandbox-v4] collector.flush failed:', flushErr)
-        }
-      }
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'application/x-ndjson',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+      })
     }
 
     // ================================================================

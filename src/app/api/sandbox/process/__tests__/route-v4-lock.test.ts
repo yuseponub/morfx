@@ -186,6 +186,44 @@ beforeEach(() => {
 })
 
 // ===========================================================================
+// NDJSON stream helper (post-streaming refactor 2026-05-27).
+// The route now returns application/x-ndjson with one JSON line per chunk.
+// Tests must drain the stream before asserting on emits / engine calls
+// because the route's stream.start callback runs asynchronously AFTER the
+// Response object is returned.
+// ===========================================================================
+async function drainNdjsonStream(resp: Response): Promise<Record<string, unknown>[]> {
+  if (!resp.body) return []
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const chunks: Record<string, unknown>[] = []
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        chunks.push(JSON.parse(line))
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+  if (buffer.trim()) {
+    try {
+      chunks.push(JSON.parse(buffer))
+    } catch {
+      // skip
+    }
+  }
+  return chunks
+}
+
+// ===========================================================================
 // R1..R10 scenarios
 // ===========================================================================
 
@@ -198,11 +236,15 @@ describe('POST /api/sandbox/process — R1..R10 v4 lock branch + Regla 6 anchors
     })
 
     const resp = await POST(makeReq(makeV4Body()))
-    const json = await resp.json()
+    const chunks = await drainNdjsonStream(resp)
 
     expect(resp.status).toBe(200)
-    expect(json).not.toHaveProperty('deferred')
-    expect(json.success).toBe(true)
+    // HOLDER stream emits 'message' chunks (one per template the engine
+    // produced) plus a final 'complete' chunk. No 'deferred' chunk.
+    expect(chunks.some((c) => c.type === 'deferred')).toBe(false)
+    const completeChunk = chunks.find((c) => c.type === 'complete')
+    expect(completeChunk).toBeDefined()
+    expect(completeChunk!.success).toBe(true)
 
     // Engine called exactly once with full lock fields.
     expect(v4EngineProcessMock).toHaveBeenCalledTimes(1)
@@ -228,7 +270,7 @@ describe('POST /api/sandbox/process — R1..R10 v4 lock branch + Regla 6 anchors
   // =========================================================================
   // R2 FOLLOWER
   // =========================================================================
-  it('R2 FOLLOWER: acquireLock returns null → deferred=true response, engine NOT called', async () => {
+  it('R2 FOLLOWER: acquireLock returns null → deferred=true chunk in stream, engine NOT called', async () => {
     acquireLockMock.mockResolvedValueOnce(null)
     pushToPendingMock.mockResolvedValueOnce({
       exactJson: '{"content":"hello"}',
@@ -236,10 +278,12 @@ describe('POST /api/sandbox/process — R1..R10 v4 lock branch + Regla 6 anchors
     })
 
     const resp = await POST(makeReq(makeV4Body()))
-    const json = await resp.json()
+    const chunks = await drainNdjsonStream(resp)
 
     expect(resp.status).toBe(200)
-    expect(json).toEqual({
+    const deferredChunk = chunks.find((c) => c.type === 'deferred')
+    expect(deferredChunk).toEqual({
+      type: 'deferred',
       success: true,
       deferred: true,
       sandboxSessionId: 'abc',
@@ -298,6 +342,9 @@ describe('POST /api/sandbox/process — R1..R10 v4 lock branch + Regla 6 anchors
     acquireLockMock.mockRejectedValueOnce(new Error('Redis down'))
 
     const resp = await POST(makeReq(makeV4Body()))
+    // Drain stream so the stream.start callback (which contains the
+    // fail-open emit + engine call) finishes before assertions.
+    await drainNdjsonStream(resp)
 
     expect(resp.status).toBe(200)
 
@@ -454,7 +501,10 @@ describe('POST /api/sandbox/process — R1..R10 v4 lock branch + Regla 6 anchors
       startedAt: '2026-05-27T00:00:00Z',
     })
 
-    await POST(makeReq(makeV4Body()))
+    const resp = await POST(makeReq(makeV4Body()))
+    // Drain so the stream.start callback (which contains runWithCollector
+    // + engine invocation) finishes before assertions.
+    await drainNdjsonStream(resp)
 
     // runWithCollector called exactly once with (collector, fn) pair.
     expect(runWithCollectorMock).toHaveBeenCalledTimes(1)

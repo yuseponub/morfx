@@ -385,116 +385,226 @@ export function SandboxLayout() {
         }),
       })
 
-      // Standalone: debounce-v2-sandbox-integration / Plan 02 (D-07).
-      // El v4 branch puede retornar { deferred: true } cuando este request es FOLLOWER
-      // (otro request inflight del mismo lock key esta procesando). En ese caso, long-poll
-      // a /api/sandbox/lock-result/{id} hasta 30s por la respuesta combinada del HOLDER.
-      const rawJson = await response.json() as
-        | SandboxEngineResult
-        | { success: true; deferred: true; sandboxSessionId: string; reason: string; pendingListLength: number }
-
       let result: SandboxEngineResult
+      let interrupted = false
+      let interruptedAtIndex = -1
 
-      if ('deferred' in rawJson && rawJson.deferred === true) {
+      if (agentIdRef.current === 'somnio-sales-v4') {
         // ============================================================
-        // FOLLOWER path: este request fue queued via pushToPending; el HOLDER
-        // (un request previo inflight para la misma lock key) procesara ambos
-        // mensajes combinados y escribira el resultado a
-        // sandbox-result:{sandboxLockSessionId}. Long-poll el lock-result
-        // endpoint hasta 30s.
+        // V4 streaming consumer (post-smoke fix 2026-05-27).
+        //
+        // The route returns application/x-ndjson with one JSON line per
+        // event:
+        //   { type: 'message', content, index } — server "sent" a template
+        //     (post-CKPT-7.N + per-template pacing sleep). Render at once.
+        //   { type: 'deferred', sandboxSessionId, ... } — FOLLOWER path.
+        //     Switch to long-poll for the HOLDER's aggregated result.
+        //   { type: 'complete', newState, debugTurn, messages, ... } — done.
+        //   { type: 'error', message } — engine threw.
+        //
+        // Each message chunk arrives WITH THE LOCK STILL HELD on the
+        // server. If the user sends msg2 during the stream, it lands at
+        // the server as a FOLLOWER, writes pending+interrupt, and the
+        // server's CKPT-7.N detects it before the next template chunk →
+        // Path B abort. Path A (combined) fires inside the engine before
+        // any template chunk is streamed.
         // ============================================================
-        try {
-          const pollResp = await fetch(`/api/sandbox/lock-result/${rawJson.sandboxSessionId}`)
-          const pollJson = await pollResp.json() as
-            | { ready: true; result: SandboxEngineResult }
-            | { ready: false; timeout?: true; error?: string }
+        if (!response.body) {
+          setIsTyping(false)
+          console.error('[Sandbox V4] response body missing')
+          return
+        }
+        type V4CompleteChunk = {
+          type: 'complete'
+          newState: SandboxState
+          debugTurn: DebugTurn
+          timerSignal?: unknown
+          error?: { code: string; message: string }
+          messages: string[]
+          success: boolean
+          sandboxSessionId: string
+        }
+        type V4DeferredChunk = {
+          type: 'deferred'
+          sandboxSessionId: string
+          reason: string
+          pendingListLength: number
+        }
+        type V4ErrorChunk = { type: 'error'; message: string }
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let completeChunk: V4CompleteChunk | null = null
+        let deferredChunk: V4DeferredChunk | null = null
+        let errorChunk: V4ErrorChunk | null = null
+        const renderedMessages: string[] = []
 
-          if ('ready' in pollJson && pollJson.ready === true && pollJson.result) {
-            result = pollJson.result
-          } else {
-            // Timeout o Redis error — surface como chat-visible error.
-            setIsTyping(false)
-            const errorNote: SandboxMessage = {
-              id: `msg-${Date.now()}-system-deferred-timeout`,
-              role: 'assistant',
-              content: `[SANDBOX V4: respuesta combinada no llego en 30s — el HOLDER puede seguir procesando o se cayo. Reintentar enviando un nuevo mensaje.]`,
-              timestamp: new Date().toISOString(),
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.trim()) continue
+            let chunk: { type: string } & Record<string, unknown>
+            try {
+              chunk = JSON.parse(line)
+            } catch {
+              continue
             }
-            setMessages(prev => [...prev, errorNote])
-            return  // bail; nada para renderizar en result
+            if (chunk.type === 'message') {
+              const content = chunk.content as string
+              const index = chunk.index as number
+              renderedMessages.push(content)
+              const assistantMessage: SandboxMessage = {
+                id: `msg-${Date.now()}-assistant-${index}`,
+                role: 'assistant',
+                content,
+                timestamp: new Date().toISOString(),
+              }
+              setMessages(prev => [...prev, assistantMessage])
+            } else if (chunk.type === 'deferred') {
+              deferredChunk = chunk as unknown as V4DeferredChunk
+            } else if (chunk.type === 'complete') {
+              completeChunk = chunk as unknown as V4CompleteChunk
+            } else if (chunk.type === 'error') {
+              errorChunk = chunk as unknown as V4ErrorChunk
+            }
           }
-        } catch (pollErr) {
+        }
+
+        if (errorChunk) {
           setIsTyping(false)
           const errorNote: SandboxMessage = {
-            id: `msg-${Date.now()}-system-deferred-error`,
+            id: `msg-${Date.now()}-system-stream-error`,
             role: 'assistant',
-            content: `[SANDBOX V4: error en long-poll — ${pollErr instanceof Error ? pollErr.message : String(pollErr)}]`,
+            content: `[SANDBOX V4: error en stream — ${errorChunk.message}]`,
             timestamp: new Date().toISOString(),
           }
           setMessages(prev => [...prev, errorNote])
           return
         }
-      } else {
-        result = rawJson as SandboxEngineResult
-      }
-      const clientLatencyMs = performance.now() - tClientStart
-      if (result.debugTurn) {
-        result.debugTurn.clientLatencyMs = clientLatencyMs
-      }
 
-      // 6. Hide typing and add response messages with delays
-      // PROD-TRANSLATE: En produccion, el check pre-envio se hace en
-      // ProductionMessagingAdapter.hasNewInboundMessage() (src/lib/agents/engine-adapters/production/messaging.ts:62-74)
-      // consultando la DB con .gt('timestamp', triggerTimestamp). El equivalente aqui es
-      // queuedMessagesRef.current.length > 0.
-      // IMPORTANTE: El check de produccion actual NO maneja errores del query (lineas 67-73 no destructuran error).
-      // Cuando se traduzca, destructurar { count, error }, retry 1 vez si error, y fail-safe
-      // (asumir interrupcion si el query falla, porque es mejor NO enviar que enviar duplicado).
-      let interrupted = false
-      let interruptedAtIndex = -1
-      if (result.success && result.messages.length > 0) {
-        for (let i = 0; i < result.messages.length; i++) {
-          // Per-template delay. For v4, the SERVER already paced via
-          // engine.simulateProdTimingMs (post-smoke fix 2026-05-27) and the
-          // lock was held during the entire send loop. Adding client delays
-          // here would double-pace the UX. For non-v4 agents, keep the
-          // existing slider-driven client-side animation.
-          if (agentIdRef.current !== 'somnio-sales-v4') {
+        if (deferredChunk) {
+          // FOLLOWER path: server queued this request; HOLDER will write
+          // sandbox-result:{id} when it finishes. Long-poll for the
+          // aggregated result and render its messages here.
+          try {
+            const pollResp = await fetch(`/api/sandbox/lock-result/${deferredChunk.sandboxSessionId}`)
+            const pollJson = (await pollResp.json()) as
+              | { ready: true; result: SandboxEngineResult }
+              | { ready: false; timeout?: true; error?: string }
+            if ('ready' in pollJson && pollJson.ready === true && pollJson.result) {
+              result = pollJson.result
+              // Render FOLLOWER's combined messages now (HOLDER already
+              // streamed them to its own request, this is a separate browser
+              // request that needs the messages explicitly).
+              for (let i = 0; i < (result.messages ?? []).length; i++) {
+                const assistantMessage: SandboxMessage = {
+                  id: `msg-${Date.now()}-assistant-follower-${i}`,
+                  role: 'assistant',
+                  content: result.messages[i],
+                  timestamp: new Date().toISOString(),
+                }
+                setMessages(prev => [...prev, assistantMessage])
+              }
+            } else {
+              setIsTyping(false)
+              const errorNote: SandboxMessage = {
+                id: `msg-${Date.now()}-system-deferred-timeout`,
+                role: 'assistant',
+                content: `[SANDBOX V4: respuesta combinada no llego en 30s — el HOLDER puede seguir procesando o se cayo. Reintentar enviando un nuevo mensaje.]`,
+                timestamp: new Date().toISOString(),
+              }
+              setMessages(prev => [...prev, errorNote])
+              return
+            }
+          } catch (pollErr) {
+            setIsTyping(false)
+            const errorNote: SandboxMessage = {
+              id: `msg-${Date.now()}-system-deferred-error`,
+              role: 'assistant',
+              content: `[SANDBOX V4: error en long-poll — ${pollErr instanceof Error ? pollErr.message : String(pollErr)}]`,
+              timestamp: new Date().toISOString(),
+            }
+            setMessages(prev => [...prev, errorNote])
+            return
+          }
+        } else if (completeChunk) {
+          // HOLDER path: messages already rendered via 'message' chunks.
+          // Compose a SandboxEngineResult for downstream state/debug logic.
+          result = {
+            success: completeChunk.success,
+            messages: completeChunk.messages ?? renderedMessages,
+            newState: completeChunk.newState,
+            debugTurn: completeChunk.debugTurn,
+            timerSignal: completeChunk.timerSignal,
+            error: completeChunk.error,
+          } as SandboxEngineResult
+        } else {
+          setIsTyping(false)
+          console.warn('[Sandbox V4] stream closed without complete or deferred chunk')
+          return
+        }
+      } else {
+        // ============================================================
+        // Non-v4 (v1/v2/v3/recompra/pw-confirmation): unchanged JSON flow
+        // with client-side per-template animation.
+        // ============================================================
+        const rawJson = (await response.json()) as
+          | SandboxEngineResult
+          | { success: true; deferred: true; sandboxSessionId: string; reason: string; pendingListLength: number }
+
+        if ('deferred' in rawJson && rawJson.deferred === true) {
+          // Non-v4 should not receive deferred today; defensive fallback.
+          setIsTyping(false)
+          console.warn('[Sandbox non-v4] unexpected deferred response, ignoring')
+          return
+        }
+        result = rawJson as SandboxEngineResult
+
+        // PROD-TRANSLATE: En produccion, el check pre-envio se hace en
+        // ProductionMessagingAdapter.hasNewInboundMessage() (src/lib/agents/engine-adapters/production/messaging.ts:62-74)
+        // consultando la DB con .gt('timestamp', triggerTimestamp). El equivalente aqui es
+        // queuedMessagesRef.current.length > 0.
+        if (result.success && result.messages.length > 0) {
+          for (let i = 0; i < result.messages.length; i++) {
             const baseDelay = calculateCharDelay(AVG_TEMPLATE_CHARS)
             const multiplier = baseDelay > 0 ? responseDelayMs / baseDelay : 0
             const delay = calculateCharDelay(result.messages[i].length) * multiplier
             if (delay > 0) {
               await new Promise(resolve => setTimeout(resolve, delay))
             }
-          }
-
-          // Check for interruption: user sent a message during the delay
-          if (queuedMessagesRef.current.length > 0) {
-            interrupted = true
-            interruptedAtIndex = i
-            console.log(`[Sandbox V3] Template sequence interrupted at index ${i}/${result.messages.length} by user message`)
-
-            // Add system note about interruption (differentiate accumulation vs interruption)
-            const systemNote: SandboxMessage = {
-              id: `msg-${Date.now()}-system-interrupt`,
+            if (queuedMessagesRef.current.length > 0) {
+              interrupted = true
+              interruptedAtIndex = i
+              console.log(`[Sandbox V3] Template sequence interrupted at index ${i}/${result.messages.length} by user message`)
+              const systemNote: SandboxMessage = {
+                id: `msg-${Date.now()}-system-interrupt`,
+                role: 'assistant',
+                content: interruptedAtIndex === 0
+                  ? `[SANDBOX: Mensajes acumulados - secuencia interrumpida antes de enviar]`
+                  : `[SANDBOX: Secuencia interrumpida - ${result.messages.length - i} template(s) no enviado(s)]`,
+                timestamp: new Date().toISOString(),
+              }
+              setMessages(prev => [...prev, systemNote])
+              break
+            }
+            const assistantMessage: SandboxMessage = {
+              id: `msg-${Date.now()}-assistant-${i}`,
               role: 'assistant',
-              content: interruptedAtIndex === 0
-                ? `[SANDBOX: Secuencia interrumpida antes de enviar - acumulando mensajes]`
-                : `[SANDBOX: Secuencia interrumpida - ${result.messages.length - i} template(s) no enviado(s)]`,
+              content: result.messages[i],
               timestamp: new Date().toISOString(),
             }
-            setMessages(prev => [...prev, systemNote])
-            break
+            setMessages(prev => [...prev, assistantMessage])
           }
-
-          const assistantMessage: SandboxMessage = {
-            id: `msg-${Date.now()}-assistant-${i}`,
-            role: 'assistant',
-            content: result.messages[i],
-            timestamp: new Date().toISOString(),
-          }
-          setMessages(prev => [...prev, assistantMessage])
         }
+      }
+
+      const clientLatencyMs = performance.now() - tClientStart
+      if (result.debugTurn) {
+        result.debugTurn.clientLatencyMs = clientLatencyMs
       }
 
       // Populate preSendCheck in debugTurn when interruption occurs

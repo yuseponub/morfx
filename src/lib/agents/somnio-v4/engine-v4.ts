@@ -91,6 +91,24 @@ export interface V4EngineInput {
    * because the sandbox engine returns before the second message can land.
    */
   simulateProdTimingMs?: number
+  /**
+   * Optional callback fired once per template AFTER CKPT-7.N succeeds for that
+   * template AND the per-template send-pacing sleep has elapsed. Used by the
+   * streaming sandbox route to flush each template to the browser as it is
+   * "sent" by the engine — matching the production behavior where each
+   * V4MessagingAdapter.send() call is observable client-side immediately.
+   *
+   * The callback runs WITH THE LOCK STILL HELD (engine is mid-loop). It MUST
+   * NOT release the lock or perform other lifecycle operations — those are
+   * the engine's responsibility in `finally`.
+   *
+   * Added post-`debounce-v2-sandbox-integration` smoke discovery 2026-05-27:
+   * before the callback, the engine returned only the final messages array at
+   * the end of processMessage, so the user saw all templates appear at once
+   * after the entire lock-hold window completed (~15-25s of nothing then a
+   * burst). The callback enables progressive reveal matching WhatsApp prod.
+   */
+  onMessage?: (content: string, index: number) => Promise<void> | void
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -340,6 +358,14 @@ export class SomnioV4Engine {
             }
           }
           finalMessages.push(output.messages[i])
+          // Progressive reveal hook (post-smoke fix 2026-05-27). Invoked AFTER
+          // CKPT-7.N succeeds for this template AND the per-template pacing
+          // sleep has elapsed. Streaming sandbox route uses this to flush the
+          // template chunk to the browser immediately, mirroring the per-template
+          // observability of WhatsApp prod's V4MessagingAdapter.send().
+          if (input.onMessage) {
+            await input.onMessage(output.messages[i], i)
+          }
         }
         templatesSentCount = finalMessages.length
 

@@ -23,7 +23,7 @@ import type { SandboxState, DebugTurn, SandboxMessage, SavedSandboxSession, Sand
 import { IngestTimerSimulator, TIMER_DEFAULTS } from '@/lib/sandbox/ingest-timer'
 import { calculateCharDelay } from '@/lib/agents/somnio/char-delay'
 import { DEFAULT_DELAY_MS, AVG_TEMPLATE_CHARS } from './debug-panel/config-tab'
-import { getLastAgentId, setLastAgentId, generateSessionId } from '@/lib/sandbox/sandbox-session'
+import { getLastAgentId, setLastAgentId } from '@/lib/sandbox/sandbox-session'
 import { useWorkspace } from '@/components/providers/workspace-provider'
 import { getAgentName } from '@/lib/agents/agent-catalog'
 import { getAgentConfig } from '@/app/actions/agent-config'
@@ -58,13 +58,18 @@ export function SandboxLayout() {
   const [queuedMessages, setQueuedMessages] = useState<string[]>([])
   const queuedMessagesRef = useRef<string[]>([])
   // Standalone: debounce-v2-sandbox-integration / Plan 02 (D-03 + D-09 + Pitfall 6).
-  // Runtime-only sandbox session id used as the LOCK identifier (lock:{ws}:whatsapp:sandbox-{id}).
+  // Runtime-only sandbox session id used as the LOCK identifier (lock:{ws}:whatsapp:sandbox-{uuid})
+  // AND as the conversation_id passed to ObservabilityCollector in the route.
+  // MUST be a valid UUID: agent_observability_turns.conversation_id is `UUID NOT NULL`
+  // (supabase/migrations/20260408000000_observability_schema.sql:47) — non-UUID strings are
+  // rejected by Postgres, which silently drops the turn insert and prevents downstream
+  // emitLockEvent rows from being persisted.
   // NOT persisted to localStorage — localStorage is origin-scoped and Tab A + Tab B of
   // the same workspace would share it, breaking D-09 (independence between sandbox tabs).
-  // Each tab generates its own id on mount via React useState lazy init.
+  // Each tab generates its own uuid on mount via React useState lazy init.
   // localStorage is still used for SavedSandboxSession (conversation save/reload UX) —
   // that is a SEPARATE concern from the lock id.
-  const [sandboxLockSessionId] = useState(() => generateSessionId())
+  const [sandboxLockSessionId] = useState(() => crypto.randomUUID())
   const [responseDelayMs, setResponseDelayMs] = useState<number>(DEFAULT_DELAY_MS)
 
   // Timer state (Phase 15.7, simplified quick-013)
@@ -628,7 +633,7 @@ export function SandboxLayout() {
               onSendMessage={handleSendMessage}
               agentId={agentId}
               currentMode={state.currentMode}
-              inputDisabled={agentId === 'somnio-sales-v3' ? false : isTyping}
+              inputDisabled={agentId === 'somnio-sales-v3' || agentId === 'somnio-sales-v4' ? false : isTyping}
             />
           }
           rightPanel={

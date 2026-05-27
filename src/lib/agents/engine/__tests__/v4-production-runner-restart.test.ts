@@ -413,7 +413,8 @@ describe('Wave 3 — Pitfall 7 propagation via REAL mapOutcomeToAgentOutput', { 
       .mockResolvedValueOnce(makeGeneratedOutcome())
 
     // Stage msg2 in pending so iter 1's discriminator branch drains it and
-    // combines with msg1 → iter 2 receives "msg2\nmsg1".
+    // combines chronologically with msg1 (priorMsg first, pending last) →
+    // iter 2 receives "msg1\nmsg2".
     const IDENT = '+57300W3'
     const { randomUUID } = await import('crypto')
     await pushToPending(WS, CHANNEL, IDENT, {

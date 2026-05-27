@@ -411,10 +411,11 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
     )
     expect(pendingCombined).toHaveLength(1)
 
-    // Iter 2's V4AgentInput.message == combined string (drained pending first, then prior msg).
+    // Iter 2's V4AgentInput.message == combined string (chronological:
+    // prior msg first, then drained pending entries).
     expect(agentMockFn).toHaveBeenCalledTimes(2)
     const iter2Input = agentMockFn.mock.calls[1][0]
-    expect(iter2Input.message).toBe('msg2\nmsg1')
+    expect(iter2Input.message).toBe('msg1\nmsg2')
 
     // Single lock lifetime (Pitfall 6 — no heartbeat stacking).
     const releaseCount = emittedEvents.filter((e) => e.label === 'lock_released_normal').length
@@ -447,8 +448,8 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
 
     // Iter 1: agent returns interrupted_at_ckpt_1. No side effect — pending list
     // already contains [msg2] (pre-staged above), so iter 1's discriminator
-    // branch drains exactly ["msg2"] and combines with msg1 → effectiveMessage
-    // = "msg2\nmsg1".
+    // branch drains exactly ["msg2"] and combines chronologically with msg1
+    // (priorMsg first, pending last) → effectiveMessage = "msg1\nmsg2".
     agentMockFn.mockImplementationOnce(async () => {
       return makeInterruptOutput(50)
     })
@@ -456,8 +457,8 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
     // Iter 2: agent stages msg3 DURING its call (simulating a new inbound
     // arriving while iter 2's agent is running) then returns
     // interrupted_at_ckpt_2. Iter 2's discriminator branch drains ["msg3"] and
-    // combines with prior turnEffectiveMessage ("msg2\nmsg1") →
-    // effectiveMessage = "msg3\nmsg2\nmsg1".
+    // combines chronologically with prior turnEffectiveMessage
+    // ("msg1\nmsg2") → effectiveMessage = "msg1\nmsg2\nmsg3".
     agentMockFn.mockImplementationOnce(async () => {
       await pushToPending(WS, CHANNEL, IDENT, {
         entry_uuid: randomUUID(),
@@ -501,13 +502,13 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
     // iter 1 sees message="msg1".
     //
     // After iter 1 returns interrupted, the discriminator drains pending
-    // (["msg2"]) and sets effectiveMessage = "msg2\nmsg1". Iter 2 enters,
-    // turnEffectiveMessage = "msg2\nmsg1". Iter 2's mock stages msg3 into
-    // pending DURING its execution. Iter 2 returns interrupted.
-    // Discriminator drains pending (["msg3"]) and sets effectiveMessage =
-    // "msg3\nmsg2\nmsg1". Iter 3 enters with turnEffectiveMessage =
-    // "msg3\nmsg2\nmsg1".
-    expect(finalInput.message).toBe('msg3\nmsg2\nmsg1')
+    // (["msg2"]) and sets effectiveMessage = "msg1\nmsg2" (chronological:
+    // priorMsg first, pending last). Iter 2 enters, turnEffectiveMessage =
+    // "msg1\nmsg2". Iter 2's mock stages msg3 into pending DURING its
+    // execution. Iter 2 returns interrupted. Discriminator drains pending
+    // (["msg3"]) and sets effectiveMessage = "msg1\nmsg2\nmsg3". Iter 3
+    // enters with turnEffectiveMessage = "msg1\nmsg2\nmsg3".
+    expect(finalInput.message).toBe('msg1\nmsg2\nmsg3')
 
     // Single lock lifetime (Pitfall 6 — heartbeat OUTSIDE while loop).
     const releaseCount = emittedEvents.filter((e) => e.label === 'lock_released_normal').length

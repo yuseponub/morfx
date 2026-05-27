@@ -203,7 +203,10 @@ export class V4ProductionRunner {
             total_chars: pending.reduce((s, p) => s + p.content.length, 0),
             restart_iteration: restartIteration,
           })
-          effectiveMessage = [...pending.map((p) => p.content), priorMsg].join('\n')
+          // Chronological order: priorMsg (older, was being processed) FIRST,
+          // then pending entries (newer, arrived during processing) LAST.
+          // Pending list is RPUSH-ordered by FOLLOWER arrival time.
+          effectiveMessage = [priorMsg, ...pending.map((p) => p.content)].join('\n')
           shouldRestart = true
           continue
         }
@@ -363,7 +366,10 @@ export class V4ProductionRunner {
           total_chars: pending.reduce((s, p) => s + p.content.length, 0),
           restart_iteration: restartIteration,
         })
-        effectiveMessage = [...pending.map((p) => p.content), turnEffectiveMessage].join('\n')
+        // Chronological order: turnEffectiveMessage (older, was being processed)
+        // FIRST, then pending entries (newer, arrived during processing) LAST.
+        // Pending list is RPUSH-ordered by FOLLOWER arrival time.
+        effectiveMessage = [turnEffectiveMessage, ...pending.map((p) => p.content)].join('\n')
         shouldRestart = true
         continue
       }
@@ -452,7 +458,10 @@ export class V4ProductionRunner {
             total_chars: pending.reduce((s, p) => s + p.content.length, 0),
             restart_iteration: restartIteration,
           })
-          effectiveMessage = [...pending.map((p) => p.content), turnEffectiveMessage].join('\n')
+          // Chronological order: turnEffectiveMessage (older, was being processed)
+          // FIRST, then pending entries (newer, arrived during processing) LAST.
+          // Pending list is RPUSH-ordered by FOLLOWER arrival time.
+          effectiveMessage = [turnEffectiveMessage, ...pending.map((p) => p.content)].join('\n')
           shouldRestart = true
           continue
         }
@@ -567,7 +576,10 @@ export class V4ProductionRunner {
               total_chars: pending.reduce((s, p) => s + p.content.length, 0),
               restart_iteration: restartIteration,
             })
-            effectiveMessage = [...pending.map((p) => p.content), turnEffectiveMessage].join('\n')
+            // Chronological order: turnEffectiveMessage (older, was being processed)
+            // FIRST, then pending entries (newer, arrived during processing) LAST.
+            // Pending list is RPUSH-ordered by FOLLOWER arrival time.
+            effectiveMessage = [turnEffectiveMessage, ...pending.map((p) => p.content)].join('\n')
             shouldRestart = true
             continue
           }

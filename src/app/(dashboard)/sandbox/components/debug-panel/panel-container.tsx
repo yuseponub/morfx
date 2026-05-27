@@ -43,6 +43,9 @@ interface PanelContainerProps {
   // queries /api/observability/events?conversation_id={sandboxSessionId}.
   // null when caller does not supply (preserves InterruptionTab placeholder UX).
   sandboxSessionId?: string | null
+  // Post-smoke fix 2026-05-27: increments per new turn (debugTurns.length) so
+  // InterruptionTab auto-refetches without requiring the user to toggle the tab.
+  interruptionRefreshKey?: number
 }
 
 function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelContainerProps, 'visiblePanels'>) {
@@ -91,7 +94,13 @@ function PanelContent({ id, ...props }: { id: DebugPanelTabId } & Omit<PanelCont
       // (D-11 option c in DISCUSSION-LOG); the events route resolves via
       // conversation_id directly when session_id is absent (Pitfall 4 RESOLVED
       // 2026-05-27 — agent_observability_turns.conversation_id is UUID NOT NULL without FK).
-      return <InterruptionTab conversationId={props.sandboxSessionId ?? null} sessionId={null} />
+      return (
+        <InterruptionTab
+          conversationId={props.sandboxSessionId ?? null}
+          sessionId={null}
+          refreshKey={props.interruptionRefreshKey}
+        />
+      )
     default:
       return null
   }

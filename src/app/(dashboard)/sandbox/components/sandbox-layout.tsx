@@ -668,6 +668,7 @@ export function SandboxLayout() {
                 onTimerConfigChange={handleTimerConfigChange}
                 onTimerPause={handleTimerPause}
                 sandboxSessionId={sandboxLockSessionId}
+                interruptionRefreshKey={debugTurns.length}
               />
             )
           }

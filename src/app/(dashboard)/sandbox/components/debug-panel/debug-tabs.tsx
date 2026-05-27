@@ -47,6 +47,8 @@ interface DebugTabsProps {
   // Runtime sandbox lock session id, threaded from sandbox-layout to
   // PanelContainer's interruption case for InterruptionTab conversationId.
   sandboxSessionId?: string | null
+  // Post-smoke fix 2026-05-27: bumps each turn so InterruptionTab refetches.
+  interruptionRefreshKey?: number
 }
 
 export function DebugTabs({
@@ -64,6 +66,7 @@ export function DebugTabs({
   onTimerConfigChange,
   onTimerPause,
   sandboxSessionId,
+  interruptionRefreshKey,
 }: DebugTabsProps) {
   const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
 
@@ -121,6 +124,7 @@ export function DebugTabs({
           onTimerConfigChange={onTimerConfigChange}
           onTimerPause={onTimerPause}
           sandboxSessionId={sandboxSessionId}
+          interruptionRefreshKey={interruptionRefreshKey}
         />
       </div>
     </div>

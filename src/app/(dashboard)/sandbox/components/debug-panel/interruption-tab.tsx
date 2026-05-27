@@ -38,9 +38,11 @@ import {
   Trash2,
   PencilLine,
   Repeat,
+  RefreshCw,
   ShieldAlert,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -78,6 +80,18 @@ interface InterruptionTabProps {
   conversationId?: string | null
   /** Optional — preferred over conversationId when both present. */
   sessionId?: string | null
+  /**
+   * Optional — when this value changes (e.g., debugTurns.length increments
+   * after a new turn), the tab automatically refetches. Without this prop,
+   * the tab only refetches on remount (toggle off/on) because conversationId
+   * is stable for the lifetime of the page (per-tab UUID via useState).
+   *
+   * Added post-`debounce-v2-sandbox-integration` smoke discovery 2026-05-27:
+   * users expected the tab to update live after each turn, but the original
+   * fetch-once-on-mount design (RESEARCH Open Question 3) made it appear
+   * intermittent.
+   */
+  refreshKey?: number | string
 }
 
 // ---------------------------------------------------------------------------
@@ -147,20 +161,26 @@ function formatBogotaTime(iso: string): string {
 // Main component
 // ---------------------------------------------------------------------------
 
-export function InterruptionTab({ conversationId, sessionId }: InterruptionTabProps) {
+export function InterruptionTab({ conversationId, sessionId, refreshKey }: InterruptionTabProps) {
   const [events, setEvents] = useState<InterruptionEvent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [manualRefreshTick, setManualRefreshTick] = useState(0)
 
-  // Stable URL — only re-fetch when the IDs change.
+  // URL recomputes when IDs, the externally-controlled refreshKey (e.g. turn
+  // count from sandbox-layout), or the manual refresh tick changes. The `_t`
+  // query param is ignored by /api/observability/events but forces the memo
+  // to recompute so useEffect retriggers the fetch (post-smoke fix 2026-05-27).
   const fetchUrl = useMemo(() => {
     if (!sessionId && !conversationId) return null
     const params = new URLSearchParams()
     if (sessionId) params.set('session_id', sessionId)
     if (conversationId) params.set('conversation_id', conversationId)
     params.set('labels', LOCK_EVENT_LABELS.join(','))
+    const cacheBust = `${refreshKey ?? ''}-${manualRefreshTick}`
+    if (cacheBust !== '-0') params.set('_t', cacheBust)
     return `/api/observability/events?${params.toString()}`
-  }, [conversationId, sessionId])
+  }, [conversationId, sessionId, refreshKey, manualRefreshTick])
 
   useEffect(() => {
     if (!fetchUrl) {
@@ -187,32 +207,68 @@ export function InterruptionTab({ conversationId, sessionId }: InterruptionTabPr
     }
   }, [fetchUrl])
 
+  // Header rendered above every state (placeholder/loading/error/empty/list)
+  // so the manual refresh button is always reachable. Post-smoke fix 2026-05-27.
+  const header = (
+    <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Lock className="h-3.5 w-3.5" />
+        Interruption lifecycle
+        {events.length > 0 && (
+          <span className="text-muted-foreground/70">
+            ({events.length} event{events.length === 1 ? '' : 's'})
+          </span>
+        )}
+      </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-6 w-6 shrink-0"
+        title="Refresh events"
+        onClick={() => setManualRefreshTick((t) => t + 1)}
+        disabled={loading || (!sessionId && !conversationId)}
+      >
+        <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+        <span className="sr-only">Refresh events</span>
+      </Button>
+    </div>
+  )
+
   if (!sessionId && !conversationId) {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground text-center px-4">
-        Select a session to inspect the lock lifecycle. v4-only feature (other
-        agents use Phase 31 hasNewInboundMessage; non-v4 turns produce no events here).
+      <div>
+        {header}
+        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground text-center px-4">
+          Select a session to inspect the lock lifecycle. v4-only feature (other
+          agents use Phase 31 hasNewInboundMessage; non-v4 turns produce no events here).
+        </div>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        Loading lock events…
+      <div>
+        {header}
+        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+          Loading lock events…
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-        <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-red-700 dark:text-red-300">
-            Failed to load lock events
+      <div>
+        {header}
+        <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-red-700 dark:text-red-300">
+              Failed to load lock events
+            </div>
+            <div className="text-xs text-red-600 dark:text-red-400 break-words">{error}</div>
           </div>
-          <div className="text-xs text-red-600 dark:text-red-400 break-words">{error}</div>
         </div>
       </div>
     )
@@ -220,19 +276,19 @@ export function InterruptionTab({ conversationId, sessionId }: InterruptionTabPr
 
   if (events.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground text-center px-4">
-        No interruption-system-v2 events for this turn (v4-only feature; non-v4
-        paths use Phase 31).
+      <div>
+        {header}
+        <div className="flex items-center justify-center h-32 text-sm text-muted-foreground text-center px-4">
+          No interruption-system-v2 events for this turn (v4-only feature; non-v4
+          paths use Phase 31).
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Lock className="h-3.5 w-3.5" />
-        Interruption lifecycle ({events.length} event{events.length === 1 ? '' : 's'})
-      </div>
+      {header}
       {events.map((evt) => (
         <div
           key={evt.id}

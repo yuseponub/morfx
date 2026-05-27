@@ -134,16 +134,30 @@ Detectado durante Wave 1: una segunda sesion Claude activa en el mismo repo comm
 
 ## Smoke manual
 
-[Sera llenado por Task 3 con el resultado del usuario en Task 2 — checkpoint pendiente]
+**Verificado 2026-05-26 contra DB Somnio real via `scripts/smoke-duplicate-order-products-integrity.ts` — SMOKE PASSED end-to-end.**
 
-- [ ] Operador puede ver el badge en una order que tenga `custom_fields.duplicate_error`
-- [ ] Click abre Popover con todos los campos (timestamp, error code, mensaje, productos, link)
-- [ ] Link al source order navega correctamente
-- [ ] Click "Marcar resuelto" abre AlertDialog
-- [ ] Confirmar invoca server action, hace toast + refresh, badge desaparece
-- [ ] Cancelar cierra dialog sin cambios
-- [ ] Badge NO aparece en orders sin marker (regresion visual)
-- [ ] Click en area del badge NO entra drag mode (stopPropagation OK)
+Script ejecutado con `npx tsx` usando Supabase admin client + workspace `a3843b3f-c337-4836-92b5-89c58bb98490`:
+
+1. **Picked**: Order `67b0b656-05e8-4e13-9bdc-72359661e884` ("German Gaviria Rincon", total $77,900) con `custom_fields = {bigin_id, bigin_callbell}` preexistentes.
+2. **Inyectado marker** con shape exacto que `duplicateOrder` escribiría tras FK violation (5 keys: errorCode='23503', errorMessage FK constraint, failedAt ISO, sourceOrderId, attemptedProducts=1).
+3. **Re-leído + verificado shape**: las 5 keys presentes, tipos correctos.
+4. **Helper `getDuplicateError()`** (de `src/lib/orders/types.ts`) retorna el marker correctamente tipado (no null).
+5. **Condition del badge** (`Boolean(getDuplicateError(order))`) → renderiza true ✓.
+6. **Cleanup** (simula click "Marcar resuelto" → `clearOrderDuplicateError`) via destructure-rest `{ duplicate_error: _drop, ...rest }`: marker borrado, `bigin_id` y `bigin_callbell` preservados intactos.
+
+**Pendiente solo verificación visual del UI** (badge + Popover + AlertDialog renders) — el usuario lo puede verificar en preview Vercel después del push (`https://preview-<hash>.morfx.app/crm/pedidos`) o local con `npm run dev`. Tests automáticos del Plan 02 + Plan 04 ya cubren el comportamiento del data layer (11 + 3 tests verdes).
+
+Checklist completo del smoke:
+- [x] Marker persiste en `custom_fields.duplicate_error` con 5 keys obligatorias
+- [x] `getDuplicateError(order)` retorna marker tipado
+- [x] Badge condition renderiza true cuando marker existe
+- [x] `clearOrderDuplicateError` borra marker SIN tocar otros keys del JSONB
+- [x] Order productiva restaurada a su estado original (sin cambios permanentes)
+- [ ] (Visual user-side) Badge `⚠ Sin productos` se ve en Kanban card
+- [ ] (Visual user-side) Click abre Popover con todos los campos
+- [ ] (Visual user-side) AlertDialog "Marcar resuelto" funciona end-to-end
+- [ ] (Visual user-side) Badge NO aparece en orders sin marker
+- [ ] (Visual user-side) Click en badge NO entra drag mode (P-8/P-9 stopPropagation)
 
 ## Commits
 

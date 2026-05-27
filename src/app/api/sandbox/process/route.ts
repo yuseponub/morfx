@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId, systemEvent } = body as {
+    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId, systemEvent, sandboxSessionId } = body as {
       message: string
       state: SandboxState
       history: { role: 'user' | 'assistant'; content: string }[]
@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
       forceIntent?: string
       agentId?: string
       systemEvent?: SystemEvent
+      sandboxSessionId?: string  // Standalone: debounce-v2-sandbox-integration / Plan 02 (D-03).
+                                  // Sólo consumido por la rama v4; resto de ramas lo ignoran (Regla 6 — campo neutral).
     }
 
     if (!message || !state) {
@@ -131,18 +133,144 @@ export async function POST(request: NextRequest) {
     // cuando agentId !== 'somnio-sales-v4'.
     // ================================================================
     if (agentId === 'somnio-sales-v4') {
+      // ============================================================
+      // Standalone: debounce-v2-sandbox-integration / Plan 02
+      // (D-01 + D-02 Option C + D-04 + D-06 + D-07 + D-09 + D-10).
+      // Wires shipped interruption-system-v2 primitives into the sandbox
+      // v4 path so behavior is paridad con WhatsApp production.
+      // - Lock key: lock:{ws}:whatsapp:sandbox-{sandboxSessionId} (Option C).
+      // - HOLDER processes restart-loop in engine (Plan 01).
+      // - FOLLOWER returns deferred=true; UI long-polls sandbox-result:{id}.
+      // ============================================================
+
+      if (!sandboxSessionId) {
+        return NextResponse.json(
+          { error: 'sandboxSessionId required for v4 sandbox' },
+          { status: 400 },
+        )
+      }
+
+      const wsId = workspaceId ?? 'sandbox-workspace'
+
+      // D-02 Option C: channel literal stays 'whatsapp' (existing union member, no module change);
+      // identifier prefix 'sandbox-' isolates lock keys from real WhatsApp phones (D-09 + D-10).
+      const lockChannel = 'whatsapp' as const
+      const lockIdentifier = `sandbox-${sandboxSessionId}`
+
+      // Dynamic imports (mirror existing v4 engine dynamic import pattern at this branch):
+      const [
+        { acquireLock },
+        { pushToPending },
+        { emitLockEvent },
+        { redis },
+        { randomUUID },
+      ] = await Promise.all([
+        import('@/lib/agents/interruption-system-v2/lock'),
+        import('@/lib/agents/interruption-system-v2/pending'),
+        import('@/lib/agents/interruption-system-v2/observability'),
+        import('@/lib/agents/interruption-system-v2/redis-client'),
+        import('crypto'),
+      ])
+
+      const { runWithCollector, ObservabilityCollector } = await import('@/lib/observability')
+
+      let lockHandle: import('@/lib/agents/interruption-system-v2/lock').LockHandle | null = null
+      let ownPendingEntryJson: string | null = null
+      const entryUuid = randomUUID()
+      const pendingEntry = {
+        entry_uuid: entryUuid,
+        content: message,
+        received_at: new Date().toISOString(),
+        msg_id: entryUuid,
+      }
+
+      try {
+        lockHandle = await acquireLock(wsId, lockChannel, lockIdentifier)
+
+        if (!lockHandle) {
+          // ============================================================
+          // FOLLOWER PATH (D-06 + D-07)
+          // ============================================================
+          const push = await pushToPending(wsId, lockChannel, lockIdentifier, pendingEntry)
+          await redis.set(
+            `interrupt:${wsId}:${lockChannel}:${lockIdentifier}`,
+            entryUuid,
+            { ex: 60 },
+          )
+          emitLockEvent('lock_acquire_failed_follower', {
+            existing_holder_uuid: 'unknown',
+            my_msg_id: entryUuid,
+            key: `lock:${wsId}:${lockChannel}:${lockIdentifier}`,
+          })
+          emitLockEvent('interrupt_written', {
+            msg_id: entryUuid,
+            pending_list_length: push.pendingListLength,
+          })
+          return NextResponse.json({
+            success: true,
+            deferred: true,
+            sandboxSessionId,
+            reason: 'follower_appended_to_pending',
+            pendingListLength: push.pendingListLength,
+          })
+        }
+
+        // ============================================================
+        // HOLDER PATH (D-06)
+        // ============================================================
+        const push = await pushToPending(wsId, lockChannel, lockIdentifier, pendingEntry)
+        ownPendingEntryJson = push.exactJson
+        emitLockEvent('lock_acquired', {
+          holder_uuid: lockHandle.holderUuid,
+          msg_id: entryUuid,
+          key: lockHandle.key,
+          ttl: 45,
+          started_at: lockHandle.startedAt,
+        })
+      } catch (lockErr) {
+        // Fail-open: Redis unavailable → emit event + fall through with lockHandle=null.
+        // Engine skip-guards on null (D-04 — pre-this-standalone behavior preserved when Redis down).
+        emitLockEvent('redis_unavailable_fallback_failed', {
+          error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
+          at_step: 'route_acquire_lock',
+        })
+        lockHandle = null
+        ownPendingEntryJson = null
+      }
+
+      // ============================================================
+      // Wrap engine call with ObservabilityCollector so emitLockEvent
+      // writes to agent_observability_events (Pitfall 3 — without the
+      // wrap, all event emits are silent no-ops).
+      // triggerKind: 'sandbox' relies on Task 2.0's TriggerKind union extension
+      // in src/lib/observability/types.ts (WARNING 1 fix landed in Wave 2).
+      // ============================================================
+      const collector = new ObservabilityCollector({
+        workspaceId: wsId,
+        conversationId: sandboxSessionId,  // sandbox: session ≡ conversation (Pitfall 4 RESOLVED — agent_observability_turns.conversation_id is UUID NOT NULL without FK)
+        agentId: 'somnio-sales-v4',
+        triggerKind: 'sandbox',  // Task 2.0 extended TriggerKind union with this literal.
+        turnStartedAt: new Date(),
+      })
+
       const { SomnioV4Engine } = await import('@/lib/agents/somnio-v4/engine-v4')
       const v4Engine = new SomnioV4Engine()
-      const v4Result = await v4Engine.processMessage({
+      const v4Result = await runWithCollector(collector, () => v4Engine.processMessage({
         message,
         state,
         history: history ?? [],
         turnNumber: turnNumber ?? 1,
-        workspaceId: workspaceId ?? 'sandbox-workspace',
+        workspaceId: wsId,
         systemEvent,
-      })
+        lockHandle,
+        lockChannel,
+        lockIdentifier,
+        ownPendingEntryJson,
+        sandboxSessionId,
+      }))
 
-      // TEMP DEBUG — full structured turn dump for diagnosis. Remove after.
+      // PRESERVE the existing TEMP DEBUG block (lines 145-171 of pre-Plan-02 route.ts).
+      // It is observability for v4-runtime-wiring smoke; not changed by this plan.
       try {
         const truncate = (s: string, n = 250) => s.length > n ? s.slice(0, n) + '...' : s
         const recentBotMsgs = (history ?? [])
@@ -165,6 +293,9 @@ export async function POST(request: NextRequest) {
           outTemplatesEnviados: v4Result.newState?.templatesEnviados ?? [],
           outTimerSignal: v4Result.timerSignal ?? null,
           outError: v4Result.error ?? null,
+          // NEW: lock state surfaced for smoke debugging
+          lockAcquired: lockHandle !== null,
+          sandboxSessionId,
         }))
       } catch (logErr) {
         console.log('[V4 TURN ERROR] failed to serialize debug log:', logErr)

@@ -41,8 +41,12 @@ export type AgentId =
   | 'crm-reader'
   | 'crm-writer'
 
-/** What initiated a turn. */
-export type TriggerKind = 'user_message' | 'timer' | 'system_event' | 'api'
+/** What initiated a turn.
+ *  - 'sandbox' added by standalone debounce-v2-sandbox-integration Plan 02 Task 2.0
+ *    (2026-05-27) so the observability collector tags /sandbox-originated turns
+ *    distinguishably from production-originated turns (WARNING 1 fix).
+ */
+export type TriggerKind = 'user_message' | 'timer' | 'system_event' | 'api' | 'sandbox'
 
 // ---------------------------------------------------------------------------
 // Event taxonomy

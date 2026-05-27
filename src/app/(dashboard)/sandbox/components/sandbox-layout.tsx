@@ -662,6 +662,7 @@ export function SandboxLayout() {
                 onTimerToggle={handleTimerToggle}
                 onTimerConfigChange={handleTimerConfigChange}
                 onTimerPause={handleTimerPause}
+                sandboxSessionId={sandboxLockSessionId}
               />
             )
           }

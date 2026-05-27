@@ -43,6 +43,10 @@ interface DebugTabsProps {
   onTimerToggle: (enabled: boolean) => void
   onTimerConfigChange: (config: TimerConfig) => void
   onTimerPause: () => void
+  // Standalone: debounce-v2-sandbox-integration / Plan 03 (D-08).
+  // Runtime sandbox lock session id, threaded from sandbox-layout to
+  // PanelContainer's interruption case for InterruptionTab conversationId.
+  sandboxSessionId?: string | null
 }
 
 export function DebugTabs({
@@ -59,6 +63,7 @@ export function DebugTabs({
   onTimerToggle,
   onTimerConfigChange,
   onTimerPause,
+  sandboxSessionId,
 }: DebugTabsProps) {
   const [tabs, setTabs] = useState<DebugPanelTab[]>(DEFAULT_TABS)
 
@@ -115,6 +120,7 @@ export function DebugTabs({
           onTimerToggle={onTimerToggle}
           onTimerConfigChange={onTimerConfigChange}
           onTimerPause={onTimerPause}
+          sandboxSessionId={sandboxSessionId}
         />
       </div>
     </div>

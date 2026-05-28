@@ -140,6 +140,28 @@ export class V4ProductionRunner {
     const dropOwnEntry = <T extends { entry_uuid: string }>(entries: T[]): T[] =>
       ownEntryUuid ? entries.filter((e) => e.entry_uuid !== ownEntryUuid) : entries
 
+    // Bug 2026-05-28 (Path B clean reprocess): when an interrupt aborts AFTER ≥1
+    // template was already sent, the customer redirected — so we DISCARD the rest
+    // of msg1's response and answer the interrupting message(s) cleanly in the
+    // SAME lambda. `carryState` seeds the reprocess iteration from the aborted
+    // iteration's resulting state so the agent does NOT re-greet and the
+    // no-repetition filter does NOT re-send already-sent templates. Stays null on
+    // Path A combine (which re-runs from the original session state, by design).
+    // `accumulatedSentContents` preserves everything the customer already saw
+    // across iterations for the final assistant-turn record + return payload.
+    // The pending list is drained whole every time + the while loop re-runs on any
+    // new interrupt, so N piled-up messages (msg2,msg3,…) and cascading interrupts
+    // are handled structurally — no per-message special-casing.
+    let carryState: {
+      intentsVistos: string[]
+      templatesEnviados: string[]
+      datosCapturados: Record<string, string>
+      packSeleccionado: string | null
+      accionesEjecutadas: unknown[]
+      currentMode: string
+    } | null = null
+    const accumulatedSentContents: string[] = []
+
     try {
     try {
       // ============================================================
@@ -266,7 +288,6 @@ export class V4ProductionRunner {
 
       // Snapshot pre-process state for potential Path A rollback
       const inputIntentsVistos = [...(session.state.intents_vistos ?? [])]
-      const inputTemplatesEnviados = session.state.templates_enviados ?? []
       const inputDatosCapturados = { ...currentDatos }
       // Remove pending message from datos so pipeline doesn't see it
       delete inputDatosCapturados['_v3:pendingUserMessage']
@@ -274,7 +295,7 @@ export class V4ProductionRunner {
       // Read acciones_ejecutadas: prefer dedicated column (new), fallback to _v3: key in datos_capturados
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rawState = session.state as any
-      const accionesEjecutadas = rawState.acciones_ejecutadas ??
+      const sessionAccionesEjecutadas = rawState.acciones_ejecutadas ??
         (() => {
           try {
             const raw = (session.state.datos_capturados ?? {})['_v3:accionesEjecutadas']
@@ -284,19 +305,43 @@ export class V4ProductionRunner {
 
       // V4 expects intentsVistos as string[], production stores IntentRecord[]
       // Extract just the intent names
-      const intentsVistos: string[] = inputIntentsVistos.map(
+      const sessionIntentsVistos: string[] = inputIntentsVistos.map(
         (r: { intent: string } | string) => typeof r === 'string' ? r : r.intent
       )
+
+      // Seed = session-derived state by default. On a Path B reprocess (bug
+      // 2026-05-28) `carryState` overrides it so the reprocess iteration knows the
+      // saludo/templates were already sent (no re-greet, no re-send). On Path A
+      // combine carryState stays null → original session state, by design.
+      const seed: {
+        intentsVistos: string[]
+        templatesEnviados: string[]
+        datosCapturados: Record<string, string>
+        packSeleccionado: string | null
+        accionesEjecutadas: unknown[]
+        currentMode: string
+      } = carryState ?? {
+        intentsVistos: sessionIntentsVistos,
+        templatesEnviados: session.state.templates_enviados ?? [],
+        datosCapturados: inputDatosCapturados,
+        packSeleccionado: session.state.pack_seleccionado as string | null,
+        accionesEjecutadas: sessionAccionesEjecutadas,
+        currentMode: session.current_mode,
+      }
+      // Used by the no-repetition filter + final state-save union. Points at the
+      // seed so a Path B reprocess carries iter-1's already-sent IDs forward
+      // (filter won't re-send them; final save records the full set).
+      const inputTemplatesEnviados = seed.templatesEnviados
 
       const v4Input: V4AgentInput = {
         message: turnEffectiveMessage,
         history,
-        currentMode: session.current_mode,
-        intentsVistos,
-        templatesEnviados: inputTemplatesEnviados,
-        datosCapturados: inputDatosCapturados,
-        packSeleccionado: session.state.pack_seleccionado as string | null,
-        accionesEjecutadas,
+        currentMode: seed.currentMode,
+        intentsVistos: seed.intentsVistos,
+        templatesEnviados: seed.templatesEnviados,
+        datosCapturados: seed.datosCapturados,
+        packSeleccionado: seed.packSeleccionado,
+        accionesEjecutadas: seed.accionesEjecutadas,
         turnNumber,
         workspaceId: this.config.workspaceId,
         sessionId: session.id,
@@ -613,19 +658,53 @@ export class V4ProductionRunner {
             shouldRestart = true
             continue
           }
-          // D-01 Path B — msg1 already had templates sent; do NOT restart,
-          // do NOT re-include msg1. Preserve existing behavior verbatim.
+          // Path B (bug 2026-05-28 — clean reprocess): prior-turn pending
+          // templates were just (re)sent and the customer interrupted. Discard
+          // THIS turn's msg1 output (not yet sent — 5h-main runs after this) and
+          // answer the new message(s) clean in-lambda. If nothing is queued,
+          // finish (keep what was sent). The new message(s) were NOT drained in
+          // the sentCount===0 branch above, so drain them here.
+          const pendingB = dropOwnEntry(await readAndClearPending(
+            this.config.workspaceId,
+            lockCtx.channel,
+            lockCtx.identifier,
+          ))
+          await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
           emitLockEvent('msg_aborted_path_b_solo', {
             at_step: 'ckpt_6_pre_send_loop_main',
             templates_sent_before_abort: sentCount,
           })
-          // Update outer counter for finally block lock_released_normal payload.
-          templatesSentCount = sentCount
+          if (pendingB.length > 0) {
+            restartIteration++
+            emitLockEvent('pending_list_combined', {
+              at_step: 'ckpt_6_pre_send_loop_main',
+              entries_count: pendingB.length,
+              total_chars: pendingB.reduce((s, p) => s + p.content.length, 0),
+              restart_iteration: restartIteration,
+            })
+            // msg1's output was NOT sent (only the prior-turn pending templates
+            // were) → carry the SESSION state forward (not msg1's output) so the
+            // reprocess does not mark msg1's intents as seen.
+            accumulatedSentContents.push(...sentMessageContents)
+            carryState = {
+              intentsVistos: seed.intentsVistos,
+              templatesEnviados: [...inputTemplatesEnviados, ...actuallySentIds],
+              datosCapturados: seed.datosCapturados,
+              packSeleccionado: seed.packSeleccionado,
+              accionesEjecutadas: seed.accionesEjecutadas,
+              currentMode: seed.currentMode,
+            }
+            effectiveMessage = pendingB.map((p) => p.content).join('\n')
+            shouldRestart = true
+            continue
+          }
+          // Nothing queued → finish: keep what was sent (this + prior iterations).
+          templatesSentCount = accumulatedSentContents.length + sentCount
           return {
             success: true,
             messages: [],
             sessionId: session.id,
-            messagesSent: sentCount,
+            messagesSent: accumulatedSentContents.length + sentCount,
             tokensUsed: totalTokensAcrossRestarts,
           }
         }
@@ -716,28 +795,97 @@ export class V4ProductionRunner {
             .filter((id): id is string => id != null && id.length > 0)
           actuallySentIds.push(...sentIds)
 
-          // Interruption handling
-          if (sendResult.interrupted) {
-            if (sendResult.messagesSent === 0) {
-              // PATH A (CKPT-7.1 edge case): 0 templates sent — save pending
-              // message, next inbound's lambda combines via R-03 iter-1 legacy
-              // path. Per D-05 (debounce-v2-interrupt-reprocess), CKPT-7.N
-              // does NOT trigger the restart loop because we're already
-              // mid-send-loop and re-running comprehension would race with
-              // partial-delivery state.
+          // Interruption handling (bug 2026-05-28 — clean in-lambda reprocess).
+          // The customer interrupted mid-send. Instead of deferring the new
+          // message to the next inbound (which orphans it if the customer goes
+          // silent), we answer it in THIS lambda. Two cases:
+          //   - 0 sent this turn  → Path A: nothing delivered, so recombine
+          //     priorMsg + new message(s) and re-run from the top.
+          //   - ≥1 sent this turn → Path B: the customer redirected, so DISCARD
+          //     the rest of msg1's response and answer the new message(s) clean,
+          //     carrying state forward (no re-greet, no re-send of sent IDs).
+          // The pending list is drained whole + the while loop re-runs on any new
+          // interrupt, so N piled-up messages + cascades are handled structurally.
+          if (sendResult.interrupted && lockCtx) {
+            // Customer redirected → discard any leftover msg1 templates.
+            if (this.adapters.storage.clearPendingTemplates) {
+              await this.adapters.storage.clearPendingTemplates(session.id)
+            }
+            const newMsgs = dropOwnEntry(await readAndClearPending(
+              this.config.workspaceId, lockCtx.channel, lockCtx.identifier,
+            ))
+            await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
+
+            if (newMsgs.length > 0) {
+              restartIteration++
+              const newChars = newMsgs.reduce((s, p) => s + p.content.length, 0)
+              if (sendResult.messagesSent === 0) {
+                // Path A: nothing delivered → recombine prior + new, re-run.
+                emitLockEvent('msg_aborted_path_a_combined', {
+                  at_step: 'send_loop_ckpt7',
+                  templates_sent_before_abort: 0,
+                  combined_msg_count: newMsgs.length + 1,
+                  total_chars: newChars + turnEffectiveMessage.length,
+                  restart_iteration: restartIteration,
+                })
+                emitLockEvent('pending_list_combined', {
+                  at_step: 'send_loop_ckpt7',
+                  entries_count: newMsgs.length,
+                  total_chars: newChars,
+                  restart_iteration: restartIteration,
+                })
+                effectiveMessage = [turnEffectiveMessage, ...newMsgs.map(p => p.content)].join('\n')
+              } else {
+                // Path B: ≥1 delivered → answer the NEW message(s) clean.
+                emitLockEvent('msg_aborted_path_b_solo', {
+                  at_step: 'send_loop_ckpt7',
+                  templates_sent_before_abort: sendResult.messagesSent,
+                })
+                emitLockEvent('pending_list_combined', {
+                  at_step: 'send_loop_ckpt7',
+                  entries_count: newMsgs.length,
+                  total_chars: newChars,
+                  restart_iteration: restartIteration,
+                })
+                // Preserve what the customer already saw + carry state forward so
+                // the reprocess does not re-greet or re-send already-sent IDs.
+                accumulatedSentContents.push(...sentMessageContents)
+                carryState = {
+                  intentsVistos: output.intentsVistos,
+                  templatesEnviados: [...inputTemplatesEnviados, ...actuallySentIds],
+                  datosCapturados: output.datosCapturados,
+                  packSeleccionado: output.packSeleccionado as string | null,
+                  accionesEjecutadas: output.accionesEjecutadas,
+                  currentMode: output.newMode ?? seed.currentMode,
+                }
+                effectiveMessage = newMsgs.map(p => p.content).join('\n')
+              }
+              shouldRestart = true
+              console.log(`[V4-RUNNER] send-loop interrupt: ${sendResult.messagesSent} sent, reprocessing ${newMsgs.length} new message(s)`)
+            } else if (sendResult.messagesSent === 0) {
+              // Interrupt fired but nothing queued + nothing sent → fall back to
+              // the legacy cross-lambda defer (next inbound combines via R-03).
               wasInterruptedWithZeroSends = true
               getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
                 sessionId: session.id,
                 pendingMessage: input.message.substring(0, 100),
               })
-              console.log(`[V4-RUNNER] Path A (CKPT-7.1): 0 sends, saving pending for next lambda`)
+            }
+            // (≥1 sent + empty pending → nothing new to answer: finish normally;
+            //  leftover msg1 templates already discarded above.)
+          } else if (sendResult.interrupted) {
+            // No lock (fail-open / pre-v4 path): preserve legacy defer behavior.
+            if (sendResult.messagesSent === 0) {
+              wasInterruptedWithZeroSends = true
+              getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
+                sessionId: session.id,
+                pendingMessage: input.message.substring(0, 100),
+              })
             } else {
-              // PATH B: partial send — save unsent as pending_templates
               const sentIndex = sendResult.interruptedAtIndex ?? sendResult.messagesSent
               const unsent = templatesToSend.slice(sentIndex)
               if (unsent.length > 0 && this.adapters.storage.savePendingTemplates) {
                 await this.adapters.storage.savePendingTemplates(session.id, unsent)
-                console.log(`[V4-RUNNER] Path B: ${sendResult.messagesSent} sent, ${unsent.length} saved as pending`)
               }
             }
           } else {
@@ -761,20 +909,31 @@ export class V4ProductionRunner {
         sentMessageContents.push(...output.messages)
       }
 
+      // Bug 2026-05-28: a send-loop interrupt with queued message(s) set
+      // `shouldRestart` above → jump to the next iteration to answer them
+      // WITHOUT running the post-send state save for this (aborted) iteration.
+      // Pitfall 8: no DB write across restart iterations; carryState +
+      // accumulatedSentContents hold the in-memory continuity.
+      if (shouldRestart) continue
+
+      // Everything the customer saw across restart iterations (bug 2026-05-28):
+      // prior iterations' sends (Path B reprocess) + this final iteration's sends.
+      // Used for the assistant-turn record + the return payload so they reflect
+      // the full conversation, not just the last iteration.
+      const allSentContents = [...accumulatedSentContents, ...sentMessageContents]
+      const totalMessagesSent = accumulatedSentContents.length + messagesSent
+
       // ================================================================
       // 5-post. POST-SEND: State save + turns (Path A vs Path B decision)
       // ================================================================
 
       // ============================================================
-      // Pitfall 5 (Standalone debounce-v2-interrupt-reprocess): this block
-      // remains live for the CKPT-7.N Path A edge case (template_1 send
-      // aborted at first byte by V4MessagingAdapter.shouldAbortBeforeTemplate).
-      // Per D-05 explicit: CKPT-7.N does NOT trigger restart. The next
-      // inbound's lambda will see `_v3:pendingUserMessage` in session state
-      // and accumulate via R-03 iter-1 path. Do NOT collapse this into the
-      // restart loop — once we've entered the send-loop, msg1 has either
-      // been delivered or is mid-flight, and re-running comprehension on
-      // the combined message would race with the partially-delivered turn.
+      // wasInterruptedWithZeroSends now fires only for the residual case: an
+      // interrupt was detected at the first-byte send but the pending list was
+      // EMPTY (nothing queued to answer) — fall back to the legacy cross-lambda
+      // defer (`_v3:pendingUserMessage`) so the next inbound combines via the
+      // R-03 iter-1 path. The common interrupt cases (a queued message exists)
+      // restart in-lambda above and never reach this block (bug 2026-05-28).
       // ============================================================
       if (wasInterruptedWithZeroSends) {
         // PATH A (CKPT-7.1 edge case): Rollback intents_vistos, save pending
@@ -880,8 +1039,10 @@ export class V4ProductionRunner {
           console.log(`[V4-RUNNER] Order result: success=${orderResult.success} orderId=${orderResult.orderId}`)
         }
 
-        // Assistant turn recording (post-send)
-        const assistantContent = sentMessageContents
+        // Assistant turn recording (post-send) — full set across restart
+        // iterations so a Path B reprocess records msg1's partial reply + the
+        // interrupting message's reply (bug 2026-05-28).
+        const assistantContent = allSentContents
           .filter(m => m.trim().length > 0)
           .join('\n')
         if (assistantContent.trim()) {
@@ -912,8 +1073,9 @@ export class V4ProductionRunner {
       if (output.salesTrackInfo) this.adapters.debug.recordOrchestration(output.salesTrackInfo)
       this.adapters.debug.recordTimerSignals(output.timerSignals)
 
-      // Update outer counter for finally-block lock_released_normal payload.
-      templatesSentCount = actuallySentIds.length
+      // Update outer counter for finally-block lock_released_normal payload —
+      // total across restart iterations (bug 2026-05-28).
+      templatesSentCount = totalMessagesSent
 
       // 6. Return EngineOutput compatible with webhook-processor
       return {
@@ -925,8 +1087,8 @@ export class V4ProductionRunner {
         // of per-call output.totalTokens.
         tokensUsed: totalTokensAcrossRestarts,
         sessionId: session.id,
-        messagesSent,
-        response: sentMessageContents.join('\n'),
+        messagesSent: totalMessagesSent,
+        response: allSentContents.join('\n'),
         orderCreated: orderResult?.success,
         orderId: orderResult?.orderId,
         contactId: orderResult?.contactId ?? input.contactId,

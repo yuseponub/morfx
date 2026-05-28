@@ -516,15 +516,21 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
   })
 
   // ===========================================================================
-  // S4 — Path B post-send: actuallySentIds.length > 0 → msg_aborted_path_b_solo,
-  // NO restart, pending list still contains msg2.
+  // S4 — Path B at CKPT-6b: pending-templates from a prior turn sent →
+  // CKPT-6b interrupt → CLEAN REPROCESS (bug 2026-05-28). Behavior CHANGED from
+  // the original parent design (which deferred — "NO restart, pending kept"):
+  // per the product decision, the interrupting message must NEVER be orphaned,
+  // so CKPT-6b Path B now drains the pending list and answers the new message in
+  // the SAME lambda (carrying state forward so it does not re-greet). The runner
+  // re-runs once; the pending list ends EMPTY.
   // ===========================================================================
-  it('S4 Path B post-send: pending-templates from prior turn sent → CKPT-6b interrupt → Path B solo, NO restart', async () => {
+  it('S4 Path B at CKPT-6b: prior-turn pending-templates sent → interrupt → drains + reprocesses the new message (no orphan)', async () => {
     const IDENT = '+57300S4'
 
-    // Agent returns success — no interruption from agent side. The interrupt
-    // is staged before the runner sees it via CKPT-6b.
+    // iter-1 agent output (discarded — its templates are never sent because
+    // CKPT-6b catches the interrupt first). iter-2 answers the drained 'msg2'.
     agentMockFn.mockResolvedValueOnce(makeSuccessOutput({ totalTokens: 100 }))
+    agentMockFn.mockResolvedValueOnce(makeSuccessOutput({ totalTokens: 80 }))
 
     // Storage: pre-populate pending_templates from a prior interrupted turn.
     // The runner sends these first, populating actuallySentIds. Then CKPT-6b
@@ -556,12 +562,16 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
     // So we delay writing the interrupt key until after the pending-templates
     // send — we do that by writing it inside the messaging.send mock's first call.)
     const messagingWithInterruptHook = makeMockMessaging(
-      vi.fn().mockImplementationOnce(async () => {
-        // Write interrupt key AFTER pending templates are sent so CKPT-6b
-        // (which runs AFTER getPendingTemplates+send) catches it.
-        await mockRedis.set(`interrupt:${WS}:${CHANNEL}:${IDENT}`, 'm2', { ex: 60 })
-        return { messagesSent: 1, interrupted: false }
-      }),
+      vi.fn()
+        .mockImplementationOnce(async () => {
+          // Write interrupt key AFTER pending templates are sent so CKPT-6b
+          // (which runs AFTER getPendingTemplates+send) catches it.
+          await mockRedis.set(`interrupt:${WS}:${CHANNEL}:${IDENT}`, 'm2', { ex: 60 })
+          return { messagesSent: 1, interrupted: false }
+        })
+        // iter-2 messages-fallback send (msg2's reply has no templates → 0 sent
+        // via adapter, mirroring the real parent's no-templates early return).
+        .mockResolvedValue({ messagesSent: 0, interrupted: false }),
     )
     // Suppress unused-warning for the first messaging instance — we use the hook variant.
     void messaging
@@ -572,30 +582,32 @@ describe('restart-loop S1..S5 (Plan 02 D-09)', () => {
 
     const output = await runner.processMessage(input)
 
-    // Path B preserves current behavior — runner returns success with sent count.
     expect(output.success).toBe(true)
-    expect(output.messagesSent).toBe(1)
 
-    // NO restart event of any kind.
-    const restartEvents = emittedEvents.filter(
-      (e) =>
-        e.label === 'msg_aborted_path_a_combined' ||
-        'restart_iteration' in e.payload,
-    )
-    expect(restartEvents).toHaveLength(0)
-
-    // Path B event emitted (msg_aborted_path_b_solo from runner's CKPT-6b Path B branch).
+    // Path B event emitted (msg_aborted_path_b_solo from runner's CKPT-6b branch).
     const pathBEvents = emittedEvents.filter((e) => e.label === 'msg_aborted_path_b_solo')
     expect(pathBEvents.length).toBeGreaterThanOrEqual(1)
 
-    // Pending list STILL contains msg2 — Path B does NOT call readAndClearPending.
-    // (The next inbound's lambda will drain via R-03 / CKPT-0 combine.)
+    // The interrupting message was DRAINED + reprocessed (NOT deferred): a
+    // pending_list_combined with restart_iteration=1 is emitted for the reprocess.
+    const reprocess = emittedEvents.filter(
+      (e) => e.label === 'pending_list_combined' && e.payload.restart_iteration === 1,
+    )
+    expect(reprocess).toHaveLength(1)
+
+    // Pending list ends EMPTY — Path B now drains it (no orphaned message).
     const all = mockRedis.__getAll()
     const pendingKey = `pending:${WS}:${CHANNEL}:${IDENT}`
-    expect(all.lists.get(pendingKey)?.length ?? 0).toBeGreaterThanOrEqual(1)
+    expect(all.lists.get(pendingKey)?.length ?? 0).toBe(0)
 
-    // Agent invoked exactly once (no restart).
-    expect(agentMockFn).toHaveBeenCalledTimes(1)
+    // Agent invoked TWICE (iter-1 discarded + iter-2 answers the new message).
+    expect(agentMockFn).toHaveBeenCalledTimes(2)
+    // iter-2 answers the drained 'msg2' (NOT recombined with msg1).
+    expect(agentMockFn.mock.calls[1][0].message).toBe('msg2')
+
+    // Single lock lifetime (Pitfall 6 — heartbeat OUTSIDE while loop).
+    const releaseCount = emittedEvents.filter((e) => e.label === 'lock_released_normal').length
+    expect(releaseCount).toBe(1)
   })
 
   // ===========================================================================

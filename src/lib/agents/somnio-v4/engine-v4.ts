@@ -147,6 +147,12 @@ export class SomnioV4Engine {
     let restartIteration = 0
     let effectiveMessage: string | null = null
     let templatesSentCount = 0
+    // Accumulates templates actually streamed to the client ACROSS restart
+    // iterations. On a Path B reprocess (abort remaining + answer the
+    // interrupting message), iter-1's already-sent templates live here so the
+    // final result/state record reflects everything the customer saw, not just
+    // the last iteration's output.
+    const accumulatedSentMessages: string[] = []
 
     try {
     try {
@@ -365,12 +371,54 @@ export class SomnioV4Engine {
             )
             if (ck7.lostLock) throw new LostLockError(`ckpt_7_pre_template_${i}`)
             if (!ck7.proceed && ck7.interrupted) {
-              const eventLabel = i === 0 ? 'msg_aborted_path_a_combined' : 'msg_aborted_path_b_solo'
-              emitLockEvent(eventLabel, {
+              const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+              await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+              if (i === 0) {
+                // Nothing sent yet this iteration → Path A: combine prior msg
+                // with the interrupting message(s) and re-run from the top.
+                restartIteration++
+                emitLockEvent('msg_aborted_path_a_combined', {
+                  at_step: `ckpt_7_pre_template_${i}`,
+                  templates_sent_before_abort: 0,
+                  combined_msg_count: pending.length + 1,
+                  total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
+                  restart_iteration: restartIteration,
+                })
+                emitLockEvent('pending_list_combined', {
+                  at_step: `ckpt_7_pre_template_${i}`,
+                  entries_count: pending.length,
+                  total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+                  restart_iteration: restartIteration,
+                })
+                effectiveMessage = [turnEffectiveMessage, ...pending.map(p => p.content)].join('\n')
+                shouldRestart = true
+                break
+              }
+              // Path B (i > 0): templates already sent for the prior message.
+              // Abort the rest, KEEP what was sent, and ANSWER the interrupting
+              // message(s) so the customer's question is never dropped. Re-run
+              // with the NEW message(s) ONLY — the prior message was already
+              // (partially) answered, so re-combining it would re-send templates.
+              emitLockEvent('msg_aborted_path_b_solo', {
                 at_step: `ckpt_7_pre_template_${i}`,
                 templates_sent_before_abort: i,
               })
-              break  // D-05: NO restart on CKPT-7.N
+              if (pending.length > 0) {
+                // Preserve what was already sent, then re-run with the new
+                // message(s) only. Push here (not in the post-loop block, which
+                // is skipped by `continue` below) so the count isn't doubled.
+                accumulatedSentMessages.push(...finalMessages)
+                restartIteration++
+                emitLockEvent('pending_list_combined', {
+                  at_step: `ckpt_7_pre_template_${i}`,
+                  entries_count: pending.length,
+                  total_chars: pending.reduce((s, p) => s + p.content.length, 0),
+                  restart_iteration: restartIteration,
+                })
+                effectiveMessage = pending.map(p => p.content).join('\n')
+                shouldRestart = true
+              }
+              break
             }
           }
           finalMessages.push(output.messages[i])
@@ -383,7 +431,13 @@ export class SomnioV4Engine {
             await input.onMessage(output.messages[i], i)
           }
         }
-        templatesSentCount = finalMessages.length
+        // Path B reprocess (or Path A combine at CKPT-7.1): jump to the next
+        // restart iteration WITHOUT building/returning state for this partial
+        // iteration. The already-sent templates are preserved in
+        // accumulatedSentMessages (pushed in the CKPT-7.N branch for Path B).
+        if (shouldRestart) continue
+        accumulatedSentMessages.push(...finalMessages)
+        templatesSentCount = accumulatedSentMessages.length
 
         const newState: SandboxState = {
           currentMode: output.newMode ?? input.state.currentMode,
@@ -407,7 +461,7 @@ export class SomnioV4Engine {
 
         lastV4Result = {
           success: output.success,
-          messages: finalMessages,
+          messages: accumulatedSentMessages,
           newState,
           timerSignal: lastTimerSignal,
           debugTurn: {

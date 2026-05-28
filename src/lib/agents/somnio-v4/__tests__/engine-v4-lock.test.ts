@@ -493,54 +493,122 @@ describe('SomnioV4Engine lock-lifecycle E1..E8 (Plan 04 D-04 + D-06 + D-14)', ()
   })
 
   // =========================================================================
-  // E5 — CKPT-7.N first-template interrupt (i=0) → empty messages, NO restart
+  // E5 — CKPT-7.1 first-template interrupt (i=0) → Path A combine + restart
+  // (nothing sent yet this iteration, so combine prior + new and re-run).
   // =========================================================================
-  it('E5 CKPT-7.N first-template (i=0) interrupt: Path A emit, NO restart, empty messages', async () => {
-    setCheckpointOverride((ckptId, opts) => {
-      if (ckptId === 'ckpt_7_pre_template' && opts?.templateIndex === 0) {
-        return { proceed: false, lostLock: false, interrupted: { pendingListLength: 0 } }
-      }
-      return null  // other ckpts use default behavior
+  it('E5 CKPT-7.1 first-template (i=0) interrupt: Path A combine prior+new, restart, combined reply', async () => {
+    const IDENT = 'sandbox-test-e5'
+    // Stage the interrupting message in pending (NO interrupt key → CKPT-0/6
+    // default-proceed; only the forced CKPT-7.0 override fires the interrupt).
+    await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'msg2',
+      received_at: new Date().toISOString(),
+      msg_id: 'm2',
     })
 
-    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['msg-A', 'msg-B'], 100))
+    let ck7Fired = false
+    setCheckpointOverride((ckptId, opts) => {
+      if (ckptId === 'ckpt_7_pre_template' && opts?.templateIndex === 0 && !ck7Fired) {
+        ck7Fired = true
+        return { proceed: false, lostLock: false, interrupted: { pendingListLength: 1 } }
+      }
+      return null
+    })
+
+    // Iter 1 agent output is discarded (interrupt at CKPT-7.0 before any send).
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['msg-A', 'msg-B'], 50))
+    // Iter 2 runs with combined message → sends combined reply.
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['combined reply'], 80))
 
     const engine = new SomnioV4Engine()
-    const input = await makeBaseInput({ message: 'msg1' }, 'sandbox-test-e5')
+    const input = await makeBaseInput({ message: 'msg1' }, IDENT)
 
     const result = await engine.processMessage(input)
 
     expect(result.success).toBe(true)
-    // Messages empty because CKPT-7.N at i=0 broke before any push to finalMessages.
-    expect(result.messages).toEqual([])
+    // Nothing sent in iter 1 (i=0 break) → result is iter 2's combined reply.
+    expect(result.messages).toEqual(['combined reply'])
 
-    // Emit msg_aborted_path_a_combined (i=0 means first template — Path A).
+    // Path A combine at CKPT-7.0 WITH restart_iteration=1.
     const path_a = emittedEvents.filter(
       (e) =>
         e.label === 'msg_aborted_path_a_combined' &&
-        typeof e.payload.at_step === 'string' &&
-        (e.payload.at_step as string).startsWith('ckpt_7_pre_template'),
+        e.payload.at_step === 'ckpt_7_pre_template_0',
     )
     expect(path_a).toHaveLength(1)
-    expect(path_a[0].payload.templates_sent_before_abort).toBe(0)
+    expect(path_a[0].payload.restart_iteration).toBe(1)
 
-    // NO restart_iteration in any CKPT-7 event (post-send is Path B; i=0 is
-    // Path A but per D-05 no restart at CKPT-7.N for either Path A or B).
-    const ckpt7Events = emittedEvents.filter(
-      (e) => typeof e.payload.at_step === 'string' && (e.payload.at_step as string).startsWith('ckpt_7_pre_template'),
-    )
-    for (const evt of ckpt7Events) {
-      expect(evt.payload.restart_iteration).toBeUndefined()
-    }
+    // Iter 2 invoked with combined message (prior first, pending appended).
+    expect(agentMockFn).toHaveBeenCalledTimes(2)
+    expect(agentMockFn.mock.calls[1][0].message).toBe('msg1\nmsg2')
 
-    // Agent invoked exactly once (no restart).
-    expect(agentMockFn).toHaveBeenCalledTimes(1)
+    const releaseCount = emittedEvents.filter((e) => e.label === 'lock_released_normal').length
+    expect(releaseCount).toBe(1)
   })
 
   // =========================================================================
-  // E6 — CKPT-7.N mid-template interrupt (i>0) → partial messages, NO restart
+  // E6 — CKPT-7.N mid-send interrupt (i>0) WITH a pending message → Path B:
+  // keep what was sent, abort the rest, and ANSWER the interrupting message.
   // =========================================================================
-  it('E6 CKPT-7.N mid-template (i>0) interrupt: first template succeeds; second fires Path B solo, NO restart', async () => {
+  it('E6 CKPT-7.N mid-send (i>0) interrupt with pending: keeps sent template, answers the new message', async () => {
+    const IDENT = 'sandbox-test-e6'
+    await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'msg2',
+      received_at: new Date().toISOString(),
+      msg_id: 'm2',
+    })
+
+    let ck7Fired = false
+    setCheckpointOverride((ckptId, opts) => {
+      if (ckptId === 'ckpt_7_pre_template' && opts?.templateIndex === 1 && !ck7Fired) {
+        ck7Fired = true
+        return { proceed: false, lostLock: false, interrupted: { pendingListLength: 1 } }
+      }
+      return null
+    })
+
+    // Iter 1: agent for msg1 → ['msg-A','msg-B']; msg-A is sent, then CKPT-7.1
+    // aborts. Iter 2: agent for the new message 'msg2' → ['precio reply'].
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['msg-A', 'msg-B'], 50))
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['precio reply'], 80))
+
+    const engine = new SomnioV4Engine()
+    const input = await makeBaseInput({ message: 'msg1' }, IDENT)
+
+    const result = await engine.processMessage(input)
+
+    expect(result.success).toBe(true)
+    // Already-sent template preserved + the new message's answer appended.
+    expect(result.messages).toEqual(['msg-A', 'precio reply'])
+
+    // Path B solo at CKPT-7.1 (templates_sent_before_abort=1).
+    const path_b = emittedEvents.filter((e) => e.label === 'msg_aborted_path_b_solo')
+    expect(path_b).toHaveLength(1)
+    expect(path_b[0].payload.templates_sent_before_abort).toBe(1)
+
+    // Path B reprocess emits pending_list_combined with restart_iteration=1.
+    const pendingCombined = emittedEvents.filter(
+      (e) =>
+        e.label === 'pending_list_combined' &&
+        e.payload.at_step === 'ckpt_7_pre_template_1',
+    )
+    expect(pendingCombined).toHaveLength(1)
+
+    // Iter 2 invoked with the NEW message ONLY (prior msg already answered).
+    expect(agentMockFn).toHaveBeenCalledTimes(2)
+    expect(agentMockFn.mock.calls[1][0].message).toBe('msg2')
+
+    const releaseCount = emittedEvents.filter((e) => e.label === 'lock_released_normal').length
+    expect(releaseCount).toBe(1)
+  })
+
+  // =========================================================================
+  // E6b — CKPT-7.N mid-send interrupt (i>0) with NO pending message → Path B
+  // aborts the rest and does NOT restart (nothing new to answer).
+  // =========================================================================
+  it('E6b CKPT-7.N mid-send (i>0) interrupt with empty pending: keeps sent template, NO restart', async () => {
     setCheckpointOverride((ckptId, opts) => {
       if (ckptId === 'ckpt_7_pre_template' && opts?.templateIndex === 1) {
         return { proceed: false, lostLock: false, interrupted: { pendingListLength: 0 } }
@@ -551,28 +619,19 @@ describe('SomnioV4Engine lock-lifecycle E1..E8 (Plan 04 D-04 + D-06 + D-14)', ()
     agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['msg-A', 'msg-B'], 100))
 
     const engine = new SomnioV4Engine()
-    const input = await makeBaseInput({ message: 'msg1' }, 'sandbox-test-e6')
+    const input = await makeBaseInput({ message: 'msg1' }, 'sandbox-test-e6b')
 
     const result = await engine.processMessage(input)
 
     expect(result.success).toBe(true)
-    // Only first template sent; second aborted at CKPT-7.1.
+    // Only first template sent; second aborted; no new message to answer.
     expect(result.messages).toEqual(['msg-A'])
 
-    // Emit msg_aborted_path_b_solo (i>0).
     const path_b = emittedEvents.filter((e) => e.label === 'msg_aborted_path_b_solo')
     expect(path_b).toHaveLength(1)
     expect(path_b[0].payload.templates_sent_before_abort).toBe(1)
 
-    // NO Path A combined event with at_step matching ckpt_7.
-    const ckpt7PathA = emittedEvents.filter(
-      (e) =>
-        e.label === 'msg_aborted_path_a_combined' &&
-        typeof e.payload.at_step === 'string' &&
-        (e.payload.at_step as string).startsWith('ckpt_7_pre_template'),
-    )
-    expect(ckpt7PathA).toHaveLength(0)
-
+    // No restart (empty pending) → agent invoked exactly once.
     expect(agentMockFn).toHaveBeenCalledTimes(1)
   })
 

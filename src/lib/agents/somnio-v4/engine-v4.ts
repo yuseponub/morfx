@@ -154,6 +154,37 @@ export class SomnioV4Engine {
     // the last iteration's output.
     const accumulatedSentMessages: string[] = []
 
+    // Bug 2026-05-28 (phantom self-message): the HOLDER pushes its OWN inbound
+    // message into the pending list (route/webhook) so it is crash-recoverable.
+    // But `readAndClearPending` drains the WHOLE list, so the holder's own entry
+    // would be re-combined with the interrupting message(s) — producing a
+    // duplicated/echoed message (e.g. the original "hola" reappearing in the
+    // combined effectiveMessage, and re-greeting on a Path B reprocess). Parse
+    // the holder's own entry_uuid once and EXCLUDE it from every drain. Filtering
+    // by entry_uuid (vs byte-exact `removeOwnEntry`) is robust against any JSON
+    // serialization drift and needs no extra Redis round-trip.
+    let ownEntryUuid: string | null = null
+    if (input.ownPendingEntryJson) {
+      try {
+        ownEntryUuid = (JSON.parse(input.ownPendingEntryJson) as { entry_uuid?: string }).entry_uuid ?? null
+      } catch {
+        ownEntryUuid = null
+      }
+    }
+    const dropOwnEntry = <T extends { entry_uuid: string }>(entries: T[]): T[] =>
+      ownEntryUuid ? entries.filter((e) => e.entry_uuid !== ownEntryUuid) : entries
+
+    // Bug 2026-05-28 (re-greet on Path B reprocess): each restart iteration
+    // re-seeds the agent from `input.state` (the ORIGINAL turn state). For a
+    // Path A combine that is correct (we re-run the original message merged with
+    // the interrupting one, so the original state is the right starting point).
+    // But for a Path B reprocess — where iter-0 ALREADY sent templates the
+    // customer saw (e.g. the saludo) — starting from the original state makes
+    // the response-track think the saludo was never sent and re-greet. On a
+    // Path B reprocess we capture iter-0's resulting state here and seed iter-1
+    // from it. Stays null for Path A so combine keeps original-state semantics.
+    let carryState: SandboxState | null = null
+
     try {
     try {
       // ============================================================
@@ -185,7 +216,7 @@ export class SomnioV4Engine {
           )
           if (ck0.lostLock) throw new LostLockError('ckpt_0_post_acquire')
           if (!ck0.proceed && ck0.interrupted) {
-            const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+            const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
             // Consume the interrupt signal too (bug 2026-05-28): without this the
             // next iteration's CKPT-0 re-reads the still-set interrupt key and
             // spins Path A on an empty pending list until the 60s TTL expires.
@@ -227,14 +258,18 @@ export class SomnioV4Engine {
           await sleep(input.simulateProdTimingMs!)
         }
 
+        // Path B reprocess seeds from iter-0's resulting state (carryState) so
+        // the agent knows the saludo/templates were already sent and does NOT
+        // re-greet. Path A combine keeps `carryState === null` → original state.
+        const seedState: SandboxState = carryState ?? input.state
         const output = await processMessage({
           message: turnEffectiveMessage,
-          currentMode: input.state.currentMode,
-          intentsVistos: input.state.intentsVistos ?? [],
-          templatesEnviados: input.state.templatesEnviados ?? [],
-          datosCapturados: input.state.datosCapturados ?? {},
-          packSeleccionado: input.state.packSeleccionado ?? null,
-          accionesEjecutadas: input.state.accionesEjecutadas ?? [],
+          currentMode: seedState.currentMode,
+          intentsVistos: seedState.intentsVistos ?? [],
+          templatesEnviados: seedState.templatesEnviados ?? [],
+          datosCapturados: seedState.datosCapturados ?? {},
+          packSeleccionado: seedState.packSeleccionado ?? null,
+          accionesEjecutadas: seedState.accionesEjecutadas ?? [],
           history: input.history,
           turnNumber: input.turnNumber,
           workspaceId: input.workspaceId,
@@ -269,7 +304,7 @@ export class SomnioV4Engine {
           if (!lockCtx) {
             throw new Error(`[SomnioV4Engine] agent emitted ${output.errorMessage} but lockCtx is null`)
           }
-          const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+          const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
           // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
           await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
           restartIteration++
@@ -308,7 +343,7 @@ export class SomnioV4Engine {
           if (!ck6.proceed && ck6.interrupted) {
             // In sandbox, sentCount is always 0 at this point (the CKPT-7.N
             // synthetic loop runs AFTER CKPT-6). Always Path A → restart.
-            const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+            const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
             // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
             await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
             restartIteration++
@@ -371,7 +406,7 @@ export class SomnioV4Engine {
             )
             if (ck7.lostLock) throw new LostLockError(`ckpt_7_pre_template_${i}`)
             if (!ck7.proceed && ck7.interrupted) {
-              const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+              const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
               await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
               if (i === 0) {
                 // Nothing sent yet this iteration → Path A: combine prior msg
@@ -409,6 +444,17 @@ export class SomnioV4Engine {
                 // is skipped by `continue` below) so the count isn't doubled.
                 accumulatedSentMessages.push(...finalMessages)
                 restartIteration++
+                // Seed the reprocess from THIS iteration's resulting state so the
+                // agent knows the saludo/templates were already sent and does NOT
+                // re-greet when answering the interrupting message (bug 2026-05-28).
+                carryState = {
+                  currentMode: output.newMode ?? seedState.currentMode,
+                  intentsVistos: output.intentsVistos,
+                  templatesEnviados: output.templatesEnviados,
+                  datosCapturados: output.datosCapturados,
+                  packSeleccionado: output.packSeleccionado as PackSelection | null,
+                  accionesEjecutadas: output.accionesEjecutadas,
+                }
                 emitLockEvent('pending_list_combined', {
                   at_step: `ckpt_7_pre_template_${i}`,
                   entries_count: pending.length,

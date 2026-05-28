@@ -566,4 +566,127 @@ describe('Wave 3 — Pitfall 7 propagation via REAL mapOutcomeToAgentOutput', { 
     expect((output as { requiresHuman?: boolean }).requiresHuman ?? false).toBe(false)
     expect(output.error).toBeUndefined()
   })
+
+  // =========================================================================
+  // TEST 4 — phantom self-message fix (bug 2026-05-28). The webhook RPUSHes the
+  // HOLDER's OWN inbound message into the pending list (D-16) for crash-recovery.
+  // All Path A drain sites fire BEFORE the first send (onFirstSendCompleted
+  // hasn't LREM'd it yet), so the own entry is still present. dropOwnEntry must
+  // exclude it so the combine is "msg1\nmsg2" — NOT "msg1\nmsg1\nmsg2".
+  // =========================================================================
+  it('Path A combine excludes the holder OWN pending entry (no self-echo) — bug 2026-05-28', async () => {
+    subLoopMockFn
+      .mockResolvedValueOnce(makeInterruptOutcome('3_post_tooling'))
+      .mockResolvedValueOnce(makeGeneratedOutcome())
+
+    const IDENT = '+57300W4'
+    const { randomUUID } = await import('crypto')
+    // HOLDER's OWN inbound message lives in pending (mirrors webhook line 388).
+    const ownPush = await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'msg1',
+      received_at: new Date().toISOString(),
+      msg_id: 'm1',
+    })
+    // The interrupting FOLLOWER message.
+    await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'msg2',
+      received_at: new Date().toISOString(),
+      msg_id: 'm2',
+    })
+
+    const lockHandle = await acquireLock(WS, CHANNEL, IDENT)
+    expect(lockHandle).not.toBeNull()
+
+    const session = {
+      id: 'sess-1',
+      agent_id: 'somnio-sales-v4',
+      conversation_id: 'conv-1',
+      contact_id: 'contact-1',
+      workspace_id: WS,
+      version: 1,
+      status: 'active' as const,
+      current_mode: 'initial',
+      state: {
+        datos_capturados: {} as Record<string, string>,
+        intents_vistos: [] as Array<{ intent: string }>,
+        templates_enviados: [] as string[],
+        pack_seleccionado: null as string | null,
+      },
+    }
+    const mockSend = vi.fn().mockResolvedValue({ messagesSent: 1, interrupted: false })
+    const adapters = {
+      storage: {
+        getSession: vi.fn().mockResolvedValue(session),
+        getOrCreateSession: vi.fn().mockResolvedValue(session),
+        getHistory: vi.fn().mockResolvedValue([]),
+        saveState: vi.fn().mockResolvedValue(undefined),
+        updateMode: vi.fn().mockResolvedValue(undefined),
+        addTurn: vi.fn().mockResolvedValue(undefined),
+        addIntentSeen: vi.fn().mockResolvedValue(undefined),
+        handoff: vi.fn().mockResolvedValue(undefined),
+        savePendingTemplates: vi.fn().mockResolvedValue(undefined),
+        getPendingTemplates: vi.fn().mockResolvedValue([]),
+        clearPendingTemplates: vi.fn().mockResolvedValue(undefined),
+      },
+      messaging: { send: mockSend },
+      timer: {
+        signal: vi.fn(),
+        onCustomerMessage: vi.fn().mockResolvedValue(undefined),
+        onModeTransition: vi.fn().mockResolvedValue(undefined),
+        onIngestStarted: vi.fn().mockResolvedValue(undefined),
+        onIngestCompleted: vi.fn().mockResolvedValue(undefined),
+        onSilenceDetected: vi.fn().mockResolvedValue(undefined),
+        getLastSignal: vi.fn().mockReturnValue(undefined),
+        setSessionId: vi.fn(),
+        emitSignals: vi.fn().mockResolvedValue(undefined),
+      },
+      orders: {
+        createOrder: vi.fn().mockResolvedValue({ success: true, orderId: 'o-1', contactId: 'contact-1' }),
+      },
+      debug: {
+        recordIntent: vi.fn(), recordTools: vi.fn(), recordTokens: vi.fn(), recordState: vi.fn(),
+        recordClassification: vi.fn(), recordBlockComposition: vi.fn(), recordNoRepetition: vi.fn(),
+        recordOfiInter: vi.fn(), recordPreSendCheck: vi.fn(), recordTimerSignals: vi.fn(),
+        recordTemplateSelection: vi.fn(), recordTransitionValidation: vi.fn(), recordOrchestration: vi.fn(),
+        recordIngestDetails: vi.fn(), recordDisambiguationLog: vi.fn(), getDebugTurn: vi.fn().mockReturnValue(undefined),
+      },
+    }
+
+    const { V4ProductionRunner } = await import('@/lib/agents/engine/v4-production-runner')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runner = new V4ProductionRunner(adapters as any, { workspaceId: WS })
+
+    const output = await runner.processMessage({
+      sessionId: 'sess-1',
+      conversationId: 'conv-1',
+      contactId: 'contact-1',
+      message: 'msg1',
+      workspaceId: WS,
+      history: [],
+      lockHandle: lockHandle!,
+      lockChannel: CHANNEL,
+      lockIdentifier: IDENT,
+      // The holder knows its own pending entry (webhook stores push.exactJson).
+      ownPendingEntryJson: ownPush.exactJson,
+    })
+
+    expect(output.success).toBe(true)
+
+    // CRITICAL: the drained-and-combined pending excludes the holder's OWN entry.
+    // entries_count counts ONLY the interrupting message(s) → 1 (not 2).
+    const combined = emittedEvents.filter(
+      (e) => e.label === 'pending_list_combined' && e.payload.restart_iteration === 1,
+    )
+    expect(combined).toHaveLength(1)
+    expect(combined[0].payload.entries_count).toBe(1)
+
+    const pathA = emittedEvents.filter(
+      (e) => e.label === 'msg_aborted_path_a_combined' && e.payload.restart_iteration === 1,
+    )
+    expect(pathA).toHaveLength(1)
+    // combined_msg_count = pending.length (1, own excluded) + 1 prior = 2 (not 3).
+    expect(pathA[0].payload.combined_msg_count).toBe(2)
+  })
 })

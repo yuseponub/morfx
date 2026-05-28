@@ -698,4 +698,99 @@ describe('SomnioV4Engine lock-lifecycle E1..E8 (Plan 04 D-04 + D-06 + D-14)', ()
     // Agent invoked once.
     expect(agentMockFn).toHaveBeenCalledTimes(1)
   })
+
+  // =========================================================================
+  // E9 — phantom self-message fix (bug 2026-05-28): the HOLDER pushes its OWN
+  // inbound message into the pending list (route/webhook) for crash-recovery.
+  // On a Path A combine the drain must EXCLUDE the holder's own entry (by
+  // entry_uuid via ownPendingEntryJson) so the original message is not echoed
+  // back into the combined effectiveMessage.
+  // =========================================================================
+  it('E9 phantom self-message: holder own entry in pending is excluded from the combine drain', async () => {
+    const IDENT = 'sandbox-test-e9'
+
+    // HOLDER's own inbound message lives in pending (mirrors route line 261).
+    const ownPush = await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'hola',
+      received_at: new Date().toISOString(),
+      msg_id: 'm1',
+    })
+    // The interrupting FOLLOWER message.
+    await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'que precio',
+      received_at: new Date().toISOString(),
+      msg_id: 'm2',
+    })
+    await mockRedis.set(`interrupt:${WS}:${CHANNEL}:${IDENT}`, 'm2', { ex: 60 })
+
+    // Iter 2 runs with the combined message.
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['combined reply'], 80))
+
+    const engine = new SomnioV4Engine()
+    const input = await makeBaseInput({ message: 'hola' }, IDENT)
+    // The holder knows its own pending entry (route stores push.exactJson).
+    input.ownPendingEntryJson = ownPush.exactJson
+
+    const result = await engine.processMessage(input)
+
+    expect(result.success).toBe(true)
+    expect(agentMockFn).toHaveBeenCalledTimes(1)
+    // CRITICAL: combined message is "hola\nque precio" — NOT "hola\nhola\nque precio".
+    // The holder's own "hola" entry was filtered out of the drain.
+    expect(agentMockFn.mock.calls[0][0].message).toBe('hola\nque precio')
+  })
+
+  // =========================================================================
+  // E10 — Path B reprocess does NOT re-greet (bug 2026-05-28): the reprocess
+  // iteration must seed from iter-0's resulting state (carryState) so the agent
+  // knows the saludo/templates were already sent. Without it, the response-track
+  // re-seeds from the original empty state and re-greets.
+  // =========================================================================
+  it('E10 Path B reprocess seeds from iter-0 state (no re-greet): iter-2 receives intentsVistos from iter-1', async () => {
+    const IDENT = 'sandbox-test-e10'
+    await pushToPending(WS, CHANNEL, IDENT, {
+      entry_uuid: randomUUID(),
+      content: 'que precio',
+      received_at: new Date().toISOString(),
+      msg_id: 'm2',
+    })
+
+    let ck7Fired = false
+    setCheckpointOverride((ckptId, opts) => {
+      if (ckptId === 'ckpt_7_pre_template' && opts?.templateIndex === 1 && !ck7Fired) {
+        ck7Fired = true
+        return { proceed: false, lostLock: false, interrupted: { pendingListLength: 1 } }
+      }
+      return null
+    })
+
+    // Iter 1: the saludo turn — sends 'saludo msg' (template 0), then CKPT-7.1
+    // aborts before 'promo msg'. Crucially, iter-1's output records that the
+    // saludo intent was seen + the saludo template was sent.
+    agentMockFn.mockResolvedValueOnce({
+      ...makeAgentOutputSuccess(['saludo msg', 'promo msg'], 50),
+      intentsVistos: ['saludo'],
+      templatesEnviados: ['saludo_core'],
+    })
+    // Iter 2: answers 'que precio'.
+    agentMockFn.mockResolvedValueOnce(makeAgentOutputSuccess(['precio reply'], 80))
+
+    const engine = new SomnioV4Engine()
+    const input = await makeBaseInput({ message: 'hola' }, IDENT)
+
+    const result = await engine.processMessage(input)
+
+    expect(result.success).toBe(true)
+    expect(result.messages).toEqual(['saludo msg', 'precio reply'])
+
+    expect(agentMockFn).toHaveBeenCalledTimes(2)
+    const iter2Input = agentMockFn.mock.calls[1][0]
+    // Reprocess answers the NEW message only…
+    expect(iter2Input.message).toBe('que precio')
+    // …AND carries iter-1's state forward so the agent knows it already greeted.
+    expect(iter2Input.intentsVistos).toEqual(['saludo'])
+    expect(iter2Input.templatesEnviados).toEqual(['saludo_core'])
+  })
 })

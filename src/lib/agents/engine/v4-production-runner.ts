@@ -120,6 +120,26 @@ export class V4ProductionRunner {
     let restartIteration = 0           // observability — Pitfall 3 distinguishes restart 1 vs 5
     let effectiveMessage: string | null = null  // R-03: null on iter 1 (legacy v3 path), non-null after first restart
 
+    // Bug 2026-05-28 (phantom self-message): the webhook RPUSHes the HOLDER's
+    // OWN inbound message into the pending list (D-16) so it is crash-recoverable
+    // until the first template is sent (the V4MessagingAdapter's
+    // onFirstSendCompleted LREMs it). But ALL 4 Path A drain sites below fire
+    // BEFORE the first send, so the holder's own entry is still present and would
+    // be re-combined with itself (priorMsg === input.message === own entry's
+    // content → "msg1\nmsg1\n…"). Parse the holder's own entry_uuid once and
+    // EXCLUDE it from every Path A drain. Filtering by entry_uuid (vs byte-exact
+    // removeOwnEntry) is robust against JSON drift and needs no Redis round-trip.
+    let ownEntryUuid: string | null = null
+    if (input.ownPendingEntryJson) {
+      try {
+        ownEntryUuid = (JSON.parse(input.ownPendingEntryJson) as { entry_uuid?: string }).entry_uuid ?? null
+      } catch {
+        ownEntryUuid = null
+      }
+    }
+    const dropOwnEntry = <T extends { entry_uuid: string }>(entries: T[]): T[] =>
+      ownEntryUuid ? entries.filter((e) => e.entry_uuid !== ownEntryUuid) : entries
+
     try {
     try {
       // ============================================================
@@ -182,11 +202,11 @@ export class V4ProductionRunner {
           // combined message lives in-memory in `effectiveMessage` until
           // the iteration completes successfully.
           // ============================================================
-          const pending = await readAndClearPending(
+          const pending = dropOwnEntry(await readAndClearPending(
             this.config.workspaceId,
             lockCtx.channel,
             lockCtx.identifier,
-          )
+          ))
           // Consume the interrupt signal too (bug 2026-05-28): else the next
           // iteration's CKPT-0 re-reads the still-set interrupt key and spins
           // Path A on an empty pending list until the 60s TTL expires.
@@ -352,11 +372,11 @@ export class V4ProductionRunner {
           // error handling rather than corrupting state.
           throw new Error(`[V4-RUNNER] agent emitted ${output.errorMessage} but lockCtx is null`)
         }
-        const pending = await readAndClearPending(
+        const pending = dropOwnEntry(await readAndClearPending(
           this.config.workspaceId,
           lockCtx.channel,
           lockCtx.identifier,
-        )
+        ))
         // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
         await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
         restartIteration++
@@ -445,11 +465,11 @@ export class V4ProductionRunner {
           // persisting + returning. Pitfall 8: NO saveState during restart
           // iterations.
           // ============================================================
-          const pending = await readAndClearPending(
+          const pending = dropOwnEntry(await readAndClearPending(
             this.config.workspaceId,
             lockCtx.channel,
             lockCtx.identifier,
-          )
+          ))
           // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
           await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
           restartIteration++
@@ -565,11 +585,11 @@ export class V4ProductionRunner {
             // of silently persisting + returning. Pitfall 8: NO saveState
             // during restart iterations.
             // ============================================================
-            const pending = await readAndClearPending(
+            const pending = dropOwnEntry(await readAndClearPending(
               this.config.workspaceId,
               lockCtx.channel,
               lockCtx.identifier,
-            )
+            ))
             // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
             await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
             restartIteration++

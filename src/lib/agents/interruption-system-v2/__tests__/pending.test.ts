@@ -20,6 +20,7 @@ import {
   pushToPending,
   removeOwnEntry,
   readAndClearPending,
+  clearInterrupt,
   type PendingEntry,
 } from '../pending'
 
@@ -263,5 +264,28 @@ describe('readAndClearPending — LOCK-04', () => {
     expect(items).toHaveLength(1)
     expect(items[0].content).toBe('auto-parsed')
     expect(items[0].entry_uuid).toBe(entry.entry_uuid)
+  })
+
+  // ---------------------------------------------------------------------------
+  // clearInterrupt — bug 2026-05-28 (Path A combine left interrupt key set,
+  // causing CKPT-0 to re-detect it and spin Path A on empty pending until TTL).
+  // ---------------------------------------------------------------------------
+  const INTERRUPT_KEY = `interrupt:${WS}:whatsapp:${PHONE}`
+
+  it('clearInterrupt deletes the interrupt-signal key', async () => {
+    await mockRedis.set(INTERRUPT_KEY, 'some-entry-uuid', { ex: 60 })
+    expect(await mockRedis.get(INTERRUPT_KEY)).toBe('some-entry-uuid')
+
+    await clearInterrupt(WS, 'whatsapp', PHONE)
+
+    expect(await mockRedis.get(INTERRUPT_KEY)).toBeNull()
+    expect(mockRedis.del).toHaveBeenCalledWith(INTERRUPT_KEY)
+  })
+
+  it('clearInterrupt is idempotent (deleting an absent key is a no-op)', async () => {
+    // No interrupt key set — must not throw (covers the empty-pending loop case
+    // where the holder calls clearInterrupt unconditionally).
+    await expect(clearInterrupt(WS, 'whatsapp', PHONE)).resolves.toBeUndefined()
+    expect(mockRedis.del).toHaveBeenCalledWith(INTERRUPT_KEY)
   })
 })

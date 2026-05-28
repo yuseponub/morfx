@@ -41,7 +41,7 @@ import {
   type LockHandle,
   type LockChannel,
 } from '@/lib/agents/interruption-system-v2/lock'
-import { readAndClearPending } from '@/lib/agents/interruption-system-v2/pending'
+import { readAndClearPending, clearInterrupt } from '@/lib/agents/interruption-system-v2/pending'
 import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
 import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
 import { LostLockError } from '@/lib/agents/engine-adapters/production/v4-messaging-adapter'
@@ -180,6 +180,10 @@ export class SomnioV4Engine {
           if (ck0.lostLock) throw new LostLockError('ckpt_0_post_acquire')
           if (!ck0.proceed && ck0.interrupted) {
             const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+            // Consume the interrupt signal too (bug 2026-05-28): without this the
+            // next iteration's CKPT-0 re-reads the still-set interrupt key and
+            // spins Path A on an empty pending list until the 60s TTL expires.
+            await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
             restartIteration++
             emitLockEvent('msg_aborted_path_a_combined', {
               at_step: 'ckpt_0_post_acquire',
@@ -205,7 +209,15 @@ export class SomnioV4Engine {
         // FOLLOWER and CKPT-6 (post-processMessage) will detect it for Path A
         // combined restart. Without this delay, sandbox engine completes in
         // microseconds and Path A is untestable.
-        if (input.lockHandle && (input.simulateProdTimingMs ?? 0) > 0) {
+        // Only sleep on the FIRST iteration (restartIteration === 0): the user
+        // sends msg2 during this window. On Path A restart iterations we must
+        // NOT re-sleep — doing so doubled total latency past the follower's
+        // long-poll window (bug 2026-05-28: combine took ~36s, timed out at 30s).
+        if (
+          input.lockHandle &&
+          (input.simulateProdTimingMs ?? 0) > 0 &&
+          restartIteration === 0
+        ) {
           await sleep(input.simulateProdTimingMs!)
         }
 
@@ -252,6 +264,8 @@ export class SomnioV4Engine {
             throw new Error(`[SomnioV4Engine] agent emitted ${output.errorMessage} but lockCtx is null`)
           }
           const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+          // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
+          await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
           restartIteration++
           emitLockEvent('msg_aborted_path_a_combined', {
             at_step: output.errorMessage,
@@ -289,6 +303,8 @@ export class SomnioV4Engine {
             // In sandbox, sentCount is always 0 at this point (the CKPT-7.N
             // synthetic loop runs AFTER CKPT-6). Always Path A → restart.
             const pending = await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier)
+            // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
+            await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
             restartIteration++
             emitLockEvent('msg_aborted_path_a_combined', {
               at_step: 'ckpt_6_pre_send_loop',

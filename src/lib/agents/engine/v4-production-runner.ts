@@ -50,7 +50,7 @@ import type { V4AgentInput, V4AgentOutput, ProcessedMessage } from '../somnio-v4
 // Supabase conversations-table lookup (NO createAdminClient added here).
 import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
 import { releaseLockIfOwner, startHeartbeat } from '@/lib/agents/interruption-system-v2/lock'
-import { readAndClearPending } from '@/lib/agents/interruption-system-v2/pending'
+import { readAndClearPending, clearInterrupt } from '@/lib/agents/interruption-system-v2/pending'
 import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
 import { LostLockError } from '../engine-adapters/production/v4-messaging-adapter'
 
@@ -187,6 +187,10 @@ export class V4ProductionRunner {
             lockCtx.channel,
             lockCtx.identifier,
           )
+          // Consume the interrupt signal too (bug 2026-05-28): else the next
+          // iteration's CKPT-0 re-reads the still-set interrupt key and spins
+          // Path A on an empty pending list until the 60s TTL expires.
+          await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
           restartIteration++
           const priorMsg: string = effectiveMessage ?? input.message
           const combinedTotalChars =
@@ -353,6 +357,8 @@ export class V4ProductionRunner {
           lockCtx.channel,
           lockCtx.identifier,
         )
+        // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
+        await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
         restartIteration++
         emitLockEvent('msg_aborted_path_a_combined', {
           at_step: output.errorMessage,
@@ -444,6 +450,8 @@ export class V4ProductionRunner {
             lockCtx.channel,
             lockCtx.identifier,
           )
+          // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
+          await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
           restartIteration++
           emitLockEvent('msg_aborted_path_a_combined', {
             at_step: 'ckpt_6_pre_send_loop_pending_templates',
@@ -562,6 +570,8 @@ export class V4ProductionRunner {
               lockCtx.channel,
               lockCtx.identifier,
             )
+            // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
+            await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
             restartIteration++
             emitLockEvent('msg_aborted_path_a_combined', {
               at_step: 'ckpt_6_pre_send_loop_main',

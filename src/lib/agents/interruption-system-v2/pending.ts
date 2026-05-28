@@ -130,6 +130,39 @@ export async function removeOwnEntry(
 }
 
 /**
+ * Build the canonical interrupt-signal key. Mirrors the shape written by the
+ * follower path in the webhook handlers + sandbox route
+ * (`interrupt:{workspaceId}:{channel}:{identifier}`).
+ */
+function buildInterruptKey(workspaceId: string, channel: PendingChannel, identifier: string): string {
+  return `interrupt:${workspaceId}:${channel}:${identifier}`
+}
+
+/**
+ * Delete the interrupt-signal key. MUST be called by a Path A combine site
+ * right after `readAndClearPending` — draining the pending list consumes the
+ * interrupt, so the signal must be cleared too.
+ *
+ * **Why this exists (bug 2026-05-28):** the follower writes the interrupt key
+ * with a 60s TTL but `readAndClearPending` only clears the *pending list*, not
+ * the interrupt key. Without this call, the holder's restart loop re-reads the
+ * still-set interrupt key at the next checkpoint (CKPT-0), re-enters Path A with
+ * an EMPTY pending list, and spins ~hundreds of restarts until the 60s TTL
+ * expires (observed: 65+ restart_iteration events in one second, ~70s stall).
+ *
+ * Idempotent: deleting an absent key is a Redis no-op, so callers may invoke it
+ * unconditionally (including when the pending list was already empty — which is
+ * exactly the loop case we must break).
+ */
+export async function clearInterrupt(
+  workspaceId: string,
+  channel: PendingChannel,
+  identifier: string,
+): Promise<void> {
+  await redis.del(buildInterruptKey(workspaceId, channel, identifier))
+}
+
+/**
  * Read all entries from the pending list and atomically clear the list in a
  * single multi() transaction.
  *

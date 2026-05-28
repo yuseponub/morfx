@@ -496,50 +496,22 @@ export function SandboxLayout() {
         }
 
         if (deferredChunk) {
-          // FOLLOWER path: server queued this request; HOLDER will write
-          // sandbox-result:{id} when it finishes. Long-poll for the
-          // aggregated result and render its messages here.
-          try {
-            const pollResp = await fetch(`/api/sandbox/lock-result/${deferredChunk.sandboxSessionId}`)
-            const pollJson = (await pollResp.json()) as
-              | { ready: true; result: SandboxEngineResult }
-              | { ready: false; timeout?: true; error?: string }
-            if ('ready' in pollJson && pollJson.ready === true && pollJson.result) {
-              result = pollJson.result
-              // Render FOLLOWER's combined messages now (HOLDER already
-              // streamed them to its own request, this is a separate browser
-              // request that needs the messages explicitly).
-              for (let i = 0; i < (result.messages ?? []).length; i++) {
-                const assistantMessage: SandboxMessage = {
-                  id: `msg-${Date.now()}-assistant-follower-${i}`,
-                  role: 'assistant',
-                  content: result.messages[i],
-                  timestamp: new Date().toISOString(),
-                }
-                setMessages(prev => [...prev, assistantMessage])
-              }
-            } else {
-              setIsTyping(false)
-              const errorNote: SandboxMessage = {
-                id: `msg-${Date.now()}-system-deferred-timeout`,
-                role: 'assistant',
-                content: `[SANDBOX V4: respuesta combinada no llego en 30s — el HOLDER puede seguir procesando o se cayo. Reintentar enviando un nuevo mensaje.]`,
-                timestamp: new Date().toISOString(),
-              }
-              setMessages(prev => [...prev, errorNote])
-              return
-            }
-          } catch (pollErr) {
-            setIsTyping(false)
-            const errorNote: SandboxMessage = {
-              id: `msg-${Date.now()}-system-deferred-error`,
-              role: 'assistant',
-              content: `[SANDBOX V4: error en long-poll — ${pollErr instanceof Error ? pollErr.message : String(pollErr)}]`,
-              timestamp: new Date().toISOString(),
-            }
-            setMessages(prev => [...prev, errorNote])
-            return
+          // FOLLOWER path (sandbox parity with production): msg2 landed while
+          // the HOLDER (msg1) still held the lock. The HOLDER combines msg2 into
+          // its turn (Path A) and streams the COMBINED response to THIS SAME
+          // browser via its own (msg1) request. So the follower must NOT
+          // long-poll + render — that duplicates the holder's streamed messages
+          // AND races a 30s timeout. Mirrors prod where msg2's webhook just
+          // writes pending+interrupt and returns without sending anything.
+          // Leave isTyping + state to the holder request (still streaming).
+          const queuedNote: SandboxMessage = {
+            id: `msg-${Date.now()}-system-follower-queued`,
+            role: 'assistant',
+            content: `📎 Mensaje recibido mientras el bot respondía — se combinará en la misma respuesta.`,
+            timestamp: new Date().toISOString(),
           }
+          setMessages(prev => [...prev, queuedNote])
+          return
         } else if (completeChunk) {
           // HOLDER path: messages already rendered via 'message' chunks.
           // Compose a SandboxEngineResult for downstream state/debug logic.

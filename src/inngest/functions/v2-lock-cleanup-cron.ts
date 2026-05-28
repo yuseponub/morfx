@@ -244,14 +244,23 @@ export const v2LockCleanupCron = inngest.createFunction(
           const ageMs = parsedVal.started_at
             ? Date.now() - Date.parse(parsedVal.started_at)
             : Number.POSITIVE_INFINITY
+          // Sandbox locks (identifier prefix 'sandbox-') use a synthetic session
+          // id and are NEVER backed by a real agent_sessions row, so the
+          // no_active_session heuristic would sweep them mid-turn whenever the
+          // */5 cron fires during a sandbox turn (observed 2026-05-28: lock at
+          // :04:59, cron at :05:00 swept it, engine zombie-exited at :05:10).
+          // They self-clean via TTL+heartbeat+finally release; only sweep them
+          // on stale_age (leaked lock > MAX_TURN_AGE_S).
+          const isSandbox = p.identifier.startsWith('sandbox-')
           const isInActiveSet = activeLockKeys.has(p.raw)
           const isStale = ageMs > MAX_TURN_AGE_S * 1000
+          const orphaned = isSandbox ? isStale : !isInActiveSet || isStale
 
-          if (!isInActiveSet || isStale) {
+          if (orphaned) {
             await redis.del(p.raw)
             emitLockEvent('lock_orphan_swept_by_cron', {
               lock_key: p.raw,
-              reason: !isInActiveSet ? 'no_active_session' : 'stale_age',
+              reason: !isSandbox && !isInActiveSet ? 'no_active_session' : 'stale_age',
               workspaceId: p.workspaceId,
               holder_uuid: parsedVal.holder_uuid ?? null,
               age_ms: Number.isFinite(ageMs) ? ageMs : null,

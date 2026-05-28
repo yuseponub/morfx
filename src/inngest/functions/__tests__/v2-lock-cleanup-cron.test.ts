@@ -294,6 +294,61 @@ describe('v2-lock-cleanup-cron — sweep semantics (D-09 verbatim + REVISION B1)
     expect(result.swept).toBe(0)
   })
 
+  it('KEEPS a young sandbox lock even without an active session (sandbox uses synthetic session id)', async () => {
+    // Standalone: debounce-v2-sandbox-integration — sandbox locks are never
+    // backed by a real agent_sessions row, so the no_active_session heuristic
+    // must NOT sweep them mid-turn. Only stale_age (> 60s) applies.
+    mockScan.mockResolvedValueOnce([
+      '0',
+      ['lock:ws-A:whatsapp:sandbox-c6efa985-1111-2222-3333-444455556666'],
+    ])
+    mockGet.mockResolvedValueOnce(
+      JSON.stringify({
+        holder_uuid: 'f5d1d7f3-8432-4964-9f02-b54f4f6cee6d',
+        started_at: new Date().toISOString(), // just acquired
+      }),
+    )
+    // No active session matches the sandbox key (expected — sandbox is synthetic).
+    mockSupabaseEq.mockResolvedValueOnce({ data: [], error: null })
+
+    const result = (await fn.handler({ step: mockStep })) as { swept: number; kept: number }
+
+    expect(mockDel).not.toHaveBeenCalled()
+    expect(mockEmitLockEvent).not.toHaveBeenCalled()
+    expect(result.kept).toBe(1)
+    expect(result.swept).toBe(0)
+  })
+
+  it('sweeps a STALE sandbox lock (age > 60s) with reason=`stale_age` (leaked-lock cleanup still applies)', async () => {
+    const old = new Date(Date.now() - 120_000).toISOString() // 120s ago
+    mockScan.mockResolvedValueOnce([
+      '0',
+      ['lock:ws-A:whatsapp:sandbox-c6efa985-1111-2222-3333-444455556666'],
+    ])
+    mockGet.mockResolvedValueOnce(
+      JSON.stringify({
+        holder_uuid: 'f5d1d7f3-8432-4964-9f02-b54f4f6cee6d',
+        started_at: old,
+      }),
+    )
+    mockSupabaseEq.mockResolvedValueOnce({ data: [], error: null })
+
+    const result = (await fn.handler({ step: mockStep })) as { swept: number; kept: number }
+
+    expect(mockDel).toHaveBeenCalledWith(
+      'lock:ws-A:whatsapp:sandbox-c6efa985-1111-2222-3333-444455556666',
+    )
+    expect(mockEmitLockEvent).toHaveBeenCalledWith(
+      'lock_orphan_swept_by_cron',
+      expect.objectContaining({
+        reason: 'stale_age',
+        workspaceId: 'ws-A',
+      }),
+    )
+    expect(result.swept).toBe(1)
+    expect(result.kept).toBe(0)
+  })
+
   it('sweeps malformed lock keys (cannot be parsed) with reason=`malformed_value`', async () => {
     mockScan.mockResolvedValueOnce([
       '0',

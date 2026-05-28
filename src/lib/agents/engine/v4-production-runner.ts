@@ -1,6 +1,12 @@
 /**
  * V4 Production Runner — Thin I/O Runner for Somnio Sales Agent v4 (standalone: somnio-sales-v4-runtime-wiring, D-13)
  *
+ * ⚠️ INTERRUPCIÓN: este runner es el lado PRODUCCIÓN del sistema de interrupción.
+ * El mecanismo (Path A/B, dropOwnEntry, carryState, restart loop) DEBE ir alineado
+ * con el lado sandbox (`somnio-v4/engine-v4.ts`) aunque el código no sea idéntico.
+ * Antes de tocar la lógica de interrupción acá, leé el contrato de paridad:
+ * `src/lib/agents/somnio-v4/INTERRUPTION-PARITY.md`.
+ *
  * Equivalent to UnifiedEngine but for the v4 agent pipeline.
  * Uses the SAME production adapters (Storage, Timer, Messaging, Orders, Debug).
  *

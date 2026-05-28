@@ -1,6 +1,12 @@
 /**
  * Somnio v4 Engine - Minimal Sandbox Runner
  *
+ * ⚠️ INTERRUPCIÓN: este engine es el lado SANDBOX del sistema de interrupción.
+ * El mecanismo (Path A/B, dropOwnEntry, carryState, restart loop) DEBE ir alineado
+ * con el lado producción (`engine/v4-production-runner.ts`) aunque el código no sea
+ * idéntico. Antes de tocar la lógica de interrupción acá, leé el contrato de paridad:
+ * `src/lib/agents/somnio-v4/INTERRUPTION-PARITY.md`.
+ *
  * Thin engine for sandbox-only v4 agent testing.
  * Handles bidirectional mapping: SandboxState <-> V4AgentInput
  * via `_v3:` prefixed keys in datosCapturados (preservados por compatibilidad

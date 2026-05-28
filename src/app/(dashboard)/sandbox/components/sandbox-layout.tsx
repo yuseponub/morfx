@@ -136,6 +136,15 @@ export function SandboxLayout() {
     debugTurnsRef.current = debugTurns
   }, [debugTurns])
 
+  // handleSendMessage (useCallback) does NOT list sandboxLockSessionId in its
+  // deps, so reading it directly captured a stale value: "+ Nueva" regenerates
+  // the id but the in-flight POST still sent the OLD one → events wrote to the
+  // old conversation_id while the Interruption tab queried the new one → blank.
+  const sandboxLockSessionIdRef = useRef(sandboxLockSessionId)
+  useEffect(() => {
+    sandboxLockSessionIdRef.current = sandboxLockSessionId
+  }, [sandboxLockSessionId])
+
   useEffect(() => {
     crmAgentsRef.current = crmAgents
   }, [crmAgents])
@@ -381,7 +390,7 @@ export function SandboxLayout() {
           crmAgents: enabledCrmAgents,
           workspaceId: workspaceRef.current?.id,
           agentId: agentIdRef.current,
-          sandboxSessionId: sandboxLockSessionId,  // Plan 02 D-03
+          sandboxSessionId: sandboxLockSessionIdRef.current,  // Plan 02 D-03 (ref: avoid stale closure across "+ Nueva")
         }),
       })
 

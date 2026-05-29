@@ -685,3 +685,86 @@ export async function getContactIsClient(
   if (error || !data) return false
   return Boolean((data as { is_client: boolean | null }).is_client)
 }
+
+// ============================================================================
+// resolveOrCreateContact (Standalone somnio-v4-crm-subloop — Plan 03, D-24)
+// ============================================================================
+
+export interface ResolveOrCreateContactParams {
+  phone: string
+  name?: string
+  email?: string
+  address?: string
+  city?: string
+  department?: string
+}
+
+export interface ResolveOrCreateContactResult {
+  contactId: string
+  /** true si se creo un contacto nuevo; false si se reuso uno existente. */
+  created: boolean
+}
+
+/**
+ * Find-or-create idempotente por telefono. Compone searchContacts (encuentra) +
+ * createContact (crea) — ambas funciones domain ya existentes (Regla 3:
+ * createAdminClient vive solo dentro de ellas, no aqui).
+ *
+ * D-24 / Pitfall 2: reemplaza `OrderCreator.findOrCreateContact` (tool-handler
+ * path eliminado por D-06) con un helper 100% domain-layer. Da el `contactId`
+ * UUID que crm-mutation-tools.createOrder necesita, partiendo de un telefono
+ * (string) que es lo que el agente v4 maneja.
+ *
+ * Match EXACTO por telefono normalizado: searchContacts hace ILIKE sobre
+ * phone/email/name, por lo que puede retornar contactos que coinciden por nombre
+ * o email parcial. SOLO se reusa un contacto cuyo `normalizePhone(c.phone)`
+ * coincide exactamente con el telefono de entrada — asi se evita reusar un
+ * contacto equivocado (T-cnt-01). Si no hay match exacto, se crea uno nuevo.
+ *
+ * NO modifica searchContacts ni createContact (cambio aditivo, Regla-6-safe).
+ */
+export async function resolveOrCreateContact(
+  ctx: DomainContext,
+  params: ResolveOrCreateContactParams
+): Promise<DomainResult<ResolveOrCreateContactResult>> {
+  // 1. Normalizar el telefono de entrada antes de tocar DB (T-cnt-03).
+  const normalizedPhone = normalizePhone(params.phone)
+  if (!normalizedPhone) {
+    return { success: false, error: 'Numero de telefono invalido' }
+  }
+
+  // 2. Buscar contactos existentes por telefono (ILIKE) y aceptar SOLO el match
+  //    exacto por telefono normalizado (no reusar por nombre/email parcial).
+  const search = await searchContacts(ctx, {
+    query: normalizedPhone,
+    limit: 10,
+  })
+
+  if (search.success && search.data) {
+    const exact = search.data.find(
+      (c) => c.phone != null && normalizePhone(c.phone) === normalizedPhone
+    )
+    if (exact) {
+      return { success: true, data: { contactId: exact.id, created: false } }
+    }
+  }
+
+  // 3. Sin match exacto → crear via createContact (mismo path Regla 3).
+  const created = await createContact(ctx, {
+    name: params.name ?? params.phone,
+    phone: params.phone,
+    email: params.email,
+    address: params.address,
+    city: params.city,
+    department: params.department,
+  })
+
+  if (!created.success || !created.data) {
+    return { success: false, error: created.error ?? 'Error al crear el contacto' }
+  }
+
+  return {
+    success: true,
+    data: { contactId: created.data.contactId, created: true },
+  }
+}

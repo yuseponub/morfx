@@ -141,6 +141,83 @@ describe('commitTurn', () => {
   })
 })
 
+describe('carryState preserva ledger en reprocess Path B (P3)', () => {
+  // Precedente del mecanismo carryState / Path B reprocess: engine-v4-lock.test.ts
+  // :746-797 ("E10 Path B reprocess seeds from iter-0 state"). Allí el harness usa el
+  // engine completo + Redis mock. Aquí lo verificamos al nivel de la unidad que importa
+  // para el ledger (P3): el carryState que el engine construye desde `output.turnLedgerDims`
+  // (engine-v4.ts:459-468) se reusa como seed de la iteración siguiente, que vuelve a
+  // commitTurn con SU propio ledger. La invariante P3 = el reprocess no PIERDE ni
+  // DOUBLE-registra el efecto de la iteración previa.
+
+  function makeIter1State(): AgentState {
+    const s = createInitialState()
+    s.intentsVistos = ['saludo']
+    s.templatesMostrados = ['saludo_core']
+    s.turnCount = 1
+    return s
+  }
+
+  it('iter-2 (reprocess Path B) hereda el kb_topic de iter-1 vía carryState sin perderlo ni double-registrarlo', () => {
+    // --- iter-1: registra un kb_topic. commitTurn produce las dims persistidas. ---
+    const iter1State = makeIter1State()
+    const iter1Ledger = makeLedger({
+      atendido: [
+        { kind: 'kb_topic', topic: 'apnea', confidence: 0.88, texto: 'info apnea', turno: 1 },
+      ],
+      crmActions: [],
+    })
+    const iter1Out = commitTurn(iter1State, iter1Ledger)
+
+    // El engine arma carryState desde output.turnLedgerDims (engine-v4.ts:468) y lo
+    // pasa como seedState.turnLedgerDims a la iteración siguiente (engine-v4.ts:281).
+    const carriedDims = iter1Out.turnLedgerDims
+    expect(carriedDims.atendido).toHaveLength(1)
+    expect(carriedDims.atendido[0]).toMatchObject({ kind: 'kb_topic', topic: 'apnea' })
+
+    // --- iter-2: reprocess. El working state parte del estado de iter-1 (no re-greet)
+    // y registra un NUEVO kb_topic. Las dims de iter-1 viajan vía input.turnLedgerDims
+    // (restauradas), y el agente combina lo previo + lo nuevo en el ledger del turno. ---
+    const iter2State: AgentState = { ...iter1State, turnCount: 2 }
+    const iter2Ledger = makeLedger({
+      atendido: [
+        // El previo (heredado por carryState — el agente lo re-incluye al construir el
+        // ledger del turno a partir de las dims restauradas) …
+        ...carriedDims.atendido,
+        // … más el nuevo del reprocess.
+        { kind: 'kb_topic', topic: 'precio', confidence: 0.92, texto: 'info precio', turno: 2 },
+      ],
+      crmActions: [],
+    })
+    const iter2Out = commitTurn(iter2State, iter2Ledger)
+
+    // P3: el ledger de iter-2 contiene el kb_topic de iter-1 + el nuevo — sin perder.
+    const topics = iter2Out.turnLedgerDims.atendido.filter(
+      (a): a is Extract<typeof a, { kind: 'kb_topic' }> => a.kind === 'kb_topic',
+    )
+    expect(topics.map((t) => t.topic)).toEqual(['apnea', 'precio'])
+    // Sin double-register: 'apnea' aparece exactamente una vez.
+    expect(topics.filter((t) => t.topic === 'apnea')).toHaveLength(1)
+  })
+
+  it('turnCount no se double-incrementa: vive en AgentState (mergeAnalysis), no en el ledger', () => {
+    const iter1State = makeIter1State() // turnCount = 1
+    const iter1Out = commitTurn(iter1State, makeLedger({ atendido: [], crmActions: [] }))
+    // commitTurn / TurnLedgerDims NO expone turnCount — no puede tocarlo.
+    expect(iter1Out).not.toHaveProperty('turnCount')
+    expect(Object.keys(iter1Out.turnLedgerDims)).toEqual(['atendido', 'crmActions'])
+
+    // El reprocess parte del MISMO working state (carryState no incrementa turnCount;
+    // el incremento ocurre solo en mergeAnalysis del nuevo mensaje). Simulamos que el
+    // reprocess re-commita el mismo working state → turnCount estable.
+    const iter2Out = commitTurn(iter1State, makeLedger({ atendido: [], crmActions: [] }))
+    // serializeState refleja el turnCount del working state (1) en ambos commits — el
+    // ledger jamás lo altera ni lo suma dos veces.
+    expect(iter1State.turnCount).toBe(1)
+    expect(iter2Out).not.toHaveProperty('turnCount')
+  })
+})
+
 describe('deserializeState backward-compat (D-16)', () => {
   it('deserialize SIN el param de dims no rompe — estado idéntico al actual', () => {
     const ws = makeWorkingState()

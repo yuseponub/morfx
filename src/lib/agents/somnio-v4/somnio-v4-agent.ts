@@ -148,6 +148,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           datosCapturados: input.datosCapturados,
           packSeleccionado: input.packSeleccionado,
           accionesEjecutadas: input.accionesEjecutadas ?? [],
+          // somnio-v4-turn-ledger Plan 01: interrupt/error descarta el turno → preserva
+          // dims del input (default vacío si legacy). Plan 03 mantiene este passthrough.
+          turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: tokensUsed,
           shouldCreateOrder: false,
           timerSignals: [],
@@ -282,6 +285,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
         accionesEjecutadas: serialized.accionesEjecutadas,
+        turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -346,6 +350,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           datosCapturados: input.datosCapturados,
           packSeleccionado: input.packSeleccionado,
           accionesEjecutadas: input.accionesEjecutadas ?? [],
+          // somnio-v4-turn-ledger Plan 01: interrupt/error descarta el turno → preserva
+          // dims del input (default vacío si legacy). Plan 03 mantiene este passthrough.
+          turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: tokensUsed,
           shouldCreateOrder: false,
           timerSignals: [],
@@ -582,6 +589,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
         accionesEjecutadas: serialized.accionesEjecutadas,
+        turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -636,6 +644,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       datosCapturados: serialized.datosCapturados,
       packSeleccionado: serialized.packSeleccionado,
       accionesEjecutadas: serialized.accionesEjecutadas,
+      turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
       intentInfo: {
         intent: analysis.intent.primary,
         confidence: analysis.intent.confidence,
@@ -699,6 +708,8 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       datosCapturados: input.datosCapturados,
       packSeleccionado: input.packSeleccionado,
       accionesEjecutadas: input.accionesEjecutadas ?? [],
+      // somnio-v4-turn-ledger Plan 01: catch descarta el turno → preserva dims del input.
+      turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
       totalTokens: 0,
       shouldCreateOrder: false,
       timerSignals: [],
@@ -797,6 +808,7 @@ async function processSystemEvent(
     datosCapturados: serialized.datosCapturados,
     packSeleccionado: serialized.packSeleccionado,
     accionesEjecutadas: serialized.accionesEjecutadas,
+    turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
     totalTokens: 0,
     // D-20: createOrder timer-driven sigue al mismo path que happy (runner valida
     // success antes de enviar template post-success). Plan 08 (agent-timers-v4)
@@ -864,6 +876,10 @@ function mapOutcomeToAgentOutput(args: {
     datosCapturados: serialized.datosCapturados,
     packSeleccionado: serialized.packSeleccionado,
     accionesEjecutadas: serialized.accionesEjecutadas,
+    // Standalone somnio-v4-turn-ledger Plan 01: default vacío. Plan 03 cableará
+    // commitTurn aquí (construye atendido kb_topic desde outcome.*). Por ahora no
+    // cambia comportamiento determinista — solo cumple el contrato de tipo.
+    turnLedgerDims: { atendido: [], crmActions: [] },
     intentInfo: {
       intent: analysis.intent.primary,
       confidence: analysis.intent.confidence,

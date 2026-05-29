@@ -150,6 +150,12 @@ export interface V4AgentInput {
   packSeleccionado: string | null
   /** Acciones ejecutadas as first-class field (quick-009) */
   accionesEjecutadas?: AccionRegistrada[]
+  /**
+   * D-16/D-17 (standalone somnio-v4-turn-ledger): dims persistidas del turno previo,
+   * restauradas al inicio para coherencia (atendido[] + crmActions[]). Opcional para
+   * backward-compat con sandbox/tests que construyen V4AgentInput a mano + sesiones legacy.
+   */
+  turnLedgerDims?: TurnLedgerDims
   turnNumber: number
   workspaceId: string
   systemEvent?: SystemEvent
@@ -219,6 +225,12 @@ export interface V4AgentOutput {
   packSeleccionado: string | null
   /** Acciones ejecutadas as first-class field (quick-009) */
   accionesEjecutadas: AccionRegistrada[]
+  /**
+   * D-17 (standalone somnio-v4-turn-ledger): subset persistible del ledger del turno
+   * ({atendido, crmActions}). El runner v4 lo persiste en session_state.turn_ledger_dims
+   * (Plan 03). Requerido en el output — commitTurn siempre lo produce (default vacío).
+   */
+  turnLedgerDims: TurnLedgerDims
 
   intentInfo?: {
     intent: string
@@ -316,6 +328,64 @@ export interface AccionRegistrada {
   turno: number
   origen: 'bot' | 'timer' | 'auto_trigger'
   crmAction?: boolean
+}
+
+// ============================================================================
+// Turn Ledger (standalone: somnio-v4-turn-ledger — D-03/D-04/D-11/D-15/D-17)
+// ============================================================================
+
+/**
+ * D-03/D-15: discriminated union por `kind` de TODO lo que el turno "atendió".
+ * 5 variantes. Precedente: Invocation / SystemEvent (discriminated union por `kind`/`type`).
+ * D-15: `silence` SÍ se registra — un silencio deliberado es información del turno.
+ * `silence` es SOLO un Atendido — NO un AccionRegistrada (no se mezcla con accionesEjecutadas).
+ */
+export type Atendido =
+  | { kind: 'template_intent'; intent: string; templateIds: string[] }
+  | { kind: 'sales_action'; accion: TipoAccion; templateIds: string[] }
+  | { kind: 'kb_topic'; topic: string; confidence: number; texto: string; turno: number }
+  | { kind: 'handoff'; reason: string }
+  | { kind: 'silence' }
+
+/**
+ * D-04: shape EXACTO de una acción CRM registrada por el turno.
+ * Diseñado para recibir el sub-loop orquestador del standalone #2 (no solo el
+ * camino determinista de hoy). NO simplificar — `args`/`result`/`origen` anticipan
+ * el orquestador grounded; hoy solo el camino determinista lo llena.
+ */
+export interface CrmActionRegistrada {
+  tool: string
+  args: Record<string, unknown>
+  result: 'success' | 'failed' | 'cas_reject'
+  code?: string
+  origen: 'determinista' | 'rag' | 'timer'
+  stageAtTime?: string
+}
+
+/**
+ * D-17: subset PERSISTIDO en session_state.turn_ledger_dims. Distinto de TurnLedger
+ * (registro completo): modeTransition/confidence/messagesSent NO se persisten —
+ * se emiten a observability (Plan 04). El turno siguiente solo necesita
+ * atendido+crmActions para coherencia.
+ */
+export interface TurnLedgerDims {
+  atendido: Atendido[]
+  crmActions: CrmActionRegistrada[]
+}
+
+/**
+ * D-17: registro COMPLETO en memoria del turno. commitTurn persiste SOLO
+ * {atendido,crmActions} (TurnLedgerDims) y emite el ledger COMPLETO (incl.
+ * modeTransition/confidence/messagesSent) a observability en Plan 04. Ningún
+ * campo es fantasma. Modelo conceptual: StateChanges (delta plano de efectos
+ * del turno). NO confundir con SubLoopDebugPayload (runtime-only, nunca persiste).
+ */
+export interface TurnLedger {
+  comprehension: { intent: string; secondary?: string; confidence: number }
+  atendido: Atendido[]
+  crmActions: CrmActionRegistrada[]
+  modeTransition?: { from: string; to: string }
+  messagesSent: number
 }
 
 export type Phase =

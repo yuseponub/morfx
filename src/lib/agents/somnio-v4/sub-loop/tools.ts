@@ -4,11 +4,30 @@ import { createCrmQueryTools } from '@/lib/agents/shared/crm-query-tools'
 import { createCrmMutationTools } from '@/lib/agents/shared/crm-mutation-tools'
 import type { SubLoopReason } from './output-schema'
 import { SOMNIO_V4_AGENT_ID } from '../config'
+import { createSimulatedMutationTools } from './crm-echo'
 
 export interface SubLoopToolsContext {
   workspaceId: string
   conversationId: string
   sessionId: string
+  /**
+   * Grounding tipado fuerte (Plan 02) — pedido activo + contacto + crmActions del
+   * ledger + mensaje crudo. El prompt crm_mutation lo inyecta (Claude's Discretion
+   * D-04 — forma del campo nuevo). Opcional: callers RAG/cas_reject no lo pasan.
+   */
+  grounding?: import('../crm-grounding').CrmGrounding | null
+  /**
+   * Hint determinista (D-04) — que mutacion sugiere el state-machine (ej "crear
+   * pedido cascaron en NUEVO PEDIDO" / "mover pedido X a CONFIRMADO"). El prompt lo
+   * inyecta como sugerencia (el LLM grounded decide+ejecuta). Opcional.
+   */
+  crmHint?: string | null
+  /**
+   * Sandbox parity (D-22/S5). Cuando `true`, buildSubLoopTools usa mutation-tools
+   * SIMULADAS (no-op, no DB write) en vez de las reales. Solo afecta las mutation-tools;
+   * las query-tools (read-only) nunca se simulan. Default undefined/false = prod real.
+   */
+  simulate?: boolean
 }
 
 /**
@@ -37,10 +56,15 @@ export function buildSubLoopTools(
     workspaceId: ctx.workspaceId,
     invoker: SOMNIO_V4_AGENT_ID,
   })
-  const mutationTools = createCrmMutationTools({
-    workspaceId: ctx.workspaceId,
-    invoker: SOMNIO_V4_AGENT_ID,
-  })
+  // D-22/S5 — seam de simulacion por contexto. Sandbox inyecta mutation-tools
+  // simuladas (no-op, no DB write); prod usa las reales. Las query-tools NO se
+  // simulan (read-only, no escriben). Paridad INTERRUPTION-PARITY §4.4 (DB vs memoria).
+  const mutationTools = ctx.simulate
+    ? createSimulatedMutationTools()
+    : createCrmMutationTools({
+        workspaceId: ctx.workspaceId,
+        invoker: SOMNIO_V4_AGENT_ID,
+      })
 
   switch (reason) {
     case 'low_confidence':

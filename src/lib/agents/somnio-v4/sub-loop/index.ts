@@ -9,6 +9,8 @@ import {
 } from './output-schema'
 import { buildSubLoopTools, type SubLoopToolsContext } from './tools'
 import { buildToolingPrompt, buildGenerationPrompt } from './prompt'
+import { deriveCrmActions } from './crm-echo'
+import type { CrmActionRegistrada } from '../types'
 import { TONE_BASE } from './tone-base'
 import { checkCompliance } from './compliance-check'
 import { runToolingCall } from './tooling-call'
@@ -721,7 +723,17 @@ function emitRagError(
  * solo 2 status válidos para mutations. Si el modelo intenta emitir un status inválido,
  * Zod schema parse falla y se escala suave via invariantCheck (`no_match`).
  */
-async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
+/**
+ * Variante interna del legacy sub-loop que devuelve TAMBIEN el rawResult del AI SDK
+ * (Plan 05 Task 3 — contrato de salida CRM, D-14/D-23/Pitfall 1+6). `runLegacySubLoop`
+ * la envuelve devolviendo solo el outcome (preserva los callers RAG/cas_reject actuales).
+ * `runCrmSubLoop` la usa para derivar `crmActions[]` del rawResult (ground-truth).
+ *
+ * El prompt crm_mutation inyecta el grounding + crmHint (threadeados via ctx).
+ */
+async function runLegacySubLoopRaw(
+  args: RunSubLoopArgs,
+): Promise<{ outcome: LoopOutcome; rawResult: any }> {
   const t0 = performance.now()
 
   const tools = buildSubLoopTools(args.reason, args.ctx)
@@ -732,7 +744,12 @@ async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
     subLoopResult = await runWithPurpose('subloop', () =>
       generateText({
         model: getOpenAI()('gpt-4o-mini'),
-        system: buildToolingPrompt(args.reason),
+        // D-04/D-14: inyectar grounding + hint determinista al prompt crm_mutation.
+        // Callers RAG/cas_reject no pasan grounding/crmHint → prompt verbatim viejo.
+        system: buildToolingPrompt(args.reason, {
+          grounding: args.ctx.grounding,
+          crmHint: args.ctx.crmHint,
+        }),
         messages: [
           ...args.ctx.recentMessages.map((m) => ({ role: m.role, content: m.content })),
           { role: 'user' as const, content: args.ctx.userMessage },
@@ -774,16 +791,19 @@ async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
           total_chars: args.ctx.userMessage.length,
         })
         return {
-          status: 'no_match',
-          responseText: null,
-          sourceTopic: null,
-          responseConfidence: null,
-          confidenceRationale: null,
-          nuncaDecirRules: null,
-          responseTemplate: 'handoff_humano',
-          knowledgeQueried: [],
-          requiresHuman: true,
-          reason: 'interrupted_at_ckpt_3_post_tooling_legacy_combined',
+          outcome: {
+            status: 'no_match',
+            responseText: null,
+            sourceTopic: null,
+            responseConfidence: null,
+            confidenceRationale: null,
+            nuncaDecirRules: null,
+            responseTemplate: 'handoff_humano',
+            knowledgeQueried: [],
+            requiresHuman: true,
+            reason: 'interrupted_at_ckpt_3_post_tooling_legacy_combined',
+          },
+          rawResult: subLoopResult,
         }
       }
     }
@@ -885,7 +905,7 @@ async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
       invariantViolation: invariantCheck.violation ?? 'unspecified',
       latencyMs: performance.now() - t0,
     })
-    return escalated
+    return { outcome: escalated, rawResult: subLoopResult }
   }
 
   // Observability outcome del sub-loop.
@@ -910,5 +930,42 @@ async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
     latencyMs: performance.now() - t0,
   })
 
-  return output
+  return { outcome: output, rawResult: subLoopResult }
+}
+
+/**
+ * Wrapper que preserva la firma publica original `runLegacySubLoop -> Promise<LoopOutcome>`
+ * para los callers RAG/cas_reject existentes (no requieren el rawResult). Delega en la
+ * variante raw y descarta el rawResult.
+ */
+async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
+  const { outcome } = await runLegacySubLoopRaw(args)
+  return outcome
+}
+
+/**
+ * Contrato de salida CRM del sub-loop (Plan 05 Task 3 — D-14/D-23 + Pitfall 6).
+ * Devuelve el outcome del sub-loop + los crmActions DERIVADOS del rawResult
+ * (ground-truth de los tool-results, NO auto-reporte del LLM).
+ */
+export interface SubLoopResult {
+  outcome: LoopOutcome
+  /** Acciones CRM derivadas de rawResult.steps[].toolResults (origen:'rag'). */
+  crmActions: CrmActionRegistrada[]
+}
+
+/**
+ * Entrypoint DEDICADO para el path crm_mutation (D-04/D-14/D-23). Corre el mismo
+ * legacy sub-loop PERO captura el rawResult y deriva `crmActions[]` (ground-truth)
+ * antes de retornar. El caller (gate del Plan 06) usa estos crmActions para:
+ *   (a) poblar el ledger (D-14, origen:'rag'), y
+ *   (b) extraer orderId/contactId/success para el flujo de vuelta al runner (Pitfall 6).
+ *
+ * NO cambia la firma de `runSubLoop` global (los callers RAG/cas_reject siguen igual).
+ * El grounding + crmHint se threadean via args.ctx (SubLoopContext extends SubLoopToolsContext).
+ */
+export async function runCrmSubLoop(args: RunSubLoopArgs): Promise<SubLoopResult> {
+  const { outcome, rawResult } = await runLegacySubLoopRaw(args)
+  const crmActions = deriveCrmActions(rawResult)
+  return { outcome, crmActions }
 }

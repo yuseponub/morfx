@@ -2,6 +2,7 @@ import { TONE_BASE } from './tone-base'
 import { FEW_SHOTS } from './few-shots'
 import type { ToolingOutput } from './tooling-call'
 import type { SubLoopReason } from './output-schema'
+import type { CrmGrounding } from '../crm-grounding'
 
 /**
  * Sub-loop prompt builders — split por call (Plan 03 RAG-generative refactor).
@@ -55,7 +56,10 @@ export type FewShot = {
  *   material parseado para CALL 2. EXPLICITAMENTE NO redactar respuesta al cliente.
  * - 'crm_mutation' | 'cas_reject' → PRESERVA verbatim el prompt viejo (D-12).
  */
-export function buildToolingPrompt(reason: SubLoopReason): string {
+export function buildToolingPrompt(
+  reason: SubLoopReason,
+  opts?: { grounding?: CrmGrounding | null; crmHint?: string | null },
+): string {
   switch (reason) {
     case 'crm_mutation':
       return buildLegacyCommon() +
@@ -63,7 +67,8 @@ export function buildToolingPrompt(reason: SubLoopReason): string {
         `El state machine quiere ejecutar una mutación CRM (createOrder/updateOrder/moveOrderToStage/etc.). ` +
         `Verifica precondiciones con getActiveOrderByPhone si es necesario. ` +
         `Si la mutación falla con stage_changed_concurrently → no_match (handoff). ` +
-        `Si succeed → status='template' apuntando al template apropiado (pendiente_*).`
+        `Si succeed → status='template' apuntando al template apropiado (pendiente_*).` +
+        buildCrmMutationContext(opts?.grounding, opts?.crmHint)
 
     case 'cas_reject':
       return buildLegacyCommon() +
@@ -103,6 +108,79 @@ function buildLegacyCommon(): string {
     `NUNCA generes texto libre. ` +
     `Toda respuesta al cliente sale de templates aprobados o escala a humano.`
   )
+}
+
+/**
+ * Construye el bloque de contexto CRM (grounding + hint determinista + reglas de
+ * guard) que se inyecta al prompt crm_mutation (D-04/D-14/D-23 + Pitfall 1/6).
+ *
+ * El LLM grounded DECIDE+EJECUTA la mutacion usando este material:
+ *   - grounding (Vista A: pedido activo + contacto; Vista B: crmActions previas;
+ *     + mensaje crudo D-09 para re-leer lo que la extraccion determinista se perdio).
+ *   - crmHint: que mutacion sugiere el state-machine (sugerencia, no orden).
+ *   - reglas de guard explicitas (red de prompt; los guards del Plan 06 son la red final).
+ *
+ * Devuelve string vacio si no hay grounding ni hint (backward-compat: callers que
+ * no pasan opts mantienen el prompt verbatim del flujo viejo).
+ */
+function buildCrmMutationContext(
+  grounding?: CrmGrounding | null,
+  crmHint?: string | null,
+): string {
+  if (!grounding && !crmHint) return ''
+
+  const parts: string[] = ['\n\n=== CONTEXTO CRM (grounding) ===']
+
+  if (grounding) {
+    const ao = grounding.activeOrder
+    if (ao) {
+      const items = ao.items.length
+        ? ao.items.map((it) => `${it.quantity}x ${it.title} (${it.sku}) @ ${it.unitPrice}`).join('; ')
+        : '(cascarón sin items)'
+      const direccion = [ao.shippingAddress, ao.shippingCity, ao.shippingDepartment]
+        .filter(Boolean)
+        .join(', ') || '(sin dirección)'
+      parts.push(
+        `PEDIDO ACTIVO: id=${ao.id} | stage=${ao.stageName ?? ao.stageId} | ` +
+        `valor=${ao.totalValue} | items=[${items}] | dirección=${direccion} | creado=${ao.createdAt}`,
+      )
+    } else {
+      parts.push(`PEDIDO ACTIVO: NINGUNO (status query: ${grounding.activeOrderQueryStatus}).`)
+    }
+
+    if (grounding.contact) {
+      parts.push(
+        `CONTACTO: id=${grounding.contact.id} | tel=${grounding.contact.phone ?? '?'} | ` +
+        `email=${grounding.contact.email ?? '?'}`,
+      )
+    } else {
+      parts.push('CONTACTO: no resuelto (sin teléfono o no encontrado).')
+    }
+
+    if (grounding.ledgerCrmActions.length) {
+      const prev = grounding.ledgerCrmActions
+        .map((a) => `${a.tool}->${a.result}${a.code ? `(${a.code})` : ''}`)
+        .join(', ')
+      parts.push(`ACCIONES CRM PREVIAS DE ESTE AGENTE (memoria, Vista B): ${prev}`)
+    }
+
+    parts.push(`MENSAJE CRUDO DEL CLIENTE: "${grounding.rawMessage}"`)
+  }
+
+  if (crmHint) {
+    parts.push(`\nHINT DETERMINISTA (sugerencia del state-machine): ${crmHint}`)
+  }
+
+  parts.push(
+    `\nREGLAS DE GUARD (obligatorias):\n` +
+    `- NO crear un pedido nuevo si ya existe un PEDIDO ACTIVO arriba → usá updateOrder sobre ese id.\n` +
+    `- Para createOrder usá el contactId + pipelineId provistos en el HINT (no inventes UUIDs).\n` +
+    `- moveOrderToStage SOLO está permitido hacia CONFIRMADO (whitelist) — ningún otro destino.\n` +
+    `- Si una mutación retorna stage_changed_concurrently → NO reintentar; status='no_match' (handoff).\n` +
+    `- Si no hay nada que mutar (el HINT no aplica o ya está hecho) → status='template'/'no_match' sin mutar.`,
+  )
+
+  return parts.join('\n')
 }
 
 /**

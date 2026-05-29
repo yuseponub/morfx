@@ -19,6 +19,7 @@ import { useTheme } from 'next-themes'
 import { Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import type { SandboxState } from '@/lib/sandbox/types'
+import type { Atendido } from '@/lib/agents/somnio-v4/types'
 
 interface StateTabProps {
   state: SandboxState
@@ -30,6 +31,15 @@ interface StateTabProps {
 // ============================================================================
 
 function LegibleState({ state }: { state: SandboxState }) {
+  // somnio-v4-turn-ledger Plan 05 (D-14 / W-3): el ledger del turno fluye a
+  // SandboxState.turnLedgerDims (tipado FUERTE TurnLedgerDims, Plan 04). Guard
+  // graceful para sesiones sandbox pre-ledger. El narrowing por `kind` funciona
+  // sin `unknown` ni casts porque el campo es TurnLedgerDims, no unknown[].
+  const dims = state.turnLedgerDims ?? { atendido: [], crmActions: [] }
+  const kbTopics = dims.atendido.filter(
+    (a): a is Extract<Atendido, { kind: 'kb_topic' }> => a.kind === 'kb_topic',
+  )
+
   return (
     <div className="space-y-3">
       {/* Intents vistos timeline */}
@@ -83,6 +93,52 @@ function LegibleState({ state }: { state: SandboxState }) {
             {state.accionesEjecutadas.map((accion, idx) => (
               <Badge key={idx} variant="outline" className="text-xs">
                 {accion.tipo} (T{accion.turno}, {accion.origen})
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* KB Topics Atendidos (Turn Ledger — somnio-v4-turn-ledger Plan 05) */}
+      <div className="border rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          KB Topics Atendidos
+          <Badge variant="secondary" className="ml-2 text-xs">{kbTopics.length}</Badge>
+        </h4>
+        {kbTopics.length === 0 ? (
+          <span className="text-xs text-muted-foreground">Ningun topic atendido</span>
+        ) : (
+          <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+            {kbTopics.map((topic, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs">
+                {topic.topic} &#8212; {(topic.confidence * 100).toFixed(0)}%
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* CRM Actions (Turn Ledger — somnio-v4-turn-ledger Plan 05) */}
+      <div className="border rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          CRM Actions
+          <Badge variant="secondary" className="ml-2 text-xs">{dims.crmActions.length}</Badge>
+        </h4>
+        {dims.crmActions.length === 0 ? (
+          <span className="text-xs text-muted-foreground">Ninguna accion CRM</span>
+        ) : (
+          <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+            {dims.crmActions.map((action, idx) => (
+              <Badge
+                key={idx}
+                variant="outline"
+                className={`text-xs ${
+                  action.result === 'success'
+                    ? 'border-green-500/50 text-green-600 dark:text-green-400'
+                    : 'border-red-500/50 text-red-600 dark:text-red-400'
+                }`}
+              >
+                {action.tool} &#183; {action.result} &#183; {action.origen}
               </Badge>
             ))}
           </div>

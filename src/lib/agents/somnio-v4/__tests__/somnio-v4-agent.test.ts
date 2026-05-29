@@ -177,10 +177,10 @@ beforeEach(() => {
 
 describe('somnio-v4-agent Turn Ledger — Plan 03 (D-05/D-15/D-17/D-02/D-06)', () => {
   it('RAG ledger (R5, D-05): mapOutcome generated registra kb_topic desde outcome.*', async () => {
-    // Force escalation to sub-loop: low confidence < threshold.
+    // Force escalation to sub-loop: low confidence < threshold (intent 'otro' sumidero).
     comprehendRef.current = makeAnalysis({
       intent: {
-        primary: 'razonamiento_libre',
+        primary: 'otro',
         secondary: 'ninguno',
         confidence: 30,
         reasoning: 'fuera de flujo',
@@ -331,5 +331,48 @@ describe('somnio-v4-agent Turn Ledger — Plan 03 (D-05/D-15/D-17/D-02/D-06)', (
     expect(out.turnLedgerDims.atendido).toEqual([
       { kind: 'handoff', reason: 'escape intent' },
     ])
+  })
+
+  // =========================================================================
+  // Task 2 — R10 (timer / processSystemEvent)
+  // =========================================================================
+
+  it('timer ledger (R10): processSystemEvent con acción CRM produce crmActions origen:timer', async () => {
+    salesTrackRef.current = { accion: 'crear_orden', reason: 'timer dispara orden' }
+    responseTrackRef.current = {
+      messages: [makeProcessedMsg('orden creada')],
+      templateIdsSent: ['confirmacion_orden'],
+      salesTemplateIntents: ['confirmacion_orden'],
+      infoTemplateIntents: [],
+    }
+
+    const out = await processMessage(
+      makeInput({ systemEvent: { type: 'timer_expired', level: 3 } }),
+    )
+
+    expect(out.turnLedgerDims.crmActions).toEqual([
+      { tool: 'crear_orden', args: {}, result: 'success', origen: 'timer' },
+    ])
+  })
+
+  it('timer atendido (R10): timer que dispara acción registra sales_action', async () => {
+    salesTrackRef.current = { accion: 'ofrecer_promos', reason: 'timer reactiva' }
+    responseTrackRef.current = {
+      messages: [makeProcessedMsg('promo')],
+      templateIdsSent: ['promo_core'],
+      salesTemplateIntents: ['promo_core'],
+      infoTemplateIntents: [],
+    }
+
+    const out = await processMessage(
+      makeInput({ systemEvent: { type: 'timer_expired', level: 1 } }),
+    )
+
+    expect(out.turnLedgerDims.atendido).toEqual([
+      { kind: 'sales_action', accion: 'ofrecer_promos', templateIds: ['promo_core'] },
+    ])
+    expect(out.newMode).toBe('promos')
+    // crmActions vacío (ofrecer_promos no es CRM action).
+    expect(out.turnLedgerDims.crmActions).toEqual([])
   })
 })

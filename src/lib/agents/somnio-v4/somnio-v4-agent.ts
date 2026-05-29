@@ -848,6 +848,10 @@ async function processSystemEvent(
     input.accionesEjecutadas ?? [],
   )
 
+  // somnio-v4-turn-ledger Plan 03 (R10, D-17): modo previo capturado ANTES de
+  // registrar la acción del timer. modeTransition.from = este valor.
+  const prevMode = computeMode(state)
+
   // Compute phase + gates directly from state (NO mergeAnalysis, NO turnCount++)
   const phase = derivePhase(state.accionesEjecutadas)
   const gates = computeGates(state)
@@ -900,23 +904,56 @@ async function processSystemEvent(
     }
   }
 
-  const serialized = serializeState(state)
   const isCreateOrder =
     !!salesResult.accion &&
     CREATE_ORDER_ACTIONS.has(salesResult.accion) &&
     !state.accionesEjecutadas.some((a) => typeof a !== 'string' && a.crmAction)
 
+  // somnio-v4-turn-ledger Plan 03 (R10): ledger COMPLETO del turno-timer. Sin
+  // intent (los timers no tienen comprehension) → comprehension sintético
+  // 'timer_expired' confidence 1. atendido: sales_action si hubo acción no-silence;
+  // template_intent si hubo info templates. crmActions origen 'timer' por cada
+  // acción crmAction:true registrada este turno. messagesSent = nº templates.
+  const newModeR10 = computeMode(state)
+  const atendidoR10: Atendido[] = []
+  if (salesResult.accion && salesResult.accion !== 'silence') {
+    atendidoR10.push({
+      kind: 'sales_action',
+      accion: salesResult.accion,
+      templateIds: responseResult.salesTemplateIntents,
+    })
+  }
+  if (responseResult.infoTemplateIntents.length > 0) {
+    atendidoR10.push({
+      kind: 'template_intent',
+      intent: 'timer_expired',
+      templateIds: responseResult.infoTemplateIntents,
+    })
+  }
+  const ledgerR10: TurnLedger = {
+    comprehension: { intent: 'timer_expired', confidence: 1 },
+    atendido: atendidoR10,
+    crmActions: buildCrmActionsFromAcciones(
+      state.accionesEjecutadas,
+      'timer',
+      state.turnCount,
+    ),
+    modeTransition: { from: prevMode, to: newModeR10 },
+    messagesSent: responseResult.templateIdsSent.length,
+  }
+  const serialized = commitTurn(state, ledgerR10)
+
   return {
     success: true,
     messages: responseResult.messages.map((m) => m.content),
     templates: responseResult.messages.length > 0 ? responseResult.messages : undefined,
-    newMode: computeMode(state),
+    newMode: newModeR10,
     intentsVistos: serialized.intentsVistos,
     templatesEnviados: serialized.templatesEnviados,
     datosCapturados: serialized.datosCapturados,
     packSeleccionado: serialized.packSeleccionado,
     accionesEjecutadas: serialized.accionesEjecutadas,
-    turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
+    turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn (origen timer)
     totalTokens: 0,
     // D-20: createOrder timer-driven sigue al mismo path que happy (runner valida
     // success antes de enviar template post-success). Plan 08 (agent-timers-v4)

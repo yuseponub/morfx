@@ -562,3 +562,333 @@ template earlier — keep that template tied to the confirm step so the conversa
 
 **Research date:** 2026-05-29
 **Valid until:** ~2026-06-12 (14 days — internal code stable, but DB automation config + crm_query_tools_config can change; re-verify the empty-config + automation-stage facts at plan time).
+
+---
+
+## SUPLEMENTO research-phase — Rediseño lifecycle (D-15..D-19) [2026-05-29]
+
+**Scope de este suplemento:** SOLO los 5 ítems del rediseño del lifecycle (createOrder temprano, updateOrder-en-pack, desacople L3/L4, blocker cascarón-sin-pack, paridad sub-loop). NO reescribe nada arriba. Método: cada claim = `file:line` + snippet leído esta sesión, o "NOT FOUND". Cero asunciones donde el código habla.
+
+> **Veredicto rápido por ítem:**
+> - **S1 (enganche temprano):** Engancha en `mergeAnalysis`-derived `changes.datosCriticosJustCompleted` (señal limpia once-per-turn, `state.ts:201`). El gate CRM (D-01, `:467`) ya tiene acceso a `changes`. **NO rompe `ofrecer_promos`** porque la mutación es side-effect concurrente (D-05), no una transición. CONFIDENCE: **HIGH**.
+> - **S2 (updateOrder-en-pack):** Engancha en `salesResult.accion === 'mostrar_confirmacion'` (`transitions.ts:242`). El pack+valor+producto viven en `state.pack` + `PACK_PRODUCTS`/`PACK_PRICES_NUMERIC` (`constants.ts:154-168`). CONFIDENCE: **HIGH**.
+> - **S3 (desacople L3/L4):** 6 consumidores de `crear_orden_sin_*` enumerados abajo. Crear acciones `recordar_*` nuevas es viable pero toca `phase.ts`, `computeMode`, `SIGNIFICANT_ACTIONS`, `CRM_ACTIONS`, `CREATE_ORDER_ACTIONS`. CONFIDENCE: **HIGH** sobre los consumidores.
+> - **S4 (BLOCKER cascarón-sin-pack):** **NO es blocker a nivel domain ni a nivel crm-mutation-tools** — ambos permiten orden sin productos. **SÍ es blocker el adapter productivo actual** (`engine-adapters/production/orders.ts:63`) que rechaza `!pack` — pero **D-06 lo elimina**, así que el path nuevo (sub-loop → crm-mutation-tools → domain) crea el cascarón sin tocar código compartido. CONFIDENCE: **HIGH** (path completo trazado).
+> - **S5 (paridad):** Sandbox `engine-v4.ts` HOY ya es no-op CRM (solo pasa `shouldCreateOrder` al debug, `:574`, nunca llama orders adapter). El seam más limpio: **el toolset del sub-loop** (`sub-loop/tools.ts:40-62`) — inyectar mutation-tools simulados en sandbox. CONFIDENCE: **HIGH**.
+
+---
+
+### S1. Enganche del createOrder temprano (datos críticos, sin pack)
+
+**Hallazgo central — la señal correcta existe y es limpia:**
+
+`changes.datosCriticosJustCompleted` se computa en `mergeAnalysis` como un edge-trigger once-per-turn:
+```
+// src/lib/agents/somnio-v4/state.ts:201
+datosCriticosJustCompleted: !criticosBefore && criticosAfter,
+// donde (state.ts:108,178):
+//   criticosBefore = datosCriticosOk(state)        ← estado ANTES del merge
+//   criticosAfter  = datosCriticosOk(updated)      ← estado DESPUÉS del merge
+```
+Es exactamente "datos críticos completos por PRIMERA vez este turno". Es `false` en todos los turnos siguientes (porque `criticosBefore` ya será `true`). Esto da idempotencia natural de disparo a nivel de turno.
+
+**Dónde NO está la lógica (corrección a un supuesto del CONTEXT):**
+- CONTEXT D-15 dice *"Engancha donde `datosCriticosJustCompleted` se vuelve true (`sales-track.ts:82` ya lo detecta)"*. **MATIZ:** `sales-track.ts:82` NO "detecta" la finalización para crear orden — solo la usa para **elegir el nivel de timer** (L2/L8 para extras):
+```
+// src/lib/agents/somnio-v4/sales-track.ts:81-94
+if (state.enCapturaSilenciosa && changes.hasNewData) {
+  if (changes.datosCriticosJustCompleted && !changes.datosCompletosJustCompleted) {
+    if (state.ofiInter) { ... L8 ... } else {
+      dataTimerSignal = { type: 'start', level: 'L2', reason: 'criticos completos, esperando extras' }
+    }
+  } ...
+}
+```
+La acción conversacional que se produce cuando datos críticos completan NO es un símbolo único: depende del intent/fase:
+- `initial + datos + datosCriticos → ofrecer_promos` (`transitions.ts:190-196`)
+- `initial + quiero_comprar + datosCriticos → ofrecer_promos` (`transitions.ts:209-217`)
+- `capturing_data + quiero_comprar + datosCriticos → ofrecer_promos` (`transitions.ts:219-227`)
+- `capturing_data + auto:datos_completos + !packElegido → ofrecer_promos` (`transitions.ts:294-301`, vía auto-trigger en `sales-track.ts:109-129` cuando `datosCompletosJustCompleted`)
+
+→ **No hay un único punto en transitions que signifique "datos críticos OK".** La señal canónica única es `changes.datosCriticosJustCompleted`, no una `TipoAccion`.
+
+**Recomendación prescriptiva (S1):**
+1. El disparo de createOrder-cascarón debe vivir en el **gate CRM nuevo** (D-01, reemplazo de `executeInvocations` en `somnio-v4-agent.ts:467`), **NO** en transitions.ts ni en sales-track.ts. Razón: transitions/sales-track producen símbolos puros (sin side-effects); la mutación es side-effect (D-04: la ejecuta el sub-loop). El gate ya tiene `changes` en scope (se construye en `:435-440` y se pasa a `resolveSalesTrack`).
+2. **Hint determinista al sub-loop:** cuando `changes.datosCriticosJustCompleted === true` Y `!hasPriorOrder` (reusar el check existente `somnio-v4-agent.ts:572-574`: `mergedState.accionesEjecutadas.some(a => typeof a !== 'string' && a.crmAction)`), el orquestador pasa al sub-loop el hint "crea cascarón ahora" (mecánica de hint = Claude's Discretion del CONTEXT). El sub-loop grounded decide+ejecuta `createOrder` (D-04).
+3. **Idempotencia de "crear exactamente una vez"** (3 capas, todas ya existentes):
+   - **Capa señal:** `datosCriticosJustCompleted` es edge-trigger (solo el turno de la transición false→true).
+   - **Capa View B (memoria):** `hasPriorOrder` chequea `crmAction:true` en `accionesEjecutadas` (`:572-574`) — si ya creamos antes, no re-disparar.
+   - **Capa View A (DB) + backstop:** re-query fresco antes de createOrder (D-10) + idempotency key reusando `crm_mutation_idempotency_keys` (D-12, key tipo `somnio-v4-createOrder-{sessionId}` — patrón `invocations.ts:271`).
+4. **NO rompe `ofrecer_promos`:** el flujo conversacional sigue intacto porque (D-05) `resolveResponseTrack` corre concurrente y envía `promociones`/`resumen` igual. El cliente ve el flujo normal; el cascarón nace invisible en NUEVO PEDIDO.
+
+**Campos que distinguen "primera vez":** `changes.datosCriticosJustCompleted` (edge), `hasPriorOrder` (memoria), `getActiveOrderByPhone`/re-query (DB). Triple guard ya disponible.
+
+**CONFIDENCE S1: HIGH** — señal verificada en `state.ts:201`; gate context verificado en `somnio-v4-agent.ts:435-481`; `hasPriorOrder` pattern verificado en `:572-574`.
+
+---
+
+### S2. updateOrder-en-pack
+
+**Transición verificada:**
+```
+// src/lib/agents/somnio-v4/transitions.ts:240-248
+// seleccion_pack + datosCriticos -> mostrar_confirmacion
+{ phase: '*', on: 'seleccion_pack', action: 'mostrar_confirmacion',
+  condition: (_, gates) => gates.datosCriticos,
+  resolve: (state) => ({ timerSignal: { type: 'start', level: 'L4', ... }, ... }) }
+```
+También vía auto-trigger: `capturing_data + auto:datos_completos + packElegido → mostrar_confirmacion` (`transitions.ts:303-311`).
+
+→ **El hook de updateOrder es `salesResult.accion === 'mostrar_confirmacion'`** en el gate CRM. En ese punto: `gates.packElegido === true` (`state.ts:218`: `packElegido: state.pack !== null`) y `gates.datosCriticos === true`.
+
+**Datos de pack disponibles en ese punto (todos en `state` + constants, cero queries):**
+```
+// src/lib/agents/somnio-v4/constants.ts:154-168
+PACK_PRICES_NUMERIC: { '1x': 79900, '2x': 129900, '3x': 169900 }   // valor unitario COP
+PACK_PRODUCTS: {
+  '1x': { name: 'Somnio 90 Caps',    quantity: 1 },
+  '2x': { name: 'Somnio 90 Caps x2', quantity: 2 },
+  '3x': { name: 'Somnio 90 Caps x3', quantity: 3 },
+}
+```
+`state.pack` ∈ `'1x'|'2x'|'3x'|null`. El producto/valor se derivan determinísticamente de `state.pack`.
+
+**Cómo el path viejo lo daba forma (referencia para reusar):**
+```
+// src/lib/agents/engine-adapters/production/orders.ts:122-201 (a ELIMINAR por D-06)
+const effectivePack = pack || '1x'
+const product = this.orderCreator.mapPackToProduct(effectivePack)  // → {productName, price, quantity}
+const effectivePrice = isTimerOrder ? (data.valorOverride ?? 0) : product.price
+...
+products: [{ sku: product.productName.substring(0,50).toUpperCase().replace(/\s+/g,'-'),
+             title: product.productName, unitPrice: effectivePrice, quantity: product.quantity }]
+```
+El `items[]` de `crm-mutation-tools.updateOrder` — **NO existe**: `updateOrder` NO acepta `products` (verificado: header `crm-mutation-tools/orders.ts:7-9` *"NO products field in updateOrder.inputSchema (V1.1 deferred)"*). **Esto es un blocker secundario para S2** ⚠.
+
+**⚠ BLOCKER S2 — `updateOrder` NO puede agregar productos al cascarón:**
+- `crm-mutation-tools.updateOrder` excluye `products` por diseño (V1.1 deferred, `crm-mutation-tools/orders.ts:7-9`).
+- `domain.updateOrder` (`orders.ts:405+`) — verificar si acepta products. (No leído en detalle este suplemento — el comentario del header de mutation-tools sugiere que domain sí podría, pero la tool lo bloquea.)
+- **Implicación:** enriquecer el cascarón con el producto/valor del pack NO es posible vía la tool `updateOrder` actual. Opciones para el planner:
+  - **(A)** Extender `updateOrder.inputSchema` con `items[]` — **toca módulo compartido `crm-mutation-tools`** → Regla 6 NO aplica (no es v4-specific), riesgo medio (otros consumidores: crm-writer coexiste, pero mutation-tools tiene "0 consumidores en prod" per CLAUDE.md, así que el blast radius real es bajo). Requiere actualizar el grep-gate del header.
+  - **(B)** Crear el cascarón **con** los productos directamente cuando el pack ya está elegido (si datos+pack llegan juntos, createOrder lleva items desde el inicio — `crm-mutation-tools.createOrder.items` SÍ existe, `orders.ts:86-96`), y solo dejar el cascarón vacío cuando datos llegan ANTES que el pack. En ese caso el "enriquecer" del pack tardío necesita igualmente updateOrder-con-items → vuelve a (A).
+  - **(C)** Recrear el cascarón: archivar el vacío + crear uno nuevo con items. **Anti-recomendado** (genera basura CRM, viola D-12 idempotencia, choca con la clase Doralba).
+- **Recomendación:** Opción **(A)** — extender `updateOrder` con `items[]` opcional. Es el cambio mínimo coherente con el rediseño y mutation-tools no tiene consumidores prod que romper. **Flag para decisión del usuario** (toca módulo compartido, sale del puro v4-scope).
+
+**Flujo de templates (mapeo coherente — verificado en response-track.ts):**
+```
+// HOY (src/lib/agents/somnio-v4/response-track.ts:279-314):
+mostrar_confirmacion / cambio → resumen_<pack>          (:279-288, requiere state.pack; si null → intents:[])
+crear_orden                   → confirmacion_orden_same_day | confirmacion_orden_transportadora  (:290-314, según delivery-zone de ciudad)
+```
+**Mapeo recomendado tras D-15/D-17/D-18:**
+| Momento | Acción (símbolo) | Template (response-track) | Mutación CRM (gate/sub-loop) |
+|---|---|---|---|
+| pack elegido + datos OK | `mostrar_confirmacion` (sin cambio) | `resumen_<pack>` (sin cambio, `:285`) | **updateOrder** (enriquece cascarón con items/valor) — o createOrder-con-items si nace aquí |
+| cliente confirma | **nuevo símbolo** (ej. `confirmar_orden`) | `confirmacion_orden_*` (re-apuntar el case actual `crear_orden:290`) | **moveOrderToStage(CONFIRMADO)** (D-18) |
+
+→ El template `confirmacion_orden_*` (hoy en case `crear_orden`) debe re-apuntarse al nuevo símbolo de confirmación. NO mover el `resumen_<pack>` — sigue en `mostrar_confirmacion`. La conversación lee: `resumen → (cliente confirma) → confirmacion_orden`, idéntica a hoy de cara al cliente. El cascarón naciendo antes es invisible (no manda template propio).
+
+**CONFIDENCE S2: HIGH** sobre el hook + datos disponibles + mapeo de templates. **El blocker `updateOrder`-sin-products es HIGH-confidence y requiere decisión del planner/usuario.**
+
+---
+
+### S3. Desacople L3/L4 (solo template, sin create)
+
+**Transiciones verificadas (las que crean por timer):**
+```
+// src/lib/agents/somnio-v4/transitions.ts:337-353
+// L3: promos_shown + timer_expired:3 → crear_orden_sin_promo  (timerSignal cancel)
+// L4: confirming   + timer_expired:4 → crear_orden_sin_confirmar (timerSignal cancel)
+```
+**Templates que mapean (verificado):**
+```
+// src/lib/agents/somnio-v4/response-track.ts:316-326
+crear_orden_sin_promo      → intents: ['pendiente_promo']
+crear_orden_sin_confirmar  → intents: ['pendiente_confirmacion']
+```
+
+**INVENTARIO COMPLETO de consumidores de `crear_orden_sin_promo` / `crear_orden_sin_confirmar`** (grep exhaustivo esta sesión):
+
+| # | Archivo:línea | Uso | Qué pasa si la acción ya no crea |
+|---|---|---|---|
+| 1 | `transitions.ts:339` | L3 produce `crear_orden_sin_promo` | Cambiar la `action` a `recordar_promo` (nuevo símbolo) |
+| 2 | `transitions.ts:348` | L4 produce `crear_orden_sin_confirmar` | Cambiar a `recordar_confirmacion` |
+| 3 | `response-track.ts:316` | `crear_orden_sin_promo → ['pendiente_promo']` | Re-apuntar el case al nuevo símbolo (mismo template) |
+| 4 | `response-track.ts:322` | `crear_orden_sin_confirmar → ['pendiente_confirmacion']` | Re-apuntar al nuevo símbolo |
+| 5 | `constants.ts:187` | `SIGNIFICANT_ACTIONS` los incluye | Agregar `recordar_*` para que `derivePhase` los considere significativos (o NO — ver abajo) |
+| 6 | `constants.ts:194,199` | `CRM_ACTIONS` + `CREATE_ORDER_ACTIONS` los incluyen | **CLAVE: SACAR de CREATE_ORDER_ACTIONS** los `recordar_*` (no crean). Probablemente sacar también de CRM_ACTIONS. |
+| 7 | `phase.ts:31-32` | `crear_orden_sin_promo`/`crear_orden_sin_confirmar → 'order_created'` | Si `recordar_*` NO está aquí, NO derivan a `order_created` (correcto — ya no crean). Mantienen la fase previa (`promos_shown`/`confirming`). |
+| 8 | `somnio-v4-agent.ts:576` | user-msg path: `isCreateOrder = ... CREATE_ORDER_ACTIONS.has(...)` | Al sacarlos de CREATE_ORDER_ACTIONS → `isCreateOrder=false` para `recordar_*`. Pero este path es para user-msg; L3/L4 son timer. |
+| 9 | `somnio-v4-agent.ts:927` | **timer path** (`processSystemEvent`): `isCreateOrder = ... CREATE_ORDER_ACTIONS.has(salesResult.accion)` | **ESTE es el que importa para L3/L4.** Al sacar `recordar_*` de CREATE_ORDER_ACTIONS → `shouldCreateOrder=false` (`:980`) → el runner NO llama createOrder (`v4-production-runner.ts:1126`). **Exactamente el desacople buscado.** |
+| 10 | `somnio-v4-agent.ts:1267` | `computeMode`: `CREATE_ORDER_ACTIONS.has(tipo) → 'orden_creada'` | Al sacarlos, `recordar_*` NO fuerza modo `'orden_creada'`. Correcto (el modo lo da el cascarón real, no el recordatorio). |
+
+**Verificación del mecanismo de desacople (el más importante — timer path):**
+```
+// src/lib/agents/somnio-v4/somnio-v4-agent.ts:925-928 (processSystemEvent)
+const isCreateOrder =
+  !!salesResult.accion &&
+  CREATE_ORDER_ACTIONS.has(salesResult.accion) &&        ← AQUÍ está el gate del create por timer
+  !state.accionesEjecutadas.some((a) => typeof a !== 'string' && a.crmAction)
+// :980  shouldCreateOrder: isCreateOrder,
+```
+```
+// src/lib/agents/engine/v4-production-runner.ts:1126
+if (output.shouldCreateOrder && output.orderData) { orderResult = await this.adapters.orders.createOrder({...}) }
+```
+→ **Confirmado: sacar `recordar_promo`/`recordar_confirmacion` de `CREATE_ORDER_ACTIONS` (constants.ts:198-200) hace que `shouldCreateOrder=false`, y el create por timer NO ocurre.** El template (`pendiente_promo`/`pendiente_confirmacion`) sigue saliendo vía `resolveResponseTrack` (`processSystemEvent:902-906`), que NO depende de CREATE_ORDER_ACTIONS — solo del símbolo de acción re-apuntado en response-track.
+
+**Qué se rompe EXACTAMENTE si solo se quitan de CREATE_ORDER_ACTIONS sin crear símbolos nuevos:** nada catastrófico, pero `crear_orden_sin_*` seguirían en `phase.ts:31-32` derivando a `'order_created'` (semánticamente erróneo — no se creó) y en `CRM_ACTIONS` marcándose `crmAction:true` (poblaría View B con una acción CRM que no ocurrió). Por eso la recomendación es **símbolos nuevos `recordar_*`** que NO entran a ninguno de los 3 sets CRM (`CRM_ACTIONS`, `CREATE_ORDER_ACTIONS`) ni a `phase.ts` order_created.
+
+**¿El cascarón ya existe cuando L3/L4 disparan? — SÍ, trazado:**
+- Progresión de fases (`phase.ts:17-39`, derivada de la última acción significativa):
+  `initial → capturing_data (pedir_datos) → promos_shown (ofrecer_promos) → confirming (mostrar_confirmacion)`.
+- **L3** dispara en `phase === 'promos_shown'` (`transitions.ts:339`). Para llegar a `promos_shown` hubo `ofrecer_promos`, que SOLO ocurre con `gates.datosCriticos === true` (todas las rutas a `ofrecer_promos` exigen `datosCriticos`: `transitions.ts:191,212,222,296,329(L2),382(L8)`). → datos críticos completaron antes → **el cascarón D-15 ya nació**. ✓
+- **L4** dispara en `phase === 'confirming'` (`transitions.ts:348`). Para llegar a `confirming` hubo `mostrar_confirmacion`, que exige `gates.datosCriticos` (`transitions.ts:243,306`). → cascarón ya existe (y con D-17 ya enriquecido con pack). ✓
+
+→ **Confirmado: en ambos timers el pedido-cascarón ya existe.** El timer solo recuerda; nunca necesita crear. Excepción teórica: si el cliente llega a `promos_shown` por una ruta sin createOrder previo exitoso (ej. createOrder falló) — el guard `hasPriorOrder`/idempotencia maneja el re-intento, pero el timer mismo no debe crear (decisión D-19). Si se quiere red de seguridad "crear si nunca se creó", sería lógica nueva explícita, NO el comportamiento por defecto del timer.
+
+**Recomendación prescriptiva (S3):**
+1. Crear `recordar_promo` + `recordar_confirmacion` como nuevas `TipoAccion` (agregar al union en `types.ts`).
+2. `transitions.ts:339,348` → emitir los nuevos símbolos.
+3. `response-track.ts:316,322` → re-apuntar los case a los nuevos símbolos (mismos templates `pendiente_promo`/`pendiente_confirmacion`).
+4. **NO** agregar `recordar_*` a `CRM_ACTIONS` ni `CREATE_ORDER_ACTIONS` (constants.ts:193-200) — esto es el corazón del desacople.
+5. `phase.ts` — NO mapear `recordar_*` a `order_created` (dejarlos fuera del switch → mantienen fase previa). Decidir si entran a `SIGNIFICANT_ACTIONS` (probablemente sí, para que el timer marque que ya recordó y no spamee; pero entonces derivan a fase vía el `default`/`initial` — cuidado, revisar `derivePhase`). **Sugerencia:** mantenerlos fuera de SIGNIFICANT_ACTIONS para no alterar la fase (el recordatorio no cambia el estado de venta), y prevenir doble-recordatorio vía el `timerSignal: cancel` que ya traen (`transitions.ts:341,350`).
+
+**CONFIDENCE S3: HIGH** — los 10 consumidores enumerados por grep directo; mecanismo de desacople verificado en la cadena `CREATE_ORDER_ACTIONS → isCreateOrder → shouldCreateOrder → runner`.
+
+---
+
+### S4. ⚠ BLOCKER CHECK — ¿createOrder permite cascarón SIN pack?
+
+**RESPUESTA: NO es blocker en domain ni en crm-mutation-tools. SÍ lo es en el adapter productivo actual — pero D-06 lo elimina. El path nuevo crea el cascarón limpiamente.**
+
+**Capa 1 — `domain.createOrder` (`orders.ts:225-403`): PERMITE cascarón sin productos. VERIFICADO.**
+```
+// src/lib/domain/orders.ts:262-282 — el INSERT del order NO incluye productos ni total_value:
+const { data: order } = await supabase.from('orders').insert({
+  workspace_id, contact_id, pipeline_id, stage_id, closing_date, description, name,
+  carrier, tracking_number, shipping_address, shipping_city, shipping_department,
+  custom_fields, email,
+}).select('id, total_value, stage_id').single()
+
+// :289 — productos son OPCIONALES (guard de longitud):
+if (params.products && params.products.length > 0) { ...insert order_products + recalc total_value... }
+```
+→ Si `params.products` es `undefined`/`[]`, el order se inserta igual, SIN filas en `order_products`, y `total_value` queda en su default de DB (no se setea en el insert; solo se recalcula `:309-317` si hay productos). El order nace válido como cascarón. **Confirmado: domain NO requiere productos/items/value.**
+
+**Capa 2 — `crm-mutation-tools.createOrder` (`crm-mutation-tools/orders.ts:72-170`): PERMITE cascarón. VERIFICADO.**
+```
+// :86-96 — items es OPCIONAL:
+items: z.array(z.object({ productId, sku, title, unitPrice, quantity })).optional(),
+// :130-136 — mapea a products solo si items existe (?. → undefined si no):
+products: input.items?.map((it) => ({ ... })),
+```
+→ Sin `items`, `products` es `undefined` → domain salta el insert de productos → cascarón. La tool **NO** valida `items` requerido. **Confirmado.** Requiere `contactId` (uuid) + `pipelineId` (uuid) — ese es el blocker SEPARADO ya documentado en el RESEARCH principal (Pitfall 2, contact resolution), no el de "pack".
+
+**Capa 3 — Adapter productivo `engine-adapters/production/orders.ts` (a ELIMINAR por D-06): RECHAZA cascarón. VERIFICADO.**
+```
+// :63-69 — HARD REJECT si no hay pack:
+if (!pack && !isTimerOrder) {
+  logger.warn(... 'Cannot create order - no pack selected')
+  return { success: false, error: { message: 'No pack selected' } }
+}
+// :122-200 — SIEMPRE manda 1 producto (effectivePack = pack || '1x'):
+const effectivePack = pack || '1x'
+const product = this.orderCreator.mapPackToProduct(effectivePack)
+... products: [{ sku, title, unitPrice: effectivePrice, quantity }]
+```
+→ El adapter actual (a) rechaza si no hay pack y (b) nunca envía array vacío. **Este es el ÚNICO punto que prohíbe el cascarón hoy. D-06 lo borra** (junto con `v4-production-runner.ts:1126-1143` que lo invoca). Por tanto el cascarón no requiere modificar el adapter — el path nuevo lo bypassa.
+
+**Conclusión S4 (definitiva):**
+- **Cambios necesarios para permitir el cascarón: NINGUNO en código compartido (domain/mutation-tools ya lo permiten).** El cascarón nace vía `crm-mutation-tools.createOrder` con `items` omitido → `domain.createOrder` con `products` undefined.
+- **Lo que SÍ hay que hacer (no es habilitar el cascarón, es enrutar a él):** D-06 elimina el adapter que lo prohíbe + el orquestador debe resolver `contactId`+`pipelineId` UUID (blocker independiente, ya en Pitfall 2 del RESEARCH principal) + pinear stageId a NUEVO PEDIDO (`6be952b0…`, ya verificado live).
+- **Regla 6:** el cambio es **aditivo/v4-safe** — se borra código v4-specific (`invocations.ts`, runner v4 block, adapter v4 usage) y se enruta por mutation-tools/domain que YA permiten el cascarón. **NO se modifica `domain.createOrder` ni el schema de `crm-mutation-tools.createOrder`.** (El único toque a módulo compartido potencial es `updateOrder.items` del S2, no createOrder.)
+
+**Schema de orden sin items:**
+- `orders`: fila normal con `total_value` en default DB (NO seteado en insert `:265-280`; ver Open Question abajo sobre el default real — `0` o `null`).
+- `order_products`: cero filas para ese `order_id`.
+- `total_value`: solo se setea explícitamente `:314-317` cuando hay productos. **NOT VERIFIED:** el default de columna `orders.total_value` en el schema (¿`0`, `null`, o trigger?). El comentario `:320` *"DB trigger may have recalculated"* sugiere que existe un trigger de total — **verificar en migración/DB antes de planear** (afecta si el cascarón muestra $0 o null en Kanban). Recomiendo query `SELECT column_default FROM information_schema.columns WHERE table_name='orders' AND column_name='total_value'` + buscar trigger en plan-time.
+
+**CONFIDENCE S4: HIGH** sobre las 3 capas (cada una con snippet verbatim). **MEDIUM/NOT-VERIFIED** solo sobre el default exacto de `total_value` (no es blocker — el cascarón se crea igual; afecta presentación).
+
+---
+
+### S5. Paridad sub-loop prod↔sandbox para CRM
+
+**Estado actual de la paridad CRM (HOY):**
+- **Producción** (`v4-production-runner.ts:1126-1143`): ejecuta createOrder real vía `this.adapters.orders.createOrder(...)` cuando `shouldCreateOrder`.
+- **Sandbox** (`engine-v4.ts`): **NO ejecuta ninguna mutación CRM.** El único uso de `shouldCreateOrder` es para el debug payload:
+```
+// src/lib/agents/somnio-v4/engine-v4.ts:570-575
+orchestration: output.decisionInfo ? {
+  ...
+  shouldCreateOrder: output.shouldCreateOrder,   ← solo lo expone al debug panel
+  ...
+}
+```
+→ grep confirmó: `engine-v4.ts` NO contiene ninguna llamada a `orders.createOrder` ni a adapters de mutación. **El sandbox ya es no-op CRM por construcción** (consistente con D-22). Verificado.
+
+**Qué debe quedar en paridad tras mover CRM al sub-loop (INTERRUPTION-PARITY.md §4 — reglas de oro):**
+La paridad de INTERRUPTION-PARITY.md es sobre el **mecanismo de interrupción** (Path A/B, checkpoints, dropOwnEntry, carryState), NO sobre side-effects de CRM. Mover CRM al sub-loop **introduce side-effects DENTRO de la ventana de checkpoints** (el sub-loop dispara CKPT-3/4/5 — RESEARCH principal Pitfall 7). Reglas relevantes:
+- **§4.1 "Cambio de mecanismo = cambio en ambos":** si el sub-loop CRM cambia DÓNDE/CUÁNDO se dispara un checkpoint (no debería — los CKPT del sub-loop ya existen), reflejar en ambos. El CRM no agrega checkpoints nuevos; corre dentro del `generateText`/tool-loop existente.
+- **§4.3 "El sandbox debe poder reproducir cualquier escenario de producción":** un escenario de producción ahora incluye "createOrder dentro del sub-loop + interrupción en CKPT-3". El sandbox debe poder reproducir el **flujo de decisión** (el sub-loop decide crear) aunque **simule** la mutación (no toque DB). Esto es exactamente el caveat §6 (RAG-send: prod envía, sandbox no) extendido a CRM.
+- **§4.4 "Diferencias permitidas":** solo envío real vs stream, persistencia DB vs memoria, timing real vs simulado. **La mutación CRM cae bajo "persistencia DB vs memoria"** → sandbox-no-op es una diferencia PERMITIDA, no un bug de paridad. ✓ (consistente con D-22).
+
+**Seam más limpio para simular en sandbox (recomendación prescriptiva):**
+
+El sub-loop construye su toolset en UN punto:
+```
+// src/lib/agents/somnio-v4/sub-loop/tools.ts:32-71  buildSubLoopTools(reason, ctx)
+// :40-43 instancia createCrmMutationTools({ workspaceId, invoker })
+// :52-62 case 'crm_mutation' → expone createOrder/updateOrder/moveOrderToStage/addOrderNote/updateContact
+```
+→ **El seam óptimo es `buildSubLoopTools` / su `SubLoopToolsContext`.** Inyectar un flag `simulate: boolean` (o un factory de mutation-tools alternativo) en `SubLoopToolsContext` (`tools.ts:8-12`), y:
+- **Prod:** `createCrmMutationTools(...)` real (toca domain).
+- **Sandbox:** mutation-tools simulados que devuelven un `MutationResult` sintético (`{ status: 'executed', data: {...fake} }`) sin tocar domain — el sub-loop ve "éxito", puebla `crmActions[]` (View B) y el debug panel los muestra, pero cero escritura a DB.
+
+**Por qué ESTE seam y no otros:**
+- **NO en el grounding layer:** el grounding (View A) es read-only; simularlo ahí no evita la escritura.
+- **NO en domain:** tocar domain rompe Regla 3 + afecta a todos los agentes (Regla 6 violación).
+- **NO un flag global en mutation-tools compartido:** acopla un módulo compartido a un concepto sandbox-v4. El wrapper en `buildSubLoopTools` mantiene la simulación 100% v4-scoped.
+- El toolset ya se instancia per-call (`tools.ts:16-17` *"instancia las factories CADA llamada"*), así que inyectar el flag por contexto es trivial y no rompe el patrón existente.
+
+**Cómo el sandbox pasa el flag:** `engine-v4.ts` ya conoce que es sandbox; debe propagar `simulate: true` al `SubLoopContext`/`SubLoopToolsContext` cuando llame al agente. Como prod y sandbox NO comparten el runner pero SÍ comparten `somnio-v4/` (incluido `sub-loop/`), el flag debe nacer en la capa que difiere (runner vs engine-v4) y threadearse al sub-loop. Esto respeta §3 del PARITY doc (mismo código de agente, distinto runner).
+
+**Paridad de interrupción + CRM (cruce con Pitfall 7 del RESEARCH principal):**
+- En PROD, una mutación real dentro del sub-loop + interrupción en CKPT-3/4/5 = la mutación ya ocurrió, el turno se descarta (Path A → `no_match`), re-run podría duplicar → cubierto por idempotency (D-12) + CAS (D-13).
+- En SANDBOX, la mutación es simulada (no-op) → no hay riesgo de duplicado real, pero **el sandbox DEBE simular el mismo punto de no-retorno** (registrar la acción simulada en View B antes del checkpoint) para que el escenario sea reproducible (§4.3). Si el sandbox simula la mutación DESPUÉS del checkpoint y prod la hace ANTES, divergen → bug de paridad.
+- **Recomendación:** documentar este caveat en INTERRUPTION-PARITY.md §6 (extender el caveat RAG-send con "CRM mutations: prod escribe DB, sandbox simula in-memory; ambos registran la acción en el ledger en el MISMO punto del flujo").
+
+**CONFIDENCE S5: HIGH** — sandbox-no-op verificado por grep + lectura de `engine-v4.ts:570-575`; seam `buildSubLoopTools` verificado (`tools.ts:32-71`); reglas de paridad citadas verbatim de INTERRUPTION-PARITY.md §4/§6.
+
+---
+
+### Resumen de blockers/decisiones que este suplemento agrega para el planner
+
+| ID | Hallazgo | Tipo | Acción para el planner |
+|----|----------|------|------------------------|
+| SUP-1 | `updateOrder` (crm-mutation-tools) NO acepta `products`/`items` — no puede enriquecer el cascarón con el pack tardío | **BLOCKER S2** (medio) | Extender `updateOrder.inputSchema` con `items[]` opcional (toca módulo compartido `crm-mutation-tools`, 0 consumidores prod, actualizar grep-gate del header). **Decisión usuario** (sale de v4-scope puro). |
+| SUP-2 | Cascarón sin pack: domain + createOrder-tool YA lo permiten; SOLO el adapter prod (D-06-deleted) lo prohíbe | **NO-blocker** (resuelto) | Ningún cambio a domain/createOrder-tool. Enrutar vía mutation-tools. Confirmar default de `orders.total_value` (query DB en plan-time). |
+| SUP-3 | Señal de disparo temprano = `changes.datosCriticosJustCompleted` (edge once-per-turn), NO una `TipoAccion` | Aclaración | Enganchar createOrder-cascarón en el gate CRM (`:467`) usando `changes` + `hasPriorOrder` + idempotency. No tocar transitions/sales-track para el side-effect. |
+| SUP-4 | 6 sets/archivos consumen `crear_orden_sin_*`; el desacople clave es sacarlos de `CREATE_ORDER_ACTIONS` (constants.ts:198-200) | Inventario | Crear `recordar_promo`/`recordar_confirmacion`, re-apuntar response-track, mantenerlos FUERA de CRM_ACTIONS/CREATE_ORDER_ACTIONS/phase.order_created. |
+| SUP-5 | Sandbox ya es no-op CRM; seam de simulación = `buildSubLoopTools`/`SubLoopToolsContext` (tools.ts:8-12,32-71) | Aclaración paridad | Inyectar `simulate` por contexto; mutation-tools simulados solo en sandbox; documentar caveat en INTERRUPTION-PARITY.md §6. |
+| SUP-6 | Re-apuntar template `confirmacion_orden_*` del case `crear_orden` (response-track:290) al nuevo símbolo de confirmación; `resumen_<pack>` se queda en `mostrar_confirmacion` | Mapeo templates | Nuevo símbolo `confirmar_orden` para D-18 (moveOrderToStage CONFIRMADO). |
+
+**Archivos NUEVOS leídos verbatim para este suplemento (no en el Sources original o re-verificados):**
+- `transitions.ts:177-353` (rows datos/quiero_comprar/seleccion_pack/confirmar + timers L3/L4) — verificado.
+- `sales-track.ts:48-209` (timer handling + datosCriticosJustCompleted usage + auto-trigger) — verificado.
+- `response-track.ts:255-385` (resolveSalesActionTemplates: mostrar_confirmacion/crear_orden/crear_orden_sin_*) — verificado.
+- `phase.ts:1-40` (derivePhase: crear_orden_sin_* → order_created) — verificado.
+- `constants.ts:74-87,185-200` (ACTION_TEMPLATE_MAP, SIGNIFICANT_ACTIONS, CRM_ACTIONS, CREATE_ORDER_ACTIONS, PACK_*) — verificado.
+- `somnio-v4-agent.ts:435-481,571-603,854-988,1263-1271` (gate context, createOrder decision, processSystemEvent timer path, computeMode) — verificado.
+- `domain/orders.ts:225-403` (createOrder: productos opcionales, total_value condicional) — verificado.
+- `crm-mutation-tools/orders.ts:1-175` (createOrder items opcional; updateOrder sin products header) — verificado.
+- `engine-adapters/production/orders.ts:36-210` (adapter rechaza !pack; siempre 1 producto) — verificado.
+- `engine-v4.ts:555-594` (sandbox no-op CRM, solo debug) — verificado.
+- `sub-loop/tools.ts:1-71` (buildSubLoopTools seam) — verificado.
+- `state.ts:50-218` (datosCriticosJustCompleted edge, computeGates packElegido/datosCriticos) — verificado.
+- `INTERRUPTION-PARITY.md` (full §4/§6) — verificado.
+
+**Confianza global del suplemento:** HIGH en S1/S3/S4/S5; HIGH en S2 con un blocker (`updateOrder` sin items) que requiere decisión. Un único NOT-VERIFIED: default de columna `orders.total_value` (no-blocker, query en plan-time).
+
+**Suplemento date:** 2026-05-29

@@ -122,6 +122,29 @@ Turno híbrido template+RAG (standalone #3).
   `resolveOrCreateContact` en domain. **Resolución:** construir helper v4 que componga
   `searchContacts(phone) → createContact(...)` (ambos Regla-3-clean). En camino crítico de createOrder.
 
+### Decisiones cerradas en research SUPLEMENTARIO (rediseño lifecycle, 2026-05-29)
+- **D-25 (SUP-1 — enriquecer cascarón con pack):** `crm-mutation-tools.updateOrder` hoy EXCLUYE `products`
+  ("V1.1 deferred", `orders.ts:7-9`). **Resolución: extender `updateOrder.inputSchema` con `items[]` opcional**
+  (módulo COMPARTIDO, pero 0 consumidores en prod D-08 → aditivo, Regla-6-safe por opcionalidad). Es la feature
+  V1.1 que este standalone necesita para meter el pack al cascarón en el paso 2 del lifecycle (D-17).
+- **D-26 (S1 — señal de creación temprana, CORRIGE supuesto previo):** la señal NO es `sales-track.ts:82`
+  (eso solo elige nivel de timer). Es **`changes.datosCriticosJustCompleted`** (edge-trigger `!antes && después`,
+  `state.ts:201`), disponible en el gate CRM (`somnio-v4-agent.ts:~467`). Hook del side-effect ahí + **triple
+  idempotencia**: edge `datosCriticosJustCompleted` + `hasPriorOrder` (`:572-574`) + re-query DB/idempotency key.
+  Aditivo, NO rompe `ofrecer_promos` (D-05).
+- **S4 RESUELTO (no era blocker):** cascarón sin pack es seguro — `domain.createOrder` products opcional
+  (`orders.ts:289`), tool `createOrder` items opcional (`:86-96`); el único bloqueo (production adapter `:63`)
+  lo elimina D-06. Cero cambios a domain compartido para el cascarón.
+- **S3 RESUELTO:** desacople L3/L4 — crear símbolos nuevos `recordar_promo`/`recordar_confirmacion` que mapean
+  a los mismos templates pero NO entran en `CREATE_ORDER_ACTIONS` (`constants.ts:198-200`) → `isCreateOrder=false`
+  en el timer path (`somnio-v4-agent.ts:925-928`), mata el create y mantiene el template. 6 consumers enumerados.
+- **S5 RESUELTO:** sandbox ya es no-op CRM; seam de simulación = flag `simulate` por-contexto en `buildSubLoopTools`
+  (`tools.ts:8-12`), 100% v4-scoped. Documentar caveat CRM en INTERRUPTION-PARITY.md §6.
+
+### Pendiente planner-internal (no requiere decisión usuario)
+- Default de `orders.total_value` (query `information_schema` en plan-time; afecta solo display $0-vs-null).
+- Naming final de símbolos `recordar_promo`/`recordar_confirmacion` + `confirmar_orden` (D-18) y si entran a `SIGNIFICANT_ACTIONS`.
+
 ### Claude's Discretion
 - Forma exacta de inyectar el grounding al `SubLoopContext` (campo nuevo tipado fuerte).
 - Mecánica de actualizar el snapshot `_v4` desde el resultado de la mutación.

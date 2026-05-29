@@ -185,17 +185,27 @@ export const V4_META_PREFIX = '_v4:'
 export const SIGNIFICANT_ACTIONS: ReadonlySet<string> = new Set([
   'pedir_datos', 'pedir_datos_quiero_comprar_implicito', 'ofrecer_promos', 'mostrar_confirmacion',
   'crear_orden', 'crear_orden_sin_promo', 'crear_orden_sin_confirmar',
+  // somnio-v4-crm-subloop D-18: confirmar_orden ES significativa (mueve a CONFIRMADO -> deriva order_created).
+  // D-19/S3: recordar_* NO entran (el recordatorio no cambia la fase de venta; doble-recordatorio lo previene
+  // el timerSignal cancel de L3/L4). Mantenerlos fuera evita alterar derivePhase.
+  'confirmar_orden',
   'confirmar_cambio_ofi_inter',
   'handoff', 'rechazar', 'no_interesa',
 ])
 
 /** Actions that touch CRM (create/modify orders, contacts, etc.) */
 export const CRM_ACTIONS: ReadonlySet<string> = new Set([
+  // crear_orden* legacy: NO se quitan aqui (se podan en Plan 06 cuando se trace que no tienen consumer vivo).
   'crear_orden', 'crear_orden_sin_promo', 'crear_orden_sin_confirmar',
+  // D-18: confirmar_orden toca CRM via moveOrderToStage(CONFIRMADO). recordar_* NO tocan CRM (D-19/S3).
+  'confirmar_orden',
 ])
 
 /** Any action that creates an order (for shouldCreateOrder checks) */
 export const CREATE_ORDER_ACTIONS: ReadonlySet<string> = new Set([
+  // D-19: recordar_* explicitamente FUERA -> shouldCreateOrder=false en timer path (desacople create por timer).
+  // D-18: confirmar_orden MUEVE (no crea) -> tambien fuera. Este set queda SOLO con los crear_orden* legacy
+  // (el Plan 06 los desactiva via gate; el set en si no se toca aqui).
   'crear_orden', 'crear_orden_sin_promo', 'crear_orden_sin_confirmar',
 ])
 

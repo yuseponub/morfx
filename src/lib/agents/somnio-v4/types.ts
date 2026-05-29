@@ -340,6 +340,11 @@ export type TipoAccion =
   | 'retoma_ofi_inter'
   | 'pedir_datos_quiero_comprar_implicito'
   | 'retoma_datos_implicito'
+  // somnio-v4-crm-subloop D-19: recordar_* = solo template, NO crean (fuera de CREATE_ORDER_ACTIONS).
+  // D-18: confirmar_orden = senal de moveOrderToStage(CONFIRMADO), ejecuta el sub-loop.
+  | 'recordar_promo'
+  | 'recordar_confirmacion'
+  | 'confirmar_orden'
 
 export interface AccionRegistrada {
   tipo: TipoAccion

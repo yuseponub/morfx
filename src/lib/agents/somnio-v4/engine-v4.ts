@@ -289,6 +289,11 @@ export class SomnioV4Engine {
           lockHandle: input.lockHandle ?? null,
           lockChannel: input.lockChannel ?? null,
           lockIdentifier: input.lockIdentifier ?? null,
+          // D-22 (standalone somnio-v4-crm-subloop Plan 06): el sandbox corre el gate
+          // CRM con mutation-tools SIMULADAS (no DB write). El sub-loop decide+ejecuta
+          // simulado, puebla crmActions/crmResult igual (View B en memoria), y el debug
+          // panel los muestra. Paridad INTERRUPTION-PARITY §4.4 (DB vs memoria permitido).
+          simulate: true,
         })
 
         // R-05 (debounce-v2-interrupt-reprocess): accumulate per-call tokens
@@ -579,6 +584,11 @@ export class SomnioV4Engine {
               modeChanged: !!output.newMode && output.newMode !== input.state.currentMode,
               shouldCreateOrder: output.shouldCreateOrder,
               templatesCount: output.messages.length,
+              // D-22 paridad: el gate CRM corrió simulado (simulate:true arriba). Los
+              // crmActions del turno viven en turnLedgerDims (origen:'rag') y el
+              // resultado simulado en crmResult. El debug panel los muestra sin DB.
+              crmActionsCount: output.turnLedgerDims?.crmActions?.length ?? 0,
+              orderCreated: output.crmResult?.success ?? false,
             } : undefined,
             salesTrack: output.salesTrackInfo ? {
               accion: output.salesTrackInfo.accion,

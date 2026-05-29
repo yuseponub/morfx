@@ -142,6 +142,15 @@ export interface DebugOrchestration {
   modeChanged: boolean
   shouldCreateOrder: boolean
   templatesCount: number
+  /**
+   * D-22 (standalone somnio-v4-crm-subloop Plan 06): paridad sandbox del gate CRM.
+   * El sandbox v4 corre el sub-loop CRM con mutation-tools SIMULADAS (no DB write) y
+   * expone aquí cuántas crmActions derivó + si la mutación simulada "tuvo éxito".
+   * OPCIONALES — solo el engine v4 los puebla; los siblings (v2/v3/recompra) los
+   * dejan undefined (campos aditivos, Regla-6-safe).
+   */
+  crmActionsCount?: number
+  orderCreated?: boolean
 }
 
 /** Ingest details debug info */

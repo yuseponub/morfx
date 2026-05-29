@@ -91,3 +91,85 @@ export const somnioV4Config: AgentConfig = {
 
   tokenBudget: 50_000,
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Env-bridge de stage UUIDs + pipelineId default (standalone #2 — Plan 02)
+//
+// Patron espejado de `getCanceledStageUuid` (invocations.ts:64-66): evaluacion
+// lazy (function call, NO const top-level) para que los tests inyecten via
+// process.env en beforeEach sin requerir module re-import.
+//
+// UUIDs verificados live 2026-05-29 (RESEARCH §Pattern 2, pipeline
+// "Ventas Somnio Standard"). D-15 (createOrder cascaron en NUEVO PEDIDO) +
+// D-21 (snapshot _v4, NO _v3:*) + D-18 (confirmar -> moveOrderToStage CONFIRMADO).
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Stage UUID para mover pedido a CONFIRMADO (D-18 — confirmar -> moveOrderToStage).
+ *
+ * fail-closed (null) si no esta seteado: el caller (gate Plan 06) OMITE la mutacion
+ * `moveOrderToStage(CONFIRMADO)` + loggea observability. Sin UUID, el pedido NO se
+ * confirma (no se inventa un destino).
+ */
+export function getConfirmadoStageUuid(): string | null {
+  return process.env.SOMNIO_CONFIRMADO_STAGE_UUID ?? null
+}
+
+/**
+ * Stage UUID para el cascaron de pedido nuevo en NUEVO PEDIDO (D-15 — birth stage).
+ *
+ * Elegido para NO disparar la automation `order.created` (matchea solo NUEVO PAG WEB,
+ * 42da9d61... — RESEARCH §Riesgos). fail-closed (null): sin UUID, el caller (gate
+ * Plan 06) OMITE `createOrder` cascaron + loggea observability.
+ */
+export function getNuevoPedidoStageUuid(): string | null {
+  return process.env.SOMNIO_NUEVO_PEDIDO_STAGE_UUID ?? null
+}
+
+/**
+ * Pipeline default Somnio. `createOrder` (crm-mutation-tools) requiere un pipelineId
+ * UUID -> el gate del Plan 06 lo resuelve llamando esta funcion (sin runtime
+ * pipelines_list round-trip).
+ *
+ * EXCEPCION al patron fail-closed de los stages: tiene fallback verificado al UUID
+ * default Somnio (NO fail-closed a null) porque el pipeline default es estable y
+ * conocido ("Ventas Somnio Standard", is_default=true, live-verified 2026-05-29 —
+ * RESEARCH §Pattern 2). Override opcional via SOMNIO_VENTAS_PIPELINE_UUID en Vercel.
+ */
+export function getPipelineUuid(): string {
+  return process.env.SOMNIO_VENTAS_PIPELINE_UUID ?? 'a0ebcb1e-d79a-4588-a569-d2bcef23e6b8'
+}
+
+/**
+ * Stages pre-confirmacion (set v4-local). Origen: whitelist de transiciones del
+ * gate (Plan 06: solo -> CONFIRMADO desde estos) + fallback de Vista A en
+ * crm-grounding (config_not_set -> el ultimo pedido sigue "activo" solo si esta en
+ * uno de estos stages, no terminal).
+ *
+ * Hardcode aceptado per CONTEXT Deferred ("whitelist configurable = futuro").
+ * UUIDs verificados live 2026-05-29 (RESEARCH §Pattern 2):
+ *   NUEVO PEDIDO    6be952b0-0a95-4957-b5f7-62e8fd8eb815  (birth stage cascaron, D-15)
+ *   FALTA INFO      05c1f783-8d5a-492d-86c2-c660e8e23332
+ *   FALTA CONFIRMAR e0cf8ecf-1e8c-46bc-bc57-f5580bfb12bd
+ */
+export const PRE_CONFIRMATION_STAGE_UUIDS: ReadonlySet<string> = new Set([
+  '6be952b0-0a95-4957-b5f7-62e8fd8eb815', // NUEVO PEDIDO
+  '05c1f783-8d5a-492d-86c2-c660e8e23332', // FALTA INFO
+  'e0cf8ecf-1e8c-46bc-bc57-f5580bfb12bd', // FALTA CONFIRMAR
+])
+
+/**
+ * Mapa UUID -> nombre legible de stage. Resuelve Pitfall 4 (OrderDetail NO trae
+ * stageName ni order_stage_history) sin un domain read extra.
+ *
+ * Los 5 stages del pipeline "Ventas Somnio Standard" (RESEARCH §Pattern 2,
+ * live-verified 2026-05-29). NUEVO PAG WEB se incluye para legibilidad aunque el
+ * agente NUNCA lo escribe (dispara automation order.created — EVITAR, D-15).
+ */
+export const STAGE_NAME_BY_UUID: Record<string, string> = {
+  '4770a36e-5feb-4eec-a71c-75d54cb2797c': 'CONFIRMADO',
+  '6be952b0-0a95-4957-b5f7-62e8fd8eb815': 'NUEVO PEDIDO',
+  '05c1f783-8d5a-492d-86c2-c660e8e23332': 'FALTA INFO',
+  'e0cf8ecf-1e8c-46bc-bc57-f5580bfb12bd': 'FALTA CONFIRMAR',
+  '42da9d61-6c00-4317-9fd9-2cec9113bd38': 'NUEVO PAG WEB',
+}

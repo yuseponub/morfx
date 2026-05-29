@@ -1,7 +1,7 @@
 /**
  * Somnio Sales Agent v4 — Comprehension Schema
  *
- * Zod schema for Claude Haiku structured output (Capa 2).
+ * Zod schema for Gemini 2.5 Flash structured output (Capa 2).
  * Single call per turn: intent + data extraction + classification.
  *
  * Standalone: somnio-sales-v4

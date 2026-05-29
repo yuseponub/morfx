@@ -1,7 +1,7 @@
 /**
  * Somnio Sales Agent v4 — Comprehension Prompt
  *
- * System prompt for Gemini Flash-Lite structured output (Capa 2).
+ * System prompt for Gemini 2.5 Flash structured output (Capa 2).
  * Includes product info, extraction rules, and existing data context.
  *
  * Standalone: somnio-sales-v4

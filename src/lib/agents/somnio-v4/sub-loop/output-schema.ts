@@ -3,11 +3,11 @@ import { z } from 'zod'
 /**
  * LoopOutcome — output del sub-loop AI SDK v6 (D-24 RAG-generative refactor Plan 03).
  *
- * Schema FLAT (sin discriminated union) compatible con todos los providers:
- * - OpenAI GPT-4o mini (sub-loop tooling call — kb_search + Output.object)
- * - Gemini 2.5 Flash (sub-loop generation call — Output.object SIN tools por H-2)
- * - Gemini 2.5 Flash-Lite (comprehension + nunca-decir-check)
- * - Anthropic Haiku (futuros calls)
+ * Schema FLAT (sin discriminated union) compatible con todos los providers reales:
+ * - OpenAI GPT-4.1-mini (sub-loop RAG tooling call — kb_search + Output.object; Plan 09 iter 3 swap desde gpt-4o-mini)
+ * - OpenAI GPT-4o-mini (sub-loop LEGACY crm_mutation/cas_reject — single generateText con tools)
+ * - Gemini 2.5 Flash (sub-loop generation call + compliance-check — Output.object SIN tools por H-2)
+ * - Gemini 2.5 Flash (comprehension — `google('gemini-2.5-flash')`)
  *
  * RAG-GENERATIVE REFACTOR (Plan 03, D-24):
  * - status 'canonical' ELIMINADO → reemplazado por 'generated' (texto redactado por

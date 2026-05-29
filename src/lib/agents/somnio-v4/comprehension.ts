@@ -4,8 +4,8 @@
  * Single LLM call con structured output via AI SDK v6.
  * Extracts intent, data fields, classification, and negations.
  *
- * **Stack mixto post-Plan 05 (D-30):** Gemini 2.5 Flash-Lite (~$0.0001/call,
- * ~14x más barato que Haiku 4.5). RESEARCH 5/5 match con Plan 12.1 calibration —
+ * **Modelo real (post-Plan 05, D-30):** `google('gemini-2.5-flash')` (~$0.0001/call;
+ * migrado desde Haiku 4.5). RESEARCH 5/5 match con Plan 12.1 calibration —
  * D-12 NO necesaria (re-calibración no requerida).
  *
  * Standalone: somnio-sales-v4-runtime-wiring / Plan 05.
@@ -53,7 +53,7 @@ export interface ComprehensionResult {
 }
 
 /**
- * Analyze a customer message using Gemini Flash-Lite structured output.
+ * Analyze a customer message using Gemini 2.5 Flash structured output.
  *
  * @param message - Current customer message
  * @param history - Conversation history (last N turns)

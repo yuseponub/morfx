@@ -27,7 +27,7 @@
  * - KB real (D-22) — workspaceId propagado al agent que internamente queries
  *   Supabase prod (workspace Somnio).
  * - Retomas simuladas (D-21) — systemEvent propagado igual que v3.
- * - debugTurn.tokens.models[].model = 'gemini-2.5-flash-lite' (B-2 fix +
+ * - debugTurn.tokens.models[].model = 'gemini-2.5-flash' (B-2 fix +
  *   D-30 — swap at clone time; refleja el provider real que Plan 05 wirea
  *   para comprehension donde nace `output.totalTokens`). Cero TODO comments.
  */

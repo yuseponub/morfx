@@ -23,7 +23,7 @@ export interface SubLoopToolsContext {
  * - cas_reject → kb_search + getActiveOrderByPhone + moveOrderToStage
  *
  * Anti-patterns aplicados:
- * - NO spread `{...mutationTools}` wholesale (15 tools degrada focus de Haiku).
+ * - NO spread `{...mutationTools}` wholesale (15 tools degrada focus del modelo de tooling — GPT-4o-mini en el path legacy).
  * - NO instantiate factory en module scope (Pitfall 6 query-tools).
  * - NO imports desde `@/lib/agents/somnio-v3/*` (D-24).
  *

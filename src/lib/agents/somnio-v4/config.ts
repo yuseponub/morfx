@@ -32,13 +32,13 @@ export const somnioV4Config: AgentConfig = {
   id: SOMNIO_V4_AGENT_ID,
   name: 'Somnio Sales v4 (híbrido + sub-loop)',
   description:
-    'State machine determinista + Haiku sub-loop bajo triggers (low_confidence, ' +
+    'State machine determinista + sub-loop RAG-generativo (GPT-4.1-mini tooling + Gemini 2.5 Flash generation/compliance; GPT-4o-mini en el path legacy) bajo triggers (low_confidence, ' +
     'crm_mutation, cas_reject, razonamiento_libre). Mutations vía crm-mutation-tools. ' +
     'KB curado + observation loop unknown_cases. Standalone somnio-sales-v4.',
 
   intentDetector: {
     model: CLAUDE_MODELS.HAIKU,
-    systemPrompt: 'PLACEHOLDER — v4 uses comprehension.ts directly (Haiku structured + intent_confidence)',
+    systemPrompt: 'PLACEHOLDER — v4 uses comprehension.ts directly (Gemini 2.5 Flash structured + intent_confidence). El campo `model` de abajo NO se ejecuta (metadata del registry).',
     maxTokens: 1024,
   },
 

@@ -2,7 +2,7 @@
  * Somnio Sales Agent v4 — Main Agent Pipeline (orquestador)
  *
  * Arquitectura híbrida (D-01):
- *   1. Comprehension (Haiku estructurado + intent_confidence — D-10/D-63)
+ *   1. Comprehension (Gemini 2.5 Flash estructurado + intent_confidence — D-10/D-63)
  *   2. State merge + computeGates
  *   3. Threshold lookup (platform_config.somnio_v4_low_confidence_threshold — D-11)
  *   4. Escalation check #1 (D-02 triggers low_confidence / razonamiento_libre / otro)
@@ -105,7 +105,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       input.accionesEjecutadas ?? [],
     )
 
-    // 2. Comprehension (Haiku estructurado + intent_confidence)
+    // 2. Comprehension (Gemini 2.5 Flash estructurado + intent_confidence)
     const recentBotMessages = input.history
       .filter((h) => h.role === 'assistant')
       .slice(-2)

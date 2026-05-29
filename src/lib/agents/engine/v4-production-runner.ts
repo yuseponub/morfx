@@ -496,8 +496,12 @@ export class V4ProductionRunner {
         await this.adapters.timer.onCustomerMessage(session.id, input.conversationId, input.message)
       }
 
-      // 5g. Orders — create if needed (deferred to after send decision for Path A)
-      let orderResult: { success: boolean; orderId?: string; contactId?: string } | undefined
+      // 5g. Orders — D-06 big-bang (standalone somnio-v4-crm-subloop Plan 06): el
+      // runner ya NO crea el pedido. El gate CRM (runCrmGate) lo hace DENTRO del
+      // sub-loop GROUNDED y reporta el resultado en output.crmResult (Pitfall 6).
+      // El bloque del orders-adapter createOrder fue eliminado; los consumidores
+      // (state_committed.orderCreated + EngineOutput.orderCreated/orderId/contactId)
+      // se re-cablean a output.crmResult mas abajo.
 
       // ================================================================
       // 5h. MESSAGING — send templates with interruption handling
@@ -1082,7 +1086,8 @@ export class V4ProductionRunner {
           messagesSent,
           templatesSent: actuallySentIds.length,
           newMode: output.newMode,
-          orderCreated: !!orderResult?.success,
+          // D-06 / Pitfall 6: re-cableado del orderResult eliminado a output.crmResult.
+          orderCreated: output.crmResult?.success ?? false,
         })
 
         // Update mode (with optimistic locking)
@@ -1122,25 +1127,13 @@ export class V4ProductionRunner {
           }
         }
 
-        // Orders (only on committed turns)
-        if (output.shouldCreateOrder && output.orderData) {
-          const isOfiInter = output.datosCapturados['_v3:ofiInter'] === 'true'
-          const cedulaRecoge = output.datosCapturados.cedula_recoge
-
-          console.log(`[V4-RUNNER] Creating order... isOfiInter=${isOfiInter} pack=${output.orderData.packSeleccionado}`)
-
-          orderResult = await this.adapters.orders.createOrder({
-            datosCapturados: output.orderData.datosCapturados,
-            packSeleccionado: output.orderData.packSeleccionado,
-            workspaceId: this.config.workspaceId,
-            sessionId: session.id,
-            valorOverride: output.orderData.valorOverride,
-            isOfiInter,
-            cedulaRecoge,
-          })
-
-          console.log(`[V4-RUNNER] Order result: success=${orderResult.success} orderId=${orderResult.orderId}`)
-        }
+        // Orders — D-06 big-bang (standalone somnio-v4-crm-subloop Plan 06): el
+        // bloque del orders-adapter createOrder fue ELIMINADO. El pedido (createOrder
+        // cascaron / updateOrder pack / moveOrderToStage CONFIRMADO) ya se ejecuto
+        // DENTRO del sub-loop GROUNDED via el gate CRM (runCrmGate en somnio-v4-agent),
+        // con triple idempotencia (S1) + guards (idempotency/CAS/whitelist). El runner
+        // solo LEE output.crmResult (Pitfall 6) — no muta. shouldCreateOrder/orderData
+        // quedan @deprecated y el runner los ignora.
 
         // Assistant turn recording (post-send) — full set across restart
         // iterations so a Path B reprocess records msg1's partial reply + the
@@ -1192,9 +1185,11 @@ export class V4ProductionRunner {
         sessionId: session.id,
         messagesSent: totalMessagesSent,
         response: allSentContents.join('\n'),
-        orderCreated: orderResult?.success,
-        orderId: orderResult?.orderId,
-        contactId: orderResult?.contactId ?? input.contactId,
+        // D-06 / Pitfall 6: re-cableado del orderResult eliminado a output.crmResult
+        // (el sub-loop ejecuto la mutacion; el runner solo reporta el resultado).
+        orderCreated: output.crmResult?.success,
+        orderId: output.crmResult?.orderId,
+        contactId: output.crmResult?.contactId ?? input.contactId,
         error: output.success ? undefined : {
           code: 'V4_AGENT_ERROR',
           message: 'V4 agent processing failed',

@@ -258,13 +258,14 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // confirmar + datosCriticos + packElegido -> crear_orden (R5)
+  // confirmar + datosCriticos + packElegido -> confirmar_orden (R5)
+  // D-18: el pedido nace temprano (cascaron); confirmar ya no crea, mueve a CONFIRMADO via sub-loop.
   {
-    phase: '*', on: 'confirmar', action: 'crear_orden',
+    phase: '*', on: 'confirmar', action: 'confirmar_orden',
     condition: (_, gates) => gates.datosCriticos && gates.packElegido,
     resolve: () => ({
-      timerSignal: { type: 'cancel', reason: 'orden creada' },
-      reason: 'Confirmacion con datos completos + pack',
+      timerSignal: { type: 'cancel', reason: 'pedido confirmado -> mover a CONFIRMADO' },
+      reason: 'Confirmacion -> mover a CONFIRMADO (pedido ya existe)',
     }),
   },
 
@@ -334,21 +335,23 @@ export const TRANSITIONS: TransitionEntry[] = [
     }),
   },
 
-  // Timer expired L3 -> crear_orden_sin_promo (pending promo selection)
+  // Timer expired L3 -> recordar_promo (pending promo selection)
+  // D-19: timer solo RECUERDA, no crea (cascaron ya existe). timerSignal cancel previene doble-recordatorio.
   {
-    phase: 'promos_shown', on: 'timer_expired:3', action: 'crear_orden_sin_promo',
+    phase: 'promos_shown', on: 'timer_expired:3', action: 'recordar_promo',
     resolve: () => ({
-      timerSignal: { type: 'cancel', reason: 'timer L3 -> orden sin promo' },
-      reason: 'Timer L3 expired -> crear orden sin promo',
+      timerSignal: { type: 'cancel', reason: 'timer L3 -> recordatorio promo' },
+      reason: 'Timer L3 expired -> recordar promo (no crea, cascaron ya existe)',
     }),
   },
 
-  // Timer expired L4 -> crear_orden_sin_confirmar (pending confirmation)
+  // Timer expired L4 -> recordar_confirmacion (pending confirmation)
+  // D-19: timer solo RECUERDA, no crea (cascaron ya existe). timerSignal cancel previene doble-recordatorio.
   {
-    phase: 'confirming', on: 'timer_expired:4', action: 'crear_orden_sin_confirmar',
+    phase: 'confirming', on: 'timer_expired:4', action: 'recordar_confirmacion',
     resolve: () => ({
-      timerSignal: { type: 'cancel', reason: 'timer L4 -> orden sin confirmar' },
-      reason: 'Timer L4 expired -> crear orden sin confirmar',
+      timerSignal: { type: 'cancel', reason: 'timer L4 -> recordatorio confirmacion' },
+      reason: 'Timer L4 expired -> recordar confirmacion (no crea, cascaron ya existe)',
     }),
   },
 

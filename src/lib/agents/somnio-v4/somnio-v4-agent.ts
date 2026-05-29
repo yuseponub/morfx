@@ -9,13 +9,14 @@
  *      → si escala: runSubLoop → mapOutcomeToAgentOutput → return
  *   5. Guards R0/R1 (escape intents)
  *   6. resolveSalesTrack (state machine determinista)
- *   7. executeInvocations (W-04 fix — 4 mutations no-createOrder INLINE)
- *      → si CAS reject en moveOrderToStage: runSubLoop reason='cas_reject' → return
- *      → si fallo no-CAS en come-back: addOrderNote audit (fire-and-forget)
- *   8. createOrder INLINE via crm-mutation-tools (D-07/D-19/D-20) — antes del template
- *      → si createOrder falla: NO enviar pendiente_*; runSubLoop reason='crm_mutation' → return
- *   9. resolveResponseTrack (templates)
- *  10. Build V4AgentOutput
+ *   7. GATE CRM (standalone #2 Plan 06 — D-01/D-05/D-06): runCrmGate reemplaza
+ *      el resolvedor de invocaciones inline + el createOrder inline + el bloque createOrder del runner.
+ *      ADITIVO, NO early-return (D-05): carga grounding lazy + sub-loop GROUNDED +
+ *      guards (idempotency/CAS/whitelist) + crmActions origen:'rag' + crmResult
+ *      (Pitfall 6) → CAE a response-track. createOrder cascaron, updateOrder pack,
+ *      moveOrderToStage(CONFIRMADO) ocurren DENTRO del sub-loop (NO en el runner).
+ *   8. resolveResponseTrack (templates)
+ *   9. Build V4AgentOutput (crmResult re-cableado a EngineOutput, shouldCreateOrder legacy false)
  *
  * D-60: outcome=no_match del sub-loop → V4AgentOutput.requiresHuman=true + newMode='handoff'.
  *
@@ -45,7 +46,7 @@ import { decideSubLoopReason } from './escalation'
 import { getLowConfidenceThreshold } from './threshold'
 import { runSubLoop } from './sub-loop'
 import type { SubLoopDebugPayload } from './sub-loop/debug-payload'
-import { executeInvocations } from './invocations'
+import { runCrmGate } from './crm-gate'
 import type { LoopOutcome } from './sub-loop/output-schema'
 import { captureUnknownCase } from './unknown-cases/capture'
 import { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } from './config'
@@ -458,149 +459,35 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     if (salesResult.enterCaptura === true) mergedState.enCapturaSilenciosa = true
     else if (salesResult.enterCaptura === false) mergedState.enCapturaSilenciosa = false
 
-    // 9. W-04 fix: dispara las 4 mutations no-createOrder INLINE
-    const invCtx = {
+    // 9. GATE CRM (standalone #2 Plan 06 — D-01/D-05/D-06). REEMPLAZA el camino
+    // determinista inline (el resolvedor de invocaciones inline + decision createOrder + el bloque
+    // createOrder del runner) por el sub-loop GROUNDED + guards (idempotency/CAS/
+    // whitelist) como red final (D-03).
+    //
+    // ADITIVO, NO early-return (D-05): el gate carga grounding (lazy), corre el
+    // sub-loop CRM, deriva crmActions (origen:'rag' D-14) + crmResult (Pitfall 6),
+    // actualiza el snapshot _v4 — y CAE a response-track (que sigue enviando
+    // templates). El gate decide internamente si prende (accion CRM-gate-set |
+    // newFields shipping | category 'datos'); si no prende retorna { crmActions: [] }.
+    const crmGateOut = await runCrmGate({
       workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
       sessionId: input.sessionId ?? '',
-      conversationId: input.sessionId ?? '',
-    }
-    const invOutcome = await executeInvocations({
-      ctx: invCtx,
-      state: mergedState,
-      salesAccion: salesResult.accion ?? null,
+      accion: salesResult.accion ?? null,
       changes,
-      contactPhone: input.datosCapturados.telefono ?? null,
-      // El orquestador v4 V1 NO resuelve activeContactId aquí (deferred a V1.1
-      // o a integración con webhook-processor que lo pasa). updateContact se
-      // skipea silenciosamente en ese caso (fire-and-forget — no rompe turn).
-      activeContactId: null,
-      // Mismo para activeOrderId — V1 confía en createOrder happy path para crear
-      // el pedido; updateOrder/moveOrderToStage(cancelar) solo se disparan cuando
-      // el orquestador setea activeOrderId tras una creación previa (V1.1).
-      activeOrderId: null,
+      category: analysis.classification.category,
+      mergedState,
+      datosCapturados: input.datosCapturados,
+      phone: input.datosCapturados.telefono ?? null,
+      userMessage: input.message,
+      ledgerCrmActions: input.turnLedgerDims?.crmActions ?? [],
+      // Sandbox pasa true (Task 4 — V4AgentInput.simulate); prod pasa false ->
+      // mutation-tools reales. Gate D-22.
+      simulate: input.simulate ?? false,
+      // Standalone: debounce-interruption-system-v2 — thread lock fields al sub-loop.
+      lockHandle: input.lockHandle ?? null,
+      lockChannel: input.lockChannel ?? null,
+      lockIdentifier: input.lockIdentifier ?? null,
     })
-
-    // 9.b — CAS reject branch (Pitfall 1: NO retry, escalar a sub-loop)
-    if (invOutcome.cancelarFailed?.cas) {
-      getCollector()?.recordEvent('pipeline_decision', 'subloop_cas_reject_invoked', {
-        agent: SOMNIO_V4_AGENT_ID,
-        sessionId: input.sessionId ?? null,
-        cancelStageFailed: true,
-      })
-      const outcome = await runSubLoop({
-        reason: 'cas_reject',
-        ctx: {
-          workspaceId: invCtx.workspaceId,
-          conversationId: invCtx.conversationId,
-          sessionId: invCtx.sessionId,
-          userMessage: input.message,
-          recentMessages: input.history
-            .slice(-4)
-            .map((m) => ({ role: m.role, content: m.content })),
-          // Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.1)
-          // Thread lock fields into SubLoopContext for cas_reject path (legacy
-          // sub-loop combined CKPT). Skip-gated downstream when any field is null.
-          lockHandle: input.lockHandle ?? null,
-          lockChannel: input.lockChannel ?? null,
-          lockIdentifier: input.lockIdentifier ?? null,
-        },
-        onDebug: (p) => {
-          capturedSubLoopDebug = p
-        },
-      })
-      // W-08 (Plan 09): captureUnknownCase HOISTED post-runSubLoop — Option 2 ÚNICA.
-      if (outcome.status === 'no_match') {
-        // Plan 02 D-29: knowledgeQueried nullable post-flat schema — null guard.
-        const knowledgeQueried = outcome.knowledgeQueried ?? []
-        // D-58 fire-and-forget capture — fallos no rompen el turn.
-        void captureUnknownCase({
-          workspaceId: invCtx.workspaceId,
-          conversationId: invCtx.conversationId,
-          message: input.message,
-          intent: analysis.intent.primary,
-          intentConfidence: analysis.intent.intent_confidence,
-          knowledgeQueried,
-          reason: outcome.reason,
-        })
-        getCollector()?.recordEvent(
-          'pipeline_decision',
-          'handoff_low_confidence_fallback',
-          {
-            agent: SOMNIO_V4_AGENT_ID,
-            sessionId: input.sessionId ?? null,
-            conversationId: invCtx.conversationId,
-            knowledgeQueried,
-            reason: outcome.reason,
-            via: 'cas_reject_subloop',
-          },
-        )
-      }
-      return mapOutcomeToAgentOutput({
-        outcome,
-        state: mergedState,
-        analysis,
-        tokensUsed,
-        timerSignals,
-        subLoopReason: 'cas_reject',
-        threshold,
-        subLoopDebug: capturedSubLoopDebug,
-        prevMode,
-      })
-    }
-
-    // 9.c — non-CAS come-back failure → audit note (fire-and-forget)
-    if (invOutcome.updateOrderFailed || invOutcome.cancelarFailed) {
-      const note = invOutcome.updateOrderFailed
-        ? `updateOrder failed: ${invOutcome.updateOrderFailed.code}`
-        : `moveOrderToStage(cancelar) failed: ${invOutcome.cancelarFailed?.code}`
-      // re-emit con extra → addOrderNote audit. NOTE: activeOrderId aún null en V1
-      // (gap documentado), así que esto se loggea pero el note no se persiste.
-      // Plan 12 / V1.1 cierra el loop con resolución de activeOrderId.
-      await executeInvocations({
-        ctx: invCtx,
-        state: mergedState,
-        salesAccion: null,
-        changes: { ...changes, newFields: [] },
-        contactPhone: input.datosCapturados.telefono ?? null,
-        activeContactId: null,
-        activeOrderId: null,
-        extra: { mutationFailedNote: note },
-      })
-    }
-
-    // 10. createOrder INLINE (D-07/D-19/D-20)
-    const hasPriorOrder = mergedState.accionesEjecutadas.some(
-      (a) => typeof a !== 'string' && a.crmAction,
-    )
-    const isCreateOrder =
-      !!salesResult.accion && CREATE_ORDER_ACTIONS.has(salesResult.accion) && !hasPriorOrder
-
-    getCollector()?.recordEvent('pipeline_decision', 'order_decision', {
-      agent: SOMNIO_V4_AGENT_ID,
-      willCreateOrder: isCreateOrder,
-      action: salesResult.accion ?? 'none',
-      hasPriorOrder,
-    })
-
-    // V1: createOrder se sigue ejecutando vía adapters.orders.createOrder en el
-    // production runner (es donde se resuelve contactId vía findOrCreateContact +
-    // pipeline lookup + stage lookup). Plan 07 marca shouldCreateOrder=true para
-    // que el runner haga la mutación; el runner ya invoca crm-mutation-tools
-    // internamente vía la cadena adapters→domain (production-orders adapter
-    // delega a domain.createOrder, mismo backend que crm-mutation-tools.createOrder).
-    //
-    // D-07/D-20 cumplido en la práctica: el path productivo NO usa crm-writer-adapter,
-    // y la mutación pasa por domain layer (Regla 3). La diferencia con el plan
-    // pseudocódigo es que la resolución de contactId/pipelineId/stageId UUID que
-    // crm-mutation-tools.createOrder requiere directamente NO es trivial inline en
-    // este Plan 07 sin replicar OrderCreator (gap del plan vs reality del tool API).
-    // V1.1 hookeará crm-mutation-tools.createOrder directo cuando se cablee
-    // resolveOrCreateContact UUID + pipeline lookup en el orquestador.
-    //
-    // D-20 fix: si la mutación falla en el runner, el runner sabrá; aquí marcamos
-    // shouldCreateOrder=true y el runner ya implementa el control flow donde,
-    // si la mutación falla, el template post-success no se envía (v3-production-runner
-    // valida orderResult.success antes de continuar el flujo de templates).
 
     // 11. Response track
     const responseResult = await resolveResponseTrack({
@@ -658,11 +545,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           confidence: analysis.intent.intent_confidence,
         },
         atendido: [{ kind: 'silence' }],
-        crmActions: buildCrmActionsFromAcciones(
-          mergedState.accionesEjecutadas,
-          'determinista',
-          mergedState.turnCount,
-        ),
+        // D-14 (Plan 06): user path usa los crmActions DERIVADOS del gate CRM
+        // (origen:'rag', ground-truth del sub-loop) en vez de buildCrmActionsFromAcciones.
+        crmActions: crmGateOut.crmActions,
         modeTransition: { from: prevMode, to: newModeR2 },
         messagesSent: 0,
       }
@@ -749,11 +634,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         confidence: analysis.intent.intent_confidence,
       },
       atendido: atendidoR3,
-      crmActions: buildCrmActionsFromAcciones(
-        mergedState.accionesEjecutadas,
-        'determinista',
-        mergedState.turnCount,
-      ),
+      // D-14 (Plan 06): user path usa los crmActions DERIVADOS del gate CRM
+      // (origen:'rag', ground-truth del sub-loop) en vez de buildCrmActionsFromAcciones.
+      crmActions: crmGateOut.crmActions,
       modeTransition: { from: prevMode, to: newModeR3 },
       messagesSent: responseResult.templateIdsSent.length,
     }
@@ -784,19 +667,17 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       threshold,
       subLoopDebug: capturedSubLoopDebug,
       totalTokens: tokensUsed,
-      shouldCreateOrder: isCreateOrder,
-      orderData: isCreateOrder
-        ? {
-            datosCapturados: serialized.datosCapturados,
-            packSeleccionado: serialized.packSeleccionado,
-          }
-        : undefined,
+      // D-06 big-bang: el runner ya NO crea (Task 3). shouldCreateOrder queda
+      // legacy en false; el runner lee crmResult (Pitfall 6) que pobla el gate
+      // (createOrder cascaron ya ocurrio dentro del sub-loop, NO en el runner).
+      shouldCreateOrder: false,
+      crmResult: crmGateOut.crmResult,
       timerSignals,
       decisionInfo: {
         action:
           responseResult.messages.length === 0
             ? 'silence'
-            : isCreateOrder
+            : crmGateOut.crmResult?.success
               ? 'create_order'
               : 'respond',
         reason: salesResult.reason,

@@ -11,7 +11,7 @@
  * Harness: en vez de espejar engine-v4-lock.test.ts (que mockea processMessage
  * entero), aquí invocamos el agente REAL con sus DEPENDENCIAS mockeadas
  * (comprehend / guards / sales-track / response-track / runSubLoop / threshold /
- * executeInvocations / observability). Esto deja que la lógica de construcción del
+ * runCrmGate / observability). Esto deja que la lógica de construcción del
  * ledger del agente corra de verdad y aserta sobre output.turnLedgerDims.
  */
 
@@ -69,8 +69,11 @@ vi.mock('../threshold', () => ({
 vi.mock('../sub-loop', () => ({
   runSubLoop: async () => subLoopRef.current,
 }))
-vi.mock('../invocations', () => ({
-  executeInvocations: async () => ({}),
+// Plan 06: executeInvocations + el createOrder inline fueron reemplazados por el
+// gate CRM (runCrmGate). Lo mockeamos para que devuelva sin crmActions (el ledger
+// del user path usa crmGateOut.crmActions; aquí no probamos el sub-loop CRM real).
+vi.mock('../crm-gate', () => ({
+  runCrmGate: async () => ({ crmActions: [], crmResult: undefined }),
 }))
 vi.mock('../unknown-cases/capture', () => ({
   captureUnknownCase: async () => {},

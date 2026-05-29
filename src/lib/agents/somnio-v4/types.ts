@@ -191,6 +191,13 @@ export interface V4AgentInput {
    * Same source + nullability semantics as lockChannel.
    */
   lockIdentifier?: string | null
+  /**
+   * D-22 (standalone somnio-v4-crm-subloop Plan 06): cuando `true`, el gate CRM corre
+   * el sub-loop con mutation-tools SIMULADAS (no DB write). El sandbox (engine-v4.ts)
+   * lo pasa true; el production runner lo deja false/undefined -> mutation-tools reales.
+   * Opcional (default false) — backward-compat con callers existentes.
+   */
+  simulate?: boolean
 }
 
 export interface V4AgentOutput {
@@ -281,12 +288,24 @@ export interface V4AgentOutput {
   subLoopDebug?: SubLoopDebugPayload
 
   totalTokens: number
+  /** @deprecated D-06 (standalone somnio-v4-crm-subloop Plan 06): el runner ya NO crea
+   * el pedido (el gate CRM lo hace dentro del sub-loop). User path lo emite siempre
+   * false; el timer path lo sigue seteando pero el runner lo IGNORA. Usar `crmResult`. */
   shouldCreateOrder: boolean
+  /** @deprecated D-06: ver shouldCreateOrder — el runner ya no consume orderData. */
   orderData?: {
     datosCapturados: Record<string, string>
     packSeleccionado: string | null
     valorOverride?: number
   }
+  /**
+   * D-06 / Pitfall 6 (standalone somnio-v4-crm-subloop Plan 06): resultado real de la
+   * mutacion CRM ejecutada DENTRO del sub-loop (via el gate runCrmGate). El runner v4
+   * lo re-cablea a EngineOutput.orderCreated/orderId/contactId + state_committed
+   * (reemplaza el orderResult del bloque createOrder eliminado del runner).
+   * undefined cuando el gate no creo/muto un pedido este turno.
+   */
+  crmResult?: { orderId?: string; contactId?: string; success: boolean }
 
   timerSignals: TimerSignal[]
 

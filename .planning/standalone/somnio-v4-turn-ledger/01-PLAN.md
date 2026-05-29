@@ -8,28 +8,33 @@ files_modified:
   - src/lib/agents/somnio-v4/types.ts
   - src/lib/agents/somnio-v4/state.ts
   - src/lib/agents/types.ts
+  - src/lib/agents/somnio-v4/__tests__/state.test.ts
 autonomous: true
-requirements: [D-03, D-04, D-11, D-12, D-15, D-16]
+requirements: [D-03, D-04, D-11, D-12, D-15, D-16, D-17]
 must_haves:
   truths:
-    - "Existe un tipo TurnLedger explícito con atendido[] (discriminated union por kind), crmActions[], comprehension, modeTransition, messagesSent"
-    - "commitTurn(workingState, ledger) serializa el working state COMPLETO + las dims del ledger en un solo punto"
+    - "Existe un tipo TurnLedger explícito (registro COMPLETO en memoria) con comprehension, atendido[] (discriminated union por kind), crmActions[], modeTransition, messagesSent (D-17)"
+    - "Existe un tipo TurnLedgerDims (subset PERSISTIDO) = { atendido, crmActions } — distinto de TurnLedger por diseño (D-17), documentado en código"
+    - "commitTurn(workingState, ledger) serializa el working state COMPLETO + SOLO las dims persistibles ({atendido, crmActions}) en un solo punto (D-17a)"
     - "Una sesión sin dims (legacy) deserializa con default graceful ([] / {}) sin romper"
     - "SessionState tiene turn_ledger_dims opcional (sin as any)"
   artifacts:
     - path: "src/lib/agents/somnio-v4/types.ts"
-      provides: "TurnLedger, Atendido union, CrmActionRegistrada, TurnLedgerDims; campos en V4AgentInput/V4AgentOutput"
+      provides: "TurnLedger (completo) + TurnLedgerDims (persistido, distinto por D-17), Atendido union, CrmActionRegistrada; campos en V4AgentInput/V4AgentOutput"
       contains: "interface TurnLedger"
     - path: "src/lib/agents/somnio-v4/state.ts"
-      provides: "commitTurn() + serialize/deserialize de turn_ledger_dims"
+      provides: "commitTurn() + serialize/deserialize de turn_ledger_dims (solo el subset persistido)"
       contains: "export function commitTurn"
     - path: "src/lib/agents/types.ts"
       provides: "campo opcional turn_ledger_dims en SessionState"
       contains: "turn_ledger_dims"
+    - path: "src/lib/agents/somnio-v4/__tests__/state.test.ts"
+      provides: "tests roundtrip de commitTurn + deserialize legacy graceful + truncación texto (archivo NUEVO)"
+      contains: "commitTurn"
   key_links:
     - from: "src/lib/agents/somnio-v4/state.ts commitTurn"
       to: "serializeState"
-      via: "wrap (commitTurn llama serializeState y añade dims)"
+      via: "wrap (commitTurn llama serializeState y añade solo el subset persistido de dims)"
       pattern: "commitTurn.*serializeState"
 ---
 
@@ -38,9 +43,19 @@ Definir los TIPOS del Turn Ledger y el punto de commit único (`commitTurn`), m�
 contrato de persistencia (campo opcional en `SessionState`). Es la fundación: todo lo
 demás (mapOutcome, runner, sandbox, debug panel) consume estos tipos.
 
+D-17 (clave de este plan): `TurnLedger` (registro COMPLETO en memoria del turno) ≠
+`TurnLedgerDims` (subset PERSISTIDO en la columna). El tipo completo carga
+`comprehension` + `atendido[]` + `crmActions[]` + `modeTransition` + `messagesSent`.
+La columna `turn_ledger_dims` SOLO persiste `{ atendido, crmActions }` (lo que el turno
+siguiente necesita para coherencia). `modeTransition` / confidence / `messagesSent` se
+consumen vía emit a observability (Plan 04), NO se persisten en session_state porque la
+cognición del turno siguiente no los necesita. Esta diferencia es intencional y se
+documenta en código con comentario citando D-17 — NO es scope reduction.
+
 Purpose: Cerrar estructuralmente el ciclo (D-11/D-12) — un solo tipo de registro de
 efectos y un solo punto de serialización, imposible que una rama "olvide" registrar.
-Output: `TurnLedger` + `commitTurn` + `TurnLedgerDims` + campo opcional en `SessionState`.
+Output: `TurnLedger` (completo) + `TurnLedgerDims` (persistido) + `commitTurn` + campo
+opcional en `SessionState` + tests roundtrip.
 
 NO se cambia ninguna decisión determinista (D-02/D-06). El ledger es capa de efectos.
 NO se toca el módulo de interrupción. NO se persiste todavía a DB (eso es Plan 02 migración + Plan 03 threading).
@@ -72,56 +87,60 @@ Invocation / SystemEvent (types.ts:382-397, :329-331) = precedente de discrimina
 SessionState interface (src/lib/agents/types.ts:281-300) NO tiene acciones_ejecutadas (se lee con `as any` en el runner). NO repetir esa deuda: agregar campo opcional.
 
 LoopOutcome (sub-loop/output-schema.ts:35-154) — status 'generated' carga `sourceTopic` / `responseConfidence` / `responseText` (estos son los campos que la rama RAG pierde hoy; el ledger los registrará en Plan 03).
+
+TESTS — archivo de tests NUEVO. `__tests__/state.test.ts` NO existe todavía (este plan lo CREA). El directorio `__tests__` hoy contiene: comprehension-gemini, comprehension-schema, engine-v4-lock, escalation, invocations, smoke-rag-a, smoke-rag-b, transitions. Los precedentes de roundtrip de `accionesEjecutadas` / `carryState` / Path B reprocess (serialize/deserialize/restore graceful) viven en `engine-v4-lock.test.ts` (ver :216, :263, :279 accionesEjecutadas; :746-751 Path B reprocess + carryState seed). Espejar ESE archivo como patrón al escribir el nuevo `state.test.ts`.
 </interfaces>
 </context>
 
 <tasks>
 
 <task type="auto" tdd="true">
-  <name>Task 1: Definir tipos TurnLedger + Atendido union + CrmActionRegistrada + TurnLedgerDims</name>
+  <name>Task 1: Definir tipos TurnLedger (completo) + TurnLedgerDims (persistido) + Atendido union + CrmActionRegistrada</name>
   <files>src/lib/agents/somnio-v4/types.ts</files>
   <behavior>
     - `Atendido` es discriminated union por `kind` con 5 variantes: `template_intent` {intent, templateIds}, `sales_action` {accion: TipoAccion, templateIds}, `kb_topic` {topic, confidence, texto, turno}, `handoff` {reason}, `silence` {} (D-15: silence SÍ se registra).
     - `CrmActionRegistrada` shape EXACTO D-04: `{ tool: string; args: Record<string, unknown>; result: 'success'|'failed'|'cas_reject'; code?: string; origen: 'determinista'|'rag'|'timer'; stageAtTime?: string }` (diseñado para recibir el sub-loop orquestador del #2).
-    - `TurnLedger` (acumulador en memoria, modelo StateChanges) = `{ comprehension: { intent, secondary?, confidence }; atendido: Atendido[]; crmActions: CrmActionRegistrada[]; modeTransition?: { from: string; to: string }; messagesSent: number }`.
-    - `TurnLedgerDims` (la forma persistida en la columna jsonb) = `{ atendido: Atendido[]; crmActions: CrmActionRegistrada[] }` (la parte durable del ledger; comprehension ya fluye vía intentsVistos, modeTransition/messagesSent son por-turno).
+    - `TurnLedger` (registro COMPLETO en memoria, modelo StateChanges, D-17) = `{ comprehension: { intent, secondary?, confidence }; atendido: Atendido[]; crmActions: CrmActionRegistrada[]; modeTransition?: { from: string; to: string }; messagesSent: number }`. TODOS sus campos se pueblan en Plan 03 (modeTransition/messagesSent incluidos) y se consumen en Plan 04 (emit a observability).
+    - `TurnLedgerDims` (subset PERSISTIDO en la columna jsonb, D-17) = `{ atendido: Atendido[]; crmActions: CrmActionRegistrada[] }`. Es DELIBERADAMENTE un subconjunto de TurnLedger: comprehension ya fluye vía intentsVistos; modeTransition/confidence/messagesSent se emiten a observability (D-13/D-17b) y NO se persisten porque la cognición del turno siguiente no los necesita (el modo actual ya está en newMode).
   </behavior>
   <action>
     En `src/lib/agents/somnio-v4/types.ts` agregar (cerca de los tipos de estado, NO romper nada existente):
     1. `export type Atendido = | { kind: 'template_intent'; intent: string; templateIds: string[] } | { kind: 'sales_action'; accion: TipoAccion; templateIds: string[] } | { kind: 'kb_topic'; topic: string; confidence: number; texto: string; turno: number } | { kind: 'handoff'; reason: string } | { kind: 'silence' }`.
     2. `export interface CrmActionRegistrada { tool: string; args: Record<string, unknown>; result: 'success' | 'failed' | 'cas_reject'; code?: string; origen: 'determinista' | 'rag' | 'timer'; stageAtTime?: string }` (D-04 verbatim — NO simplificar; diseñado para el orquestador del #2 aunque hoy solo lo llene el camino determinista).
-    3. `export interface TurnLedgerDims { atendido: Atendido[]; crmActions: CrmActionRegistrada[] }` (la parte PERSISTIDA del ledger).
-    4. `export interface TurnLedger { comprehension: { intent: string; secondary?: string; confidence: number }; atendido: Atendido[]; crmActions: CrmActionRegistrada[]; modeTransition?: { from: string; to: string }; messagesSent: number }`.
+    3. `export interface TurnLedgerDims { atendido: Atendido[]; crmActions: CrmActionRegistrada[] }` (subset PERSISTIDO del ledger — D-17). Comentar: `// D-17: subset PERSISTIDO en session_state.turn_ledger_dims. Distinto de TurnLedger (registro completo): modeTransition/confidence/messagesSent NO se persisten — se emiten a observability (Plan 04). El turno siguiente solo necesita atendido+crmActions para coherencia.`
+    4. `export interface TurnLedger { comprehension: { intent: string; secondary?: string; confidence: number }; atendido: Atendido[]; crmActions: CrmActionRegistrada[]; modeTransition?: { from: string; to: string }; messagesSent: number }`. Comentar: `// D-17: registro COMPLETO en memoria del turno. commitTurn persiste SOLO {atendido,crmActions} (TurnLedgerDims) y emite el ledger COMPLETO (incl. modeTransition/confidence/messagesSent) a observability en Plan 04. Ningún campo es fantasma.`
     5. En `V4AgentInput` (types.ts:142): agregar `turnLedgerDims?: TurnLedgerDims` (opcional, backward-compat con sandbox/tests).
     6. En `V4AgentOutput` (types.ts:190): agregar `turnLedgerDims: TurnLedgerDims` (campo persistible, junto a accionesEjecutadas:221).
-    Comentar cada bloque referenciando D-03/D-04/D-15. NO agregar `silence` como AccionRegistrada — `silence` es solo un `Atendido`.
+    Comentar cada bloque referenciando D-03/D-04/D-15/D-17. NO agregar `silence` como AccionRegistrada — `silence` es solo un `Atendido`.
   </action>
   <verify>
     <automated>npx tsc --noEmit -p tsconfig.json 2>&1 | grep -E "somnio-v4/(types|state)" || echo "no type errors in v4 types"</automated>
   </verify>
-  <done>Compila. TurnLedger/Atendido/CrmActionRegistrada/TurnLedgerDims exportados; Atendido tiene exactamente 5 variantes incl. silence; CrmActionRegistrada matchea D-04 verbatim; V4AgentInput tiene turnLedgerDims opcional y V4AgentOutput lo tiene requerido.</done>
+  <done>Compila. TurnLedger (completo, con modeTransition+messagesSent) y TurnLedgerDims (subset {atendido,crmActions}) son tipos DISTINTOS con comentario D-17; Atendido tiene exactamente 5 variantes incl. silence; CrmActionRegistrada matchea D-04 verbatim; V4AgentInput tiene turnLedgerDims opcional y V4AgentOutput lo tiene requerido.</done>
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 2: commitTurn() + serialize/deserialize de turn_ledger_dims (con tests roundtrip)</name>
+  <name>Task 2: commitTurn() + serialize/deserialize de turn_ledger_dims (con tests roundtrip — CREA state.test.ts)</name>
   <files>src/lib/agents/somnio-v4/state.ts, src/lib/agents/somnio-v4/__tests__/state.test.ts</files>
   <behavior>
-    - Test `commitTurn roundtrip`: dado un workingState + un TurnLedger con un atendido kb_topic y un crmAction success, `commitTurn` retorna un objeto que incluye TODO lo de serializeState MÁS `turnLedgerDims: { atendido, crmActions }`.
-    - Test `deserialize legacy graceful`: `deserializeState(...)` SIN el nuevo param → `turnLedgerDims` no rompe; el AgentState resultante es idéntico al actual (espejo del test de accionesEjecutadas backward-compat existente).
+    - Test `commitTurn roundtrip`: dado un workingState + un TurnLedger COMPLETO (con comprehension, modeTransition, messagesSent, un atendido kb_topic y un crmAction success), `commitTurn` retorna un objeto que incluye TODO lo de serializeState MÁS `turnLedgerDims: { atendido, crmActions }` — y NO incluye modeTransition/comprehension/messagesSent en lo persistido (D-17: esos solo van a observability en Plan 04). Aserción explícita: `result.turnLedgerDims` NO tiene keys modeTransition/messagesSent/comprehension.
+    - Test `deserialize legacy graceful`: `deserializeState(...)` SIN el nuevo param → `turnLedgerDims` no rompe; el AgentState resultante es idéntico al actual (espejo del test de accionesEjecutadas backward-compat).
     - Test `texto truncation`: un atendido kb_topic con `texto` > límite se trunca antes de persistir (cap ~500 chars, criterio del debug-payload) — el ledger no infla el jsonb.
   </behavior>
   <action>
+    CREAR el archivo NUEVO `src/lib/agents/somnio-v4/__tests__/state.test.ts` (NO existe hoy — el directorio solo tiene comprehension-gemini, comprehension-schema, engine-v4-lock, escalation, invocations, smoke-rag-a, smoke-rag-b, transitions). Espejar el patrón de roundtrip de `accionesEjecutadas` que vive en `engine-v4-lock.test.ts` (:216/:263/:279 seeds con accionesEjecutadas; :746-751 carryState seed Path B). Importar `commitTurn`, `serializeState`, `deserializeState` desde `../state` y los tipos desde `../types`.
+
     En `src/lib/agents/somnio-v4/state.ts`:
-    1. `export function commitTurn(workingState: AgentState, ledger: TurnLedger): { datosCapturados; packSeleccionado; intentsVistos; templatesEnviados; accionesEjecutadas; turnLedgerDims: TurnLedgerDims }` — llama `serializeState(workingState)` (NO reimplementar) y le agrega `turnLedgerDims: { atendido: <truncado>, crmActions: ledger.crmActions }`. Esto cumple D-11/D-12: único punto que funde working state + efectos.
+    1. `export function commitTurn(workingState: AgentState, ledger: TurnLedger): { datosCapturados; packSeleccionado; intentsVistos; templatesEnviados; accionesEjecutadas; turnLedgerDims: TurnLedgerDims }` — llama `serializeState(workingState)` (NO reimplementar) y le agrega `turnLedgerDims: { atendido: <truncado>, crmActions: ledger.crmActions }`. SOLO el subset persistido (D-17): modeTransition/comprehension/messagesSent del ledger NO entran en el retorno (los consume el emit a observability en Plan 04, que recibe el ledger COMPLETO por separado). Comentar `// D-17: commitTurn persiste solo {atendido,crmActions}; el ledger COMPLETO va a observability (Plan 04).`. Esto cumple D-11/D-12: único punto que funde working state + efectos persistibles.
     2. Truncar `texto` de cada `{kind:'kb_topic'}` a 500 chars antes de incluirlo (Security V5 / no inflar jsonb). Helper local `truncateTexto(s, max=500)`.
     3. Considerar redacción mínima de phone/email en `crmActions.args` (criterio: si una key es `phone`/`telefono` dejar last-4, `email`/`correo` enmascarar local-part). NOTA: la observabilidad CRM completa se difiere al #2 (D-08); aquí solo redacción mínima defensiva, sin construir infra.
-    4. Extender `deserializeState` agregando un param NUEVO al final con default: `turnLedgerDims: TurnLedgerDims = { atendido: [], crmActions: [] }`. NO devolverlo dentro de AgentState (AgentState es working state; el ledger se restaura como input separado — ver Plan 03 runner). El default graceful cubre sesiones legacy (D-16). El deserialize de las dims es trivial (pasthrough con default) — espejar el patrón de accionesEjecutadas (state.ts:331,357-383) pero sin el parsing de formato viejo (no hay formato legacy de dims).
-    5. Escribir los 3 tests descritos en `__tests__/state.test.ts` espejando los tests existentes de `accionesEjecutadas` en ese mismo archivo.
+    4. Extender `deserializeState` agregando un param NUEVO al final con default: `turnLedgerDims: TurnLedgerDims = { atendido: [], crmActions: [] }`. NO devolverlo dentro de AgentState (AgentState es working state; el ledger se restaura como input separado — ver Plan 03 runner). El default graceful cubre sesiones legacy (D-16). El deserialize de las dims es trivial (passthrough con default) — espejar el patrón de accionesEjecutadas (state.ts:331,357-383) pero sin el parsing de formato viejo (no hay formato legacy de dims).
+    5. Escribir los 3 tests descritos en el NUEVO `__tests__/state.test.ts`, espejando los seeds/aserciones de accionesEjecutadas que viven en `engine-v4-lock.test.ts`.
   </action>
   <verify>
     <automated>npx vitest run src/lib/agents/somnio-v4/__tests__/state.test.ts</automated>
   </verify>
-  <done>Los 3 tests pasan. commitTurn llama serializeState y añade turnLedgerDims; texto se trunca a 500; deserialize sin dims usa default graceful; suite state.test.ts verde completa.</done>
+  <done>Archivo state.test.ts CREADO; los 3 tests pasan. commitTurn llama serializeState y añade SOLO {atendido,crmActions} (NO modeTransition/messagesSent — D-17); texto se trunca a 500; deserialize sin dims usa default graceful.</done>
 </task>
 
 <task type="auto">
@@ -129,7 +148,7 @@ LoopOutcome (sub-loop/output-schema.ts:35-154) — status 'generated' carga `sou
   <files>src/lib/agents/types.ts</files>
   <action>
     En `src/lib/agents/types.ts` interface `SessionState` (líneas ~281-300) agregar campo OPCIONAL aditivo:
-    `turn_ledger_dims?: { atendido: unknown[]; crmActions: unknown[] }` (o referenciar TurnLedgerDims si no genera ciclo de import — preferible `unknown[]` para evitar import cross-módulo desde el tipo compartido; el runner v4 castea a TurnLedgerDims al leer).
+    `turn_ledger_dims?: { atendido: unknown[]; crmActions: unknown[] }` (se tipa con `unknown[]` para evitar import cross-módulo desde el tipo compartido; el runner v4 castea a TurnLedgerDims al leer — ver Plan 05 W-3: el narrowing del discriminated union por `kind` se hace en el lado v4 sobre SandboxState.turnLedgerDims tipado fuerte, NO sobre este campo de SessionState).
     Razón (P5 del research): el runner lee `acciones_ejecutadas` con `as any` porque NO está en SessionState. Para las dims NO repetimos esa deuda. Es aditivo: ningún agente no-v4 lo lee (Regla 6 OK por opcionalidad, A3 del research).
     Comentar referenciando D-16 + que es v4-only + Regla 6 por opcionalidad.
   </action>
@@ -159,17 +178,20 @@ LoopOutcome (sub-loop/output-schema.ts:35-154) — status 'generated' carga `sou
 </threat_model>
 
 <verification>
-- `npx vitest run src/lib/agents/somnio-v4/__tests__/state.test.ts` verde.
+- `npx vitest run src/lib/agents/somnio-v4/__tests__/state.test.ts` verde (archivo NUEVO).
 - `npx tsc --noEmit` sin errores nuevos en somnio-v4.
 - `grep -n "commitTurn" src/lib/agents/somnio-v4/state.ts` → commitTurn llama serializeState (wrap, no reimplementación).
+- `grep -n "interface TurnLedger\b" src/lib/agents/somnio-v4/types.ts` + `grep -n "interface TurnLedgerDims" src/lib/agents/somnio-v4/types.ts` → ambos tipos distintos presentes (D-17).
 - `grep -n "turn_ledger_dims" src/lib/agents/types.ts` → campo opcional presente.
 </verification>
 
 <success_criteria>
-TurnLedger/Atendido/CrmActionRegistrada/TurnLedgerDims definidos; commitTurn es el único wrap de serializeState que añade dims; texto truncado; deserialize backward-compat graceful; SessionState con campo opcional sin as any. Cero cambio de comportamiento determinista (solo tipos + serialización). NADA se persiste a DB todavía (eso requiere migración Plan 02).
+TurnLedger (completo) y TurnLedgerDims (subset persistido) son tipos DISTINTOS con comentario D-17; Atendido/CrmActionRegistrada definidos; commitTurn es el único wrap de serializeState que añade SOLO {atendido,crmActions}; texto truncado; deserialize backward-compat graceful; SessionState con campo opcional sin as any; state.test.ts CREADO y verde. Cero cambio de comportamiento determinista (solo tipos + serialización). NADA se persiste a DB todavía (eso requiere migración Plan 02).
 </success_criteria>
 
 <output>
 Crear `.planning/standalone/somnio-v4-turn-ledger/01-SUMMARY.md`.
-Commit atómico en español: `feat(v4-ledger): tipos TurnLedger + commitTurn + campo opcional en SessionState`
+Commit atómico en español: `feat(v4-ledger): tipos TurnLedger completo + TurnLedgerDims persistido (D-17) + commitTurn + campo opcional en SessionState`
 </output>
+</content>
+</invoke>

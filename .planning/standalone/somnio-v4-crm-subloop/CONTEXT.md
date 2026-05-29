@@ -79,15 +79,48 @@ Turno híbrido template+RAG (standalone #3).
 - **D-16 (4b):** **Sin feature flag.** Big-bang confiando en v4 DORMANT (0 workspaces) + greps Regla 6
   (cambios solo en archivos somnio-v4-specific). Rollback = no activar v4.
 
-### Flujo de confirmación (cambio determinista ACEPTADO)
-- **D-15:** **`createOrder` se ADELANTA**: dispara cuando hay datos+pack listos (`mostrar_confirmacion` /
-  `seleccion_pack`+datosCriticos), el pedido **nace en el primer stage del pipeline** ANTES de confirmar.
-  La transición R5 (`transitions.ts:261-264`, hoy `confirmar→crear_orden`) cambia a **`confirmar→moveOrderToStage(CONFIRMADO)`**.
-  - **Consecuencia aceptada:** se crean pedidos para clientes que ven el resumen pero NO confirman (lead capture);
-    quedan en primer stage. El usuario lo asume a propósito.
-  - **Desviación consciente:** esto **SÍ altera una decisión determinista** (qué acción produce cada transición),
-    saliendo del principio original del roadmap ("el ledger/CRM-subloop NO altera qué sales-action se elige").
-    Documentado y aceptado explícitamente por el usuario en discuss 2026-05-29.
+### Rediseño del lifecycle de creación de pedidos (cambio determinista ACEPTADO — refinado 2026-05-29)
+> ⚠ SCOPE EXPANDIDO: esto ya no es solo "mover CRM al sub-loop" — rediseña CUÁNDO/CÓMO nace el pedido
+> en la state-machine v4. Toca decisiones deterministas de lleno. Usuario lo asumió explícitamente.
+
+- **D-15 (revisado):** **createOrder se ADELANTA a `datos críticos` (datos+nopack)** — el pedido nace
+  **inmediatamente** como **cascarón** (contacto + dirección, SIN producto/pack) en stage **NUEVO PEDIDO**
+  (`6be952b0…`, no el primer stage genérico — elegido para NO disparar la automation `order.created`
+  que matchea solo NUEVO PAG WEB; ver Riesgos). Engancha donde `datosCriticosJustCompleted` se vuelve true
+  (`sales-track.ts:82` ya lo detecta).
+- **D-17:** **selección de pack → `updateOrder`** (enriquece el cascarón con producto/valor/promo).
+- **D-18:** **`confirmar` → `moveOrderToStage(CONFIRMADO)`** (`4770a36e…`). La transición R5
+  (`transitions.ts:261-264`, hoy `confirmar→crear_orden`) cambia: ya no crea (el pedido existe), mueve stage.
+- **D-19:** **Timers L3/L4 se DESACOPLAN: conservan el MENSAJE, eliminan el CREATE.**
+  - L3 (`promos_shown`+`timer_expired:3`, `transitions.ts:337-339`, hoy `crear_orden_sin_promo`): pasa a
+    **solo enviar** el template recordatorio (`pendiente_promo`, response-track:316), SIN crear (ya existe).
+  - L4 (`confirming`+`timer_expired:4`, `:346-348`, hoy `crear_orden_sin_confirmar`): pasa a **solo enviar**
+    su template recordatorio, SIN crear.
+  - Requiere desacoplar acción→(create+template) en acciones nuevas tipo `recordar_*` que solo mapean a template.
+  - Esto **reemplaza los dos "ingests" por timer** que el usuario describió (esperar 600s y crear) — ya no
+    crean porque el pedido nace temprano; solo recuerdan.
+- **D-20 (consecuencia aceptada):** quedan **pedidos-cascarón sin producto en NUEVO PEDIDO** (clientes que
+  dieron datos pero nunca eligieron pack y se callaron). Antes esos clientes no generaban pedido. Lead capture
+  puro. Higiene CRM de estos cascarones → DIFERIDO (ver Deferred).
+- **Desviación consciente:** D-15..D-19 alteran decisiones deterministas (qué acción produce cada transición +
+  cuándo nace el pedido), saliendo del principio original del roadmap. Aceptado explícitamente por el usuario
+  en discuss 2026-05-29.
+
+### Decisiones cerradas en research-phase (2026-05-29)
+- **D-21 (config gap):** El grounding Vista A (`getActiveOrderByPhone`) hoy retorna `config_not_set` para Somnio
+  (tablas `crm_query_tools_config`/`crm_query_tools_active_stages` vacías). **Resolución: el operador configura
+  los active-stages en `/agentes/crm-tools`** (opción A — usa UI existente, cero código nuevo). Acción manual
+  pre-activación de v4.
+- **D-22 (sandbox parity):** En el engine de sandbox (`engine-v4.ts`) las mutaciones CRM se **SIMULAN** (no tocan
+  DB), análogo al caveat de RAG-send. No-op/log para testing.
+- **D-23 (blocker research #1 — sub-loop output):** `LoopOutcomeSchema` (`sub-loop/output-schema.ts:35-93`) NO
+  tiene campos de acción CRM → hay que extenderlo. **Resolución (planner-internal):** derivar `crmActions[]`
+  de `rawResult.steps[].toolResults` del AI SDK (el parsing ya existe en `index.ts:163-177` para el debug),
+  mapeando `MutationResult.status` → `{success|failed|cas_reject}`. Ground-truth, no auto-reporte del LLM.
+- **D-24 (blocker research #2 — contact resolution):** `createOrder` necesita `contactId`+`pipelineId` (UUIDs)
+  que hoy resuelve el runner vía `ProductionOrdersAdapter.findOrCreateContact` — que D-06 elimina. NO existe
+  `resolveOrCreateContact` en domain. **Resolución:** construir helper v4 que componga
+  `searchContacts(phone) → createContact(...)` (ambos Regla-3-clean). En camino crítico de createOrder.
 
 ### Claude's Discretion
 - Forma exacta de inyectar el grounding al `SubLoopContext` (campo nuevo tipado fuerte).
@@ -158,20 +191,34 @@ Turno híbrido template+RAG (standalone #3).
 - **Invalidación de cache por edición humana en el CRM** (humano mueve stage con sesión activa → invalidar/recargar
   el snapshot `_v4`). Se resuelve después desde el lado del CRM. NO en este standalone.
 - **Whitelist de transiciones configurable por workspace** — por ahora hardcode → CONFIRMADO; configurable = futuro.
+- **Higiene de pedidos-cascarón** (D-20): clientes que dieron datos pero nunca eligieron pack quedan como pedido
+  sin producto en NUEVO PEDIDO. Tag "sin pack" / limpieza / expiry → DIFERIDO (higiene CRM, no del agente).
 - **Observabilidad CRM "completa"** (más allá del ledger) — standalone futuro / Capa 3 ampliada.
 - **Turno híbrido template+RAG** — standalone #3.
 </deferred>
 
 ---
 
-## ⚠ Riesgos a investigar en research-phase (consecuencias de D-15)
-- **Automatizaciones disparadas por creación temprana:** crear el pedido en primer stage ANTES de confirmar puede
-  disparar automations de Somnio que asumían "pedido = confirmado". Research DEBE auditar triggers sobre el primer stage.
-- **Templates vs createOrder adelantado:** hoy `crear_orden` dispara templates `confirmacion_orden_*`. Si createOrder
-  se adelanta, ¿qué template va en `mostrar_confirmacion` vs en `confirmar`? Mapear el nuevo orden de templates.
-- **UUID de CONFIRMADO + primer stage del pipeline Somnio:** resolver config-driven (no hardcode de nombres).
+## Riesgos — estado tras research-phase (2026-05-29)
+
+### ✅ Resueltos / verificados live
+- **Automations por creación temprana:** la única automation `order.created` ("template final ultima":
+  3 WhatsApp + SMS, `71c4f524…`) matchea **solo NUEVO PAG WEB** (`42da9d61…`). Naciendo en **NUEVO PEDIDO**
+  (`6be952b0…`, D-15) NO se dispara. Verificado `automation-runner.ts:95-101` + DB live.
+- **UUIDs de stages:** CONFIRMADO=`4770a36e…`, NUEVO PEDIDO=`6be952b0…` verificados live. Reusar env-bridge
+  (`SOMNIO_CANCELED_STAGE_UUID` patrón, `invocations.ts:64`) para CONFIRMADO.
+- **Sandbox parity:** D-22 simular (no-op).
+
+### ⚠ Pendientes para research suplementario (rediseño D-15..D-19)
+- **Enganche del createOrder temprano:** dónde exactamente en transitions/sales-track engancha el create al
+  volverse `datosCriticosJustCompleted` true, sin romper `ofrecer_promos` (`transitions.ts:191,212`).
+- **updateOrder-en-pack:** enganchar updateOrder en `seleccion_pack`+datosCriticos (`transitions.ts:242`,
+  hoy `mostrar_confirmacion`). Qué template va dónde con el nuevo orden.
+- **Desacople L3/L4:** crear acciones `recordar_*` que solo mapeen a template (response-track) sin entrar a
+  CREATE_ORDER_ACTIONS. Verificar que el pedido-cascarón ya existe cuando dispara el timer.
+- **Camino del cascarón sin pack:** qué pasa si el cliente nunca elige pack (createOrder cascarón sin items/valor
+  — ¿el adapter/domain createOrder lo permite sin packSeleccionado?).
 - **Paridad sub-loop prod↔sandbox** (INTERRUPTION-PARITY) al cambiar el flujo de ejecución CRM.
-- **Pedidos "fantasma"** sin confirmar: ¿se limpian/expiran? ¿impacto en métricas/Kanban?
 
 ---
 

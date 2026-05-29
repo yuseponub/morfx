@@ -383,6 +383,113 @@ describe('updateOrder — unexpected error', () => {
 })
 
 // ============================================================================
+// updateOrder — items[] passthrough to domain.products (D-25, standalone somnio-v4-crm-subloop)
+// ============================================================================
+
+describe('updateOrder — items[] maps to domain products (replace-all)', () => {
+  it('Test 10a: con items → domain.updateOrder recibe products con la misma forma + total re-hidratado', async () => {
+    getOrderByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildOrderDetail(ORDER_ID),
+    })
+    updateOrderDomainMock.mockResolvedValueOnce({
+      success: true,
+      data: { orderId: ORDER_ID },
+    })
+    getOrderByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildOrderDetail(ORDER_ID, { totalValue: 119900 }),
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.updateOrder as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({
+      orderId: ORDER_ID,
+      items: [
+        { sku: 'PACK-1', title: 'Pack ELIXIR', unitPrice: 119900, quantity: 1 },
+      ],
+    })
+
+    expect(result).toMatchObject({
+      status: 'executed',
+      data: { id: ORDER_ID, totalValue: 119900 },
+    })
+    expect(updateOrderDomainMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        orderId: ORDER_ID,
+        products: [
+          {
+            productId: undefined,
+            sku: 'PACK-1',
+            title: 'Pack ELIXIR',
+            unitPrice: 119900,
+            quantity: 1,
+          },
+        ],
+      }),
+    )
+  })
+})
+
+describe('updateOrder — SIN items no toca productos (no regresion)', () => {
+  it('Test 10b: omitir items → domain.updateOrder recibe products undefined (key NO presente)', async () => {
+    getOrderByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildOrderDetail(ORDER_ID),
+    })
+    updateOrderDomainMock.mockResolvedValueOnce({
+      success: true,
+      data: { orderId: ORDER_ID },
+    })
+    getOrderByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildOrderDetail(ORDER_ID, { shippingCity: 'Bogota' }),
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.updateOrder as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ orderId: ORDER_ID, shippingCity: 'Bogota' })
+
+    expect(result).toMatchObject({
+      status: 'executed',
+      data: { id: ORDER_ID, shippingCity: 'Bogota' },
+    })
+    const callArg = updateOrderDomainMock.mock.calls[0][1] as Record<string, unknown>
+    expect(callArg.products).toBeUndefined()
+    expect(callArg.shippingCity).toBe('Bogota')
+  })
+})
+
+describe('updateOrder — items vacio [] (vaciar cascaron)', () => {
+  it('Test 10c: items:[] → domain.updateOrder recibe products:[] (reemplaza por 0 productos)', async () => {
+    getOrderByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildOrderDetail(ORDER_ID),
+    })
+    updateOrderDomainMock.mockResolvedValueOnce({
+      success: true,
+      data: { orderId: ORDER_ID },
+    })
+    getOrderByIdMock.mockResolvedValueOnce({
+      success: true,
+      data: buildOrderDetail(ORDER_ID, { totalValue: 0 }),
+    })
+
+    const tools = createCrmMutationTools(CTX)
+    const result = await (
+      tools.updateOrder as unknown as { execute: (input: unknown) => Promise<unknown> }
+    ).execute({ orderId: ORDER_ID, items: [] })
+
+    expect(result).toMatchObject({ status: 'executed', data: { id: ORDER_ID } })
+    const callArg = updateOrderDomainMock.mock.calls[0][1] as Record<string, unknown>
+    expect(callArg.products).toEqual([])
+  })
+})
+
+// ============================================================================
 // moveOrderToStage — Pitfall 1 (CAS propagation)
 // ============================================================================
 

@@ -24,7 +24,17 @@ import {
   PACK_PRICES,
   V4_META_PREFIX,
 } from './constants'
-import type { AccionRegistrada, AgentState, DatosCliente, Gates, TipoAccion } from './types'
+import type {
+  AccionRegistrada,
+  AgentState,
+  Atendido,
+  CrmActionRegistrada,
+  DatosCliente,
+  Gates,
+  TipoAccion,
+  TurnLedger,
+  TurnLedgerDims,
+} from './types'
 import type { MessageAnalysis } from './comprehension-schema'
 
 // ============================================================================
@@ -329,6 +339,13 @@ export function deserializeState(
   intentsVistos: string[],
   templatesEnviados: string[],
   accionesEjecutadas: AccionRegistrada[] = [],
+  // D-16 (standalone somnio-v4-turn-ledger): dims persistidas del turno previo.
+  // Param NUEVO al final con default graceful → sesiones legacy sin dims no rompen.
+  // NO se devuelve dentro de AgentState (AgentState = working state); el runner v4
+  // restaura las dims como input separado (V4AgentInput.turnLedgerDims — ver Plan 03).
+  // Deserialize trivial (passthrough con default) — no hay formato legacy de dims.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _turnLedgerDims: TurnLedgerDims = { atendido: [], crmActions: [] },
 ): AgentState {
   const state = createInitialState()
 
@@ -389,6 +406,84 @@ export function deserializeState(
   state.negaciones.cedula_recoge = datosCapturados[`${V4_META_PREFIX}neg_cedula_recoge`] === 'true'
 
   return state
+}
+
+// ============================================================================
+// Turn Ledger Commit (standalone somnio-v4-turn-ledger — D-11/D-12/D-17)
+// ============================================================================
+
+const LEDGER_TEXTO_MAX = 500
+
+/** T-ledger-01: truncar texto generado por el modelo antes de persistir (no inflar jsonb). */
+function truncateTexto(s: string, max = LEDGER_TEXTO_MAX): string {
+  return s.length > max ? s.slice(0, max) : s
+}
+
+/** T-ledger-02: redacción mínima defensiva de phone (last-4) / email (local-part masked). */
+function redactArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(args)) {
+    const k = key.toLowerCase()
+    if (typeof value === 'string') {
+      if (k === 'phone' || k === 'telefono' || k === 'celular') {
+        out[key] = value.length > 4 ? `***${value.slice(-4)}` : value
+        continue
+      }
+      if (k === 'email' || k === 'correo') {
+        const at = value.indexOf('@')
+        out[key] = at > 0 ? `***${value.slice(at)}` : value
+        continue
+      }
+    }
+    out[key] = value
+  }
+  return out
+}
+
+/** Aplica truncación de texto a las entradas kb_topic del atendido[]. */
+function sanitizeAtendido(atendido: Atendido[]): Atendido[] {
+  return atendido.map(a =>
+    a.kind === 'kb_topic' ? { ...a, texto: truncateTexto(a.texto) } : a,
+  )
+}
+
+/** Aplica redacción mínima de PII a los args de cada crmAction. */
+function sanitizeCrmActions(crmActions: CrmActionRegistrada[]): CrmActionRegistrada[] {
+  return crmActions.map(c => ({ ...c, args: redactArgs(c.args) }))
+}
+
+/**
+ * D-11/D-12/D-17: ÚNICO punto que funde el working state final con los efectos
+ * persistibles del turno. Envuelve serializeState (NO reimplementa) y añade SOLO
+ * el subset persistido del ledger ({atendido, crmActions} = TurnLedgerDims).
+ *
+ * D-17: commitTurn persiste solo {atendido,crmActions}; el ledger COMPLETO
+ * (incl. modeTransition/comprehension/messagesSent) va a observability en Plan 04.
+ * Por eso modeTransition/comprehension/messagesSent del ledger NO entran en el retorno.
+ *
+ * Defensas: texto de kb_topic truncado a 500 chars (T-ledger-01); phone/email en
+ * crmActions.args redactados (T-ledger-02). La observabilidad CRM completa se difiere
+ * al standalone #2 (D-08) — aquí solo redacción mínima defensiva.
+ */
+export function commitTurn(
+  workingState: AgentState,
+  ledger: TurnLedger,
+): {
+  datosCapturados: Record<string, string>
+  packSeleccionado: string | null
+  intentsVistos: string[]
+  templatesEnviados: string[]
+  accionesEjecutadas: AccionRegistrada[]
+  turnLedgerDims: TurnLedgerDims
+} {
+  const serialized = serializeState(workingState)
+  return {
+    ...serialized,
+    turnLedgerDims: {
+      atendido: sanitizeAtendido(ledger.atendido),
+      crmActions: sanitizeCrmActions(ledger.crmActions),
+    },
+  }
 }
 
 // ============================================================================

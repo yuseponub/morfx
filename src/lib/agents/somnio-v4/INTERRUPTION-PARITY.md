@@ -144,6 +144,30 @@ interrupción**. La lógica de interrupción ya está completa y correcta en amb
 lados; para que importe en vivo, ese standalone debe terminar de cablear el envío
 de la respuesta RAG. Como v4 está DORMANT, no afecta a clientes hoy.
 
+### Caveat CRM (standalone `somnio-v4-crm-subloop`, al 2026-05-29)
+
+Extiende el caveat RAG-send con la **paridad CRM** (D-22): en **PRODUCCIÓN** el
+sub-loop escribe a la DB vía `crm-mutation-tools → domain` (Regla 3 — createOrder /
+updateOrder / moveOrderToStage). En **SANDBOX** las mutaciones CRM se **SIMULAN
+in-memory** (`simulate:true` en `buildSubLoopTools`, mutation-tools sintéticas, cero
+DB write). **AMBOS lados registran la acción CRM en el ledger** (`crmActions`
+origen:`'rag'`) en el **MISMO punto del flujo** (post sub-loop, pre `commitTurn`) —
+esto es lo que hace el escenario reproducible (§4.3 "el sandbox debe poder reproducir
+cualquier escenario de producción"; §4.4 "DB-vs-memoria es diferencia permitida").
+
+Interrupción **mid-mutation** (CKPT-3 / CKPT-4 / CKPT-5 dentro del sub-loop): en
+**producción** el doble-ejecutar está cubierto por la **idempotency key**
+`somnio-v4-createOrder-{sessionId}` (re-query fresco de `grounding.activeOrder` +
+idempotencia persistente en `crm_mutation_idempotency_keys`) + **CAS** en
+`moveOrderToStage` (propaga `stage_changed_concurrently` verbatim, sin retry). En
+**sandbox** no se escribe nada real, así que **no hay riesgo de doble-mutación**,
+pero se simula el **mismo punto de no-retorno** para que la ventana de interrupción
+sea testeable a mano (Pitfall 7 parity — el escenario de interrupción mid-CRM se
+reproduce igual en ambos lados, solo difiere si toca DB o memoria).
+
+Como v4 está DORMANT (0 workspaces), nada de esto afecta a clientes hoy. La paridad
+queda lista para la activación manual (ver `.planning/standalone/somnio-v4-crm-subloop/ACTIVATION-STEPS.md`).
+
 ---
 
 ## Referencias

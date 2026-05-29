@@ -33,6 +33,7 @@ import {
   computeGates,
   serializeState,
   deserializeState,
+  commitTurn,
   hasAction,
 } from './state'
 import { resolveSalesTrack } from './sales-track'
@@ -68,7 +69,36 @@ import type {
   V4AgentOutput,
   TimerSignal,
   AccionRegistrada,
+  Atendido,
+  CrmActionRegistrada,
+  TurnLedger,
 } from './types'
+
+// ============================================================================
+// Turn Ledger helpers (standalone: somnio-v4-turn-ledger — D-04/D-17)
+// ============================================================================
+
+/**
+ * D-04/D-17: deriva los crmActions del ledger desde las acciones registradas con
+ * `crmAction:true` en este turno (origen 'determinista' = mensaje usuario, 'timer'
+ * = timer event). El push exitoso de la acción implica result:'success' (el shape
+ * D-04 completo — tool/args reales/result/code — lo llena el orquestador del
+ * standalone #2; aquí registramos lo disponible HOY sin inventar datos).
+ */
+function buildCrmActionsFromAcciones(
+  acciones: AccionRegistrada[],
+  origen: 'determinista' | 'timer',
+  turno: number,
+): CrmActionRegistrada[] {
+  return acciones
+    .filter((a) => a.crmAction === true && a.turno === turno && a.origen === origen)
+    .map((a) => ({
+      tool: a.tipo,
+      args: {},
+      result: 'success' as const,
+      origen,
+    }))
+}
 
 // ============================================================================
 // Top-level Dispatch
@@ -104,6 +134,11 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       input.templatesEnviados,
       input.accionesEjecutadas ?? [],
     )
+
+    // somnio-v4-turn-ledger Plan 03 (D-17): modo previo del turno, capturado ANTES
+    // de cualquier merge/decisión. modeTransition.from = este valor; .to = newMode
+    // resultante. Si no hay cambio, from===to (sigue siendo info válida del turno).
+    const prevMode = computeMode(state)
 
     // 2. Comprehension (Gemini 2.5 Flash estructurado + intent_confidence)
     const recentBotMessages = input.history
@@ -258,6 +293,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         subLoopReason: earlyReason,
         threshold,
         subLoopDebug: capturedSubLoopDebug,
+        prevMode,
       })
     }
 
@@ -274,7 +310,21 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       if (guardResult.decision.timerSignal) {
         timerSignals.push(guardResult.decision.timerSignal)
       }
-      const serialized = serializeState(mergedState)
+      // somnio-v4-turn-ledger Plan 03 (R1): guard R0/R1 blocked → handoff. Ledger
+      // COMPLETO (D-17): atendido handoff, 0 mensajes, modeTransition→handoff.
+      const ledgerR1: TurnLedger = {
+        comprehension: {
+          intent: analysis.intent.primary,
+          secondary:
+            analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+          confidence: analysis.intent.intent_confidence,
+        },
+        atendido: [{ kind: 'handoff', reason: guardResult.decision.reason }],
+        crmActions: [],
+        modeTransition: { from: prevMode, to: 'handoff' },
+        messagesSent: 0,
+      }
+      const serialized = commitTurn(mergedState, ledgerR1)
       return {
         success: true,
         messages: [],
@@ -285,7 +335,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
         accionesEjecutadas: serialized.accionesEjecutadas,
-        turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
+        turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -478,6 +528,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         subLoopReason: 'cas_reject',
         threshold,
         subLoopDebug: capturedSubLoopDebug,
+        prevMode,
       })
     }
 
@@ -579,17 +630,37 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         action: salesResult.accion ?? 'none',
         reason: salesResult.reason,
       })
-      const serialized = serializeState(mergedState)
+      // somnio-v4-turn-ledger Plan 03 (R2): silencio natural. D-15: SÍ se registra
+      // (un silencio deliberado es información del turno). Ledger COMPLETO (D-17):
+      // atendido silence, 0 mensajes, modeTransition poblado, crmActions de este turno.
+      const newModeR2 = computeMode(mergedState)
+      const ledgerR2: TurnLedger = {
+        comprehension: {
+          intent: analysis.intent.primary,
+          secondary:
+            analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+          confidence: analysis.intent.intent_confidence,
+        },
+        atendido: [{ kind: 'silence' }],
+        crmActions: buildCrmActionsFromAcciones(
+          mergedState.accionesEjecutadas,
+          'determinista',
+          mergedState.turnCount,
+        ),
+        modeTransition: { from: prevMode, to: newModeR2 },
+        messagesSent: 0,
+      }
+      const serialized = commitTurn(mergedState, ledgerR2)
       return {
         success: true,
         messages: [],
-        newMode: computeMode(mergedState),
+        newMode: newModeR2,
         intentsVistos: serialized.intentsVistos,
         templatesEnviados: serialized.templatesEnviados,
         datosCapturados: serialized.datosCapturados,
         packSeleccionado: serialized.packSeleccionado,
         accionesEjecutadas: serialized.accionesEjecutadas,
-        turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
+        turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -632,19 +703,56 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     }
 
     // 15. Build output (has messages)
-    const serialized = serializeState(mergedState)
+    // somnio-v4-turn-ledger Plan 03 (R3): happy path con mensajes. Ledger COMPLETO
+    // (D-17). atendido se arma desde lo que el turno HIZO: sales_action (si hubo
+    // accion de venta no-silence) + template_intent (si hubo intent informacional).
+    // crmActions desde las acciones crmAction:true registradas este turno (origen
+    // determinista). messagesSent = nº de templates enviados.
+    const newModeR3 = computeMode(mergedState)
+    const atendidoR3: Atendido[] = []
+    if (salesResult.accion && salesResult.accion !== 'silence') {
+      atendidoR3.push({
+        kind: 'sales_action',
+        accion: salesResult.accion,
+        templateIds: responseResult.salesTemplateIntents,
+      })
+    }
+    if (responseResult.infoTemplateIntents.length > 0) {
+      atendidoR3.push({
+        kind: 'template_intent',
+        intent: analysis.intent.primary,
+        templateIds: responseResult.infoTemplateIntents,
+      })
+    }
+    const ledgerR3: TurnLedger = {
+      comprehension: {
+        intent: analysis.intent.primary,
+        secondary:
+          analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+        confidence: analysis.intent.intent_confidence,
+      },
+      atendido: atendidoR3,
+      crmActions: buildCrmActionsFromAcciones(
+        mergedState.accionesEjecutadas,
+        'determinista',
+        mergedState.turnCount,
+      ),
+      modeTransition: { from: prevMode, to: newModeR3 },
+      messagesSent: responseResult.templateIdsSent.length,
+    }
+    const serialized = commitTurn(mergedState, ledgerR3)
 
     return {
       success: true,
       messages: responseResult.messages.map((m) => m.content),
       templates: responseResult.messages,
-      newMode: computeMode(mergedState),
+      newMode: newModeR3,
       intentsVistos: serialized.intentsVistos,
       templatesEnviados: serialized.templatesEnviados,
       datosCapturados: serialized.datosCapturados,
       packSeleccionado: serialized.packSeleccionado,
       accionesEjecutadas: serialized.accionesEjecutadas,
-      turnLedgerDims: { atendido: [], crmActions: [] }, // somnio-v4-turn-ledger Plan 01: default; Plan 03 cablea commitTurn
+      turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn
       intentInfo: {
         intent: analysis.intent.primary,
         confidence: analysis.intent.confidence,
@@ -865,9 +973,39 @@ function mapOutcomeToAgentOutput(args: {
   threshold?: number
   /** Sub-loop debug payload — Plan 03 v4-subloop-debug-view (D-02). */
   subLoopDebug?: SubLoopDebugPayload
+  /**
+   * somnio-v4-turn-ledger Plan 03 (D-17): modo previo del turno (capturado antes de
+   * decidir en processUserMessage). Para construir modeTransition del ledger RAG/template.
+   */
+  prevMode: string
 }): V4AgentOutput {
-  const { outcome, state, analysis, tokensUsed, timerSignals, subLoopReason, threshold, subLoopDebug } = args
+  const { outcome, state, analysis, tokensUsed, timerSignals, subLoopReason, threshold, subLoopDebug, prevMode } = args
   const serialized = serializeState(state)
+
+  // somnio-v4-turn-ledger Plan 03: el `to` de modeTransition depende del outcome.
+  // generated/template → computeMode(state); no_match (handoff) → 'handoff'.
+  // El comprehension del ledger viene del analysis (el sub-loop SÍ corrió comprehension).
+  const ledgerComprehension = {
+    intent: analysis.intent.primary,
+    secondary:
+      analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+    confidence: analysis.intent.intent_confidence,
+  }
+
+  /** Construye el subset persistido del ledger (commitTurn) con atendido/crmActions/modeTransition dados. */
+  function buildLedgerDims(
+    atendido: Atendido[],
+    toMode: string,
+    messagesSent: number,
+  ): TurnLedger {
+    return {
+      comprehension: ledgerComprehension,
+      atendido,
+      crmActions: [],
+      modeTransition: { from: prevMode, to: toMode },
+      messagesSent,
+    }
+  }
 
   const baseOutput = {
     success: true,
@@ -876,9 +1014,9 @@ function mapOutcomeToAgentOutput(args: {
     datosCapturados: serialized.datosCapturados,
     packSeleccionado: serialized.packSeleccionado,
     accionesEjecutadas: serialized.accionesEjecutadas,
-    // Standalone somnio-v4-turn-ledger Plan 01: default vacío. Plan 03 cableará
-    // commitTurn aquí (construye atendido kb_topic desde outcome.*). Por ahora no
-    // cambia comportamiento determinista — solo cumple el contrato de tipo.
+    // Standalone somnio-v4-turn-ledger Plan 03: cada rama (no_match/generated/template)
+    // sobrescribe turnLedgerDims con commitTurn(state, ledger) según el outcome.
+    // Este default vacío solo aplica al branch interrupt (errorMessage) que descarta turno.
     turnLedgerDims: { atendido: [], crmActions: [] },
     intentInfo: {
       intent: analysis.intent.primary,
@@ -937,6 +1075,11 @@ function mapOutcomeToAgentOutput(args: {
       messages: [],
       newMode: 'handoff',
       requiresHuman: true, // D-60: flag explícito
+      // somnio-v4-turn-ledger Plan 03 (R4): no_match → handoff. atendido handoff.
+      turnLedgerDims: commitTurn(
+        state,
+        buildLedgerDims([{ kind: 'handoff', reason: outcome.reason }], 'handoff', 0),
+      ).turnLedgerDims,
       decisionInfo: {
         action: 'handoff',
         reason: outcome.reason,
@@ -954,16 +1097,51 @@ function mapOutcomeToAgentOutput(args: {
         messages: [],
         newMode: 'handoff',
         requiresHuman: true,
+        // somnio-v4-turn-ledger Plan 03: generated con campo null (defensivo) → handoff.
+        turnLedgerDims: commitTurn(
+          state,
+          buildLedgerDims(
+            [{ kind: 'handoff', reason: `generated_null_field: ${outcome.reason}` }],
+            'handoff',
+            0,
+          ),
+        ).turnLedgerDims,
         decisionInfo: {
           action: 'handoff',
           reason: `generated_null_field: ${outcome.reason}`,
         },
       }
     }
+    const generatedMode = computeMode(state)
     return {
       ...baseOutput,
       messages: [outcome.responseText],
-      newMode: computeMode(state),
+      newMode: generatedMode,
+      // ====================================================================
+      // somnio-v4-turn-ledger Plan 03 (R5) — FIX CENTRAL D-05.
+      // ANTES: este return solo serializaba `state` y perdía sourceTopic/
+      // responseConfidence/responseText (la rama RAG no dejaba registro).
+      // AHORA: registra atendido kind:'kb_topic' DESDE outcome.* → todo turno
+      // RAG deja registro canónico. confidence non-null garantizado por
+      // invariantCheck del sub-loop (null guard arriba ya cubre el defensivo).
+      // texto se trunca a 500 chars dentro de commitTurn (T-ledger-01).
+      // ====================================================================
+      turnLedgerDims: commitTurn(
+        state,
+        buildLedgerDims(
+          [
+            {
+              kind: 'kb_topic',
+              topic: outcome.sourceTopic,
+              confidence: outcome.responseConfidence ?? 0,
+              texto: outcome.responseText,
+              turno: state.turnCount,
+            },
+          ],
+          generatedMode,
+          1,
+        ),
+      ).turnLedgerDims,
       decisionInfo: {
         action: 'respond',
         reason: outcome.reason,
@@ -980,16 +1158,41 @@ function mapOutcomeToAgentOutput(args: {
       messages: [],
       newMode: 'handoff',
       requiresHuman: true,
+      // somnio-v4-turn-ledger Plan 03: template con responseTemplate null (defensivo) → handoff.
+      turnLedgerDims: commitTurn(
+        state,
+        buildLedgerDims(
+          [{ kind: 'handoff', reason: `template_null_responseTemplate: ${outcome.reason}` }],
+          'handoff',
+          0,
+        ),
+      ).turnLedgerDims,
       decisionInfo: {
         action: 'handoff',
         reason: `template_null_responseTemplate: ${outcome.reason}`,
       },
     }
   }
+  const templateMode = computeMode(state)
   return {
     ...baseOutput,
     messages: [], // engine resolverá template via responseTemplate intent
-    newMode: computeMode(state),
+    newMode: templateMode,
+    // somnio-v4-turn-ledger Plan 03 (R6): template outcome → atendido template_intent.
+    turnLedgerDims: commitTurn(
+      state,
+      buildLedgerDims(
+        [
+          {
+            kind: 'template_intent',
+            intent: analysis.intent.primary,
+            templateIds: [outcome.responseTemplate],
+          },
+        ],
+        templateMode,
+        1,
+      ),
+    ).turnLedgerDims,
     decisionInfo: {
       action: 'respond',
       reason: outcome.reason,

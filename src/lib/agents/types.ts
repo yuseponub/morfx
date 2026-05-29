@@ -296,6 +296,17 @@ export interface SessionState {
   min_data_at: string | null
   ofrecer_promos_at: string | null
 
+  /**
+   * Turn ledger dims persistidas — standalone somnio-v4-turn-ledger (D-16).
+   * v4-only: subset {atendido, crmActions} del TurnLedger del turno previo.
+   * Tipado con unknown[] para evitar import cross-módulo del tipo v4 fuerte; el
+   * runner v4 castea a TurnLedgerDims al leer (el narrowing del discriminated union
+   * por `kind` se hace en el lado v4 sobre SandboxState.turnLedgerDims tipado fuerte).
+   * OPCIONAL aditivo: ningún agente no-v4 lo lee → Regla 6 OK por opcionalidad (P5
+   * del research: NO repetimos la deuda del `as any` de acciones_ejecutadas).
+   */
+  turn_ledger_dims?: { atendido: unknown[]; crmActions: unknown[] }
+
   updated_at: string
 }
 

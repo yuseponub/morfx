@@ -10,6 +10,7 @@ import type { IntentResult, SessionState, ToolCallRecord, PackSelection, ModelTo
 import type { MessageClassification } from '@/lib/agents/somnio/message-classifier'
 import type { AccionRegistrada } from '@/lib/agents/somnio-v3/types'
 import type { SubLoopDebugPayload } from '@/lib/agents/somnio-v4/sub-loop/debug-payload'
+import type { TurnLedgerDims } from '@/lib/agents/somnio-v4/types'
 
 /**
  * Message in sandbox conversation
@@ -255,6 +256,13 @@ export interface SandboxState {
   packSeleccionado: PackSelection | null
   /** Acciones ejecutadas as first-class field (quick-009) */
   accionesEjecutadas: AccionRegistrada[]
+  /**
+   * somnio-v4-turn-ledger Plan 04 (Task 2 / W-3): subset persistido del ledger del
+   * turno ({atendido, crmActions}), tipado FUERTE con TurnLedgerDims para que el
+   * state-tab del Plan 05 pueda narrowing por `a.kind === 'kb_topic'` sin unknown.
+   * Opcional — sesiones sandbox pre-ledger lo dejan undefined.
+   */
+  turnLedgerDims?: TurnLedgerDims
   /** Ingest tracking for debug visibility (Phase 15.5) */
   ingestStatus?: IngestStatus
 }

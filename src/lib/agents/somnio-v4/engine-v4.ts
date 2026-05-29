@@ -276,6 +276,9 @@ export class SomnioV4Engine {
           datosCapturados: seedState.datosCapturados ?? {},
           packSeleccionado: seedState.packSeleccionado ?? null,
           accionesEjecutadas: seedState.accionesEjecutadas ?? [],
+          // somnio-v4-turn-ledger Plan 04 (Task 2, paridad runner): restaurar dims del
+          // turno previo con default graceful. carryState (Path B) lo override.
+          turnLedgerDims: seedState.turnLedgerDims ?? { atendido: [], crmActions: [] },
           history: input.history,
           turnNumber: input.turnNumber,
           workspaceId: input.workspaceId,
@@ -460,6 +463,9 @@ export class SomnioV4Engine {
                   datosCapturados: output.datosCapturados,
                   packSeleccionado: output.packSeleccionado as PackSelection | null,
                   accionesEjecutadas: output.accionesEjecutadas,
+                  // somnio-v4-turn-ledger Plan 04 (Task 2, P3): hereda las dims del
+                  // output de msg1 (≥1 template enviado) → el reprocess no re-registra.
+                  turnLedgerDims: output.turnLedgerDims,
                 }
                 emitLockEvent('pending_list_combined', {
                   at_step: `ckpt_7_pre_template_${i}`,
@@ -498,6 +504,10 @@ export class SomnioV4Engine {
           datosCapturados: output.datosCapturados,
           packSeleccionado: output.packSeleccionado as PackSelection | null,
           accionesEjecutadas: output.accionesEjecutadas,
+          // somnio-v4-turn-ledger Plan 04 (Task 2, paridad runner): el subset del
+          // ledger del turno fluye a SandboxState → llega a DebugTurn vía
+          // `stateAfter: newState` para que el Plan 05 (debug panel) lo renderice.
+          turnLedgerDims: output.turnLedgerDims,
         }
 
         // Clean stale `_v3:` keys from datosCapturados (now flow as own fields).

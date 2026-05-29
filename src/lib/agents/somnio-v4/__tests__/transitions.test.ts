@@ -101,3 +101,90 @@ describe('TRANSITIONS array', () => {
     }
   })
 })
+
+// ============================================================================
+// Lifecycle rediseñado (standalone somnio-v4-crm-subloop): D-15/D-17/D-18/D-19
+// ============================================================================
+
+/** Build a state with all critical fields filled (normal mode → datosCriticos=true). */
+function buildStateDatosCriticos(): AgentState {
+  const state = buildEmptyState()
+  state.datos.nombre = 'Ana'
+  state.datos.apellido = 'Gomez'
+  state.datos.telefono = '3001234567'
+  state.datos.ciudad = 'Bogota'
+  state.datos.departamento = 'Cundinamarca'
+  state.datos.direccion = 'Calle 1 # 2-3'
+  // extras negados para que datosCompletos no sea relevante al test
+  state.negaciones.correo = true
+  state.negaciones.barrio = true
+  return state
+}
+
+describe('Lifecycle rediseñado (D-15/D-17/D-18/D-19)', () => {
+  it('D-18: confirmar + datosCriticos + packElegido → confirmar_orden (NO crear_orden)', () => {
+    // D-18: el pedido nace temprano (cascaron). confirmar ya no CREA, solo mueve a CONFIRMADO.
+    const state = buildStateDatosCriticos()
+    state.pack = '2x'
+    const gates = buildGates(state)
+    expect(gates.datosCriticos).toBe(true)
+    expect(gates.packElegido).toBe(true)
+
+    const result = resolveTransition('confirming', 'confirmar', state, gates)
+
+    expect(result).not.toBeNull()
+    expect(result?.action).toBe('confirmar_orden')
+    // confirmar_orden ya NO es crear_orden (cascaron ya existe)
+    expect(result?.action).not.toBe('crear_orden')
+    // timer cancelado al mover a CONFIRMADO
+    expect(result?.output.timerSignal?.type).toBe('cancel')
+  })
+
+  it('D-19: timer L3 (promos_shown + timer_expired:3) → recordar_promo', () => {
+    const state = buildStateDatosCriticos()
+    const gates = buildGates(state)
+
+    const result = resolveTransition('promos_shown', 'timer_expired:3', state, gates)
+
+    expect(result).not.toBeNull()
+    expect(result?.action).toBe('recordar_promo')
+    // D-19: timer solo RECUERDA, no crea. cancel previene doble-recordatorio.
+    expect(result?.output.timerSignal?.type).toBe('cancel')
+  })
+
+  it('D-19: timer L4 (confirming + timer_expired:4) → recordar_confirmacion', () => {
+    const state = buildStateDatosCriticos()
+    state.pack = '1x'
+    const gates = buildGates(state)
+
+    const result = resolveTransition('confirming', 'timer_expired:4', state, gates)
+
+    expect(result).not.toBeNull()
+    expect(result?.action).toBe('recordar_confirmacion')
+    expect(result?.output.timerSignal?.type).toBe('cancel')
+  })
+
+  it('D-17: seleccion_pack + datosCriticos → mostrar_confirmacion (sin cambio; updateOrder vive en el gate)', () => {
+    const state = buildStateDatosCriticos()
+    state.pack = '3x'
+    const gates = buildGates(state)
+
+    const result = resolveTransition('promos_shown', 'seleccion_pack', state, gates)
+
+    expect(result).not.toBeNull()
+    expect(result?.action).toBe('mostrar_confirmacion')
+    expect(result?.output.timerSignal?.level).toBe('L4')
+  })
+
+  it('regresion: confirmar SIN pack → ofrecer_promos (caso existente sigue verde)', () => {
+    const state = buildStateDatosCriticos()
+    // sin pack
+    const gates = buildGates(state)
+    expect(gates.packElegido).toBe(false)
+
+    const result = resolveTransition('promos_shown', 'confirmar', state, gates)
+
+    expect(result).not.toBeNull()
+    expect(result?.action).toBe('ofrecer_promos')
+  })
+})

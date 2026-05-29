@@ -100,6 +100,21 @@ function buildCrmActionsFromAcciones(
     }))
 }
 
+/**
+ * D-17b (Plan 04): deriva el summary liviano (modeTransition/confidence/messagesSent/
+ * intent) que el runner emite a observability desde el MISMO TurnLedger construido en
+ * el turno. El agente es la fuente de verdad — el runner NO recalcula estos campos.
+ * Runtime-only, nunca persistido.
+ */
+function buildLedgerSummary(ledger: TurnLedger): NonNullable<V4AgentOutput['turnLedgerSummary']> {
+  return {
+    intent: ledger.comprehension.intent,
+    confidence: ledger.comprehension.confidence,
+    modeTransition: ledger.modeTransition,
+    messagesSent: ledger.messagesSent,
+  }
+}
+
 // ============================================================================
 // Top-level Dispatch
 // ============================================================================
@@ -336,6 +351,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         packSeleccionado: serialized.packSeleccionado,
         accionesEjecutadas: serialized.accionesEjecutadas,
         turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn
+        turnLedgerSummary: buildLedgerSummary(ledgerR1), // Plan 04 D-17b: emit a observability
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -661,6 +677,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         packSeleccionado: serialized.packSeleccionado,
         accionesEjecutadas: serialized.accionesEjecutadas,
         turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn
+        turnLedgerSummary: buildLedgerSummary(ledgerR2), // Plan 04 D-17b: emit a observability
         intentInfo: {
           intent: analysis.intent.primary,
           confidence: analysis.intent.confidence,
@@ -753,6 +770,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       packSeleccionado: serialized.packSeleccionado,
       accionesEjecutadas: serialized.accionesEjecutadas,
       turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn
+      turnLedgerSummary: buildLedgerSummary(ledgerR3), // Plan 04 D-17b: emit a observability
       intentInfo: {
         intent: analysis.intent.primary,
         confidence: analysis.intent.confidence,
@@ -954,6 +972,7 @@ async function processSystemEvent(
     packSeleccionado: serialized.packSeleccionado,
     accionesEjecutadas: serialized.accionesEjecutadas,
     turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn (origen timer)
+    turnLedgerSummary: buildLedgerSummary(ledgerR10), // Plan 04 D-17b: emit a observability
     totalTokens: 0,
     // D-20: createOrder timer-driven sigue al mismo path que happy (runner valida
     // success antes de enviar template post-success). Plan 08 (agent-timers-v4)
@@ -1107,16 +1126,15 @@ function mapOutcomeToAgentOutput(args: {
         errorMessage: outcome.reason,
       }
     }
+    const ledgerR4 = buildLedgerDims([{ kind: 'handoff', reason: outcome.reason }], 'handoff', 0)
     return {
       ...baseOutput,
       messages: [],
       newMode: 'handoff',
       requiresHuman: true, // D-60: flag explícito
       // somnio-v4-turn-ledger Plan 03 (R4): no_match → handoff. atendido handoff.
-      turnLedgerDims: commitTurn(
-        state,
-        buildLedgerDims([{ kind: 'handoff', reason: outcome.reason }], 'handoff', 0),
-      ).turnLedgerDims,
+      turnLedgerDims: commitTurn(state, ledgerR4).turnLedgerDims,
+      turnLedgerSummary: buildLedgerSummary(ledgerR4), // Plan 04 D-17b
       decisionInfo: {
         action: 'handoff',
         reason: outcome.reason,
@@ -1129,20 +1147,19 @@ function mapOutcomeToAgentOutput(args: {
     // sourceTopic/responseConfidence non-null para status='generated', pero el
     // null-guard mantiene type safety + protección defensiva. Si null (bug) → handoff.
     if (outcome.responseText === null || outcome.sourceTopic === null) {
+      const ledgerGenNull = buildLedgerDims(
+        [{ kind: 'handoff', reason: `generated_null_field: ${outcome.reason}` }],
+        'handoff',
+        0,
+      )
       return {
         ...baseOutput,
         messages: [],
         newMode: 'handoff',
         requiresHuman: true,
         // somnio-v4-turn-ledger Plan 03: generated con campo null (defensivo) → handoff.
-        turnLedgerDims: commitTurn(
-          state,
-          buildLedgerDims(
-            [{ kind: 'handoff', reason: `generated_null_field: ${outcome.reason}` }],
-            'handoff',
-            0,
-          ),
-        ).turnLedgerDims,
+        turnLedgerDims: commitTurn(state, ledgerGenNull).turnLedgerDims,
+        turnLedgerSummary: buildLedgerSummary(ledgerGenNull), // Plan 04 D-17b
         decisionInfo: {
           action: 'handoff',
           reason: `generated_null_field: ${outcome.reason}`,
@@ -1150,6 +1167,19 @@ function mapOutcomeToAgentOutput(args: {
       }
     }
     const generatedMode = computeMode(state)
+    const ledgerR5 = buildLedgerDims(
+      [
+        {
+          kind: 'kb_topic',
+          topic: outcome.sourceTopic,
+          confidence: outcome.responseConfidence ?? 0,
+          texto: outcome.responseText,
+          turno: state.turnCount,
+        },
+      ],
+      generatedMode,
+      1,
+    )
     return {
       ...baseOutput,
       messages: [outcome.responseText],
@@ -1163,22 +1193,8 @@ function mapOutcomeToAgentOutput(args: {
       // invariantCheck del sub-loop (null guard arriba ya cubre el defensivo).
       // texto se trunca a 500 chars dentro de commitTurn (T-ledger-01).
       // ====================================================================
-      turnLedgerDims: commitTurn(
-        state,
-        buildLedgerDims(
-          [
-            {
-              kind: 'kb_topic',
-              topic: outcome.sourceTopic,
-              confidence: outcome.responseConfidence ?? 0,
-              texto: outcome.responseText,
-              turno: state.turnCount,
-            },
-          ],
-          generatedMode,
-          1,
-        ),
-      ).turnLedgerDims,
+      turnLedgerDims: commitTurn(state, ledgerR5).turnLedgerDims,
+      turnLedgerSummary: buildLedgerSummary(ledgerR5), // Plan 04 D-17b
       decisionInfo: {
         action: 'respond',
         reason: outcome.reason,
@@ -1190,20 +1206,19 @@ function mapOutcomeToAgentOutput(args: {
   // template outcome
   // Defensive null check — invariantCheck garantiza non-null aquí.
   if (outcome.responseTemplate === null) {
+    const ledgerTplNull = buildLedgerDims(
+      [{ kind: 'handoff', reason: `template_null_responseTemplate: ${outcome.reason}` }],
+      'handoff',
+      0,
+    )
     return {
       ...baseOutput,
       messages: [],
       newMode: 'handoff',
       requiresHuman: true,
       // somnio-v4-turn-ledger Plan 03: template con responseTemplate null (defensivo) → handoff.
-      turnLedgerDims: commitTurn(
-        state,
-        buildLedgerDims(
-          [{ kind: 'handoff', reason: `template_null_responseTemplate: ${outcome.reason}` }],
-          'handoff',
-          0,
-        ),
-      ).turnLedgerDims,
+      turnLedgerDims: commitTurn(state, ledgerTplNull).turnLedgerDims,
+      turnLedgerSummary: buildLedgerSummary(ledgerTplNull), // Plan 04 D-17b
       decisionInfo: {
         action: 'handoff',
         reason: `template_null_responseTemplate: ${outcome.reason}`,
@@ -1211,25 +1226,24 @@ function mapOutcomeToAgentOutput(args: {
     }
   }
   const templateMode = computeMode(state)
+  const ledgerR6 = buildLedgerDims(
+    [
+      {
+        kind: 'template_intent',
+        intent: analysis.intent.primary,
+        templateIds: [outcome.responseTemplate],
+      },
+    ],
+    templateMode,
+    1,
+  )
   return {
     ...baseOutput,
     messages: [], // engine resolverá template via responseTemplate intent
     newMode: templateMode,
     // somnio-v4-turn-ledger Plan 03 (R6): template outcome → atendido template_intent.
-    turnLedgerDims: commitTurn(
-      state,
-      buildLedgerDims(
-        [
-          {
-            kind: 'template_intent',
-            intent: analysis.intent.primary,
-            templateIds: [outcome.responseTemplate],
-          },
-        ],
-        templateMode,
-        1,
-      ),
-    ).turnLedgerDims,
+    turnLedgerDims: commitTurn(state, ledgerR6).turnLedgerDims,
+    turnLedgerSummary: buildLedgerSummary(ledgerR6), // Plan 04 D-17b
     decisionInfo: {
       action: 'respond',
       reason: outcome.reason,

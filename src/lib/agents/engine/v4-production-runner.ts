@@ -1004,8 +1004,69 @@ export class V4ProductionRunner {
           intents_vistos: output.intentsVistos,
           pack_seleccionado: output.packSeleccionado,
           acciones_ejecutadas: output.accionesEjecutadas,
-          turn_ledger_dims: output.turnLedgerDims,
+          // Default vacío si el output legacy/mock omite las dims (contrato: commitTurn
+          // siempre las produce; el default solo cubre robustez).
+          turn_ledger_dims: output.turnLedgerDims ?? { atendido: [], crmActions: [] },
         })
+
+        // ============================================================
+        // somnio-v4-turn-ledger Plan 04 (Task 3, D-13/D-17b): emitir el ledger
+        // COMPLETO a agent_observability_events. Almacén analítico cross-sesión
+        // SEPARADO del blob per-sesión (turn_ledger_dims). Aquí se CONSUMEN los
+        // campos del TurnLedger que NO se persisten (modeTransition/confidence/
+        // messagesSent) — ninguno queda fantasma. SOLO en PATH B (turno commiteado;
+        // Path A descarta el turno, no emite). Emit en el runner (que tiene el
+        // collector) — commitTurn queda puro sin I/O (state.ts sin side-effects).
+        // ============================================================
+        {
+          const collector = getCollector()
+          // Defensive: turnLedgerDims es requerido por contrato (commitTurn siempre lo
+          // produce), pero un output legacy/mock podría omitirlo → default vacío para
+          // no crashear el turno completo en el emit (Rule 2 robustez).
+          const ledgerDims = output.turnLedgerDims ?? { atendido: [], crmActions: [] }
+          if (collector) {
+            // 1 evento por cada kb_topic atendido (metadata queryable; NO el texto
+            // completo — ya truncado en el blob; aquí solo topic/confidence/turno).
+            for (const a of ledgerDims.atendido) {
+              if (a.kind === 'kb_topic') {
+                collector.recordEvent('pipeline_decision', 'kb_topic_registered', {
+                  agent: this.config.agentModule ?? 'somnio-v4',
+                  sessionId: session.id,
+                  topic: a.topic,
+                  confidence: a.confidence,
+                  turno: a.turno,
+                })
+              }
+            }
+            // 1 evento por cada acción CRM registrada (args redactados — observabilidad
+            // CRM completa diferida al standalone #2, D-08; aquí tool/result/origen/code).
+            for (const ca of ledgerDims.crmActions) {
+              collector.recordEvent('pipeline_decision', 'crm_action_recorded', {
+                agent: this.config.agentModule ?? 'somnio-v4',
+                sessionId: session.id,
+                tool: ca.tool,
+                result: ca.result,
+                origen: ca.origen,
+                ...(ca.code ? { code: ca.code } : {}),
+              })
+            }
+            // 1 evento summary del turno: modeTransition + confidence + messagesSent +
+            // intent (D-17b — los campos del ledger COMPLETO que NO se persisten).
+            // turnLedgerSummary lo expone el AGENTE (fuente de verdad) desde el mismo
+            // TurnLedger — el runner NO recalcula. Undefined en interrupt/error (turno
+            // descartado) → no emite (no llega aquí en PATH B normal de todos modos).
+            if (output.turnLedgerSummary) {
+              collector.recordEvent('pipeline_decision', 'turn_ledger_committed', {
+                agent: this.config.agentModule ?? 'somnio-v4',
+                sessionId: session.id,
+                intent: output.turnLedgerSummary.intent,
+                confidence: output.turnLedgerSummary.confidence,
+                modeTransition: output.turnLedgerSummary.modeTransition ?? null,
+                messagesSent: output.turnLedgerSummary.messagesSent,
+              })
+            }
+          }
+        }
 
         // Save templates_enviados with ONLY actually-sent IDs
         if (actuallySentIds.length > 0) {

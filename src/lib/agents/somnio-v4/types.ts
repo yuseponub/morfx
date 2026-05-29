@@ -232,6 +232,24 @@ export interface V4AgentOutput {
    */
   turnLedgerDims: TurnLedgerDims
 
+  /**
+   * D-17b (standalone somnio-v4-turn-ledger Plan 04): los campos del TurnLedger COMPLETO
+   * que NO se persisten en session_state.turn_ledger_dims (modeTransition/confidence/
+   * messagesSent/intent). El runner los EMITE a agent_observability_events (evento
+   * `turn_ledger_committed`) en PATH B — así ningún campo del ledger queda fantasma.
+   *
+   * Runtime-only — NUNCA persistido (es el espejo del split D-17: persistir subset,
+   * emitir completo). El agente es la fuente de verdad: lo puebla desde el mismo
+   * TurnLedger que construye (NO se recalcula en el runner). Opcional — interrupt/error
+   * paths (R7/R8/R9) descartan el turno y NO lo pueblan.
+   */
+  turnLedgerSummary?: {
+    intent: string
+    confidence: number
+    modeTransition?: { from: string; to: string }
+    messagesSent: number
+  }
+
   intentInfo?: {
     intent: string
     confidence: number

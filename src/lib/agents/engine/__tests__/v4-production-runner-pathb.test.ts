@@ -138,7 +138,11 @@ function agentOut(over: Partial<V4AgentOutput>): V4AgentOutput {
     shouldCreateOrder: false,
     timerSignals: [],
     newMode: 'initial',
-    intentInfo: { intent: 'saludo', confidence: 90, intent_confidence: 0.9 },
+    intentInfo: { intent: 'saludo', confidence: 90, intent_confidence: 0.9, timestamp: new Date().toISOString() },
+    // somnio-v4-turn-ledger Plan 04: turnLedgerDims es requerido por contrato
+    // (commitTurn siempre lo produce). El fixture lo incluye con default vacío para
+    // reflejar el contrato real (el runner ahora lo persiste + emite en PATH B).
+    turnLedgerDims: { atendido: [], crmActions: [] },
     ...over,
   } as V4AgentOutput
 }
@@ -210,12 +214,12 @@ describe('V4ProductionRunner — Path B clean reprocess (bug 2026-05-28)', { tim
       .mockResolvedValueOnce(agentOut({
         templates: [tmpl('t-saludo', 'Hola!'), tmpl('t-promo', 'Promo!')],
         intentsVistos: ['saludo'],
-        intentInfo: { intent: 'saludo', confidence: 90, intent_confidence: 0.9 },
+        intentInfo: { intent: 'saludo', confidence: 90, intent_confidence: 0.9, timestamp: new Date().toISOString() },
       }))
       .mockResolvedValueOnce(agentOut({
         templates: [tmpl('t-precio', '$89.000')],
         intentsVistos: ['saludo', 'precio'],
-        intentInfo: { intent: 'precio', confidence: 90, intent_confidence: 0.9 },
+        intentInfo: { intent: 'precio', confidence: 90, intent_confidence: 0.9, timestamp: new Date().toISOString() },
       }))
 
     const mockSend = vi.fn()

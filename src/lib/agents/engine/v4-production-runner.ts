@@ -48,7 +48,7 @@ import type {
   EngineConfig,
   EngineAdapters,
 } from './types'
-import type { V4AgentInput, V4AgentOutput, ProcessedMessage } from '../somnio-v4/types'
+import type { V4AgentInput, V4AgentOutput, ProcessedMessage, TurnLedgerDims } from '../somnio-v4/types'
 
 // Standalone: debounce-interruption-system-v2 (Plan 04 Task 4.3) —
 // REVISION W3: channel/identifier come from input.lockChannel + input.lockIdentifier
@@ -165,6 +165,10 @@ export class V4ProductionRunner {
       packSeleccionado: string | null
       accionesEjecutadas: unknown[]
       currentMode: string
+      // somnio-v4-turn-ledger Plan 04 (Task 1, P3): el reprocess Path B hereda las
+      // dims del output de la iteración previa → no re-registra ni pierde efectos.
+      // turnCount NO vive aquí (vive en mergeAnalysis) → cero double-increment.
+      turnLedgerDims: TurnLedgerDims
     } | null = null
     const accumulatedSentContents: string[] = []
 
@@ -309,6 +313,13 @@ export class V4ProductionRunner {
           } catch { return [] }
         })()
 
+      // somnio-v4-turn-ledger Plan 04 (Task 1): restaurar dims persistidas del turno
+      // previo desde la columna `turn_ledger_dims` (Plan 02). Default graceful para
+      // sesiones legacy sin la columna o con `{}` (D-16). El carryState de un reprocess
+      // Path B lo override más abajo (P3).
+      const sessionTurnLedgerDims: TurnLedgerDims =
+        (rawState.turn_ledger_dims as TurnLedgerDims | undefined) ?? { atendido: [], crmActions: [] }
+
       // V4 expects intentsVistos as string[], production stores IntentRecord[]
       // Extract just the intent names
       const sessionIntentsVistos: string[] = inputIntentsVistos.map(
@@ -326,6 +337,10 @@ export class V4ProductionRunner {
         packSeleccionado: string | null
         accionesEjecutadas: unknown[]
         currentMode: string
+        // somnio-v4-turn-ledger Plan 04 (Task 1): dims del turno previo (P3 — el
+        // reprocess Path B hereda del output previo vía carryState; aquí default
+        // desde la sesión).
+        turnLedgerDims: TurnLedgerDims
       } = carryState ?? {
         intentsVistos: sessionIntentsVistos,
         templatesEnviados: session.state.templates_enviados ?? [],
@@ -333,6 +348,7 @@ export class V4ProductionRunner {
         packSeleccionado: session.state.pack_seleccionado as string | null,
         accionesEjecutadas: sessionAccionesEjecutadas,
         currentMode: session.current_mode,
+        turnLedgerDims: sessionTurnLedgerDims,
       }
       // Used by the no-repetition filter + final state-save union. Points at the
       // seed so a Path B reprocess carries iter-1's already-sent IDs forward
@@ -347,7 +363,14 @@ export class V4ProductionRunner {
         templatesEnviados: seed.templatesEnviados,
         datosCapturados: seed.datosCapturados,
         packSeleccionado: seed.packSeleccionado,
-        accionesEjecutadas: seed.accionesEjecutadas,
+        // seed.accionesEjecutadas es unknown[] (carryState lo arrastra así para evitar
+        // import cross-módulo); en runtime es AccionRegistrada[]. Cast explícito —
+        // error pre-existente al Plan 04 (línea ~350 en HEAD), formalizado aquí al
+        // threadear dims sin introducir nuevos errores de tipo.
+        accionesEjecutadas: seed.accionesEjecutadas as V4AgentInput['accionesEjecutadas'],
+        // somnio-v4-turn-ledger Plan 04 (Task 1): dims restauradas → el agente las
+        // recibe para coherencia del turno (passthrough en interrupt/error, D-07).
+        turnLedgerDims: seed.turnLedgerDims,
         turnNumber,
         workspaceId: this.config.workspaceId,
         sessionId: session.id,
@@ -699,6 +722,10 @@ export class V4ProductionRunner {
               packSeleccionado: seed.packSeleccionado,
               accionesEjecutadas: seed.accionesEjecutadas,
               currentMode: seed.currentMode,
+              // somnio-v4-turn-ledger Plan 04 (P3): msg1's output NO se envió (solo
+              // los templates pendientes del turno previo) → arrastrar las dims de la
+              // SESIÓN (seed), no las del output de msg1.
+              turnLedgerDims: seed.turnLedgerDims,
             }
             effectiveMessage = pendingB.map((p) => p.content).join('\n')
             shouldRestart = true
@@ -863,6 +890,10 @@ export class V4ProductionRunner {
                   packSeleccionado: output.packSeleccionado as string | null,
                   accionesEjecutadas: output.accionesEjecutadas,
                   currentMode: output.newMode ?? seed.currentMode,
+                  // somnio-v4-turn-ledger Plan 04 (P3): msg1's output SÍ se envió (≥1
+                  // template) → heredar las dims del output de msg1 para que el
+                  // reprocess no re-registre los efectos de atendido/crmActions.
+                  turnLedgerDims: output.turnLedgerDims,
                 }
                 effectiveMessage = newMsgs.map(p => p.content).join('\n')
               }
@@ -964,11 +995,16 @@ export class V4ProductionRunner {
         // PATH B / Normal: Save full state + turns
 
         // Save state (excluding templates_enviados, handled below)
+        // somnio-v4-turn-ledger Plan 04 (Task 1): persistir el subset del ledger del
+        // turno en la columna `turn_ledger_dims` (Plan 02). SOLO en PATH B (turno
+        // commiteado). En PATH A (wasInterruptedWithZeroSends) NO se persisten las
+        // dims — el turno se descarta (P6).
         await this.adapters.storage.saveState(session.id, {
           datos_capturados: output.datosCapturados,
           intents_vistos: output.intentsVistos,
           pack_seleccionado: output.packSeleccionado,
           acciones_ejecutadas: output.accionesEjecutadas,
+          turn_ledger_dims: output.turnLedgerDims,
         })
 
         // Save templates_enviados with ONLY actually-sent IDs

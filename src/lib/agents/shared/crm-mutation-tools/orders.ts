@@ -5,8 +5,8 @@
  *
  * BLOCKER invariants (verified via grep gates in Plan 03 acceptance criteria):
  *   - NO workspaceId in inputSchema (Pitfall 2 / D-pre-03 — workspace from ctx).
- *   - NO products field in updateOrder.inputSchema (V1.1 deferred — CONTEXT § Fuera de scope).
- *     If the cliente needs item edits, the agent must escalate to handoff humano.
+ *   - items[] field in updateOrder.inputSchema SUPPORTED (standalone somnio-v4-crm-subloop D-25 — V1.1 unblocked).
+ *     Maps to domain.updateOrder.products (replace-all). Optional: omitir items NO toca productos.
  *   - NO retry on stage_changed_concurrently (Pitfall 1 — agent loop decides re-propose).
  *     The tool propagates verbatim with actualStageId from domain.data.currentStageId.
  *   - NO hard-delete imports (Pitfall 4 / D-pre-04 — soft-delete only).
@@ -216,15 +216,21 @@ export function makeOrderMutationTools(ctx: CrmMutationToolsContext) {
 
     // ========================================================================
     // updateOrder (MUT-OR-02)
-    // V1: NO `products` field in inputSchema (deferred to V1.1 — CONTEXT § Fuera de scope).
+    // items[] SUPPORTED (D-25 — standalone somnio-v4-crm-subloop, V1.1 unblocked).
+    //   Aditivo/opcional (Regla-6-safe): items es .optional(); cuando se omite,
+    //   products queda undefined y el domain NO toca los productos del pedido
+    //   (comportamiento idéntico al previo). Cuando se provee, mapea a
+    //   domain.updateOrder.products (replace-all: domain borra + reinserta y
+    //   recalcula total_value). items:[] vacía el cascarón (0 productos).
     // Pre-check via getOrderById → resource_not_found short-circuit.
     // ========================================================================
     updateOrder: tool({
       description:
-        'Actualiza campos de un pedido existente. NO incluye items (V1.1 ' +
-        'deferred — para cambiar productos del pedido el agente escala a ' +
-        'handoff humano). Pre-check de existencia: si el pedido no existe en ' +
-        'el workspace retorna resource_not_found sin mutar.',
+        'Actualiza campos de un pedido existente. items[] OPCIONAL: si se ' +
+        'provee, reemplaza TODOS los productos del pedido (replace-all) y ' +
+        'recalcula el total; si se omite, los productos NO se tocan. ' +
+        'Pre-check de existencia: si el pedido no existe en el workspace ' +
+        'retorna resource_not_found sin mutar.',
       inputSchema: z.object({
         orderId: z.string().uuid(),
         contactId: z.string().uuid().nullable().optional(),
@@ -234,6 +240,18 @@ export function makeOrderMutationTools(ctx: CrmMutationToolsContext) {
         shippingAddress: z.string().nullable().optional(),
         shippingCity: z.string().nullable().optional(),
         shippingDepartment: z.string().nullable().optional(),
+        // D-25: items[] opcional — misma forma exacta que createOrder.
+        items: z
+          .array(
+            z.object({
+              productId: z.string().uuid().optional(),
+              sku: z.string().min(1),
+              title: z.string().min(1),
+              unitPrice: z.number().nonnegative(),
+              quantity: z.number().int().positive(),
+            }),
+          )
+          .optional(),
       }),
       execute: async (input): Promise<MutationResult<OrderDetail>> => {
         const startedAt = Date.now()
@@ -263,6 +281,19 @@ export function makeOrderMutationTools(ctx: CrmMutationToolsContext) {
         }
 
         try {
+          // D-25: mapear items->products SOLO si items está presente. Cuando
+          // input.items es undefined, products queda undefined (NO []) para
+          // preservar el comportamiento previo (domain solo reemplaza productos
+          // cuando products !== undefined). items:[] sí llega como [] (vacía).
+          const products = input.items
+            ? input.items.map((it) => ({
+                productId: it.productId,
+                sku: it.sku,
+                title: it.title,
+                unitPrice: it.unitPrice,
+                quantity: it.quantity,
+              }))
+            : undefined
           const updated = await domainUpdateOrder(domainCtx, {
             orderId: input.orderId,
             contactId: input.contactId,
@@ -272,6 +303,7 @@ export function makeOrderMutationTools(ctx: CrmMutationToolsContext) {
             shippingAddress: input.shippingAddress,
             shippingCity: input.shippingCity,
             shippingDepartment: input.shippingDepartment,
+            products,
           })
           if (!updated.success) {
             const message = updated.error ?? ''

@@ -287,7 +287,9 @@ async function resolveSalesActionTemplates(
       }
     }
 
-    case 'crear_orden': {
+    // D-18/SUP-6: confirmar_orden re-apunta al mismo template confirmacion_orden_* (antes ligado a crear_orden).
+    // La conversacion de cara al cliente NO cambia: resumen -> (confirma) -> confirmacion_orden.
+    case 'confirmar_orden': {
       const ciudad = state.datos.ciudad
       if (ciudad) {
         const zoneResult = await lookupDeliveryZone(ciudad)
@@ -303,7 +305,7 @@ async function resolveSalesActionTemplates(
           },
         }
       }
-      // Fallback if no city (shouldn't happen for crear_orden, but defensive)
+      // Fallback if no city (shouldn't happen for confirmar_orden, but defensive)
       return {
         intents: ['confirmacion_orden_transportadora'],
         extraContext: {
@@ -313,13 +315,14 @@ async function resolveSalesActionTemplates(
       }
     }
 
-    case 'crear_orden_sin_promo': {
+    // D-19: recordar_* re-apuntan a los mismos templates recordatorio (antes ligados a crear_orden_sin_*).
+    case 'recordar_promo': {
       return {
         intents: ['pendiente_promo'],
       }
     }
 
-    case 'crear_orden_sin_confirmar': {
+    case 'recordar_confirmacion': {
       return {
         intents: ['pendiente_confirmacion'],
       }

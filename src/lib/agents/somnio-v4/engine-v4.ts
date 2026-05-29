@@ -462,7 +462,11 @@ export class SomnioV4Engine {
                   templatesEnviados: output.templatesEnviados,
                   datosCapturados: output.datosCapturados,
                   packSeleccionado: output.packSeleccionado as PackSelection | null,
-                  accionesEjecutadas: output.accionesEjecutadas,
+                  // somnio-v4-crm-subloop D-18/D-19: el union v4 TipoAccion agrego 3 miembros
+                  // (recordar_*/confirmar_orden) que el SandboxState (tipado contra somnio-v3)
+                  // aun no conoce. Shape identico ({tipo,turno,origen,crmAction}); cast de frontera
+                  // (mismo patron que packSeleccionado as PackSelection). v3 NO se toca (Regla 6).
+                  accionesEjecutadas: output.accionesEjecutadas as SandboxState['accionesEjecutadas'],
                   // somnio-v4-turn-ledger Plan 04 (Task 2, P3): hereda las dims del
                   // output de msg1 (≥1 template enviado) → el reprocess no re-registra.
                   turnLedgerDims: output.turnLedgerDims,
@@ -503,7 +507,9 @@ export class SomnioV4Engine {
           templatesEnviados: output.templatesEnviados,
           datosCapturados: output.datosCapturados,
           packSeleccionado: output.packSeleccionado as PackSelection | null,
-          accionesEjecutadas: output.accionesEjecutadas,
+          // somnio-v4-crm-subloop D-18/D-19: cast de frontera v4->SandboxState (tipado contra v3)
+          // por los 3 nuevos TipoAccion. Shape identico; v3 NO se toca (Regla 6).
+          accionesEjecutadas: output.accionesEjecutadas as SandboxState['accionesEjecutadas'],
           // somnio-v4-turn-ledger Plan 04 (Task 2, paridad runner): el subset del
           // ledger del turno fluye a SandboxState → llega a DebugTurn vía
           // `stateAfter: newState` para que el Plan 05 (debug panel) lo renderice.

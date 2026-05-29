@@ -30,7 +30,10 @@ export function derivePhase(acciones: (string | AccionRegistrada)[]): Phase {
       case 'crear_orden':
       case 'crear_orden_sin_promo':
       case 'crear_orden_sin_confirmar':
+      // D-18: la confirmacion lleva el pedido a estado creado/confirmado a nivel de fase.
+      case 'confirmar_orden':
                                    return 'order_created'
+      // D-19: recordar_* NO derivan fase (no estan en SIGNIFICANT_ACTIONS); el timer solo recuerda.
       case 'handoff':
       case 'rechazar':
       case 'no_interesa':          return 'closed'

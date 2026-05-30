@@ -73,6 +73,7 @@ import type {
   AccionRegistrada,
   Atendido,
   CrmActionRegistrada,
+  ProcessedMessage,
   TurnLedger,
 } from './types'
 
@@ -485,8 +486,175 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       }
     }
 
-    // 14. Natural silence
-    if (responseResult.messages.length === 0) {
+    // ========================================================================
+    // 13.5 [v4-hybrid Plan 03 — THE CORE] SLOT RESOLVER + COMBINER.
+    //
+    // T-1=(b): runs at the END (post-sales-track, post-gate-CRM, post-response-
+    // track). The deterministic track already resolved COVERED intents' templates
+    // (responseResult.messages); here we INJECT RAG text for the LOW slot(s) and
+    // combine them in intent order (D-11).
+    //
+    // Sequential per T-4 (no parallel fan-out): primary first, then secondary (D-11 order).
+    // Each low slot runs ONE runSubLoop invocation (D-08). The 2 invocations reuse
+    // the existing CKPT-3/4/5 inside runRagSubLoop (R6-B — NO new CheckpointId;
+    // duplicate events acceptable).
+    //
+    // R1-A: a resolved slot's messages MUST survive even when the OTHER slot
+    //       escalates to human (partial handoff — never set messages:[]).
+    // R1-B/R6-A: an interrupt inside a RAG slot propagates errorMessage (Path A
+    //       restart), NOT handoff. Safe because send is POST-return.
+    // ========================================================================
+    const ragMessages: ProcessedMessage[] = [] // synthetic RAG messages, in slot order
+    const ragAtendido: Atendido[] = []
+    const handoffSlots: { intent: string; reason: string }[] = []
+    let interruptErrorMessage: string | null = null
+
+    const resolveLowSlot = async (
+      slot: SlotDecision,
+      slotReason: 'low_confidence' | 'razonamiento_libre',
+    ): Promise<void> => {
+      // Short-circuit: a prior slot already interrupted — discard the whole turn.
+      if (interruptErrorMessage) return
+
+      getCollector()?.recordEvent('pipeline_decision', 'subloop_low_confidence_invoked', {
+        agent: SOMNIO_V4_AGENT_ID,
+        sessionId: input.sessionId ?? null,
+        reason: slotReason,
+        confidence:
+          slot.intent === analysis.intent.primary
+            ? analysis.intent.intent_confidence
+            : (analysis.intent.secondary_confidence ?? 0),
+        threshold,
+        intent: slot.intent,
+      })
+
+      const outcome = await runSubLoop({
+        reason: slotReason,
+        ctx: {
+          workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
+          conversationId: input.sessionId ?? '',
+          sessionId: input.sessionId ?? '',
+          // T-2: raw message for low primary; secondary_query for low secondary
+          // (computeSlots already selected the correct ragQuery per slot).
+          userMessage: slot.ragQuery ?? input.message,
+          recentMessages: input.history
+            .slice(-4)
+            .map((m) => ({ role: m.role, content: m.content })),
+          lockHandle: input.lockHandle ?? null,
+          lockChannel: input.lockChannel ?? null,
+          lockIdentifier: input.lockIdentifier ?? null,
+        },
+        onDebug: (p) => {
+          // T-6: keep the LAST onDebug payload (array support deferred).
+          capturedSubLoopDebug = p
+        },
+      })
+
+      // R1-B / R6-A: interrupt → errorMessage (Path A restart), NOT handoff.
+      if (
+        outcome.status === 'no_match' &&
+        typeof outcome.reason === 'string' &&
+        outcome.reason.startsWith('interrupted_at_ckpt_')
+      ) {
+        interruptErrorMessage = outcome.reason
+        return
+      }
+
+      // generated → inject synthetic RAG ProcessedMessage (R4 + D-05 CORE).
+      if (outcome.status === 'generated' && outcome.responseText && outcome.sourceTopic) {
+        ragMessages.push({
+          templateId: `rag:${outcome.sourceTopic}`,
+          content: outcome.responseText,
+          contentType: 'texto',
+          delayMs: 0,
+          priority: 'CORE',
+        })
+        ragAtendido.push({
+          kind: 'kb_topic',
+          topic: outcome.sourceTopic,
+          confidence: outcome.responseConfidence ?? 0,
+          texto: outcome.responseText,
+          turno: mergedState.turnCount,
+        })
+        return
+      }
+
+      // no_match (real handoff) OR generated-with-null (defensive) → partial
+      // handoff for THIS slot. Preserve the early-return's side-effects per slot:
+      // captureUnknownCase (fire-and-forget) + handoff_low_confidence_fallback event.
+      const knowledgeQueried =
+        (outcome.status === 'no_match' ? outcome.knowledgeQueried : null) ?? []
+      void captureUnknownCase({
+        workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
+        conversationId: input.sessionId ?? '',
+        message: slot.ragQuery ?? input.message,
+        intent: slot.intent,
+        intentConfidence:
+          slot.intent === analysis.intent.primary
+            ? analysis.intent.intent_confidence
+            : (analysis.intent.secondary_confidence ?? 0),
+        knowledgeQueried,
+        reason: outcome.reason,
+      })
+      getCollector()?.recordEvent('pipeline_decision', 'handoff_low_confidence_fallback', {
+        agent: SOMNIO_V4_AGENT_ID,
+        sessionId: input.sessionId ?? null,
+        conversationId: input.sessionId ?? '',
+        knowledgeQueried,
+        reason: outcome.reason,
+        intent: slot.intent,
+      })
+      handoffSlots.push({
+        intent: slot.intent,
+        reason: outcome.reason ?? 'low_confidence_no_match',
+      })
+    }
+
+    // Sequential resolution — primary first, then secondary (D-11 order).
+    const primaryLow = slotPlan.primary.coverage === 'low'
+    if (primaryLow && slotPlan.primary.reason) {
+      await resolveLowSlot(slotPlan.primary, slotPlan.primary.reason)
+    }
+    if (slotPlan.secondary && slotPlan.secondary.coverage === 'low' && slotPlan.secondary.reason) {
+      await resolveLowSlot(slotPlan.secondary, slotPlan.secondary.reason)
+    }
+
+    // R1-B / R6-A: interrupt short-circuit — return the interrupt-discriminator
+    // output (same shape as CKPT-1/CKPT-2 returns) so the runner triggers Path A
+    // restart. NO sends have happened yet (send is post-return), so the resolved
+    // slot's text in ragMessages is discarded cleanly.
+    if (interruptErrorMessage) {
+      return {
+        success: false,
+        messages: [],
+        errorMessage: interruptErrorMessage,
+        intentsVistos: input.intentsVistos,
+        templatesEnviados: input.templatesEnviados,
+        datosCapturados: input.datosCapturados,
+        packSeleccionado: input.packSeleccionado,
+        accionesEjecutadas: input.accionesEjecutadas ?? [],
+        turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
+        totalTokens: tokensUsed,
+        shouldCreateOrder: false,
+        timerSignals: [],
+        subLoopDebug: capturedSubLoopDebug,
+      }
+    }
+
+    // Combine deterministic templates + synthetic RAG messages in intent order
+    // (D-11). ragMessages was pushed in [primary, secondary] order. When the
+    // primary is low, its RAG comes first; otherwise the covered primary template
+    // leads and RAG follows (both-low → responseResult is empty, ragMessages
+    // already ordered). Documented V1 ordering choice (plan Task 2 (C)).
+    const combinedMessages: ProcessedMessage[] = primaryLow
+      ? [...ragMessages, ...responseResult.messages]
+      : [...responseResult.messages, ...ragMessages]
+
+    const partialHandoff = handoffSlots.length > 0
+
+    // 14. Natural silence — only when there is genuinely NOTHING to say:
+    // no deterministic template, no RAG message, AND no handoff.
+    if (combinedMessages.length === 0 && !partialHandoff) {
       getCollector()?.recordEvent('pipeline_decision', 'natural_silence', {
         agent: SOMNIO_V4_AGENT_ID,
         intent: analysis.intent.primary,
@@ -564,13 +732,16 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       }
     }
 
-    // 15. Build output (has messages)
+    // 15. Build COMBINED output (deterministic templates + injected RAG).
     // somnio-v4-turn-ledger Plan 03 (R3): happy path con mensajes. Ledger COMPLETO
-    // (D-17). atendido se arma desde lo que el turno HIZO: sales_action (si hubo
-    // accion de venta no-silence) + template_intent (si hubo intent informacional).
-    // crmActions desde las acciones crmAction:true registradas este turno (origen
-    // determinista). messagesSent = nº de templates enviados.
-    const newModeR3 = computeMode(mergedState)
+    // (D-17). v4-hybrid Plan 03: atendido[] combina las entradas deterministas
+    // (sales_action / template_intent) + las RAG (kb_topic por slot generated) +
+    // las handoff (un entry por slot escalado a humano). Single commitTurn.
+    //
+    // R1-A: cuando combinedMessages.length > 0 NUNCA emitimos messages:[] aunque
+    // partialHandoff sea true — el slot resuelto DEBE enviarse (el runner manda
+    // output.templates en 5h ANTES de storage.handoff).
+    const newModeR3 = partialHandoff ? 'handoff' : computeMode(mergedState)
     const atendidoR3: Atendido[] = []
     if (salesResult.accion && salesResult.accion !== 'silence') {
       atendidoR3.push({
@@ -586,6 +757,10 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         templateIds: responseResult.infoTemplateIntents,
       })
     }
+    // RAG slots (generated) → kb_topic; escalated slots → handoff. Combined per D-11.
+    for (const a of ragAtendido) atendidoR3.push(a)
+    for (const h of handoffSlots) atendidoR3.push({ kind: 'handoff', reason: h.reason })
+
     const ledgerR3: TurnLedger = {
       comprehension: {
         intent: analysis.intent.primary,
@@ -598,15 +773,17 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       // (origen:'rag', ground-truth del sub-loop) en vez de buildCrmActionsFromAcciones.
       crmActions: crmGateOut.crmActions,
       modeTransition: { from: prevMode, to: newModeR3 },
-      messagesSent: responseResult.templateIdsSent.length,
+      messagesSent: combinedMessages.length,
     }
     const serialized = commitTurn(mergedState, ledgerR3)
 
     return {
       success: true,
-      messages: responseResult.messages.map((m) => m.content),
-      templates: responseResult.messages,
+      messages: combinedMessages.map((m) => m.content),
+      templates: combinedMessages,
       newMode: newModeR3,
+      // R1-A / D-07: partial handoff sends the resolved slot AND flags handoff.
+      requiresHuman: partialHandoff ? true : undefined,
       intentsVistos: serialized.intentsVistos,
       templatesEnviados: serialized.templatesEnviados,
       datosCapturados: serialized.datosCapturados,
@@ -623,7 +800,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         reasoning: analysis.intent.reasoning,
         timestamp: new Date().toISOString(),
       },
-      subLoopReason: null,
+      subLoopReason: anyLowSlot ? (slotPlan.primary.reason ?? slotPlan.secondary?.reason ?? null) : null,
       threshold,
       subLoopDebug: capturedSubLoopDebug,
       totalTokens: tokensUsed,
@@ -634,8 +811,9 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       crmResult: crmGateOut.crmResult,
       timerSignals,
       decisionInfo: {
-        action:
-          responseResult.messages.length === 0
+        action: partialHandoff
+          ? 'handoff'
+          : combinedMessages.length === 0
             ? 'silence'
             : crmGateOut.crmResult?.success
               ? 'create_order'
@@ -644,6 +822,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         templateIntents: [
           ...responseResult.salesTemplateIntents,
           ...responseResult.infoTemplateIntents,
+          ...ragMessages.map((m) => m.templateId),
         ],
         gates,
       },
@@ -655,7 +834,7 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       responseTrackInfo: {
         salesTemplateIntents: responseResult.salesTemplateIntents,
         infoTemplateIntents: responseResult.infoTemplateIntents,
-        totalMessages: responseResult.messages.length,
+        totalMessages: combinedMessages.length,
       },
       classificationInfo: {
         category: analysis.classification.category,

@@ -790,7 +790,10 @@ export class V4ProductionRunner {
             )
 
             const survivingIds = new Set(filterResult.surviving.map(s => s.templateId))
-            templatesToSend = templatesToSend.filter(t => survivingIds.has(t.templateId))
+            // R4-B: rag:* messages are unique generative content; never filter them out.
+            // The no-rep filter cannot meaningfully deduplicate generative text (it has no prior
+            // templateId to compare against), so rag:* always passes through order-preservingly.
+            templatesToSend = templatesToSend.filter(t => t.templateId.startsWith('rag:') || survivingIds.has(t.templateId))
 
             if (filterResult.filtered.length > 0) {
               console.log(
@@ -829,7 +832,11 @@ export class V4ProductionRunner {
           const sentIds = templatesToSend
             .slice(0, sendResult.messagesSent)
             .map(t => t.templateId)
-            .filter((id): id is string => id != null && id.length > 0)
+            // T-7: rag:* pseudo-ids must never enter templates_enviados. The canonical RAG record
+            // is the turn ledger (atendido[{kind:'kb_topic'}]), not the template-dedup store.
+            // Filtering here covers all three persist sites (724, 892, 1076) since they all
+            // consume actuallySentIds — single-point fix.
+            .filter((id): id is string => id != null && id.length > 0 && !id.startsWith('rag:'))
           actuallySentIds.push(...sentIds)
 
           // Interruption handling (bug 2026-05-28 — clean in-lambda reprocess).

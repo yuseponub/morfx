@@ -96,12 +96,22 @@ The real measurement requires a live workspace with `conversational_agent_id='so
 
 | Risk | Test | Status |
 |------|------|--------|
-| D-01 schema fragility (AI_NoOutputGeneratedError) | real comprehend call with covered+low anchor | SKIPPED (no key in CI) |
-| R3 confidence swap detection | primary_confidence > secondary_confidence assertion | SKIPPED (no key in CI) |
+| D-01 schema fragility (AI_NoOutputGeneratedError) | real comprehend call with covered+low anchor | ✅ **VALIDATED 2026-05-30 (live Gemini 2.5 Flash)** |
+| R3 confidence swap detection | primary_confidence > secondary_confidence assertion | ✅ **VALIDATED 2026-05-30 (live Gemini 2.5 Flash)** |
 
-To run: `SMOKE_HYBRID_REAL=1 npx vitest run src/lib/agents/somnio-v4/__tests__/smoke-hybrid.test.ts`
+> **NOTE (honesty):** the env-gated block in `smoke-hybrid.test.ts` (lines 513-555) is a **STUB** — it asserts the env var and logs "deferred", it does NOT call the real model (the `comprehend` call is commented out, because file-level `vi.mock` mocks comprehension for the whole file). A reproducible real test would need a separate non-mocked file (`smoke-hybrid-real.test.ts`). **Tracked as debt below.**
 
-Full D-01/R3 validation requires a live Somnio workspace. **Deferred to v4-activation-time** (see next section).
+### Live Gemini validation run 2026-05-30 (orchestrator, post-ship)
+
+Ran the REAL `comprehend(...)` against Gemini 2.5 Flash with `GOOGLE_GENERATIVE_AI_API_KEY` (throwaway script, since removed). 3 inputs, **0 `AI_NoOutputGeneratedError`**, valid structured output every call:
+
+| Input | primary / conf | secondary / conf | secondary_query | Verdict |
+|-------|----------------|------------------|-----------------|---------|
+| "cuanto vale y lo puedo tomar si tengo apnea del sueño" | precio / **0.92** | contraindicaciones / **0.25** | "puedo tomar el producto si tengo apnea del sueno?" | **D-01 ✓ (no throw), R3 ✓ (0.92>0.25, no swap), D-04 ✓ (clean partition)** → covered+low cell |
+| "hola buenas" | saludo / 0.95 | ninguno | null | null-when-ninguno ✓ (secondary_confidence=null, secondary_query=null) |
+| "me sirve para la apnea y para el bruxismo?" | contraindicaciones / 0.30 | ninguno | null | low+none → RAG(raw); model grouped both medical conditions into one intent (reasonable) |
+
+**Conclusion:** D-01 (schema not fragile) and R3 (no confidence swap on the canonical case) are **VALIDATED with the live model**, not just guarded. Remaining deferred items (tone, handoff UX, real latency) genuinely need WhatsApp + a human — see next section.
 
 ---
 
@@ -197,4 +207,4 @@ src/lib/domain/__tests__/conversations.test.ts: error TS7022/7024 (pre-existing 
 | Tone coherence | manual | DEFERRED to v4-activation-time | DEFERRED |
 | Handoff-message UX | manual | DEFERRED to v4-activation-time | DEFERRED |
 | Real-LLM latency | manual | DEFERRED to v4-activation-time | DEFERRED |
-| D-01/R3 with live Gemini | env-gated | DEFERRED (run SMOKE_HYBRID_REAL=1) | DEFERRED |
+| D-01/R3 with live Gemini | env-gated | ✅ VALIDATED 2026-05-30 (live run, 0 throws, no swap) | VALIDATED |

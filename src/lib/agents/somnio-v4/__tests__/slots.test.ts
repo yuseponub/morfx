@@ -19,8 +19,8 @@
  *   - low PRIMARY  → ragQuery = rawMessage (mensaje crudo)
  *   - low SECONDARY → ragQuery = secondary_query (cuando disponible), fallback rawMessage
  */
-import { describe, it, expect } from 'vitest'
-import { computeSlots, type SlotPlan, type SlotDecision } from '../slots'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { computeSlots, type SlotPlan } from '../slots'
 
 const RAW_MESSAGE = 'cuanto vale y lo puedo tomar si tengo apnea?'
 const THRESHOLD = 0.7

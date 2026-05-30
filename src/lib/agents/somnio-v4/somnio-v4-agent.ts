@@ -43,6 +43,7 @@ import { checkGuards } from './guards'
 import { derivePhase } from './phase'
 import { CRM_ACTIONS, CREATE_ORDER_ACTIONS } from './constants'
 import { decideSubLoopReason } from './escalation'
+import { computeSlots, type SlotPlan, type SlotDecision } from './slots'
 import { getLowConfidenceThreshold } from './threshold'
 import { runSubLoop } from './sub-loop'
 import type { SubLoopDebugPayload } from './sub-loop/debug-payload'
@@ -218,7 +219,27 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // 5. Threshold lookup (platform_config — D-11)
     const threshold = await getLowConfidenceThreshold()
 
-    // 6. Escalation check #1 — pre-transition (low_confidence / razonamiento_libre)
+    // ========================================================================
+    // 6. [v4-hybrid Plan 03 — T-1] Compute the per-intent SLOT PLAN.
+    // Replaces the binary early-return (escalate EVERYTHING based on primary
+    // alone). The slot plan is computed HERE but RESOLVED at the END of the
+    // pipeline (post-sales-track, post-gate-CRM, post-response-track) so the
+    // deterministic track can resolve COVERED intents' templates and the slot
+    // resolver only INJECTS RAG text for the LOW intent(s). computeSlots
+    // (Plan 02) reuses decideSubLoopReason per-intent (covered|low + ragQuery).
+    // ========================================================================
+    const slotPlan: SlotPlan = computeSlots({
+      primaryIntent: analysis.intent.primary,
+      primaryConfidence: analysis.intent.intent_confidence,
+      secondaryIntent: analysis.intent.secondary,
+      secondaryConfidence: analysis.intent.secondary_confidence ?? null,
+      secondaryQuery: analysis.intent.secondary_query ?? null,
+      rawMessage: input.message,
+      threshold,
+    })
+
+    // `earlyReason` retained for the comprehension_completed_v4 event only
+    // (it reflects the PRIMARY's escalation reason). It NO LONGER early-returns.
     const earlyReason = decideSubLoopReason({
       confidence: analysis.intent.intent_confidence,
       threshold,
@@ -226,6 +247,11 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       isCrmMutation: false,
       casReject: false,
     })
+
+    // T-1: scaledToSubLoop reflects ANY low slot (primary OR secondary), not
+    // just the primary — the slot resolver may escalate either intent to RAG.
+    const anyLowSlot =
+      slotPlan.primary.coverage === 'low' || slotPlan.secondary?.coverage === 'low'
 
     // D-68: enriched comprehension_completed event (threshold + scaledToSubLoop)
     getCollector()?.recordEvent('pipeline_decision', 'comprehension_completed_v4', {
@@ -235,83 +261,17 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       intent_confidence: analysis.intent.intent_confidence,
       intent_confidence_reasoning: analysis.intent.intent_confidence_reasoning ?? null,
       threshold,
-      scaledToSubLoop: earlyReason !== null,
+      scaledToSubLoop: anyLowSlot,
       earlyReason: earlyReason ?? null,
       tokensUsed,
     })
 
-    if (earlyReason === 'low_confidence' || earlyReason === 'razonamiento_libre') {
-      getCollector()?.recordEvent('pipeline_decision', 'subloop_low_confidence_invoked', {
-        agent: SOMNIO_V4_AGENT_ID,
-        sessionId: input.sessionId ?? null,
-        reason: earlyReason,
-        confidence: analysis.intent.intent_confidence,
-        threshold,
-        intent: analysis.intent.primary,
-      })
-      const outcome = await runSubLoop({
-        reason: earlyReason,
-        ctx: {
-          workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
-          conversationId: input.sessionId ?? '',
-          sessionId: input.sessionId ?? '',
-          userMessage: input.message,
-          recentMessages: input.history
-            .slice(-4)
-            .map((m) => ({ role: m.role, content: m.content })),
-          // Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.1)
-          // Thread lock fields into SubLoopContext so the sub-loop can fire
-          // CKPT-3 / CKPT-4 / CKPT-5 (RAG) and combined CKPT (legacy). Skip-gated
-          // downstream when any field is null.
-          lockHandle: input.lockHandle ?? null,
-          lockChannel: input.lockChannel ?? null,
-          lockIdentifier: input.lockIdentifier ?? null,
-        },
-        onDebug: (p) => {
-          capturedSubLoopDebug = p
-        },
-      })
-      // W-08 (Plan 09): captureUnknownCase HOISTED aquí — Option 2 ÚNICA.
-      // NUNCA dentro de mapOutcomeToAgentOutput (evita doble-firing).
-      if (outcome.status === 'no_match') {
-        // Plan 02 D-29: tras flat schema, knowledgeQueried es nullable. Default
-        // a [] si null (defensive — invariant validator garantiza non-null en
-        // este path, pero el null guard mantiene type safety).
-        const knowledgeQueried = outcome.knowledgeQueried ?? []
-        // D-58 fire-and-forget capture — fallos no rompen el turn.
-        void captureUnknownCase({
-          workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
-          conversationId: input.sessionId ?? '',
-          message: input.message,
-          intent: analysis.intent.primary,
-          intentConfidence: analysis.intent.intent_confidence,
-          knowledgeQueried,
-          reason: outcome.reason,
-        })
-        getCollector()?.recordEvent(
-          'pipeline_decision',
-          'handoff_low_confidence_fallback',
-          {
-            agent: SOMNIO_V4_AGENT_ID,
-            sessionId: input.sessionId ?? null,
-            conversationId: input.sessionId ?? '',
-            knowledgeQueried,
-            reason: outcome.reason,
-          },
-        )
-      }
-      return mapOutcomeToAgentOutput({
-        outcome,
-        state: mergedState,
-        analysis,
-        tokensUsed,
-        timerSignals,
-        subLoopReason: earlyReason,
-        threshold,
-        subLoopDebug: capturedSubLoopDebug,
-        prevMode,
-      })
-    }
+    // NOTE (T-1): the exclusive early-return that lived here (escalate the WHOLE
+    // turn to RAG when the primary was low_confidence/razonamiento_libre, skipping
+    // guards/sales-track/gate-CRM/response-track) is GONE. The flow now ALWAYS
+    // proceeds through guards → CKPT-2 → sales-track → gate CRM → response-track →
+    // slot resolver (resolveLowSlot below). The slot resolver injects RAG only for
+    // the low slot(s) and combines with the deterministic templates.
 
     // 7. Guards R0/R1 (escape intents)
     const guardResult = checkGuards(analysis)

@@ -451,12 +451,17 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     })
 
     // 11. Response track
+    // T-8 (v4-hybrid Plan 04): pass per-intent coverage from the slot plan so that
+    // LOW intents are NOT given a template (they escalate to RAG in the slot resolver
+    // below). Default-undefined = 'covered' (back-compat with any non-hybrid callers).
     const responseResult = await resolveResponseTrack({
       salesAction: salesResult.accion,
       secondarySalesAction: salesResult.secondarySalesAction,
       intent: analysis.intent.primary,
       secondaryIntent:
         analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
+      intentCoverage: slotPlan.primary.coverage,
+      secondaryCoverage: slotPlan.secondary?.coverage,
       state: mergedState,
       workspaceId: input.workspaceId,
     })

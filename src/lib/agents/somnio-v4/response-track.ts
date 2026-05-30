@@ -45,6 +45,10 @@ export async function resolveResponseTrack(input: {
   secondarySalesAction?: TipoAccion
   intent?: string
   secondaryIntent?: string
+  /** T-8: per-intent coverage from the slot plan. 'low' → intent escalates to RAG — do NOT emit its template. Default-undefined = 'covered' (back-compat). */
+  intentCoverage?: 'covered' | 'low'
+  /** T-8: coverage for the secondary intent. 'low' → secondary escalates to RAG — do NOT emit its template (fixes the L90-96 bug). Default-undefined = 'covered' (back-compat). */
+  secondaryCoverage?: 'covered' | 'low'
   state: AgentState
   workspaceId: string
 }): Promise<ResponseTrackOutput> {
@@ -77,7 +81,9 @@ export async function resolveResponseTrack(input: {
   const infoTemplateIntents: string[] = []
   let infoExtraContext: Record<string, string> | undefined
 
-  if (intent && INFORMATIONAL_INTENTS.has(intent)) {
+  // T-8: gate by coverage. intentCoverage==='low' means the intent escalates to RAG; skip its template.
+  // Default-undefined is treated as 'covered' for back-compat with callers that don't pass coverage.
+  if (intent && INFORMATIONAL_INTENTS.has(intent) && input.intentCoverage !== 'low') {
     if (intent === 'tiempo_entrega') {
       // Dynamic: resolve to zone-specific template
       const resolved = await resolveDeliveryTimeTemplates(state)
@@ -87,7 +93,10 @@ export async function resolveResponseTrack(input: {
       infoTemplateIntents.push(intent)
     }
   }
-  if (secondaryIntent && INFORMATIONAL_INTENTS.has(secondaryIntent)) {
+  // T-8: same gate for the secondary intent. Fixes the L90-96 bug: before this guard the secondary
+  // template was stacked WITHOUT measuring coverage, causing both a template AND RAG to answer the
+  // same intent (D-03 violation: a low intent must ONLY go to RAG, never also get a template).
+  if (secondaryIntent && INFORMATIONAL_INTENTS.has(secondaryIntent) && input.secondaryCoverage !== 'low') {
     if (secondaryIntent === 'tiempo_entrega' && !infoTemplateIntents.some(i => i.startsWith('tiempo_entrega'))) {
       const resolved = await resolveDeliveryTimeTemplates(state)
       infoTemplateIntents.push(resolved.templateIntent)

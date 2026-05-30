@@ -109,6 +109,9 @@ const cannedAnalysis: MessageAnalysis = {
     reasoning: 'low-confidence test fixture',
     intent_confidence: 0.3,
     intent_confidence_reasoning: 'test fixture',
+    secondary_confidence: null,
+    secondary_confidence_reasoning: null,
+    secondary_query: null,
   },
   extracted_fields: {
     nombre: null,

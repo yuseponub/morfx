@@ -52,6 +52,23 @@ export const MessageAnalysisSchema = z.object({
     intent_confidence_reasoning: z.string().optional().describe(
       'Brief explanation of confidence value (D-68 observability + tuning iterativo post-launch).'
     ),
+
+    // === V4 NEW (v4-hybrid-template-rag-turn D-01 + D-04) ===
+    secondary_confidence: z.number().min(0).max(1).nullable().describe(
+      '0..1 self-reported confidence en la clasificacion SECUNDARIA. ' +
+      'null si secondary === "ninguno". Misma calibracion template-fit que intent_confidence: ' +
+      '0.85+ = la respuesta automatica del secondary CUBRE la pregunta; ' +
+      '0.20-0.40 = NO CUBRE (caso especifico/sustancia/condicion); 0.45-0.65 = ambiguo.'
+    ),
+    secondary_confidence_reasoning: z.string().nullable().describe(
+      'Breve explicacion del secondary_confidence (observability + tuning). null si secondary === "ninguno".'
+    ),
+    secondary_query: z.string().nullable().describe(
+      'Sub-query segmentada del SEGUNDO intent — la parte del mensaje que corresponde al ' +
+      'secondary, reformulada como pregunta auto-contenida. null si secondary === "ninguno". ' +
+      'Ej: "cuanto vale y lo puedo tomar si tengo apnea?" -> secondary_query="puedo tomar el ' +
+      'producto si tengo apnea del sueno?"'
+    ),
   }),
 
   extracted_fields: z.object({

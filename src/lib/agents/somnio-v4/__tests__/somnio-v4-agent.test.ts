@@ -102,6 +102,9 @@ function makeAnalysis(overrides: Partial<MessageAnalysis> = {}): MessageAnalysis
       confidence: 95,
       reasoning: 'test',
       intent_confidence: 0.95,
+      secondary_confidence: null,
+      secondary_confidence_reasoning: null,
+      secondary_query: null,
       ...(overrides.intent ?? {}),
     },
     extracted_fields: {
@@ -188,6 +191,9 @@ describe('somnio-v4-agent Turn Ledger — Plan 03 (D-05/D-15/D-17/D-02/D-06)', (
         confidence: 30,
         reasoning: 'fuera de flujo',
         intent_confidence: 0.2,
+        secondary_confidence: null,
+        secondary_confidence_reasoning: null,
+        secondary_query: null,
       },
     })
     subLoopRef.current = {
@@ -241,6 +247,9 @@ describe('somnio-v4-agent Turn Ledger — Plan 03 (D-05/D-15/D-17/D-02/D-06)', (
         confidence: 40,
         reasoning: 'sumidero',
         intent_confidence: 0.3,
+        secondary_confidence: null,
+        secondary_confidence_reasoning: null,
+        secondary_query: null,
       },
     })
     subLoopRef.current = {

@@ -375,6 +375,9 @@ export class V4ProductionRunner {
         workspaceId: this.config.workspaceId,
         sessionId: session.id,
         // systemEvent: undefined — only for timers, not user messages
+        // standalone v4-media-audio-image (Plan 04): thread vision context from
+        // EngineInput → V4AgentInput. Only populated on v4 image-respond path.
+        visionContext: input.visionContext,
       }
 
       // 3b. Preload data + agent_module marker for new sessions

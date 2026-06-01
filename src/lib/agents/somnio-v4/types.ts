@@ -198,6 +198,12 @@ export interface V4AgentInput {
    * Opcional (default false) — backward-compat con callers existentes.
    */
   simulate?: boolean
+  /**
+   * standalone v4-media-audio-image (Plan 04): vision context for the dedicated image-respond
+   * branch. Present ONLY on the v4 image-respond path (decision='responder' in media-gate).
+   * Absent on text/audio/timer turns + sandbox/tests that omit it. Additive — Regla 6.
+   */
+  visionContext?: { descripcion: string; categoria: string }
 }
 
 export interface V4AgentOutput {

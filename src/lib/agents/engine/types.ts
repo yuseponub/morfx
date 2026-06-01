@@ -112,6 +112,13 @@ export interface EngineInput {
    * Same source + nullability semantics as lockChannel.
    */
   lockIdentifier?: string | null
+  /**
+   * standalone v4-media-audio-image (Plan 04): vision context threaded from
+   * agent-production → ProcessMessageInput → EngineInput → V4AgentInput.
+   * Present ONLY on the v4 image-respond path (media-gate returns vision_respond).
+   * Absent on all other paths (text, audio, sticker, reaction, non-v4 agents). Additive — Regla 6.
+   */
+  visionContext?: { descripcion: string; categoria: string }
 }
 
 /**

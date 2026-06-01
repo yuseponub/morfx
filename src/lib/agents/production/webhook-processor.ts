@@ -917,6 +917,10 @@ export async function processMessageWithAgent(
         ownPendingEntryJson: input.ownPendingEntryJson ?? null,
         lockChannel: input.lockChannel ?? null,
         lockIdentifier: input.lockIdentifier ?? null,
+        // standalone v4-media-audio-image (Plan 04): thread vision context from
+        // ProcessMessageInput → EngineInput. Only set when media-gate returned
+        // vision_respond for a v4 image. Undefined on all other paths.
+        visionContext: input.visionContext ?? undefined,
       })
 
       getCollector()?.recordEvent('pipeline_decision', 'webhook_agent_routed', {

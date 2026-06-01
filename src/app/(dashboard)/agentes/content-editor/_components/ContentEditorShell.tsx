@@ -36,8 +36,10 @@ export function ContentEditorShell() {
   const [agentId, setAgentId] = useState<string>(DEFAULT_AGENT)
   const [subTab, setSubTab] = useState<SubTab>('templates')
 
-  // Hydrate from URL after mount (avoids SSR/client mismatch).
+  // Hydrate from URL after mount (avoids SSR/client mismatch). Intentional
+  // one-shot sync from the URL search param — runs once on mount.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAgentId(readAgentFromUrl())
   }, [])
 

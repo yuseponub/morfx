@@ -58,6 +58,7 @@ export function KbVersionsPanel({ agentId, kbId, editable, onRestored }: Props) 
   }, [agentId, kbId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
   }, [load])
 

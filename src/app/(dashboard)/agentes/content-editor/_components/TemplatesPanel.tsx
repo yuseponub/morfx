@@ -72,6 +72,7 @@ export function TemplatesPanel({ agentId, editable }: Props) {
   }, [agentId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
     setEditingId(null)
     setAddingTo(null)

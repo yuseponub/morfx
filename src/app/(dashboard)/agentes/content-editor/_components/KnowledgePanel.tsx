@@ -51,6 +51,7 @@ export function KnowledgePanel({ agentId, editable }: Props) {
   }, [agentId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
     setCreating(false)
     setEditingId(null)

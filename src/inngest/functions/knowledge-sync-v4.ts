@@ -76,6 +76,17 @@ export const knowledgeSyncV4 = inngest.createFunction(
   },
   { event: 'somnio-v4/knowledge.sync' },
   async ({ step }) => {
+    // ┌───────────────────────────────────────────────────────────────────────┐
+    // │ GUARD D-01 (standalone ui-agent-content-editor):                        │
+    // │   FLIPPEAR `platform_config.somnio_v4_kb_sync_enabled` a ON haría que   │
+    // │   esta function SOBRESCRIBA (OVERWRITE / sobrescribir) las ediciones    │
+    // │   de la UI con los `.md` (potencialmente viejos) del repo. Desde D-01   │
+    // │   la BASE DE DATOS es la FUENTE DE VERDAD del KB de somnio-sales-v4.    │
+    // │   MANTENER la flag en FALSE en prod una vez la UI editor esté viva.     │
+    // │   (No cambiamos el gating — ya es no-op cuando está off; solo se        │
+    // │   documenta el riesgo. El sibling CLI scripts/knowledge-sync.ts tiene   │
+    // │   el guard duro --force.)                                               │
+    // └───────────────────────────────────────────────────────────────────────┘
     const enabled = await step.run('check-feature-flag', () => isKbSyncEnabled())
     if (!enabled) {
       logger.info('KB sync disabled — function is no-op')

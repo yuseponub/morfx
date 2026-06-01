@@ -277,9 +277,9 @@ describe('agent-knowledge-base domain (Plan 04)', () => {
     generateEmbeddingMock.mockResolvedValueOnce([0.5, 0.5])
     // 1) load version row. 2) getKbTopic current. 3) version max for snapshot.
     maybeSingleQueue.push({
-      data: { id: 'ver-1', topic: 'precio', ...EDITABLE, body_hash: 'VHASH' },
+      data: { id: 'ver-1', ...EDITABLE, body_hash: 'VHASH' },
       error: null,
-    }) // version
+    }) // version (topic 'precio' provided by EDITABLE)
     maybeSingleQueue.push({
       data: { id: 'kb-1', ...EDITABLE, scope_summary: 'estado actual', body_hash: 'CURHASH' },
       error: null,

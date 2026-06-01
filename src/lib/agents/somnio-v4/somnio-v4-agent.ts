@@ -158,12 +158,178 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // resultante. Si no hay cambio, from===to (sigue siendo info válida del turno).
     const prevMode = computeMode(state)
 
-    // 2. Comprehension (Gemini 2.5 Flash estructurado + intent_confidence)
+    // Hoisted above comprehension so the vision branch can pass it to runSubLoop.
     const recentBotMessages = input.history
       .filter((h) => h.role === 'assistant')
       .slice(-2)
       .map((h) => h.content)
 
+    // ========================================================================
+    // standalone v4-media-audio-image (Plan 04) — DEDICATED VISION BRANCH (D-05).
+    //
+    // When the media-gate classified an image as producto/pagina, it routed the
+    // turn into the engine with visionContext.descripcion. This branch is DEDICATED:
+    // it SKIPS comprehension / state-machine / templates entirely, but stays
+    // KB-GROUNDED via the SAME RAG infra the low-confidence slot uses
+    // (runSubLoop → kb_search + buildGenerationPrompt + runGenerationCall +
+    // RESPONSE_CONFIDENCE_THRESHOLD + binary backstop). RQ-1 + D-05.
+    //
+    // Delivery: emit a rag:<sourceTopic> ProcessedMessage into output.templates;
+    // the runner's existing 5h-main send loop delivers it automatically (no-rep
+    // rag:* at :796 + ledger exclusion at :839 of v4-production-runner.ts).
+    // ========================================================================
+    if (input.visionContext) {
+      const { descripcion, categoria } = input.visionContext
+      // Combine image description + any caption text the client sent.
+      const vquery = `${descripcion}${input.message ? '\nTexto del cliente: ' + input.message : ''}`
+
+      let visionOutcome: Awaited<ReturnType<typeof runSubLoop>>
+      try {
+        visionOutcome = await runSubLoop({
+          reason: 'razonamiento_libre',
+          ctx: {
+            workspaceId: input.workspaceId || SOMNIO_WORKSPACE_ID,
+            conversationId: input.sessionId ?? '',
+            sessionId: input.sessionId ?? '',
+            userMessage: vquery,
+            recentMessages: input.history.slice(-4).map((m) => ({ role: m.role, content: m.content })),
+            lockHandle: input.lockHandle ?? null,
+            lockChannel: input.lockChannel ?? null,
+            lockIdentifier: input.lockIdentifier ?? null,
+            stateContext: {
+              datosCapturados: input.datosCapturados,
+              atendidoPrevio: input.turnLedgerDims?.atendido ?? [],
+              recentBotMessages,
+            },
+          },
+          onDebug: (p) => { capturedSubLoopDebug = p },
+        })
+      } catch (err) {
+        // Error in sub-loop → informed handoff (D-07 fail-safe).
+        const errDesc = err instanceof Error ? err.message : String(err)
+        const errLedger: TurnLedger = {
+          comprehension: { intent: 'imagen', confidence: 0 },
+          atendido: [{ kind: 'handoff', reason: `imagen producto/página — ${descripcion} (error: ${errDesc})` }],
+          crmActions: [],
+          modeTransition: { from: prevMode, to: 'handoff' },
+          messagesSent: 0,
+        }
+        const errSerialized = commitTurn(state, errLedger)
+        return {
+          success: true,
+          messages: [],
+          newMode: 'handoff',
+          requiresHuman: true,
+          intentsVistos: errSerialized.intentsVistos,
+          templatesEnviados: errSerialized.templatesEnviados,
+          datosCapturados: errSerialized.datosCapturados,
+          packSeleccionado: errSerialized.packSeleccionado,
+          accionesEjecutadas: errSerialized.accionesEjecutadas,
+          turnLedgerDims: errSerialized.turnLedgerDims,
+          turnLedgerSummary: buildLedgerSummary(errLedger),
+          totalTokens: 0,
+          shouldCreateOrder: false,
+          timerSignals,
+          subLoopDebug: capturedSubLoopDebug,
+        }
+      }
+
+      // interrupted → Path A discriminator (mirror resolveLowSlot interrupt handling).
+      if (
+        visionOutcome.status === 'no_match' &&
+        typeof visionOutcome.reason === 'string' &&
+        visionOutcome.reason.startsWith('interrupted_at_ckpt_')
+      ) {
+        return {
+          success: false,
+          messages: [],
+          errorMessage: visionOutcome.reason,
+          intentsVistos: input.intentsVistos,
+          templatesEnviados: input.templatesEnviados,
+          datosCapturados: input.datosCapturados,
+          packSeleccionado: input.packSeleccionado,
+          accionesEjecutadas: input.accionesEjecutadas ?? [],
+          turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
+          totalTokens: 0,
+          shouldCreateOrder: false,
+          timerSignals,
+          subLoopDebug: capturedSubLoopDebug,
+        }
+      }
+
+      // generated + confidence OK → emit rag: ProcessedMessage (mirror resolveLowSlot :576-589).
+      if (visionOutcome.status === 'generated' && visionOutcome.responseText && visionOutcome.sourceTopic) {
+        const ragMsg: ProcessedMessage = {
+          templateId: `rag:${visionOutcome.sourceTopic}`,
+          content: visionOutcome.responseText,
+          contentType: 'texto',
+          delayMs: 0,
+          priority: 'CORE',
+        }
+        const visionLedger: TurnLedger = {
+          comprehension: { intent: 'imagen', confidence: visionOutcome.responseConfidence ?? 0 },
+          atendido: [{
+            kind: 'kb_topic',
+            topic: visionOutcome.sourceTopic,
+            confidence: visionOutcome.responseConfidence ?? 0,
+            texto: visionOutcome.responseText,
+            turno: state.turnCount,
+          }],
+          crmActions: [],
+          modeTransition: { from: prevMode, to: computeMode(state) },
+          messagesSent: 1,
+        }
+        const visionSerialized = commitTurn(state, visionLedger)
+        return {
+          success: true,
+          messages: [visionOutcome.responseText],
+          templates: [ragMsg],
+          intentsVistos: visionSerialized.intentsVistos,
+          templatesEnviados: visionSerialized.templatesEnviados,
+          datosCapturados: visionSerialized.datosCapturados,
+          packSeleccionado: visionSerialized.packSeleccionado,
+          accionesEjecutadas: visionSerialized.accionesEjecutadas,
+          turnLedgerDims: visionSerialized.turnLedgerDims,
+          turnLedgerSummary: buildLedgerSummary(visionLedger),
+          totalTokens: 0,
+          shouldCreateOrder: false,
+          timerSignals,
+          subLoopDebug: capturedSubLoopDebug,
+        }
+      }
+
+      // no_match / generated-with-null / empty KB → informed handoff (D-07).
+      const handoffReason = `imagen ${categoria} — ${descripcion}`
+      const handoffLedger: TurnLedger = {
+        comprehension: { intent: 'imagen', confidence: 0 },
+        atendido: [{ kind: 'handoff', reason: `imagen producto/página — ${descripcion}` }],
+        crmActions: [],
+        modeTransition: { from: prevMode, to: 'handoff' },
+        messagesSent: 0,
+      }
+      const handoffSerialized = commitTurn(state, handoffLedger)
+      return {
+        success: true,
+        messages: [],
+        newMode: 'handoff',
+        requiresHuman: true,
+        intentsVistos: handoffSerialized.intentsVistos,
+        templatesEnviados: handoffSerialized.templatesEnviados,
+        datosCapturados: handoffSerialized.datosCapturados,
+        packSeleccionado: handoffSerialized.packSeleccionado,
+        accionesEjecutadas: handoffSerialized.accionesEjecutadas,
+        turnLedgerDims: handoffSerialized.turnLedgerDims,
+        turnLedgerSummary: buildLedgerSummary(handoffLedger),
+        totalTokens: 0,
+        shouldCreateOrder: false,
+        timerSignals,
+        subLoopDebug: capturedSubLoopDebug,
+        decisionInfo: { action: 'handoff', reason: handoffReason },
+      }
+    }
+    // END DEDICATED VISION BRANCH — normal pipeline continues below.
+
+    // 2. Comprehension (Gemini 2.5 Flash estructurado + intent_confidence)
     const { analysis, tokensUsed } = await comprehend(
       input.message,
       input.history,

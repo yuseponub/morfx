@@ -201,3 +201,287 @@ export async function getKbTopic(
   if (!data) return { success: false, error: 'Tema de KB no encontrado.' }
   return { success: true, data: data as unknown as AgentKbRow }
 }
+
+// ============================================================================
+// Versioning snapshot helper (D-01b)
+// ============================================================================
+
+/**
+ * Snapshot a KB row's editable fields into agent_knowledge_base_versions with
+ * version_num = (current max for kb_id) + 1. Called BEFORE overwriting the live
+ * row (update / restore) and once at create-time (version_num=1 baseline).
+ *
+ * Returns the version_num written, or a DomainResult error on failure.
+ */
+async function snapshotVersion(
+  ctx: DomainContext,
+  supabase: ReturnType<typeof createAdminClient>,
+  kbId: string,
+  agentId: string,
+  snapshot: KbEditableFields & { body_hash: string },
+  editedBy: string,
+): Promise<{ ok: true; versionNum: number } | { ok: false; error: string }> {
+  // Determine next version_num for this kb_id (scoped — Pitfall 2).
+  const { data: maxRow, error: maxErr } = await supabase
+    .from('agent_knowledge_base_versions')
+    .select('version_num')
+    .eq('kb_id', kbId)
+    .eq('workspace_id', ctx.workspaceId)
+    .eq('agent_id', agentId)
+    .order('version_num', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (maxErr) return { ok: false, error: maxErr.message }
+  const versionNum = ((maxRow?.version_num as number | undefined) ?? 0) + 1
+
+  const { error: insErr } = await supabase.from('agent_knowledge_base_versions').insert({
+    kb_id: kbId,
+    workspace_id: ctx.workspaceId,
+    agent_id: agentId,
+    topic: snapshot.topic,
+    category: snapshot.category,
+    keywords: snapshot.keywords,
+    scope_summary: snapshot.scope_summary,
+    hechos_del_producto: snapshot.hechos_del_producto,
+    posicion_del_negocio: snapshot.posicion_del_negocio,
+    debe_contener: snapshot.debe_contener,
+    nunca_decir: snapshot.nunca_decir,
+    cuando_escalar: snapshot.cuando_escalar,
+    tone_override: snapshot.tone_override,
+    escalate_triggers: snapshot.escalate_triggers,
+    related_topics: snapshot.related_topics,
+    body_hash: snapshot.body_hash,
+    version_num: versionNum,
+    edited_by: editedBy,
+  })
+
+  if (insErr) return { ok: false, error: insErr.message }
+  return { ok: true, versionNum }
+}
+
+// ============================================================================
+// Mutations — create / update (D-02 v4-gated, D-06 re-embed, D-01b versioning)
+// ============================================================================
+
+/**
+ * Create a new KB topic (D-09). Flow:
+ *   1. v4-gate (D-02).
+ *   2. Duplicate check on (topic, agent, workspace).
+ *   3. Build contentToEmbed via canonical serializer + body_hash.
+ *   4. Embed BEFORE the DB write — on OpenAI throw return success:false with NO
+ *      insert (D-06: no partial write).
+ *   5. INSERT with synthetic NOT-NULL values (Pitfall 5).
+ *   6. Snapshot a version_num=1 baseline (D-01b).
+ */
+export async function createKbTopic(
+  ctx: DomainContext,
+  params: KbEditableFields & { agentId: string; reviewedBy: string },
+): Promise<DomainResult<AgentKbRow>> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate as DomainResult<AgentKbRow>
+
+  const supabase = createAdminClient()
+
+  // Duplicate check — UNIQUE(topic, agent_id, workspace_id) (Pitfall 2 scoping).
+  const { data: existing, error: dupErr } = await supabase
+    .from('agent_knowledge_base')
+    .select('id')
+    .eq('topic', params.topic)
+    .eq('agent_id', params.agentId)
+    .eq('workspace_id', ctx.workspaceId)
+    .maybeSingle()
+  if (dupErr) return { success: false, error: dupErr.message }
+  if (existing) return { success: false, error: `Ya existe un tema con topic="${params.topic}".` }
+
+  const cols: KbContentColumns = {
+    scope_summary: params.scope_summary,
+    hechos_del_producto: params.hechos_del_producto,
+    posicion_del_negocio: params.posicion_del_negocio,
+    debe_contener: params.debe_contener,
+    nunca_decir: params.nunca_decir,
+    cuando_escalar: params.cuando_escalar,
+  }
+  const { contentToEmbed, bodyHash } = buildEmbedInput(cols)
+
+  // Embed BEFORE any write (D-06). On failure NOTHING is inserted.
+  let embedding: number[]
+  try {
+    embedding = await generateEmbedding(contentToEmbed)
+  } catch (e) {
+    return {
+      success: false,
+      error: `Re-embed falló (OpenAI). Reintenta. ${(e as Error).message}`,
+    }
+  }
+
+  const reviewedAt = todayBogota()
+  const { data: inserted, error: insErr } = await supabase
+    .from('agent_knowledge_base')
+    .insert({
+      workspace_id: ctx.workspaceId,
+      agent_id: params.agentId,
+      topic: params.topic,
+      category: params.category,
+      keywords: params.keywords,
+      scope_summary: params.scope_summary,
+      hechos_del_producto: params.hechos_del_producto,
+      posicion_del_negocio: params.posicion_del_negocio,
+      debe_contener: params.debe_contener,
+      nunca_decir: params.nunca_decir,
+      cuando_escalar: params.cuando_escalar,
+      tone_override: params.tone_override,
+      escalate_triggers: params.escalate_triggers,
+      related_topics: params.related_topics,
+      embedding,
+      body_hash: bodyHash,
+      // D-24: canonical-verbatim deprecated for somnio-v4.
+      canonical_response: null,
+      // Pitfall 5: synthetic NOT-NULL values (no .md backing the UI row).
+      source_md_path: `ui://somnio-v4/${params.topic}`,
+      last_reviewed_at: reviewedAt, // Regla 2 — America/Bogota.
+      reviewed_by: params.reviewedBy,
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select(KB_SELECT_COLUMNS)
+    .single()
+
+  if (insErr) return { success: false, error: insErr.message }
+  const row = inserted as unknown as AgentKbRow
+
+  // D-01b: version_num=1 baseline snapshot of the just-created row.
+  const snap = await snapshotVersion(
+    ctx,
+    supabase,
+    row.id,
+    params.agentId,
+    {
+      topic: params.topic,
+      category: params.category,
+      keywords: params.keywords,
+      scope_summary: params.scope_summary,
+      hechos_del_producto: params.hechos_del_producto,
+      posicion_del_negocio: params.posicion_del_negocio,
+      debe_contener: params.debe_contener,
+      nunca_decir: params.nunca_decir,
+      cuando_escalar: params.cuando_escalar,
+      tone_override: params.tone_override,
+      escalate_triggers: params.escalate_triggers,
+      related_topics: params.related_topics,
+      body_hash: bodyHash,
+    },
+    params.reviewedBy,
+  )
+  if (!snap.ok) return { success: false, error: `Versión baseline falló: ${snap.error}` }
+
+  return { success: true, data: row }
+}
+
+/**
+ * Update a KB topic's editable fields in place (D-01b + D-06 + D-10). Flow:
+ *   1. v4-gate (D-02).
+ *   2. Load current row (must exist).
+ *   3. Snapshot the CURRENT row into versions BEFORE writing (D-01b).
+ *   4. Recompute contentToEmbed + body_hash from the NEW values. If body_hash is
+ *      unchanged keep the embedding (skip OpenAI, mirror sync.ts:58); else embed
+ *      BEFORE the UPDATE — on throw return error with NO update (D-06).
+ *   5. UPDATE the live row scoped by id + workspace + agent.
+ *
+ * Note: the version snapshot from step 3 is acceptable even when the embed in
+ * step 4 fails — it records the pre-edit state and is reversible (the live row
+ * was not modified).
+ */
+export async function updateKbTopic(
+  ctx: DomainContext,
+  params: KbEditableFields & { kbId: string; agentId: string; reviewedBy: string },
+): Promise<DomainResult<AgentKbRow>> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate as DomainResult<AgentKbRow>
+
+  const current = await getKbTopic(ctx, params.kbId, params.agentId)
+  if (!current.success || !current.data) {
+    return { success: false, error: current.error ?? 'Tema de KB no encontrado.' }
+  }
+  const cur = current.data
+  const supabase = createAdminClient()
+
+  // D-01b: snapshot the CURRENT row BEFORE overwriting.
+  const snap = await snapshotVersion(
+    ctx,
+    supabase,
+    params.kbId,
+    params.agentId,
+    {
+      topic: cur.topic,
+      category: cur.category,
+      keywords: cur.keywords,
+      scope_summary: cur.scope_summary,
+      hechos_del_producto: cur.hechos_del_producto,
+      posicion_del_negocio: cur.posicion_del_negocio,
+      debe_contener: cur.debe_contener,
+      nunca_decir: cur.nunca_decir,
+      cuando_escalar: cur.cuando_escalar,
+      tone_override: cur.tone_override,
+      escalate_triggers: cur.escalate_triggers,
+      related_topics: cur.related_topics,
+      body_hash: cur.body_hash,
+    },
+    params.reviewedBy,
+  )
+  if (!snap.ok) return { success: false, error: `Snapshot de versión falló: ${snap.error}` }
+
+  // D-06 + D-10: rebuild embed input from NEW values (scope_summary feeds it).
+  const cols: KbContentColumns = {
+    scope_summary: params.scope_summary,
+    hechos_del_producto: params.hechos_del_producto,
+    posicion_del_negocio: params.posicion_del_negocio,
+    debe_contener: params.debe_contener,
+    nunca_decir: params.nunca_decir,
+    cuando_escalar: params.cuando_escalar,
+  }
+  const { contentToEmbed, bodyHash } = buildEmbedInput(cols)
+
+  const updatePayload: Record<string, unknown> = {
+    topic: params.topic,
+    category: params.category,
+    keywords: params.keywords,
+    scope_summary: params.scope_summary,
+    hechos_del_producto: params.hechos_del_producto,
+    posicion_del_negocio: params.posicion_del_negocio,
+    debe_contener: params.debe_contener,
+    nunca_decir: params.nunca_decir,
+    cuando_escalar: params.cuando_escalar,
+    tone_override: params.tone_override,
+    escalate_triggers: params.escalate_triggers,
+    related_topics: params.related_topics,
+    body_hash: bodyHash,
+    last_reviewed_at: todayBogota(),
+    reviewed_by: params.reviewedBy,
+    updated_at: new Date().toISOString(),
+  }
+
+  // Hash unchanged → keep embedding (skip OpenAI). Else re-embed BEFORE write.
+  if (bodyHash !== cur.body_hash) {
+    try {
+      updatePayload.embedding = await generateEmbedding(contentToEmbed)
+    } catch (e) {
+      return {
+        success: false,
+        error: `Re-embed falló (OpenAI). Reintenta. ${(e as Error).message}`,
+      }
+    }
+  }
+
+  const { data: updated, error: updErr } = await supabase
+    .from('agent_knowledge_base')
+    .update(updatePayload)
+    .eq('id', params.kbId)
+    .eq('workspace_id', ctx.workspaceId) // MANDATORY — no RLS (Pitfall 2)
+    .eq('agent_id', params.agentId) // MANDATORY
+    .select(KB_SELECT_COLUMNS)
+    .single()
+
+  if (updErr) return { success: false, error: updErr.message }
+  return { success: true, data: updated as unknown as AgentKbRow }
+}

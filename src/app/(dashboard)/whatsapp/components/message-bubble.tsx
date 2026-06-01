@@ -73,6 +73,7 @@ function MessageContent({
           filename={media_filename || mediaContent.filename}
           mimeType={media_mime_type || mediaContent.mimeType}
           caption={mediaContent.caption}
+          transcription={message.transcription}
         />
       )
     }

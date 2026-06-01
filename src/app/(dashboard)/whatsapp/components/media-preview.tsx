@@ -12,6 +12,7 @@ interface MediaPreviewProps {
   filename?: string | null
   mimeType?: string | null
   caption?: string
+  transcription?: string | null
 }
 
 /**
@@ -28,6 +29,7 @@ export function MediaPreview({
   filename,
   mimeType,
   caption,
+  transcription,
 }: MediaPreviewProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -162,6 +164,9 @@ export function MediaPreview({
         >
           Tu navegador no soporta audio.
         </audio>
+        {transcription && (
+          <p className="text-sm text-muted-foreground italic mt-1 whitespace-pre-wrap">{transcription}</p>
+        )}
       </div>
     )
   }

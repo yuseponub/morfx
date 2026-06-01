@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
-status: ready
-stopped_at: "Standalone `somnio-v4-rag-generative` Plan 06 (Smoke B regression) **SHIPPED 2026-05-19**. Commits Plan 06 (2): `4714c4c` (smoke-rag-b.test.ts 365 líneas con 10 casos lockeados STATUS.md 154-182) + `65d0fd3` (SMOKE-B-RESULTS.md + 06-SUMMARY.md). Test ejecutado clean: runtime 208s, 0 runtime errors. Resultados: 3 razonamiento_libre REAL invocation (case 3 ✓ PASS no_match via threshold gate conf=0.20<0.70, cases 1+2 ❌ FAIL auto-check strict — generaron respuesta FAITHFUL al KB `insomnio_largo_plazo` con conf=0.80/0.95 en lugar de handoff). 7 SKIP documentados (3 crm_mutation = Regla 6 + Threat T-06-01 mutarían producción Somnio, 3 state_machine = NO entran al sub-loop template matching upstream, 1 cas_reject = integration tests crm-writer standalone crm-stage-integrity 2026-04-21 ya cubren — Threat T-06-04). Cases 1+2 NO son regresión D-12 — razonamiento_libre usa flujo NUEVO RAG (Plan 03 split), no LEGACY (crm_mutation/cas_reject). Case 2 textualmente cumple expected del plan ('handoff o template empático' — responseText es empático + ELIXIR pitch). Locked sub-loop runtime files UNCHANGED — solo `__tests__/smoke-rag-b.test.ts` agregado. v4 sigue DORMANT en prod (Regla 6 honored, `active_v4_rules = 0`). Pendiente Jose review cases 1+2 + SKIPS manuales via sandbox. Camino A (recomendado): si Jose acepta cases 1+2 como behavior emergente razonable (≥9/10) → Plan 08 production flip. Camino B: Plan 07d para tuning razonamiento_libre + case 17/16 si Jose prefiere comportamiento más conservador. Push commits Plan 06 pendiente."
-last_updated: "2026-05-19T02:15:00.000Z"
+status: "Plan 06 closed. Jose decide camino: A (recomendado) Plan 08 production flip si acepta cases 1+2 como behavior emergente razonable (≥9/10 + Smoke A 15/17 = green light). B Plan 07d tuning si prefiere handoff estricto en razonamiento_libre. Push pendiente commits Plan 06."
+stopped_at: Phase 44-09 Tasks 4+5 complete; Task 6 human-verify checkpoint pending (Vercel redeploy + kill-switch production QA)
+last_updated: "2026-06-01T17:09:45Z"
 progress:
-  total_phases: 13
-  completed_phases: 6
-  total_plans: 58
-  completed_plans: 42
-  percent: 72
+  total_phases: 12
+  completed_phases: 5
+  total_plans: 49
+  completed_plans: 47
+  percent: 96
 ---
 
 # Project State

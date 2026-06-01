@@ -548,6 +548,12 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           lockHandle: input.lockHandle ?? null,
           lockChannel: input.lockChannel ?? null,
           lockIdentifier: input.lockIdentifier ?? null,
+          // #2 v4-subloop-context-pass (C-01): contexto del state para el path RAG.
+          stateContext: {
+            datosCapturados: input.datosCapturados,
+            atendidoPrevio: input.turnLedgerDims?.atendido ?? [],
+            recentBotMessages,   // ya computados arriba (L162)
+          },
         },
         onDebug: (p) => {
           // T-6: keep the LAST onDebug payload (array support deferred).

@@ -10,7 +10,7 @@ import {
 import { buildSubLoopTools, type SubLoopToolsContext } from './tools'
 import { buildToolingPrompt, buildGenerationPrompt } from './prompt'
 import { deriveCrmActions } from './crm-echo'
-import type { CrmActionRegistrada } from '../types'
+import type { CrmActionRegistrada, Atendido } from '../types'
 import { TONE_BASE } from './tone-base'
 import { checkCompliance } from './compliance-check'
 import { runToolingCall } from './tooling-call'
@@ -83,6 +83,16 @@ export interface SubLoopContext extends SubLoopToolsContext {
   lockHandle?: LockHandle | null
   lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
   lockIdentifier?: string | null
+  /**
+   * #2 v4-subloop-context-pass (C-01): contexto del state para el path RAG.
+   * SOLO informacional (no-repetición con filtrado/scoring es trabajo futuro).
+   * El path CRM (crm-gate.ts) NO lo pasa — campo opcional para no romper esos callers.
+   */
+  stateContext?: {
+    datosCapturados?: Record<string, string>
+    atendidoPrevio?: Atendido[]      // input.turnLedgerDims.atendido del turno anterior
+    recentBotMessages?: string[]     // últimas respuestas del bot (ya computadas en el agente)
+  } | null
 }
 
 /**
@@ -372,6 +382,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
         tooling.material_del_topic,
         TONE_BASE,
         /* fewShots — Plan 04 inyectará */ [],
+        // #2 v4-subloop-context-pass (C-02): solo generation, NO tooling.
+        args.ctx.stateContext,
       ),
       userMessage: args.ctx.userMessage,
       recentMessages: args.ctx.recentMessages,

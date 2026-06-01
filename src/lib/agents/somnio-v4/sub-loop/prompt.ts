@@ -3,6 +3,7 @@ import { FEW_SHOTS } from './few-shots'
 import type { ToolingOutput } from './tooling-call'
 import type { SubLoopReason } from './output-schema'
 import type { CrmGrounding } from '../crm-grounding'
+import type { Atendido } from '../types'
 
 /**
  * Sub-loop prompt builders — split por call (Plan 03 RAG-generative refactor).
@@ -252,10 +253,72 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
 }
 
 /**
+ * StateContext para el path RAG — contexto del state del agente.
+ * #2 v4-subloop-context-pass (C-01/C-02/C-03): SOLO informacional.
+ * Cuando está ausente/vacío, buildGenerationPrompt produce el MISMO output que antes.
+ */
+export interface GenerationStateContext {
+  datosCapturados?: Record<string, string>
+  atendidoPrevio?: Atendido[]
+  recentBotMessages?: string[]
+}
+
+/**
+ * Construye el bloque "CONTEXTO DE LA CONVERSACIÓN" del prompt de generación.
+ * Devuelve null cuando no hay data real para mostrar (sección ausente → anti-regresión).
+ *
+ * Condición de presencia: al menos uno de los tres campos tiene contenido no-vacío.
+ * - datosCapturados: al menos una clave con valor no-vacío.
+ * - atendidoPrevio: al menos un item.
+ * - recentBotMessages: al menos un string no-vacío.
+ */
+function buildStateContextBlock(stateContext?: GenerationStateContext | null): string | null {
+  if (!stateContext) return null
+
+  const { datosCapturados, atendidoPrevio, recentBotMessages } = stateContext
+
+  // Serializar datosCapturados: solo claves con valor
+  const datosEntries = Object.entries(datosCapturados ?? {}).filter(([, v]) => v && v.trim())
+  const datosLine = datosEntries.length > 0
+    ? `- Datos del cliente: ${datosEntries.map(([k, v]) => `${k}: ${v}`).join(', ')}`
+    : null
+
+  // Serializar atendidoPrevio: labels semánticos
+  const atendidoItems = (atendidoPrevio ?? []).map((a) => {
+    if (a.kind === 'template_intent') return `template_intent:${a.intent}`
+    if (a.kind === 'sales_action') return `sales_action:${a.accion}`
+    if (a.kind === 'kb_topic') return `kb_topic:${a.topic}`
+    if (a.kind === 'handoff') return `handoff:${a.reason}`
+    if (a.kind === 'silence') return 'silence'
+    return null
+  }).filter(Boolean)
+  const atendidoLine = atendidoItems.length > 0
+    ? `- Ya se atendió este turno/previo: ${atendidoItems.join(', ')}`
+    : null
+
+  // Serializar recentBotMessages: últimas 2
+  const botMsgs = (recentBotMessages ?? []).filter((m) => m && m.trim())
+  const botLine = botMsgs.length > 0
+    ? `- Lo último que dijo el bot: ${botMsgs.slice(-2).join(' / ')}`
+    : null
+
+  // Si ningún campo tiene contenido → omitir sección (anti-regresión)
+  if (!datosLine && !atendidoLine && !botLine) return null
+
+  const lines = [datosLine, atendidoLine, botLine].filter(Boolean).join('\n')
+  return (
+    `## CONTEXTO DE LA CONVERSACIÓN (no lo repitas)\n` +
+    `${lines}\n\n` +
+    `Instrucción: responde SOLO lo nuevo que pregunta el cliente. NO repitas lo ya dicho arriba ni vuelvas a saludar.`
+  )
+}
+
+/**
  * CALL 2 system prompt builder (Gemini Flash + Output.object).
  *
  * Estructura:
  *   - TONE_BASE (D-05 global Somnio).
+ *   - [CONTEXTO DE LA CONVERSACIÓN] — inyectado SOLO cuando stateContext tiene data (C-02/C-03).
  *   - Reglas anti-invención duras.
  *   - Calibración M1 (PROBABILIDAD framing) + M2 (5 buckets discretizados) + M3 (binary backstop).
  *   - Few-shots (Plan 04 inyecta — Plan 03 acepta array vacío).
@@ -264,11 +327,13 @@ function buildRagToolingPrompt(reason: 'low_confidence' | 'razonamiento_libre'):
  * @param material - de tooling-call.ToolingOutput.material_del_topic (non-null por contrato — orchestrator only calls cuando topic_seleccionado !== null).
  * @param toneBase - default TONE_BASE (D-05). Override per-topic via parser.tone_override en futuro.
  * @param fewShots - default FEW_SHOTS (10 calibration examples del corpus real — Plan 04 wired).
+ * @param stateContext - #2 v4-subloop-context-pass (C-01). Opcional. Cuando undefined/null → sección ausente (anti-regresión).
  */
 export function buildGenerationPrompt(
   material: NonNullable<ToolingOutput['material_del_topic']>,
   toneBase: string = TONE_BASE,
   fewShots: FewShot[] = FEW_SHOTS,
+  stateContext?: GenerationStateContext | null,
 ): string {
   const debeContener = (material.debe_contener_aplicables ?? [])
     .map((item) => `- ${item}`)
@@ -294,8 +359,15 @@ export function buildGenerationPrompt(
         `binary: ${fs.binary}`,
       ).join('\n\n')
 
+  // #2 v4-subloop-context-pass (C-02/C-03): sección CONTEXTO DE LA CONVERSACIÓN.
+  // Solo se inyecta cuando hay al menos una señal con contenido real.
+  // Si stateContext es null/undefined, o todos sus campos son vacíos → sección ausente
+  // (comportamiento idéntico al prompt original — anti-regresión C-04).
+  const contextBlock = buildStateContextBlock(stateContext)
+
   return (
     `${toneBase}\n\n` +
+    (contextBlock ? `${contextBlock}\n\n` : '') +
     `REGLAS DURAS DE ANTI-INVENCIÓN:\n\n` +
     `1. SOLO usá la información presentada abajo en "MATERIAL DEL TOPIC".\n` +
     `2. PROHIBIDO mencionar marcas, dosis, condiciones, sustancias, o reglas que\n` +

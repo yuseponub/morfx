@@ -24,6 +24,19 @@ vi.mock('@ai-sdk/google', () => ({
   google: vi.fn().mockReturnValue({ modelId: 'gemini-2.5-flash' }),
 }))
 
+// Mock global fetch — the classifier fetches imageUrl as base64 before calling the AI SDK.
+// Without this, tests make real HTTP requests that fail with 404/ENOTFOUND.
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
+
+// Reusable fake base64 response
+function makeFetchOk() {
+  return mockFetch.mockResolvedValue({
+    ok: true,
+    arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+  })
+}
+
 // Import after mocks are in place.
 import { generateText } from 'ai'
 import { classifyImage } from '../image-classifier'
@@ -33,6 +46,8 @@ const mockGenerateText = generateText as ReturnType<typeof vi.fn>
 describe('classifyImage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default: fetch succeeds with a dummy buffer
+    makeFetchOk()
   })
 
   it('categoria=producto → decision=responder (never from LLM)', async () => {

@@ -209,6 +209,9 @@ export const whatsappAgentProcessor = inngest.createFunction(
         workspaceId: event.data.workspaceId,
         conversationId: event.data.conversationId,
         phone: event.data.phone,
+        // Plan 03 (v4-media-audio-image Wave 2): thread resolvedAgentId for
+        // v4-only image/audio branches (D-01 / Regla 6).
+        resolvedAgentId: agentId,
       })
     })
 
@@ -356,10 +359,14 @@ export const whatsappAgentProcessor = inngest.createFunction(
 
     // --- PASSTHROUGH: text / transcribed audio / recognized sticker / mapped reaction ---
     // gateResult.action === 'passthrough' — continue with existing agent pipeline
+    // NOTE: Plan 03 (v4-media-audio-image Wave 2) adds 'vision_respond' handling here
+    // in Task 3. This block is refactored in Task 3 to also handle vision_respond.
+    // The local narrowed ref avoids TS complaints until Task 3 rewrites this block.
+    const passthroughResult = gateResult as Extract<typeof gateResult, { action: 'passthrough' }>
     collector?.recordEvent('media_gate', 'passthrough', {
       action: 'passthrough',
       messageType: event.data.messageType ?? 'text',
-      transformedText: gateResult.text !== event.data.messageContent,
+      transformedText: passthroughResult.text !== event.data.messageContent,
     })
     const stepResult = await step.run('process-message', async () => {
       // Dynamic import to avoid circular dependencies and reduce cold start
@@ -401,7 +408,7 @@ export const whatsappAgentProcessor = inngest.createFunction(
       const invokePipeline = () => processMessageWithAgent({
         conversationId,
         contactId,
-        messageContent: gateResult.text,  // May be original text or transcribed audio
+        messageContent: passthroughResult.text,  // May be original text or transcribed audio
         workspaceId,
         phone,
         messageTimestamp,  // Phase 31: for pre-send check

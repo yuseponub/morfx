@@ -22,6 +22,12 @@ export interface MediaGateInput {
   workspaceId: string
   conversationId: string
   phone: string
+  /**
+   * Resolved agent ID — used to gate v4-only branches (D-01 / Regla 6).
+   * Non-v4 agents fall to byte-identical existing behavior.
+   * Plan 03 (v4-media-audio-image Wave 2).
+   */
+  resolvedAgentId: string
 }
 
 /**
@@ -32,7 +38,28 @@ export interface MediaGateInput {
  * - ignore: Silently ignore (unmapped reactions, unrecognized stickers)
  */
 export type MediaGateResult =
-  | { action: 'passthrough'; text: string }
+  | {
+      action: 'passthrough'
+      text: string
+      /**
+       * Audio transcript — only set on the v4 audio path (handleAudioV4).
+       * All other passthrough cases omit this field (additive, non-breaking).
+       * Consumed by agent-production.ts `persist-transcription` step.
+       * Plan 03 (v4-media-audio-image Wave 2).
+       */
+      transcription?: string
+    }
   | { action: 'handoff'; reason: string }
   | { action: 'notify_host'; reason: string }
   | { action: 'ignore' }
+  | {
+      /**
+       * v4 image respond path — carries vision classification context forward
+       * so the engine (Plan 04) can produce a grounded RAG answer.
+       * The media-gate has NO send primitive; the engine emits the response.
+       * Plan 03 (v4-media-audio-image Wave 2).
+       */
+      action: 'vision_respond'
+      descripcion: string
+      categoria: string
+    }

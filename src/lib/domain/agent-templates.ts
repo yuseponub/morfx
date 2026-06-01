@@ -171,6 +171,70 @@ export async function updateTemplateContent(
   return { success: true }
 }
 
+// ============================================================================
+// Reorder — collision-safe two-phase temp-offset (Pitfall 3)
+// ============================================================================
+
+/**
+ * Re-number a group of templates to orden 0..N-1 in the order of `orderedIds`.
+ * Gated to v4 (D-02).
+ *
+ * Pitfall 3: the table has UNIQUE(agent_id, intent, visit_type, orden,
+ * workspace_id). A naive sequential UPDATE that writes the final orden values
+ * one row at a time can transiently collide — e.g. moving row A from orden 2→1
+ * while row B still holds orden 1 violates the UNIQUE key mid-update.
+ *
+ * Solution — two-phase temp-offset:
+ *   Phase 1: bump EVERY row in the set to orden = 1000 + i, moving them all OUT
+ *            of the real 0..N-1 target range. (Offset 1000 is safe because real
+ *            orden values are small single/double digits — no collision.)
+ *   Phase 2: write the final orden = i for each row. Because phase 1 already
+ *            evacuated the 0..N-1 range, no two rows ever share an orden value
+ *            at any point during phase 2.
+ *
+ * Runs sequentially (await each); aborts and returns on the first error.
+ */
+export async function reorderTemplates(
+  ctx: DomainContext,
+  params: {
+    agentId: string
+    intent: string
+    visit_type: string
+    orderedIds: string[]
+  },
+): Promise<DomainResult> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate
+
+  const supabase = createAdminClient()
+
+  // Phase 1 — evacuate every row out of the target range (orden = 1000 + i)
+  // so the UNIQUE(agent_id,intent,visit_type,orden,workspace_id) key cannot be
+  // violated when phase 2 writes the final 0..N-1 values (Pitfall 3).
+  for (let i = 0; i < params.orderedIds.length; i++) {
+    const id = params.orderedIds[i]
+    const { error } = await supabase
+      .from('agent_templates')
+      .update({ orden: 1000 + i, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('agent_id', params.agentId)
+    if (error) return { success: false, error: `reorder phase 1: ${error.message}` }
+  }
+
+  // Phase 2 — write the final contiguous orden values 0..N-1.
+  for (let i = 0; i < params.orderedIds.length; i++) {
+    const id = params.orderedIds[i]
+    const { error } = await supabase
+      .from('agent_templates')
+      .update({ orden: i, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('agent_id', params.agentId)
+    if (error) return { success: false, error: `reorder phase 2: ${error.message}` }
+  }
+
+  return { success: true }
+}
+
 /**
  * Insert a new template row. Gated to v4 (D-02). D-08: the target intent MUST
  * already exist for the agent — creating brand-new intents requires agent code.

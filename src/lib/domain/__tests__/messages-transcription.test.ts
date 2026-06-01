@@ -31,7 +31,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 // Import AFTER mock registration
 import { setMessageTranscription } from '@/lib/domain/messages'
 
-const CTX = { workspaceId: 'ws-abc', cascadeDepth: 0 }
+const CTX = { workspaceId: 'ws-abc', source: 'tool-handler', cascadeDepth: 0 }
 
 beforeEach(() => {
   vi.clearAllMocks()

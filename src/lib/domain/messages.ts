@@ -592,6 +592,49 @@ export async function getLastInboundMessageAt(
   return (data as { created_at?: string } | null)?.created_at ?? null
 }
 
+// ============================================================================
+// setMessageTranscription — v4-media-audio-image Plan 02 (D-04/D-09, Regla 3)
+//
+// Persists the Whisper transcript for an already-inserted audio message row.
+// The row is inserted by receiveMessage (keyed by wamid) BEFORE the Inngest
+// media-gate runs (RQ-6 / Pitfall 2). Transcript = UPDATE, never a second INSERT.
+//
+// Consumed by: Wave 2 Inngest function (v4-only, Regla 6).
+// ============================================================================
+
+/**
+ * Updates the `transcription` column on an existing message row, identified
+ * by its WhatsApp message id (`wamid`) within the caller's workspace.
+ *
+ * Regla 3: createAdminClient() + workspace_id filter on every mutation.
+ * Regla 6: called only from the v4 media-gate Inngest function.
+ */
+export async function setMessageTranscription(
+  ctx: DomainContext,
+  params: { wamid: string; transcription: string }
+): Promise<DomainResult<{ updated: boolean }>> {
+  if (!params.wamid) {
+    return { success: false, error: 'missing wamid' }
+  }
+  const supabase = createAdminClient()
+  try {
+    const { error } = await supabase
+      .from('messages')
+      .update({ transcription: params.transcription })
+      .eq('wamid', params.wamid)
+      .eq('workspace_id', ctx.workspaceId) // Regla 3 workspace isolation
+    if (error) {
+      console.error('[domain/messages] setMessageTranscription failed:', error.message)
+      return { success: false, error: error.message }
+    }
+    return { success: true, data: { updated: true } }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[domain/messages] setMessageTranscription failed:', msg)
+    return { success: false, error: msg }
+  }
+}
+
 /**
  * Returns up to `limit` distinct conversations that received at least one
  * inbound message in the last `daysBack` days, deduplicated by

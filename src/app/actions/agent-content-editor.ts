@@ -33,8 +33,22 @@ import {
   deleteTemplate,
   reorderTemplates,
 } from '@/lib/domain/agent-templates'
+import {
+  listKbByAgent,
+  getKbTopic,
+  createKbTopic,
+  updateKbTopic,
+  deleteKbTopic,
+  listKbVersions,
+  searchKbVersions,
+  restoreKbVersion,
+} from '@/lib/domain/agent-knowledge-base'
 import type { DomainContext } from '@/lib/domain/types'
 import type { AgentTemplateRow } from '@/lib/domain/agent-templates'
+import type {
+  AgentKbRow,
+  KbVersionRow,
+} from '@/lib/domain/agent-knowledge-base'
 
 // ============================================================================
 // Helpers (re-declared from agent-config.ts — module-private there, same code)
@@ -256,4 +270,227 @@ export async function reorderTemplatesAction(
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   revalidatePath(EDITOR_PATH)
   return { success: true }
+}
+
+// ============================================================================
+// Zod schemas — KB inputs (V5)
+// ============================================================================
+
+const kbCategoryEnum = z.enum([
+  'product',
+  'policies',
+  'edge-cases',
+  'faqs-no-templated',
+])
+
+/** Shared editable content fields for create/update KB topics. */
+const kbEditableSchema = z.object({
+  topic: z.string().min(1),
+  category: kbCategoryEnum,
+  keywords: z.array(z.string()),
+  scope_summary: z.string().nullable(),
+  hechos_del_producto: z.string().nullable(),
+  posicion_del_negocio: z.string().nullable(),
+  debe_contener: z.array(z.string()),
+  nunca_decir: z.array(z.string()),
+  cuando_escalar: z.array(z.string()),
+  tone_override: z.string().nullable(),
+  escalate_triggers: z.array(z.string()),
+  related_topics: z.array(z.string()),
+})
+
+const createKbSchema = kbEditableSchema.extend({
+  agentId: z.string(),
+})
+
+const updateKbSchema = kbEditableSchema.extend({
+  kbId: z.string().uuid(),
+  agentId: z.string(),
+})
+
+const deleteKbSchema = z.object({
+  kbId: z.string().uuid(),
+  agentId: z.string(),
+})
+
+const restoreKbSchema = z.object({
+  kbId: z.string().uuid(),
+  versionId: z.string().uuid(),
+  agentId: z.string(),
+})
+
+const searchKbVersionsSchema = z.object({
+  agentId: z.string(),
+  topic: z.string(),
+})
+
+// ============================================================================
+// KB READ actions (any authenticated member — no admin gate)
+// ============================================================================
+
+export async function getKbListAction(
+  agentId: string,
+): Promise<ActionResult<AgentKbRow[]>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+
+  const result = await listKbByAgent(buildCtx(ctx.workspaceId, ctx.user.id), agentId)
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  return { success: true, data: result.data }
+}
+
+export async function getKbTopicAction(
+  kbId: string,
+  agentId: string,
+): Promise<ActionResult<AgentKbRow>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+
+  const result = await getKbTopic(
+    buildCtx(ctx.workspaceId, ctx.user.id),
+    kbId,
+    agentId,
+  )
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  return { success: true, data: result.data }
+}
+
+export async function listKbVersionsAction(
+  kbId: string,
+  agentId: string,
+): Promise<ActionResult<KbVersionRow[]>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+
+  const result = await listKbVersions(buildCtx(ctx.workspaceId, ctx.user.id), {
+    kbId,
+    agentId,
+  })
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  return { success: true, data: result.data }
+}
+
+export async function searchKbVersionsAction(
+  input: z.infer<typeof searchKbVersionsSchema>,
+): Promise<ActionResult<KbVersionRow[]>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+
+  const v = searchKbVersionsSchema.safeParse(input)
+  if (!v.success)
+    return {
+      success: false,
+      error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
+    }
+
+  const result = await searchKbVersions(
+    buildCtx(ctx.workspaceId, ctx.user.id),
+    v.data,
+  )
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  return { success: true, data: result.data }
+}
+
+// ============================================================================
+// KB MUTATING actions (admin only — D-07)
+//
+// D-06: the domain re-embeds synchronously before the DB write; on an OpenAI
+// failure it returns { success:false, error:'Re-embed falló (OpenAI). Reintenta…' }.
+// We surface that domain error VERBATIM so the UI can show "reintenta".
+// ============================================================================
+
+export async function createKbTopicAction(
+  input: z.infer<typeof createKbSchema>,
+): Promise<ActionResult<AgentKbRow>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+    return { success: false, error: ADMIN_DENIED }
+
+  const v = createKbSchema.safeParse(input)
+  if (!v.success)
+    return {
+      success: false,
+      error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
+    }
+
+  const result = await createKbTopic(buildCtx(ctx.workspaceId, ctx.user.id), {
+    ...v.data,
+    reviewedBy: `user:${ctx.user.id}`,
+  })
+  // D-06: surface the domain error (incl. OpenAI re-embed failure) verbatim.
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  revalidatePath(EDITOR_PATH)
+  return { success: true, data: result.data }
+}
+
+export async function updateKbTopicAction(
+  input: z.infer<typeof updateKbSchema>,
+): Promise<ActionResult<AgentKbRow>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+    return { success: false, error: ADMIN_DENIED }
+
+  const v = updateKbSchema.safeParse(input)
+  if (!v.success)
+    return {
+      success: false,
+      error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
+    }
+
+  const result = await updateKbTopic(buildCtx(ctx.workspaceId, ctx.user.id), {
+    ...v.data,
+    reviewedBy: `user:${ctx.user.id}`,
+  })
+  // D-06: surface the domain error (incl. OpenAI re-embed failure) verbatim.
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  revalidatePath(EDITOR_PATH)
+  return { success: true, data: result.data }
+}
+
+export async function deleteKbTopicAction(
+  input: z.infer<typeof deleteKbSchema>,
+): Promise<ActionResult> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+    return { success: false, error: ADMIN_DENIED }
+
+  const v = deleteKbSchema.safeParse(input)
+  if (!v.success)
+    return {
+      success: false,
+      error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
+    }
+
+  const result = await deleteKbTopic(buildCtx(ctx.workspaceId, ctx.user.id), v.data)
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  revalidatePath(EDITOR_PATH)
+  return { success: true }
+}
+
+export async function restoreKbVersionAction(
+  input: z.infer<typeof restoreKbSchema>,
+): Promise<ActionResult<AgentKbRow>> {
+  const ctx = await getAuthContext()
+  if (!ctx) return { success: false, error: 'No autenticado' }
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+    return { success: false, error: ADMIN_DENIED }
+
+  const v = restoreKbSchema.safeParse(input)
+  if (!v.success)
+    return {
+      success: false,
+      error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
+    }
+
+  const result = await restoreKbVersion(buildCtx(ctx.workspaceId, ctx.user.id), {
+    ...v.data,
+    reviewedBy: `user:${ctx.user.id}`,
+  })
+  // D-06: surface the domain error (incl. OpenAI re-embed failure) verbatim.
+  if (!result.success) return { success: false, error: result.error ?? 'Error' }
+  revalidatePath(EDITOR_PATH)
+  return { success: true, data: result.data }
 }

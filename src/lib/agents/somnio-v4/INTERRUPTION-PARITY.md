@@ -170,6 +170,31 @@ queda lista para la activación manual (ver `.planning/standalone/somnio-v4-crm-
 
 ---
 
+## Parity addendum — dedicated vision branch (`standalone v4-media-audio-image`, Plan 04)
+
+The vision-respond branch lives in **shared `processMessage`** (`somnio-v4-agent.ts:181`),
+so production and sandbox exercise the **identical branch** when `visionContext` is supplied.
+
+| Aspect | Production | Sandbox |
+|--------|-----------|---------|
+| **Classifier** | Gemini Vision (`classifyImage`) runs in `agent-production.ts` media-gate; produces `descripcion` + `categoria` | Gemini classifier does NOT run in sandbox. Caller supplies `visionContext.descripcion` directly in the request body (or the UI). |
+| **Branch trigger** | `EngineInput.visionContext` threaded from `ProcessMessageInput.visionContext` (set by `agent-production.ts` after `vision_respond` gate result) → `v4Input.visionContext` in `v4-production-runner.ts` | `V4EngineInput.visionContext` threaded from sandbox route body destructure → `processMessage({ ..., visionContext })` in `engine-v4.ts` |
+| **Branch code** | `somnio-v4-agent.ts:181` `if (input.visionContext)` — shared, identical for both | Same — shared `processMessage` |
+| **Grounding** | `runSubLoop(reason:'razonamiento_libre', ctx.userMessage=descripcion)` — kb_search + buildGenerationPrompt + threshold + binary backstop (RQ-1) | Same `runSubLoop` call; sub-loop uses `simulate:true` so KB queries run real but CRM is simulated (D-22 parity rule — §4.4 "DB vs memory is an allowed difference") |
+| **Delivery** | Runner's 5h-main send loop dispatches `rag:<sourceTopic>` template (:751/:796/:839) | `engine-v4.ts` collect-messages loop handles the `templates` array from output |
+| **Interrupt handling** | `errorMessage.startsWith('interrupted_at_ckpt_')` → Path A restart (same as non-vision turns) | Same discriminator; engine-v4 restart loop handles it identically |
+
+**Parity rule (Rule 1 of §4):** if the vision branch behavior changes (threshold, backstop,
+`rag:` push shape), the change lives in `somnio-v4-agent.ts` and both prod and sandbox inherit
+it automatically (shared code). Only the classifier and the delivery mechanism differ
+(allowed per §4 Rule 4: "classifier-only differs: prod media-gate vs sandbox-supplied descripcion").
+
+**Regla 6:** `V4AgentInput.visionContext`, `EngineInput.visionContext`, and
+`V4EngineInput.visionContext` are all `?` (optional). The 5 non-v4 agents, v3-production-runner,
+and interruption-system-v2 are 0-line-diff vs baseline `85092058`. CheckpointId count stays 8.
+
+---
+
 ## Referencias
 
 - Módulo + scope completo: `CLAUDE.md` §"Module Scope: interruption-system-v2".

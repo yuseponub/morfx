@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId, systemEvent, sandboxSessionId } = body as {
+    const { message, state, history, turnNumber, crmAgents, workspaceId, forceIntent, agentId, systemEvent, sandboxSessionId, visionContext } = body as {
       message: string
       state: SandboxState
       history: { role: 'user' | 'assistant'; content: string }[]
@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
       systemEvent?: SystemEvent
       sandboxSessionId?: string  // Standalone: debounce-v2-sandbox-integration / Plan 02 (D-03).
                                   // Sólo consumido por la rama v4; resto de ramas lo ignoran (Regla 6 — campo neutral).
+      // standalone v4-media-audio-image (Plan 04): vision context for the dedicated image-respond
+      // branch. Sandbox supplies descripcion directly (Gemini classifier only runs in production
+      // media-gate). Absent on text turns and non-v4 agents. Additive — Regla 6.
+      visionContext?: { descripcion: string; categoria: string }
     }
 
     if (!message || !state) {
@@ -291,6 +295,10 @@ export async function POST(request: NextRequest) {
                 ownPendingEntryJson,
                 sandboxSessionId,
                 simulateProdTimingMs: lockHandle ? 8000 : 0,
+                // standalone v4-media-audio-image (Plan 04): pass visionContext so the
+                // sandbox can exercise the dedicated vision branch directly by supplying
+                // a descripcion (Gemini classifier only runs in production media-gate).
+                visionContext,
                 // Progressive reveal: write each template to the stream the
                 // moment the engine "sends" it (post-CKPT-7.N, post-pacing).
                 // Browser sees it immediately while the lock is still held.

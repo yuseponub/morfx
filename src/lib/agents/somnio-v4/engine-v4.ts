@@ -98,6 +98,14 @@ export interface V4EngineInput {
    */
   simulateProdTimingMs?: number
   /**
+   * standalone v4-media-audio-image (Plan 04): vision context for the dedicated
+   * image-respond branch. When present, engine-v4 passes it into processMessage
+   * so the shared branch fires in sandbox — parity with production (EngineInput
+   * → V4AgentInput). Absent on text turns, timers, and tests that don't supply it.
+   * Additive — Regla 6. See INTERRUPTION-PARITY.md vision section.
+   */
+  visionContext?: { descripcion: string; categoria: string }
+  /**
    * Optional callback fired once per template AFTER CKPT-7.N succeeds for that
    * template AND the per-template send-pacing sleep has elapsed. Used by the
    * streaming sandbox route to flush each template to the browser as it is
@@ -294,6 +302,10 @@ export class SomnioV4Engine {
           // simulado, puebla crmActions/crmResult igual (View B en memoria), y el debug
           // panel los muestra. Paridad INTERRUPTION-PARITY §4.4 (DB vs memoria permitido).
           simulate: true,
+          // standalone v4-media-audio-image (Plan 04): thread vision context from
+          // V4EngineInput → V4AgentInput so the sandbox exercises the SAME dedicated
+          // vision branch as production (parity — INTERRUPTION-PARITY.md vision section).
+          visionContext: input.visionContext,
         })
 
         // R-05 (debounce-v2-interrupt-reprocess): accumulate per-call tokens

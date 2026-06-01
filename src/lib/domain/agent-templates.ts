@@ -113,3 +113,139 @@ export async function listIntents(
   const unique = Array.from(new Set(rows.map((r) => r.intent))).sort()
   return { success: true, data: unique }
 }
+
+// ============================================================================
+// Edit-gate (D-02 / Regla 6) — ONLY somnio-sales-v4 is mutable
+// ============================================================================
+
+const EDITABLE_AGENT_ID = 'somnio-sales-v4'
+
+/**
+ * Returns a failed DomainResult if the agent is NOT editable, or `null` if it
+ * is. Every mutation calls this FIRST, before touching the DB (D-02).
+ */
+function assertEditable(agentId: string): DomainResult | null {
+  return agentId === EDITABLE_AGENT_ID
+    ? null
+    : { success: false, error: 'Solo somnio-sales-v4 es editable (Regla 6 / D-02).' }
+}
+
+// ============================================================================
+// Mutations (D-02 v4-gated)
+// ============================================================================
+
+/**
+ * Update a template's editable fields in place (D-03 — edits the exact row the
+ * agent uses). Gated to v4 (D-02). Filters by id + agent_id (no cross-agent write).
+ */
+export async function updateTemplateContent(
+  ctx: DomainContext,
+  params: {
+    id: string
+    agentId: string
+    content: string
+    content_type: TemplateContentType
+    delay_s: number
+    priority: TemplatePriority
+    minifrase: string | null
+  },
+): Promise<DomainResult> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('agent_templates')
+    .update({
+      content: params.content,
+      content_type: params.content_type,
+      delay_s: params.delay_s,
+      priority: params.priority,
+      minifrase: params.minifrase,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.id)
+    .eq('agent_id', params.agentId)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+/**
+ * Insert a new template row. Gated to v4 (D-02). D-08: the target intent MUST
+ * already exist for the agent — creating brand-new intents requires agent code.
+ *
+ * Inserts as a GLOBAL row (workspace_id: NULL) to match the scope v4's rows use
+ * (D-03 — no per-workspace override rows).
+ */
+export async function addTemplate(
+  ctx: DomainContext,
+  params: {
+    agentId: string
+    intent: string
+    visit_type: TemplateVisitType
+    orden: number
+    content_type: TemplateContentType
+    content: string
+    delay_s: number
+    priority: TemplatePriority
+    minifrase: string | null
+  },
+): Promise<DomainResult<AgentTemplateRow>> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate as DomainResult<AgentTemplateRow>
+
+  // D-08 guard: only existing intents are addable.
+  const intents = await listIntents(ctx, params.agentId)
+  if (!intents.success) {
+    return { success: false, error: intents.error ?? 'No se pudo verificar el intent.' }
+  }
+  if (!intents.data?.includes(params.intent)) {
+    return {
+      success: false,
+      error: 'Intent inexistente. Crear intents nuevos requiere código del agente (D-08).',
+    }
+  }
+
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('agent_templates')
+    .insert({
+      agent_id: params.agentId,
+      intent: params.intent,
+      visit_type: params.visit_type,
+      orden: params.orden,
+      content_type: params.content_type,
+      content: params.content,
+      delay_s: params.delay_s,
+      priority: params.priority,
+      minifrase: params.minifrase,
+      workspace_id: null, // D-03: global row, same scope v4 uses
+    })
+    .select('*')
+    .single()
+
+  if (error) return { success: false, error: error.message }
+  return { success: true, data: data as AgentTemplateRow }
+}
+
+/**
+ * Delete a template row. Gated to v4 (D-02). Filters by id + agent_id.
+ */
+export async function deleteTemplate(
+  ctx: DomainContext,
+  params: { id: string; agentId: string },
+): Promise<DomainResult> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('agent_templates')
+    .delete()
+    .eq('id', params.id)
+    .eq('agent_id', params.agentId)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}

@@ -485,3 +485,188 @@ export async function updateKbTopic(
   if (updErr) return { success: false, error: updErr.message }
   return { success: true, data: updated as unknown as AgentKbRow }
 }
+
+// ============================================================================
+// Delete + version list / search / restore (D-02 v4-gated, D-01b)
+// ============================================================================
+
+/**
+ * Delete a KB topic. Gated to v4 (D-02). Scoped by id + workspace + agent
+ * (Pitfall 2). Version rows cascade via the FK ON DELETE CASCADE (Plan 02).
+ */
+export async function deleteKbTopic(
+  ctx: DomainContext,
+  params: { kbId: string; agentId: string },
+): Promise<DomainResult> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('agent_knowledge_base')
+    .delete()
+    .eq('id', params.kbId)
+    .eq('workspace_id', ctx.workspaceId) // MANDATORY — no RLS (Pitfall 2)
+    .eq('agent_id', params.agentId) // MANDATORY
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+/**
+ * List all versions for a KB row, newest first. Scoped by workspace + agent
+ * (Pitfall 2). Reads allowed for any agent (no edit-gate).
+ */
+export async function listKbVersions(
+  ctx: DomainContext,
+  params: { kbId: string; agentId: string },
+): Promise<DomainResult<KbVersionRow[]>> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('agent_knowledge_base_versions')
+    .select(VERSION_SELECT_COLUMNS)
+    .eq('kb_id', params.kbId)
+    .eq('workspace_id', ctx.workspaceId) // MANDATORY — no RLS (Pitfall 2)
+    .eq('agent_id', params.agentId) // MANDATORY
+    .order('version_num', { ascending: false })
+
+  if (error) return { success: false, error: error.message }
+  return { success: true, data: (data ?? []) as unknown as KbVersionRow[] }
+}
+
+/**
+ * Search versions across all KB rows of an agent by topic substring (ILIKE),
+ * newest first. Scoped by workspace + agent (Pitfall 2).
+ */
+export async function searchKbVersions(
+  ctx: DomainContext,
+  params: { agentId: string; topic: string },
+): Promise<DomainResult<KbVersionRow[]>> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('agent_knowledge_base_versions')
+    .select(VERSION_SELECT_COLUMNS)
+    .eq('workspace_id', ctx.workspaceId) // MANDATORY — no RLS (Pitfall 2)
+    .eq('agent_id', params.agentId) // MANDATORY
+    .ilike('topic', `%${params.topic}%`)
+    .order('created_at', { ascending: false })
+
+  if (error) return { success: false, error: error.message }
+  return { success: true, data: (data ?? []) as unknown as KbVersionRow[] }
+}
+
+/**
+ * Restore a KB row to a previous version (D-01b + D-06). Flow:
+ *   1. v4-gate (D-02).
+ *   2. Load the chosen version row + the current live row.
+ *   3. Snapshot the CURRENT live row as a NEW version (so restore is reversible).
+ *   4. Build contentToEmbed from the version's fields + re-embed BEFORE write
+ *      (D-06 coupling — on throw return error, the step-3 snapshot is reversible).
+ *   5. UPDATE the live row with the version's editable fields + new embedding +
+ *      body_hash, scoped by id + workspace + agent.
+ */
+export async function restoreKbVersion(
+  ctx: DomainContext,
+  params: { kbId: string; versionId: string; agentId: string; reviewedBy: string },
+): Promise<DomainResult<AgentKbRow>> {
+  const gate = assertEditable(params.agentId)
+  if (gate) return gate as DomainResult<AgentKbRow>
+
+  const supabase = createAdminClient()
+
+  // Load the chosen version (scoped — Pitfall 2).
+  const { data: version, error: verErr } = await supabase
+    .from('agent_knowledge_base_versions')
+    .select(VERSION_SELECT_COLUMNS)
+    .eq('id', params.versionId)
+    .eq('kb_id', params.kbId)
+    .eq('workspace_id', ctx.workspaceId)
+    .eq('agent_id', params.agentId)
+    .maybeSingle()
+  if (verErr) return { success: false, error: verErr.message }
+  if (!version) return { success: false, error: 'Versión no encontrada.' }
+  const ver = version as unknown as KbVersionRow
+
+  // Load the current live row.
+  const current = await getKbTopic(ctx, params.kbId, params.agentId)
+  if (!current.success || !current.data) {
+    return { success: false, error: current.error ?? 'Tema de KB no encontrado.' }
+  }
+  const cur = current.data
+
+  // D-01b: snapshot CURRENT live row as a new version (restore is reversible).
+  const snap = await snapshotVersion(
+    ctx,
+    supabase,
+    params.kbId,
+    params.agentId,
+    {
+      topic: cur.topic,
+      category: cur.category,
+      keywords: cur.keywords,
+      scope_summary: cur.scope_summary,
+      hechos_del_producto: cur.hechos_del_producto,
+      posicion_del_negocio: cur.posicion_del_negocio,
+      debe_contener: cur.debe_contener,
+      nunca_decir: cur.nunca_decir,
+      cuando_escalar: cur.cuando_escalar,
+      tone_override: cur.tone_override,
+      escalate_triggers: cur.escalate_triggers,
+      related_topics: cur.related_topics,
+      body_hash: cur.body_hash,
+    },
+    params.reviewedBy,
+  )
+  if (!snap.ok) return { success: false, error: `Snapshot pre-restore falló: ${snap.error}` }
+
+  // D-06: re-embed from the version's content via the canonical serializer.
+  const cols: KbContentColumns = {
+    scope_summary: ver.scope_summary,
+    hechos_del_producto: ver.hechos_del_producto,
+    posicion_del_negocio: ver.posicion_del_negocio,
+    debe_contener: ver.debe_contener,
+    nunca_decir: ver.nunca_decir,
+    cuando_escalar: ver.cuando_escalar,
+  }
+  const { contentToEmbed, bodyHash } = buildEmbedInput(cols)
+
+  let embedding: number[]
+  try {
+    embedding = await generateEmbedding(contentToEmbed)
+  } catch (e) {
+    return {
+      success: false,
+      error: `Re-embed falló (OpenAI). Reintenta. ${(e as Error).message}`,
+    }
+  }
+
+  const { data: updated, error: updErr } = await supabase
+    .from('agent_knowledge_base')
+    .update({
+      topic: ver.topic,
+      category: ver.category,
+      keywords: ver.keywords,
+      scope_summary: ver.scope_summary,
+      hechos_del_producto: ver.hechos_del_producto,
+      posicion_del_negocio: ver.posicion_del_negocio,
+      debe_contener: ver.debe_contener,
+      nunca_decir: ver.nunca_decir,
+      cuando_escalar: ver.cuando_escalar,
+      tone_override: ver.tone_override,
+      escalate_triggers: ver.escalate_triggers,
+      related_topics: ver.related_topics,
+      embedding,
+      body_hash: bodyHash,
+      last_reviewed_at: todayBogota(),
+      reviewed_by: params.reviewedBy,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.kbId)
+    .eq('workspace_id', ctx.workspaceId) // MANDATORY — no RLS (Pitfall 2)
+    .eq('agent_id', params.agentId) // MANDATORY
+    .select(KB_SELECT_COLUMNS)
+    .single()
+
+  if (updErr) return { success: false, error: updErr.message }
+  return { success: true, data: updated as unknown as AgentKbRow }
+}

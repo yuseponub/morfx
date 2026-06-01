@@ -68,6 +68,14 @@ export interface ProcessMessageInput {
   lockChannel?: 'whatsapp' | 'facebook' | 'instagram' | null
   /** Identifier resolved at webhook (phone or external_subscriber_id). REVISION W3. */
   lockIdentifier?: string | null
+  /**
+   * Vision classification context from the media gate (Plan 03 — v4-media-audio-image Wave 2).
+   * Set ONLY when the media gate returns `action:'vision_respond'` (v4 image path).
+   * Stub — declared here, consumed by Plan 04 which wires it through
+   * EngineInput → V4AgentInput → the engine vision branch.
+   * Undefined for all other paths (text, audio, sticker, reaction, non-v4 agents).
+   */
+  visionContext?: { descripcion: string; categoria: string }
 }
 
 // ============================================================================

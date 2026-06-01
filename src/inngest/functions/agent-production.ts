@@ -357,17 +357,87 @@ export const whatsappAgentProcessor = inngest.createFunction(
       return { success: true, newMode: 'handoff', mediaType: event.data.messageType }
     }
 
-    // --- PASSTHROUGH: text / transcribed audio / recognized sticker / mapped reaction ---
-    // gateResult.action === 'passthrough' — continue with existing agent pipeline
-    // NOTE: Plan 03 (v4-media-audio-image Wave 2) adds 'vision_respond' handling here
-    // in Task 3. This block is refactored in Task 3 to also handle vision_respond.
-    // The local narrowed ref avoids TS complaints until Task 3 rewrites this block.
-    const passthroughResult = gateResult as Extract<typeof gateResult, { action: 'passthrough' }>
+    // ================================================================
+    // Plan 03 (v4-media-audio-image Wave 2):
+    //
+    // PASSTHROUGH handles two cases:
+    //   a) gateResult.action === 'passthrough' — text/audio/sticker/reaction
+    //   b) gateResult.action === 'vision_respond' — v4 image classify responder
+    //      Both proceed INTO the engine. vision_respond additionally threads
+    //      visionContext so the engine can use the classification result (Plan 04).
+    //
+    // PERSIST-TRANSCRIPTION step: v4 audio passthrough carries a `transcription`
+    //   field → persisted via setMessageTranscription (Wave 1 domain fn, Regla 3).
+    // ================================================================
+
+    // --- PASSTHROUGH / VISION_RESPOND: proceed into the agent engine ---
+    // All branches above (ignore/notify_host/handoff) have returned. Only
+    // 'passthrough' and 'vision_respond' reach this point.
+
+    // Determine the message content to send into the engine:
+    // - passthrough: gateResult.text (transcribed audio, sticker gesture, or original text)
+    // - vision_respond: use the client's caption (messageContent) or empty string;
+    //   the engine uses visionContext.descripcion as the KB query (Plan 04).
+    const engineMessageContent =
+      gateResult.action === 'passthrough'
+        ? gateResult.text
+        : event.data.messageContent ?? ''  // vision_respond: caption or empty
+
+    // Determine visionContext for the engine (vision_respond only; Plan 04 wires it through).
+    const visionContext =
+      gateResult.action === 'vision_respond'
+        ? { descripcion: gateResult.descripcion, categoria: gateResult.categoria }
+        : undefined
+
     collector?.recordEvent('media_gate', 'passthrough', {
-      action: 'passthrough',
+      action: gateResult.action,
       messageType: event.data.messageType ?? 'text',
-      transformedText: passthroughResult.text !== event.data.messageContent,
+      transformedText: engineMessageContent !== event.data.messageContent,
     })
+
+    if (gateResult.action === 'vision_respond') {
+      collector?.recordEvent('media_gate', 'vision_respond', {
+        categoria: gateResult.categoria,
+      })
+    }
+
+    // ================================================================
+    // Plan 03 (v4-media-audio-image Wave 2): persist-transcription step
+    //
+    // When v4 audio is transcribed, handleAudioV4 sets `transcription` in the
+    // passthrough result. We persist it here via the Wave 1 domain function
+    // (setMessageTranscription — Regla 3: UPDATE by wamid in the domain layer).
+    //
+    // Best-effort: failures are logged inside the step but do NOT block the
+    // pipeline (the transcript is non-critical for message delivery).
+    // ================================================================
+    if (
+      gateResult.action === 'passthrough' &&
+      'transcription' in gateResult &&
+      gateResult.transcription
+    ) {
+      await step.run('persist-transcription', async () => {
+        try {
+          const { setMessageTranscription } = await import('@/lib/domain/messages')
+          const persistResult = await setMessageTranscription(
+            { workspaceId, source: 'inngest', cascadeDepth: 0 },
+            { wamid: event.data.messageId, transcription: gateResult.transcription as string }
+          )
+          if (!persistResult.success) {
+            logger.warn(
+              { conversationId, messageId: event.data.messageId, error: persistResult.error },
+              '[media-gate] persist-transcription failed (non-blocking)'
+            )
+          }
+        } catch (err) {
+          logger.warn(
+            { conversationId, messageId: event.data.messageId, err },
+            '[media-gate] persist-transcription threw (non-blocking)'
+          )
+        }
+      })
+    }
+
     const stepResult = await step.run('process-message', async () => {
       // Dynamic import to avoid circular dependencies and reduce cold start
       const { processMessageWithAgent } = await import(
@@ -408,7 +478,7 @@ export const whatsappAgentProcessor = inngest.createFunction(
       const invokePipeline = () => processMessageWithAgent({
         conversationId,
         contactId,
-        messageContent: passthroughResult.text,  // May be original text or transcribed audio
+        messageContent: engineMessageContent,  // May be original text or transcribed audio
         workspaceId,
         phone,
         messageTimestamp,  // Phase 31: for pre-send check
@@ -425,6 +495,10 @@ export const whatsappAgentProcessor = inngest.createFunction(
         ownPendingEntryJson: ownPendingEntryJson ?? null,
         lockChannel: lockChannel ?? null,
         lockIdentifier: lockIdentifier ?? null,
+        // Plan 03 (v4-media-audio-image Wave 2): thread visionContext for v4 image path.
+        // ProcessMessageInput declares this as optional stub (consumed in Plan 04).
+        // undefined for non-vision paths (non-breaking for all existing callers).
+        visionContext,
       })
 
       // Wrap with runWithCollector so fetch wrapper + deep pipeline

@@ -361,11 +361,11 @@ if (!isAdmin) return { error: 'Solo administradores pueden editar el contenido d
 | A4 | `reviewed_by` / `source_md_path` synthetic values acceptable for UI-created topics (vs relaxing NOT NULL) | Domain Layer / Pitfall 5 | Either works; planner decides migration vs synthetic. |
 | A5 | Reorder strategy = temp-offset within UNIQUE key | Pitfall 3 | Need to validate the exact offset approach against the constraint; alternative is delete+reinsert. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Canonical serializer exact form (A1)** — What header strings/spacing make `buildContentToEmbed` the locked standard? Recommendation: planner picks one, puts it in a shared helper, re-embeds all 18 topics in the migration pass.
-2. **AGENT_CATALOG completeness (A3)** — Add `somnio-recompra-v1` + `somnio-sales-v3-pw-confirmation` to the catalog (additive) or keep a content-editor-local agent list? Recommendation: additive extension of the shared catalog (safe, single source of truth).
-3. **UI-created topic required fields (A4/Pitfall 5)** — Synthetic `source_md_path`/`reviewed_by` vs relaxing NOT NULL? Recommendation: synthetic values (no schema change to existing columns beyond `scope_summary`).
+1. **Canonical serializer exact form (A1)** — RESOLVED: Plan 01 Task 1 locks the exact `buildContentToEmbed` string form in `serialize.ts` with an exact-output `toBe` unit test; the migration pass re-embeds all 18 topics with it.
+2. **AGENT_CATALOG completeness (A3)** — RESOLVED: Plan 06 Task 1 uses a **content-editor-local** agent list (`CONTENT_EDITOR_AGENTS` in the AgentSelector), NOT an additive extension of the shared `AGENT_CATALOG`. Reason (plan-checker Warning 2): `config-panel.tsx:214` and `agent-config-slider.tsx:244` iterate `AGENT_CATALOG.map()` directly without `getAgentsForWorkspace()` filtering, so extending the shared catalog would expose Somnio-specific agents (`somnio-recompra-v1`, `somnio-sales-v3-pw-confirmation`) as selectable in ALL workspaces (incl. GoDentist). Local constant keeps the shared catalog clean.
+3. **UI-created topic required fields (A4/Pitfall 5)** — RESOLVED: Plan 04 Task 2 supplies synthetic values (`source_md_path = 'ui:'+topic`, `reviewed_by = current user`, `last_reviewed_at = now() America/Bogota`); no schema change to existing columns beyond adding `scope_summary`.
 
 ## Environment Availability
 

@@ -81,6 +81,8 @@ export interface Message {
   media_url: string | null
   media_mime_type: string | null
   media_filename: string | null
+  /** Whisper transcript for audio messages — null for all other types (D-04/D-09). */
+  transcription: string | null
   template_name: string | null
   sent_by_agent: boolean
   timestamp: string

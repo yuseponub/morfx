@@ -161,6 +161,7 @@ export function useMessages({
       media_url: null,
       media_mime_type: null,
       media_filename: null,
+      transcription: null,
       template_name: null,
       sent_by_agent: false,
       timestamp: new Date().toISOString(),

@@ -1,0 +1,304 @@
+{
+  "meta": {
+    "workspace_id": "f0241182-f79b-4bc6-b0ed-b5f6eb20c514",
+    "workspace_name": "GoDentist Valoraciones",
+    "generated_at": "2026-05-20T23:07:03.733Z",
+    "period": {
+      "start": "2026-03-23T20:22:20.278474+00:00",
+      "end": "2026-05-20T22:55:42.599703+00:00"
+    }
+  },
+  "totals": {
+    "conversations_total": 6451,
+    "conversations_with_inbound": 6446,
+    "conversations_empty": 5,
+    "messages_total": 52784,
+    "inbound_total": 21189,
+    "bot_outbound_total": 27533,
+    "human_outbound_total": 4062,
+    "val_tags_applied": 712,
+    "will_schedule_events": 216,
+    "handoff_events": 1054
+  },
+  "funnel_overall": {
+    "total": 6446,
+    "started": 6446,
+    "reached_pedir_datos": 1353,
+    "reached_pedir_fecha": 499,
+    "reached_mostrar_disponibilidad": 397,
+    "reached_mostrar_confirmacion": 303,
+    "has_val": 712,
+    "will_schedule": 215,
+    "val_no_will_sched": 497,
+    "no_interesa": 102,
+    "handoff": 921
+  },
+  "funnel_bot_only": {
+    "total": 4630,
+    "started": 4630,
+    "reached_pedir_datos": 760,
+    "reached_pedir_fecha": 174,
+    "reached_mostrar_disponibilidad": 154,
+    "reached_mostrar_confirmacion": 140,
+    "has_val": 206,
+    "will_schedule": 125,
+    "val_no_will_sched": 81,
+    "no_interesa": 79,
+    "handoff": 471
+  },
+  "funnel_with_human": {
+    "total": 1816,
+    "started": 1816,
+    "reached_pedir_datos": 593,
+    "reached_pedir_fecha": 325,
+    "reached_mostrar_disponibilidad": 243,
+    "reached_mostrar_confirmacion": 163,
+    "has_val": 506,
+    "will_schedule": 90,
+    "val_no_will_sched": 416,
+    "no_interesa": 23,
+    "handoff": 450
+  },
+  "bot_only_share": 71.8,
+  "human_intervention_share": 28.2,
+  "human_intervention_phase": {
+    "before_first_inbound": 0,
+    "after_first_inbound_before_data_req": 67,
+    "after_data_req_before_val": 47,
+    "after_val_before_will_sched": 9,
+    "after_will_sched": 470,
+    "no_data_req": 1223
+  },
+  "handoff_reasons": {
+    "No se pudo transcribir el audio del cliente": 351,
+    "engine_signal": 648,
+    "Cliente envio una imagen": 51,
+    "Cliente envio un video": 4
+  },
+  "performance": {
+    "overall_human": {
+      "p25": 356121,
+      "p50": 3175170,
+      "p75": 19765271,
+      "p90": 55344483,
+      "p95": 74952973
+    },
+    "overall_bot": {
+      "p25": 17826,
+      "p50": 21609,
+      "p75": 39978,
+      "p90": 147669,
+      "p95": 300146
+    },
+    "overall_human_fmt": {
+      "p25": "5.9min",
+      "p50": "52.9min",
+      "p75": "5.5h",
+      "p90": "15.4h",
+      "p95": "20.8h"
+    },
+    "overall_bot_fmt": {
+      "p25": "17.8s",
+      "p50": "21.6s",
+      "p75": "40.0s",
+      "p90": "2.5min",
+      "p95": "5.0min"
+    },
+    "weekly_human": [
+      {
+        "week": "2026-W12",
+        "n": 411,
+        "p50": "1.2h",
+        "p95": "20.4h",
+        "p50_min": 72.2,
+        "p95_min": 1226.2
+      },
+      {
+        "week": "2026-W13",
+        "n": 520,
+        "p50": "29.3min",
+        "p95": "16.1h",
+        "p50_min": 29.3,
+        "p95_min": 965.3
+      },
+      {
+        "week": "2026-W14",
+        "n": 533,
+        "p50": "1.1h",
+        "p95": "14.8h",
+        "p50_min": 68.1,
+        "p95_min": 885.7
+      },
+      {
+        "week": "2026-W15",
+        "n": 673,
+        "p50": "24.6min",
+        "p95": "18.0h",
+        "p50_min": 24.6,
+        "p95_min": 1081.9
+      },
+      {
+        "week": "2026-W16",
+        "n": 523,
+        "p50": "1.2h",
+        "p95": "21.4h",
+        "p50_min": 69.4,
+        "p95_min": 1284.8
+      },
+      {
+        "week": "2026-W17",
+        "n": 350,
+        "p50": "2.3h",
+        "p95": "163.3h",
+        "p50_min": 140.9,
+        "p95_min": 9800.7
+      },
+      {
+        "week": "2026-W18",
+        "n": 404,
+        "p50": "52.4min",
+        "p95": "23.1h",
+        "p50_min": 52.4,
+        "p95_min": 1386
+      },
+      {
+        "week": "2026-W19",
+        "n": 481,
+        "p50": "1.2h",
+        "p95": "19.9h",
+        "p50_min": 70.6,
+        "p95_min": 1192.5
+      },
+      {
+        "week": "2026-W20",
+        "n": 240,
+        "p50": "1.1h",
+        "p95": "20.3h",
+        "p50_min": 68.7,
+        "p95_min": 1217.1
+      }
+    ],
+    "monthly_human": {
+      "2026-03": {
+        "n": 779,
+        "p25": "5.0min",
+        "p50": "44.8min",
+        "p75": "4.5h",
+        "p90": "14.7h",
+        "p95": "17.2h"
+      },
+      "2026-04": {
+        "n": 2203,
+        "p25": "6.5min",
+        "p50": "49.8min",
+        "p75": "4.8h",
+        "p90": "14.3h",
+        "p95": "20.9h"
+      },
+      "2026-05": {
+        "n": 1153,
+        "p25": "6.2min",
+        "p50": "1.2h",
+        "p75": "7.2h",
+        "p90": "17.7h",
+        "p95": "21.6h"
+      }
+    },
+    "hourly_human": [
+      3,
+      1,
+      0,
+      1,
+      0,
+      0,
+      3,
+      10,
+      240,
+      387,
+      647,
+      466,
+      33,
+      13,
+      286,
+      560,
+      686,
+      542,
+      113,
+      12,
+      26,
+      15,
+      13,
+      5
+    ],
+    "daily_human_volume": {
+      "2026-03-24": 128,
+      "2026-03-25": 108,
+      "2026-03-26": 84,
+      "2026-03-27": 102,
+      "2026-03-28": 63,
+      "2026-03-29": 34,
+      "2026-03-30": 128,
+      "2026-03-31": 128,
+      "2026-04-01": 120,
+      "2026-04-02": 29,
+      "2026-04-03": 6,
+      "2026-04-04": 26,
+      "2026-04-05": 36,
+      "2026-04-06": 127,
+      "2026-04-07": 85,
+      "2026-04-08": 76,
+      "2026-04-09": 66,
+      "2026-04-10": 41,
+      "2026-04-11": 50,
+      "2026-04-13": 137,
+      "2026-04-14": 119,
+      "2026-04-15": 78,
+      "2026-04-16": 106,
+      "2026-04-17": 139,
+      "2026-04-18": 51,
+      "2026-04-20": 79,
+      "2026-04-21": 62,
+      "2026-04-22": 64,
+      "2026-04-23": 175,
+      "2026-04-24": 100,
+      "2026-04-25": 50,
+      "2026-04-26": 1,
+      "2026-04-27": 39,
+      "2026-04-28": 95,
+      "2026-04-29": 70,
+      "2026-04-30": 41,
+      "2026-05-02": 64,
+      "2026-05-04": 89,
+      "2026-05-05": 71,
+      "2026-05-06": 98,
+      "2026-05-07": 143,
+      "2026-05-08": 81,
+      "2026-05-09": 44,
+      "2026-05-11": 82,
+      "2026-05-12": 105,
+      "2026-05-13": 97,
+      "2026-05-14": 58,
+      "2026-05-15": 54,
+      "2026-05-16": 58,
+      "2026-05-18": 17,
+      "2026-05-19": 68,
+      "2026-05-20": 90
+    }
+  },
+  "conversion_breakdown": {
+    "val_total": 712,
+    "will_schedule_total": 215,
+    "val_with_human": 506,
+    "will_sched_with_human": 90,
+    "val_applied_by": {
+      "bot": 485,
+      "human": 66,
+      "unknown": 161
+    },
+    "human_before_val": 165,
+    "human_after_val": 341,
+    "val_plus_will_sched": 215,
+    "val_closed_by_human_proxy": 416,
+    "val_lost_no_human": 81
+  }
+}

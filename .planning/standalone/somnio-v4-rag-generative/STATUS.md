@@ -1,9 +1,13 @@
 # Somnio v4 RAG Generative — STATUS (LIVE)
 
-**Last updated:** 2026-05-19 (Plan 06 SHIPPED — Smoke B regression 10 casos ejecutado, pendiente Jose review)
-**HEAD git:** `65d0fd3` (Plan 06 docs) sobre `4714c4c` (Plan 06 test) sobre `5589bf9` (Plan 07c pushed)
+**Last updated:** 2026-05-25 (Plan 09 SHIPPED — schema discriminated union, pendiente smoke E2E user)
+**HEAD git:** `dbef008` (Plan 09 ship) sobre `73eef58` (KB tono) sobre `4b7cf23` (KB escalate_if migration) sobre `65d0fd3` (Plan 06 docs)
 **v4 status en prod:** DORMANT (sin routing rule — `active_v4_rules = 0`)
 **v3 status en prod:** ACTIVO (atendiendo clientes — Regla 6 intocado)
+
+> **PLAN 09 SHIPPED 2026-05-25:** `ToolingOutputSchema` refactorizado de `z.object({...nullable})` plano a `z.discriminatedUnion('should_handoff', [shapeA, shapeB])`. Objetivo: mitigar `AI_NoOutputGeneratedError` con `stepCount=0` observado en sesión `d958cd2f` ("tomo metformina para diabetes" — ambos retries fallaron idénticos, ~9s c/u, error vacío). Schema antes: ~32+ combinaciones válidas (todos campos nullable). Ahora: 2 shapes mutuamente excluyentes (handoff vs success). Auditor externo (07b-AUDIT.md + investigación 2026-05-23) cuantificó: sin antipatterns, combo bug-AI-SDK + OpenAI-limitation podría fallar ~1/1000 vs ~1/50 con antipatterns. Reducción esperada ~95%, NO eliminación. 3 archivos, 70 líneas. Tests 33/33 schema-adjacent verdes. Pendiente Jose smoke E2E sandbox: caso "metformina" × 5 retries esperado 4-5/5 sin error. Failure mode → Plan 10 (arquitectura Y3-B sin tools). Ver `09-PLAN.md`.
+
+> **2026-05-24 — Bug crítico `escalate_if` frontmatter ⇒ DB column dead metadata RESUELTO:** caso "soy adulto mayor de 65, me sirve?" no escalaba porque `kb-search-tool.ts:121` mapeaba `cuando_escalar` (body section) pero NO `escalate_triggers` (frontmatter). Fix opción 3: migrar triggers del frontmatter al body `## Cuándo escalar a humano` en 12 KBs. Commit `4b7cf23`. También fix tono: "población adulta sana" → "personas adultas" en 5 KBs (commit `73eef58`) para evitar contraste discriminatorio percibido por clientes con condiciones médicas.
 
 > **PLAN 06 SHIPPED 2026-05-19:** Smoke B regression (10 casos D-12 paths) ejecutado clean — 208s runtime, 0 runtime errors. Auto-check: 1/3 razonamiento_libre PASS (case 3 handoff vía threshold gate 0.20<0.70), 2/3 FAIL strict (cases 1+2 generaron respuesta FAITHFUL al KB `insomnio_largo_plazo` con conf=0.80/0.95 en lugar de handoff). 7/7 SKIP cases documentados (crm_mutation 4-6 = Regla 6 + Threat T-06-01, state_machine 7-9 = NO entran al sub-loop, cas_reject 10 = integration tests crm-writer cubren). **NO son regresión D-12** — razonamiento_libre usa flujo NUEVO RAG (Plan 03 split), no LEGACY. Case 2 textualmente cumple expected del plan ("handoff o template empático"). Pendiente Jose review cases 1+2 + SKIPS manuales para decisión: Plan 08 flip OR Plan 07d tuning.
 
@@ -32,8 +36,10 @@
 - [x] **Execute-phase plan 07b (Flash NORMAL + polarity)** — DONE 2026-05-18 (13/17 PASS, 2 regresiones cases 12 y 17)
 - [x] **Execute-phase plan 07c (devoluciones handoff stub)** — **DONE 2026-05-18** (15/17 PASS, case 12 resuelto, 0 nuevas regresiones, 0 invenciones)
 - [x] **Execute-phase plan 06 (Smoke B)** — **DONE 2026-05-19** (10 casos, 0 runtime errors, 1/3 razonamiento_libre PASS + 2/3 FAIL no-regresivo, 7/7 SKIP documentados — pendiente Jose review)
+- [x] **Execute-phase plan 09 (Opción Z — schema discriminated union)** — **DONE 2026-05-25** (3 archivos, 70 líneas, 33/33 tests schema-adjacent verdes — pendiente Jose smoke E2E sandbox "metformina" × 5)
 - [ ] **Execute-phase plan 07d (case 17 + 16 + razonamiento_libre tuning)** — opcional, depende de decisión Jose post Smoke B review
 - [ ] **Execute-phase plan 08 (flip productivo)** — pendiente (post Smoke B Jose review verde)
+- [ ] **Execute-phase plan 10 (Y3-B arquitectura sin tools)** — solo si Plan 09 insuficiente tras smoke E2E (failure mode: si caso "metformina" sigue rompiendo)
 - [ ] **Verify-phase** — pendiente
 - [ ] **LEARNINGS.md** — pendiente
 
@@ -52,8 +58,10 @@
 | 07b | Flash NORMAL + polarity prompt en nuncaDecirCheck | DONE 2026-05-18 (13/17 PASS, 2 regresiones cases 12+17) | `90f7f8f` (pushed) |
 | 07c | devoluciones.md handoff stub | **DONE 2026-05-18** (15/17 PASS, case 12 fixed, 0 nuevas regresiones, 0 invenciones) | `5589bf9` (pushed) |
 | 06 | Smoke B — regression 10 casos | **DONE 2026-05-19** (0 runtime errors, 1/3 razonamiento_libre PASS + 2/3 FAIL no-regresivo, 7/7 SKIP documentados, pendiente Jose review) | `65d0fd3` (pendiente push) |
+| 09 | Schema discriminated union (Opción Z) — mitigación AI_NoOutputGeneratedError | **DONE 2026-05-25** (3 archivos, 70 líneas, 33/33 tests verdes, pendiente Jose smoke E2E) | `dbef008` (pushed) |
 | 07d | (opcional) generation respect cuando_escalar + razonamiento_libre tuning | pending (post-decision Jose) | — |
 | 08 | Flip productivo (SQL routing_rule) | pending (post Smoke B Jose review verde) | — |
+| 10 | (contingencia) Arquitectura Y3-B sin tools — si Plan 09 insuficiente | pending (solo si smoke "metformina" sigue rompiendo) | — |
 
 ---
 

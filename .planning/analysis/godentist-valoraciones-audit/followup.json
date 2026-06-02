@@ -1,0 +1,98 @@
+{
+  "audio_volume": {
+    "inbound_audio": 491,
+    "conversations_with_audio": 356
+  },
+  "by_month": {
+    "2026-03": {
+      "bot": 4057,
+      "human": 775,
+      "inbound": 3103
+    },
+    "2026-04": {
+      "bot": 15265,
+      "human": 2068,
+      "inbound": 11398
+    },
+    "2026-05": {
+      "bot": 8211,
+      "human": 1219,
+      "inbound": 6688
+    }
+  },
+  "new_conv_by_month": {
+    "2026-03": 977,
+    "2026-04": 3455,
+    "2026-05": 2019
+  },
+  "weekday_human_response": {
+    "Dom": {
+      "n": 125,
+      "p50_min": 690.5,
+      "p95_min": 18791.3
+    },
+    "Lun": {
+      "n": 739,
+      "p50_min": 44.3,
+      "p95_min": 1249.2
+    },
+    "Mar": {
+      "n": 814,
+      "p50_min": 38.6,
+      "p95_min": 993.9
+    },
+    "Mié": {
+      "n": 811,
+      "p50_min": 55.5,
+      "p95_min": 1324.7
+    },
+    "Jue": {
+      "n": 658,
+      "p50_min": 43,
+      "p95_min": 1032.8
+    },
+    "Vie": {
+      "n": 622,
+      "p50_min": 61.7,
+      "p95_min": 1141.5
+    },
+    "Sáb": {
+      "n": 373,
+      "p50_min": 87,
+      "p95_min": 1217.7
+    }
+  },
+  "in_vs_out_hours": {
+    "in_hours": {
+      "n": 3394,
+      "p50": "27.3min",
+      "p75": "2.5h",
+      "p95": "20.4h"
+    },
+    "out_hours": {
+      "n": 748,
+      "p50": "11.9h",
+      "p75": "14.1h",
+      "p95": "22.0h"
+    }
+  },
+  "lost_val_no_will_sched_no_human": {
+    "total": 81,
+    "with_handoff": 6,
+    "reached_pedir_fecha": 63,
+    "handoff_reasons": {
+      "No se pudo transcribir el audio del cliente": 4,
+      "engine_signal": 3
+    }
+  },
+  "val_will_sched_time_diff": {
+    "n": 215,
+    "p50_min": 7.6,
+    "p75_min": 20.5,
+    "p95_h": 2.1
+  },
+  "very_late_responses": {
+    "gt_24h": 119,
+    "gt_1week": 43
+  }
+}

@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
-status: "Plan 06 closed. Jose decide camino: A (recomendado) Plan 08 production flip si acepta cases 1+2 como behavior emergente razonable (≥9/10 + Smoke A 15/17 = green light). B Plan 07d tuning si prefiere handoff estricto en razonamiento_libre. Push pendiente commits Plan 06."
-stopped_at: Phase 38 context gathered
-last_updated: "2026-06-02T22:17:17.771Z"
+status: "Phase 38 (Embedded Signup + WhatsApp Inbound) PLANNED — 5 plans en 5 waves. Plan-checker: 0 blockers, 2 warnings resueltos (MIG-01 mapping + Open Questions RESOLVED). 8/8 requirements cubiertos. Listo para ejecutar: /gsd-execute-phase 38. Prereqs humanos antes de smokes: app Meta a Live mode (D-12) + NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID en Vercel."
+stopped_at: Phase 38 planned (ready to execute)
+last_updated: "2026-06-02T22:35:00.000Z"
 progress:
   total_phases: 12
   completed_phases: 5

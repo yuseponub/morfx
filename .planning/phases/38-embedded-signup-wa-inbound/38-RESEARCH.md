@@ -501,23 +501,27 @@ FB.login((response) => {
 | A6 | Synchronous `processWebhook` keeps response < 5s in practice | Pitfall 7 / Open Q1 | Meta flags endpoint under heavy agent latency → migrate to async (Phase 39 pattern). Dedup makes retries safe meanwhile. |
 | A7 | mTLS CA change (Mar 31 2026) does NOT affect standard HTTPS Vercel webhooks | State of the Art | If Meta forces mTLS, trust store must add Meta CA. LOW — mTLS is opt-in. |
 
-## Open Questions
+## Open Questions (RESOLVED during planning 2026-06-02)
 
 1. **Synchronous vs async webhook processing (HOOK-03 says "inngest.send without await + DB safety net"; current 360dialog route is synchronous).**
    - What we know: existing route is synchronous within `maxDuration=60` and works; Meta wants 200 in <5s; dedup makes retries harmless.
    - What's unclear: whether Somnio-scale agent latency on the Meta path will exceed Meta's tolerance.
    - Recommendation: **mirror the synchronous pattern for Phase 38** (parity, D-09, lowest risk). Treat the async refactor as an explicit Phase-39 task only if real latency proves it necessary. Flag for planner to decide as a single task, not a fork.
+   - **RESOLVED:** Plan 03 (Task 2) ships the synchronous `processWebhook` + `maxDuration=60` pattern, no async fork. Async deferred to Phase 39.
 
 2. **Where exactly is `whatsapp_provider` read in Phase 38?**
    - What we know: inbound routing is already disambiguated by endpoint + `resolveByPhoneNumberId`; the flag mainly governs Phase 39 outbound.
    - Recommendation: add the column/flag now (deliverable for MIG-01, even though MIG-01 is mapped to Phase 39) so Phase 39 has it, but do NOT gate inbound on it in Phase 38 (structurally unnecessary). Confirm with planner whether to land the migration here or defer to Phase 39.
+   - **RESOLVED:** Plan 02 lands the `workspaces.whatsapp_provider` migration in Phase 38 (checkpoint:human, Regla 5); inbound is NOT gated on it. REQUIREMENTS.md updated: MIG-01 migration = Phase 38, sender wiring = Phase 39.
 
 3. **Exact `config_id` and Embedded Signup feature config in the Meta App dashboard.**
    - What we know: required by `FB.login`; must come from the live Meta App.
    - Recommendation: a planning/execution task to read it from the dashboard before wiring the frontend; cannot be hard-coded from research.
+   - **RESOLVED:** Plan 05 (Task 1) reads `NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID` live from the dashboard before wiring the frontend; `extras` validated in-browser (Pitfall 8).
 
 4. **Does the test number (D-11) need `POST /{phone-number-id}/register` or is it already registered via 360dialog history?**
    - Recommendation: execution-time check — try `subscribed_apps` first; register only if Cloud API reports the number unregistered.
+   - **RESOLVED:** Plan 04 (Task 1) implements try-subscribe-first, register-only-if-unregistered.
 
 ## Environment Availability
 

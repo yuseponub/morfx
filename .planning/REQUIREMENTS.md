@@ -131,7 +131,7 @@
 | IG-03 | Phase 41 | Pending |
 | IG-04 | Phase 41 | Pending |
 | IG-05 | Phase 41 | Pending |
-| MIG-01 | Phase 39 | Pending |
+| MIG-01 | Phase 38 (migration) / Phase 39 (sender wiring) | Pending — `whatsapp_provider` column lands in Phase 38 (Plan 02, per RESEARCH Open Q2) so Phase 39 has it; outbound sender selection reads it in Phase 39 |
 | MIG-02 | Phase 40 | Pending |
 | MIG-03 | Phase 39 | Pending |
 

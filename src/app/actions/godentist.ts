@@ -293,11 +293,13 @@ export async function sendConfirmations(
   const apiKey = wsData?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
   if (!apiKey) return { error: 'API key de WhatsApp no configurada' }
 
-  // ── D-08: gate on scrape inconsistent flag (early-return) ──
-  // Per CONTEXT.md D-08 + PATTERNS.md §3: if the scrape (looked up by historyId) was
-  // flagged inconsistent by the canary in scrapeAppointments (Task 1), abort the send
-  // before the loop to avoid spending DB reads per appointment. The check happens at
-  // server-action entry; downstream fns trust the audit-trail flag (single source of truth).
+  // ── D-08 (relaxed 2026-06-02): cross-sede canary is WARN-ONLY, never blocks ──
+  // El canary genera falsos positivos (un mismo paciente con citas en 2 sedes a horas
+  // distintas el mismo día es legítimo — p.ej. CABECERA AM + FLORIDABLANCA PM). Bloquear
+  // el envío por eso dejaba sin recordatorios a toda la operación del día. Decisión del
+  // operador: "no crees bloqueos, solo reintentos". Conservamos la detección (badge UI +
+  // inconsistency_details + evento Inngest godentist/scrape.inconsistent) como señal de
+  // auditoría, pero NO abortamos el envío.
   if (historyId) {
     const adminGate = createAdminClient()
     const { data: scrapeRow } = await adminGate
@@ -307,8 +309,7 @@ export async function sendConfirmations(
       .eq('workspace_id', workspaceId)
       .single()
     if (scrapeRow?.inconsistent) {
-      console.error(`[godentist] sendConfirmations BLOCKED: scrape ${historyId} marked inconsistent`)
-      return { error: 'Scrape marcado como inconsistent — envío bloqueado. Revisar diagnóstico del scrape antes de reintentar.' }
+      console.warn(`[godentist] sendConfirmations: scrape ${historyId} marked inconsistent (WARN-ONLY, proceeding)`)
     }
   }
 
@@ -776,10 +777,10 @@ export async function scheduleReminders(
   const workspaceId = cookieStore.get('morfx_workspace')?.value
   if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
-  // ── D-08: gate on scrape inconsistent flag (early-return) ──
-  // Per CONTEXT.md D-08 + PATTERNS.md §3: same gate as sendConfirmations. If the
-  // scrape is inconsistent, abort scheduling — don't queue reminders that will fire
-  // tomorrow with bad data.
+  // ── D-08 (relaxed 2026-06-02): cross-sede canary is WARN-ONLY, never blocks ──
+  // Mismo criterio que sendConfirmations: el canary advierte pero no bloquea la
+  // programación. Ver nota en sendConfirmations. La detección sigue activa (badge UI +
+  // inconsistency_details + evento Inngest) para auditoría posterior.
   if (historyId) {
     const adminGate = createAdminClient()
     const { data: scrapeRow } = await adminGate
@@ -789,8 +790,7 @@ export async function scheduleReminders(
       .eq('workspace_id', workspaceId)
       .single()
     if (scrapeRow?.inconsistent) {
-      console.error(`[godentist] scheduleReminders BLOCKED: scrape ${historyId} marked inconsistent`)
-      return { error: 'Scrape marcado como inconsistent — programación bloqueada. Revisar diagnóstico del scrape antes de reintentar.' }
+      console.warn(`[godentist] scheduleReminders: scrape ${historyId} marked inconsistent (WARN-ONLY, proceeding)`)
     }
   }
 

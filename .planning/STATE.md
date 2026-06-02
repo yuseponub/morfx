@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
-status: "v4-media-audio-image Plan 04 (Wave 3) COMPLETE. Dedicated vision branch + rag: delivery + sandbox parity shipped. 5+2 tests green. Next: Plan 05 (Wave 4 UI transcript)."
-stopped_at: "Standalone v4-media-audio-image Plan 04 COMPLETE (2026-06-01T17:39:11Z). Commits 4ec32d4b..08f649d4. Next: Plan 05."
-last_updated: "2026-06-01T17:39:11Z"
+status: "Plan 06 closed. Jose decide camino: A (recomendado) Plan 08 production flip si acepta cases 1+2 como behavior emergente razonable (≥9/10 + Smoke A 15/17 = green light). B Plan 07d tuning si prefiere handoff estricto en razonamiento_libre. Push pendiente commits Plan 06."
+stopped_at: Phase 38 context gathered
+last_updated: "2026-06-02T22:17:17.771Z"
 progress:
   total_phases: 12
   completed_phases: 5
@@ -544,7 +544,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-18T17:00:00.000Z
-Stopped at: Phase 44-09 Tasks 4+5 complete; Task 6 human-verify checkpoint pending (Vercel redeploy + kill-switch production QA)
-Resume file: .planning/phases/44-crm-bots/44-09-PLAN.md (Task 6 checkpoint; Task 7 post-checkpoint creates LEARNINGS + final SUMMARY)
+Last session: 2026-06-02T22:17:17.690Z
+Stopped at: Phase 38 context gathered
+Resume file: .planning/phases/38-embedded-signup-wa-inbound/38-CONTEXT.md
 Next: Usuario ejecuta Part A (DNS TXT domain verify) y Part D (Business Verification resubmit) cuando Blocks B+C completos en separate instance. Post-approval Meta: update memory + estado-actual con verification date, desbloquea Phase 38 (Embedded Signup).

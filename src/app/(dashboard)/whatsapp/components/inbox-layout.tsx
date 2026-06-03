@@ -171,6 +171,7 @@ export function InboxLayout({
             <Allotment>
               <Allotment.Pane minSize={400}>
                 <ChatView
+                  workspaceId={workspaceId}
                   conversationId={selectedConversationId}
                   conversation={selectedConversation}
                   onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
@@ -186,6 +187,7 @@ export function InboxLayout({
           </div>
         ) : (
           <ChatView
+            workspaceId={workspaceId}
             conversationId={selectedConversationId}
             conversation={selectedConversation}
             onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}

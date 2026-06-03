@@ -7,9 +7,21 @@
 // cache (instant revisits, stale-while-revalidate); the existing Supabase
 // Realtime subscription remains the source of deltas, bridged into the cache
 // via queryClient.setQueryData (NOT refetch — Pitfall 7).
+//
+// Cache correctness contract (debug whatsapp-inbox-messages-stuck, 2026-06-03):
+// - The query key is scoped by workspaceId so a conversation fetched under
+//   workspace A can never be served/refetched under workspace B after a
+//   workspace switch (the switch keeps the singleton browser cache + the same
+//   `?c=` conversationId; a workspace-scoped key makes that a cache MISS by
+//   construction instead of a cross-tenant leak / stale empty list).
+// - The message fetch is a one-shot Server Action RPC, so it uses a bounded
+//   retry (1 attempt) instead of the QueryClient default of 3. A transport-level
+//   reject on a Vercel cold-start otherwise kept React Query in `pending`
+//   through 3 exponential-backoff retries (~7s + per-fetch time), pinning
+//   `isLoading=true` and freezing the loading skeletons for 20-50s.
 // ============================================================================
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getConversationMessages } from '@/app/actions/conversations'
@@ -20,6 +32,10 @@ import type { Message, TextContent } from '@/lib/whatsapp/types'
 // ============================================================================
 
 interface UseMessagesOptions {
+  /** Active workspace id — scopes the cache key so the message list can never
+   *  leak across workspaces after a switch (the browser QueryClient is a
+   *  singleton and the switch does not clear it). */
+  workspaceId: string
   conversationId: string | null
   limit?: number
 }
@@ -40,6 +56,16 @@ interface UseMessagesReturn {
 }
 
 // ============================================================================
+// Cache key
+// ============================================================================
+
+/** Single source of truth for the messages query key. Workspace-scoped so the
+ *  cache is isolated per tenant (see header note). */
+function messagesKey(workspaceId: string, conversationId: string) {
+  return ['messages', workspaceId, conversationId] as const
+}
+
+// ============================================================================
 // Hook Implementation
 // ============================================================================
 
@@ -48,25 +74,37 @@ interface UseMessagesReturn {
  * Subscribes to new messages for the active conversation.
  * Includes safety refetch for unreliable realtime delivery.
  *
- * State ownership: TanStack React Query (queryKey ['messages', conversationId])
- * — revisiting an already-seen conversation is instant (served from cache,
- * stale-while-revalidate) instead of a fresh re-fetch that clears the list.
- * Realtime INSERT/UPDATE deltas are applied via setQueryData (immutable, no
- * refetch); the safety refetch + channel-error/reconnect reconciliation use
- * invalidateQueries (single reconciling refetch — Pitfall 7 permitted case).
+ * State ownership: TanStack React Query (queryKey ['messages', workspaceId,
+ * conversationId]) — revisiting an already-seen conversation is instant
+ * (served from cache, stale-while-revalidate) instead of a fresh re-fetch that
+ * clears the list. Realtime INSERT/UPDATE deltas are applied via setQueryData
+ * (immutable, no refetch); the safety refetch + channel-error/reconnect
+ * reconciliation use invalidateQueries (single reconciling refetch — Pitfall 7).
  */
 export function useMessages({
+  workspaceId,
   conversationId,
   limit = 50,
 }: UseMessagesOptions): UseMessagesReturn {
   const queryClient = useQueryClient()
 
-  // React Query owns the message cache. enabled guards the null conversation.
-  // staleTime/gcTime come from the QueryClient defaults (get-query-client.ts).
+  // Stable, workspace-scoped key reused by the query + every cache mutation
+  // below. conversationId may be null (no selection) — guarded by `enabled`.
+  const queryKey = useMemo(
+    () => messagesKey(workspaceId, conversationId ?? ''),
+    [workspaceId, conversationId]
+  )
+
+  // React Query owns the message cache. `enabled` guards the null conversation.
+  // staleTime/gcTime come from the QueryClient defaults (get-query-client.ts);
+  // `retry` is capped at 1 here (vs the default 3) because this is a one-shot
+  // Server Action — 3 exponential-backoff retries froze the loading skeletons
+  // for 20-50s on Vercel cold-starts (debug whatsapp-inbox-messages-stuck).
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: ['messages', conversationId],
+    queryKey,
     queryFn: () => getConversationMessages(conversationId!, limit),
     enabled: !!conversationId,
+    retry: 1,
   })
 
   // hasMore is derived state owned per-conversation: it starts true and is set
@@ -75,6 +113,8 @@ export function useMessages({
 
   // Refs for safety refetch + stable handlers
   const safetyRefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const queryKeyRef = useRef(queryKey)
+  useEffect(() => { queryKeyRef.current = queryKey }, [queryKey])
   const conversationIdRef = useRef(conversationId)
   useEffect(() => { conversationIdRef.current = conversationId }, [conversationId])
 
@@ -103,9 +143,7 @@ export function useMessages({
   // Implemented as a single reconciling invalidate (Pitfall 7 permitted case).
   const softRefetch = useCallback(() => {
     if (!conversationIdRef.current) return
-    queryClient.invalidateQueries({
-      queryKey: ['messages', conversationIdRef.current],
-    })
+    queryClient.invalidateQueries({ queryKey: queryKeyRef.current })
   }, [queryClient])
 
   // Schedule a safety refetch after 3 seconds (call after sending a message)
@@ -139,7 +177,7 @@ export function useMessages({
 
       if (olderMessages.length > 0) {
         queryClient.setQueryData<Message[]>(
-          ['messages', conversationId],
+          queryKey,
           (prev = []) => [...olderMessages, ...prev]
         )
       }
@@ -147,7 +185,7 @@ export function useMessages({
     } catch (error) {
       console.error('Error loading more messages:', error)
     }
-  }, [conversationId, messages, limit, hasMore, queryClient])
+  }, [conversationId, messages, limit, hasMore, queryClient, queryKey])
 
   // Add an optimistic message for instant text display (client-only)
   const addOptimisticMessage = useCallback((text: string) => {
@@ -156,7 +194,7 @@ export function useMessages({
     const optimisticMsg: Message = {
       id: `optimistic-${Date.now()}`,
       conversation_id: conversationId,
-      workspace_id: '',
+      workspace_id: workspaceId,
       wamid: null,
       direction: 'outbound',
       type: 'text',
@@ -176,10 +214,10 @@ export function useMessages({
     }
 
     queryClient.setQueryData<Message[]>(
-      ['messages', conversationId],
+      queryKey,
       (prev = []) => [...prev, optimisticMsg]
     )
-  }, [conversationId, queryClient])
+  }, [conversationId, workspaceId, queryClient, queryKey])
 
   // Set up Supabase Realtime subscription
   useEffect(() => {
@@ -187,6 +225,7 @@ export function useMessages({
 
     const supabase = createClient()
     let previousStatus = ''
+    const channelKey = messagesKey(workspaceId, conversationId)
 
     // Subscribe to messages for this conversation
     const channel = supabase
@@ -207,7 +246,7 @@ export function useMessages({
           if (newMessage.direction === 'outbound' && newMessage.type === 'text') {
             const newBody = (newMessage.content as TextContent).body
             queryClient.setQueryData<Message[]>(
-              ['messages', conversationId],
+              channelKey,
               (prev = []) => {
                 const optimisticIndex = prev.findIndex(
                   msg => msg.id.startsWith('optimistic-') &&
@@ -225,7 +264,7 @@ export function useMessages({
           } else {
             // Inbound or non-text — append as before
             queryClient.setQueryData<Message[]>(
-              ['messages', conversationId],
+              channelKey,
               (prev = []) => [...prev, newMessage]
             )
           }
@@ -243,7 +282,7 @@ export function useMessages({
           // Update message in array (for status changes)
           const updatedMessage = payload.new as Message
           queryClient.setQueryData<Message[]>(
-            ['messages', conversationId],
+            channelKey,
             (prev = []) =>
               prev.map(msg =>
                 msg.id === updatedMessage.id ? updatedMessage : msg
@@ -270,7 +309,7 @@ export function useMessages({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [conversationId, softRefetch, queryClient])
+  }, [conversationId, workspaceId, softRefetch, queryClient])
 
   return {
     messages,

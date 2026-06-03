@@ -251,8 +251,16 @@ export async function getConversationMessages(
   const elapsed = Date.now() - startTime
 
   if (result.error) {
+    // Throw (not `return []`) so React Query treats a timeout/transport failure
+    // as an ERROR, never as a successful empty result. Returning [] cached the
+    // failure as fresh data for staleTime (60s), freezing the conversation empty
+    // until it expired (debug whatsapp-inbox-messages-stuck, H-A). The only
+    // caller is useMessages (queryFn → React Query handles + retries; loadMore →
+    // try/catch), so the throw is contained. A genuinely empty conversation
+    // still returns [] below (success), distinguishing "no messages" from "fetch
+    // failed".
     console.error(`Error fetching messages for ${conversationId} (${elapsed}ms):`, result.error)
-    return []
+    throw new Error(`getConversationMessages failed for ${conversationId}: ${result.error.message}`)
   }
 
   if (elapsed > 3000) {

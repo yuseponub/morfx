@@ -15,6 +15,9 @@ import { differenceInHours, isSameDay, format, isToday, isYesterday } from 'date
 import { es } from 'date-fns/locale'
 
 interface ChatViewProps {
+  /** Active workspace id — forwarded to useMessages so the React Query cache key
+   *  is scoped per workspace (debug whatsapp-inbox-messages-stuck). */
+  workspaceId: string
   conversationId: string | null
   conversation: ConversationWithDetails | null
   onTogglePanel: () => void
@@ -34,6 +37,7 @@ interface ChatViewProps {
  * Center column of the 3-column layout.
  */
 export function ChatView({
+  workspaceId,
   conversationId,
   conversation,
   onTogglePanel,
@@ -46,6 +50,7 @@ export function ChatView({
   const scrolledToBottomRef = useRef(true)
 
   const { messages, isLoading, loadMore, hasMore, addOptimisticMessage, scheduleSafetyRefetch } = useMessages({
+    workspaceId,
     conversationId,
     limit: 50,
   })

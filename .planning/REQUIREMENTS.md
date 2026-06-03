@@ -56,7 +56,7 @@
 
 ### Migration & Coexistence
 
-- [ ] **MIG-01**: Feature flag per-workspace `whatsapp_provider: 'meta_direct' | '360dialog'` para migracion gradual
+- [x] **MIG-01**: Feature flag per-workspace `whatsapp_provider: 'meta_direct' | '360dialog'` para migracion gradual
 - [ ] **MIG-02**: Feature flag per-workspace para FB/IG: `messenger_provider: 'meta_direct' | 'manychat'`
 - [ ] **MIG-03**: Channel sender registry provider-aware (viejo y nuevo coexisten)
 
@@ -131,7 +131,7 @@
 | IG-03 | Phase 41 | Pending |
 | IG-04 | Phase 41 | Pending |
 | IG-05 | Phase 41 | Pending |
-| MIG-01 | Phase 38 (migration) / Phase 39 (sender wiring) | Pending — `whatsapp_provider` column lands in Phase 38 (Plan 02, per RESEARCH Open Q2) so Phase 39 has it; outbound sender selection reads it in Phase 39 |
+| MIG-01 | Phase 38 (migration) / Phase 39 (sender wiring) | Column complete — `whatsapp_provider` column landed + applied to PROD in Phase 38 Plan 02 (2026-06-03, total=4/dialog360=4, zero backfill); Phase 39 wires outbound sender selection to read it |
 | MIG-02 | Phase 40 | Pending |
 | MIG-03 | Phase 39 | Pending |
 

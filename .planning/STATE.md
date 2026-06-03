@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
 status: executing
-stopped_at: Completed 38-01-PLAN.md
-last_updated: "2026-06-03T02:34:59Z"
+stopped_at: Completed 38-02-PLAN.md
+last_updated: "2026-06-03T03:10:00Z"
 progress:
   total_phases: 12
   completed_phases: 5
   total_plans: 54
-  completed_plans: 48
-  percent: 89
+  completed_plans: 49
+  percent: 91
 ---
 
 # Project State
@@ -25,8 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 ## Current Position
 
 Phase: 38 (embedded-signup-wa-inbound) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Executing Phase 38
+
+Previous activity: 2026-06-03 — **Phase 38 Plan 02 (whatsapp_provider migration + Regla 5 prod-apply) COMPLETE** (2/2 tasks). Task 1 (auto): created `supabase/migrations/20260602120000_add_whatsapp_provider.sql` with the additive, default-safe DDL `ALTER TABLE workspaces ADD COLUMN whatsapp_provider TEXT NOT NULL DEFAULT '360dialog' CHECK (whatsapp_provider IN ('360dialog','meta_direct'))` — no backfill UPDATE (DEFAULT carries the legacy value to every existing row → Regla 6 zero-touch), no index (read per-workspace by PK, never scanned). Commit `4f0d9d27` (feat). Task 2 (human-action checkpoint, Regla 5 BLOCKING): the user applied the ALTER in the production Supabase SQL Editor BEFORE any code referencing the column is pushed, and reported the verification queries: `SELECT count(*) total, count(*) FILTER (WHERE whatsapp_provider='360dialog') dialog360 FROM workspaces` → **total=4, dialog360=4** (total == dialog360 → every existing workspace defaulted to '360dialog', zero backfill, Regla 6 satisfied); Somnio (`a3843b3f-c337-4836-92b5-89c58bb98490`) confirmed `whatsapp_provider='360dialog'`. **MIG-01 column complete** (Phase 39 wires the outbound sender selection to read it). Column landed in Phase 38 (not 39) per RESEARCH Open Q2 / D-04/D-05 so Phase 39 + per-workspace migration have it immediately; Phase 38 inbound is NOT gated on it (routing disambiguated by endpoint `/api/webhooks/meta` vs `/api/webhooks/whatsapp` + `resolveByPhoneNumberId`). Flipping a workspace to `meta_direct` requires an explicit SQL UPDATE — connecting a Meta number does NOT auto-flip traffic (T-38-04 mitigation, D-06); CHECK enum rejects any other value at the DB layer (T-38-05). **0 deviations** — plan executed exactly as written. NOT pushed (integration branch `exec/debounce-v2-wave6`). Unblocks Plans 03/04/05 (reference the column / `workspace_meta_accounts`) + Phase 39 (sender wiring). SUMMARY: `.planning/phases/38-embedded-signup-wa-inbound/38-02-SUMMARY.md`.
 
 Previous activity: 2026-06-03 — **Phase 38 Plan 01 (WA inbound + Embedded Signup RED test scaffolds) COMPLETE** (2/2 tasks, 2 atomic commits `0b581385` + `58469d21`). TDD Wave 0 RED scaffold: 3 Vitest files created under `__tests__/`, zero production code modified (`git diff --stat HEAD~2 HEAD` = only test files). (1) `src/app/api/webhooks/meta/__tests__/hmac.test.ts` (HOOK-02) — `verifyMetaHmac` contract asserted via a verbatim reference copy of the analog `verifyWhatsAppHmac` (whatsapp/route.ts:24-38): valid sha256= prefix → true, raw-hex → true (prefix tolerant), tampered → false, length-mismatch `'sha256=abc'` → false WITHOUT throwing (Pitfall 2 / T-38-02 no-500-retry-storm), wrong-secret → false; plus `it.todo('route exports verifyMetaHmac for reuse')` so Plan 03 swaps the reference copy for the real route export. This suite is GREEN-with-todo (5 pass + 1 todo) — the reference copy lets the contract be witnessed before the route exists. (2) `src/app/api/webhooks/meta/__tests__/handshake.test.ts` (HOOK-01) — imports `GET` from `../route` (intended RED: route built in Plan 03), asserts `hub.challenge` echoed as plain text + 200 on correct `META_WEBHOOK_VERIFY_TOKEN`, 403 on wrong token + non-subscribe mode. (3) `src/lib/meta/__tests__/embedded-signup.test.ts` (SIGNUP-02/03) — imports `{ exchangeCodeForBisuat, subscribeWaba }` from `@/lib/meta/embedded-signup` (intended RED: module built in Plan 04, `ERR_MODULE_NOT_FOUND`). `exchangeCodeForBisuat` asserts the oauth/access_token URL shape (client_id/client_secret/code), NO Authorization/Bearer header (Pitfall 6 / T-38-03 — checked via both lowercased-header-keys exclusion AND serialized-init `not.toMatch(/Bearer/i)`), returns `access_token`, throws on `!ok` or missing token. `subscribeWaba` mocks `@/lib/meta/api` and asserts `metaRequest('BISUAT_123', '/WABA_999/subscribed_apps', { method:'POST' })` (signature matches api.ts:24 `metaRequest(accessToken, endpoint, options)`) + throws on `success:false`. Verification: `npx vitest run src/app/api/webhooks/meta/ src/lib/meta/__tests__/embedded-signup.test.ts` → 2 suites RED (intended) + 1 GREEN-with-todo; grep acceptance all ≥ thresholds (hub.challenge=5, META_WEBHOOK_VERIFY_TOKEN=2, oauth/access_token=3, subscribed_apps=4, Authorization/Bearer=6). **0 deviations** — plan executed exactly as written (reference-copy + it.todo pattern for HMAC, direct imports of unbuilt route/module for handshake + embedded-signup were the plan's prescribed RED approach). NOT pushed (integration branch `exec/debounce-v2-wave6` — orchestrator/user controls pushes). RED turns GREEN as Plan 03 ships the route (`verifyMetaHmac` export + GET handshake) and Plan 04 ships `@/lib/meta/embedded-signup`. SUMMARY: `.planning/phases/38-embedded-signup-wa-inbound/38-01-SUMMARY.md`.
 

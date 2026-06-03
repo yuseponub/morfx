@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { getIsDashboardV2Enabled } from '@/lib/auth/dashboard-v2'
 import { DashboardV2Provider } from '@/components/layout/dashboard-v2-context'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { RealtimeAuthProvider } from '@/components/providers/realtime-auth-provider'
 import { ebGaramond, inter, jetbrainsMono } from './fonts'
 
 export default async function DashboardLayout({
@@ -41,6 +42,7 @@ export default async function DashboardLayout({
 
   return (
     <QueryProvider>
+      <RealtimeAuthProvider>
       <WorkspaceProvider workspace={currentWorkspace} workspaces={workspaces}>
         <DashboardV2Provider v2={isDashboardV2}>
         <div
@@ -64,6 +66,7 @@ export default async function DashboardLayout({
         </div>
         </DashboardV2Provider>
       </WorkspaceProvider>
+      </RealtimeAuthProvider>
     </QueryProvider>
   )
 }

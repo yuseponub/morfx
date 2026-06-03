@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import type {
   Template,
   TemplateComponent,
@@ -24,18 +24,13 @@ import { createTemplate as createTemplateDomain } from '@/lib/domain/whatsapp-te
  * Returns templates ordered by creation date (newest first).
  */
 export async function getTemplates(): Promise<Template[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('whatsapp_templates')
@@ -55,18 +50,13 @@ export async function getTemplates(): Promise<Template[]> {
  * Get a single template by ID.
  */
 export async function getTemplate(id: string): Promise<Template | null> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
 
   const { data, error } = await supabase
     .from('whatsapp_templates')
@@ -88,18 +78,13 @@ export async function getTemplate(id: string): Promise<Template | null> {
  * Returns templates ordered by name for easy selection.
  */
 export async function getApprovedTemplates(): Promise<Template[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('whatsapp_templates')
@@ -134,19 +119,14 @@ export async function createTemplate(params: {
   variable_mapping?: Record<string, string>
   headerImage?: { storagePath: string; mimeType: 'image/jpeg' | 'image/png' }
 }): Promise<ActionResult<Template>> {
-  // 1. Auth check
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  // 1-2. Auth + workspace resolution
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  // 2. Workspace resolution
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // 3. Name validation + cleanup (lowercase, underscores only)
   if (!params.name.trim()) {
@@ -216,18 +196,13 @@ export async function updateTemplateMapping(
   id: string,
   variable_mapping: Record<string, string>
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('whatsapp_templates')
@@ -258,18 +233,13 @@ export async function updateTemplateMapping(
  * for a period of time in 360dialog.
  */
 export async function deleteTemplate(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Get template name first
   const { data: template, error: fetchError } = await supabase
@@ -326,18 +296,13 @@ export async function deleteTemplate(id: string): Promise<ActionResult> {
  * Used to update local records after Meta approval/rejection.
  */
 export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { data: wsData3 } = await supabase
     .from('workspaces')
@@ -395,18 +360,13 @@ export async function getTemplateStats(): Promise<{
   pending: number
   rejected: number
 }> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { total: 0, approved: 0, pending: 0, rejected: 0 }
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { total: 0, approved: 0, pending: 0, rejected: 0 }
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { total: 0, approved: 0, pending: 0, rejected: 0 }
-  }
 
   // Total templates
   const { count: total } = await supabase

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 // ============================================================================
 // Types
@@ -24,16 +24,11 @@ export interface SearchableItem {
  * Returns contacts, orders, and conversations formatted for search display.
  */
 export async function getSearchableItems(): Promise<SearchableItem[]> {
+  const auth = await getRequestAuth()
+  if (!auth) return []
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return []
-
-  // Verify user is authenticated
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
 
   // Fetch in parallel
   const [contactsResult, ordersResult, conversationsResult] = await Promise.all([

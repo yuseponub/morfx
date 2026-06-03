@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { assignConversation as domainAssignConversation } from '@/lib/domain/conversations'
 import type { DomainContext } from '@/lib/domain/types'
 
@@ -41,18 +41,11 @@ export async function assignConversation(
   agentId: string | null,
   teamId?: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainAssignConversation(ctx, {
@@ -77,12 +70,12 @@ export async function assignToNextAvailable(
   conversationId: string,
   teamId: string
 ): Promise<ActionResult<AssignmentResult | null>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Get online agents in team, ordered by last assignment (oldest first for round-robin)
   const { data: agents, error: agentsError } = await supabase
@@ -150,16 +143,16 @@ export async function setAgentAvailability(
   userId: string,
   isOnline: boolean
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
 
+  const supabase = await createClient()
+
   // Security: only allow setting own availability unless admin
   // For now, allow setting own availability
-  if (userId !== user.id) {
+  if (userId !== auth.userId) {
     // TODO: Check if current user is admin/owner
     // For MVP, only allow self
     return { error: 'Solo puedes cambiar tu propia disponibilidad' }
@@ -184,17 +177,17 @@ export async function setAgentAvailability(
  * Returns true if online in any team
  */
 export async function getMyAvailability(): Promise<boolean> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return false
   }
+
+  const supabase = await createClient()
 
   const { data } = await supabase
     .from('team_members')
     .select('is_online')
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .eq('is_online', true)
     .limit(1)
 
@@ -205,17 +198,15 @@ export async function getMyAvailability(): Promise<boolean> {
  * Toggle current user's availability
  */
 export async function toggleMyAvailability(): Promise<ActionResult<boolean>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
 
   const currentStatus = await getMyAvailability()
   const newStatus = !currentStatus
 
-  const result = await setAgentAvailability(user.id, newStatus)
+  const result = await setAgentAvailability(auth.userId, newStatus)
   if ('error' in result) {
     return result
   }
@@ -231,18 +222,13 @@ export async function toggleMyAvailability(): Promise<ActionResult<boolean>> {
  * Get all agents available for manual assignment (grouped by team)
  */
 export async function getAvailableAgents(): Promise<AvailableAgent[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   // Get all teams in workspace
   const { data: teams, error: teamsError } = await supabase
@@ -303,18 +289,13 @@ export async function getOnlineAgents(): Promise<AvailableAgent[]> {
  * Get the default team for new conversations
  */
 export async function getDefaultTeam(): Promise<{ id: string; name: string } | null> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
 
   const { data, error } = await supabase
     .from('teams')

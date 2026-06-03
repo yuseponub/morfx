@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 // ============================================================================
 // Types
@@ -41,18 +41,13 @@ type ActionResult<T = void> =
  * Get all teams with member count for current workspace
  */
 export async function getTeams(): Promise<(Team & { member_count: number })[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('teams')
@@ -78,18 +73,13 @@ export async function getTeams(): Promise<(Team & { member_count: number })[]> {
  * Get single team with its members
  */
 export async function getTeamWithMembers(teamId: string): Promise<(Team & { members: TeamMember[] }) | null> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
 
   // Get team
   const { data: team, error: teamError } = await supabase
@@ -145,18 +135,13 @@ export async function getTeamWithMembers(teamId: string): Promise<(Team & { memb
  * Get workspace members not in any team (for adding to a team)
  */
 export async function getUnassignedMembers(): Promise<{ id: string; email: string; name: string | null }[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   // Get all workspace members
   const { data: wsMembers, error: wsMembersError } = await supabase
@@ -221,18 +206,13 @@ export async function createTeam(params: {
   name: string
   is_default?: boolean
 }): Promise<ActionResult<Team>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Validate input
   if (!params.name.trim()) {
@@ -277,18 +257,13 @@ export async function updateTeam(
   id: string,
   params: { name?: string; is_default?: boolean }
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Validate input
   if (params.name !== undefined && !params.name.trim()) {
@@ -334,18 +309,13 @@ export async function updateTeam(
  * Fails if team has members - remove members first
  */
 export async function deleteTeam(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Check if team has members
   const { count } = await supabase
@@ -383,12 +353,12 @@ export async function addTeamMember(
   teamId: string,
   userId: string
 ): Promise<ActionResult<TeamMember>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('team_members')
@@ -419,12 +389,12 @@ export async function removeTeamMember(
   teamId: string,
   userId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('team_members')

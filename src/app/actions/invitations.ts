@@ -4,11 +4,30 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { InviteMemberInput, WorkspaceInvitation, MemberWithUser } from '@/lib/types/database'
 
+/**
+ * Resolve the authenticated user id WITHOUT a network round-trip to GoTrue —
+ * uses getClaims() (local ES256 verify against the cached JWKS), the same
+ * primitive as getRequestAuth() (src/lib/auth/request-auth.ts).
+ *
+ * Deliberately NOT getRequestAuth(): these actions receive `workspaceId` as an
+ * explicit parameter (NOT from the morfx_workspace cookie) and acceptInvitation
+ * runs for users that have NOT yet selected the target workspace — the cookie is
+ * absent by design. Coupling identity to the workspace cookie would break the
+ * invitation accept / invite flows (same rationale as workspace.ts, Warning 1).
+ */
+async function getAuthUserId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<string | null> {
+  const { data } = await supabase.auth.getClaims()
+  const sub = data?.claims?.sub
+  return sub ?? null
+}
+
 export async function inviteMember(workspaceId: string, input: InviteMemberInput) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -17,7 +36,7 @@ export async function inviteMember(workspaceId: string, input: InviteMemberInput
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!membership || !['owner', 'admin'].includes(membership.role)) {
@@ -67,7 +86,7 @@ export async function inviteMember(workspaceId: string, input: InviteMemberInput
       email: input.email,
       role: input.role,
       token,
-      invited_by: user.id,
+      invited_by: userId,
     })
 
   if (error) {
@@ -101,8 +120,8 @@ export async function getWorkspaceInvitations(workspaceId: string): Promise<Work
 export async function cancelInvitation(invitationId: string) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -121,7 +140,7 @@ export async function cancelInvitation(invitationId: string) {
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', invitation.workspace_id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!membership || !['owner', 'admin'].includes(membership.role)) {
@@ -145,8 +164,8 @@ export async function cancelInvitation(invitationId: string) {
 export async function acceptInvitation(token: string) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado', requiresAuth: true }
   }
 
@@ -229,8 +248,8 @@ export async function getWorkspaceMembers(workspaceId: string): Promise<MemberWi
 export async function removeMember(workspaceId: string, memberId: string) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -239,7 +258,7 @@ export async function removeMember(workspaceId: string, memberId: string) {
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!callerMembership || !['owner', 'admin'].includes(callerMembership.role)) {
@@ -283,8 +302,8 @@ export async function updateMemberRole(
 ) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -293,7 +312,7 @@ export async function updateMemberRole(
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!callerMembership || !['owner', 'admin'].includes(callerMembership.role)) {

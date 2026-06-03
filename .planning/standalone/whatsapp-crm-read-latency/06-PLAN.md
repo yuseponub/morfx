@@ -3,25 +3,21 @@ phase: whatsapp-crm-read-latency
 plan: 06
 type: execute
 wave: 3
-depends_on: [01, 03]
+depends_on: [01]
 files_modified:
   - src/app/actions/activity.ts
   - src/app/actions/agent-metrics.ts
   - src/app/actions/assignment.ts
-  - src/app/actions/client-activation.ts
   - src/app/actions/contacts.ts
   - src/app/actions/custom-fields.ts
-  - src/app/actions/godentist.ts
   - src/app/actions/invitations.ts
   - src/app/actions/logistics-config.ts
-  - src/app/actions/messages.ts
   - src/app/actions/meta-onboarding.ts
   - src/app/actions/metricas-conversaciones-settings.ts
   - src/app/actions/metricas-conversaciones.ts
   - src/app/actions/notes.ts
   - src/app/actions/order-states.ts
   - src/app/actions/order-tracking.ts
-  - src/app/actions/pipelines.ts
   - src/app/actions/quick-replies.ts
   - src/app/actions/search.ts
   - src/app/actions/shopify-oauth.ts
@@ -32,17 +28,15 @@ files_modified:
   - src/app/actions/teams.ts
   - src/app/actions/templates.ts
   - src/app/actions/usage.ts
-  - src/app/actions/whatsapp.ts
-  - src/app/actions/workspace.ts
-autonomous: false
+autonomous: true
 requirements: [L1]
 must_haves:
   truths:
-    - "Los 28 archivos restantes de src/app/actions/** resuelven auth via getRequestAuth() — 0 auth.getUser() en todo el directorio"
+    - "Los 23 archivos drop-in SEGUROS de src/app/actions/** resuelven auth via getRequestAuth() — 0 auth.getUser() en cada uno"
     - "notes.ts y task-notes.ts preservan el fallback user.email → auth.email (display name)"
-    - "pipelines.ts migra su auth sin perder el revalidateTag('ref:pipelines:...') agregado en Plan 03"
     - "Toda mutacion sigue pasando por domain layer (Regla 3) — solo cambia el bloque de auth"
-    - "El comportamiento not-authed se preserva en cada call site; ningun path de agente/webhook se migra por error (Pitfall 8)"
+    - "El comportamiento not-authed se preserva en cada call site"
+    - "Este plan NO toca los 4 archivos sensibles (whatsapp/messages/godentist/client-activation) ni pipelines — esos van en Plan 07 (verificacion de caller por Pitfall 8 + double-touch con Plan 03)"
   artifacts:
     - path: "src/app/actions/contacts.ts"
       provides: "0 auth.getUser()"
@@ -51,23 +45,30 @@ must_haves:
       provides: "0 auth.getUser(); user.email → auth.email"
       contains: "getRequestAuth"
   key_links:
-    - from: "src/app/actions/* (28 files)"
+    - from: "src/app/actions/* (23 files drop-in)"
       to: "src/lib/auth/request-auth.ts"
       via: "import getRequestAuth"
       pattern: "getRequestAuth"
 ---
 
 <objective>
-Ola 2 (barrido final — drop-in en masa) — migrar los 28 archivos restantes de `src/app/actions/**` que aun llaman `auth.getUser()`, usando el patron drop-in establecido en Plan 02. Tras este plan, `grep -rc "auth.getUser()" src/app/actions/` debe ser 0 en TODO el directorio (el middleware NO esta bajo src/app/actions — sigue intacto, D-04).
+Ola 2 (barrido — grupo DROP-IN SEGURO) — migrar los 23 archivos de `src/app/actions/**` que son drop-in directo (no devuelven el user completo, no tienen logica de owner, no tienen fallback de bootstrap, no son invocados desde paths de agente/webhook), usando el patron establecido en Plan 02.
 
-Estos son drop-in directos (no devuelven el user completo ni tienen logica de owner — esos fueron Plan 05). Detalles a vigilar:
+Este plan se separo del barrido masivo original (Warning 3 del checker) para NO mezclar drop-ins triviales con archivos sensibles. El grupo sensible (whatsapp/messages/godentist/client-activation + pipelines double-touch) se migra en Plan 07 con verificacion de caller explicita. workspace.ts salio a Plan 05 (refactor consciente — Warning 1).
+
+Reconciliacion de conteo (42 archivos totales con auth.getUser en src/app/actions/):
+- Plan 02 (hot-path): 5 (conversations, orders, products, tags, order-notes)
+- Plan 05 (helpers especiales + workspace): 9 (agent-config, agent-content-editor, automations, comandos, sms, integrations, super-admin, sms-admin, workspace)
+- Plan 06 (este — drop-in seguro): 23
+- Plan 07 (sensible + pipelines): 5 (whatsapp, messages, godentist, client-activation, pipelines)
+- Total: 5 + 9 + 23 + 5 = 42 ✓ (pipelines es double-touch: Plan 03 le agrega revalidateTag, Plan 07 le migra el auth)
+
+Detalles a vigilar en este grupo:
 - **notes.ts / task-notes.ts:** usan `user.email` para fallback de display name (igual que order-notes en Plan 02) → `auth.email`.
-- **pipelines.ts:** ya recibio `revalidateTag('ref:pipelines:...')` en Plan 03; aqui se migra su auth SIN borrar/mover ese revalidateTag (lineas distintas). Por eso este plan depende de Plan 03.
-- **whatsapp.ts / messages.ts / godentist.ts / client-activation.ts:** Regla 6 + Pitfall 8 — pueden tener funciones invocadas desde paths de agente/webhook (no UI). Migrar SOLO las Server Actions de UI; NO migrar funciones que un path de agente use con semantica de auth distinta. Verificar el caller de cada funcion antes de migrar.
 
-Purpose: cerrar la deuda estructural completa — el patron auth-por-action redundante eliminado en los 41 archivos. TypeScript es la red de seguridad (D-09); commits atomicos con typecheck en cada uno.
+Purpose: cerrar la mayor parte de la deuda estructural con swaps de bajo riesgo. TypeScript es la red de seguridad (D-09); commits atomicos con typecheck en cada uno.
 
-Output: 28 archivos migrados, 0 auth.getUser() en todo src/app/actions/**.
+Output: 23 archivos migrados, 0 auth.getUser() en cada uno (el barrido GLOBAL a 0 se cierra en Plan 07).
 </objective>
 
 <execution_context>
@@ -79,10 +80,10 @@ Output: 28 archivos migrados, 0 auth.getUser() en todo src/app/actions/**.
 @.planning/standalone/whatsapp-crm-read-latency/RESEARCH.md
 
 <read_first>
-- `.planning/standalone/whatsapp-crm-read-latency/RESEARCH.md` — Code Example 2 (patron drop-in), Migration Strategy Wave 2+, Pitfall 1/2/8.
+- `.planning/standalone/whatsapp-crm-read-latency/RESEARCH.md` — Code Example 2 (patron drop-in), Migration Strategy Wave 2+, Pitfall 1/2.
 - `src/lib/auth/request-auth.ts` (Plan 01).
 - `.planning/standalone/whatsapp-crm-read-latency/02-SUMMARY.md` si existe (mismo patron aplicado al hot-path — replicar).
-- `CLAUDE.md` Regla 3 (mutaciones via domain — solo migrar auth), Regla 6 (godentist.ts/whatsapp.ts/messages.ts/client-activation.ts tocan paths sensibles — NO cambiar logica, solo el bloque de auth de las Server Actions de UI).
+- `CLAUDE.md` Regla 3 (mutaciones via domain — solo migrar auth).
 </read_first>
 
 <interfaces>
@@ -106,8 +107,6 @@ const supabase = await createClient()
 Casos con user.email (preservar fallback):
 - notes.ts:131  → { id: auth.userId, email: auth.email || 'Usuario' }
 - task-notes.ts:131 → idem
-
-pipelines.ts: NO borrar ni mover el `revalidateTag('ref:pipelines:' + workspaceId)` agregado en Plan 03; solo cambiar el bloque getUser→getRequestAuth.
 </interfaces>
 </context>
 
@@ -142,95 +141,77 @@ Commits: `perf(whatsapp-crm-read-latency): migra <archivo>.ts a getRequestAuth`.
 </task>
 
 <task type="auto">
-  <name>Task 2: Drop-in grupo B — pipelines/whatsapp/messages/templates/teams (9 archivos, vigilar Pitfall 8)</name>
-  <files>src/app/actions/pipelines.ts, src/app/actions/whatsapp.ts, src/app/actions/messages.ts, src/app/actions/templates.ts, src/app/actions/search.ts, src/app/actions/assignment.ts, src/app/actions/teams.ts, src/app/actions/invitations.ts, src/app/actions/workspace.ts</files>
+  <name>Task 2: Drop-in grupo B — templates/search/teams/invitations/assignment (5 archivos)</name>
+  <files>src/app/actions/templates.ts, src/app/actions/search.ts, src/app/actions/assignment.ts, src/app/actions/teams.ts, src/app/actions/invitations.ts</files>
   <action>
 Migrar al patron drop-in. Commit atomico por archivo, typecheck en cada uno.
 
-- pipelines.ts: migrar getUser→getRequestAuth en todas las funciones SIN tocar el `revalidateTag('ref:pipelines:'+workspaceId)` de Plan 03 (lineas distintas). Confirmar con git diff que el revalidateTag sigue presente.
-- whatsapp.ts / messages.ts: Regla 6 + Pitfall 8 — SOLO migrar el bloque de auth de las Server Actions de UI; NO cambiar logica de envio/inbound ni migrar funciones invocadas desde paths de agente/webhook. Verificar el caller de cada funcion antes de migrar.
-- workspace.ts: contiene getUserWorkspaces/getActiveWorkspaceId (consumidos por el layout). Drop-in con cuidado — preservar el contract exacto.
-- Resto (templates, search, assignment, teams, invitations): drop-in directo.
+- Todos drop-in directo (no devuelven user completo, no son paths de agente). Donde se leia la cookie morfx_workspace, usar `auth.workspaceId`.
+- teams.ts / invitations.ts: pueden tener mutaciones (crear equipo, invitar) — solo migrar auth; domain + revalidatePath intactos (Regla 3). Si alguno compara role de membership, preservar esa query (no viene del JWT).
 
+Verificar el return not-authed exacto de cada call site y preservarlo.
 Commits: `perf(whatsapp-crm-read-latency): migra <archivo>.ts a getRequestAuth`.
   </action>
   <verify>
-    <automated>npx tsc --noEmit && for f in pipelines whatsapp messages templates search assignment teams invitations workspace; do echo -n "$f: "; grep -c "auth.getUser()" src/app/actions/$f.ts; done && echo -n "pipelines revalidateTag: " && grep -c "revalidateTag('ref:pipelines" src/app/actions/pipelines.ts</automated>
+    <automated>npx tsc --noEmit && for f in templates search assignment teams invitations; do echo -n "$f: "; grep -c "auth.getUser()" src/app/actions/$f.ts; done</automated>
   </verify>
   <done>
-    - 0 auth.getUser() en los 9 archivos
-    - pipelines.ts conserva su revalidateTag('ref:pipelines:...')
-    - whatsapp/messages: solo Server Actions de UI migradas; paths de agente intactos
+    - 0 auth.getUser() en los 5 archivos
+    - role de membership (si aplica) preservado de la query, no del JWT
     - tsc verde
   </done>
   <acceptance_criteria>
-    - Los 9 archivos: `grep -c "auth.getUser()"` == 0 cada uno
-    - `grep -c "revalidateTag('ref:pipelines" src/app/actions/pipelines.ts` >= 1 (no se perdio el de Plan 03)
+    - Los 5 archivos: `grep -c "auth.getUser()"` == 0 cada uno
     - `npx tsc --noEmit` verde
   </acceptance_criteria>
 </task>
 
 <task type="auto">
-  <name>Task 3: Drop-in grupo C — metricas/integraciones/onboarding/misc (9 archivos)</name>
-  <files>src/app/actions/agent-metrics.ts, src/app/actions/client-activation.ts, src/app/actions/godentist.ts, src/app/actions/logistics-config.ts, src/app/actions/meta-onboarding.ts, src/app/actions/metricas-conversaciones-settings.ts, src/app/actions/metricas-conversaciones.ts, src/app/actions/shopify-oauth.ts, src/app/actions/shopify.ts, src/app/actions/usage.ts</files>
+  <name>Task 3: Drop-in grupo C — metricas/onboarding/shopify/misc (8 archivos)</name>
+  <files>src/app/actions/agent-metrics.ts, src/app/actions/logistics-config.ts, src/app/actions/meta-onboarding.ts, src/app/actions/metricas-conversaciones-settings.ts, src/app/actions/metricas-conversaciones.ts, src/app/actions/shopify-oauth.ts, src/app/actions/shopify.ts, src/app/actions/usage.ts</files>
   <action>
 Migrar al patron drop-in. Commit atomico por archivo o subgrupo, typecheck en cada uno.
 
-- godentist.ts / client-activation.ts: Regla 6 + Pitfall 8 — pueden tener funciones tocadas por paths de agente/robot. SOLO migrar Server Actions de UI; verificar el caller de cada funcion antes de migrar. Si una funcion es de agente/webhook con auth distinta, NO migrarla.
-- shopify.ts / shopify-oauth.ts: drop-in, pero NO tocar logica OAuth ni credenciales (solo el bloque de auth de la Server Action).
+- shopify.ts / shopify-oauth.ts: drop-in, pero NO tocar logica OAuth ni credenciales (solo el bloque de auth de la Server Action). Estos son Server Actions de UI (el dashboard de configuracion) — NO los webhooks de Shopify (que viven fuera de src/app/actions). Verificar que ninguna funcion aqui sea invocada desde un webhook handler; si lo fuera, NO migrarla (dejarla para Plan 07). El audit indica que son acciones de UI.
 - Resto (agent-metrics, logistics-config, meta-onboarding, metricas-*, usage): drop-in directo.
+- Mutaciones: solo auth; domain/revalidatePath intactos (Regla 3).
 
+Verificar el return not-authed exacto de cada call site y preservarlo.
 Commits: `perf(whatsapp-crm-read-latency): migra <archivo>.ts a getRequestAuth`.
-
-Nota: este grupo lista 10 archivos en <files> (agent-metrics, client-activation, godentist, logistics-config, meta-onboarding, metricas-conversaciones-settings, metricas-conversaciones, shopify-oauth, shopify, usage) — completar todos. Tras este task, `grep -rc "auth.getUser()" src/app/actions/` debe ser 0 global.
   </action>
   <verify>
-    <automated>npx tsc --noEmit && grep -rc "auth.getUser()" src/app/actions/ | grep -v ":0" || echo "GLOBAL 0 — todos migrados"</automated>
+    <automated>npx tsc --noEmit && for f in agent-metrics logistics-config meta-onboarding metricas-conversaciones-settings metricas-conversaciones shopify-oauth shopify usage; do echo -n "$f: "; grep -c "auth.getUser()" src/app/actions/$f.ts; done</automated>
   </verify>
   <done>
-    - 0 auth.getUser() en los archivos del grupo C
-    - 0 auth.getUser() GLOBAL en src/app/actions/**
-    - paths de agente/robot intactos (Regla 6, Pitfall 8)
+    - 0 auth.getUser() en los 8 archivos del grupo C
+    - logica OAuth / credenciales shopify intacta (solo auth migrado)
     - tsc verde
   </done>
   <acceptance_criteria>
-    - `grep -rc "auth.getUser()" src/app/actions/ | grep -v ":0"` retorna VACIO (0 global)
+    - Los 8 archivos: `grep -c "auth.getUser()"` == 0 cada uno
     - `npx tsc --noEmit` verde
   </acceptance_criteria>
-</task>
-
-<task type="checkpoint:human-verify" gate="blocking">
-  <what-built>
-    Barrido completo: los 41 archivos de src/app/actions/** migrados a getRequestAuth. 0 auth.getUser() global en el directorio. Deploy a main (Vercel prod).
-  </what-built>
-  <how-to-verify>
-    1. Push a main + esperar deploy.
-    2. **Smoke amplio en prod:** navegar el dashboard tocando varias secciones que usan estas actions — CRM (contactos, pedidos, tareas, notas), WhatsApp (inbox, templates), automatizaciones, metricas, configuracion de agentes, integraciones (shopify/meta), godentist. Todo debe cargar normal (y mas rapido en general).
-    3. **Admin/owner:** si tienes acceso owner, confirmar que super-admin/sms-admin siguen gateados (no se relajo el check).
-    4. **Agente en prod (Regla 6):** confirmar que los agentes (somnio, godentist, etc.) siguen respondiendo normal — este barrido NO debe haber tocado runtime de agente (solo Server Actions de UI).
-    5. **Sin errores de auth:** ningun "No autenticado" inesperado ni pantallas vacias donde antes habia datos.
-  </how-to-verify>
-  <resume-signal>Escribe "approved" si todo el dashboard funciona y el agente en prod sigue normal, o describe el problema (seccion rota / error de auth / agente afectado).</resume-signal>
 </task>
 
 </tasks>
 
 <verification>
-- `grep -rc "auth.getUser()" src/app/actions/ | grep -v ":0"` → VACIO (0 global)
+- `for f in contacts custom-fields notes tasks task-notes task-activity activity quick-replies order-states order-tracking templates search assignment teams invitations agent-metrics logistics-config meta-onboarding metricas-conversaciones-settings metricas-conversaciones shopify-oauth shopify usage; do grep -c "auth.getUser()" src/app/actions/$f.ts; done` → todos 0
 - `npx tsc --noEmit` verde (red de seguridad D-09)
 - `git diff --stat src/lib/supabase/middleware.ts` vacio (D-04)
-- `grep -rln "getRequestAuth" src/` → solo bajo src/lib/auth/ + src/app/actions/** (Pitfall 8 — nunca paths de agente/webhook)
+- `grep -rln "getRequestAuth" src/` → solo bajo src/lib/auth/ + src/app/actions/** (Pitfall 8)
 - Suite existente verde: `npx vitest run`
-- Checkpoint humano: dashboard completo OK + agente en prod sin afectacion
+- NOTA: el barrido GLOBAL (0 auth.getUser() en TODO src/app/actions/) se confirma en Plan 07, que cierra los 5 archivos sensibles restantes.
 </verification>
 
 <success_criteria>
-- 0 auth.getUser() en TODO src/app/actions/** (deuda estructural cerrada)
-- pipelines.ts conserva su invalidacion de cache (Plan 03)
-- Paths de agente/robot/webhook intactos (Regla 6, Pitfall 8)
-- Dashboard sin regresiones; agente en prod normal
+- 23 archivos drop-in seguros migrados, 0 auth.getUser() cada uno
+- notes.ts/task-notes.ts conservan el fallback de display name (auth.email)
+- Mutaciones via domain layer sin cambios
+- NO se tocaron whatsapp/messages/godentist/client-activation/pipelines (Plan 07)
 </success_criteria>
 
 <output>
 Crear `.planning/standalone/whatsapp-crm-read-latency/06-SUMMARY.md`
+</output>
 </output>

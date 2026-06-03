@@ -15,13 +15,13 @@ requirements: [L1, "Instr."]
 must_haves:
   truths:
     - "Las 5 actions del hot-path (conversations, orders, products, tags, order-notes) resuelven auth via getRequestAuth() en vez de auth.getUser()"
-    - "getConversationMessages mide el timer [perf] ENVOLVIENDO el auth (D-10) — la instrumentacion ya no es ciega"
+    - "AMBOS timers [perf] de conversations.ts (getConversations + getConversationMessages) ENVUELVEN el auth (D-10) — la instrumentacion ya no es ciega en ninguno"
     - "getAuthContext de orders.ts ahora delega a getRequestAuth() preservando el contract { workspaceId, userId }"
     - "El comportamiento not-authed se preserva exactamente ([] / null / { error }) en cada call site"
     - "RLS y filtrado por workspace siguen identicos (workspaceId server-derivado de cookie)"
   artifacts:
     - path: "src/app/actions/conversations.ts"
-      provides: "0 llamadas auth.getUser(); timer [perf] envuelve auth (D-10)"
+      provides: "0 llamadas auth.getUser(); AMBOS timers [perf] (getConversations + getConversationMessages) envuelven auth (D-10)"
       contains: "getRequestAuth"
     - path: "src/app/actions/orders.ts"
       provides: "getAuthContext delega a getRequestAuth; 0 auth.getUser()"
@@ -47,7 +47,7 @@ must_haves:
 ---
 
 <objective>
-Ola 1 — migrar los 5 archivos del HOT-PATH (el flujo lento que reporta el usuario) de `auth.getUser()` (round-trip de red ~150-300ms por action) a `getRequestAuth()` (verificacion local cacheada por request). Esto elimina el costo de auth redundante en el camino caliente y arregla la instrumentacion ciega (D-10).
+Ola 1 — migrar los 5 archivos del HOT-PATH (el flujo lento que reporta el usuario) de `auth.getUser()` (round-trip de red ~150-300ms por action) a `getRequestAuth()` (verificacion local cacheada por request). Esto elimina el costo de auth redundante en el camino caliente y arregla la instrumentacion ciega (D-10) en LOS DOS timers de conversations.ts.
 
 Counts verificados de `auth.getUser()` a eliminar: conversations.ts=17, orders.ts=9, products.ts=7, tags.ts=6, order-notes.ts=4 (total 43 en el hot-path).
 
@@ -109,36 +109,47 @@ order-notes.ts:131 usa user.email para fallback de display name:
 user: profile || { id: user.id, email: user.email || 'Usuario' }
 // → user: profile || { id: auth.userId, email: auth.email || 'Usuario' }
 ```
+
+DOS timers [perf] en conversations.ts (ambos hoy CIEGOS — startTime DESPUES del auth):
+```typescript
+// getConversations: getUser L34 → startTime L44 (startTime cae despues del auth + getActiveWorkspaceId)
+// getConversationMessages: getUser L228 → startTime L233 (startTime cae despues del auth)
+// AMBOS deben quedar con startTime como PRIMERA linea del cuerpo, ANTES de getRequestAuth().
+```
 </interfaces>
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Migrar conversations.ts (17 getUser) + arreglar timer [perf] (D-10)</name>
+  <name>Task 1: Migrar conversations.ts (17 getUser) + arreglar AMBOS timers [perf] ciegos (D-10)</name>
   <files>src/app/actions/conversations.ts</files>
   <action>
 1. Importar `getRequestAuth` de `@/lib/auth/request-auth`.
-2. Reemplazar las 17 ocurrencias de `auth.getUser()` por el patron drop-in (ver <interfaces>). En cada call site PRESERVAR el return not-authed exacto que ya existe (`[]`, `null`, `{ error }` segun corresponda). Donde la action ademas leia `cookieStore.get('morfx_workspace')` para el workspace, usar `auth.workspaceId` (el helper ya lo resuelve) y eliminar la lectura duplicada de cookie + el chequeo de workspace nulo (el helper devuelve null si falta workspace). Mantener `createClient()` para la query Supabase (RLS via cookie sin cambios).
-3. **D-10 (getConversationMessages, L221-269):** mover `const startTime = Date.now()` para que ENVUELVA el auth — debe ser la PRIMERA linea de la funcion, ANTES de `await getRequestAuth()` (RESEARCH Code Example 2 "AFTER"). El warn `[perf]` (threshold > 3000ms) ahora medira auth + query juntos. Mantener el `Promise.race` con timeout de 15s y el `.reverse()` final intactos.
+2. Reemplazar las 17 ocurrencias de `auth.getUser()` por el patron drop-in (ver <interfaces>). En cada call site PRESERVAR el return not-authed exacto que ya existe (`[]`, `null`, `{ error }` segun corresponda). Donde la action ademas leia `cookieStore.get('morfx_workspace')` o llamaba `getActiveWorkspaceId()` para el workspace, usar `auth.workspaceId` (el helper ya lo resuelve) y eliminar la resolucion duplicada de workspace + el chequeo de workspace nulo (el helper devuelve null si falta workspace). Mantener `createClient()` para la query Supabase (RLS via cookie sin cambios).
+3. **D-10 — mover el `const startTime = Date.now()` para que ENVUELVA el auth en TODAS las funciones de conversations.ts que instrumentan `[perf]`. Hay DOS timers ciegos hoy (Warning 2 del checker):**
+   - **getConversations (getUser L34 → startTime L44):** hoy `startTime` cae DESPUES de `auth.getUser()` Y de `getActiveWorkspaceId()`, asi que el warn `[perf]` de esta funcion NO mide el costo de auth. Mover `const startTime = Date.now()` para que sea la PRIMERA linea del cuerpo, ANTES de `await getRequestAuth()`. Si esta funcion no emite warn `[perf]` con su `elapsed`, agregar/preservar el patron del archivo; el objetivo es que el timer cubra auth+query.
+   - **getConversationMessages (getUser L228 → startTime L233):** identico — mover `const startTime = Date.now()` a la PRIMERA linea de la funcion, ANTES de `await getRequestAuth()` (RESEARCH Code Example 2 "AFTER"). Mantener el `Promise.race` con timeout de 15s y el `.reverse()` final intactos.
+   - El warn `[perf]` (threshold > 3000ms) en AMBAS ahora medira auth + query juntos.
 4. Donde una action solo necesitaba `user.id` para confirmar autenticacion (no lo usa en la query), igual usar `if (!auth) return ...`.
 
 VERIFICAR: si alguna action en este archivo es una MUTACION (no lectura), NO cambiar su logica de mutacion — solo el bloque de auth al inicio. Las mutaciones deben seguir pasando por domain layer (Regla 3) sin alteracion.
 
-Commit atomico: `perf(whatsapp-crm-read-latency): migra conversations.ts a getRequestAuth + arregla timer [perf] ciego (D-10)`.
+Commit atomico: `perf(whatsapp-crm-read-latency): migra conversations.ts a getRequestAuth + arregla AMBOS timers [perf] ciegos (D-10)`.
   </action>
   <verify>
     <automated>npx tsc --noEmit && grep -c "auth.getUser()" src/app/actions/conversations.ts</automated>
   </verify>
   <done>
     - `grep -c "auth.getUser()" src/app/actions/conversations.ts` == 0
-    - En getConversationMessages, `startTime` se declara ANTES de `getRequestAuth()` (D-10)
+    - En getConversations Y en getConversationMessages, `startTime` se declara ANTES de `getRequestAuth()` (D-10 — ambos timers)
     - tsc verde; comportamiento not-authed preservado en cada action
   </done>
   <acceptance_criteria>
     - `grep -c "auth.getUser()" src/app/actions/conversations.ts` == 0
     - `grep -c "getRequestAuth" src/app/actions/conversations.ts` >= 1
-    - `grep -n "startTime\|getRequestAuth" src/app/actions/conversations.ts` confirma que en getConversationMessages startTime aparece en una linea ANTERIOR a getRequestAuth
+    - En getConversations: `grep -n "startTime\|getRequestAuth" src/app/actions/conversations.ts` confirma que `startTime` aparece en una linea ANTERIOR a `getRequestAuth` dentro del cuerpo de getConversations
+    - En getConversationMessages: idem — `startTime` aparece ANTES de `getRequestAuth`
     - `npx tsc --noEmit` verde
   </acceptance_criteria>
 </task>
@@ -229,11 +240,12 @@ Commit atomico: `perf(whatsapp-crm-read-latency): migra order-notes.ts a getRequ
 
 <success_criteria>
 - 5 archivos del hot-path con 0 auth.getUser()
-- Timer [perf] de getConversationMessages envuelve el auth (D-10)
+- AMBOS timers [perf] de conversations.ts (getConversations + getConversationMessages) envuelven el auth (D-10)
 - Comportamiento not-authed + RLS + filtrado por workspace preservados identicos
 - 5 commits atomicos (1 por archivo), typecheck en cada uno
 </success_criteria>
 
 <output>
 Crear `.planning/standalone/whatsapp-crm-read-latency/02-SUMMARY.md`
+</output>
 </output>

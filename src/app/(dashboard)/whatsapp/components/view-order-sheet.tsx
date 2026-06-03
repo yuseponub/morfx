@@ -46,10 +46,8 @@ import {
 import { OrderTagInput } from '@/app/(dashboard)/crm/pedidos/components/order-tag-input'
 import { OrderForm } from '@/app/(dashboard)/crm/pedidos/components/order-form'
 import { ProductPicker } from '@/app/(dashboard)/crm/pedidos/components/product-picker'
-import { getOrder, getPipelines, moveOrderToStage, recompraOrder } from '@/app/actions/orders'
-import { getActiveProducts } from '@/app/actions/products'
-import { getTagsForScope } from '@/app/actions/tags'
-import { getOrderNotes } from '@/app/actions/order-notes'
+import { getOrder, moveOrderToStage, recompraOrder } from '@/app/actions/orders'
+import { getOrderDetailBundle } from '@/app/actions/order-detail'
 import { RECOMPRA_PIPELINE_NAME } from '@/lib/orders/constants'
 import { toast } from 'sonner'
 import type { OrderWithDetails, PipelineWithStages, Product, PipelineStage, OrderNoteWithUser, OrderProductFormData } from '@/lib/orders/types'
@@ -107,18 +105,14 @@ export function ViewOrderSheet({
   )
   const recompraDisabled = !recompraPipeline
 
-  // Load order notes when sheet opens
+  // Capa 2 (D-06): UNA Server Action (getOrderDetailBundle) reemplaza las 5 que
+  // antes se disparaban desde el cliente y Next.js serializaba. Un solo
+  // round-trip + Promise.all REAL server-side. Mismos setState que antes.
   React.useEffect(() => {
-    if (open && orderId) {
-      getOrderNotes(orderId).then(setOrderNotes).catch(() => setOrderNotes([]))
-    } else {
+    if (!open || !orderId) {
       setOrderNotes([])
+      return
     }
-  }, [open, orderId])
-
-  // Load order data when sheet opens
-  React.useEffect(() => {
-    if (!open || !orderId) return
 
     // Capture orderId for TypeScript narrowing
     const currentOrderId = orderId
@@ -127,12 +121,20 @@ export function ViewOrderSheet({
       setIsLoading(true)
       setIsEditing(false)
       try {
-        const [orderData, pipelinesData, productsData, tagsData] = await Promise.all([
-          getOrder(currentOrderId),
-          getPipelines(),
-          getActiveProducts(),
-          getTagsForScope('orders'),
-        ])
+        const data = await getOrderDetailBundle(currentOrderId)
+        if (!data) {
+          // no-autenticado / sin workspace: limpiar como antes
+          setOrderNotes([])
+          return
+        }
+
+        const {
+          order: orderData,
+          pipelines: pipelinesData,
+          products: productsData,
+          tags: tagsData,
+          notes,
+        } = data
 
         if (orderData) {
           setOrder(orderData)
@@ -144,9 +146,11 @@ export function ViewOrderSheet({
         setPipelines(pipelinesData)
         setProducts(productsData)
         setAllTags(tagsData)
+        setOrderNotes(notes)
       } catch (error) {
         console.error('Error loading order:', error)
         toast.error('Error al cargar el pedido')
+        setOrderNotes([])
       } finally {
         setIsLoading(false)
       }

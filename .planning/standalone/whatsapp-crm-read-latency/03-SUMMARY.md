@@ -95,9 +95,12 @@ Nota sobre las acceptance criteria del plan que mencionan literalmente `revalida
 - view-order-sheet: `getOrderDetailBundle` presente; `getActiveProducts|getTagsForScope`=0 y `getOrderNotes`=0 (ya no se invocan directo en el load).
 - Tests: ningún test importa los módulos tocados (`order-detail`, `reference-data`, `view-order-sheet`, ni las actions afectadas) → sin regresión posible de suite por estos cambios.
 
-## Checkpoint Status
+## Checkpoint Status: ✅ APROBADO (2026-06-03)
 
-Plan detenido en Task 4 `checkpoint:human-verify` (blocking). Pendiente del usuario:
+**Task 4 `checkpoint:human-verify` APROBADO por el usuario en producción.** Tras el fix de `pnpm-lock.yaml` (commit `b2457077` — el Plan 01 instaló react-query con npm en vez de pnpm, rompiendo 4 deploys con `ERR_PNPM_OUTDATED_LOCKFILE`), el deploy quedó verde. El usuario verificó: ojito abre rápido con 1 request de Server Action (no 5), datos correctos, invalidación de cache funciona. Plan 03 COMPLETO (4/4).
+
+### Detalle original del checkpoint (verificado PASS)
+Pendiente del usuario:
 1. Push a `main` (deploy Vercel).
 2. Flujo B (ojito): abrir /whatsapp → conversación con pedidos → click ojito. Network tab debe mostrar 1 request de Server Action (no 5); sheet abre <300ms percibido con order+pipelines+products+tags+notas.
 3. Flujo A (inbox): cambiar entre conversaciones más rápido.

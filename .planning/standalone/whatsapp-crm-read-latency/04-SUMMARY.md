@@ -72,9 +72,12 @@ None — plan ejecutado exactamente como fue escrito. La eleccion de `invalidate
 
 ## Self-Check: PASSED
 
-## Checkpoint Status
+## Checkpoint Status: ✅ APROBADO (2026-06-03)
 
-**Task 2 (checkpoint:human-verify, blocking) PENDIENTE.** No auto-aprobado (plan `autonomous:false`). El codigo NO ha sido pusheado. Falta:
+**Task 2 `checkpoint:human-verify` APROBADO por el usuario en producción.** Deploy verde tras el fix de `pnpm-lock.yaml` (commit `b2457077`). El usuario verificó: revisitas de conversación instantáneas (A→B→A sin spinner), Realtime entrante en tiempo real, mensaje optimista reemplazado sin duplicar, status tick actualiza, loadMore funciona, Regla 6 OK. Plan 04 COMPLETO.
+
+### Detalle original del checkpoint (verificado PASS)
+No auto-aprobado (plan `autonomous:false`). Falta:
 1. Push a main (deploy Vercel).
 2. Verificacion del usuario en prod: revisita instantanea (A→B→A sin spinner), Realtime entrante en tiempo real, mensaje optimista reemplazado sin duplicar, status tick actualiza, loadMore (scroll arriba) funciona, Regla 6 (agente + resto del inbox normal).
 

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getRequestAuth } from '@/lib/auth/request-auth'
+import { getCachedPipelines } from '@/lib/cache/reference-data'
 import { z } from 'zod'
 import type {
   Order,
@@ -99,29 +100,9 @@ export async function getPipelines(): Promise<PipelineWithStages[]> {
   if (!auth) {
     return []
   }
-  const { workspaceId } = auth
-
-  const supabase = await createClient()
-
-  const { data: pipelines, error } = await supabase
-    .from('pipelines')
-    .select(`
-      *,
-      stages:pipeline_stages(*)
-    `)
-    .eq('workspace_id', workspaceId)
-    .order('name', { ascending: true })
-
-  if (error) {
-    console.error('Error fetching pipelines:', error)
-    return []
-  }
-
-  // Sort stages by position within each pipeline
-  return (pipelines || []).map(pipeline => ({
-    ...pipeline,
-    stages: (pipeline.stages || []).sort((a: PipelineStage, b: PipelineStage) => a.position - b.position),
-  }))
+  // Capa 3 (D-07): lee del Next Data Cache por workspace en vez de re-fetch por click.
+  // Las mutaciones de pipeline/stage invalidan via revalidateTag('ref:pipelines:'+ws).
+  return getCachedPipelines(auth.workspaceId)
 }
 
 /**

@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { getRequestAuth } from '@/lib/auth/request-auth'
+import { getCachedActiveProducts } from '@/lib/cache/reference-data'
 import { z } from 'zod'
 import type { Product } from '@/lib/orders/types'
 
@@ -66,23 +67,9 @@ export async function getActiveProducts(): Promise<Product[]> {
   if (!auth) {
     return []
   }
-  const { workspaceId } = auth
-
-  const supabase = await createClient()
-
-  const { data: products, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .eq('is_active', true)
-    .order('title', { ascending: true })
-
-  if (error) {
-    console.error('Error fetching active products:', error)
-    return []
-  }
-
-  return products || []
+  // Capa 3 (D-07): lee del Next Data Cache por workspace en vez de re-fetch por click.
+  // Las mutaciones (create/update/toggle/delete) invalidan via updateTag('ref:products:'+ws).
+  return getCachedActiveProducts(auth.workspaceId)
 }
 
 /**
@@ -165,6 +152,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult<Pr
   }
 
   revalidatePath('/crm/productos')
+  updateTag('ref:products:' + workspaceId)
   return { success: true, data }
 }
 
@@ -217,6 +205,7 @@ export async function updateProduct(id: string, formData: FormData): Promise<Act
   }
 
   revalidatePath('/crm/productos')
+  updateTag('ref:products:' + auth.workspaceId)
   return { success: true, data }
 }
 
@@ -246,6 +235,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/crm/productos')
+  updateTag('ref:products:' + auth.workspaceId)
   return { success: true, data: undefined }
 }
 
@@ -277,5 +267,6 @@ export async function toggleProductActive(id: string, is_active: boolean): Promi
   }
 
   revalidatePath('/crm/productos')
+  updateTag('ref:products:' + auth.workspaceId)
   return { success: true, data }
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import type { Pipeline, PipelineStage, PipelineFormData, PipelineStageFormData, PipelineWithStages } from '@/lib/orders/types'
@@ -244,6 +244,7 @@ export async function createPipeline(formData: PipelineFormData): Promise<Action
   await supabase.from('pipeline_stages').insert(stagesToInsert)
 
   revalidatePath('/crm/configuracion/pipelines')
+  updateTag('ref:pipelines:' + workspaceId)
 
   const result = await getPipeline(pipeline.id)
   if (!result) {
@@ -283,6 +284,8 @@ export async function updatePipeline(id: string, formData: Partial<PipelineFormD
   }
 
   revalidatePath('/crm/configuracion/pipelines')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data }
 }
 
@@ -327,6 +330,8 @@ export async function deletePipeline(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/crm/configuracion/pipelines')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data: undefined }
 }
 
@@ -369,6 +374,8 @@ export async function updatePipelineOrder(pipelineIds: string[]): Promise<Action
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data: undefined }
 }
 
@@ -422,6 +429,8 @@ export async function createStage(pipelineId: string, formData: PipelineStageFor
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data }
 }
 
@@ -450,6 +459,8 @@ export async function updateStage(id: string, formData: Partial<PipelineStageFor
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data }
 }
 
@@ -495,6 +506,8 @@ export async function updateStageOrder(pipelineId: string, stageIds: string[]): 
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data: undefined }
 }
 
@@ -529,5 +542,7 @@ export async function deleteStage(id: string): Promise<ActionResult> {
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
+  const ws = (await cookies()).get('morfx_workspace')?.value
+  if (ws) updateTag('ref:pipelines:' + ws)
   return { success: true, data: undefined }
 }

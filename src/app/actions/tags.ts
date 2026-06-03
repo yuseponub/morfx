@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag as updateCacheTag } from 'next/cache'
 import { getRequestAuth } from '@/lib/auth/request-auth'
+import { getCachedTagsForScope } from '@/lib/cache/reference-data'
 import { z } from 'zod'
 import { DEFAULT_TAG_COLOR } from '@/lib/data/tag-colors'
 import type { Tag } from '@/lib/types/database'
@@ -134,6 +135,7 @@ export async function createTag(formData: FormData): Promise<ActionResult<Tag>> 
   revalidatePath('/crm/contactos')
   revalidatePath('/whatsapp')
   revalidatePath('/settings/tags')
+  updateCacheTag('ref:tags:' + workspaceId)
   return { success: true, data }
 }
 
@@ -186,6 +188,7 @@ export async function updateTag(id: string, formData: FormData): Promise<ActionR
   revalidatePath('/crm/contactos')
   revalidatePath('/whatsapp')
   revalidatePath('/settings/tags')
+  updateCacheTag('ref:tags:' + auth.workspaceId)
   return { success: true, data }
 }
 
@@ -218,6 +221,7 @@ export async function deleteTag(id: string): Promise<ActionResult> {
   revalidatePath('/crm/contactos')
   revalidatePath('/whatsapp')
   revalidatePath('/settings/tags')
+  updateCacheTag('ref:tags:' + auth.workspaceId)
   return { success: true, data: undefined }
 }
 
@@ -238,29 +242,7 @@ export async function getTagsForScope(
   if (!auth) {
     return []
   }
-  const { workspaceId } = auth
-
-  const supabase = await createClient()
-
-  let query = supabase
-    .from('tags')
-    .select('id, name, color, applies_to')
-    .eq('workspace_id', workspaceId)
-    .order('name', { ascending: true })
-
-  // Filter by scope
-  if (scope === 'whatsapp') {
-    query = query.in('applies_to', ['whatsapp', 'both'])
-  } else if (scope === 'orders') {
-    query = query.in('applies_to', ['orders', 'both'])
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching tags:', error)
-    return []
-  }
-
-  return (data || []) as Tag[]
+  // Capa 3 (D-07): lee del Next Data Cache por workspace en vez de re-fetch por click.
+  // Las mutaciones (create/update/delete) invalidan via updateCacheTag('ref:tags:'+ws).
+  return getCachedTagsForScope(auth.workspaceId, scope)
 }

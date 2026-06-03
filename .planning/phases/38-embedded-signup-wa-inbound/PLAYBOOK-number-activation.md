@@ -82,6 +82,40 @@ Todo esto es código nuevo → entra por flujo GSD (plan-phase). Tracked tambié
 la cadena sin tocar el app code. Correr:
 `DOTENV_CONFIG_PATH=.env.local npx tsx -r dotenv/config scripts/_meta-register-number.ts`
 
+## GAP DE OUTBOUND (descubierto en smoke 2026-06-03 — PRODUCTION-CRITICAL)
+
+Tras activar el número (CONNECTED) e inbound real funcionando, el **envío falla**:
+mensaje outbound queda `status: failed`, `error_message: "Re-engagement message"`
+(WhatsApp error 131047) **pero con wamid** (fue aceptado por una API y luego rechazado).
+
+**Causa raíz (NO es la ventana de 24h):** el path de envío es **360dialog-only y
+provider-unaware**. El inbox (`src/app/actions/messages.ts:143`) resuelve
+`apiKey = settings.whatsapp_api_key || process.env.WHATSAPP_API_KEY`. El workspace de
+prueba tiene `settings = {}` → cae al **WHATSAPP_API_KEY global (360dialog)** → la respuesta
+sale por el **número 360dialog global**, NO por el número Meta que recibió el inbound →
+WhatsApp devuelve 131047 porque ese cliente nunca escribió a ese número 360dialog.
+
+**Confirmado (no asumido):**
+- `grep -niE "meta_direct|sendWhatsAppText|whatsapp_provider" src/app/actions/messages.ts src/lib/agents/engine-adapters/production/messaging.ts` → **0 matches** (no hay rama Meta de envío).
+- `workspaces.whatsapp_provider = '360dialog'` (default MIG-01, nunca flipeado).
+- Helpers Meta de envío existen pero SIN USAR: `sendWhatsAppText` / `sendWhatsAppTemplate` en `src/lib/meta/api.ts`.
+
+**Esto es scope NO construido (la fase fue "...-inbound").** El outbound por Meta Cloud API
+es un follow-up. Diseño requerido — **switch de provider CENTRALIZADO** (no parche por sitio):
+1. Una sola abstracción de envío que, dado `workspaceId`, resuelva el provider
+   (`workspace.whatsapp_provider` o fila activa en `workspace_meta_accounts`) y despache a
+   360dialog **o** Meta (`sendWhatsAppText`/`sendWhatsAppTemplate` con BISUAT desencriptado +
+   `phone_number_id`).
+2. Cubrir TODAS las superficies de envío: inbox (`actions/messages.ts`), agente
+   (`engine-adapters/production/messaging.ts`), templates, media, automatizaciones
+   (`action-executor.ts`), contact-reviews. Hoy todas llaman 360dialog directo.
+3. Regla 6: no romper los workspaces en 360dialog (default sigue 360dialog; Meta solo cuando
+   `whatsapp_provider='meta_direct'`).
+4. Manejar errores de ventana 131047 (re-engagement) correctamente: en `meta_direct`, si
+   fuera de la ventana de 24h → forzar template; dentro → texto libre OK.
+
+→ Candidato a standalone/phase nuevo: **"meta-direct-outbound"** (provider-aware send).
+
 ## Fuentes (investigación 2026-06-03)
 - Desactivar 2SV vía WhatsApp Manager (email, sin PIN): bolddesk KB 17950, chatondesk, chakrahq.
 - Migración BSP→Cloud API (2SV debe estar OFF, no se puede por API): respond.io, interakt, Vonage.

@@ -1,20 +1,20 @@
 'use server'
 
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { WorkspaceLimits } from '@/lib/whatsapp/types'
 import { revalidatePath } from 'next/cache'
 
 // Verify super admin access
 async function verifySuperAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const auth = await getRequestAuth()
 
   const MORFX_OWNER_ID = process.env.MORFX_OWNER_USER_ID
-  if (!user || user.id !== MORFX_OWNER_ID) {
+  if (!auth || auth.userId !== MORFX_OWNER_ID) {
     throw new Error('Unauthorized')
   }
 
-  return user
+  return { userId: auth.userId }
 }
 
 // Get all workspaces for super admin
@@ -58,7 +58,7 @@ export async function updateWorkspaceLimits(
   workspaceId: string,
   limits: Partial<Omit<WorkspaceLimits, 'workspace_id' | 'updated_at' | 'updated_by'>>
 ): Promise<void> {
-  const user = await verifySuperAdmin()
+  const { userId } = await verifySuperAdmin()
   const adminClient = createAdminClient()
 
   const { error } = await adminClient
@@ -67,7 +67,7 @@ export async function updateWorkspaceLimits(
       workspace_id: workspaceId,
       ...limits,
       updated_at: new Date().toISOString(),
-      updated_by: user.id
+      updated_by: userId
     }, {
       onConflict: 'workspace_id'
     })

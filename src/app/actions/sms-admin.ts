@@ -1,6 +1,7 @@
 'use server'
 
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { revalidatePath } from 'next/cache'
 
 // ============================================================================
@@ -8,15 +9,14 @@ import { revalidatePath } from 'next/cache'
 // ============================================================================
 
 async function verifySuperAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const auth = await getRequestAuth()
 
   const MORFX_OWNER_ID = process.env.MORFX_OWNER_USER_ID
-  if (!user || user.id !== MORFX_OWNER_ID) {
+  if (!auth || auth.userId !== MORFX_OWNER_ID) {
     throw new Error('Unauthorized')
   }
 
-  return user
+  return { userId: auth.userId }
 }
 
 // ============================================================================
@@ -98,7 +98,7 @@ export async function rechargeWorkspaceBalance(
   amount: number,
   description?: string
 ): Promise<{ success: boolean; newBalance?: number; error?: string }> {
-  const user = await verifySuperAdmin()
+  const { userId } = await verifySuperAdmin()
   const adminClient = createAdminClient()
 
   if (amount <= 0) {
@@ -133,7 +133,7 @@ export async function rechargeWorkspaceBalance(
   const { data, error } = await adminClient.rpc('add_sms_balance', {
     p_workspace_id: workspaceId,
     p_amount: amount,
-    p_created_by: user.id,
+    p_created_by: userId,
     p_description: description || 'Recarga manual',
   })
 

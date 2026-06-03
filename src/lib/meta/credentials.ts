@@ -62,6 +62,28 @@ export async function resolveByPhoneNumberId(
 }
 
 /**
+ * Resolve credentials by WhatsApp Business Account id (waba_id).
+ * Used for inbound webhook events that carry the WABA id at `entry[].id`
+ * (e.g. `message_template_status_update`, WA-09) but no `phone_number_id`.
+ */
+export async function resolveByWabaId(
+  wabaId: string
+): Promise<MetaCredentials | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('workspace_meta_accounts')
+    .select(
+      'workspace_id, waba_id, phone_number_id, phone_number, page_id, ig_account_id, business_id, access_token_encrypted'
+    )
+    .eq('waba_id', wabaId)
+    .eq('is_active', true)
+    .single()
+
+  if (!data) return null
+  return rowToCredentials(data)
+}
+
+/**
  * Resolve credentials by Facebook page_id.
  * Used for inbound Messenger webhook routing.
  */

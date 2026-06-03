@@ -278,3 +278,90 @@ export async function createTemplate(
     }
   }
 }
+
+// ============================================================================
+// applyTemplateStatusUpdate (WA-09 — Meta webhook push)
+// ============================================================================
+
+/**
+ * Map a Meta `message_template_status_update` event to the local
+ * `whatsapp_templates.status` value (mirror `syncTemplateStatus360`).
+ * Meta events: APPROVED | REJECTED | PENDING | PAUSED | DISABLED | FLAGGED.
+ * Stored verbatim (uppercase) — the column already carries Meta's status enum.
+ */
+function mapMetaTemplateEvent(event: string): string {
+  return (event || '').toUpperCase()
+}
+
+export interface ApplyTemplateStatusUpdateParams {
+  /** workspace_id resolved from the WABA id (never from arbitrary payload — T-39-02). */
+  workspaceId: string | null
+  /** Meta `message_template_name`. */
+  name: string
+  /** Meta `message_template_language` (e.g. 'es'). */
+  language?: string
+  /** Meta `event` (APPROVED/REJECTED/...). */
+  event: string
+  /** Meta `reason` — written to `rejected_reason` on REJECTED/PAUSED/DISABLED. */
+  reason?: string | null
+}
+
+/**
+ * Apply a Meta template-status webhook push to the matching local row (WA-09).
+ *
+ * Writes `status` (mapped from the event) and, when the event is a
+ * negative one (REJECTED/PAUSED/DISABLED/FLAGGED) with a meaningful reason,
+ * `rejected_reason`. The row is matched by `(workspace_id, name, language)`;
+ * `workspace_id` is resolved from the WABA id by the caller (T-39-02 — never
+ * taken from arbitrary payload fields).
+ *
+ * Regla 3: this is the single mutation chokepoint for the webhook handler — the
+ * route never INSERT/UPDATEs `whatsapp_templates` directly.
+ */
+export async function applyTemplateStatusUpdate(
+  params: ApplyTemplateStatusUpdateParams
+): Promise<DomainResult<{ updated: boolean }>> {
+  const supabase = createAdminClient()
+
+  const status = mapMetaTemplateEvent(params.event)
+  const reason = params.reason && params.reason !== 'NONE' ? params.reason : null
+  const negative =
+    status === 'REJECTED' ||
+    status === 'PAUSED' ||
+    status === 'DISABLED' ||
+    status === 'FLAGGED'
+
+  const updatePayload: { status: string; rejected_reason?: string | null } = {
+    status,
+  }
+  // Write the reason on negative events; clear it when the template recovers
+  // (APPROVED/PENDING after a prior rejection).
+  if (negative) {
+    updatePayload.rejected_reason = reason
+  } else {
+    updatePayload.rejected_reason = null
+  }
+
+  let query = supabase
+    .from('whatsapp_templates')
+    .update(updatePayload)
+    .eq('name', params.name)
+
+  // Scope by workspace (T-39-02) + language when available. Chained filters
+  // narrow the match to exactly one row.
+  if (params.workspaceId) {
+    query = query.eq('workspace_id', params.workspaceId)
+  }
+  if (params.language) {
+    query = query.eq('language', params.language)
+  }
+
+  const { error } = await query
+
+  if (error) {
+    console.error('[wa-templates] status-update failed:', error.message)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, data: { updated: true } }
+}

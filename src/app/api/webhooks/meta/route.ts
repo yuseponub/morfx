@@ -12,8 +12,9 @@
 
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveByPhoneNumberId } from '@/lib/meta/credentials' // CHANGE (b)
+import { resolveByPhoneNumberId, resolveByWabaId } from '@/lib/meta/credentials' // CHANGE (b) + WA-09
 import { processWebhook } from '@/lib/whatsapp/webhook-handler' // SAME — reuse verbatim (D-09)
+import { applyTemplateStatusUpdate } from '@/lib/domain/whatsapp-templates' // WA-09 (Regla 3)
 import type { WebhookPayload } from '@/lib/whatsapp/types'
 
 // Extend function timeout for agent processing (multiple Claude API calls)
@@ -115,6 +116,67 @@ export async function POST(request: NextRequest) {
   if (payload.object !== 'whatsapp_business_account') {
     console.warn('[meta-webhook] non-WhatsApp webhook:', payload.object)
     return NextResponse.json({ error: 'Invalid webhook type' }, { status: 400 })
+  }
+
+  // ==========================================================================
+  // WA-09: message_template_status_update field handling (push, not polling).
+  // Runs AFTER HMAC verify (forged/unsigned already rejected 401 above — T-39-04)
+  // and is ADDITIVE on the existing Meta webhook (D-09 — inbound messages path
+  // below stays unchanged). Template-status payloads carry the WABA id at
+  // `entry[].id` and have NO phone_number_id, so this must branch before the
+  // phone_number_id extraction.
+  // ==========================================================================
+  const change = (payload as unknown as {
+    entry?: Array<{
+      id?: string
+      changes?: Array<{ field?: string; value?: Record<string, unknown> }>
+    }>
+  }).entry?.[0]?.changes?.[0]
+
+  if (change?.field === 'message_template_status_update') {
+    const value = (change.value ?? {}) as {
+      event?: string
+      message_template_name?: string
+      message_template_language?: string
+      reason?: string | null
+    }
+    const wabaId = (payload as unknown as { entry?: Array<{ id?: string }> })
+      .entry?.[0]?.id
+
+    // Resolve workspace from the WABA id (T-39-02 — never from arbitrary payload
+    // fields). Best-effort: an unknown WABA still acks 200 (no retry storm).
+    let workspaceId: string | null = null
+    if (wabaId) {
+      try {
+        const creds = await resolveByWabaId(wabaId)
+        workspaceId = creds?.workspaceId ?? null
+      } catch (err) {
+        console.warn('[meta-webhook] WABA resolution failed for template-status:', err)
+      }
+    }
+
+    const name = value.message_template_name
+    if (name && value.event) {
+      try {
+        await applyTemplateStatusUpdate({
+          workspaceId,
+          name,
+          language: value.message_template_language,
+          event: value.event,
+          reason: value.reason ?? null,
+        })
+        console.log(
+          `[meta-webhook] template-status ${value.event} applied name=${name} ws=${workspaceId ?? 'unknown'}`
+        )
+      } catch (err) {
+        console.error('[meta-webhook] template-status update failed:', err)
+        // Ack anyway — a 500 would trigger a Meta retry storm for a non-critical sync.
+      }
+    } else {
+      console.warn('[meta-webhook] template-status missing name/event, ack & drop')
+    }
+
+    return NextResponse.json({ received: true }, { status: 200 })
   }
 
   // Get phone_number_id from the first entry

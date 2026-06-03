@@ -8,8 +8,8 @@
 // encrypted, webhook-subscribed `workspace_meta_accounts` row.
 //
 // Auth gate (V4 — copy of shopify-oauth.ts:70-93):
-//   1. supabase.auth.getUser()
-//   2. workspace cookie → workspaceId (NEVER from request body — T-38-13)
+//   1. getRequestAuth() (local JWT verify; identity + workspaceId from cookie)
+//   2. workspaceId is session-derived (NEVER from request body — T-38-13)
 //   3. workspace_members.role === 'owner'
 //
 // Security:
@@ -29,12 +29,11 @@
 // column.
 // ============================================================================
 
-import { cookies } from 'next/headers'
-
 import { upsertMetaAccount } from '@/lib/domain/meta-accounts'
 import { exchangeCodeForBisuat, subscribeWaba } from '@/lib/meta/embedded-signup'
 import { encryptToken } from '@/lib/meta/token'
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 /**
  * Connect a WhatsApp number obtained from the Embedded Signup popup.
@@ -49,26 +48,19 @@ export async function connectWhatsAppNumber(input: {
   phoneNumberId: string
 }): Promise<{ success: true } | { success: false; error: string }> {
   // === Auth gate (copy of shopify-oauth.ts:70-93) =========================
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { success: false, error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { success: false, error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || member.role !== 'owner') {

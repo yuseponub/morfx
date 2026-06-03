@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type {
@@ -92,16 +92,11 @@ const EMPTY: MetricsPayload = {
 }
 
 export async function getConversationMetrics(period: Period): Promise<MetricsPayload> {
+  const auth = await getRequestAuth()
+  if (!auth) return EMPTY
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return EMPTY
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return EMPTY
 
   // Read per-workspace settings (reopen_window_days, scheduled_tag_name)
   const { data: ws } = await supabase

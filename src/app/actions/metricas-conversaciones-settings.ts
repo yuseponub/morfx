@@ -1,8 +1,8 @@
 'use server'
 
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { updateConversationMetricsSettings } from '@/lib/domain/workspace-settings'
 import type { MetricsSettings } from '@/lib/metricas-conversaciones/types'
 
@@ -24,19 +24,13 @@ type ActionResult =
 export async function updateMetricsSettings(
   partial: Partial<MetricsSettings>,
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { ok: false, error: 'no hay workspace activo' }
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { ok: false, error: 'no autenticado' }
   }
+  const workspaceId = auth.workspaceId
+
+  const supabase = await createClient()
 
   // Role check: owner/admin only (morfx has no 'manager' role; 'agent' is
   // regular user and cannot edit module settings).
@@ -44,7 +38,7 @@ export async function updateMetricsSettings(
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
   if (memberErr || !member) {
     return { ok: false, error: 'no eres miembro de este workspace' }

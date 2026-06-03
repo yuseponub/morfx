@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
   getMetricsByPeriod,
   type AgentMetrics,
@@ -25,25 +25,20 @@ export async function fetchAgentMetrics(
   | { success: true; data: AgentMetrics }
   | { error: string }
 > {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'Workspace no seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Verify membership (agent role cannot access metrics)
   const { data: membership } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!membership) {

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns'
 import { getCostRate } from '@/lib/whatsapp/cost-utils'
 
@@ -126,18 +126,13 @@ export async function getUsageSummary(
   preset: DatePreset = 'month',
   customRange?: { start: string; end: string }
 ): Promise<UsageSummary> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     throw new Error('No autenticado')
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    throw new Error('No hay workspace seleccionado')
-  }
+  const supabase = await createClient()
 
   const range = customRange
     ? { start: new Date(customRange.start), end: new Date(customRange.end) }
@@ -186,18 +181,13 @@ export async function getUsageSummary(
  * Returns array with all days filled (0 for days without messages)
  */
 export async function getUsageByDay(days: number = 30): Promise<DailyUsage[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const startDate = startOfDay(subDays(new Date(), days - 1))
 
@@ -259,18 +249,11 @@ export async function getUsageByCategory(
  * Used for header/dashboard warning indicators
  */
 export async function getSpendingStatus(): Promise<SpendingStatus> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     throw new Error('No autenticado')
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    throw new Error('No hay workspace seleccionado')
-  }
+  const workspaceId = auth.workspaceId
 
   // Get current month's spend
   const summary = await getUsageSummary('month')
@@ -308,16 +291,14 @@ export async function getSpendingStatus(): Promise<SpendingStatus> {
 export async function getAllWorkspacesUsage(
   preset: DatePreset = 'month'
 ): Promise<WorkspaceUsage[]> {
-  const supabase = await createClient()
-
   // Verify super admin access
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     throw new Error('No autenticado')
   }
 
   const MORFX_OWNER_ID = process.env.MORFX_OWNER_USER_ID
-  if (!MORFX_OWNER_ID || user.id !== MORFX_OWNER_ID) {
+  if (!MORFX_OWNER_ID || auth.userId !== MORFX_OWNER_ID) {
     throw new Error('No autorizado - solo super admin')
   }
 
@@ -380,16 +361,14 @@ export async function setWorkspaceLimit(
   monthlyLimitUsd: number | null,
   alertThresholdPercent: number = 80
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
-
   // Verify super admin access
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { success: false, error: 'No autenticado' }
   }
 
   const MORFX_OWNER_ID = process.env.MORFX_OWNER_USER_ID
-  if (!MORFX_OWNER_ID || user.id !== MORFX_OWNER_ID) {
+  if (!MORFX_OWNER_ID || auth.userId !== MORFX_OWNER_ID) {
     return { success: false, error: 'No autorizado - solo super admin' }
   }
 

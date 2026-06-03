@@ -15,7 +15,7 @@ import {
 } from '@/lib/domain/integrations'
 import type { ShopifyIntegration } from '@/lib/shopify/types'
 import type { Pipeline, PipelineStage } from '@/lib/orders/types'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 // ============================================================================
 // GET OPERATIONS
@@ -26,16 +26,11 @@ import { cookies } from 'next/headers'
  * Returns null if no integration exists.
  */
 export async function getShopifyIntegration(): Promise<ShopifyIntegration | null> {
+  const auth = await getRequestAuth()
+  if (!auth) return null
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return null
 
   const { data: integration } = await supabase
     .from('integrations')
@@ -119,15 +114,11 @@ export async function getWebhookEvents(limit: number = 20): Promise<{
  * Used in the integration settings form.
  */
 export async function getPipelinesForConfig(): Promise<Array<Pipeline & { stages: PipelineStage[] }>> {
+  const auth = await getRequestAuth()
+  if (!auth) return []
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return []
 
   const { data: pipelines } = await supabase
     .from('pipelines')
@@ -171,27 +162,21 @@ export async function toggleShopifyIntegration(isActive: boolean): Promise<{
   success: boolean
   error?: string
 }> {
-  const supabase = await createClient()
-  const adminSupabase = createAdminClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { success: false, error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { success: false, error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
   // Verify Owner role
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || member.role !== 'owner') {
@@ -221,27 +206,20 @@ export async function deleteShopifyIntegration(): Promise<{
   success: boolean
   error?: string
 }> {
-  const supabase = await createClient()
-  const adminSupabase = createAdminClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { success: false, error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  // Get workspace from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { success: false, error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Verify Owner role
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || member.role !== 'owner') {
@@ -254,8 +232,8 @@ export async function deleteShopifyIntegration(): Promise<{
   const result = await domainDeleteShopifyIntegration({
     workspaceId,
     source: 'server-action',
-    actorId: user.id,
-    actorLabel: `user:${user.id.slice(0, 8)}`,
+    actorId: auth.userId,
+    actorLabel: `user:${auth.userId.slice(0, 8)}`,
   })
 
   if (!result.success) {
@@ -275,24 +253,19 @@ export async function updateShopifyConfig(params: UpdateShopifyConfigParams): Pr
   success: boolean
   error?: string
 }> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { success: false, error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { success: false, error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || member.role !== 'owner') {
@@ -303,8 +276,8 @@ export async function updateShopifyConfig(params: UpdateShopifyConfigParams): Pr
     {
       workspaceId,
       source: 'server-action',
-      actorId: user.id,
-      actorLabel: `user:${user.id.slice(0, 8)}`,
+      actorId: auth.userId,
+      actorLabel: `user:${auth.userId.slice(0, 8)}`,
     },
     params
   )

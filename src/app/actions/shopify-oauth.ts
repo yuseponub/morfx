@@ -10,8 +10,8 @@
 // performs `window.location.href = redirectUrl` (cross-origin → NOT router.push).
 //
 // Auth gate (copy of saveShopifyIntegration pattern in shopify.ts:184-210):
-//   1. supabase.auth.getUser()
-//   2. cookie morfx_workspace
+//   1. getRequestAuth() (local JWT verify; identity + workspaceId from cookie)
+//   2. workspaceId is session-derived (cookie morfx_workspace)
 //   3. workspace_members.role === 'owner'
 //
 // Domain validation (defense in depth — Pitfall 3 anti-injection):
@@ -31,11 +31,10 @@
 // (auth check, identical to shopify.ts). Plan 05 callback handles the upsert.
 // ============================================================================
 
-import { cookies } from 'next/headers'
-
 import { normalizeShopDomain } from '@/lib/shopify/connection-test'
 import { buildAuthorizeUrl, generateNonce, signStateJwt } from '@/lib/shopify/oauth'
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 /**
  * STRICT shop domain regex (Pitfall 3, defense in depth).
@@ -68,24 +67,19 @@ export async function startShopifyOauth(input: { shopDomain: string }): Promise<
   | { success: false; error: string }
 > {
   // === Auth gate (copy of shopify.ts:184-210) ============================
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { success: false, error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { success: false, error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || member.role !== 'owner') {
@@ -118,7 +112,7 @@ export async function startShopifyOauth(input: { shopDomain: string }): Promise<
   try {
     state = await signStateJwt({
       workspaceId,
-      userId: user.id,
+      userId: auth.userId,
       nonce: generateNonce(),
     })
   } catch (err) {

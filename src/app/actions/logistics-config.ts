@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { revalidatePath } from 'next/cache'
 import {
   getCarrierConfig,
@@ -17,13 +17,9 @@ type ActionResult<T = void> =
  * Get logistics config (carrier=coordinadora) for the current workspace.
  */
 export async function getLogisticsConfig(): Promise<CarrierConfig | null> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return null
+  const auth = await getRequestAuth()
+  if (!auth) return null
+  const workspaceId = auth.workspaceId
 
   const result = await getCarrierConfig(
     { workspaceId, source: 'server-action' },
@@ -43,20 +39,18 @@ export async function updateDispatchConfig(params: {
   dispatchStageId: string | null
   isEnabled: boolean
 }): Promise<ActionResult<CarrierConfig>> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const supabase = await createClient()
 
   // Check admin role
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
@@ -91,20 +85,18 @@ export async function updateOcrConfig(params: {
   ocrPipelineId: string | null
   ocrStageId: string | null
 }): Promise<ActionResult<CarrierConfig>> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const supabase = await createClient()
 
   // Check admin role
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
@@ -137,19 +129,17 @@ export async function updateGuideLookupConfig(params: {
   guideLookupPipelineId: string | null
   guideLookupStageId: string | null
 }): Promise<ActionResult<CarrierConfig>> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const supabase = await createClient()
 
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
@@ -188,20 +178,18 @@ export async function updateGuideGenConfig(params: {
   pipelineId: string | null
   stageId: string | null
 }): Promise<ActionResult<CarrierConfig>> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const supabase = await createClient()
 
   // Check admin role
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || (member.role !== 'owner' && member.role !== 'admin')) {

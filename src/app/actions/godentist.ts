@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { sendTemplateMessage } from '@/lib/domain/messages'
 import { findOrCreateConversation, linkContactToConversation } from '@/lib/domain/conversations'
 import { assignTag } from '@/lib/domain/tags'
@@ -114,13 +114,9 @@ export interface ScrapeHistoryEntry {
 }
 
 export async function scrapeAppointments(sucursales?: string[], targetDate?: string): Promise<{ error?: string; data?: ScrapeResult; historyId?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   // ── D-10: feature flag with kill-switch semantics (Option A) ──
   // Per CONTEXT.md D-10 + PATTERNS.md §3 + RESEARCH.md §"Implementation Roadmap" Wave 2.
@@ -276,13 +272,10 @@ export async function sendConfirmations(
   date: string,
   historyId?: string
 ): Promise<{ error?: string; data?: SendResult }> {
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
   // Get workspace API key
   const { data: wsData } = await supabase
@@ -489,13 +482,9 @@ export async function sendConfirmations(
 // ── History Actions ──
 
 export async function getScrapeHistory(): Promise<{ error?: string; data?: ScrapeHistoryEntry[] }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -557,13 +546,9 @@ export interface AppointmentInfoResult {
 }
 
 export async function getAppointmentForContact(contactPhone: string): Promise<AppointmentInfoResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
   const { data: scrapes, error: scrapeError } = await admin
@@ -604,13 +589,9 @@ export async function confirmAppointment(
   contactPhone: string,
   contactName: string
 ): Promise<ConfirmAppointmentResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
   const { data: scrapes, error: scrapeError } = await admin
@@ -769,13 +750,9 @@ export async function scheduleReminders(
   fechaCita: string,
   historyId?: string
 ): Promise<{ error?: string; data?: ScheduleResult }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   // ── D-08 (relaxed 2026-06-02): cross-sede canary is WARN-ONLY, never blocks ──
   // Mismo criterio que sendConfirmations: el canary advierte pero no bloquea la
@@ -954,13 +931,9 @@ export interface ScrapeWithReminders {
 }
 
 export async function getScheduledReminders(fechaCita?: string): Promise<{ error?: string; data?: ScheduledReminderEntry[] }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
   let query = admin
@@ -997,13 +970,9 @@ export async function getScheduledReminders(fechaCita?: string): Promise<{ error
 export async function getScheduledRemindersGroupedByScrape(
   dateFilter?: string,
 ): Promise<{ error?: string; data?: ScrapeWithReminders[]; orphans?: ScheduledReminderEntry[] }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
 
@@ -1078,13 +1047,9 @@ export async function getScheduledRemindersGroupedByScrape(
 }
 
 export async function cancelScheduledReminder(reminderId: string): Promise<{ error?: string; success?: boolean }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
   const { error, count } = await admin
@@ -1102,13 +1067,9 @@ export async function cancelScheduledReminder(reminderId: string): Promise<{ err
 // ── Followup Preview ──
 
 export async function getFollowupPreview(historyId: string): Promise<{ error?: string; data?: FollowupResult[] }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
 
   const admin = createAdminClient()
   const { data: history } = await admin

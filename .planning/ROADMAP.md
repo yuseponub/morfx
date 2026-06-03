@@ -597,7 +597,17 @@ Plans:
 
 **Risk:** LOW (WhatsApp Cloud API payloads are identical to 360dialog -- sender swap is a URL + auth header change)
 
-**Plans:** TBD
+**Plans:** 8 plans
+
+Plans:
+- [ ] 39-01-PLAN.md — Wave 0 RED test scaffolds (full Meta surface + Regla 6 parity)
+- [ ] 39-02-PLAN.md — Meta send edge: meta/api.ts helpers + metaWhatsappSender (WA-01/02/03/04/07)
+- [ ] 39-03-PLAN.md — meta/media.ts (CDN up/download, WA-06) + meta/templates.ts (CRUD + D-05 guard, WA-08)
+- [ ] 39-04-PLAN.md — domain provider chokepoint: messages.ts + whatsapp-templates.ts (MIG-03)
+- [ ] 39-05-PLAN.md — close 131047 blast radius: rewire 2 bypass sites + read receipts (WA-07)
+- [ ] 39-06-PLAN.md — WA-09 template-status webhook push + inbound Meta media rehost (WA-06)
+- [ ] 39-07-PLAN.md — provider-aware template management + D-05 edit UI (WA-08)
+- [ ] 39-08-PLAN.md — final gated cutover: SQL flip + live smoke on test number (D-01)
 
 **Success Criteria:**
 1. From the MorfX inbox, a user can send text, images, videos, audio, documents, stickers, templates, and interactive messages (buttons/lists) via Cloud API -- the recipient receives them identically to messages sent via 360dialog

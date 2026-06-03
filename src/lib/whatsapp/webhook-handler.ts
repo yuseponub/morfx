@@ -9,6 +9,10 @@ import { normalizePhone } from '@/lib/utils/phone'
 import { normalizeWebsiteGreeting } from '@/lib/agents/somnio/normalizers'
 import { recordMessageCost } from '@/app/actions/usage'
 import { downloadMedia } from './api'
+// Phase 39 (WA-06): meta_direct inbound media uses the Meta two-step Bearer
+// download + Supabase rehost (Pitfall 3). 360dialog path stays byte-identical (Regla 6).
+import { resolveByWorkspace } from '@/lib/meta/credentials'
+import { downloadAndRehostMedia } from '@/lib/meta/media'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import {
   findOrCreateConversation as domainFindOrCreateConversation,
@@ -227,29 +231,62 @@ async function processIncomingMessage(
     if (MEDIA_TYPES.has(msg.type)) {
       const mediaContent = content as MediaContent
       if (mediaContent.mediaId) {
-        // Resolve API key for this workspace
+        // Provider-aware media resolution (WA-06 / Pitfall 3).
+        // Read whatsapp_provider for this workspace ONCE. For `meta_direct`
+        // the inbound media arrives as a Meta media_id requiring the two-step
+        // Bearer download (CDN url expires ~5 min) → meta/media.ts. For
+        // `360dialog` (default) the existing D360-API-KEY path stays
+        // byte-identical (Regla 6 — downloadAndUploadMedia untouched).
         const { data: ws } = await supabase
           .from('workspaces')
-          .select('settings')
+          .select('settings, whatsapp_provider')
           .eq('id', workspaceId)
           .single()
-        const apiKey = (ws?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined || process.env.WHATSAPP_API_KEY
+        const provider =
+          (ws as { whatsapp_provider?: string } | null)?.whatsapp_provider === 'meta_direct'
+            ? 'meta_direct'
+            : '360dialog'
 
-        if (apiKey) {
-          const uploaded = await downloadAndUploadMedia(
-            apiKey,
-            mediaContent.mediaId,
-            workspaceId,
-            conversationId,
-            mediaContent.mimeType
-          )
-          if (uploaded) {
-            mediaUrl = uploaded.url
-            mediaMimeType = uploaded.mimeType
-            mediaFilename = uploaded.filename || mediaContent.filename
+        if (provider === 'meta_direct') {
+          // Meta direct: resolve decrypted Bearer creds from the workspace
+          // (T-39-02 — never from payload) and download immediately on receipt.
+          const creds = await resolveByWorkspace(workspaceId, 'whatsapp')
+          if (creds?.accessToken) {
+            const uploaded = await downloadAndRehostMedia(
+              creds.accessToken,
+              mediaContent.mediaId,
+              workspaceId,
+              conversationId,
+              mediaContent.mimeType
+            )
+            if (uploaded) {
+              mediaUrl = uploaded.url
+              mediaMimeType = uploaded.mimeType
+              mediaFilename = uploaded.filename || mediaContent.filename
+            }
+          } else {
+            console.warn('[webhook] No Meta creds for media download, workspace:', workspaceId)
           }
         } else {
-          console.warn('[webhook] No API key found for media download, workspace:', workspaceId)
+          // 360dialog (default — Regla 6 byte-identical): resolve D360 API key.
+          const apiKey = (ws?.settings as Record<string, unknown>)?.whatsapp_api_key as string | undefined || process.env.WHATSAPP_API_KEY
+
+          if (apiKey) {
+            const uploaded = await downloadAndUploadMedia(
+              apiKey,
+              mediaContent.mediaId,
+              workspaceId,
+              conversationId,
+              mediaContent.mimeType
+            )
+            if (uploaded) {
+              mediaUrl = uploaded.url
+              mediaMimeType = uploaded.mimeType
+              mediaFilename = uploaded.filename || mediaContent.filename
+            }
+          } else {
+            console.warn('[webhook] No API key found for media download, workspace:', workspaceId)
+          }
         }
       }
     }

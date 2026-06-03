@@ -22,9 +22,9 @@
 // ============================================================================
 
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
   listTemplatesByAgent,
   listIntents,
@@ -64,18 +64,12 @@ const ADMIN_DENIED =
  * Mirrors agent-config.ts:getAuthContext verbatim.
  */
 async function getAuthContext() {
+  const auth = await getRequestAuth()
+  if (!auth) return null
+
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return null
-
-  return { user, workspaceId, supabase }
+  return { userId: auth.userId, workspaceId: auth.workspaceId, supabase }
 }
 
 /**
@@ -163,7 +157,7 @@ export async function getTemplatesAction(
   if (!ctx) return { success: false, error: 'No autenticado' }
 
   const result = await listTemplatesByAgent(
-    buildCtx(ctx.workspaceId, ctx.user.id),
+    buildCtx(ctx.workspaceId, ctx.userId),
     agentId,
   )
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
@@ -176,7 +170,7 @@ export async function getIntentsAction(
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
 
-  const result = await listIntents(buildCtx(ctx.workspaceId, ctx.user.id), agentId)
+  const result = await listIntents(buildCtx(ctx.workspaceId, ctx.userId), agentId)
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   return { success: true, data: result.data }
 }
@@ -190,7 +184,7 @@ export async function updateTemplateAction(
 ): Promise<ActionResult> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = updateTemplateSchema.safeParse(input)
@@ -201,7 +195,7 @@ export async function updateTemplateAction(
     }
 
   const result = await updateTemplateContent(
-    buildCtx(ctx.workspaceId, ctx.user.id),
+    buildCtx(ctx.workspaceId, ctx.userId),
     v.data,
   )
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
@@ -214,7 +208,7 @@ export async function addTemplateAction(
 ): Promise<ActionResult<AgentTemplateRow>> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = addTemplateSchema.safeParse(input)
@@ -224,7 +218,7 @@ export async function addTemplateAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await addTemplate(buildCtx(ctx.workspaceId, ctx.user.id), v.data)
+  const result = await addTemplate(buildCtx(ctx.workspaceId, ctx.userId), v.data)
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   revalidatePath(EDITOR_PATH)
   return { success: true, data: result.data }
@@ -235,7 +229,7 @@ export async function deleteTemplateAction(
 ): Promise<ActionResult> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = deleteTemplateSchema.safeParse(input)
@@ -245,7 +239,7 @@ export async function deleteTemplateAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await deleteTemplate(buildCtx(ctx.workspaceId, ctx.user.id), v.data)
+  const result = await deleteTemplate(buildCtx(ctx.workspaceId, ctx.userId), v.data)
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   revalidatePath(EDITOR_PATH)
   return { success: true }
@@ -256,7 +250,7 @@ export async function reorderTemplatesAction(
 ): Promise<ActionResult> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = reorderTemplatesSchema.safeParse(input)
@@ -266,7 +260,7 @@ export async function reorderTemplatesAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await reorderTemplates(buildCtx(ctx.workspaceId, ctx.user.id), v.data)
+  const result = await reorderTemplates(buildCtx(ctx.workspaceId, ctx.userId), v.data)
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   revalidatePath(EDITOR_PATH)
   return { success: true }
@@ -334,7 +328,7 @@ export async function getKbListAction(
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
 
-  const result = await listKbByAgent(buildCtx(ctx.workspaceId, ctx.user.id), agentId)
+  const result = await listKbByAgent(buildCtx(ctx.workspaceId, ctx.userId), agentId)
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   return { success: true, data: result.data }
 }
@@ -347,7 +341,7 @@ export async function getKbTopicAction(
   if (!ctx) return { success: false, error: 'No autenticado' }
 
   const result = await getKbTopic(
-    buildCtx(ctx.workspaceId, ctx.user.id),
+    buildCtx(ctx.workspaceId, ctx.userId),
     kbId,
     agentId,
   )
@@ -362,7 +356,7 @@ export async function listKbVersionsAction(
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
 
-  const result = await listKbVersions(buildCtx(ctx.workspaceId, ctx.user.id), {
+  const result = await listKbVersions(buildCtx(ctx.workspaceId, ctx.userId), {
     kbId,
     agentId,
   })
@@ -384,7 +378,7 @@ export async function searchKbVersionsAction(
     }
 
   const result = await searchKbVersions(
-    buildCtx(ctx.workspaceId, ctx.user.id),
+    buildCtx(ctx.workspaceId, ctx.userId),
     v.data,
   )
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
@@ -404,7 +398,7 @@ export async function createKbTopicAction(
 ): Promise<ActionResult<AgentKbRow>> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = createKbSchema.safeParse(input)
@@ -414,9 +408,9 @@ export async function createKbTopicAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await createKbTopic(buildCtx(ctx.workspaceId, ctx.user.id), {
+  const result = await createKbTopic(buildCtx(ctx.workspaceId, ctx.userId), {
     ...v.data,
-    reviewedBy: `user:${ctx.user.id}`,
+    reviewedBy: `user:${ctx.userId}`,
   })
   // D-06: surface the domain error (incl. OpenAI re-embed failure) verbatim.
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
@@ -429,7 +423,7 @@ export async function updateKbTopicAction(
 ): Promise<ActionResult<AgentKbRow>> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = updateKbSchema.safeParse(input)
@@ -439,9 +433,9 @@ export async function updateKbTopicAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await updateKbTopic(buildCtx(ctx.workspaceId, ctx.user.id), {
+  const result = await updateKbTopic(buildCtx(ctx.workspaceId, ctx.userId), {
     ...v.data,
-    reviewedBy: `user:${ctx.user.id}`,
+    reviewedBy: `user:${ctx.userId}`,
   })
   // D-06: surface the domain error (incl. OpenAI re-embed failure) verbatim.
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
@@ -454,7 +448,7 @@ export async function deleteKbTopicAction(
 ): Promise<ActionResult> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = deleteKbSchema.safeParse(input)
@@ -464,7 +458,7 @@ export async function deleteKbTopicAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await deleteKbTopic(buildCtx(ctx.workspaceId, ctx.user.id), v.data)
+  const result = await deleteKbTopic(buildCtx(ctx.workspaceId, ctx.userId), v.data)
   if (!result.success) return { success: false, error: result.error ?? 'Error' }
   revalidatePath(EDITOR_PATH)
   return { success: true }
@@ -475,7 +469,7 @@ export async function restoreKbVersionAction(
 ): Promise<ActionResult<AgentKbRow>> {
   const ctx = await getAuthContext()
   if (!ctx) return { success: false, error: 'No autenticado' }
-  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)))
+  if (!(await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)))
     return { success: false, error: ADMIN_DENIED }
 
   const v = restoreKbSchema.safeParse(input)
@@ -485,9 +479,9 @@ export async function restoreKbVersionAction(
       error: `Validación fallida: ${v.error.issues.map((i) => i.message).join('; ')}`,
     }
 
-  const result = await restoreKbVersion(buildCtx(ctx.workspaceId, ctx.user.id), {
+  const result = await restoreKbVersion(buildCtx(ctx.workspaceId, ctx.userId), {
     ...v.data,
-    reviewedBy: `user:${ctx.user.id}`,
+    reviewedBy: `user:${ctx.userId}`,
   })
   // D-06: surface the domain error (incl. OpenAI re-embed failure) verbatim.
   if (!result.success) return { success: false, error: result.error ?? 'Error' }

@@ -348,19 +348,33 @@ export async function markMessageAsRead(messageId: string): Promise<ActionResult
     return { error: 'Mensaje no encontrado' }
   }
 
-  // Get workspace settings for API key
+  // Provider decision (MIG-03 / D-07) — read receipts route via the same
+  // chokepoint logic as sends: meta_direct → Cloud API, else 360dialog.
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
-    .select('settings')
+    .select('settings, whatsapp_provider')
     .eq('id', workspaceId)
     .single()
 
-  const apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-  if (!apiKey) {
-    return { error: 'API key de WhatsApp no configurada' }
-  }
-
   try {
+    if (workspaceSettings?.whatsapp_provider === 'meta_direct') {
+      // Meta Cloud API arm. Creds resolved from workspaceId only (T-39-02),
+      // and the access token is never logged (T-39-01).
+      const { resolveByWorkspace } = await import('@/lib/meta/credentials')
+      const { markWhatsAppRead } = await import('@/lib/meta/api')
+      const creds = await resolveByWorkspace(workspaceId, 'whatsapp')
+      if (!creds?.accessToken || !creds.phoneNumberId) {
+        return { error: 'Credenciales Meta no configuradas' }
+      }
+      await markWhatsAppRead(creds.accessToken, creds.phoneNumberId, message.wamid)
+      return { success: true, data: undefined }
+    }
+
+    // 360dialog arm (default — byte-identical, Regla 6).
+    const apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+    if (!apiKey) {
+      return { error: 'API key de WhatsApp no configurada' }
+    }
     const { markMessageAsRead: markRead360 } = await import('@/lib/whatsapp/api')
     await markRead360(apiKey, message.wamid)
 

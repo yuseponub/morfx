@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import type {
   Order,
@@ -75,17 +75,15 @@ type ActionResult<T = void> =
 // ============================================================================
 
 async function getAuthContext(): Promise<{ workspaceId: string; userId: string } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
+  // Delega a getRequestAuth (verificacion local cacheada). El helper devuelve null
+  // tanto por falta de auth como por falta de workspace; el mensaje colapsa a
+  // 'No autenticado' — los callers solo chequean la presencia de `error`.
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
-
-  // BLOCKER 1 fix (Plan 02): userId ya estaba in-scope (linea 78), ahora se expone
-  // para poblar DomainContext.actorId en callers (audit trail order_stage_history).
-  return { workspaceId, userId: user.id }
+  // userId se expone para poblar DomainContext.actorId en callers
+  // (audit trail order_stage_history).
+  return { workspaceId: auth.workspaceId, userId: auth.userId }
 }
 
 // ============================================================================
@@ -97,18 +95,13 @@ async function getAuthContext(): Promise<{ workspaceId: string; userId: string }
  * Ordered by name
  */
 export async function getPipelines(): Promise<PipelineWithStages[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data: pipelines, error } = await supabase
     .from('pipelines')
@@ -136,18 +129,13 @@ export async function getPipelines(): Promise<PipelineWithStages[]> {
  * Creates "Ventas" pipeline with standard stages if none exists
  */
 export async function getOrCreateDefaultPipeline(): Promise<PipelineWithStages | null> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
 
   // Check for existing default pipeline
   const { data: existingDefault } = await supabase
@@ -240,18 +228,13 @@ export async function getOrCreateDefaultPipeline(): Promise<PipelineWithStages |
  * Returns orders with contact, stage, pipeline, products, and tags
  */
 export async function getOrders(filters?: OrderFilters): Promise<OrderWithDetails[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   let query = supabase
     .from('orders')
@@ -327,14 +310,11 @@ export async function getOrdersForStage(
   limit: number = 20,
   offset: number = 0
 ): Promise<{ orders: OrderWithDetails[]; hasMore: boolean }> {
+  const auth = await getRequestAuth()
+  if (!auth) return { orders: [], hasMore: false }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { orders: [], hasMore: false }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { orders: [], hasMore: false }
 
   // Fetch limit+1 to determine if there are more
   const { data, error } = await supabase
@@ -376,14 +356,11 @@ export async function getOrdersForStage(
 export async function getStageOrderCounts(
   pipelineId: string
 ): Promise<Record<string, number>> {
+  const auth = await getRequestAuth()
+  if (!auth) return {}
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return {}
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return {}
 
   const { data, error } = await supabase
     .from('orders')
@@ -407,12 +384,12 @@ export async function getStageOrderCounts(
  * Get a single order by ID with all relations
  */
 export async function getOrder(id: string): Promise<OrderWithDetails | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('orders')
@@ -749,18 +726,13 @@ export async function recompraOrder(
  * Export orders to CSV format (read-only, unchanged)
  */
 export async function exportOrdersToCSV(orderIds?: string[]): Promise<ActionResult<string>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const { workspaceId } = auth
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'Workspace no seleccionado' }
-  }
+  const supabase = await createClient()
 
   let query = supabase
     .from('orders')
@@ -941,10 +913,10 @@ export async function bulkUpdateOrderField(
  * - siblings: other orders derived from the same source (also marked 'derived')
  */
 export async function getRelatedOrders(orderId: string): Promise<RelatedOrder[]> {
-  const supabase = await createClient()
+  const auth = await getRequestAuth()
+  if (!auth) return []
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  const supabase = await createClient()
 
   // Get current order to check source_order_id
   const { data: currentOrder } = await supabase

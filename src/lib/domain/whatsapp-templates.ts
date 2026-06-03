@@ -24,6 +24,14 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   createTemplate360,
 } from '@/lib/whatsapp/templates-api'
+// Phase 39 (MIG-03 / D-02): the SINGLE provider-decision site for template create.
+// `meta_direct` workspaces submit via createTemplateMeta + a Meta resumable upload
+// handle; `360dialog` workspaces stay byte-identical (Regla 6 — public Supabase URL).
+import { resolveByWorkspace } from '@/lib/meta/credentials'
+import {
+  createTemplateMeta,
+  uploadHeaderHandleMeta,
+} from '@/lib/meta/templates'
 import type { DomainContext, DomainResult } from './types'
 import type {
   Template,
@@ -74,6 +82,26 @@ export async function createTemplate(
 ): Promise<DomainResult<Template>> {
   const supabase = createAdminClient()
 
+  // Step 0: Provider decision (MIG-03 / D-02 — the single chokepoint, Regla 3).
+  // Default/null → '360dialog'. MIG-01: whatsapp_provider already exists in prod.
+  const { data: ws } = await supabase
+    .from('workspaces')
+    .select('whatsapp_provider')
+    .eq('id', ctx.workspaceId)
+    .single()
+  const provider: '360dialog' | 'meta_direct' =
+    ws?.whatsapp_provider === 'meta_direct' ? 'meta_direct' : '360dialog'
+
+  // For meta_direct, resolve Meta creds once (from ctx.workspaceId, never input — T-39-02).
+  let metaCreds: { accessToken: string; wabaId: string } | null = null
+  if (provider === 'meta_direct') {
+    const creds = await resolveByWorkspace(ctx.workspaceId, 'whatsapp')
+    if (!creds?.accessToken || !creds.wabaId) {
+      return { success: false, error: 'Credenciales Meta no configuradas' }
+    }
+    metaCreds = { accessToken: creds.accessToken, wabaId: creds.wabaId }
+  }
+
   // Step 1: Uniqueness check (workspace_id + name)
   const { data: existing } = await supabase
     .from('whatsapp_templates')
@@ -89,7 +117,9 @@ export async function createTemplate(
     }
   }
 
-  // Step 2: Use Supabase public URL as header_handle (360 Dialog v2 spec)
+  // Step 2: Patch the HEADER component with the provider-appropriate handle.
+  //   - 360dialog (default): public Supabase URL (the v2 nuance — byte-identical, Regla 6).
+  //   - meta_direct: Meta resumable upload handle ("h") obtained from uploadHeaderHandleMeta.
   //
   // NOTA (2026-04-21): El resumable upload a 360 Dialog (uploadHeaderImage360)
   // devuelve un handle con prefijo "4:..." que Meta Cloud API acepta, pero
@@ -109,26 +139,66 @@ export async function createTemplate(
       }
     }
 
-    // Generar URL publica del bucket whatsapp-media
-    const { data: pub } = supabase.storage
-      .from('whatsapp-media')
-      .getPublicUrl(params.headerImage.storagePath)
-
-    if (!pub?.publicUrl) {
-      return {
-        success: false,
-        error: 'No se pudo generar URL publica de la imagen del header',
+    let headerHandle: string
+    if (provider === 'meta_direct' && metaCreds) {
+      // Meta wants a resumable upload handle, not a public URL. Download the
+      // bytes from the whatsapp-media bucket and push them through Meta's
+      // Resumable Upload API to obtain the permanent "h" handle.
+      const appId = process.env.META_APP_ID
+      if (!appId) {
+        return {
+          success: false,
+          error: 'META_APP_ID no configurado para subir el header a Meta',
+        }
       }
+      const { data: blob, error: dlErr } = await supabase.storage
+        .from('whatsapp-media')
+        .download(params.headerImage.storagePath)
+      if (dlErr || !blob) {
+        return {
+          success: false,
+          error: 'No se pudo descargar la imagen del header desde Storage',
+        }
+      }
+      const bytes = await blob.arrayBuffer()
+      try {
+        const { handle } = await uploadHeaderHandleMeta(
+          metaCreds.accessToken,
+          appId,
+          bytes,
+          params.headerImage.mimeType
+        )
+        headerHandle = handle
+      } catch (uploadErr) {
+        const msg = uploadErr instanceof Error ? uploadErr.message : 'Error desconocido'
+        return {
+          success: false,
+          error: `No se pudo subir la imagen del header a Meta: ${msg}`,
+        }
+      }
+    } else {
+      // 360dialog (default, Regla 6 — byte-identical): public Supabase URL.
+      const { data: pub } = supabase.storage
+        .from('whatsapp-media')
+        .getPublicUrl(params.headerImage.storagePath)
+
+      if (!pub?.publicUrl) {
+        return {
+          success: false,
+          error: 'No se pudo generar URL publica de la imagen del header',
+        }
+      }
+      headerHandle = pub.publicUrl
     }
 
-    // Patch del HEADER component con la URL publica
+    // Patch del HEADER component con el handle correspondiente al provider
     components = components.map((c, i) =>
       i === headerIdx
         ? {
             ...c,
             example: {
               ...(c.example || {}),
-              header_handle: [pub.publicUrl],
+              header_handle: [headerHandle],
             },
           }
         : c
@@ -163,14 +233,25 @@ export async function createTemplate(
     }
   }
 
-  // Step 4: Submit to 360 Dialog
+  // Step 4: Submit to the resolved provider
   try {
-    await createTemplate360(params.apiKey, {
-      name: params.name,
-      language: params.language,
-      category: params.category,
-      components,
-    })
+    if (provider === 'meta_direct' && metaCreds) {
+      // Meta Cloud API arm (the 131047 fix) — creds resolved from ctx.workspaceId.
+      await createTemplateMeta(metaCreds, {
+        name: params.name,
+        language: params.language,
+        category: params.category,
+        components,
+      })
+    } else {
+      // 360dialog arm (existing path, zero change — Regla 6)
+      await createTemplate360(params.apiKey, {
+        name: params.name,
+        language: params.language,
+        category: params.category,
+        components,
+      })
+    }
 
     // Step 5: Mark submitted_at
     await supabase
@@ -190,9 +271,10 @@ export async function createTemplate(
       .eq('id', inserted.id)
       .eq('workspace_id', ctx.workspaceId)
 
+    const rejector = provider === 'meta_direct' ? 'Meta' : '360 Dialog'
     return {
       success: false,
-      error: `360 Dialog rechazo el template: ${msg}`,
+      error: `${rejector} rechazo el template: ${msg}`,
     }
   }
 }

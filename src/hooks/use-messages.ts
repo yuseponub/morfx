@@ -24,6 +24,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { useRealtimeReconnect } from '@/hooks/use-realtime-reconnect'
 import { getConversationMessages } from '@/app/actions/conversations'
 import type { Message, TextContent } from '@/lib/whatsapp/types'
 
@@ -145,6 +146,12 @@ export function useMessages({
     if (!conversationIdRef.current) return
     queryClient.invalidateQueries({ queryKey: queryKeyRef.current })
   }, [queryClient])
+
+  // Capa 2 + Capa 3 — re-sync the open chat (React Query cache) on the browser
+  // events that fire when the socket dies silently (visibilitychange/online) +
+  // staleness watchdog. Gated on conversationId so listeners/watchdog are only
+  // wired while a chat is open (softRefetch already no-ops otherwise).
+  useRealtimeReconnect(softRefetch, !!conversationId)
 
   // Schedule a safety refetch after 3 seconds (call after sending a message)
   const scheduleSafetyRefetch = useCallback(() => {

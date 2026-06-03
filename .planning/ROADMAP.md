@@ -500,7 +500,7 @@ Plans:
 
 - [ ] **Phase 37: Meta App Setup + Foundation** - Meta App config, credentials table, token encryption, Graph API client, step-by-step setup guide
 - [x] **Phase 37.5: Meta Business Verification Website (Bloque A)** - Landing publica bilingue ES/EN + privacy + terms desplegados en morfx.app (2026-04-14). Bloques B/C/D manuales pendientes (otra conversacion)
-- [ ] **Phase 38: Embedded Signup + WhatsApp Inbound** - Embedded Signup UI, token exchange, webhook subscription, unified webhook endpoint, WA inbound messages
+- [x] **Phase 38: Embedded Signup + WhatsApp Inbound** - Embedded Signup UI, token exchange, webhook subscription, unified webhook endpoint, WA inbound messages — ✅ CLOSED 2026-06-03 (6 plans, 21/21 tests, live-validated end-to-end incl. register activation chain; outbound → Phase 39). See 38-VERIFICATION.md.
 - [ ] **Phase 39: WhatsApp Outbound + Templates** - Cloud API sender, media upload/download, templates CRUD, read receipts, provider flag, channel registry
 - [ ] **Phase 40: Facebook Messenger Direct** - FB/IG page connection UI, Messenger webhook handler, FB sender, PSID resolution, Messenger inbox, provider flag
 - [ ] **Phase 41: Instagram Direct** - IG webhook handler, IG sender, IG-scoped user resolution, Instagram inbox, 24h window UX

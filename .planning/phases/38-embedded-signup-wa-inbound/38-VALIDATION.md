@@ -1,11 +1,18 @@
 ---
 phase: 38
 slug: embedded-signup-wa-inbound
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-02
+closed: 2026-06-03
 ---
+
+> CLOSED 2026-06-03. Wave 0 unit tests exist + GREEN (handshake 3, hmac 6, embedded-signup 6,
+> register-errors 6 = 21/21). HOOK-01/02 + WA-05 + SIGNUP-01/02/03 validated live (handshake
+> echo, HMAC synthetic + real Meta inbound, popup → encrypted row + subscribed_apps, full
+> register chain CONNECTED). Regla 6 verified (webhook-handler.ts + 360dialog route unchanged).
+> HOOK-04 real-retry dedup deferred (live-DB only; covered by wamid UNIQUE + smoke).
 
 # Phase 38 — Validation Strategy
 
@@ -53,11 +60,12 @@ created: 2026-06-02
 
 ## Wave 0 Requirements
 
-- [ ] `src/app/api/webhooks/meta/__tests__/hmac.test.ts` — covers HOOK-02 (valid/tampered/length-mismatch)
-- [ ] `src/app/api/webhooks/meta/__tests__/handshake.test.ts` — covers HOOK-01 (challenge echo + 403)
-- [ ] `src/lib/meta/__tests__/embedded-signup.test.ts` — covers SIGNUP-02/03 (exchange URL shape + subscribe contract; mock `fetch`)
-- [ ] Confirm existing `processWebhook` dedup test covers HOOK-04 (Meta retry); if not, add one
-- [ ] No framework install needed (Vitest present)
+- [x] `src/app/api/webhooks/meta/__tests__/hmac.test.ts` — covers HOOK-02 (valid/tampered/length-mismatch) — 6/6 GREEN
+- [x] `src/app/api/webhooks/meta/__tests__/handshake.test.ts` — covers HOOK-01 (challenge echo + 403) — 3/3 GREEN
+- [x] `src/lib/meta/__tests__/embedded-signup.test.ts` — covers SIGNUP-02/03 (exchange URL shape + subscribe contract; mock `fetch`) — 6/6 GREEN
+- [x] `src/lib/meta/__tests__/register-errors.test.ts` — covers Plan 06 activation chain mapping — 6/6 GREEN
+- [~] HOOK-04 dedup: DEFERRED — `processWebhook` needs a live DB; guaranteed by `messages.wamid UNIQUE` + live smoke (single row). See `deferred-items.md`.
+- [x] No framework install needed (Vitest present)
 
 ---
 
@@ -75,11 +83,11 @@ created: 2026-06-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (HOOK-04 deferred with documented rationale)
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** APPROVED — closed 2026-06-03 (21/21 unit GREEN + live smoke; outbound → Phase 39).

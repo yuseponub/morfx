@@ -20,6 +20,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Fuse, { IFuseOptions } from 'fuse.js'
 import { createClient } from '@/lib/supabase/client'
+import { useRealtimeReconnect } from '@/hooks/use-realtime-reconnect'
 import { getConversations, getConversation, getTagsForContact } from '@/app/actions/conversations'
 import { getOrdersForContacts } from '@/app/actions/whatsapp'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
@@ -288,6 +289,11 @@ export function useConversations({
   // Keep refs in sync — used by realtime handlers to avoid stale closure
   useEffect(() => { scheduleSafetyRefetchRef.current = scheduleSafetyRefetch }, [scheduleSafetyRefetch])
   useEffect(() => { fetchConversationsRef.current = fetchConversations }, [fetchConversations])
+
+  // Capa 2 + Capa 3 — re-sync the inbox/badge (useState model) on the browser
+  // events that fire when the socket dies silently (visibilitychange/online) +
+  // staleness watchdog. Closes hole 2d (no channel status transition needed).
+  useRealtimeReconnect(fetchConversations)
 
   // ============================================================================
   // Consolidated Realtime Channel

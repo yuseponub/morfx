@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { revalidatePath } from 'next/cache'
 import {
   getClientActivationConfig,
@@ -18,15 +18,10 @@ type ActionResult<T = void> =
  * Get client activation settings for the current workspace.
  */
 export async function getClientActivationSettings(): Promise<ClientActivationConfig | null> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const auth = await getRequestAuth()
+  if (!auth) return null
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return null
-
-  return getClientActivationConfig(workspaceId)
+  return getClientActivationConfig(auth.workspaceId)
 }
 
 /**
@@ -35,20 +30,17 @@ export async function getClientActivationSettings(): Promise<ClientActivationCon
 export async function updateClientActivation(
   updates: Partial<Omit<ClientActivationConfig, 'workspace_id' | 'created_at' | 'updated_at'>>
 ): Promise<ActionResult<ClientActivationConfig>> {
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
 
   // Check admin role
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!member || (member.role !== 'owner' && member.role !== 'admin')) {

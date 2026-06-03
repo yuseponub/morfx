@@ -600,7 +600,7 @@ Plans:
 **Plans:** 8 plans
 
 Plans:
-- [ ] 39-01-PLAN.md — Wave 0 RED test scaffolds (full Meta surface + Regla 6 parity)
+- [x] 39-01-PLAN.md — Wave 0 RED test scaffolds (full Meta surface + Regla 6 parity) — ✅ 2026-06-03 (6 files, 31 tests: 25 RED intended + 6 GREEN parity/security guards)
 - [ ] 39-02-PLAN.md — Meta send edge: meta/api.ts helpers + metaWhatsappSender (WA-01/02/03/04/07)
 - [ ] 39-03-PLAN.md — meta/media.ts (CDN up/download, WA-06) + meta/templates.ts (CRUD + D-05 guard, WA-08)
 - [ ] 39-04-PLAN.md — domain provider chokepoint: messages.ts + whatsapp-templates.ts (MIG-03)

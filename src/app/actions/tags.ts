@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import { DEFAULT_TAG_COLOR } from '@/lib/data/tag-colors'
 import type { Tag } from '@/lib/types/database'
@@ -34,18 +34,13 @@ type ActionResult<T = void> =
  * Ordered by name ASC
  */
 export async function getTags(): Promise<Tag[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('tags')
@@ -66,12 +61,12 @@ export async function getTags(): Promise<Tag[]> {
  * Returns null if not found or not accessible
  */
 export async function getTag(id: string): Promise<Tag | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('tags')
@@ -94,19 +89,13 @@ export async function getTag(id: string): Promise<Tag | null> {
  * Create a new tag
  */
 export async function createTag(formData: FormData): Promise<ActionResult<Tag>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const { workspaceId } = auth
 
-  // Get workspace_id from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Parse and validate input
   const raw = {
@@ -152,12 +141,12 @@ export async function createTag(formData: FormData): Promise<ActionResult<Tag>> 
  * Update an existing tag
  */
 export async function updateTag(id: string, formData: FormData): Promise<ActionResult<Tag>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Parse and validate input
   const raw = {
@@ -209,12 +198,12 @@ export async function updateTag(id: string, formData: FormData): Promise<ActionR
  * This will also remove the tag from all contacts (CASCADE)
  */
 export async function deleteTag(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('tags')
@@ -245,18 +234,13 @@ export async function deleteTag(id: string): Promise<ActionResult> {
 export async function getTagsForScope(
   scope?: 'whatsapp' | 'orders'
 ): Promise<Tag[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   let query = supabase
     .from('tags')

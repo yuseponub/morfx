@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import type { OrderSummary } from '@/lib/whatsapp/types'
 import { getOrderPhase } from '@/lib/orders/stage-phases'
 import { getClosureTagRules, isOrderClosedByTag } from '@/lib/orders/closure-tags'
@@ -30,18 +31,12 @@ export async function getRecentOrders(
   contactId: string,
   limit: number = 5
 ): Promise<RecentOrder[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('orders')
@@ -100,18 +95,12 @@ export async function getContactOrders(
   contactId: string,
   limit: number = 10
 ): Promise<OrderSummary[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('orders')
@@ -203,18 +192,12 @@ export async function getActiveContactOrders(
 export async function getOrdersForContacts(
   contactIds: string[]
 ): Promise<Map<string, OrderSummary[]>> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return new Map()
+  }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return new Map()
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return new Map()
-  }
 
   if (contactIds.length === 0) {
     return new Map()

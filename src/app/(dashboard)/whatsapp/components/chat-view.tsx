@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useLayoutEffect, useState } from 'react'
 import { Bot, Loader2 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { createClient } from '@/lib/supabase/client'
@@ -89,12 +89,32 @@ export function ChatView({
     overscan: 5,
   })
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    if (scrolledToBottomRef.current && messages.length > 0) {
-      virtualizer.scrollToIndex(messages.length - 1, { align: 'end' })
+  // Al cambiar de conversación, ancla SIEMPRE al fondo (abrir en el último
+  // mensaje). Reset del flag para que un scroll-arriba previo no se herede a la
+  // conversación nueva. Declarado ANTES del effect de scroll para que el flag
+  // ya esté en true cuando ese corra (los effects se ejecutan en orden).
+  useLayoutEffect(() => {
+    scrolledToBottomRef.current = true
+  }, [conversationId])
+
+  // Mantener el hilo pegado al fondo de forma robusta. Reacciona a:
+  //  - messages.length  → mensaje nuevo / carga inicial
+  //  - conversationId   → cambio de conversación
+  //  - getTotalSize()   → react-virtual mide las alturas reales DESPUÉS del
+  //    primer render (estimateSize:80 es solo una estimación); al medir, el
+  //    total cambia y, sin re-pegar, el hilo "subía un poco" tras cargar.
+  // Usa scrollTop = scrollHeight (fondo ABSOLUTO del contenedor) en vez de
+  // virtualizer.scrollToIndex: así también contabiliza el header "Cargar
+  // anteriores" que vive antes de la lista virtual (scrollToIndex lo ignoraba,
+  // dejando el scroll ~50px corto). useLayoutEffect → se ajusta antes del paint
+  // (sin parpadeo). El guard scrolledToBottomRef respeta al usuario que subió.
+  const totalSize = virtualizer.getTotalSize()
+  useLayoutEffect(() => {
+    const el = parentRef.current
+    if (el && scrolledToBottomRef.current && messages.length > 0) {
+      el.scrollTop = el.scrollHeight
     }
-  }, [messages.length, virtualizer])
+  }, [messages.length, totalSize, conversationId])
 
   // Track scroll position to determine if at bottom
   useEffect(() => {

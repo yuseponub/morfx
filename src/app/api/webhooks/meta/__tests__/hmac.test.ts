@@ -22,25 +22,8 @@
 import crypto from 'crypto'
 import { describe, it, expect } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// REFERENCE COPY of the verifier (Plan 03 will export the real one from the route).
-// Verbatim clone of verifyWhatsAppHmac (src/app/api/webhooks/whatsapp/route.ts:24-38).
-// ---------------------------------------------------------------------------
-function verifyMetaHmac(body: string, signature: string, secret: string): boolean {
-  const hmac = crypto.createHmac('sha256', secret)
-  hmac.update(body)
-  const expectedSignature = hmac.digest('hex')
-  // Handle both 'sha256=xxx' prefix format and raw hex format
-  const actualSignature = signature.startsWith('sha256=') ? signature.slice(7) : signature
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(expectedSignature),
-      Buffer.from(actualSignature)
-    )
-  } catch {
-    return false // Length mismatch
-  }
-}
+// Plan 03 GREEN: import the REAL verifier exported from the route (no more reference copy).
+import { verifyMetaHmac } from '../route'
 
 const SECRET = 'test_app_secret'
 const BODY = '{"object":"whatsapp_business_account","entry":[{"id":"WABA_1"}]}'
@@ -79,7 +62,8 @@ describe('verifyMetaHmac (HOOK-02)', () => {
     expect(verifyMetaHmac(BODY, sig, SECRET)).toBe(false)
   })
 
-  // RED marker: Plan 03 must export verifyMetaHmac from the route so this test
-  // imports the REAL implementation instead of the reference copy above.
-  it.todo('route exports verifyMetaHmac for reuse (wired by Plan 03)')
+  // GREEN (Plan 03): the route now exports verifyMetaHmac and this suite imports it.
+  it('imports the real verifyMetaHmac exported by the route (wired by Plan 03)', () => {
+    expect(typeof verifyMetaHmac).toBe('function')
+  })
 })

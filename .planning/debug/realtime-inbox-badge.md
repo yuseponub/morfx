@@ -6,6 +6,7 @@ trigger: realtime inbox no se actualiza; "a veces falla y toca recargar la pagin
 root_cause_found: true
 fix_applied: false
 updated: 2026-06-03
+note: continue 2026-06-03 — V1-V4 corridas en prod (DB limpia, cero correctivos), version @supabase/setAuth resuelta, hallazgo V3 role-based (no causal) anotado. Root cause 100% client-side confirmado. LISTO para /gsd-plan-phase (fix por capas). Solo queda QA empirico post-fix (2d).
 ---
 
 # Debug: Realtime Inbox — badge + intermitencia ("toca recargar")
@@ -157,9 +158,30 @@ Esto **solo** se dispara si el socket transiciona por `CHANNEL_ERROR`/`TIMED_OUT
 
 ---
 
+## ✅ RESULTADOS VERIFICATION (corrido en prod 2026-06-03, sesion continue)
+
+| Check | Resultado | Veredicto |
+|---|---|---|
+| **V1** publicacion | `contact_tags` PRESENTE (+ conversations, contacts, orders, conversation_tags, messages, agent_sessions, robot_*, teams, team_members) | ✅ Problema 1 NO regreso — no tocar listener |
+| **V2** replica identity | conversations/messages/contact_tags/contacts/orders = todas `default(pk)` | ✅ PK en old para UPDATE/DELETE — suficiente |
+| **V3** RLS | SELECT de messages/contacts/contact_tags/orders via `is_workspace_member(...)` (evalua JWT) | ✅ **Confirma mecanismo 2a**: JWT vencido → is_workspace_member=false → eventos filtrados se caen en silencio |
+| **V4** trigger | `messages_update_conversation` existe, `tgenabled='O'` (habilitado) | ✅ unread_count atomico OK |
+
+**Veredicto global: la DB esta limpia. Ningun paso correctivo requerido. El root cause es 100% client-side (2a/2b/2c/2d). Listo para `/gsd-plan-phase`.**
+
+### 🔎 Hallazgo nuevo en V3 (NO causal, pero contexto para el fix + QA)
+`conversations_role_based_select` NO es simple aislamiento por workspace — es **role-based**:
+```
+is_workspace_member(workspace_id)
+AND (is_workspace_manager(workspace_id) OR assigned_to = auth.uid() OR assigned_to IS NULL)
+```
+→ Un agente **no-manager** solo recibe realtime (postgres_changes) de conversaciones **asignadas a el o sin asignar**. Si una conversacion esta asignada a OTRO usuario, sus UPDATE se filtran por RLS tambien en la capa Realtime. **Esto es DETERMINISTA, no intermitente, y un reload NO lo arregla** → **descartado como causa del "toca recargar"** (sintoma 2 es intermitente + reload lo cura). Implicacion para QA del fix: validar con cuenta **manager** (o conversacion asignada/unassigned) para no confundir el filtro RLS legitimo con un fallo de realtime. Comportamiento correcto de RLS, no bug.
+
+---
+
 ## VERIFICATION SQL (correr en prod en la sesion fresca, ANTES y DESPUES del fix)
 
-> No se puede consultar prod desde aqui. Las migraciones pueden NO reflejar el estado real (alguien pudo cambiar RLS/publicacion a mano). Confirmar primero.
+> No se puede consultar prod desde aqui. Las migraciones pueden NO reflejar el estado real (alguien pudo cambiar RLS/publicacion a mano). Confirmar primero. **(V1-V4 ya corridas 2026-06-03 — ver tabla de resultados arriba.)**
 
 ```sql
 -- (V1) Tablas en la publicacion supabase_realtime. Esperado: messages, conversations,
@@ -244,9 +266,9 @@ WHERE tgrelid = 'public.messages'::regclass
 ---
 
 ## Por confirmar contra prod (hipotesis, NO asumir)
-- [ ] `contact_tags` SIGUE en la publicacion en prod (V1). Si no → re-aplicar migracion (regresion posible si alguien la quito a mano).
-- [ ] RLS SELECT en `messages`/`conversations` sin cambios manuales que bloqueen al rol del socket (V3).
-- [ ] Version exacta de `@supabase/supabase-js`/`realtime-js` para la firma correcta de `realtime.setAuth` (`grep '@supabase' package.json`).
+- [x] **`contact_tags` SIGUE en la publicacion en prod (V1) — CONFIRMADO 2026-06-03.** Presente. Problema 1 no regreso.
+- [x] **RLS SELECT en `messages`/`conversations` (V3) — CONFIRMADO 2026-06-03.** Via `is_workspace_member` (evalua JWT → confirma 2a). Hallazgo extra: `conversations` SELECT es role-based (manager/assigned/unassigned), determinista, no causal — ver tabla resultados.
+- [x] **Version exacta de `@supabase/*` + firma de `setAuth` — RESUELTO 2026-06-03 (sesion continue):** instalado `@supabase/supabase-js@2.95.3` + `@supabase/realtime-js@2.95.2` (declarado `^2.93.1` en `package.json`). Firma confirmada en `node_modules/@supabase/realtime-js/dist/main/RealtimeClient.d.ts:221`: **`setAuth(token?: string | null): Promise<void>`** — es **async** (await/`.then`), el token es **opcional** (sin args lee el token actual del auth client; con arg fuerza un JWT explicito). Patron Capa 1: `supabase.auth.onAuthStateChange((event, session) => { if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') void supabase.realtime.setAuth(session?.access_token) })`.
 - [ ] Confirmar empiricamente el agujero 2d: tras una falla "toca recargar", revisar consola — si NO aparece un `[realtime:*] status:` nuevo (el canal sigue `SUBSCRIBED`), queda probado que el socket murio en silencio sin transicion.
 
 ---

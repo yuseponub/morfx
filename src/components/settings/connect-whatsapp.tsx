@@ -85,7 +85,17 @@ export function ConnectWhatsApp() {
         phoneNumberId: session.phoneNumberId,
       })
       if (result.success) {
-        toast.success('WhatsApp conectado')
+        if (result.status === 'connected') {
+          toast.success('WhatsApp conectado y activado')
+        } else {
+          // Connected but not yet active (needs_2sv / needs_payment / register_failed).
+          // Surface the actionable guidance and keep it on screen long enough to read.
+          toast.warning(
+            result.message ||
+              'Número conectado, pero requiere una acción para activarse.',
+            { duration: 14000 }
+          )
+        }
       } else {
         toast.error(result.error)
       }

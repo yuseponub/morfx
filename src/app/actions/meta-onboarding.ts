@@ -29,11 +29,32 @@
 // column.
 // ============================================================================
 
-import { upsertMetaAccount } from '@/lib/domain/meta-accounts'
-import { exchangeCodeForBisuat, subscribeWaba } from '@/lib/meta/embedded-signup'
+import crypto from 'crypto'
+import {
+  upsertMetaAccount,
+  updateMetaAccountRegistration,
+  type MetaRegistrationStatus,
+} from '@/lib/domain/meta-accounts'
+import {
+  exchangeCodeForBisuat,
+  subscribeWaba,
+  registerPhoneNumber,
+} from '@/lib/meta/embedded-signup'
+import { metaRequest } from '@/lib/meta/api'
+import { mapRegisterError } from '@/lib/meta/register-errors'
 import { encryptToken } from '@/lib/meta/token'
 import { createClient } from '@/lib/supabase/server'
 import { getRequestAuth } from '@/lib/auth/request-auth'
+
+/**
+ * Result of the connect flow. The connection ROW always exists once subscribe
+ * succeeds; activation (Cloud API /register) is reported via `status` + an
+ * actionable `message` rather than a hard failure (Plan 06). `success:false` is
+ * reserved for connect-level failures (auth, exchange, subscribe, DB).
+ */
+export type ConnectWhatsAppResult =
+  | { success: true; status: MetaRegistrationStatus; message?: string }
+  | { success: false; error: string }
 
 /**
  * Connect a WhatsApp number obtained from the Embedded Signup popup.
@@ -46,7 +67,7 @@ export async function connectWhatsAppNumber(input: {
   code: string
   wabaId: string
   phoneNumberId: string
-}): Promise<{ success: true } | { success: false; error: string }> {
+}): Promise<ConnectWhatsAppResult> {
   // === Auth gate (copy of shopify-oauth.ts:70-93) =========================
   const auth = await getRequestAuth()
   if (!auth) {
@@ -95,7 +116,9 @@ export async function connectWhatsAppNumber(input: {
     // Auto-subscribe the WABA to our webhook app (SIGNUP-03).
     await subscribeWaba(bisuat, input.wabaId)
 
-    return { success: true }
+    // Activate on Cloud API (Plan 06 — register after subscribe). Register issues
+    // (leftover 2SV, missing payment) are surfaced as status + message, NOT failures.
+    return await activateNumber(bisuat, workspaceId, input.phoneNumberId)
   } catch (e) {
     // Detail stays server-side only — never log the code or plaintext BISUAT.
     console.error('[meta-onboarding] connect failed:', e)
@@ -103,5 +126,58 @@ export async function connectWhatsAppNumber(input: {
       success: false,
       error: 'No se pudo conectar el número de WhatsApp. Intenta de nuevo.',
     }
+  }
+}
+
+// ============================================================================
+// Activation: call Cloud API /register after subscribe (Plan 06 gap-closure)
+// ============================================================================
+
+/**
+ * Register the number on Cloud API so it actually receives messages. Idempotent:
+ * if Meta already reports the number CONNECTED, skip register. On a known chain
+ * block (leftover 2SV / missing payment method) persists the status + returns an
+ * actionable Spanish message instead of leaving a silent dead number.
+ * Never logs the plaintext BISUAT or the PIN.
+ */
+async function activateNumber(
+  bisuat: string,
+  workspaceId: string,
+  phoneNumberId: string
+): Promise<ConnectWhatsAppResult> {
+  // 1. Idempotency — never re-register an already-active number.
+  try {
+    const cur = await metaRequest<{ status?: string }>(
+      bisuat,
+      `/${phoneNumberId}?fields=status`
+    )
+    if (cur.status === 'CONNECTED') {
+      await updateMetaAccountRegistration({ workspaceId, phoneNumberId, status: 'connected' })
+      return { success: true, status: 'connected' }
+    }
+  } catch {
+    // Non-fatal — fall through and attempt register.
+  }
+
+  // 2. Register with a fresh 6-digit PIN (becomes the number's new 2SV PIN).
+  const pin = String(crypto.randomInt(100000, 1000000))
+  try {
+    await registerPhoneNumber(bisuat, phoneNumberId, pin)
+    await updateMetaAccountRegistration({
+      workspaceId,
+      phoneNumberId,
+      status: 'connected',
+      twoStepPinEncrypted: encryptToken(pin),
+    })
+    return { success: true, status: 'connected' }
+  } catch (e) {
+    const mapped = mapRegisterError(e)
+    await updateMetaAccountRegistration({
+      workspaceId,
+      phoneNumberId,
+      status: mapped.status,
+      error: mapped.detail,
+    })
+    return { success: true, status: mapped.status, message: mapped.message }
   }
 }

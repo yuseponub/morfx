@@ -39,6 +39,14 @@ export interface UpsertMetaAccountParams {
 
 export type DomainResult<T> = { success: true; data: T } | { success: false; error: string }
 
+/** Registration lifecycle of a number on Cloud API (mirrors the DB CHECK constraint). */
+export type MetaRegistrationStatus =
+  | 'pending'
+  | 'connected'
+  | 'needs_2sv'
+  | 'needs_payment'
+  | 'register_failed'
+
 /**
  * INSERT-or-UPDATE the active `workspace_meta_accounts` row for
  * (workspaceId, channel). The sole write path into the table (Regla 3).
@@ -139,4 +147,60 @@ function mapWriteError(message: string): string {
     return 'Este número ya está conectado en otro espacio de trabajo. Un número solo puede pertenecer a una cuenta.'
   }
   return message
+}
+
+// ============================================================================
+// Registration lifecycle updater (Plan 06 gap-closure — Regla 3)
+// ============================================================================
+
+export interface UpdateMetaRegistrationParams {
+  workspaceId: string
+  phoneNumberId: string
+  status: MetaRegistrationStatus
+  error?: string | null
+  /** Encrypted 6-digit 2SV PIN — only set on a successful register (status 'connected'). */
+  twoStepPinEncrypted?: string | null
+}
+
+/**
+ * Persist the result of the Cloud API /register attempt onto the number's row.
+ * Scoped by (workspace_id, phone_number_id) — Regla 3. Never throws; never logs
+ * or returns the PIN. `updated_at` handled by the DB trigger.
+ *
+ * - On success (`status: 'connected'`) the caller passes `twoStepPinEncrypted` so the
+ *   NEW 2SV PIN we set is stored for future re-register/management.
+ * - On a chain failure (`needs_2sv` / `needs_payment` / `register_failed`) the caller
+ *   passes a short `error` detail; the PIN is left untouched.
+ */
+export async function updateMetaAccountRegistration(
+  params: UpdateMetaRegistrationParams
+): Promise<DomainResult<{ id: string }>> {
+  const supabase = createAdminClient()
+
+  const patch: Record<string, unknown> = {
+    registration_status: params.status,
+    registration_error: params.error ?? null,
+  }
+  if (params.twoStepPinEncrypted !== undefined && params.twoStepPinEncrypted !== null) {
+    patch.two_step_pin_encrypted = params.twoStepPinEncrypted
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('workspace_meta_accounts')
+      .update(patch)
+      .eq('workspace_id', params.workspaceId) // Regla 3 — workspace-scoped
+      .eq('phone_number_id', params.phoneNumberId)
+      .select('id')
+      .single()
+
+    if (error) return { success: false, error: error.message }
+    return { success: true, data: { id: data.id } }
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error ? err.message : 'unknown error in updateMetaAccountRegistration',
+    }
+  }
 }

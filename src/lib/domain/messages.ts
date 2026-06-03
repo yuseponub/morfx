@@ -28,7 +28,30 @@ import {
   emitWhatsAppMessageReceived,
   emitWhatsAppKeywordMatch,
 } from '@/lib/automations/trigger-emitter'
+// Phase 39 (MIG-03 / D-02 — the 131047 fix): the SINGLE provider-decision site.
+// `meta_direct` workspaces route the WhatsApp arm through metaWhatsappSender using
+// creds resolved from ctx.workspaceId (T-39-02 — NEVER from input/params). The
+// `360dialog` arm stays byte-identical (Regla 6).
+import { resolveByWorkspace } from '@/lib/meta/credentials'
+import { metaWhatsappSender } from '@/lib/channels/meta-whatsapp-sender'
 import type { DomainContext, DomainResult } from './types'
+
+// ============================================================================
+// Provider decision helper (Phase 39 — MIG-01: column already exists in prod)
+// Reads workspaces.whatsapp_provider for ctx.workspaceId. Used by the three
+// send functions to branch the WhatsApp arm. Default/null → '360dialog'.
+// ============================================================================
+async function readWhatsappProvider(
+  supabase: ReturnType<typeof createAdminClient>,
+  workspaceId: string
+): Promise<'360dialog' | 'meta_direct'> {
+  const { data: ws } = await supabase
+    .from('workspaces')
+    .select('whatsapp_provider')
+    .eq('id', workspaceId)
+    .single()
+  return ws?.whatsapp_provider === 'meta_direct' ? 'meta_direct' : '360dialog'
+}
 
 // ============================================================================
 // Param Types
@@ -126,9 +149,28 @@ export async function sendTextMessage(
     const channel = params.channel || 'whatsapp'
     let wamid: string | undefined
 
+    // Provider decision (MIG-03) — read whatsapp_provider ONCE for this workspace.
+    const provider =
+      channel === 'whatsapp'
+        ? await readWhatsappProvider(supabase, ctx.workspaceId)
+        : '360dialog'
+
     // 1. Send via the appropriate channel API
-    if (channel === 'whatsapp') {
-      // Direct 360dialog call (existing path, zero change)
+    if (channel === 'whatsapp' && provider === 'meta_direct') {
+      // Meta Cloud API arm (the 131047 fix). Creds resolve from ctx.workspaceId
+      // via resolveByWorkspace — NEVER from params/input (T-39-02).
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'whatsapp')
+      if (!creds?.accessToken || !creds.phoneNumberId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaWhatsappSender.sendText(
+        { accessToken: creds.accessToken, phoneNumberId: creds.phoneNumberId },
+        params.contactPhone,
+        params.messageBody
+      )
+      wamid = resp.externalMessageId
+    } else if (channel === 'whatsapp') {
+      // Direct 360dialog call (existing path, zero change — Regla 6)
       const response = await send360Text(params.apiKey, params.contactPhone, params.messageBody)
       wamid = response.messages?.[0]?.id
     } else {
@@ -209,9 +251,30 @@ export async function sendMediaMessage(
     const channel = params.channel || 'whatsapp'
     let wamid: string | undefined
 
+    // Provider decision (MIG-03) — read whatsapp_provider ONCE for this workspace.
+    const provider =
+      channel === 'whatsapp'
+        ? await readWhatsappProvider(supabase, ctx.workspaceId)
+        : '360dialog'
+
     // 1. Send via the appropriate channel API
-    if (channel === 'whatsapp') {
-      // Direct 360dialog call (existing path, zero change)
+    if (channel === 'whatsapp' && provider === 'meta_direct') {
+      // Meta Cloud API arm (the 131047 fix). Creds from ctx.workspaceId only (T-39-02).
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'whatsapp')
+      if (!creds?.accessToken || !creds.phoneNumberId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaWhatsappSender.sendMedia(
+        { accessToken: creds.accessToken, phoneNumberId: creds.phoneNumberId },
+        params.contactPhone,
+        params.mediaType,
+        params.mediaUrl,
+        params.caption,
+        params.filename
+      )
+      wamid = resp.externalMessageId
+    } else if (channel === 'whatsapp') {
+      // Direct 360dialog call (existing path, zero change — Regla 6)
       const response = await send360Media(
         params.apiKey,
         params.contactPhone,
@@ -313,15 +376,37 @@ export async function sendTemplateMessage(
   const supabase = createAdminClient()
 
   try {
-    // 1. Send via 360dialog API
-    const response = await send360Template(
-      params.apiKey,
-      params.contactPhone,
-      params.templateName,
-      params.templateLanguage,
-      params.components
-    )
-    const wamid = response.messages?.[0]?.id
+    // Provider decision (MIG-03) — template sends are always WhatsApp.
+    const provider = await readWhatsappProvider(supabase, ctx.workspaceId)
+
+    let wamid: string | undefined
+
+    // 1. Send via the resolved provider
+    if (provider === 'meta_direct') {
+      // Meta Cloud API arm (the 131047 fix). Creds from ctx.workspaceId only (T-39-02).
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'whatsapp')
+      if (!creds?.accessToken || !creds.phoneNumberId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaWhatsappSender.sendTemplate(
+        { accessToken: creds.accessToken, phoneNumberId: creds.phoneNumberId },
+        params.contactPhone,
+        params.templateName,
+        params.templateLanguage,
+        params.components
+      )
+      wamid = resp.externalMessageId
+    } else {
+      // Direct 360dialog call (existing path, zero change — Regla 6)
+      const response = await send360Template(
+        params.apiKey,
+        params.contactPhone,
+        params.templateName,
+        params.templateLanguage,
+        params.components
+      )
+      wamid = response.messages?.[0]?.id
+    }
 
     if (!wamid) {
       return { success: false, error: 'No se recibio ID de mensaje de WhatsApp' }

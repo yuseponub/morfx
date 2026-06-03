@@ -2,7 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { differenceInHours } from 'date-fns'
 import { getTemplate } from './templates'
 import {
@@ -33,18 +33,12 @@ export async function getMessages(
   limit: number = 100,
   before?: string
 ): Promise<Message[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   // Verify conversation belongs to workspace
   const { data: conversation } = await supabase
@@ -95,18 +89,12 @@ export async function sendMessage(
   conversationId: string,
   text: string
 ): Promise<ActionResult<{ messageId: string }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
+  const supabase = await createClient()
 
   // Get conversation with 24h window info + channel
   const { data: conversation, error: convError } = await supabase
@@ -201,18 +189,12 @@ export async function sendMediaMessage(
   mimeType: string,
   caption?: string
 ): Promise<ActionResult<{ messageId: string }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
+  const supabase = await createClient()
 
   // Get conversation with 24h window info + channel
   const { data: conversation, error: convError } = await supabase
@@ -347,18 +329,12 @@ export async function sendMediaMessage(
  * Read-only + API call — not a domain mutation, stays in server action.
  */
 export async function markMessageAsRead(messageId: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
+  const supabase = await createClient()
 
   // Get message with wamid
   const { data: message } = await supabase
@@ -409,18 +385,12 @@ export async function sendTemplateMessage(params: {
   templateId: string
   variableValues: Record<string, string>
 }): Promise<ActionResult<{ messageId: string }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
+  const supabase = await createClient()
 
   // Get conversation to get recipient phone
   const { data: conversation, error: convError } = await supabase

@@ -1,8 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { revalidatePath } from 'next/cache'
 
 // ============================================================================
@@ -10,15 +9,10 @@ import { revalidatePath } from 'next/cache'
 // ============================================================================
 
 async function getAuthContext(): Promise<{ workspaceId: string } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
-
-  return { workspaceId }
+  return { workspaceId: auth.workspaceId }
 }
 
 // ============================================================================

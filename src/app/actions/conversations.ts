@@ -2,8 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
-import { getActiveWorkspaceId } from '@/app/actions/workspace'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
   assignConversation as domainAssignConversation,
   archiveConversation as domainArchiveConversation,
@@ -29,19 +28,16 @@ import type {
 export async function getConversations(
   filters?: ConversationFilters
 ): Promise<ConversationWithDetails[]> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const workspaceId = await getActiveWorkspaceId()
-  if (!workspaceId) {
-    return []
-  }
-
+  // D-10: startTime envuelve el auth — el warn [perf] ahora mide auth + query juntos.
   const startTime = Date.now()
+
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
+  const supabase = await createClient()
 
   // Build query with contact join (tags come through contact — source of truth)
   // Note: address/city omitted from list query (only used in ContactPanel detail view)
@@ -139,13 +135,11 @@ export async function getConversations(
 export async function findConversationByPhone(
   phone: string
 ): Promise<string | null> {
+  const auth = await getRequestAuth()
+  if (!auth) return null
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const workspaceId = await getActiveWorkspaceId()
-  if (!workspaceId) return null
 
   // Try exact match first, then partial (phone might have/miss country code)
   const { data } = await supabase
@@ -178,12 +172,12 @@ export async function findConversationByPhone(
 export async function getConversation(
   id: string
 ): Promise<ConversationWithDetails | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('conversations')
@@ -223,14 +217,15 @@ export async function getConversationMessages(
   limit: number = 50,
   before?: string
 ): Promise<Message[]> {
-  const supabase = await createClient()
+  // D-10: startTime envuelve el auth — el warn [perf] ahora mide auth + query juntos.
+  const startTime = Date.now()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
 
-  const startTime = Date.now()
+  const supabase = await createClient()
 
   let query = supabase
     .from('messages')
@@ -277,12 +272,12 @@ export async function getConversationMessages(
  * Resets unread_count to 0 and sets is_read to true.
  */
 export async function markAsRead(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('conversations')
@@ -306,18 +301,11 @@ export async function markAsRead(id: string): Promise<ActionResult> {
  * Archived conversations are hidden from the default inbox view.
  */
 export async function archiveConversation(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const { workspaceId } = auth
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainArchiveConversation(ctx, { conversationId: id })
@@ -335,12 +323,12 @@ export async function archiveConversation(id: string): Promise<ActionResult> {
  * Returns conversation to active status.
  */
 export async function unarchiveConversation(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('conversations')
@@ -364,18 +352,11 @@ export async function linkContactToConversation(
   conversationId: string,
   contactId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const { workspaceId } = auth
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainLinkContactToConversation(ctx, { conversationId, contactId })
@@ -394,12 +375,12 @@ export async function linkContactToConversation(
 export async function unlinkContactFromConversation(
   conversationId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('conversations')
@@ -423,12 +404,12 @@ export async function updateProfileName(
   conversationId: string,
   profileName: string | null
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('conversations')
@@ -452,18 +433,11 @@ export async function assignConversation(
   conversationId: string,
   userId: string | null
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const { workspaceId } = auth
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainAssignConversation(ctx, {
@@ -492,18 +466,13 @@ export async function getConversationStats(): Promise<{
   archived: number
   windowClosed: number
 }> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { total: 0, unread: 0, archived: 0, windowClosed: 0 }
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { total: 0, unread: 0, archived: 0, windowClosed: 0 }
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { total: 0, unread: 0, archived: 0, windowClosed: 0 }
-  }
 
   // Total active conversations
   const { count: total } = await supabase
@@ -557,18 +526,13 @@ export async function startNewConversation(params: {
   templateId: string
   variableValues: Record<string, string>
 }): Promise<ActionResult<{ conversationId: string }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const { workspaceId } = auth
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Normalize phone number to E.164 using libphonenumber-js.
   // Auto-detects country from international prefix (+1 US, +52 MX, etc.),
@@ -658,12 +622,12 @@ export async function addTagToConversation(
   conversationId: string,
   tagId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Fetch contact_id from conversation
   const { data: conv, error: convError } = await supabase
@@ -697,12 +661,12 @@ export async function removeTagFromConversation(
   conversationId: string,
   tagId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Fetch contact_id from conversation
   const { data: conv, error: convError } = await supabase
@@ -734,12 +698,12 @@ export async function removeTagFromConversation(
 export async function getConversationTags(
   conversationId: string
 ): Promise<Array<{ id: string; name: string; color: string }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
+
+  const supabase = await createClient()
 
   // Fetch contact_id from conversation
   const { data: conv } = await supabase
@@ -776,12 +740,12 @@ export async function getConversationTags(
 export async function getTagsForContact(
   contactId: string
 ): Promise<Array<{ id: string; name: string; color: string }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('contact_tags')

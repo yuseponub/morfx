@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
   getWorkspaceAgentConfig,
   upsertWorkspaceAgentConfig,
@@ -20,20 +20,14 @@ import {
  * Returns null if not authenticated or no workspace selected.
  */
 async function getAuthContext() {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
-
-  return { user, workspaceId, supabase }
+  return { userId: auth.userId, workspaceId: auth.workspaceId, supabase }
 }
 
 /**
@@ -128,9 +122,9 @@ export async function updateAgentConfig(
   }
 
   // Check owner/admin role
-  const isAdmin = await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.user.id)
+  const isAdmin = await isWorkspaceAdmin(ctx.supabase, ctx.workspaceId, ctx.userId)
   if (!isAdmin) {
-    console.error('[agent-config] Not admin:', ctx.user.id, ctx.workspaceId)
+    console.error('[agent-config] Not admin:', ctx.userId, ctx.workspaceId)
     return { error: 'Solo el propietario o administrador puede modificar la configuracion del agente' }
   }
 
@@ -168,7 +162,7 @@ export async function toggleConversationAgent(
   }
 
   // Verify user is a member of the workspace
-  const isMember = await isWorkspaceMember(ctx.supabase, ctx.workspaceId, ctx.user.id)
+  const isMember = await isWorkspaceMember(ctx.supabase, ctx.workspaceId, ctx.userId)
   if (!isMember) {
     return { error: 'No eres miembro de este workspace' }
   }
@@ -222,7 +216,7 @@ export async function getConversationAgentStatus(
   }
 
   // Verify user is a member
-  const isMember = await isWorkspaceMember(ctx.supabase, ctx.workspaceId, ctx.user.id)
+  const isMember = await isWorkspaceMember(ctx.supabase, ctx.workspaceId, ctx.userId)
   if (!isMember) {
     return { error: 'No eres miembro de este workspace' }
   }

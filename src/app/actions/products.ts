@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import type { Product } from '@/lib/orders/types'
 
@@ -35,18 +35,13 @@ type ActionResult<T = void> =
  * Ordered by title ASC
  */
 export async function getProducts(): Promise<Product[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data: products, error } = await supabase
     .from('products')
@@ -67,18 +62,13 @@ export async function getProducts(): Promise<Product[]> {
  * Ordered by title ASC
  */
 export async function getActiveProducts(): Promise<Product[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const { workspaceId } = auth
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data: products, error } = await supabase
     .from('products')
@@ -100,12 +90,12 @@ export async function getActiveProducts(): Promise<Product[]> {
  * Returns null if not found or not accessible
  */
 export async function getProduct(id: string): Promise<Product | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data: product, error } = await supabase
     .from('products')
@@ -128,18 +118,13 @@ export async function getProduct(id: string): Promise<Product | null> {
  * Create a new product
  */
 export async function createProduct(formData: FormData): Promise<ActionResult<Product>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const { workspaceId } = auth
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Parse and validate input
   const raw = {
@@ -187,12 +172,12 @@ export async function createProduct(formData: FormData): Promise<ActionResult<Pr
  * Update an existing product
  */
 export async function updateProduct(id: string, formData: FormData): Promise<ActionResult<Product>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Parse and validate input
   const raw = {
@@ -243,12 +228,12 @@ export async function updateProduct(id: string, formData: FormData): Promise<Act
  * Delete a single product
  */
 export async function deleteProduct(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('products')
@@ -272,12 +257,12 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
  * Toggle product active status
  */
 export async function toggleProductActive(id: string, is_active: boolean): Promise<ActionResult<Product>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('products')

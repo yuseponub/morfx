@@ -603,7 +603,7 @@ Plans:
 - [x] 39-01-PLAN.md — Wave 0 RED test scaffolds (full Meta surface + Regla 6 parity) — ✅ 2026-06-03 (6 files, 31 tests: 25 RED intended + 6 GREEN parity/security guards)
 - [x] 39-02-PLAN.md — Meta send edge: meta/api.ts helpers + metaWhatsappSender (WA-01/02/03/04/07) — ✅ 2026-06-03 (2 tasks, send.test.ts 3/3 + meta-whatsapp-sender.test.ts 3/3 GREEN; Regla 6 360dialog path untouched)
 - [x] 39-03-PLAN.md — meta/media.ts (CDN up/download, WA-06) + meta/templates.ts (CRUD + D-05 guard, WA-08) — ✅ 2026-06-03 (2 tasks, media.test.ts 7/7 + templates.test.ts 9/9 GREEN; SSRF+size guards T-39-07; D-05 guard T-39-08; Regla 6 360dialog analogs untouched)
-- [ ] 39-04-PLAN.md — domain provider chokepoint: messages.ts + whatsapp-templates.ts (MIG-03)
+- [x] 39-04-PLAN.md — domain provider chokepoint: messages.ts + whatsapp-templates.ts (MIG-03) — ✅ 2026-06-03 (2 tasks, the 131047 fix; messages-provider.test.ts 5/5 GREEN incl Regla 6 parity; meta/templates 9/9 GREEN; 360dialog arms byte-identical; no migration MIG-01 already in prod)
 - [ ] 39-05-PLAN.md — close 131047 blast radius: rewire 2 bypass sites + read receipts (WA-07)
 - [ ] 39-06-PLAN.md — WA-09 template-status webhook push + inbound Meta media rehost (WA-06)
 - [ ] 39-07-PLAN.md — provider-aware template management + D-05 edit UI (WA-08)

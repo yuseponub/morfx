@@ -16,8 +16,8 @@
 ### Embedded Signup (Onboarding)
 
 - [ ] **SIGNUP-01**: Boton "Conectar WhatsApp" en settings que abre popup de Meta Embedded Signup v4 — cliente autoriza y MorfX recibe tokens automaticamente
-- [ ] **SIGNUP-02**: Token exchange (code -> BISUAT) y almacenamiento encriptado por workspace
-- [ ] **SIGNUP-03**: Auto-suscripcion a webhooks despues de signup exitoso
+- [x] **SIGNUP-02**: Token exchange (code -> BISUAT) y almacenamiento encriptado por workspace
+- [x] **SIGNUP-03**: Auto-suscripcion a webhooks despues de signup exitoso
 - [ ] **SIGNUP-04**: Boton "Conectar Facebook Page" y "Conectar Instagram" via mismo Embedded Signup v4
 
 ### WhatsApp Cloud API
@@ -106,8 +106,8 @@
 | SETUP-03 | Phase 37 | Complete |
 | SETUP-04 | Phase 37 | Complete |
 | SIGNUP-01 | Phase 38 | Pending |
-| SIGNUP-02 | Phase 38 | Test scaffold RED (38-01); impl Plan 04 |
-| SIGNUP-03 | Phase 38 | Test scaffold RED (38-01); impl Plan 04 |
+| SIGNUP-02 | Phase 38 | Complete (38-04 — embedded-signup.ts exchange + encrypt + domain persist; test GREEN 6/6) |
+| SIGNUP-03 | Phase 38 | Complete (38-04 — subscribeWaba auto-subscribe; test GREEN 6/6) |
 | SIGNUP-04 | Phase 40 | Pending |
 | WA-01 | Phase 39 | Pending |
 | WA-02 | Phase 39 | Pending |

@@ -575,7 +575,7 @@ Plans:
 - [x] 38-01-PLAN.md — Wave 0 Vitest scaffolds (HMAC, handshake, embedded-signup exchange/subscribe) — RED ✅ (2026-06-03, commits 0b581385 + 58469d21)
 - [x] 38-02-PLAN.md — whatsapp_provider migration + Regla 5 prod-apply checkpoint — ✅ (2026-06-03, commit 4f0d9d27; prod applied total=4/dialog360=4, MIG-01 complete)
 - [ ] 38-03-PLAN.md — Deliverable 1: /api/webhooks/meta inbound clone + meta-accounts domain helper + inbound smoke (D-13)
-- [ ] 38-04-PLAN.md — Deliverable 2 backend: embedded-signup helpers + auth-gated meta-onboarding action
+- [x] 38-04-PLAN.md — Deliverable 2 backend: embedded-signup helpers + auth-gated meta-onboarding action — ✅ (2026-06-03, commits d02403aa + 58519dca; SIGNUP-02/03, embedded-signup.test.ts GREEN 6/6)
 - [ ] 38-05-PLAN.md — Deliverable 2 frontend: connect-whatsapp.tsx (FB.login popup) + settings wiring + popup smoke
 
 **Success Criteria:**

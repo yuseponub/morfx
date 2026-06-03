@@ -1,8 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import type {
   Automation,
@@ -72,34 +72,26 @@ type ActionResult<T = void> =
 // ============================================================================
 
 async function getAuthContext() {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
 
   // Verify workspace membership
   const { data: membership } = await supabase
     .from('workspace_members')
     .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('workspace_id', auth.workspaceId)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!membership) {
     return null
   }
 
-  return { supabase, user, workspaceId }
+  return { supabase, userId: auth.userId, workspaceId: auth.workspaceId }
 }
 
 // ============================================================================
@@ -205,7 +197,7 @@ export async function createAutomation(
     return { error: 'No autorizado' }
   }
 
-  const { supabase, user, workspaceId } = ctx
+  const { supabase, userId, workspaceId } = ctx
 
   // Check automation limit
   const { count, error: countError } = await supabase
@@ -234,7 +226,7 @@ export async function createAutomation(
       trigger_config: validation.data.trigger_config,
       conditions: validation.data.conditions || null,
       actions: validation.data.actions,
-      created_by: user.id,
+      created_by: userId,
     })
     .select()
     .single()
@@ -378,7 +370,7 @@ export async function duplicateAutomation(
     return { error: 'No autorizado' }
   }
 
-  const { supabase, user, workspaceId } = ctx
+  const { supabase, userId, workspaceId } = ctx
 
   // Check automation limit before duplicating
   const { count } = await supabase
@@ -420,7 +412,7 @@ export async function duplicateAutomation(
       trigger_config: original.trigger_config,
       conditions: original.conditions,
       actions: original.actions,
-      created_by: user.id,
+      created_by: userId,
     })
     .select()
     .single()

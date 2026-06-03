@@ -604,7 +604,7 @@ Plans:
 - [x] 39-02-PLAN.md — Meta send edge: meta/api.ts helpers + metaWhatsappSender (WA-01/02/03/04/07) — ✅ 2026-06-03 (2 tasks, send.test.ts 3/3 + meta-whatsapp-sender.test.ts 3/3 GREEN; Regla 6 360dialog path untouched)
 - [x] 39-03-PLAN.md — meta/media.ts (CDN up/download, WA-06) + meta/templates.ts (CRUD + D-05 guard, WA-08) — ✅ 2026-06-03 (2 tasks, media.test.ts 7/7 + templates.test.ts 9/9 GREEN; SSRF+size guards T-39-07; D-05 guard T-39-08; Regla 6 360dialog analogs untouched)
 - [x] 39-04-PLAN.md — domain provider chokepoint: messages.ts + whatsapp-templates.ts (MIG-03) — ✅ 2026-06-03 (2 tasks, the 131047 fix; messages-provider.test.ts 5/5 GREEN incl Regla 6 parity; meta/templates 9/9 GREEN; 360dialog arms byte-identical; no migration MIG-01 already in prod)
-- [ ] 39-05-PLAN.md — close 131047 blast radius: rewire 2 bypass sites + read receipts (WA-07)
+- [x] 39-05-PLAN.md — close 131047 blast radius: rewire 2 bypass sites + read receipts (WA-07) — ✅ 2026-06-03 (2 tasks, `92567313` markMessageAsRead Meta arm D-07 + `ee939f92` rewire action-executor + contact-reviews through domain sendTemplateMessage via findOrCreateConversation; 0 send360Template bypasses remain; messages-provider 5/5 GREEN; 360dialog arms byte-identical Regla 6; full blast radius CLOSED)
 - [ ] 39-06-PLAN.md — WA-09 template-status webhook push + inbound Meta media rehost (WA-06)
 - [ ] 39-07-PLAN.md — provider-aware template management + D-05 edit UI (WA-08)
 - [ ] 39-08-PLAN.md — final gated cutover: SQL flip + live smoke on test number (D-01)

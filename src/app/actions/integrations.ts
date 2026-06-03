@@ -8,41 +8,33 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 // ============================================================================
 // Auth Helper
 // ============================================================================
 
 export async function getIntegrationAuthContext() {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
-
-  // Verify workspace membership + get role
+  // Verify workspace membership + get role (role viene de membership, NO del JWT)
   const { data: membership } = await supabase
     .from('workspace_members')
     .select('id, role')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('workspace_id', auth.workspaceId)
+    .eq('user_id', auth.userId)
     .single()
 
   if (!membership) {
     return null
   }
 
-  return { supabase, user, workspaceId, role: membership.role as string }
+  return { supabase, userId: auth.userId, workspaceId: auth.workspaceId, role: membership.role as string }
 }
 
 /**

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
-status: "Phase 38 (Embedded Signup + WhatsApp Inbound) PLANNED — 5 plans en 5 waves. Plan-checker: 0 blockers, 2 warnings resueltos (MIG-01 mapping + Open Questions RESOLVED). 8/8 requirements cubiertos. Listo para ejecutar: /gsd-execute-phase 38. Prereqs humanos antes de smokes: app Meta a Live mode (D-12) + NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID en Vercel."
-stopped_at: Phase 38 planned (ready to execute)
-last_updated: "2026-06-02T22:35:00.000Z"
+status: executing
+stopped_at: Completed 38-01-PLAN.md
+last_updated: "2026-06-03T02:34:59Z"
 progress:
   total_phases: 12
   completed_phases: 5
-  total_plans: 49
-  completed_plans: 47
-  percent: 96
+  total_plans: 54
+  completed_plans: 48
+  percent: 89
 ---
 
 # Project State
@@ -20,13 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Los usuarios pueden gestionar sus ventas por WhatsApp y su CRM en un solo lugar, con tags y estados sincronizados entre ambos modulos, automatizaciones inteligentes y agentes IA.
-**Current focus:** Milestone v5.0 Meta Direct Integration — Phase 37 complete, Phase 38 next
+**Current focus:** Phase 38 — embedded-signup-wa-inbound
 
 ## Current Position
 
-Phase: Standalone `somnio-v4-rag-generative` — **Plan 06 (Smoke B regression) SHIPPED 2026-05-19**. Plans 01 + 02 + 03 + 04 + 05 + 06 + 07 v1 + 07b + 07c todos cerrados. Plan 06 commits (2): `4714c4c` (smoke-rag-b.test.ts 365 líneas con 10 casos lockeados STATUS.md 154-182) + `65d0fd3` (SMOKE-B-RESULTS.md + 06-SUMMARY.md). Test ejecutado clean: runtime 208s, 0 runtime errors. **Resultados Smoke B:** 3 razonamiento_libre REAL invocation (case 3 ✓ PASS no_match via threshold gate conf=0.20<0.70, cases 1+2 ❌ FAIL auto-check strict — generaron respuesta FAITHFUL al KB `insomnio_largo_plazo` con conf=0.80/0.95). 7 SKIP documentados (3 crm_mutation = Regla 6 + Threat T-06-01, 3 state_machine = NO sub-loop, 1 cas_reject = integration tests crm-writer cubren). **Cases 1+2 NO son regresión D-12** — razonamiento_libre usa flujo NUEVO RAG (Plan 03 split tooling+generation), no LEGACY (crm_mutation/cas_reject). Case 2 textualmente cumple expected del plan "handoff o template empático". Locked sub-loop runtime files UNCHANGED (solo `__tests__/smoke-rag-b.test.ts` agregado). v4 sigue DORMANT en prod (Regla 6 honored, `active_v4_rules = 0`, v3 atendiendo clientes). **Plan 07c context (previo):** Smoke A V4 result: 15/17 PASS, 0 invenciones, 0 nuevas regresiones desde V3. Cases 16+17 preservados de V3 (out-of-scope). Next active carryover: Phase 37.5-05 Meta Business Verification (awaiting user manual action).
-Plan: somnio-v4-rag-generative-06 **COMPLETE**. Pendiente Jose review cases 1+2 + 7 SKIPS manuales via sandbox.
-Status: Plan 06 closed. Jose decide camino: A (recomendado) Plan 08 production flip si acepta cases 1+2 como behavior emergente razonable (≥9/10 + Smoke A 15/17 = green light). B Plan 07d tuning si prefiere handoff estricto en razonamiento_libre. Push pendiente commits Plan 06.
+Phase: 38 (embedded-signup-wa-inbound) — EXECUTING
+Plan: 2 of 5
+Status: Executing Phase 38
+
+Previous activity: 2026-06-03 — **Phase 38 Plan 01 (WA inbound + Embedded Signup RED test scaffolds) COMPLETE** (2/2 tasks, 2 atomic commits `0b581385` + `58469d21`). TDD Wave 0 RED scaffold: 3 Vitest files created under `__tests__/`, zero production code modified (`git diff --stat HEAD~2 HEAD` = only test files). (1) `src/app/api/webhooks/meta/__tests__/hmac.test.ts` (HOOK-02) — `verifyMetaHmac` contract asserted via a verbatim reference copy of the analog `verifyWhatsAppHmac` (whatsapp/route.ts:24-38): valid sha256= prefix → true, raw-hex → true (prefix tolerant), tampered → false, length-mismatch `'sha256=abc'` → false WITHOUT throwing (Pitfall 2 / T-38-02 no-500-retry-storm), wrong-secret → false; plus `it.todo('route exports verifyMetaHmac for reuse')` so Plan 03 swaps the reference copy for the real route export. This suite is GREEN-with-todo (5 pass + 1 todo) — the reference copy lets the contract be witnessed before the route exists. (2) `src/app/api/webhooks/meta/__tests__/handshake.test.ts` (HOOK-01) — imports `GET` from `../route` (intended RED: route built in Plan 03), asserts `hub.challenge` echoed as plain text + 200 on correct `META_WEBHOOK_VERIFY_TOKEN`, 403 on wrong token + non-subscribe mode. (3) `src/lib/meta/__tests__/embedded-signup.test.ts` (SIGNUP-02/03) — imports `{ exchangeCodeForBisuat, subscribeWaba }` from `@/lib/meta/embedded-signup` (intended RED: module built in Plan 04, `ERR_MODULE_NOT_FOUND`). `exchangeCodeForBisuat` asserts the oauth/access_token URL shape (client_id/client_secret/code), NO Authorization/Bearer header (Pitfall 6 / T-38-03 — checked via both lowercased-header-keys exclusion AND serialized-init `not.toMatch(/Bearer/i)`), returns `access_token`, throws on `!ok` or missing token. `subscribeWaba` mocks `@/lib/meta/api` and asserts `metaRequest('BISUAT_123', '/WABA_999/subscribed_apps', { method:'POST' })` (signature matches api.ts:24 `metaRequest(accessToken, endpoint, options)`) + throws on `success:false`. Verification: `npx vitest run src/app/api/webhooks/meta/ src/lib/meta/__tests__/embedded-signup.test.ts` → 2 suites RED (intended) + 1 GREEN-with-todo; grep acceptance all ≥ thresholds (hub.challenge=5, META_WEBHOOK_VERIFY_TOKEN=2, oauth/access_token=3, subscribed_apps=4, Authorization/Bearer=6). **0 deviations** — plan executed exactly as written (reference-copy + it.todo pattern for HMAC, direct imports of unbuilt route/module for handshake + embedded-signup were the plan's prescribed RED approach). NOT pushed (integration branch `exec/debounce-v2-wave6` — orchestrator/user controls pushes). RED turns GREEN as Plan 03 ships the route (`verifyMetaHmac` export + GET handshake) and Plan 04 ships `@/lib/meta/embedded-signup`. SUMMARY: `.planning/phases/38-embedded-signup-wa-inbound/38-01-SUMMARY.md`.
 
 Previous activity: 2026-04-24 — **Retrofit `ui-redesign-dashboard-retrofit` Plan 01 CRM piloto SHIPPED** (7 commits `80ff618..e3143fd` + SUMMARY commit `9be4949` pushed). User visual PASS con 3 correcciones QA inline. Próximo plan sustantivo del retrofit: **Plan 02 Pedidos** (retrofit completo del módulo kanban con KPI strip + period chips + Calendario). El retrofit continúa módulo por módulo con human visual checkpoint entre cada uno (R-RETRO-05). Plan 02 NO creado aún.
 

@@ -106,8 +106,8 @@
 | SETUP-03 | Phase 37 | Complete |
 | SETUP-04 | Phase 37 | Complete |
 | SIGNUP-01 | Phase 38 | Pending |
-| SIGNUP-02 | Phase 38 | Pending |
-| SIGNUP-03 | Phase 38 | Pending |
+| SIGNUP-02 | Phase 38 | Test scaffold RED (38-01); impl Plan 04 |
+| SIGNUP-03 | Phase 38 | Test scaffold RED (38-01); impl Plan 04 |
 | SIGNUP-04 | Phase 40 | Pending |
 | WA-01 | Phase 39 | Pending |
 | WA-02 | Phase 39 | Pending |
@@ -118,8 +118,8 @@
 | WA-07 | Phase 39 | Pending |
 | WA-08 | Phase 39 | Pending |
 | WA-09 | Phase 39 | Pending |
-| HOOK-01 | Phase 38 | Pending |
-| HOOK-02 | Phase 38 | Pending |
+| HOOK-01 | Phase 38 | Test scaffold RED (38-01); impl Plan 03 |
+| HOOK-02 | Phase 38 | Test scaffold RED (38-01); impl Plan 03 |
 | HOOK-03 | Phase 38 | Pending |
 | HOOK-04 | Phase 38 | Pending |
 | FB-01 | Phase 40 | Pending |

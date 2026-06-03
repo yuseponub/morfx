@@ -43,6 +43,7 @@ import {
 import {
   createTask as domainCreateTask,
 } from '@/lib/domain/tasks'
+import { findOrCreateConversation } from '@/lib/domain/conversations'
 import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
@@ -1261,7 +1262,8 @@ async function handlePendingContactReview(
     description: `POSIBLE DUPLICADO: ${reviewData.existingContactName} tel: ${reviewData.existingPhone}. Tel Shopify: ${reviewData.shopifyPhone}`,
   })
 
-  // 4. Send WhatsApp notification to host via direct 360dialog API
+  // 4. Send WhatsApp notification to host through the domain chokepoint
+  //    (provider-aware — 131047 blast-radius fix; no direct 360dialog import).
   const hostPhone = '+573137549286'
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -1276,14 +1278,30 @@ async function handlePendingContactReview(
       .single()
 
     if (workspace?.whatsapp_api_key) {
-      const { sendTemplateMessage: send360Template } = await import('@/lib/whatsapp/api')
-      await send360Template(workspace.whatsapp_api_key, hostPhone, 'informacion_general', 'es', [
-        { type: 'body', parameters: [
-          { type: 'text', text: 'Admin' },
-          { type: 'text', text: `Posible duplicado detectado. Cliente: ${reviewData.existingContactName}, Tel Shopify: ${reviewData.shopifyPhone}, Tel existente: ${reviewData.existingPhone}. MERGE: ${baseUrl}/contact-review/${token}?action=merge -- IGNORAR: ${baseUrl}/contact-review/${token}?action=ignore` },
-        ]}
-      ])
-      console.log('[action-executor] Sent contact review notification to host via direct API')
+      const hostCtx: DomainContext = { workspaceId, source: 'automation' }
+      // Resolve (or create) the host's conversation so the domain send has a
+      // conversationId. Same race-safe helper the inbound/send paths use.
+      const convResult = await findOrCreateConversation(hostCtx, { phone: hostPhone })
+      if (!convResult.success || !convResult.data) {
+        throw new Error(convResult.error || 'No se pudo resolver la conversacion del host')
+      }
+      const result = await domainSendTemplateMessage(hostCtx, {
+        conversationId: convResult.data.conversationId,
+        contactPhone: hostPhone,
+        templateName: 'informacion_general',
+        templateLanguage: 'es',
+        components: [
+          { type: 'body', parameters: [
+            { type: 'text', text: 'Admin' },
+            { type: 'text', text: `Posible duplicado detectado. Cliente: ${reviewData.existingContactName}, Tel Shopify: ${reviewData.shopifyPhone}, Tel existente: ${reviewData.existingPhone}. MERGE: ${baseUrl}/contact-review/${token}?action=merge -- IGNORAR: ${baseUrl}/contact-review/${token}?action=ignore` },
+          ]},
+        ],
+        apiKey: workspace.whatsapp_api_key,
+      })
+      if (!result.success) {
+        throw new Error(result.error || 'WhatsApp host notification send failed')
+      }
+      console.log('[action-executor] Sent contact review notification to host via domain')
     }
   } catch (err) {
     // Non-fatal: review is created, just notification failed

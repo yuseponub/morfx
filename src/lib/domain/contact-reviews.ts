@@ -15,6 +15,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { updateContact, deleteContact } from './contacts'
 import { updateOrder, removeOrderTag } from './orders'
+import { findOrCreateConversation } from './conversations'
+import { sendTemplateMessage } from './messages'
 import type { DomainContext, DomainResult } from './types'
 
 // ============================================================================
@@ -433,15 +435,28 @@ export async function sendPendingTemplate(
     })
   }
 
-  // 4. Send via direct 360dialog API (no conversation needed)
-  const { sendTemplateMessage: send360Template } = await import('@/lib/whatsapp/api')
-  await send360Template(
-    workspace.whatsapp_api_key,
-    contact.phone,
-    template.templateName,
-    template.language,
-    components.length > 0 ? components : undefined,
-  )
+  // 4. Send through the domain chokepoint (provider-aware — 131047 fix).
+  //    Resolve the contact's conversation (race-safe; links contactId on create),
+  //    then route through the provider branch. 360dialog stays byte-identical (Regla 6).
+  const ctx: DomainContext = { workspaceId, source: 'automation' }
+  const convResult = await findOrCreateConversation(ctx, {
+    phone: contact.phone,
+    contactId,
+  })
+  if (!convResult.success || !convResult.data) {
+    throw new Error(convResult.error || 'No se pudo resolver la conversacion del contacto')
+  }
+  const sendResult = await sendTemplateMessage(ctx, {
+    conversationId: convResult.data.conversationId,
+    contactPhone: contact.phone,
+    templateName: template.templateName,
+    templateLanguage: template.language,
+    components: components.length > 0 ? components : undefined,
+    apiKey: workspace.whatsapp_api_key,
+  })
+  if (!sendResult.success) {
+    throw new Error(sendResult.error || 'WhatsApp pending template send failed')
+  }
 
   console.log(`[contact-reviews] Sent pending template ${template.templateName} to ${contact.phone}`)
 }

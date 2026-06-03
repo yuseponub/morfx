@@ -13,9 +13,10 @@ import { ShopifyForm } from './components/shopify-form'
 import { SyncStatus } from './components/sync-status'
 import { SmsTab } from './components/sms-tab'
 import { BoldForm } from './components/bold-form'
+import { ConnectWhatsApp } from '@/components/settings/connect-whatsapp'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShoppingBag, Settings2, MessageSquare, CreditCard } from 'lucide-react'
+import { ShoppingBag, Settings2, MessageSquare, CreditCard, MessageCircle } from 'lucide-react'
 
 export default async function IntegracionesPage() {
   // Verify user is authenticated
@@ -76,6 +77,10 @@ export default async function IntegracionesPage() {
           <TabsTrigger value="bold" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             BOLD
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" />
+            WhatsApp (Meta directo)
           </TabsTrigger>
         </TabsList>
 
@@ -159,6 +164,32 @@ export default async function IntegracionesPage() {
           <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded" />}>
             <BoldForm />
           </Suspense>
+        </TabsContent>
+
+        {/* WhatsApp (Meta directo) Tab — Embedded Signup self-service onboarding */}
+        <TabsContent value="whatsapp" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5" />
+                    WhatsApp (Meta directo)
+                  </CardTitle>
+                  <CardDescription>
+                    Conecta un número de WhatsApp Business directamente con Meta
+                    mediante Embedded Signup. Autoriza tu cuenta de WhatsApp
+                    Business y el número en la ventana de Meta; al finalizar, el
+                    número queda registrado de forma segura. Conectar un número
+                    no cambia el proveedor de envío actual de tu workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ConnectWhatsApp />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -7,6 +7,26 @@ import { revalidatePath } from 'next/cache'
 import type { CreateWorkspaceInput, Workspace, WorkspaceWithRole } from '@/lib/types/database'
 
 /**
+ * Resolve the authenticated user id WITHOUT a network round-trip to GoTrue —
+ * uses getClaims() (local ES256 verify against the cached JWKS), the same
+ * primitive as getRequestAuth() (src/lib/auth/request-auth.ts).
+ *
+ * Deliberately NOT getRequestAuth(): that helper also requires the
+ * `morfx_workspace` cookie and returns null when it is absent. Several flows
+ * here (getActiveWorkspaceId bootstrap fallback, createWorkspace,
+ * getUserWorkspaces) run for users that have NOT selected a workspace yet —
+ * the cookie is absent by design. Coupling identity to the workspace cookie
+ * would break first-login / create-workspace bootstrap (Warning 1).
+ */
+async function getAuthUserId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<string | null> {
+  const { data } = await supabase.auth.getClaims()
+  const sub = data?.claims?.sub
+  return sub ?? null
+}
+
+/**
  * Set the active workspace cookie from the server side.
  * httpOnly: false so document.cookie can read it (prevents infinite reload).
  */
@@ -30,13 +50,13 @@ export async function getActiveWorkspaceId(): Promise<string | null> {
 
   // Fallback: look up user's first workspace
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const userId = await getAuthUserId(supabase)
+  if (!userId) return null
 
   const { data } = await supabase
     .from('workspace_members')
     .select('workspace_id')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .limit(1)
     .single()
 
@@ -61,8 +81,8 @@ export async function getActiveWorkspaceId(): Promise<string | null> {
 export async function createWorkspace(input: CreateWorkspaceInput) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -103,8 +123,8 @@ export async function createWorkspace(input: CreateWorkspaceInput) {
 export async function getUserWorkspaces(): Promise<WorkspaceWithRole[]> {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return []
   }
 
@@ -123,7 +143,7 @@ export async function getUserWorkspaces(): Promise<WorkspaceWithRole[]> {
         updated_at
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) {
     console.error('Error fetching workspaces:', error)
@@ -139,8 +159,8 @@ export async function getUserWorkspaces(): Promise<WorkspaceWithRole[]> {
 export async function getWorkspaceBySlug(slug: string): Promise<WorkspaceWithRole | null> {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return null
   }
 
@@ -153,7 +173,7 @@ export async function getWorkspaceBySlug(slug: string): Promise<WorkspaceWithRol
       )
     `)
     .eq('slug', slug)
-    .eq('workspace_members.user_id', user.id)
+    .eq('workspace_members.user_id', userId)
     .single()
 
   if (error || !data) {
@@ -170,8 +190,8 @@ export async function getWorkspaceBySlug(slug: string): Promise<WorkspaceWithRol
 export async function updateWorkspace(workspaceId: string, updates: Partial<Pick<Workspace, 'name' | 'business_type'>>) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -179,7 +199,7 @@ export async function updateWorkspace(workspaceId: string, updates: Partial<Pick
     .from('workspaces')
     .update(updates)
     .eq('id', workspaceId)
-    .eq('owner_id', user.id)
+    .eq('owner_id', userId)
 
   if (error) {
     console.error('Error updating workspace:', error)
@@ -193,8 +213,8 @@ export async function updateWorkspace(workspaceId: string, updates: Partial<Pick
 export async function deleteWorkspace(workspaceId: string) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const userId = await getAuthUserId(supabase)
+  if (!userId) {
     return { error: 'No autenticado' }
   }
 
@@ -202,7 +222,7 @@ export async function deleteWorkspace(workspaceId: string) {
     .from('workspaces')
     .delete()
     .eq('id', workspaceId)
-    .eq('owner_id', user.id)
+    .eq('owner_id', userId)
 
   if (error) {
     console.error('Error deleting workspace:', error)

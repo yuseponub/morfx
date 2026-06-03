@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath, updateTag } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import type { Pipeline, PipelineStage, PipelineFormData, PipelineStageFormData, PipelineWithStages } from '@/lib/orders/types'
 
@@ -52,18 +52,12 @@ const DEFAULT_STAGES = [
  * Ordered by is_default DESC, name ASC
  */
 export async function getPipelines(): Promise<PipelineWithStages[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data: pipelines, error } = await supabase
     .from('pipelines')
@@ -93,12 +87,11 @@ export async function getPipelines(): Promise<PipelineWithStages[]> {
  * Returns null if not found or not accessible
  */
 export async function getPipeline(id: string): Promise<PipelineWithStages | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+  const supabase = await createClient()
 
   const { data: pipeline, error } = await supabase
     .from('pipelines')
@@ -125,18 +118,12 @@ export async function getPipeline(id: string): Promise<PipelineWithStages | null
  * Creates "Ventas" pipeline with default stages if none exists
  */
 export async function getOrCreateDefaultPipeline(): Promise<PipelineWithStages | null> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return null
+  }
+  const workspaceId = auth.workspaceId
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return null
-  }
 
   // Try to find existing default pipeline
   const { data: existing } = await supabase
@@ -202,18 +189,12 @@ export async function createPipeline(formData: PipelineFormData): Promise<Action
     return { error: validation.error.issues[0].message }
   }
 
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
+  const supabase = await createClient()
 
   // Create pipeline
   const { data: pipeline, error } = await supabase
@@ -258,12 +239,11 @@ export async function createPipeline(formData: PipelineFormData): Promise<Action
  * Update an existing pipeline
  */
 export async function updatePipeline(id: string, formData: Partial<PipelineFormData>): Promise<ActionResult<Pipeline>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('pipelines')
@@ -284,8 +264,7 @@ export async function updatePipeline(id: string, formData: Partial<PipelineFormD
   }
 
   revalidatePath('/crm/configuracion/pipelines')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data }
 }
 
@@ -294,12 +273,11 @@ export async function updatePipeline(id: string, formData: Partial<PipelineFormD
  * Only allowed if not default and has no orders
  */
 export async function deletePipeline(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   // Check if default
   const { data: pipeline } = await supabase
@@ -330,8 +308,7 @@ export async function deletePipeline(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/crm/configuracion/pipelines')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data: undefined }
 }
 
@@ -339,12 +316,11 @@ export async function deletePipeline(id: string): Promise<ActionResult> {
  * Update pipeline positions after drag reorder
  */
 export async function updatePipelineOrder(pipelineIds: string[]): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   // Set temp negative positions to avoid unique constraint issues
   for (let i = 0; i < pipelineIds.length; i++) {
@@ -374,8 +350,7 @@ export async function updatePipelineOrder(pipelineIds: string[]): Promise<Action
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data: undefined }
 }
 
@@ -392,12 +367,11 @@ export async function createStage(pipelineId: string, formData: PipelineStageFor
     return { error: validation.error.issues[0].message }
   }
 
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   // Get max position for this pipeline
   const { data: stages } = await supabase
@@ -429,8 +403,7 @@ export async function createStage(pipelineId: string, formData: PipelineStageFor
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data }
 }
 
@@ -438,12 +411,11 @@ export async function createStage(pipelineId: string, formData: PipelineStageFor
  * Update an existing stage
  */
 export async function updateStage(id: string, formData: Partial<PipelineStageFormData>): Promise<ActionResult<PipelineStage>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('pipeline_stages')
@@ -459,8 +431,7 @@ export async function updateStage(id: string, formData: Partial<PipelineStageFor
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data }
 }
 
@@ -468,12 +439,11 @@ export async function updateStage(id: string, formData: Partial<PipelineStageFor
  * Update stage positions after drag reorder
  */
 export async function updateStageOrder(pipelineId: string, stageIds: string[]): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   // First, set all positions to negative values to avoid unique constraint violations
   // Then set them to their correct positive values
@@ -506,8 +476,7 @@ export async function updateStageOrder(pipelineId: string, stageIds: string[]): 
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data: undefined }
 }
 
@@ -516,12 +485,11 @@ export async function updateStageOrder(pipelineId: string, stageIds: string[]): 
  * Only allowed if no orders in that stage
  */
 export async function deleteStage(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const supabase = await createClient()
 
   // Check for orders in this stage
   const { count } = await supabase
@@ -542,7 +510,6 @@ export async function deleteStage(id: string): Promise<ActionResult> {
 
   revalidatePath('/crm/configuracion/pipelines')
   revalidatePath('/crm/pedidos')
-  const ws = (await cookies()).get('morfx_workspace')?.value
-  if (ws) updateTag('ref:pipelines:' + ws)
+  updateTag('ref:pipelines:' + auth.workspaceId)
   return { success: true, data: undefined }
 }

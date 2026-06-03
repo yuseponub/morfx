@@ -105,9 +105,12 @@ None — plan executed exactly as written. Todas las funciones resultaron de UI 
 - `npx tsc --noEmit`: 0 errores nuevos. 2 errores PRE-EXISTENTES ajenos (confirmados en planes previos): `.next/dev/types/validator.ts` (cache stale del dev, x4 nombres) + `src/lib/domain/__tests__/conversations.test.ts` (eqMock implicit any, x2).
 - Suite vitest: ningun test importa los 5 modulos migrados (`@/app/actions/{pipelines,whatsapp,messages,godentist,client-activation}` no aparece en ningun `*.test.ts/tsx`) → sin regresion posible de suite por estos cambios. Ademas estos son modulos `'use server'` que importan `next/headers` (no cargable en vitest).
 
-## Checkpoint Status: AT CHECKPOINT (Task 4 — human-verify, blocking)
+## Checkpoint Status: ✅ APROBADO (2026-06-03)
 
-Las 3 tareas auto estan COMPLETAS y commiteadas en `main` (NO pusheado). El plan esta detenido en el checkpoint `human-verify`. Pendiente del usuario:
+**Task 4 `checkpoint:human-verify` APROBADO por el usuario en producción** (deploy `078598fd` verde). El usuario verificó: dashboard completo funciona (más rápido), bootstrap first-login resuelve, gates admin/owner intactos, y — crítico Regla 6 — los agentes somnio/godentist + robot Railway godentist operan idénticos. Plan 07 COMPLETO (4/4). **Deuda estructural `auth.getUser()` cerrada a 0 global en los 42 archivos de `src/app/actions/`.**
+
+### Detalle original del checkpoint (verificado PASS)
+Las 3 tareas auto COMPLETAS y commiteadas. Pendiente del usuario (todo verificado OK):
 
 1. **Push a main** + esperar deploy Vercel.
 2. **Bootstrap first-login (Warning 1, critico):** probar primer login / usuario sin cookie `morfx_workspace` (incognito) — el dashboard DEBE resolver el workspace via el fallback de `getActiveWorkspaceId` (Plan 05) y NO quedar en "No autenticado". (Nota: ninguno de los 5 archivos de este plan corre antes de seleccionar workspace; el fallback de bootstrap vive en workspace.ts, sin tocar aqui.)

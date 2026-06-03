@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import type { OrderNoteWithUser } from '@/lib/orders/types'
 import {
   createOrderNote as domainCreateOrderNote,
@@ -28,12 +28,12 @@ type ActionResult<T = void> =
  * Includes user info via separate profile query
  */
 export async function getOrderNotes(orderId: string): Promise<OrderNoteWithUser[]> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
+
+  const supabase = await createClient()
 
   // Get notes for the order
   const { data: notes, error: notesError } = await supabase
@@ -77,12 +77,13 @@ export async function getOrderNotes(orderId: string): Promise<OrderNoteWithUser[
  * Auth + workspace validation here, mutation in domain.
  */
 export async function createOrderNote(orderId: string, content: string): Promise<ActionResult<OrderNoteWithUser>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const { workspaceId } = auth
+
+  const supabase = await createClient()
 
   // Validate content
   const trimmedContent = content.trim()
@@ -90,19 +91,12 @@ export async function createOrderNote(orderId: string, content: string): Promise
     return { error: 'El contenido de la nota es requerido' }
   }
 
-  // Get workspace_id from cookie
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
-
   // Delegate to domain
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainCreateOrderNote(ctx, {
     orderId,
     content: trimmedContent,
-    createdBy: user.id,
+    createdBy: auth.userId,
   })
 
   if (!result.success) {
@@ -119,7 +113,7 @@ export async function createOrderNote(orderId: string, content: string): Promise
   const { data: profile } = await supabase
     .from('profiles')
     .select('id, email')
-    .eq('id', user.id)
+    .eq('id', auth.userId)
     .single()
 
   revalidatePath('/crm/pedidos')
@@ -128,7 +122,7 @@ export async function createOrderNote(orderId: string, content: string): Promise
     success: true,
     data: {
       ...note!,
-      user: profile || { id: user.id, email: user.email || 'Usuario' }
+      user: profile || { id: auth.userId, email: auth.email || 'Usuario' }
     }
   }
 }
@@ -142,12 +136,12 @@ export async function createOrderNote(orderId: string, content: string): Promise
  * Auth + permission check here, mutation in domain.
  */
 export async function updateOrderNote(noteId: string, content: string): Promise<ActionResult<void>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Validate content
   const trimmedContent = content.trim()
@@ -167,7 +161,7 @@ export async function updateOrderNote(noteId: string, content: string): Promise<
   }
 
   // Check if user is author or admin/owner
-  const isAuthor = note.user_id === user.id
+  const isAuthor = note.user_id === auth.userId
 
   if (!isAuthor) {
     // Check if user is admin or owner of the workspace
@@ -175,7 +169,7 @@ export async function updateOrderNote(noteId: string, content: string): Promise<
       .from('workspace_members')
       .select('role')
       .eq('workspace_id', note.workspace_id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.userId)
       .single()
 
     const isAdminOrOwner = membership?.role === 'admin' || membership?.role === 'owner'
@@ -207,12 +201,12 @@ export async function updateOrderNote(noteId: string, content: string): Promise<
  * Auth + permission check here, deletion in domain.
  */
 export async function deleteOrderNote(noteId: string): Promise<ActionResult<void>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Get the note first to check permissions
   const { data: note, error: fetchError } = await supabase
@@ -226,7 +220,7 @@ export async function deleteOrderNote(noteId: string): Promise<ActionResult<void
   }
 
   // Check if user is author or admin/owner
-  const isAuthor = note.user_id === user.id
+  const isAuthor = note.user_id === auth.userId
 
   if (!isAuthor) {
     // Check if user is admin or owner of the workspace
@@ -234,7 +228,7 @@ export async function deleteOrderNote(noteId: string): Promise<ActionResult<void
       .from('workspace_members')
       .select('role')
       .eq('workspace_id', note.workspace_id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.userId)
       .single()
 
     const isAdminOrOwner = membership?.role === 'admin' || membership?.role === 'owner'

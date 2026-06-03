@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import type {
   Task,
   TaskWithDetails,
@@ -31,15 +31,6 @@ type ActionResult<T = void> =
   | { error: string }
 
 // ============================================================================
-// Helper: Get Workspace ID
-// ============================================================================
-
-async function getWorkspaceId(): Promise<string | null> {
-  const cookieStore = await cookies()
-  return cookieStore.get('morfx_workspace')?.value ?? null
-}
-
-// ============================================================================
 // Task CRUD Operations
 // ============================================================================
 
@@ -49,17 +40,13 @@ async function getWorkspaceId(): Promise<string | null> {
  * Ordered by: overdue first, then by due_date ASC, then by created_at DESC.
  */
 export async function getTasks(filters?: TaskFilters): Promise<TaskWithDetails[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return []
-  }
 
   let query = supabase
     .from('tasks')
@@ -85,7 +72,7 @@ export async function getTasks(filters?: TaskFilters): Promise<TaskWithDetails[]
 
   if (filters?.assigned_to) {
     if (filters.assigned_to === 'me') {
-      query = query.eq('assigned_to', user.id)
+      query = query.eq('assigned_to', auth.userId)
     } else if (filters.assigned_to === 'unassigned') {
       query = query.is('assigned_to', null)
     } else {
@@ -172,12 +159,12 @@ export async function getTasks(filters?: TaskFilters): Promise<TaskWithDetails[]
  * Get a single task by ID with all relations.
  */
 export async function getTask(id: string): Promise<TaskWithDetails | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('tasks')
@@ -207,17 +194,13 @@ export async function getTask(id: string): Promise<TaskWithDetails | null> {
  * Keeps auth validation + revalidatePath as adapter concerns.
  */
 export async function createTask(input: CreateTaskInput): Promise<ActionResult<Task>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainCreateTask(ctx, {
@@ -239,7 +222,7 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
   // Also set created_by which is a server-action concern (domain doesn't know user)
   const { data: taskData } = await supabase
     .from('tasks')
-    .update({ task_type_id: input.task_type_id || null, created_by: user.id })
+    .update({ task_type_id: input.task_type_id || null, created_by: auth.userId })
     .eq('id', result.data!.taskId)
     .select()
     .single()
@@ -255,17 +238,13 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
  * task_type_id is a server-action concern (not in domain params).
  */
 export async function updateTask(id: string, input: UpdateTaskInput): Promise<ActionResult<Task>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Domain handles: title, description, dueDate, priority, status, assignedTo
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
@@ -312,17 +291,11 @@ export async function updateTask(id: string, input: UpdateTaskInput): Promise<Ac
  * Delegates to domain/tasks.deleteTask.
  */
 export async function deleteTask(id: string): Promise<ActionResult<void>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainDeleteTask(ctx, { taskId: id })
@@ -340,17 +313,13 @@ export async function deleteTask(id: string): Promise<ActionResult<void>> {
  * Delegates to domain/tasks.completeTask directly for cleaner flow.
  */
 export async function completeTask(id: string): Promise<ActionResult<Task>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const ctx: DomainContext = { workspaceId, source: 'server-action' }
   const result = await domainCompleteTask(ctx, { taskId: id })
@@ -382,17 +351,13 @@ export async function reopenTask(id: string): Promise<ActionResult<Task>> {
  * Uses efficient COUNT with CASE WHEN aggregations.
  */
 export async function getTaskSummary(): Promise<TaskSummary> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { pending: 0, overdue: 0, dueSoon: 0 }
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { pending: 0, overdue: 0, dueSoon: 0 }
-  }
-
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return { pending: 0, overdue: 0, dueSoon: 0 }
-  }
 
   // Get current time in Colombia timezone for proper comparison
   const now = new Date()
@@ -441,17 +406,13 @@ export async function getTaskSummary(): Promise<TaskSummary> {
  * Uses two separate queries (members + profiles) for reliability.
  */
 export async function getWorkspaceMembersForTasks(): Promise<Array<{ user_id: string; email: string | null }>> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return []
-  }
 
   // Step 1: Get workspace members
   const { data: members, error: membersError } = await supabase
@@ -493,17 +454,13 @@ export async function getWorkspaceMembersForTasks(): Promise<Array<{ user_id: st
  * Get all task types for the workspace, ordered by position.
  */
 export async function getTaskTypes(): Promise<TaskType[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('task_types')
@@ -523,17 +480,13 @@ export async function getTaskTypes(): Promise<TaskType[]> {
  * Create a new task type.
  */
 export async function createTaskType(input: CreateTaskTypeInput): Promise<ActionResult<TaskType>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const workspaceId = await getWorkspaceId()
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   if (!input.name?.trim()) {
     return { error: 'El nombre es requerido' }
@@ -573,12 +526,12 @@ export async function createTaskType(input: CreateTaskTypeInput): Promise<Action
  * Update a task type.
  */
 export async function updateTaskType(id: string, input: UpdateTaskTypeInput): Promise<ActionResult<TaskType>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const updates: Record<string, unknown> = {}
 
@@ -621,12 +574,12 @@ export async function updateTaskType(id: string, input: UpdateTaskTypeInput): Pr
  * Delete a task type.
  */
 export async function deleteTaskType(id: string): Promise<ActionResult<void>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('task_types')
@@ -646,12 +599,12 @@ export async function deleteTaskType(id: string): Promise<ActionResult<void>> {
  * Reorder task types by updating positions based on array order.
  */
 export async function reorderTaskTypes(ids: string[]): Promise<ActionResult<void>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Update each task type's position
   const updates = ids.map((id, index) =>

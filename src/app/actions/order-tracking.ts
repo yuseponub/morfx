@@ -1,7 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { getCarrierEventsByOrder } from '@/lib/domain/carrier-events'
 import type { DomainContext } from '@/lib/domain/types'
 
@@ -23,15 +22,9 @@ export interface TrackingEvent {
  */
 export async function getOrderTrackingEvents(orderId: string): Promise<TrackingEvent[]> {
   try {
-    const supabase = await createClient()
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return []
-
-    // Get workspace_id from cookie
-    const cookieStore = await cookies()
-    const workspaceId = cookieStore.get('morfx_workspace')?.value
-    if (!workspaceId) return []
+    const auth = await getRequestAuth()
+    if (!auth) return []
+    const workspaceId = auth.workspaceId
 
     // Delegate to domain layer
     const ctx: DomainContext = { workspaceId, source: 'server-action' }

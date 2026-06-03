@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import type { CustomFieldDefinition, FieldType } from '@/lib/types/database'
 import { generateFieldKey } from '@/lib/custom-fields/validator'
@@ -49,25 +49,20 @@ type ActionResult<T = void> =
 // ============================================================================
 
 async function checkAdminOrOwner(): Promise<{ allowed: true; workspaceId: string } | { allowed: false; error: string }> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { allowed: false, error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { allowed: false, error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Check user role in workspace
   const { data: member, error: memberError } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.userId)
     .single()
 
   if (memberError || !member) {
@@ -90,12 +85,12 @@ async function checkAdminOrOwner(): Promise<{ allowed: true; workspaceId: string
  * Ordered by display_order ASC
  */
 export async function getCustomFields(): Promise<CustomFieldDefinition[]> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('custom_field_definitions')
@@ -114,12 +109,12 @@ export async function getCustomFields(): Promise<CustomFieldDefinition[]> {
  * Get a single custom field definition by ID
  */
 export async function getCustomField(id: string): Promise<CustomFieldDefinition | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('custom_field_definitions')
@@ -355,18 +350,11 @@ export async function updateContactCustomFields(
   contactId: string,
   customFields: Record<string, unknown>
 ): Promise<ActionResult<Record<string, unknown>>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const workspaceId = auth.workspaceId
 
   // Delegate to domain (handles JSONB merge + field.changed trigger emission)
   const ctx: DomainContext = { workspaceId, source: 'server-action' }

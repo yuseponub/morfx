@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import type { OrderState, OrderStateFormData, OrderStateWithStages, PipelineStage } from '@/lib/orders/types'
 
@@ -32,18 +32,13 @@ type ActionResult<T = void> =
  * Ordered by position ASC.
  */
 export async function getOrderStates(): Promise<OrderStateWithStages[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   // Fetch all order states for the workspace
   const { data: states, error: statesError } = await supabase
@@ -103,12 +98,12 @@ export async function getOrderStates(): Promise<OrderStateWithStages[]> {
  * Used by WhatsApp indicator to get emoji.
  */
 export async function getOrderStateForStage(stageId: string): Promise<OrderState | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   // Get the stage's order_state_id
   const { data: stage, error: stageError } = await supabase
@@ -149,18 +144,13 @@ export async function createOrderState(data: OrderStateFormData): Promise<Action
     return { error: validation.error.issues[0].message }
   }
 
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Get next position (max position + 1)
   const { data: maxPosData } = await supabase
@@ -202,12 +192,12 @@ export async function createOrderState(data: OrderStateFormData): Promise<Action
  * Update an existing order state.
  */
 export async function updateOrderState(id: string, data: Partial<OrderStateFormData>): Promise<ActionResult<OrderState>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { data: state, error } = await supabase
     .from('order_states')
@@ -233,18 +223,13 @@ export async function updateOrderState(id: string, data: Partial<OrderStateFormD
  * Uses temp negative positions to avoid unique constraint violations.
  */
 export async function updateOrderStateOrder(stateIds: string[]): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // First, set all positions to negative values to avoid unique constraint violations
   for (let i = 0; i < stateIds.length; i++) {
@@ -283,12 +268,12 @@ export async function updateOrderStateOrder(stateIds: string[]): Promise<ActionR
  * Clears existing assignments for the state and sets new ones.
  */
 export async function assignStagesToState(stateId: string, stageIds: string[]): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Clear existing assignments for stages currently pointing to this state
   // but not in the new stageIds list
@@ -329,12 +314,12 @@ export async function assignStagesToState(stateId: string, stageIds: string[]): 
  * Stages will be automatically unassigned via ON DELETE SET NULL.
  */
 export async function deleteOrderState(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('order_states')
@@ -368,18 +353,13 @@ export interface ClosureTagConfig {
  * Joins pipeline name and tag name/color for display.
  */
 export async function getClosureTagConfigs(): Promise<ClosureTagConfig[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('pipeline_closure_tags')
@@ -419,18 +399,13 @@ export async function addClosureTagConfig(
   pipelineId: string,
   tagId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('pipeline_closure_tags')
@@ -456,12 +431,12 @@ export async function addClosureTagConfig(
  * Remove a closure tag config by id.
  */
 export async function removeClosureTagConfig(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('pipeline_closure_tags')

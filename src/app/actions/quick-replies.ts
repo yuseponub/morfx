@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 
 // ============================================================================
 // Types
@@ -33,18 +33,13 @@ type ActionResult<T = void> =
  * Ordered by shortcut alphabetically
  */
 export async function getQuickReplies(): Promise<QuickReply[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('quick_replies')
@@ -65,18 +60,13 @@ export async function getQuickReplies(): Promise<QuickReply[]> {
  * Returns up to 10 matches starting with the query
  */
 export async function searchQuickReplies(query: string): Promise<QuickReply[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   // Clean up query (remove leading slash if present)
   const cleanQuery = query.replace(/^\//, '').toLowerCase()
@@ -143,18 +133,13 @@ export async function createQuickReply(params: {
   media_url?: string | null
   media_type?: 'image' | 'video' | 'document' | 'audio' | null
 }): Promise<ActionResult<QuickReply>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Validate input
   if (!params.shortcut.trim()) {
@@ -210,18 +195,13 @@ export async function updateQuickReply(
     media_type?: 'image' | 'video' | 'document' | 'audio' | null
   }
 ): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Build update object
   const updates: {
@@ -288,18 +268,13 @@ export async function updateQuickReply(
  * Delete a quick reply
  */
 export async function deleteQuickReply(id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('quick_replies')
@@ -330,18 +305,13 @@ export async function uploadQuickReplyMedia(
   fileName: string,
   mimeType: string
 ): Promise<ActionResult<{ url: string; type: 'image' | 'video' | 'document' | 'audio' }>> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+  const workspaceId = auth.workspaceId
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { error: 'No hay workspace seleccionado' }
-  }
+  const supabase = await createClient()
 
   // Determine media type from mime
   let mediaType: 'image' | 'video' | 'document' | 'audio' = 'document'
@@ -388,12 +358,12 @@ export async function uploadQuickReplyMedia(
  * Delete media file from quick reply
  */
 export async function deleteQuickReplyMedia(mediaUrl: string): Promise<ActionResult> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return { error: 'No autenticado' }
   }
+
+  const supabase = await createClient()
 
   // Extract file path from URL
   // URL format: https://xxx.supabase.co/storage/v1/object/public/whatsapp-media/quick-replies/...

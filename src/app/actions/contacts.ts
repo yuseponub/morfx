@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import { z } from 'zod'
 import type { Contact, ContactWithTags, Tag } from '@/lib/types/database'
 import {
@@ -43,15 +43,9 @@ type ActionResult<T = void> =
 // ============================================================================
 
 async function getWorkspaceContext(): Promise<{ workspaceId: string } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) return { error: 'No hay workspace seleccionado' }
-
-  return { workspaceId }
+  const auth = await getRequestAuth()
+  if (!auth) return { error: 'No autenticado' }
+  return { workspaceId: auth.workspaceId }
 }
 
 // ============================================================================
@@ -88,18 +82,13 @@ export async function getContactsPage(params: {
   search?: string
   tagIds?: string[]
 } = {}): Promise<ContactsPageResult> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { contacts: [], total: 0, page: 1, pageSize: 50 }
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { contacts: [], total: 0, page: 1, pageSize: 50 }
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return { contacts: [], total: 0, page: 1, pageSize: 50 }
-  }
 
   const page = Math.max(1, params.page ?? 1)
   const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 50))
@@ -191,18 +180,13 @@ export async function searchContacts(params: {
   search: string
   limit?: number
 }): Promise<Array<{ id: string; name: string; phone: string; city: string | null }>> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const searchTerm = params.search.trim()
   if (!searchTerm) {
@@ -232,18 +216,13 @@ export async function searchContacts(params: {
 export async function getRecentContacts(params?: {
   limit?: number
 }): Promise<Array<{ id: string; name: string; phone: string; city: string | null }>> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const { data, error } = await supabase
     .from('contacts')
@@ -265,12 +244,12 @@ export async function getRecentContacts(params?: {
  * Returns null if not found or not accessible
  */
 export async function getContact(id: string): Promise<ContactWithTags | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   // Get contact
   const { data: contact, error } = await supabase
@@ -730,18 +709,13 @@ export interface BulkCreateResult {
  * Paginates internally to handle >1000 contacts (PostgREST default limit).
  */
 export async function getExistingPhones(): Promise<string[]> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return []
+  }
+  const workspaceId = auth.workspaceId
+
   const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return []
-  }
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('morfx_workspace')?.value
-  if (!workspaceId) {
-    return []
-  }
 
   const allPhones: string[] = []
   const batchSize = 5000
@@ -895,12 +869,12 @@ export async function updateContactByPhone(
  * Used to fetch existing contact details for duplicate resolution UI
  */
 export async function getContactByPhone(phone: string): Promise<Contact | null> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return null
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('contacts')
@@ -939,12 +913,12 @@ export interface ContactConversationSummary {
 export async function getContactConversations(
   contactId: string
 ): Promise<ContactConversationSummary[]> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('conversations')

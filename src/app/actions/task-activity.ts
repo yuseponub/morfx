@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-auth'
 import type { TaskActivityWithUser } from '@/lib/tasks/types'
 
 // ============================================================================
@@ -27,12 +28,12 @@ export async function getTaskActivity(
   taskId: string,
   options: GetActivityOptions = {}
 ): Promise<TaskActivityWithUser[]> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const auth = await getRequestAuth()
+  if (!auth) {
     return []
   }
+
+  const supabase = await createClient()
 
   const { types, limit = 50 } = options
 

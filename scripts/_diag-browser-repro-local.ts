@@ -61,8 +61,15 @@ async function main() {
   page.on('console', (m) => {
     const t = m.text()
     if (/\[realtime:inbox\]/i.test(t)) {
-      browserRtCount++
-      if (firstBrowserRtAt === null) firstBrowserRtAt = Date.now()
+      // Only REAL delivered events count toward the PASS criterion — exclude the
+      // `[realtime:inbox] status: SUBSCRIBED` lifecycle line (a SUBSCRIBED-but-mute
+      // socket still logs it). RQ-4 PASS = the browser received an actual conversation
+      // postgres_changes event, not merely that the channel reached SUBSCRIBED.
+      const isStatusLine = /status:/i.test(t)
+      if (!isStatusLine) {
+        browserRtCount++
+        if (firstBrowserRtAt === null) firstBrowserRtAt = Date.now()
+      }
       console.log(`[${clk()}] 🌐 BROWSER ${t.slice(0, 120)}`)
     }
     else if (/SUBSCRIB|CHANNEL_ERROR|TIMED_OUT|CLOSED/i.test(t)) console.log(`[${clk()}] 🌐 BROWSER ${t.slice(0, 120)}`)

@@ -321,6 +321,17 @@ export interface ApplyTemplateStatusUpdateParams {
 export async function applyTemplateStatusUpdate(
   params: ApplyTemplateStatusUpdateParams
 ): Promise<DomainResult<{ updated: boolean }>> {
+  // CR-01: Hard-abort when workspace is unknown. Running the UPDATE without a
+  // workspace_id scope would flip status across EVERY workspace sharing the same
+  // template name (names are not globally unique). The route handler should
+  // ack-and-drop (200 to Meta); this function must NEVER run a cross-tenant UPDATE.
+  if (!params.workspaceId) {
+    console.warn(
+      '[wa-templates] applyTemplateStatusUpdate called with null workspaceId — aborting (no cross-tenant UPDATE)'
+    )
+    return { success: true, data: { updated: false } }
+  }
+
   const supabase = createAdminClient()
 
   const status = mapMetaTemplateEvent(params.event)
@@ -342,16 +353,15 @@ export async function applyTemplateStatusUpdate(
     updatePayload.rejected_reason = null
   }
 
+  // Scope by workspace (T-39-02 + CR-01) ALWAYS — params.workspaceId is
+  // guaranteed truthy by the guard above. + language when available. Chained
+  // filters narrow the match to exactly one row.
   let query = supabase
     .from('whatsapp_templates')
     .update(updatePayload)
+    .eq('workspace_id', params.workspaceId)
     .eq('name', params.name)
 
-  // Scope by workspace (T-39-02) + language when available. Chained filters
-  // narrow the match to exactly one row.
-  if (params.workspaceId) {
-    query = query.eq('workspace_id', params.workspaceId)
-  }
   if (params.language) {
     query = query.eq('language', params.language)
   }

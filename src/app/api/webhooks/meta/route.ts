@@ -156,7 +156,13 @@ export async function POST(request: NextRequest) {
     }
 
     const name = value.message_template_name
-    if (name && value.event) {
+    if (name && value.event && !workspaceId) {
+      // CR-01: unknown/unregistered WABA → ack-and-drop. NEVER call the domain
+      // with a null workspaceId (would run an unscoped cross-tenant UPDATE).
+      console.warn(
+        `[meta-webhook] unknown WABA, skipping template-status update: waba=${wabaId ?? 'none'} name=${name}`
+      )
+    } else if (name && value.event) {
       try {
         await applyTemplateStatusUpdate({
           workspaceId,

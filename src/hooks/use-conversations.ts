@@ -303,8 +303,27 @@ export function useConversations({
     if (!workspaceId) return
 
     const supabase = createClient()
+    // channel is assigned inside the async IIFE below
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
-    const channel = supabase
+    ;(async () => {
+      // Token-before-subscribe (CONFIRMED primary fix): guarantee the shared
+      // Realtime socket holds the USER JWT before the first phx_join, else RLS
+      // (is_workspace_member(auth.uid())) drops every event while the channel
+      // still reports SUBSCRIBED. The singleton already primes a NO-ARG setAuth
+      // at creation (client.ts, callback/auto-refresh mode); this explicit
+      // setAuth(token) is the defensive form for a hard load where the cookie
+      // session is still hydrating (Pitfall 1). RealtimeAuthProvider re-asserts
+      // a no-arg refresh on every TOKEN_REFRESHED, so the brief manual-token
+      // window here is harmless (Pitfall 4). NEVER log the token.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token)
+      }
+      if (cancelled) return
+
+      channel = supabase
       .channel(`inbox:${workspaceId}`)
       // ---- conversations table: surgical updates ----
       .on(
@@ -464,10 +483,12 @@ export function useConversations({
           previousStatus = status
         }
       })())
+    })()
 
     // Cleanup on unmount or workspaceId change only
     return () => {
-      supabase.removeChannel(channel)
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
       if (safetyRefetchTimer.current) clearTimeout(safetyRefetchTimer.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

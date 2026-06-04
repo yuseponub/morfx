@@ -49,6 +49,9 @@ vi.mock('@/lib/meta/credentials', () => ({
 // Domain create — not exercised here but imported by the module.
 vi.mock('@/lib/domain/whatsapp-templates', () => ({
   createTemplate: vi.fn(),
+  // WR-01: editTemplate now reflects the post-edit PENDING status through the domain
+  // chokepoint instead of a direct table write.
+  applyTemplateStatusUpdate: vi.fn().mockResolvedValue({ success: true, data: { updated: true } }),
 }))
 
 // Supabase server client — controls `workspaces.whatsapp_provider` + the template row read,

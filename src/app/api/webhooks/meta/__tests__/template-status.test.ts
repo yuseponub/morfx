@@ -32,19 +32,36 @@ vi.mock('@/lib/whatsapp/webhook-handler', () => ({
 }))
 
 // Credential resolver — return a workspace for the WABA so the handler can scope the UPDATE.
+// resolveByWabaId MUST be mocked (WR-02): the template-status branch resolves workspaceId from
+// the WABA id, not the phone_number_id. Without this mock workspaceId stays null and the CR-01
+// guard turns the UPDATE into a no-op, giving a false-green pass.
 vi.mock('@/lib/meta/credentials', () => ({
   resolveByPhoneNumberId: vi.fn().mockResolvedValue({ workspaceId: 'WS_1' }),
+  resolveByWabaId: vi.fn().mockResolvedValue({ workspaceId: 'WS_1' }),
 }))
 
-// Supabase admin — capture the whatsapp_templates UPDATE.
-const templatesUpdate = vi.fn().mockReturnThis()
-const templatesEq = vi.fn().mockResolvedValue({ data: null, error: null })
+// Supabase admin — capture the whatsapp_templates UPDATE + the chained .eq() filters.
+// The domain applyTemplateStatusUpdate chains .update().eq('workspace_id').eq('name').eq('language')
+// and awaits the final builder. The builder must be thenable AND keep returning itself on each
+// .eq() so the whole chain resolves (WR-02 — exercise the real workspace-scoped UPDATE).
+const templatesUpdate = vi.fn()
+const templatesEq = vi.fn()
+
+// Chainable thenable: every .eq() returns the same builder; awaiting it resolves { error: null }.
+const templatesBuilder = {
+  update: templatesUpdate,
+  eq: templatesEq,
+  then: (resolve: (v: { data: null; error: null }) => unknown) =>
+    Promise.resolve({ data: null, error: null }).then(resolve),
+}
+templatesUpdate.mockReturnValue(templatesBuilder)
+templatesEq.mockReturnValue(templatesBuilder)
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => ({
     from: vi.fn((table: string) => {
       if (table === 'whatsapp_templates') {
-        return { update: templatesUpdate, eq: templatesEq }
+        return templatesBuilder
       }
       return { update: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: null, error: null }) }
     }),
@@ -52,6 +69,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 }))
 
 import { POST } from '../route'
+import { resolveByWabaId } from '@/lib/meta/credentials'
 
 function sign(body: string, secret: string): string {
   return 'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex')
@@ -116,8 +134,8 @@ describe('WA-09 HMAC gate (threat T-39-04) — preserve existing security', () =
   })
 })
 
-describe('WA-09 message_template_status_update handler [RED until Plan 06]', () => {
-  it('UPDATEs the local whatsapp_templates row status on an APPROVED event', async () => {
+describe('WA-09 message_template_status_update handler', () => {
+  it('UPDATEs the local whatsapp_templates row status on an APPROVED event (workspace-scoped)', async () => {
     const body = templateStatusPayload('APPROVED')
     const res = await POST(makeRequest(body, sign(body, APP_SECRET)))
 
@@ -125,9 +143,11 @@ describe('WA-09 message_template_status_update handler [RED until Plan 06]', () 
     expect(templatesUpdate).toHaveBeenCalledTimes(1)
     const updatePayload = templatesUpdate.mock.calls[0][0] as Record<string, unknown>
     expect(updatePayload).toMatchObject({ status: 'APPROVED' })
+    // CR-01: the UPDATE MUST be scoped by workspace_id (resolved from the WABA id).
+    expect(templatesEq).toHaveBeenCalledWith('workspace_id', 'WS_1')
   })
 
-  it('writes rejected_reason on a REJECTED event', async () => {
+  it('writes rejected_reason on a REJECTED event (workspace-scoped)', async () => {
     const body = templateStatusPayload('REJECTED', 'INVALID_FORMAT')
     const res = await POST(makeRequest(body, sign(body, APP_SECRET)))
 
@@ -135,5 +155,18 @@ describe('WA-09 message_template_status_update handler [RED until Plan 06]', () 
     expect(templatesUpdate).toHaveBeenCalledTimes(1)
     const updatePayload = templatesUpdate.mock.calls[0][0] as Record<string, unknown>
     expect(updatePayload).toMatchObject({ status: 'REJECTED', rejected_reason: 'INVALID_FORMAT' })
+    expect(templatesEq).toHaveBeenCalledWith('workspace_id', 'WS_1')
+  })
+
+  it('does NOT issue an unscoped UPDATE when the WABA is unknown (CR-01 ack-and-drop)', async () => {
+    // Unresolved WABA → workspaceId stays null. The route must ack 200 WITHOUT calling
+    // the domain UPDATE (a null-workspace UPDATE would flip status across every tenant).
+    vi.mocked(resolveByWabaId).mockResolvedValueOnce(null)
+
+    const body = templateStatusPayload('APPROVED')
+    const res = await POST(makeRequest(body, sign(body, APP_SECRET)))
+
+    expect(res.status).toBe(200)
+    expect(templatesUpdate).not.toHaveBeenCalled()
   })
 })

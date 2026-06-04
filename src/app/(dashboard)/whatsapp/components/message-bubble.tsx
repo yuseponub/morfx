@@ -3,6 +3,7 @@
 import { Bot, Check, CheckCheck, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPreview } from './media-preview'
+import { InteractiveBubble, type InteractiveContent } from './interactive-bubble'
 import { useInboxV2 } from './inbox-v2-context'
 import type { Message, MessageStatus, TextContent, MediaContent, LocationContent } from '@/lib/whatsapp/types'
 
@@ -131,12 +132,8 @@ function MessageContent({
     }
 
     case 'interactive': {
-      return (
-        <div className="text-sm">
-          <p className="font-medium">Mensaje interactivo</p>
-          <p className="text-xs text-muted-foreground">(Ver en WhatsApp)</p>
-        </div>
-      )
+      const interactiveContent = content as unknown as InteractiveContent
+      return <InteractiveBubble content={interactiveContent} />
     }
 
     case 'reaction': {

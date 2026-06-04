@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
 status: executing
-stopped_at: Phase 999.1 Plan 01 complete
-last_updated: "2026-06-04T14:54:00.000Z"
+stopped_at: Phase 40 Plan 40-01 complete (RED test scaffolds)
+last_updated: "2026-06-04T15:05:00.000Z"
 progress:
   total_phases: 13
   completed_phases: 6
   total_plans: 77
-  completed_plans: 61
-  percent: 79
+  completed_plans: 62
+  percent: 81
 ---
 
 # Project State
@@ -23,6 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 **Current focus:** Phase 999.1 — whatsapp-interactive-message-composer
 
 ## Current Position
+
+Latest activity: 2026-06-04 — **Phase 40 Plan 40-01 (Wave 1 RED test scaffolds, `type: tdd`) COMPLETE** (3 tasks, 3 atomic commits on `main`, NOT pushed: `6936bfbe` FB-02 send shapes, `1fc2ad71` MIG-02 chokepoint + Regla 6 + FB-01/03/04 inbound, `a3f5f3bc` SIGNUP-04 connect + D-09 window). Sequential executor on `main` (no worktree); `gsd-sdk` CLI unavailable so commits are plain git + STATE/ROADMAP edited manually. Plan 40-01 is `depends_on: []` (Wave 1, parallel to 40-00) so it ran independently of the 40-00 Regla-5 blocking checkpoint. **Deliverable = the six FAILING tests** that pin every Phase 40 requirement BEFORE implementation: `meta/__tests__/messenger-api.test.ts` (FB-02 — RESPONSE vs MESSAGE_TAG/HUMAN_AGENT, image `is_reusable` no-caption, PSID-string > MAX_SAFE_INTEGER verbatim, dead-tags CONFIRMED_EVENT_UPDATE/ACCOUNT_UPDATE/POST_PURCHASE_UPDATE only inside negative asserts, getMessengerUserProfile best-effort), `channels/__tests__/meta-facebook-sender.test.ts` (FB-02 — creds `{accessToken,pageId}` NOT apiKey, image-as-followup caption text, HUMAN_AGENT tag propagated), `domain/__tests__/messenger-provider.test.ts` (MIG-02 — manychat DEFAULT arm uses `getChannelSender('facebook')` and `resolveByWorkspace`/`metaFacebookSender` NEVER called = **Regla 6 first-class parity** ×3 `not.toHaveBeenCalled`; meta_direct arm → `resolveByWorkspace(ws,'facebook')` + creds object), `messenger/__tests__/webhook-handler.test.ts` (FB-01/03/04 — `processMessengerWebhook(ev,ws,pageId)` conversation `channel:'facebook'`/`externalSubscriberId=PSID`/`phone=fb-<PSID>`, contact create-or-get by (page_id,PSID) NO fuzzy phone search D-04/D-05, `receiveMessage` `waMessageId=ev.message.mid`, PSID string, **NO Inngest dispatch** D-12), `actions/__tests__/connect-facebook.test.ts` (SIGNUP-04 — owner-gate, `upsertMetaAccount(channel:'facebook',pageId)`, `subscribeMessengerPage` per-Page, NO `messenger_provider` flip Regla 6, plaintext token never in envelope T-40-01-02), `actions/__tests__/messenger-window.test.ts` (D-09 — table hoursSince×featureGranted → <24h RESPONSE / 24h-7d+feature HUMAN_AGENT / 24h-7d no-feature BLOCK ES / >7d BLOCK, via FUTURE pure helper `resolveMessengerWindowSend` in `@/lib/messenger/window-gate`). **Full 6-file run: `6 failed (6)` files, `20 failed | 2 passed (22)` tests** — every RED is a missing-impl failure (`ERR_MODULE_NOT_FOUND` for messenger-api/meta-facebook-sender/webhook-handler/window-gate, `connectFacebookPage is not a function` undefined-export, absent provider branch for messenger-provider meta_direct arm), never syntax/collection. The 2 GREEN are the `manychat` Regla 6 parity guards (hold TODAY = byte-identical guard Plan 04 must not break). **Verification gate PASS:** each of the 3 commits contains ONLY `__tests__/` files — no production code modified (the working-tree `M src/lib/domain/messages.ts` + `messages-interactive-provider.test.ts` belong to the parallel Phase 999.1 session, predate this plan, left untouched per scope boundary). 0 deviations. SUMMARY: `.planning/phases/40-facebook-messenger-direct/40-01-SUMMARY.md`. Self-check PASSED. NOT pushed. gsd-sdk CLI unavailable — STATE/ROADMAP updated manually. Next: `/gsd-execute-phase 40` Wave 2 = 40-02 (messenger-api send edge + metaFacebookSender) ‖ 40-03 (connect token chain) — both turn the FB-02/SIGNUP-04 RED files GREEN. (40-00 migration still AT its Regla-5 apply-in-prod checkpoint — resume on user "applied".)
 
 Latest activity: 2026-06-04 — **Phase 40 EXECUTION STARTED — Plan 40-00 Task 1 DONE, AT Regla-5 BLOCKING CHECKPOINT (Task 2).** Sequential executor on `main` (no worktree). Commit `73f3ac07` created `supabase/migrations/20260604120000_add_messenger_provider.sql` (clones P39 `add_whatsapp_provider.sql` verbatim; `ALTER TABLE workspaces ADD COLUMN messenger_provider TEXT NOT NULL DEFAULT 'manychat' CHECK (messenger_provider IN ('manychat','meta_direct'))`; Regla 5 header warning present; NO backfill, NO index, NO `supabase db push`; verified: ADD COLUMN/CHECK/header-warning all match, `grep -c "supabase db push"==0`). **Plan 40-00 NOT complete — Task 2 = `checkpoint:human-action` gate=blocking:** the USER must apply the migration in PROD Supabase SQL Editor + confirm all workspaces read `manychat` BEFORE Plans 04/06/07 (the provider-reading code) deploy. Resume signal: user types "applied". No SUMMARY written. gsd-sdk CLI unavailable — STATE updated manually.
 

@@ -632,7 +632,7 @@ Plans:
 
 Plans:
 - [ ] 40-00-PLAN.md — Wave 1 (checkpoint): messenger_provider migration + apply-in-prod gate (Regla 5)
-- [ ] 40-01-PLAN.md — Wave 1 (tdd): 6 RED test files pinning the full Messenger surface + Regla 6 parity
+- [x] 40-01-PLAN.md — Wave 1 (tdd): 6 RED test files pinning the full Messenger surface + Regla 6 parity ✅ (6 files / 22 tests: 20 RED + 2 manychat-parity GREEN; commits 6936bfbe/1fc2ad71/a3f5f3bc)
 - [ ] 40-02-PLAN.md — Wave 2 (tdd): messenger-api send edge + metaFacebookSender (FB-02)
 - [ ] 40-03-PLAN.md — Wave 2 (tdd): messenger-connect token chain + connectFacebookPage action (SIGNUP-04)
 - [ ] 40-04-PLAN.md — Wave 3 (tdd): provider chokepoint readMessengerProvider in domain/messages.ts (MIG-02)

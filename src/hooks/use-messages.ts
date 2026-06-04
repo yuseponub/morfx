@@ -188,7 +188,7 @@ export function useMessages({
         const contentKey = (m: Message) =>
           m.type === 'text'
             ? `t:${(m.content as TextContent).body}`
-            : `m:${m.media_filename ?? ''}:${(m.content as MediaContent).caption ?? ''}`
+            : `m:${m.type}:${(m.content as MediaContent).caption ?? ''}`
         const covered = new Set(latest.map(contentKey))
         const pendingOptimistic = prev.filter(
           m => m.id.startsWith('optimistic-') && !covered.has(contentKey(m))
@@ -339,10 +339,13 @@ export function useMessages({
                     return msg.type === 'text' &&
                       (msg.content as TextContent).body === (newMessage.content as TextContent).body
                   }
-                  // Media: match by type + filename + caption (media_url differs —
-                  // local blob preview vs the rehosted CDN URL).
+                  // Media: match by type + caption ONLY (media_url differs — local
+                  // blob preview vs the rehosted CDN URL). media_filename is NOT a
+                  // reliable key: the server persists it only for documents, so for
+                  // image/audio/video the real row has media_filename=null while the
+                  // optimistic carries the picker name → the old key never matched and
+                  // the optimistic stuck as a foggy duplicate (40-08 fix, WA + FB).
                   return msg.type === newMessage.type &&
-                    msg.media_filename === newMessage.media_filename &&
                     (msg.content as MediaContent).caption === (newMessage.content as MediaContent).caption
                 })
                 if (optimisticIndex === -1) {

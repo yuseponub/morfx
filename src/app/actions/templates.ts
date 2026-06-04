@@ -17,10 +17,12 @@ import {
   listTemplatesMeta,
   deleteTemplateMeta,
   editTemplateMeta,
-  syncTemplateStatusMeta,
 } from '@/lib/meta/templates'
 import { resolveByWorkspace } from '@/lib/meta/credentials'
-import { createTemplate as createTemplateDomain } from '@/lib/domain/whatsapp-templates'
+import {
+  createTemplate as createTemplateDomain,
+  applyTemplateStatusUpdate,
+} from '@/lib/domain/whatsapp-templates'
 
 // ============================================================================
 // PROVIDER RESOLUTION (WA-08 / MIG-03)
@@ -380,9 +382,6 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
         quality_score: t.quality_score,
         rejected_reason: t.rejected_reason,
       }))
-      // syncTemplateStatusMeta stays available as the per-name poll fallback (Pattern 3);
-      // referencing it keeps the import live for single-row reconciliation callers.
-      void syncTemplateStatusMeta
     } else {
       if (!apiKey) {
         return { error: 'API key de WhatsApp no configurada' }
@@ -527,12 +526,17 @@ export async function editTemplate(params: {
     return { error: message }
   }
 
-  // After a successful edit Meta flips status to PENDING (re-review). Reflect locally.
-  await supabase
-    .from('whatsapp_templates')
-    .update({ status: 'PENDING', updated_at: new Date().toISOString() })
-    .eq('id', params.id)
-    .eq('workspace_id', workspaceId)
+  // After a successful edit Meta flips status to PENDING (re-review). Reflect
+  // locally through the domain chokepoint (WR-01 / Regla 3) — the action layer
+  // never writes whatsapp_templates directly. workspace_id scope is applied
+  // inside applyTemplateStatusUpdate.
+  await applyTemplateStatusUpdate({
+    workspaceId,
+    name: template.name,
+    language: template.language,
+    event: 'PENDING',
+    reason: null,
+  })
 
   revalidatePath('/configuracion/whatsapp/templates')
   return { success: true, data: undefined }
@@ -588,4 +592,20 @@ export async function getTemplateStats(): Promise<{
     pending: pending || 0,
     rejected: rejected || 0,
   }
+}
+
+/**
+ * Resolve the current workspace's WhatsApp provider (IN-03).
+ * The templates list UI uses this to only offer the Edit button on `meta_direct`
+ * workspaces — 360dialog has no edit endpoint (D-05), so Edit would always fail.
+ * Default / null → '360dialog' (Regla 6 default-safe).
+ */
+export async function getWorkspaceWhatsappProvider(): Promise<WhatsappProvider> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return '360dialog'
+  }
+  const supabase = await createClient()
+  const { provider } = await readTemplateProviderConfig(supabase, auth.workspaceId)
+  return provider
 }

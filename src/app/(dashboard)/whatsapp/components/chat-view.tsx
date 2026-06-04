@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useLayoutEffect, useState } from 'react'
+import { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react'
 import { Bot, Loader2 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { createClient } from '@/lib/supabase/client'
@@ -47,7 +47,12 @@ export function ChatView({
 }: ChatViewProps) {
   const v2 = useInboxV2()
   const parentRef = useRef<HTMLDivElement>(null)
-  const scrolledToBottomRef = useRef(true)
+  // Auto-follow state (ver effects más abajo). `stickRef` = ¿seguir mensajes
+  // nuevos? Solo true al estar/volver al fondo absoluto. `lastScrollTopRef` detecta
+  // dirección del scroll. `prevLenRef` distingue un mensaje NUEVO de un re-render.
+  const stickRef = useRef(true)
+  const lastScrollTopRef = useRef(0)
+  const prevLenRef = useRef(0)
 
   const { messages, isLoading, loadMore, hasMore, addOptimisticMessage, scheduleSafetyRefetch } = useMessages({
     workspaceId,
@@ -89,44 +94,57 @@ export function ChatView({
     overscan: 5,
   })
 
-  // Al cambiar de conversación, ancla SIEMPRE al fondo (abrir en el último
-  // mensaje). Reset del flag para que un scroll-arriba previo no se herede a la
-  // conversación nueva. Declarado ANTES del effect de scroll para que el flag
-  // ya esté en true cuando ese corra (los effects se ejecutan en orden).
-  useLayoutEffect(() => {
-    scrolledToBottomRef.current = true
-  }, [conversationId])
-
-  // Mantener el hilo pegado al fondo de forma robusta. Reacciona a:
-  //  - messages.length  → mensaje nuevo / carga inicial
-  //  - conversationId   → cambio de conversación
-  //  - getTotalSize()   → react-virtual mide las alturas reales DESPUÉS del
-  //    primer render (estimateSize:80 es solo una estimación); al medir, el
-  //    total cambia y, sin re-pegar, el hilo "subía un poco" tras cargar.
-  // Usa scrollTop = scrollHeight (fondo ABSOLUTO del contenedor) en vez de
-  // virtualizer.scrollToIndex: así también contabiliza el header "Cargar
-  // anteriores" que vive antes de la lista virtual (scrollToIndex lo ignoraba,
-  // dejando el scroll ~50px corto). useLayoutEffect → se ajusta antes del paint
-  // (sin parpadeo). El guard scrolledToBottomRef respeta al usuario que subió.
-  const totalSize = virtualizer.getTotalSize()
-  useLayoutEffect(() => {
-    const el = parentRef.current
-    if (el && scrolledToBottomRef.current && messages.length > 0) {
+  // ── Auto-follow del fondo (robusto — NO pelea con el scroll del usuario) ──
+  // Pin al fondo + re-pin unos frames para absorber el crecimiento por medición
+  // real del virtualizer (estimateSize:80 → altura real tras el paint). Aborta en
+  // cuanto stickRef pasa a false (el usuario subió).
+  const stickToBottom = useCallback(() => {
+    let ticks = 0
+    const pin = () => {
+      const el = parentRef.current
+      if (!el || !stickRef.current) return
       el.scrollTop = el.scrollHeight
+      if (++ticks < 8) requestAnimationFrame(pin)
     }
-  }, [messages.length, totalSize, conversationId])
+    requestAnimationFrame(pin)
+  }, [])
 
-  // Track scroll position to determine if at bottom
+  // Abrir conversación: ancla al fondo (último mensaje).
+  useLayoutEffect(() => {
+    stickRef.current = true
+    prevLenRef.current = 0
+    lastScrollTopRef.current = Number.MAX_SAFE_INTEGER
+    stickToBottom()
+  }, [conversationId, stickToBottom])
+
+  // Seguir SOLO un mensaje NUEVO (length crece) y solo si seguimos pegados al
+  // fondo. Los updates de estado y los merges del watchdog/softRefetch NO cambian
+  // length → NO mueven el scroll de quien está leyendo hacia arriba. Antes el
+  // effect dependía de getTotalSize() y re-pegaba en cada cambio de tamaño: un
+  // append (mensaje nuevo, ahora frecuente porque el realtime SÍ entrega) dentro
+  // de la franja de 50px te devolvía al fondo apenas intentabas subir.
+  useLayoutEffect(() => {
+    const appended = messages.length > prevLenRef.current
+    prevLenRef.current = messages.length
+    if (appended && stickRef.current) stickToBottom()
+  }, [messages.length, stickToBottom])
+
+  // Posición + dirección. Un scroll-up DELIBERADO despega (deja de auto-seguir);
+  // tocar el fondo absoluto (banda de 8px, NO 50px) vuelve a pegar. Así un
+  // scroll-up pequeño e intencional detiene el follow y los appends ya no te bajan.
   useEffect(() => {
     const container = parentRef.current
     if (!container) return
-
+    lastScrollTopRef.current = container.scrollTop
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container
-      scrolledToBottomRef.current = scrollHeight - scrollTop - clientHeight < 50
+      const distFromBottom = scrollHeight - scrollTop - clientHeight
+      const movedUp = scrollTop < lastScrollTopRef.current - 2
+      lastScrollTopRef.current = scrollTop
+      if (distFromBottom <= 8) stickRef.current = true
+      else if (movedUp) stickRef.current = false
     }
-
-    container.addEventListener('scroll', handleScroll)
+    container.addEventListener('scroll', handleScroll, { passive: true })
     return () => container.removeEventListener('scroll', handleScroll)
   }, [])
 
@@ -350,7 +368,7 @@ export function ChatView({
         addOptimisticMessage={addOptimisticMessage}
         onSend={() => {
           // Scroll to bottom after sending
-          scrolledToBottomRef.current = true
+          stickRef.current = true
           // Safety refetch in case realtime misses the sent message
           scheduleSafetyRefetch()
         }}

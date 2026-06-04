@@ -481,6 +481,132 @@ export async function sendTemplateMessage(
 }
 
 // ============================================================================
+// SEND INTERACTIVE MESSAGE (Phase 999.1 — D-03/D-04)
+// Single domain chokepoint for interactive sends (reply buttons + list).
+// Reads whatsapp_provider ONCE and branches (Regla 3 / Phase 39):
+//   - meta_direct → metaWhatsappSender.sendButtons / .sendList (creds from ctx, T-39-02)
+//   - 360dialog   → send360Buttons byte-identical (Regla 6); list → clear error (legacy)
+// Stores the full interactive structure as JSONB (type='interactive') so the
+// outbound bubble renders rich (D-04). Returns DomainResult<SendMessageResult>.
+// ============================================================================
+export async function sendInteractiveMessage(
+  ctx: DomainContext,
+  params: SendInteractiveMessageParams
+): Promise<DomainResult<SendMessageResult>> {
+  const supabase = createAdminClient()
+
+  try {
+    // Provider decision (Phase 39) — interactive sends are always WhatsApp.
+    const provider = await readWhatsappProvider(supabase, ctx.workspaceId)
+
+    let wamid: string | undefined
+
+    // 1. Send via the resolved provider
+    if (provider === 'meta_direct') {
+      // Meta Cloud API arm. Creds from ctx.workspaceId only (T-39-02).
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'whatsapp')
+      if (!creds?.accessToken || !creds.phoneNumberId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const metaCreds = { accessToken: creds.accessToken, phoneNumberId: creds.phoneNumberId }
+      const resp =
+        params.interactiveType === 'buttons'
+          ? await metaWhatsappSender.sendButtons(
+              metaCreds,
+              params.contactPhone,
+              params.body,
+              params.buttons ?? [],
+              params.header,
+              params.footer
+            )
+          : await metaWhatsappSender.sendList(
+              metaCreds,
+              params.contactPhone,
+              params.body,
+              params.buttonLabel ?? '',
+              params.sections ?? [],
+              params.header,
+              params.footer
+            )
+      wamid = resp.externalMessageId
+    } else {
+      // Direct 360dialog call (existing path, zero change — Regla 6).
+      // List is meta_direct-only: 360dialog has no list function (D-03).
+      if (params.interactiveType === 'list') {
+        return { success: false, error: 'lista no soportada en 360dialog (legacy)' }
+      }
+      const resp = await send360Buttons(
+        params.apiKey,
+        params.contactPhone,
+        params.body,
+        params.buttons ?? [],
+        params.header,
+        params.footer
+      )
+      wamid = resp.messages?.[0]?.id
+    }
+
+    if (!wamid) {
+      return { success: false, error: 'No se recibio ID de mensaje de WhatsApp' }
+    }
+
+    // 2. Store the FULL interactive structure as JSONB (D-04) for the rich outbound bubble.
+    const content = {
+      interactiveType: params.interactiveType,
+      body: params.body,
+      ...(params.header ? { header: params.header } : {}),
+      ...(params.footer ? { footer: params.footer } : {}),
+      ...(params.buttons ? { buttons: params.buttons } : {}),
+      ...(params.buttonLabel ? { buttonLabel: params.buttonLabel } : {}),
+      ...(params.sections ? { sections: params.sections } : {}),
+    }
+
+    const { data: message, error: insertError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: params.conversationId,
+        workspace_id: ctx.workspaceId,
+        wamid,
+        direction: 'outbound',
+        type: 'interactive',
+        content: content as unknown as Record<string, unknown>,
+        status: 'sent',
+        timestamp: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (insertError || !message) {
+      console.error('[domain/messages] sendInteractiveMessage DB insert failed:', insertError)
+      return {
+        success: false,
+        data: { messageId: '', waMessageId: wamid },
+        error: 'Interactivo enviado pero no se pudo guardar en DB',
+      }
+    }
+
+    // 3. Update conversation (reactivate if archived so it appears in inbox)
+    await supabase
+      .from('conversations')
+      .update({
+        status: 'active',
+        last_message_at: new Date().toISOString(),
+        last_message_preview: '[Interactivo]',
+      })
+      .eq('id', params.conversationId)
+
+    return {
+      success: true,
+      data: { messageId: message.id, waMessageId: wamid },
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[domain/messages] sendInteractiveMessage failed:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+// ============================================================================
 // RECEIVE MESSAGE
 // ============================================================================
 

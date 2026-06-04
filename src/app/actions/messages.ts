@@ -12,6 +12,7 @@ import {
   sendInteractiveMessage as domainSendInteractiveMessage,
 } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
+import { resolveMessengerWindowSend } from '@/lib/messenger/window-gate'
 import type {
   Message,
   ActionResult,
@@ -127,10 +128,10 @@ export async function sendMessage(
     }
   }
 
-  // Get workspace settings for API key (channel-aware)
+  // Get workspace settings for API key (channel-aware) + messenger_provider (FB window gate)
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
-    .select('settings')
+    .select('settings, messenger_provider')
     .eq('id', workspaceId)
     .single()
 
@@ -147,6 +148,25 @@ export async function sendMessage(
     }
   }
 
+  // Facebook meta_direct window gate (D-09). ONLY applies to channel=facebook +
+  // messenger_provider=meta_direct; the manychat facebook + instagram + whatsapp paths
+  // stay byte-identical (Regla 6). Inside 24h → RESPONSE (no tag); 24h-7d + Human Agent
+  // feature granted → HUMAN_AGENT tag; else → BLOCK with a clear Spanish message.
+  let fbTag: 'HUMAN_AGENT' | undefined
+  if (channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct') {
+    const hoursSinceCustomerMessage = conversation.last_customer_message_at
+      ? differenceInHours(new Date(), new Date(conversation.last_customer_message_at))
+      : Infinity
+    const decision = resolveMessengerWindowSend({
+      hoursSinceCustomerMessage,
+      featureGranted: process.env.META_HUMAN_AGENT_ENABLED === 'true',
+    })
+    if ('blocked' in decision) {
+      return { error: decision.error }
+    }
+    fbTag = decision.messaging_type === 'MESSAGE_TAG' ? decision.tag : undefined
+  }
+
   // For FB/IG, use external_subscriber_id as the recipient
   const recipientId = (channel !== 'whatsapp' && conversation.external_subscriber_id)
     ? conversation.external_subscriber_id
@@ -160,6 +180,7 @@ export async function sendMessage(
     messageBody: text,
     apiKey,
     channel,
+    tag: fbTag,
   })
 
   if (!result.success) {
@@ -341,10 +362,10 @@ export async function sendMediaMessage(
     mediaType = 'audio'
   }
 
-  // Get workspace settings for API key (channel-aware)
+  // Get workspace settings for API key (channel-aware) + messenger_provider (FB window gate)
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
-    .select('settings')
+    .select('settings, messenger_provider')
     .eq('id', workspaceId)
     .single()
 
@@ -359,6 +380,23 @@ export async function sendMediaMessage(
     if (!apiKey) {
       return { error: 'API key de WhatsApp no configurada' }
     }
+  }
+
+  // Facebook meta_direct window gate (D-09) — mirror of the text path. meta_direct facebook
+  // only; manychat facebook + instagram + whatsapp unchanged (Regla 6).
+  let fbTag: 'HUMAN_AGENT' | undefined
+  if (channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct') {
+    const hoursSinceCustomerMessage = conversation.last_customer_message_at
+      ? differenceInHours(new Date(), new Date(conversation.last_customer_message_at))
+      : Infinity
+    const decision = resolveMessengerWindowSend({
+      hoursSinceCustomerMessage,
+      featureGranted: process.env.META_HUMAN_AGENT_ENABLED === 'true',
+    })
+    if ('blocked' in decision) {
+      return { error: decision.error }
+    }
+    fbTag = decision.messaging_type === 'MESSAGE_TAG' ? decision.tag : undefined
   }
 
   // For FB/IG, use external_subscriber_id as the recipient
@@ -407,6 +445,7 @@ export async function sendMediaMessage(
       filename: mediaType === 'document' ? fileName : undefined,
       apiKey,
       channel,
+      tag: fbTag,
     })
 
     if (!result.success) {

@@ -39,7 +39,6 @@ vi.mock('next/cache', () => ({
 
 // FUTURE FB-Login token chain (Plan 03 creates messenger-connect.ts).
 vi.mock('@/lib/meta/messenger-connect', () => ({
-  exchangeCodeForUserToken: vi.fn(),
   exchangeForLongLivedUserToken: vi.fn(),
   getPageToken: vi.fn(),
   subscribeMessengerPage: vi.fn(),
@@ -87,7 +86,6 @@ vi.mock('@/lib/supabase/server', () => {
 
 import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
-  exchangeCodeForUserToken,
   exchangeForLongLivedUserToken,
   getPageToken,
   subscribeMessengerPage,
@@ -97,7 +95,6 @@ import { upsertMetaAccount } from '@/lib/domain/meta-accounts'
 import { connectFacebookPage } from '@/app/actions/meta-onboarding'
 
 const mockGetRequestAuth = getRequestAuth as ReturnType<typeof vi.fn>
-const mockExchangeCode = exchangeCodeForUserToken as ReturnType<typeof vi.fn>
 const mockExchange = exchangeForLongLivedUserToken as ReturnType<typeof vi.fn>
 const mockGetPageToken = getPageToken as ReturnType<typeof vi.fn>
 const mockSubscribe = subscribeMessengerPage as ReturnType<typeof vi.fn>
@@ -111,7 +108,6 @@ const PAGE_TOKEN = 'PAGE_TOKEN_plaintext'
 beforeEach(() => {
   memberRole = 'owner'
   mockGetRequestAuth.mockResolvedValue({ workspaceId: WS_ID, userId: USER_ID })
-  mockExchangeCode.mockResolvedValue('SHORT_LIVED_USER_TOKEN')
   mockExchange.mockResolvedValue('LONG_LIVED_USER_TOKEN')
   mockGetPageToken.mockResolvedValue({ pageId: PAGE_ID, accessToken: PAGE_TOKEN })
   mockSubscribe.mockResolvedValue({ success: true })
@@ -126,7 +122,7 @@ describe('connectFacebookPage — auth gate (SIGNUP-04 / V4)', () => {
   it('rejects a non-owner with { success:false } (workspaceId session-derived, never from input)', async () => {
     memberRole = 'member'
 
-    const result = await connectFacebookPage({ code: 'oauth_code' })
+    const result = await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
     expect(result).toMatchObject({ success: false })
     // Never reached the token chain / write on a denied connect.
@@ -137,7 +133,7 @@ describe('connectFacebookPage — auth gate (SIGNUP-04 / V4)', () => {
   it('rejects when unauthenticated', async () => {
     mockGetRequestAuth.mockResolvedValueOnce(null)
 
-    const result = await connectFacebookPage({ code: 'oauth_code' })
+    const result = await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
     expect(result).toMatchObject({ success: false })
   })
@@ -145,7 +141,7 @@ describe('connectFacebookPage — auth gate (SIGNUP-04 / V4)', () => {
 
 describe('connectFacebookPage — success path stores Page token + subscribes (SIGNUP-04)', () => {
   it('stores the encrypted Page token via upsertMetaAccount({ channel:"facebook", pageId })', async () => {
-    const result = await connectFacebookPage({ code: 'oauth_code' })
+    const result = await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
     expect(mockUpsert).toHaveBeenCalledTimes(1)
     const upsertArgs = mockUpsert.mock.calls[0][0] as Record<string, unknown>
@@ -159,18 +155,16 @@ describe('connectFacebookPage — success path stores Page token + subscribes (S
     expect(result).toMatchObject({ success: true })
   })
 
-  it('exchanges code → short-lived user token → long-lived (never feeds the raw code to fb_exchange_token — 40-08 bug)', async () => {
-    await connectFacebookPage({ code: 'oauth_code' })
+  it('feeds the FB.login user access token straight into the long-lived exchange (token-flow — 40-08 fix)', async () => {
+    await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
-    // The OAuth code is exchanged for a USER TOKEN first…
-    expect(mockExchangeCode).toHaveBeenCalledWith('oauth_code')
-    // …and the long-lived exchange receives that TOKEN, NOT the raw code.
-    expect(mockExchange).toHaveBeenCalledWith('SHORT_LIVED_USER_TOKEN')
-    expect(mockExchange).not.toHaveBeenCalledWith('oauth_code')
+    // Token-flow: FB.login returns a user token, exchanged long-lived directly
+    // (no code→token step, no redirect_uri — the classic-code exchange broke live).
+    expect(mockExchange).toHaveBeenCalledWith('USER_ACCESS_TOKEN')
   })
 
   it('subscribes the Page to the app with the Page token (per-Page subscribe — Pitfall 4)', async () => {
-    await connectFacebookPage({ code: 'oauth_code' })
+    await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
     expect(mockSubscribe).toHaveBeenCalledTimes(1)
     expect(mockSubscribe).toHaveBeenCalledWith(PAGE_TOKEN, PAGE_ID)
@@ -179,14 +173,14 @@ describe('connectFacebookPage — success path stores Page token + subscribes (S
 
 describe('connectFacebookPage — Regla 6 + Info Disclosure (D-11 / T-40-01-02)', () => {
   it('does NOT flip messenger_provider (no workspaces.update on connect — Regla 6)', async () => {
-    await connectFacebookPage({ code: 'oauth_code' })
+    await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
     // Connecting a Page must NOT change the active provider — manual SQL flip only.
     expect(workspacesUpdate).not.toHaveBeenCalled()
   })
 
   it('NEVER returns the plaintext Page token in the result envelope (T-40-01-02)', async () => {
-    const result = await connectFacebookPage({ code: 'oauth_code' })
+    const result = await connectFacebookPage({ accessToken: 'USER_ACCESS_TOKEN' })
 
     expect(JSON.stringify(result)).not.toContain(PAGE_TOKEN)
   })

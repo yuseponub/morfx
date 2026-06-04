@@ -41,7 +41,6 @@ import {
   registerPhoneNumber,
 } from '@/lib/meta/embedded-signup'
 import {
-  exchangeCodeForUserToken,
   exchangeForLongLivedUserToken,
   getPageToken,
   subscribeMessengerPage,
@@ -165,7 +164,7 @@ export type ConnectFacebookResult =
  * cannot leak which step broke.
  */
 export async function connectFacebookPage(input: {
-  code: string
+  accessToken: string
 }): Promise<ConnectFacebookResult> {
   // === Auth gate (copy of connectWhatsAppNumber) ==========================
   const auth = await getRequestAuth()
@@ -188,19 +187,16 @@ export async function connectFacebookPage(input: {
   }
 
   // === Input validation (V5) ==============================================
-  if (!input.code) {
+  if (!input.accessToken) {
     return { success: false, error: 'Datos de conexión incompletos' }
   }
 
   try {
-    // 1a. OAuth code → short-lived user token. `fb_exchange_token` expects a TOKEN,
-    //     not a code — skipping this step was the live 40-08 bug ("Invalid OAuth
-    //     access token"). The FB.login popup returns a `code` (response_type:'code').
-    const shortLivedUserToken = await exchangeCodeForUserToken(input.code)
-
-    // 1b. short-lived → long-lived user token (Pitfall 3 — Page token must derive
-    //     from the long-lived token, otherwise it dies in ~1h).
-    const longLivedUserToken = await exchangeForLongLivedUserToken(shortLivedUserToken)
+    // 1. short-lived USER ACCESS TOKEN (from FB.login token-flow) → long-lived user
+    //    token (Pitfall 3 — Page token must derive from the long-lived token, else
+    //    it dies in ~1h). Token-flow avoids the classic-code redirect_uri exchange
+    //    that broke the connect in the 40-08 smoke.
+    const longLivedUserToken = await exchangeForLongLivedUserToken(input.accessToken)
 
     // 2. long-lived user token → never-expiring Page Access Token.
     const { pageId, pageName, accessToken: pageToken } = await getPageToken(longLivedUserToken)
@@ -228,11 +224,15 @@ export async function connectFacebookPage(input: {
 
     return { success: true, pageName }
   } catch (e) {
-    // Detail stays server-side only — never log the code or plaintext Page token.
     console.error('[meta-onboarding] connect Facebook page failed:', e)
+    // TEMP (40-08 debug): surface Meta's error detail in the toast so we can
+    // diagnose the live connect without Vercel-log access. The message is Meta's
+    // API error text (no token/secret — those live in the request, not the
+    // response). REVERT to the generic message once the connect is verified.
+    const detail = e instanceof Error ? e.message : String(e)
     return {
       success: false,
-      error: 'No se pudo conectar la página de Facebook. Intenta de nuevo.',
+      error: `No se pudo conectar la página de Facebook. (detalle: ${detail})`,
     }
   }
 }

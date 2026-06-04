@@ -64,13 +64,15 @@ export function ConnectFacebook() {
   const [isPending, startTransition] = useTransition()
   const [sdkReady, setSdkReady] = useState(false)
 
-  // Single-channel capture: only the auth `code` from the FB.login callback.
-  const codeRef = useRef<string | null>(null)
+  // Single-channel capture: the short-lived USER ACCESS TOKEN from FB.login.
+  // (Token-flow, not code-flow: exchangeForLongLivedUserToken expects a token,
+  //  and this avoids the classic-code redirect_uri exchange that broke the connect.)
+  const tokenRef = useRef<string | null>(null)
 
-  // === Fire the action once the code has arrived ===========================
-  const handleConnect = (code: string) => {
+  // === Fire the action once the user token has arrived =====================
+  const handleConnect = (accessToken: string) => {
     startTransition(async () => {
-      const result = await connectFacebookPage({ code })
+      const result = await connectFacebookPage({ accessToken })
       if (result.success) {
         toast.success(`Página de Facebook conectada: ${result.pageName}`)
       } else {
@@ -126,24 +128,23 @@ export function ConnectFacebook() {
     }
 
     // Reset any stale capture before launching a fresh popup.
-    codeRef.current = null
+    tokenRef.current = null
 
     window.FB.login(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (response: any) => {
-        const code = response?.authResponse?.code
-        if (code) {
-          codeRef.current = code
-          handleConnect(code)
+        const accessToken = response?.authResponse?.accessToken
+        if (accessToken) {
+          tokenRef.current = accessToken
+          handleConnect(accessToken)
         }
-        // If no code: the user closed the popup or denied the FB permission.
-        // (A denied IG scope still returns a code — pages_messaging is enough.)
+        // If no token: the user closed the popup or denied the FB permission.
       },
       {
-        // Classic FB Login — scope-based, no Embedded-Signup config.
+        // Classic FB Login — scope-based (no Embedded-Signup config). Default
+        // response_type returns a short-lived user access token in authResponse;
+        // the server action exchanges it long-lived + derives the Page token.
         scope: FB_LOGIN_SCOPE,
-        response_type: 'code',
-        override_default_response_type: true,
       }
     )
   }

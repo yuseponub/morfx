@@ -97,8 +97,11 @@ export async function processMessengerWebhook(
   const isImage = attachment?.type === 'image' && !!attachment.payload?.url
   const messageText = ev.message?.text ?? ''
   const messageType = isImage ? 'image' : 'text'
+  // Image content must match MediaContent (whatsapp/types.ts) so the inbox bubble
+  // renders it: it reads `media_url || content.link` (NOT a nested `image.url`).
+  // 40-08 live: nested `image.url` → bubble showed "Media no disponible".
   const contentJson: Record<string, unknown> = isImage
-    ? { body: messageText, image: { url: attachment!.payload!.url } }
+    ? { link: attachment!.payload!.url, caption: messageText }
     : { body: messageText }
 
   try {

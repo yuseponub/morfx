@@ -150,6 +150,12 @@ export function ConnectFacebook() {
         // response_type returns a short-lived user access token in authResponse;
         // the server action exchanges it long-lived + derives the Page token.
         scope: FB_LOGIN_SCOPE,
+        // auth_type:'reauthorize' FORCES the full consent incl. the Page asset
+        // picker every time (40-08 live bug: a cached authorization showed only
+        // "reconectar" and SKIPPED page selection → the app held the scopes but
+        // had NO Page granted → /me/accounts returned count=0). Re-showing the
+        // picker lets the user actually select the Page to connect.
+        auth_type: 'reauthorize',
       }
     )
   }

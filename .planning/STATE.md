@@ -4,13 +4,13 @@ milestone: v5.0
 milestone_name: Meta Direct Integration
 status: executing
 stopped_at: Phase 999.1 COMPLETE (5/5 — outbound interactive bubble rendered via shared InteractiveBubble)
-last_updated: "2026-06-04T17:31:00.000Z"
+last_updated: "2026-06-04T17:45:00.000Z"
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 77
-  completed_plans: 66
-  percent: 86
+  completed_plans: 67
+  percent: 87
 ---
 
 # Project State
@@ -23,6 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 **Current focus:** Phase 999.1 COMPLETE (5/5) — whatsapp-interactive-message-composer; next Phase 40 (Facebook Messenger Direct)
 
 ## Current Position
+
+Latest activity: 2026-06-04 — **Phase 40 Plan 40-00 (Wave 1 — `messenger_provider` migration, Regla 5 gate) COMPLETE — checkpoint RESOLVED.** Sequential executor on `main` (no worktree); `gsd-sdk` CLI unavailable → plain git + STATE/ROADMAP manual. El checkpoint blocking de Task 2 (apply-in-prod, Regla 5) quedó satisfecho: **el usuario aplicó la migración `73f3ac07` (`supabase/migrations/20260604120000_add_messenger_provider.sql` — `ALTER TABLE workspaces ADD COLUMN messenger_provider TEXT NOT NULL DEFAULT 'manychat' CHECK (messenger_provider IN ('manychat','meta_direct'))`) en PROD el 2026-06-04 y confirmó la verificación** `SELECT messenger_provider, count(*) FROM workspaces GROUP BY messenger_provider` → **manychat:5, meta_direct:0** (todo workspace existente, incl. el protegido `godentist-fb-ig` `f0241182-...`, lee `manychat`; cero backfill — Regla 6). Ningún workspace flipeado a `meta_direct` (eso es el cutover manual de Plan 08). **MIG-02 satisfecho.** Esto desbloquea formalmente Plans 04/06/07 (el código provider-reading). 0 deviations. SUMMARY: `.planning/phases/40-facebook-messenger-direct/40-00-SUMMARY.md`. Next (JOB B en esta misma sesión): `/gsd-execute-phase 40` Wave 4 = 40-05 (inbound `object==='page'` webhook + `processMessengerWebhook`).
 
 Latest activity: 2026-06-04 — **Phase 999.1 (WhatsApp interactive message composer) COMPLETE — Plan 05 (Wave 4 — burbuja outbound rica, D-05c) cierra la fase 5/5** (1 task, 1 atomic commit on `main`, NOT pushed: `1db99362` message-bubble.tsx). Sequential executor on `main` (no worktree); `gsd-sdk` CLI unavailable → plain git + STATE/ROADMAP manual. Ultimo plan de la fase: la burbuja SALIENTE de mensaje interactivo en el inbox deja de mostrar el placeholder `Mensaje interactivo / (Ver en WhatsApp)` y renderiza los botones/lista reales que el operador envio, consumiendo el `content` JSONB que el domain persiste (D-04, Plan 02). **Task 1 `message-bubble.tsx`:** import agregado `import { InteractiveBubble, type InteractiveContent } from './interactive-bubble'`; el `case 'interactive'` reemplaza SOLO su inner JSX (placeholder → `const interactiveContent = content as unknown as InteractiveContent; return <InteractiveBubble content={interactiveContent} />`) espejando el content-narrowing del `case 'template'`. **Single source of truth (D-05c):** se reusa el MISMO componente puro `InteractiveBubble` del Plan 04 que ya alimenta el preview en vivo del composer → preview y mensaje enviado pixel-identicos. **Cambio quirurgico:** el `git diff` confirma que SOLO cambian el nuevo import (L6) + el bloque del `case 'interactive'` (L133-135); el contenedor `max-w-[70%]`, el shell de la burbuja con tokens verdes/ink (L201-220), el timestamp + status-icon row y el error-message block quedan byte-identicos (R6/git-diff gate). **T-999.1-XSS:** cero nueva superficie de render — `InteractiveBubble` ya es plain-text via auto-escaping de React (sin `dangerouslySetInnerHTML`, grep gate == 0 verificado en Plan 04); no se introduce ningun render path nuevo. **Verificacion:** `tsc --noEmit` 0 errores en message-bubble.tsx; acceptance greps pasan (import InteractiveBubble=1, `<InteractiveBubble content=`=1, placeholder `(Ver en WhatsApp)`==0); commit sin eliminaciones (1 file changed, 3+/6-); **Regla 6** suite fase `interactive-limits` 17 + `meta-whatsapp-sender` 3 + `messages-provider` 5 + `messages-interactive-provider` 4 = **29/29 GREEN**. 0 deviations. **Manual phase gate (VALIDATION manual-only) DIFERIDO:** abrir conversacion, enviar botones+lista desde el composer, confirmar que la burbuja saliente renderiza los botones/lista reales (identico al preview). NOT pushed. **gsd-sdk CLI unavailable — STATE/ROADMAP updated manually.** Phase 999.1 cerrada (5/5). Next: push a Vercel cuando el usuario lo decida + prueba manual del operador; o continuar con Phase 40 (Facebook Messenger Direct, en Wave 2/3). SUMMARY: `.planning/phases/999.1-whatsapp-interactive-message-composer/999.1-05-SUMMARY.md`.
 

@@ -631,7 +631,7 @@ Plans:
 **Plans:** 9 plans
 
 Plans:
-- [ ] 40-00-PLAN.md — Wave 1 (checkpoint): messenger_provider migration + apply-in-prod gate (Regla 5)
+- [x] 40-00-PLAN.md — Wave 1 (checkpoint): messenger_provider migration + apply-in-prod gate (Regla 5) ✅ (migration 73f3ac07; Regla 5 RESOLVED — user applied in PROD 2026-06-04, `SELECT messenger_provider, count(*) FROM workspaces GROUP BY` → manychat:5, meta_direct:0; MIG-02; SUMMARY 40-00)
 - [x] 40-01-PLAN.md — Wave 1 (tdd): 6 RED test files pinning the full Messenger surface + Regla 6 parity ✅ (6 files / 22 tests: 20 RED + 2 manychat-parity GREEN; commits 6936bfbe/1fc2ad71/a3f5f3bc)
 - [x] 40-02-PLAN.md — Wave 2 (tdd): messenger-api send edge + metaFacebookSender (FB-02) ✅ (15/15 GREEN: messenger-api 9/9 + meta-facebook-sender 6/6; commits 6fd44075/57701ef0; Regla 6 registry/manychat diff empty)
 - [x] 40-03-PLAN.md — Wave 2 (tdd): messenger-connect token chain + connectFacebookPage action (SIGNUP-04) ✅ (connect-facebook.test.ts GREEN 6/6; commits edb41b0b/0e893bc1/143ab77f; encrypted Page token, no messenger_provider flip — Regla 6)

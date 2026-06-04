@@ -51,12 +51,14 @@ const META_APP_ID = '1457229738955828'
 const META_SDK_VERSION = 'v22.0'
 const FB_SDK_ID = 'facebook-jssdk'
 
-// D-02: `pages_messaging` is the only scope Phase 40 needs to function. The IG
-// messaging scopes are additive forward-compat (Phase 41) — Meta grants only
-// `pages_messaging` when no IG is linked (graceful no-op). A denied IG scope
-// must NEVER block the FB flow (A3 — confirmed non-blocking at plan time).
-const FB_LOGIN_SCOPE =
-  'pages_messaging,instagram_basic,instagram_manage_messages'
+// D-02 (revisado en el smoke 40-08): Phase 40 es SOLO Facebook Messenger.
+// El scope `pages_messaging` es el único que la fase necesita. Los scopes IG
+// (instagram_basic/instagram_manage_messages) se difieren 100% a la Fase 41:
+// la suposición A3 ("forward-compat no-op") resultó FALSA — Meta intercala una
+// pantalla de selección de cuentas IG que DEJA BLOQUEADO el flujo a usuarios sin
+// IG (botón Continuar deshabilitado, sin opción "no conectar IG"). Pedir IG aquí
+// no aporta nada hoy (no existe código que lea/responda IG) y rompe el connect.
+const FB_LOGIN_SCOPE = 'pages_messaging'
 
 export function ConnectFacebook() {
   const [isPending, startTransition] = useTransition()

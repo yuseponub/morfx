@@ -63,7 +63,7 @@ const FB_SDK_ID = 'facebook-jssdk'
 // hoy no aporta nada (no hay código IG) e intercala una pantalla que bloquea a
 // usuarios sin IG (botón Continuar deshabilitado, sin opción "no conectar IG").
 const FB_LOGIN_SCOPE =
-  'pages_show_list,pages_messaging,pages_manage_metadata,business_management'
+  'pages_show_list,pages_messaging,pages_manage_metadata,business_management,pages_read_engagement'
 
 export function ConnectFacebook() {
   const [isPending, startTransition] = useTransition()

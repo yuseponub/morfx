@@ -119,6 +119,12 @@ export async function sendMessengerImage(
  * NEVER throws — degrades gracefully to {} on any failure (Assumption A2:
  * profile may be unavailable / profile_pic absent).
  *
+ * NOTE (40-08 live): the direct user-profile edge `GET /{psid}` returns error
+ * 100/subcode 33 for Page tokens that lack `pages_read_engagement` (even when the
+ * app has it approved — the grant must be in the TOKEN). Prefer
+ * `getMessengerUserName` (the conversations edge) which resolves the display name
+ * with only `pages_messaging`. Kept for completeness / future use.
+ *
  * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
  * @param psid - Page-Scoped ID — a STRING, used verbatim in the path.
  */
@@ -133,5 +139,41 @@ export async function getMessengerUserProfile(
     )
   } catch {
     return {}
+  }
+}
+
+/**
+ * Resolve a Messenger user's DISPLAY NAME via the page conversations edge (40-08 fix).
+ *
+ * The direct user-profile API (`GET /{psid}`) fails with error 100/subcode 33 for
+ * Page tokens without `pages_read_engagement`. But
+ * `GET /{pageId}/conversations?platform=messenger&user_id={psid}&fields=participants`
+ * returns the participant `name` with only `pages_messaging` (verified live —
+ * returned "Jose Romero" for the real test thread). Best-effort: returns null on
+ * any failure or when no participant matches the PSID.
+ *
+ * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
+ * @param pageId - The receiving Page ID.
+ * @param psid - Page-Scoped recipient ID — a STRING, matched against participant.id.
+ */
+export async function getMessengerUserName(
+  accessToken: string,
+  pageId: string,
+  psid: string
+): Promise<string | null> {
+  try {
+    const res = await metaRequest<{
+      data?: Array<{ participants?: { data?: Array<{ id?: string; name?: string }> } }>
+    }>(
+      accessToken,
+      `/${pageId}/conversations?platform=messenger&user_id=${psid}&fields=participants`
+    )
+    for (const conv of res.data ?? []) {
+      const p = conv.participants?.data?.find((x) => x.id === psid)
+      if (p?.name) return p.name
+    }
+    return null
+  } catch {
+    return null
   }
 }

@@ -24,7 +24,7 @@ import {
 } from '@/lib/domain/conversations'
 import { resolveOrCreateContact as domainResolveOrCreateContact } from '@/lib/domain/contacts'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
-import { getMessengerUserProfile } from '@/lib/meta/messenger-api'
+import { getMessengerUserName } from '@/lib/meta/messenger-api'
 import type { DomainContext } from '@/lib/domain/types'
 
 // ============================================================================
@@ -84,9 +84,10 @@ export async function processMessengerWebhook(
   // failure or missing name. getMessengerUserProfile already swallows errors.
   let profileName = `FB-${psid}`
   try {
-    const profile = await getMessengerUserProfile(accessToken ?? '', psid)
-    const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
-    if (name) profileName = name
+    // 40-08: resolve the display name via the conversations edge (the direct
+    // user-profile API fails 100/33 without pages_read_engagement in the token).
+    const name = await getMessengerUserName(accessToken ?? '', pageId, psid)
+    if (name) profileName = name.trim()
   } catch {
     // keep the FB-${psid} fallback
   }

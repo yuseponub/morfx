@@ -366,36 +366,35 @@ export async function sendMediaMessage(
       )
       wamid = response.messages?.[0]?.id
     } else if (channel === 'facebook') {
-      // Facebook media — only images supported for now
-      if (params.mediaType === 'image') {
-        // Messenger provider decision (MIG-02 / D-10) — read messenger_provider ONCE.
-        const mp = await readMessengerProvider(supabase, ctx.workspaceId)
-        if (mp === 'meta_direct') {
-          // Meta Messenger Send API arm. Creds from ctx.workspaceId only (T-40-02).
-          const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
-          if (!creds?.accessToken || !creds.pageId) {
-            return { success: false, error: 'Credenciales Meta no configuradas' }
-          }
-          const resp = await metaFacebookSender.sendImage(
-            { accessToken: creds.accessToken, pageId: creds.pageId },
-            params.contactPhone, // PSID string for facebook
-            params.mediaUrl,
-            params.caption,
-            params.tag
-          )
-          wamid = resp.externalMessageId
-        } else {
-          // manychat — BYTE-IDENTICAL to the existing getChannelSender('facebook') path (Regla 6)
-          const sender = getChannelSender(channel)
-          const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
-          if (!result.success) {
-            return { success: false, error: result.error || 'Error al enviar media por canal' }
-          }
-          wamid = result.externalMessageId
+      // Messenger provider decision (MIG-02 / D-10) — read messenger_provider ONCE.
+      const mp = await readMessengerProvider(supabase, ctx.workspaceId)
+      if (mp === 'meta_direct') {
+        // Meta Messenger Send API arm — supports image/audio/video/document
+        // (40-08 follow-up; was image-only). Creds from ctx.workspaceId only (T-40-02).
+        const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
+        if (!creds?.accessToken || !creds.pageId) {
+          return { success: false, error: 'Credenciales Meta no configuradas' }
         }
+        const resp = await metaFacebookSender.sendMedia(
+          { accessToken: creds.accessToken, pageId: creds.pageId },
+          params.contactPhone, // PSID string for facebook
+          params.mediaType,
+          params.mediaUrl,
+          params.caption,
+          params.tag
+        )
+        wamid = resp.externalMessageId
+      } else if (params.mediaType === 'image') {
+        // manychat — BYTE-IDENTICAL to the existing getChannelSender('facebook') path (Regla 6)
+        const sender = getChannelSender(channel)
+        const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
+        if (!result.success) {
+          return { success: false, error: result.error || 'Error al enviar media por canal' }
+        }
+        wamid = result.externalMessageId
       } else {
-        // Other media types not yet supported on facebook — log and skip
-        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}'`)
+        // manychat facebook — only images supported (unchanged, Regla 6)
+        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}' (manychat)`)
         return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
       }
     } else {

@@ -113,6 +113,46 @@ export async function sendMessengerImage(
 }
 
 /**
+ * Send a non-image Messenger attachment (audio / video / file) via the Graph Send
+ * API (40-08 follow-up). Same envelope as sendMessengerImage but with the caller's
+ * attachment `type` — Meta's Send API accepts `image|audio|video|file`. A caption,
+ * when present, is sent as a SEPARATE follow-up text by the caller (attachments have
+ * no caption field — parity with the image-as-followup path).
+ *
+ * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
+ * @param pageId - The sending Page ID.
+ * @param psid - Page-Scoped recipient ID — a STRING, forwarded verbatim (never Number-coerced).
+ * @param attachmentType - 'audio' | 'video' | 'file' (Meta Send API attachment types).
+ * @param url - Public URL of the media (is_reusable so Meta caches the attachment).
+ * @param tag - Optional HUMAN_AGENT tag for out-of-window sends.
+ */
+export async function sendMessengerAttachment(
+  accessToken: string,
+  pageId: string,
+  psid: string,
+  attachmentType: 'audio' | 'video' | 'file',
+  url: string,
+  tag?: MessengerTag
+) {
+  const body = {
+    messaging_type: tag ? 'MESSAGE_TAG' : 'RESPONSE',
+    ...(tag ? { tag: 'HUMAN_AGENT' } : {}),
+    recipient: { id: psid },
+    message: {
+      attachment: {
+        type: attachmentType,
+        payload: { url, is_reusable: true },
+      },
+    },
+  }
+
+  return metaRequest<MessengerSendResponse>(accessToken, `/${pageId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
  * Best-effort fetch of a Messenger user profile (FB-02 / D-04).
  *
  * GET /{psid}?fields=first_name,last_name,profile_pic with Bearer.

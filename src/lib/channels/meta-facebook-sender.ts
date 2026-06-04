@@ -24,6 +24,7 @@ import type { ChannelSendResult } from './types'
 import {
   sendMessengerText,
   sendMessengerImage,
+  sendMessengerAttachment,
   type MessengerTag,
 } from '@/lib/meta/messenger-api'
 
@@ -69,6 +70,40 @@ export const metaFacebookSender = {
     tag?: MessengerTag
   ): Promise<ChannelSendResult> {
     const response = await sendMessengerImage(creds.accessToken, creds.pageId, psid, imageUrl, tag)
+    if (caption) {
+      await sendMessengerText(creds.accessToken, creds.pageId, psid, caption, tag)
+    }
+    return unwrap(response)
+  },
+
+  /**
+   * Send any media type over Messenger (40-08 follow-up — was image-only). Dispatches
+   * by our Message['type']: image → sendImage (with caption follow-up); audio/video/
+   * document → sendMessengerAttachment (document maps to Meta's `file` attachment type),
+   * then a caption follow-up text when present. The same tag is forwarded to all sends.
+   */
+  async sendMedia(
+    creds: MetaPageCreds,
+    psid: string,
+    mediaType: 'image' | 'video' | 'audio' | 'document',
+    mediaUrl: string,
+    caption?: string,
+    tag?: MessengerTag
+  ): Promise<ChannelSendResult> {
+    if (mediaType === 'image') {
+      return this.sendImage(creds, psid, mediaUrl, caption, tag)
+    }
+    // 'document' → Meta's `file` attachment type; audio/video map 1:1.
+    const attachmentType: 'audio' | 'video' | 'file' =
+      mediaType === 'document' ? 'file' : mediaType
+    const response = await sendMessengerAttachment(
+      creds.accessToken,
+      creds.pageId,
+      psid,
+      attachmentType,
+      mediaUrl,
+      tag
+    )
     if (caption) {
       await sendMessengerText(creds.accessToken, creds.pageId, psid, caption, tag)
     }

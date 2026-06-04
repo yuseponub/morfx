@@ -92,16 +92,26 @@ export async function processMessengerWebhook(
     // keep the FB-${psid} fallback
   }
 
-  // Image attachment (V1: text + image inbound only).
+  // Media attachment — image / audio / video / file (40-08 follow-up: was image-only,
+  // which left audio/video/doc as an EMPTY text bubble). Meta's Messenger attachment
+  // `type` is one of image|audio|video|file; map it to our Message['type'] union.
+  const ATTACHMENT_TYPE_MAP: Record<string, 'image' | 'audio' | 'video' | 'document'> = {
+    image: 'image',
+    audio: 'audio',
+    video: 'video',
+    file: 'document',
+  }
   const attachment = ev.message?.attachments?.[0]
-  const isImage = attachment?.type === 'image' && !!attachment.payload?.url
+  const mediaKind = attachment?.type ? ATTACHMENT_TYPE_MAP[attachment.type] : undefined
+  const mediaUrl = attachment?.payload?.url
+  const isMedia = !!mediaKind && !!mediaUrl
   const messageText = ev.message?.text ?? ''
-  const messageType = isImage ? 'image' : 'text'
-  // Image content must match MediaContent (whatsapp/types.ts) so the inbox bubble
+  const messageType = isMedia ? mediaKind! : 'text'
+  // Media content must match MediaContent (whatsapp/types.ts) so the inbox bubble
   // renders it: it reads `media_url || content.link` (NOT a nested `image.url`).
   // 40-08 live: nested `image.url` → bubble showed "Media no disponible".
-  const contentJson: Record<string, unknown> = isImage
-    ? { link: attachment!.payload!.url, caption: messageText }
+  const contentJson: Record<string, unknown> = isMedia
+    ? { link: mediaUrl, caption: messageText }
     : { body: messageText }
 
   try {

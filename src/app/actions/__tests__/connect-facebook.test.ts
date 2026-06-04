@@ -39,6 +39,7 @@ vi.mock('next/cache', () => ({
 
 // FUTURE FB-Login token chain (Plan 03 creates messenger-connect.ts).
 vi.mock('@/lib/meta/messenger-connect', () => ({
+  exchangeCodeForUserToken: vi.fn(),
   exchangeForLongLivedUserToken: vi.fn(),
   getPageToken: vi.fn(),
   subscribeMessengerPage: vi.fn(),
@@ -86,6 +87,7 @@ vi.mock('@/lib/supabase/server', () => {
 
 import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
+  exchangeCodeForUserToken,
   exchangeForLongLivedUserToken,
   getPageToken,
   subscribeMessengerPage,
@@ -95,6 +97,7 @@ import { upsertMetaAccount } from '@/lib/domain/meta-accounts'
 import { connectFacebookPage } from '@/app/actions/meta-onboarding'
 
 const mockGetRequestAuth = getRequestAuth as ReturnType<typeof vi.fn>
+const mockExchangeCode = exchangeCodeForUserToken as ReturnType<typeof vi.fn>
 const mockExchange = exchangeForLongLivedUserToken as ReturnType<typeof vi.fn>
 const mockGetPageToken = getPageToken as ReturnType<typeof vi.fn>
 const mockSubscribe = subscribeMessengerPage as ReturnType<typeof vi.fn>
@@ -108,6 +111,7 @@ const PAGE_TOKEN = 'PAGE_TOKEN_plaintext'
 beforeEach(() => {
   memberRole = 'owner'
   mockGetRequestAuth.mockResolvedValue({ workspaceId: WS_ID, userId: USER_ID })
+  mockExchangeCode.mockResolvedValue('SHORT_LIVED_USER_TOKEN')
   mockExchange.mockResolvedValue('LONG_LIVED_USER_TOKEN')
   mockGetPageToken.mockResolvedValue({ pageId: PAGE_ID, accessToken: PAGE_TOKEN })
   mockSubscribe.mockResolvedValue({ success: true })
@@ -153,6 +157,16 @@ describe('connectFacebookPage — success path stores Page token + subscribes (S
     // Token persisted ENCRYPTED, never the plaintext.
     expect(upsertArgs.accessTokenEncrypted).toBe(`enc(${PAGE_TOKEN})`)
     expect(result).toMatchObject({ success: true })
+  })
+
+  it('exchanges code → short-lived user token → long-lived (never feeds the raw code to fb_exchange_token — 40-08 bug)', async () => {
+    await connectFacebookPage({ code: 'oauth_code' })
+
+    // The OAuth code is exchanged for a USER TOKEN first…
+    expect(mockExchangeCode).toHaveBeenCalledWith('oauth_code')
+    // …and the long-lived exchange receives that TOKEN, NOT the raw code.
+    expect(mockExchange).toHaveBeenCalledWith('SHORT_LIVED_USER_TOKEN')
+    expect(mockExchange).not.toHaveBeenCalledWith('oauth_code')
   })
 
   it('subscribes the Page to the app with the Page token (per-Page subscribe — Pitfall 4)', async () => {

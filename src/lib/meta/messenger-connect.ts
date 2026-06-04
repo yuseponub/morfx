@@ -44,6 +44,41 @@ interface MeAccountsResponse {
 }
 
 /**
+ * Exchange the single-use OAuth `code` from the FB-Login popup (response_type:'code')
+ * for a SHORT-LIVED user access token. This is the step the classic FB-Login chain
+ * needs BEFORE the long-lived exchange: `fb_exchange_token` expects a *token*, not a
+ * code, so feeding the code straight into exchangeForLongLivedUserToken fails with an
+ * "Invalid OAuth access token" error (live bug found in the 40-08 smoke).
+ *
+ * Structural mirror of embedded-signup.ts `exchangeCodeForBisuat` (the proven WhatsApp
+ * code exchange): GET /oauth/access_token?client_id&client_secret&code, NO redirect_uri
+ * (the FB JS SDK popup uses an implicit empty redirect_uri), and NO Bearer header
+ * (dedicated unauthenticated OAuth exchange — never carries META_APP_SECRET in a header).
+ *
+ * @param code - single-use authorization code from the FB.login popup (~10 min TTL)
+ * @returns the short-lived user access token (~1-2h)
+ * @throws if the response is not ok or carries no access_token (detail includes Meta's
+ *   error JSON — surfaced to the server log by the action's catch for fast diagnosis)
+ */
+export async function exchangeCodeForUserToken(code: string): Promise<string> {
+  const url =
+    `${META_BASE_URL}/oauth/access_token` +
+    `?client_id=${process.env.META_APP_ID}` +
+    `&client_secret=${process.env.META_APP_SECRET}` +
+    `&code=${encodeURIComponent(code)}`
+
+  // No auth header — dedicated unauthenticated OAuth exchange (mirror embedded-signup).
+  const res = await fetch(url)
+  const data = await res.json()
+
+  if (!res.ok || !data.access_token) {
+    throw new Error(`code→user-token exchange failed: ${JSON.stringify(data)}`)
+  }
+
+  return data.access_token as string // short-lived user token (~1-2h)
+}
+
+/**
  * Exchange a short-lived user token (or OAuth `code`-derived short token) for a
  * LONG-LIVED user token (~60d). The Page token derived from THIS long-lived token
  * never expires (Pitfall 3 — a Page token derived from a short-lived user token

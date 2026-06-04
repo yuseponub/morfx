@@ -41,6 +41,7 @@ import {
   registerPhoneNumber,
 } from '@/lib/meta/embedded-signup'
 import {
+  exchangeCodeForUserToken,
   exchangeForLongLivedUserToken,
   getPageToken,
   subscribeMessengerPage,
@@ -192,9 +193,14 @@ export async function connectFacebookPage(input: {
   }
 
   try {
-    // 1. short-lived/code → long-lived user token (Pitfall 3 — Page token must
-    //    derive from the long-lived token, otherwise it dies in ~1h).
-    const longLivedUserToken = await exchangeForLongLivedUserToken(input.code)
+    // 1a. OAuth code → short-lived user token. `fb_exchange_token` expects a TOKEN,
+    //     not a code — skipping this step was the live 40-08 bug ("Invalid OAuth
+    //     access token"). The FB.login popup returns a `code` (response_type:'code').
+    const shortLivedUserToken = await exchangeCodeForUserToken(input.code)
+
+    // 1b. short-lived → long-lived user token (Pitfall 3 — Page token must derive
+    //     from the long-lived token, otherwise it dies in ~1h).
+    const longLivedUserToken = await exchangeForLongLivedUserToken(shortLivedUserToken)
 
     // 2. long-lived user token → never-expiring Page Access Token.
     const { pageId, pageName, accessToken: pageToken } = await getPageToken(longLivedUserToken)

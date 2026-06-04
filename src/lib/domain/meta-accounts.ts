@@ -28,12 +28,13 @@ import type { MetaChannel } from '@/lib/meta/types'
 
 export interface UpsertMetaAccountParams {
   workspaceId: string
-  channel: MetaChannel // 'whatsapp' for this phase
+  channel: MetaChannel // 'whatsapp' | 'facebook' | 'instagram'
   wabaId: string | null
   phoneNumberId: string | null
   accessTokenEncrypted: string // already encrypted by caller via encryptToken
   phoneNumber?: string | null
   businessId?: string | null
+  pageId?: string | null // Facebook Page id (channel:'facebook' — Phase 40)
   isActive?: boolean // default true
 }
 
@@ -95,6 +96,7 @@ export async function upsertMetaAccount(
           access_token_encrypted: params.accessTokenEncrypted,
           phone_number: params.phoneNumber ?? null,
           business_id: params.businessId ?? null,
+          page_id: params.pageId ?? null,
           is_active: isActive,
           // updated_at handled by the set_updated_at trigger — do NOT hand-set.
         })
@@ -117,6 +119,7 @@ export async function upsertMetaAccount(
         access_token_encrypted: params.accessTokenEncrypted,
         phone_number: params.phoneNumber ?? null,
         business_id: params.businessId ?? null,
+        page_id: params.pageId ?? null,
         is_active: isActive,
         // provider left to the DB default 'meta_direct'.
       })
@@ -136,7 +139,8 @@ export async function upsertMetaAccount(
 /**
  * Map raw Supabase write errors to caller-friendly Spanish strings.
  * A UNIQUE(phone_number_id) conflict means another workspace already owns that
- * number (one number = one WABA — Pitfall 10).
+ * number (one number = one WABA — Pitfall 10). A UNIQUE(page_id) conflict means
+ * another workspace already connected that Facebook Page (Phase 40).
  */
 function mapWriteError(message: string): string {
   const lower = message.toLowerCase()
@@ -145,6 +149,12 @@ function mapWriteError(message: string): string {
     (lower.includes('duplicate') && lower.includes('phone_number_id'))
   ) {
     return 'Este número ya está conectado en otro espacio de trabajo. Un número solo puede pertenecer a una cuenta.'
+  }
+  if (
+    lower.includes('uq_meta_page') ||
+    (lower.includes('duplicate') && lower.includes('page_id'))
+  ) {
+    return 'Esta página ya está conectada en otro espacio de trabajo. Una página solo puede pertenecer a una cuenta.'
   }
   return message
 }

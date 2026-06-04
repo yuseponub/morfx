@@ -53,9 +53,16 @@ function getBodyText(components: TemplateComponent[]): string {
 
 interface TemplateListProps {
   templates: Template[]
+  /**
+   * Workspace WhatsApp provider (IN-03). Edit is only offered on `meta_direct`;
+   * 360dialog has no edit endpoint (D-05) so the Edit button is suppressed and the
+   * Duplicate button shown instead, regardless of status.
+   */
+  provider?: 'meta_direct' | '360dialog'
 }
 
-export function TemplateList({ templates }: TemplateListProps) {
+export function TemplateList({ templates, provider = '360dialog' }: TemplateListProps) {
+  const canEdit = provider === 'meta_direct'
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editTarget, setEditTarget] = useState<Template | null>(null)
   const [editBody, setEditBody] = useState('')
@@ -147,8 +154,9 @@ export function TemplateList({ templates }: TemplateListProps) {
                     <ChevronDown className="h-4 w-4" />
                   )}
                 </Button>
-                {EDITABLE_STATUSES.has(template.status) ? (
-                  // D-05: edit is allowed only for APPROVED / REJECTED / PAUSED.
+                {canEdit && EDITABLE_STATUSES.has(template.status) ? (
+                  // D-05: edit is allowed only for APPROVED / REJECTED / PAUSED,
+                  // and only on meta_direct (IN-03 — 360dialog has no edit endpoint).
                   <Button
                     variant="ghost"
                     size="icon"

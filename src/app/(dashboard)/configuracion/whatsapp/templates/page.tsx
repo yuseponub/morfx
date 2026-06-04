@@ -1,6 +1,10 @@
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
-import { getTemplates, syncTemplateStatuses } from '@/app/actions/templates'
+import {
+  getTemplates,
+  syncTemplateStatuses,
+  getWorkspaceWhatsappProvider,
+} from '@/app/actions/templates'
 import { TemplateList } from './components/template-list'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Plus } from 'lucide-react'
@@ -20,6 +24,7 @@ export default async function TemplatesPage() {
   }
 
   const templates = await getTemplates()
+  const provider = await getWorkspaceWhatsappProvider()
 
   return (
     <div className="flex-1 overflow-auto">
@@ -48,7 +53,7 @@ export default async function TemplatesPage() {
           </div>
         </div>
 
-        <TemplateList templates={templates} />
+        <TemplateList templates={templates} provider={provider} />
       </div>
     </div>
   )

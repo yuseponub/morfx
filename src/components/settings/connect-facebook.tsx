@@ -51,14 +51,19 @@ const META_APP_ID = '1457229738955828'
 const META_SDK_VERSION = 'v22.0'
 const FB_SDK_ID = 'facebook-jssdk'
 
-// D-02 (revisado en el smoke 40-08): Phase 40 es SOLO Facebook Messenger.
-// El scope `pages_messaging` es el único que la fase necesita. Los scopes IG
-// (instagram_basic/instagram_manage_messages) se difieren 100% a la Fase 41:
-// la suposición A3 ("forward-compat no-op") resultó FALSA — Meta intercala una
-// pantalla de selección de cuentas IG que DEJA BLOQUEADO el flujo a usuarios sin
-// IG (botón Continuar deshabilitado, sin opción "no conectar IG"). Pedir IG aquí
-// no aporta nada hoy (no existe código que lea/responda IG) y rompe el connect.
-const FB_LOGIN_SCOPE = 'pages_messaging'
+// Phase 40 — SOLO Facebook Messenger. Los 3 scopes que el flujo de connect
+// REALMENTE necesita (descubierto en el smoke 40-08):
+//   - pages_show_list     → GET /me/accounts debe LISTAR las páginas y entregar
+//                           su Page Access Token. Sin esto /me/accounts vuelve
+//                           VACÍO ("me/accounts returned no Page with an access_token").
+//   - pages_messaging     → enviar/recibir mensajes de Messenger.
+//   - pages_manage_metadata → POST /{pageId}/subscribed_apps (suscribir la página
+//                           al webhook). Sin esto el paso 5 (subscribe) falla.
+// Los scopes IG (instagram_*) se difieren 100% a la Fase 41 (D-02 revisado): pedirlos
+// hoy no aporta nada (no hay código IG) e intercala una pantalla que bloquea a
+// usuarios sin IG (botón Continuar deshabilitado, sin opción "no conectar IG").
+const FB_LOGIN_SCOPE =
+  'pages_show_list,pages_messaging,pages_manage_metadata'
 
 export function ConnectFacebook() {
   const [isPending, startTransition] = useTransition()

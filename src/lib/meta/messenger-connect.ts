@@ -121,20 +121,69 @@ export async function exchangeForLongLivedUserToken(shortLivedToken: string): Pr
  * @returns { pageId, pageName, accessToken } for the connected Page
  * @throws if no Page is available on the account
  */
+/**
+ * Walk the user's Business Portfolios to find a Page + its Page token. Business-
+ * owned/client pages do NOT appear in /me/accounts (Facebook Login for Business) —
+ * they are reached via /me/businesses → owned_pages|client_pages. Requires the
+ * `business_management` scope. Best-effort: returns null if nothing resolves.
+ */
+async function findPageViaBusinesses(
+  longLivedUserToken: string,
+  businessesProbed: string[]
+): Promise<MeAccountsPage | null> {
+  const biz = await metaRequest<{ data?: { id: string; name?: string }[] }>(
+    longLivedUserToken,
+    `/me/businesses?fields=id,name`
+  )
+  for (const b of biz.data ?? []) {
+    businessesProbed.push(b.id)
+    for (const edge of ['owned_pages', 'client_pages'] as const) {
+      const res = await metaRequest<MeAccountsResponse>(
+        longLivedUserToken,
+        `/${b.id}/${edge}?fields=id,name,access_token`
+      )
+      for (const cand of res.data ?? []) {
+        if (cand.access_token) return cand
+        // Page listed without a token on the edge — fetch the Page node directly.
+        if (cand.id) {
+          const withTok = await metaRequest<MeAccountsPage>(
+            longLivedUserToken,
+            `/${cand.id}?fields=id,name,access_token`
+          )
+          if (withTok.access_token) return withTok
+        }
+      }
+    }
+  }
+  return null
+}
+
 export async function getPageToken(
   longLivedUserToken: string
 ): Promise<{ pageId: string; pageName: string; accessToken: string }> {
+  // 1. Classic page roles — /me/accounts returns pages with their Page token.
   const res = await metaRequest<MeAccountsResponse>(
     longLivedUserToken,
     `/me/accounts?fields=id,name,access_token`
   )
+  let page: MeAccountsPage | null = res.data?.find((p) => p.access_token) ?? null
 
-  const page = res.data?.[0]
+  // 2. Business Portfolio fallback (Facebook Login for Business): business-owned
+  //    pages do NOT appear in /me/accounts. Walk /me/businesses → pages.
+  const businessesProbed: string[] = []
+  if (!page) {
+    try {
+      page = await findPageViaBusinesses(longLivedUserToken, businessesProbed)
+    } catch {
+      /* best-effort business probe */
+    }
+  }
+
   if (!page || !page.access_token) {
     // DIAGNOSTIC (40-08 live debug): surface WHAT /me/accounts returned (redacted —
-    // never the token, only a has_token boolean) + which scopes Meta actually
-    // granted. This distinguishes: page-not-selected vs scope-not-granted vs
-    // business-portfolio page (returned by /me/accounts only with extra grants).
+    // never the token, only a has_token boolean), the businesses walked, and which
+    // scopes Meta actually granted. Distinguishes page-not-selected vs scope-not-
+    // granted vs business-portfolio page with no token access.
     const pagesSummary = (res.data ?? []).map((p) => ({
       id: p.id,
       name: p.name,
@@ -153,8 +202,9 @@ export async function getPageToken(
       /* permissions probe is best-effort */
     }
     throw new Error(
-      `me/accounts sin Página usable — count=${res.data?.length ?? 0} ` +
-        `pages=${JSON.stringify(pagesSummary)} granted=[${grantedScopes}]`
+      `sin Página usable — me_accounts_count=${res.data?.length ?? 0} ` +
+        `pages=${JSON.stringify(pagesSummary)} ` +
+        `businesses=[${businessesProbed.join(',')}] granted=[${grantedScopes}]`
     )
   }
 

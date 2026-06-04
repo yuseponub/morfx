@@ -273,8 +273,69 @@ WHERE tgrelid = 'public.messages'::regclass
 
 ---
 
-## Como retomar tras /clear
+## ⚡ NUEVA EVIDENCIA 2026-06-03 (post-deploy del fix capas 1-3) — el fix NO resolvió el 25s
 
-- **slug:** `realtime-inbox-badge`
-- **Comando:** `/gsd-debug continue realtime-inbox-badge`
-- **Primera accion:** correr la VERIFICATION SQL (V1-V4) en prod para confirmar publicacion + RLS + replica identity + trigger; luego confirmar version de `@supabase/*` en `package.json`. Recien entonces planificar el fix por capas (Capa 1 setAuth singleton → Capa 2 hook reconnect → Capa 3 watchdog), via `/gsd-plan-phase` (Regla 0: NO codigo sin plan aprobado). Capa 4 (doble UPDATE) es deuda separada/opcional.
+Usuario reportó: tras deploy + hard refresh + **incógnito**, un mensaje tardó **25s** en mostrarse. Investigación instrumentada desde backend (scripts read-only `scripts/_diag-realtime-*.ts`, NO commiteados):
+
+| Medición | Método | Resultado | Veredicto |
+|---|---|---|---|
+| Backend insert (WhatsApp→DB) | `_diag-realtime-latency.ts` (service-role) | p90 **3.1s**, 0/30 ≥10s | ✅ sano |
+| Delivery infra (RLS bypass) | `_diag-realtime-delivery.ts` (service-role sub) | p50 **0.6s** | ✅ sano |
+| Delivery autenticado (JWT real, sin filtro) | `_diag-realtime-authed.ts` (mint sesión via admin generateLink+verifyOtp) | p50 **0.6s**, capturó msgs del cel del usuario a 3 ws | ✅ sano |
+| **Delivery canal EXACTO del navegador** (4 bindings + `filter:workspace_id=eq` + RLS) | `_diag-realtime-bisect.ts` canal C | **12 eventos, <1s** | ✅ **la suscripción NO es el bug** |
+| **Navegador real headless** (deploy `morfx-sandy.vercel.app`, sesión inyectada via cookies ssr `base64-`+chunks, `morfx_workspace`=Somnio) | `_diag-browser-repro.ts` (Playwright) | canal `SUBSCRIBED` 18:24:30 → mensaje a DB 18:26:03 (93s idle) → **navegador NO recibió el evento**. Además `React error #418` (hydration mismatch) | 🔴 **socket SUBSCRIBED-pero-mudo tras idle** |
+
+### Causa raíz REAL (revisada)
+**El socket realtime del navegador se queda MUDO tras ~30-90s de inactividad** (sigue `SUBSCRIBED`, deja de entregar). NO es backend, NI infra, NI RLS, NI el patrón de suscripción (filtro/multi-binding) — todo eso entrega <1s probado en Node con el JWT real (canal C). Es muerte silenciosa del socket por **idle/heartbeat**, la versión rápida del hueco 2d.
+
+### Por qué el fix desplegado (capas 1-3) NO basta
+- Capa 1 `setAuth`: arregla expiración de JWT (~1h), NO el idle de 30-90s.
+- Capa 2/3 `useRealtimeReconnect` (visibilitychange/online/watchdog 45s): **enmascara** con `fetchConversations`/`softRefetch` — pone al día la UI pero **no revive ni mantiene vivo el socket**. El usuario sigue viendo el refetch (10-45s), no realtime. Además el watchdog está gated en `!document.hidden`.
+
+### Direcciones de fix candidatas (para el próximo standalone/plan)
+1. **Keepalive real del socket:** ping/heartbeat activo o forzar `supabase.realtime` reconnect cuando lleva > N s sin actividad — REVIVIR el socket, no solo refetch.
+2. **Recovery más agresivo:** bajar watchdog de 45s y/o detectar staleness por "tiempo sin evento" y re-suscribir el canal (`removeChannel`+re-subscribe) en vez de refetch.
+3. **Investigar `React #418`** (hydration mismatch) en `/whatsapp` — puede ser ruido del headless o un bug real que degrada el cliente. Confirmar en navegador real.
+4. **Confirmar que el deploy del fix está LIVE** (build de Vercel) — parte del 25s podría ser que el usuario probó sobre bundle viejo cacheado.
+
+### ✅ CAUSA RAIZ CONFIRMADA 2026-06-03 (no era idle — es token-en-socket)
+Protocolo controlado (usuario envió p1..p6 a Somnio, `_diag-protocol.ts`): el servidor emitió los 8 mensajes (ground truth) pero el **navegador headless recibió 0 eventos `[realtime:inbox]`**, incluidos p1/p2/p3 con socket fresco+caliente. → **NO es muerte por idle: realtime está muerto en el navegador, constante.**
+
+A/B confirmatorio (`_diag-token-order.ts`):
+- **FASE A (suscribir canal con token ANONIMO, sin setAuth): recibidos 0 / emitidos 2.** ✔ CONFIRMA el mecanismo: suscribir sin JWT → RLS descarta TODO en silencio → `SUBSCRIBED`-pero-mudo.
+- Fase B/C sin tráfico (0/0) → inconclusas; Fase C re-suscribe dio `TIMED_OUT` (re-suscribir on-the-fly es frágil).
+
+**CAUSA RAIZ:** los canales realtime del navegador (`use-conversations` inbox + `use-messages`) se **suscriben antes de que el JWT del usuario esté aplicado al socket de realtime** (queda con el token anónimo de @supabase/ssr). RLS evalúa el token → con anónimo `is_workspace_member(auth.uid())` = false → server dropea todos los `postgres_changes` en silencio. Es el hueco **2a pero al INICIO de cada sesión, no tras 1h**. Continuo → coincide con "seguido". Constante adicional: `React #418` hydration mismatch en `/whatsapp` (cada carga).
+
+**Por qué el fix desplegado (capas 1-3) NO sirve:** `RealtimeAuthProvider` llama `setAuth` DESPUÉS de que los canales ya se suscribieron, y `setAuth` no revive confiablemente un canal ya suscrito (Fase B/C). Mal sincronizado. El singleton + setAuth no introdujeron el bug (es pre-existente a @supabase/ssr+RLS) pero no lo arreglan.
+
+### FIX correcto (para el próximo plan)
+Garantizar que el **JWT esté en el socket ANTES de suscribir cualquier canal**. Opciones (research-phase elige):
+1. **Opción `accessToken`** del cliente supabase-js v2.95 (`createBrowserClient(url, key, { accessToken: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null })`) → realtime SIEMPRE usa el token actual. Verificar compat con @supabase/ssr.
+2. Gatear `.subscribe()` de los hooks detrás de "auth-ready" + `await realtime.setAuth()` antes de suscribir.
+3. Re-suscribir canales tras `setAuth` (frágil — Fase C TIMED_OUT; evitar como primario).
++ Investigar/arreglar `React #418` en `/whatsapp` (probable mismatch de timestamp/locale SSR vs cliente en la lista).
+
+**Verificación OBLIGATORIA antes de re-desplegar:** usar el harness headless (`scripts/_diag-protocol.ts` / `_diag-browser-repro2.ts`) contra `pnpm dev` LOCAL → confirmar que el navegador recibe `[realtime:inbox]` <1s ANTES de pushear. No volver a desplegar a ciegas.
+
+---
+
+## RESEARCH DECISION 2026-06-03 (research-phase completo)
+`RESEARCH.md` en `.planning/standalone/realtime-inbox-badge/` (HIGH confidence, leyó el source instalado de supabase):
+- ❌ **Opción `accessToken` DESCARTADA** — `@supabase/supabase-js@2.95.3` reemplaza `supabase.auth` por un Proxy que LANZA excepción; `@supabase/ssr` fuerza auth nativo por cookies. Tumbaría los 4 forms de auth + el `getUser()` de use-conversations. Es third-party-auth-only.
+- ✅ **FIX ELEGIDO = Opción 2 (ordering):** `realtime-js@2.95.2` (`RealtimeClient.js:551-566` `_onConnOpen`) YA espera `setAuth()` antes de flushear los joins. El bug es puro race: el `.subscribe()` del hook corre antes de que el token esté en el socket. Fix: prime `realtime.setAuth()` (NO-ARG, preserva auto-refresh) al crear el singleton + exponer `whenRealtimeAuthReady()`; en cada hook `await getSession()` + `setAuth(token)` ANTES de `.subscribe()`. Sin deps, sin migración.
+- ✅ **`RealtimeAuthProvider` + `useRealtimeReconnect` se QUEDAN** (refresh 1h + recuperación red; nunca fueron el bug). Anti-regresión D-10/D-14 intactas.
+- 🔍 **`React #418` INDEPENDIENTE** del realtime — NO es la lista (`RelativeTime` ya es hydration-safe). Candidato: `format(...,'HH:mm')` TZ-sensible en `message-bubble.tsx:168`. Reproducir local + leer stack.
+- ✅ **Verificación:** adaptar `scripts/_diag-browser-repro2.ts` a `localhost:3020` (`secure:false`) vs `pnpm dev`. **PASS = navegador loggea `[realtime:inbox] conversation` <2s tras ground-truth en carga fresca** (estado roto actual: GT>0, browser=0).
+- ⚠️ Pitfall: `setAuth` con token EXPLÍCITO pasa el cliente a modo manual y suprime auto-refresh → en `client.ts` usar NO-ARG; explícito solo defensivo en el hook.
+
+## ▶ Como retomar tras /clear — PRÓXIMO PASO
+
+- **slug:** `realtime-inbox-badge` (standalone en `.planning/standalone/realtime-inbox-badge/`, NO roadmap)
+- **Estado:** diagnose-complete + root-cause CONFIRMADO + CONTEXT.md + RESEARCH.md listos. Falta PLAN + EXECUTE del fix.
+- **Comando de retoma:** `/gsd-plan-phase realtime-inbox-badge`
+  - Es standalone (no roadmap) → si el init no lo encuentra, tratarlo como standalone: leer `CONTEXT.md` + `RESEARCH.md` del dir y spawnear gsd-planner directo (mismo patrón que se usó para crear los planes capas 1-3).
+  - El plan DEBE incluir: (1) fix Opción 2 en `client.ts` + `use-conversations.ts` + `use-messages.ts`, (2) fix `React #418`, (3) **gate de verificación headless LOCAL obligatorio** (`scripts/_diag-browser-repro2.ts` vs `pnpm dev`, PASS = browser recibe `[realtime:inbox]` <2s) ANTES de pushear — exigencia explícita del usuario: NO más deploys a ciegas.
+- **Para ver el diagnóstico:** `/gsd-debug continue realtime-inbox-badge` (este archivo).
+- **Harness de verificación (en disco, sobreviven /clear):** `scripts/_diag-protocol.ts`, `scripts/_diag-browser-repro2.ts`, `scripts/_diag-token-order.ts` (+ `_diag-realtime-{latency,delivery,authed,bisect}.ts`). Inyectan sesión via admin generateLink+verifyOtp + cookies @supabase/ssr.
+- **Capas 1-3 desplegadas en main** (commits `8ad59d9e`, `77eab8ae`/`b7daf662`, `0c4e9379`/`e3dde79b`/`2cd9417d`) — NO sirven solas pero se quedan (research dice keep). El fix Opción 2 las complementa.

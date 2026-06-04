@@ -21,6 +21,7 @@ import {
   sendTextMessage as send360Text,
   sendMediaMessage as send360Media,
   sendTemplateMessage as send360Template,
+  sendButtonMessage as send360Buttons,
 } from '@/lib/whatsapp/api'
 import { getChannelSender } from '@/lib/channels/registry'
 import type { ChannelType } from '@/lib/channels/types'
@@ -100,6 +101,24 @@ export interface SendTemplateMessageParams {
   renderedText?: string
   /** The workspace's 360dialog API key — caller must resolve this */
   apiKey: string
+}
+
+export interface SendInteractiveMessageParams {
+  conversationId: string
+  contactPhone: string
+  /** 360dialog key — caller resolves; meta arm ignores it (resolves Meta creds from ctx) */
+  apiKey: string
+  /** D-04 union discriminant: buttons (meta + 360dialog) | list (meta_direct-only) */
+  interactiveType: 'buttons' | 'list'
+  body: string
+  header?: string
+  footer?: string
+  /** interactiveType === 'buttons' */
+  buttons?: Array<{ id: string; title: string }>
+  /** interactiveType === 'list' — menu button label */
+  buttonLabel?: string
+  /** interactiveType === 'list' */
+  sections?: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }>
 }
 
 export interface ReceiveMessageParams {

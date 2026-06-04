@@ -14,9 +14,10 @@ import { SyncStatus } from './components/sync-status'
 import { SmsTab } from './components/sms-tab'
 import { BoldForm } from './components/bold-form'
 import { ConnectWhatsApp } from '@/components/settings/connect-whatsapp'
+import { ConnectFacebook } from '@/components/settings/connect-facebook'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShoppingBag, Settings2, MessageSquare, CreditCard, MessageCircle } from 'lucide-react'
+import { ShoppingBag, Settings2, MessageSquare, CreditCard, MessageCircle, Facebook } from 'lucide-react'
 
 export default async function IntegracionesPage() {
   // Verify user is authenticated
@@ -81,6 +82,10 @@ export default async function IntegracionesPage() {
           <TabsTrigger value="whatsapp" className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4" />
             WhatsApp (Meta directo)
+          </TabsTrigger>
+          <TabsTrigger value="facebook" className="flex items-center gap-2">
+            <Facebook className="h-4 w-4" />
+            Facebook Messenger
           </TabsTrigger>
         </TabsList>
 
@@ -186,6 +191,32 @@ export default async function IntegracionesPage() {
                 </CardHeader>
                 <CardContent>
                   <ConnectWhatsApp />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Facebook Messenger Tab — classic FB Login Page connect (Phase 40) */}
+        <TabsContent value="facebook" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Facebook className="h-5 w-5" />
+                    Facebook Messenger
+                  </CardTitle>
+                  <CardDescription>
+                    Conecta una página de Facebook para atender los mensajes de
+                    Messenger directamente con Meta. Autoriza tu página y el
+                    permiso de mensajería en la ventana de Meta; al finalizar, la
+                    página queda registrada de forma segura. Conectar una página
+                    no cambia el proveedor de envío actual de tu workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ConnectFacebook />
                 </CardContent>
               </Card>
             </div>

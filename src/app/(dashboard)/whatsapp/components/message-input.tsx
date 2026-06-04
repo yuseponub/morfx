@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { EmojiPicker } from './emoji-picker'
 import { QuickReplyAutocomplete } from './quick-reply-autocomplete'
 import { TemplateButton } from './template-button'
+import { InteractiveComposerButton } from './interactive-composer-button'
 import { useInboxV2 } from './inbox-v2-context'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
 import type { QuickReply, Message } from '@/lib/whatsapp/types'
@@ -435,6 +436,14 @@ export function MessageInput({
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+
+          {/* Interactive message composer button — open-window only (D-02 gate) */}
+          <InteractiveComposerButton
+            conversationId={conversationId}
+            contactPhone={contact?.phone ?? ''}
+            onSend={onSend}
+            disabled={isLoading}
+          />
 
           {/* Emoji picker button */}
           <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>

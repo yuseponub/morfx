@@ -150,13 +150,56 @@ export function useMessages({
     setHasMore(messages.length >= limit)
   }, [conversationId, isLoading, messages.length, limit])
 
-  // Soft reconcile: re-fetch the latest page and reconcile via the cache without
-  // clearing it (no spinner). Used by the safety timer + channel error/reconnect.
-  // Implemented as a single reconciling invalidate (Pitfall 7 permitted case).
-  const softRefetch = useCallback(() => {
-    if (!conversationIdRef.current) return
-    queryClient.invalidateQueries({ queryKey: queryKeyRef.current })
-  }, [queryClient])
+  // Soft reconcile: re-fetch the latest page and MERGE it into the cache without
+  // clearing it (no spinner). Used by the safety timer + channel error/reconnect +
+  // the visibilitychange/online/watchdog re-sync (useRealtimeReconnect below).
+  //
+  // MERGE, not invalidate→replace (scroll-jump regression fix, 2026-06-04): a plain
+  // invalidateQueries re-runs queryFn(limit) and REPLACES the cache with just the
+  // latest `limit` rows. When the user had scrolled up and paginated older history
+  // via loadMore (list grown past `limit`), that replace shrank the list back to
+  // `limit`, the message they were reading vanished from the DOM, and the browser
+  // clamped scrollTop to the bottom — yanking a scrolled-up reader down (every 45s
+  // watchdog tick, on tab return, etc.). Merging the latest page by id preserves the
+  // loaded-older history (so the list never shrinks → scroll stays put) while still
+  // reconciling any missed deltas + status updates (latest wins). Realtime INSERT/
+  // UPDATE deltas still flow via setQueryData on the channel (unchanged).
+  const softRefetch = useCallback(async () => {
+    const convId = conversationIdRef.current
+    if (!convId) return
+    try {
+      const latest = await getConversationMessages(convId, limit)
+      queryClient.setQueryData<Message[]>(queryKeyRef.current, (prev = []) => {
+        if (prev.length === 0) return latest
+        // Dedupe by id (latest wins so status changes apply); skip optimistic here.
+        const byId = new Map<string, Message>()
+        for (const m of prev) {
+          if (m.id.startsWith('optimistic-')) continue
+          byId.set(m.id, m)
+        }
+        for (const m of latest) byId.set(m.id, m)
+        const merged = Array.from(byId.values()).sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
+        // Re-attach optimistic (sending) messages the latest page does not yet cover,
+        // so a just-sent bubble never blinks out during a reconcile. An optimistic is
+        // "covered" once its real row appears in `latest` (matched by content, same as
+        // the INSERT reconciler) — then we drop it to avoid a duplicate.
+        const contentKey = (m: Message) =>
+          m.type === 'text'
+            ? `t:${(m.content as TextContent).body}`
+            : `m:${m.media_filename ?? ''}:${(m.content as MediaContent).caption ?? ''}`
+        const covered = new Set(latest.map(contentKey))
+        const pendingOptimistic = prev.filter(
+          m => m.id.startsWith('optimistic-') && !covered.has(contentKey(m))
+        )
+        return pendingOptimistic.length ? [...merged, ...pendingOptimistic] : merged
+      })
+    } catch {
+      // Fallback: if the latest-page fetch fails, fall back to a reconciling invalidate.
+      queryClient.invalidateQueries({ queryKey: queryKeyRef.current })
+    }
+  }, [queryClient, limit])
 
   // Capa 2 + Capa 3 — re-sync the open chat (React Query cache) on the browser
   // events that fire when the socket dies silently (visibilitychange/online) +

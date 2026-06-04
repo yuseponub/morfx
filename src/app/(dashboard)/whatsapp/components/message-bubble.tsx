@@ -1,8 +1,6 @@
 'use client'
 
 import { Bot, Check, CheckCheck, Clock } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { MediaPreview } from './media-preview'
 import { useInboxV2 } from './inbox-v2-context'
@@ -165,7 +163,14 @@ function MessageContent({
  */
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const v2 = useInboxV2()
-  const timestamp = format(new Date(message.timestamp), 'HH:mm', { locale: es })
+  // Deterministic America/Bogota HH:mm — identical string on server (UTC host)
+  // and client (Bogota), avoiding React #418 hydration text mismatch (Regla 2).
+  const timestamp = new Date(message.timestamp).toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
   const isAgentMessage = isOwn && message.sent_by_agent
 
   return (

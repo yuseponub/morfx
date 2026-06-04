@@ -1,0 +1,137 @@
+// ============================================================================
+// Meta Messenger Send API (Graph v22.0)
+// Send edge for the Facebook Messenger Direct channel (FB-02).
+//
+// Mirrors the WhatsApp send helpers in src/lib/meta/api.ts but adapted for the
+// Messenger Send API:
+//   - endpoint: POST /{pageId}/messages (Bearer = Page Access Token)
+//   - recipient identity: PSID (Page-Scoped ID) — a STRING, NEVER Number-coerced
+//     (a PSID can exceed Number.MAX_SAFE_INTEGER — Pitfall 5).
+//   - response shape: { message_id, recipient_id } (NOT { messages: [{ id }] }).
+//   - in-window sends use messaging_type 'RESPONSE'; out-of-window sends use
+//     messaging_type 'MESSAGE_TAG' with the ONLY emittable tag 'HUMAN_AGENT'.
+//     The message tags removed by Meta on 2026-04-27 (→ error 100) are NEVER
+//     referenced — HUMAN_AGENT is the single tag this module can emit.
+//
+// The access token is passed only to metaRequest as the Bearer arg — never logged
+// (T-40-IL / T-40-02-01).
+// ============================================================================
+
+import { metaRequest } from './api'
+
+/** The only Messenger message tag MorfX ever emits (T-40-02-03). */
+export type MessengerTag = 'HUMAN_AGENT'
+
+interface MessengerSendResponse {
+  message_id: string
+  recipient_id: string
+}
+
+/**
+ * User profile fields fetched best-effort via the Graph user-profile edge (D-04).
+ * `profile_pic` may be absent (Assumption A2) — every field is optional.
+ */
+export interface MessengerUserProfile {
+  first_name?: string
+  last_name?: string
+  profile_pic?: string
+}
+
+/**
+ * Send a Messenger text message via the Graph Send API (FB-02).
+ *
+ * Inside the 24h window → messaging_type 'RESPONSE' (no tag).
+ * Outside the window → pass tag 'HUMAN_AGENT' → messaging_type 'MESSAGE_TAG'.
+ *
+ * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
+ * @param pageId - The sending Page ID.
+ * @param psid - Page-Scoped recipient ID — a STRING, forwarded verbatim (never Number-coerced).
+ * @param text - Message body.
+ * @param tag - Optional HUMAN_AGENT tag for out-of-window sends.
+ */
+export async function sendMessengerText(
+  accessToken: string,
+  pageId: string,
+  psid: string,
+  text: string,
+  tag?: MessengerTag
+) {
+  const body = tag
+    ? {
+        messaging_type: 'MESSAGE_TAG',
+        tag: 'HUMAN_AGENT',
+        recipient: { id: psid },
+        message: { text },
+      }
+    : {
+        messaging_type: 'RESPONSE',
+        recipient: { id: psid },
+        message: { text },
+      }
+
+  return metaRequest<MessengerSendResponse>(accessToken, `/${pageId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
+ * Send a Messenger image attachment via the Graph Send API (FB-02).
+ *
+ * The image payload has NO caption field — a caption is sent as a SEPARATE
+ * follow-up text by the caller (image-as-followup parity with manychatFacebookSender).
+ *
+ * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
+ * @param pageId - The sending Page ID.
+ * @param psid - Page-Scoped recipient ID — a STRING, forwarded verbatim (never Number-coerced).
+ * @param imageUrl - Public URL of the image (is_reusable so Meta caches the attachment).
+ * @param tag - Optional HUMAN_AGENT tag for out-of-window sends.
+ */
+export async function sendMessengerImage(
+  accessToken: string,
+  pageId: string,
+  psid: string,
+  imageUrl: string,
+  tag?: MessengerTag
+) {
+  const body = {
+    messaging_type: tag ? 'MESSAGE_TAG' : 'RESPONSE',
+    ...(tag ? { tag: 'HUMAN_AGENT' } : {}),
+    recipient: { id: psid },
+    message: {
+      attachment: {
+        type: 'image',
+        payload: { url: imageUrl, is_reusable: true },
+      },
+    },
+  }
+
+  return metaRequest<MessengerSendResponse>(accessToken, `/${pageId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
+ * Best-effort fetch of a Messenger user profile (FB-02 / D-04).
+ *
+ * GET /{psid}?fields=first_name,last_name,profile_pic with Bearer.
+ * NEVER throws — degrades gracefully to {} on any failure (Assumption A2:
+ * profile may be unavailable / profile_pic absent).
+ *
+ * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
+ * @param psid - Page-Scoped ID — a STRING, used verbatim in the path.
+ */
+export async function getMessengerUserProfile(
+  accessToken: string,
+  psid: string
+): Promise<MessengerUserProfile> {
+  try {
+    return await metaRequest<MessengerUserProfile>(
+      accessToken,
+      `/${psid}?fields=first_name,last_name,profile_pic`
+    )
+  } catch {
+    return {}
+  }
+}

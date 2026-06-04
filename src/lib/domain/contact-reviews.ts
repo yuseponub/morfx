@@ -386,14 +386,18 @@ export async function sendPendingTemplate(
 ): Promise<void> {
   const supabase = createAdminClient()
 
-  // 1. Get workspace API key
+  // 1. Get workspace API key + provider
   const { data: workspace } = await supabase
     .from('workspaces')
-    .select('whatsapp_api_key')
+    .select('whatsapp_api_key, whatsapp_provider')
     .eq('id', workspaceId)
     .single()
 
-  if (!workspace?.whatsapp_api_key) {
+  // CR-02: provider-aware guard. meta_direct workspaces have NO legacy 360dialog
+  // key — credentials are resolved inside sendTemplateMessage from ctx.workspaceId.
+  // Only require a non-null apiKey for the 360dialog path (Regla 6 unchanged).
+  const isMeta = workspace?.whatsapp_provider === 'meta_direct'
+  if (!isMeta && !workspace?.whatsapp_api_key) {
     throw new Error('Workspace has no WhatsApp API key')
   }
 
@@ -452,7 +456,9 @@ export async function sendPendingTemplate(
     templateName: template.templateName,
     templateLanguage: template.language,
     components: components.length > 0 ? components : undefined,
-    apiKey: workspace.whatsapp_api_key,
+    // meta_direct ignores apiKey (resolves Meta creds via ctx.workspaceId); pass
+    // empty string when no legacy 360dialog key exists.
+    apiKey: workspace?.whatsapp_api_key ?? '',
   })
   if (!sendResult.success) {
     throw new Error(sendResult.error || 'WhatsApp pending template send failed')

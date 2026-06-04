@@ -131,7 +131,31 @@ export async function getPageToken(
 
   const page = res.data?.[0]
   if (!page || !page.access_token) {
-    throw new Error('me/accounts returned no Page with an access_token')
+    // DIAGNOSTIC (40-08 live debug): surface WHAT /me/accounts returned (redacted —
+    // never the token, only a has_token boolean) + which scopes Meta actually
+    // granted. This distinguishes: page-not-selected vs scope-not-granted vs
+    // business-portfolio page (returned by /me/accounts only with extra grants).
+    const pagesSummary = (res.data ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      has_token: !!p.access_token,
+    }))
+    let grantedScopes = 'unknown'
+    try {
+      const perms = await metaRequest<{
+        data?: { permission: string; status: string }[]
+      }>(longLivedUserToken, `/me/permissions`)
+      grantedScopes = (perms.data ?? [])
+        .filter((p) => p.status === 'granted')
+        .map((p) => p.permission)
+        .join(',')
+    } catch {
+      /* permissions probe is best-effort */
+    }
+    throw new Error(
+      `me/accounts sin Página usable — count=${res.data?.length ?? 0} ` +
+        `pages=${JSON.stringify(pagesSummary)} granted=[${grantedScopes}]`
+    )
   }
 
   return {

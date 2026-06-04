@@ -106,7 +106,7 @@ const mockResolveByWorkspace = resolveByWorkspace as ReturnType<typeof vi.fn>
 const mockMetaSendText = metaWhatsappSender.sendText as ReturnType<typeof vi.fn>
 
 const WS_ID = 'a3843b3f-c337-4836-92b5-89c58bb98490'
-const ctx = { workspaceId: WS_ID } as { workspaceId: string }
+const ctx = { workspaceId: WS_ID, source: 'webhook' } as const
 
 const baseParams = {
   conversationId: 'conv_1',

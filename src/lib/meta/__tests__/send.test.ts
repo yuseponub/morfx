@@ -20,8 +20,7 @@ import { META_BASE_URL } from '@/lib/meta/constants'
 import {
   sendWhatsAppText,
   sendWhatsAppTemplate,
-  // RED: markWhatsAppRead is added to meta/api.ts in a later wave (WA-07, §8).
-  // @ts-expect-error — not yet exported; import pins the contract for Plan 02/03.
+  // WA-07 (§8): markWhatsAppRead shipped in Plan 02, now exported from meta/api.ts.
   markWhatsAppRead,
 } from '@/lib/meta/api'
 

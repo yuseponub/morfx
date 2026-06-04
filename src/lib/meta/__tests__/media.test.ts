@@ -22,8 +22,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { META_BASE_URL } from '@/lib/meta/constants'
 import {
-  // RED: sendWhatsAppMedia is added to meta/api.ts in Plan 02 (WA-02, §2).
-  // @ts-expect-error — not yet exported.
+  // WA-02 (§2): sendWhatsAppMedia shipped in Plan 02, now exported from meta/api.ts.
   sendWhatsAppMedia,
 } from '@/lib/meta/api'
 

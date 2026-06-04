@@ -136,15 +136,23 @@ export async function sendMessage(
     .single()
 
   let apiKey: string | undefined
-  if (channel === 'facebook' || channel === 'instagram') {
-    apiKey = workspaceSettings?.settings?.manychat_api_key
-    if (!apiKey) {
-      return { error: 'API key de ManyChat no configurada' }
-    }
-  } else {
-    apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-    if (!apiKey) {
-      return { error: 'API key de WhatsApp no configurada' }
+  // meta_direct facebook sends use the Page token (resolved in the domain via
+  // resolveByWorkspace) — NOT the ManyChat API key. Regla 6: the manychat facebook +
+  // instagram + whatsapp paths still require their key (byte-identical). Only the
+  // meta_direct facebook arm skips it (apiKey stays undefined; the domain ignores it).
+  const isMetaDirectFacebook =
+    channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct'
+  if (!isMetaDirectFacebook) {
+    if (channel === 'facebook' || channel === 'instagram') {
+      apiKey = workspaceSettings?.settings?.manychat_api_key
+      if (!apiKey) {
+        return { error: 'API key de ManyChat no configurada' }
+      }
+    } else {
+      apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+      if (!apiKey) {
+        return { error: 'API key de WhatsApp no configurada' }
+      }
     }
   }
 
@@ -178,7 +186,7 @@ export async function sendMessage(
     conversationId,
     contactPhone: recipientId,
     messageBody: text,
-    apiKey,
+    apiKey: apiKey ?? '', // meta_direct facebook ignores this (uses the Page token)
     channel,
     tag: fbTag,
   })
@@ -370,15 +378,23 @@ export async function sendMediaMessage(
     .single()
 
   let apiKey: string | undefined
-  if (channel === 'facebook' || channel === 'instagram') {
-    apiKey = workspaceSettings?.settings?.manychat_api_key
-    if (!apiKey) {
-      return { error: 'API key de ManyChat no configurada' }
-    }
-  } else {
-    apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
-    if (!apiKey) {
-      return { error: 'API key de WhatsApp no configurada' }
+  // meta_direct facebook sends use the Page token (resolved in the domain via
+  // resolveByWorkspace) — NOT the ManyChat API key. Regla 6: the manychat facebook +
+  // instagram + whatsapp paths still require their key (byte-identical). Only the
+  // meta_direct facebook arm skips it (apiKey stays undefined; the domain ignores it).
+  const isMetaDirectFacebook =
+    channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct'
+  if (!isMetaDirectFacebook) {
+    if (channel === 'facebook' || channel === 'instagram') {
+      apiKey = workspaceSettings?.settings?.manychat_api_key
+      if (!apiKey) {
+        return { error: 'API key de ManyChat no configurada' }
+      }
+    } else {
+      apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+      if (!apiKey) {
+        return { error: 'API key de WhatsApp no configurada' }
+      }
     }
   }
 
@@ -443,7 +459,7 @@ export async function sendMediaMessage(
       mediaType,
       caption,
       filename: mediaType === 'document' ? fileName : undefined,
-      apiKey,
+      apiKey: apiKey ?? '', // meta_direct facebook ignores this (uses the Page token)
       channel,
       tag: fbTag,
     })

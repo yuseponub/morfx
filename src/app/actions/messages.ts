@@ -9,6 +9,7 @@ import {
   sendTextMessage as domainSendTextMessage,
   sendMediaMessage as domainSendMediaMessage,
   sendTemplateMessage as domainSendTemplateMessage,
+  sendInteractiveMessage as domainSendInteractiveMessage,
 } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
 import type {
@@ -163,6 +164,110 @@ export async function sendMessage(
 
   if (!result.success) {
     return { error: result.error || 'Error al enviar mensaje' }
+  }
+
+  // Unarchive conversation if needed (adapter concern)
+  if (conversation.status === 'archived') {
+    await supabase
+      .from('conversations')
+      .update({ status: 'active' })
+      .eq('id', conversationId)
+  }
+
+  revalidatePath('/whatsapp')
+  return { success: true, data: { messageId: result.data!.messageId } }
+}
+
+/**
+ * Send an interactive message (reply buttons / list) within the 24h window.
+ *
+ * Mirrors `sendMessage` EXACTLY: auth → load conversation (workspace-scoped) →
+ * 24h-window re-check → resolve apiKey → build DomainContext → delegate to domain →
+ * revalidatePath. Adapter-layer concerns (auth, window gating defense-in-depth,
+ * cred resolution, revalidation) live here, NOT in the domain.
+ *
+ * REGLA 3: this action NEVER reads or branches on the WhatsApp provider — the domain
+ * (`sendInteractiveMessage`) owns the single provider-decision chokepoint. The window
+ * check is re-applied server-side even though the composer UI gates it (D-02), because
+ * interactive is a session message and Meta rejects it outside the 24h window.
+ *
+ * Interactive is WhatsApp-only in this phase; FB/IG (ManyChat) is out of scope.
+ */
+export async function sendInteractiveMessage(
+  conversationId: string,
+  payload: {
+    interactiveType: 'buttons' | 'list'
+    body: string
+    header?: string
+    footer?: string
+    buttons?: { id: string; title: string }[]
+    buttonLabel?: string
+    sections?: { title: string; rows: { id: string; title: string; description?: string }[] }[]
+  }
+): Promise<ActionResult<{ messageId: string }>> {
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { error: 'No autenticado' }
+  }
+  const workspaceId = auth.workspaceId
+  const supabase = await createClient()
+
+  // Load conversation scoped by workspace_id (Regla 3 / V4 access control)
+  const { data: conversation, error: convError } = await supabase
+    .from('conversations')
+    .select('id, phone, last_customer_message_at, status, channel')
+    .eq('id', conversationId)
+    .eq('workspace_id', workspaceId)
+    .single()
+
+  if (convError || !conversation) {
+    return { error: 'Conversacion no encontrada' }
+  }
+
+  // Channel guard: interactive is WhatsApp-only (FB/IG out of scope this phase)
+  if (conversation.channel !== 'whatsapp') {
+    return { error: 'Interactivos solo disponibles en WhatsApp' }
+  }
+
+  // 24h window re-check (defense-in-depth behind the UI gate — D-02).
+  // Interactive is a session message → the window MUST be open.
+  if (!conversation.last_customer_message_at) {
+    return { error: 'Ventana de 24h cerrada. Usa un template.' }
+  }
+
+  const hoursSinceCustomerMessage = differenceInHours(
+    new Date(),
+    new Date(conversation.last_customer_message_at)
+  )
+
+  if (hoursSinceCustomerMessage >= 24) {
+    return { error: 'Ventana de 24h cerrada. Usa un template.' }
+  }
+
+  // Resolve apiKey (360dialog arm only; the meta_direct arm ignores it and the domain
+  // resolves Meta creds itself via resolveByWorkspace — the action never reads the provider).
+  const { data: workspaceSettings } = await supabase
+    .from('workspaces')
+    .select('settings')
+    .eq('id', workspaceId)
+    .single()
+
+  const apiKey = workspaceSettings?.settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+  if (!apiKey) {
+    return { error: 'API key de WhatsApp no configurada' }
+  }
+
+  // Delegate to domain (the single provider-decision chokepoint — Regla 3)
+  const ctx: DomainContext = { workspaceId, source: 'server-action' }
+  const result = await domainSendInteractiveMessage(ctx, {
+    conversationId,
+    contactPhone: conversation.phone,
+    apiKey,
+    ...payload,
+  })
+
+  if (!result.success) {
+    return { error: result.error || 'Error al enviar mensaje interactivo' }
   }
 
   // Unarchive conversation if needed (adapter concern)

@@ -35,6 +35,12 @@ import {
 // `360dialog` arm stays byte-identical (Regla 6).
 import { resolveByWorkspace } from '@/lib/meta/credentials'
 import { metaWhatsappSender } from '@/lib/channels/meta-whatsapp-sender'
+// Phase 40 (MIG-02 / D-10 — Facebook Messenger Direct): the SINGLE messenger
+// provider-decision site. `meta_direct` workspaces route the facebook arm through
+// metaFacebookSender using creds resolved from ctx.workspaceId (T-40-02 — NEVER from
+// input/params). The `manychat` arm stays byte-identical (Regla 6 — protects the
+// godentist-fb-ig production agent + every ManyChat workspace).
+import { metaFacebookSender } from '@/lib/channels/meta-facebook-sender'
 import type { DomainContext, DomainResult } from './types'
 
 // ============================================================================
@@ -55,6 +61,25 @@ async function readWhatsappProvider(
 }
 
 // ============================================================================
+// Messenger provider decision helper (Phase 40 — MIG-02 / D-10)
+// Reads workspaces.messenger_provider for ctx.workspaceId. Used by the facebook
+// arm of sendTextMessage/sendMediaMessage. Default/null/unknown → 'manychat'
+// (the byte-identical ManyChat path — Regla 6). Single read per facebook send
+// (Regla 3 chokepoint — never per-call-site).
+// ============================================================================
+async function readMessengerProvider(
+  supabase: ReturnType<typeof createAdminClient>,
+  workspaceId: string
+): Promise<'manychat' | 'meta_direct'> {
+  const { data: ws } = await supabase
+    .from('workspaces')
+    .select('messenger_provider')
+    .eq('id', workspaceId)
+    .single()
+  return ws?.messenger_provider === 'meta_direct' ? 'meta_direct' : 'manychat'
+}
+
+// ============================================================================
 // Param Types
 // ============================================================================
 
@@ -66,6 +91,11 @@ export interface SendTextMessageParams {
   apiKey: string
   /** Channel type — defaults to 'whatsapp' for backward compatibility */
   channel?: ChannelType
+  /**
+   * Optional Messenger message tag for out-of-window meta_direct facebook sends.
+   * undefined = standard RESPONSE (24h window). The Plan 06 window gate supplies it.
+   */
+  tag?: 'HUMAN_AGENT'
 }
 
 export interface SendMediaMessageParams {
@@ -79,6 +109,11 @@ export interface SendMediaMessageParams {
   apiKey: string
   /** Channel type — defaults to 'whatsapp' for backward compatibility */
   channel?: ChannelType
+  /**
+   * Optional Messenger message tag for out-of-window meta_direct facebook sends.
+   * undefined = standard RESPONSE (24h window). The Plan 06 window gate supplies it.
+   */
+  tag?: 'HUMAN_AGENT'
 }
 
 export interface SendTemplateMessageParams {
@@ -192,8 +227,35 @@ export async function sendTextMessage(
       // Direct 360dialog call (existing path, zero change — Regla 6)
       const response = await send360Text(params.apiKey, params.contactPhone, params.messageBody)
       wamid = response.messages?.[0]?.id
+    } else if (channel === 'facebook') {
+      // Facebook messenger provider decision (MIG-02 / D-10) — read messenger_provider
+      // ONCE for this workspace (Regla 3 chokepoint).
+      const mp = await readMessengerProvider(supabase, ctx.workspaceId)
+      if (mp === 'meta_direct') {
+        // Meta Messenger Send API arm. Creds resolve from ctx.workspaceId via
+        // resolveByWorkspace('facebook') — NEVER from params/input (T-40-02).
+        const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
+        if (!creds?.accessToken || !creds.pageId) {
+          return { success: false, error: 'Credenciales Meta no configuradas' }
+        }
+        const resp = await metaFacebookSender.sendText(
+          { accessToken: creds.accessToken, pageId: creds.pageId },
+          params.contactPhone, // PSID string for facebook (external_subscriber_id)
+          params.messageBody,
+          params.tag
+        )
+        wamid = resp.externalMessageId
+      } else {
+        // manychat — BYTE-IDENTICAL to the existing getChannelSender('facebook') path (Regla 6)
+        const sender = getChannelSender(channel)
+        const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
+        if (!result.success) {
+          return { success: false, error: result.error || 'Error al enviar por canal' }
+        }
+        wamid = result.externalMessageId
+      }
     } else {
-      // Facebook/Instagram via ManyChat (or future channels)
+      // Instagram (or future channels) via ManyChat — untouched (Regla 6)
       const sender = getChannelSender(channel)
       const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
       if (!result.success) {
@@ -303,8 +365,41 @@ export async function sendMediaMessage(
         params.filename
       )
       wamid = response.messages?.[0]?.id
+    } else if (channel === 'facebook') {
+      // Facebook media — only images supported for now
+      if (params.mediaType === 'image') {
+        // Messenger provider decision (MIG-02 / D-10) — read messenger_provider ONCE.
+        const mp = await readMessengerProvider(supabase, ctx.workspaceId)
+        if (mp === 'meta_direct') {
+          // Meta Messenger Send API arm. Creds from ctx.workspaceId only (T-40-02).
+          const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
+          if (!creds?.accessToken || !creds.pageId) {
+            return { success: false, error: 'Credenciales Meta no configuradas' }
+          }
+          const resp = await metaFacebookSender.sendImage(
+            { accessToken: creds.accessToken, pageId: creds.pageId },
+            params.contactPhone, // PSID string for facebook
+            params.mediaUrl,
+            params.caption,
+            params.tag
+          )
+          wamid = resp.externalMessageId
+        } else {
+          // manychat — BYTE-IDENTICAL to the existing getChannelSender('facebook') path (Regla 6)
+          const sender = getChannelSender(channel)
+          const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
+          if (!result.success) {
+            return { success: false, error: result.error || 'Error al enviar media por canal' }
+          }
+          wamid = result.externalMessageId
+        }
+      } else {
+        // Other media types not yet supported on facebook — log and skip
+        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}'`)
+        return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
+      }
     } else {
-      // Facebook/Instagram via ManyChat — only images supported for now
+      // Instagram (or future channels) via ManyChat — untouched (Regla 6) — only images supported
       if (params.mediaType === 'image') {
         const sender = getChannelSender(channel)
         const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)

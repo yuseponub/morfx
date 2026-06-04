@@ -233,9 +233,24 @@ export function useMessages({
     const supabase = createClient()
     let previousStatus = ''
     const channelKey = messagesKey(workspaceId, conversationId)
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
-    // Subscribe to messages for this conversation
-    const channel = supabase
+    ;(async () => {
+      // Token-before-subscribe (CONFIRMED primary fix) — same as use-conversations.ts.
+      // Guarantee the USER JWT is on the shared socket before the first phx_join,
+      // else RLS drops every message event while the channel reports SUBSCRIBED.
+      // Explicit setAuth(token) is the defensive form for a hydrating cookie
+      // session (Pitfall 1); the singleton's no-arg prime + RealtimeAuthProvider
+      // keep auto-refresh intact (Pitfall 4). NEVER log the token.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token)
+      }
+      if (cancelled) return
+
+      // Subscribe to messages for this conversation
+      channel = supabase
       .channel(`messages:${conversationId}`)
       .on(
         'postgres_changes',
@@ -311,10 +326,12 @@ export function useMessages({
         }
         previousStatus = status
       })
+    })()
 
     // Cleanup on unmount
     return () => {
-      supabase.removeChannel(channel)
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
     }
   }, [conversationId, workspaceId, softRefetch, queryClient])
 

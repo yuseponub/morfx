@@ -224,15 +224,12 @@ export async function connectFacebookPage(input: {
 
     return { success: true, pageName }
   } catch (e) {
+    // Detail stays server-side only (never the code or plaintext Page token).
+    // The full Meta error is in the server log (console.error) for diagnosis.
     console.error('[meta-onboarding] connect Facebook page failed:', e)
-    // TEMP (40-08 debug): surface Meta's error detail in the toast so we can
-    // diagnose the live connect without Vercel-log access. The message is Meta's
-    // API error text (no token/secret — those live in the request, not the
-    // response). REVERT to the generic message once the connect is verified.
-    const detail = e instanceof Error ? e.message : String(e)
     return {
       success: false,
-      error: `No se pudo conectar la página de Facebook. (detalle: ${detail})`,
+      error: 'No se pudo conectar la página de Facebook. Intenta de nuevo.',
     }
   }
 }

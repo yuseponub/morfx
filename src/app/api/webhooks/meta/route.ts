@@ -12,8 +12,9 @@
 
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveByPhoneNumberId, resolveByWabaId } from '@/lib/meta/credentials' // CHANGE (b) + WA-09
+import { resolveByPhoneNumberId, resolveByWabaId, resolveByPageId } from '@/lib/meta/credentials' // CHANGE (b) + WA-09 + Phase 40 (FB-01)
 import { processWebhook } from '@/lib/whatsapp/webhook-handler' // SAME — reuse verbatim (D-09)
+import { processMessengerWebhook } from '@/lib/messenger/webhook-handler' // Phase 40 — Messenger inbound (FB-01/03/04)
 import { applyTemplateStatusUpdate } from '@/lib/domain/whatsapp-templates' // WA-09 (Regla 3)
 import type { WebhookPayload } from '@/lib/whatsapp/types'
 
@@ -110,6 +111,55 @@ export async function POST(request: NextRequest) {
   } catch {
     console.error('[meta-webhook] failed to parse payload')
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  // ==========================================================================
+  // Phase 40 (FB-01/03/04): Facebook Messenger inbound (`object === 'page'`).
+  // ADDITIVE branch — runs AFTER the SAME `verifyMetaHmac` over the RAW body
+  // (page events are HMAC-signed too — T-40-05-01) and BEFORE the
+  // `whatsapp_business_account` reject (so WhatsApp + template-status stay
+  // byte-identical — D-06). Tenant routing is ONLY via `resolveByPageId(entry.id)`
+  // — never payload-supplied (T-40-05-02). Unknown page → ack 200 & drop.
+  // ==========================================================================
+  if ((payload.object as string) === 'page') {
+    const pageEntries = (payload as unknown as {
+      entry?: Array<{
+        id?: string
+        messaging?: Array<{
+          sender?: { id?: string }
+          recipient?: { id?: string }
+          timestamp?: number
+          message?: {
+            mid?: string
+            text?: string
+            is_echo?: boolean
+            attachments?: Array<{ type?: string; payload?: { url?: string } }>
+          }
+        }>
+      }>
+    }).entry ?? []
+
+    for (const entry of pageEntries) {
+      const pageId = entry.id
+      if (!pageId) continue
+
+      const creds = await resolveByPageId(pageId)
+      if (!creds) {
+        // Unknown page → ack & drop (no cross-tenant leak — T-40-05-02).
+        console.warn('[meta-webhook] unknown page_id, ack & drop:', pageId)
+        continue
+      }
+
+      for (const ev of entry.messaging ?? []) {
+        // SKIP our own echoes (Pitfall 6 — T-40-05-03).
+        if (ev.message && !ev.message.is_echo) {
+          await processMessengerWebhook(ev, creds.workspaceId, pageId, creds.accessToken)
+        }
+        // ignore ev.delivery / ev.read / ev.postback for inbox-only V1 (D-12).
+      }
+    }
+
+    return NextResponse.json({ received: true }, { status: 200 })
   }
 
   // Validate it's a WhatsApp webhook

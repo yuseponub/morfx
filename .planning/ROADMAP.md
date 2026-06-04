@@ -924,6 +924,19 @@ Plans:
   - [x] 02-PLAN.md — Backend: Envia API client + domain layer + Inngest cron (every 2h, 5am-7pm COL)
   - [x] 03-PLAN.md — Frontend: server action + tracking timeline component + order sheet integration
 
+## Backlog
+
+### Phase 999.1: WhatsApp interactive message composer (botones + lista) (BACKLOG)
+
+**Goal:** [Captured for future planning] UI de operador para componer y enviar mensajes interactivos de WhatsApp (botones de respuesta ≤3 + lista con secciones), más un domain `sendInteractiveMessage` provider-aware. Hoy la primitiva `sendWhatsAppInteractive` (Meta) + el clamping existen y están unit-tested (Fase 39, `meta-whatsapp-sender.test.ts`), pero NO hay UI de operador ni chokepoint de dominio para enviarlos; el `sendButtonMessage` de 360dialog está sin caller. El rendering entrante (`button_reply`/`list_reply`) ya existe en `message-bubble.tsx`. Alcance: (1) UI de composición en `/configuracion/whatsapp` o el compositor del inbox; (2) domain `sendInteractiveMessage` con branch provider (meta_direct → metaWhatsappSender interactive; 360dialog → sendButtonMessage) siguiendo el chokepoint único de la Fase 39 (Regla 3); (3) tests.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+---
+
 ## Progress
 
 ### Summary

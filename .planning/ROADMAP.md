@@ -636,7 +636,7 @@ Plans:
 - [x] 40-02-PLAN.md — Wave 2 (tdd): messenger-api send edge + metaFacebookSender (FB-02) ✅ (15/15 GREEN: messenger-api 9/9 + meta-facebook-sender 6/6; commits 6fd44075/57701ef0; Regla 6 registry/manychat diff empty)
 - [x] 40-03-PLAN.md — Wave 2 (tdd): messenger-connect token chain + connectFacebookPage action (SIGNUP-04) ✅ (connect-facebook.test.ts GREEN 6/6; commits edb41b0b/0e893bc1/143ab77f; encrypted Page token, no messenger_provider flip — Regla 6)
 - [ ] 40-04-PLAN.md — Wave 3 (tdd): provider chokepoint readMessengerProvider in domain/messages.ts (MIG-02)
-- [ ] 40-05-PLAN.md — Wave 4 (tdd): inbound object==='page' webhook + processMessengerWebhook PSID handler (FB-01/03/04)
+- [x] 40-05-PLAN.md — Wave 4 (tdd): inbound object==='page' webhook + processMessengerWebhook PSID handler (FB-01/03/04) ✅ (webhook-handler.test.ts GREEN 5/5 + meta tests 14/14 sin regresión D-06; commits 9ac5ea00/55986f4e; contacto por (page_id,PSID) sin fuzzy D-04, channel='facebook', dedup mid, sin Inngest dispatch D-12; SUMMARY 40-05)
 - [ ] 40-06-PLAN.md — Wave 4 (tdd): 24h/HUMAN_AGENT window gate (FB-02 / D-09)
 - [ ] 40-07-PLAN.md — Wave 4: ConnectFacebook UI + integrations page wiring (SIGNUP-04 / FB-04)
 - [ ] 40-08-PLAN.md — Wave 5 (checkpoint): gated cutover — full suite + Regla 6 diff + 1-workspace flip + live smoke

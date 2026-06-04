@@ -40,6 +40,11 @@ import {
   subscribeWaba,
   registerPhoneNumber,
 } from '@/lib/meta/embedded-signup'
+import {
+  exchangeForLongLivedUserToken,
+  getPageToken,
+  subscribeMessengerPage,
+} from '@/lib/meta/messenger-connect'
 import { metaRequest } from '@/lib/meta/api'
 import { mapRegisterError } from '@/lib/meta/register-errors'
 import { encryptToken } from '@/lib/meta/token'
@@ -125,6 +130,103 @@ export async function connectWhatsAppNumber(input: {
     return {
       success: false,
       error: 'No se pudo conectar el número de WhatsApp. Intenta de nuevo.',
+    }
+  }
+}
+
+// ============================================================================
+// Server Action: Connect a Facebook Page (Phase 40 — SIGNUP-04)
+//
+// Auth gate copies connectWhatsAppNumber VERBATIM. The body DIVERGES: instead of
+// the WhatsApp Embedded Signup BISUAT exchange, it runs the classic FB-Login chain
+// (short-lived/code → long-lived user token → /me/accounts Page token → per-Page
+// subscribe). See src/lib/meta/messenger-connect.ts.
+//
+// Regla 6 (CRITICAL): connecting a Page must NOT flip the Messenger provider. The
+// row is inserted is_active, but Messenger traffic stays on manychat until the
+// operator runs the manual SQL flip (Plan 08). This action MUST NOT touch that column.
+//
+// Security: META_APP_SECRET stays server-side (messenger-connect is SERVER-ONLY); the
+// Page token is AES-256-GCM encrypted before persist; the plaintext token is NEVER
+// returned in the result envelope and NEVER logged (T-40-03-02 / T-40-03-03).
+// ============================================================================
+
+export type ConnectFacebookResult =
+  | { success: true; pageName: string }
+  | { success: false; error: string }
+
+/**
+ * Connect a Facebook Page obtained from the FB-Login popup.
+ *
+ * Owner-only; `workspaceId` is session-derived (NEVER from input — T-38-13 analog).
+ * Returns `{ success, pageName }` on success — never the plaintext Page token.
+ * Failure detail stays server-side; the client message is generic so a failure
+ * cannot leak which step broke.
+ */
+export async function connectFacebookPage(input: {
+  code: string
+}): Promise<ConnectFacebookResult> {
+  // === Auth gate (copy of connectWhatsAppNumber) ==========================
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { success: false, error: 'No autenticado' }
+  }
+  const workspaceId = auth.workspaceId
+
+  const supabase = await createClient()
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', auth.userId)
+    .single()
+
+  if (!member || member.role !== 'owner') {
+    return { success: false, error: 'Solo el Owner puede conectar Facebook' }
+  }
+
+  // === Input validation (V5) ==============================================
+  if (!input.code) {
+    return { success: false, error: 'Datos de conexión incompletos' }
+  }
+
+  try {
+    // 1. short-lived/code → long-lived user token (Pitfall 3 — Page token must
+    //    derive from the long-lived token, otherwise it dies in ~1h).
+    const longLivedUserToken = await exchangeForLongLivedUserToken(input.code)
+
+    // 2. long-lived user token → never-expiring Page Access Token.
+    const { pageId, pageName, accessToken: pageToken } = await getPageToken(longLivedUserToken)
+
+    // 3. Encrypt before persisting (AES-256-GCM — T-40-03-03).
+    const accessTokenEncrypted = encryptToken(pageToken)
+
+    // 4. Regla 3 — sole write path. workspaceId is session-derived, NOT from input.
+    //    channel:'facebook' leaves waba_id/phone_number_id null. NO provider flip (Regla 6).
+    const result = await upsertMetaAccount({
+      workspaceId,
+      channel: 'facebook',
+      wabaId: null,
+      phoneNumberId: null,
+      pageId,
+      accessTokenEncrypted,
+      isActive: true,
+    })
+    if (!result.success) {
+      return { success: false, error: result.error }
+    }
+
+    // 5. Per-Page subscribe so inbound Messenger events are delivered (Pitfall 4).
+    await subscribeMessengerPage(pageToken, pageId)
+
+    return { success: true, pageName }
+  } catch (e) {
+    // Detail stays server-side only — never log the code or plaintext Page token.
+    console.error('[meta-onboarding] connect Facebook page failed:', e)
+    return {
+      success: false,
+      error: 'No se pudo conectar la página de Facebook. Intenta de nuevo.',
     }
   }
 }

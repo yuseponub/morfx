@@ -9,10 +9,19 @@ import { QuickReplyAutocomplete } from './quick-reply-autocomplete'
 import { TemplateButton } from './template-button'
 import { useInboxV2 } from './inbox-v2-context'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
-import type { QuickReply } from '@/lib/whatsapp/types'
+import type { QuickReply, Message } from '@/lib/whatsapp/types'
+import type { OptimisticMedia } from '@/hooks/use-messages'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+
+/** Map a MIME type to the WhatsApp message type used by the optimistic bubble. */
+function deriveMediaType(mimeType: string): Message['type'] {
+  if (mimeType.startsWith('image/')) return 'image'
+  if (mimeType.startsWith('video/')) return 'video'
+  if (mimeType.startsWith('audio/')) return 'audio'
+  return 'document'
+}
 
 interface Contact {
   id: string
@@ -34,7 +43,7 @@ interface MessageInputProps {
   isWindowOpen: boolean
   contact?: Contact | null
   recentOrder?: Order | null
-  addOptimisticMessage?: (text: string) => void
+  addOptimisticMessage?: (text: string, media?: OptimisticMedia) => void
   onSend?: () => void
 }
 
@@ -139,34 +148,49 @@ export function MessageInput({
       return
     }
 
-    // If there's an attached file, send it
+    // If there's an attached file, send it (optimistic + non-blocking, like text).
     if (attachedFile) {
-      setIsLoading(true)
-      try {
-        const result = await sendMediaMessage(
-          conversationId,
-          attachedFile.base64,
-          attachedFile.file.name,
-          attachedFile.file.type,
-          text.trim() || undefined // caption
-        )
+      const caption = text.trim() || undefined
+      const { base64, preview } = attachedFile
+      const filename = attachedFile.file.name
+      const mimeType = attachedFile.file.type
 
-        if ('error' in result) {
-          toast.error(result.error)
-        } else {
-          toast.success('Archivo enviado')
-          setAttachedFile(null)
-          setText('')
-          onSend?.()
-        }
-      } catch (error) {
-        toast.error('Error al enviar archivo')
-      } finally {
-        setIsLoading(false)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''
-        }
+      // Show the attachment instantly using the in-memory preview so it never
+      // blinks to caption-only while the real message round-trips. The object URL
+      // is intentionally NOT revoked here — the optimistic bubble renders it until
+      // realtime reconciles (which keeps the same blob to avoid a re-download).
+      addOptimisticMessage?.(caption ?? '', {
+        type: deriveMediaType(mimeType),
+        url: preview,
+        mimeType,
+        filename,
+        caption,
+      })
+
+      // Clear the composer immediately (consistent with the text path)
+      setAttachedFile(null)
+      setText('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
       }
+      onSend?.()
+
+      // Fire the server action in the background; offer a retry on failure.
+      const fireMedia = () =>
+        sendMediaMessage(conversationId, base64, filename, mimeType, caption)
+          .then(result => {
+            if ('error' in result) {
+              toast.error('Error al enviar archivo', {
+                action: { label: 'Reintentar', onClick: fireMedia },
+              })
+            }
+          })
+          .catch(() => {
+            toast.error('Error al enviar archivo', {
+              action: { label: 'Reintentar', onClick: fireMedia },
+            })
+          })
+      fireMedia()
       return
     }
 

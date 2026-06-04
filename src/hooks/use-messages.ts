@@ -26,7 +26,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeReconnect } from '@/hooks/use-realtime-reconnect'
 import { getConversationMessages } from '@/app/actions/conversations'
-import type { Message, TextContent } from '@/lib/whatsapp/types'
+import type { Message, TextContent, MediaContent } from '@/lib/whatsapp/types'
 
 // ============================================================================
 // Types
@@ -41,6 +41,16 @@ interface UseMessagesOptions {
   limit?: number
 }
 
+/** Optimistic media payload for an outbound attachment. `url` is the in-memory
+ * object-URL preview (images/videos) or null for types without a visual preview. */
+export interface OptimisticMedia {
+  type: Message['type']
+  url: string | null
+  mimeType: string
+  filename: string
+  caption?: string
+}
+
 interface UseMessagesReturn {
   /** Messages in chronological order (oldest first) */
   messages: Message[]
@@ -50,8 +60,9 @@ interface UseMessagesReturn {
   loadMore: () => Promise<void>
   /** Whether there are more messages to load */
   hasMore: boolean
-  /** Add an optimistic message for instant text display */
-  addOptimisticMessage: (text: string) => void
+  /** Add an optimistic message for instant display. Pass `media` for an
+   * outbound attachment so the in-memory preview shows instantly (no flicker). */
+  addOptimisticMessage: (text: string, media?: OptimisticMedia) => void
   /** Schedule a safety refetch (call after sending a message) */
   scheduleSafetyRefetch: () => void
 }
@@ -194,8 +205,10 @@ export function useMessages({
     }
   }, [conversationId, messages, limit, hasMore, queryClient, queryKey])
 
-  // Add an optimistic message for instant text display (client-only)
-  const addOptimisticMessage = useCallback((text: string) => {
+  // Add an optimistic message for instant display (client-only). For media the
+  // in-memory preview (`media.url`) renders immediately so the attachment never
+  // blinks to caption-only while the real message round-trips.
+  const addOptimisticMessage = useCallback((text: string, media?: OptimisticMedia) => {
     if (!conversationId) return
 
     const optimisticMsg: Message = {
@@ -204,15 +217,22 @@ export function useMessages({
       workspace_id: workspaceId,
       wamid: null,
       direction: 'outbound',
-      type: 'text',
-      content: { body: text } as TextContent,
+      type: media ? media.type : 'text',
+      content: media
+        ? ({
+            link: media.url ?? undefined,
+            caption: media.caption,
+            filename: media.filename,
+            mimeType: media.mimeType,
+          } as MediaContent)
+        : ({ body: text } as TextContent),
       status: 'sending' as Message['status'],
       status_timestamp: null,
       error_code: null,
       error_message: null,
-      media_url: null,
-      media_mime_type: null,
-      media_filename: null,
+      media_url: media ? media.url : null,
+      media_mime_type: media ? media.mimeType : null,
+      media_filename: media ? media.filename : null,
       transcription: null,
       template_name: null,
       sent_by_agent: false,
@@ -264,27 +284,52 @@ export function useMessages({
           console.log('New message received:', payload)
           const newMessage = payload.new as Message
 
-          // For outbound text messages, try to replace a matching optimistic message
-          if (newMessage.direction === 'outbound' && newMessage.type === 'text') {
-            const newBody = (newMessage.content as TextContent).body
+          // For outbound messages (text or media), replace a matching optimistic
+          // placeholder so the bubble reconciles in place instead of duplicating.
+          if (newMessage.direction === 'outbound') {
             queryClient.setQueryData<Message[]>(
               channelKey,
               (prev = []) => {
-                const optimisticIndex = prev.findIndex(
-                  msg => msg.id.startsWith('optimistic-') &&
-                    msg.type === 'text' &&
-                    (msg.content as TextContent).body === newBody
-                )
-                if (optimisticIndex !== -1) {
-                  // Replace optimistic message with real one
-                  return prev.map((msg, i) => i === optimisticIndex ? newMessage : msg)
+                const optimisticIndex = prev.findIndex(msg => {
+                  if (!msg.id.startsWith('optimistic-')) return false
+                  if (newMessage.type === 'text') {
+                    return msg.type === 'text' &&
+                      (msg.content as TextContent).body === (newMessage.content as TextContent).body
+                  }
+                  // Media: match by type + filename + caption (media_url differs —
+                  // local blob preview vs the rehosted CDN URL).
+                  return msg.type === newMessage.type &&
+                    msg.media_filename === newMessage.media_filename &&
+                    (msg.content as MediaContent).caption === (newMessage.content as MediaContent).caption
+                })
+                if (optimisticIndex === -1) {
+                  // No matching optimistic — append as normal
+                  return [...prev, newMessage]
                 }
-                // No matching optimistic — append as normal
-                return [...prev, newMessage]
+                // Adopt the real message's identity/status/wamid, but keep the
+                // in-memory blob preview as the displayed source so the image does
+                // NOT re-download (and momentarily blank) on swap. A later remount
+                // loads the rehosted URL from the DB.
+                const optimistic = prev[optimisticIndex]
+                const keepLocalPreview =
+                  newMessage.type !== 'text' &&
+                  !!optimistic.media_url &&
+                  optimistic.media_url.startsWith('blob:')
+                const reconciled: Message = keepLocalPreview
+                  ? {
+                      ...newMessage,
+                      media_url: optimistic.media_url,
+                      content: {
+                        ...(newMessage.content as MediaContent),
+                        link: optimistic.media_url ?? undefined,
+                      } as MediaContent,
+                    }
+                  : newMessage
+                return prev.map((msg, i) => (i === optimisticIndex ? reconciled : msg))
               }
             )
           } else {
-            // Inbound or non-text — append as before
+            // Inbound — append as before
             queryClient.setQueryData<Message[]>(
               channelKey,
               (prev = []) => [...prev, newMessage]

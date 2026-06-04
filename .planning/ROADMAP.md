@@ -937,7 +937,7 @@ Plans:
 
 ## Backlog
 
-### Phase 999.1: WhatsApp interactive message composer (botones + lista) (IN PROGRESS — 3/5)
+### Phase 999.1: WhatsApp interactive message composer (botones + lista) (IN PROGRESS — 4/5)
 
 **Goal:** UI de operador para componer y enviar mensajes interactivos de WhatsApp (botones de respuesta ≤3 + lista con secciones ≤10), más un domain `sendInteractiveMessage` provider-aware. Hoy la primitiva `sendWhatsAppInteractive` (Meta) + el clamping existen y están unit-tested (Fase 39, `meta-whatsapp-sender.test.ts`), pero NO hay UI de operador ni chokepoint de dominio para enviarlos; el `sendButtonMessage` de 360dialog está sin caller. El rendering entrante (`button_reply`/`list_reply`) ya existe; falta el rendering SALIENTE. Alcance: (1) compositor en el toolbar del inbox (gated a ventana 24h abierta, D-01/D-02); (2) domain `sendInteractiveMessage` con branch provider único (meta_direct → metaWhatsappSender; 360dialog → sendButtonMessage byte-idéntica, lista no soportada) siguiendo el chokepoint de la Fase 39 (Regla 3, Regla 6); (3) validación inline del set COMPLETO de límites Meta (incl. total-rows ≤10) + preview WhatsApp + bubble saliente rico; (4) tests.
 **Requirements:** D-01..D-06 (decisiones lockeadas en 999.1-CONTEXT.md sirven como requisitos de facto)
@@ -947,7 +947,7 @@ Plans:
 - [x] 999.1-01-PLAN.md — Wave 0 (tdd): helper `interactive-limits.ts` (set completo Meta + total-rows ≤10 + id-uniqueness) + 2 test files (limits GREEN 17/17, provider RED) — commits `dabefb44`, `cf84a055`
 - [x] 999.1-02-PLAN.md — Wave 1: domain `sendInteractiveMessage` chokepoint provider-aware + caller 360dialog (Regla 3/6); provider test GREEN (4/4); 4 tests existentes GREEN; api.ts byte-idéntica — commits `146665d8`, `b613d0e9`
 - [x] 999.1-03-PLAN.md — Wave 2: server action `sendInteractiveMessage` (auth + workspace-scoped load + 24h window + channel guard + delegate; sin leer provider — Regla 3); 12/12 tests GREEN (Regla 6) — commit `4bbfabe0`
-- [ ] 999.1-04-PLAN.md — Wave 3: UI — `interactive-bubble.tsx` compartido + builder Dialog (toggle/validación/preview/send) + botón toolbar gated a ventana 24h
+- [x] 999.1-04-PLAN.md — Wave 3: UI — `interactive-bubble.tsx` compartido (render puro, XSS gate 0) + builder Dialog (toggle/validación COMPLETA/preview en vivo/send + toast 360-list amistoso) + botón toolbar gated a ventana 24h por ubicación (D-02); ids auto-generados; 29/29 tests fase GREEN — commits `b603f299`, `50a73bdb`, `82da69ef`
 - [ ] 999.1-05-PLAN.md — Wave 4: bubble saliente rico (`message-bubble.tsx case 'interactive'` via componente compartido)
 ---
 

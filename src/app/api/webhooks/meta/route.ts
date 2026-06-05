@@ -12,9 +12,10 @@
 
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveByPhoneNumberId, resolveByWabaId, resolveByPageId } from '@/lib/meta/credentials' // CHANGE (b) + WA-09 + Phase 40 (FB-01)
+import { resolveByPhoneNumberId, resolveByWabaId, resolveByPageId, resolveByIgAccountId } from '@/lib/meta/credentials' // CHANGE (b) + WA-09 + Phase 40 (FB-01) + Phase 41 (IG-01)
 import { processWebhook } from '@/lib/whatsapp/webhook-handler' // SAME — reuse verbatim (D-09)
 import { processMessengerWebhook } from '@/lib/messenger/webhook-handler' // Phase 40 — Messenger inbound (FB-01/03/04)
+import { processInstagramWebhook } from '@/lib/instagram/webhook-handler' // Phase 41 — Instagram inbound (IG-01/03/04)
 import { applyTemplateStatusUpdate } from '@/lib/domain/whatsapp-templates' // WA-09 (Regla 3)
 import type { WebhookPayload } from '@/lib/whatsapp/types'
 
@@ -156,6 +157,59 @@ export async function POST(request: NextRequest) {
           await processMessengerWebhook(ev, creds.workspaceId, pageId, creds.accessToken)
         }
         // ignore ev.delivery / ev.read / ev.postback for inbox-only V1 (D-12).
+      }
+    }
+
+    return NextResponse.json({ received: true }, { status: 200 })
+  }
+
+  // ==========================================================================
+  // Phase 41 (IG-01/03/04): Instagram Direct inbound (`object === 'instagram'`).
+  // ADDITIVE branch — structurally identical to the `page` branch above. Runs
+  // AFTER the SAME `verifyMetaHmac` over the RAW body (IG events are HMAC-signed
+  // too — T-41-05-01) and BEFORE the `whatsapp_business_account` reject (so
+  // WhatsApp + template-status stay byte-identical — D-06). IG payloads use
+  // `entry[].messaging[]` (Messenger-style — NOT `changes[]`, Pitfall 1). Tenant
+  // routing is ONLY via `resolveByIgAccountId(entry.id)` (= the IGID / recipient.id,
+  // YOUR account) — NEVER `sender.id` (the customer IGSID — Pitfall 2 cross-tenant
+  // leak). Unknown ig_account_id → ack 200 & drop. Echoes skipped (Pitfall 7).
+  // ==========================================================================
+  if ((payload.object as string) === 'instagram') {
+    const igEntries = (payload as unknown as {
+      entry?: Array<{
+        id?: string
+        messaging?: Array<{
+          sender?: { id?: string }
+          recipient?: { id?: string }
+          timestamp?: number
+          message?: {
+            mid?: string
+            text?: string
+            is_echo?: boolean
+            attachments?: Array<{ type?: string; payload?: { url?: string } }>
+          }
+        }>
+      }>
+    }).entry ?? []
+
+    for (const entry of igEntries) {
+      const igAccountId = entry.id
+      if (!igAccountId) continue
+
+      // Route by entry.id = IGID (Pitfall 2 — never sender.id).
+      const creds = await resolveByIgAccountId(igAccountId)
+      if (!creds) {
+        // Unknown ig_account_id → ack & drop (no cross-tenant leak — T-41-05-02).
+        console.warn('[meta-webhook] unknown ig_account_id, ack & drop:', igAccountId)
+        continue
+      }
+
+      for (const ev of entry.messaging ?? []) {
+        // SKIP our own echoes (Pitfall 7 — T-41-05-05).
+        if (ev.message && !ev.message.is_echo) {
+          await processInstagramWebhook(ev, creds.workspaceId, igAccountId, creds.accessToken)
+        }
+        // ignore ev.delivery / ev.read / ev.postback for inbox-only V1 (D-IG-01).
       }
     }
 

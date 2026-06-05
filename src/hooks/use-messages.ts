@@ -353,6 +353,32 @@ export function useMessages({
             queryClient.setQueryData<Message[]>(
               channelKey,
               (prev = []) => {
+                // Idempotency by id: if this exact row is already in the list (a prior
+                // softRefetch / initial query landed it BEFORE the realtime INSERT, or a
+                // duplicate realtime delivery), replace it in place — NEVER append. Else
+                // the just-sent media bubble flashes as TWO boxes (same id) until the next
+                // reconcile dedups by id (40-08 audio/video transient double — the
+                // refetch-before-realtime race). Keep the in-memory blob: preview if the
+                // cached row still carries it (no reload flash).
+                const byIdIndex = prev.findIndex(m => m.id === newMessage.id)
+                if (byIdIndex !== -1) {
+                  const cached = prev[byIdIndex]
+                  const keepBlob =
+                    newMessage.type !== 'text' &&
+                    !!cached.media_url &&
+                    cached.media_url.startsWith('blob:')
+                  const next: Message = keepBlob
+                    ? {
+                        ...newMessage,
+                        media_url: cached.media_url,
+                        content: {
+                          ...(newMessage.content as MediaContent),
+                          link: cached.media_url ?? undefined,
+                        } as MediaContent,
+                      }
+                    : newMessage
+                  return prev.map((m, i) => (i === byIdIndex ? next : m))
+                }
                 const optimisticIndex = prev.findIndex(msg => {
                   if (!msg.id.startsWith('optimistic-')) return false
                   if (newMessage.type === 'text') {
@@ -395,10 +421,12 @@ export function useMessages({
               }
             )
           } else {
-            // Inbound — append as before
+            // Inbound — append, but guard against a duplicate id that a softRefetch may
+            // have already landed (same refetch-before-realtime race as outbound).
             queryClient.setQueryData<Message[]>(
               channelKey,
-              (prev = []) => [...prev, newMessage]
+              (prev = []) =>
+                prev.some(m => m.id === newMessage.id) ? prev : [...prev, newMessage]
             )
           }
         }

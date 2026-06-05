@@ -1124,10 +1124,19 @@ html:has(.theme-editorial) body {
   --bg-app:oklch(0.996 0.0008 95);
   --bg-sidebar:oklch(0.996 0.0008 95);
 
-  /* Textura de papel DIFERIDA (UI-SPEC §5.4) — solo background-color este round */
-  --paper-grain:none;
+  /* GAP-04: textura de papel fiel al design-system (handoff/colors_and_type.css
+     + base globals.css ~líneas 223-224). fractalNoise baseFrequency 0.85, 2
+     octavas, tinte gris-cálido; fibras verticales sutiles. Alpha del grain
+     0.06 (entre el 0.035 del comentado v3 y el 0.09 del design-system) para que
+     se perciba como papel sin ensuciar el blanco neutro. NO beige. El dark mode
+     la apaga (--paper-grain:none en .dark .theme-editorial-v3). */
+  --paper-grain:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.28  0 0 0 0 0.21  0 0 0 0 0.13  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --paper-fibers:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.012 0.9' numOctaves='1' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.2  0 0 0 0.045 0'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
 
   background-color:var(--bg-app);
+  background-image:var(--paper-grain),var(--paper-fibers);
   font-family:var(--font-sans);
   font-feature-settings:"kern","liga","onum","pnum";
   -webkit-font-smoothing:antialiased;
@@ -1356,7 +1365,10 @@ html:has(.theme-editorial) body {
   --paper-0:oklch(0.255 0.006 60);--paper-1:oklch(0.235 0.006 60);--paper-2:oklch(0.285 0.007 60);--paper-3:oklch(0.315 0.008 60);--paper-4:oklch(0.355 0.009 60);
   --ink-1:oklch(0.95 0.006 85);--ink-2:oklch(0.86 0.008 85);--ink-3:oklch(0.70 0.010 80);--ink-4:oklch(0.56 0.010 75);--ink-5:oklch(0.42 0.010 70);
   --border:oklch(0.37 0.008 70);--rubric-2:oklch(0.64 0.11 30);--rubric-1:oklch(0.72 0.10 30);
-  --paper-grain:none;background-color:var(--bg-app);
+  /* GAP-04: dark mantiene el charcoal-warm PLANO — textura OFF (grain+fibers
+     none y background-image none para anular la regla light del scope). */
+  --paper-grain:none;--paper-fibers:none;
+  background-color:var(--bg-app);background-image:none;
 }
 .dark .theme-editorial-v3 .wm img{mix-blend-mode:screen;filter:invert(1) hue-rotate(180deg)}
 

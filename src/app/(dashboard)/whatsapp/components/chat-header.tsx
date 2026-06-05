@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, Bot, Bug, CalendarCheck, Check, ExternalLink, Loader2, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
+import { Archive, ArchiveRestore, Bot, Bug, CalendarCheck, Check, ExternalLink, Loader2, PanelRightClose, PanelRightOpen, Pencil, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,10 @@ const GODENTIST_WORKSPACE_ID = '36a74890-aad6-4804-838c-57904b1c9328'
 interface ChatHeaderProps {
   conversation: ConversationWithDetails
   onTogglePanel: () => void
+  /** GAP-02 (editorial-v3): reflects whether the contact ficha panel is open,
+   *  so the th-head toggle button shows the open/closed icon + active state.
+   *  Optional — legacy/v2 paths don't pass it (defaults to false). */
+  isPanelOpen?: boolean
   onOpenAgentConfig?: () => void
   /**
    * Phase 42.1: when provided, renders a "Debug bot" icon button in
@@ -49,6 +53,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   conversation,
   onTogglePanel,
+  isPanelOpen = false,
   onOpenAgentConfig,
   onToggleDebug,
   isDebugOpen,
@@ -432,9 +437,18 @@ export function ChatHeader({
             </button>
           )}
 
-          {/* Toggle contact panel */}
-          <button type="button" className="icon-btn" onClick={onTogglePanel} title="Panel de contacto" aria-label="Mostrar información del contacto">
-            <PanelRightOpen className="h-4 w-4" />
+          {/* GAP-02: toggle visible de la ficha de contacto. La ficha está oculta
+              por default; este botón la abre/cierra y refleja el estado (icono +
+              active). */}
+          <button
+            type="button"
+            className={cn('icon-btn', isPanelOpen && 'bg-[var(--paper-3)] text-[var(--ink-1)]')}
+            onClick={onTogglePanel}
+            title={isPanelOpen ? 'Ocultar ficha' : 'Ver ficha'}
+            aria-label={isPanelOpen ? 'Ocultar información del contacto' : 'Mostrar información del contacto'}
+            aria-pressed={isPanelOpen}
+          >
+            {isPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
           </button>
         </div>
       </div>

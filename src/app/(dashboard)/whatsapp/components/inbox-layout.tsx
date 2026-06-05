@@ -195,16 +195,24 @@ export function InboxLayout({
             </h1>
           </div>
           <div className="actions">
-            <button type="button" className="btn" onClick={() => setIsPanelOpen((o) => !o)}>
-              Asignar
-            </button>
+            {/* GAP-02: "Nueva conversación" es la única acción del topbar. La
+                asignación de conversaciones vive en el `AssignDropdown` por
+                conversación dentro del `.th-head` (chat-header). El botón
+                "Asignar" del topbar estaba mal cableado al toggle de la ficha;
+                se elimina (no había flujo de asignación a nivel topbar). */}
             <button type="button" className="btn pri" onClick={() => openNewConversationFn()}>
               Nueva conversación
             </button>
           </div>
         </header>
 
-        <div className="inbox" data-module="whatsapp">
+        {/* GAP-02: cuando la ficha está cerrada, el grid colapsa a 2 columnas
+            (340px / 1fr) vía `.inbox.no-ficha`. La ficha (o el agent-config
+            slider) se renderiza sólo cuando `isPanelOpen`. */}
+        <div
+          className={cn('inbox', !isPanelOpen && 'no-ficha')}
+          data-module="whatsapp"
+        >
           {/* ---------- LISTA (.conv-col) ---------- */}
           <ConversationList
             workspaceId={workspaceId}
@@ -227,6 +235,7 @@ export function InboxLayout({
                     conversationId={selectedConversationId}
                     conversation={selectedConversation}
                     onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+                    isPanelOpen={isPanelOpen}
                     onOpenAgentConfig={handleOpenAgentConfig}
                     onToggleDebug={() => setDebugPanelOpen((o) => !o)}
                     isDebugOpen={debugPanelOpen}
@@ -243,6 +252,7 @@ export function InboxLayout({
               conversationId={selectedConversationId}
               conversation={selectedConversation}
               onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+              isPanelOpen={isPanelOpen}
               onOpenAgentConfig={handleOpenAgentConfig}
               onToggleDebug={
                 isSuperUser ? () => setDebugPanelOpen((o) => !o) : undefined
@@ -251,21 +261,26 @@ export function InboxLayout({
             />
           )}
 
-          {/* ---------- FICHA (.ficha) — always visible per the mock 3-col grid ---------- */}
-          {rightPanel === 'agent-config' ? (
-            <AgentConfigSlider
-              workspaceId={workspaceId}
-              onClose={handleCloseAgentConfig}
-            />
-          ) : (
-            <ContactPanel
-              key={selectedConversationId || 'none'}
-              conversation={selectedConversation}
-              onClose={() => setIsPanelOpen(false)}
-              onConversationUpdated={refreshSelectedConversation}
-              onOrdersChanged={refreshOrdersFn}
-            />
-          )}
+          {/* ---------- FICHA (.ficha) — GAP-02: oculta por default, se abre con
+                el toggle del .th-head. Cuando está cerrada no se renderiza nada
+                en la 3ª celda y el grid colapsa a 2 columnas (.no-ficha). El
+                agent-config slider también pone isPanelOpen=true, así que este
+                gate cubre ambos casos. ---------- */}
+          {isPanelOpen &&
+            (rightPanel === 'agent-config' ? (
+              <AgentConfigSlider
+                workspaceId={workspaceId}
+                onClose={handleCloseAgentConfig}
+              />
+            ) : (
+              <ContactPanel
+                key={selectedConversationId || 'none'}
+                conversation={selectedConversation}
+                onClose={() => setIsPanelOpen(false)}
+                onConversationUpdated={refreshSelectedConversation}
+                onOrdersChanged={refreshOrdersFn}
+              />
+            ))}
         </div>
       </InboxV3Provider>
     )

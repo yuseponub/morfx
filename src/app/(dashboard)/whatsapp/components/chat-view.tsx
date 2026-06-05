@@ -23,6 +23,10 @@ interface ChatViewProps {
   conversationId: string | null
   conversation: ConversationWithDetails | null
   onTogglePanel: () => void
+  /** GAP-02 (editorial-v3): whether the contact ficha panel is currently open,
+   *  so the th-head toggle button can reflect open/closed state. Optional —
+   *  legacy/v2 paths don't pass it (defaults to false). */
+  isPanelOpen?: boolean
   onOpenAgentConfig?: () => void
   /**
    * Phase 42.1: show "Debug bot" button in the header when provided.
@@ -43,6 +47,7 @@ export function ChatView({
   conversationId,
   conversation,
   onTogglePanel,
+  isPanelOpen = false,
   onOpenAgentConfig,
   onToggleDebug,
   isDebugOpen,
@@ -216,6 +221,7 @@ export function ChatView({
       <ChatHeader
         conversation={conversation}
         onTogglePanel={onTogglePanel}
+        isPanelOpen={isPanelOpen}
         onOpenAgentConfig={onOpenAgentConfig}
         onToggleDebug={onToggleDebug}
         isDebugOpen={isDebugOpen}

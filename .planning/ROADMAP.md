@@ -660,12 +660,12 @@ Plans:
 
 **Risk:** MEDIUM (Instagram has strictest limitations: hard 24h window with no templates, 200 msg/hr rate limit, 1000 follower minimum for API access)
 
-**Plans:** 3/8 plans executed
+**Plans:** 5/8 plans executed
 - [~] 41-00-PLAN.md — instagram_provider migration (MIG-02) — Task 1 DONE (commit `cc66e676`, migration authored + ig_username); **AT Regla 5 BLOCKING checkpoint** (operator applies in prod + confirms "applied")
 - [x] 41-01-PLAN.md — RED test scaffolds (5 files: IG-01/02/03 + MIG-02 + Regla 6 parity) — COMPLETE 2026-06-05 (commits `64685d9d`, `82b072fc`, `1c113243`; 31 tests = 26 RED / 5 GREEN parity guards)
 - [x] 41-02-PLAN.md — IG send edge (instagram-api.ts + metaInstagramSender) — IG-02
 - [x] 41-03-PLAN.md — IG connect chain (resolveInstagramAccount + upsertMetaAccount + connectInstagramAccount) — IG-03 — COMPLETE 2026-06-05 (commits `cc2938ea`, `bc7f5f50`, `abf806f8`; connect-facebook 7/7 GREEN proving no FB regression; 0 deviations)
-- [ ] 41-04-PLAN.md — domain chokepoint (readInstagramProvider + instagram arm) — MIG-02/IG-02
+- [x] 41-04-PLAN.md — domain chokepoint (readInstagramProvider + instagram arm) + IG-05 action-layer window gate — MIG-02/IG-02/IG-05 — COMPLETE 2026-06-05 (commits `25fd1a01`, `2de8266d`; messages-instagram 9/9 GREEN, 3 manychat-parity guards still GREEN, FB/WA byte-identical Regla 6; reused resolveMessengerWindowSend at both gate sites D-IG-09; 1 Rule-1 test fix sendMedia→sendImage; NOT pushed — Regla 5)
 - [ ] 41-05-PLAN.md — inbound object==='instagram' webhook + processInstagramWebhook — IG-01/03/04
 - [ ] 41-06-PLAN.md — Conectar Instagram UI + integraciones tab (inbox indicator pre-exists) — IG-04
 - [ ] 41-07-PLAN.md — gated cutover + A1/A2 linchpins + live smoke + 24h block — IG-01..05/MIG-02

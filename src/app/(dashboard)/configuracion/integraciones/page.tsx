@@ -15,9 +15,10 @@ import { SmsTab } from './components/sms-tab'
 import { BoldForm } from './components/bold-form'
 import { ConnectWhatsApp } from '@/components/settings/connect-whatsapp'
 import { ConnectFacebook } from '@/components/settings/connect-facebook'
+import { ConnectInstagram } from '@/components/settings/connect-instagram'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ShoppingBag, Settings2, MessageSquare, CreditCard, MessageCircle, Facebook } from 'lucide-react'
+import { ShoppingBag, Settings2, MessageSquare, CreditCard, MessageCircle, Facebook, Instagram } from 'lucide-react'
 
 export default async function IntegracionesPage() {
   // Verify user is authenticated
@@ -86,6 +87,10 @@ export default async function IntegracionesPage() {
           <TabsTrigger value="facebook" className="flex items-center gap-2">
             <Facebook className="h-4 w-4" />
             Facebook Messenger
+          </TabsTrigger>
+          <TabsTrigger value="instagram" className="flex items-center gap-2">
+            <Instagram className="h-4 w-4" />
+            Instagram
           </TabsTrigger>
         </TabsList>
 
@@ -217,6 +222,34 @@ export default async function IntegracionesPage() {
                 </CardHeader>
                 <CardContent>
                   <ConnectFacebook />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Instagram Direct Tab — IG rides on the connected Facebook Page (Phase 41) */}
+        <TabsContent value="instagram" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Instagram className="h-5 w-5" />
+                    Instagram Direct
+                  </CardTitle>
+                  <CardDescription>
+                    Conecta la cuenta de Instagram Profesional vinculada a tu
+                    página de Facebook para atender los mensajes directos de
+                    Instagram con Meta. Instagram usa la conexión de tu página de
+                    Facebook ya autorizada; no se abre ninguna ventana adicional.
+                    Al finalizar, la cuenta queda registrada de forma segura.
+                    Conectar Instagram no cambia el proveedor de envío actual de
+                    tu workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ConnectInstagram />
                 </CardContent>
               </Card>
             </div>

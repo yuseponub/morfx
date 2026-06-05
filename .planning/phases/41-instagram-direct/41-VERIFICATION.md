@@ -30,6 +30,19 @@ gaps:
     files_implicated:
       - supabase/migrations/20260605200000_relax_uq_meta_page_facebook_only.sql (the fix — DDL only, no app-code change needed)
     status: resolved (live-verified 2026-06-05 — Varixcenter IG connected, ig_username 'varixcenter')
+    followup_regression: GAP-41-03 (relaxing uq_meta_page created a 2nd row sharing page_id → broke resolveByPageId .single())
+  - id: GAP-41-03
+    severity: blocking
+    discovered: 2026-06-05 live test (post GAP-41-02 migration, Varixcenter FB Messenger)
+    requirement: FB-01 (Phase 40 Messenger inbound — regression surfaced via Phase 41 IG)
+    title: "resolveByPageId uses .single() and breaks when a page has BOTH a facebook and an instagram row (regression from GAP-41-02)"
+    symptom: "After connecting IG to Varixcenter, Facebook Messenger inbound to page 528898033801678 stopped arriving (silently dropped). Somnio's page 714615171734964 (FB only, no IG) kept working."
+    root_cause: "GAP-41-02 relaxed uq_meta_page so the instagram row carries the same page_id as the facebook row. resolveByPageId (credentials.ts) queried .eq('page_id', pageId).eq('is_active', true).single() — with 2 active rows for page 528 the .single() returns PGRST116 (HTTP 406) → data null → the route's `if (!creds)` drops the FB message. VERIFIED in prod: page 528 query returned 2 rows + HTTP 406; page 714 returned 1 row + HTTP 200."
+    fix: "Added .eq('channel', 'facebook') to resolveByPageId so Messenger inbound resolves only the facebook row (IG inbound routes via resolveByIgAccountId — ig_account_id is globally unique, unaffected). Hotfix committed + pushed. Regression test src/lib/meta/__tests__/credentials-resolve-by-page.test.ts (3/3)."
+    files_implicated:
+      - src/lib/meta/credentials.ts (resolveByPageId — 1-line channel filter)
+      - src/lib/meta/__tests__/credentials-resolve-by-page.test.ts (regression test)
+    status: fixed (hotfix 2026-06-05) — awaiting live FB re-test on Varixcenter
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

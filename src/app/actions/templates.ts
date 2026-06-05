@@ -22,6 +22,7 @@ import { resolveByWorkspace } from '@/lib/meta/credentials'
 import {
   createTemplate as createTemplateDomain,
   applyTemplateStatusUpdate,
+  syncRemoteTemplateStatuses,
 } from '@/lib/domain/whatsapp-templates'
 
 // ============================================================================
@@ -390,29 +391,12 @@ export async function syncTemplateStatuses(): Promise<ActionResult<number>> {
       remoteTemplates = response.waba_templates || []
     }
 
-    let updatedCount = 0
-
-    // Update local templates with remote status (provider-agnostic persistence tail).
-    for (const remote of remoteTemplates) {
-      // 360dialog returns lowercase status; Meta returns uppercase — normalize either way.
-      const normalizedStatus = remote.status?.toUpperCase() || 'PENDING'
-
-      const { error } = await supabase
-        .from('whatsapp_templates')
-        .update({
-          status: normalizedStatus,
-          quality_rating: remote.quality_score?.score || null,
-          rejected_reason: (remote.rejected_reason && remote.rejected_reason !== 'NONE') ? remote.rejected_reason : null,
-          approved_at: normalizedStatus === 'APPROVED' ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('workspace_id', workspaceId)
-        .eq('name', remote.name)
-
-      if (!error) {
-        updatedCount++
-      }
-    }
+    // Persist via the domain layer (admin client — Regla 3). The previous inline
+    // UPDATE used the request-scoped RLS client, where an RLS-filtered UPDATE
+    // silently matches 0 rows and returns NO error → meta_direct approvals never
+    // persisted and the row stayed PENDING forever (2026-06-04 live diagnosis).
+    const persisted = await syncRemoteTemplateStatuses(workspaceId, remoteTemplates)
+    const updatedCount = persisted.success ? persisted.data?.updated ?? 0 : 0
 
     // Note: revalidatePath is called by the form action, not here
     // (calling during render causes Next.js error)

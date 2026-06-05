@@ -375,3 +375,59 @@ export async function applyTemplateStatusUpdate(
 
   return { success: true, data: { updated: true } }
 }
+
+/** A remote template status row from the poll/sync path (Meta or 360dialog list). */
+export interface RemoteTemplateStatus {
+  name: string
+  status?: string
+  quality_score?: { score?: string } | null
+  rejected_reason?: string | null
+}
+
+/**
+ * Persist a batch of remote template statuses (poll/sync path — WA-08 fallback).
+ *
+ * Regla 3 chokepoint for `syncTemplateStatuses` (server action). It previously ran
+ * the UPDATE through the request-scoped RLS client, where an RLS-filtered UPDATE
+ * silently matches 0 rows and returns NO error — so meta_direct approvals never
+ * persisted and the row stayed PENDING forever (2026-06-04 live diagnosis: Meta
+ * reported APPROVED, local DB stuck PENDING). Same admin client + workspace scope +
+ * status normalization as the webhook push (applyTemplateStatusUpdate). A single
+ * row error does not abort the batch.
+ *
+ * @returns count of rows updated without error.
+ */
+export async function syncRemoteTemplateStatuses(
+  workspaceId: string,
+  remote: RemoteTemplateStatus[]
+): Promise<DomainResult<{ updated: number }>> {
+  if (!workspaceId) {
+    return { success: false, error: 'workspaceId requerido' }
+  }
+
+  const supabase = createAdminClient()
+  let updated = 0
+
+  for (const t of remote) {
+    // 360dialog returns lowercase status; Meta returns uppercase — normalize either way.
+    const status = (t.status || 'PENDING').toUpperCase()
+    const rejected =
+      t.rejected_reason && t.rejected_reason !== 'NONE' ? t.rejected_reason : null
+
+    const { error } = await supabase
+      .from('whatsapp_templates')
+      .update({
+        status,
+        quality_rating: t.quality_score?.score || null,
+        rejected_reason: rejected,
+        approved_at: status === 'APPROVED' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('workspace_id', workspaceId)
+      .eq('name', t.name)
+
+    if (!error) updated++
+  }
+
+  return { success: true, data: { updated } }
+}

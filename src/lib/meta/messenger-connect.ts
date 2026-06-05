@@ -229,6 +229,78 @@ export async function getPageToken(
 }
 
 /**
+ * Resolve the Page Access Token for a SPECIFIC, already-known page_id (GAP-41-01).
+ * Unlike getPageToken (which picks the FIRST page in /me/accounts — the data[0]
+ * heuristic that retargets multi-page operators to the wrong page), this filters
+ * /me/accounts by the known pageId, then falls back to the Business Portfolio walk
+ * for that same id. NEVER returns a different page — if the operator's login did not
+ * grant access to THIS page, it throws a clear Spanish error (the caller surfaces it).
+ *
+ * @param longLivedUserToken - the long-lived user token from exchangeForLongLivedUserToken
+ * @param pageId - the workspace's ALREADY-bound facebook page_id (from resolveByWorkspace)
+ * @returns { pageId, pageName, accessToken } for THAT page (pageId === input pageId, verbatim)
+ * @throws Spanish error if the login did not grant access to this specific page
+ */
+export async function getPageTokenForPage(
+  longLivedUserToken: string,
+  pageId: string
+): Promise<{ pageId: string; pageName: string; accessToken: string }> {
+  // 1. Classic page roles — match the KNOWN id (not data[0]).
+  const res = await metaRequest<MeAccountsResponse>(
+    longLivedUserToken,
+    `/me/accounts?fields=id,name,access_token`
+  )
+  let page: MeAccountsPage | null =
+    res.data?.find((p) => p.id === pageId && p.access_token) ?? null
+
+  // 2. Business Portfolio fallback — but ONLY accept the matching id.
+  if (!page) {
+    const businessesProbed: string[] = []
+    const probeLog: string[] = []
+    try {
+      const candidate = await findPageViaBusinesses(
+        longLivedUserToken,
+        businessesProbed,
+        probeLog
+      )
+      if (candidate && candidate.id === pageId && candidate.access_token) {
+        page = candidate
+      }
+    } catch {
+      /* best-effort fallback — handled by the throw below */
+    }
+  }
+
+  // 3. Direct page-node fetch as a last resort (the long-lived user token may read
+  //    the page node directly even when /me/accounts omits it).
+  if (!page) {
+    try {
+      const direct = await metaRequest<MeAccountsPage>(
+        longLivedUserToken,
+        `/${pageId}?fields=id,name,access_token`
+      )
+      if (direct.id === pageId && direct.access_token) page = direct
+    } catch {
+      /* fall through to the throw */
+    }
+  }
+
+  if (!page || !page.access_token) {
+    // NEVER fall back to data[0]. Surface an actionable Spanish error.
+    throw new Error(
+      'No pudimos renovar el acceso a tu página de Facebook. ' +
+        'Asegúrate de autorizar la misma página en el login.'
+    )
+  }
+
+  return {
+    pageId: page.id, // === input pageId (verbatim — no retarget)
+    pageName: page.name ?? page.id,
+    accessToken: page.access_token,
+  }
+}
+
+/**
  * Subscribe a Page to our webhook app so inbound Messenger events are delivered.
  * Structural clone of `subscribeWaba` BUT uses the Page token and ADDS the fields
  * (Pitfall 4 — per-Page subscribe, distinct from the WABA `subscribed_apps` call).

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MorfX · CRM Contactos (editorial)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* Mapeo de las variables de fuente (en la app las inyecta next/font) */
+:root{
+  --font-ebgaramond:'EB Garamond';
+  --font-inter:'Inter';
+  --font-jetbrains-mono:'JetBrains Mono';
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+
+/* ===========================================================================
+ * .theme-editorial — TOKENS (verbatim de globals.css)
+ * =========================================================================== */
+.theme-editorial{
+  color-scheme:light;
+
+  /* Paper (superficies de fondo) — blanco papel, croma casi nulo */
+  --paper-0:oklch(1 0 0);
+  --paper-1:oklch(0.998 0.0006 85);
+  --paper-2:oklch(0.990 0.0010 85);
+  --paper-3:oklch(0.974 0.0018 85);
+  --paper-4:oklch(0.950 0.0030 85);
+  --paper-shadow:oklch(0.85 0.012 70);
+
+  /* Ink (texto / estructura) */
+  --ink-1:oklch(0.18 0.02 60);
+  --ink-2:oklch(0.32 0.025 60);
+  --ink-3:oklch(0.48 0.03 65);
+  --ink-4:oklch(0.62 0.035 70);
+  --ink-5:oklch(0.78 0.03 72);
+
+  /* Rubric (acento reservado — uso escaso) */
+  --rubric-1:oklch(0.45 0.09 28);
+  --rubric-2:oklch(0.55 0.10 30);
+  --rubric-3:oklch(0.70 0.07 32);
+
+  /* Acentos color-ink (muy escasos) */
+  --accent-verdigris:oklch(0.52 0.035 180);
+  --accent-gold:oklch(0.68 0.055 80);
+  --accent-indigo:oklch(0.42 0.045 260);
+
+  /* Semánticos */
+  --semantic-success:oklch(0.50 0.08 145);
+  --semantic-warning:oklch(0.58 0.12 65);
+  --semantic-danger:var(--rubric-2);
+  --semantic-info:var(--accent-indigo);
+
+  --rule:var(--ink-2);
+  --border-strong:var(--ink-1);
+
+  /* Tipografía */
+  --font-display:var(--font-ebgaramond),'Cormorant Garamond','Times New Roman',Georgia,serif;
+  --font-serif:var(--font-ebgaramond),Georgia,'Times New Roman',serif;
+  --font-sans:var(--font-inter),system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --font-mono:var(--font-jetbrains-mono),ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --font-small-caps:var(--font-ebgaramond),Georgia,serif;
+
+  /* Escala de tamaños (NO inventar otros) */
+  --fs-display:44px;
+  --fs-h1:32px;
+  --fs-h2:26px;
+  --fs-h3:24px;
+  --fs-h4:20px;
+  --fs-body:16px;
+  --fs-body-sm:14px;
+  --fs-caption:12px;
+  --fs-micro:10px;
+
+  /* Line-heights */
+  --lh-tight:1.08;
+  --lh-display:1.05;
+  --lh-heading:1.20;
+  --lh-body:1.55;
+  --lh-long:1.70;
+
+  /* Spacing (NO usar px fuera de esta escala) */
+  --space-1:4px;  --space-2:8px;  --space-3:12px; --space-4:16px;
+  --space-5:24px; --space-6:32px; --space-7:48px; --space-8:64px; --space-9:96px;
+
+  /* Radii */
+  --radius-0:0px; --radius-1:2px; --radius-2:3px; --radius-3:4px; --radius-pill:999px;
+
+  /* Sombras */
+  --shadow-hair:0 0 0 0.5px var(--border);
+  --shadow-page:0 1px 0 var(--border),0 12px 28px -14px oklch(0.3 0.04 60 / 0.25);
+  --shadow-card:0 1px 0 var(--border),0 4px 12px -6px oklch(0.3 0.04 60 / 0.18);
+  --shadow-raised:0 1px 0 var(--border),0 10px 24px -10px oklch(0.25 0.05 60 / 0.28);
+
+  /* Overrides semánticos (mapeo shadcn) — --primary = ink, NO rubric */
+  --background:var(--paper-1);
+  --foreground:var(--ink-1);
+  --card:var(--paper-0);
+  --card-foreground:var(--ink-1);
+  --primary:var(--ink-1);
+  --primary-foreground:var(--paper-0);
+  --secondary:var(--paper-2);
+  --muted:var(--paper-2);
+  --muted-foreground:var(--ink-3);
+  --accent:var(--paper-3);
+  --destructive:var(--rubric-2);
+  --border:oklch(0.80 0.025 72);
+  --input:oklch(0.80 0.025 72);
+  --ring:var(--ink-1);
+  --radius:var(--radius-3);
+
+  /* Backgrounds globales — blanco papel neutro; sidebar = app (plataforma continua) */
+  --bg-app:oklch(0.996 0.0008 95);
+  --bg-sidebar:oklch(0.996 0.0008 95);
+
+  /* Textura de grano de papel (SVG ruido neutro, sutil) */
+  --paper-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.21 0 0 0 0 0.20 0 0 0 0 0.18 0 0 0 0.055 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Trazo de lápiz de plomo (grafito) para divisores */
+  --pencil-line:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='7'%3E%3Cpath d='M0 3.4 C18 2.1 34 4.6 54 3 S88 1.6 110 3.6 S150 5 178 2.9 S214 1.7 244 3.8 S256 3.2 260 3.1' fill='none' stroke='%234a423a' stroke-width='1.4' stroke-opacity='0.6' stroke-linecap='round'/%3E%3Cpath d='M2 4.2 C24 3.4 40 5 64 3.7 S96 2.6 120 4.3 S158 5.4 186 3.6 S220 2.7 248 4.4' fill='none' stroke='%235c5349' stroke-width='0.7' stroke-opacity='0.35' stroke-dasharray='4 3 7 2' stroke-linecap='round'/%3E%3C/svg%3E");
+
+  background-color:var(--bg-app);
+  background-image:var(--paper-grain);
+  font-family:var(--font-sans);
+  font-feature-settings:"kern","liga","onum","pnum";
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  color:var(--ink-1);
+  min-height:100vh;
+}
+
+/* ===========================================================================
+ * UTILIDADES TIPOGRÁFICAS .mx-* (verbatim)
+ * =========================================================================== */
+.theme-editorial .mx-display{font-family:var(--font-display);font-weight:800;font-size:var(--fs-display);line-height:var(--lh-display);letter-spacing:-0.02em;color:var(--ink-1)}
+.theme-editorial .mx-h1{font-family:var(--font-display);font-weight:700;font-size:var(--fs-h1);line-height:var(--lh-heading);letter-spacing:-0.015em;color:var(--ink-1)}
+.theme-editorial .mx-h2{font-family:var(--font-display);font-weight:600;font-size:var(--fs-h2);line-height:var(--lh-heading);letter-spacing:-0.015em;color:var(--ink-1)}
+.theme-editorial .mx-h3{font-family:var(--font-display);font-weight:600;font-size:var(--fs-h3);line-height:var(--lh-heading);letter-spacing:-0.01em;color:var(--ink-1)}
+.theme-editorial .mx-h4{font-family:var(--font-display);font-weight:600;font-size:var(--fs-h4);line-height:var(--lh-heading);letter-spacing:-0.01em;color:var(--ink-1)}
+.theme-editorial .mx-body{font-family:var(--font-serif);font-weight:400;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
+.theme-editorial .mx-body-long{font-family:var(--font-serif);font-weight:400;font-size:var(--fs-body);line-height:var(--lh-long);color:var(--ink-2)}
+.theme-editorial .mx-caption{font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:var(--fs-caption);line-height:1.4;color:var(--ink-3)}
+.theme-editorial .mx-smallcaps{font-family:var(--font-small-caps);font-weight:600;font-size:var(--fs-micro);letter-spacing:0.12em;text-transform:uppercase;line-height:1;color:var(--ink-3)}
+.theme-editorial .mx-rubric{font-family:var(--font-sans);font-weight:600;font-size:var(--fs-micro);letter-spacing:0.08em;text-transform:uppercase;color:var(--rubric-2)}
+.theme-editorial .mx-ui{font-family:var(--font-sans);font-weight:500;font-size:var(--fs-body-sm);letter-spacing:0.01em;color:var(--ink-1)}
+.theme-editorial .mx-mono{font-family:var(--font-mono);font-weight:500;font-size:13px;letter-spacing:0.01em;color:var(--ink-2)}
+
+/* Reglas / divisores */
+.theme-editorial .mx-rule{border:0;border-top:1px solid var(--rule);margin:var(--space-3) 0}
+.theme-editorial .mx-rule-double{border:0;border-top:3px double var(--rule);margin:var(--space-4) 0}
+.theme-editorial .mx-rule-thick{border:0;border-top:2px solid var(--ink-1);margin:var(--space-4) 0}
+
+/* Pills semánticas mx-tag */
+.theme-editorial .mx-tag{display:inline-flex;align-items:center;gap:var(--space-1);font-family:var(--font-sans);font-weight:600;font-size:var(--fs-micro);letter-spacing:0.01em;padding:2px 8px;border-radius:var(--radius-pill);border:1px solid transparent;white-space:nowrap}
+.theme-editorial .mx-tag--rubric{background:color-mix(in oklch,var(--rubric-2) 10%,var(--paper-0));color:var(--rubric-1);border-color:color-mix(in oklch,var(--rubric-2) 40%,var(--paper-0))}
+.theme-editorial .mx-tag--gold{background:color-mix(in oklch,var(--accent-gold) 14%,var(--paper-0));color:color-mix(in oklch,var(--accent-gold) 60%,var(--ink-1));border-color:color-mix(in oklch,var(--accent-gold) 45%,var(--paper-0))}
+.theme-editorial .mx-tag--indigo{background:color-mix(in oklch,var(--accent-indigo) 10%,var(--paper-0));color:var(--accent-indigo);border-color:color-mix(in oklch,var(--accent-indigo) 40%,var(--paper-0))}
+.theme-editorial .mx-tag--ink{background:var(--paper-0);color:var(--ink-2);border-color:var(--ink-3)}
+
+/* ===========================================================================
+ * COMPONENTES DE LAYOUT (verbatim del mock crm.html)
+ * =========================================================================== */
+/* Sidebar */
+/* Sidebar — continuo con la app (sin barra separadora) */
+.theme-editorial .sb{background:var(--bg-sidebar);background-image:var(--paper-grain);display:flex;flex-direction:column}
+.theme-editorial .brand{padding:0;height:84.6px}
+.theme-editorial .wm{display:block;height:18px;position:relative}
+.theme-editorial .wm img{position:absolute;top:-14px;left:-14px;display:block;height:120px;width:auto;mix-blend-mode:multiply;cursor:grab;touch-action:none;user-select:none;-webkit-user-drag:none}
+.theme-editorial .wm img.dragging{cursor:grabbing}
+.theme-editorial .wm b{color:var(--rubric-2);font-weight:800}
+.theme-editorial .sub{font-family:var(--font-sans);font-size:12px;font-weight:500;color:var(--ink-3);margin-top:4px}
+/* Workspace switcher (rectángulo bajo el logo) */
+.theme-editorial .ws{display:flex;align-items:center;gap:10px;width:calc(100% - 16px);height:51px;box-sizing:border-box;margin:0 8px;padding:0 10px;background:var(--paper-0);border:1px solid var(--border);border-radius:var(--radius-3);cursor:pointer;text-align:left}
+.theme-editorial .ws:hover{background:var(--paper-2);border-color:var(--ink-3)}
+.theme-editorial .ws-badge{flex:none;width:24px;height:24px;border-radius:var(--radius-2);background:var(--ink-1);color:var(--paper-0);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:13px;line-height:1}
+.theme-editorial .ws-meta{min-width:0;flex:1}
+.theme-editorial .ws-name{display:block;font-family:var(--font-sans);font-weight:600;font-size:13px;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.theme-editorial .ws-plan{display:block;font-family:var(--font-sans);font-size:11px;color:var(--ink-3);line-height:1.2;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme-editorial .ws-caret{flex:none;color:var(--ink-3);font-size:11px;line-height:1}
+.theme-editorial nav.sb-nav{padding:8px;flex:1;overflow:auto}
+.theme-editorial nav.sb-nav ul{list-style:none;padding:0;margin:0}
+.theme-editorial nav.sb-nav li a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--radius-3);font-family:var(--font-sans);font-weight:500;font-size:13px;color:var(--ink-2);text-decoration:none;cursor:pointer}
+.theme-editorial nav.sb-nav li a:hover{background:var(--paper-2);color:var(--ink-1)}
+.theme-editorial nav.sb-nav li a.active{background:var(--paper-3);color:var(--ink-1);font-weight:600;border:0;box-shadow:none}
+.theme-editorial nav.sb-nav .cat{display:flex;align-items:center;gap:7px;font-family:var(--font-sans);font-weight:600;letter-spacing:0.14em;text-transform:uppercase;font-size:11.2px;color:var(--ink-3);padding:12px 10px 6px}
+.theme-editorial nav.sb-nav .cat::before{content:"";width:5px;height:5px;border-radius:999px;background:var(--rubric-2);flex:none}
+
+/* Topbar */
+/* Topbar — divisor suave (continuidad) */
+.theme-editorial .topbar{padding:18px 28px 25px;border-bottom:1px solid var(--border);background:transparent;display:flex;align-items:flex-end;justify-content:space-between}
+.theme-editorial .eye{font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--rubric-2)}
+.theme-editorial .topbar h1{font-family:var(--font-sans);font-weight:700;font-size:26px;margin:2px 0 0;letter-spacing:-0.01em;color:var(--ink-1);line-height:1.2}
+.theme-editorial .topbar h1 em{font-family:var(--font-sans);font-style:normal;font-weight:400;font-size:15px;color:var(--ink-3);margin-left:8px}
+.theme-editorial .pg{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.theme-editorial .actions{display:flex;gap:8px}
+
+/* Botones */
+.theme-editorial .btn{font-family:var(--font-sans);font-size:13px;font-weight:600;padding:7px 12px;border-radius:var(--radius-3);border:1px solid var(--ink-1);background:var(--paper-0);color:var(--ink-1);cursor:pointer;box-shadow:0 1px 0 var(--ink-1);display:inline-flex;align-items:center;gap:6px;text-decoration:none;line-height:1}
+.theme-editorial .btn:hover{background:var(--paper-3)}
+.theme-editorial .btn.pri{background:var(--ink-1);color:var(--paper-0)}
+.theme-editorial .btn.pri:hover{background:var(--ink-2)}
+
+/* Tabs */
+/* Tabs — divisor suave, fondo continuo */
+.theme-editorial .tabs{display:flex;gap:20px;padding:0 28px;border-bottom:1px solid var(--border);background:transparent}
+.theme-editorial .tabs a{font-family:var(--font-sans);font-weight:500;font-size:13px;padding:10px 0;color:var(--ink-3);text-decoration:none;cursor:pointer;border:0;border-bottom:2px solid transparent;background:transparent}
+.theme-editorial .tabs a.on{color:var(--ink-1);font-weight:600;border-bottom-color:var(--ink-1)}
+
+/* Page */
+.theme-editorial .page{padding:20px 28px}
+
+/* Toolbar + search + chips */
+.theme-editorial .toolbar{display:flex;gap:10px;margin-bottom:14px;align-items:center}
+.theme-editorial .search{flex:1;max-width:320px;position:relative}
+.theme-editorial .search input{width:100%;border:1px solid var(--border);background:var(--paper-0);padding:8px 10px 8px 30px;border-radius:var(--radius-3);font-family:var(--font-sans);font-size:13px;color:var(--ink-1);outline:none}
+.theme-editorial .search input:focus{border-color:var(--ink-1)}
+.theme-editorial .chip{font-family:var(--font-sans);font-weight:500;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--ink-2);cursor:pointer;background:var(--paper-0);line-height:1.4}
+.theme-editorial .chip.on{background:var(--ink-1);color:var(--paper-0);border-color:var(--ink-1);font-weight:600}
+
+/* Tabla dict */
+.theme-editorial table.dict{width:100%;border-collapse:collapse;background:var(--paper-0);border:1px solid var(--ink-1)}
+.theme-editorial table.dict thead th{text-align:left;padding:10px 12px;font-family:var(--font-sans);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:10px;color:var(--ink-3);border-bottom:1px solid var(--ink-1);background:var(--paper-1)}
+.theme-editorial table.dict td{padding:11px 12px;border-bottom:1px solid var(--border);font-family:var(--font-sans);font-size:13px;color:var(--ink-1);vertical-align:middle}
+.theme-editorial table.dict tbody tr:hover{background:var(--paper-2)}
+.theme-editorial table.dict td.entry{font-weight:600}
+.theme-editorial table.dict td.ph{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);font-weight:500}
+.theme-editorial table.dict td.city{color:var(--ink-3);font-weight:400}
+.theme-editorial table.dict td.date{color:var(--ink-3);font-family:var(--font-mono);font-size:12px}
+
+/* Tag pills .tg (colores verbatim del mock) */
+.theme-editorial .tg{display:inline-flex;align-items:center;font-family:var(--font-sans);font-weight:600;font-size:11px;letter-spacing:0.01em;padding:3px 9px;border-radius:999px;border:1px solid transparent;background:var(--paper-3);color:var(--ink-1);margin-right:4px;line-height:1.4}
+.theme-editorial .tg.red{background:oklch(0.92 0.045 28);color:oklch(0.32 0.09 28);border-color:oklch(0.80 0.07 28)}
+.theme-editorial .tg.gold{background:oklch(0.94 0.055 80);color:oklch(0.38 0.065 70);border-color:oklch(0.82 0.07 80)}
+.theme-editorial .tg.indi{background:oklch(0.93 0.035 260);color:oklch(0.30 0.06 260);border-color:oklch(0.80 0.05 260)}
+.theme-editorial .tg.ver{background:oklch(0.93 0.03 180);color:oklch(0.32 0.04 180);border-color:oklch(0.80 0.04 180)}
+.theme-editorial .tg.ink{background:var(--paper-3);color:var(--ink-2);border-color:var(--ink-4)}
+
+/* ===========================================================================
+ * SHELL de demostración (no es token; sólo arma la rejilla de la pantalla)
+ * =========================================================================== */
+.shell{display:grid;grid-template-columns:240px 1fr;height:100vh}
+.main{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.main .page{overflow:auto;flex:1}
+/* paginación inferior de la tabla, usando sólo tokens */
+.theme-editorial .pager{display:flex;align-items:center;justify-content:space-between;margin-top:var(--space-3)}
+.theme-editorial .pager .pg{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+
+/* Toggle vista (Tabla / Tablero) */
+.theme-editorial .vtoggle{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-3);overflow:hidden;margin-left:auto}
+.theme-editorial .vtoggle button{font-family:var(--font-sans);font-weight:600;font-size:12px;padding:6px 12px;background:var(--paper-0);border:0;border-right:1px solid var(--border);cursor:pointer;color:var(--ink-2)}
+.theme-editorial .vtoggle button:last-child{border-right:0}
+.theme-editorial .vtoggle button.on{background:var(--ink-1);color:var(--paper-0)}
+
+/* Kanban */
+.theme-editorial .board{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:var(--ink-5) transparent}
+.theme-editorial .board::-webkit-scrollbar{height:8px}
+.theme-editorial .board::-webkit-scrollbar-track{background:transparent}
+.theme-editorial .board::-webkit-scrollbar-thumb{background:var(--ink-5);border-radius:999px;border:2px solid transparent;background-clip:content-box}
+.theme-editorial .board::-webkit-scrollbar-button{display:none;width:0;height:0}
+.theme-editorial .kcol{display:flex;flex-direction:column;flex:0 0 246px;min-width:0;border-left:1px solid var(--border);padding:0 14px}
+.theme-editorial .kcol:first-child{border-left:0;padding-left:0}
+.theme-editorial .kcol-head{display:flex;align-items:center;gap:8px;padding:6px 4px 10px}
+.theme-editorial .kcol-head .grip{display:none}
+.theme-editorial .kcol-head .dot{width:8px;height:8px;border-radius:999px;flex:none}
+.theme-editorial .kcol-head .t{font-family:var(--font-sans);font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme-editorial .kcol-head .c{font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-left:auto}
+.theme-editorial .kcol-body{display:flex;flex-direction:column;gap:10px;padding:0;min-height:120px}
+.theme-editorial .kcard{background:var(--paper-0);border:1px solid var(--border);border-radius:var(--radius-3);padding:11px 12px;box-shadow:var(--shadow-card);cursor:pointer}
+.theme-editorial .kcard:hover{border-color:var(--ink-3)}
+.theme-editorial .kcard .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.theme-editorial .kcard .nm{font-family:var(--font-sans);font-weight:600;font-size:13px;color:var(--ink-1);display:flex;align-items:center;gap:6px;min-width:0}
+.theme-editorial .kcard .nm .ci{flex:none;color:var(--ink-4)}
+.theme-editorial .kcard .nm span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme-editorial .kcard .val{font-family:var(--font-mono);font-weight:600;font-size:13px;color:var(--ink-1);flex:none}
+.theme-editorial .kcard .prod{font-family:var(--font-sans);font-size:12px;color:var(--ink-3);margin-top:6px;display:flex;align-items:center;gap:6px}
+.theme-editorial .kcard .prod .ci{flex:none;color:var(--ink-4)}
+.theme-editorial .kcard .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.theme-editorial .kcard .foot{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
+.theme-editorial .kcard .date{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.theme-editorial .kcard .ic{color:var(--ink-4);font-size:12px}
+.theme-editorial .kcard .city{font-family:var(--font-sans);font-size:11px;color:var(--ink-3);margin-left:auto}
+.theme-editorial .kempty{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-4);text-align:center;padding:24px 0}
+.theme-editorial .dot.agend{background:var(--accent-verdigris)}
+.theme-editorial .dot.web{background:var(--accent-gold)}
+.theme-editorial .dot.nuevo{background:var(--ink-4)}
+.theme-editorial .dot.info{background:var(--accent-indigo)}
+.theme-editorial .dot.conf{background:var(--accent-gold)}
+.theme-editorial .dot.ok{background:var(--semantic-success)}
+.theme-editorial .tg.pw{background:oklch(0.93 0.035 260);color:oklch(0.30 0.06 260);border-color:oklch(0.80 0.05 260)}
+.theme-editorial .tg.reco{background:color-mix(in oklch,var(--accent-indigo) 14%,var(--paper-0));color:var(--accent-indigo);border-color:color-mix(in oklch,var(--accent-indigo) 40%,var(--paper-0))}
+.theme-editorial .tg.c{background:color-mix(in oklch,var(--semantic-success) 16%,var(--paper-0));color:oklch(0.36 0.08 145);border-color:color-mix(in oklch,var(--semantic-success) 45%,var(--paper-0))}
+/* Barra de pipelines (inferior) */
+.theme-editorial .pipes{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.theme-editorial .pipes .pp{font-family:var(--font-sans);font-size:12px;font-weight:500;color:var(--ink-3);padding:5px 12px;border:1px solid var(--border);border-radius:var(--radius-3);background:var(--paper-0);cursor:pointer}
+.theme-editorial .pipes .pp.on{color:var(--ink-1);font-weight:600;border-color:var(--ink-1)}
+/* ===== MODO OSCURO (charcoal cálido, estilo Claude) ===== */
+.theme-editorial.dark{
+  --bg-app:oklch(0.215 0.006 60);--bg-sidebar:oklch(0.215 0.006 60);
+  --paper-0:oklch(0.255 0.006 60);--paper-1:oklch(0.235 0.006 60);--paper-2:oklch(0.285 0.007 60);--paper-3:oklch(0.315 0.008 60);--paper-4:oklch(0.355 0.009 60);
+  --ink-1:oklch(0.95 0.006 85);--ink-2:oklch(0.86 0.008 85);--ink-3:oklch(0.70 0.010 80);--ink-4:oklch(0.56 0.010 75);--ink-5:oklch(0.42 0.010 70);
+  --border:oklch(0.37 0.008 70);--rubric-2:oklch(0.64 0.11 30);--rubric-1:oklch(0.72 0.10 30);
+  --paper-grain:none;background-color:var(--bg-app)
+}
+.theme-editorial.dark .wm img{mix-blend-mode:screen;filter:invert(1) hue-rotate(180deg)}
+.theme-editorial .theme-toggle{position:fixed;bottom:16px;right:16px;z-index:60;width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:var(--paper-0);color:var(--ink-2);cursor:pointer;font-size:16px;box-shadow:var(--shadow-card)}
+</style>
+</head>
+
+<body class="theme-editorial">
+<div class="shell">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sb">
+    <div class="brand">
+      <div class="wm"><img id="brandLogo" src="../crm/logo-morfx.png" alt="morf·x"></div>
+    </div>
+    <button class="ws" type="button">
+      <span class="ws-badge">D</span>
+      <span class="ws-meta">
+        <span class="ws-name">Distribuidora Andina</span>
+        <span class="ws-plan">Plan Pro · 12 agentes</span>
+      </span>
+      <span class="ws-caret">▾</span>
+    </button>
+    <nav class="sb-nav">
+      <ul>
+        <li class="cat">Operación</li>
+        <li><a href="#">CRM</a></li>
+        <li><a href="#">WhatsApp</a></li>
+        <li><a class="active" href="#">Pedidos</a></li>
+        <li><a href="#">Tareas</a></li>
+        <li><a href="#">Confirmaciones</a></li>
+        <li><a href="#">SMS</a></li>
+        <li class="cat">Automatización</li>
+        <li><a href="#">Automatizaciones</a></li>
+        <li><a href="#">Agentes</a></li>
+        <li><a href="#">Comandos</a></li>
+        <li class="cat">Análisis</li>
+        <li><a href="#">Analytics</a></li>
+        <li class="cat">Admin</li>
+        <li><a href="#">Sandbox</a></li>
+        <li><a href="#">Equipo</a></li>
+        <li><a href="#">Configuración</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+
+    <header class="topbar">
+      <div>
+        <div class="eye">CRM · Pedidos</div>
+        <h1>Pedidos <em>312 este mes</em></h1>
+      </div>
+      <div class="actions">
+        <a class="btn" href="#">Exportar</a>
+        <a class="btn pri" href="#">Crear pedido</a>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <a class="on" href="#">Todos</a>
+      <a href="#">Pendientes</a>
+      <a href="#">Confirmados</a>
+      <a href="#">Despachados</a>
+      <a href="#">Entregados</a>
+      <a href="#">Cancelados</a>
+    </nav>
+
+    <div class="page">
+
+      <div class="toolbar">
+        <div class="search"><input placeholder="Buscar pedido, cliente o referencia…"></div>
+        <button class="chip on">Todos</button>
+        <button class="chip">Por pagar</button>
+        <button class="chip">Contraentrega</button>
+        <button class="chip">Mayorista</button>
+        <div class="vtoggle"><button id="vTabla">Tabla</button><button id="vTablero" class="on">Tablero</button></div>
+      </div>
+
+      <div id="board" class="board">
+        <div class="kcol">
+          <div class="kcol-head"><span class="grip">⋮⋮</span><span class="dot agend"></span><span class="t">Agendado</span><span class="c">2</span></div>
+          <div class="kcol-body">
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Antonio Cantillo</span></span><span class="val">$ 129.900</span></div><div class="prod"><span class="ci">▢</span>2 × Elixir del Sueño</div><div class="tags"><span class="tg pw">P/W</span></div><div class="foot"><span class="date">22 may</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Cartagena</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Gustavo Vargas</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Elixir</div><div class="foot"><span class="date">19 may</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Santa Marta</span></div></div>
+          </div>
+        </div>
+
+        <div class="kcol">
+          <div class="kcol-head"><span class="grip">⋮⋮</span><span class="dot web"></span><span class="t">Nuevo pag web</span><span class="c">0</span></div>
+          <div class="kcol-body"><div class="kempty">Sin pedidos</div></div>
+        </div>
+
+        <div class="kcol">
+          <div class="kcol-head"><span class="grip">⋮⋮</span><span class="dot nuevo"></span><span class="t">Nuevo pedido</span><span class="c">0</span></div>
+          <div class="kcol-body"><div class="kempty">Sin pedidos</div></div>
+        </div>
+
+        <div class="kcol">
+          <div class="kcol-head"><span class="grip">⋮⋮</span><span class="dot info"></span><span class="t">Falta info</span><span class="c">4</span></div>
+          <div class="kcol-body">
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Pedro Mantilla</span></span><span class="val">$ 0</span></div><div class="tags"><span class="tg reco">RECO</span></div><div class="foot"><span class="date">hace 3d</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Fusagasugá</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Dionner Andrés M.</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span></div><div class="foot"><span class="date">21 may</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Ciudad</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Juan Camilo Zambrano</span></span><span class="val">$ 0</span></div><div class="tags"><span class="tg reco">RECO</span></div><div class="foot"><span class="date">20 may</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Túquerres</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Ober Teran</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span></div><div class="foot"><span class="date">14 may</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Cartagena</span></div></div>
+          </div>
+        </div>
+
+        <div class="kcol">
+          <div class="kcol-head"><span class="grip">⋮⋮</span><span class="dot conf"></span><span class="t">Falta confirmar</span><span class="c">4</span></div>
+          <div class="kcol-body">
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Robinson Sanchez</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span><span class="tg c">C</span></div><div class="foot"><span class="date">hace 6h</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Cali</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Amanda Romero</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span></div><div class="foot"><span class="date">hace 16h</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Buga</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Luzmarina Carreño</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Somnio 90 Caps</div><div class="tags"><span class="tg reco">RECO</span><span class="tg c">C</span></div><div class="foot"><span class="date">hace 16h</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Inirida</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Marco Tulio Casas</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span></div><div class="foot"><span class="date">22 may</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Cali</span></div></div>
+          </div>
+        </div>
+
+        <div class="kcol">
+          <div class="kcol-head"><span class="grip">⋮⋮</span><span class="dot ok"></span><span class="t">Confirmado</span><span class="c">989</span></div>
+          <div class="kcol-body">
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Eleuterio Serna</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span><span class="tg c">C</span></div><div class="foot"><span class="date">hace 1h</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Puerto Berrío</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Alonso Ospina</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Melatonina + Magnesio</div><div class="tags"><span class="tg pw">P/W</span><span class="tg c">C</span></div><div class="foot"><span class="date">hace 9h</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Rionegro</span></div></div>
+            <div class="kcard"><div class="top"><span class="nm"><span class="ci">◉</span><span>Rocío Puello</span></span><span class="val">$ 79.900</span></div><div class="prod"><span class="ci">▢</span>Somnio 90 Caps</div><div class="tags"><span class="tg reco">RECO</span><span class="tg c">C</span></div><div class="foot"><span class="date">hace 10h</span><span class="ic">↻</span><span class="ic">○</span><span class="city">Santa Ana</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pipes">
+        <span class="pp on">Ventas Somnio Standard ×</span>
+        <span class="pp">Logística</span>
+        <span class="pp">Envíos Somnio</span>
+      </div>
+
+      <table id="tabla" class="dict" style="display:none">
+        <thead>
+          <tr>
+            <th>Pedido</th>
+            <th>Cliente</th>
+            <th>Productos</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="entry">#4821</td>
+            <td>María Restrepo</td>
+            <td class="city">6 cuadernos Bond</td>
+            <td class="ph">$ 79.900</td>
+            <td><span class="tg gold">Confirmado</span></td>
+            <td class="date">2026-06-03</td>
+          </tr>
+          <tr>
+            <td class="entry">#4820</td>
+            <td>Carlos Núñez</td>
+            <td class="city">2 resmas carta, 1 tóner</td>
+            <td class="ph">$ 142.000</td>
+            <td><span class="tg red">Por pagar</span></td>
+            <td class="date">2026-06-02</td>
+          </tr>
+          <tr>
+            <td class="entry">#4819</td>
+            <td>Paola Mejía</td>
+            <td class="city">Caja mayorista × 12</td>
+            <td class="ph">$ 1.240.000</td>
+            <td><span class="tg ver">Despachado</span></td>
+            <td class="date">2026-06-02</td>
+          </tr>
+          <tr>
+            <td class="entry">#4818</td>
+            <td>Andrés Villa</td>
+            <td class="city">Agenda 2026, 3 esferos</td>
+            <td class="ph">$ 58.500</td>
+            <td><span class="tg gold">Confirmado</span></td>
+            <td class="date">2026-06-01</td>
+          </tr>
+          <tr>
+            <td class="entry">#4817</td>
+            <td>Lucía Gómez</td>
+            <td class="city">Cartulina pliego × 20</td>
+            <td class="ph">$ 36.000</td>
+            <td><span class="tg indi">Entregado</span></td>
+            <td class="date">2026-05-31</td>
+          </tr>
+          <tr>
+            <td class="entry">#4816</td>
+            <td>Valentina Ríos</td>
+            <td class="city">Kit escolar completo</td>
+            <td class="ph">$ 214.900</td>
+            <td><span class="tg red">Por pagar</span></td>
+            <td class="date">2026-05-30</td>
+          </tr>
+          <tr>
+            <td class="entry">#4815</td>
+            <td>Esteban Cárdenas</td>
+            <td class="city">Marcadores × 24</td>
+            <td class="ph">$ 48.000</td>
+            <td><span class="tg indi">Entregado</span></td>
+            <td class="date">2026-05-29</td>
+          </tr>
+          <tr>
+            <td class="entry">#4814</td>
+            <td>Jorge Salazar</td>
+            <td class="city">Resaltadores, 2 libretas</td>
+            <td class="ph">$ 31.500</td>
+            <td><span class="tg ink">Cancelado</span></td>
+            <td class="date">2026-05-28</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pager" id="pager" style="display:none">
+        <span class="pg">1–8 de 312</span>
+        <div class="actions">
+          <button class="btn">Anterior</button>
+          <button class="btn">Siguiente</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script>
+/* Logo como "objeto inteligente": arrástralo para posicionarlo.
+   La posición se guarda en localStorage y se restaura al recargar. */
+(function(){
+  var img = document.getElementById('brandLogo');
+  if(!img) return;
+  var KEY = 'morfx_logo_pos';
+  try{
+    var saved = JSON.parse(localStorage.getItem(KEY)||'null');
+    if(saved){ img.style.left = saved.x+'px'; img.style.top = saved.y+'px'; }
+  }catch(e){}
+
+  var dragging=false, sx=0, sy=0, ox=0, oy=0;
+  img.addEventListener('pointerdown', function(e){
+    dragging=true; img.classList.add('dragging'); img.setPointerCapture(e.pointerId);
+    sx=e.clientX; sy=e.clientY;
+    ox=parseFloat(img.style.left||'-14'); oy=parseFloat(img.style.top||'-14');
+    e.preventDefault();
+  });
+  img.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    img.style.left=(ox+(e.clientX-sx))+'px';
+    img.style.top =(oy+(e.clientY-sy))+'px';
+  });
+  function end(){
+    if(!dragging) return;
+    dragging=false; img.classList.remove('dragging');
+    try{ localStorage.setItem(KEY, JSON.stringify({x:parseFloat(img.style.left), y:parseFloat(img.style.top)})); }catch(e){}
+  }
+  img.addEventListener('pointerup', end);
+  img.addEventListener('pointercancel', end);
+})();
+/* Toggle Tabla / Tablero */
+(function(){
+  var bT=document.getElementById('vTabla'),bB=document.getElementById('vTablero');
+  var board=document.getElementById('board'),tabla=document.getElementById('tabla'),pager=document.getElementById('pager');
+  function show(mode){
+    var t=mode==='tabla';
+    board.style.display=t?'none':'grid';
+    tabla.style.display=t?'table':'none';
+    pager.style.display=t?'flex':'none';
+    bT.classList.toggle('on',t);bB.classList.toggle('on',!t);
+  }
+  bT.addEventListener('click',function(){show('tabla');});
+  bB.addEventListener('click',function(){show('tablero');});
+})();
+</script>
+<button id="themeToggle" class="theme-toggle" title="Tema claro/oscuro">◐</button>
+<script>
+(function(){var k='morfx_theme',b=document.body;if(localStorage.getItem(k)==='dark')b.classList.add('dark');var t=document.getElementById('themeToggle');if(t)t.addEventListener('click',function(){b.classList.toggle('dark');localStorage.setItem(k,b.classList.contains('dark')?'dark':'light');});})();
+</script>
+</body>
+</html>

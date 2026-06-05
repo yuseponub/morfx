@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  MORFX · PAQUETE DE CONTEXTO PARA CLAUDE DESIGN
+  ============================================================================
+  QUÉ ES: el sistema de diseño REAL de MorfX (.theme-editorial), extraído
+  verbatim de src/app/globals.css. Tokens, fuentes, escala tipográfica y
+  clases de componentes que la app YA usa en producción.
+
+  CÓMO USARLO EN CLAUDE DESIGN:
+  1. Abre este archivo en el navegador para verlo renderizado (así sabes
+     exactamente cómo se ve tu sistema).
+  2. Pega TODO este archivo en Claude Design como contexto inicial.
+  3. Dile a Claude Design literalmente:
+
+     "Este es mi sistema de diseño. Rediseña [la pantalla X] usando
+      EXCLUSIVAMENTE estos tokens (--ink-*, --paper-*, --rubric-*),
+      estas clases (.sb, .btn, .tg, table.dict, .mx-*, etc.) y estas
+      3 fuentes. NO inventes colores nuevos, NO cambies tamaños de la
+      escala, NO uses px que no estén en --space-* / --fs-*. Devuélveme
+      HTML semántico crudo (<section>, <aside>, <table>, <input>) con
+      estos nombres de clase IDÉNTICOS. Modo claro únicamente."
+
+  QUÉ TRAER DE VUELTA:
+  - El HTML crudo que genere, con las clases idénticas a este archivo.
+  - Si crea una clase nueva, que me dé también su CSS (con valores en
+    tokens, no hardcoded).
+  - Guárdalo como mock.html en .planning/standalone/<feature>/ y yo lo
+    porto verbatim bajo /gsd-ui-phase + verifico con screenshot lado a lado.
+
+  REGLAS DE ORO (las que rompen la fidelidad si se ignoran):
+  - Modo CLARO siempre. Dark mode está fuera de scope.
+  - --primary = --ink-1 (tinta), NUNCA rubric. Rubric-2 es acento reservado.
+  - Contrato de color 60/30/10: paper domina, ink estructura, rubric acentúa.
+  - Tipografía: titulares = EB Garamond (display/serif). UI operacional =
+    Inter (sans). Datos/código/teléfonos = JetBrains Mono.
+  ============================================================================
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MorfX · Sistema de diseño editorial (contexto para Claude Design)</title>
+
+<!-- Las 3 fuentes REALES del sistema -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* Mapeo de las variables de fuente (en la app las inyecta next/font) */
+:root{
+  --font-ebgaramond:'EB Garamond';
+  --font-inter:'Inter';
+  --font-jetbrains-mono:'JetBrains Mono';
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+
+/* ===========================================================================
+ * .theme-editorial — TOKENS (verbatim de globals.css)
+ * =========================================================================== */
+.theme-editorial{
+  color-scheme:light;
+
+  /* Paper (superficies de fondo) */
+  --paper-0:oklch(0.995 0.008 85);
+  --paper-1:oklch(0.985 0.012 82);
+  --paper-2:oklch(0.970 0.016 80);
+  --paper-3:oklch(0.945 0.020 78);
+  --paper-4:oklch(0.915 0.026 76);
+  --paper-shadow:oklch(0.82 0.035 70);
+
+  /* Ink (texto / estructura) */
+  --ink-1:oklch(0.18 0.02 60);
+  --ink-2:oklch(0.32 0.025 60);
+  --ink-3:oklch(0.48 0.03 65);
+  --ink-4:oklch(0.62 0.035 70);
+  --ink-5:oklch(0.78 0.03 72);
+
+  /* Rubric (acento reservado — uso escaso) */
+  --rubric-1:oklch(0.45 0.09 28);
+  --rubric-2:oklch(0.55 0.10 30);
+  --rubric-3:oklch(0.70 0.07 32);
+
+  /* Acentos color-ink (muy escasos) */
+  --accent-verdigris:oklch(0.52 0.035 180);
+  --accent-gold:oklch(0.68 0.055 80);
+  --accent-indigo:oklch(0.42 0.045 260);
+
+  /* Semánticos */
+  --semantic-success:oklch(0.50 0.08 145);
+  --semantic-warning:oklch(0.58 0.12 65);
+  --semantic-danger:var(--rubric-2);
+  --semantic-info:var(--accent-indigo);
+
+  --rule:var(--ink-2);
+  --border-strong:var(--ink-1);
+
+  /* Tipografía */
+  --font-display:var(--font-ebgaramond),'Cormorant Garamond','Times New Roman',Georgia,serif;
+  --font-serif:var(--font-ebgaramond),Georgia,'Times New Roman',serif;
+  --font-sans:var(--font-inter),system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --font-mono:var(--font-jetbrains-mono),ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --font-small-caps:var(--font-ebgaramond),Georgia,serif;
+
+  /* Escala de tamaños (NO inventar otros) */
+  --fs-display:44px;
+  --fs-h1:32px;
+  --fs-h2:26px;
+  --fs-h3:24px;
+  --fs-h4:20px;
+  --fs-body:16px;
+  --fs-body-sm:14px;
+  --fs-caption:12px;
+  --fs-micro:10px;
+
+  /* Line-heights */
+  --lh-tight:1.08;
+  --lh-display:1.05;
+  --lh-heading:1.20;
+  --lh-body:1.55;
+  --lh-long:1.70;
+
+  /* Spacing (NO usar px fuera de esta escala) */
+  --space-1:4px;  --space-2:8px;  --space-3:12px; --space-4:16px;
+  --space-5:24px; --space-6:32px; --space-7:48px; --space-8:64px; --space-9:96px;
+
+  /* Radii */
+  --radius-0:0px; --radius-1:2px; --radius-2:3px; --radius-3:4px; --radius-pill:999px;
+
+  /* Sombras */
+  --shadow-hair:0 0 0 0.5px var(--border);
+  --shadow-page:0 1px 0 var(--border),0 12px 28px -14px oklch(0.3 0.04 60 / 0.25);
+  --shadow-card:0 1px 0 var(--border),0 4px 12px -6px oklch(0.3 0.04 60 / 0.18);
+  --shadow-raised:0 1px 0 var(--border),0 10px 24px -10px oklch(0.25 0.05 60 / 0.28);
+
+  /* Overrides semánticos (mapeo shadcn) — --primary = ink, NO rubric */
+  --background:var(--paper-1);
+  --foreground:var(--ink-1);
+  --card:var(--paper-0);
+  --card-foreground:var(--ink-1);
+  --primary:var(--ink-1);
+  --primary-foreground:var(--paper-0);
+  --secondary:var(--paper-2);
+  --muted:var(--paper-2);
+  --muted-foreground:var(--ink-3);
+  --accent:var(--paper-3);
+  --destructive:var(--rubric-2);
+  --border:oklch(0.80 0.025 72);
+  --input:oklch(0.80 0.025 72);
+  --ring:var(--ink-1);
+  --radius:var(--radius-3);
+
+  /* Backgrounds globales del dashboard (CD Option B) */
+  --bg-app:#fcf7f0;
+  --bg-sidebar:#ede3cb;
+
+  background-color:var(--bg-app);
+  font-family:var(--font-sans);
+  font-feature-settings:"kern","liga","onum","pnum";
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  color:var(--ink-1);
+  min-height:100vh;
+}
+
+/* ===========================================================================
+ * UTILIDADES TIPOGRÁFICAS .mx-* (verbatim)
+ * =========================================================================== */
+.theme-editorial .mx-display{font-family:var(--font-display);font-weight:800;font-size:var(--fs-display);line-height:var(--lh-display);letter-spacing:-0.02em;color:var(--ink-1)}
+.theme-editorial .mx-h1{font-family:var(--font-display);font-weight:700;font-size:var(--fs-h1);line-height:var(--lh-heading);letter-spacing:-0.015em;color:var(--ink-1)}
+.theme-editorial .mx-h2{font-family:var(--font-display);font-weight:600;font-size:var(--fs-h2);line-height:var(--lh-heading);letter-spacing:-0.015em;color:var(--ink-1)}
+.theme-editorial .mx-h3{font-family:var(--font-display);font-weight:600;font-size:var(--fs-h3);line-height:var(--lh-heading);letter-spacing:-0.01em;color:var(--ink-1)}
+.theme-editorial .mx-h4{font-family:var(--font-display);font-weight:600;font-size:var(--fs-h4);line-height:var(--lh-heading);letter-spacing:-0.01em;color:var(--ink-1)}
+.theme-editorial .mx-body{font-family:var(--font-serif);font-weight:400;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
+.theme-editorial .mx-body-long{font-family:var(--font-serif);font-weight:400;font-size:var(--fs-body);line-height:var(--lh-long);color:var(--ink-2)}
+.theme-editorial .mx-caption{font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:var(--fs-caption);line-height:1.4;color:var(--ink-3)}
+.theme-editorial .mx-smallcaps{font-family:var(--font-small-caps);font-weight:600;font-size:var(--fs-micro);letter-spacing:0.12em;text-transform:uppercase;line-height:1;color:var(--ink-3)}
+.theme-editorial .mx-rubric{font-family:var(--font-sans);font-weight:600;font-size:var(--fs-micro);letter-spacing:0.08em;text-transform:uppercase;color:var(--rubric-2)}
+.theme-editorial .mx-ui{font-family:var(--font-sans);font-weight:500;font-size:var(--fs-body-sm);letter-spacing:0.01em;color:var(--ink-1)}
+.theme-editorial .mx-mono{font-family:var(--font-mono);font-weight:500;font-size:13px;letter-spacing:0.01em;color:var(--ink-2)}
+
+/* Reglas / divisores */
+.theme-editorial .mx-rule{border:0;border-top:1px solid var(--rule);margin:var(--space-3) 0}
+.theme-editorial .mx-rule-double{border:0;border-top:3px double var(--rule);margin:var(--space-4) 0}
+.theme-editorial .mx-rule-thick{border:0;border-top:2px solid var(--ink-1);margin:var(--space-4) 0}
+
+/* Pills semánticas mx-tag */
+.theme-editorial .mx-tag{display:inline-flex;align-items:center;gap:var(--space-1);font-family:var(--font-sans);font-weight:600;font-size:var(--fs-micro);letter-spacing:0.01em;padding:2px 8px;border-radius:var(--radius-pill);border:1px solid transparent;white-space:nowrap}
+.theme-editorial .mx-tag--rubric{background:color-mix(in oklch,var(--rubric-2) 10%,var(--paper-0));color:var(--rubric-1);border-color:color-mix(in oklch,var(--rubric-2) 40%,var(--paper-0))}
+.theme-editorial .mx-tag--gold{background:color-mix(in oklch,var(--accent-gold) 14%,var(--paper-0));color:color-mix(in oklch,var(--accent-gold) 60%,var(--ink-1));border-color:color-mix(in oklch,var(--accent-gold) 45%,var(--paper-0))}
+.theme-editorial .mx-tag--indigo{background:color-mix(in oklch,var(--accent-indigo) 10%,var(--paper-0));color:var(--accent-indigo);border-color:color-mix(in oklch,var(--accent-indigo) 40%,var(--paper-0))}
+.theme-editorial .mx-tag--ink{background:var(--paper-0);color:var(--ink-2);border-color:var(--ink-3)}
+
+/* ===========================================================================
+ * COMPONENTES DE LAYOUT (verbatim del mock crm.html)
+ * =========================================================================== */
+/* Sidebar */
+.theme-editorial .sb{background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.theme-editorial .brand{padding:18px 18px 14px;border-bottom:1px solid var(--ink-1)}
+.theme-editorial .wm{font-family:var(--font-display);font-weight:800;font-size:32px;line-height:1;letter-spacing:-0.02em;color:var(--ink-1)}
+.theme-editorial .wm b{color:var(--rubric-2);font-weight:800}
+.theme-editorial .sub{font-family:var(--font-sans);font-size:12px;font-weight:500;color:var(--ink-3);margin-top:4px}
+.theme-editorial nav.sb-nav{padding:8px;flex:1;overflow:auto}
+.theme-editorial nav.sb-nav ul{list-style:none;padding:0;margin:0}
+.theme-editorial nav.sb-nav li a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--radius-2);font-family:var(--font-sans);font-weight:500;font-size:13px;color:var(--ink-2);text-decoration:none;cursor:pointer}
+.theme-editorial nav.sb-nav li a:hover{background:var(--paper-3);color:var(--ink-1)}
+.theme-editorial nav.sb-nav li a.active{background:var(--paper-0);color:var(--ink-1);border:1px solid var(--ink-1);box-shadow:0 1px 0 var(--border)}
+.theme-editorial nav.sb-nav .cat{font-family:var(--font-sans);font-weight:600;letter-spacing:0.14em;text-transform:uppercase;font-size:10px;color:var(--ink-3);padding:12px 10px 6px}
+
+/* Topbar */
+.theme-editorial .topbar{padding:18px 28px 14px;border-bottom:1px solid var(--ink-1);background:var(--paper-1);display:flex;align-items:flex-end;justify-content:space-between}
+.theme-editorial .eye{font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--rubric-2)}
+.theme-editorial .topbar h1{font-family:var(--font-sans);font-weight:700;font-size:26px;margin:2px 0 0;letter-spacing:-0.01em;color:var(--ink-1);line-height:1.2}
+.theme-editorial .topbar h1 em{font-family:var(--font-sans);font-style:normal;font-weight:400;font-size:15px;color:var(--ink-3);margin-left:8px}
+.theme-editorial .pg{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.theme-editorial .actions{display:flex;gap:8px}
+
+/* Botones */
+.theme-editorial .btn{font-family:var(--font-sans);font-size:13px;font-weight:600;padding:7px 12px;border-radius:var(--radius-3);border:1px solid var(--ink-1);background:var(--paper-0);color:var(--ink-1);cursor:pointer;box-shadow:0 1px 0 var(--ink-1);display:inline-flex;align-items:center;gap:6px;text-decoration:none;line-height:1}
+.theme-editorial .btn:hover{background:var(--paper-3)}
+.theme-editorial .btn.pri{background:var(--ink-1);color:var(--paper-0)}
+.theme-editorial .btn.pri:hover{background:var(--ink-2)}
+
+/* Tabs */
+.theme-editorial .tabs{display:flex;gap:20px;padding:0 28px;border-bottom:1px solid var(--border);background:var(--paper-1)}
+.theme-editorial .tabs a{font-family:var(--font-sans);font-weight:500;font-size:13px;padding:10px 0;color:var(--ink-3);text-decoration:none;cursor:pointer;border:0;border-bottom:2px solid transparent;background:transparent}
+.theme-editorial .tabs a.on{color:var(--ink-1);font-weight:600;border-bottom-color:var(--ink-1)}
+
+/* Page */
+.theme-editorial .page{padding:20px 28px}
+
+/* Toolbar + search + chips */
+.theme-editorial .toolbar{display:flex;gap:10px;margin-bottom:14px;align-items:center}
+.theme-editorial .search{flex:1;max-width:320px;position:relative}
+.theme-editorial .search input{width:100%;border:1px solid var(--border);background:var(--paper-0);padding:8px 10px 8px 30px;border-radius:var(--radius-3);font-family:var(--font-sans);font-size:13px;color:var(--ink-1);outline:none}
+.theme-editorial .search input:focus{border-color:var(--ink-1)}
+.theme-editorial .chip{font-family:var(--font-sans);font-weight:500;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--ink-2);cursor:pointer;background:var(--paper-0);line-height:1.4}
+.theme-editorial .chip.on{background:var(--ink-1);color:var(--paper-0);border-color:var(--ink-1);font-weight:600}
+
+/* Tabla dict */
+.theme-editorial table.dict{width:100%;border-collapse:collapse;background:var(--paper-0);border:1px solid var(--ink-1)}
+.theme-editorial table.dict thead th{text-align:left;padding:10px 12px;font-family:var(--font-sans);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:10px;color:var(--ink-3);border-bottom:1px solid var(--ink-1);background:var(--paper-1)}
+.theme-editorial table.dict td{padding:11px 12px;border-bottom:1px solid var(--border);font-family:var(--font-sans);font-size:13px;color:var(--ink-1);vertical-align:middle}
+.theme-editorial table.dict tbody tr:hover{background:var(--paper-2)}
+.theme-editorial table.dict td.entry{font-weight:600}
+.theme-editorial table.dict td.ph{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);font-weight:500}
+.theme-editorial table.dict td.city{color:var(--ink-3);font-weight:400}
+.theme-editorial table.dict td.date{color:var(--ink-3);font-family:var(--font-mono);font-size:12px}
+
+/* Tag pills .tg (colores verbatim del mock) */
+.theme-editorial .tg{display:inline-flex;align-items:center;font-family:var(--font-sans);font-weight:600;font-size:11px;letter-spacing:0.01em;padding:3px 9px;border-radius:999px;border:1px solid transparent;background:var(--paper-3);color:var(--ink-1);margin-right:4px;line-height:1.4}
+.theme-editorial .tg.red{background:oklch(0.92 0.045 28);color:oklch(0.32 0.09 28);border-color:oklch(0.80 0.07 28)}
+.theme-editorial .tg.gold{background:oklch(0.94 0.055 80);color:oklch(0.38 0.065 70);border-color:oklch(0.82 0.07 80)}
+.theme-editorial .tg.indi{background:oklch(0.93 0.035 260);color:oklch(0.30 0.06 260);border-color:oklch(0.80 0.05 260)}
+.theme-editorial .tg.ver{background:oklch(0.93 0.03 180);color:oklch(0.32 0.04 180);border-color:oklch(0.80 0.04 180)}
+
+/* layout demo */
+.shell{display:grid;grid-template-columns:240px 1fr;height:100vh}
+.main{display:flex;flex-direction:column;overflow:hidden}
+.swatches{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.sw{width:64px;height:64px;border-radius:4px;border:1px solid var(--ink-3);display:flex;align-items:flex-end;justify-content:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-1);padding:2px;text-align:center}
+</style>
+</head>
+
+<body class="theme-editorial">
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sb">
+    <div class="brand">
+      <div class="wm">morf<b>·x</b></div>
+      <div class="sub">Plataforma conversacional</div>
+    </div>
+    <nav class="sb-nav">
+      <ul>
+        <li class="cat">CRM</li>
+        <li><a class="active" href="#">Contactos</a></li>
+        <li><a href="#">Pedidos</a></li>
+        <li><a href="#">Tareas</a></li>
+        <li class="cat">Agentes</li>
+        <li><a href="#">Conversaciones</a></li>
+        <li><a href="#">Automatizaciones</a></li>
+        <li class="cat">Análisis</li>
+        <li><a href="#">Métricas</a></li>
+        <li><a href="#">Configuración</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="eye">CRM · Directorio</div>
+        <h1>Contactos <em>4.281 registros</em></h1>
+      </div>
+      <div class="actions">
+        <a class="btn" href="#">Importar</a>
+        <a class="btn pri" href="#">Nuevo contacto</a>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <a class="on" href="#">Todos</a>
+      <a href="#">Clientes</a>
+      <a href="#">Leads</a>
+      <a href="#">Archivados</a>
+    </nav>
+
+    <div class="page" style="overflow:auto">
+
+      <!-- Muestrario de tokens para que Claude Design vea la paleta -->
+      <p class="mx-rubric">Paleta del sistema</p>
+      <div class="swatches">
+        <div class="sw" style="background:var(--paper-0)">paper-0</div>
+        <div class="sw" style="background:var(--paper-2)">paper-2</div>
+        <div class="sw" style="background:var(--paper-4)">paper-4</div>
+        <div class="sw" style="background:var(--ink-1);color:var(--paper-0)">ink-1</div>
+        <div class="sw" style="background:var(--ink-3);color:var(--paper-0)">ink-3</div>
+        <div class="sw" style="background:var(--rubric-2);color:var(--paper-0)">rubric-2</div>
+        <div class="sw" style="background:var(--accent-gold)">gold</div>
+        <div class="sw" style="background:var(--accent-indigo);color:var(--paper-0)">indigo</div>
+        <div class="sw" style="background:var(--accent-verdigris);color:var(--paper-0)">verdigris</div>
+      </div>
+
+      <hr class="mx-rule-thick">
+
+      <div class="toolbar">
+        <div class="search"><input placeholder="Buscar contacto, teléfono…"></div>
+        <button class="chip on">Todos</button>
+        <button class="chip">Con pedido</button>
+        <button class="chip">Sin actividad</button>
+      </div>
+
+      <table class="dict">
+        <thead>
+          <tr><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Tags</th><th>Última actividad</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="entry">María Restrepo</td>
+            <td class="ph">+57 311 555 0142</td>
+            <td class="city">Medellín</td>
+            <td><span class="tg gold">Cliente</span><span class="tg ver">Recompra</span></td>
+            <td class="date">2026-06-03</td>
+          </tr>
+          <tr>
+            <td class="entry">Carlos Núñez</td>
+            <td class="ph">+57 320 555 0199</td>
+            <td class="city">Bogotá</td>
+            <td><span class="tg red">Pendiente</span></td>
+            <td class="date">2026-06-02</td>
+          </tr>
+          <tr>
+            <td class="entry">Lucía Gómez</td>
+            <td class="ph">+57 300 555 0177</td>
+            <td class="city">Cali</td>
+            <td><span class="tg indi">Lead</span></td>
+            <td class="date">2026-05-30</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr class="mx-rule">
+
+      <!-- Muestrario tipográfico -->
+      <p class="mx-rubric">Escala tipográfica</p>
+      <div class="mx-display">Display 44 · EB Garamond</div>
+      <div class="mx-h1">Titular H1 32 · EB Garamond</div>
+      <div class="mx-h2">Titular H2 26</div>
+      <div class="mx-h3">Titular H3 24</div>
+      <p class="mx-body">Cuerpo serif 16/1.55 — EB Garamond para lectura larga. Aquí va el texto editorial de párrafos y descripciones.</p>
+      <p class="mx-ui">UI sans 14 · Inter — etiquetas, botones, navegación operacional.</p>
+      <p class="mx-mono">Mono 13 · JetBrains Mono — +57 311 555 0142 · ID a3843b3f</p>
+      <p class="mx-caption">Caption itálica 12 — notas al margen</p>
+      <span class="mx-tag mx-tag--rubric">rubric</span>
+      <span class="mx-tag mx-tag--gold">gold</span>
+      <span class="mx-tag mx-tag--indigo">indigo</span>
+      <span class="mx-tag mx-tag--ink">ink</span>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

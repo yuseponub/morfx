@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Iconography</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-serif); color: var(--ink-1); padding: 20px 24px; }
+  .eyebrow { font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 14px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 10px 14px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink-1); }
+  .cell svg { stroke-width: 1.5; }
+  .cap { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); }
+  .orn { display: flex; gap: 18px; margin-top: 10px; font-size: 22px; color: var(--ink-2); align-items: center;}
+  .orn em { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-style: normal; margin-left:4px; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Iconografía · Lucide 1.5px</p>
+  <hr class="d">
+  <div class="grid">
+    <div class="cell"><i data-lucide="message-square" width="22" height="22"></i><span class="cap">message</span></div>
+    <div class="cell"><i data-lucide="users" width="22" height="22"></i><span class="cap">users</span></div>
+    <div class="cell"><i data-lucide="building-2" width="22" height="22"></i><span class="cap">crm</span></div>
+    <div class="cell"><i data-lucide="list-todo" width="22" height="22"></i><span class="cap">tasks</span></div>
+    <div class="cell"><i data-lucide="zap" width="22" height="22"></i><span class="cap">auto</span></div>
+    <div class="cell"><i data-lucide="bot" width="22" height="22"></i><span class="cap">bot</span></div>
+    <div class="cell"><i data-lucide="bar-chart-3" width="22" height="22"></i><span class="cap">chart</span></div>
+    <div class="cell"><i data-lucide="settings" width="22" height="22"></i><span class="cap">settings</span></div>
+    <div class="cell"><i data-lucide="search" width="22" height="22"></i><span class="cap">search</span></div>
+  </div>
+  <div class="orn">
+    <span>❦<em>ornament</em></span>
+    <span>§<em>section</em></span>
+    <span>¶<em>pilcrow</em></span>
+    <span>·<em>mid-dot</em></span>
+    <span>—<em>em-dash</em></span>
+  </div>
+  <script>lucide.createIcons()</script>
+</body>
+</html>

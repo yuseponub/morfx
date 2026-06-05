@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx · Catálogo</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  /* ---------- Sidebar (shared shell) ---------- */
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+
+  main { overflow: hidden; display: flex; flex-direction: column; }
+
+  .topbar { padding: 18px 28px 14px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: flex-end; justify-content: space-between; flex-shrink: 0; }
+  .eye { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; margin: 2px 0 0; letter-spacing: -0.015em; }
+  h1 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 16px; color: var(--ink-3); margin-left: 8px; }
+
+  .actions { display: flex; gap: 8px; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.pri:hover { background: var(--ink-2); }
+
+  /* ---------- Body: categories | grid | drawer ---------- */
+  .body-wrap { display: grid; grid-template-columns: 220px 1fr 420px; flex: 1; min-height: 0; }
+  .body-wrap.closed { grid-template-columns: 220px 1fr 0px; }
+
+  /* Categories rail */
+  .rail { border-right: 1px solid var(--border); background: var(--paper-1); overflow: auto; padding: 16px 14px; }
+  .rail h3 { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); margin: 0 0 10px; padding-left: 4px; }
+  .rail ul { list-style: none; margin: 0; padding: 0; }
+  .rail li { margin-bottom: 1px; }
+  .rail a { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+  .rail a .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .rail a .ct { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .rail a:hover { background: var(--paper-3); color: var(--ink-1); }
+  .rail a.on { background: var(--paper-0); border: 1px solid var(--ink-1); color: var(--ink-1); font-weight: 600; padding: 5px 8px; box-shadow: 0 1px 0 var(--border); }
+  .rail .sub-ul { margin: 2px 0 10px 22px; padding-left: 10px; border-left: 1px dashed var(--border); }
+  .rail .sub-ul a { font-size: 12px; padding: 4px 8px; color: var(--ink-3); }
+  .rail .sub-ul a.on { background: transparent; border: 0; box-shadow: none; color: var(--ink-1); font-weight: 600; padding: 4px 8px; }
+  .rail hr { border: 0; border-top: 1px solid var(--border); margin: 14px 2px; }
+  .rail .stat { padding: 0 4px; font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+  .rail .stat b { color: var(--ink-1); font-weight: 600; }
+
+  /* Center: toolbar + grid */
+  .center { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .toolbar { padding: 12px 28px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); background: var(--paper-1); flex-shrink: 0; }
+  .toolbar .row1 { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .toolbar .row2 { display: flex; gap: 8px; align-items: center; grid-column: 1 / -1; flex-wrap: wrap; }
+  .search { flex: 1; min-width: 180px; position: relative; }
+  .search input { width: 100%; border: 1px solid var(--border); background: var(--paper-0); padding: 8px 10px 8px 30px; border-radius: var(--radius-3); font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  .chip { font-family: var(--font-sans); font-weight: 500; font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); cursor: pointer; background: var(--paper-0); }
+  .chip.on { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); font-weight: 600; }
+  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-3); overflow: hidden; background: var(--paper-0); flex-shrink: 0; }
+  .seg button { font-family: var(--font-sans); font-weight: 500; font-size: 12px; padding: 6px 10px; background: transparent; border: 0; color: var(--ink-3); cursor: pointer; display:flex; align-items:center; gap:5px; border-right: 1px solid var(--border); }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--ink-1); color: var(--paper-0); font-weight: 600; }
+  .sort { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-3); background: var(--paper-0); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .sort b { color: var(--ink-1); font-weight: 600; }
+
+  .cat-bar { padding: 14px 28px 10px; border-bottom: 1px solid var(--border); background: var(--paper-1); flex-shrink: 0; }
+  .cat-bar .crumbs { font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .cat-bar .crumbs b { color: var(--ink-1); font-weight: 600; }
+  .cat-bar h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 2px 0 4px; letter-spacing: -0.01em; color: var(--ink-1); }
+  .cat-bar .meta { font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); }
+  .cat-bar .meta b { color: var(--ink-1); font-weight: 600; }
+
+  .grid-wrap { flex: 1; overflow: auto; padding: 18px 28px 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; }
+
+  /* ---------- Product card ---------- */
+  .p { background: var(--paper-0); border: 1px solid var(--border); border-radius: var(--radius-3); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 1px 0 var(--border); transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s; }
+  .p:hover { border-color: var(--ink-2); box-shadow: 0 1px 0 var(--ink-2), 0 10px 20px -10px oklch(0.3 0.04 60 / 0.18); transform: translateY(-1px); }
+  .p.sel { border-color: var(--ink-1); box-shadow: 0 1px 0 var(--ink-1), 0 10px 20px -8px oklch(0.3 0.04 60 / 0.25); }
+
+  .p .img { aspect-ratio: 1; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .p .img .badge { position: absolute; top: 8px; left: 8px; font-family: var(--font-sans); font-weight: 600; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid; }
+  .p .img .badge.out   { background: oklch(0.92 0.045 28);  color: oklch(0.38 0.09 28); border-color: oklch(0.82 0.07 28); }
+  .p .img .badge.low   { background: oklch(0.94 0.055 80);  color: oklch(0.38 0.065 70); border-color: oklch(0.82 0.07 80); }
+  .p .img .badge.new   { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); }
+  .p .img .fav { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 999px; background: var(--paper-0); border: 1px solid var(--border); display:flex; align-items:center; justify-content:center; color: var(--ink-3); cursor: pointer; }
+  .p .img .fav:hover { color: var(--rubric-2); border-color: var(--rubric-2); }
+
+  .p .meta { padding: 10px 12px 12px; }
+  .p .code { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+  .p .nm { font-family: var(--font-sans); font-weight: 600; font-size: 13px; color: var(--ink-1); margin-top: 2px; line-height: 1.35; letter-spacing: -0.005em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+  .p .row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .p .price { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink-1); letter-spacing: -0.01em; }
+  .p .price .unit { font-family: var(--font-sans); font-weight: 500; font-size: 10px; color: var(--ink-3); margin-left: 3px; letter-spacing: 0; }
+  .p .stock { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+  .p .stock .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--semantic-success); }
+  .p .stock.low   .dot { background: oklch(0.68 0.12 65); }
+  .p .stock.out   .dot { background: var(--rubric-2); }
+  .p .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .p .tg { font-family: var(--font-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 999px; background: var(--paper-2); color: var(--ink-2); border: 1px solid var(--border); }
+
+  /* ---------- Category-themed SVG placeholders ---------- */
+  /* Each category gets a distinct background tone + pattern. Pattern swatch drives the rail dot. */
+  .img.cat-cuadernos  { background: oklch(0.93 0.035 260); }
+  .img.cat-papeles    { background: oklch(0.95 0.025 85); }
+  .img.cat-escritura  { background: oklch(0.92 0.03 160); }
+  .img.cat-agendas    { background: oklch(0.90 0.04 28); }
+  .img.cat-carpetas   { background: oklch(0.93 0.04 80); }
+  .img.cat-arte       { background: oklch(0.91 0.035 320); }
+  .img.cat-tecnologia { background: oklch(0.92 0.025 200); }
+  .img.cat-oficina    { background: oklch(0.93 0.03 60); }
+  .sw.cat-cuadernos   { background: oklch(0.60 0.08 260); }
+  .sw.cat-papeles     { background: oklch(0.72 0.06 85); }
+  .sw.cat-escritura   { background: oklch(0.55 0.07 160); }
+  .sw.cat-agendas     { background: oklch(0.58 0.10 28); }
+  .sw.cat-carpetas    { background: oklch(0.60 0.10 80); }
+  .sw.cat-arte        { background: oklch(0.55 0.09 320); }
+  .sw.cat-tecnologia  { background: oklch(0.58 0.07 200); }
+  .sw.cat-oficina     { background: oklch(0.55 0.08 60); }
+
+  /* ---------- Drawer ---------- */
+  .drawer { border-left: 1px solid var(--ink-1); background: var(--paper-0); overflow: auto; display: flex; flex-direction: column; }
+  .dr-hd { padding: 16px 20px 14px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .dr-hd .code { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .dr-hd h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 3px 0 0; letter-spacing: -0.01em; color: var(--ink-1); line-height: 1.2; }
+  .dr-hd .crumb { font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); margin-top: 6px; font-weight: 500; }
+  .dr-hd .crumb b { color: var(--ink-1); font-weight: 600; }
+  .dr-hd .close { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-2); width: 28px; height: 28px; display:flex; align-items:center; justify-content:center; cursor: pointer; color: var(--ink-2); flex-shrink: 0; }
+  .dr-hd .close:hover { background: var(--paper-3); color: var(--ink-1); }
+
+  .dr-hero { aspect-ratio: 4/3; border-bottom: 1px solid var(--border); position: relative; }
+  .dr-hero .thumbs { position: absolute; bottom: 10px; left: 10px; display: flex; gap: 6px; }
+  .dr-hero .thumbs .th { width: 38px; height: 38px; border-radius: var(--radius-2); border: 1px solid var(--border); background: var(--paper-0); overflow: hidden; }
+  .dr-hero .thumbs .th.on { border-color: var(--ink-1); box-shadow: 0 0 0 1px var(--ink-1); }
+
+  .dr-price { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+  .dr-price .pr { font-family: var(--font-display); font-weight: 700; font-size: 28px; color: var(--ink-1); letter-spacing: -0.015em; }
+  .dr-price .pr .unit { font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-3); margin-left: 6px; letter-spacing: 0; }
+  .dr-price .wholesale { font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); margin-top: 2px; font-weight: 500; }
+  .dr-price .stock-tag { font-family: var(--font-sans); font-weight: 600; font-size: 11px; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 999px; background: oklch(0.95 0.04 145); color: oklch(0.36 0.06 145); border: 1px solid oklch(0.82 0.05 145); display: inline-flex; align-items: center; gap: 5px; }
+  .dr-price .stock-tag .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--semantic-success); }
+
+  .dr-sec { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .dr-sec h3 { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); margin: 0 0 10px; }
+  .dr-sec p { font-family: var(--font-sans); font-size: 13px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+
+  .specs { display: grid; grid-template-columns: 1fr 1.3fr; gap: 6px 14px; font-family: var(--font-sans); font-size: 13px; }
+  .specs dt { color: var(--ink-3); font-weight: 500; }
+  .specs dd { margin: 0; color: var(--ink-1); font-weight: 500; }
+
+  .inv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .inv .box { background: var(--paper-1); border: 1px solid var(--border); border-radius: var(--radius-3); padding: 10px 12px; }
+  .inv .lb { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 9px; color: var(--ink-3); }
+  .inv .vl { font-family: var(--font-display); font-weight: 700; font-size: 20px; color: var(--ink-1); margin-top: 3px; letter-spacing: -0.01em; }
+  .inv .vl .unit { font-family: var(--font-sans); font-weight: 500; font-size: 11px; color: var(--ink-3); margin-left: 3px; letter-spacing: 0; }
+  .inv .sub { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; font-weight: 500; }
+</style>
+</head>
+<body class="mx-doc">
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sb">
+      <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Catálogo · productos &amp; stock</div></div>
+      <nav>
+        <div class="cat">Operación</div>
+        <ul>
+          <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+          <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+          <li><a><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+          <li><a class="active"><i data-lucide="library" width="16" height="16"></i>Catálogo</a></li>
+          <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+        </ul>
+        <div class="cat">Automatización</div>
+        <ul>
+          <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+          <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+        </ul>
+        <div class="cat">Análisis</div>
+        <ul>
+          <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+          <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main>
+      <div class="topbar">
+        <div>
+          <div class="eye">Módulo · catálogo</div>
+          <h1>Productos <em>— Papelería Andina</em></h1>
+        </div>
+        <div class="actions">
+          <button class="btn"><i data-lucide="upload" width="14" height="14"></i>Importar CSV</button>
+          <button class="btn"><i data-lucide="tag" width="14" height="14"></i>Lista de precios</button>
+          <button class="btn pri"><i data-lucide="plus" width="14" height="14"></i>Nuevo producto</button>
+        </div>
+      </div>
+
+      <div class="body-wrap" id="wrap">
+        <!-- Categories rail -->
+        <aside class="rail">
+          <h3>Categorías</h3>
+          <ul id="cats"></ul>
+          <hr>
+          <h3>Estado</h3>
+          <ul>
+            <li><a><i data-lucide="check-circle-2" width="14" height="14"></i>Publicados <span class="ct">184</span></a></li>
+            <li><a><i data-lucide="eye-off" width="14" height="14"></i>Borradores <span class="ct">12</span></a></li>
+            <li><a><i data-lucide="archive" width="14" height="14"></i>Archivados <span class="ct">34</span></a></li>
+          </ul>
+          <hr>
+          <div class="stat">
+            <b>218</b> productos totales<br>
+            <b>$ 42.8M</b> inventario valorizado<br>
+            <b>14</b> con stock bajo
+          </div>
+        </aside>
+
+        <!-- Center -->
+        <section class="center">
+          <div class="cat-bar">
+            <div class="crumbs">Catálogo · <b>Cuadernos y libretas</b></div>
+            <h2>Cuadernos y libretas</h2>
+            <div class="meta"><b>32</b> productos · precios desde $ 3.500 hasta $ 45.000</div>
+          </div>
+
+          <div class="toolbar">
+            <div class="row1">
+              <div class="search"><i data-lucide="search" width="14" height="14"></i><input placeholder="Buscar por nombre, código o proveedor…"></div>
+              <div class="seg">
+                <button class="on"><i data-lucide="layout-grid" width="13" height="13"></i>Grid</button>
+                <button><i data-lucide="list" width="13" height="13"></i>Lista</button>
+              </div>
+              <button class="sort"><i data-lucide="arrow-down-up" width="13" height="13"></i>Orden: <b>Más vendidos</b></button>
+            </div>
+            <div class="row2">
+              <span class="chip on">Todos · 32</span>
+              <span class="chip">Con stock · 28</span>
+              <span class="chip">Bajo stock · 3</span>
+              <span class="chip">Agotados · 1</span>
+            </div>
+          </div>
+
+          <div class="grid-wrap">
+            <div class="grid" id="grid"></div>
+          </div>
+        </section>
+
+        <!-- Drawer -->
+        <aside class="drawer" id="drawer">
+          <div class="dr-hd">
+            <div>
+              <div class="code">SKU · CUA-NRM-OFC-100</div>
+              <h2>Cuaderno Norma oficio 100 hojas — argollado doble</h2>
+              <div class="crumb">Catálogo · Cuadernos y libretas · <b>Argollados</b></div>
+            </div>
+            <button class="close" onclick="closeDrawer()"><i data-lucide="x" width="14" height="14"></i></button>
+          </div>
+
+          <div class="dr-hero img cat-cuadernos" id="hero">
+            <svg id="hero-svg" viewBox="0 0 200 150" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"></svg>
+            <div class="thumbs">
+              <div class="th on img cat-cuadernos"><svg viewBox="0 0 40 40" width="100%" height="100%"><rect x="6" y="5" width="28" height="30" fill="none" stroke="oklch(0.28 0.06 260)" stroke-width="1.2"/><line x1="10" y1="5" x2="10" y2="35" stroke="oklch(0.28 0.06 260)" stroke-width="1.2"/></svg></div>
+              <div class="th img cat-cuadernos" style="background: oklch(0.90 0.04 260);"></div>
+              <div class="th img cat-cuadernos" style="background: oklch(0.88 0.05 260);"></div>
+            </div>
+          </div>
+
+          <div class="dr-price">
+            <div>
+              <div class="pr">$ 12.500<span class="unit">/ unidad</span></div>
+              <div class="wholesale">Desde 50 un. · $ 10.800 · desc. 13.6%</div>
+            </div>
+            <div class="stock-tag"><span class="dot"></span>Stock ok · 284</div>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Descripción</h3>
+            <p>Cuaderno oficio argollado doble, 100 hojas cuadriculadas 5 mm. Tapa dura con acabado mate, resistente al agua. Margen rojo impreso en ambas caras. Presentación en 4 colores surtidos (azul, verde, rojo, negro).</p>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Especificaciones</h3>
+            <dl class="specs">
+              <dt>Proveedor</dt><dd>Norma S.A.</dd>
+              <dt>Marca</dt><dd>Norma Clásico</dd>
+              <dt>Tamaño</dt><dd>Oficio · 21.5 × 33 cm</dd>
+              <dt>Hojas</dt><dd>100 h. · 70 g/m²</dd>
+              <dt>Rayado</dt><dd>Cuadrícula 5 mm</dd>
+              <dt>Código de barras</dt><dd>7702068041823</dd>
+              <dt>Última compra</dt><dd>14 abr · $ 8.200 costo</dd>
+            </dl>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Inventario</h3>
+            <div class="inv">
+              <div class="box"><div class="lb">Disponible</div><div class="vl">284<span class="unit">un</span></div><div class="sub">en bodega central</div></div>
+              <div class="box"><div class="lb">Reservado</div><div class="vl">42<span class="unit">un</span></div><div class="sub">3 pedidos abiertos</div></div>
+              <div class="box"><div class="lb">Punto reorden</div><div class="vl">60<span class="unit">un</span></div><div class="sub">alerta automática</div></div>
+            </div>
+          </div>
+
+          <div class="dr-sec">
+            <h3>Ventas últimas 4 semanas</h3>
+            <svg viewBox="0 0 380 80" width="100%" height="80" style="display: block;">
+              <g font-family="ui-monospace, monospace" font-size="9" fill="oklch(0.48 0.03 65)">
+                <text x="0" y="78">S-4</text>
+                <text x="95" y="78">S-3</text>
+                <text x="190" y="78">S-2</text>
+                <text x="285" y="78">S-1</text>
+              </g>
+              <g fill="oklch(0.42 0.045 260)">
+                <rect x="10" y="40" width="60" height="26" rx="1"/>
+                <rect x="105" y="28" width="60" height="38" rx="1"/>
+                <rect x="200" y="20" width="60" height="46" rx="1"/>
+                <rect x="295" y="12" width="60" height="54" rx="1"/>
+              </g>
+              <g font-family="ui-monospace, monospace" font-size="9" font-weight="600" fill="oklch(0.18 0.02 60)">
+                <text x="40" y="37" text-anchor="middle">26</text>
+                <text x="135" y="25" text-anchor="middle">38</text>
+                <text x="230" y="17" text-anchor="middle">46</text>
+                <text x="325" y="9" text-anchor="middle">54</text>
+              </g>
+            </svg>
+            <p style="font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); margin-top: 6px; font-weight: 500;">164 unidades vendidas · tendencia al alza por inicio de período escolar</p>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ---------- Categories ----------
+    const categories = [
+      { key:"cuadernos",  name:"Cuadernos y libretas", ct: 32, sub:["Argollados","Cosidos","Libretas pocket","Tapa dura"], on:true },
+      { key:"papeles",    name:"Papeles y resmas",     ct: 24, sub:[] },
+      { key:"escritura",  name:"Escritura",            ct: 48, sub:[] },
+      { key:"agendas",    name:"Agendas y planners",   ct: 14, sub:[] },
+      { key:"carpetas",   name:"Carpetas y archivo",   ct: 28, sub:[] },
+      { key:"arte",       name:"Arte y manualidades",  ct: 36, sub:[] },
+      { key:"tecnologia", name:"Tecnología",           ct: 18, sub:[] },
+      { key:"oficina",    name:"Oficina general",      ct: 18, sub:[] },
+    ];
+    document.getElementById('cats').innerHTML = categories.map(c => `
+      <li>
+        <a class="${c.on ? 'on' : ''}"><span class="sw cat-${c.key}"></span>${c.name}<span class="ct">${c.ct}</span></a>
+        ${c.sub.length ? `
+          <ul class="sub-ul">
+            ${c.sub.map((s, i) => `<li><a class="${i === 0 ? 'on' : ''}">${s}</a></li>`).join('')}
+          </ul>` : ''}
+      </li>`).join('');
+
+    // ---------- SVG placeholder patterns per category ----------
+    // Each returns a <g> of pattern geometry drawn in the category's ink color.
+    const patterns = {
+      cuadernos: (ink) => `
+        <rect x="55" y="25" width="90" height="100" fill="oklch(0.97 0.015 260)" stroke="${ink}" stroke-width="1.5"/>
+        <circle cx="65" cy="40" r="2.5" fill="none" stroke="${ink}" stroke-width="1"/>
+        <circle cx="65" cy="55" r="2.5" fill="none" stroke="${ink}" stroke-width="1"/>
+        <circle cx="65" cy="70" r="2.5" fill="none" stroke="${ink}" stroke-width="1"/>
+        <circle cx="65" cy="85" r="2.5" fill="none" stroke="${ink}" stroke-width="1"/>
+        <circle cx="65" cy="100" r="2.5" fill="none" stroke="${ink}" stroke-width="1"/>
+        <circle cx="65" cy="115" r="2.5" fill="none" stroke="${ink}" stroke-width="1"/>
+        <line x1="80" y1="45" x2="135" y2="45" stroke="${ink}" stroke-width="0.6" opacity="0.5"/>
+        <line x1="80" y1="60" x2="135" y2="60" stroke="${ink}" stroke-width="0.6" opacity="0.5"/>
+        <line x1="80" y1="75" x2="135" y2="75" stroke="${ink}" stroke-width="0.6" opacity="0.5"/>
+        <line x1="80" y1="90" x2="135" y2="90" stroke="${ink}" stroke-width="0.6" opacity="0.5"/>
+        <line x1="80" y1="105" x2="135" y2="105" stroke="${ink}" stroke-width="0.6" opacity="0.5"/>`,
+      papeles: (ink) => `
+        <rect x="55" y="35" width="80" height="100" fill="oklch(0.99 0.005 85)" stroke="${ink}" stroke-width="1.2" transform="rotate(-4 95 85)"/>
+        <rect x="65" y="25" width="80" height="100" fill="oklch(0.99 0.005 85)" stroke="${ink}" stroke-width="1.2" transform="rotate(2 105 75)"/>
+        <rect x="60" y="30" width="80" height="100" fill="oklch(0.98 0.01 85)" stroke="${ink}" stroke-width="1.5"/>
+        <line x1="70" y1="50" x2="130" y2="50" stroke="${ink}" stroke-width="0.8" opacity="0.35"/>
+        <line x1="70" y1="65" x2="130" y2="65" stroke="${ink}" stroke-width="0.8" opacity="0.35"/>
+        <line x1="70" y1="80" x2="130" y2="80" stroke="${ink}" stroke-width="0.8" opacity="0.35"/>`,
+      escritura: (ink) => `
+        <g stroke="${ink}" stroke-width="1.4" fill="none">
+          <path d="M 70 130 L 70 40 L 80 30 L 80 130 Z" fill="oklch(0.96 0.02 160)"/>
+          <path d="M 70 40 L 80 30" />
+          <line x1="70" y1="120" x2="80" y2="120"/>
+          <circle cx="75" cy="125" r="1" fill="${ink}"/>
+        </g>
+        <g stroke="${ink}" stroke-width="1.4" fill="none" transform="rotate(12 110 80)">
+          <path d="M 105 130 L 105 40 L 115 30 L 115 130 Z" fill="oklch(0.94 0.025 160)"/>
+          <path d="M 105 40 L 115 30" />
+          <circle cx="110" cy="125" r="1" fill="${ink}"/>
+        </g>
+        <g stroke="${ink}" stroke-width="1.4" fill="none" transform="rotate(-8 140 75)">
+          <path d="M 135 130 L 135 40 L 145 30 L 145 130 Z" fill="oklch(0.92 0.03 160)"/>
+          <path d="M 135 40 L 145 30" />
+        </g>`,
+      agendas: (ink) => `
+        <rect x="55" y="30" width="90" height="95" fill="oklch(0.97 0.02 28)" stroke="${ink}" stroke-width="1.5" rx="3"/>
+        <rect x="55" y="30" width="90" height="20" fill="${ink}" rx="3"/>
+        <text x="100" y="44" text-anchor="middle" font-family="Georgia, serif" font-size="11" font-weight="700" fill="oklch(0.99 0.005 85)">2026</text>
+        <g stroke="${ink}" stroke-width="0.8" fill="none">
+          <line x1="65" y1="65" x2="135" y2="65"/>
+          <line x1="65" y1="80" x2="135" y2="80"/>
+          <line x1="65" y1="95" x2="135" y2="95"/>
+          <line x1="65" y1="110" x2="135" y2="110"/>
+          <line x1="85" y1="55" x2="85" y2="120"/>
+          <line x1="100" y1="55" x2="100" y2="120"/>
+          <line x1="115" y1="55" x2="115" y2="120"/>
+        </g>`,
+      carpetas: (ink) => `
+        <path d="M 55 45 L 90 45 L 98 55 L 145 55 L 145 125 L 55 125 Z" fill="oklch(0.96 0.03 80)" stroke="${ink}" stroke-width="1.5"/>
+        <line x1="60" y1="70" x2="140" y2="70" stroke="${ink}" stroke-width="0.6" opacity="0.4"/>
+        <line x1="60" y1="85" x2="140" y2="85" stroke="${ink}" stroke-width="0.6" opacity="0.4"/>
+        <line x1="60" y1="100" x2="140" y2="100" stroke="${ink}" stroke-width="0.6" opacity="0.4"/>
+        <line x1="60" y1="115" x2="140" y2="115" stroke="${ink}" stroke-width="0.6" opacity="0.4"/>
+        <rect x="75" y="50" width="20" height="3" fill="${ink}"/>`,
+      arte: (ink) => `
+        <circle cx="80" cy="60" r="14" fill="oklch(0.72 0.14 28)" opacity="0.85"/>
+        <circle cx="110" cy="55" r="14" fill="oklch(0.78 0.13 80)" opacity="0.85"/>
+        <circle cx="95" cy="85" r="14" fill="oklch(0.60 0.13 260)" opacity="0.85"/>
+        <circle cx="125" cy="95" r="14" fill="oklch(0.68 0.14 145)" opacity="0.85"/>
+        <circle cx="75" cy="105" r="14" fill="oklch(0.55 0.13 320)" opacity="0.85"/>
+        <g stroke="${ink}" stroke-width="1.2" fill="none">
+          <circle cx="80" cy="60" r="14"/>
+          <circle cx="110" cy="55" r="14"/>
+          <circle cx="95" cy="85" r="14"/>
+          <circle cx="125" cy="95" r="14"/>
+          <circle cx="75" cy="105" r="14"/>
+        </g>`,
+      tecnologia: (ink) => `
+        <rect x="50" y="40" width="100" height="70" fill="oklch(0.97 0.01 200)" stroke="${ink}" stroke-width="1.5" rx="3"/>
+        <rect x="55" y="45" width="90" height="55" fill="${ink}" opacity="0.9"/>
+        <rect x="75" y="110" width="50" height="8" fill="oklch(0.96 0.015 200)" stroke="${ink}" stroke-width="1.2"/>
+        <rect x="65" y="118" width="70" height="4" fill="${ink}"/>
+        <g stroke="oklch(0.99 0.005 85)" stroke-width="0.6" opacity="0.25">
+          <line x1="55" y1="55" x2="145" y2="55"/>
+          <line x1="55" y1="65" x2="145" y2="65"/>
+          <line x1="55" y1="75" x2="145" y2="75"/>
+          <line x1="55" y1="85" x2="145" y2="85"/>
+        </g>`,
+      oficina: (ink) => `
+        <g stroke="${ink}" stroke-width="1.4" fill="none">
+          <rect x="55" y="55" width="32" height="55" fill="oklch(0.96 0.025 60)" rx="2"/>
+          <line x1="55" y1="70" x2="87" y2="70"/>
+          <circle cx="71" cy="62" r="1.2" fill="${ink}"/>
+          <rect x="95" y="40" width="55" height="70" fill="oklch(0.98 0.015 60)" rx="2"/>
+          <line x1="95" y1="52" x2="150" y2="52"/>
+          <line x1="102" y1="65" x2="143" y2="65"/>
+          <line x1="102" y1="75" x2="143" y2="75"/>
+          <line x1="102" y1="85" x2="143" y2="85"/>
+          <line x1="102" y1="95" x2="130" y2="95"/>
+        </g>`,
+    };
+    const catInk = {
+      cuadernos:"oklch(0.30 0.08 260)", papeles:"oklch(0.38 0.06 85)", escritura:"oklch(0.28 0.07 160)",
+      agendas:"oklch(0.32 0.10 28)", carpetas:"oklch(0.34 0.09 80)", arte:"oklch(0.30 0.08 320)",
+      tecnologia:"oklch(0.30 0.06 200)", oficina:"oklch(0.30 0.07 60)",
+    };
+    function svgFor(cat){
+      return `<svg viewBox="0 0 200 150" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">${patterns[cat](catInk[cat])}</svg>`;
+    }
+
+    // ---------- Products ----------
+    const products = [
+      { code:"CUA-NRM-OFC-100", nm:"Cuaderno Norma oficio 100 h — argollado doble",  cat:"cuadernos", price:"$ 12.500", unit:"un", stock:284, stockState:"ok",  tags:["escolar","más vendido"], badge:null,  sel:true },
+      { code:"CUA-NRM-CRT-80",  nm:"Cuaderno Norma carta 80 h — cosido",              cat:"cuadernos", price:"$ 8.900",  unit:"un", stock:412, stockState:"ok",  tags:["escolar"], badge:null },
+      { code:"CUA-SCR-POCK",    nm:"Libreta Scribe pocket A6 — tapa kraft",           cat:"cuadernos", price:"$ 6.800",  unit:"un", stock:38,  stockState:"low", tags:["regalo"], badge:"low" },
+      { code:"CUA-MOL-A5",      nm:"Moleskine clásica A5 — rayada",                   cat:"cuadernos", price:"$ 45.000", unit:"un", stock:12,  stockState:"low", tags:["premium"], badge:"low" },
+      { code:"RES-OFC-75",      nm:"Resma oficio 75 g — Reprograf",                   cat:"papeles",   price:"$ 28.500", unit:"resma", stock:84, stockState:"ok",  tags:["mayorista"], badge:null },
+      { code:"RES-CRT-75",      nm:"Resma carta 75 g — Reprograf",                    cat:"papeles",   price:"$ 22.000", unit:"resma", stock:128, stockState:"ok", tags:[], badge:null },
+      { code:"PAP-CART-PL",     nm:"Cartulina pliego — surtido 10 colores",           cat:"papeles",   price:"$ 3.500",  unit:"pliego", stock:0,  stockState:"out", tags:["arte"], badge:"out" },
+      { code:"ESC-BIC-CRS",     nm:"Esfero BIC Cristal — caja × 50 negro",             cat:"escritura", price:"$ 42.000", unit:"caja", stock:62, stockState:"ok",  tags:["más vendido"], badge:null },
+      { code:"ESC-PLT-HB",      nm:"Lápiz Staedtler HB — pack × 12",                   cat:"escritura", price:"$ 14.500", unit:"pack", stock:94, stockState:"ok",  tags:["escolar"], badge:null },
+      { code:"ESC-MRC-PRM",     nm:"Marcador permanente Sharpie — pack × 4",           cat:"escritura", price:"$ 18.900", unit:"pack", stock:22, stockState:"low", tags:[], badge:"low" },
+      { code:"AGE-NOR-2026",    nm:"Agenda Norma 2026 — ejecutiva",                    cat:"agendas",   price:"$ 38.000", unit:"un", stock:46, stockState:"ok",   tags:["nuevo","premium"], badge:"new" },
+      { code:"AGE-MIQ-26",      nm:"Planner Miquelrius 2026 — semanal",                cat:"agendas",   price:"$ 52.000", unit:"un", stock:18, stockState:"low", tags:["premium"], badge:"low" },
+      { code:"CAR-PLS-AZ",      nm:"Carpeta plástica oficio — caja × 20 azul",         cat:"carpetas",  price:"$ 18.500", unit:"caja", stock:74, stockState:"ok", tags:[], badge:null },
+      { code:"ART-TMP-12",      nm:"Témperas escolares — 12 colores 25 ml",             cat:"arte",      price:"$ 16.800", unit:"set", stock:58, stockState:"ok", tags:["escolar"], badge:null },
+      { code:"TEC-USB-32",      nm:"USB Kingston 32 GB — DataTraveler",                cat:"tecnologia",price:"$ 26.000", unit:"un", stock:41, stockState:"ok",  tags:[], badge:null },
+      { code:"OFC-GRP-STD",     nm:"Grapadora Rapid estándar + 1000 grapas",            cat:"oficina",   price:"$ 32.500", unit:"un", stock:28, stockState:"ok", tags:[], badge:null },
+    ];
+
+    const stockLabel = { ok: "En stock", low: "Bajo stock", out: "Agotado" };
+    const badgeLabel = { new: "Nuevo", low: "Bajo stock", out: "Agotado" };
+
+    document.getElementById('grid').innerHTML = products.map(p => `
+      <article class="p${p.sel ? ' sel' : ''}" data-code="${p.code}">
+        <div class="img cat-${p.cat}">
+          ${svgFor(p.cat)}
+          ${p.badge ? `<span class="badge ${p.badge}">${badgeLabel[p.badge]}</span>` : ''}
+          <button class="fav" title="Favorito"><i data-lucide="heart" width="12" height="12"></i></button>
+        </div>
+        <div class="meta">
+          <div class="code">${p.code}</div>
+          <div class="nm">${p.nm}</div>
+          <div class="row">
+            <div class="price">${p.price}<span class="unit">/ ${p.unit}</span></div>
+          </div>
+          <div class="row" style="margin-top: 4px;">
+            <div class="stock ${p.stockState}"><span class="dot"></span>${p.stock} ${p.unit}</div>
+            <span style="font-family: var(--font-sans); font-size: 10px; font-weight: 500; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase;">${stockLabel[p.stockState]}</span>
+          </div>
+          ${p.tags.length ? `<div class="tags">${p.tags.map(t=>`<span class="tg">${t}</span>`).join('')}</div>` : ''}
+        </div>
+      </article>`).join('');
+
+    // Hero SVG
+    document.getElementById('hero').innerHTML = svgFor('cuadernos') + `
+      <div class="thumbs">
+        <div class="th on">${svgFor('cuadernos')}</div>
+        <div class="th" style="background: oklch(0.90 0.04 260);"></div>
+        <div class="th" style="background: oklch(0.88 0.05 260);"></div>
+      </div>`;
+
+    // Interactions
+    document.querySelectorAll('.p').forEach(c => {
+      c.addEventListener('click', () => {
+        document.querySelectorAll('.p.sel').forEach(x => x.classList.remove('sel'));
+        c.classList.add('sel');
+        document.getElementById('wrap').classList.remove('closed');
+      });
+    });
+    function closeDrawer(){
+      document.getElementById('wrap').classList.add('closed');
+      document.querySelectorAll('.p.sel').forEach(x => x.classList.remove('sel'));
+    }
+    lucide.createIcons();
+  </script>
+</body>
+</html>

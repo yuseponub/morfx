@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Card</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-2); }
+  body { font-family: var(--font-serif); color: var(--ink-1); padding: 20px 24px; }
+  .eyebrow { font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 12px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .card { background: var(--paper-0); border: 1px solid var(--border); border-radius: var(--radius-3); padding: 16px 18px; box-shadow: var(--shadow-card); }
+  .ce { font-family: var(--font-sans); font-weight: 600; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  .ct { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 3px 0 6px; letter-spacing: -0.01em; color: var(--ink-1); }
+  .cr { border: 0; border-top: 1px solid var(--ink-1); margin: 8px 0 12px; }
+  .cb { font-family: var(--font-sans); font-size: 14px; line-height: 1.6; color: var(--ink-1); margin: 0; }
+  .cb em { font-family: var(--font-mono); font-style: normal; font-size: 13px; color: var(--ink-1); background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
+  .cm { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); margin-top: 10px; font-weight: 500; }
+  .cm b { color: var(--ink-1); font-weight: 600; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Componentes · tarjeta</p>
+  <hr class="d">
+  <div class="card">
+    <div class="ce">Conversación · Nº 0412</div>
+    <div class="ct">Juan Carlos Pérez</div>
+    <hr class="cr">
+    <p class="cb">Confirmó el pedido del miércoles. Solicita cambio de dirección: <em>Cr 15 #85-32, apto 402, Bogotá</em>. Espera factura electrónica.</p>
+    <p class="cm">Asignado a <b>María</b> · hace 12 min · WhatsApp</p>
+  </div>
+</body>
+</html>

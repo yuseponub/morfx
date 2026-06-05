@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Type: Specimens</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-serif); color: var(--ink-1); padding: 18px 24px; }
+  .eyebrow { font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 12px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .cell { }
+  .lbl { font-family: var(--font-mono); font-size:10px; color: var(--ink-3); margin-bottom: 4px; }
+  .sc { font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.08em; font-weight: 600; font-size: 18px; color: var(--ink-1); }
+  .it { font-family: var(--font-serif); font-style: italic; font-size: 18px; color: var(--ink-2); }
+  .ru { font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.08em; font-weight: 600; font-size: 18px; color: var(--rubric-2); }
+  .ui { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--ink-1); letter-spacing: 0.01em; }
+  .mn { font-family: var(--font-mono); font-size: 14px; color: var(--ink-2); }
+  .pg { font-family: var(--font-serif); font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+  .pg::first-letter { font-family: var(--font-display); font-weight: 700; font-size: 3em; line-height: 0.9; float: left; padding: 3px 6px 0 0; color: var(--rubric-2); }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Tipografía · especímenes</p>
+  <hr class="d">
+  <div class="grid">
+    <div class="cell"><div class="lbl">Small caps</div><div class="sc">Bandeja de entrada</div></div>
+    <div class="cell"><div class="lbl">Italic</div><div class="it">Sin asignar todavía</div></div>
+    <div class="cell"><div class="lbl">Rubric</div><div class="ru">Importante</div></div>
+    <div class="cell"><div class="lbl">UI (Inter)</div><div class="ui">Crear contacto</div></div>
+    <div class="cell"><div class="lbl">Mono</div><div class="mn">+57 312 555 4412</div></div>
+    <div class="cell"><div class="lbl">Drop cap</div><div class="pg">Lorem ipsum dolor sit amet consectetur adipiscing elit. Sed do eiusmod tempor incididunt.</div></div>
+  </div>
+</body>
+</html>

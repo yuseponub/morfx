@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Spacing & Radii</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-sans); color: var(--ink-1); padding: 18px 24px; }
+  .eyebrow { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); margin: 0 0 4px; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 12px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .row { display:flex; align-items:flex-end; gap: 10px; margin-bottom: 14px; }
+  .sp { background: var(--ink-2); height: 14px; }
+  .tag { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); width: 44px; font-weight: 500; }
+  .lbl { font-family: var(--font-sans); font-size: 13px; color: var(--ink-2); font-weight: 500; }
+  .rr { display:flex; gap: 14px; align-items:center; }
+  .rb { width: 48px; height: 48px; background: var(--paper-3); border: 1px solid var(--ink-1); display:flex; align-items:center; justify-content:center; font-family: var(--font-mono); font-size:11px; color: var(--ink-1); font-weight: 500; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Espaciado &amp; radio</p>
+  <hr class="d">
+  <div class="row"><span class="tag">4</span><span class="sp" style="width:4px"></span><span class="lbl">hairline gap</span></div>
+  <div class="row"><span class="tag">8</span><span class="sp" style="width:8px"></span><span class="lbl">icon ↔ text</span></div>
+  <div class="row"><span class="tag">16</span><span class="sp" style="width:16px"></span><span class="lbl">inner padding</span></div>
+  <div class="row"><span class="tag">24</span><span class="sp" style="width:24px"></span><span class="lbl">section gap</span></div>
+  <div class="row"><span class="tag">48</span><span class="sp" style="width:48px"></span><span class="lbl">page gutter</span></div>
+  <div class="rr" style="margin-top: 6px;">
+    <span class="lbl" style="margin-right:4px;">radii —</span>
+    <div class="rb" style="border-radius:0">0</div>
+    <div class="rb" style="border-radius:2px">2</div>
+    <div class="rb" style="border-radius:3px">3</div>
+    <div class="rb" style="border-radius:4px">4</div>
+    <div class="rb" style="border-radius:999px">pill</div>
+  </div>
+</body>
+</html>

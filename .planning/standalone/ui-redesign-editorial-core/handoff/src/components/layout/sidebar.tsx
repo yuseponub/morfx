@@ -1,0 +1,272 @@
+'use client'
+
+import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Building2, MessageSquare, MessageSquareText, Settings, Users, LogOut, ListTodo, BarChart3, Bot, Zap, Sparkles, Terminal, CalendarCheck, TrendingUp } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher'
+import { GlobalSearch } from '@/components/search/global-search'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { logout } from '@/app/actions/auth'
+import { useTaskBadge } from '@/hooks/use-task-badge'
+import { useAutomationBadge } from '@/hooks/use-automation-badge'
+import type { WorkspaceWithRole } from '@/lib/types/database'
+import type { User } from '@supabase/supabase-js'
+
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof Building2
+  badgeType?: 'tasks' | 'automations'
+  adminOnly?: boolean
+  /**
+   * Optional gate based on workspaces.settings JSONB.
+   * Format: '<namespace>.<key>', e.g. 'conversation_metrics.enabled'.
+   * The item is hidden unless settings[namespace][key] is truthy.
+   * Unlike `adminOnly`, this gate applies to ALL users of the workspace.
+   */
+  settingsKey?: string
+  subLink?: {
+    href: string
+    label: string
+    icon: typeof Building2
+  }
+}
+
+const navItems: NavItem[] = [
+  {
+    href: '/crm',
+    label: 'CRM',
+    icon: Building2,
+  },
+  {
+    href: '/whatsapp',
+    label: 'WhatsApp',
+    icon: MessageSquare,
+  },
+  {
+    href: '/sms',
+    label: 'SMS',
+    icon: MessageSquareText,
+  },
+  {
+    href: '/tareas',
+    label: 'Tareas',
+    icon: ListTodo,
+    badgeType: 'tasks',
+  },
+  {
+    href: '/comandos',
+    label: 'Comandos',
+    icon: Terminal,
+    adminOnly: true,
+  },
+  {
+    href: '/automatizaciones',
+    label: 'Automatizaciones',
+    icon: Zap,
+    badgeType: 'automations',
+    subLink: {
+      href: '/automatizaciones/builder',
+      label: 'AI Builder',
+      icon: Sparkles,
+    },
+  },
+  {
+    href: '/analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    adminOnly: true,
+  },
+  {
+    // NOTE: NO adminOnly — explicit exception vs analytics.
+    // ALL workspace users can access /metricas when the flag is enabled.
+    href: '/metricas',
+    label: 'Metricas',
+    icon: TrendingUp,
+    settingsKey: 'conversation_metrics.enabled',
+  },
+  {
+    href: '/sandbox',
+    label: 'Sandbox',
+    icon: Bot,
+  },
+  {
+    href: '/agentes',
+    label: 'Agentes',
+    icon: Bot,
+  },
+  {
+    href: '/confirmaciones',
+    label: 'Confirmaciones',
+    icon: CalendarCheck,
+  },
+  {
+    href: '/settings/workspace/members',
+    label: 'Equipo',
+    icon: Users,
+  },
+  {
+    href: '/settings',
+    label: 'Configuracion',
+    icon: Settings,
+  },
+]
+
+interface SidebarProps {
+  workspaces?: WorkspaceWithRole[]
+  currentWorkspace?: WorkspaceWithRole | null
+  user?: User | null
+}
+
+export function Sidebar({ workspaces = [], currentWorkspace, user }: SidebarProps) {
+  const pathname = usePathname()
+  const { badgeCount: taskBadgeCount } = useTaskBadge()
+  const { failureCount: automationFailureCount } = useAutomationBadge()
+
+  // Filter nav items based on user role and workspace settings
+  const userRole = currentWorkspace?.role
+  const isManager = userRole === 'owner' || userRole === 'admin'
+  const settings = currentWorkspace?.settings as Record<string, unknown> | null | undefined
+  const hiddenModules = settings?.hidden_modules as string[] | undefined
+  const filteredNavItems = navItems.filter(item => {
+    if (item.adminOnly && !isManager) return false
+    if (hiddenModules?.includes(item.href)) return false
+    if (item.settingsKey) {
+      const [ns, key] = item.settingsKey.split('.')
+      const nsObj = settings?.[ns] as Record<string, unknown> | undefined
+      if (!nsObj?.[key]) return false
+    }
+    return true
+  })
+
+  return (
+    <aside className="hidden md:flex flex-col w-64 border-r bg-card">
+      <TooltipProvider>
+      {/* Logo/Brand */}
+      <div className="h-16 flex items-center px-6 border-b">
+        <Link href="/crm">
+          <Image src="/logo-light.png" className="block dark:hidden h-8 w-auto" alt="morfx" width={85} height={32} />
+          <Image src="/logo-dark.png" className="hidden dark:block h-8 w-auto" alt="morfx" width={135} height={32} />
+        </Link>
+      </div>
+
+      {/* Workspace Switcher */}
+      <div className="p-4 border-b">
+        <WorkspaceSwitcher
+          workspaces={workspaces}
+          currentWorkspace={currentWorkspace}
+        />
+      </div>
+
+      {/* Global Search */}
+      <div className="px-4 pb-4">
+        <GlobalSearch />
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4">
+        <ul className="space-y-1">
+            {filteredNavItems.map((item) => {
+              const isActive = pathname.startsWith(item.href)
+              const Icon = item.icon
+              // Determine badge count based on type
+              let itemBadgeCount = 0
+              if (item.badgeType === 'tasks') itemBadgeCount = taskBadgeCount
+              else if (item.badgeType === 'automations') itemBadgeCount = automationFailureCount
+              const showBadge = itemBadgeCount > 0
+
+              return (
+                <li key={item.href}>
+                  <div className="flex items-center gap-1">
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'flex flex-1 items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="flex-1">{item.label}</span>
+                      {showBadge && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1.5">
+                          {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
+                        </span>
+                      )}
+                    </Link>
+                    {item.subLink && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={item.subLink.href}
+                            className={cn(
+                              'flex h-8 w-8 items-center justify-center rounded-md transition-colors shrink-0',
+                              pathname.startsWith(item.subLink.href)
+                                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            )}
+                          >
+                            <item.subLink.icon className="h-4 w-4" />
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>{item.subLink.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+      </nav>
+
+      {/* Footer - User profile */}
+      <div className="p-4 border-t">
+        {user && (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user.email?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {user.email?.split('@')[0]}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+            <form action={logout}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="submit"
+                    className="p-2 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Cerrar sesion</p>
+                </TooltipContent>
+              </Tooltip>
+            </form>
+          </div>
+        )}
+      </div>
+      </TooltipProvider>
+    </aside>
+  )
+}

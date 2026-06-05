@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Elevation</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-2); }
+  body { font-family: var(--font-serif); color: var(--ink-1); padding: 20px 24px; }
+  .eyebrow { font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 14px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--paper-0); border: 1px solid var(--border); border-radius: var(--radius-3); padding: 14px 14px 18px; }
+  .s-hair { box-shadow: var(--shadow-hair); }
+  .s-card { box-shadow: var(--shadow-card); }
+  .s-raised { box-shadow: var(--shadow-raised); }
+  .ttl { font-family: var(--font-serif); font-weight: 600; font-size: 15px; margin: 0 0 2px; }
+  .mn { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Elevación · sombras</p>
+  <hr class="d">
+  <div class="row">
+    <div class="card s-hair"><p class="ttl">Hairline</p><p class="mn">shadow-hair · edge only</p></div>
+    <div class="card s-card"><p class="ttl">Page card</p><p class="mn">shadow-card · default</p></div>
+    <div class="card s-raised"><p class="ttl">Raised</p><p class="mn">shadow-raised · modals</p></div>
+  </div>
+</body>
+</html>

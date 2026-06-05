@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-sans); color: var(--ink-1); padding: 20px 24px; }
+  .eyebrow { font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 14px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .row { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; margin-bottom: 10px; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; letter-spacing: 0.01em; padding: 8px 14px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); transition: 120ms; }
+  .btn:hover { background: var(--paper-3); }
+  .btn:active { transform: translateY(1px); box-shadow: none; }
+  .btn-pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn-pri:hover { background: var(--ink-2); }
+  .btn-danger { background: var(--rubric-2); color: var(--paper-0); border-color: var(--rubric-1); }
+  .btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
+  .btn-ghost:hover { background: var(--paper-3); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-link { background: none; border: 0; box-shadow: none; color: var(--rubric-2); font-family: var(--font-serif); font-weight: 600; font-size: 14px; text-decoration: underline; padding: 0; }
+  .btn-link:hover { text-decoration: underline double; }
+  .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); width: 70px; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Componentes · botones</p>
+  <hr class="d">
+  <div class="row"><span class="lbl">primary</span><button class="btn btn-pri">Enviar mensaje</button><button class="btn btn-pri btn-sm">Guardar</button></div>
+  <div class="row"><span class="lbl">secondary</span><button class="btn">Cancelar</button><button class="btn btn-sm">Ver más</button></div>
+  <div class="row"><span class="lbl">danger</span><button class="btn btn-danger">Archivar</button><button class="btn btn-ghost" style="color:var(--rubric-2)">Eliminar</button></div>
+  <div class="row"><span class="lbl">ghost / link</span><button class="btn btn-ghost">Filtrar</button><button class="btn-link">Asignar a mí</button></div>
+</body>
+</html>

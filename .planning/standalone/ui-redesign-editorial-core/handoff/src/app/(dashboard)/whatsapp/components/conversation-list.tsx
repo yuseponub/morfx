@@ -1,0 +1,302 @@
+'use client'
+
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Bot, Plus, Tag, UserRoundSearch } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { getTagsForScope } from '@/app/actions/tags'
+import { cn } from '@/lib/utils'
+import { useConversations } from '@/hooks/use-conversations'
+import { InboxFilters } from './filters/inbox-filters'
+import { SearchInput } from './filters/search-input'
+import { ConversationItem } from './conversation-item'
+import { AvailabilityToggle } from './availability-toggle'
+import { NewConversationModal } from './new-conversation-modal'
+import type { ConversationWithDetails } from '@/lib/whatsapp/types'
+import type { ClientActivationConfig } from '@/lib/domain/client-activation'
+
+interface ConversationListProps {
+  workspaceId: string
+  initialConversations: ConversationWithDetails[]
+  selectedId: string | null
+  onSelect: (id: string | null, conversation?: ConversationWithDetails) => void
+  /** Called when selected conversation data changes via realtime */
+  onSelectedUpdated?: (conversation: ConversationWithDetails) => void
+  /** Callback to expose refreshOrders function to parent */
+  onRefreshOrdersReady?: (refreshOrders: () => Promise<void>) => void
+  clientConfig?: ClientActivationConfig | null
+}
+
+/**
+ * Conversation list with search and filters.
+ * Uses real-time subscription via useConversations hook.
+ */
+export function ConversationList({
+  workspaceId,
+  initialConversations,
+  selectedId,
+  onSelect,
+  onSelectedUpdated,
+  onRefreshOrdersReady,
+  clientConfig,
+}: ConversationListProps) {
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [agentFilter, setAgentFilter] = useState<'all' | 'agent-attended'>('all')
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [tagFilterOpen, setTagFilterOpen] = useState(false)
+  const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string; color: string }>>([])
+
+  const {
+    conversations,
+    ordersByContact,
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    isLoading,
+    hasQuery,
+    refresh,
+    refreshOrders,
+    getConversationById,
+    markAsReadLocally,
+    sortMode,
+    setSortMode,
+  } = useConversations({
+    workspaceId,
+    initialConversations,
+  })
+
+  // Expose refreshOrders to parent
+  useEffect(() => {
+    onRefreshOrdersReady?.(refreshOrders)
+  }, [onRefreshOrdersReady, refreshOrders])
+
+  // Load whatsapp-scope tags when filter popover opens
+  useEffect(() => {
+    if (!tagFilterOpen) return
+    getTagsForScope('whatsapp').then(setAvailableTags).catch(console.error)
+  }, [tagFilterOpen])
+
+  // Sync selected conversation when realtime updates arrive
+  // This ensures the chat header shows current window status
+  const prevConversationsRef = useRef(conversations)
+  useEffect(() => {
+    if (!selectedId || !onSelectedUpdated) return
+
+    // Find selected in updated conversations
+    const updated = getConversationById(selectedId)
+    if (!updated) return
+
+    // Find in previous conversations to compare
+    const prev = prevConversationsRef.current.find(c => c.id === selectedId)
+
+    // If key fields changed, notify parent
+    if (prev && (
+      prev.last_customer_message_at !== updated.last_customer_message_at ||
+      prev.last_message_at !== updated.last_message_at ||
+      prev.is_read !== updated.is_read ||
+      JSON.stringify(prev.tags) !== JSON.stringify(updated.tags)
+    )) {
+      onSelectedUpdated(updated)
+    }
+
+    prevConversationsRef.current = conversations
+  }, [conversations, selectedId, onSelectedUpdated, getConversationById])
+
+  // Handle new conversation created
+  const handleConversationCreated = async (conversationId: string) => {
+    // Refresh the list to include the new conversation
+    await refresh()
+    // Select the new conversation
+    onSelect(conversationId)
+  }
+
+  // Apply agent + tag filters after existing search/filter logic
+  const filteredConversations = useMemo(() => {
+    let result = conversations
+    if (agentFilter === 'agent-attended') {
+      result = result.filter(c => c.agent_conversational !== false)
+    }
+    if (tagFilter) {
+      result = result.filter(c => c.tags?.some(t => t.id === tagFilter))
+    }
+    return result
+  }, [conversations, agentFilter, tagFilter])
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header with new button and availability toggle */}
+      <div className="px-3 py-2 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold">Conversaciones</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => setShowNewModal(true)}
+            title="Nueva conversacion"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <AvailabilityToggle />
+      </div>
+
+      {/* New conversation modal */}
+      <NewConversationModal
+        open={showNewModal}
+        onOpenChange={setShowNewModal}
+        onConversationCreated={handleConversationCreated}
+      />
+
+      {/* Filters */}
+      <div className="p-3 border-b space-y-3">
+        <InboxFilters value={filter} onChange={setFilter} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <SearchInput value={query} onChange={setQuery} />
+          </div>
+          {/* Sort mode toggle: default=last_customer_message, toggled=last_message */}
+          <Button
+            variant={sortMode === 'last_message' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={() => setSortMode(prev =>
+              prev === 'last_customer_message' ? 'last_message' : 'last_customer_message'
+            )}
+            title={sortMode === 'last_message'
+              ? 'Ordenando por última interacción'
+              : 'Ordenar por última interacción'}
+          >
+            <UserRoundSearch className="h-4 w-4" />
+          </Button>
+          {/* Agent filter toggle */}
+          <Button
+            variant={agentFilter === 'agent-attended' ? 'default' : 'ghost'}
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={() => setAgentFilter(prev => prev === 'all' ? 'agent-attended' : 'all')}
+            title={agentFilter === 'agent-attended' ? 'Mostrando solo con agente' : 'Filtrar por agente'}
+          >
+            <Bot className="h-4 w-4" />
+          </Button>
+          {/* Tag filter */}
+          <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={tagFilter ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                title={tagFilter
+                  ? `Filtrando: ${availableTags.find(t => t.id === tagFilter)?.name || 'tag'}`
+                  : 'Filtrar por etiqueta'}
+              >
+                <Tag className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-2" align="start">
+              <div className="space-y-1">
+                {tagFilter && (
+                  <button
+                    onClick={() => { setTagFilter(null); setTagFilterOpen(false) }}
+                    className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent text-muted-foreground"
+                  >
+                    Quitar filtro
+                  </button>
+                )}
+                {availableTags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-2 py-1.5">Sin etiquetas</p>
+                ) : (
+                  availableTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => { setTagFilter(tag.id); setTagFilterOpen(false) }}
+                      className={cn(
+                        "w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent flex items-center gap-2",
+                        tagFilter === tag.id && "bg-accent font-medium"
+                      )}
+                    >
+                      <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                      {tag.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      {/* Conversation list */}
+      <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
+        {isLoading && !initialConversations.length ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center">
+            <p className="text-muted-foreground">
+              {tagFilter
+                ? 'No hay conversaciones con esta etiqueta'
+                : agentFilter === 'agent-attended'
+                ? 'No hay conversaciones con agente activo'
+                : hasQuery
+                  ? 'No se encontraron conversaciones'
+                  : filter === 'unread'
+                    ? 'No hay mensajes sin leer'
+                    : filter === 'mine'
+                      ? 'No tienes chats asignados'
+                      : filter === 'unassigned'
+                        ? 'No hay chats sin asignar'
+                        : filter === 'unanswered'
+                          ? 'No hay conversaciones sin respuesta'
+                          : filter === 'archived'
+                          ? 'No hay conversaciones archivadas'
+                          : 'No hay conversaciones aun'
+              }
+            </p>
+          </div>
+        ) : (
+          <div>
+            {filteredConversations.map((conversation) => {
+              // Get orders for this conversation's contact
+              const contactOrders = conversation.contact?.id
+                ? ordersByContact.get(conversation.contact.id) || []
+                : []
+
+              const showClientBadge = clientConfig?.enabled && (
+                clientConfig.all_are_clients || conversation.contact?.is_client === true
+              )
+
+              return (
+                <ConversationItem
+                  key={conversation.id}
+                  conversation={conversation}
+                  isSelected={selectedId === conversation.id}
+                  onSelect={(id) => {
+                    markAsReadLocally(id)
+                    onSelect(id, conversation)
+                  }}
+                  orders={contactOrders}
+                  showClientBadge={!!showClientBadge}
+                />
+              )
+            })}
+          </div>
+        )}
+      </ScrollArea>
+
+      {/* Results count when searching or filtering */}
+      {(hasQuery || agentFilter === 'agent-attended' || tagFilter) && filteredConversations.length > 0 && (
+        <div className="p-2 border-t text-xs text-muted-foreground text-center">
+          {filteredConversations.length} resultado{filteredConversations.length !== 1 && 's'}
+        </div>
+      )}
+    </div>
+  )
+}

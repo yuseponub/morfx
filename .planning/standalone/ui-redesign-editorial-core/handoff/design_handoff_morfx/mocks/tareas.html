@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Tareas</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  /* Sidebar */
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+  nav li a .badge { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--rubric-2); font-weight: 700; }
+
+  main { display: grid; grid-template-rows: auto auto 1fr; overflow: hidden; }
+
+  /* Topbar */
+  .topbar { padding: 16px 24px 12px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+  .eye { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 28px; margin: 2px 0 0; letter-spacing: -0.015em; }
+  h1 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 14px; color: var(--ink-3); margin-left: 8px; }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.red { background: var(--rubric-2); color: var(--paper-0); border-color: var(--rubric-1); box-shadow: 0 1px 0 var(--rubric-1); }
+  .btn.sm { font-size: 11px; padding: 5px 9px; }
+  .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+  .btn.ghost:hover { background: var(--paper-3); }
+
+  /* View toggle */
+  .view-toggle { display: inline-flex; border: 1px solid var(--ink-1); border-radius: var(--radius-3); overflow: hidden; box-shadow: 0 1px 0 var(--ink-1); }
+  .view-toggle button { font-family: var(--font-sans); font-size: 12px; font-weight: 600; padding: 6px 12px; background: var(--paper-0); border: 0; border-right: 1px solid var(--ink-1); cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; gap: 5px; }
+  .view-toggle button:last-child { border-right: 0; }
+  .view-toggle button.on { background: var(--ink-1); color: var(--paper-0); }
+
+  /* Tabs (saved views) */
+  .tabs { display: flex; gap: 20px; padding: 0 24px; border-bottom: 1px solid var(--border); background: var(--paper-1); align-items: center; }
+  .tabs a { font-family: var(--font-sans); font-weight: 500; font-size: 13px; padding: 10px 0; color: var(--ink-3); text-decoration: none; cursor: pointer; border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+  .tabs a.on { color: var(--ink-1); font-weight: 600; border-bottom-color: var(--ink-1); }
+  .tabs a .n { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .tabs a.on .n { color: var(--rubric-2); }
+  .tabs .spacer { flex: 1; }
+  .tabs .filters { display: flex; gap: 6px; padding: 6px 0; align-items: center; }
+  .chip { font-family: var(--font-sans); font-weight: 500; font-size: 11px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); cursor: pointer; background: var(--paper-0); display: inline-flex; align-items: center; gap: 4px; }
+  .chip.on { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); font-weight: 600; }
+  .chip svg { opacity: 0.8; }
+
+  /* 3-column workspace */
+  .workspace { display: grid; grid-template-columns: 1fr 360px; overflow: hidden; height: 100%; }
+
+  /* ===== KANBAN ===== */
+  .board-wrap { overflow: auto; padding: 16px 20px 20px; }
+  .board { display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 14px; min-height: 100%; }
+  .col {
+    background: var(--paper-2); border: 1px solid var(--border);
+    display: flex; flex-direction: column; min-height: 100%;
+  }
+  .col-hd {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    background: var(--paper-1);
+    position: sticky; top: 0; z-index: 1;
+  }
+  .col-hd .sw { width: 10px; height: 10px; border: 1px solid var(--ink-1); }
+  .col-hd .sw.pending { background: var(--accent-gold); }
+  .col-hd .sw.progress { background: var(--accent-verdigris); }
+  .col-hd .sw.wait { background: var(--accent-indigo); }
+  .col-hd .sw.done { background: var(--ink-1); }
+  .col-hd h3 { font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-1); margin: 0; }
+  .col-hd .n { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-left: auto; }
+  .col-hd .add { border: 0; background: transparent; cursor: pointer; color: var(--ink-3); padding: 4px; display: flex; }
+  .col-hd .add:hover { color: var(--ink-1); }
+  .col-body { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+
+  /* ===== TASK CARD ===== */
+  .task {
+    background: var(--paper-0); border: 1px solid var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1), 0 4px 12px -10px oklch(0.2 0.04 60 / 0.25);
+    cursor: pointer; position: relative;
+  }
+  .task:hover { box-shadow: 0 1px 0 var(--ink-1), 0 8px 20px -12px oklch(0.2 0.04 60 / 0.35); }
+  .task.selected { outline: 2px solid var(--rubric-2); outline-offset: 2px; }
+  .task .pri-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .task.p-urgent .pri-stripe { background: var(--rubric-2); }
+  .task.p-high .pri-stripe { background: var(--accent-gold); }
+  .task.p-med .pri-stripe { background: var(--accent-indigo); }
+  .task.p-low .pri-stripe { background: var(--ink-4); }
+  .task-hd {
+    padding: 10px 12px 6px 14px;
+    display: flex; align-items: baseline; gap: 8px;
+    border-bottom: 1px dotted var(--border);
+  }
+  .task-hd .id { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; }
+  .task-hd .type { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rubric-2); margin-left: auto; }
+  .task-hd .type.crm { color: var(--accent-indigo); }
+  .task-hd .type.ops { color: var(--accent-verdigris); }
+  .task-hd .type.human { color: var(--ink-2); }
+  .task-body { padding: 8px 12px 10px 14px; }
+  .task-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink-1); line-height: 1.3; letter-spacing: -0.01em; }
+  .task-excerpt { font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-2); line-height: 1.5; margin-top: 4px; }
+  .task-excerpt em { color: var(--rubric-2); font-style: italic; }
+  .task-meta {
+    display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 8px;
+    font-family: var(--font-sans); font-size: 10px; color: var(--ink-3);
+    align-items: center;
+  }
+  .task-meta .m { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-mono); font-weight: 500; }
+  .task-meta .m svg { opacity: 0.7; }
+  .task-meta .sep { color: var(--ink-5); }
+  .task-foot {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px 10px 14px;
+    border-top: 1px dotted var(--border); background: var(--paper-1);
+  }
+  .task-foot .avs { display: inline-flex; }
+  .av { width: 22px; height: 22px; border-radius: 50%; background: var(--paper-3); border: 1.5px solid var(--paper-0); display: grid; place-items: center; font-family: var(--font-display); font-size: 10px; font-weight: 700; color: var(--ink-1); margin-left: -4px; flex-shrink: 0; }
+  .av:first-child { margin-left: 0; }
+  .av.bot { background: color-mix(in oklch, var(--rubric-2) 15%, var(--paper-0)); color: var(--rubric-2); border-color: var(--rubric-2); }
+  .task-foot .sla { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-left: auto; display: inline-flex; align-items: center; gap: 3px; }
+  .task-foot .sla.danger { color: var(--rubric-2); font-weight: 700; }
+  .task-foot .sla.warn { color: var(--accent-gold); font-weight: 600; }
+  .task-foot .sla.ok { color: var(--semantic-success); }
+  .task-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .lbl-chip { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border: 1px solid; }
+  .lbl-chip.devol { color: var(--rubric-2); border-color: var(--rubric-2); background: color-mix(in oklch, var(--rubric-2) 8%, var(--paper-0)); }
+  .lbl-chip.logi { color: var(--accent-verdigris); border-color: var(--accent-verdigris); background: color-mix(in oklch, var(--accent-verdigris) 8%, var(--paper-0)); }
+  .lbl-chip.ventas { color: var(--accent-indigo); border-color: var(--accent-indigo); background: color-mix(in oklch, var(--accent-indigo) 8%, var(--paper-0)); }
+  .lbl-chip.sic { color: var(--paper-0); border-color: var(--ink-1); background: var(--ink-1); }
+  .lbl-chip.catalogo { color: var(--ink-2); border-color: var(--ink-3); }
+
+  /* Tiny progress bar (for checklists) */
+  .task-progress { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 4px; }
+  .task-progress .bar { width: 40px; height: 4px; background: var(--paper-2); border: 1px solid var(--border); position: relative; }
+  .task-progress .bar-in { height: 100%; background: var(--accent-verdigris); }
+
+  /* Escalation badge */
+  .esc { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; background: color-mix(in oklch, var(--rubric-2) 12%, var(--paper-0)); color: var(--rubric-2); border: 1px solid var(--rubric-2); display: inline-flex; align-items: center; gap: 3px; }
+
+  /* ===== RIGHT: detail panel ===== */
+  .detail-panel {
+    border-left: 1px solid var(--border); background: var(--paper-1);
+    overflow: auto; display: flex; flex-direction: column;
+  }
+  .dp-hd {
+    padding: 16px 20px; border-bottom: 1px solid var(--ink-1);
+    background: var(--paper-0);
+  }
+  .dp-hd .row-1 { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-bottom: 6px; }
+  .dp-hd .close { border: 0; background: transparent; cursor: pointer; color: var(--ink-3); padding: 0; margin-left: auto; }
+  .dp-hd h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; line-height: 1.2; }
+  .dp-hd .tagline { font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-2); margin-top: 6px; line-height: 1.5; }
+  .dp-hd .dp-labels { margin-top: 10px; }
+
+  .dp-actions {
+    display: flex; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--border);
+    background: var(--paper-1); flex-wrap: wrap;
+  }
+
+  .dp-meta-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .dp-meta-grid .cell { padding: 10px 20px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .dp-meta-grid .cell:nth-child(2n) { border-right: 0; }
+  .dp-meta-grid .cell:nth-last-child(-n+2) { border-bottom: 0; }
+  .dp-meta-grid .l { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  .dp-meta-grid .v { font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--ink-1); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+  .dp-meta-grid .v .av { width: 18px; height: 18px; font-size: 9px; margin-left: 0; border-width: 1px; }
+
+  .dp-sect { border-bottom: 1px solid var(--border); }
+  .dp-sect > summary {
+    list-style: none; cursor: pointer; padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .dp-sect > summary::-webkit-details-marker { display: none; }
+  .dp-sect > summary:hover { background: var(--paper-2); color: var(--ink-1); }
+  .dp-sect[open] > summary { color: var(--ink-1); }
+  .dp-sect > summary .caret { color: var(--ink-3); transition: transform 180ms ease; }
+  .dp-sect[open] > summary .caret { transform: rotate(90deg); color: var(--rubric-2); }
+  .dp-sect > summary .title { flex: 1; }
+  .dp-sect > summary .meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .dp-sect > .dp-body { padding: 0 20px 16px; }
+
+  /* Timeline */
+  .tl { position: relative; padding-left: 22px; }
+  .tl::before { content: ""; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 1px; background: var(--border); }
+  .tl-ev { position: relative; padding: 8px 0 8px 0; font-family: var(--font-sans); font-size: 12px; }
+  .tl-ev::before {
+    content: ""; position: absolute; left: -17px; top: 13px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--paper-0); border: 2px solid var(--ink-2);
+  }
+  .tl-ev.bot::before { border-color: var(--rubric-2); }
+  .tl-ev.human::before { border-color: var(--accent-verdigris); }
+  .tl-ev.system::before { border-color: var(--accent-indigo); }
+  .tl-ev.warn::before { border-color: var(--accent-gold); background: var(--accent-gold); }
+  .tl-ev .who { font-weight: 600; color: var(--ink-1); }
+  .tl-ev .who .role { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--ink-3); margin-left: 6px; }
+  .tl-ev .t { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); margin-left: auto; }
+  .tl-ev .top { display: flex; align-items: baseline; gap: 6px; }
+  .tl-ev .txt { font-family: var(--font-serif); font-size: 13px; color: var(--ink-2); line-height: 1.55; margin-top: 3px; }
+  .tl-ev .quote {
+    font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-1);
+    padding: 6px 10px; background: var(--paper-2); border-left: 2px solid var(--rubric-2);
+    margin-top: 4px; line-height: 1.5;
+  }
+
+  /* Composer */
+  .dp-composer {
+    padding: 12px 20px; border-top: 1px solid var(--border);
+    background: var(--paper-2);
+  }
+  .dp-composer .tabs-sm { display: flex; gap: 14px; margin-bottom: 6px; }
+  .dp-composer .tabs-sm a { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding-bottom: 3px; border-bottom: 1.5px solid transparent; }
+  .dp-composer .tabs-sm a.on { color: var(--ink-1); border-bottom-color: var(--ink-1); }
+  .dp-composer textarea {
+    width: 100%; box-sizing: border-box; border: 1px solid var(--border);
+    background: var(--paper-0); padding: 10px 12px; font-family: var(--font-serif); font-size: 13px;
+    resize: none; min-height: 54px; line-height: 1.5; color: var(--ink-1); border-radius: var(--radius-2);
+  }
+  .dp-composer .row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .dp-composer .row .spacer { flex: 1; }
+
+  /* checklists */
+  .checklist { display: flex; flex-direction: column; gap: 6px; }
+  .check {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 10px; background: var(--paper-0); border: 1px solid var(--border);
+  }
+  .check .box { width: 14px; height: 14px; border: 1.5px solid var(--ink-2); background: var(--paper-0); flex-shrink: 0; margin-top: 1px; display: grid; place-items: center; }
+  .check.done .box { background: var(--semantic-success); border-color: var(--semantic-success); color: var(--paper-0); }
+  .check .t { font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); line-height: 1.4; flex: 1; }
+  .check.done .t { color: var(--ink-3); text-decoration: line-through; }
+  .check .by { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+
+  /* List view (hidden by default) */
+  .list-view { display: none; padding: 16px 20px 20px; overflow: auto; }
+  body.view-list .board-wrap { display: none; }
+  body.view-list .list-view { display: block; }
+  table.list {
+    width: 100%; border-collapse: collapse; background: var(--paper-0);
+    border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--ink-1);
+  }
+  table.list thead th {
+    text-align: left; padding: 10px 14px; font-family: var(--font-sans);
+    font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px;
+    color: var(--ink-3); border-bottom: 1px solid var(--ink-1); background: var(--paper-1);
+    position: sticky; top: 0;
+  }
+  table.list tbody td {
+    padding: 11px 14px; border-bottom: 1px solid var(--border);
+    font-family: var(--font-sans); font-size: 13px; color: var(--ink-1); vertical-align: middle;
+  }
+  table.list tbody tr { cursor: pointer; }
+  table.list tbody tr:hover { background: var(--paper-2); }
+  table.list tbody tr.selected { background: color-mix(in oklch, var(--rubric-2) 4%, var(--paper-0)); }
+  table.list td.id { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+  table.list td.title { font-weight: 600; max-width: 320px; }
+  table.list td.title .excerpt { font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); font-weight: 400; display: block; margin-top: 2px; }
+  .pill { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border: 1px solid; display: inline-block; }
+  .pill.pending { color: var(--accent-gold); border-color: var(--accent-gold); background: color-mix(in oklch, var(--accent-gold) 10%, var(--paper-0)); }
+  .pill.progress { color: var(--accent-verdigris); border-color: var(--accent-verdigris); background: color-mix(in oklch, var(--accent-verdigris) 8%, var(--paper-0)); }
+  .pill.wait { color: var(--accent-indigo); border-color: var(--accent-indigo); background: color-mix(in oklch, var(--accent-indigo) 8%, var(--paper-0)); }
+  .pill.done { color: var(--paper-0); border-color: var(--ink-1); background: var(--ink-1); }
+
+</style>
+</head>
+<body class="mx-doc">
+
+<div class="app">
+  <aside class="sb">
+    <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Tareas · bandeja humana</div></div>
+    <nav>
+      <div class="cat">Operación</div>
+      <ul>
+        <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+        <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp<span class="badge">12</span></a></li>
+        <li><a><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+        <li><a class="active"><i data-lucide="list-todo" width="16" height="16"></i>Tareas<span class="badge">38</span></a></li>
+      </ul>
+      <div class="cat">Automatización</div>
+      <ul>
+        <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+        <li><a><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+      </ul>
+      <div class="cat">Análisis</div>
+      <ul>
+        <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+        <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <div class="eye">Módulo · Operación</div>
+        <h1>Tareas <em>· 38 abiertas · 6 vencen hoy</em></h1>
+      </div>
+      <div class="actions">
+        <div class="view-toggle">
+          <button class="on" data-view="kanban"><i data-lucide="columns-3" width="13" height="13"></i>Tablero</button>
+          <button data-view="list"><i data-lucide="list" width="13" height="13"></i>Lista</button>
+        </div>
+        <button class="btn ghost"><i data-lucide="sliders-horizontal" width="14" height="14"></i>Filtros</button>
+        <button class="btn"><i data-lucide="download" width="14" height="14"></i>Exportar</button>
+        <button class="btn red"><i data-lucide="plus" width="14" height="14"></i>Nueva tarea</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a class="on">Todas <span class="n">38</span></a>
+      <a>Mías <span class="n">9</span></a>
+      <a>Sin asignar <span class="n">6</span></a>
+      <a>Vencen hoy <span class="n" style="color: var(--rubric-2);">6</span></a>
+      <a>De agentes IA <span class="n">24</span></a>
+      <a>+ Guardar vista</a>
+      <div class="spacer"></div>
+      <div class="filters">
+        <span class="chip on"><i data-lucide="check" width="11" height="11"></i>Abiertas</span>
+        <span class="chip">Prioridad · alta+</span>
+        <span class="chip">Asignado · cualquiera</span>
+        <span class="chip"><i data-lucide="plus" width="11" height="11"></i>Filtro</span>
+      </div>
+    </div>
+
+    <div class="workspace">
+
+      <!-- ========== KANBAN ========== -->
+      <div class="board-wrap">
+        <div class="board">
+
+          <!-- Column 1: Pendiente -->
+          <div class="col">
+            <div class="col-hd">
+              <span class="sw pending"></span>
+              <h3>Pendiente</h3>
+              <span class="n">· 9</span>
+              <button class="add"><i data-lucide="plus" width="14" height="14"></i></button>
+            </div>
+            <div class="col-body">
+
+              <article class="task p-urgent selected" id="sel-task">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1482</span>
+                  <span class="type">Escalada · agente</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Cambio de dirección post-despacho</div>
+                  <div class="task-excerpt">Valentina escaló · cliente pide redirigir envío <em>#10482</em> en ruta con Coordinadora.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip logi">Logística</span>
+                    <span class="lbl-chip catalogo">Shopify</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="user" width="11" height="11"></i>Carolina R.</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="message-square" width="11" height="11"></i>conv-8847</span>
+                    <span class="sep">·</span>
+                    <span class="esc"><i data-lucide="arrow-up-right" width="10" height="10"></i>Escaló Valentina</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs">
+                    <div class="av bot">Vt</div>
+                    <div class="av">JT</div>
+                  </div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Juliana T.</span>
+                  <span class="sla danger"><i data-lucide="alarm-clock" width="11" height="11"></i>SLA: 14 min</span>
+                </div>
+              </article>
+
+              <article class="task p-urgent">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1481</span>
+                  <span class="type">Escalada · agente</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Reclamo jurídico · posible SIC</div>
+                  <div class="task-excerpt">Cliente amenaza con <em>denuncia SIC</em> por pedido roto. Guardrail bloqueó respuesta.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip sic">Legal · SIC</span>
+                    <span class="lbl-chip devol">Devolución</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="user" width="11" height="11"></i>Andrés M.</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="package" width="11" height="11"></i>#10471</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs">
+                    <div class="av bot">Vt</div>
+                    <div class="av" style="background: color-mix(in oklch, var(--rubric-2) 20%, var(--paper-0)); color: var(--rubric-2); border-color: var(--rubric-2);">?</div>
+                  </div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500; font-style: italic;">Sin asignar</span>
+                  <span class="sla danger"><i data-lucide="alarm-clock" width="11" height="11"></i>Vencida 1h</span>
+                </div>
+              </article>
+
+              <article class="task p-high">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1479</span>
+                  <span class="type crm">Ventas · lead</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Llamar prospecto corporativo</div>
+                  <div class="task-excerpt">Compañía Éxito SAS · consulta por pedido de papelería para <em>340 oficinas</em>.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip ventas">B2B</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="building-2" width="11" height="11"></i>Éxito SAS</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="phone" width="11" height="11"></i>+57 310 842 1991</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av">MS</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Mateo S.</span>
+                  <span class="sla warn"><i data-lucide="alarm-clock" width="11" height="11"></i>2h</span>
+                </div>
+              </article>
+
+              <article class="task p-med">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1476</span>
+                  <span class="type ops">Operaciones</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Revisar inventario low-stock</div>
+                  <div class="task-excerpt">14 SKUs por debajo del umbral mínimo — recomendación del agente de catálogo.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip catalogo">Catálogo</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="package" width="11" height="11"></i>14 SKUs</span>
+                    <span class="sep">·</span>
+                    <span class="task-progress"><i data-lucide="check-square" width="11" height="11"></i>0/14</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av">DM</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Daniela M.</span>
+                  <span class="sla ok"><i data-lucide="alarm-clock" width="11" height="11"></i>mañana</span>
+                </div>
+              </article>
+
+              <article class="task p-low">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1472</span>
+                  <span class="type human">Manual</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Actualizar FAQ · preguntas de envío</div>
+                  <div class="task-excerpt">Claudia detectó 18 variaciones de la misma pregunta esta semana.</div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Cl</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500; font-style: italic;">Sin asignar</span>
+                  <span class="sla ok"><i data-lucide="alarm-clock" width="11" height="11"></i>esta semana</span>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+          <!-- Column 2: En curso -->
+          <div class="col">
+            <div class="col-hd">
+              <span class="sw progress"></span>
+              <h3>En curso</h3>
+              <span class="n">· 7</span>
+              <button class="add"><i data-lucide="plus" width="14" height="14"></i></button>
+            </div>
+            <div class="col-body">
+
+              <article class="task p-high">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1478</span>
+                  <span class="type">Escalada · agente</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Cliente insatisfecho · NPS 2/10</div>
+                  <div class="task-excerpt">Claudia recibió respuesta baja en encuesta post-entrega. Cliente menciona <em>"producto distinto al de la foto"</em>.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip devol">Devolución</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="user" width="11" height="11"></i>Paula C.</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="package" width="11" height="11"></i>#10467</span>
+                    <span class="sep">·</span>
+                    <span class="task-progress">
+                      <i data-lucide="check-square" width="11" height="11"></i>
+                      2/4
+                      <span class="bar"><span class="bar-in" style="width: 50%;"></span></span>
+                    </span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Cl</div><div class="av">LR</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Laura R.</span>
+                  <span class="sla warn"><i data-lucide="alarm-clock" width="11" height="11"></i>hoy 18:00</span>
+                </div>
+              </article>
+
+              <article class="task p-high">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1477</span>
+                  <span class="type crm">Ventas · cotización</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Cotizar 250 mochilas personalizadas</div>
+                  <div class="task-excerpt">Colegio San Bartolomé · entrega para <em>jul 2026</em> (kit escolar).</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip ventas">B2B</span>
+                    <span class="lbl-chip catalogo">Catálogo</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="building-2" width="11" height="11"></i>Col. San Bart.</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="dollar-sign" width="11" height="11"></i>$18.5M</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Sa</div><div class="av">MS</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Mateo S.</span>
+                  <span class="sla ok"><i data-lucide="alarm-clock" width="11" height="11"></i>3d</span>
+                </div>
+              </article>
+
+              <article class="task p-med">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1475</span>
+                  <span class="type">Escalada · agente</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Confirmar pago PSE rechazado</div>
+                  <div class="task-excerpt">Cliente insiste que el pago sí pasó. Santiago no pudo conciliar con Bold.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip ventas">Pago</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="user" width="11" height="11"></i>Julián P.</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="credit-card" width="11" height="11"></i>PSE · $342k</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Sa</div><div class="av">AF</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Andrea F.</span>
+                  <span class="sla ok"><i data-lucide="alarm-clock" width="11" height="11"></i>hoy</span>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+          <!-- Column 3: En espera -->
+          <div class="col">
+            <div class="col-hd">
+              <span class="sw wait"></span>
+              <h3>En espera</h3>
+              <span class="n">· 5</span>
+              <button class="add"><i data-lucide="plus" width="14" height="14"></i></button>
+            </div>
+            <div class="col-body">
+
+              <article class="task p-med">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1473</span>
+                  <span class="type">Esperando cliente</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Esperando foto del daño</div>
+                  <div class="task-excerpt">Valentina solicitó foto para tramitar devolución #DEV-0041. Último contacto hace 2h.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip devol">Devolución</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="user" width="11" height="11"></i>Sofía L.</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="clock" width="11" height="11"></i>2h sin resp.</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Vt</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500; font-style: italic;">Auto · follow-up</span>
+                  <span class="sla warn"><i data-lucide="alarm-clock" width="11" height="11"></i>auto-ping 4h</span>
+                </div>
+              </article>
+
+              <article class="task p-med">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1470</span>
+                  <span class="type ops">Operaciones</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Esperando guía Coordinadora</div>
+                  <div class="task-excerpt">3 pedidos sin número de guía · enviado ticket al integrador hace 6h.</div>
+                  <div class="task-labels">
+                    <span class="lbl-chip logi">Logística</span>
+                  </div>
+                  <div class="task-meta">
+                    <span class="m"><i data-lucide="truck" width="11" height="11"></i>3 pedidos</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av">JT</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Juliana T.</span>
+                  <span class="sla warn"><i data-lucide="alarm-clock" width="11" height="11"></i>bloqueada</span>
+                </div>
+              </article>
+
+              <article class="task p-low">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1468</span>
+                  <span class="type human">Manual</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title">Aprobación descuento 15% cliente VIP</div>
+                  <div class="task-excerpt">Santiago sugirió descuento excepcional. Pendiente visto bueno gerencia.</div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Sa</div><div class="av">FG</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); font-weight: 500;">Felipe G.</span>
+                  <span class="sla ok"><i data-lucide="alarm-clock" width="11" height="11"></i>sin límite</span>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+          <!-- Column 4: Resuelta -->
+          <div class="col">
+            <div class="col-hd">
+              <span class="sw done"></span>
+              <h3>Resuelta</h3>
+              <span class="n">· 17 hoy</span>
+              <button class="add"><i data-lucide="plus" width="14" height="14"></i></button>
+            </div>
+            <div class="col-body">
+
+              <article class="task p-med" style="opacity: 0.75;">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1466</span>
+                  <span class="type">Escalada · agente</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title" style="text-decoration: line-through; color: var(--ink-3);">Cambio de talla · envío nuevo</div>
+                  <div class="task-excerpt">Resuelto en 32 min · devolución aprobada y reenvío programado.</div>
+                  <div class="task-meta">
+                    <span class="m" style="color: var(--semantic-success);"><i data-lucide="check-circle-2" width="11" height="11"></i>Resuelto</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="star" width="11" height="11"></i>CSAT 5/5</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Vt</div><div class="av">LR</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500;">Laura R. · 32m</span>
+                </div>
+              </article>
+
+              <article class="task p-high" style="opacity: 0.75;">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1465</span>
+                  <span class="type crm">Ventas</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title" style="text-decoration: line-through; color: var(--ink-3);">Cotización Éxito oficina Cali</div>
+                  <div class="task-excerpt">Cotización enviada · pedido cerrado $2.8M.</div>
+                  <div class="task-meta">
+                    <span class="m" style="color: var(--semantic-success);"><i data-lucide="check-circle-2" width="11" height="11"></i>Ganada</span>
+                    <span class="sep">·</span>
+                    <span class="m"><i data-lucide="dollar-sign" width="11" height="11"></i>$2.8M</span>
+                  </div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av bot">Sa</div><div class="av">MS</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500;">Mateo S. · 2h</span>
+                </div>
+              </article>
+
+              <article class="task p-low" style="opacity: 0.75;">
+                <div class="pri-stripe"></div>
+                <div class="task-hd">
+                  <span class="id">T-1463</span>
+                  <span class="type ops">Operaciones</span>
+                </div>
+                <div class="task-body">
+                  <div class="task-title" style="text-decoration: line-through; color: var(--ink-3);">Actualizar horario Semana Santa</div>
+                  <div class="task-excerpt">Horarios actualizados en 3 canales.</div>
+                </div>
+                <div class="task-foot">
+                  <div class="avs"><div class="av">DM</div></div>
+                  <span style="font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); font-weight: 500;">Daniela M. · ayer</span>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========== LIST VIEW ========== -->
+      <div class="list-view">
+        <table class="list">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Estado</th>
+              <th>Tarea</th>
+              <th>Tipo</th>
+              <th>Asignado</th>
+              <th>Prioridad</th>
+              <th>SLA</th>
+              <th>Actualizado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="selected">
+              <td class="id">T-1482</td>
+              <td><span class="pill pending">Pendiente</span></td>
+              <td class="title">Cambio de dirección post-despacho<span class="excerpt">Valentina escaló · pedido #10482 en ruta</span></td>
+              <td>Escalada · agente</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">JT</div>Juliana T.</div></td>
+              <td style="color: var(--rubric-2); font-weight: 600;">● Urgente</td>
+              <td style="color: var(--rubric-2);">14 min</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 3m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1481</td>
+              <td><span class="pill pending">Pendiente</span></td>
+              <td class="title">Reclamo jurídico · posible SIC<span class="excerpt">Guardrail bloqueó respuesta · sin asignar</span></td>
+              <td>Escalada · agente</td>
+              <td style="color: var(--ink-3); font-style: italic;">Sin asignar</td>
+              <td style="color: var(--rubric-2); font-weight: 600;">● Urgente</td>
+              <td style="color: var(--rubric-2); font-weight: 700;">Vencida 1h</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 1h 12m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1479</td>
+              <td><span class="pill pending">Pendiente</span></td>
+              <td class="title">Llamar prospecto corporativo<span class="excerpt">Éxito SAS · 340 oficinas</span></td>
+              <td>Ventas · lead</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">MS</div>Mateo S.</div></td>
+              <td style="color: var(--accent-gold); font-weight: 600;">● Alta</td>
+              <td style="color: var(--accent-gold);">2h</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 12m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1478</td>
+              <td><span class="pill progress">En curso</span></td>
+              <td class="title">Cliente insatisfecho · NPS 2/10<span class="excerpt">Claudia detectó queja · 2/4 pasos</span></td>
+              <td>Escalada · agente</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">LR</div>Laura R.</div></td>
+              <td style="color: var(--accent-gold); font-weight: 600;">● Alta</td>
+              <td style="color: var(--accent-gold);">hoy 18:00</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 28m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1477</td>
+              <td><span class="pill progress">En curso</span></td>
+              <td class="title">Cotizar 250 mochilas personalizadas<span class="excerpt">Col. San Bartolomé · $18.5M</span></td>
+              <td>Ventas · cotización</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">MS</div>Mateo S.</div></td>
+              <td style="color: var(--accent-gold); font-weight: 600;">● Alta</td>
+              <td style="color: var(--semantic-success);">3d</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 44m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1476</td>
+              <td><span class="pill pending">Pendiente</span></td>
+              <td class="title">Revisar inventario low-stock<span class="excerpt">14 SKUs bajo umbral</span></td>
+              <td>Operaciones</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">DM</div>Daniela M.</div></td>
+              <td style="color: var(--accent-indigo); font-weight: 600;">● Media</td>
+              <td style="color: var(--semantic-success);">mañana</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 1h 4m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1475</td>
+              <td><span class="pill progress">En curso</span></td>
+              <td class="title">Confirmar pago PSE rechazado<span class="excerpt">Conciliación con Bold</span></td>
+              <td>Escalada · agente</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">AF</div>Andrea F.</div></td>
+              <td style="color: var(--accent-indigo); font-weight: 600;">● Media</td>
+              <td style="color: var(--semantic-success);">hoy</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 1h 22m</td>
+            </tr>
+            <tr>
+              <td class="id">T-1473</td>
+              <td><span class="pill wait">En espera</span></td>
+              <td class="title">Esperando foto del daño<span class="excerpt">DEV-0041 · 2h sin respuesta</span></td>
+              <td>Esperando cliente</td>
+              <td style="color: var(--ink-3); font-style: italic;">Auto · follow-up</td>
+              <td style="color: var(--accent-indigo); font-weight: 600;">● Media</td>
+              <td style="color: var(--accent-gold);">auto-ping 4h</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 2h</td>
+            </tr>
+            <tr>
+              <td class="id">T-1472</td>
+              <td><span class="pill pending">Pendiente</span></td>
+              <td class="title">Actualizar FAQ · preguntas de envío<span class="excerpt">18 variaciones detectadas</span></td>
+              <td>Manual</td>
+              <td style="color: var(--ink-3); font-style: italic;">Sin asignar</td>
+              <td style="color: var(--ink-3);">● Baja</td>
+              <td style="color: var(--semantic-success);">esta semana</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 3h</td>
+            </tr>
+            <tr>
+              <td class="id">T-1470</td>
+              <td><span class="pill wait">En espera</span></td>
+              <td class="title">Esperando guía Coordinadora<span class="excerpt">3 pedidos sin número</span></td>
+              <td>Operaciones</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">JT</div>Juliana T.</div></td>
+              <td style="color: var(--accent-indigo); font-weight: 600;">● Media</td>
+              <td style="color: var(--accent-gold);">bloqueada</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 6h</td>
+            </tr>
+            <tr>
+              <td class="id">T-1466</td>
+              <td><span class="pill done">Resuelta</span></td>
+              <td class="title" style="color: var(--ink-3); text-decoration: line-through;">Cambio de talla · envío nuevo<span class="excerpt" style="text-decoration: none;">CSAT 5/5 · resuelto en 32 min</span></td>
+              <td>Escalada · agente</td>
+              <td><div style="display:inline-flex; align-items:center; gap:6px;"><div class="av">LR</div>Laura R.</div></td>
+              <td style="color: var(--accent-indigo); font-weight: 600;">● Media</td>
+              <td style="color: var(--semantic-success);">32m</td>
+              <td style="color: var(--ink-3); font-family: var(--font-mono); font-size: 12px;">hace 4h</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ========== RIGHT: detail ========== -->
+      <aside class="detail-panel">
+        <div class="dp-hd">
+          <div class="row-1">
+            <span>T-1482</span>
+            <span style="color: var(--ink-4);">·</span>
+            <span>creada hace 18 min</span>
+            <span style="color: var(--ink-4);">·</span>
+            <span class="esc"><i data-lucide="arrow-up-right" width="10" height="10"></i>Escalada por Valentina</span>
+            <button class="close"><i data-lucide="x" width="14" height="14"></i></button>
+          </div>
+          <h2>Cambio de dirección post-despacho</h2>
+          <p class="tagline">Cliente <strong>Carolina Restrepo</strong> pide redirigir el envío del pedido <strong>#10482</strong>, que ya salió esta mañana con Coordinadora. Guardrail bloqueó auto-respuesta.</p>
+          <div class="dp-labels">
+            <span class="lbl-chip logi">Logística</span>
+            <span class="lbl-chip catalogo">Shopify</span>
+            <span class="pill pending" style="margin-left: 4px;">Pendiente</span>
+          </div>
+        </div>
+
+        <div class="dp-actions">
+          <button class="btn red sm"><i data-lucide="play" width="12" height="12"></i>Tomar tarea</button>
+          <button class="btn sm"><i data-lucide="user-plus" width="12" height="12"></i>Reasignar</button>
+          <button class="btn sm ghost"><i data-lucide="message-square" width="12" height="12"></i>Abrir chat</button>
+          <button class="btn sm ghost"><i data-lucide="check" width="12" height="12"></i>Resolver</button>
+        </div>
+
+        <div class="dp-meta-grid">
+          <div class="cell">
+            <div class="l">Prioridad</div>
+            <div class="v" style="color: var(--rubric-2);">● Urgente</div>
+          </div>
+          <div class="cell">
+            <div class="l">SLA</div>
+            <div class="v" style="color: var(--rubric-2);"><i data-lucide="alarm-clock" width="14" height="14"></i>Vence en 14 min</div>
+          </div>
+          <div class="cell">
+            <div class="l">Asignado</div>
+            <div class="v"><div class="av">JT</div>Juliana T. · Logística</div>
+          </div>
+          <div class="cell">
+            <div class="l">Cliente</div>
+            <div class="v"><i data-lucide="user" width="14" height="14"></i>Carolina R.</div>
+          </div>
+          <div class="cell">
+            <div class="l">Origen</div>
+            <div class="v"><div class="av bot">Vt</div>Valentina · conv-8847</div>
+          </div>
+          <div class="cell">
+            <div class="l">Pedido</div>
+            <div class="v"><i data-lucide="package" width="14" height="14"></i>#10482 · $187k</div>
+          </div>
+        </div>
+
+        <details class="dp-sect" open>
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Línea de tiempo</span>
+            <span class="meta">6 eventos</span>
+          </summary>
+          <div class="dp-body">
+            <div class="tl">
+              <div class="tl-ev bot">
+                <div class="top">
+                  <span class="who">Valentina <span class="role">· Agente IA</span></span>
+                  <span class="t">14:31</span>
+                </div>
+                <div class="quote">«Hola Carolina. Tu pedido #10482 fue despachado hoy a las 11:24 con Coordinadora. Guía CO-8847124…»</div>
+              </div>
+              <div class="tl-ev system">
+                <div class="top">
+                  <span class="who">Sistema <span class="role">· tool.call</span></span>
+                  <span class="t">14:31.04</span>
+                </div>
+                <div class="txt"><code style="font-family:var(--font-mono); font-size:11px; background:var(--paper-2); padding:1px 5px;">pedido.buscar({ telefono: "+57 312 488 1092" })</code> → 1 match #10482.</div>
+              </div>
+              <div class="tl-ev warn">
+                <div class="top">
+                  <span class="who">Guardrail <span class="role">· regla</span></span>
+                  <span class="t">14:32.44</span>
+                </div>
+                <div class="txt">Detectado <strong>cambio_direccion_post_despacho</strong> · Valentina no puede modificar envíos ya despachados. <span style="color: var(--rubric-2); font-weight: 600;">Forzar escalamiento.</span></div>
+              </div>
+              <div class="tl-ev bot">
+                <div class="top">
+                  <span class="who">Valentina <span class="role">· escala</span></span>
+                  <span class="t">14:33.14</span>
+                </div>
+                <div class="txt">Tarea <strong>T-1482</strong> creada en cola <strong>Logística</strong> con SLA de 30 min.</div>
+              </div>
+              <div class="tl-ev system">
+                <div class="top">
+                  <span class="who">Sistema <span class="role">· asignación</span></span>
+                  <span class="t">14:33.16</span>
+                </div>
+                <div class="txt">Asignada automáticamente a <strong>Juliana T.</strong> (menor carga activa en cola).</div>
+              </div>
+              <div class="tl-ev human">
+                <div class="top">
+                  <span class="who">Juliana T. <span class="role">· vista</span></span>
+                  <span class="t">14:35</span>
+                </div>
+                <div class="txt">Abrió la tarea · sin acción registrada aún.</div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="dp-sect" open>
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Checklist</span>
+            <span class="meta">1/4</span>
+          </summary>
+          <div class="dp-body">
+            <div class="checklist">
+              <div class="check done">
+                <div class="box"><i data-lucide="check" width="10" height="10"></i></div>
+                <div class="t">Verificar datos del envío en Coordinadora</div>
+                <div class="by">Juliana · 2m</div>
+              </div>
+              <div class="check">
+                <div class="box"></div>
+                <div class="t">Confirmar nueva dirección con cliente (Cra. 7 #45-12, Chapinero)</div>
+              </div>
+              <div class="check">
+                <div class="box"></div>
+                <div class="t">Solicitar redirección a Coordinadora (+$12k COP)</div>
+              </div>
+              <div class="check">
+                <div class="box"></div>
+                <div class="t">Notificar a Carolina con nueva ETA</div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="dp-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Contexto del cliente</span>
+            <span class="meta">Carolina R.</span>
+          </summary>
+          <div class="dp-body">
+            <div style="font-family: var(--font-serif); font-size: 13px; color: var(--ink-2); line-height: 1.6;">
+              Cliente recurrente · <strong>7 pedidos</strong> desde 2024. LTV <strong>$1.8M</strong>. Última compra hace 4 días. NPS promedio 9.2.
+            </div>
+          </div>
+        </details>
+
+        <details class="dp-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Adjuntos</span>
+            <span class="meta">2 archivos</span>
+          </summary>
+          <div class="dp-body">
+            <div style="font-family: var(--font-sans); font-size: 12px; color: var(--ink-3);">captura-rastreo.png · guia-CO-8847124.pdf</div>
+          </div>
+        </details>
+
+        <div class="dp-composer">
+          <div class="tabs-sm">
+            <a class="on">Comentar</a>
+            <a>Responder al cliente</a>
+            <a>Nota interna</a>
+          </div>
+          <textarea placeholder="Añadir comentario · @menciona un compañero · /comando para acciones rápidas…"></textarea>
+          <div class="row">
+            <button class="btn sm ghost"><i data-lucide="paperclip" width="12" height="12"></i></button>
+            <button class="btn sm ghost"><i data-lucide="at-sign" width="12" height="12"></i></button>
+            <button class="btn sm ghost"><i data-lucide="smile" width="12" height="12"></i></button>
+            <div class="spacer"></div>
+            <button class="btn sm">Guardar borrador</button>
+            <button class="btn sm pri">Enviar comentario</button>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  // View toggle
+  document.querySelectorAll('.view-toggle button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.view-toggle button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      document.body.classList.toggle('view-list', b.dataset.view === 'list');
+    });
+  });
+
+  // Task selection
+  document.querySelectorAll('.task').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.task').forEach(x => x.classList.remove('selected'));
+      t.classList.add('selected');
+    });
+  });
+  document.querySelectorAll('table.list tbody tr').forEach(r => {
+    r.addEventListener('click', () => {
+      document.querySelectorAll('table.list tbody tr').forEach(x => x.classList.remove('selected'));
+      r.classList.add('selected');
+    });
+  });
+</script>
+
+</body>
+</html>

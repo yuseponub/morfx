@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-sans); color: var(--ink-1); padding: 20px 24px; }
+  .eyebrow { font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 14px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+  label { font-family: var(--font-sans); font-weight: 600; font-size: 12px; color: var(--ink-1); display: block; margin-bottom: 5px; letter-spacing: 0.01em; }
+  .fld { display: flex; align-items: center; gap: 8px; background: var(--paper-0); border: 1px solid var(--ink-2); border-radius: var(--radius-3); padding: 8px 10px; font-family: var(--font-serif); font-size: 14px; color: var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  .fld input { border: 0; outline: 0; background: transparent; flex: 1; font-family: inherit; font-size: inherit; color: inherit; }
+  .fld .ic { color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; }
+  .fld.focus { border-color: var(--rubric-2); box-shadow: 0 0 0 3px oklch(0.55 0.17 30 / 0.18); }
+  .hint { font-family: var(--font-serif); font-style: italic; font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+  .err { color: var(--rubric-2); font-style: italic; font-family: var(--font-serif); font-size: 11px; margin-top: 3px; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Componentes · campos</p>
+  <hr class="d">
+  <div class="grid">
+    <div>
+      <label>Nombre del contacto</label>
+      <div class="fld"><input value="Juan Carlos Pérez"></div>
+      <p class="hint">Como aparecerá en la bandeja.</p>
+    </div>
+    <div>
+      <label>Teléfono · con enfoque</label>
+      <div class="fld focus"><span class="ic">+57</span><input value="312 555 4412"></div>
+      <p class="hint">Formato E.164.</p>
+    </div>
+    <div>
+      <label>Etiquetas</label>
+      <div class="fld"><input placeholder="escribe y pulsa Enter…"></div>
+    </div>
+    <div>
+      <label>Correo · con error</label>
+      <div class="fld" style="border-color: var(--rubric-2);"><input value="juancarlos@"></div>
+      <p class="err">No fue posible validar el correo.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Palette: Accents</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-sans); color: var(--ink-1); padding: 20px 24px; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .sw { height: 84px; border: 1px solid var(--border); border-radius: var(--radius-2); position: relative; overflow: hidden; }
+  .sw .nm { position: absolute; left: 10px; bottom: 8px; font-family: var(--font-sans); font-size: 13px; font-weight: 600; letter-spacing: 0.01em; color: var(--paper-0); }
+  .sw .hex { position: absolute; right: 10px; top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--paper-2); font-weight: 500; }
+  .eyebrow { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); margin: 0 0 4px; }
+  h1 { font-family: var(--font-serif); font-weight: 600; font-size: 24px; margin: 0 0 14px; letter-spacing: -0.01em; color: var(--ink-1); }
+  h1 .sub { color: var(--ink-3); font-weight: 400; font-size: 15px; font-style: italic; font-family: var(--font-serif); margin-left: 6px; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 14px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Colors · rubric &amp; accents</p>
+  <h1>Rubric &amp; accent inks <span class="sub">— used as ink, never as fill</span></h1>
+  <hr class="d">
+  <div class="row">
+    <div class="sw" style="background:var(--rubric-1)"><span class="hex">0.45</span><span class="nm">rubric-1</span></div>
+    <div class="sw" style="background:var(--rubric-2)"><span class="hex">0.55</span><span class="nm">rubric-2</span></div>
+    <div class="sw" style="background:var(--rubric-3)"><span class="hex" style="color:var(--ink-1)">0.70</span><span class="nm" style="color:var(--ink-1)">rubric-3</span></div>
+    <div class="sw" style="background:var(--accent-verdigris)"><span class="hex">verdigris</span><span class="nm">verdigris</span></div>
+    <div class="sw" style="background:var(--accent-gold)"><span class="hex" style="color:var(--ink-1)">ochre</span><span class="nm" style="color:var(--ink-1)">gold</span></div>
+    <div class="sw" style="background:var(--accent-indigo)"><span class="hex">indigo</span><span class="nm">indigo</span></div>
+  </div>
+</body>
+</html>

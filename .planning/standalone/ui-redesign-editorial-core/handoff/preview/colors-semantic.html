@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Semantic colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--paper-1); }
+  body { font-family: var(--font-serif); color: var(--ink-1); padding: 20px 24px; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .sw { height: 78px; border: 1px solid var(--border); border-radius: var(--radius-2); position: relative; overflow: hidden; display:flex; align-items:flex-end; padding: 8px 10px; color: var(--paper-0); }
+  .sw .nm { font-size: 12px; font-variant: small-caps; letter-spacing: 0.05em; }
+  .sw .hex { position:absolute; top:6px; right:8px; font-family: var(--font-mono); font-size: 10px; opacity: .8; }
+  .eyebrow { font-variant: small-caps; letter-spacing: 0.1em; color: var(--rubric-2); font-size: 12px; margin: 0 0 4px; font-weight: 600; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 0 0 14px; letter-spacing: -0.01em; }
+  hr.d { height: 5px; border: 0; margin: 6px 0 14px; background: linear-gradient(var(--ink-1),var(--ink-1)) top/100% 1px no-repeat, linear-gradient(var(--ink-1),var(--ink-1)) bottom/100% 1px no-repeat; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Colores · semántica</p>
+  <h1>Semantic <span style="color:var(--ink-3); font-style:italic; font-weight:400; font-size:16px;">— muted; carry meaning through ink</span></h1>
+  <hr class="d">
+  <div class="row">
+    <div class="sw" style="background:var(--semantic-success)"><span class="hex">success</span><span class="nm">Confirmado</span></div>
+    <div class="sw" style="background:var(--semantic-warning)"><span class="hex">warning</span><span class="nm">Pendiente</span></div>
+    <div class="sw" style="background:var(--semantic-danger)"><span class="hex">danger</span><span class="nm">Error</span></div>
+    <div class="sw" style="background:var(--semantic-info)"><span class="hex">info</span><span class="nm">Nota</span></div>
+  </div>
+</body>
+</html>

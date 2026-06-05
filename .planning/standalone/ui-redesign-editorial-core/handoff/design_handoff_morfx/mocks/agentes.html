@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>morfx — Agentes & Sandbox</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+  /* Sidebar (shared) */
+  .sb { background: var(--paper-2); border-right: 1px solid var(--border); display:flex; flex-direction:column; }
+  .brand { padding: 18px 18px 14px; border-bottom: 1px solid var(--ink-1); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -0.02em; }
+  .wm b { color: var(--rubric-2); }
+  .sub { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 4px; }
+  nav { padding: 8px; flex: 1; overflow: auto; }
+  nav ul { list-style: none; padding: 0; margin: 0; }
+  nav li a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-2); font-family: var(--font-sans); font-weight: 500; font-size: 13px; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  nav li a:hover { background: var(--paper-3); color: var(--ink-1); }
+  nav li a.active { background: var(--paper-0); color: var(--ink-1); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  nav .cat { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--ink-3); padding: 12px 10px 6px; }
+
+  main { overflow: auto; display: flex; flex-direction: column; }
+  .topbar { padding: 18px 28px 14px; border-bottom: 1px solid var(--ink-1); background: var(--paper-1); display: flex; align-items: flex-end; justify-content: space-between; }
+  .eye { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; margin: 2px 0 0; letter-spacing: -0.015em; }
+  h1 em { font-family: var(--font-sans); font-style: normal; font-weight: 400; font-size: 16px; color: var(--ink-3); margin-left: 8px; }
+  .pg { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .btn { font-family: var(--font-sans); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--radius-3); border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1); cursor: pointer; box-shadow: 0 1px 0 var(--ink-1); display:flex; align-items:center; gap:6px; }
+  .btn:hover { background: var(--paper-3); }
+  .btn.pri { background: var(--ink-1); color: var(--paper-0); }
+  .btn.pri:hover { background: var(--ink-2); }
+  .btn.red { background: var(--rubric-2); color: var(--paper-0); border-color: var(--rubric-1); box-shadow: 0 1px 0 var(--rubric-1); }
+  .btn.red:hover { background: var(--rubric-1); }
+  .btn.sm { font-size: 11px; padding: 5px 9px; }
+  .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+  .btn.ghost:hover { background: var(--paper-3); }
+
+  .tabs { display: flex; gap: 20px; padding: 0 28px; border-bottom: 1px solid var(--border); background: var(--paper-1); }
+  .tabs a { font-family: var(--font-sans); font-weight: 500; font-size: 13px; padding: 10px 0; color: var(--ink-3); text-decoration: none; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tabs a.on { color: var(--ink-1); font-weight: 600; border-bottom-color: var(--ink-1); }
+
+  .page { padding: 20px 28px; flex: 1; overflow: auto; }
+
+  /* ============== AGENTS INDEX ============== */
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .search { flex: 1; max-width: 320px; position: relative; }
+  .search input { width: 100%; border: 1px solid var(--border); background: var(--paper-0); padding: 8px 10px 8px 30px; border-radius: var(--radius-3); font-family: var(--font-sans); font-size: 13px; }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  .chip { font-family: var(--font-sans); font-weight: 500; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); cursor: pointer; background: var(--paper-0); }
+  .chip.on { background: var(--ink-1); color: var(--paper-0); border-color: var(--ink-1); font-weight: 600; }
+
+  .agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .agent-card {
+    background: var(--paper-0); border: 1px solid var(--ink-1); padding: 0;
+    box-shadow: 0 1px 0 var(--ink-1), 0 8px 20px -14px oklch(0.3 0.04 60 / 0.25);
+    display: flex; flex-direction: column;
+  }
+  .agent-card .hd { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+  .agent-avatar { width: 40px; height: 40px; background: var(--paper-2); border: 1px solid var(--ink-1); display: grid; place-items: center; flex-shrink: 0; font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--ink-1); }
+  .agent-avatar.r { color: var(--rubric-2); }
+  .agent-meta { flex: 1; min-width: 0; }
+  .agent-name { font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.2; margin: 0; color: var(--ink-1); }
+  .agent-role { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-top: 3px; }
+  .agent-status { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border: 1px solid; flex-shrink: 0; }
+  .agent-status.on { color: var(--semantic-success); border-color: var(--semantic-success); background: color-mix(in oklch, var(--semantic-success) 8%, var(--paper-0)); }
+  .agent-status.paused { color: var(--accent-gold); border-color: var(--accent-gold); background: color-mix(in oklch, var(--accent-gold) 10%, var(--paper-0)); }
+  .agent-status.draft { color: var(--ink-3); border-color: var(--ink-3); }
+  .agent-desc { padding: 10px 16px 12px; font-family: var(--font-serif); font-size: 13px; line-height: 1.55; color: var(--ink-2); border-bottom: 1px solid var(--border); }
+  .agent-desc em { font-style: italic; color: var(--rubric-2); }
+  .agent-body { padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; border-bottom: 1px solid var(--border); }
+  .agent-kv { min-width: 0; }
+  .agent-kv dt { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 3px; }
+  .agent-kv dd { font-family: var(--font-mono); font-size: 11px; color: var(--ink-1); margin: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-kv dd.serif { font-family: var(--font-serif); font-size: 13px; font-weight: 500; font-style: italic; }
+  .agent-stats { padding: 14px 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border-bottom: 1px solid var(--border); }
+  .stat .n { font-family: var(--font-display); font-size: 22px; font-weight: 700; line-height: 1; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .stat .n.red { color: var(--rubric-2); }
+  .stat .l { font-family: var(--font-sans); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-top: 4px; }
+  .agent-foot { padding: 10px 16px; display: flex; align-items: center; gap: 8px; background: var(--paper-1); }
+  .agent-foot .spacer { flex: 1; }
+  .agent-foot .last { font-family: var(--font-serif); font-style: italic; font-size: 11px; color: var(--ink-3); }
+
+  /* ============== AGENT DETAIL / SANDBOX (hidden by default) ============== */
+  .detail { display: none; grid-template-columns: 320px 1fr 340px; height: 100%; }
+  .detail.on { display: grid; }
+  body.view-sandbox .agents-view { display: none; }
+  body.view-sandbox .detail { display: grid; }
+
+  /* Left: agent config summary */
+  .cfg { border-right: 1px solid var(--border); background: var(--paper-2); overflow: auto; display: flex; flex-direction: column; }
+  .cfg-hd { padding: 16px 20px; border-bottom: 1px solid var(--ink-1); }
+  .cfg-hd .lbl { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  .cfg-hd h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 4px 0 0; letter-spacing: -0.01em; }
+  .cfg-hd .version { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+  .cfg-sect { border-bottom: 1px solid var(--border); }
+  .cfg-sect > summary {
+    list-style: none; cursor: pointer; padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
+    user-select: none;
+  }
+  .cfg-sect > summary::-webkit-details-marker { display: none; }
+  .cfg-sect > summary:hover { background: var(--paper-3); color: var(--ink-1); }
+  .cfg-sect > summary .caret { display: inline-flex; color: var(--ink-3); transition: transform 180ms ease; margin-right: auto; }
+  .cfg-sect[open] > summary .caret { transform: rotate(90deg); color: var(--rubric-2); }
+  .cfg-sect > summary .title { flex: 1; color: inherit; }
+  .cfg-sect > summary .count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); font-weight: 500; letter-spacing: 0; text-transform: none; padding: 2px 6px; background: var(--paper-0); border: 1px solid var(--border); }
+  .cfg-sect > summary .edit { font-size: 10px; color: var(--rubric-2); text-transform: none; letter-spacing: 0.02em; font-weight: 600; }
+  .cfg-sect > .cfg-content { padding: 0 20px 14px; }
+  .cfg-sect[open] > summary { color: var(--ink-1); border-bottom: 1px dotted var(--border); margin-bottom: 10px; }
+  .cfg-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px dotted var(--border); font-size: 13px; }
+  .cfg-row:last-child { border-bottom: 0; }
+  .cfg-row .k { font-family: var(--font-sans); font-size: 12px; color: var(--ink-3); }
+  .cfg-row .v { font-family: var(--font-mono); font-size: 12px; color: var(--ink-1); font-weight: 500; }
+  .cfg-row .v.serif { font-family: var(--font-serif); font-size: 13px; font-style: italic; }
+  .tool-chip { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; background: var(--paper-0); border: 1px solid var(--border); margin: 3px 3px 0 0; color: var(--ink-2); }
+  .tool-chip svg { color: var(--rubric-2); }
+  .prompt-preview {
+    font-family: var(--font-serif); font-size: 13px; line-height: 1.55; color: var(--ink-2);
+    background: var(--paper-0); border: 1px solid var(--border); padding: 12px; margin-top: 6px;
+    max-height: 140px; overflow: auto; position: relative;
+  }
+  .prompt-preview::after {
+    content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 30px;
+    background: linear-gradient(transparent, var(--paper-0));
+    pointer-events: none;
+  }
+  .guard-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; font-size: 12px; color: var(--ink-2); border-bottom: 1px dotted var(--border); line-height: 1.4; }
+  .guard-item:last-child { border-bottom: 0; }
+  .guard-item svg { color: var(--rubric-2); flex-shrink: 0; margin-top: 1px; }
+
+  /* Center: chat */
+  .sandbox { display: flex; flex-direction: column; background: var(--paper-1); overflow: hidden; }
+  .sandbox-hd { padding: 14px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: var(--paper-0); }
+  .sandbox-hd h3 { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin: 0; }
+  .sandbox-hd .mode { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); padding: 3px 8px; border: 1px solid var(--rubric-2); }
+  .sandbox-hd .ctx { font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); flex: 1; }
+  .persona { display: flex; align-items: center; gap: 8px; }
+  .persona select { font-family: var(--font-sans); font-size: 12px; padding: 5px 8px; border: 1px solid var(--border); background: var(--paper-1); border-radius: var(--radius-2); }
+
+  .msgs { flex: 1; overflow: auto; padding: 24px 24px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .turn { display: flex; gap: 12px; max-width: 75%; }
+  .turn.user { align-self: flex-end; flex-direction: row-reverse; }
+  .turn-av { width: 28px; height: 28px; border-radius: 50%; background: var(--paper-3); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-display); font-size: 13px; font-weight: 700; flex-shrink: 0; color: var(--ink-2); }
+  .turn.agent .turn-av { background: var(--paper-0); border-color: var(--rubric-2); color: var(--rubric-2); }
+  .bubble { padding: 10px 14px; border-radius: 10px; font-family: var(--font-serif); font-size: 14px; line-height: 1.55; color: var(--ink-1); }
+  .turn.user .bubble { background: var(--paper-2); border: 1px solid var(--border); }
+  .turn.agent .bubble { background: var(--paper-0); border: 1px solid var(--ink-1); box-shadow: 0 1px 0 var(--border); }
+  .bubble .time { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); margin-top: 6px; display: block; }
+  .bubble strong { font-weight: 700; color: var(--ink-1); }
+
+  /* Inline trace/inspector between messages */
+  .trace { align-self: stretch; margin: 2px 40px 2px 40px; border-left: 2px solid var(--rubric-2); background: color-mix(in oklch, var(--rubric-2) 4%, var(--paper-0)); padding: 8px 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); display: flex; flex-direction: column; gap: 3px; }
+  .trace .ev { display: flex; gap: 10px; align-items: baseline; }
+  .trace .ev .t { color: var(--ink-4); font-size: 10px; width: 60px; }
+  .trace .ev .nm { color: var(--rubric-2); font-weight: 600; width: 120px; }
+  .trace .ev .val { color: var(--ink-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .composer {
+    padding: 14px 24px 18px; border-top: 1px solid var(--border); background: var(--paper-0);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .composer-row { display: flex; gap: 10px; align-items: flex-end; }
+  .composer textarea {
+    flex: 1; border: 1px solid var(--ink-1); background: var(--paper-1); padding: 10px 12px;
+    font-family: var(--font-serif); font-size: 14px; resize: none; min-height: 44px;
+    max-height: 140px; line-height: 1.5; border-radius: var(--radius-3); color: var(--ink-1);
+  }
+  .composer-row .prompts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .prompt-chip {
+    font-family: var(--font-sans); font-size: 11px; padding: 5px 10px;
+    border: 1px solid var(--border); background: var(--paper-1); border-radius: 999px;
+    cursor: pointer; color: var(--ink-2);
+  }
+  .prompt-chip:hover { background: var(--paper-2); color: var(--ink-1); }
+
+  /* Right: inspector / trace detail */
+  .inspector { border-left: 1px solid var(--border); background: var(--paper-2); overflow: auto; display: flex; flex-direction: column; }
+  .insp-hd { padding: 14px 20px; border-bottom: 1px solid var(--ink-1); display: flex; align-items: center; justify-content: space-between; }
+  .insp-hd .lbl { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); }
+  .insp-hd h3 { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 2px 0 0; }
+  .insp-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+  .insp-tabs a { flex: 1; padding: 10px 12px; text-align: center; font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); border-bottom: 2px solid transparent; cursor: pointer; }
+  .insp-tabs a.on { color: var(--ink-1); border-bottom-color: var(--ink-1); background: var(--paper-0); }
+  .insp-body { padding: 16px 20px; flex: 1; overflow: auto; }
+  .turn-block { border: 1px solid var(--border); background: var(--paper-0); margin-bottom: 14px; }
+  .turn-block > summary { list-style: none; cursor: pointer; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--paper-1); display: flex; align-items: center; gap: 8px; }
+  .turn-block > summary::-webkit-details-marker { display: none; }
+  .turn-block > summary:hover { background: var(--paper-2); }
+  .turn-block > summary .caret { color: var(--ink-3); transition: transform 180ms ease; }
+  .turn-block[open] > summary .caret { transform: rotate(90deg); color: var(--rubric-2); }
+  .turn-block:not([open]) > summary { border-bottom: 0; }
+  .turn-block .n { font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+  .turn-block .t { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-left: auto; }
+  .turn-block-body { padding: 10px 12px; font-family: var(--font-mono); font-size: 11px; line-height: 1.55; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+  .turn-block-body .ln { display: grid; grid-template-columns: 110px 1fr; gap: 8px; }
+  .turn-block-body .ln .k { color: var(--rubric-2); font-weight: 600; }
+  .turn-block-body .ln .v { color: var(--ink-1); }
+  .turn-block-body .ln .v.muted { color: var(--ink-3); font-style: italic; font-family: var(--font-serif); font-size: 12px; }
+  .tool-call { margin-top: 8px; border-top: 1px dotted var(--border); padding-top: 8px; }
+  .tool-call .nm { color: var(--accent-verdigris); font-weight: 600; font-family: var(--font-mono); font-size: 11px; }
+  .tool-call pre { margin: 4px 0 0; font-family: var(--font-mono); font-size: 10px; background: var(--paper-1); padding: 8px; border: 1px solid var(--border); line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--ink-2); max-height: 100px; overflow: auto; }
+
+  /* Knob list */
+  .knobs { display: flex; flex-direction: column; gap: 14px; }
+  .knob { display: flex; flex-direction: column; gap: 4px; }
+  .knob label { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+  .knob .row { display: flex; align-items: center; gap: 8px; }
+  .knob input[type=range] { flex: 1; }
+  .knob .val { font-family: var(--font-mono); font-size: 12px; color: var(--ink-1); font-weight: 600; width: 40px; text-align: right; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 24px; font-family: var(--font-serif); color: var(--ink-3); font-style: italic; }
+
+  /* Backlink */
+  .back { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); text-decoration: none; cursor: pointer; }
+  .back:hover { color: var(--ink-1); }
+
+  @media (max-width: 1100px) {
+    .detail { grid-template-columns: 280px 1fr; }
+    .inspector { display: none; }
+  }
+</style>
+</head>
+<body class="mx-doc">
+
+<div class="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sb">
+    <div class="brand"><div class="wm">morf<b>·</b>x</div><div class="sub">Agentes · IA conversacional</div></div>
+    <nav>
+      <div class="cat">Operación</div>
+      <ul>
+        <li><a><i data-lucide="building-2" width="16" height="16"></i>CRM</a></li>
+        <li><a><i data-lucide="message-square" width="16" height="16"></i>WhatsApp</a></li>
+        <li><a><i data-lucide="package" width="16" height="16"></i>Pedidos</a></li>
+        <li><a><i data-lucide="list-todo" width="16" height="16"></i>Tareas</a></li>
+      </ul>
+      <div class="cat">Automatización</div>
+      <ul>
+        <li><a><i data-lucide="zap" width="16" height="16"></i>Automatizaciones</a></li>
+        <li><a class="active"><i data-lucide="bot" width="16" height="16"></i>Agentes</a></li>
+        <li><a id="nav-sandbox"><i data-lucide="flask-conical" width="16" height="16"></i>Sandbox</a></li>
+      </ul>
+      <div class="cat">Análisis</div>
+      <ul>
+        <li><a><i data-lucide="bar-chart-3" width="16" height="16"></i>Analytics</a></li>
+        <li><a><i data-lucide="settings" width="16" height="16"></i>Configuración</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main>
+
+    <!-- ===== AGENTS INDEX (default view) ===== -->
+    <div class="agents-view">
+      <div class="topbar">
+        <div>
+          <div class="eye">Módulo · Automatización</div>
+          <h1>Agentes <em>· 6 configurados · 4 activos</em></h1>
+        </div>
+        <div class="actions">
+          <button class="btn"><i data-lucide="book-open" width="14" height="14"></i>Plantillas</button>
+          <button class="btn"><i data-lucide="download" width="14" height="14"></i>Exportar</button>
+          <button class="btn pri"><i data-lucide="plus" width="14" height="14"></i>Crear agente</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <a class="on">Todos</a>
+        <a>Atención al cliente</a>
+        <a>Ventas</a>
+        <a>Post-venta</a>
+        <a>Campañas</a>
+        <a>Plantillas</a>
+      </div>
+
+      <div class="page">
+        <div class="toolbar">
+          <div class="search"><i data-lucide="search" width="14" height="14"></i><input placeholder="Buscar por nombre, rol o modelo…"></div>
+          <span class="chip on">Todos · 6</span>
+          <span class="chip">Activos · 4</span>
+          <span class="chip">Pausados · 1</span>
+          <span class="chip">Borradores · 1</span>
+        </div>
+
+        <div class="agents">
+
+          <!-- Agent 1 -->
+          <article class="agent-card">
+            <div class="hd">
+              <div class="agent-avatar r">Vt</div>
+              <div class="agent-meta">
+                <h3 class="agent-name">Valentina · Atención</h3>
+                <div class="agent-role">Atención al cliente · WhatsApp</div>
+              </div>
+              <span class="agent-status on">● Activo</span>
+            </div>
+            <p class="agent-desc">Responde preguntas sobre <em>pedidos, envíos y devoluciones</em>. Escala a humano cuando el cliente lo pide o detecta ambigüedad en inventario.</p>
+            <dl class="agent-body">
+              <div class="agent-kv"><dt>Modelo</dt><dd>claude-4-sonnet</dd></div>
+              <div class="agent-kv"><dt>Tono</dt><dd class="serif">cercano, preciso</dd></div>
+              <div class="agent-kv"><dt>Canal</dt><dd>WhatsApp</dd></div>
+              <div class="agent-kv"><dt>Herramientas</dt><dd>7 conectadas</dd></div>
+            </dl>
+            <div class="agent-stats">
+              <div class="stat"><div class="n">847</div><div class="l">Turnos hoy</div></div>
+              <div class="stat"><div class="n red">94%</div><div class="l">Auto-resol.</div></div>
+              <div class="stat"><div class="n">1.8<span style="font-size:13px; font-weight:500;">s</span></div><div class="l">Respuesta</div></div>
+              <div class="stat"><div class="n">4.8</div><div class="l">CSAT</div></div>
+            </div>
+            <div class="agent-foot">
+              <span class="last">Última ejecución · hace 2 min</span>
+              <div class="spacer"></div>
+              <button class="btn sm" data-open="valentina"><i data-lucide="flask-conical" width="12" height="12"></i>Sandbox</button>
+              <button class="btn sm"><i data-lucide="pencil" width="12" height="12"></i>Editar</button>
+            </div>
+          </article>
+
+          <!-- Agent 2 -->
+          <article class="agent-card">
+            <div class="hd">
+              <div class="agent-avatar">Sa</div>
+              <div class="agent-meta">
+                <h3 class="agent-name">Santiago · Ventas</h3>
+                <div class="agent-role">Venta consultiva · WhatsApp</div>
+              </div>
+              <span class="agent-status on">● Activo</span>
+            </div>
+            <p class="agent-desc">Califica leads entrantes, recomienda productos por catálogo y cierra pedidos con <em>checkout nativo de WhatsApp</em>.</p>
+            <dl class="agent-body">
+              <div class="agent-kv"><dt>Modelo</dt><dd>claude-4-sonnet</dd></div>
+              <div class="agent-kv"><dt>Tono</dt><dd class="serif">formal, consultivo</dd></div>
+              <div class="agent-kv"><dt>Canal</dt><dd>WhatsApp</dd></div>
+              <div class="agent-kv"><dt>Herramientas</dt><dd>9 conectadas</dd></div>
+            </dl>
+            <div class="agent-stats">
+              <div class="stat"><div class="n">412</div><div class="l">Turnos hoy</div></div>
+              <div class="stat"><div class="n red">32%</div><div class="l">Conversión</div></div>
+              <div class="stat"><div class="n">2.1<span style="font-size:13px; font-weight:500;">s</span></div><div class="l">Respuesta</div></div>
+              <div class="stat"><div class="n">4.7</div><div class="l">CSAT</div></div>
+            </div>
+            <div class="agent-foot">
+              <span class="last">Última ejecución · hace 4 min</span>
+              <div class="spacer"></div>
+              <button class="btn sm" data-open="santiago"><i data-lucide="flask-conical" width="12" height="12"></i>Sandbox</button>
+              <button class="btn sm"><i data-lucide="pencil" width="12" height="12"></i>Editar</button>
+            </div>
+          </article>
+
+          <!-- Agent 3 -->
+          <article class="agent-card">
+            <div class="hd">
+              <div class="agent-avatar">Cl</div>
+              <div class="agent-meta">
+                <h3 class="agent-name">Claudia · Post-venta</h3>
+                <div class="agent-role">Encuestas y fidelización</div>
+              </div>
+              <span class="agent-status on">● Activo</span>
+            </div>
+            <p class="agent-desc">Envía NPS 48h después de entrega, recupera clientes insatisfechos y detecta motivos de <em>devolución frecuentes</em>.</p>
+            <dl class="agent-body">
+              <div class="agent-kv"><dt>Modelo</dt><dd>gpt-5-mini</dd></div>
+              <div class="agent-kv"><dt>Tono</dt><dd class="serif">empático, breve</dd></div>
+              <div class="agent-kv"><dt>Canal</dt><dd>WhatsApp</dd></div>
+              <div class="agent-kv"><dt>Herramientas</dt><dd>4 conectadas</dd></div>
+            </dl>
+            <div class="agent-stats">
+              <div class="stat"><div class="n">156</div><div class="l">Turnos hoy</div></div>
+              <div class="stat"><div class="n red">67%</div><div class="l">Respuesta</div></div>
+              <div class="stat"><div class="n">1.4<span style="font-size:13px; font-weight:500;">s</span></div><div class="l">Latencia</div></div>
+              <div class="stat"><div class="n">4.6</div><div class="l">CSAT</div></div>
+            </div>
+            <div class="agent-foot">
+              <span class="last">Última ejecución · hace 12 min</span>
+              <div class="spacer"></div>
+              <button class="btn sm" data-open="claudia"><i data-lucide="flask-conical" width="12" height="12"></i>Sandbox</button>
+              <button class="btn sm"><i data-lucide="pencil" width="12" height="12"></i>Editar</button>
+            </div>
+          </article>
+
+          <!-- Agent 4 -->
+          <article class="agent-card">
+            <div class="hd">
+              <div class="agent-avatar">Mr</div>
+              <div class="agent-meta">
+                <h3 class="agent-name">Mariana · Logística</h3>
+                <div class="agent-role">Coordinación de envíos</div>
+              </div>
+              <span class="agent-status on">● Activo</span>
+            </div>
+            <p class="agent-desc">Confirma direcciones, gestiona cambios de fecha, coordina re-entregas con Coordinadora e <em>Inter Rapidísimo</em>.</p>
+            <dl class="agent-body">
+              <div class="agent-kv"><dt>Modelo</dt><dd>claude-4-sonnet</dd></div>
+              <div class="agent-kv"><dt>Tono</dt><dd class="serif">directo, claro</dd></div>
+              <div class="agent-kv"><dt>Canal</dt><dd>WhatsApp</dd></div>
+              <div class="agent-kv"><dt>Herramientas</dt><dd>6 conectadas</dd></div>
+            </dl>
+            <div class="agent-stats">
+              <div class="stat"><div class="n">234</div><div class="l">Turnos hoy</div></div>
+              <div class="stat"><div class="n red">88%</div><div class="l">Auto-resol.</div></div>
+              <div class="stat"><div class="n">1.9<span style="font-size:13px; font-weight:500;">s</span></div><div class="l">Respuesta</div></div>
+              <div class="stat"><div class="n">4.5</div><div class="l">CSAT</div></div>
+            </div>
+            <div class="agent-foot">
+              <span class="last">Última ejecución · hace 6 min</span>
+              <div class="spacer"></div>
+              <button class="btn sm" data-open="mariana"><i data-lucide="flask-conical" width="12" height="12"></i>Sandbox</button>
+              <button class="btn sm"><i data-lucide="pencil" width="12" height="12"></i>Editar</button>
+            </div>
+          </article>
+
+          <!-- Agent 5 (paused) -->
+          <article class="agent-card">
+            <div class="hd">
+              <div class="agent-avatar">Ca</div>
+              <div class="agent-meta">
+                <h3 class="agent-name">Camilo · Campañas</h3>
+                <div class="agent-role">Mensajes masivos y promos</div>
+              </div>
+              <span class="agent-status paused">◐ Pausado</span>
+            </div>
+            <p class="agent-desc">Envía campañas por segmento (última compra, ciudad, tag) y mide <em>apertura y conversión</em>.</p>
+            <dl class="agent-body">
+              <div class="agent-kv"><dt>Modelo</dt><dd>gpt-5-mini</dd></div>
+              <div class="agent-kv"><dt>Tono</dt><dd class="serif">enérgico, breve</dd></div>
+              <div class="agent-kv"><dt>Canal</dt><dd>WhatsApp</dd></div>
+              <div class="agent-kv"><dt>Herramientas</dt><dd>3 conectadas</dd></div>
+            </dl>
+            <div class="agent-stats">
+              <div class="stat"><div class="n" style="color:var(--ink-3);">0</div><div class="l">Turnos hoy</div></div>
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">Conversión</div></div>
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">Respuesta</div></div>
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">CSAT</div></div>
+            </div>
+            <div class="agent-foot">
+              <span class="last">Pausado · 14 abr 2026</span>
+              <div class="spacer"></div>
+              <button class="btn sm"><i data-lucide="play" width="12" height="12"></i>Activar</button>
+              <button class="btn sm"><i data-lucide="pencil" width="12" height="12"></i>Editar</button>
+            </div>
+          </article>
+
+          <!-- Agent 6 (draft) -->
+          <article class="agent-card" style="border-style: dashed;">
+            <div class="hd">
+              <div class="agent-avatar" style="border-style: dashed;">?</div>
+              <div class="agent-meta">
+                <h3 class="agent-name" style="color: var(--ink-3);">Agente recuperación carrito</h3>
+                <div class="agent-role">Borrador · Sin publicar</div>
+              </div>
+              <span class="agent-status draft">Borrador</span>
+            </div>
+            <p class="agent-desc" style="color:var(--ink-3);">Detecta carritos abandonados en Shopify y contacta al cliente <em>con el ítem y un descuento</em>. Falta configurar herramientas de catálogo.</p>
+            <dl class="agent-body">
+              <div class="agent-kv"><dt>Modelo</dt><dd style="color:var(--ink-3);">—</dd></div>
+              <div class="agent-kv"><dt>Tono</dt><dd class="serif" style="color:var(--ink-3);">sin definir</dd></div>
+              <div class="agent-kv"><dt>Canal</dt><dd>WhatsApp</dd></div>
+              <div class="agent-kv"><dt>Herramientas</dt><dd style="color:var(--ink-3);">0 conectadas</dd></div>
+            </dl>
+            <div class="agent-stats">
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">Turnos</div></div>
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">Conversión</div></div>
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">Respuesta</div></div>
+              <div class="stat"><div class="n" style="color:var(--ink-3);">—</div><div class="l">CSAT</div></div>
+            </div>
+            <div class="agent-foot">
+              <span class="last">Creado · hace 2 días</span>
+              <div class="spacer"></div>
+              <button class="btn sm pri"><i data-lucide="sparkles" width="12" height="12"></i>Completar con IA</button>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SANDBOX / DETAIL ===== -->
+    <div class="detail">
+
+      <!-- LEFT: Config summary -->
+      <aside class="cfg">
+        <div class="cfg-hd">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            <a class="back" id="back-to-list"><i data-lucide="arrow-left" width="12" height="12"></i>Volver</a>
+            <span class="agent-status on" style="margin-left:auto;">● Activo</span>
+          </div>
+          <div class="lbl">Agente</div>
+          <h2>Valentina · Atención</h2>
+          <div class="version">v14 · publicada 22 abr 15:04</div>
+        </div>
+
+        <details class="cfg-sect" open>
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Identidad</span>
+            <span class="count">4</span>
+            <span class="edit">Editar →</span>
+          </summary>
+          <div class="cfg-content">
+            <div class="cfg-row"><span class="k">Nombre público</span><span class="v serif">Valentina</span></div>
+            <div class="cfg-row"><span class="k">Rol</span><span class="v serif">Atención al cliente</span></div>
+            <div class="cfg-row"><span class="k">Canal</span><span class="v">WhatsApp</span></div>
+            <div class="cfg-row"><span class="k">Idioma</span><span class="v">es-CO</span></div>
+          </div>
+        </details>
+
+        <details class="cfg-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Modelo</span>
+            <span class="count">claude-4-sonnet</span>
+            <span class="edit">Editar →</span>
+          </summary>
+          <div class="cfg-content">
+            <div class="cfg-row"><span class="k">Proveedor</span><span class="v">Anthropic</span></div>
+            <div class="cfg-row"><span class="k">Modelo</span><span class="v">claude-4-sonnet</span></div>
+            <div class="cfg-row"><span class="k">Temperatura</span><span class="v">0.4</span></div>
+            <div class="cfg-row"><span class="k">Máx. tokens</span><span class="v">512</span></div>
+          </div>
+        </details>
+
+        <details class="cfg-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Tono y estilo</span>
+            <span class="count">4</span>
+            <span class="edit">Editar →</span>
+          </summary>
+          <div class="cfg-content">
+            <div class="cfg-row"><span class="k">Tono</span><span class="v serif">cercano, preciso</span></div>
+            <div class="cfg-row"><span class="k">Tuteo</span><span class="v">sí</span></div>
+            <div class="cfg-row"><span class="k">Emojis</span><span class="v">mínimos</span></div>
+            <div class="cfg-row"><span class="k">Firma</span><span class="v serif">— Equipo morfx</span></div>
+          </div>
+        </details>
+
+        <details class="cfg-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Prompt del sistema</span>
+            <span class="count">184 palabras</span>
+            <span class="edit">Editar →</span>
+          </summary>
+          <div class="cfg-content">
+            <div class="prompt-preview">
+Eres <strong>Valentina</strong>, asistente de atención al cliente de una tienda de moda colombiana. Tu trabajo es responder preguntas sobre pedidos, envíos, tallas y devoluciones, con un tono cercano, directo y respetuoso. Tuteas al cliente.
+
+<strong>Reglas:</strong>
+— Siempre consulta el estado real del pedido usando <code>pedido.obtener</code> antes de dar fechas.
+— Si el cliente pide hablar con humano, escala inmediatamente.
+— No prometas fechas de entrega fuera del rango oficial de la transportadora.
+— Si detectas ambigüedad sobre inventario, escala.
+            </div>
+          </div>
+        </details>
+
+        <details class="cfg-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Herramientas</span>
+            <span class="count">7 conectadas</span>
+            <span class="edit">Gestionar →</span>
+          </summary>
+          <div class="cfg-content">
+            <div style="margin-top: 2px;">
+              <span class="tool-chip"><i data-lucide="search" width="11" height="11"></i>pedido.obtener</span>
+              <span class="tool-chip"><i data-lucide="search" width="11" height="11"></i>pedido.buscar</span>
+              <span class="tool-chip"><i data-lucide="truck" width="11" height="11"></i>guia.rastrear</span>
+              <span class="tool-chip"><i data-lucide="refresh-cw" width="11" height="11"></i>devolucion.crear</span>
+              <span class="tool-chip"><i data-lucide="package" width="11" height="11"></i>producto.buscar</span>
+              <span class="tool-chip"><i data-lucide="user" width="11" height="11"></i>contacto.actualizar</span>
+              <span class="tool-chip"><i data-lucide="user-plus" width="11" height="11"></i>escalar.humano</span>
+            </div>
+          </div>
+        </details>
+
+        <details class="cfg-sect">
+          <summary>
+            <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+            <span class="title">Guardrails</span>
+            <span class="count">4 reglas</span>
+            <span class="edit">Editar →</span>
+          </summary>
+          <div class="cfg-content">
+            <div class="guard-item"><i data-lucide="shield-alert" width="13" height="13"></i>No compartir datos personales de otros clientes</div>
+            <div class="guard-item"><i data-lucide="shield-alert" width="13" height="13"></i>No prometer fechas fuera de rango oficial</div>
+            <div class="guard-item"><i data-lucide="shield-alert" width="13" height="13"></i>No ofrecer descuentos sin autorización</div>
+            <div class="guard-item"><i data-lucide="shield-alert" width="13" height="13"></i>Escalar a humano ante reclamos jurídicos o SIC</div>
+          </div>
+        </details>
+      </aside>
+
+      <!-- CENTER: Sandbox chat -->
+      <section class="sandbox">
+        <div class="sandbox-hd">
+          <i data-lucide="flask-conical" width="18" height="18" style="color:var(--rubric-2);"></i>
+          <h3>Sandbox</h3>
+          <span class="mode">Ejecución de prueba · no se registra</span>
+          <div class="ctx">Conversación efímera · se descarta al cerrar</div>
+          <div class="persona">
+            <label style="font-family:var(--font-sans); font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3);">Persona</label>
+            <select>
+              <option>Cliente recurrente · Bogotá</option>
+              <option>Cliente nuevo · Medellín</option>
+              <option>Cliente molesto · devolución</option>
+              <option>Sin historial</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="msgs" id="msgs">
+
+          <div class="turn user">
+            <div class="turn-av">Cr</div>
+            <div class="bubble">
+              Hola, ¿ya salió mi envío del pedido de ayer?
+              <span class="time">14:31</span>
+            </div>
+          </div>
+
+          <div class="trace">
+            <div class="ev"><span class="t">14:31.02</span><span class="nm">intent.classify</span><span class="val">consulta_envio · conf 0.94</span></div>
+            <div class="ev"><span class="t">14:31.04</span><span class="nm">tool.call</span><span class="val">pedido.buscar({ telefono: "+57 312 488 1092", fecha: "ayer" })</span></div>
+            <div class="ev"><span class="t">14:31.18</span><span class="nm">tool.result</span><span class="val">1 pedido · #10482 · despachado · Coordinadora · CO-8847124</span></div>
+          </div>
+
+          <div class="turn agent">
+            <div class="turn-av">Vt</div>
+            <div class="bubble">
+              ¡Hola Carolina! Tu pedido <strong>#10482</strong> fue despachado hoy a las 11:24 con <strong>Coordinadora</strong>. Guía <strong>CO-8847124</strong>. La fecha estimada de entrega es mañana miércoles 23 de abril.
+              <br><br>
+              ¿Quieres que te envíe el link de rastreo?
+              <span class="time">14:32 · 1.8s · 312 tokens</span>
+            </div>
+          </div>
+
+          <div class="turn user">
+            <div class="turn-av">Cr</div>
+            <div class="bubble">
+              Sí porfa. Y otra cosa, ¿puedo cambiar la dirección? Me mudé el fin de semana.
+              <span class="time">14:32</span>
+            </div>
+          </div>
+
+          <div class="trace">
+            <div class="ev"><span class="t">14:32.28</span><span class="nm">intent.classify</span><span class="val">consulta_envio + cambio_direccion · conf 0.91</span></div>
+            <div class="ev"><span class="t">14:32.31</span><span class="nm">tool.call</span><span class="val">guia.rastrear({ guia: "CO-8847124" })</span></div>
+            <div class="ev"><span class="t">14:32.44</span><span class="nm">guardrail.check</span><span class="val">cambio_direccion post-despacho · <span style="color:var(--semantic-warning);">requiere escalamiento</span></span></div>
+          </div>
+
+          <div class="turn agent">
+            <div class="turn-av">Vt</div>
+            <div class="bubble">
+              Claro, aquí va el link: <strong>coordinadora.co/rastreo/CO-8847124</strong>
+              <br><br>
+              Sobre el cambio de dirección — como ya fue despachado esta mañana, no puedo modificarlo yo misma. Voy a pasarte con una persona del equipo de logística que puede gestionar la redirección con Coordinadora. Un segundo.
+              <span class="time">14:33 · 2.2s · 287 tokens</span>
+            </div>
+          </div>
+
+          <div class="trace">
+            <div class="ev"><span class="t">14:33.14</span><span class="nm">escalar.humano</span><span class="val">cola: logística · motivo: cambio_direccion_post_despacho</span></div>
+          </div>
+
+        </div>
+
+        <div class="composer">
+          <div class="composer-row prompts">
+            <span class="prompt-chip">💬 Hola, ¿tienen esta chaqueta en talla M?</span>
+            <span class="prompt-chip">📦 ¿Cuándo llega mi pedido #10482?</span>
+            <span class="prompt-chip">😡 Mi pedido llegó dañado, quiero devolución</span>
+            <span class="prompt-chip">🙋 Quiero hablar con una persona</span>
+          </div>
+          <div class="composer-row">
+            <textarea placeholder="Escribe como un cliente… prueba preguntas difíciles, bordes del guardrail, ambigüedad…"></textarea>
+            <button class="btn"><i data-lucide="rotate-ccw" width="14" height="14"></i>Reiniciar</button>
+            <button class="btn red"><i data-lucide="send" width="14" height="14"></i>Enviar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Inspector -->
+      <aside class="inspector">
+        <div class="insp-hd">
+          <div>
+            <div class="lbl">Inspector</div>
+            <h3>Trazabilidad</h3>
+          </div>
+          <span style="font-family:var(--font-mono); font-size:11px; color:var(--ink-3);">3 turnos · 4.2s</span>
+        </div>
+        <div class="insp-tabs">
+          <a class="on">Eventos</a>
+          <a>Parámetros</a>
+          <a>Costos</a>
+        </div>
+        <div class="insp-body">
+
+          <!-- Turn 1 -->
+          <details class="turn-block" open>
+            <summary>
+              <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+              <div class="n">Turno 1</div>
+              <div class="t">14:31:02 → 14:31:21 · 1.8s</div>
+            </summary>
+            <div class="turn-block-body">
+              <div class="ln"><span class="k">input</span><span class="v muted">"Hola, ¿ya salió mi envío del pedido de ayer?"</span></div>
+              <div class="ln"><span class="k">intent</span><span class="v">consulta_envio (0.94)</span></div>
+              <div class="ln"><span class="k">latency</span><span class="v">1.82s</span></div>
+              <div class="ln"><span class="k">tokens</span><span class="v">in 284 · out 312</span></div>
+              <div class="ln"><span class="k">cost</span><span class="v">$0.0041</span></div>
+              <div class="tool-call">
+                <div class="nm">▸ tool: pedido.buscar</div>
+                <pre>{
+  "telefono": "+57 312 488 1092",
+  "fecha": "ayer"
+}
+← 1 match · #10482</pre>
+              </div>
+            </div>
+          </details>
+
+          <!-- Turn 2 -->
+          <details class="turn-block" open>
+            <summary>
+              <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+              <div class="n">Turno 2</div>
+              <div class="t">14:32:28 → 14:32:52 · 2.2s</div>
+            </summary>
+            <div class="turn-block-body">
+              <div class="ln"><span class="k">input</span><span class="v muted">"Sí porfa. Y otra cosa, ¿puedo cambiar…"</span></div>
+              <div class="ln"><span class="k">intent</span><span class="v">consulta_envio + cambio_dir (0.91)</span></div>
+              <div class="ln"><span class="k">latency</span><span class="v">2.18s</span></div>
+              <div class="ln"><span class="k">tokens</span><span class="v">in 502 · out 287</span></div>
+              <div class="ln"><span class="k">cost</span><span class="v">$0.0067</span></div>
+              <div class="tool-call">
+                <div class="nm">▸ tool: guia.rastrear</div>
+                <pre>{ "guia": "CO-8847124" }
+← status: "en_ruta" · eta: "2026-04-23"</pre>
+              </div>
+              <div class="tool-call">
+                <div class="nm" style="color: var(--semantic-warning);">⚠ guardrail: cambio_direccion_post_despacho</div>
+                <pre>rule: no_modificar_direccion_post_despacho
+action: forzar_escalamiento
+msg: "Debe escalar a humano"</pre>
+              </div>
+            </div>
+          </details>
+
+          <!-- Turn 3 -->
+          <details class="turn-block">
+            <summary>
+              <i data-lucide="chevron-right" width="12" height="12" class="caret"></i>
+              <div class="n">Turno 3 · Escalamiento</div>
+              <div class="t">14:33:14 · instantáneo</div>
+            </summary>
+            <div class="turn-block-body">
+              <div class="ln"><span class="k">action</span><span class="v">escalar.humano</span></div>
+              <div class="ln"><span class="k">cola</span><span class="v">logística</span></div>
+              <div class="ln"><span class="k">motivo</span><span class="v muted">cambio_direccion_post_despacho</span></div>
+              <div class="ln"><span class="k">asignado</span><span class="v">Juliana T. (logística)</span></div>
+            </div>
+          </details>
+
+        </div>
+      </aside>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  // Simple view toggle — sandbox buttons and sidebar link
+  const body = document.body;
+  document.querySelectorAll('[data-open]').forEach(btn => {
+    btn.addEventListener('click', () => body.classList.add('view-sandbox'));
+  });
+  document.getElementById('nav-sandbox').addEventListener('click', () => body.classList.add('view-sandbox'));
+  document.getElementById('back-to-list').addEventListener('click', () => body.classList.remove('view-sandbox'));
+
+  // Prompt chip -> textarea
+  document.querySelectorAll('.prompt-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      const ta = document.querySelector('.composer textarea');
+      ta.value = c.textContent.replace(/^[^a-záéíóúñ¿¡]+/i, '').trim();
+      ta.focus();
+    });
+  });
+</script>
+
+</body>
+</html>

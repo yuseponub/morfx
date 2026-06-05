@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MORFX — CRM y WhatsApp Business automatizados con IA</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper-1); color: var(--ink-1); font-family: var(--font-sans); }
+  body {
+    background-image: var(--paper-grain), var(--paper-fibers);
+    background-blend-mode: multiply;
+    background-attachment: fixed;
+  }
+  a { color: inherit; }
+
+  /* ---------- Layout ---------- */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+  section { position: relative; }
+
+  /* ---------- Header ---------- */
+  header.site {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in oklch, var(--paper-1) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--ink-1);
+  }
+  .hdr { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .wm {
+    font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1;
+    letter-spacing: -0.02em; color: var(--ink-1); text-decoration: none;
+    display: inline-flex; align-items: baseline;
+  }
+  .wm b { color: var(--rubric-2); font-weight: 800; }
+  nav.primary { display: flex; gap: 28px; align-items: center; }
+  nav.primary a {
+    font-family: var(--font-sans); font-weight: 500; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-2);
+    text-decoration: none; padding: 4px 0; border-bottom: 1px solid transparent;
+  }
+  nav.primary a:hover { color: var(--ink-1); border-bottom-color: var(--ink-1); }
+  .hdr-cta { display: flex; align-items: center; gap: 10px; }
+  .locale {
+    display: inline-flex; border: 1px solid var(--ink-1); border-radius: var(--radius-2);
+    overflow: hidden; font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  }
+  .locale span { padding: 5px 9px; cursor: pointer; color: var(--ink-3); }
+  .locale span.on { background: var(--ink-1); color: var(--paper-0); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: var(--radius-3);
+    border: 1px solid var(--ink-1); background: var(--paper-0); color: var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1); cursor: pointer; text-decoration: none;
+    transition: transform 0.1s;
+  }
+  .btn:hover { background: var(--paper-3); }
+  .btn:active { transform: translateY(1px); box-shadow: 0 0 0 var(--ink-1); }
+  .btn.pri { background: var(--rubric-2); color: var(--paper-0); border-color: var(--rubric-1); box-shadow: 0 1px 0 var(--rubric-1); }
+  .btn.pri:hover { background: var(--rubric-1); }
+  .btn.ghost { border-color: transparent; box-shadow: none; background: transparent; }
+  .btn.ghost:hover { background: var(--paper-3); }
+  .btn.lg { font-size: 14px; padding: 11px 18px; }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 64px 0 88px; border-bottom: 1px solid var(--ink-1); }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+  .stamp {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-sans); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--rubric-2);
+    padding: 5px 10px; border: 1px solid var(--rubric-2); border-radius: var(--radius-2);
+    background: color-mix(in oklch, var(--rubric-2) 6%, var(--paper-0));
+  }
+  .stamp .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rubric-2); }
+  h1.hero-h {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(44px, 5.4vw, 68px); line-height: 1.02; letter-spacing: -0.025em;
+    margin: 20px 0 0; color: var(--ink-1); text-wrap: balance;
+  }
+  h1.hero-h em { font-style: italic; color: var(--rubric-2); font-weight: 700; }
+  .hero-sub {
+    font-family: var(--font-serif); font-size: 19px; line-height: 1.55;
+    color: var(--ink-2); margin-top: 24px; max-width: 560px; text-wrap: pretty;
+  }
+  .hero-ctas { display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+  .hero-meta {
+    margin-top: 28px; font-family: var(--font-serif); font-style: italic;
+    font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 8px;
+  }
+  .hero-meta svg { color: var(--semantic-success); }
+
+  /* Hero mockup frame — tape corners */
+  .mockup-frame {
+    position: relative; background: var(--paper-0); border: 1px solid var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1), 0 24px 48px -20px oklch(0.3 0.04 60 / 0.35);
+    transform: rotate(0.6deg);
+  }
+  .tape {
+    position: absolute; width: 72px; height: 22px;
+    background: color-mix(in oklch, var(--accent-gold) 35%, var(--paper-0));
+    border: 1px solid color-mix(in oklch, var(--accent-gold) 60%, var(--ink-3));
+    opacity: 0.9; z-index: 5;
+  }
+  .tape.tl { top: -11px; left: 24px; transform: rotate(-4deg); }
+  .tape.tr { top: -11px; right: 24px; transform: rotate(5deg); }
+  .tape.bl { bottom: -11px; left: 40px; transform: rotate(3deg); }
+  .tape.br { bottom: -11px; right: 40px; transform: rotate(-4deg); }
+
+  /* WhatsApp inbox mockup (miniature) */
+  .wa-mock { display: grid; grid-template-columns: 140px 1fr; height: 420px; overflow: hidden; }
+  .wa-list { background: var(--paper-2); border-right: 1px solid var(--border); overflow: hidden; }
+  .wa-list-hd { padding: 10px 12px; border-bottom: 1px solid var(--border); font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+  .wa-chat { padding: 9px 10px; border-bottom: 1px solid var(--border); cursor: default; }
+  .wa-chat.on { background: var(--paper-0); border-left: 2px solid var(--rubric-2); padding-left: 8px; }
+  .wa-name { font-size: 11px; font-weight: 600; color: var(--ink-1); display: flex; justify-content: space-between; }
+  .wa-name span { font-weight: 400; font-size: 9px; color: var(--ink-3); }
+  .wa-preview { font-size: 10px; color: var(--ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wa-tags { display: flex; gap: 3px; margin-top: 4px; }
+  .wa-tag { font-size: 8px; font-weight: 600; padding: 1px 5px; border-radius: 8px; background: var(--paper-3); color: var(--ink-2); }
+  .wa-tag.ai { background: color-mix(in oklch, var(--rubric-2) 15%, var(--paper-0)); color: var(--rubric-1); border: 1px solid color-mix(in oklch, var(--rubric-2) 35%, transparent); }
+
+  .wa-convo { display: flex; flex-direction: column; background: var(--paper-1); }
+  .wa-convo-hd { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .wa-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--paper-3); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-display); font-size: 12px; font-weight: 700; color: var(--ink-2); }
+  .wa-convo-name { font-size: 11px; font-weight: 600; }
+  .wa-convo-sub { font-size: 9px; color: var(--ink-3); font-family: var(--font-mono); }
+  .wa-msgs { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .wa-msg { max-width: 75%; padding: 7px 10px; border-radius: 8px; font-size: 11px; line-height: 1.4; }
+  .wa-msg.in { align-self: flex-start; background: var(--paper-0); border: 1px solid var(--border); }
+  .wa-msg.out { align-self: flex-end; background: color-mix(in oklch, var(--rubric-2) 12%, var(--paper-0)); border: 1px solid color-mix(in oklch, var(--rubric-2) 30%, transparent); color: var(--ink-1); }
+  .wa-msg.ai::before { content: "✦ Agente IA"; display: block; font-size: 8px; font-weight: 700; letter-spacing: 0.1em; color: var(--rubric-2); margin-bottom: 2px; text-transform: uppercase; }
+  .wa-msg .time { font-size: 8px; color: var(--ink-4); margin-top: 3px; }
+  .wa-composer { padding: 8px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center; background: var(--paper-2); }
+  .wa-composer .fake-input { flex: 1; height: 24px; background: var(--paper-0); border: 1px solid var(--border); border-radius: 12px; padding: 0 10px; display: flex; align-items: center; font-size: 10px; color: var(--ink-4); font-style: italic; }
+  .wa-composer .suggest { font-size: 9px; padding: 3px 8px; background: var(--paper-0); border: 1px solid var(--rubric-2); color: var(--rubric-2); border-radius: 10px; font-weight: 600; }
+
+  /* ---------- Manifesto strip ---------- */
+  .manifest { padding: 72px 0; border-bottom: 1px solid var(--ink-1); background: var(--paper-2); position: relative; }
+  .manifest::before, .manifest::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 4px;
+    background:
+      repeating-linear-gradient(90deg, var(--ink-1) 0 8px, transparent 8px 16px);
+  }
+  .manifest::before { top: -2px; }
+  .manifest::after { bottom: -2px; }
+  .manifest-inner { max-width: 920px; margin: 0 auto; text-align: center; padding: 0 32px; }
+  .manifest .eyebrow { font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--rubric-2); }
+  .manifest h2 { font-family: var(--font-display); font-size: clamp(32px, 4vw, 44px); font-weight: 700; line-height: 1.15; letter-spacing: -0.015em; margin: 14px 0 0; color: var(--ink-1); text-wrap: balance; }
+  .manifest h2 em { font-style: italic; color: var(--rubric-2); }
+
+  /* ---------- Modules ---------- */
+  .modules { padding: 96px 0 72px; border-bottom: 1px solid var(--ink-1); }
+  .section-head { margin-bottom: 56px; display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: end; }
+  .sec-label { font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rubric-2); writing-mode: vertical-rl; transform: rotate(180deg); border-left: 1px solid var(--rubric-2); padding-left: 10px; }
+  .section-head h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(36px, 4.4vw, 52px); line-height: 1.05; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+  .section-head h2 em { font-style: italic; color: var(--rubric-2); }
+  .section-head p { font-family: var(--font-serif); font-size: 17px; line-height: 1.55; color: var(--ink-3); max-width: 520px; margin: 12px 0 0; }
+
+  .module-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 32px; }
+  .module {
+    background: var(--paper-0); border: 1px solid var(--ink-1); padding: 32px;
+    box-shadow: 0 1px 0 var(--ink-1), 0 12px 28px -18px oklch(0.3 0.04 60 / 0.3);
+    display: flex; flex-direction: column; position: relative;
+  }
+  .module::before {
+    content: attr(data-num); position: absolute; top: 14px; right: 18px;
+    font-family: var(--font-display); font-size: 14px; font-weight: 500;
+    color: var(--ink-4); font-variant-numeric: tabular-nums;
+  }
+  .module.wide { grid-column: span 8; }
+  .module.narrow { grid-column: span 4; }
+  .module.half { grid-column: span 6; }
+  .module.full { grid-column: span 12; }
+  .mod-num { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); letter-spacing: 0.1em; }
+  .mod-title { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.1; letter-spacing: -0.01em; margin: 6px 0 0; color: var(--ink-1); }
+  .mod-title em { font-style: italic; color: var(--rubric-2); }
+  .mod-desc { font-family: var(--font-serif); font-size: 15px; line-height: 1.55; color: var(--ink-2); margin: 14px 0 18px; text-wrap: pretty; }
+  .mod-bullets { list-style: none; padding: 0; margin: 0 0 22px; display: flex; flex-direction: column; gap: 8px; }
+  .mod-bullets li { font-family: var(--font-sans); font-size: 13px; color: var(--ink-2); padding-left: 20px; position: relative; line-height: 1.45; }
+  .mod-bullets li::before { content: "§"; position: absolute; left: 0; color: var(--rubric-2); font-family: var(--font-display); font-weight: 700; }
+  .mod-visual {
+    background: var(--paper-1); border: 1px solid var(--ink-1);
+    margin-top: auto; overflow: hidden; position: relative;
+  }
+  .mod-link { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rubric-2); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; }
+  .mod-link:hover { text-decoration: underline; }
+
+  /* ---------- Module mockups (miniature) ---------- */
+  /* CRM mini — dictionary table */
+  .crm-mini { padding: 14px 16px; font-family: var(--font-sans); font-size: 11px; height: 220px; overflow: hidden; }
+  .crm-head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--ink-1); padding-bottom: 6px; margin-bottom: 10px; }
+  .crm-head h4 { font-family: var(--font-display); font-size: 15px; margin: 0; font-weight: 700; }
+  .crm-head .pg { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); }
+  .crm-tbl { width: 100%; border-collapse: collapse; }
+  .crm-tbl th { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--ink-1); }
+  .crm-tbl td { font-size: 11px; padding: 6px 6px; border-bottom: 1px solid var(--border); }
+  .crm-tbl td.name { font-weight: 600; }
+  .crm-tbl td.def { font-style: italic; color: var(--ink-3); font-size: 10px; }
+  .crm-tbl td .tag { display: inline-block; font-size: 8px; font-weight: 600; padding: 1px 6px; border-radius: 10px; background: var(--paper-3); color: var(--ink-2); margin-right: 3px; }
+  .crm-tbl td .tag.red { background: color-mix(in oklch, var(--rubric-2) 15%, var(--paper-0)); color: var(--rubric-1); }
+  .crm-tbl td .tag.gold { background: color-mix(in oklch, var(--accent-gold) 20%, var(--paper-0)); color: oklch(0.45 0.08 80); }
+
+  /* Automations mini */
+  .auto-mini { padding: 16px; height: 220px; display: flex; flex-direction: column; gap: 8px; }
+  .auto-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+  .auto-node { background: var(--paper-0); border: 1px solid var(--ink-1); padding: 8px 12px; font-size: 10px; font-weight: 600; position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .auto-node.trigger { border-left: 3px solid var(--rubric-2); }
+  .auto-node.action { border-left: 3px solid var(--accent-verdigris); }
+  .auto-node.cond { border-left: 3px solid var(--accent-gold); }
+  .auto-node svg { color: var(--ink-3); flex-shrink: 0; }
+  .auto-node .lbl { font-family: var(--font-sans); font-size: 10px; font-weight: 600; }
+  .auto-node .meta { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); font-weight: 400; }
+  .auto-arrow { flex-shrink: 0; color: var(--ink-3); font-size: 14px; padding: 0 4px; }
+  .auto-ai { background: color-mix(in oklch, var(--rubric-2) 8%, var(--paper-0)); border: 1px dashed var(--rubric-2); padding: 8px 10px; font-size: 10px; color: var(--rubric-1); font-style: italic; margin-top: auto; display: flex; gap: 6px; align-items: flex-start; }
+  .auto-ai svg { flex-shrink: 0; color: var(--rubric-2); margin-top: 1px; }
+
+  /* Integrations mini */
+  .int-mini { padding: 20px; height: 220px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: center; }
+  .int-logo { background: var(--paper-0); border: 1px solid var(--ink-1); padding: 14px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+  .int-logo .nm { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: -0.01em; }
+  .int-logo .tp { font-family: var(--font-sans); font-size: 9px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .int-logo.ok { border-color: var(--semantic-success); background: color-mix(in oklch, var(--semantic-success) 6%, var(--paper-0)); }
+
+  /* Channel mini */
+  .ch-mini { padding: 18px; height: 220px; display: flex; flex-direction: column; gap: 10px; }
+  .ch-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-1); background: var(--paper-0); }
+  .ch-row.soon { border-style: dashed; opacity: 0.7; }
+  .ch-ico { width: 28px; height: 28px; display: grid; place-items: center; background: var(--paper-2); border: 1px solid var(--border); flex-shrink: 0; }
+  .ch-nm { font-family: var(--font-sans); font-size: 12px; font-weight: 600; flex: 1; }
+  .ch-st { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid; }
+  .ch-st.on { color: var(--semantic-success); border-color: var(--semantic-success); }
+  .ch-st.soon { color: var(--ink-3); border-color: var(--ink-3); }
+
+  /* Agents mini */
+  .ag-mini { padding: 20px; height: 220px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .ag-card { background: var(--paper-0); border: 1px solid var(--ink-1); padding: 12px 14px; }
+  .ag-hd { display: flex; justify-content: space-between; align-items: center; }
+  .ag-hd .nm { font-family: var(--font-sans); font-weight: 700; font-size: 12px; }
+  .ag-hd .st { font-family: var(--font-sans); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--semantic-success); }
+  .ag-model { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin: 6px 0 10px; }
+  .ag-stats { display: flex; gap: 16px; }
+  .ag-stat .n { font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1; }
+  .ag-stat .l { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-top: 2px; }
+
+  /* ---------- Flow diagram ---------- */
+  .flow { padding: 96px 0; border-bottom: 1px solid var(--ink-1); background: var(--paper-2); }
+  .flow-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px; align-items: center; margin-top: 56px; }
+  .flow-col { display: flex; flex-direction: column; gap: 16px; }
+  .flow-col.center { align-items: center; justify-content: center; }
+  .flow-node {
+    background: var(--paper-0); border: 1px solid var(--ink-1); padding: 20px;
+    box-shadow: 0 1px 0 var(--ink-1), 0 8px 20px -12px oklch(0.3 0.04 60 / 0.28);
+    position: relative;
+  }
+  .flow-node.src::before {
+    content: "Origen"; position: absolute; top: -8px; left: 16px; background: var(--paper-2);
+    padding: 0 8px; font-family: var(--font-sans); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .flow-node.hub { background: var(--rubric-2); color: var(--paper-0); border-color: var(--rubric-1); padding: 32px 28px; }
+  .flow-node.hub::before {
+    content: "El núcleo"; position: absolute; top: -8px; left: 16px; background: var(--paper-2);
+    padding: 0 8px; font-family: var(--font-sans); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2);
+  }
+  .flow-node.dst::before {
+    content: "Destino"; position: absolute; top: -8px; left: 16px; background: var(--paper-2);
+    padding: 0 8px; font-family: var(--font-sans); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .flow-node .ico { width: 36px; height: 36px; background: var(--paper-2); border: 1px solid var(--ink-1); display: grid; place-items: center; margin-bottom: 12px; }
+  .flow-node.hub .ico { background: var(--paper-0); color: var(--rubric-2); border-color: var(--rubric-1); }
+  .flow-node h4 { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .flow-node.hub h4 { font-size: 28px; }
+  .flow-node p { font-family: var(--font-serif); font-size: 13px; line-height: 1.5; color: var(--ink-3); margin: 0; }
+  .flow-node.hub p { color: color-mix(in oklch, var(--paper-0) 88%, transparent); font-size: 14px; }
+  .flow-node .steps { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
+  .flow-node .steps li { font-family: var(--font-sans); font-size: 11px; font-weight: 500; padding-left: 18px; position: relative; line-height: 1.4; color: color-mix(in oklch, var(--paper-0) 92%, transparent); }
+  .flow-node .steps li::before { content: "→"; position: absolute; left: 0; }
+
+  /* Connector arrows (SVG overlay) */
+  .flow-wrap { position: relative; }
+  .flow-connectors { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+
+  /* ---------- About (legal) — styled as a ledger card ---------- */
+  .about { padding: 96px 0; border-bottom: 1px solid var(--ink-1); }
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .about-left h2 { font-family: var(--font-display); font-size: clamp(32px, 3.8vw, 44px); font-weight: 700; line-height: 1.15; letter-spacing: -0.015em; margin: 12px 0 24px; text-wrap: balance; }
+  .about-intro { font-family: var(--font-serif); font-size: 16px; line-height: 1.7; color: var(--ink-2); text-wrap: pretty; }
+  .about-quote {
+    border-left: 2px solid var(--rubric-2); padding: 2px 0 2px 20px;
+    font-family: var(--font-serif); font-style: italic; font-size: 15px;
+    line-height: 1.6; color: var(--ink-1); margin: 24px 0 10px;
+  }
+  .about-src { font-family: var(--font-serif); font-style: italic; font-size: 12px; color: var(--ink-3); }
+  .ledger {
+    background: var(--paper-0); border: 1px solid var(--ink-1);
+    box-shadow: 0 1px 0 var(--ink-1), 0 12px 28px -18px oklch(0.3 0.04 60 / 0.3);
+    position: relative;
+  }
+  .ledger-hd { padding: 14px 20px; border-bottom: 1px solid var(--ink-1); display: flex; justify-content: space-between; align-items: baseline; background: var(--paper-1); }
+  .ledger-hd .t { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+  .ledger-hd .n { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); letter-spacing: 0.08em; }
+  .ledger-body { padding: 4px 0; }
+  .ledger-row { display: grid; grid-template-columns: 140px 1fr; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 20px; align-items: baseline; }
+  .ledger-row:last-child { border-bottom: 0; }
+  .ledger-row dt { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+  .ledger-row dd { font-family: var(--font-serif); font-size: 15px; color: var(--ink-1); margin: 0; font-weight: 500; }
+  .ledger-row dd.mono { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+
+  /* ---------- CTA ---------- */
+  .cta { padding: 96px 0; border-bottom: 1px solid var(--ink-1); background: var(--paper-2); position: relative; }
+  .cta-card {
+    max-width: 860px; margin: 0 auto; background: var(--paper-0); border: 1px solid var(--ink-1);
+    padding: 64px 64px 56px; text-align: center; position: relative;
+    box-shadow: 0 1px 0 var(--ink-1), 0 24px 48px -24px oklch(0.3 0.04 60 / 0.3);
+  }
+  .cta-orn { font-family: var(--font-display); font-size: 18px; color: var(--rubric-3); letter-spacing: 0.8em; text-align: center; margin-bottom: 24px; }
+  .cta h2 { font-family: var(--font-display); font-size: clamp(36px, 4.2vw, 52px); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 18px; text-wrap: balance; }
+  .cta h2 em { font-style: italic; color: var(--rubric-2); }
+  .cta p { font-family: var(--font-serif); font-size: 17px; line-height: 1.55; color: var(--ink-2); max-width: 600px; margin: 0 auto 32px; text-wrap: pretty; }
+  .cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .cta-contact { margin-top: 28px; font-family: var(--font-serif); font-size: 13px; font-style: italic; color: var(--ink-3); }
+  .cta-contact a { color: var(--rubric-2); text-decoration: none; font-style: normal; font-weight: 500; }
+
+  /* ---------- Footer ---------- */
+  footer.site { background: var(--ink-1); color: var(--paper-1); padding: 72px 0 32px; }
+  footer.site a { color: color-mix(in oklch, var(--paper-0) 85%, transparent); text-decoration: none; }
+  footer.site a:hover { color: var(--paper-0); }
+  .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.2fr; gap: 40px; padding-bottom: 48px; border-bottom: 1px solid color-mix(in oklch, var(--paper-0) 20%, transparent); }
+  .footer-wm { font-family: var(--font-display); font-weight: 800; font-size: 32px; color: var(--paper-0); letter-spacing: -0.02em; margin-bottom: 14px; }
+  .footer-wm b { color: var(--rubric-3); }
+  .footer-tag { font-family: var(--font-serif); font-size: 14px; line-height: 1.55; color: color-mix(in oklch, var(--paper-0) 70%, transparent); max-width: 280px; }
+  .footer-col h5 { font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: color-mix(in oklch, var(--paper-0) 55%, transparent); margin: 0 0 16px; }
+  .footer-col ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .footer-col li { font-family: var(--font-serif); font-size: 14px; }
+  .footer-contact li .lb { font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in oklch, var(--paper-0) 50%, transparent); display: block; margin-bottom: 2px; }
+  .footer-legal { padding-top: 24px; font-family: var(--font-mono); font-size: 11px; line-height: 1.7; color: color-mix(in oklch, var(--paper-0) 55%, transparent); text-align: center; }
+  .footer-legal p { margin: 2px 0; }
+
+  /* responsive */
+  @media (max-width: 960px) {
+    .hero-grid, .about-grid, .flow-grid { grid-template-columns: 1fr; gap: 48px; }
+    .module.wide, .module.narrow, .module.half { grid-column: span 12; }
+    .section-head { grid-template-columns: 1fr; }
+    .sec-label { writing-mode: horizontal-tb; transform: none; border-left: 0; border-top: 1px solid var(--rubric-2); padding: 10px 0 0; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+    nav.primary { display: none; }
+    .cta-card { padding: 48px 28px; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding: 0 20px; }
+    .footer-grid { grid-template-columns: 1fr; }
+    .hero { padding: 40px 0 56px; }
+    .modules, .flow, .about, .cta { padding: 64px 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =================== HEADER =================== -->
+<header class="site">
+  <div class="wrap hdr">
+    <a href="#top" class="wm" aria-label="morfx">morf<b>·</b>x</a>
+    <nav class="primary">
+      <a href="#producto">Producto</a>
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#integraciones">Integraciones</a>
+      <a href="#nosotros">Nosotros</a>
+    </nav>
+    <div class="hdr-cta">
+      <div class="locale" role="group" aria-label="Idioma">
+        <span class="on">ES</span>
+        <span>EN</span>
+      </div>
+      <a class="btn ghost" href="#" style="font-size:12px;">Iniciar sesión</a>
+      <a class="btn pri" href="https://wa.me/573137549286" target="_blank" rel="noopener">
+        <i data-lucide="message-square"></i> Contactar ventas
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- =================== HERO =================== -->
+<section class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="stamp"><span class="dot"></span> MORFX S.A.S. · Empresa colombiana</span>
+      <h1 class="hero-h">CRM y WhatsApp Business <em>automatizados</em> con inteligencia artificial.</h1>
+      <p class="hero-sub">
+        Unificamos el CRM, la atención conversacional y las automatizaciones en una sola plataforma,
+        para que las empresas de comercio electrónico vendan, respondan y entreguen con mayor precisión
+        y menor costo operativo.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn pri lg" href="https://wa.me/573137549286" target="_blank" rel="noopener">
+          <i data-lucide="message-square"></i> Contactar ventas
+          <i data-lucide="arrow-right"></i>
+        </a>
+        <a class="btn lg" href="#">Iniciar sesión</a>
+      </div>
+      <p class="hero-meta">
+        <i data-lucide="clock"></i>
+        Respuesta en minutos vía WhatsApp · Lunes a viernes, 8:00 a 18:00 (hora Colombia)
+      </p>
+    </div>
+
+    <!-- WhatsApp inbox mockup -->
+    <div class="mockup-frame" aria-hidden="true">
+      <span class="tape tl"></span>
+      <span class="tape tr"></span>
+      <span class="tape bl"></span>
+      <span class="tape br"></span>
+      <div class="wa-mock">
+        <!-- conversation list -->
+        <aside class="wa-list">
+          <div class="wa-list-hd">Bandeja · 12</div>
+          <div class="wa-chat on">
+            <div class="wa-name">Carolina R. <span>14:32</span></div>
+            <div class="wa-preview">Hola, ¿ya salió mi envío?</div>
+            <div class="wa-tags"><span class="wa-tag ai">IA</span><span class="wa-tag">VIP</span></div>
+          </div>
+          <div class="wa-chat">
+            <div class="wa-name">Jorge M. <span>14:28</span></div>
+            <div class="wa-preview">Confirmo la dirección…</div>
+            <div class="wa-tags"><span class="wa-tag">Pedido</span></div>
+          </div>
+          <div class="wa-chat">
+            <div class="wa-name">Mateo S. <span>14:11</span></div>
+            <div class="wa-preview">¿Tienen talla M?</div>
+            <div class="wa-tags"><span class="wa-tag ai">IA</span></div>
+          </div>
+          <div class="wa-chat">
+            <div class="wa-name">Andrea L. <span>13:55</span></div>
+            <div class="wa-preview">Perfecto, muchas gracias 🙏</div>
+          </div>
+          <div class="wa-chat">
+            <div class="wa-name">Esteban P. <span>13:40</span></div>
+            <div class="wa-preview">Quiero cambiar la fecha…</div>
+            <div class="wa-tags"><span class="wa-tag">Seguimiento</span></div>
+          </div>
+        </aside>
+
+        <!-- conversation -->
+        <div class="wa-convo">
+          <div class="wa-convo-hd">
+            <div class="wa-avatar">C</div>
+            <div style="flex:1;">
+              <div class="wa-convo-name">Carolina Rodríguez</div>
+              <div class="wa-convo-sub">+57 312 488 1092 · Pedido #10482</div>
+            </div>
+            <span style="font-family:var(--font-sans); font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--rubric-2); border:1px solid var(--rubric-2); padding:2px 6px;">Auto</span>
+          </div>
+          <div class="wa-msgs">
+            <div class="wa-msg in">Hola, ¿ya salió mi envío?<div class="time">14:31</div></div>
+            <div class="wa-msg out ai">
+              ¡Hola Carolina! Tu pedido <strong>#10482</strong> fue despachado hoy a las 11:24 con
+              <strong>Coordinadora</strong>. Guía <strong>CO-8847124</strong>. Te llega mañana.
+              <div class="time">14:32 ✓✓</div>
+            </div>
+            <div class="wa-msg in">¡Gracias!<div class="time">14:32</div></div>
+          </div>
+          <div class="wa-composer">
+            <div class="fake-input">Escribe una respuesta…</div>
+            <span class="suggest">✦ Sugerencia</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== MANIFESTO =================== -->
+<section class="manifest">
+  <div class="manifest-inner">
+    <div class="eyebrow">Nuestra tesis</div>
+    <h2>Un <em>sistema</em> para vender, responder y entregar. <br>No cinco herramientas pegadas con cinta.</h2>
+  </div>
+</section>
+
+<!-- =================== MODULES =================== -->
+<section class="modules" id="producto">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="sec-label">§ Producto</div>
+      <div>
+        <h2>Cinco módulos, <em>un solo hilo</em>.</h2>
+        <p>Cada interacción queda asociada al cliente correcto, con historial completo y estado sincronizado entre WhatsApp, pedidos y pipelines.</p>
+      </div>
+    </div>
+
+    <div class="module-grid">
+
+      <!-- 01 CRM — wide -->
+      <article class="module wide" data-num="01" id="crm">
+        <div class="mod-num">Módulo 01</div>
+        <h3 class="mod-title">CRM unificado para <em>comercio electrónico</em></h3>
+        <p class="mod-desc">Concentramos contactos, conversaciones, pedidos y etapas comerciales en una sola vista. Cada interacción queda asociada al cliente correcto.</p>
+        <ul class="mod-bullets">
+          <li>Contactos unificados con historial completo de mensajes y pedidos.</li>
+          <li>Pipelines configurables por línea de negocio, con etapas personalizables.</li>
+          <li>Tags, notas y tareas sincronizadas entre CRM y bandeja de WhatsApp.</li>
+        </ul>
+        <a class="mod-link" href="#">Ver módulo CRM <i data-lucide="arrow-right" style="width:12px;height:12px;"></i></a>
+
+        <div class="mod-visual">
+          <div class="crm-mini">
+            <div class="crm-head">
+              <h4>Contactos</h4>
+              <span class="pg">p. 247 · 1.284 registros</span>
+            </div>
+            <table class="crm-tbl">
+              <thead><tr><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Etapa</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="name">Carolina Rodríguez <span class="def">cliente VIP</span></td>
+                  <td style="font-family:var(--font-mono); font-size:10px;">+57 312 488 1092</td>
+                  <td style="font-style:italic; color:var(--ink-3);">Bogotá</td>
+                  <td><span class="tag red">Pedido</span></td>
+                </tr>
+                <tr>
+                  <td class="name">Jorge Medina <span class="def">recurrente</span></td>
+                  <td style="font-family:var(--font-mono); font-size:10px;">+57 301 772 0458</td>
+                  <td style="font-style:italic; color:var(--ink-3);">Medellín</td>
+                  <td><span class="tag gold">Seguimiento</span></td>
+                </tr>
+                <tr>
+                  <td class="name">Mateo Suárez <span class="def">nuevo</span></td>
+                  <td style="font-family:var(--font-mono); font-size:10px;">+57 320 911 3374</td>
+                  <td style="font-style:italic; color:var(--ink-3);">Cali</td>
+                  <td><span class="tag">Contacto</span></td>
+                </tr>
+                <tr>
+                  <td class="name">Andrea López <span class="def">fidelizada</span></td>
+                  <td style="font-family:var(--font-mono); font-size:10px;">+57 315 223 6908</td>
+                  <td style="font-style:italic; color:var(--ink-3);">Bucaramanga</td>
+                  <td><span class="tag red">Pedido</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <!-- 02 Agents — narrow -->
+      <article class="module narrow" data-num="02" id="agentes">
+        <div class="mod-num">Módulo 02</div>
+        <h3 class="mod-title">Agentes <em>IA</em></h3>
+        <p class="mod-desc">Agentes de atención y ventas sobre Claude y GPT, con guardrails y control total del tono.</p>
+        <ul class="mod-bullets">
+          <li>Atención 24/7 con estilo configurable por marca.</li>
+          <li>Observabilidad por turno: eventos auditables.</li>
+          <li>Escala a humano cuando detecta ambigüedad.</li>
+        </ul>
+        <a class="mod-link" href="#">Ver agentes <i data-lucide="arrow-right" style="width:12px;height:12px;"></i></a>
+
+        <div class="mod-visual">
+          <div class="ag-mini">
+            <div class="ag-card">
+              <div class="ag-hd">
+                <div class="nm">Agente · Ventas</div>
+                <div class="st">● Activo</div>
+              </div>
+              <div class="ag-model">claude-4-sonnet · tono formal-cercano</div>
+              <div class="ag-stats">
+                <div class="ag-stat"><div class="n">847</div><div class="l">Turnos hoy</div></div>
+                <div class="ag-stat"><div class="n">94%</div><div class="l">Auto-resol.</div></div>
+                <div class="ag-stat"><div class="n">1.8s</div><div class="l">Respuesta</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 03 Automations — narrow -->
+      <article class="module narrow" data-num="03" id="automatizaciones">
+        <div class="mod-num">Módulo 03</div>
+        <h3 class="mod-title">Automatizaciones <em>sin código</em></h3>
+        <p class="mod-desc">Constructor visual con asistente de IA. 10 triggers y 11 acciones sobre contactos, pedidos, etapas y mensajes.</p>
+        <ul class="mod-bullets">
+          <li>Pedidos nuevos, cambios de etapa, mensajes entrantes.</li>
+          <li>Enviar mensaje, mover etapa, asignar tag, crear tarea.</li>
+          <li>Asistente IA que explica y valida cada flujo.</li>
+        </ul>
+        <a class="mod-link" href="#">Ver automatizaciones <i data-lucide="arrow-right" style="width:12px;height:12px;"></i></a>
+
+        <div class="mod-visual">
+          <div class="auto-mini">
+            <div class="auto-node trigger">
+              <i data-lucide="zap" style="width:12px;height:12px;"></i>
+              <div><div class="lbl">Nuevo pedido Shopify</div><div class="meta">when order.created</div></div>
+            </div>
+            <div style="text-align:center; font-size:12px; color:var(--ink-3);">↓</div>
+            <div class="auto-node cond">
+              <i data-lucide="git-branch" style="width:12px;height:12px;"></i>
+              <div><div class="lbl">Si ciudad = Bogotá</div><div class="meta">condition</div></div>
+            </div>
+            <div style="text-align:center; font-size:12px; color:var(--ink-3);">↓</div>
+            <div class="auto-node action">
+              <i data-lucide="send" style="width:12px;height:12px;"></i>
+              <div><div class="lbl">Enviar confirmación WA</div><div class="meta">template: order_conf_bog</div></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 04 Integrations — half -->
+      <article class="module half" data-num="04" id="integraciones">
+        <div class="mod-num">Módulo 04</div>
+        <h3 class="mod-title">Integraciones con tu <em>stack de e-commerce</em></h3>
+        <p class="mod-desc">Conectamos con las plataformas que ya usan las empresas colombianas. Pedidos, guías y pagos fluyen sin planillas intermedias.</p>
+        <ul class="mod-bullets">
+          <li>Shopify: pedidos, productos y clientes en tiempo real.</li>
+          <li>Coordinadora e Inter Rapidísimo: creación y seguimiento de guías.</li>
+          <li>Webhooks y API interna para sistemas propios.</li>
+        </ul>
+        <a class="mod-link" href="#">Ver integraciones <i data-lucide="arrow-right" style="width:12px;height:12px;"></i></a>
+
+        <div class="mod-visual">
+          <div class="int-mini">
+            <div class="int-logo ok"><div class="nm">Shopify</div><div class="tp">E-commerce</div></div>
+            <div class="int-logo ok"><div class="nm">WhatsApp</div><div class="tp">Business</div></div>
+            <div class="int-logo ok"><div class="nm">Coordinadora</div><div class="tp">Envíos</div></div>
+            <div class="int-logo ok"><div class="nm" style="font-size:12px;">Inter&nbsp;Rapidísimo</div><div class="tp">Envíos</div></div>
+            <div class="int-logo"><div class="nm">Claude</div><div class="tp">LLM</div></div>
+            <div class="int-logo"><div class="nm">GPT</div><div class="tp">LLM</div></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 05 Multichannel — half -->
+      <article class="module half" data-num="05" id="canales">
+        <div class="mod-num">Módulo 05</div>
+        <h3 class="mod-title">Multi-canal, <em>WhatsApp</em> primero</h3>
+        <p class="mod-desc">Operamos hoy sobre WhatsApp Business Platform. Facebook Messenger e Instagram Direct en habilitación vía Meta Direct.</p>
+        <ul class="mod-bullets">
+          <li>Plantillas, sesiones y campañas sobre WhatsApp Business.</li>
+          <li>Un solo hilo por contacto, independiente del canal.</li>
+          <li>Registro auditable de cada mensaje entrante y saliente.</li>
+        </ul>
+        <a class="mod-link" href="#">Ver canales <i data-lucide="arrow-right" style="width:12px;height:12px;"></i></a>
+
+        <div class="mod-visual">
+          <div class="ch-mini">
+            <div class="ch-row">
+              <div class="ch-ico"><i data-lucide="message-circle" style="width:14px;height:14px;color:#25D366;"></i></div>
+              <div class="ch-nm">WhatsApp Business Platform</div>
+              <span class="ch-st on">En vivo</span>
+            </div>
+            <div class="ch-row">
+              <div class="ch-ico"><i data-lucide="message-square" style="width:14px;height:14px;color:#0084FF;"></i></div>
+              <div class="ch-nm">Messenger <span style="font-family:var(--font-serif); font-weight:400; font-style:italic; color:var(--ink-3); font-size:11px;">— Meta Direct</span></div>
+              <span class="ch-st soon">Próximo</span>
+            </div>
+            <div class="ch-row soon">
+              <div class="ch-ico">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E4405F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                </svg>
+              </div>
+              <div class="ch-nm">Instagram Direct</div>
+              <span class="ch-st soon">Próximo</span>
+            </div>
+            <div class="ch-row soon">
+              <div class="ch-ico"><i data-lucide="mail" style="width:14px;height:14px;color:var(--ink-3);"></i></div>
+              <div class="ch-nm">Correo electrónico</div>
+              <span class="ch-st soon">Explorando</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- =================== FLOW / COMO FUNCIONA =================== -->
+<section class="flow" id="como-funciona">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="sec-label">§ Cómo funciona</div>
+      <div>
+        <h2>El recorrido de <em>un pedido</em>, de punta a punta.</h2>
+        <p>Un pedido puede originarse en tu tienda Shopify o en un mensaje de WhatsApp. Sin importar de dónde venga, converge en el Agente IA, queda archivado en el CRM y termina en la transportadora correcta.</p>
+      </div>
+    </div>
+
+    <div class="flow-wrap">
+      <div class="flow-grid">
+        <!-- Origen -->
+        <div class="flow-col">
+          <div class="flow-node src">
+            <div class="ico"><i data-lucide="shopping-bag" style="width:18px;height:18px;"></i></div>
+            <h4>Shopify</h4>
+            <p>Un cliente compra en tu tienda online. El pedido llega con productos, dirección y método de pago.</p>
+          </div>
+          <div class="flow-node src">
+            <div class="ico"><i data-lucide="message-circle" style="width:18px;height:18px;"></i></div>
+            <h4>WhatsApp</h4>
+            <p>Un cliente escribe para pedir algo, cotizar o consultar. El agente lo atiende en segundos.</p>
+          </div>
+        </div>
+
+        <!-- Núcleo -->
+        <div class="flow-col center">
+          <div class="flow-node hub">
+            <div class="ico"><i data-lucide="sparkles" style="width:20px;height:20px;"></i></div>
+            <h4>Agente IA<br>+ CRM</h4>
+            <p>Entiende la intención, valida inventario, confirma dirección, registra al contacto y mueve el pedido por las etapas correctas.</p>
+            <ul class="steps">
+              <li>Intención + contexto</li>
+              <li>Contacto unificado</li>
+              <li>Etapa actualizada</li>
+              <li>Historial auditado</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Destino -->
+        <div class="flow-col">
+          <div class="flow-node dst">
+            <div class="ico"><i data-lucide="truck" style="width:18px;height:18px;"></i></div>
+            <h4>Coordinadora</h4>
+            <p>Guía creada automáticamente. Seguimiento en tiempo real y notificaciones al cliente.</p>
+          </div>
+          <div class="flow-node dst">
+            <div class="ico"><i data-lucide="package" style="width:18px;height:18px;"></i></div>
+            <h4>Inter Rapidísimo</h4>
+            <p>Alternativa nacional cuando la ruta o la tarifa lo requiera. Igualmente auditable.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== ABOUT =================== -->
+<section class="about" id="nosotros">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom: 40px;">
+      <div class="sec-label">§ Quiénes somos</div>
+      <div></div>
+    </div>
+
+    <div class="about-grid">
+      <div class="about-left">
+        <h2>Una empresa <em>colombiana</em> dedicada a plataformas de IA para empresas.</h2>
+        <p class="about-intro">
+          MORFX S.A.S. es una sociedad por acciones simplificada constituida en Colombia en 2026,
+          con domicilio en Bucaramanga, Santander. Desarrollamos, operamos y licenciamos la plataforma
+          MORFX, un ecosistema de CRM, agentes conversacionales y automatizaciones diseñado para
+          empresas de comercio electrónico y otros sectores productivos que requieren atención al
+          cliente a escala y gestión logística integrada.
+        </p>
+
+        <div style="margin-top: 32px;">
+          <div style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rubric-2); margin-bottom: 10px;">
+            Objeto social
+          </div>
+          <blockquote class="about-quote">
+            Desarrollo, diseño, implementación, operación, comercialización y licenciamiento de
+            plataformas tecnológicas basadas en inteligencia artificial, con especial énfasis en
+            atención al cliente, gestión logística y procesos comerciales para empresas de comercio
+            electrónico y otros sectores productivos.
+          </blockquote>
+          <p class="about-src">— Acta de constitución bajo la Ley 1258 de 2008, República de Colombia.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="ledger">
+          <div class="ledger-hd">
+            <div class="t">Datos legales</div>
+            <div class="n">Registro mercantil · 2026</div>
+          </div>
+          <dl class="ledger-body">
+            <div class="ledger-row"><dt>Razón social</dt><dd>MORFX S.A.S.</dd></div>
+            <div class="ledger-row"><dt>NIT</dt><dd class="mono">902.052.328-5</dd></div>
+            <div class="ledger-row"><dt>Domicilio</dt><dd>Bucaramanga, Santander, Colombia</dd></div>
+            <div class="ledger-row"><dt>Año de constitución</dt><dd class="mono">2026</dd></div>
+            <div class="ledger-row"><dt>Código CIIU</dt><dd class="mono">6201</dd></div>
+            <div class="ledger-row"><dt>Representante legal</dt><dd>Jose Mario Romero Rincón</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== CTA =================== -->
+<section class="cta">
+  <div class="wrap">
+    <div class="cta-card">
+      <div class="cta-orn">❊ ❊ ❊</div>
+      <h2>¿Listo para <em>empezar?</em></h2>
+      <p>
+        Conversamos contigo para entender tu operación, mostrarte la plataforma en vivo y proponerte
+        un plan de implementación alineado a tus procesos de venta y logística.
+      </p>
+      <div class="cta-actions">
+        <a class="btn pri lg" href="https://wa.me/573137549286" target="_blank" rel="noopener">
+          <i data-lucide="message-square"></i> Escribir por WhatsApp
+        </a>
+        <a class="btn lg" href="mailto:morfx.colombia@gmail.com">
+          <i data-lucide="mail"></i> Enviar un correo
+        </a>
+      </div>
+      <p class="cta-contact">
+        También puedes llamarnos al <a href="tel:+573137549286">+57 313 754 9286</a>
+        o escribirnos a <a href="mailto:morfx.colombia@gmail.com">morfx.colombia@gmail.com</a>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- =================== FOOTER =================== -->
+<footer class="site">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-wm">morf<b>·</b>x</div>
+        <p class="footer-tag">CRM y automatización de WhatsApp Business con IA para e-commerce.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Producto</h5>
+        <ul>
+          <li><a href="#crm">CRM unificado</a></li>
+          <li><a href="#agentes">Agentes de IA</a></li>
+          <li><a href="#automatizaciones">Automatizaciones</a></li>
+          <li><a href="#integraciones">Integraciones</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="#">Política de privacidad</a></li>
+          <li><a href="#">Términos de servicio</a></li>
+          <li><a href="#">Iniciar sesión</a></li>
+        </ul>
+      </div>
+      <div class="footer-col footer-contact">
+        <h5>Contacto</h5>
+        <ul>
+          <li><span class="lb">Teléfono</span><a href="tel:+573137549286">+57 313 754 9286</a></li>
+          <li><span class="lb">Email</span><a href="mailto:morfx.colombia@gmail.com">morfx.colombia@gmail.com</a></li>
+          <li><span class="lb">WhatsApp</span><a href="https://wa.me/573137549286" target="_blank" rel="noopener">wa.me/573137549286</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <p>© 2026 MORFX S.A.S. — NIT 902.052.328-5</p>
+      <p>Carrera 38 # 42 - 17 Apartamento 1601B, Bucaramanga, Santander, Colombia</p>
+      <p>CIIU 6201 — Actividades de desarrollo de sistemas informáticos</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  lucide.createIcons();
+</script>
+
+</body>
+</html>

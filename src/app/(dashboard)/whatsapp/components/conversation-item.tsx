@@ -6,8 +6,26 @@ import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
 import { RelativeTime } from '@/components/ui/relative-time'
 import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
+import { MxTag } from './mx-tag'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
+
+/**
+ * Map a contact/conversation tag color (or name) to the editorial MxTag variant
+ * for the v3 row. Colors carry no editorial meaning in the mock, so we map by
+ * the tag's own color hue when possible, falling back to ink (neutral).
+ */
+function mapTagToMxVariant(
+  tag: { name: string }
+): 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' {
+  const n = tag.name.toLowerCase()
+  if (n.includes('cliente') || n.includes('vip') || n.includes('pagad')) return 'gold'
+  if (n.includes('lead') || n.includes('prospect')) return 'indigo'
+  if (n.includes('mayorista') || n.includes('recompra') || n.includes('wpp')) return 'verdigris'
+  if (n.includes('pendiente') || n.includes('urgente')) return 'rubric'
+  return 'ink'
+}
 
 /**
  * Get initials from a name (up to 2 characters).
@@ -43,6 +61,7 @@ export function ConversationItem({
   showClientBadge = false,
 }: ConversationItemProps) {
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   const displayName = conversation.contact?.name || conversation.profile_name || conversation.phone
   const preview = conversation.last_message_preview || 'Sin mensajes'
 
@@ -65,6 +84,102 @@ export function ConversationItem({
       primaryEmoji = emoji
       break
     }
+  }
+
+  // ===================== EDITORIAL V3 (.conv verbatim row) =====================
+  // Mock `ui_kits/conversaciones/index.html` .conv anatomy: grid 40px/1fr/auto,
+  // .av initials (EB Garamond via CSS), .mid (.nm + .pv), .meta (.tm + .badge),
+  // .row3 (agent pill + tags). Active row → `.conv.on` (rubric spine via CSS);
+  // unread → `.conv.unread`. All data preserved (same props/handler).
+  if (v3) {
+    return (
+      <div
+        onClick={() => onSelect(conversation.id)}
+        role="listitem"
+        aria-selected={isSelected}
+        aria-current={isSelected || undefined}
+        className={cn('conv', isSelected && 'on', hasUnread && 'unread')}
+      >
+        {/* Avatar with initials + optional order/agent indicators */}
+        <div className="av" style={{ position: 'relative' }}>
+          {getInitials(displayName)}
+          {primaryEmoji && (
+            <span className="absolute -top-1 -right-1 text-[11px] leading-none bg-[var(--paper-0)] rounded-full w-[18px] h-[18px] flex items-center justify-center border border-[var(--border)]">
+              {primaryEmoji}
+            </span>
+          )}
+          {conversation.agent_conversational === true && (
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--accent-verdigris)] flex items-center justify-center border border-[var(--paper-0)]">
+              <Bot className="h-2.5 w-2.5 text-[var(--paper-0)]" />
+            </span>
+          )}
+          {showClientBadge && (
+            <span className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-[var(--accent-gold)] flex items-center justify-center border border-[var(--paper-0)]" title="Cliente">
+              <Check className="h-2.5 w-2.5 text-[var(--paper-0)]" />
+            </span>
+          )}
+        </div>
+
+        {/* Name + preview */}
+        <div className="mid">
+          <div className="nm">
+            {conversation.channel === 'facebook' && (
+              <span title="Facebook Messenger" className="inline-flex align-middle mr-1">
+                <svg className="h-3 w-3 inline" viewBox="0 0 24 24" fill="#1877F2">
+                  <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.018 1.793-4.685 4.533-4.685 1.313 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.93-1.956 1.886v2.274h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+                </svg>
+              </span>
+            )}
+            {conversation.channel === 'instagram' && (
+              <span title="Instagram" className="inline-flex align-middle mr-1">
+                <svg className="h-3 w-3 inline" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig-gradient-v3)" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="5" stroke="url(#ig-gradient-v3)" strokeWidth="2" />
+                  <circle cx="18" cy="6" r="1.5" fill="url(#ig-gradient-v3)" />
+                  <defs>
+                    <linearGradient id="ig-gradient-v3" x1="2" y1="22" x2="22" y2="2" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#FD1D1D" />
+                      <stop offset="0.5" stopColor="#E1306C" />
+                      <stop offset="1" stopColor="#C13584" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
+            )}
+            {displayName}
+          </div>
+          <div className="pv">{preview}</div>
+        </div>
+
+        {/* Right meta column: timestamp + unread badge */}
+        <div className="meta">
+          {timerDate && (
+            <span className="tm">
+              <RelativeTime date={timerDate} />
+            </span>
+          )}
+          {conversation.unread_count > 0 && (
+            <span className="badge" aria-label={`${conversation.unread_count} sin leer`}>
+              {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+            </span>
+          )}
+        </div>
+
+        {/* Row 3: agent pill + tags */}
+        <div className="row3">
+          {conversation.agent_conversational === true && <span className="agent">Agente</span>}
+          {!conversation.assigned_to && <MxTag variant="ink">Sin asignar</MxTag>}
+          {conversationTags.slice(0, 2).map((tag) => (
+            <MxTag key={`conv-${tag.id}`} variant={mapTagToMxVariant(tag)}>
+              {tag.name}
+            </MxTag>
+          ))}
+          {conversationTags.length > 2 && (
+            <MxTag variant="ink">+{conversationTags.length - 2}</MxTag>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

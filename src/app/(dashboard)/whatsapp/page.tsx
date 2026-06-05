@@ -4,6 +4,7 @@ import { getClientActivationSettings } from '@/app/actions/client-activation'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { getIsSuperUser } from '@/lib/auth/super-user'
 import { getIsInboxV2Enabled } from '@/lib/auth/inbox-v2'
+import { getIsEditorialV3Enabled } from '@/lib/auth/editorial-v3'
 
 interface WhatsAppPageProps {
   searchParams: Promise<{ phone?: string; c?: string }>
@@ -26,12 +27,16 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
     )
   }
 
-  // Fetch initial conversations, client config, super-user flag, and inbox-v2 flag in parallel
-  const [initialConversations, clientConfig, isSuperUser, isInboxV2] = await Promise.all([
+  // Fetch initial conversations, client config, super-user flag, inbox-v2 flag,
+  // and editorial-v3 flag in parallel. editorial-v3 (standalone
+  // ui-redesign-editorial-core) gates the verbatim editorial port; it fails
+  // closed to false (Regla 6) and is independent of inbox-v2.
+  const [initialConversations, clientConfig, isSuperUser, isInboxV2, isEditorialV3] = await Promise.all([
     getConversations({ status: 'active', sortBy: 'last_customer_message' }),
     getClientActivationSettings(),
     getIsSuperUser(),
     getIsInboxV2Enabled(workspaceId),
+    getIsEditorialV3Enabled(workspaceId),
   ])
 
   // Find conversation by ID or phone if provided
@@ -60,6 +65,7 @@ export default async function WhatsAppPage({ searchParams }: WhatsAppPageProps) 
       clientConfig={clientConfig}
       isSuperUser={isSuperUser}
       v2={isInboxV2}
+      v3={isEditorialV3}
     />
   )
 }

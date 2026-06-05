@@ -18,6 +18,7 @@ import { ConversationItem } from './conversation-item'
 import { AvailabilityToggle } from './availability-toggle'
 import { NewConversationModal } from './new-conversation-modal'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
 
@@ -30,6 +31,12 @@ interface ConversationListProps {
   onSelectedUpdated?: (conversation: ConversationWithDetails) => void
   /** Callback to expose refreshOrders function to parent */
   onRefreshOrdersReady?: (refreshOrders: () => Promise<void>) => void
+  /**
+   * Callback to expose an "open new conversation modal" trigger to the parent
+   * (used by the editorial-v3 topbar "Nueva conversación" action, which lives
+   * in inbox-layout outside this column). Preserves the existing modal wiring.
+   */
+  onOpenNewConversationReady?: (open: () => void) => void
   clientConfig?: ClientActivationConfig | null
 }
 
@@ -44,9 +51,11 @@ export function ConversationList({
   onSelect,
   onSelectedUpdated,
   onRefreshOrdersReady,
+  onOpenNewConversationReady,
   clientConfig,
 }: ConversationListProps) {
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   const searchInputRef = useRef<HTMLInputElement>(null)
   // Locate the `.theme-editorial` wrapper so Radix Popover can re-root inside
   // the editorial token scope (same pattern as chat-header.tsx — Plan 04). When
@@ -79,18 +88,19 @@ export function ConversationList({
     initialConversations,
   })
 
-  // Resolve the `.theme-editorial` wrapper for Radix portal re-rooting.
-  // Only needed when v2 (else ref stays null → default body portal).
+  // Resolve the `.theme-editorial`/`.theme-editorial-v3` wrapper for Radix
+  // portal re-rooting. Needed when v2 OR v3 (else ref stays null → default
+  // body portal). Both render `[data-module="whatsapp"]` on the scope root.
   useEffect(() => {
-    if (!v2) return
+    if (!v2 && !v3) return
     themeContainerRef.current = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
-  }, [v2])
+  }, [v2, v3])
 
   // Keyboard shortcut: '/' focuses the list search input (D-23).
   // Scoped to focus inside [data-module="whatsapp"] (set by InboxLayout), and
   // ignored when focus is in another input/textarea/contenteditable. Only active when v2.
   useEffect(() => {
-    if (!v2) return
+    if (!v2 && !v3) return
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== '/') return
       const target = e.target as HTMLElement | null
@@ -103,12 +113,17 @@ export function ConversationList({
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [v2])
+  }, [v2, v3])
 
   // Expose refreshOrders to parent
   useEffect(() => {
     onRefreshOrdersReady?.(refreshOrders)
   }, [onRefreshOrdersReady, refreshOrders])
+
+  // Expose the new-conversation modal trigger to the parent (v3 topbar action).
+  useEffect(() => {
+    onOpenNewConversationReady?.(() => setShowNewModal(true))
+  }, [onOpenNewConversationReady])
 
   // Load whatsapp-scope tags when filter popover opens
   useEffect(() => {
@@ -168,7 +183,7 @@ export function ConversationList({
   // Navigates through the FILTERED list (what the user actually sees — matches '/' focus semantics).
   // Wraps at ends: '[' at first item goes to last, ']' at last goes to first.
   useEffect(() => {
-    if (!v2) return
+    if (!v2 && !v3) return
     function handleBracketKey(e: KeyboardEvent) {
       if (e.key !== '[' && e.key !== ']') return
       const target = e.target as HTMLElement | null
@@ -204,7 +219,7 @@ export function ConversationList({
     }
     document.addEventListener('keydown', handleBracketKey)
     return () => document.removeEventListener('keydown', handleBracketKey)
-  }, [v2, filteredConversations, selectedId, onSelect, markAsReadLocally])
+  }, [v2, v3, filteredConversations, selectedId, onSelect, markAsReadLocally])
 
   // Tab configuration for editorial header (v2). Maps editorial labels to
   // existing ConversationFilter values — D-19 no hook mutation.
@@ -222,6 +237,140 @@ export function ConversationList({
     hasQuery ||
     agentFilter === 'agent-attended' ||
     !!tagFilter
+
+  // Shared list body — used by the v3 `.conv-list` and reused logic.
+  const conversationItems = filteredConversations.map((conversation) => {
+    const contactOrders = conversation.contact?.id
+      ? ordersByContact.get(conversation.contact.id) || []
+      : []
+    const showClientBadge = clientConfig?.enabled && (
+      clientConfig.all_are_clients || conversation.contact?.is_client === true
+    )
+    return (
+      <ConversationItem
+        key={conversation.id}
+        conversation={conversation}
+        isSelected={selectedId === conversation.id}
+        onSelect={(id) => {
+          markAsReadLocally(id)
+          onSelect(id, conversation)
+        }}
+        orders={contactOrders}
+        showClientBadge={!!showClientBadge}
+      />
+    )
+  })
+
+  // ===================== EDITORIAL V3 (.conv-col verbatim) =====================
+  // Mock `ui_kits/conversaciones/index.html` list column: `.conv-head` (search)
+  // + `.conv-filters` (chips) + `.conv-list`. Filter chips map to the existing
+  // filter/agentFilter state (D-08 — no hook mutation). All data wiring preserved.
+  if (v3) {
+    // Chip active-state helpers bound to existing state.
+    const isTodas = filter === 'all' && agentFilter === 'all'
+    const isSinLeer = filter === 'unread'
+    const isMias = filter === 'mine'
+    const isAgenteIA = agentFilter === 'agent-attended'
+    const isCerradas = filter === 'archived'
+
+    return (
+      <section className="conv-col">
+        {/* Search head */}
+        <div className="conv-head">
+          <div className="conv-search">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar conversación…"
+              aria-label="Buscar conversaciones"
+            />
+          </div>
+        </div>
+
+        {/* Filter chips */}
+        <div className="conv-filters">
+          <button
+            type="button"
+            className={cn('chip', isTodas && 'on')}
+            onClick={() => { setFilter('all'); setAgentFilter('all') }}
+          >
+            Todas
+          </button>
+          <button
+            type="button"
+            className={cn('chip', isSinLeer && 'on')}
+            onClick={() => setFilter('unread')}
+          >
+            Sin leer
+          </button>
+          <button
+            type="button"
+            className={cn('chip', isMias && 'on')}
+            onClick={() => setFilter('mine')}
+          >
+            Mías
+          </button>
+          <button
+            type="button"
+            className={cn('chip', isAgenteIA && 'on')}
+            onClick={() => setAgentFilter((prev) => (prev === 'all' ? 'agent-attended' : 'all'))}
+          >
+            Agente IA
+          </button>
+          <button
+            type="button"
+            className={cn('chip', isCerradas && 'on')}
+            onClick={() => setFilter('archived')}
+          >
+            Cerradas
+          </button>
+        </div>
+
+        {/* Conversation list */}
+        <div className="conv-list" role="list" aria-label="Lista de conversaciones">
+          {isLoading && !initialConversations.length ? (
+            <div className="flex items-center justify-center py-16">
+              <span className="mx-caption">Cargando…</span>
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            isFiltered ? (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center gap-2">
+                <p className="mx-h4">Nada coincide con los filtros activos.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter('all')
+                    setQuery('')
+                    setAgentFilter('all')
+                    setTagFilter(null)
+                  }}
+                  className="mx-ui underline"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center gap-2">
+                <p className="mx-h4">No hay conversaciones nuevas.</p>
+              </div>
+            )
+          ) : (
+            conversationItems
+          )}
+        </div>
+
+        {/* New conversation modal (shared trigger via header in topbar; kept here for parity) */}
+        <NewConversationModal
+          open={showNewModal}
+          onOpenChange={setShowNewModal}
+          onConversationCreated={handleConversationCreated}
+        />
+      </section>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">

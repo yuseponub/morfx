@@ -10,6 +10,7 @@ import { AgentConfigSlider } from './agent-config-slider'
 import { ChatView } from './chat-view'
 import { DebugPanelProduction } from './debug-panel-production'
 import { InboxV2Provider } from './inbox-v2-context'
+import { InboxV3Provider } from './inbox-v3-context'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
@@ -43,6 +44,16 @@ interface InboxLayoutProps {
    * tokens to the entire subtree.
    */
   v2?: boolean
+  /**
+   * UI Editorial v3 flag (Standalone ui-redesign-editorial-core, D-04/D-08).
+   * Resolved server-side via `getIsEditorialV3Enabled(workspaceId)`. When
+   * true, the inbox renders the verbatim editorial port (`.inbox` 3-column
+   * grid, `.conv` rows, `.msg` Helvetica-Neue bubbles, `.ficha` contact card)
+   * that resolves against the `.theme-editorial-v3` scope wired on the
+   * dashboard `<main>` wrapper in Plan 00. Default false → byte-identical to
+   * today (Regla 6). Independent from `v2` (distinct scope class).
+   */
+  v3?: boolean
 }
 
 /**
@@ -58,6 +69,7 @@ export function InboxLayout({
   clientConfig,
   isSuperUser = false,
   v2 = false,
+  v3 = false,
 }: InboxLayoutProps) {
   // Initialize with pre-selected conversation if provided
   const initialConversation = initialSelectedId
@@ -71,6 +83,8 @@ export function InboxLayout({
   const [refreshOrdersFn, setRefreshOrdersFn] = useState<() => Promise<void>>(() => noopRefreshOrders)
   // Phase 42.1: production debug panel toggle (super-user only)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
+  // Editorial-v3 topbar action: trigger ConversationList's new-conversation modal.
+  const [openNewConversationFn, setOpenNewConversationFn] = useState<() => void>(() => () => {})
 
   // Callback to sync selected conversation from list updates (realtime)
   const handleConversationUpdatedFromList = useCallback((conversation: ConversationWithDetails) => {
@@ -114,6 +128,11 @@ export function InboxLayout({
     setRefreshOrdersFn(() => fn)
   }, [])
 
+  // Receive the new-conversation modal trigger from ConversationList (v3 topbar).
+  const handleOpenNewConversationReady = useCallback((fn: () => void) => {
+    setOpenNewConversationFn(() => fn)
+  }, [])
+
   // Open agent config slider (replaces contact panel)
   const handleOpenAgentConfig = useCallback(() => {
     setRightPanel('agent-config')
@@ -148,6 +167,109 @@ export function InboxLayout({
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
   }, [v2, isPanelOpen])
+
+  // ===================== EDITORIAL V3 (verbatim port) =====================
+  // Renders the canonical `ui_kits/conversaciones/index.html` 3-column inbox
+  // grid (`.inbox` 340px / 1fr / 300px). The class strings resolve against the
+  // `.theme-editorial-v3` block (globals.css, Plan 00) wired on the dashboard
+  // `<main>` wrapper. The third column shows the contact `.ficha` always (the
+  // mock layout); the agent-config slider replaces it when opened. ALL data
+  // wiring (Supabase, server actions, realtime, event handlers) is preserved —
+  // the children are the SAME real components, only laid out per the mock grid.
+  if (v3) {
+    // Count summary for the topbar `<em>` subtitle — derived from the
+    // server-provided initial conversations (open + unread). Purely
+    // presentational; the live list updates via realtime in ConversationList.
+    const openCount = initialConversations.length
+    const unreadCount = initialConversations.filter((c) => !c.is_read).length
+
+    return (
+      <InboxV3Provider v3={v3}>
+        {/* ---------- TOPBAR (.topbar) — outside the .inbox grid, per the mock ---------- */}
+        <header className="topbar">
+          <div>
+            <div className="eye">Agentes · Bandeja</div>
+            <h1>
+              Conversaciones{' '}
+              <em>{openCount} abiertas · {unreadCount} sin leer</em>
+            </h1>
+          </div>
+          <div className="actions">
+            <button type="button" className="btn" onClick={() => setIsPanelOpen((o) => !o)}>
+              Asignar
+            </button>
+            <button type="button" className="btn pri" onClick={() => openNewConversationFn()}>
+              Nueva conversación
+            </button>
+          </div>
+        </header>
+
+        <div className="inbox" data-module="whatsapp">
+          {/* ---------- LISTA (.conv-col) ---------- */}
+          <ConversationList
+            workspaceId={workspaceId}
+            initialConversations={initialConversations}
+            selectedId={selectedConversationId}
+            onSelect={handleSelectConversation}
+            onSelectedUpdated={handleConversationUpdatedFromList}
+            onRefreshOrdersReady={handleRefreshOrdersReady}
+            onOpenNewConversationReady={handleOpenNewConversationReady}
+            clientConfig={clientConfig}
+          />
+
+          {/* ---------- HILO (.thread) — optionally split with debug panel ---------- */}
+          {debugPanelOpen && isSuperUser && selectedConversationId ? (
+            <div className="min-w-0">
+              <Allotment>
+                <Allotment.Pane minSize={400}>
+                  <ChatView
+                    workspaceId={workspaceId}
+                    conversationId={selectedConversationId}
+                    conversation={selectedConversation}
+                    onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+                    onOpenAgentConfig={handleOpenAgentConfig}
+                    onToggleDebug={() => setDebugPanelOpen((o) => !o)}
+                    isDebugOpen={debugPanelOpen}
+                  />
+                </Allotment.Pane>
+                <Allotment.Pane minSize={320} preferredSize={520}>
+                  <DebugPanelProduction conversationId={selectedConversationId} />
+                </Allotment.Pane>
+              </Allotment>
+            </div>
+          ) : (
+            <ChatView
+              workspaceId={workspaceId}
+              conversationId={selectedConversationId}
+              conversation={selectedConversation}
+              onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+              onOpenAgentConfig={handleOpenAgentConfig}
+              onToggleDebug={
+                isSuperUser ? () => setDebugPanelOpen((o) => !o) : undefined
+              }
+              isDebugOpen={debugPanelOpen}
+            />
+          )}
+
+          {/* ---------- FICHA (.ficha) — always visible per the mock 3-col grid ---------- */}
+          {rightPanel === 'agent-config' ? (
+            <AgentConfigSlider
+              workspaceId={workspaceId}
+              onClose={handleCloseAgentConfig}
+            />
+          ) : (
+            <ContactPanel
+              key={selectedConversationId || 'none'}
+              conversation={selectedConversation}
+              onClose={() => setIsPanelOpen(false)}
+              onConversationUpdated={refreshSelectedConversation}
+              onOrdersChanged={refreshOrdersFn}
+            />
+          )}
+        </div>
+      </InboxV3Provider>
+    )
+  }
 
   return (
     <InboxV2Provider v2={v2}>

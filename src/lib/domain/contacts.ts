@@ -768,3 +768,36 @@ export async function resolveOrCreateContact(
     data: { contactId: created.data.contactId, created: true },
   }
 }
+
+/**
+ * Self-heal a placeholder contact name left by the Messenger first-message race.
+ *
+ * On the very first inbound DM the name edge (`/{pageId}/conversations`) may not be
+ * indexed yet → the webhook stores the `FB-{psid}` fallback. The name only gets set
+ * at create time, so it stays stuck. This updates the contact name to the real one
+ * ONLY when the stored name still matches the placeholder prefix (`.like('FB-%')`) —
+ * it NEVER clobbers a real or operator-edited name. Idempotent + atomic (the WHERE
+ * clause is the guard, so no read-then-write race). Regla 3: admin client.
+ */
+export async function healPlaceholderContactName(
+  ctx: DomainContext,
+  params: { contactId: string; realName: string; placeholderPrefix?: string }
+): Promise<DomainResult<{ healed: boolean }>> {
+  const supabase = createAdminClient()
+  const prefix = params.placeholderPrefix ?? 'FB-'
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .update({ name: params.realName })
+    .eq('id', params.contactId)
+    .eq('workspace_id', ctx.workspaceId)
+    .like('name', `${prefix}%`)
+    .select('id')
+
+  if (error) {
+    console.error('[domain/contacts] healPlaceholderContactName failed:', error.message)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, data: { healed: (data?.length ?? 0) > 0 } }
+}

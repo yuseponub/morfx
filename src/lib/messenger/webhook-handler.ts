@@ -22,7 +22,10 @@ import {
   findOrCreateConversation as domainFindOrCreateConversation,
   linkContactToConversation as domainLinkContactToConversation,
 } from '@/lib/domain/conversations'
-import { resolveOrCreateContact as domainResolveOrCreateContact } from '@/lib/domain/contacts'
+import {
+  resolveOrCreateContact as domainResolveOrCreateContact,
+  healPlaceholderContactName as domainHealPlaceholderContactName,
+} from '@/lib/domain/contacts'
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import { getMessengerUserName } from '@/lib/meta/messenger-api'
 import type { DomainContext } from '@/lib/domain/types'
@@ -81,13 +84,19 @@ export async function processMessengerWebhook(
   const phoneIdentifier = `fb-${psid}`
 
   // Display name / avatar — best-effort (D-04). Falls back to `FB-${psid}` on
-  // failure or missing name. getMessengerUserProfile already swallows errors.
+  // failure or missing name. getMessengerUserName already swallows errors.
+  // `nameResolved` distinguishes a REAL name from the placeholder so we never
+  // overwrite a good name with `FB-${psid}` on a later first-message-race retry.
   let profileName = `FB-${psid}`
+  let nameResolved = false
   try {
     // 40-08: resolve the display name via the conversations edge (the direct
     // user-profile API fails 100/33 without pages_read_engagement in the token).
     const name = await getMessengerUserName(accessToken ?? '', pageId, psid)
-    if (name) profileName = name.trim()
+    if (name) {
+      profileName = name.trim()
+      nameResolved = true
+    }
   } catch {
     // keep the FB-${psid} fallback
   }
@@ -116,10 +125,13 @@ export async function processMessengerWebhook(
 
   try {
     // 1. Find or create the conversation (channel='facebook', PSID identity).
+    //    Only pass profileName when a REAL name resolved — otherwise undefined, so a
+    //    first-message-race fallback never overwrites a previously-healed good name
+    //    back to `FB-${psid}` (findOrCreateConversation updates profile_name on change).
     const convResult = await domainFindOrCreateConversation(ctx, {
       phone: phoneIdentifier,
       channel: 'facebook',
-      profileName,
+      profileName: nameResolved ? profileName : undefined,
       externalSubscriberId: psid,
     })
 
@@ -142,6 +154,14 @@ export async function processMessengerWebhook(
       contactId = contactResult.data.contactId
       // Link the resolved contact to the conversation (mirror manychat 119-123).
       await domainLinkContactToConversation(ctx, { conversationId, contactId })
+      // Self-heal the first-message-race placeholder: resolveOrCreateContact does NOT
+      // update an existing contact's name, so a contact created as `FB-${psid}` (name
+      // edge not yet indexed on the first DM) stays stuck. When a REAL name is now
+      // available, overwrite ONLY if the stored name is still the `FB-` placeholder
+      // (the domain guard never clobbers a real/operator-edited name). Idempotent.
+      if (nameResolved) {
+        await domainHealPlaceholderContactName(ctx, { contactId, realName: profileName })
+      }
     }
 
     // 3. Store the message via domain (idempotent on `mid` — FB-01 dedup).

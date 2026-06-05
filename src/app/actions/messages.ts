@@ -128,10 +128,11 @@ export async function sendMessage(
     }
   }
 
-  // Get workspace settings for API key (channel-aware) + messenger_provider (FB window gate)
+  // Get workspace settings for API key (channel-aware) + messenger_provider (FB window
+  // gate) + instagram_provider (IG window gate — D-IG-09).
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
-    .select('settings, messenger_provider')
+    .select('settings, messenger_provider, instagram_provider')
     .eq('id', workspaceId)
     .single()
 
@@ -142,7 +143,9 @@ export async function sendMessage(
   // meta_direct facebook arm skips it (apiKey stays undefined; the domain ignores it).
   const isMetaDirectFacebook =
     channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct'
-  if (!isMetaDirectFacebook) {
+  const isMetaDirectInstagram =
+    channel === 'instagram' && workspaceSettings?.instagram_provider === 'meta_direct'
+  if (!isMetaDirectFacebook && !isMetaDirectInstagram) {
     if (channel === 'facebook' || channel === 'instagram') {
       apiKey = workspaceSettings?.settings?.manychat_api_key
       if (!apiKey) {
@@ -175,6 +178,25 @@ export async function sendMessage(
     fbTag = decision.messaging_type === 'MESSAGE_TAG' ? decision.tag : undefined
   }
 
+  // Instagram meta_direct window gate (D-IG-09 — reuses the SAME window-gate helper as
+  // FB, no IG sibling). ONLY applies to channel=instagram + instagram_provider=meta_direct;
+  // the manychat instagram + facebook + whatsapp paths stay byte-identical (Regla 6). IG has
+  // NO templates → outside the window is block-only (Pitfall 6).
+  let igTag: 'HUMAN_AGENT' | undefined
+  if (channel === 'instagram' && workspaceSettings?.instagram_provider === 'meta_direct') {
+    const hoursSinceCustomerMessage = conversation.last_customer_message_at
+      ? differenceInHours(new Date(), new Date(conversation.last_customer_message_at))
+      : Infinity
+    const decision = resolveMessengerWindowSend({
+      hoursSinceCustomerMessage,
+      featureGranted: process.env.META_HUMAN_AGENT_ENABLED === 'true',
+    })
+    if ('blocked' in decision) {
+      return { error: decision.error }
+    }
+    igTag = decision.messaging_type === 'MESSAGE_TAG' ? decision.tag : undefined
+  }
+
   // For FB/IG, use external_subscriber_id as the recipient
   const recipientId = (channel !== 'whatsapp' && conversation.external_subscriber_id)
     ? conversation.external_subscriber_id
@@ -186,9 +208,9 @@ export async function sendMessage(
     conversationId,
     contactPhone: recipientId,
     messageBody: text,
-    apiKey: apiKey ?? '', // meta_direct facebook ignores this (uses the Page token)
+    apiKey: apiKey ?? '', // meta_direct facebook/instagram ignores this (uses the Page token)
     channel,
-    tag: fbTag,
+    tag: fbTag ?? igTag,
   })
 
   if (!result.success) {
@@ -370,10 +392,11 @@ export async function sendMediaMessage(
     mediaType = 'audio'
   }
 
-  // Get workspace settings for API key (channel-aware) + messenger_provider (FB window gate)
+  // Get workspace settings for API key (channel-aware) + messenger_provider (FB window
+  // gate) + instagram_provider (IG window gate — D-IG-09).
   const { data: workspaceSettings } = await supabase
     .from('workspaces')
-    .select('settings, messenger_provider')
+    .select('settings, messenger_provider, instagram_provider')
     .eq('id', workspaceId)
     .single()
 
@@ -384,7 +407,9 @@ export async function sendMediaMessage(
   // meta_direct facebook arm skips it (apiKey stays undefined; the domain ignores it).
   const isMetaDirectFacebook =
     channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct'
-  if (!isMetaDirectFacebook) {
+  const isMetaDirectInstagram =
+    channel === 'instagram' && workspaceSettings?.instagram_provider === 'meta_direct'
+  if (!isMetaDirectFacebook && !isMetaDirectInstagram) {
     if (channel === 'facebook' || channel === 'instagram') {
       apiKey = workspaceSettings?.settings?.manychat_api_key
       if (!apiKey) {
@@ -413,6 +438,24 @@ export async function sendMediaMessage(
       return { error: decision.error }
     }
     fbTag = decision.messaging_type === 'MESSAGE_TAG' ? decision.tag : undefined
+  }
+
+  // Instagram meta_direct window gate (D-IG-09) — mirror of the text path; reuses the SAME
+  // window-gate helper as FB (no IG sibling). meta_direct instagram only; manychat instagram
+  // + facebook + whatsapp unchanged (Regla 6). IG has NO templates → block-only (Pitfall 6).
+  let igTag: 'HUMAN_AGENT' | undefined
+  if (channel === 'instagram' && workspaceSettings?.instagram_provider === 'meta_direct') {
+    const hoursSinceCustomerMessage = conversation.last_customer_message_at
+      ? differenceInHours(new Date(), new Date(conversation.last_customer_message_at))
+      : Infinity
+    const decision = resolveMessengerWindowSend({
+      hoursSinceCustomerMessage,
+      featureGranted: process.env.META_HUMAN_AGENT_ENABLED === 'true',
+    })
+    if ('blocked' in decision) {
+      return { error: decision.error }
+    }
+    igTag = decision.messaging_type === 'MESSAGE_TAG' ? decision.tag : undefined
   }
 
   // For FB/IG, use external_subscriber_id as the recipient
@@ -459,9 +502,9 @@ export async function sendMediaMessage(
       mediaType,
       caption,
       filename: mediaType === 'document' ? fileName : undefined,
-      apiKey: apiKey ?? '', // meta_direct facebook ignores this (uses the Page token)
+      apiKey: apiKey ?? '', // meta_direct facebook/instagram ignores this (uses the Page token)
       channel,
-      tag: fbTag,
+      tag: fbTag ?? igTag,
     })
 
     if (!result.success) {

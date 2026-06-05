@@ -503,7 +503,7 @@ Plans:
 - [x] **Phase 38: Embedded Signup + WhatsApp Inbound** - Embedded Signup UI, token exchange, webhook subscription, unified webhook endpoint, WA inbound messages — ✅ CLOSED 2026-06-03 (6 plans, 21/21 tests, live-validated end-to-end incl. register activation chain; outbound → Phase 39). See 38-VERIFICATION.md.
 - [ ] **Phase 39: WhatsApp Outbound + Templates** - Cloud API sender, media upload/download, templates CRUD, read receipts, provider flag, channel registry
 - [ ] **Phase 40: Facebook Messenger Direct** - FB/IG page connection UI, Messenger webhook handler, FB sender, PSID resolution, Messenger inbox, provider flag
-- [ ] **Phase 41: Instagram Direct** - IG webhook handler, IG sender, IG-scoped user resolution, Instagram inbox, 24h window UX
+- [~] **Phase 41: Instagram Direct** - IG webhook handler, IG sender, IG-scoped user resolution, Instagram inbox, 24h window UX (autonomous verify PASS 2026-06-05; AT human-action cutover gate — push + prod-migration confirm + 1-workspace flip + A1/A2 + live smoke pending)
 
 ---
 
@@ -660,7 +660,7 @@ Plans:
 
 **Risk:** MEDIUM (Instagram has strictest limitations: hard 24h window with no templates, 200 msg/hr rate limit, 1000 follower minimum for API access)
 
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans complete (41-07 autonomous verify PASS; AT human-action cutover gate)
 - [~] 41-00-PLAN.md — instagram_provider migration (MIG-02) — Task 1 DONE (commit `cc66e676`, migration authored + ig_username); **AT Regla 5 BLOCKING checkpoint** (operator applies in prod + confirms "applied")
 - [x] 41-01-PLAN.md — RED test scaffolds (5 files: IG-01/02/03 + MIG-02 + Regla 6 parity) — COMPLETE 2026-06-05 (commits `64685d9d`, `82b072fc`, `1c113243`; 31 tests = 26 RED / 5 GREEN parity guards)
 - [x] 41-02-PLAN.md — IG send edge (instagram-api.ts + metaInstagramSender) — IG-02
@@ -668,7 +668,7 @@ Plans:
 - [x] 41-04-PLAN.md — domain chokepoint (readInstagramProvider + instagram arm) + IG-05 action-layer window gate — MIG-02/IG-02/IG-05 — COMPLETE 2026-06-05 (commits `25fd1a01`, `2de8266d`; messages-instagram 9/9 GREEN, 3 manychat-parity guards still GREEN, FB/WA byte-identical Regla 6; reused resolveMessengerWindowSend at both gate sites D-IG-09; 1 Rule-1 test fix sendMedia→sendImage; NOT pushed — Regla 5)
 - [x] 41-05-PLAN.md — inbound object==='instagram' webhook + processInstagramWebhook — IG-01/03/04
 - [x] 41-06-PLAN.md — Conectar Instagram UI + integraciones tab (inbox indicator pre-exists) — IG-04 — COMPLETE 2026-06-05 (commits `12ff00f8`, `cfc8237b`; ConnectInstagram no-popup component + Instagram Direct tab espejando Facebook; WA/FB tabs byte-identicas; indicador inbox channel==='instagram' verify-only pre-existente; FB.login/config_id grep=0; tsc clean; 0 deviations; NOT pushed)
-- [ ] 41-07-PLAN.md — gated cutover + A1/A2 linchpins + live smoke + 24h block — IG-01..05/MIG-02
+- [~] 41-07-PLAN.md — gated cutover + A1/A2 linchpins + live smoke + 24h block — IG-01..05/MIG-02 — **AUTONOMOUS VERIFY PASS 2026-06-05** (5/5 Phase 41 test files 42/42 GREEN; Regla 6 byte-identical registry+manychat-sender+godentist-fb-ig vs `82d3e91b`; metaInstagramSender NOT in registry map=0; IG-05 action-gate grep-verified `channel==='instagram'`=6 / `resolveMessengerWindowSend`=5 / `instagram_provider`=9; tsc 0 production errors; full suite 10 fails ALL pre-existing somnio-v4 RAG, 0 Phase 41). **AT human-action cutover gate** — push (Regla 1) BLOCKED on 41-00 prod-migration confirm (Regla 5), then operator: 1-workspace flip + A1/A2 linchpins + live IG smoke + 24h block. NO code change (files_modified empty), NOT pushed, NO workspace flipped.
 
 **Note (scope per D-IG-01/D-IG-09):** Success criterion #4's visible 24h *countdown* is DEFERRED — V1 blocks outside-24h with the Spanish window-closed message (no countdown). Success criterion #5 (AI agents on meta_direct IG) is DEFERRED — V1 is human-inbox only.
 

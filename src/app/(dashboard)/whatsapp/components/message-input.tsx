@@ -250,11 +250,11 @@ export function MessageInput({
       }
       const base64 = btoa(binary)
 
-      // Create preview URL for images/videos
-      let preview: string | null = null
-      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        preview = URL.createObjectURL(file)
-      }
+      // In-memory preview URL for the optimistic bubble. Created for EVERY media
+      // type (was image/video only — audio & documents fell to "Media no disponible"
+      // while the real upload round-tripped, 40-08). A blob: URL is a valid <audio>/
+      // <video> src and a working download href for documents.
+      const preview: string = URL.createObjectURL(file)
 
       setAttachedFile({ file, preview, base64 })
     } catch (error) {

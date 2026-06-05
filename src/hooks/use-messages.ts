@@ -177,7 +177,27 @@ export function useMessages({
           if (m.id.startsWith('optimistic-')) continue
           byId.set(m.id, m)
         }
-        for (const m of latest) byId.set(m.id, m)
+        // Merge latest (DB-truth: status, wamid). For a just-sent media message the
+        // cached row still carries the in-memory blob: preview (kept by the realtime
+        // reconciler). Preserve that blob instead of letting the DB CDN URL clobber it,
+        // else the on-screen <video>/<img> reloads blob:→CDN and flashes a second
+        // black box for a frame (40-08 video double). The CDN URL loads on a later
+        // fresh mount (reopen / reload). Status + wamid from `latest` still apply.
+        for (const m of latest) {
+          const existing = byId.get(m.id)
+          if (existing && m.type !== 'text' && existing.media_url?.startsWith('blob:')) {
+            byId.set(m.id, {
+              ...m,
+              media_url: existing.media_url,
+              content: {
+                ...(m.content as MediaContent),
+                link: existing.media_url,
+              } as MediaContent,
+            })
+          } else {
+            byId.set(m.id, m)
+          }
+        }
         const merged = Array.from(byId.values()).sort(
           (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         )

@@ -46,10 +46,21 @@ vi.mock('next/cache', () => ({
 }))
 
 // Phase 40 token chain reused verbatim (D-IG-12).
+// GAP-41-01 (Plan 41-09): the action now fetches the Page token for the WORKSPACE'S
+// bound page via getPageTokenForPage — getPageToken (data[0] heuristic) stays mocked
+// as a GUARD that proves it is NEVER called from this block anymore.
 vi.mock('@/lib/meta/messenger-connect', () => ({
   exchangeForLongLivedUserToken: vi.fn(),
   getPageToken: vi.fn(),
+  getPageTokenForPage: vi.fn(),
   subscribeMessengerPage: vi.fn(),
+}))
+
+// GAP-41-01 (Plan 41-09): the action reads the workspace's ALREADY-bound facebook page
+// (resolveByWorkspace) and targets THAT page — never data[0]. Re-added by 41-09 (41-08
+// dropped this read; SUMMARY deviation #1).
+vi.mock('@/lib/meta/credentials', () => ({
+  resolveByWorkspace: vi.fn(),
 }))
 
 // IG account resolve — the previously-broken step (now runs with the fresh superset token).
@@ -101,18 +112,21 @@ import { getRequestAuth } from '@/lib/auth/request-auth'
 import {
   exchangeForLongLivedUserToken,
   getPageToken,
+  getPageTokenForPage,
   subscribeMessengerPage,
 } from '@/lib/meta/messenger-connect'
 import { resolveInstagramAccount } from '@/lib/meta/instagram-connect'
+import { resolveByWorkspace } from '@/lib/meta/credentials'
 import { upsertMetaAccount } from '@/lib/domain/meta-accounts'
-// FUTURE shape — connectInstagramAccount currently takes NO args (RED until Task 2).
 import { connectInstagramAccount } from '@/app/actions/meta-onboarding'
 
 const mockGetRequestAuth = getRequestAuth as ReturnType<typeof vi.fn>
 const mockExchange = exchangeForLongLivedUserToken as ReturnType<typeof vi.fn>
 const mockGetPageToken = getPageToken as ReturnType<typeof vi.fn>
+const mockGetPageTokenForPage = getPageTokenForPage as ReturnType<typeof vi.fn>
 const mockSubscribe = subscribeMessengerPage as ReturnType<typeof vi.fn>
 const mockResolveIg = resolveInstagramAccount as ReturnType<typeof vi.fn>
+const mockResolveByWorkspace = resolveByWorkspace as ReturnType<typeof vi.fn>
 const mockUpsert = upsertMetaAccount as ReturnType<typeof vi.fn>
 
 const WS_ID = 'f0241182-f79b-4bc6-b0ed-b5f6eb20c514'
@@ -120,14 +134,31 @@ const USER_ID = 'user-123'
 const PAGE_ID = '102938475610293'
 const PAGE_TOKEN = 'PAGE_TOKEN_plaintext'
 const IG_ID = '17841400000000000000'
+// GAP-41-01 multi-page consts: the workspace's ALREADY-bound page vs a DIFFERENT page
+// that getPageToken's data[0] heuristic would wrongly retarget to (Varixcenter live repro).
+const WORKSPACE_PAGE = '714615171734964' // the workspace's bound facebook page (Pruebas Morfx)
+const OTHER_PAGE = '528898033801678' // a different page data[0] could surface (Varixcenter)
 
 beforeEach(() => {
   memberRole = 'owner'
   mockGetRequestAuth.mockResolvedValue({ workspaceId: WS_ID, userId: USER_ID })
   mockExchange.mockResolvedValue('LONG_LIVED_USER_TOKEN')
+  // getPageToken (data[0] heuristic) stays mocked but must NEVER be called from the block.
   mockGetPageToken.mockResolvedValue({
-    pageId: PAGE_ID,
-    pageName: 'Pg',
+    pageId: OTHER_PAGE,
+    pageName: 'Wrong (data[0])',
+    accessToken: PAGE_TOKEN,
+  })
+  // HAPPY path: the workspace already has a bound facebook page.
+  mockResolveByWorkspace.mockResolvedValue({
+    pageId: WORKSPACE_PAGE,
+    accessToken: 'OLD_PAGE_TOKEN',
+    workspaceId: WS_ID,
+  })
+  // GAP-41-01 fix: the token is fetched FOR the workspace's bound page (verbatim id).
+  mockGetPageTokenForPage.mockResolvedValue({
+    pageId: WORKSPACE_PAGE,
+    pageName: 'Pruebas Morfx',
     accessToken: PAGE_TOKEN,
   })
   mockSubscribe.mockResolvedValue({ success: true })
@@ -180,7 +211,8 @@ describe('connectInstagramAccount — token-refresh chain (D-IG-12)', () => {
     expect(fbArgs).toMatchObject({
       workspaceId: WS_ID,
       channel: 'facebook',
-      pageId: PAGE_ID,
+      // GAP-41-01: the upsert targets the WORKSPACE'S bound page, never data[0].
+      pageId: WORKSPACE_PAGE,
     })
     // Refreshed with the FRESH superset Page token (encrypted, never plaintext).
     expect(fbArgs.accessTokenEncrypted).toBe(`enc(${PAGE_TOKEN})`)
@@ -191,14 +223,14 @@ describe('connectInstagramAccount — token-refresh chain (D-IG-12)', () => {
   it('resolves the IG account with the FRESH page token, then upserts the instagram row', async () => {
     await connectInstagramAccount({ accessToken: 'USER_ACCESS_TOKEN' })
 
-    // resolveInstagramAccount runs with the FRESH page token (was the broken step).
-    expect(mockResolveIg).toHaveBeenCalledWith(PAGE_TOKEN, PAGE_ID)
+    // resolveInstagramAccount runs with the FRESH page token on the WORKSPACE'S page.
+    expect(mockResolveIg).toHaveBeenCalledWith(PAGE_TOKEN, WORKSPACE_PAGE)
 
     const igArgs = mockUpsert.mock.calls[1][0] as Record<string, unknown>
     expect(igArgs).toMatchObject({
       workspaceId: WS_ID,
       channel: 'instagram',
-      pageId: PAGE_ID,
+      pageId: WORKSPACE_PAGE,
       igAccountId: IG_ID,
       igUsername: 'varixcenter',
     })
@@ -209,7 +241,79 @@ describe('connectInstagramAccount — token-refresh chain (D-IG-12)', () => {
     await connectInstagramAccount({ accessToken: 'USER_ACCESS_TOKEN' })
 
     expect(mockSubscribe).toHaveBeenCalledTimes(1)
-    expect(mockSubscribe).toHaveBeenCalledWith(PAGE_TOKEN, PAGE_ID)
+    expect(mockSubscribe).toHaveBeenCalledWith(PAGE_TOKEN, WORKSPACE_PAGE)
+  })
+})
+
+describe('connectInstagramAccount — GAP-41-01 multi-page target (IG-03)', () => {
+  it('targets the workspace bound page (NEVER data[0]) when the FB account manages 2+ pages', async () => {
+    // The operator's /me/accounts data[0] is a DIFFERENT page (OTHER_PAGE) — getPageToken
+    // would retarget the FB row there and collide on uq_meta_page. The fix reads the
+    // workspace's bound page (WORKSPACE_PAGE) and fetches the token FOR that id.
+    mockResolveByWorkspace.mockResolvedValueOnce({
+      pageId: WORKSPACE_PAGE,
+      accessToken: 'OLD_PAGE_TOKEN',
+      workspaceId: WS_ID,
+    })
+    mockGetPageTokenForPage.mockResolvedValueOnce({
+      pageId: WORKSPACE_PAGE,
+      pageName: 'Pruebas Morfx',
+      accessToken: PAGE_TOKEN,
+    })
+
+    const result = await connectInstagramAccount({ accessToken: 'USER_ACCESS_TOKEN' })
+
+    // The Page token is fetched FOR the workspace's bound page (long-lived token + id).
+    expect(mockGetPageTokenForPage).toHaveBeenCalledWith('LONG_LIVED_USER_TOKEN', WORKSPACE_PAGE)
+    // The data[0] heuristic is NEVER used from this block (GAP-41-01 root cause removed).
+    expect(mockGetPageToken).not.toHaveBeenCalled()
+
+    // The facebook upsert uses the WORKSPACE'S page → UPDATE (no retarget, no collision).
+    const fbArgs = mockUpsert.mock.calls[0][0] as Record<string, unknown>
+    expect(fbArgs.pageId).toBe(WORKSPACE_PAGE)
+    expect(fbArgs.pageId).not.toBe(OTHER_PAGE)
+
+    // IG resolve + IG upsert both on the correct page.
+    expect(mockResolveIg).toHaveBeenCalledWith(PAGE_TOKEN, WORKSPACE_PAGE)
+    const igArgs = mockUpsert.mock.calls[1][0] as Record<string, unknown>
+    expect(igArgs.pageId).toBe(WORKSPACE_PAGE)
+
+    expect(result).toMatchObject({ success: true })
+  })
+
+  it('NEVER falls back to data[0] when the login did not grant the workspace page', async () => {
+    // The operator authorized a DIFFERENT page in the dedicated IG login →
+    // getPageTokenForPage throws (no silent wrong-page write).
+    mockGetPageTokenForPage.mockRejectedValueOnce(
+      new Error(
+        'No pudimos renovar el acceso a tu página de Facebook. ' +
+          'Asegúrate de autorizar la misma página en el login.'
+      )
+    )
+
+    const result = await connectInstagramAccount({ accessToken: 'USER_ACCESS_TOKEN' })
+
+    expect(result).toMatchObject({ success: false })
+    // No upsert ran — never retargets to data[0].
+    expect(mockUpsert).not.toHaveBeenCalled()
+    expect(mockGetPageToken).not.toHaveBeenCalled()
+  })
+
+  it('returns "Primero conecta tu página de Facebook" and runs NO token chain when the workspace has no facebook row (precheck restored)', async () => {
+    mockResolveByWorkspace.mockResolvedValueOnce(null)
+
+    const result = await connectInstagramAccount({ accessToken: 'USER_ACCESS_TOKEN' })
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'Primero conecta tu página de Facebook',
+    })
+    // The precheck short-circuits BEFORE any token call / resolve / upsert / subscribe.
+    expect(mockExchange).not.toHaveBeenCalled()
+    expect(mockGetPageTokenForPage).not.toHaveBeenCalled()
+    expect(mockUpsert).not.toHaveBeenCalled()
+    expect(mockResolveIg).not.toHaveBeenCalled()
+    expect(mockSubscribe).not.toHaveBeenCalled()
   })
 })
 

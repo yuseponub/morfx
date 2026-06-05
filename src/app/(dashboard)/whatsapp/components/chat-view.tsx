@@ -10,6 +10,8 @@ import { MessageBubble } from './message-bubble'
 import { MessageInput } from './message-input'
 import { DaySeparator } from './day-separator'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
+import { cn } from '@/lib/utils'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import { differenceInHours, isSameDay, format, isToday, isYesterday } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -46,6 +48,7 @@ export function ChatView({
   isDebugOpen,
 }: ChatViewProps) {
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   const parentRef = useRef<HTMLDivElement>(null)
   // Auto-follow state (ver effects más abajo). `stickRef` = ¿seguir mensajes
   // nuevos? Solo true al estar/volver al fondo absoluto. `lastScrollTopRef` detecta
@@ -189,8 +192,8 @@ export function ChatView({
   // Empty state
   if (!conversationId || !conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/10 px-6">
-        {v2 ? (
+      <div className={cn('flex-1 flex items-center justify-center px-6', v3 ? 'thread' : 'bg-muted/10')}>
+        {v2 || v3 ? (
           <div className="flex flex-col items-center text-center gap-3">
             <p className="mx-h4">Seleccione una conversación.</p>
             <p className="mx-caption">Los mensajes y el contexto del cliente aparecerán aquí.</p>
@@ -208,7 +211,7 @@ export function ChatView({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 h-full">
+    <div className={cn('flex-1 flex flex-col min-w-0 h-full', v3 && 'thread')}>
       {/* Chat header */}
       <ChatHeader
         conversation={conversation}
@@ -224,9 +227,13 @@ export function ChatView({
         role="log"
         aria-live="polite"
         aria-label="Hilo de mensajes"
-        className="flex-1 overflow-auto chat-background"
+        className={cn(
+          'flex-1 overflow-auto',
+          v3 ? 'px-3' : 'chat-background'
+        )}
         style={{
           contain: 'strict',
+          ...(v3 ? { backgroundColor: 'var(--bg-app)' } : {}),
         }}
       >
         {/* Load more indicator */}
@@ -312,7 +319,7 @@ export function ChatView({
                 }}
               >
                 {showDateSeparator && (
-                  v2 ? (
+                  v2 || v3 ? (
                     <DaySeparator date={messageDate} />
                   ) : (
                     <div className="flex justify-center py-3">

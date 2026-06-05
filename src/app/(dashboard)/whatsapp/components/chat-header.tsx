@@ -19,6 +19,7 @@ import { WindowIndicator } from './window-indicator'
 import { AssignDropdown } from './assign-dropdown'
 import { ConversationTagInput } from './conversation-tag-input'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
 import { markAsRead, archiveConversation, unarchiveConversation, updateProfileName } from '@/app/actions/conversations'
 import { toggleConversationAgent, getConversationAgentStatus } from '@/app/actions/agent-config'
 import { confirmAppointment, getAppointmentForContact } from '@/app/actions/godentist'
@@ -54,6 +55,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   const router = useRouter()
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   const themeContainerRef = useRef<HTMLElement | null>(null)
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
@@ -81,10 +83,10 @@ export function ChatHeader({
   // re-root inside the editorial token scope. When v2 is false, ref
   // stays null → AssignDropdown falls back to default portal (document.body).
   useEffect(() => {
-    if (!v2) return
+    if (!v2 && !v3) return
     const el = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
     themeContainerRef.current = el
-  }, [v2])
+  }, [v2, v3])
 
   // Load agent status when conversation changes
   useEffect(() => {
@@ -211,6 +213,239 @@ export function ChatHeader({
   }
 
   const isArchived = conversation.status === 'archived'
+
+  // Shared dialogs (edit name + confirm appointment) — rendered once, reused by
+  // both the v3 and legacy branches (they are portal/state-driven).
+  const sharedDialogs = (
+    <>
+      {/* Confirm appointment dialog */}
+      {appointmentInfo && (
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirmar cita</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <p className="text-sm">
+                ¿Deseas confirmar la cita en el portal de GoDentist?
+              </p>
+              <div className="rounded-md border p-3 space-y-1 text-sm">
+                <p><span className="font-medium">Paciente:</span> {appointmentInfo.nombre}</p>
+                <p><span className="font-medium">Hora:</span> {appointmentInfo.hora}</p>
+                <p><span className="font-medium">Sucursal:</span> {appointmentInfo.sucursal}</p>
+                <p><span className="font-medium">Estado actual:</span> {appointmentInfo.estado}</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmAppointment}>
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit name dialog */}
+      <Dialog open={isEditingName} onOpenChange={setIsEditingName}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar nombre</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Telefono: {conversation.phone}
+              </p>
+              <Input
+                placeholder="Nombre para esta conversacion"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isSaving) {
+                    handleSaveName()
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditingName(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveName} disabled={isSaving}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+
+  // ===================== EDITORIAL V3 (.th-head verbatim) =====================
+  // Mock `ui_kits/conversaciones/index.html` thread head: 38px `.av`, `.who`
+  // (`.nm` + mono `.ph`), `.th-actions` (assign + icon-buttons + actions). All
+  // handlers preserved; sub-components (agent toggles, BOLD, AssignDropdown,
+  // tag input) kept verbatim — restyled chrome only.
+  if (v3) {
+    return (
+      <>
+      <div className="th-head">
+        {/* Avatar */}
+        <div className="av">{displayName.charAt(0).toUpperCase()}</div>
+
+        {/* Who: name + phone */}
+        <div className="who">
+          <div className="nm">
+            {canEditName ? (
+              <button
+                onClick={handleOpenEditName}
+                className="inline-flex items-center gap-1.5 group"
+                aria-label="Editar nombre del contacto"
+              >
+                <span className="truncate">{displayName}</span>
+                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--ink-3)]" />
+              </button>
+            ) : (
+              <>
+                {displayName}
+                {conversation.channel === 'facebook' && (
+                  <span className="mx-tag mx-tag--indigo ml-1.5 align-middle">FB</span>
+                )}
+                {conversation.channel === 'instagram' && (
+                  <span className="mx-tag mx-tag--rubric ml-1.5 align-middle">IG</span>
+                )}
+              </>
+            )}
+          </div>
+          <div className="ph">{conversation.phone}</div>
+        </div>
+
+        {/* Tag management — inline */}
+        <div className="flex items-center">
+          <ConversationTagInput
+            conversationId={conversation.id}
+            contactId={conversation.contact_id}
+            currentTags={conversation.tags || []}
+            onTagsChange={handleTagsChange}
+            compact
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="th-actions">
+          {/* Agent toggles */}
+          {agentConversational !== null && (
+            <div className="flex items-center gap-2 pr-2 mr-1 border-r border-[var(--border)]">
+              <div className="flex items-center gap-1" title="Agente conversacional">
+                <Bot className="h-3.5 w-3.5 text-[var(--ink-3)]" />
+                <Switch
+                  size="sm"
+                  checked={agentConversational}
+                  onCheckedChange={(v) => handleToggleAgent('conversational', v)}
+                />
+              </div>
+              <div className="flex items-center gap-1" title="Agentes CRM">
+                <span className="text-[10px] font-medium text-[var(--ink-3)]">CRM</span>
+                <Switch
+                  size="sm"
+                  checked={agentCrm ?? false}
+                  onCheckedChange={(v) => handleToggleAgent('crm', v)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* BOLD payment link */}
+          <BoldPaymentLinkButton conversationId={conversation.id} />
+
+          {/* GoDentist confirm appointment */}
+          {conversation.workspace_id === GODENTIST_WORKSPACE_ID && !appointmentLoading && appointmentInfo && (
+            <button
+              type="button"
+              className="btn"
+              disabled={isConfirming || appointmentInfo.estado.toLowerCase().includes('confirmada')}
+              onClick={() => setShowConfirmDialog(true)}
+              title={`Confirmar cita: ${appointmentInfo.nombre} - ${appointmentInfo.hora} - ${appointmentInfo.sucursal}`}
+            >
+              {isConfirming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarCheck className="h-3.5 w-3.5" />}
+              {isConfirming
+                ? 'Confirmando…'
+                : appointmentInfo.estado.toLowerCase().includes('confirmada')
+                  ? 'Confirmada'
+                  : 'Confirmar cita'}
+            </button>
+          )}
+
+          {/* Assignment dropdown */}
+          <AssignDropdown
+            conversationId={conversation.id}
+            currentAssignee={localAssignee}
+            onAssign={setLocalAssignee}
+            containerRef={themeContainerRef}
+          />
+
+          {/* Mark as read */}
+          {!conversation.is_read && (
+            <button type="button" className="icon-btn" onClick={handleMarkAsRead} title="Marcar como leído" aria-label="Marcar como leído">
+              <Check className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Archive / Unarchive */}
+          {isArchived ? (
+            <button type="button" className="icon-btn" onClick={handleUnarchive} title="Desarchivar" aria-label="Desarchivar conversación">
+              <ArchiveRestore className="h-4 w-4" />
+            </button>
+          ) : (
+            <button type="button" className="icon-btn" onClick={handleArchive} title="Cerrar chat" aria-label="Cerrar chat">
+              <Archive className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Open in CRM */}
+          {conversation.contact_id && (
+            <Link href={`/crm/contactos/${conversation.contact_id}`} className="icon-btn" title="Ver en CRM" aria-label="Ver contacto en CRM">
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          )}
+
+          {/* Agent config slider */}
+          {onOpenAgentConfig && (
+            <button type="button" className="icon-btn" onClick={onOpenAgentConfig} title="Configuración de agente" aria-label="Configurar agente">
+              <SlidersHorizontal className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Debug bot (super-user only) */}
+          {onToggleDebug && (
+            <button
+              type="button"
+              className={cn('icon-btn', isDebugOpen && 'bg-[var(--paper-3)] text-[var(--ink-1)]')}
+              onClick={onToggleDebug}
+              title="Debug bot (observabilidad producción)"
+              aria-label="Abrir panel de debug"
+            >
+              <Bug className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Toggle contact panel */}
+          <button type="button" className="icon-btn" onClick={onTogglePanel} title="Panel de contacto" aria-label="Mostrar información del contacto">
+            <PanelRightOpen className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Window indicator (only shows when <2h remaining or closed) */}
+      <WindowIndicator lastCustomerMessageAt={conversation.last_customer_message_at} />
+
+      {sharedDialogs}
+      </>
+    )
+  }
 
   return (
     <div
@@ -396,7 +631,7 @@ export function ChatHeader({
             conversationId={conversation.id}
             currentAssignee={localAssignee}
             onAssign={setLocalAssignee}
-            containerRef={v2 ? themeContainerRef : undefined}
+            containerRef={v2 || v3 ? themeContainerRef : undefined}
           />
 
           {/* Mark as read */}

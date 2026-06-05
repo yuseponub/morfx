@@ -9,6 +9,7 @@ import { QuickReplyAutocomplete } from './quick-reply-autocomplete'
 import { TemplateButton } from './template-button'
 import { InteractiveComposerButton } from './interactive-composer-button'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
 import type { QuickReply, Message } from '@/lib/whatsapp/types'
 import type { OptimisticMedia } from '@/hooks/use-messages'
@@ -74,6 +75,7 @@ export function MessageInput({
   onSend,
 }: MessageInputProps) {
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   const [text, setText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -337,8 +339,13 @@ export function MessageInput({
     <div
       className={cn(
         'flex-shrink-0',
-        v2 ? 'border-t border-[var(--ink-1)] bg-[var(--paper-0)]' : 'border-t bg-background'
+        v3
+          ? 'composer-wrap'
+          : v2
+            ? 'border-t border-[var(--ink-1)] bg-[var(--paper-0)]'
+            : 'border-t bg-background'
       )}
+      style={v3 ? { borderTop: '1px solid var(--border)', background: 'transparent' } : undefined}
     >
       {/* File preview */}
       {attachedFile && (
@@ -476,8 +483,8 @@ export function MessageInput({
               onSend={handleSend}
               onSelectWithMedia={handleQuickReplyWithMedia}
               placeholder={
-                v2
-                  ? 'Escriba su respuesta…'
+                v2 || v3
+                  ? 'Escriba un mensaje…'
                   : attachedFile
                     ? 'Agregar caption (opcional)...'
                     : pendingQuickReplyMedia
@@ -490,28 +497,30 @@ export function MessageInput({
                 'focus-visible:ring-1',
                 pendingQuickReplyMedia && 'border-primary',
                 v2 &&
-                  'bg-[var(--paper-1)] border border-[var(--border)] rounded-[4px] px-3 text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)] [font-family:var(--font-sans)]'
+                  'bg-[var(--paper-1)] border border-[var(--border)] rounded-[4px] px-3 text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)] [font-family:var(--font-sans)]',
+                v3 &&
+                  'bg-[var(--paper-0)] border border-[var(--border)] rounded-[4px] px-3 text-[14px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ink-1)] [font-family:var(--font-serif)]'
               )}
             />
           </div>
 
           {/* Send button */}
           <Button
-            size={v2 ? 'default' : 'icon'}
+            size={v2 || v3 ? 'default' : 'icon'}
             className={cn(
               'flex-shrink-0',
-              v2
-                ? 'h-auto px-[16px] py-[8px] text-[13px] font-semibold gap-1.5 active:translate-y-px bg-[var(--ink-1)] text-[var(--paper-0)] border border-[var(--ink-1)] hover:bg-[var(--ink-2)] rounded-[4px]'
+              v2 || v3
+                ? 'btn pri send h-auto px-[16px] py-[8px] text-[13px] font-semibold gap-1.5 active:translate-y-px bg-[var(--ink-1)] text-[var(--paper-0)] border border-[var(--ink-1)] hover:bg-[var(--ink-2)] rounded-[4px]'
                 : 'h-10 w-10'
             )}
-            style={v2 ? { fontFamily: 'var(--font-sans)' } : undefined}
+            style={v2 || v3 ? { fontFamily: 'var(--font-sans)' } : undefined}
             onClick={handleSend}
             disabled={(!text.trim() && !attachedFile && !pendingQuickReplyMedia) || isLoading}
             title="Enviar mensaje"
             aria-label="Enviar mensaje"
           >
-            <Send className={v2 ? 'h-[14px] w-[14px]' : 'h-5 w-5'} />
-            {v2 && <span>Enviar</span>}
+            <Send className={v2 || v3 ? 'h-[14px] w-[14px]' : 'h-5 w-5'} />
+            {(v2 || v3) && <span>Enviar</span>}
           </Button>
         </div>
       </div>

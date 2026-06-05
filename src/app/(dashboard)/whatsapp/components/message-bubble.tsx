@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { MediaPreview } from './media-preview'
 import { InteractiveBubble, type InteractiveContent } from './interactive-bubble'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
 import type { Message, MessageStatus, TextContent, MediaContent, LocationContent } from '@/lib/whatsapp/types'
 
 interface MessageBubbleProps {
@@ -160,6 +161,7 @@ function MessageContent({
  */
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   // Deterministic America/Bogota HH:mm — identical string on server (UTC host)
   // and client (Bogota), avoiding React #418 hydration text mismatch (Regla 2).
   const timestamp = new Date(message.timestamp).toLocaleTimeString('es-CO', {
@@ -169,6 +171,49 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
     hour12: false,
   })
   const isAgentMessage = isOwn && message.sent_by_agent
+
+  // ===================== EDITORIAL V3 (.msg verbatim bubble) =====================
+  // Mock `ui_kits/conversaciones/index.html` .msg anatomy: Helvetica Neue 14/1.45
+  // (via the `.msg` CSS rule). `.msg.in` = paper-0 + border (left); `.msg.out` =
+  // ink-1 fill (right); `.msg.out.agent` = ink-2 + uppercase `.agent-mark`; mono
+  // `.tm` 9px; `.tmpl` template marker. Content/media/template render preserved.
+  if (v3) {
+    // Flex wrapper provides the left/right alignment (the mock relies on
+    // `.msg` align-self inside the flex `.th-body`; here each message is wrapped
+    // by the virtualizer's absolutely-positioned item, so we add an explicit
+    // flex row to reproduce the alignment).
+    return (
+      <div className={cn('flex px-1 py-1', isOwn ? 'justify-end' : 'justify-start')}>
+        <div
+          className={cn(
+            'msg',
+            isOwn ? 'out' : 'in',
+            isAgentMessage && 'agent',
+            message.status === ('sending' as any) && 'opacity-70'
+          )}
+        >
+          {isAgentMessage && <span className="agent-mark">Agente IA</span>}
+          <MessageContent message={message} isOwn={isOwn} />
+          {message.type === 'template' && message.template_name && (
+            <span className="tmpl">Template: {message.template_name}</span>
+          )}
+          <span className="tm">
+            {timestamp}
+            {isOwn && (
+              <span className="inline-flex items-center ml-1 align-middle">
+                <StatusIcon status={message.status} />
+              </span>
+            )}
+          </span>
+          {message.error_message && (
+            <span className="block text-[11px] mt-1" style={{ color: 'var(--rubric-2)' }}>
+              {message.error_message}
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

@@ -45,6 +45,8 @@ import {
   getPageToken,
   subscribeMessengerPage,
 } from '@/lib/meta/messenger-connect'
+import { resolveInstagramAccount } from '@/lib/meta/instagram-connect'
+import { resolveByWorkspace } from '@/lib/meta/credentials'
 import { metaRequest } from '@/lib/meta/api'
 import { mapRegisterError } from '@/lib/meta/register-errors'
 import { encryptToken } from '@/lib/meta/token'
@@ -231,6 +233,100 @@ export async function connectFacebookPage(input: {
     return {
       success: false,
       error: 'No se pudo conectar la página de Facebook. Intenta de nuevo.',
+    }
+  }
+}
+
+// ============================================================================
+// Connect Instagram (Phase 41 — IG-03)
+//
+// Instagram has NO independent OAuth — it rides on the workspace's already-connected
+// Facebook Page (D-IG-04). The no-popup path: read the connected Page row (decrypted
+// Page token), resolve the linked IG Professional account, and persist a
+// channel:'instagram' meta-account row reusing the SAME Page token (re-encrypted).
+//
+// Owner-only; `workspaceId` is session-derived (NEVER from input). The action NEVER
+// flips the per-workspace Instagram provider column (Regla 6) — the workspace stays on
+// the legacy provider until the manual SQL cutover (41-07). Returns only
+// `{ success, igUsername }` — never the plaintext Page token.
+// ============================================================================
+
+export type ConnectInstagramResult =
+  | { success: true; igUsername?: string }
+  | { success: false; error: string }
+
+/**
+ * Connect the Instagram Professional account linked to the workspace's connected
+ * Facebook Page. Owner-gated; reuses the connected Page token (no fresh FB.login).
+ * Persists ig_account_id via the domain sole write path. NEVER flips the provider.
+ */
+export async function connectInstagramAccount(): Promise<ConnectInstagramResult> {
+  // === Auth gate (copy of connectFacebookPage) ============================
+  const auth = await getRequestAuth()
+  if (!auth) {
+    return { success: false, error: 'No autenticado' }
+  }
+  const workspaceId = auth.workspaceId // session-derived, NEVER from input (Regla 3 / V4)
+
+  const supabase = await createClient()
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', auth.userId)
+    .single()
+
+  if (!member || member.role !== 'owner') {
+    return { success: false, error: 'Solo el Owner puede conectar Instagram' }
+  }
+
+  try {
+    // 1. No-popup flow: read the workspace's connected Page row + DECRYPTED Page token.
+    const fb = await resolveByWorkspace(workspaceId, 'facebook')
+    if (!fb?.pageId || !fb.accessToken) {
+      return { success: false, error: 'Primero conecta tu página de Facebook' }
+    }
+
+    // 2. Resolve the IG account linked to the Page (throws the clear Spanish error if none).
+    const ig = await resolveInstagramAccount(fb.accessToken, fb.pageId)
+
+    // 3. Reuse the SAME Page token (re-encrypted for the IG row — AES-256-GCM).
+    const accessTokenEncrypted = encryptToken(fb.accessToken)
+
+    // 4. Regla 3 — sole write path. channel:'instagram' isolates this row from the FB row
+    //    via the (workspace_id, channel) upsert key. NEVER touches the provider column.
+    const result = await upsertMetaAccount({
+      workspaceId,
+      channel: 'instagram',
+      wabaId: null,
+      phoneNumberId: null,
+      pageId: fb.pageId,
+      igAccountId: ig.id,
+      igUsername: ig.username ?? null,
+      accessTokenEncrypted,
+      isActive: true,
+    })
+    if (!result.success) {
+      return { success: false, error: result.error }
+    }
+
+    // 5. IG events ride the same Page subscription (per-Page subscribe). 41-07 smoke A2
+    //    verifies whether a separate IG subscribe is needed — if so it is added there.
+    await subscribeMessengerPage(fb.accessToken, fb.pageId)
+
+    return { success: true, igUsername: ig.username }
+  } catch (e) {
+    // The IG-not-linked error message is operator-actionable → surface it; any other
+    // failure detail stays server-side (never the token) with a generic Spanish message.
+    const message = e instanceof Error ? e.message : ''
+    console.error('[meta-onboarding] connect Instagram account failed:', e)
+    if (message.includes('vincula una cuenta de Instagram Profesional')) {
+      return { success: false, error: message }
+    }
+    return {
+      success: false,
+      error: 'No se pudo conectar la cuenta de Instagram. Intenta de nuevo.',
     }
   }
 }

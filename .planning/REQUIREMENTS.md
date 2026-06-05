@@ -51,7 +51,7 @@
 - [ ] **IG-01**: Recibir DMs de Instagram via webhook unificado
 - [ ] **IG-02**: Enviar texto e imagenes via Graph API (reemplaza ManyChat workaround)
 - [ ] **IG-03**: Resolucion IG-scoped user ID -> contacto en MorfX
-- [ ] **IG-04**: Inbox en MorfX para conversaciones de Instagram (humano + agente IA)
+- [x] **IG-04**: Inbox en MorfX para conversaciones de Instagram (humano + agente IA)
 - [ ] **IG-05**: UX clara de "ventana expirada" (IG tiene hard 24h, sin templates)
 
 ### Migration & Coexistence
@@ -129,7 +129,7 @@
 | IG-01 | Phase 41 | Pending |
 | IG-02 | Phase 41 | Pending |
 | IG-03 | Phase 41 | Pending |
-| IG-04 | Phase 41 | Pending |
+| IG-04 | Phase 41 | Complete — connect entry point (ConnectInstagram + integraciones tab) shipped Plan 41-06 (2026-06-05, commits `12ff00f8`/`cfc8237b`); inbox `channel='instagram'` indicator pre-existing (verify-only); IG conversations created by Plan 41-05 inbound webhook |
 | IG-05 | Phase 41 | Pending |
 | MIG-01 | Phase 38 (migration) / Phase 39 (sender wiring) | Column complete — `whatsapp_provider` column landed + applied to PROD in Phase 38 Plan 02 (2026-06-03, total=4/dialog360=4, zero backfill); Phase 39 wires outbound sender selection to read it |
 | MIG-02 | Phase 40 | Pending |

@@ -667,7 +667,7 @@ Plans:
 - [x] 41-03-PLAN.md — IG connect chain (resolveInstagramAccount + upsertMetaAccount + connectInstagramAccount) — IG-03 — COMPLETE 2026-06-05 (commits `cc2938ea`, `bc7f5f50`, `abf806f8`; connect-facebook 7/7 GREEN proving no FB regression; 0 deviations)
 - [x] 41-04-PLAN.md — domain chokepoint (readInstagramProvider + instagram arm) + IG-05 action-layer window gate — MIG-02/IG-02/IG-05 — COMPLETE 2026-06-05 (commits `25fd1a01`, `2de8266d`; messages-instagram 9/9 GREEN, 3 manychat-parity guards still GREEN, FB/WA byte-identical Regla 6; reused resolveMessengerWindowSend at both gate sites D-IG-09; 1 Rule-1 test fix sendMedia→sendImage; NOT pushed — Regla 5)
 - [x] 41-05-PLAN.md — inbound object==='instagram' webhook + processInstagramWebhook — IG-01/03/04
-- [ ] 41-06-PLAN.md — Conectar Instagram UI + integraciones tab (inbox indicator pre-exists) — IG-04
+- [x] 41-06-PLAN.md — Conectar Instagram UI + integraciones tab (inbox indicator pre-exists) — IG-04 — COMPLETE 2026-06-05 (commits `12ff00f8`, `cfc8237b`; ConnectInstagram no-popup component + Instagram Direct tab espejando Facebook; WA/FB tabs byte-identicas; indicador inbox channel==='instagram' verify-only pre-existente; FB.login/config_id grep=0; tsc clean; 0 deviations; NOT pushed)
 - [ ] 41-07-PLAN.md — gated cutover + A1/A2 linchpins + live smoke + 24h block — IG-01..05/MIG-02
 
 **Note (scope per D-IG-01/D-IG-09):** Success criterion #4's visible 24h *countdown* is DEFERRED — V1 blocks outside-24h with the Spanish window-closed message (no countdown). Success criterion #5 (AI agents on meta_direct IG) is DEFERRED — V1 is human-inbox only.

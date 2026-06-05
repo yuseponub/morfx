@@ -35,6 +35,8 @@ export interface UpsertMetaAccountParams {
   phoneNumber?: string | null
   businessId?: string | null
   pageId?: string | null // Facebook Page id (channel:'facebook' — Phase 40)
+  igAccountId?: string | null // Instagram account id (channel:'instagram' — Phase 41 IG-03)
+  igUsername?: string | null // Instagram @username, display-only (channel:'instagram' — Phase 41)
   isActive?: boolean // default true
 }
 
@@ -97,6 +99,8 @@ export async function upsertMetaAccount(
           phone_number: params.phoneNumber ?? null,
           business_id: params.businessId ?? null,
           page_id: params.pageId ?? null,
+          ig_account_id: params.igAccountId ?? null,
+          ig_username: params.igUsername ?? null,
           is_active: isActive,
           // updated_at handled by the set_updated_at trigger — do NOT hand-set.
         })
@@ -120,6 +124,8 @@ export async function upsertMetaAccount(
         phone_number: params.phoneNumber ?? null,
         business_id: params.businessId ?? null,
         page_id: params.pageId ?? null,
+        ig_account_id: params.igAccountId ?? null,
+        ig_username: params.igUsername ?? null,
         is_active: isActive,
         // provider left to the DB default 'meta_direct'.
       })
@@ -140,7 +146,8 @@ export async function upsertMetaAccount(
  * Map raw Supabase write errors to caller-friendly Spanish strings.
  * A UNIQUE(phone_number_id) conflict means another workspace already owns that
  * number (one number = one WABA — Pitfall 10). A UNIQUE(page_id) conflict means
- * another workspace already connected that Facebook Page (Phase 40).
+ * another workspace already connected that Facebook Page (Phase 40). A UNIQUE(ig_account_id)
+ * conflict means another workspace already connected that Instagram account (Phase 41 IG-03).
  */
 function mapWriteError(message: string): string {
   const lower = message.toLowerCase()
@@ -155,6 +162,12 @@ function mapWriteError(message: string): string {
     (lower.includes('duplicate') && lower.includes('page_id'))
   ) {
     return 'Esta página ya está conectada en otro espacio de trabajo. Una página solo puede pertenecer a una cuenta.'
+  }
+  if (
+    lower.includes('uq_meta_ig') ||
+    (lower.includes('duplicate') && lower.includes('ig_account_id'))
+  ) {
+    return 'Esta cuenta de Instagram ya está conectada en otro espacio de trabajo. Una cuenta solo puede pertenecer a un espacio.'
   }
   return message
 }

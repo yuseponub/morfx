@@ -95,7 +95,7 @@ describe('sendInstagramText (IG-02) — inside 24h → RESPONSE', () => {
   })
 
   it('NEVER places a messaging_product field on the wire (that is WhatsApp-only)', async () => {
-    await sendInstagramText(TOKEN, PAGE_ID, IGSID, 'sin messaging_product')
+    await sendInstagramText(TOKEN, PAGE_ID, IGSID, 'sin campo de WhatsApp Cloud')
 
     // The serialized body must NOT carry messaging_product (a WhatsApp Cloud API field).
     expect(lastRawBody()).not.toContain('messaging_product')

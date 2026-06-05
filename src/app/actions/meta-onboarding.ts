@@ -46,7 +46,6 @@ import {
   subscribeMessengerPage,
 } from '@/lib/meta/messenger-connect'
 import { resolveInstagramAccount } from '@/lib/meta/instagram-connect'
-import { resolveByWorkspace } from '@/lib/meta/credentials'
 import { metaRequest } from '@/lib/meta/api'
 import { mapRegisterError } from '@/lib/meta/register-errors'
 import { encryptToken } from '@/lib/meta/token'
@@ -238,12 +237,19 @@ export async function connectFacebookPage(input: {
 }
 
 // ============================================================================
-// Connect Instagram (Phase 41 — IG-03)
+// Connect Instagram (Phase 41 — IG-03 / IG-04, Plan 41-08 dedicated IG login)
 //
-// Instagram has NO independent OAuth — it rides on the workspace's already-connected
-// Facebook Page (D-IG-04). The no-popup path: read the connected Page row (decrypted
-// Page token), resolve the linked IG Professional account, and persist a
-// channel:'instagram' meta-account row reusing the SAME Page token (re-encrypted).
+// Instagram has NO independent OAuth — it rides on the connected Facebook Page.
+// Plan 41-08 (D-IG-10/11/12) replaces the old no-popup / stored-token path: the
+// "Conectar Instagram" button now runs its OWN FB.login requesting the IG superset
+// scope (the 5 FB scopes + instagram_basic + instagram_manage_messages) and captures
+// a short-lived USER token. This action takes that token and runs the Phase 40 chain
+// VERBATIM (exchangeForLongLivedUserToken → getPageToken), REFRESHES the canonical
+// facebook-row access_token_encrypted with the fresh superset Page token (D-IG-12 step 3
+// — additive: the new grant UNIONS the IG scopes onto the prior Messenger scopes, so the
+// refreshed token is a strict superset and Messenger keeps working — Regla 6), THEN
+// resolveInstagramAccount + IG-row upsert + per-Page subscribe with the FRESH token (now
+// carries the IG scopes — was the broken step: the old stored token couldn't read /me).
 //
 // Owner-only; `workspaceId` is session-derived (NEVER from input). The action NEVER
 // flips the per-workspace Instagram provider column (Regla 6) — the workspace stays on
@@ -256,11 +262,15 @@ export type ConnectInstagramResult =
   | { success: false; error: string }
 
 /**
- * Connect the Instagram Professional account linked to the workspace's connected
- * Facebook Page. Owner-gated; reuses the connected Page token (no fresh FB.login).
- * Persists ig_account_id via the domain sole write path. NEVER flips the provider.
+ * Connect the Instagram Professional account linked to the connected Facebook Page.
+ * Owner-gated; takes the short-lived USER token from the dedicated IG FB.login
+ * (token-flow), refreshes the canonical Page token with the IG-scoped superset, then
+ * resolves + persists ig_account_id via the domain sole write path. NEVER flips the
+ * provider. Returns `{ success, igUsername }` — never the plaintext Page token.
  */
-export async function connectInstagramAccount(): Promise<ConnectInstagramResult> {
+export async function connectInstagramAccount(input: {
+  accessToken: string
+}): Promise<ConnectInstagramResult> {
   // === Auth gate (copy of connectFacebookPage) ============================
   const auth = await getRequestAuth()
   if (!auth) {
@@ -281,39 +291,64 @@ export async function connectInstagramAccount(): Promise<ConnectInstagramResult>
     return { success: false, error: 'Solo el Owner puede conectar Instagram' }
   }
 
+  // === Input validation (V5) ==============================================
+  if (!input.accessToken) {
+    return { success: false, error: 'Datos de conexión incompletos' }
+  }
+
   try {
-    // 1. No-popup flow: read the workspace's connected Page row + DECRYPTED Page token.
-    const fb = await resolveByWorkspace(workspaceId, 'facebook')
-    if (!fb?.pageId || !fb.accessToken) {
-      return { success: false, error: 'Primero conecta tu página de Facebook' }
+    // 1. short-lived USER ACCESS TOKEN (from the dedicated IG FB.login token-flow) →
+    //    long-lived user token. Token-flow (Q6 Pitfall 1) — NOT a code exchange.
+    const longLivedUserToken = await exchangeForLongLivedUserToken(input.accessToken)
+
+    // 2. long-lived user token → never-expiring Page Access Token (now carries the
+    //    IG scopes the user just granted in the dedicated login).
+    const { pageId, accessToken: pageToken } = await getPageToken(longLivedUserToken)
+
+    // 3. Encrypt before persisting (AES-256-GCM).
+    const accessTokenEncrypted = encryptToken(pageToken)
+
+    // 4. Refresh the CANONICAL facebook-row token with the fresh superset (D-IG-12 step 3).
+    //    The new grant unions the IG scopes onto the Messenger scopes → strict superset →
+    //    Messenger keeps working (Regla 6). channel:'facebook' targets the existing FB row
+    //    via the (workspace_id, channel) upsert key. NEVER touches the provider column.
+    const fbRefresh = await upsertMetaAccount({
+      workspaceId,
+      channel: 'facebook',
+      wabaId: null,
+      phoneNumberId: null,
+      pageId,
+      accessTokenEncrypted,
+      isActive: true,
+    })
+    if (!fbRefresh.success) {
+      return { success: false, error: fbRefresh.error }
     }
 
-    // 2. Resolve the IG account linked to the Page (throws the clear Spanish error if none).
-    const ig = await resolveInstagramAccount(fb.accessToken, fb.pageId)
+    // 5. Resolve the IG account with the FRESH page token (was the broken step — the old
+    //    stored token lacked the IG scopes). Throws the clear Spanish error if no IG linked.
+    const ig = await resolveInstagramAccount(pageToken, pageId)
 
-    // 3. Reuse the SAME Page token (re-encrypted for the IG row — AES-256-GCM).
-    const accessTokenEncrypted = encryptToken(fb.accessToken)
-
-    // 4. Regla 3 — sole write path. channel:'instagram' isolates this row from the FB row
-    //    via the (workspace_id, channel) upsert key. NEVER touches the provider column.
-    const result = await upsertMetaAccount({
+    // 6. Regla 3 — sole write path. channel:'instagram' isolates this row from the FB row.
+    //    NEVER touches the provider column.
+    const igUpsert = await upsertMetaAccount({
       workspaceId,
       channel: 'instagram',
       wabaId: null,
       phoneNumberId: null,
-      pageId: fb.pageId,
+      pageId,
       igAccountId: ig.id,
       igUsername: ig.username ?? null,
       accessTokenEncrypted,
       isActive: true,
     })
-    if (!result.success) {
-      return { success: false, error: result.error }
+    if (!igUpsert.success) {
+      return { success: false, error: igUpsert.error }
     }
 
-    // 5. IG events ride the same Page subscription (per-Page subscribe). 41-07 smoke A2
-    //    verifies whether a separate IG subscribe is needed — if so it is added there.
-    await subscribeMessengerPage(fb.accessToken, fb.pageId)
+    // 7. IG events ride the same Page subscription (per-Page subscribe — `messages` field
+    //    = IG delivery, Q5). Runs with the fresh pages_manage_metadata-bearing token.
+    await subscribeMessengerPage(pageToken, pageId)
 
     return { success: true, igUsername: ig.username }
   } catch (e) {

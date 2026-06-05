@@ -43,9 +43,11 @@ import {
 import {
   exchangeForLongLivedUserToken,
   getPageToken,
+  getPageTokenForPage,
   subscribeMessengerPage,
 } from '@/lib/meta/messenger-connect'
 import { resolveInstagramAccount } from '@/lib/meta/instagram-connect'
+import { resolveByWorkspace } from '@/lib/meta/credentials'
 import { metaRequest } from '@/lib/meta/api'
 import { mapRegisterError } from '@/lib/meta/register-errors'
 import { encryptToken } from '@/lib/meta/token'
@@ -237,19 +239,28 @@ export async function connectFacebookPage(input: {
 }
 
 // ============================================================================
-// Connect Instagram (Phase 41 — IG-03 / IG-04, Plan 41-08 dedicated IG login)
+// Connect Instagram (Phase 41 — IG-03 / IG-04, Plan 41-08 dedicated IG login,
+//                     Plan 41-09 GAP-41-01 fix: target the workspace's bound page)
 //
 // Instagram has NO independent OAuth — it rides on the connected Facebook Page.
-// Plan 41-08 (D-IG-10/11/12) replaces the old no-popup / stored-token path: the
-// "Conectar Instagram" button now runs its OWN FB.login requesting the IG superset
-// scope (the 5 FB scopes + instagram_basic + instagram_manage_messages) and captures
-// a short-lived USER token. This action takes that token and runs the Phase 40 chain
-// VERBATIM (exchangeForLongLivedUserToken → getPageToken), REFRESHES the canonical
-// facebook-row access_token_encrypted with the fresh superset Page token (D-IG-12 step 3
-// — additive: the new grant UNIONS the IG scopes onto the prior Messenger scopes, so the
-// refreshed token is a strict superset and Messenger keeps working — Regla 6), THEN
-// resolveInstagramAccount + IG-row upsert + per-Page subscribe with the FRESH token (now
-// carries the IG scopes — was the broken step: the old stored token couldn't read /me).
+// Plan 41-08 (D-IG-10/11/12) replaced the old no-popup / stored-token path: the
+// "Conectar Instagram" button runs its OWN FB.login requesting the IG superset scope
+// (the 5 FB scopes + instagram_basic + instagram_manage_messages) and captures a
+// short-lived USER token. This action takes that token and runs the Phase 40 chain.
+//
+// Plan 41-09 (GAP-41-01) fixes a live multi-page bug: 41-08 used getPageToken's data[0]
+// heuristic (the FIRST page in /me/accounts), which retargeted multi-page operators'
+// facebook row to the WRONG page_id → uq_meta_page UNIQUE(page_id) collision (Varixcenter
+// live repro). The flow now reads the workspace's ALREADY-bound facebook page FIRST
+// (resolveByWorkspace) and fetches the Page token FOR THAT page (getPageTokenForPage),
+// never data[0]. If the workspace has no facebook row → clear Spanish precheck error
+// (restores what 41-08 dropped). All of 41-08's dedicated-login + token-refresh intent
+// is preserved: exchangeForLongLivedUserToken still runs (the refreshed Page token carries
+// the IG scopes — D-IG-12), only WHICH page the token is fetched for changes.
+//
+// The refreshed facebook-row token is additive (the new grant UNIONS the IG scopes onto
+// the prior Messenger scopes → strict superset → Messenger keeps working — Regla 6). THEN
+// resolveInstagramAccount + IG-row upsert + per-Page subscribe with the FRESH token.
 //
 // Owner-only; `workspaceId` is session-derived (NEVER from input). The action NEVER
 // flips the per-workspace Instagram provider column (Regla 6) — the workspace stays on
@@ -296,14 +307,31 @@ export async function connectInstagramAccount(input: {
     return { success: false, error: 'Datos de conexión incompletos' }
   }
 
+  // === Precheck (GAP-41-01 — restores what 41-08 dropped) =================
+  // IG rides on an EXISTING connected Facebook page. Read the workspace's already-bound
+  // facebook page FIRST; if none, fail clearly (do NOT proceed). This is ALSO the page we
+  // target below — so a multi-page operator never retargets the FB row to data[0]. The
+  // precheck short-circuits BEFORE any token call (no exchange / upsert / resolve / subscribe).
+  const fbCreds = await resolveByWorkspace(workspaceId, 'facebook')
+  if (!fbCreds || !fbCreds.pageId) {
+    return { success: false, error: 'Primero conecta tu página de Facebook' }
+  }
+  const boundPageId = fbCreds.pageId
+
   try {
     // 1. short-lived USER ACCESS TOKEN (from the dedicated IG FB.login token-flow) →
-    //    long-lived user token. Token-flow (Q6 Pitfall 1) — NOT a code exchange.
+    //    long-lived user token. Token-flow (Q6 Pitfall 1) — NOT a code exchange. (D-IG-12)
     const longLivedUserToken = await exchangeForLongLivedUserToken(input.accessToken)
 
-    // 2. long-lived user token → never-expiring Page Access Token (now carries the
-    //    IG scopes the user just granted in the dedicated login).
-    const { pageId, accessToken: pageToken } = await getPageToken(longLivedUserToken)
+    // 2. GAP-41-01 FIX: fetch the never-expiring Page Access Token FOR THE WORKSPACE'S
+    //    bound page (not getPageToken's data[0] heuristic). `pageId` === boundPageId verbatim;
+    //    if the login did not grant access to this page, getPageTokenForPage THROWS a clear
+    //    Spanish error (caught below) and NEVER falls back to another page. The token carries
+    //    the IG scopes the user just granted in the dedicated login.
+    const { pageId, accessToken: pageToken } = await getPageTokenForPage(
+      longLivedUserToken,
+      boundPageId
+    )
 
     // 3. Encrypt before persisting (AES-256-GCM).
     const accessTokenEncrypted = encryptToken(pageToken)

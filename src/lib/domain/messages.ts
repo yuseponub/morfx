@@ -41,6 +41,13 @@ import { metaWhatsappSender } from '@/lib/channels/meta-whatsapp-sender'
 // input/params). The `manychat` arm stays byte-identical (Regla 6 — protects the
 // godentist-fb-ig production agent + every ManyChat workspace).
 import { metaFacebookSender } from '@/lib/channels/meta-facebook-sender'
+// Phase 41 (MIG-02 / D-IG-02 — Instagram Direct): the SINGLE instagram provider-
+// decision site. `meta_direct` workspaces route the instagram arm through
+// metaInstagramSender using creds resolved from ctx.workspaceId (T-41-04-03 — NEVER
+// from input/params). The `manychat` arm stays byte-identical (Regla 6 — protects
+// the godentist-fb-ig production agent + every ManyChat workspace). DIRECT import:
+// metaInstagramSender is NOT in the channel-keyed registry map (Regla 6).
+import { metaInstagramSender } from '@/lib/channels/meta-instagram-sender'
 import type { DomainContext, DomainResult } from './types'
 
 // ============================================================================
@@ -77,6 +84,26 @@ async function readMessengerProvider(
     .eq('id', workspaceId)
     .single()
   return ws?.messenger_provider === 'meta_direct' ? 'meta_direct' : 'manychat'
+}
+
+// ============================================================================
+// Instagram provider decision helper (Phase 41 — MIG-02 / D-IG-02)
+// Reads workspaces.instagram_provider for ctx.workspaceId. Used by the instagram
+// arm of sendTextMessage/sendMediaMessage. Default/null/unknown → 'manychat'
+// (the byte-identical ManyChat path — Regla 6, protects the godentist-fb-ig
+// production agent serving IG + every current ManyChat workspace). Single read
+// per instagram send (Regla 3 chokepoint — never per-call-site).
+// ============================================================================
+async function readInstagramProvider(
+  supabase: ReturnType<typeof createAdminClient>,
+  workspaceId: string
+): Promise<'manychat' | 'meta_direct'> {
+  const { data: ws } = await supabase
+    .from('workspaces')
+    .select('instagram_provider')
+    .eq('id', workspaceId)
+    .single()
+  return ws?.instagram_provider === 'meta_direct' ? 'meta_direct' : 'manychat'
 }
 
 // ============================================================================
@@ -254,8 +281,35 @@ export async function sendTextMessage(
         }
         wamid = result.externalMessageId
       }
+    } else if (channel === 'instagram') {
+      // Instagram provider decision (MIG-02 / D-IG-02) — read instagram_provider
+      // ONCE for this workspace (Regla 3 chokepoint).
+      const ip = await readInstagramProvider(supabase, ctx.workspaceId)
+      if (ip === 'meta_direct') {
+        // Meta Instagram Send API arm. Creds resolve from ctx.workspaceId via
+        // resolveByWorkspace('instagram') — NEVER from params/input (T-41-04-03).
+        const creds = await resolveByWorkspace(ctx.workspaceId, 'instagram')
+        if (!creds?.accessToken || !creds.pageId) {
+          return { success: false, error: 'Credenciales Meta no configuradas' }
+        }
+        const resp = await metaInstagramSender.sendText(
+          { accessToken: creds.accessToken, pageId: creds.pageId },
+          params.contactPhone, // IGSID string for instagram (external_subscriber_id)
+          params.messageBody,
+          params.tag
+        )
+        wamid = resp.externalMessageId
+      } else {
+        // manychat — BYTE-IDENTICAL to the previous final-else Instagram-via-ManyChat path (Regla 6)
+        const sender = getChannelSender(channel)
+        const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
+        if (!result.success) {
+          return { success: false, error: result.error || 'Error al enviar por canal' }
+        }
+        wamid = result.externalMessageId
+      }
     } else {
-      // Instagram (or future channels) via ManyChat — untouched (Regla 6)
+      // Future channels via ManyChat — untouched (Regla 6)
       const sender = getChannelSender(channel)
       const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
       if (!result.success) {
@@ -397,8 +451,40 @@ export async function sendMediaMessage(
         console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}' (manychat)`)
         return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
       }
+    } else if (channel === 'instagram') {
+      // Instagram provider decision (MIG-02 / D-IG-02) — read instagram_provider ONCE.
+      const ip = await readInstagramProvider(supabase, ctx.workspaceId)
+      if (ip === 'meta_direct') {
+        // Meta Instagram Send API arm — image (audio/video/document supported by the
+        // sender via attachments). Creds from ctx.workspaceId only (T-41-04-03).
+        const creds = await resolveByWorkspace(ctx.workspaceId, 'instagram')
+        if (!creds?.accessToken || !creds.pageId) {
+          return { success: false, error: 'Credenciales Meta no configuradas' }
+        }
+        const resp = await metaInstagramSender.sendMedia(
+          { accessToken: creds.accessToken, pageId: creds.pageId },
+          params.contactPhone, // IGSID string for instagram
+          params.mediaType,
+          params.mediaUrl,
+          params.caption,
+          params.tag
+        )
+        wamid = resp.externalMessageId
+      } else if (params.mediaType === 'image') {
+        // manychat — BYTE-IDENTICAL to the previous final-else Instagram-via-ManyChat path (Regla 6)
+        const sender = getChannelSender(channel)
+        const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
+        if (!result.success) {
+          return { success: false, error: result.error || 'Error al enviar media por canal' }
+        }
+        wamid = result.externalMessageId
+      } else {
+        // manychat instagram — only images supported (unchanged, Regla 6)
+        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}'`)
+        return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
+      }
     } else {
-      // Instagram (or future channels) via ManyChat — untouched (Regla 6) — only images supported
+      // Future channels via ManyChat — untouched (Regla 6) — only images supported
       if (params.mediaType === 'image') {
         const sender = getChannelSender(channel)
         const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)

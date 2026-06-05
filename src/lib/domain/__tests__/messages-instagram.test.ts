@@ -137,13 +137,15 @@ const baseMediaParams = {
 }
 
 // The ManyChat senders returned by getChannelSender('instagram') — observable.
+// The ChannelSender interface exposes sendText + sendImage (NO sendMedia); the
+// byte-identical legacy IG media path calls sender.sendImage for images (Regla 6).
 let manychatSendText: ReturnType<typeof vi.fn>
-let manychatSendMedia: ReturnType<typeof vi.fn>
+let manychatSendImage: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   manychatSendText = vi.fn().mockResolvedValue({ success: true, externalMessageId: 'mc.ig.1' })
-  manychatSendMedia = vi.fn().mockResolvedValue({ success: true, externalMessageId: 'mc.ig.media' })
-  mockGetChannelSender.mockReturnValue({ sendText: manychatSendText, sendMedia: manychatSendMedia, sendImage: vi.fn() })
+  manychatSendImage = vi.fn().mockResolvedValue({ success: true, externalMessageId: 'mc.ig.media' })
+  mockGetChannelSender.mockReturnValue({ sendText: manychatSendText, sendImage: manychatSendImage })
   mockMetaSendText.mockResolvedValue({ success: true, externalMessageId: 'm_IG.meta' })
   mockMetaSendMedia.mockResolvedValue({ success: true, externalMessageId: 'm_IG.meta.media' })
   mockResolveByWorkspace.mockResolvedValue({
@@ -244,7 +246,7 @@ describe('sendMediaMessage instagram branch — provider parity (MIG-02 / Regla 
     await sendMediaMessage(ctx, baseMediaParams)
 
     expect(mockGetChannelSender).toHaveBeenCalledWith('instagram')
-    expect(manychatSendMedia).toHaveBeenCalledTimes(1)
+    expect(manychatSendImage).toHaveBeenCalledTimes(1)
     expect(mockResolveByWorkspace).not.toHaveBeenCalled()
     expect(mockMetaSendMedia).not.toHaveBeenCalled()
   })
@@ -258,6 +260,6 @@ describe('sendMediaMessage instagram branch — provider parity (MIG-02 / Regla 
     expect(mockMetaSendMedia).toHaveBeenCalledTimes(1)
     const credsArg = mockMetaSendMedia.mock.calls[0][0] as Record<string, unknown>
     expect(credsArg).toMatchObject({ accessToken: 'PAGE_TOKEN_decrypted', pageId: '102938475610293' })
-    expect(manychatSendMedia).not.toHaveBeenCalled()
+    expect(manychatSendImage).not.toHaveBeenCalled()
   })
 })

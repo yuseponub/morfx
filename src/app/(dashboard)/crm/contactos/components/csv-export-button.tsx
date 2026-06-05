@@ -33,6 +33,12 @@ interface CsvExportButtonProps {
   customFields: CustomFieldDefinition[]
   /** Whether filters are currently active */
   hasFilters: boolean
+  /**
+   * Editorial v3 flag — when true, the trigger renders as an editorial `.btn`
+   * (under `.theme-editorial-v3`) instead of the shadcn outline button. The
+   * popover content + all export logic is unchanged (D-08).
+   */
+  v3?: boolean
 }
 
 // Standard fields available for export
@@ -53,7 +59,8 @@ export function CsvExportButton({
   allContacts,
   filteredContacts,
   customFields,
-  hasFilters
+  hasFilters,
+  v3 = false
 }: CsvExportButtonProps) {
   const [open, setOpen] = React.useState(false)
   const [exportFiltered, setExportFiltered] = React.useState(hasFilters)
@@ -144,10 +151,16 @@ export function CsvExportButton({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Exportar
-        </Button>
+        {v3 ? (
+          <button type="button" className="btn">
+            Exportar
+          </button>
+        ) : (
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-72" align="end">
         <div className="space-y-4">

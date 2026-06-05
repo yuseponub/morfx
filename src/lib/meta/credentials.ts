@@ -97,6 +97,13 @@ export async function resolveByPageId(
       'workspace_id, waba_id, phone_number_id, phone_number, page_id, ig_account_id, business_id, access_token_encrypted'
     )
     .eq('page_id', pageId)
+    // GAP-41-03: a Facebook Page and its linked Instagram account are stored as TWO
+    // rows sharing the same page_id (uq_meta_page was relaxed to channel='facebook' in
+    // GAP-41-02 so the IG row can carry the page's id for sending). Messenger inbound
+    // routing must resolve the FACEBOOK row only — without this filter the IG row makes
+    // the query return 2 rows and `.single()` throws PGRST116, silently dropping the FB
+    // message. IG inbound routes via resolveByIgAccountId (ig_account_id is unique).
+    .eq('channel', 'facebook')
     .eq('is_active', true)
     .single()
 

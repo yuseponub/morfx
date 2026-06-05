@@ -42,6 +42,7 @@ import {
   getDuplicateError,
 } from '@/lib/orders/types'
 import { clearOrderDuplicateError } from '@/app/actions/orders'
+import { renderEditorialOrderTags } from './columns'
 
 // Format currency in COP
 function formatCurrency(value: number): string {
@@ -80,6 +81,8 @@ interface KanbanCardProps {
   isSelected?: boolean
   onSelectChange?: (selected: boolean) => void
   onRecompra?: (order: OrderWithDetails) => void
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
 }
 
 /**
@@ -93,6 +96,7 @@ export function KanbanCard({
   isSelected = false,
   onSelectChange,
   onRecompra,
+  v3 = false,
 }: KanbanCardProps) {
   const {
     attributes,
@@ -140,6 +144,110 @@ export function KanbanCard({
     if (!dragging && onClick) {
       onClick()
     }
+  }
+
+  // ==========================================================================
+  // Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03).
+  // Loose `.kcard` (paper-0 + border + shadow-card) with .top/.prod/.tags/.foot
+  // anatomy per UI-SPEC §6.3. Drag wiring (setNodeRef, attributes, listeners,
+  // handleClick, selection, recompra, WhatsApp link) is the SAME as the legacy
+  // path — only markup/className changes. CAS move logic lives in kanban-board.
+  // ==========================================================================
+  if (v3) {
+    const productLine =
+      order.products.length === 0
+        ? null
+        : order.products.length === 1
+          ? order.products[0].title
+          : `${order.products[0].title} +${order.products.length - 1}`
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        data-selected={isSelected ? 'true' : undefined}
+        {...attributes}
+        {...listeners}
+        suppressHydrationWarning
+        onClick={handleClick}
+        className={cn('kcard', dragging && 'opacity-50', isSelected && 'ring-2 ring-primary')}
+      >
+        {/* Selection checkbox */}
+        {onSelectChange && (
+          <div
+            className={cn(
+              'absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity',
+              isSelected && 'opacity-100'
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => onSelectChange(checked === true)}
+              className="h-4 w-4 bg-background"
+            />
+          </div>
+        )}
+
+        {/* Top: name with ◉ mark + mono total */}
+        <div className="top">
+          <span className="nm">
+            <span className="ci" aria-hidden>◉</span>
+            <span>{order.name || order.contact?.name || 'Sin nombre'}</span>
+          </span>
+          <span className="val">{formatCurrency(order.total_value)}</span>
+        </div>
+
+        {/* Product line with ▢ mark */}
+        {productLine && (
+          <div className="prod">
+            <span className="ci" aria-hidden>▢</span>
+            <span className="truncate">{productLine}</span>
+          </div>
+        )}
+
+        {/* Tags — MxTag pills (P/W → indigo, RECO → indigo, C → success) */}
+        {order.tags.length > 0 && (
+          <div className="tags">{renderEditorialOrderTags(order.tags)}</div>
+        )}
+
+        {/* Foot: hairline row — mono date + ↻/○ icon marks + recompra/WhatsApp + city */}
+        <div className="foot">
+          <span className="date">{formatRelativeTime(order.created_at)}</span>
+          {(order.source_order_id || order.has_derived_orders) && (
+            <span className="ic" title="Orden conectada" aria-hidden>↻</span>
+          )}
+          {onRecompra && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRecompra(order)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="ic"
+              title="Recompra"
+            >
+              <RefreshCwIcon className="h-3 w-3" />
+            </button>
+          )}
+          {order.contact?.phone && (
+            <Link
+              href={`/whatsapp?phone=${encodeURIComponent(order.contact.phone)}`}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="ic"
+              title="Ver en WhatsApp"
+              aria-hidden
+            >
+              ○
+            </Link>
+          )}
+          {order.contact?.city && <span className="city">{order.contact.city}</span>}
+        </div>
+      </div>
+    )
   }
 
   return (

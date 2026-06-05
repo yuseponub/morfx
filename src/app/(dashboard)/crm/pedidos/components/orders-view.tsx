@@ -123,6 +123,8 @@ interface OrdersViewProps {
   currentUserId?: string
   isAdminOrOwner?: boolean
   activeWorkspaceId: string | null
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
 }
 
 /**
@@ -139,6 +141,7 @@ export function OrdersView({
   currentUserId,
   isAdminOrOwner,
   activeWorkspaceId,
+  v3 = false,
 }: OrdersViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -995,6 +998,7 @@ export function OrdersView({
             stageLoading={kanbanLoading}
             onLoadMore={handleLoadMore}
             onOrderMoved={handleOrderMoved}
+            v3={v3}
           />
         ) : (
           <DataTable

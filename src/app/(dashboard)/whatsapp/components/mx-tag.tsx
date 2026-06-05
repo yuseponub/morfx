@@ -3,7 +3,9 @@ import type { ComponentProps, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink'
+// `success` is the additive 6th variant authored under `.theme-editorial-v3`
+// (Plan 00) for the kanban "C" (confirmado) tag — color-mix over --semantic-success.
+type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' | 'success'
 
 interface MxTagProps extends Omit<ComponentProps<'span'>, 'children'> {
   variant: MxTagVariant

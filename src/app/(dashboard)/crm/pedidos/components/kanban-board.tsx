@@ -20,12 +20,13 @@ import {
   sortableKeyboardCoordinates,
   arrayMove,
 } from '@dnd-kit/sortable'
-import { KanbanColumn } from './kanban-column'
+import { KanbanColumn, v3DotClassForIndex } from './kanban-column'
 import { KanbanCard } from './kanban-card'
 import { moveOrderToStage } from '@/app/actions/orders'
 import { updateStageOrder } from '@/app/actions/pipelines'
 import { toast } from 'sonner'
 import { useKanbanRealtime } from '@/hooks/use-kanban-realtime'
+import { cn } from '@/lib/utils'
 import type { OrderWithDetails, PipelineStage, OrdersByStage } from '@/lib/orders/types'
 
 /**
@@ -98,6 +99,8 @@ interface KanbanBoardProps {
   stageLoading?: Record<string, boolean>
   onLoadMore?: (stageId: string) => void
   onOrderMoved?: (orderId: string, fromStageId: string, toStageId: string) => void
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
 }
 
 /**
@@ -142,6 +145,7 @@ export function KanbanBoard({
   stageLoading,
   onLoadMore,
   onOrderMoved,
+  v3 = false,
 }: KanbanBoardProps) {
   // Track the order being dragged for overlay
   const [activeOrder, setActiveOrder] = React.useState<OrderWithDetails | null>(null)
@@ -432,8 +436,12 @@ export function KanbanBoard({
         items={localStages.map((s) => s.id)}
         strategy={horizontalListSortingStrategy}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-280px)]">
-          {localStages.map((stage) => (
+        <div
+          className={cn(
+            v3 ? 'board scrollbar-overlay h-[calc(100vh-280px)]' : 'flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-280px)]'
+          )}
+        >
+          {localStages.map((stage, index) => (
             <KanbanColumn
               key={stage.id}
               stage={stage}
@@ -449,6 +457,8 @@ export function KanbanBoard({
               hasMore={stageHasMore?.[stage.id] ?? false}
               isLoadingMore={stageLoading?.[stage.id] ?? false}
               onLoadMore={onLoadMore ? () => onLoadMore(stage.id) : undefined}
+              v3={v3}
+              v3DotClass={v3DotClassForIndex(index)}
             />
           ))}
         </div>

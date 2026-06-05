@@ -12,11 +12,90 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TagBadge } from '@/components/contacts/tag-badge'
+import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
 import {
   detectOrderProductTypes,
   PRODUCT_TYPE_COLORS,
 } from '@/lib/orders/product-types'
 import type { OrderWithDetails } from '@/lib/orders/types'
+
+// ============================================================================
+// Editorial v3 helpers (standalone ui-redesign-editorial-core, Plan 03).
+// Additive — the legacy shadcn `createColumns` below is byte-untouched.
+// Tags + status use the official MxTag / mx-tag--* system, NEVER legacy
+// `.tg.*` nor shadcn <Badge> (D-09).
+// ============================================================================
+
+type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' | 'success'
+
+/**
+ * Map a real order Tag (name + color, no editorial category) to an editorial
+ * `mx-tag--*` variant (UI-SPEC §7). Matches by normalized lowercase name; the
+ * kanban-specific tokens map P/W → indigo, RECO → indigo, C/confirmado →
+ * success (UI-SPEC §6.3 / §7). Falls back to `ink` (neutral) so every tag still
+ * renders as a token-built pill.
+ */
+export function mapOrderTagVariant(tag: { name: string }): MxTagVariant {
+  const name = (tag.name || '').toLowerCase().trim()
+  if (name === 'p/w' || name === 'pw') return 'indigo'
+  if (name === 'reco' || name === 'recompra') return 'indigo'
+  if (name === 'c' || name === 'confirmado' || name === 'confirmada') return 'success'
+  if (name === 'cliente' || name === 'clientes' || name === 'vip' || name === 'pagado')
+    return 'gold'
+  if (name === 'prospecto' || name === 'prospectos' || name === 'lead' || name === 'leads' || name === 'entregado')
+    return 'indigo'
+  if (name === 'mayorista' || name === 'mayoristas' || name === 'distribuidor' || name === 'wpp' || name === 'despachado')
+    return 'verdigris'
+  if (name === 'pendiente' || name === 'por pagar' || name === 'sin pagar' || name === 'cancelado')
+    return name === 'cancelado' ? 'ink' : 'rubric'
+  return 'ink'
+}
+
+/**
+ * Map a pipeline stage NAME to an editorial status `mx-tag--*` variant for the
+ * Estado cell of the table.dict view (UI-SPEC §6.3 / §7):
+ * Pendiente/Por pagar → rubric, Confirmado → gold, Despachado → verdigris,
+ * Entregado → indigo, Cancelado → ink. Falls back to `ink`.
+ */
+export function mapStatusVariant(stageName: string | null | undefined): MxTagVariant {
+  const name = (stageName || '').toLowerCase().trim()
+  if (name.includes('cancel')) return 'ink'
+  if (name.includes('entreg')) return 'indigo'
+  if (name.includes('despach') || name.includes('reparto') || name.includes('envi')) return 'verdigris'
+  if (name.includes('confirm')) return 'gold'
+  if (name.includes('pend') || name.includes('pagar') || name.includes('falta')) return 'rubric'
+  return 'ink'
+}
+
+/**
+ * Editorial date formatter for the `.date` cell (mono ink-3, UI-SPEC §6.3).
+ * es-CO `yyyy-mm-dd`, America/Bogota (Regla 2). Mirrors the table mock.
+ */
+export function formatEditorialOrderDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'America/Bogota',
+  })
+}
+
+/** Render an order's tags as MxTag pills for the editorial kanban card / table. */
+export function renderEditorialOrderTags(tags: Array<{ id: string; name: string }> | undefined) {
+  if (!tags || tags.length === 0) return null
+  return (
+    <>
+      {tags.slice(0, 3).map((tag) => (
+        <MxTag key={tag.id} variant={mapOrderTagVariant(tag)}>
+          {tag.name}
+        </MxTag>
+      ))}
+    </>
+  )
+}
 
 // Format currency in COP
 export function formatCurrency(value: number): string {

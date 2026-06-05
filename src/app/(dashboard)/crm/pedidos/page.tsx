@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { getOrders, getPipelines, getOrCreateDefaultPipeline } from '@/app/actions/orders'
 import { getActiveProducts } from '@/app/actions/products'
 import { getTagsForScope } from '@/app/actions/tags'
+import { getIsEditorialV3Enabled } from '@/lib/auth/editorial-v3'
 import { OrdersView } from './components/orders-view'
 
 export default async function OrdersPage({
@@ -56,6 +57,12 @@ export default async function OrdersPage({
     : undefined
   const resolvedPipelineId = validRequested?.id ?? defaultPipeline?.id
 
+  // Resolve UI Editorial v3 flag. Fails closed to false (Regla 6, D-04).
+  // The editorial-v3 reskin lives under the distinct `.theme-editorial-v3`
+  // scope wired on the dashboard <main> (Plan 00). Threaded into OrdersView so
+  // its additive editorial render branch (Plan 03) turns on per-workspace.
+  const v3 = workspaceId ? await getIsEditorialV3Enabled(workspaceId) : false
+
   return (
     <div className="flex flex-col h-full">
       {/* Suspense boundary required by Next 16 for any client component that
@@ -74,6 +81,7 @@ export default async function OrdersPage({
           currentUserId={user?.id}
           isAdminOrOwner={isAdminOrOwner}
           activeWorkspaceId={workspaceId ?? null}
+          v3={v3}
         />
       </Suspense>
     </div>

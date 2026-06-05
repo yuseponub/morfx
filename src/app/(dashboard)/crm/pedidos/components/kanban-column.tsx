@@ -32,6 +32,22 @@ interface KanbanColumnProps {
   hasMore?: boolean
   isLoadingMore?: boolean
   onLoadMore?: () => void
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
+  /** Dot color class (.agend/.web/.nuevo/.info/.conf/.ok) for the v3 stage head. */
+  v3DotClass?: string
+}
+
+/**
+ * Editorial dot color classes cycled by stage position (UI-SPEC §6.3). Stages
+ * are workspace-configurable so there is no fixed slug — cycle the mock's 6
+ * stage colors in declared order. The real `stage.color` still drives the
+ * legacy path; v3 uses these token-built classes.
+ */
+const V3_DOT_CLASSES = ['agend', 'web', 'nuevo', 'info', 'conf', 'ok'] as const
+
+export function v3DotClassForIndex(index: number): string {
+  return V3_DOT_CLASSES[index % V3_DOT_CLASSES.length]
 }
 
 /**
@@ -52,6 +68,8 @@ export function KanbanColumn({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  v3 = false,
+  v3DotClass = 'nuevo',
 }: KanbanColumnProps) {
   // Make column sortable (for reordering stages)
   const {
@@ -111,6 +129,62 @@ export function KanbanColumn({
   const wipLimit = stage.wip_limit
   const isAtLimit = wipLimit !== null && orderCount >= wipLimit
   const isOverLimit = wipLimit !== null && orderCount > wipLimit
+
+  // ==========================================================================
+  // Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03).
+  // Hairline-separated `.kcol` (flex-basis 246px, border-left, first-child no
+  // border) + `.kcol-head` (stage dot + uppercase title + mono count) + loose
+  // `.kcard` cards + serif-italic "Sin pedidos" `.kempty` for empty columns
+  // (UI-SPEC §6.3). The drop-target ref + sortable wiring + infinite-scroll
+  // sentinel are the SAME as the legacy path — only markup/className changes.
+  // Columns are NOT wrapped in bordered card boxes — that is the signature.
+  // ==========================================================================
+  if (v3) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn('kcol', isOver && 'ring-1 ring-primary/40', isDragging && 'opacity-50')}
+      >
+        {/* Column head — drag handle is the whole head via attributes/listeners */}
+        <div className="kcol-head" {...attributes} {...listeners} suppressHydrationWarning>
+          <span className={cn('dot', v3DotClass)} />
+          <span className="t" title={stage.name}>{stage.name}</span>
+          <span className="c">{totalCount !== undefined ? totalCount : orderCount}</span>
+        </div>
+
+        {/* Cards container */}
+        <div className="kcol-body">
+          {orders.length === 0 ? (
+            <div className="kempty">Sin pedidos</div>
+          ) : (
+            orders.map((order) => (
+              <KanbanCard
+                key={order.id}
+                order={order}
+                v3
+                onClick={() => onOrderClick(order)}
+                isSelected={selectedOrderIds?.has(order.id) ?? false}
+                onSelectChange={
+                  onOrderSelectChange ? (selected) => onOrderSelectChange(order.id, selected) : undefined
+                }
+                onRecompra={onRecompra}
+              />
+            ))
+          )}
+          {hasMore && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-2">
+              {isLoadingMore ? (
+                <div className="kempty" style={{ padding: '8px 0' }}>Cargando…</div>
+              ) : (
+                <div className="h-4" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

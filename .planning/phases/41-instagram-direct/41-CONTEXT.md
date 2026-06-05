@@ -115,7 +115,28 @@ Requirements: IG-01, IG-02, IG-03, IG-04, IG-05.
 - **Fuzzy contact matching / auto-merge of IGSID contacts with phone/email** — rejected for V1 (mirror FB D-05); manual merge only.
 </deferred>
 
+<addendum>
+## Addendum — Plan 41-08 (discovered at 41-07 cutover, 2026-06-05)
+
+**Discovered gap (verified, not assumed):** "Conectar Instagram" fails with our Spanish error `vincula una cuenta de Instagram Profesional a tu página de Facebook`. Root cause proven via `scripts/_debug-ig-link.ts` calling the Graph API with the REAL stored Varixcenter Page token:
+- The stored Page token can't even read `/me` → `(#100) requires 'pages_read_engagement'`. It was minted in an early Phase 40 smoke.
+- `connect-facebook.tsx:66` `FB_LOGIN_SCOPE` = `pages_show_list,pages_messaging,pages_manage_metadata,business_management,pages_read_engagement` — **NO `instagram_basic` / `instagram_manage_messages`** (deliberately deferred in Phase 40 D-02; comment at `:62`).
+- **The flawed premise in 41-RESEARCH (lines 217, 350-366):** "IG rides on the SAME Page token" assumed app-level advanced-access approval of `instagram_basic`/`instagram_manage_messages` meant the STORED token carried them. App-level approval ≠ the token being GRANTED those scopes at FB.login time. So `resolveInstagramAccount` (`GET /{pageId}?fields=instagram_business_account`, which needs `instagram_basic`+`pages_read_engagement`+`pages_show_list`) fails even if the IG account IS professional+linked.
+
+### Decisions (locked 2026-06-05)
+- **D-IG-10 — Dedicated IG login (Option B), NOT shared FB scope.** "Conectar Instagram" runs its OWN `FB.login` requesting the IG scopes (incremental auth) and refreshes the stored Page token. Rejected: adding `instagram_*` to the shared `FB_LOGIN_SCOPE` (would re-introduce the IG-selection screen for ALL FB connects — the exact thing Phase 40 deferred; blocks FB-only businesses without IG). Consistent with the FB/IG tabs already split in /integraciones (41-06).
+- **D-IG-11 — Regla 6 / additive.** 41-08 must NOT break the FB Messenger connect or the FB-only flow. The FB connect (`connect-facebook.tsx`, `connectFacebookPage`) stays byte-identical. Only the IG button + `connectInstagramAccount` change.
+- **D-IG-12 — Token refresh path.** The dedicated IG login yields a fresh USER token → reuse Phase 40 helpers (`exchangeForLongLivedUserToken` + page-token helper in messenger-connect.ts) to obtain a Page token that now carries the IG scopes → re-store (update `access_token_encrypted` on the connected facebook row, additive/superset — Messenger keeps working) → `resolveInstagramAccount` → upsert instagram account.
+- **Still UNKNOWN (resolves post-deploy):** whether Varixcenter's IG account is actually Professional+linked. The broken token blocked the check. Once 41-08 ships and the user reconnects, `resolveInstagramAccount` gives the definitive verdict.
+
+### Open research questions for 41-08
+- Meta incremental-permission mechanics on `FB.login` (does adding scopes union with prior grants? need `auth_type:'rerequest'` for previously-declined scopes?).
+- Whether refreshing the Page token via a new login replaces scopes cleanly and whether the long-lived exchange + `/me/accounts` page-token helper returns the IG-scoped Page token.
+- Graceful handling when the connected business has NO IG (the button must fail with the clear Spanish error, never block — mirror D-02 intent).
+- A2 linchpin: does the existing Page `subscribed_apps` deliver IG DMs, or is a per-IG-account subscribe needed? (deferred-but-document from 41-07.)
+</addendum>
+
 ---
 
 *Phase: 41-instagram-direct*
-*Context gathered: 2026-06-05*
+*Context gathered: 2026-06-05 (addendum: 41-08 dedicated IG login, 2026-06-05)*

@@ -399,17 +399,21 @@ export async function getInstagramUserName(accessToken: string, igsid: string): 
 | A3 | `GET /{IGSID}?fields=name,username` returns a usable name with the Page token under the approved scopes (no extra grant needed) | Code Examples, Pattern 3 | If it 100/33s like FB did, fall back to the IG conversations edge (documented). Self-heal covers the race regardless. |
 | A4 | No `messaging_product`/`platform` field is required on the Page-based IG send | Code Examples | If Meta rejects without `platform`, add it — but the Page→IG link normally routes the platform implicitly. Smoke confirms. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Both questions are MEDIUM-confidence linkages that are **live-only verifiable** (no amount of doc-reading settles them — only a real DM against the test account does). Resolution is designed INTO the plans as explicit blocking smoke-verify steps (A1/A2) in Plan 41-07 Task 2 Step B, each with STOP-and-report-on-mismatch handling and a documented fallback. They are surfaced at the gated cutover BEFORE any broad rollout, so a wrong assumption is caught on one test workspace, never silently in prod.
 
 1. **Does `entry.id` in the IG webhook exactly equal the stored `ig_account_id`?**
    - What we know: docs say `recipient.id` = "IGID" = the Instagram Professional account id; `instagram_business_account{id}` is that account's id.
    - What's unclear: edge cases where Meta returns a different namespaced id in webhooks vs the Graph node.
    - Recommendation: SMOKE-VERIFY first — send a real DM to the test account and assert `entry.id` matches the `ig_account_id` resolved at connect. This is the single linchpin (A1). Build it as an early plan/Wave-0 check.
+   - **RESOLVED:** deferred to the linchpin A1 smoke in Plan 41-07 (Step B6) — STOP-on-mismatch; fallback is to map `recipient.id`→`ig_account_id` explicitly if the namespaced ids diverge. Live-only verifiable.
 
 2. **Is an app-level `instagram` webhook field subscription (`messages`) already configured for this Meta app, or is it a one-time setup step?**
    - What we know: the FB app already subscribes `page`/`messages`; IG `messages` is a separate App-Dashboard field subscription.
    - What's unclear: whether it's already on (FB connect didn't need it).
    - Recommendation: include a one-time "subscribe `instagram`/`messages` in App Dashboard pointing at the www callback" operator step (mirrors the FB callback setup), then smoke-verify delivery.
+   - **RESOLVED:** deferred to the linchpin A2 smoke in Plan 41-07 (Step B7) — if the existing Page `subscribed_apps` does NOT deliver IG DMs, the documented fallback is the one-time App-Dashboard `instagram`/`messages` field subscription + (if needed) a per-account IG subscribe. Live-only verifiable.
 
 ## Environment Availability
 

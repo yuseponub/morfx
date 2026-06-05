@@ -1,9 +1,23 @@
 ---
 phase: 41-instagram-direct
 verified: 2026-06-05T11:00:00Z
-status: human_needed
+status: gaps_found
 score: 8/10 must-haves verified
 overrides_applied: 0
+gaps:
+  - id: GAP-41-01
+    severity: blocking
+    discovered: 2026-06-05 live test (post-deploy, Varixcenter operator)
+    requirement: IG-03
+    title: "connectInstagramAccount uses getPageToken's FIRST page (data[0]) instead of the page already bound to the workspace — multi-page operators hit a uq_meta_page UNIQUE(page_id) collision"
+    symptom: "Clicking 'Conectar Instagram' returns 'Esta página ya está conectada en otro espacio de trabajo. Una página solo puede pertenecer a una cuenta.' for an operator whose Facebook account manages 2+ pages (Varixcenter 528898033801678 + Pruebas Morfx 714615171734964)."
+    root_cause: "Plan 41-08 replaced the old resolveByWorkspace(workspaceId,'facebook') read (which used the page ALREADY bound to the workspace) with a fresh getPageToken(longLivedUserToken). getPageToken (src/lib/meta/messenger-connect.ts:181) does res.data?.find(p => p.access_token) — it returns the FIRST page Meta lists, NOT the workspace's page. The subsequent upsertMetaAccount({ channel:'facebook', pageId }) then retargets the workspace's facebook row (or inserts) to the wrong page_id, colliding with another workspace's facebook row on the uq_meta_page UNIQUE constraint (domain mapWriteError → the Spanish message). The code reviewer flagged this exact risk as IN-03 in 41-REVIEW.md; it was left as debt and reproduced live."
+    evidence: "DB shows only 2 facebook rows, no instagram rows — the first upsert (facebook refresh) failed atomically before any IG write, so no DB corruption. getPageToken picks data[0]; old flow never re-picked the page."
+    fix_direction: "Target the page already bound to the workspace: read the workspace's existing facebook page_id (resolveByWorkspace), then after the FB.login + exchangeForLongLivedUserToken, fetch the Page token FOR THAT SPECIFIC page_id (filter /me/accounts by the known pageId, or GET /{pageId}?fields=access_token), instead of getPageToken's first-page heuristic. Refresh + resolveInstagramAccount + IG upsert on that exact page. Preserve the clear Spanish 'Primero conecta tu página de Facebook' precheck when the workspace has no facebook row. Add a contract test: multi-page /me/accounts where data[0] != the workspace's page must NOT retarget the FB row and must use the workspace's page_id."
+    files_implicated:
+      - src/app/actions/meta-onboarding.ts (connectInstagramAccount — the only block to change)
+      - src/lib/meta/messenger-connect.ts (may add a getPageTokenForPage(pageId) helper; do NOT change getPageToken's existing callers — Regla 6)
+      - src/app/actions/__tests__/connect-instagram-oauth.test.ts (add the multi-page contract test)
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

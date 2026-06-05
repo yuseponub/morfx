@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Meta Direct Integration
 status: executing
-stopped_at: Phase 41 Plan 41-07 AUTONOMOUS VERIFY PASS — AT human-action cutover gate (push BLOCKED on 41-00 prod-migration confirm per Regla 5; then operator does 1-workspace flip + A1/A2 linchpins + live IG smoke + 24h block). NO code change, NOT pushed, NO workspace flipped. 41-00 still AT its Regla-5 apply-in-prod checkpoint. Plans 41-01..41-06 COMPLETE (committed on main, NOT pushed).
-last_updated: "2026-06-05T06:10:00.000Z"
+stopped_at: Completed 41-06-PLAN.md (Conectar Instagram UI — IG-04)
+last_updated: "2026-06-05T15:07:06.638Z"
 progress:
   total_phases: 13
   completed_phases: 7
-  total_plans: 85
-  completed_plans: 77
-  percent: 91
+  total_plans: 86
+  completed_plans: 81
+  percent: 94
 ---
 
 # Project State
@@ -98,7 +98,7 @@ Previous activity: 2026-06-03 — **Standalone whatsapp-crm-read-latency Plan 04
 
 Phase: 41 (instagram-direct) — EXECUTING
 Plan: 7 of 8
-Status: Executing Phase 41
+Status: Ready to execute
 
 Phase 41 activity: 2026-06-05 — **Plan 06 (Conectar Instagram UI — IG-04) COMPLETE** (2 tareas auto, 2 commits atomicos en `main`, NO pusheado: `12ff00f8` feat ConnectInstagram component, `cfc8237b` feat Instagram tab en integraciones). **Task 1:** `src/components/settings/connect-instagram.tsx` (NEW) — `"use client"` clon simplificado de `ConnectFacebook` para el path no-popup (D-IG-04): boton full-width (icono lucide `Instagram` + `Loader2` spinner) que llama `connectInstagramAccount()` en `useTransition`; success → toast.success "Instagram conectado: @{igUsername}" (o "Instagram conectado"); error → toast.error(result.error ?? 'No se pudo conectar Instagram'). El browser NUNCA ve token — la action resuelve IG off el Page token encriptado server-side y retorna solo `{ success, igUsername, error }`. CERO `FB.login`/`config_id` (grep == 0). **Task 2:** `src/app/(dashboard)/configuracion/integraciones/page.tsx` — pestana "Instagram Direct" aditiva espejando la de Facebook (import ConnectInstagram + lucide Instagram + TabsTrigger + TabsContent Card con descripcion ES + `<ConnectInstagram />`); pestanas WhatsApp/Facebook/otras byte-identicas (git diff confinado a las 2 lineas de import + el nuevo trigger/content). **Verify-only (D-IG-07/IG-04):** indicador inbox `channel === 'instagram'` ya existe en `conversation-item.tsx:150` (title="Instagram") + `chat-header.tsx:322` — confirmado via grep, sin tocar. **Verificacion:** Task 1 greps (use client=1, connectInstagramAccount=4, Conectar Instagram=3, FB.login|config_id=0); Task 2 greps (ConnectInstagram=2, value="instagram"=2, indicador inbox=1+1); tsc 0 errores en los 2 archivos; sin deleciones. 1 reword cosmetico de comentario (FB.login → Facebook Login) para mantener el grep `== 0` estricto. 0 deviations. IG-04 marcado complete. gsd-sdk CLI no disponible — STATE/ROADMAP actualizados manualmente. NO pusheado (modo secuencial, commits locales). Next: `/gsd-execute-phase 41` Plan 07 (live smoke A + cutover manual SQL `instagram_provider='meta_direct'`). SUMMARY: `.planning/phases/41-instagram-direct/41-06-SUMMARY.md`.
 

@@ -23,7 +23,7 @@ From `HANDOFF.md §2`:
 
 **The canonical mocks are the visual source of truth and override any interpretation.** The 16 TSX components in `handoff/src/**` are VISUAL reference only — NOT drop-in (D-08). Port markup + classes onto the REAL components, preserving existing data/Supabase/server-actions/realtime wiring.
 
-**Token source of truth for `globals.css` (HANDOFF §1):** the inline `<style>.theme-editorial{…}` block in `ui_kits/crm/crm-editorial.html` (most complete: tokens + `.mx-*` utilities + `.mx-tag--*` + layout components + `.dark`). The standalone `colors_and_type.css` is a near-identical reference; where the two differ (e.g. `--paper-0`, `--fs-display`), **the mock's inline block wins** because that is what the mocks actually render and what HANDOFF §1 designates as the globals.css source.
+**Token source of truth for `globals.css` (HANDOFF §1):** the inline `<style>.theme-editorial{…}` block in `ui_kits/crm/crm-editorial.html` (most complete: tokens + `.mx-*` utilities + `.mx-tag--*` + layout components + `.dark`). The standalone `colors_and_type.css` is a near-identical reference; where the two differ, **the mock's inline block wins** because that is what the mocks actually render and what HANDOFF §1 designates as the globals.css source. The full token-by-token reconciliation of the two sources is in **§4 (Typography)** — every `--fs-*` and `.mx-*` weight value below was extracted from the canonical mock inline blocks (`crm-editorial.html`, `pedidos-editorial.html`, `conversaciones/index.html`) and annotated where it overrides `colors_and_type.css`.
 
 ---
 
@@ -45,25 +45,25 @@ The prior `ui-redesign-dashboard` round *reinterpreted* the handoff instead of p
 ### Deliberate, locked exceptions to the generic linter limits
 
 **1. 9-step type scale (exceeds the generic 4-size cap) — LOCKED.**
-Sourced verbatim from `colors_and_type.css` / the mock inline block (`--fs-display:44px` … `--fs-micro:10px`). Each step serves a distinct editorial role in the "Bible / dictionary" hierarchy and is mapped to a specific `.mx-*` utility in §4:
+Sourced verbatim from the **canonical mock inline blocks** (`--fs-display:44px` … `--fs-micro:10px`), which win over `colors_and_type.css` where the two differ (see §4 reconciliation). Each step serves a distinct editorial role in the "Bible / dictionary" hierarchy and is mapped to a specific `.mx-*` utility in §4:
 
-| Token | Value | Distinct editorial role |
-|-------|-------|-------------------------|
-| `--fs-display` | 44px | `.mx-display` — page-level editorial display headline |
-| `--fs-h1` | 32px | `.mx-h1` — primary heading |
-| `--fs-h2` | 26px | `.mx-h2` — section heading (also chrome topbar `h1`) |
-| `--fs-h3` | 24px | `.mx-h3` — sub-section heading |
-| `--fs-h4` | 20px | `.mx-h4` — minor heading |
-| `--fs-body` | 16px | `.mx-body` / `.mx-body-long` — running serif prose |
-| `--fs-body-sm` | 14px | `.mx-ui` — dense UI chrome, table/button text |
-| `--fs-caption` | 12px | `.mx-caption` — italic captions, mono phones/dates |
-| `--fs-micro` | 10px | `.mx-smallcaps` / `.mx-rubric` / `mx-tag` — small-caps labels & eyebrows |
+| Token | Value (mock-winning) | colors_and_type.css | Distinct editorial role |
+|-------|----------------------|---------------------|-------------------------|
+| `--fs-display` | 44px | 64px (overridden) | `.mx-display` — page-level editorial display headline |
+| `--fs-h1` | 32px | 44px (overridden) | `.mx-h1` — primary heading |
+| `--fs-h2` | 26px | 32px (overridden) | `.mx-h2` — section heading (also chrome topbar `h1`) |
+| `--fs-h3` | 24px | 24px (agree) | `.mx-h3` — sub-section heading |
+| `--fs-h4` | 20px | 19px (overridden) | `.mx-h4` — minor heading |
+| `--fs-body` | 16px | 16px (agree) | `.mx-body` / `.mx-body-long` — running serif prose |
+| `--fs-body-sm` | 14px | 14px (agree) | `.mx-ui` — dense UI chrome, table/button text |
+| `--fs-caption` | 12px | 12px (agree) | `.mx-caption` — italic captions, mono phones/dates |
+| `--fs-micro` | 10px | 11px (overridden) | `.mx-smallcaps` / `.mx-rubric` / `mx-tag` — small-caps labels & eyebrows |
 
 Collapsing these violates D-10 (≥95% fidelity) — the dictionary aesthetic depends on the full hierarchy being visible simultaneously on one screen.
 
 **2. 5 font weights (exceeds the generic 2-weight cap) — LOCKED.**
-The editorial type system uses **800 / 700 / 600 / 500 / 400**, verbatim from `colors_and_type.css`:
-- **800** — `.mx-display` only (the heaviest editorial display weight).
+The editorial type system uses **800 / 700 / 600 / 500 / 400**, sourced verbatim from the canonical mock inline blocks (`crm-editorial.html` + `pedidos-editorial.html` both declare `.mx-display{font-weight:800}` — this overrides `colors_and_type.css`, which has `.mx-display{font-weight:700}`):
+- **800** — `.mx-display` only (the heaviest editorial display weight). *(mock 800 overrides colors_and_type.css 700)*
 - **700** — `.mx-h1`, chrome topbar `h1`, unread conversation names, kanban column titles.
 - **600** — `.mx-h2/h3/h4`, `.mx-smallcaps`, `.mx-rubric`, table column labels, buttons, tags, contact-name cells.
 - **500** — `.mx-ui`, `.mx-mono`, conversation preview (unread state).
@@ -183,32 +183,42 @@ Verbatim from mock `.theme-editorial` block. 4-point baseline grid. **No px outs
 
 ## 4. Typography
 
-Type scale verbatim from mock (note: mock `--fs-display:44px` overrides `colors_and_type.css` 64px — mock wins per §0).
-
-> **Linter note:** This is a **9-step type scale with 5 weights (800/700/600/500/400)**, deliberately exceeding the generic 4-size / 2-weight caps. Both are locked, sourced verbatim from `colors_and_type.css`; each step and weight serves a distinct editorial role, and collapsing them violates the D-10 ≥95% fidelity gate. See **§0.5 Locked Verbatim-Port Exceptions** for the per-token role mapping and the user pre-approval (D-01 + D-10).
+**Source-of-truth reconciliation (per §0 hierarchy: canonical mock inline block primary, `colors_and_type.css` fallback).** Every value below was extracted from the mock inline `<style>` blocks in `crm-editorial.html`, `pedidos-editorial.html`, and `conversaciones/index.html`. The three mock blocks agree with each other on all `--fs-*` and `.mx-*` weight values. Where a mock value differs from `colors_and_type.css`, the mock wins (because the mocks are what the ported components render against — HANDOFF §1) and the divergence is annotated inline.
 
 ```css
---fs-display:44px; --fs-h1:32px; --fs-h2:26px; --fs-h3:24px; --fs-h4:20px;
---fs-body:16px; --fs-body-sm:14px; --fs-caption:12px; --fs-micro:10px;
+/* --fs-* — values that WIN are the mock-inline values: */
+--fs-display:44px;  /* mock 44px overrides colors_and_type.css 64px */
+--fs-h1:32px;       /* mock 32px overrides colors_and_type.css 44px */
+--fs-h2:26px;       /* mock 26px overrides colors_and_type.css 32px */
+--fs-h3:24px;       /* agree (mock = CSS = 24px) */
+--fs-h4:20px;       /* mock 20px overrides colors_and_type.css 19px */
+--fs-body:16px;     /* agree */
+--fs-body-sm:14px;  /* agree */
+--fs-caption:12px;  /* agree */
+--fs-micro:10px;    /* mock 10px overrides colors_and_type.css 11px */
 --lh-tight:1.08; --lh-display:1.05; --lh-heading:1.20; --lh-body:1.55; --lh-long:1.70;
 ```
 
-Canonical roles (the `.mx-*` utility classes — port verbatim under `.theme-editorial-v3`):
+> **Linter note:** This is a **9-step type scale with 5 weights (800/700/600/500/400)**, deliberately exceeding the generic 4-size / 2-weight caps. Both are locked, sourced verbatim from the canonical mock inline blocks (which override `colors_and_type.css` where they differ — see reconciliation above); each step and weight serves a distinct editorial role, and collapsing them violates the D-10 ≥95% fidelity gate. See **§0.5 Locked Verbatim-Port Exceptions** for the per-token role mapping and the user pre-approval (D-01 + D-10).
+
+Canonical roles (the `.mx-*` utility classes — port verbatim under `.theme-editorial-v3`). Size/weight values below are the mock-winning values; inline notes flag every divergence from `colors_and_type.css`:
 
 | Role (class) | Family | Size | Weight | Line-height | Notes |
 |------|--------|------|--------|-------------|-------|
-| `.mx-display` | display (EB Garamond) | 44px | 800 | 1.05 | letter-spacing −0.02em |
-| `.mx-h1` | display | 32px | 700 | 1.20 | −0.015em |
-| `.mx-h2` | display | 26px | 600 | 1.20 | −0.015em |
+| `.mx-display` | display (EB Garamond) | 44px *(mock overrides CSS 64px)* | 800 *(mock 800 overrides colors_and_type.css 700)* | 1.05 | letter-spacing −0.02em |
+| `.mx-h1` | display | 32px *(mock overrides CSS 44px)* | 700 | 1.20 | −0.015em |
+| `.mx-h2` | display *(mock uses font-display; CSS uses font-serif — mock wins)* | 26px *(mock overrides CSS 32px)* | 600 | 1.20 | −0.015em |
 | `.mx-h3` | display | 24px | 600 | 1.20 | −0.01em |
-| `.mx-h4` | display | 20px | 600 | 1.20 | −0.01em |
+| `.mx-h4` | display | 20px *(mock overrides CSS 19px)* | 600 | 1.20 | −0.01em |
 | `.mx-body` | serif | 16px | 400 | 1.55 | color ink-2 |
 | `.mx-body-long` | serif | 16px | 400 | 1.70 | running prose |
 | `.mx-caption` | serif italic | 12px | 400 | 1.4 | ink-3 |
-| `.mx-smallcaps` | EB Garamond | 10px (`--fs-micro`) | 600 | 1 | uppercase, tracking 0.12em, ink-3 — does the "label" work |
-| `.mx-rubric` | sans (Inter) | 10px | 600 | — | uppercase, tracking 0.08em, **rubric-2** (red eyebrow) |
+| `.mx-smallcaps` | EB Garamond | 10px (`--fs-micro`, mock overrides CSS 11px) | 600 | 1 | uppercase, tracking 0.12em, ink-3 — does the "label" work |
+| `.mx-rubric` | sans (Inter) | 10px *(mock overrides CSS 11px)* | 600 | — | uppercase, tracking 0.08em, **rubric-2** (red eyebrow) |
 | `.mx-ui` | sans | 14px | 500 | — | dense UI chrome, tracking 0.01em |
 | `.mx-mono` | mono (JetBrains) | 13px | 500 | — | phones, IDs, totals |
+
+> **`.mx-display` weight resolution (revision spot-check):** the canonical mock inline blocks `crm-editorial.html` and `pedidos-editorial.html` both declare `.mx-display{font-weight:800}`; `colors_and_type.css` declares `font-weight:700`. Per §0, the mock wins → **800**. The weight list therefore stays at 5 (800/700/600/500/400). Executors must port `font-weight:800` for `.mx-display`, NOT 700.
 
 **Chrome (non-`.mx-`) type — note the deliberate exception (verbatim from mocks):** topbar `h1` is **Inter 26px / 700** (sans, not serif); the `<em>` subtitle is Inter 15px / 400 / ink-3. The eyebrow `.eye` is Inter 11px / 600 / uppercase / 0.14em / rubric-2. This is intentional — operational chrome stays sans; serif is for editorial content. Do not "fix" the topbar to serif.
 
@@ -393,6 +403,7 @@ HANDOFF §5 checklist (adapted to this round's scope — sidebar items are defer
 - [ ] Kanban: hairlines between stages, no boxes; loose cards; "Sin pedidos" in empty columns.
 - [ ] Chat bubbles in Helvetica Neue; order card renders as a card.
 - [ ] Thin scrollbars, no arrows; no improper horizontal scroll.
+- [ ] `.mx-display` renders at **font-weight 800** (mock-winning value, NOT the CSS 700) — type-token reconciliation per §4.
 - [ ] Dark mode charcoal-warm with persistent toggle.
 
 **Regression guard (Regla 6 / D-05):** before flip, confirm Somnio's `ui_inbox_v2`-live Conversaciones renders byte-identical to today (legacy `.theme-editorial` block untouched; new tokens live only under `.theme-editorial-v3`).
@@ -404,7 +415,7 @@ HANDOFF §5 checklist (adapted to this round's scope — sidebar items are defer
 - [ ] Dimension 1 Copywriting: PASS
 - [ ] Dimension 2 Visuals: PASS
 - [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS *(assess against §0.5 locked-port exceptions — 9 sizes / 5 weights are pre-approved via D-01 + D-10, NOT a violation)*
+- [ ] Dimension 4 Typography: PASS *(assess against §0.5 locked-port exceptions — 9 sizes / 5 weights are pre-approved via D-01 + D-10, NOT a violation; type-token values reconciled to canonical mock source-of-truth in §4, mock overrides annotated per token)*
 - [ ] Dimension 5 Spacing: PASS *(assess against §0.5 locked-port exceptions — 12px/96px are on-grid multiples of 4; the listed off-grid values are component dimensions/font sizes, not spacing tokens)*
 - [ ] Dimension 6 Registry Safety: PASS
 

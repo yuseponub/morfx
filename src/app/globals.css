@@ -1260,7 +1260,9 @@ html:has(.theme-editorial) body {
 .theme-editorial-v3 .pipes .pp.on{color:var(--ink-1);font-weight:600;border-color:var(--ink-1)}
 
 /* --- Conversaciones: inbox 3 columnas --- */
-.theme-editorial-v3 .inbox{display:grid;grid-template-columns:340px 1fr 300px;flex:1;min-height:0;overflow:hidden}
+.theme-editorial-v3 .inbox{display:grid;grid-template-columns:340px 1fr 300px;grid-template-rows:minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
+/* GAP-02: ficha oculta -> colapsa a 2 columnas (340px / 1fr) */
+.theme-editorial-v3 .inbox.no-ficha{grid-template-columns:340px 1fr}
 .theme-editorial-v3 .conv-col{border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;background:transparent}
 .theme-editorial-v3 .conv-head{height:61px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--border)}
 .theme-editorial-v3 .conv-search{position:relative;width:100%;margin:0}
@@ -1315,12 +1317,12 @@ html:has(.theme-editorial) body {
 .theme-editorial-v3 .msg .tmpl{display:block;font-family:var(--font-mono);font-size:9px;opacity:.5;margin-top:4px}
 
 /* --- Conversaciones: composer --- */
-.theme-editorial-v3 .composer{border-top:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;align-items:flex-end;background:transparent}
+.theme-editorial-v3 .composer{flex:none;border-top:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;align-items:flex-end;background:transparent}
 .theme-editorial-v3 .composer .field{flex:1;border:1px solid var(--border);background:var(--paper-0);border-radius:var(--radius-3);padding:9px 12px;font-family:var(--font-serif);font-size:14px;color:var(--ink-3);min-height:40px;display:flex;align-items:center}
 .theme-editorial-v3 .composer .send{flex:none}
 
 /* --- Conversaciones: ficha (contact card) --- */
-.theme-editorial-v3 .ficha{border-left:1px solid var(--border);overflow:auto;padding:18px 16px;display:flex;flex-direction:column;gap:16px;background:transparent}
+.theme-editorial-v3 .ficha{border-left:1px solid var(--border);min-height:0;overflow:auto;padding:18px 16px;display:flex;flex-direction:column;gap:16px;background:transparent}
 .theme-editorial-v3 .ficha .av-lg{width:64px;height:64px;border-radius:50%;background:var(--paper-2);border:1px solid var(--ink-3);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:26px;color:var(--ink-2);margin:0 auto}
 .theme-editorial-v3 .ficha .nm{text-align:center;font-family:var(--font-sans);font-weight:700;font-size:16px;color:var(--ink-1)}
 .theme-editorial-v3 .ficha .ph{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-top:2px}

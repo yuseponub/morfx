@@ -662,7 +662,7 @@ Plans:
 
 **Plans:** 8 plans / 5 waves (PLANNED 2026-06-05 — checker pending)
 - [~] 41-00-PLAN.md — instagram_provider migration (MIG-02) — Task 1 DONE (commit `cc66e676`, migration authored + ig_username); **AT Regla 5 BLOCKING checkpoint** (operator applies in prod + confirms "applied")
-- [ ] 41-01-PLAN.md — RED test scaffolds (5 files: IG-01/02/03 + MIG-02 + Regla 6 parity)
+- [x] 41-01-PLAN.md — RED test scaffolds (5 files: IG-01/02/03 + MIG-02 + Regla 6 parity) — COMPLETE 2026-06-05 (commits `64685d9d`, `82b072fc`, `1c113243`; 31 tests = 26 RED / 5 GREEN parity guards)
 - [ ] 41-02-PLAN.md — IG send edge (instagram-api.ts + metaInstagramSender) — IG-02
 - [ ] 41-03-PLAN.md — IG connect chain (resolveInstagramAccount + upsertMetaAccount + connectInstagramAccount) — IG-03
 - [ ] 41-04-PLAN.md — domain chokepoint (readInstagramProvider + instagram arm) — MIG-02/IG-02

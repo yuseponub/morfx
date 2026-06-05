@@ -18,6 +18,18 @@ gaps:
       - src/app/actions/meta-onboarding.ts (connectInstagramAccount — the only block to change)
       - src/lib/meta/messenger-connect.ts (may add a getPageTokenForPage(pageId) helper; do NOT change getPageToken's existing callers — Regla 6)
       - src/app/actions/__tests__/connect-instagram-oauth.test.ts (add the multi-page contract test)
+    status: fixed (plan 41-09, shipped + live-verified 2026-06-05 — FB row 528898033801678 refreshed at 19:39 UTC)
+  - id: GAP-41-02
+    severity: blocking
+    discovered: 2026-06-05 live test (post 41-09 deploy, Varixcenter)
+    requirement: IG-03
+    title: "Global uq_meta_page UNIQUE(page_id) blocks the Instagram row from sharing its Facebook Page's page_id"
+    symptom: "After 41-09 fixed the page-targeting, 'Conectar Instagram' STILL returns 'Esta página ya está conectada en otro espacio de trabajo'. The facebook upsert now succeeds (FB row updated 2026-06-05 19:39 UTC) and resolveInstagramAccount succeeds (token carries IG scopes), but the channel='instagram' INSERT with page_id = the FB page collides with the existing facebook row on the GLOBAL uq_meta_page UNIQUE(page_id)."
+    root_cause: "Phase 37 migration 20260401100000 created uq_meta_page as a table-wide UNIQUE(page_id). Phase 41 stores Instagram as a separate channel='instagram' row reusing the FB page's page_id (the IG sender needs creds.pageId — src/lib/channels/meta-instagram-sender.ts), which the global constraint forbids. No Phase 41 migration relaxed it. resolveByIgAccountId routes IG inbound by ig_account_id (not page_id), and uq_meta_ig keeps IG identity globally unique, so scoping uq_meta_page to channel='facebook' is safe."
+    fix: "Migration supabase/migrations/20260605200000_relax_uq_meta_page_facebook_only.sql — DROP CONSTRAINT uq_meta_page; CREATE UNIQUE INDEX uq_meta_page ON workspace_meta_accounts(page_id) WHERE channel='facebook'. Index keeps the name so the domain mapWriteError Spanish mapping still fires on a genuine cross-workspace facebook collision. Applied to prod 2026-06-05 (Regla 5 — code already deployed, migration makes the live code succeed with no redeploy)."
+    files_implicated:
+      - supabase/migrations/20260605200000_relax_uq_meta_page_facebook_only.sql (the fix — DDL only, no app-code change needed)
+    status: migration applied to prod 2026-06-05; awaiting live connect re-test
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

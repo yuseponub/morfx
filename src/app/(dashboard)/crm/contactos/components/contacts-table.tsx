@@ -2,11 +2,17 @@
 
 import * as React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { SearchIcon, Upload, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { DataTable, useSelectedRowIds } from '@/components/ui/data-table'
-import { createColumns } from './columns'
+import {
+  createColumns,
+  renderEditorialTags,
+  formatEditorialDate,
+  resolveCityLabel,
+} from './columns'
 import { EmptyState } from './empty-state'
 import { BulkActions } from './bulk-actions'
 import { ContactDialog } from './contact-dialog'
@@ -14,6 +20,7 @@ import { TagFilter } from './tag-filter'
 import { TagManager } from './tag-manager'
 import { CsvImportDialog } from './csv-import-dialog'
 import { CsvExportButton } from './csv-export-button'
+import { formatPhoneDisplay } from '@/lib/utils/phone'
 import type { ContactWithTags, Tag, CustomFieldDefinition } from '@/lib/types/database'
 import { deleteContact, deleteContacts, bulkAddTag, bulkRemoveTag } from '@/app/actions/contacts'
 import { toast } from 'sonner'
@@ -28,6 +35,14 @@ interface ContactsTableProps {
   pageSize: number
   currentSearch: string
   currentTagIds: string[]
+  /**
+   * Editorial v3 flag (standalone ui-redesign-editorial-core, Plan 02).
+   * When true, renders the editorial `table.dict` markup that resolves
+   * against the `.theme-editorial-v3` scope wired on the dashboard <main>
+   * (Plan 00). Default false → legacy shadcn DataTable path is byte-identical
+   * (Regla 6, fail-closed).
+   */
+  v3?: boolean
 }
 
 export function ContactsTable({
@@ -39,6 +54,7 @@ export function ContactsTable({
   pageSize,
   currentSearch,
   currentTagIds,
+  v3 = false,
 }: ContactsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -177,7 +193,7 @@ export function ContactsTable({
   if (total === 0 && !hasFilters) {
     return (
       <>
-        <EmptyState onCreateClick={() => setDialogOpen(true)} />
+        <EmptyState v3={v3} onCreateClick={() => setDialogOpen(true)} />
         <ContactDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
@@ -189,11 +205,333 @@ export function ContactsTable({
           onImportComplete={() => router.refresh()}
         />
         <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
+          <button
+            type="button"
+            className={v3 ? 'btn' : undefined}
+            onClick={() => setImportDialogOpen(true)}
+          >
+            {v3 ? null : <Upload className="h-4 w-4 mr-2 inline-block" />}
             Importar desde CSV
-          </Button>
+          </button>
         </div>
+      </>
+    )
+  }
+
+  // =========================================================================
+  // Editorial v3 branch (standalone ui-redesign-editorial-core, Plan 02).
+  // Verbatim port of `ui_kits/crm/crm-editorial.html`: the topbar (eyebrow +
+  // h1 + Importar/Exportar/Nuevo), tabs (.tabs), toolbar (.search + .chip),
+  // the dictionary table (table.dict + cell variants .entry/.ph/.city/.date +
+  // MxTag tags), and the pager (.pager + mono range + Anterior/Siguiente).
+  //
+  // ALL data wiring is preserved: the same `contacts` data, the same
+  // debounced `search` state, the same `handleTagSelectionChange` filter
+  // handler, the same `goToPage` pagination, the same row-selection +
+  // bulk-action handlers, and the same CSV import/export + create-contact
+  // triggers. Markup + classes only (D-08). The legacy shadcn DataTable
+  // path below is byte-untouched (Regla 6).
+  // =========================================================================
+  if (v3) {
+    const allSelectedOnPage =
+      contacts.length > 0 &&
+      contacts.every((c) => rowSelection[c.id])
+    const someSelectedOnPage = contacts.some((c) => rowSelection[c.id])
+
+    const toggleAll = (checked: boolean) => {
+      const next: RowSelectionState = {}
+      if (checked) {
+        for (const c of contacts) next[c.id] = true
+      }
+      setRowSelection(next)
+    }
+    const toggleOne = (id: string, checked: boolean) => {
+      setRowSelection((prev) => {
+        const next = { ...prev }
+        if (checked) next[id] = true
+        else delete next[id]
+        return next
+      })
+    }
+
+    // Filter chips wired to the existing tag-filter URL state. "Todos" clears
+    // the tag filter; each named chip toggles its matching workspace tag (by
+    // normalized name) through the same handler the legacy TagFilter uses.
+    const findTagByNames = (names: string[]): Tag | undefined =>
+      tags.find((t) => names.includes((t.name || '').toLowerCase().trim()))
+    const clienteTag = findTagByNames(['cliente', 'clientes'])
+    const leadTag = findTagByNames(['lead', 'leads', 'prospecto', 'prospectos'])
+    const mayoristaTag = findTagByNames([
+      'mayorista',
+      'mayoristas',
+      'distribuidor',
+      'distribuidores',
+    ])
+    const isChipOn = (tag: Tag | undefined) =>
+      !!tag && currentTagIds.length === 1 && currentTagIds[0] === tag.id
+    const setChip = (tag: Tag | undefined) =>
+      handleTagSelectionChange(tag ? [tag.id] : [])
+
+    return (
+      <>
+        <header className="topbar">
+          <div>
+            <div className="eye">CRM · Directorio</div>
+            <h1>
+              Contactos <em>{total.toLocaleString('es-CO')} registros</em>
+            </h1>
+          </div>
+          <div className="actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setImportDialogOpen(true)}
+            >
+              Importar
+            </button>
+            <CsvExportButton
+              v3
+              allContacts={contacts}
+              filteredContacts={contacts}
+              customFields={customFields}
+              hasFilters={hasFilters}
+            />
+            <button
+              type="button"
+              className="btn pri"
+              onClick={() => setDialogOpen(true)}
+            >
+              Nuevo contacto
+            </button>
+          </div>
+        </header>
+
+        <nav className="tabs">
+          <a
+            className={currentTagIds.length === 0 ? 'on' : undefined}
+            role="button"
+            tabIndex={0}
+            onClick={() => setChip(undefined)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') setChip(undefined)
+            }}
+          >
+            Todos
+          </a>
+          <a
+            className={isChipOn(clienteTag) ? 'on' : undefined}
+            role="button"
+            tabIndex={0}
+            onClick={() => setChip(clienteTag)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') setChip(clienteTag)
+            }}
+          >
+            Clientes
+          </a>
+          <a
+            className={isChipOn(leadTag) ? 'on' : undefined}
+            role="button"
+            tabIndex={0}
+            onClick={() => setChip(leadTag)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') setChip(leadTag)
+            }}
+          >
+            Leads
+          </a>
+          <a
+            className={isChipOn(mayoristaTag) ? 'on' : undefined}
+            role="button"
+            tabIndex={0}
+            onClick={() => setChip(mayoristaTag)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') setChip(mayoristaTag)
+            }}
+          >
+            Mayoristas
+          </a>
+        </nav>
+
+        <div className="page">
+          <div className="toolbar">
+            <div className="search">
+              <SearchIcon
+                width={14}
+                height={14}
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ink-3)',
+                }}
+              />
+              <input
+                type="search"
+                placeholder="Buscar contacto, teléfono o ciudad…"
+                aria-label="Buscar contactos"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className={currentTagIds.length === 0 ? 'chip on' : 'chip'}
+              onClick={() => setChip(undefined)}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              className={isChipOn(clienteTag) ? 'chip on' : 'chip'}
+              onClick={() => setChip(clienteTag)}
+            >
+              Clientes
+            </button>
+            <button
+              type="button"
+              className={isChipOn(leadTag) ? 'chip on' : 'chip'}
+              onClick={() => setChip(leadTag)}
+            >
+              Leads
+            </button>
+            <button
+              type="button"
+              className={isChipOn(mayoristaTag) ? 'chip on' : 'chip'}
+              onClick={() => setChip(mayoristaTag)}
+            >
+              Mayoristas
+            </button>
+          </div>
+
+          {/* Bulk actions toolbar — same handlers as legacy */}
+          <BulkActions
+            selectedCount={selectedIds.length}
+            tags={tags}
+            onAddTag={handleBulkAddTag}
+            onRemoveTag={handleBulkRemoveTag}
+            onDelete={handleBulkDelete}
+            onClearSelection={() => setRowSelection({})}
+          />
+
+          <table className="dict">
+            <thead>
+              <tr>
+                <th style={{ width: 30 }}>
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todos"
+                    checked={allSelectedOnPage}
+                    ref={(el) => {
+                      if (el)
+                        el.indeterminate =
+                          someSelectedOnPage && !allSelectedOnPage
+                    }}
+                    onChange={(e) => toggleAll(e.target.checked)}
+                  />
+                </th>
+                <th>Contacto</th>
+                <th>Teléfono</th>
+                <th>Ciudad</th>
+                <th>Tags</th>
+                <th>Última actividad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    style={{
+                      textAlign: 'center',
+                      padding: '32px 12px',
+                      color: 'var(--ink-3)',
+                      fontStyle: 'italic',
+                      fontFamily: 'var(--font-serif)',
+                    }}
+                  >
+                    Sin contactos.
+                  </td>
+                </tr>
+              ) : (
+                contacts.map((contact) => (
+                  <tr key={contact.id}>
+                    <td style={{ width: 30 }}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar ${contact.name}`}
+                        checked={!!rowSelection[contact.id]}
+                        onChange={(e) => toggleOne(contact.id, e.target.checked)}
+                      />
+                    </td>
+                    <td className="entry">
+                      <Link
+                        href={`/crm/contactos/${contact.id}`}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
+                      >
+                        {contact.name}
+                      </Link>
+                    </td>
+                    <td className="ph">{formatPhoneDisplay(contact.phone)}</td>
+                    <td className="city">{resolveCityLabel(contact.city)}</td>
+                    <td>{renderEditorialTags(contact.tags)}</td>
+                    <td className="date">
+                      {formatEditorialDate(contact.updated_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+          {total > 0 && (
+            <div className="pager">
+              <span className="pg">
+                {startItem.toLocaleString('es-CO')}–
+                {endItem.toLocaleString('es-CO')} de{' '}
+                {total.toLocaleString('es-CO')}
+              </span>
+              <div className="actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page <= 1}
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page >= totalPages}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Dialogs — shared with the legacy path, untouched wiring */}
+        <ContactDialog
+          open={dialogOpen}
+          onOpenChange={handleDialogClose}
+          contact={editingContact}
+          onSuccess={handleCreateSuccess}
+        />
+        <TagManager
+          open={tagManagerOpen}
+          onOpenChange={setTagManagerOpen}
+          tags={tags}
+        />
+        <CsvImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          onImportComplete={() => router.refresh()}
+        />
       </>
     )
   }

@@ -3,6 +3,7 @@ import { getTags } from '@/app/actions/tags'
 import { getCustomFields } from '@/app/actions/custom-fields'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { getIsDashboardV2Enabled } from '@/lib/auth/dashboard-v2'
+import { getIsEditorialV3Enabled } from '@/lib/auth/editorial-v3'
 import { ContactsTable } from './components/contacts-table'
 import { CreateContactButton } from './components/create-contact-button'
 import { ContactsViewV2, type ContactCounts } from './components/contacts-view-v2'
@@ -79,6 +80,37 @@ export default async function ContactsPage({
   const v2 = activeWorkspaceId
     ? await getIsDashboardV2Enabled(activeWorkspaceId)
     : false
+
+  // Resolve UI Editorial v3 flag. Fails closed to false (Regla 6, D-04).
+  // Independent from v2 — the editorial-v3 reskin lives under the distinct
+  // `.theme-editorial-v3` scope (wired on the dashboard <main>, Plan 00).
+  const v3 = activeWorkspaceId
+    ? await getIsEditorialV3Enabled(activeWorkspaceId)
+    : false
+
+  // =========================================================================
+  // Editorial v3 branch (standalone ui-redesign-editorial-core, Plan 02).
+  // When the v3 flag is on, render the ContactsTable in editorial mode — the
+  // verbatim `table.dict` port that resolves under `.theme-editorial-v3`. All
+  // data wiring is preserved (Supabase query, pagination, sorting via URL,
+  // tag filters, bulk actions, CSV import/export, create-contact). Takes
+  // precedence over the legacy dashboard-v2 path. Default OFF (Regla 6).
+  // =========================================================================
+  if (v3) {
+    return (
+      <ContactsTable
+        v3
+        contacts={contactsResult.contacts}
+        tags={tags}
+        customFields={customFields}
+        total={contactsResult.total}
+        page={contactsResult.page}
+        pageSize={contactsResult.pageSize}
+        currentSearch={search}
+        currentTagIds={tagIds}
+      />
+    )
+  }
 
   // =========================================================================
   // Retrofit v2 branch — raw HTML editorial view (D-RETRO-01).

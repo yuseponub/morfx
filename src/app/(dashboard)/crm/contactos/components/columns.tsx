@@ -12,10 +12,108 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { ContactWithTags } from '@/lib/types/database'
+import type { ContactWithTags, Tag } from '@/lib/types/database'
 import { formatPhoneDisplay } from '@/lib/utils/phone'
 import { getCityByValue } from '@/lib/data/colombia-cities'
 import { TagBadge } from '@/components/contacts/tag-badge'
+import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
+
+// ============================================================================
+// Editorial v3 helpers (standalone ui-redesign-editorial-core, Plan 02).
+//
+// These render the contacts table cells under the `.theme-editorial-v3` scope
+// (table.dict — UI-SPEC §6.2). They are used ONLY by the v3 branch in
+// contacts-table.tsx; the legacy shadcn columns above are byte-untouched
+// (Regla 6). Tags use the official MxTag / mx-tag--* system, NEVER legacy
+// `.tg.*` and NEVER shadcn `<Badge>` (D-09).
+// ============================================================================
+
+type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink'
+
+/**
+ * Map a real contact Tag to an editorial `mx-tag--*` variant (UI-SPEC §7).
+ * The `Tag` shape here carries `name` + `color`, not an editorial category, so
+ * we match by normalized lowercase name. Falls back to `ink` (neutral) for
+ * unknown tag names so every tag still renders as a token-built pill.
+ */
+export function mapTagVariant(tag: Tag): MxTagVariant {
+  const name = (tag.name || '').toLowerCase().trim()
+  if (name === 'cliente' || name === 'clientes' || name === 'vip') return 'gold'
+  if (
+    name === 'prospecto' ||
+    name === 'prospectos' ||
+    name === 'lead' ||
+    name === 'leads'
+  )
+    return 'indigo'
+  if (
+    name === 'mayorista' ||
+    name === 'mayoristas' ||
+    name === 'distribuidor' ||
+    name === 'distribuidores' ||
+    name === 'recompra'
+  )
+    return 'verdigris'
+  if (
+    name === 'pendiente' ||
+    name === 'por pagar' ||
+    name === 'sin pagar'
+  )
+    return 'rubric'
+  return 'ink'
+}
+
+/**
+ * Editorial date formatter for the `.date` cell (mono ink-3, UI-SPEC §6.2).
+ * es-CO, America/Bogota (Regla 2). Mirrors the legacy relative-time style.
+ */
+export function formatEditorialDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'America/Bogota',
+  })
+}
+
+/**
+ * Render a contact's tags as a list of MxTag pills for the Tags column of the
+ * editorial table.dict (D-09). Returns the em-dash placeholder when empty.
+ */
+export function renderEditorialTags(tags: Tag[] | undefined) {
+  if (!tags || tags.length === 0) {
+    return (
+      <span
+        style={{
+          color: 'var(--ink-4)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+        }}
+      >
+        —
+      </span>
+    )
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+      {tags.map((tag) => (
+        <MxTag key={tag.id} variant={mapTagVariant(tag)}>
+          {tag.name}
+        </MxTag>
+      ))}
+    </span>
+  )
+}
+
+/** City label resolver shared with the editorial branch. */
+export function resolveCityLabel(cityValue: string | null | undefined): string {
+  if (!cityValue) return '—'
+  const city = getCityByValue(cityValue)
+  return city ? city.label : cityValue
+}
 
 // Format relative time (e.g., "hace 2 horas")
 function formatRelativeTime(date: string): string {

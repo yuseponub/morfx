@@ -30,7 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { createColumns } from './columns'
+import { createColumns, formatCurrency as formatCurrencyCOP, mapStatusVariant, formatEditorialOrderDate } from './columns'
+import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
 import { OrderForm } from './order-form'
 import { ProductPicker } from './product-picker'
 import { deleteOrder, recompraOrder } from '@/app/actions/orders'
@@ -47,6 +48,10 @@ interface OrdersTableProps {
   tags: Tag[]
   defaultPipelineId?: string
   defaultStageId?: string
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
+  /** Open the order detail when a v3 table row is clicked. */
+  onRowClick?: (order: OrderWithDetails) => void
 }
 
 export function OrdersTable({
@@ -56,6 +61,8 @@ export function OrdersTable({
   tags,
   defaultPipelineId,
   defaultStageId,
+  v3 = false,
+  onRowClick,
 }: OrdersTableProps) {
   const router = useRouter()
   const [search, setSearch] = React.useState('')
@@ -302,14 +309,55 @@ export function OrdersTable({
         </div>
       )}
 
-      {/* Data table */}
-      <DataTable
-        columns={columns}
-        data={filteredOrders}
-        onRowSelectionChange={setRowSelection}
-        searchColumn="contact"
-        searchValue={search}
-      />
+      {/* Data table — editorial v3 `table.dict` or legacy shadcn DataTable */}
+      {v3 ? (
+        <table className="dict">
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th>Cliente</th>
+              <th>Productos</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredOrders.map((order) => (
+              <tr
+                key={order.id}
+                onClick={() => onRowClick?.(order)}
+                style={{ cursor: onRowClick ? 'pointer' : undefined }}
+              >
+                <td className="entry">#{order.name || order.id.slice(0, 8)}</td>
+                <td>{order.contact?.name || 'Sin contacto'}</td>
+                <td className="city">
+                  {order.products.length === 0
+                    ? '—'
+                    : order.products.length === 1
+                      ? order.products[0].title
+                      : `${order.products[0].title} +${order.products.length - 1}`}
+                </td>
+                <td className="ph">{formatCurrencyCOP(order.total_value)}</td>
+                <td>
+                  <MxTag variant={mapStatusVariant(order.stage?.name)}>
+                    {order.stage?.name || '—'}
+                  </MxTag>
+                </td>
+                <td className="date">{formatEditorialOrderDate(order.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filteredOrders}
+          onRowSelectionChange={setRowSelection}
+          searchColumn="contact"
+          searchValue={search}
+        />
+      )}
 
       {/* Create/Edit Sheet */}
       <Sheet open={sheetOpen} onOpenChange={handleSheetClose}>

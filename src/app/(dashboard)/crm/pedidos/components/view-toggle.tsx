@@ -11,12 +11,39 @@ interface ViewToggleProps {
   value: OrderViewMode
   onChange: (value: OrderViewMode) => void
   className?: string
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
 }
 
 /**
  * Toggle between Kanban and List views.
  */
-export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
+export function ViewToggle({ value, onChange, className, v3 = false }: ViewToggleProps) {
+  // Editorial v3: `.vtoggle` (Tabla / Tablero), active `.on` = ink fill (UI-SPEC §6.3).
+  // Same onChange wiring as the legacy ToggleGroup — markup/className only.
+  if (v3) {
+    return (
+      <div className={cn('vtoggle', className)}>
+        <button
+          type="button"
+          className={cn(value === 'list' && 'on')}
+          onClick={() => onChange('list')}
+          aria-pressed={value === 'list'}
+        >
+          Tabla
+        </button>
+        <button
+          type="button"
+          className={cn(value === 'kanban' && 'on')}
+          onClick={() => onChange('kanban')}
+          aria-pressed={value === 'kanban'}
+        >
+          Tablero
+        </button>
+      </div>
+    )
+  }
+
   return (
     <ToggleGroup
       type="single"

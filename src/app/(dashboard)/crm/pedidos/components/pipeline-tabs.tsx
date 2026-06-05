@@ -19,6 +19,8 @@ interface PipelineTabsProps {
   activePipelineId: string | null
   onPipelineChange: (pipelineId: string) => void
   onOpenPipelines: (pipelineIds: string[]) => void
+  /** Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03). */
+  v3?: boolean
 }
 
 /**
@@ -30,6 +32,7 @@ export function PipelineTabs({
   activePipelineId,
   onPipelineChange,
   onOpenPipelines,
+  v3 = false,
 }: PipelineTabsProps) {
   // Track if we've done initial load
   const [hasLoaded, setHasLoaded] = React.useState(false)
@@ -119,6 +122,71 @@ export function PipelineTabs({
       onPipelineChange(defaultPipeline.id)
     }
   }, [hasLoaded, openPipelineIds.length, defaultPipeline?.id, onOpenPipelines, onPipelineChange])
+
+  // ==========================================================================
+  // Editorial v3 render branch (standalone ui-redesign-editorial-core, Plan 03).
+  // Inline `.pipes` bar (NOT the floating taskbar): pipeline chips `.pp`, active
+  // `.pp.on` = ink border + 600 (UI-SPEC §6.3). Same open/close/select wiring.
+  // ==========================================================================
+  if (v3) {
+    return (
+      <div className="pipes">
+        {openPipelines.map((pipeline) => (
+          <span
+            key={pipeline.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => onPipelineChange(pipeline.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onPipelineChange(pipeline.id)
+              }
+            }}
+            className={cn('pp', pipeline.id === activePipelineId && 'on')}
+          >
+            {pipeline.name}
+            {pipeline.id === activePipelineId && openPipelines.length > 1 && (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="Cerrar pipeline"
+                onClick={(e) => closePipeline(pipeline.id, e)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    closePipeline(pipeline.id, e as unknown as React.MouseEvent)
+                  }
+                }}
+                style={{ marginLeft: 6 }}
+              >
+                ×
+              </span>
+            )}
+          </span>
+        ))}
+        {closedPipelines.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <span className="pp" role="button" tabIndex={0}>
+                + Pipeline
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {closedPipelines.map((pipeline) => (
+                <DropdownMenuItem key={pipeline.id} onClick={() => openPipeline(pipeline.id)}>
+                  {pipeline.name}
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {pipeline.stages.length} etapas
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="absolute bottom-4 left-8 z-30">

@@ -35,7 +35,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { DataTable } from '@/components/ui/data-table'
-import { createColumns } from './columns'
+import { createColumns, formatCurrency as formatCurrencyCOP, mapStatusVariant, formatEditorialOrderDate } from './columns'
+import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
 import { ViewToggle, type OrderViewMode } from './view-toggle'
 import { KanbanBoard } from './kanban-board'
 import { OrderSheet } from './order-sheet'
@@ -740,6 +741,436 @@ export function OrdersView({
   // Empty state flag
   const isEmpty = orders.length === 0
 
+  // ==========================================================================
+  // Editorial v3 status-tab segments (UI-SPEC §6.3 tabs Todos/Pendientes/…).
+  // Each tab filters the kanban/table by a stage-name keyword via the existing
+  // `selectedStageId` wiring — markup only, no new query (D-08).
+  // ==========================================================================
+  const STATUS_TABS: { label: string; match: string | null }[] = [
+    { label: 'Todos', match: null },
+    { label: 'Pendientes', match: 'pend' },
+    { label: 'Confirmados', match: 'confirm' },
+    { label: 'Despachados', match: 'despach' },
+    { label: 'Entregados', match: 'entreg' },
+    { label: 'Cancelados', match: 'cancel' },
+  ]
+  const activeStatusTab = (() => {
+    if (!selectedStageId) return 'Todos'
+    const stage = stages.find((s) => s.id === selectedStageId)
+    if (!stage) return 'Todos'
+    const found = STATUS_TABS.find(
+      (t) => t.match && stage.name.toLowerCase().includes(t.match),
+    )
+    return found?.label ?? 'Todos'
+  })()
+  const handleStatusTab = (match: string | null) => {
+    if (!match) {
+      setSelectedStageId(null)
+      return
+    }
+    const stage = stages.find((s) => s.name.toLowerCase().includes(match))
+    setSelectedStageId(stage ? stage.id : null)
+  }
+
+  // Total monthly count for the editorial topbar `<em>` (UI-SPEC §6.3 "312 este mes").
+  const monthlyCount = orders.filter((o) => o.pipeline_id === activePipelineId).length
+
+  // Shared overlays (OrderSheet + all dialogs) — identical wiring for both the
+  // legacy and the editorial v3 branch. Extracted to a const so the v3 branch
+  // reuses the EXACT same dialogs/handlers (D-08 — preserve all wiring).
+  const sharedOverlays = (
+    <>
+      {/* Order detail sheet */}
+      <OrderSheet
+        order={viewingOrder}
+        open={!!viewingOrder}
+        stages={stages}
+        allOrders={orders}
+        onClose={() => setViewingOrder(null)}
+        onEdit={handleEditFromSheet}
+        onDelete={handleDeleteFromSheet}
+        onViewOrder={setViewingOrder}
+        currentUserId={currentUserId}
+        isAdminOrOwner={isAdminOrOwner}
+        availableTags={tags}
+      />
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar pedido</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estas seguro que deseas eliminar este pedido
+              {orderToDelete?.contact && (
+                <> de <strong>{orderToDelete.contact.name}</strong></>
+              )}
+              ? Esta accion no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Recompra confirmation dialog */}
+      <AlertDialog
+        open={recompraDialogOpen}
+        onOpenChange={(open) => {
+          setRecompraDialogOpen(open)
+          if (!open) setRecompraProducts([])
+        }}
+      >
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Crear recompra</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creara un nuevo pedido en el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; con el contacto del pedido origen.
+              Selecciona los productos manualmente (no se copian del pedido original).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {recompraPipeline ? (
+            <div className="py-2 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
+                <Select value={recompraStageId} onValueChange={setRecompraStageId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar etapa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recompraPipeline.stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                          {stage.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Productos de la recompra</label>
+                <ProductPicker
+                  products={products}
+                  value={recompraProducts}
+                  onChange={setRecompraProducts}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 text-sm text-destructive">
+              No existe el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; en este workspace.
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRecompraConfirm}
+              disabled={!recompraStageId || recompraProducts.length === 0 || !recompraPipeline}
+            >
+              Crear recompra
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar {selectedOrderIds.size} pedido{selectedOrderIds.size > 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estas seguro que deseas eliminar {selectedOrderIds.size} pedido{selectedOrderIds.size > 1 ? 's' : ''} seleccionado{selectedOrderIds.size > 1 ? 's' : ''}? Esta accion no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBulkDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk move dialog */}
+      <BulkMoveDialog
+        open={bulkMoveDialogOpen}
+        onOpenChange={setBulkMoveDialogOpen}
+        stages={stages}
+        selectedCount={selectedOrderIds.size}
+        onConfirm={handleBulkMove}
+      />
+
+      {/* Bulk edit dialog */}
+      <BulkEditDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        selectedCount={selectedOrderIds.size}
+        onConfirm={handleBulkEdit}
+      />
+
+      {/* Stage edit dialog */}
+      {activePipelineId && (
+        <StageEditDialog
+          open={stageDialogOpen}
+          onClose={() => {
+            setStageDialogOpen(false)
+            setEditingStage(null)
+          }}
+          pipelineId={activePipelineId}
+          stage={editingStage}
+          mode={stageDialogMode}
+        />
+      )}
+    </>
+  )
+
+  if (v3 && !isEmpty) {
+    return (
+      <>
+        {/* Topbar — eyebrow + h1 + count + Exportar / Crear pedido */}
+        <header className="topbar">
+          <div>
+            <div className="eye">CRM · Pedidos</div>
+            <h1>
+              Pedidos <em>{monthlyCount} este mes</em>
+            </h1>
+          </div>
+          <div className="actions">
+            <button type="button" className="btn" onClick={handleExport}>
+              Exportar
+            </button>
+            <button type="button" className="btn pri" onClick={() => setFormSheetOpen(true)}>
+              Crear pedido
+            </button>
+          </div>
+        </header>
+
+        {/* Status tabs */}
+        <nav className="tabs">
+          {STATUS_TABS.map((tab) => (
+            <a
+              key={tab.label}
+              role="button"
+              tabIndex={0}
+              className={activeStatusTab === tab.label ? 'on' : undefined}
+              onClick={() => handleStatusTab(tab.match)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleStatusTab(tab.match)
+                }
+              }}
+            >
+              {tab.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="page relative flex flex-col flex-1 min-h-0">
+          {/* Toolbar — search + tag chips + view toggle */}
+          <div className="toolbar">
+            <div className="search">
+              <SearchIcon
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  left: 9,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 14,
+                  height: 14,
+                  color: 'var(--ink-4)',
+                }}
+              />
+              <input
+                placeholder="Buscar pedido, cliente o referencia…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className={cn('chip', selectedTagIds.length === 0 && 'on')}
+              onClick={() => setSelectedTagIds([])}
+            >
+              Todos
+            </button>
+            {tags.slice(0, 4).map((tag) => {
+              const isSelected = selectedTagIds.includes(tag.id)
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  className={cn('chip', isSelected && 'on')}
+                  onClick={() =>
+                    setSelectedTagIds(
+                      isSelected
+                        ? selectedTagIds.filter((id) => id !== tag.id)
+                        : [...selectedTagIds, tag.id],
+                    )
+                  }
+                >
+                  {tag.name}
+                </button>
+              )
+            })}
+            <ViewToggle value={viewMode} onChange={handleViewModeChange} v3 />
+          </div>
+
+          {/* Selection bar (reuses the same bulk handlers) */}
+          {selectedOrderIds.size > 0 && (
+            <div className="flex items-center gap-2 mb-3 text-sm">
+              <span style={{ fontWeight: 600 }}>
+                {selectedOrderIds.size} pedido{selectedOrderIds.size > 1 ? 's' : ''} seleccionado
+                {selectedOrderIds.size > 1 ? 's' : ''}
+              </span>
+              <div className="flex-1" />
+              <button type="button" className="btn" onClick={handleExport}>
+                Exportar
+              </button>
+              <button type="button" className="btn" onClick={() => setBulkMoveDialogOpen(true)}>
+                Mover de etapa
+              </button>
+              <button type="button" className="btn" onClick={() => setBulkEditDialogOpen(true)}>
+                Editar campo
+              </button>
+              <button type="button" className="btn" onClick={() => setBulkDeleteDialogOpen(true)}>
+                Eliminar
+              </button>
+              <button type="button" className="btn" onClick={clearSelection}>
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Content — Kanban (.board) or table.dict */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {viewMode === 'kanban' ? (
+              <KanbanBoard
+                stages={stages}
+                ordersByStage={ordersByStage}
+                pipelineId={activePipelineId || ''}
+                onOrderClick={handleOrderClick}
+                onEditStage={handleEditStage}
+                onDeleteStage={handleDeleteStage}
+                onAddStage={handleAddStage}
+                selectedOrderIds={selectedOrderIds}
+                onOrderSelectChange={handleOrderSelectChange}
+                onRecompra={(order) => {
+                  if (recompraDisabled) {
+                    toast.error(`No existe el pipeline '${RECOMPRA_PIPELINE_NAME}' en este workspace`)
+                    return
+                  }
+                  setOrderToRecompra(order)
+                  setRecompraStageId(recompraPipeline?.stages[0]?.id || '')
+                  setRecompraProducts([])
+                  setRecompraDialogOpen(true)
+                }}
+                stageCounts={kanbanCounts}
+                stageHasMore={kanbanHasMore}
+                stageLoading={kanbanLoading}
+                onLoadMore={handleLoadMore}
+                onOrderMoved={handleOrderMoved}
+                v3
+              />
+            ) : (
+              <table className="dict">
+                <thead>
+                  <tr>
+                    <th>Pedido</th>
+                    <th>Cliente</th>
+                    <th>Productos</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      onClick={() => handleOrderClick(order)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="entry">
+                        #{order.name || order.id.slice(0, 8)}
+                      </td>
+                      <td>{order.contact?.name || 'Sin contacto'}</td>
+                      <td className="city">
+                        {order.products.length === 0
+                          ? '—'
+                          : order.products.length === 1
+                            ? order.products[0].title
+                            : `${order.products[0].title} +${order.products.length - 1}`}
+                      </td>
+                      <td className="ph">{formatCurrencyCOP(order.total_value)}</td>
+                      <td>
+                        <MxTag variant={mapStatusVariant(order.stage?.name)}>
+                          {order.stage?.name || '—'}
+                        </MxTag>
+                      </td>
+                      <td className="date">{formatEditorialOrderDate(order.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Pipeline bar (.pipes) */}
+          <PipelineTabs
+            pipelines={pipelines}
+            activePipelineId={activePipelineId}
+            onPipelineChange={handlePipelineChange}
+            onOpenPipelines={setOpenPipelineIds}
+            v3
+          />
+        </div>
+
+        {/* Shared dialogs + sheets (same wiring as legacy) */}
+        {sharedOverlays}
+
+        {/* Create/Edit Sheet */}
+        <Sheet open={formSheetOpen} onOpenChange={handleFormClose}>
+          <SheetContent className="sm:max-w-[600px] p-0 flex flex-col h-full max-h-screen overflow-hidden">
+            <SheetHeader className="px-6 pt-6 pb-4 border-b">
+              <SheetTitle>{editingOrder ? 'Editar pedido' : 'Nuevo pedido'}</SheetTitle>
+              <SheetDescription>
+                {editingOrder
+                  ? 'Actualiza la informacion del pedido'
+                  : 'Crea un nuevo pedido con contacto y productos'}
+              </SheetDescription>
+            </SheetHeader>
+            <OrderForm
+              mode={editingOrder ? 'edit' : 'create'}
+              order={editingOrder || undefined}
+              pipelines={pipelines}
+              products={products}
+              defaultPipelineId={defaultPipelineId}
+              defaultStageId={defaultStageId}
+              defaultContactId={defaultContactId || undefined}
+              onSuccess={handleFormSuccess}
+              onCancel={handleFormClose}
+            />
+          </SheetContent>
+        </Sheet>
+      </>
+    )
+  }
+
   return (
     <>
       {isEmpty ? (
@@ -1018,160 +1449,7 @@ export function OrdersView({
         onOpenPipelines={setOpenPipelineIds}
       />
 
-      {/* Order detail sheet */}
-      <OrderSheet
-        order={viewingOrder}
-        open={!!viewingOrder}
-        stages={stages}
-        allOrders={orders}
-        onClose={() => setViewingOrder(null)}
-        onEdit={handleEditFromSheet}
-        onDelete={handleDeleteFromSheet}
-        onViewOrder={setViewingOrder}
-        currentUserId={currentUserId}
-        isAdminOrOwner={isAdminOrOwner}
-        availableTags={tags}
-      />
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar pedido</AlertDialogTitle>
-            <AlertDialogDescription>
-              Estas seguro que deseas eliminar este pedido
-              {orderToDelete?.contact && (
-                <> de <strong>{orderToDelete.contact.name}</strong></>
-              )}
-              ? Esta accion no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Recompra confirmation dialog */}
-      <AlertDialog
-        open={recompraDialogOpen}
-        onOpenChange={(open) => {
-          setRecompraDialogOpen(open)
-          if (!open) setRecompraProducts([])
-        }}
-      >
-        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Crear recompra</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se creara un nuevo pedido en el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; con el contacto del pedido origen.
-              Selecciona los productos manualmente (no se copian del pedido original).
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {recompraPipeline ? (
-            <div className="py-2 space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
-                <Select value={recompraStageId} onValueChange={setRecompraStageId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar etapa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {recompraPipeline.stages.map((stage) => (
-                      <SelectItem key={stage.id} value={stage.id}>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                          {stage.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Productos de la recompra</label>
-                <ProductPicker
-                  products={products}
-                  value={recompraProducts}
-                  onChange={setRecompraProducts}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="py-4 text-sm text-destructive">
-              No existe el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; en este workspace.
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRecompraConfirm}
-              disabled={!recompraStageId || recompraProducts.length === 0 || !recompraPipeline}
-            >
-              Crear recompra
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Bulk delete confirmation dialog */}
-      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar {selectedOrderIds.size} pedido{selectedOrderIds.size > 1 ? 's' : ''}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Estas seguro que deseas eliminar {selectedOrderIds.size} pedido{selectedOrderIds.size > 1 ? 's' : ''} seleccionado{selectedOrderIds.size > 1 ? 's' : ''}? Esta accion no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isBulkDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isBulkDeleting ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Bulk move dialog */}
-      <BulkMoveDialog
-        open={bulkMoveDialogOpen}
-        onOpenChange={setBulkMoveDialogOpen}
-        stages={stages}
-        selectedCount={selectedOrderIds.size}
-        onConfirm={handleBulkMove}
-      />
-
-      {/* Bulk edit dialog */}
-      <BulkEditDialog
-        open={bulkEditDialogOpen}
-        onOpenChange={setBulkEditDialogOpen}
-        selectedCount={selectedOrderIds.size}
-        onConfirm={handleBulkEdit}
-      />
-
-      {/* Stage edit dialog */}
-      {activePipelineId && (
-        <StageEditDialog
-          open={stageDialogOpen}
-          onClose={() => {
-            setStageDialogOpen(false)
-            setEditingStage(null)
-          }}
-          pipelineId={activePipelineId}
-          stage={editingStage}
-          mode={stageDialogMode}
-        />
-      )}
+      {sharedOverlays}
     </div>
       )}
 

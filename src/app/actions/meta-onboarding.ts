@@ -225,16 +225,12 @@ export async function connectFacebookPage(input: {
     return { success: true, pageName }
   } catch (e) {
     // Detail stays server-side only (never the code or plaintext Page token).
-    // The full Meta error is in the server log (console.error) for diagnosis.
+    // The full Meta error (incl. the getPageToken `probe=[...]` breakdown) is in the
+    // server log (console.error) for diagnosis — the toast stays generic in prod.
     console.error('[meta-onboarding] connect Facebook page failed:', e)
-    // TEMP DIAGNÓSTICO (revertir tras diagnosticar el connect de "varicenter"):
-    // surface the real error message to the toast so the operator can report it.
-    // getPageToken throws a rich "sin Página usable — me_accounts_count=..." string.
-    // This NEVER includes a token (getPageToken/exchange errors are Meta messages).
-    const detail = e instanceof Error ? e.message : String(e)
     return {
       success: false,
-      error: `No se pudo conectar. [DIAG] ${detail}`.slice(0, 500),
+      error: 'No se pudo conectar la página de Facebook. Intenta de nuevo.',
     }
   }
 }

@@ -139,9 +139,11 @@ async function findPageViaBusinesses(
   for (const b of biz.data ?? []) {
     businessesProbed.push(b.id)
     for (const edge of ['owned_pages', 'client_pages'] as const) {
-      // TEMP DIAGNÓSTICO (varicenter connect): capture per-edge count OR error so we
-      // can tell "business owns no pages we can see" from "edge query errored (role/
-      // permission)". Wrapped per-edge so one edge failing never hides the other.
+      // Per-edge diagnostic (server-log only): capture each edge's page count OR error
+      // so we can tell "business owns no pages we can see" (owned_pages:0 client_pages:0
+      // → user-side Business Manager setup) from "edge query errored (role/permission)".
+      // Wrapped per-edge so one edge failing never hides the other (robustness, not just
+      // diagnostics). Surfaced only in the thrown error → server console, never the toast.
       try {
         const res = await metaRequest<MeAccountsResponse>(
           longLivedUserToken,

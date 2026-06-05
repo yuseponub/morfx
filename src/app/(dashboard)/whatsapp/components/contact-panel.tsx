@@ -34,6 +34,7 @@ import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
 import { MxTag } from './mx-tag'
 import { useInboxV2 } from './inbox-v2-context'
+import { useInboxV3 } from './inbox-v3-context'
 import { updateContactName } from '@/app/actions/contacts'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -56,6 +57,21 @@ function mapOrderStageToMxTagVariant(
   return 'ink'
 }
 
+/**
+ * Map a contact tag (by name) to the editorial MxTag variant for the v3 tag
+ * cloud. Falls back to ink (neutral) for unknown tags.
+ */
+function mapContactTagToMxVariant(
+  tag: { name: string }
+): 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' {
+  const n = tag.name.toLowerCase()
+  if (n.includes('cliente') || n.includes('vip') || n.includes('pagad')) return 'gold'
+  if (n.includes('lead') || n.includes('prospect')) return 'indigo'
+  if (n.includes('mayorista') || n.includes('recompra') || n.includes('wpp')) return 'verdigris'
+  if (n.includes('pendiente') || n.includes('urgente')) return 'rubric'
+  return 'ink'
+}
+
 interface ContactPanelProps {
   conversation: ConversationWithDetails | null
   onClose: () => void
@@ -72,6 +88,7 @@ interface ContactPanelProps {
 export function ContactPanel({ conversation, onClose, onConversationUpdated, onOrdersChanged }: ContactPanelProps) {
   const router = useRouter()
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0)
@@ -157,6 +174,18 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
       supabase.removeChannel(channel)
     }
   }, [conversation?.id, contactId])
+  // Empty state — editorial v3 renders an empty `.ficha` column (the mock keeps
+  // the third column visible).
+  if (!conversation && v3) {
+    return (
+      <aside className="ficha" aria-label="Información del contacto">
+        <div className="flex items-center justify-center h-full px-4">
+          <p className="mx-caption text-center">Seleccione una conversación para ver la ficha.</p>
+        </div>
+      </aside>
+    )
+  }
+
   // Empty state
   if (!conversation) {
     return (
@@ -211,6 +240,161 @@ export function ContactPanel({ conversation, onClose, onConversationUpdated, onO
 
   const contact = conversation.contact
   const hasContact = !!contact
+
+  // Initials for the .av-lg avatar (EB Garamond via CSS).
+  const fichaName = contact?.name || conversation.profile_name || conversation.phone
+  const fichaInitials = fichaName
+    .split(' ')
+    .slice(0, 2)
+    .map((n) => n[0] || '')
+    .join('')
+    .toUpperCase()
+
+  // ===================== EDITORIAL V3 (.ficha verbatim) =====================
+  // Mock `ui_kits/conversaciones/index.html` contact column: 64px `.av-lg`,
+  // centered name/phone, `.ficha-actions` (Ver en CRM / Tarea), `.sect` with
+  // uppercase h3 eyebrows + hairline border, `dl/dt/dd` data grid, tag cloud via
+  // MxTag, `.ped-card` order card (RecentOrdersList v3), `.ped-vertodos`,
+  // `.btn.pri` Crear pedido, `.note`. All sheets/links/handlers preserved.
+  if (v3) {
+    return (
+      <aside className="ficha" aria-label="Información del contacto">
+        {/* Window indicator (kept — surfaces 24h window status) */}
+        <WindowIndicator lastCustomerMessageAt={conversation.last_customer_message_at} />
+
+        {/* Identity */}
+        <div>
+          <div className="av-lg">{fichaInitials}</div>
+          {hasContact ? (
+            <div
+              className="nm cursor-pointer hover:underline"
+              onClick={() => { setNameValue(contact!.name); setEditingName(true) }}
+              title="Click para editar nombre"
+            >
+              {editingName ? (
+                <Input
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveName()
+                    if (e.key === 'Escape') setEditingName(false)
+                  }}
+                  className="h-7 text-sm"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                contact!.name
+              )}
+            </div>
+          ) : (
+            <div className="nm">{conversation.profile_name || conversation.phone}</div>
+          )}
+          <div className="ph">{conversation.phone}</div>
+        </div>
+
+        {hasContact ? (
+          <>
+            {/* Actions */}
+            <div className="ficha-actions">
+              <Link className="btn" href={`/crm/contactos/${contact!.id}`}>
+                <ExternalLink className="h-3.5 w-3.5" />
+                Ver en CRM
+              </Link>
+              <CreateTaskButton
+                conversationId={conversation.id}
+                conversationPhone={conversation.phone}
+                variant="outline"
+                size="sm"
+              />
+            </div>
+
+            {/* Tags */}
+            {conversation.tags.length > 0 && (
+              <div className="sect">
+                <h3>Etiquetas</h3>
+                <div className="tags">
+                  {conversation.tags.map((tag) => (
+                    <MxTag key={tag.id} variant={mapContactTagToMxVariant(tag)}>
+                      {tag.name}
+                    </MxTag>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Data grid */}
+            {(contact!.address || contact!.city) && (
+              <div className="sect">
+                <h3>Datos</h3>
+                <dl>
+                  {contact!.city && (
+                    <>
+                      <dt>Ciudad</dt>
+                      <dd>{contact!.city}</dd>
+                    </>
+                  )}
+                  {contact!.address && (
+                    <>
+                      <dt>Dirección</dt>
+                      <dd>{contact!.address}</dd>
+                    </>
+                  )}
+                </dl>
+              </div>
+            )}
+
+            {/* Recent orders (.ped-card) */}
+            <div className="sect">
+              <h3>Pedidos recientes</h3>
+              <RecentOrdersList
+                contactId={contact!.id}
+                refreshKey={ordersRefreshKey}
+                onStageChanged={onOrdersChanged}
+              />
+              <button
+                type="button"
+                className="btn pri w-full justify-center"
+                onClick={() => setOrderSheetOpen(true)}
+              >
+                Crear pedido
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="sect">
+            <h3>Contacto desconocido</h3>
+            <button
+              type="button"
+              className="btn pri w-full justify-center"
+              onClick={() => setContactSheetOpen(true)}
+            >
+              Crear contacto
+            </button>
+          </div>
+        )}
+
+        {/* Sheets (create order / create contact) — wiring preserved */}
+        <CreateOrderSheet
+          open={orderSheetOpen}
+          onOpenChange={setOrderSheetOpen}
+          defaultContactId={contact?.id}
+          defaultPhone={conversation.phone}
+          defaultName={conversation.profile_name || undefined}
+          conversationId={conversation.id}
+          onSuccess={handleOrderCreated}
+        />
+        <CreateContactSheet
+          open={contactSheetOpen}
+          onOpenChange={setContactSheetOpen}
+          defaultPhone={conversation.phone}
+          defaultName={conversation.profile_name || undefined}
+          conversationId={conversation.id}
+          onSuccess={handleContactCreated}
+        />
+      </aside>
+    )
+  }
 
   return (
     <aside
@@ -635,14 +819,15 @@ interface Pipeline {
 
 function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId: string; refreshKey?: number; onStageChanged?: () => Promise<void> }) {
   const v2 = useInboxV2()
+  const v3 = useInboxV3()
   // Locate the `.theme-editorial` wrapper so order-card Popovers re-root their
   // Radix portal inside the editorial token scope (Plan 05 Task 4 portal sweep).
   // When v2 is false, ref stays null → Popover falls back to document.body default.
   const themeContainerRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    if (!v2) return
+    if (!v2 && !v3) return
     themeContainerRef.current = document.querySelector('[data-module="whatsapp"]') as HTMLElement | null
-  }, [v2])
+  }, [v2, v3])
 
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [availableTags, setAvailableTags] = useState<AvailableTag[]>([])
@@ -827,6 +1012,9 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
   }
 
   if (orders.length === 0) {
+    if (v3) {
+      return <p className="mx-caption">No hay pedidos recientes.</p>
+    }
     return (
       <p
         className={cn(
@@ -837,6 +1025,193 @@ function RecentOrdersList({ contactId, refreshKey, onStageChanged }: { contactId
       >
         No hay pedidos recientes
       </p>
+    )
+  }
+
+  // ===================== EDITORIAL V3 (.ped-card verbatim) =====================
+  // Mock `.ped-card`: `.top` (`.src` pill + mono `.val` total), `.tm` (time + #id),
+  // `.foot` (tags via MxTag). `.ped-vertodos` underlined. Stage popover + view +
+  // recompra handlers preserved. The card renders AS A CARD (border + shadow-card
+  // via the `.ped-card` CSS rule).
+  if (v3) {
+    return (
+      <div className="flex flex-col gap-2">
+        {orders.map((order) => (
+          <div key={order.id} className="ped-card">
+            <div className="top">
+              {/* Stage pill (popover) */}
+              <Popover
+                open={openStagePopover === order.id}
+                onOpenChange={(open) => setOpenStagePopover(open ? order.id : null)}
+              >
+                <PopoverTrigger asChild>
+                  <button type="button" className="src hover:opacity-80" aria-label="Cambiar etapa del pedido">
+                    {order.stage ? order.stage.name : 'Sin etapa'}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-48 p-0"
+                  align="start"
+                  portalContainer={themeContainerRef.current}
+                >
+                  <Command>
+                    <CommandInput placeholder="Buscar etapa..." />
+                    <CommandList>
+                      <CommandEmpty>No hay etapas</CommandEmpty>
+                      {pipelines.map((pipeline) => (
+                        <CommandGroup key={pipeline.id} heading={pipeline.name}>
+                          {pipeline.stages.map((stage) => (
+                            <CommandItem
+                              key={stage.id}
+                              onSelect={() => handleStageChange(order.id, stage)}
+                              className={order.stage?.id === stage.id ? 'bg-accent' : ''}
+                            >
+                              <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: stage.color }} />
+                              {stage.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {/* Total */}
+              <Link href={`/crm/pedidos?order=${order.id}`} className="val hover:underline">
+                {order.total_value
+                  ? new Intl.NumberFormat('es-CO', {
+                      style: 'currency',
+                      currency: 'COP',
+                      maximumFractionDigits: 0,
+                    }).format(order.total_value)
+                  : '-'}
+              </Link>
+            </div>
+
+            {/* Time + view/recompra actions */}
+            <div className="tm flex items-center justify-between">
+              <span>
+                {formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: es })}
+              </span>
+              <span className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (recompraDisabled) {
+                      toast.error(`No existe el pipeline '${RECOMPRA_PIPELINE_NAME}' en este workspace`)
+                      return
+                    }
+                    setRecompraOrderId(order.id)
+                    setRecompraStageId(recompraPipeline?.stages[0]?.id || '')
+                    setRecompraProducts([])
+                  }}
+                  disabled={recompraDisabled}
+                  className="p-1 rounded hover:bg-[var(--paper-2)] disabled:opacity-40"
+                  title={recompraDisabled ? `No existe el pipeline '${RECOMPRA_PIPELINE_NAME}'` : 'Recompra'}
+                  aria-label="Crear recompra del pedido"
+                >
+                  <RefreshCwIcon className="h-3.5 w-3.5 text-[var(--ink-3)]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingOrderId(order.id)}
+                  className="p-1 rounded hover:bg-[var(--paper-2)]"
+                  title="Ver pedido"
+                  aria-label="Ver detalles del pedido"
+                >
+                  <Eye className="h-3.5 w-3.5 text-[var(--ink-3)]" />
+                </button>
+              </span>
+            </div>
+
+            {/* Footer tags */}
+            {order.tags.length > 0 && (
+              <div className="foot">
+                {order.tags.map((tag) => (
+                  <MxTag key={tag.id} variant={mapContactTagToMxVariant(tag)}>
+                    {tag.name}
+                  </MxTag>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Ver todos */}
+        <Link href={`/crm/contactos/${contactId}`} className="ped-vertodos">
+          Ver todos
+        </Link>
+
+        {/* View order sheet + recompra dialog (wiring preserved) */}
+        <ViewOrderSheet
+          orderId={viewingOrderId}
+          open={!!viewingOrderId}
+          onOpenChange={(open) => !open && setViewingOrderId(null)}
+        />
+        <AlertDialog
+          open={!!recompraOrderId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRecompraOrderId(null)
+              setRecompraProducts([])
+            }
+          }}
+        >
+          <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Crear recompra</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se creara un nuevo pedido en el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; con el contacto del pedido origen.
+                Selecciona los productos manualmente (no se copian del pedido original).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {recompraPipeline ? (
+              <div className="py-2 space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Etapa del nuevo pedido</label>
+                  <Select value={recompraStageId} onValueChange={setRecompraStageId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar etapa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {recompraPipeline.stages.map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                            {stage.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Productos de la recompra</label>
+                  <ProductPicker
+                    products={productsList}
+                    value={recompraProducts}
+                    onChange={setRecompraProducts}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="py-4 text-sm text-destructive">
+                No existe el pipeline &apos;{RECOMPRA_PIPELINE_NAME}&apos; en este workspace. Creelo en CRM &gt; Pedidos antes de intentar una recompra.
+              </div>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleRecompra}
+                disabled={!recompraStageId || recompraProducts.length === 0 || !recompraPipeline}
+              >
+                Crear recompra
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     )
   }
 

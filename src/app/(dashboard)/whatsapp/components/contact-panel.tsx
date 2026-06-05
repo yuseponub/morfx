@@ -33,6 +33,7 @@ import { ViewOrderSheet } from './view-order-sheet'
 import { CreateTaskButton } from '@/components/tasks/create-task-button'
 import { OrderStageBadge } from './order-status-indicator'
 import { MxTag } from './mx-tag'
+import { tagColorToVariant, type MxTagVariant } from '@/lib/editorial/tag-variant'
 import { useInboxV2 } from './inbox-v2-context'
 import { useInboxV3 } from './inbox-v3-context'
 import { updateContactName } from '@/app/actions/contacts'
@@ -58,18 +59,14 @@ function mapOrderStageToMxTagVariant(
 }
 
 /**
- * Map a contact tag (by name) to the editorial MxTag variant for the v3 tag
- * cloud. Falls back to ink (neutral) for unknown tags.
+ * GAP-03: map a contact/order tag to the editorial MxTag variant for the v3 tag
+ * cloud, derived from the tag's REAL stored color (`tag.color` hex) instead of a
+ * hardcoded name table. Falls back to ink (neutral) for null/invalid colors.
  */
 function mapContactTagToMxVariant(
-  tag: { name: string }
-): 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' {
-  const n = tag.name.toLowerCase()
-  if (n.includes('cliente') || n.includes('vip') || n.includes('pagad')) return 'gold'
-  if (n.includes('lead') || n.includes('prospect')) return 'indigo'
-  if (n.includes('mayorista') || n.includes('recompra') || n.includes('wpp')) return 'verdigris'
-  if (n.includes('pendiente') || n.includes('urgente')) return 'rubric'
-  return 'ink'
+  tag: { color?: string | null }
+): MxTagVariant {
+  return tagColorToVariant(tag.color)
 }
 
 interface ContactPanelProps {

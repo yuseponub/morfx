@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
+import { tagColorToVariant, type MxTagVariant } from '@/lib/editorial/tag-variant'
 import {
   detectOrderProductTypes,
   PRODUCT_TYPE_COLORS,
@@ -20,35 +21,19 @@ import {
 import type { OrderWithDetails } from '@/lib/orders/types'
 
 // ============================================================================
-// Editorial v3 helpers (standalone ui-redesign-editorial-core, Plan 03).
+// Editorial v3 helpers (standalone ui-redesign-editorial-core, Plan 03 + 05).
 // Additive — the legacy shadcn `createColumns` below is byte-untouched.
 // Tags + status use the official MxTag / mx-tag--* system, NEVER legacy
 // `.tg.*` nor shadcn <Badge> (D-09).
 // ============================================================================
 
-type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' | 'success'
-
 /**
- * Map a real order Tag (name + color, no editorial category) to an editorial
- * `mx-tag--*` variant (UI-SPEC §7). Matches by normalized lowercase name; the
- * kanban-specific tokens map P/W → indigo, RECO → indigo, C/confirmado →
- * success (UI-SPEC §6.3 / §7). Falls back to `ink` (neutral) so every tag still
- * renders as a token-built pill.
+ * GAP-03: map a real order Tag to an editorial `mx-tag--*` variant derived from
+ * the tag's REAL stored color (`tag.color` hex), not a hardcoded name table.
+ * Falls back to `ink` (neutral) for null/invalid colors.
  */
-export function mapOrderTagVariant(tag: { name: string }): MxTagVariant {
-  const name = (tag.name || '').toLowerCase().trim()
-  if (name === 'p/w' || name === 'pw') return 'indigo'
-  if (name === 'reco' || name === 'recompra') return 'indigo'
-  if (name === 'c' || name === 'confirmado' || name === 'confirmada') return 'success'
-  if (name === 'cliente' || name === 'clientes' || name === 'vip' || name === 'pagado')
-    return 'gold'
-  if (name === 'prospecto' || name === 'prospectos' || name === 'lead' || name === 'leads' || name === 'entregado')
-    return 'indigo'
-  if (name === 'mayorista' || name === 'mayoristas' || name === 'distribuidor' || name === 'wpp' || name === 'despachado')
-    return 'verdigris'
-  if (name === 'pendiente' || name === 'por pagar' || name === 'sin pagar' || name === 'cancelado')
-    return name === 'cancelado' ? 'ink' : 'rubric'
-  return 'ink'
+export function mapOrderTagVariant(tag: { color?: string | null }): MxTagVariant {
+  return tagColorToVariant(tag.color)
 }
 
 /**
@@ -84,7 +69,7 @@ export function formatEditorialOrderDate(iso: string | null | undefined): string
 }
 
 /** Render an order's tags as MxTag pills for the editorial kanban card / table. */
-export function renderEditorialOrderTags(tags: Array<{ id: string; name: string }> | undefined) {
+export function renderEditorialOrderTags(tags: Array<{ id: string; name: string; color?: string | null }> | undefined) {
   if (!tags || tags.length === 0) return null
   return (
     <>

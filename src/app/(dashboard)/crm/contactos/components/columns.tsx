@@ -17,9 +17,10 @@ import { formatPhoneDisplay } from '@/lib/utils/phone'
 import { getCityByValue } from '@/lib/data/colombia-cities'
 import { TagBadge } from '@/components/contacts/tag-badge'
 import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
+import { tagColorToVariant } from '@/lib/editorial/tag-variant'
 
 // ============================================================================
-// Editorial v3 helpers (standalone ui-redesign-editorial-core, Plan 02).
+// Editorial v3 helpers (standalone ui-redesign-editorial-core, Plan 02 + 05).
 //
 // These render the contacts table cells under the `.theme-editorial-v3` scope
 // (table.dict — UI-SPEC §6.2). They are used ONLY by the v3 branch in
@@ -28,39 +29,13 @@ import { MxTag } from '@/app/(dashboard)/whatsapp/components/mx-tag'
 // `.tg.*` and NEVER shadcn `<Badge>` (D-09).
 // ============================================================================
 
-type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink'
-
 /**
- * Map a real contact Tag to an editorial `mx-tag--*` variant (UI-SPEC §7).
- * The `Tag` shape here carries `name` + `color`, not an editorial category, so
- * we match by normalized lowercase name. Falls back to `ink` (neutral) for
- * unknown tag names so every tag still renders as a token-built pill.
+ * GAP-03: map a real contact Tag to an editorial `mx-tag--*` variant derived
+ * from the tag's REAL stored color (`tag.color` hex), not a hardcoded name
+ * table. Falls back to `ink` (neutral) for null/invalid colors.
  */
-export function mapTagVariant(tag: Tag): MxTagVariant {
-  const name = (tag.name || '').toLowerCase().trim()
-  if (name === 'cliente' || name === 'clientes' || name === 'vip') return 'gold'
-  if (
-    name === 'prospecto' ||
-    name === 'prospectos' ||
-    name === 'lead' ||
-    name === 'leads'
-  )
-    return 'indigo'
-  if (
-    name === 'mayorista' ||
-    name === 'mayoristas' ||
-    name === 'distribuidor' ||
-    name === 'distribuidores' ||
-    name === 'recompra'
-  )
-    return 'verdigris'
-  if (
-    name === 'pendiente' ||
-    name === 'por pagar' ||
-    name === 'sin pagar'
-  )
-    return 'rubric'
-  return 'ink'
+export function mapTagVariant(tag: Tag) {
+  return tagColorToVariant(tag.color)
 }
 
 /**

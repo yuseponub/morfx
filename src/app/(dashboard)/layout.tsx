@@ -5,6 +5,7 @@ import { WorkspaceProvider } from '@/components/providers/workspace-provider'
 import { getUserWorkspaces, getActiveWorkspaceId } from '@/app/actions/workspace'
 import { cn } from '@/lib/utils'
 import { getIsDashboardV2Enabled } from '@/lib/auth/dashboard-v2'
+import { getIsEditorialV3Enabled } from '@/lib/auth/editorial-v3'
 import { DashboardV2Provider } from '@/components/layout/dashboard-v2-context'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { RealtimeAuthProvider } from '@/components/providers/realtime-auth-provider'
@@ -34,6 +35,15 @@ export default async function DashboardLayout({
     ? await getIsDashboardV2Enabled(activeWorkspaceId)
     : false
 
+  // Resolve UI Editorial v3 flag using the active workspace (if any).
+  // Fails closed to false (Regla 6, D-04). Applied on the <main> wrapper
+  // (NOT the shell root) so the deferred sidebar is structurally excluded
+  // (Pitfall 6 / D-06). Independent from isDashboardV2 — the two systems
+  // coexist by distinct class name (D-05).
+  const isEditorialV3 = activeWorkspaceId
+    ? await getIsEditorialV3Enabled(activeWorkspaceId)
+    : false
+
   // Find selected workspace or use first one
   let currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || null
   if (!currentWorkspace && workspaces.length > 0) {
@@ -60,7 +70,12 @@ export default async function DashboardLayout({
             user={user}
             v2={isDashboardV2}
           />
-          <main className="flex-1 flex flex-col overflow-hidden">
+          <main
+            className={cn(
+              'flex-1 flex flex-col overflow-hidden',
+              isEditorialV3 && 'theme-editorial-v3',
+            )}
+          >
             {children}
           </main>
         </div>

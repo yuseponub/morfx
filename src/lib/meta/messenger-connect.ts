@@ -129,7 +129,8 @@ export async function exchangeForLongLivedUserToken(shortLivedToken: string): Pr
  */
 async function findPageViaBusinesses(
   longLivedUserToken: string,
-  businessesProbed: string[]
+  businessesProbed: string[],
+  probeLog: string[]
 ): Promise<MeAccountsPage | null> {
   const biz = await metaRequest<{ data?: { id: string; name?: string }[] }>(
     longLivedUserToken,
@@ -138,20 +139,29 @@ async function findPageViaBusinesses(
   for (const b of biz.data ?? []) {
     businessesProbed.push(b.id)
     for (const edge of ['owned_pages', 'client_pages'] as const) {
-      const res = await metaRequest<MeAccountsResponse>(
-        longLivedUserToken,
-        `/${b.id}/${edge}?fields=id,name,access_token`
-      )
-      for (const cand of res.data ?? []) {
-        if (cand.access_token) return cand
-        // Page listed without a token on the edge — fetch the Page node directly.
-        if (cand.id) {
-          const withTok = await metaRequest<MeAccountsPage>(
-            longLivedUserToken,
-            `/${cand.id}?fields=id,name,access_token`
-          )
-          if (withTok.access_token) return withTok
+      // TEMP DIAGNÓSTICO (varicenter connect): capture per-edge count OR error so we
+      // can tell "business owns no pages we can see" from "edge query errored (role/
+      // permission)". Wrapped per-edge so one edge failing never hides the other.
+      try {
+        const res = await metaRequest<MeAccountsResponse>(
+          longLivedUserToken,
+          `/${b.id}/${edge}?fields=id,name,access_token`
+        )
+        probeLog.push(`${edge}:${res.data?.length ?? 0}`)
+        for (const cand of res.data ?? []) {
+          if (cand.access_token) return cand
+          // Page listed without a token on the edge — fetch the Page node directly.
+          if (cand.id) {
+            const withTok = await metaRequest<MeAccountsPage>(
+              longLivedUserToken,
+              `/${cand.id}?fields=id,name,access_token`
+            )
+            if (withTok.access_token) return withTok
+            probeLog.push(`${edge}.page_no_token:${cand.id}`)
+          }
         }
+      } catch (e) {
+        probeLog.push(`${edge}_ERR:${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`)
       }
     }
   }
@@ -171,11 +181,12 @@ export async function getPageToken(
   // 2. Business Portfolio fallback (Facebook Login for Business): business-owned
   //    pages do NOT appear in /me/accounts. Walk /me/businesses → pages.
   const businessesProbed: string[] = []
+  const probeLog: string[] = []
   if (!page) {
     try {
-      page = await findPageViaBusinesses(longLivedUserToken, businessesProbed)
-    } catch {
-      /* best-effort business probe */
+      page = await findPageViaBusinesses(longLivedUserToken, businessesProbed, probeLog)
+    } catch (e) {
+      probeLog.push(`probe_FATAL:${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`)
     }
   }
 
@@ -204,7 +215,7 @@ export async function getPageToken(
     throw new Error(
       `sin Página usable — me_accounts_count=${res.data?.length ?? 0} ` +
         `pages=${JSON.stringify(pagesSummary)} ` +
-        `businesses=[${businessesProbed.join(',')}] granted=[${grantedScopes}]`
+        `businesses=[${businessesProbed.join(',')}] probe=[${probeLog.join(' ')}] granted=[${grantedScopes}]`
     )
   }
 

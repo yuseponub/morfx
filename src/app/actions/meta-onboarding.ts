@@ -234,7 +234,7 @@ export async function connectFacebookPage(input: {
     const detail = e instanceof Error ? e.message : String(e)
     return {
       success: false,
-      error: `No se pudo conectar. [DIAG] ${detail}`.slice(0, 300),
+      error: `No se pudo conectar. [DIAG] ${detail}`.slice(0, 500),
     }
   }
 }

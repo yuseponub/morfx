@@ -660,10 +660,10 @@ Plans:
 
 **Risk:** MEDIUM (Instagram has strictest limitations: hard 24h window with no templates, 200 msg/hr rate limit, 1000 follower minimum for API access)
 
-**Plans:** 8 plans / 5 waves (PLANNED 2026-06-05 — checker pending)
+**Plans:** 3/8 plans executed
 - [~] 41-00-PLAN.md — instagram_provider migration (MIG-02) — Task 1 DONE (commit `cc66e676`, migration authored + ig_username); **AT Regla 5 BLOCKING checkpoint** (operator applies in prod + confirms "applied")
 - [x] 41-01-PLAN.md — RED test scaffolds (5 files: IG-01/02/03 + MIG-02 + Regla 6 parity) — COMPLETE 2026-06-05 (commits `64685d9d`, `82b072fc`, `1c113243`; 31 tests = 26 RED / 5 GREEN parity guards)
-- [ ] 41-02-PLAN.md — IG send edge (instagram-api.ts + metaInstagramSender) — IG-02
+- [x] 41-02-PLAN.md — IG send edge (instagram-api.ts + metaInstagramSender) — IG-02
 - [ ] 41-03-PLAN.md — IG connect chain (resolveInstagramAccount + upsertMetaAccount + connectInstagramAccount) — IG-03
 - [ ] 41-04-PLAN.md — domain chokepoint (readInstagramProvider + instagram arm) — MIG-02/IG-02
 - [ ] 41-05-PLAN.md — inbound object==='instagram' webhook + processInstagramWebhook — IG-01/03/04

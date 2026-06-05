@@ -29,7 +29,7 @@ gaps:
     fix: "Migration supabase/migrations/20260605200000_relax_uq_meta_page_facebook_only.sql — DROP CONSTRAINT uq_meta_page; CREATE UNIQUE INDEX uq_meta_page ON workspace_meta_accounts(page_id) WHERE channel='facebook'. Index keeps the name so the domain mapWriteError Spanish mapping still fires on a genuine cross-workspace facebook collision. Applied to prod 2026-06-05 (Regla 5 — code already deployed, migration makes the live code succeed with no redeploy)."
     files_implicated:
       - supabase/migrations/20260605200000_relax_uq_meta_page_facebook_only.sql (the fix — DDL only, no app-code change needed)
-    status: migration applied to prod 2026-06-05; awaiting live connect re-test
+    status: resolved (live-verified 2026-06-05 — Varixcenter IG connected, ig_username 'varixcenter')
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

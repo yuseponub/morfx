@@ -18,7 +18,7 @@ result: [pending]
 
 ### 2. Connect a real Instagram Professional account via the new button
 expected: In `/configuracion/integraciones` → Instagram tab, clicking "Conectar Instagram" opens a Meta login window requesting IG_LOGIN_SCOPE (FB superset + instagram_basic + instagram_manage_messages) with auth_type:'rerequest'. The 3-step token refresh runs server-side, `resolveInstagramAccount` resolves the linked IG business account, and the UI shows "Instagram conectado: @<username>". A business with no linked IG surfaces the clear Spanish error and never blocks.
-result: FAILED (2026-06-05 live) — error "Esta página ya está conectada en otro espacio de trabajo. Una página solo puede pertenecer a una cuenta." for an operator whose FB account manages 2 pages. Root cause GAP-41-01 (getPageToken picks data[0], not the workspace's bound page). No DB corruption (failed atomically). See VERIFICATION.md gaps.
+result: PASSED (2026-06-05 live, after GAP-41-01 fix 41-09 + GAP-41-02 migration) — Varixcenter connected: instagram row created with page_id 528898033801678 (shared with the FB page), ig_account_id 17841405433849344, ig_username 'varixcenter', is_active true. Two sequential bugs fixed: GAP-41-01 (getPageToken data[0] → now targets the workspace's bound page) + GAP-41-02 (global uq_meta_page → partial WHERE channel='facebook' so the IG row can share the page_id).
 
 ### 3. A1 linchpin — entry.id == ig_account_id
 expected: Server logs confirm the inbound IG webhook `entry.id` matches the stored `ig_account_id`, so `resolveByIgAccountId(entry.id)` routes the DM to the correct workspace.
@@ -43,8 +43,8 @@ result: [pending]
 ## Summary
 
 total: 7
-passed: 0
-issues: 1
+passed: 1
+issues: 0
 pending: 6
 skipped: 0
 blocked: 0
@@ -52,8 +52,15 @@ blocked: 0
 ## Gaps
 
 ### GAP-41-01 — connectInstagramAccount targets the wrong Facebook page (multi-page operator)
-status: failed
+status: resolved
 severity: blocking
 requirement: IG-03
 source: Test 2 (live, 2026-06-05)
-detail: getPageToken returns the first page in /me/accounts (data[0]), not the page bound to the workspace; the facebook-row refresh then collides with another workspace's page on uq_meta_page → "Esta página ya está conectada en otro espacio de trabajo". Fix: target the workspace's existing page_id (resolveByWorkspace) and fetch the Page token for that specific page. Full root cause + fix direction in 41-VERIFICATION.md → gaps → GAP-41-01.
+detail: getPageToken returned the first page in /me/accounts (data[0]), not the page bound to the workspace. Fixed by plan 41-09: resolveByWorkspace + getPageTokenForPage(pageId) targets the workspace's bound page, never data[0]. Shipped + live-verified (FB row refreshed 2026-06-05).
+
+### GAP-41-02 — global uq_meta_page UNIQUE(page_id) blocked the Instagram row sharing the FB page_id
+status: resolved
+severity: blocking
+requirement: IG-03
+source: Test 2 (live, 2026-06-05, after 41-09)
+detail: The channel='instagram' row reuses the FB page's page_id (the IG sender needs creds.pageId), but the global uq_meta_page forbade it. Fixed by migration 20260605200000_relax_uq_meta_page_facebook_only.sql (partial unique index WHERE channel='facebook'). Applied to prod; Varixcenter IG connected (ig_username 'varixcenter').

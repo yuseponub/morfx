@@ -53,10 +53,9 @@ gaps:
     evidence: "PNG 1x1 → 2018047 fail. Wikimedia URL → fail (Meta fetcher blocked). Real JPEG via Supabase Storage URL (HEAD 200 image/jpeg) → 200 OK on IG AND FB. Bucket whatsapp-media is public. So failure is input-file-specific, not channel/url/code."
     fix_direction: "Enforce Meta's real per-type limits for meta_direct FB/IG (image 8MB; video 25MB; audio 25MB; file 25MB) BEFORE upload, with a clear Spanish message naming the limit. Detect/handle HEIC: either reject with a clear 'Convierte la imagen a JPG/PNG' message, or transcode to JPEG. Surface the domain/Graph error reason in the toast instead of the generic fallback (the action already returns result.error — message-input.tsx swallows it to a constant string). Keep WhatsApp/manychat limits unchanged (Regla 6) — gate the tighter limit on channel + provider."
     files_implicated:
-      - src/app/(dashboard)/whatsapp/components/message-input.tsx (size/format guard + surface real error)
-      - src/app/actions/messages.ts (sendMediaMessage action — may pass through a richer error)
-      - (optional) src/lib/meta/instagram-api.ts / meta-facebook-sender.ts (no change expected — channel works)
-    status: open
+      - src/app/(dashboard)/whatsapp/components/message-input.tsx (validateMetaUpload guard + surface real error)
+      - src/app/(dashboard)/whatsapp/components/chat-view.tsx (channel prop threaded)
+    status: fixed (plan 41-10, shipped 2026-06-06 — commits 96fc7d7f/5dc63aed/dba5a347; TDD 8/8; WA 16MB intact; awaiting operator live smoke: HEIC/>8MB → clear Spanish reason)
   - id: GAP-41-05
     severity: nonblocking
     discovered: 2026-06-06 live smoke (Ruth Zapata Duarte, IG conv 89aa0de1, empty inbound 2026-06-05 21:08 UTC)
@@ -66,8 +65,8 @@ gaps:
     root_cause: "VERIFIED in webhook-handler.ts:107-125 — the handler only understands message.text and attachments[0] of type image|audio|video|file (ATTACHMENT_TYPE_MAP). Any other IG payload (attachment type 'share'/'story_mention'/'ig_reel', a story reply via message.reply_to, or a reaction) has no text and no mapped attachment → isMedia=false, messageText='' → stored as { body: '' }. The raw webhook payload is NOT persisted, so the original content cannot be recovered retroactively."
     fix_direction: "Map known non-standard IG types to a clear labeled placeholder bubble: attachment type 'share'/'ig_reel' → '[Publicación compartida]' (+ link if present), 'story_mention'/message.reply_to.story → '[Respuesta a tu historia]', reaction events → '[Reacción: <emoji>]'. Never store an empty body. Consider persisting the raw payload (or a typed summary) for unrecognized types to aid future debugging. Keep ManyChat IG path untouched (Regla 6)."
     files_implicated:
-      - src/lib/instagram/webhook-handler.ts (recognize + label non-standard types)
-    status: open
+      - src/lib/instagram/webhook-handler.ts (labelInstagramEvent + effectiveText/effectiveType)
+    status: fixed (plan 41-11, shipped 2026-06-06 — commits 75ba93bc/2bb70e22; TDD 18/18; grep body:'' = 0; awaiting operator live smoke: share/reel/story/reaction → labeled bubble)
   - id: GAP-41-06
     severity: nonblocking
     discovered: 2026-06-06 live smoke (IG inbound audio, conv 0b07d081)
@@ -77,9 +76,8 @@ gaps:
     root_cause: "The IG webhook handler stores the audio attachment link but does not invoke the transcription path that the v4 media pipeline uses (messages.transcription + setMessageTranscription, shipped in standalone v4-media-audio-image 2026-06-01). IG inbound predates / is not wired to that path."
     fix_direction: "Wire IG inbound audio to the same transcription path used by v4 media (setMessageTranscription), or explicitly defer with a documented reason. Lowest priority of the three smoke gaps. Confirm whether the lookaside.fbsbx.com audio URL is fetchable server-side for transcription."
     files_implicated:
-      - src/lib/instagram/webhook-handler.ts (invoke transcription for type='audio')
-      - src/lib/domain/messages.ts (setMessageTranscription — reuse, no change expected)
-    status: open
+      - src/lib/instagram/webhook-handler.ts (inline transcribeAudioFromUrl + setMessageTranscription for type='audio')
+    status: fixed (plan 41-11, shipped 2026-06-06 — commit 1ee0857a; WIRED not deferred, best-effort degrades to null; awaiting operator live smoke: IG voice note → transcription under player)
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

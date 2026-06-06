@@ -253,28 +253,20 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
         <TooltipProvider>
           <div className="brand">
             <div className="wm">
-              morf<b>·</b>x
+              <Image src="/logo-light.png" alt="morfx" width={96} height={28} priority />
             </div>
             <div className="sub">{workspaceSubline}</div>
           </div>
 
-          {/* Workspace switcher preserved as functional infra — the mock omits
-              it but the app requires it to switch contexts. Wrapped in a
-              paper-2 container so it reads as a sidebar module, not a
-              floating primitive. */}
-          <div
-            className="px-3 py-3"
-            style={{ borderBottom: '1px solid var(--border)' }}
-          >
-            <WorkspaceSwitcher
-              workspaces={workspaces}
-              currentWorkspace={currentWorkspace}
-            />
-          </div>
-
-          <div className="px-3 py-3">
-            <GlobalSearch />
-          </div>
+          {/* Workspace switcher preserved as functional infra. Restyled to the
+              mock's `.ws` look (badge + name + caret) via the `editorial` prop;
+              dropdown remains fully functional. No bordered box wrapper — the
+              `.ws` class provides margin/height (D-G3). */}
+          <WorkspaceSwitcher
+            workspaces={workspaces}
+            currentWorkspace={currentWorkspace}
+            editorial
+          />
 
           <nav className="sb-nav">
             {navCategoriesV2.map(category => {
@@ -328,7 +320,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
             <div
               className="px-4 py-3"
               style={{
-                borderTop: '1px solid var(--ink-1)',
+                borderTop: '1px solid var(--border)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
@@ -356,7 +348,8 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
                 <p
                   style={{
                     margin: 0,
-                    fontFamily: 'var(--font-serif)',
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: 600,
                     fontSize: 13,
                     color: 'var(--ink-1)',
                     whiteSpace: 'nowrap',

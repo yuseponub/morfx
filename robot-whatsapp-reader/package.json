@@ -2,6 +2,7 @@
   "name": "robot-whatsapp-reader",
   "version": "1.0.0",
   "description": "Robot local read-only (Playwright + wa-js) para respaldar historiales de WhatsApp antes de migrar el numero a la API. Jamas envia mensajes (D-15).",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

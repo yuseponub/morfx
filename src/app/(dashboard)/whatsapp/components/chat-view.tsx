@@ -372,6 +372,7 @@ export function ChatView({
       <MessageInput
         conversationId={conversationId}
         isWindowOpen={isWindowOpen}
+        channel={conversation.channel}
         contact={conversation.contact ? {
           id: conversation.contact.id,
           name: conversation.contact.name,

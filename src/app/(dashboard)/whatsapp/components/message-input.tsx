@@ -45,6 +45,9 @@ interface MessageInputProps {
   isWindowOpen: boolean
   contact?: Contact | null
   recentOrder?: Order | null
+  /** Conversation channel — drives the meta_direct (IG/FB) pre-upload guard.
+   *  Undefined is treated as 'whatsapp' so existing callers are unaffected (Regla 6). */
+  channel?: 'whatsapp' | 'facebook' | 'instagram'
   addOptimisticMessage?: (text: string, media?: OptimisticMedia) => void
   onSend?: () => void
 }
@@ -130,6 +133,7 @@ export function MessageInput({
   isWindowOpen,
   contact,
   recentOrder,
+  channel,
   addOptimisticMessage,
   onSend,
 }: MessageInputProps) {
@@ -242,7 +246,9 @@ export function MessageInput({
         sendMediaMessage(conversationId, base64, filename, mimeType, caption)
           .then(result => {
             if ('error' in result) {
-              toast.error('Error al enviar archivo', {
+              // Surface the REAL reason (e.g. Meta 2018047 / window-closed) instead
+              // of the generic constant — GAP-41-04. Fallback when result.error is empty.
+              toast.error(result.error || 'Error al enviar archivo', {
                 action: { label: 'Reintentar', onClick: fireMedia },
               })
             }
@@ -295,7 +301,16 @@ export function MessageInput({
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Check file size
+    // Meta (IG/FB) pre-upload guard — reject HEIC/oversized BEFORE upload with a
+    // clear Spanish reason. No-op for WhatsApp (Regla 6). GAP-41-04.
+    const metaCheck = validateMetaUpload(file, channel ?? 'whatsapp')
+    if (!metaCheck.ok) {
+      toast.error(metaCheck.error)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    // Check file size (WhatsApp 16MB cap; for IG/FB the tighter meta guard already fired)
     if (file.size > MAX_FILE_SIZE) {
       toast.error('El archivo es muy grande (max 16MB)')
       return
@@ -321,7 +336,7 @@ export function MessageInput({
     } catch (error) {
       toast.error('Error al procesar archivo')
     }
-  }, [])
+  }, [channel])
 
   // Remove attached file
   const handleRemoveFile = useCallback(() => {

@@ -1382,9 +1382,14 @@ html:has(.theme-editorial) body {
  * APPEND ONLY. Las reglas legacy del scope sin guion (546-616) y el
  * bloque legacy (1..1012) quedan BYTE-FROZEN. background-image:none en .sb
  * evita el grain doble del scope (Opción B). */
-.theme-editorial-v3 .sb { background:var(--paper-2); background-image:none; border-right:1px solid var(--border); display:flex; flex-direction:column }
-.theme-editorial-v3 .brand { padding:18px 18px 14px; border-bottom:1px solid var(--ink-1) }
-.theme-editorial-v3 .wm { display:block; height:28px }
+/* GAP-06 fix (rebuild): sidebar CONTINUO con el contenido — sin border-right
+ * (el "cortado"), bg = paper-1 (igual que el <main>), y brand SIN la línea dura
+ * ink-1 (el "frankenstein"). Fiel al mock crm-editorial.html (.sb sin borde,
+ * .brand sin border-bottom). Verificado por screenshot Playwright vs mock. */
+.theme-editorial-v3 .sb { background:var(--paper-1); background-image:none; display:flex; flex-direction:column }
+.theme-editorial-v3 .brand { padding:18px 16px 12px; display:flex; flex-direction:column; gap:2px }
+.theme-editorial-v3 .wm { display:block; height:24px }
+.theme-editorial-v3 .wm img { display:block; height:24px; width:auto }
 .theme-editorial-v3 .wm b { color:var(--rubric-2); font-weight:800 }
 .theme-editorial-v3 .sub { font-family:var(--font-sans); font-size:12px; font-weight:500; color:var(--ink-3); margin-top:4px }
 .theme-editorial-v3 nav.sb-nav { padding:8px; flex:1; overflow:auto }

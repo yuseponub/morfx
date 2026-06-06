@@ -253,7 +253,7 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v
         <TooltipProvider>
           <div className="brand">
             <div className="wm">
-              <Image src="/logo-light.png" alt="morfx" width={96} height={28} priority />
+              <Image src="/logo-light.png" alt="morf·x" width={64} height={24} priority style={{ height: 24, width: 'auto' }} />
             </div>
             <div className="sub">{workspaceSubline}</div>
           </div>

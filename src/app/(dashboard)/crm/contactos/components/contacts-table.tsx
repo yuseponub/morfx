@@ -20,6 +20,7 @@ import { TagFilter } from './tag-filter'
 import { TagManager } from './tag-manager'
 import { CsvImportDialog } from './csv-import-dialog'
 import { CsvExportButton } from './csv-export-button'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { formatPhoneDisplay } from '@/lib/utils/phone'
 import type { ContactWithTags, Tag, CustomFieldDefinition } from '@/lib/types/database'
 import { deleteContact, deleteContacts, bulkAddTag, bulkRemoveTag } from '@/app/actions/contacts'
@@ -282,6 +283,7 @@ export function ContactsTable({
             </h1>
           </div>
           <div className="actions">
+            <ThemeToggle />
             <button
               type="button"
               className="btn"

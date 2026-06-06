@@ -42,7 +42,44 @@ gaps:
     files_implicated:
       - src/lib/meta/credentials.ts (resolveByPageId — 1-line channel filter)
       - src/lib/meta/__tests__/credentials-resolve-by-page.test.ts (regression test)
-    status: fixed (hotfix 2026-06-05) — awaiting live FB re-test on Varixcenter
+    status: fixed (hotfix 2026-06-05) — live-verified 2026-06-06 (FB inbound to Varixcenter works again)
+  - id: GAP-41-04
+    severity: nonblocking
+    discovered: 2026-06-06 live smoke (Varixcenter operator + Graph API reproduction)
+    requirement: IG-02 (outbound media robustness)
+    title: "Outbound image composer allows files Meta rejects — 16MB cap (Meta IG/Messenger image limit is 8MB) + no format guard (HEIC) → generic 'Error al enviar archivo'"
+    symptom: "Operator attached a photo and got 'Error al enviar archivo' with no actionable reason. Graph API returns (#100) error_subcode 2018047 'Error uploading attachment'."
+    root_cause: "VERIFIED via direct Graph API reproduction on the EXACT prod path (Supabase Storage public URL → POST /{pageId}/messages). A normal 600x400 JPEG (11KB) sends successfully to BOTH IG (998904685857123) and FB (36445281188419013) — HTTP 200, message_id + attachment_id. The channel/code path is correct. Meta returns 2018047 for (a) images Meta cannot decode — notably iPhone HEIC, reachable because the composer's accept='image/*' lets iOS deliver HEIC and the app forwards file.type/file verbatim — and (b) images 8-16MB, which pass the app guard (MAX_FILE_SIZE=16MB in message-input.tsx:62) but exceed Meta's 8MB image limit. The error surfaces as the generic fallback toast 'Error al enviar archivo' (message-input.tsx:186/192) with no size/format hint."
+    evidence: "PNG 1x1 → 2018047 fail. Wikimedia URL → fail (Meta fetcher blocked). Real JPEG via Supabase Storage URL (HEAD 200 image/jpeg) → 200 OK on IG AND FB. Bucket whatsapp-media is public. So failure is input-file-specific, not channel/url/code."
+    fix_direction: "Enforce Meta's real per-type limits for meta_direct FB/IG (image 8MB; video 25MB; audio 25MB; file 25MB) BEFORE upload, with a clear Spanish message naming the limit. Detect/handle HEIC: either reject with a clear 'Convierte la imagen a JPG/PNG' message, or transcode to JPEG. Surface the domain/Graph error reason in the toast instead of the generic fallback (the action already returns result.error — message-input.tsx swallows it to a constant string). Keep WhatsApp/manychat limits unchanged (Regla 6) — gate the tighter limit on channel + provider."
+    files_implicated:
+      - src/app/(dashboard)/whatsapp/components/message-input.tsx (size/format guard + surface real error)
+      - src/app/actions/messages.ts (sendMediaMessage action — may pass through a richer error)
+      - (optional) src/lib/meta/instagram-api.ts / meta-facebook-sender.ts (no change expected — channel works)
+    status: open
+  - id: GAP-41-05
+    severity: nonblocking
+    discovered: 2026-06-06 live smoke (Ruth Zapata Duarte, IG conv 89aa0de1, empty inbound 2026-06-05 21:08 UTC)
+    requirement: IG-01 (inbound coverage)
+    title: "Unrecognized IG inbound message types (shared post/reel, story reply/mention, reaction) are stored as an EMPTY text bubble"
+    symptom: "An IG DM from a real user landed in the inbox as a blank message (type='text', content.body=''). Operator could not tell what was sent."
+    root_cause: "VERIFIED in webhook-handler.ts:107-125 — the handler only understands message.text and attachments[0] of type image|audio|video|file (ATTACHMENT_TYPE_MAP). Any other IG payload (attachment type 'share'/'story_mention'/'ig_reel', a story reply via message.reply_to, or a reaction) has no text and no mapped attachment → isMedia=false, messageText='' → stored as { body: '' }. The raw webhook payload is NOT persisted, so the original content cannot be recovered retroactively."
+    fix_direction: "Map known non-standard IG types to a clear labeled placeholder bubble: attachment type 'share'/'ig_reel' → '[Publicación compartida]' (+ link if present), 'story_mention'/message.reply_to.story → '[Respuesta a tu historia]', reaction events → '[Reacción: <emoji>]'. Never store an empty body. Consider persisting the raw payload (or a typed summary) for unrecognized types to aid future debugging. Keep ManyChat IG path untouched (Regla 6)."
+    files_implicated:
+      - src/lib/instagram/webhook-handler.ts (recognize + label non-standard types)
+    status: open
+  - id: GAP-41-06
+    severity: nonblocking
+    discovered: 2026-06-06 live smoke (IG inbound audio, conv 0b07d081)
+    requirement: IG-01 (inbound audio parity with v4 media)
+    title: "IG inbound audio/voice notes are stored without transcription (messages.transcription = null)"
+    symptom: "A voice note sent via IG DM lands as type='audio' with a playable link but transcription=null — no text for operators/agents to read."
+    root_cause: "The IG webhook handler stores the audio attachment link but does not invoke the transcription path that the v4 media pipeline uses (messages.transcription + setMessageTranscription, shipped in standalone v4-media-audio-image 2026-06-01). IG inbound predates / is not wired to that path."
+    fix_direction: "Wire IG inbound audio to the same transcription path used by v4 media (setMessageTranscription), or explicitly defer with a documented reason. Lowest priority of the three smoke gaps. Confirm whether the lookaside.fbsbx.com audio URL is fetchable server-side for transcription."
+    files_implicated:
+      - src/lib/instagram/webhook-handler.ts (invoke transcription for type='audio')
+      - src/lib/domain/messages.ts (setMessageTranscription — reuse, no change expected)
+    status: open
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

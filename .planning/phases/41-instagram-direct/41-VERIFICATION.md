@@ -117,7 +117,7 @@ gaps:
       - src/lib/media/mp4-detect.ts (add browser-safe isAudioOnlyMp4Bytes(Uint8Array); refactor isAudioOnlyMp4 to delegate)
       - src/app/(dashboard)/whatsapp/components/message-input.tsx (optimistic type override for audio-only mp4 on IG/FB)
       - src/lib/media/__tests__/mp4-detect.test.ts (unit tests for the bytes detector)
-    status: open
+    status: fixed (plan 41-14, shipped 2026-06-06 — commits da2e3f61/0b02a18c/a8147b4d; browser-safe isAudioOnlyMp4Bytes + Node delegates; composer optimistic-type override IG/FB; reconciler use-messages.ts UNTOUCHED; pnpm build PASS; TDD 16/16; awaiting operator live smoke: re-send audioclip.mp4 → one bubble reconciles to sent, no phantom)
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

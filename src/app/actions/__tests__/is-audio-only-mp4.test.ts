@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isAudioOnlyMp4 } from '../messages'
+import { isAudioOnlyMp4 } from '@/lib/media/mp4-detect'
 
 // GAP-41-08: pure container heuristic — an audio-only .mp4/.mov (a 'soun' handler and NO
 // 'vide' handler) must be detected so sendMediaMessage can reclassify it from 'video' to

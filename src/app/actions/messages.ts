@@ -13,31 +13,13 @@ import {
 } from '@/lib/domain/messages'
 import type { DomainContext } from '@/lib/domain/types'
 import { resolveMessengerWindowSend } from '@/lib/messenger/window-gate'
+// GAP-41-08: pure helper lives in its own module — a 'use server' file may only
+// export async functions, so a synchronous export here breaks the Next.js build.
+import { isAudioOnlyMp4 } from '@/lib/media/mp4-detect'
 import type {
   Message,
   ActionResult,
 } from '@/lib/whatsapp/types'
-
-/**
- * GAP-41-08: detect an audio-only mp4/quicktime container.
- * Returns true iff the buffer carries a 'soun' (audio) handler and NO 'vide' (video)
- * handler — i.e. a .mp4/.mov with no video track (chat-downloaded audioclip-*.mp4,
- * Android voice notes). Pure, bounded, never throws. Used to reclassify such files
- * from 'video' to 'audio' for IG/FB sends (Meta rejects audio-only mp4 sent as video).
- */
-export function isAudioOnlyMp4(buf: Buffer): boolean {
-  try {
-    if (!Buffer.isBuffer(buf) || buf.length < 8) return false
-    // Bound the scan — untrusted uploaded buffer; moov/hdlr boxes are at the front.
-    const slice = buf.length > 524288 ? buf.subarray(0, 524288) : buf
-    const hasVide = slice.indexOf('vide', 0, 'ascii') !== -1
-    if (hasVide) return false
-    const hasSoun = slice.indexOf('soun', 0, 'ascii') !== -1
-    return hasSoun
-  } catch {
-    return false
-  }
-}
 
 // ============================================================================
 // READ OPERATIONS (unchanged — domain only handles mutations)

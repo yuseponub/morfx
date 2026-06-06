@@ -58,6 +58,11 @@ const TABS: Tab[] = [
  * sigue montando el sub-nav arriba sin cambios (Regla 6).
  */
 const SELF_RENDERED_V3_ROUTES = ['/crm/pedidos']
+// Rutas EXACTAS que también suprimen la copia del layout: '/crm' es el root que
+// redirige a '/crm/pedidos' (crm/page.tsx). Sin esto, durante el redirect la copia
+// del layout aparece arriba un instante = el "flash" de la barra vieja. Exacto (no
+// prefijo) para no afectar '/crm/configuracion' etc.
+const SUPPRESS_EXACT_V3_ROUTES = ['/crm']
 
 interface CrmTabsProps {
   /** Copia inline montada por la página (debajo de su topbar v3). Siempre renderiza. */
@@ -70,11 +75,13 @@ export function CrmTabs({ inline = false, suppressV3Inline = false }: CrmTabsPro
   const pathname = usePathname()
 
   // La copia del layout se autosuprime en rutas que renderizan su propio sub-nav
-  // inline (solo bajo v3) — evita la franja duplicada arriba del título.
+  // inline (solo bajo v3) — evita la franja duplicada arriba del título y el flash
+  // del redirect '/crm' → '/crm/pedidos'.
   if (
     !inline &&
     suppressV3Inline &&
-    SELF_RENDERED_V3_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+    (SUPPRESS_EXACT_V3_ROUTES.includes(pathname) ||
+      SELF_RENDERED_V3_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`)))
   ) {
     return null
   }

@@ -1124,6 +1124,13 @@ html:has(.theme-editorial) body {
   --bg-app:oklch(0.996 0.0008 95);
   --bg-sidebar:oklch(0.996 0.0008 95);
 
+  /* Altura del header (topbar) editorial = 90px medido (padding 18+25 + eyebrow +
+     h1 1-línea + borde). El .brand del sidebar usa la MISMA altura para que el
+     switcher de workspace (que va justo debajo del brand) se alinee con el top de
+     la barra de contenido bajo el título (sub-nav CRM / panel conversaciones) en
+     todos los módulos. */
+  --editorial-header-h:90px;
+
   /* GAP-04: textura de papel fiel al design-system (handoff/colors_and_type.css
      + base globals.css ~líneas 223-224). fractalNoise baseFrequency 0.85, 2
      octavas, tinte gris-cálido; fibras verticales sutiles. Alpha del grain
@@ -1392,7 +1399,7 @@ html:has(.theme-editorial) body {
  * bg-app + grain == main → CONTINUO. border-right:0 + .brand border:0 vencen al
  * legacy. Especificidad 0,2,0 == legacy pero gana por orden de fuente (va después). */
 .theme-editorial-v3.sb { background-color:var(--bg-sidebar); background-image:var(--paper-grain),var(--paper-fibers); border-right:0; display:flex; flex-direction:column }
-.theme-editorial-v3 .brand { padding:18px 16px 12px; display:flex; flex-direction:column; gap:2px; border:0 }
+.theme-editorial-v3 .brand { height:var(--editorial-header-h); box-sizing:border-box; padding:0 16px; display:flex; flex-direction:column; justify-content:center; gap:2px; border:0 }
 .theme-editorial-v3 .wm { display:block; height:24px }
 .theme-editorial-v3 .wm img { display:block; height:24px; width:auto }
 .theme-editorial-v3 .wm b { color:var(--rubric-2); font-weight:800 }

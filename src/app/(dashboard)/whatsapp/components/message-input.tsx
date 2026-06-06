@@ -72,6 +72,85 @@ const META_VIDEO_MAX = 25 * 1024 * 1024
 const META_AUDIO_MAX = 25 * 1024 * 1024
 const META_FILE_MAX = 25 * 1024 * 1024
 
+// GAP-41-07: per-channel format whitelists. IG is STRICT, FB is PERMISSIVE.
+// Keyed by deriveMediaType() kind → Set of allowed canonical MIME strings.
+// Meta rejects unsupported formats post-upload with a cryptic (#100); this
+// pre-filter surfaces a clear Spanish reason BEFORE upload (best-effort — Meta
+// inspects the real bytes, so the surfaced-real-error path stays as backstop).
+const IG_FORMATS: Record<'image' | 'video' | 'audio' | 'document', Set<string>> = {
+  image: new Set(['image/jpeg', 'image/png']),
+  video: new Set(['video/mp4', 'video/ogg', 'video/x-msvideo', 'video/quicktime', 'video/webm']),
+  audio: new Set(['audio/aac', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav']),
+  document: new Set(['application/pdf']),
+}
+const FB_FORMATS: Record<'image' | 'video' | 'audio' | 'document', Set<string>> = {
+  image: new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']),
+  video: new Set(['video/mp4', 'video/quicktime']),
+  audio: new Set(['audio/aac', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/amr', 'audio/ogg', 'audio/opus']),
+  document: new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+  ]),
+}
+// Extension → canonical MIME fallback when file.type is empty or generic
+// (iOS / some audio recorders emit '' or application/octet-stream).
+const EXT_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+  mp4: 'video/mp4', ogv: 'video/ogg', avi: 'video/x-msvideo', mov: 'video/quicktime', webm: 'video/webm',
+  aac: 'audio/aac', m4a: 'audio/x-m4a', wav: 'audio/wav', mp3: 'audio/mpeg', amr: 'audio/amr', ogg: 'audio/ogg', opus: 'audio/opus',
+  pdf: 'application/pdf', doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  txt: 'text/plain',
+}
+
+/** Human-friendly format label from a MIME subtype (audio/mpeg → MP3). */
+function prettyFormat(mime: string): string {
+  const map: Record<string, string> = {
+    'audio/mpeg': 'MP3',
+    'audio/webm': 'WEBM',
+    'audio/ogg': 'OGG',
+    'audio/opus': 'OPUS',
+    'audio/aac': 'AAC',
+    'audio/x-m4a': 'M4A',
+    'audio/mp4': 'MP4',
+    'audio/wav': 'WAV',
+    'audio/amr': 'AMR',
+  }
+  if (map[mime]) return map[mime]
+  const sub = mime.includes('/') ? mime.slice(mime.lastIndexOf('/') + 1) : mime
+  return sub.toUpperCase()
+}
+
+/** Exact Spanish reject message per channel + media kind (GAP-41-07). */
+function formatRejectMessage(
+  channel: 'facebook' | 'instagram',
+  kind: 'image' | 'video' | 'audio' | 'document',
+  mime: string
+): string {
+  if (channel === 'instagram') {
+    if (kind === 'audio')
+      return `Instagram solo acepta audio AAC, M4A, WAV o MP4. Tu archivo es ${prettyFormat(mime)} — convíértelo o graba una nota de voz.`
+    if (kind === 'document') return 'Instagram solo acepta documentos PDF.'
+    if (kind === 'image') return 'Instagram solo acepta imágenes JPG o PNG.'
+    return 'Instagram solo acepta video MP4, MOV, WEBM, OGG o AVI.'
+  }
+  // facebook
+  if (kind === 'audio') return 'Facebook solo acepta audio AAC, MP3, M4A, AMR, OGG u OPUS.'
+  if (kind === 'image') return 'Facebook solo acepta imágenes JPG, PNG, GIF o WEBP.'
+  if (kind === 'video') return 'Facebook solo acepta video MP4 o MOV.'
+  return 'Facebook solo acepta documentos PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX o TXT.'
+}
+
 /**
  * Pure pre-upload guard for Instagram/Facebook (meta_direct) media.
  *
@@ -104,7 +183,21 @@ export function validateMetaUpload(
     }
   }
 
-  const kind = deriveMediaType(file.type) // 'image' | 'video' | 'audio' | 'document'
+  // Resolve an effective MIME: prefer file.type, fall back to extension when
+  // empty or generic (iOS / some recorders emit '' or application/octet-stream).
+  const ext = lowerName.includes('.') ? lowerName.slice(lowerName.lastIndexOf('.') + 1) : ''
+  const generic = file.type === '' || file.type === 'application/octet-stream'
+  const effectiveMime = generic ? (EXT_TO_MIME[ext] ?? file.type) : file.type
+
+  // deriveMediaType only ever returns one of these 4 media kinds.
+  const kind = deriveMediaType(effectiveMime) as 'image' | 'video' | 'audio' | 'document'
+
+  // GAP-41-07: per-channel FORMAT whitelist (IG strict / FB permissive).
+  const allowed = channel === 'instagram' ? IG_FORMATS[kind] : FB_FORMATS[kind]
+  if (!allowed.has(effectiveMime)) {
+    return { ok: false, error: formatRejectMessage(channel, kind, effectiveMime) }
+  }
+
   if (kind === 'image' && file.size > META_IMAGE_MAX) {
     return {
       ok: false,

@@ -49,8 +49,35 @@ const TABS: Tab[] = [
   { href: '/crm/configuracion', label: 'Configuración' },
 ]
 
-export function CrmTabs() {
+/**
+ * Routes whose page renders its OWN inline <CrmTabs inline/> below the editorial
+ * v3 topbar (so the title sits at the very top, like "Conversaciones" en WhatsApp,
+ * y el sub-nav baja a la posición intermedia). En esas rutas, la copia que monta
+ * crm/layout.tsx ARRIBA debe ocultarse para no duplicar la franja — pero SOLO
+ * cuando v3 está activo (`suppressV3Inline`). Para workspaces v2-only el layout
+ * sigue montando el sub-nav arriba sin cambios (Regla 6).
+ */
+const SELF_RENDERED_V3_ROUTES = ['/crm/pedidos']
+
+interface CrmTabsProps {
+  /** Copia inline montada por la página (debajo de su topbar v3). Siempre renderiza. */
+  inline?: boolean
+  /** Solo la copia del layout: oculta en SELF_RENDERED_V3_ROUTES cuando v3 está ON. */
+  suppressV3Inline?: boolean
+}
+
+export function CrmTabs({ inline = false, suppressV3Inline = false }: CrmTabsProps = {}) {
   const pathname = usePathname()
+
+  // La copia del layout se autosuprime en rutas que renderizan su propio sub-nav
+  // inline (solo bajo v3) — evita la franja duplicada arriba del título.
+  if (
+    !inline &&
+    suppressV3Inline &&
+    SELF_RENDERED_V3_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+  ) {
+    return null
+  }
 
   return (
     <nav className="tabs" aria-label="Secciones del módulo CRM">

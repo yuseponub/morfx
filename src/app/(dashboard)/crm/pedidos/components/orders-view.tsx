@@ -45,6 +45,7 @@ import { StageEditDialog } from './stage-edit-dialog'
 import { BulkMoveDialog } from './bulk-move-dialog'
 import { BulkEditDialog } from './bulk-edit-dialog'
 import { OrderForm } from './order-form'
+import { CrmTabs } from '../../components/crm-tabs'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { deleteOrder, deleteOrders, exportOrdersToCSV, getOrdersForStage, getStageOrderCounts, bulkMoveOrdersToStage, bulkUpdateOrderField, recompraOrder } from '@/app/actions/orders'
 import { RECOMPRA_PIPELINE_NAME } from '@/lib/orders/constants'
@@ -937,6 +938,11 @@ export function OrdersView({
             </button>
           </div>
         </header>
+
+        {/* Sub-nav del CRM en la posición intermedia (debajo del título). La copia
+            del layout se autosuprime en esta ruta vía suppressV3Inline (crm-tabs.tsx),
+            así el título queda arriba del todo como en WhatsApp y el sub-nav baja aquí. */}
+        <CrmTabs inline />
 
         <div className="page relative flex flex-col flex-1 min-h-0">
           {/* Toolbar — search + tag chips + view toggle */}

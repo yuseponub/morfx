@@ -19,6 +19,7 @@
  */
 
 import { getIsDashboardV2Enabled } from '@/lib/auth/dashboard-v2'
+import { getIsEditorialV3Enabled } from '@/lib/auth/editorial-v3'
 import { getActiveWorkspaceId } from '@/app/actions/workspace'
 import { CrmTabs } from './components/crm-tabs'
 
@@ -30,6 +31,13 @@ export default async function CrmLayout({
   const activeWorkspaceId = await getActiveWorkspaceId()
   const v2 = activeWorkspaceId
     ? await getIsDashboardV2Enabled(activeWorkspaceId)
+    : false
+  // Editorial v3 — cuando está ON, las páginas que renderizan su propio sub-nav
+  // inline (SELF_RENDERED_V3_ROUTES en crm-tabs.tsx) hacen que esta copia del
+  // layout se autosuprima, dejando el título arriba del todo (como WhatsApp).
+  // Para workspaces v2-only (v3=false) el sub-nav del layout queda intacto (Regla 6).
+  const v3 = activeWorkspaceId
+    ? await getIsEditorialV3Enabled(activeWorkspaceId)
     : false
 
   if (!v2) {
@@ -45,7 +53,7 @@ export default async function CrmLayout({
   // (matching mock crm.html lines 108-125).
   return (
     <>
-      <CrmTabs />
+      <CrmTabs suppressV3Inline={v3} />
       {children}
     </>
   )

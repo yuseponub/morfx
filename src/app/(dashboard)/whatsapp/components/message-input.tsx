@@ -61,6 +61,65 @@ const ACCEPTED_FILES = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx'
 // Max file size (16MB for WhatsApp)
 const MAX_FILE_SIZE = 16 * 1024 * 1024
 
+// Meta (Instagram/Facebook meta_direct) per-type limits — STRICTER than WhatsApp.
+// Meta returns (#100) error_subcode 2018047 for HEIC images and images >8MB
+// (the live GAP-41-04 repro). WhatsApp keeps the 16MB MAX_FILE_SIZE above (Regla 6).
+const META_IMAGE_MAX = 8 * 1024 * 1024
+const META_VIDEO_MAX = 25 * 1024 * 1024
+const META_AUDIO_MAX = 25 * 1024 * 1024
+const META_FILE_MAX = 25 * 1024 * 1024
+
+/**
+ * Pure pre-upload guard for Instagram/Facebook (meta_direct) media.
+ *
+ * Rejects files Meta cannot decode/accept BEFORE the upload round-trip, with a
+ * clear Spanish reason. Gated on channel === 'instagram' || 'facebook'; WhatsApp
+ * (and any undefined channel treated as 'whatsapp' by the caller) keeps the
+ * existing 16MB behavior with no HEIC guard (Regla 6).
+ *
+ * NOTE: this is a UX pre-filter, not a security control. A spoofed MIME that
+ * slips past the client still hits Meta's server-side validation (2018047), now
+ * surfaced via result.error on the send path.
+ */
+export function validateMetaUpload(
+  file: { type: string; name: string; size: number },
+  channel: 'whatsapp' | 'facebook' | 'instagram'
+): { ok: true } | { ok: false; error: string } {
+  // Meta-only guards. WhatsApp keeps the existing 16MB MAX_FILE_SIZE behavior (Regla 6).
+  if (channel !== 'instagram' && channel !== 'facebook') return { ok: true }
+
+  const lowerName = file.name.toLowerCase()
+  const isHeic =
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    lowerName.endsWith('.heic') ||
+    lowerName.endsWith('.heif')
+  if (isHeic) {
+    return {
+      ok: false,
+      error: 'Convierte la imagen a JPG o PNG antes de enviarla (Instagram/Facebook no aceptan HEIC).',
+    }
+  }
+
+  const kind = deriveMediaType(file.type) // 'image' | 'video' | 'audio' | 'document'
+  if (kind === 'image' && file.size > META_IMAGE_MAX) {
+    return {
+      ok: false,
+      error: 'La imagen supera el límite de 8MB de Instagram/Facebook. Reduce su tamaño.',
+    }
+  }
+  if (kind === 'video' && file.size > META_VIDEO_MAX) {
+    return { ok: false, error: 'El video supera el límite de 25MB de Instagram/Facebook.' }
+  }
+  if (kind === 'audio' && file.size > META_AUDIO_MAX) {
+    return { ok: false, error: 'El audio supera el límite de 25MB de Instagram/Facebook.' }
+  }
+  if (kind === 'document' && file.size > META_FILE_MAX) {
+    return { ok: false, error: 'El archivo supera el límite de 25MB de Instagram/Facebook.' }
+  }
+  return { ok: true }
+}
+
 /**
  * Message input with emoji picker and file attachments.
  * Shows file preview before sending.

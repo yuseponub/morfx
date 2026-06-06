@@ -949,6 +949,7 @@ export function OrdersView({
             </h1>
           </div>
           <div className="actions">
+            <ThemeToggle />
             <button type="button" className="btn" onClick={handleExport}>
               Exportar
             </button>

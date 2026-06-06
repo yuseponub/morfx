@@ -25,6 +25,14 @@ instagram_provider Varixcenter = `meta_direct` (flipeado 2026-06-05).
 - [ ] **GAP-41-05 tipos IG** — enviar a @varixcenter: una publicación/reel compartido → `[Publicación compartida]`; respuesta a historia → `[Respuesta a tu historia]`; una reacción ❤️ → `[Reacción: ❤️]`. NUNCA burbuja vacía.
 - [ ] **GAP-41-06 transcripción** — enviar nota de voz por IG → aparece transcripción bajo el player (o degrada a null sin romper)
 
+## ⏳ Re-smoke GAP-41-07 (formato media saliente — deploy 8c95e58f) — operador
+- [ ] **Audio IG mp3** — adjuntar un .mp3 a chat IG → mensaje claro "Instagram solo acepta audio AAC/M4A/WAV/MP4…" (bloqueado antes de subir)
+- [ ] **Audio IG m4a/wav** — adjuntar .m4a (nota de voz iPhone) o .wav a chat IG → **se envía** (llega al DM)
+- [ ] **Audio FB mp3** — adjuntar .mp3 a chat FB → **se envía** (FB es permisivo)
+- [ ] **Doc IG no-PDF** — adjuntar .docx a chat IG → mensaje "Instagram solo acepta documentos PDF"
+- [ ] **WhatsApp passthrough** — adjuntar .mp3/.gif por WhatsApp → sigue permitido (Regla 6)
+> Nota verificada por Graph API: IG audio sí funciona con AAC/M4A/WAV/MP4 (mp3 NO); Meta inspecciona los bytes reales. FB acepta AAC/MP4/MP3/AMR/OGG/OPUS.
+
 ## ⏳ Smokes IG aún sin probar
 - [ ] **IG inbound video / sticker** — enviar → manejo correcto o degradación clara
 - [ ] **IG-05 ventana 24h** — en un hilo con último inbound >24h (o backdatear `last_customer_message_at`), intentar enviar → BLOQUEADO con mensaje español "Ventana de 24h cerrada..."

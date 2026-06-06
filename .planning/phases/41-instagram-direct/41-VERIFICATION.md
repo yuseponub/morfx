@@ -90,7 +90,7 @@ gaps:
     files_implicated:
       - src/app/(dashboard)/whatsapp/components/message-input.tsx (extend validateMetaUpload with per-channel format whitelists)
       - src/app/(dashboard)/whatsapp/components/__tests__/meta-upload-guard.test.ts (extend the TDD table)
-    status: open
+    status: fixed (plan 41-12, shipped 2026-06-06 — commits 49a0d526/8c95e58f; TDD 25/25; IG_FORMATS strict + FB_FORMATS permissive + EXT_TO_MIME fallback; WhatsApp passthrough Regla 6; awaiting operator live smoke: IG mp3→mensaje claro, IG m4a/wav→envía, FB mp3→envía)
 human_verification:
   - test: "Push Phase 41 commits to Vercel and confirm prod-migration applied (Regla 1 + Regla 5 HARD GATE)"
     expected: "All Phase 41 code is live on morfx.app. Prod Supabase has workspaces.instagram_provider column (DEFAULT 'manychat') and workspace_meta_accounts.ig_username column. SELECT instagram_provider, count(*) FROM workspaces GROUP BY instagram_provider returns a single row 'manychat | N' (zero meta_direct)."

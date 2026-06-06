@@ -69,6 +69,7 @@ export default async function DashboardLayout({
             currentWorkspace={currentWorkspace}
             user={user}
             v2={isDashboardV2}
+            v3={isEditorialV3}
           />
           <main
             className={cn(

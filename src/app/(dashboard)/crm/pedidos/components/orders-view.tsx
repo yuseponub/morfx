@@ -742,36 +742,15 @@ export function OrdersView({
   const isEmpty = orders.length === 0
 
   // ==========================================================================
-  // Editorial v3 status-tab segments (UI-SPEC §6.3 tabs Todos/Pendientes/…).
-  // Each tab filters the kanban/table by a stage-name keyword via the existing
-  // `selectedStageId` wiring — markup only, no new query (D-08).
+  // Editorial v3 status filter — dropdown funcional de stages reales.
+  // Reemplaza los tabs estáticos Todos/Pendientes/… (UI-SPEC §6.3, D-08) que
+  // mapeaban por keyword y NO filtraban para los stages reales del workspace
+  // (ej. "Pendientes"/"Despachados"/"Entregados" no existen como nombre → no-op).
+  // Ahora el dropdown lista los stages reales del pipeline activo y filtra vía
+  // `selectedStageId` (mismo wiring que la vista legacy, orders-view.tsx ~1215).
+  // Quitar la fila de tabs deja la barra intermedia (sub-nav CRM) con la misma
+  // altura en todos los módulos = medida base.
   // ==========================================================================
-  const STATUS_TABS: { label: string; match: string | null }[] = [
-    { label: 'Todos', match: null },
-    { label: 'Pendientes', match: 'pend' },
-    { label: 'Confirmados', match: 'confirm' },
-    { label: 'Despachados', match: 'despach' },
-    { label: 'Entregados', match: 'entreg' },
-    { label: 'Cancelados', match: 'cancel' },
-  ]
-  const activeStatusTab = (() => {
-    if (!selectedStageId) return 'Todos'
-    const stage = stages.find((s) => s.id === selectedStageId)
-    if (!stage) return 'Todos'
-    const found = STATUS_TABS.find(
-      (t) => t.match && stage.name.toLowerCase().includes(t.match),
-    )
-    return found?.label ?? 'Todos'
-  })()
-  const handleStatusTab = (match: string | null) => {
-    if (!match) {
-      setSelectedStageId(null)
-      return
-    }
-    const stage = stages.find((s) => s.name.toLowerCase().includes(match))
-    setSelectedStageId(stage ? stage.id : null)
-  }
-
   // Total monthly count for the editorial topbar `<em>` (UI-SPEC §6.3 "312 este mes").
   const monthlyCount = orders.filter((o) => o.pipeline_id === activePipelineId).length
 
@@ -959,27 +938,6 @@ export function OrdersView({
           </div>
         </header>
 
-        {/* Status tabs */}
-        <nav className="tabs">
-          {STATUS_TABS.map((tab) => (
-            <a
-              key={tab.label}
-              role="button"
-              tabIndex={0}
-              className={activeStatusTab === tab.label ? 'on' : undefined}
-              onClick={() => handleStatusTab(tab.match)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  handleStatusTab(tab.match)
-                }
-              }}
-            >
-              {tab.label}
-            </a>
-          ))}
-        </nav>
-
         <div className="page relative flex flex-col flex-1 min-h-0">
           {/* Toolbar — search + tag chips + view toggle */}
           <div className="toolbar">
@@ -1002,6 +960,33 @@ export function OrdersView({
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            {/* Estado — dropdown funcional de stages reales (reemplaza los tabs muertos).
+                Filtra vía selectedStageId (mismo wiring que la vista legacy ~1215). */}
+            <Select
+              value={selectedStageId || 'all'}
+              onValueChange={(value) => setSelectedStageId(value === 'all' ? null : value)}
+            >
+              <SelectTrigger
+                aria-label="Filtrar por estado"
+                className="h-8 w-auto gap-1.5 rounded-[var(--radius-3)] border border-[var(--border)] bg-[var(--paper-0)] px-3 text-[13px] font-medium text-[var(--ink-1)] shadow-none hover:border-[var(--ink-3)] focus:ring-0 focus-visible:ring-0"
+              >
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                {stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      {stage.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <button
               type="button"
               className={cn('chip', selectedTagIds.length === 0 && 'on')}

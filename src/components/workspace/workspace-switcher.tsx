@@ -19,6 +19,14 @@ import type { WorkspaceWithRole } from '@/lib/types/database'
 interface WorkspaceSwitcherProps {
   workspaces: WorkspaceWithRole[]
   currentWorkspace?: WorkspaceWithRole | null
+  /**
+   * Editorial v3 trigger variant (gap-closure 06, D-G3). When true, the
+   * DropdownMenuTrigger renders the mock's `.ws` look (badge + name + caret)
+   * instead of the generic outline Button. The dropdown content + handleSelect
+   * stay UNCHANGED — only the trigger appearance changes. Default false →
+   * v2/legacy callers render byte-identical (Regla 6).
+   */
+  editorial?: boolean
 }
 
 const roleLabels: Record<string, string> = {
@@ -27,7 +35,7 @@ const roleLabels: Record<string, string> = {
   agent: 'Agente',
 }
 
-export function WorkspaceSwitcher({ workspaces, currentWorkspace }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({ workspaces, currentWorkspace, editorial = false }: WorkspaceSwitcherProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
@@ -54,20 +62,33 @@ export function WorkspaceSwitcher({ workspaces, currentWorkspace }: WorkspaceSwi
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-        >
-          <div className="flex items-center gap-2 truncate">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
+        {editorial ? (
+          <button type="button" className="ws" aria-expanded={open}>
+            <span className="ws-badge">
+              {displayWorkspace.name?.charAt(0).toUpperCase() || 'W'}
+            </span>
+            <span className="ws-meta">
+              <span className="ws-name">{displayWorkspace.name}</span>
+              <span className="ws-plan">{displayWorkspace.business_type || 'CRM'}</span>
+            </span>
+            <span className="ws-caret" aria-hidden="true">▾</span>
+          </button>
+        ) : (
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+                <Building2 className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <span className="truncate">{displayWorkspace.name}</span>
             </div>
-            <span className="truncate">{displayWorkspace.name}</span>
-          </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[240px]" align="start">
         <DropdownMenuLabel>Workspaces</DropdownMenuLabel>

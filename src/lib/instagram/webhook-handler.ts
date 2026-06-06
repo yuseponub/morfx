@@ -254,6 +254,28 @@ export async function processInstagramWebhook(
       return { stored: false }
     }
 
+    // GAP-41-06: transcribe IG inbound audio and persist via the domain (Regla 3).
+    // Best-effort + non-blocking-on-failure: an expired/unfetchable lookaside URL
+    // simply leaves transcription=null (transcribeAudioFromUrl returns {success:false}).
+    // INLINE (no Inngest) per D-IG-01 human-only — the v4 Inngest persist-transcription
+    // step is agent-path infra not present here. lookaside.fbsbx.com/ig_messaging_cdn is a
+    // public-but-signed CDN link delivered in the (HMAC-verified) webhook payload, fetchable
+    // server-side at webhook time (it may expire later — that's why we transcribe immediately).
+    if (messageType === 'audio' && mediaUrl) {
+      try {
+        const { transcribeAudioFromUrl } = await import('@/lib/agents/media/audio-transcriber')
+        const { setMessageTranscription } = await import('@/lib/domain/messages')
+        const tr = await transcribeAudioFromUrl(mediaUrl, 'audio/mp4')
+        if (tr.success) {
+          await setMessageTranscription(ctx, { wamid: waMessageId, transcription: tr.text })
+        } else {
+          console.warn('[instagram-webhook] audio transcription failed:', tr.error)
+        }
+      } catch (e) {
+        console.warn('[instagram-webhook] audio transcription error:', e)
+      }
+    }
+
     // D-IG-01: human-only inbox — NO Inngest agent dispatch, NO v4 lock.
     console.log(`[instagram-webhook] Processed instagram message from IGSID ${igsid} account ${igAccountId}`)
     return { stored: true }

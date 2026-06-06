@@ -189,9 +189,20 @@ interface SidebarProps {
    * tokens resolve correctly when v2=true.
    */
   v2?: boolean
+  /**
+   * UI Editorial v3 flag (Standalone ui-redesign-editorial-shell, D-02/D-03/D-07).
+   * Resolved server-side via `getIsEditorialV3Enabled(workspaceId)` in
+   * `src/lib/auth/editorial-v3.ts` and threaded from `(dashboard)/layout.tsx`.
+   * Opción B (D-03): the v3 `<aside>` carries `theme-editorial-v3` itself so the
+   * `var(--paper-*)` / `var(--ink-*)` tokens resolve WITHOUT touching the live
+   * `<main>` scope nor the shell root. When false, the sidebar renders the v2 or
+   * legacy branch byte-identical to today (Regla 6). Precedence: v3 BEFORE v2.
+   * The theme toggle does NOT live in the sidebar (D-07) — it lives in the topbars.
+   */
+  v3?: boolean
 }
 
-export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false }: SidebarProps) {
+export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false, v3 = false }: SidebarProps) {
   const pathname = usePathname()
   const { badgeCount: taskBadgeCount } = useTaskBadge()
   const { failureCount: automationFailureCount } = useAutomationBadge()
@@ -211,6 +222,193 @@ export function Sidebar({ workspaces = [], currentWorkspace, user, v2 = false }:
     }
     return true
   })
+
+  // =========================================================================
+  // Editorial v3 branch — sidebar editorial (ui-redesign-editorial-shell, D-02).
+  // Clones the v2 "Propuesta B" anatomy VERBATIM, with ONE structural change:
+  // the <aside> ALSO carries `theme-editorial-v3` (Opción B / D-03), so the
+  // v3 tokens resolve on the sidebar without touching the live <main> scope.
+  // Precedence v3 > v2 (D-03, locked Wave 0): this branch returns BEFORE the
+  // v2 branch and the legacy return below, both of which stay BYTE-FROZEN
+  // (Regla 6). NO ThemeToggle here (D-07 — toggle lives in the topbars).
+  // =========================================================================
+  if (v3) {
+    const filterItem = (item: NavItem): boolean => {
+      if (item.adminOnly && !isManager) return false
+      if (hiddenModules?.includes(item.href)) return false
+      if (item.settingsKey) {
+        const [ns, key] = item.settingsKey.split('.')
+        const nsObj = settings?.[ns] as Record<string, unknown> | undefined
+        if (!nsObj?.[key]) return false
+      }
+      return true
+    }
+
+    const workspaceSubline = currentWorkspace?.name
+      ? `${currentWorkspace.name} · CRM`
+      : 'CRM · Contactos & pedidos'
+
+    return (
+      <aside className="sb theme-editorial-v3 hidden md:flex w-64 shrink-0">
+        <TooltipProvider>
+          <div className="brand">
+            <div className="wm">
+              morf<b>·</b>x
+            </div>
+            <div className="sub">{workspaceSubline}</div>
+          </div>
+
+          {/* Workspace switcher preserved as functional infra — the mock omits
+              it but the app requires it to switch contexts. Wrapped in a
+              paper-2 container so it reads as a sidebar module, not a
+              floating primitive. */}
+          <div
+            className="px-3 py-3"
+            style={{ borderBottom: '1px solid var(--border)' }}
+          >
+            <WorkspaceSwitcher
+              workspaces={workspaces}
+              currentWorkspace={currentWorkspace}
+            />
+          </div>
+
+          <div className="px-3 py-3">
+            <GlobalSearch />
+          </div>
+
+          <nav className="sb-nav">
+            {navCategoriesV2.map(category => {
+              const visibleItems = category.items.filter(filterItem)
+              if (visibleItems.length === 0) return null
+              return (
+                <div key={category.label}>
+                  <div className="cat">{category.label}</div>
+                  <ul>
+                    {visibleItems.map(item => {
+                      const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                      const Icon = item.icon
+                      let badgeCount = 0
+                      if (item.badgeType === 'tasks') badgeCount = taskBadgeCount
+                      else if (item.badgeType === 'automations') badgeCount = automationFailureCount
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={isActive ? 'active' : ''}
+                          >
+                            <Icon width={16} height={16} />
+                            <span style={{ flex: 1 }}>{item.label}</span>
+                            {badgeCount > 0 && (
+                              <span
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 10,
+                                  color: 'var(--paper-0)',
+                                  background: 'var(--rubric-2)',
+                                  padding: '1px 6px',
+                                  borderRadius: 999,
+                                  minWidth: 18,
+                                  textAlign: 'center',
+                                }}
+                              >
+                                {badgeCount > 99 ? '99+' : badgeCount}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+          </nav>
+
+          {user && (
+            <div
+              className="px-4 py-3"
+              style={{
+                borderTop: '1px solid var(--ink-1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: 'var(--ink-1)',
+                  color: 'var(--paper-0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                {user.email?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-serif)',
+                    fontSize: 13,
+                    color: 'var(--ink-1)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.email?.split('@')[0]}
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: 'var(--ink-3)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.email}
+                </p>
+              </div>
+              <form action={logout}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="submit"
+                      aria-label="Cerrar sesión"
+                      style={{
+                        padding: 6,
+                        borderRadius: 3,
+                        background: 'transparent',
+                        border: 0,
+                        color: 'var(--ink-2)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>Cerrar sesion</p>
+                  </TooltipContent>
+                </Tooltip>
+              </form>
+            </div>
+          )}
+        </TooltipProvider>
+      </aside>
+    )
+  }
 
   // =========================================================================
   // Retrofit v2 branch — Propuesta B sidebar (D-RETRO-04 + D-RETRO-01)

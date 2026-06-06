@@ -1382,12 +1382,17 @@ html:has(.theme-editorial) body {
  * APPEND ONLY. Las reglas legacy del scope sin guion (546-616) y el
  * bloque legacy (1..1012) quedan BYTE-FROZEN. background-image:none en .sb
  * evita el grain doble del scope (Opción B). */
-/* GAP-06 fix (rebuild): sidebar CONTINUO con el contenido — sin border-right
- * (el "cortado"), bg = paper-1 (igual que el <main>), y brand SIN la línea dura
- * ink-1 (el "frankenstein"). Fiel al mock crm-editorial.html (.sb sin borde,
- * .brand sin border-bottom). Verificado por screenshot Playwright vs mock. */
-.theme-editorial-v3 .sb { background:var(--paper-1); background-image:none; display:flex; flex-direction:column }
-.theme-editorial-v3 .brand { padding:18px 16px 12px; display:flex; flex-direction:column; gap:2px }
+/* GAP-06 fix v2 (root cause): el <aside> lleva AMBAS clases en el MISMO elemento
+ * (`class="sb theme-editorial-v3"` sidebar.tsx:252 + SheetContent mobile-nav.tsx:78).
+ * El selector descendiente `.theme-editorial-v3 .sb` (con ESPACIO) busca un `.sb`
+ * HIJO y por eso NUNCA matcheaba el aside → bg/flex/sin-borde jamás aplicaban.
+ * Somnio tomaba el legacy `.theme-editorial .sb` (paper-2 + border-right, :546) =
+ * "dividido"; Varix (sin v2) no recibía flex-direction:column = "deforme".
+ * FIX: selector COMPUESTO `.theme-editorial-v3.sb` (sin espacio). bg-sidebar ==
+ * bg-app + grain == main → CONTINUO. border-right:0 + .brand border:0 vencen al
+ * legacy. Especificidad 0,2,0 == legacy pero gana por orden de fuente (va después). */
+.theme-editorial-v3.sb { background-color:var(--bg-sidebar); background-image:var(--paper-grain),var(--paper-fibers); border-right:0; display:flex; flex-direction:column }
+.theme-editorial-v3 .brand { padding:18px 16px 12px; display:flex; flex-direction:column; gap:2px; border:0 }
 .theme-editorial-v3 .wm { display:block; height:24px }
 .theme-editorial-v3 .wm img { display:block; height:24px; width:auto }
 .theme-editorial-v3 .wm b { color:var(--rubric-2); font-weight:800 }

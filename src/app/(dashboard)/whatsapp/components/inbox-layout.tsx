@@ -11,6 +11,7 @@ import { ChatView } from './chat-view'
 import { DebugPanelProduction } from './debug-panel-production'
 import { InboxV2Provider } from './inbox-v2-context'
 import { InboxV3Provider } from './inbox-v3-context'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { markAsRead, getConversation } from '@/app/actions/conversations'
 import type { ConversationWithDetails } from '@/lib/whatsapp/types'
 import type { ClientActivationConfig } from '@/lib/domain/client-activation'
@@ -207,6 +208,10 @@ export function InboxLayout({
                 conversación dentro del `.th-head` (chat-header). El botón
                 "Asignar" del topbar estaba mal cableado al toggle de la ficha;
                 se elimina (no había flujo de asignación a nivel topbar). */}
+            {/* Toggle de tema (light/dark) — placement provisional para revisar
+                el dark v3. El toggle editorial definitivo irá en el sidebar en
+                el standalone `ui-redesign-editorial-shell`. */}
+            <ThemeToggle />
             <button type="button" className="btn pri" onClick={() => openNewConversationFn()}>
               Nueva conversación
             </button>

@@ -9,7 +9,7 @@
 
 Reskin del **chrome global** del dashboard al sistema editorial v3, bajo el MISMO flag `ui_editorial_v3` ya existente:
 1. **Sidebar editorial v3** (desktop) — branch nuevo gated por el flag, matcheando la referencia Claude design (`handoff/src/components/layout/sidebar.tsx`).
-2. **Mobile nav editorial v3** — reskin de `mobile-nav.tsx`.
+2. **Mobile nav editorial v3** — reskin de `mobile-nav.tsx` + **mount nuevo v3-only en el dashboard** (ver D-05 enmendado: hoy el dashboard NO monta mobile-nav).
 3. **Theme toggle definitivo** — ubicado en el área superior (topbar) de los módulos v3, consistente.
 4. **Dark mode fidelity** — auditoría completa token-por-token de las 3 pantallas ya shipeadas (Conversaciones/Contactos/Pedidos) + el nuevo sidebar + mobile nav, vs el reference del design-system.
 
@@ -33,6 +33,7 @@ Reskin del **chrome global** del dashboard al sistema editorial v3, bajo el MISM
 
 ### Mobile nav
 - **D-05:** `src/components/layout/mobile-nav.tsx` (94 líneas) **entra en scope** — reskin editorial v3 gated por el flag, coexistiendo con su variante actual (Regla 6 sobre el path no-v3).
+- **D-05b (enmienda 2026-06-06, post plan-check):** Hallazgo de research/checker: el **dashboard HOY no monta ningún mobile-nav** (`<MobileNav/>` solo vive en el header de marketing; el sidebar del dashboard es `hidden md:flex`, desktop-only). Para que el reskin v3 sea **alcanzable** y no quede como dead-code, se agrega un **mount nuevo `md:hidden` en `(dashboard)/layout.tsx`, gated v3-only**: `{isEditorialV3 && <MobileNav v3 />}`. Implicaciones de Regla 6: para usuarios **no-v3 el dashboard sigue exactamente igual que hoy (sin mobile-nav)** — el mount es aditivo y v3-gated; el `<MobileNav/>` del header de marketing queda **byte-frozen**. Decisión explícita del usuario (opción "Cablear mount real en dashboard"). Cierra de paso el gap UX preexistente (dashboard sin navegación móvil) solo para v3.
 
 ### Dark mode
 - **D-06:** **Auditoría dark completa, token por token**, aunque el usuario dijo que "ya se parece". Cubre: las 3 pantallas de contenido ya shipeadas (`.dark .theme-editorial-v3`), el nuevo sidebar v3, y el mobile nav, contra el reference del design-system (`morfx-editorial-context.html` / `handoff/colors_and_type.css`). Corregir divergencias de tokens (bg, ink, paper, border, accents, charcoal-warm) aunque sean sutiles. Dark mantiene textura OFF (regla ya establecida en core GAP-04).

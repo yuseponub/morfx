@@ -54,6 +54,9 @@ Research web hecho 2026-06-06 (a formalizar en `RESEARCH.md`). Conclusiones que 
 - **D-14:** **Multi-cliente**: parametrizado por número/cliente — carpeta de salida por número + perfil de navegador (`userDataDir`) **aislado por número**. Reusable para todos los clientes.
 - **D-15:** **Fail-safe**: si la sesión se desloguea / el QR expira → pausar limpio y avisar; **jamás reintentar enviando nada**. Garantía dura: **ningún code path del robot envía mensajes** (no se implementa send).
 
+### Proceso de primera lectura — validación incremental (proceso de ejecución)
+- **D-16:** La **primera corrida es un PILOTO guiado y supervisado**, no el respaldo completo. El robot Playwright corre sobre una **muestra pequeña** (ej. 3-5 chats reales) y **Claude verifica la salida** antes de escalar: estructura del JSON (D-07/D-08/D-09/D-10), captura confiable del número (D-04/D-06), fidelidad de mensajes (orden, fechas, fromMe correcto, placeholders en su lugar). **Solo tras validar la estructura** se autoriza la corrida masiva. Razón explícita del usuario: *"hacer posibles pruebas al principio para no hacer todo sobre una estructura rota."* → El plan debe tener un **gate de piloto** antes del barrido completo (iterar la extracción contra chats reales hasta que la estructura esté probada).
+
 ### Claude's Discretion
 - Ubicación del código: proyecto Node+Playwright **independiente** (patrón `robot-godentist/`), probablemente `robot-whatsapp-reader/` en la raíz. NO dentro del app Next.js.
 - Umbral exacto del gate D-06, valores default de delays/caps D-13, esquema JSON exacto (campos finos) — a definir en research/plan respetando las decisiones de arriba.

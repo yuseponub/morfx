@@ -47,6 +47,11 @@ Usuario eligió discutir: Alcance de chats, Captura del número real, Estructura
 
 ---
 
+## Proceso de primera lectura (añadido por el usuario post-áreas)
+
+Usuario: *"la primera lectura la hace el robot de Playwright pero con tu acompañamiento para que vayas verificando... es mejor hacer posibles pruebas al principio para no hacer todo sobre una estructura rota."*
+→ **D-16**: primera corrida = piloto supervisado sobre muestra pequeña, Claude valida estructura/número/fidelidad, gate antes del barrido completo.
+
 ## Claude's Discretion (Área 4 + finos)
 
 - Robustez/reanudación: checkpoint por chat en manifest, escritura atómica, nunca re-scrapear `done`, tandas configurables, fail-safe sin envíos (D-11..D-15).

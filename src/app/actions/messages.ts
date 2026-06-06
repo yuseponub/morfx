@@ -18,6 +18,27 @@ import type {
   ActionResult,
 } from '@/lib/whatsapp/types'
 
+/**
+ * GAP-41-08: detect an audio-only mp4/quicktime container.
+ * Returns true iff the buffer carries a 'soun' (audio) handler and NO 'vide' (video)
+ * handler — i.e. a .mp4/.mov with no video track (chat-downloaded audioclip-*.mp4,
+ * Android voice notes). Pure, bounded, never throws. Used to reclassify such files
+ * from 'video' to 'audio' for IG/FB sends (Meta rejects audio-only mp4 sent as video).
+ */
+export function isAudioOnlyMp4(buf: Buffer): boolean {
+  try {
+    if (!Buffer.isBuffer(buf) || buf.length < 8) return false
+    // Bound the scan — untrusted uploaded buffer; moov/hdlr boxes are at the front.
+    const slice = buf.length > 524288 ? buf.subarray(0, 524288) : buf
+    const hasVide = slice.indexOf('vide', 0, 'ascii') !== -1
+    if (hasVide) return false
+    const hasSoun = slice.indexOf('soun', 0, 'ascii') !== -1
+    return hasSoun
+  } catch {
+    return false
+  }
+}
+
 // ============================================================================
 // READ OPERATIONS (unchanged — domain only handles mutations)
 // ============================================================================
@@ -390,6 +411,24 @@ export async function sendMediaMessage(
     mediaType = 'video'
   } else if (mimeType.startsWith('audio/')) {
     mediaType = 'audio'
+  }
+
+  // GAP-41-08: audio-only .mp4/.mov clips (e.g. chat-downloaded audioclip-*.mp4) report
+  // MIME video/mp4 → mis-classified as 'video' above → Meta rejects (#100 subcode 2018047)
+  // on FB AND IG because there is no video track. For IG/FB only, scan the container: if it
+  // has a 'soun' handler and NO 'vide' handler, reclassify to 'audio' so the sender sends
+  // type:'audio' (Meta 200). WhatsApp is NOT gated → byte-identical (Regla 6).
+  if (
+    (channel === 'instagram' || channel === 'facebook') &&
+    mediaType === 'video' &&
+    (mimeType === 'video/mp4' || mimeType === 'video/quicktime')
+  ) {
+    // Decode only a bounded prefix for the scan — the moov/hdlr boxes are at the front of a
+    // chat-exported mp4. The full buffer is decoded later for the upload (line ~469, unchanged).
+    const scanBuffer = Buffer.from(fileData.slice(0, 700000), 'base64')
+    if (isAudioOnlyMp4(scanBuffer)) {
+      mediaType = 'audio'
+    }
   }
 
   // Get workspace settings for API key (channel-aware) + messenger_provider (FB window

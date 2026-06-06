@@ -33,6 +33,8 @@ instagram_provider Varixcenter = `meta_direct` (flipeado 2026-06-05).
 - [ ] **WhatsApp passthrough** — adjuntar .mp3/.gif por WhatsApp → sigue permitido (Regla 6)
 > Nota verificada por Graph API: IG audio sí funciona con AAC/M4A/WAV/MP4 (mp3 NO); Meta inspecciona los bytes reales. FB acepta AAC/MP4/MP3/AMR/OGG/OPUS.
 
+- [ ] **GAP-41-08 audio .mp4 round-trip** — descargar un audio de un chat (3 puntos) y re-enviarlo a IG y FB → ahora **se envía** (antes fallaba con (#100) porque se mandaba como video). Reclasificado a audio.
+
 ## ⏳ Smokes IG aún sin probar
 - [ ] **IG inbound video / sticker** — enviar → manejo correcto o degradación clara
 - [ ] **IG-05 ventana 24h** — en un hilo con último inbound >24h (o backdatear `last_customer_message_at`), intentar enviar → BLOQUEADO con mensaje español "Ventana de 24h cerrada..."

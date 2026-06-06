@@ -11,13 +11,22 @@ instagram_provider Varixcenter = `meta_direct` (flipeado 2026-06-05).
 - [x] FB Messenger inbound texto — Varix + Somnio (tras fix GAP-41-03 callback www + resolveByPageId channel)
 - [x] FB outbound texto — salió 2026-06-05 03:21 (status=sent)
 
-## ⏳ Smokes IG pendientes
-- [ ] **IG inbound IMAGEN** — enviar imagen por DM a @varixcenter → aparece en inbox como imagen (burbuja con media, no solo texto)
-- [ ] **IG inbound audio / nota de voz** — enviar nota de voz → se maneja (transcripción si está cableada, o al menos no rompe; ver `messages.transcription`)
+## ✅ Smokes IG validados en vivo 2026-06-06
+- [x] **IG inbound IMAGEN** — llegó `type:image` con link lookaside (operador confirmó)
+- [x] **IG inbound audio** — llegó `type:audio` con link (transcripción ahora cableada en 41-11, falta revalidar abajo)
+- [x] **IG outbound IMAGEN** — JPEG real llega a IG+FB (HTTP 200, reproducido). Falla solo HEIC/>8MB → ahora con guard (41-10)
+- [x] **IG nombre real** — Ruth Zapata Duarte mostró nombre real (el `@` previo era cuenta sin nombre)
+
+## ⏳ Re-smoke en vivo de los fixes shipped (deploy e8b992b1) — operador
+- [ ] **GAP-41-04 HEIC** — adjuntar foto HEIC de iPhone a un chat IG/FB → mensaje español claro tipo "Convierte la imagen a JPG/PNG", NO "Error al enviar archivo" genérico
+- [ ] **GAP-41-04 >8MB** — adjuntar imagen >8MB a chat IG/FB → mensaje "...límite 8MB...", bloqueado antes de subir
+- [ ] **GAP-41-04 error real** — forzar un fallo de send → toast muestra la razón real (no la constante)
+- [ ] **GAP-41-04 WhatsApp intacto** — enviar imagen 9MB por WhatsApp → sigue permitido (límite 16MB sin cambios, Regla 6)
+- [ ] **GAP-41-05 tipos IG** — enviar a @varixcenter: una publicación/reel compartido → `[Publicación compartida]`; respuesta a historia → `[Respuesta a tu historia]`; una reacción ❤️ → `[Reacción: ❤️]`. NUNCA burbuja vacía.
+- [ ] **GAP-41-06 transcripción** — enviar nota de voz por IG → aparece transcripción bajo el player (o degrada a null sin romper)
+
+## ⏳ Smokes IG aún sin probar
 - [ ] **IG inbound video / sticker** — enviar → manejo correcto o degradación clara
-- [ ] **IG outbound IMAGEN** — responder con imagen desde el inbox → llega al DM (sendInstagramImage + caption como follow-up text)
-- [ ] **IG outbound tipos no soportados** — si el inbox permite, verificar error claro (no spinner infinito)
-- [ ] **IG nombre real** — DM desde una cuenta de IG CON nombre configurado → muestra el nombre, no el @ (la cuenta de prueba anterior no tenía nombre, por eso salió @)
 - [ ] **IG-05 ventana 24h** — en un hilo con último inbound >24h (o backdatear `last_customer_message_at`), intentar enviar → BLOQUEADO con mensaje español "Ventana de 24h cerrada..."
 
 ## ⏳ Smokes FB pendientes (paridad)

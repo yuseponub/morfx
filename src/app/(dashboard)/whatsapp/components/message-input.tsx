@@ -13,6 +13,7 @@ import { useInboxV3 } from './inbox-v3-context'
 import { sendMessage, sendMediaMessage } from '@/app/actions/messages'
 import type { QuickReply, Message } from '@/lib/whatsapp/types'
 import type { OptimisticMedia } from '@/hooks/use-messages'
+import { isAudioOnlyMp4Bytes } from '@/lib/media/mp4-detect'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
@@ -314,12 +315,35 @@ export function MessageInput({
       const filename = attachedFile.file.name
       const mimeType = attachedFile.file.type
 
+      // GAP-41-09: mirror the SERVER reclassification (messages.ts:403-414) so the optimistic
+      // type matches the real row the realtime reconciler swaps in. An audio-only .mp4/.mov
+      // reports MIME video/mp4 → deriveMediaType='video', but the server reclassifies it to
+      // 'audio' for IG/FB. Without this, optimistic 'video' != real 'audio' → the reconciler
+      // never matches → the optimistic bubble sticks at 'sending' forever (phantom clone).
+      // Gated to IG/FB ONLY (Regla 6 — WhatsApp media is byte-identical). Bounded 700KB prefix
+      // decode mirrors the server's scan; the detector never throws (best-effort fallback).
+      let optimisticType: Message['type'] = deriveMediaType(mimeType)
+      if (
+        (channel === 'instagram' || channel === 'facebook') &&
+        optimisticType === 'video' &&
+        (mimeType === 'video/mp4' || mimeType === 'video/quicktime')
+      ) {
+        try {
+          const bin = atob(base64.slice(0, 700000)) // bounded prefix, mirrors server's 700KB scan
+          const bytes = new Uint8Array(bin.length)
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+          if (isAudioOnlyMp4Bytes(bytes)) optimisticType = 'audio'
+        } catch {
+          // best-effort: on any decode error keep the MIME-derived type
+        }
+      }
+
       // Show the attachment instantly using the in-memory preview so it never
       // blinks to caption-only while the real message round-trips. The object URL
       // is intentionally NOT revoked here — the optimistic bubble renders it until
       // realtime reconciles (which keeps the same blob to avoid a re-download).
       addOptimisticMessage?.(caption ?? '', {
-        type: deriveMediaType(mimeType),
+        type: optimisticType,
         url: preview,
         mimeType,
         filename,

@@ -185,6 +185,13 @@ export function InboxLayout({
 
     return (
       <InboxV3Provider v3={v3}>
+        {/* GAP-05 (height fill): `whatsapp/layout.tsx` wraps the page in a plain
+            block `h-full` div (NOT flex), so the `.inbox` `flex:1` had no flex
+            parent → the grid sized to content, leaving empty space below and the
+            composer floating "too high". This flex-column anchor mirrors the v2
+            path's `<div className="flex h-full">`: the topbar stays auto-height
+            and `.inbox` fills the remaining height. */}
+        <div className="flex flex-col h-full min-h-0">
         {/* ---------- TOPBAR (.topbar) — outside the .inbox grid, per the mock ---------- */}
         <header className="topbar">
           <div>
@@ -281,6 +288,7 @@ export function InboxLayout({
                 onOrdersChanged={refreshOrdersFn}
               />
             ))}
+        </div>
         </div>
       </InboxV3Provider>
     )

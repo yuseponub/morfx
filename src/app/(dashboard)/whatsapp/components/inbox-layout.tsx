@@ -208,9 +208,9 @@ export function InboxLayout({
                 conversación dentro del `.th-head` (chat-header). El botón
                 "Asignar" del topbar estaba mal cableado al toggle de la ficha;
                 se elimina (no había flujo de asignación a nivel topbar). */}
-            {/* Toggle de tema (light/dark) — placement provisional para revisar
-                el dark v3. El toggle editorial definitivo irá en el sidebar en
-                el standalone `ui-redesign-editorial-shell`. */}
+            {/* Toggle de tema (light/dark/system) — vive en el topbar del módulo
+                (D-04 ui-redesign-editorial-shell): consistente en las 3 pantallas v3
+                (Conversaciones / Contactos / Pedidos). NO va en el sidebar (D-07). */}
             <ThemeToggle />
             <button type="button" className="btn pri" onClick={() => openNewConversationFn()}>
               Nueva conversación

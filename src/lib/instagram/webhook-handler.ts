@@ -53,7 +53,51 @@ export interface InstagramMessagingEvent {
     text?: string
     is_echo?: boolean
     attachments?: Array<{ type?: string; payload?: { url?: string } }>
+    // GAP-41-05: a story reply carries a `reply_to.story` object (no text/attachment).
+    reply_to?: { story?: { id?: string; url?: string } }
   }
+  // GAP-41-05: a reaction is a TOP-LEVEL event field (not inside `message`).
+  reaction?: { reaction?: string; emoji?: string }
+}
+
+// ============================================================================
+// GAP-41-05 — Non-standard IG type labeling
+// ============================================================================
+
+/**
+ * Derive a non-empty, human-readable label for IG inbound events that are NEITHER
+ * a plain text message NOR a mapped media attachment (image|audio|video|file).
+ *
+ * Returns:
+ *   - a non-empty label string for a recognized non-standard type
+ *     (shared post/reel, story mention, story reply, reaction), OR a diagnostic
+ *     placeholder for an unknown non-text/non-media subtype — NEVER an empty string;
+ *   - `null` when the event IS a plain text or a mapped-media event (those keep
+ *     their existing handling in `processInstagramWebhook`).
+ *
+ * Pure (no I/O, never throws) — the handler uses it to guarantee no IG inbound
+ * message is ever stored as an empty bubble (real case Ruth Zapata Duarte).
+ */
+export function labelInstagramEvent(ev: InstagramMessagingEvent): string | null {
+  const att = ev.message?.attachments?.[0]
+  const t = att?.type
+  // Mapped media + plain text are handled by the existing paths.
+  if (ev.message?.text && ev.message.text.length > 0) return null
+  if (t === 'image' || t === 'audio' || t === 'video' || t === 'file') return null
+
+  if (t === 'share' || t === 'ig_reel') {
+    const url = att?.payload?.url
+    return url ? `[Publicación compartida] ${url}` : '[Publicación compartida]'
+  }
+  if (t === 'story_mention' || ev.message?.reply_to?.story) {
+    return '[Respuesta a tu historia]'
+  }
+  if (ev.reaction) {
+    const r = ev.reaction.emoji || ev.reaction.reaction
+    return r ? `[Reacción: ${r}]` : '[Reacción]'
+  }
+  // Recognized-as-non-standard but unknown subtype → diagnostic, never empty.
+  return '[Mensaje de Instagram no compatible]'
 }
 
 // ============================================================================
@@ -117,12 +161,25 @@ export async function processInstagramWebhook(
   const mediaUrl = attachment?.payload?.url
   const isMedia = !!mediaKind && !!mediaUrl
   const messageText = ev.message?.text ?? ''
-  const messageType = isMedia ? mediaKind! : 'text'
+
+  // GAP-41-05: when the event is NOT text and NOT mapped media, derive a non-empty
+  // labeled body (shared post/reel, story reply/mention, reaction, or unknown
+  // diagnostic) so we NEVER store an empty bubble.
+  let effectiveText = messageText
+  let effectiveType: 'image' | 'audio' | 'video' | 'document' | 'text' = isMedia ? mediaKind! : 'text'
+  if (!isMedia && (!messageText || messageText.length === 0)) {
+    const label = labelInstagramEvent(ev)
+    if (label) {
+      effectiveText = label
+      effectiveType = 'text'
+    }
+  }
+  const messageType = effectiveType
   // Media content must match MediaContent (whatsapp/types.ts) so the inbox bubble
   // renders it: it reads `media_url || content.link` (NOT a nested `image.url`).
   const contentJson: Record<string, unknown> = isMedia
-    ? { link: mediaUrl, caption: messageText }
-    : { body: messageText }
+    ? { link: mediaUrl, caption: effectiveText }
+    : { body: effectiveText }
 
   try {
     // 1. Find or create the conversation (channel='instagram', IGSID identity).
@@ -179,7 +236,7 @@ export async function processInstagramWebhook(
       conversationId,
       contactId,
       phone: phoneIdentifier,
-      messageContent: messageText,
+      messageContent: effectiveText,
       messageType,
       waMessageId,
       contentJson,

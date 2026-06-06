@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
+import { MobileNav } from '@/components/layout/mobile-nav'
 import { WorkspaceProvider } from '@/components/providers/workspace-provider'
 import { getUserWorkspaces, getActiveWorkspaceId } from '@/app/actions/workspace'
 import { cn } from '@/lib/utils'
@@ -64,6 +65,17 @@ export default async function DashboardLayout({
             isDashboardV2 && 'theme-editorial',
           )}
         >
+          {/* Mobile-nav v3-only (D-05b). Gated por isEditorialV3: para usuarios
+              no-v3 el dashboard NO monta ningún mobile-nav (igual que hoy — Regla 6).
+              `md:hidden` lo limita a mobile (el <Sidebar> es hidden md:flex = desktop).
+              El Sheet del MobileNav provee su propio trigger (botón Menu); el wrapper
+              fixed top-left lo hace alcanzable sobre el contenido sin consumir ancho
+              del flex row. */}
+          {isEditorialV3 && (
+            <div className="md:hidden fixed top-3 left-3 z-50">
+              <MobileNav v3 />
+            </div>
+          )}
           <Sidebar
             workspaces={workspaces}
             currentWorkspace={currentWorkspace}

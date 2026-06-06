@@ -239,3 +239,102 @@ describe('processInstagramWebhook — D-IG-01 human-only (no agent dispatch / no
     expect(mockInngestSend).not.toHaveBeenCalled()
   })
 })
+
+// ===========================================================================
+// GAP-41-05 — labelInstagramEvent pure helper + never-empty-body fallback.
+//
+// The handler previously only understood message.text + attachments[0] of type
+// image|audio|video|file. Any other IG payload (share/ig_reel/story_mention,
+// message.reply_to.story, a top-level reaction, or an unknown subtype) had no
+// text + no mapped attachment → stored as { body: '' } (empty bubble — real
+// case Ruth Zapata Duarte, conv 89aa0de1). These cases pin the labeling.
+// ===========================================================================
+
+describe('labelInstagramEvent — non-standard IG types get a non-empty label (GAP-41-05)', () => {
+  it('Test 1: attachment type "share" with payload.url → "[Publicación compartida] <url>"', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = {
+      sender: { id: IGSID },
+      message: { attachments: [{ type: 'share', payload: { url: 'https://instagram.com/p/abc' } }] },
+    }
+    expect(labelInstagramEvent(ev)).toBe('[Publicación compartida] https://instagram.com/p/abc')
+  })
+
+  it('Test 2: attachment type "ig_reel" (no url) → "[Publicación compartida]"', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, message: { attachments: [{ type: 'ig_reel' }] } }
+    expect(labelInstagramEvent(ev)).toBe('[Publicación compartida]')
+  })
+
+  it('Test 3: attachment type "story_mention" → "[Respuesta a tu historia]"', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, message: { attachments: [{ type: 'story_mention' }] } }
+    expect(labelInstagramEvent(ev)).toBe('[Respuesta a tu historia]')
+  })
+
+  it('Test 4: message.reply_to.story present (no attachment) → "[Respuesta a tu historia]"', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, message: { reply_to: { story: { id: 'story_1' } } } }
+    expect(labelInstagramEvent(ev)).toBe('[Respuesta a tu historia]')
+  })
+
+  it('Test 5: top-level reaction:{ emoji:"❤️" } → "[Reacción: ❤️]"', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, reaction: { emoji: '❤️' } }
+    expect(labelInstagramEvent(ev)).toBe('[Reacción: ❤️]')
+  })
+
+  it('Test 6: top-level reaction:{ reaction:"love" } (no emoji) → "[Reacción: love]"', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, reaction: { reaction: 'love' } }
+    expect(labelInstagramEvent(ev)).toBe('[Reacción: love]')
+  })
+
+  it('Test 7: a plain text event → null (existing text path handles it)', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, message: { text: 'hola' } }
+    expect(labelInstagramEvent(ev)).toBeNull()
+  })
+
+  it('Test 8: a mapped image attachment → null (existing media path handles it)', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = {
+      sender: { id: IGSID },
+      message: { attachments: [{ type: 'image', payload: { url: 'https://cdn/x.jpg' } }] },
+    }
+    expect(labelInstagramEvent(ev)).toBeNull()
+  })
+
+  it('Test 9: a fully-unknown event (no text/attachment/reaction) → diagnostic, never empty/null', async () => {
+    const { labelInstagramEvent } = await import('@/lib/instagram/webhook-handler')
+    const ev = { sender: { id: IGSID }, message: { attachments: [{ type: 'weird_new_type' }] } }
+    expect(labelInstagramEvent(ev)).toBe('[Mensaje de Instagram no compatible]')
+  })
+})
+
+describe('processInstagramWebhook — never stores an empty body for non-standard types (GAP-41-05)', () => {
+  it('Test 10: a "share" inbound event stores the label as messageContent + contentJson.body (NOT empty)', async () => {
+    const { processInstagramWebhook } = await import('@/lib/instagram/webhook-handler')
+
+    const shareEvent = {
+      sender: { id: IGSID },
+      recipient: { id: IG_ACCOUNT_ID },
+      timestamp: 1748112000000,
+      message: {
+        mid: 'm_ig_share_1',
+        attachments: [{ type: 'share', payload: { url: 'https://instagram.com/p/abc' } }],
+      },
+    }
+
+    await processInstagramWebhook(shareEvent, WS_ID, IG_ACCOUNT_ID, ACCESS_TOKEN)
+
+    expect(mockReceiveMessage).toHaveBeenCalledTimes(1)
+    const receiveArgs = mockReceiveMessage.mock.calls[0][1] as Record<string, unknown>
+    const label = '[Publicación compartida] https://instagram.com/p/abc'
+    expect(receiveArgs.messageContent).toBe(label)
+    expect(receiveArgs.messageType).toBe('text')
+    expect(receiveArgs.contentJson).toMatchObject({ body: label })
+    // The whole point of GAP-41-05: no empty body is ever stored.
+    expect((receiveArgs.contentJson as Record<string, unknown>).body).not.toBe('')
+  })
+})

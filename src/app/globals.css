@@ -1384,15 +1384,26 @@ html:has(.theme-editorial) body {
  * evita el grain doble del scope (Opción B). */
 .theme-editorial-v3 .sb { background:var(--paper-2); background-image:none; border-right:1px solid var(--border); display:flex; flex-direction:column }
 .theme-editorial-v3 .brand { padding:18px 18px 14px; border-bottom:1px solid var(--ink-1) }
-.theme-editorial-v3 .wm { font-family:var(--font-display); font-weight:800; font-size:32px; line-height:1; letter-spacing:-0.02em; color:var(--ink-1) }
+.theme-editorial-v3 .wm { display:block; height:28px }
 .theme-editorial-v3 .wm b { color:var(--rubric-2); font-weight:800 }
 .theme-editorial-v3 .sub { font-family:var(--font-sans); font-size:12px; font-weight:500; color:var(--ink-3); margin-top:4px }
 .theme-editorial-v3 nav.sb-nav { padding:8px; flex:1; overflow:auto }
 .theme-editorial-v3 nav.sb-nav ul { list-style:none; padding:0; margin:0 }
 .theme-editorial-v3 nav.sb-nav li a { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:var(--radius-2); font-family:var(--font-sans); font-weight:500; font-size:13px; color:var(--ink-2); text-decoration:none; cursor:pointer }
 .theme-editorial-v3 nav.sb-nav li a:hover { background:var(--paper-3); color:var(--ink-1) }
-.theme-editorial-v3 nav.sb-nav li a.active { background:var(--paper-0); color:var(--ink-1); border:1px solid var(--ink-1); box-shadow:0 1px 0 var(--border) }
-.theme-editorial-v3 nav.sb-nav .cat { font-family:var(--font-sans); font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-size:10px; color:var(--ink-3); padding:12px 10px 6px }
+.theme-editorial-v3 nav.sb-nav li a.active { background:var(--paper-3); color:var(--ink-1); font-weight:600; border:0; box-shadow:none }
+.theme-editorial-v3 nav.sb-nav .cat { display:flex; align-items:center; gap:7px; font-family:var(--font-sans); font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-size:11.2px; color:var(--ink-3); padding:12px 10px 6px }
+.theme-editorial-v3 nav.sb-nav .cat::before { content:""; width:5px; height:5px; border-radius:999px; background:var(--rubric-2); flex:none }
+
+/* ===== Sidebar v3 — workspace switcher .ws* (gap-closure 06, D-G5) =====
+ * APPEND ONLY. Portadas verbatim del mock crm-editorial.html §178-184. */
+.theme-editorial-v3 .ws { display:flex; align-items:center; gap:10px; width:calc(100% - 16px); height:51px; box-sizing:border-box; margin:0 8px; padding:0 10px; background:var(--paper-0); border:1px solid var(--border); border-radius:var(--radius-3); cursor:pointer; text-align:left }
+.theme-editorial-v3 .ws:hover { background:var(--paper-2); border-color:var(--ink-3) }
+.theme-editorial-v3 .ws-badge { flex:none; width:24px; height:24px; border-radius:var(--radius-2); background:var(--ink-1); color:var(--paper-0); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:13px; line-height:1 }
+.theme-editorial-v3 .ws-meta { min-width:0; flex:1 }
+.theme-editorial-v3 .ws-name { display:block; font-family:var(--font-sans); font-weight:600; font-size:13px; color:var(--ink-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2 }
+.theme-editorial-v3 .ws-plan { display:block; font-family:var(--font-sans); font-size:11px; color:var(--ink-3); line-height:1.2; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.theme-editorial-v3 .ws-caret { flex:none; color:var(--ink-3); font-size:11px; line-height:1 }
 
 @layer base {
   * {

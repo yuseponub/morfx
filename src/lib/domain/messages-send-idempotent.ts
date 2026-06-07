@@ -245,23 +245,34 @@ export async function sendMessageIdempotent(
   // 4. Resolve API key.
   const { data: workspaceSettings } = await admin
     .from('workspaces')
-    .select('settings')
+    .select('settings, messenger_provider, instagram_provider')
     .eq('id', ctx.workspaceId)
     .single()
 
   const settings =
     (workspaceSettings?.settings as Record<string, unknown> | undefined) ?? {}
 
+  // meta_direct FB/IG sends use the Page token (resolved in the domain via
+  // resolveByWorkspace) — NOT the ManyChat API key. Regla 6: the manychat
+  // facebook + instagram + whatsapp arms still require their key (byte-identical).
+  const isMetaDirectFacebook =
+    channel === 'facebook' && workspaceSettings?.messenger_provider === 'meta_direct'
+  const isMetaDirectInstagram =
+    channel === 'instagram' && workspaceSettings?.instagram_provider === 'meta_direct'
+
   let apiKey: string | undefined
-  if (channel === 'facebook' || channel === 'instagram') {
-    apiKey = settings.manychat_api_key as string | undefined
-    if (!apiKey) return { success: false, error: 'API key de ManyChat no configurada' }
-  } else {
-    apiKey =
-      (settings.whatsapp_api_key as string | undefined) ||
-      process.env.WHATSAPP_API_KEY
-    if (!apiKey) return { success: false, error: 'API key de WhatsApp no configurada' }
+  if (!isMetaDirectFacebook && !isMetaDirectInstagram) {
+    if (channel === 'facebook' || channel === 'instagram') {
+      apiKey = settings.manychat_api_key as string | undefined
+      if (!apiKey) return { success: false, error: 'API key de ManyChat no configurada' }
+    } else {
+      apiKey =
+        (settings.whatsapp_api_key as string | undefined) ||
+        process.env.WHATSAPP_API_KEY
+      if (!apiKey) return { success: false, error: 'API key de WhatsApp no configurada' }
+    }
   }
+  // meta_direct arm leaves apiKey undefined; the domain ignores it.
 
   const recipientId =
     channel !== 'whatsapp' && conversation.external_subscriber_id
@@ -311,7 +322,7 @@ export async function sendMessageIdempotent(
       templateLanguage: tplRow.language || 'es',
       components: apiComponents.length > 0 ? apiComponents : undefined,
       renderedText: params.body ?? undefined,
-      apiKey,
+      apiKey: apiKey ?? '', // meta_direct: empty string; domain ignores it on the meta_direct arm
     })
     if (!result.success || !result.data) {
       return { success: false, error: result.error || 'Error al enviar template' }
@@ -328,7 +339,7 @@ export async function sendMessageIdempotent(
       mediaUrl,
       mediaType,
       caption: params.body ?? undefined,
-      apiKey,
+      apiKey: apiKey ?? '', // meta_direct: empty string; domain ignores it on the meta_direct arm
       channel,
     })
     if (!result.success || !result.data) {
@@ -340,7 +351,7 @@ export async function sendMessageIdempotent(
       conversationId: params.conversationId,
       contactPhone: recipientId,
       messageBody: params.body,
-      apiKey,
+      apiKey: apiKey ?? '', // meta_direct: empty string; domain ignores it on the meta_direct arm
       channel,
     })
     if (!result.success || !result.data) {

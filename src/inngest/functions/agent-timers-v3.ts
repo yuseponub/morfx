@@ -50,16 +50,23 @@ async function sendTimerMessage(
     const channel = (conv.channel as 'whatsapp' | 'facebook' | 'instagram') || 'whatsapp'
     const { data: ws } = await supabase
       .from('workspaces')
-      .select('settings')
+      .select('settings, messenger_provider, instagram_provider')
       .eq('id', workspaceId)
       .single()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const settings = ws?.settings as any
-    const apiKey = (channel === 'facebook' || channel === 'instagram')
-      ? settings?.manychat_api_key
-      : settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+    const isMetaDirect =
+      (channel === 'facebook' && ws?.messenger_provider === 'meta_direct') ||
+      (channel === 'instagram' && ws?.instagram_provider === 'meta_direct')
+    // meta_direct FB/IG: the domain resolves the Page token via resolveByWorkspace;
+    // no manychat key needed. manychat + whatsapp arms byte-identical (Regla 6).
+    const apiKey = isMetaDirect
+      ? ''
+      : (channel === 'facebook' || channel === 'instagram')
+        ? settings?.manychat_api_key
+        : settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
 
-    if (!apiKey) {
+    if (!apiKey && !isMetaDirect) {
       logger.error({ workspaceId, channel }, 'No API key for channel')
       return false
     }
@@ -130,16 +137,23 @@ async function sendTimerImage(
     const channel = (conv.channel as 'whatsapp' | 'facebook' | 'instagram') || 'whatsapp'
     const { data: ws } = await supabase
       .from('workspaces')
-      .select('settings')
+      .select('settings, messenger_provider, instagram_provider')
       .eq('id', workspaceId)
       .single()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const settings = ws?.settings as any
-    const apiKey = (channel === 'facebook' || channel === 'instagram')
-      ? settings?.manychat_api_key
-      : settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
+    const isMetaDirect =
+      (channel === 'facebook' && ws?.messenger_provider === 'meta_direct') ||
+      (channel === 'instagram' && ws?.instagram_provider === 'meta_direct')
+    // meta_direct FB/IG: the domain resolves the Page token via resolveByWorkspace;
+    // no manychat key needed. manychat + whatsapp arms byte-identical (Regla 6).
+    const apiKey = isMetaDirect
+      ? ''
+      : (channel === 'facebook' || channel === 'instagram')
+        ? settings?.manychat_api_key
+        : settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY
 
-    if (!apiKey) {
+    if (!apiKey && !isMetaDirect) {
       logger.error({ workspaceId, channel }, 'No API key for channel (image)')
       return false
     }

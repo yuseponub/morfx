@@ -7,9 +7,16 @@
 //   - NO fuzzy phone/email contact match (D-04/D-05) — contact is resolved
 //     strictly by the (page_id, PSID) identity via `resolveOrCreateContact`
 //     keyed on the `fb-${PSID}` identifier; never a real phone/email search.
-//   - NO Inngest agent dispatch and NO v4 interruption lock (D-12 — human-only
-//     inbox; RESEARCH Open Q2 → no dormant agent path for V1). The handler only
-//     stores the inbound message (realtime + inbox via domain receiveMessage).
+//
+// Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
+// The handler now ALWAYS emits `agent/whatsapp.message_received` after a
+// successful (non-dedup) store, mirroring the ManyChat handler (steps 4+5).
+// The agent-vs-silence gate is DOWNSTREAM (webhook-processor.ts —
+// lifecycle_routing_enabled + the router), never here. The handler MUST NOT
+// import or call the router. Agentless workspaces (Varixcenter) emit too,
+// but the router yields null → silence, so human-only stays byte-identical
+// (Regla 6, D-01/D-02/D-03). The v4-lock block is replicated INERT
+// (v4Path=false for godentist-fb-ig) for event-payload-shape parity.
 //
 // PSID stays a STRING end-to-end (Pitfall 5 — a PSID can exceed
 // Number.MAX_SAFE_INTEGER; never Number-coerce it).
@@ -18,6 +25,8 @@
 // resolveOrCreateContact, linkContactToConversation, receiveMessage.
 // ============================================================================
 
+import { randomUUID } from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   findOrCreateConversation as domainFindOrCreateConversation,
   linkContactToConversation as domainLinkContactToConversation,
@@ -29,6 +38,16 @@ import {
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import { getMessengerUserName } from '@/lib/meta/messenger-api'
 import type { DomainContext } from '@/lib/domain/types'
+// Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
+// All 5 interruption-v2 imports MUST be STATIC (no `await import(...)`,
+// REVISION B4). The v4-only gate (resolvedAgentId === 'somnio-sales-v4')
+// keeps them completely inert for godentist-fb-ig and any future FB/IG
+// agent (Regla 6 — production behavior byte-identical on non-v4 paths).
+import { acquireLock } from '@/lib/agents/interruption-system-v2/lock'
+import { pushToPending } from '@/lib/agents/interruption-system-v2/pending'
+import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { resolveAgentIdForWorkspace } from '@/lib/agents/registry-helpers'
 
 // ============================================================================
 // Types
@@ -192,8 +211,96 @@ export async function processMessengerWebhook(
       return { stored: false }
     }
 
-    // D-12: human-only inbox — NO Inngest agent dispatch, NO v4 lock.
-    console.log(`[messenger-webhook] Processed facebook message from PSID ${psid} page ${pageId}`)
+    // ================================================================
+    // Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
+    // Mirror the ManyChat handler dispatch (steps 4 + 5). The gate is
+    // DOWNSTREAM (processMessageWithAgent → lifecycle_routing_enabled →
+    // the router). We NEVER invoke the router here. Agentless workspaces
+    // (Varixcenter) emit too, but the router yields null → silence
+    // (human-only preserved byte-identical — Regla 6, D-01/D-02/D-03).
+    // ================================================================
+    // 4. Get contact_id from conversation for the agent event.
+    const supabase = createAdminClient()
+    const { data: convForContact } = await supabase
+      .from('conversations')
+      .select('contact_id')
+      .eq('id', conversationId)
+      .single()
+
+    const resolvedAgentId = await resolveAgentIdForWorkspace(workspaceId)
+    const v4Path = resolvedAgentId === 'somnio-sales-v4' // inert for godentist-fb-ig
+
+    const lockChannel: 'facebook' | 'instagram' = 'facebook'
+    const lockIdentifier = psid
+
+    let lockHandle: { key: string; holderUuid: string; startedAt: string } | null = null
+    let ownPendingEntryJson: string | null = null
+
+    if (v4Path) {
+      try {
+        lockHandle = await acquireLock(workspaceId, lockChannel, lockIdentifier)
+        const entryUuid = randomUUID()
+        const pendingEntry = {
+          entry_uuid: entryUuid,
+          content: messageText,
+          received_at: new Date().toISOString(),
+          msg_id: waMessageId,
+        }
+        if (!lockHandle) {
+          const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+          await redis.set(`interrupt:${workspaceId}:${lockChannel}:${lockIdentifier}`, waMessageId, { ex: 60 })
+          emitLockEvent('lock_acquire_failed_follower', {
+            existing_holder_uuid: 'unknown', my_msg_id: waMessageId,
+            key: `lock:${workspaceId}:${lockChannel}:${lockIdentifier}`,
+          })
+          emitLockEvent('interrupt_written', { msg_id: waMessageId, pending_list_length: push.pendingListLength })
+          console.log(`[interruption-v2] follower path — no Inngest dispatch for FB msg ${waMessageId}`)
+          return { stored: true }
+        }
+        const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+        ownPendingEntryJson = push.exactJson
+        emitLockEvent('lock_acquired', {
+          holder_uuid: lockHandle.holderUuid, msg_id: waMessageId,
+          key: lockHandle.key, ttl: 45, started_at: lockHandle.startedAt,
+        })
+      } catch (lockErr) {
+        emitLockEvent('redis_unavailable_fallback_failed', {
+          error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
+        })
+        lockHandle = null
+        ownPendingEntryJson = null
+      }
+    }
+
+    // 5. Emit Inngest event for agent processing (reuse the existing event).
+    try {
+      const { inngest } = await import('@/inngest/client')
+      await (inngest.send as any)({
+        name: 'agent/whatsapp.message_received',
+        data: {
+          conversationId,
+          contactId: convForContact?.contact_id ?? null,
+          messageContent: messageText,
+          workspaceId,
+          phone: phoneIdentifier,
+          messageId: waMessageId,
+          messageTimestamp,
+          messageType,
+          mediaUrl: mediaUrl ?? null,
+          mediaMimeType: null,
+          lockHolderUuid: lockHandle?.holderUuid ?? null,
+          lockKey: lockHandle?.key ?? null,
+          ownPendingEntryJson,
+          lockChannel,
+          lockIdentifier,
+          agentId: resolvedAgentId,
+        },
+      })
+    } catch (inngestError) {
+      console.error('[messenger-webhook] Inngest send failed:', inngestError instanceof Error ? inngestError.message : inngestError)
+    }
+
+    console.log(`[messenger-webhook] Dispatched facebook message from PSID ${psid} page ${pageId}`)
     return { stored: true }
   } catch (error) {
     console.error('[messenger-webhook] Error processing message:', error)

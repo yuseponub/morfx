@@ -31,5 +31,5 @@
     "**/*.mts",
     "shared/**/*.ts"
   ],
-  "exclude": ["node_modules", "scripts", "robot-coordinadora", "robot-whatsapp-reader", "robot-godentist", "godentist", "apps/mobile"]
+  "exclude": ["node_modules", "scripts", "robot-coordinadora", "robot-whatsapp-reader", "robot-godentist", "godentist", "apps/mobile", "**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
 }

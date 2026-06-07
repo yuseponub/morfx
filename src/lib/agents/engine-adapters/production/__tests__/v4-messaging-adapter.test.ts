@@ -93,11 +93,19 @@ function buildSupabaseChain(opts: {
   externalSubscriberId?: string | null
   hasNewInboundCount?: number
   whatsappApiKey?: string
+  manychatApiKey?: string | null
+  messengerProvider?: string
+  instagramProvider?: string
 }) {
   const channel = opts.channel ?? 'whatsapp'
   const externalSubscriberId = opts.externalSubscriberId ?? null
   const hasNewInboundCount = opts.hasNewInboundCount ?? 0
   const whatsappApiKey = opts.whatsappApiKey ?? 'test-api-key'
+  // Default providers to 'manychat' so existing assertions (manychat FB/IG arm) stay valid.
+  const messengerProvider = opts.messengerProvider ?? 'manychat'
+  const instagramProvider = opts.instagramProvider ?? 'manychat'
+  const manychatApiKey =
+    opts.manychatApiKey === undefined ? 'manychat-key' : opts.manychatApiKey
 
   const mockFrom = vi.fn((table: string) => {
     if (table === 'conversations') {
@@ -120,8 +128,10 @@ function buildSupabaseChain(opts: {
               data: {
                 settings: {
                   whatsapp_api_key: whatsappApiKey,
-                  manychat_api_key: 'manychat-key',
+                  ...(manychatApiKey ? { manychat_api_key: manychatApiKey } : {}),
                 },
+                messenger_provider: messengerProvider,
+                instagram_provider: instagramProvider,
               },
               error: null,
             }),
@@ -218,6 +228,84 @@ describe('ProductionMessagingAdapter (refactored parent — Regla 6 byte-identic
     expect(mockCheckpoint).not.toHaveBeenCalled()
     expect(mockRemoveOwnEntry).not.toHaveBeenCalled()
     expect(mockRedisSet).not.toHaveBeenCalled()
+  })
+})
+
+// ---- meta_direct provider-aware send (godentist-fbig-meta-direct-cutover Plan 01) ----
+
+describe('ProductionMessagingAdapter — provider-aware FB/IG send (meta_direct Pitfall 2)', () => {
+  it('meta_direct facebook proceeds to domain send with NO manychat key', async () => {
+    // Provider flipped to meta_direct + settings has NO manychat_api_key (post D-06 deletion).
+    buildSupabaseChain({
+      channel: 'facebook',
+      externalSubscriberId: 'psid-123',
+      messengerProvider: 'meta_direct',
+      manychatApiKey: null,
+    })
+
+    const adapter = new ProductionMessagingAdapter(null, 'conv-1', 'ws-1', '+573001234567', 0)
+    const result = await adapter.send({
+      sessionId: 'sess-1',
+      conversationId: 'conv-1',
+      messages: ['hola'],
+      templates: [{ id: 't1', content: 'hola', contentType: 'texto', delaySeconds: 0 }],
+      workspaceId: 'ws-1',
+    })
+
+    // Did NOT bail with messagesSent:0 — it reached the (mocked) domain send.
+    expect(result.messagesSent).toBe(1)
+    expect(mockSendTextMessage).toHaveBeenCalledTimes(1)
+    // Recipient is the PSID (external_subscriber_id), not the phone.
+    expect(mockSendTextMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ contactPhone: 'psid-123', channel: 'facebook' }),
+    )
+  })
+
+  it('manychat facebook with NO key returns messagesSent:0 and does NOT call domain (Regla 6)', async () => {
+    buildSupabaseChain({
+      channel: 'facebook',
+      externalSubscriberId: 'psid-123',
+      messengerProvider: 'manychat',
+      manychatApiKey: null,
+    })
+
+    const adapter = new ProductionMessagingAdapter(null, 'conv-1', 'ws-1', '+573001234567', 0)
+    const result = await adapter.send({
+      sessionId: 'sess-1',
+      conversationId: 'conv-1',
+      messages: ['hola'],
+      templates: [{ id: 't1', content: 'hola', contentType: 'texto', delaySeconds: 0 }],
+      workspaceId: 'ws-1',
+    })
+
+    expect(result.messagesSent).toBe(0)
+    expect(mockSendTextMessage).not.toHaveBeenCalled()
+  })
+
+  it('meta_direct instagram proceeds to domain send with NO manychat key', async () => {
+    buildSupabaseChain({
+      channel: 'instagram',
+      externalSubscriberId: 'igsid-456',
+      instagramProvider: 'meta_direct',
+      manychatApiKey: null,
+    })
+
+    const adapter = new ProductionMessagingAdapter(null, 'conv-1', 'ws-1', '+573001234567', 0)
+    const result = await adapter.send({
+      sessionId: 'sess-1',
+      conversationId: 'conv-1',
+      messages: ['hola'],
+      templates: [{ id: 't1', content: 'hola', contentType: 'texto', delaySeconds: 0 }],
+      workspaceId: 'ws-1',
+    })
+
+    expect(result.messagesSent).toBe(1)
+    expect(mockSendTextMessage).toHaveBeenCalledTimes(1)
+    expect(mockSendTextMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ contactPhone: 'igsid-456', channel: 'instagram' }),
+    )
   })
 })
 

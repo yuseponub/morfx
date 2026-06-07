@@ -7,9 +7,16 @@
 //   - NO fuzzy phone/email contact match (D-IG-05) — contact is resolved
 //     strictly by the (ig_account_id, IGSID) identity via `resolveOrCreateContact`
 //     keyed on the `ig-${IGSID}` identifier; never a real phone/email search.
-//   - NO Inngest agent dispatch and NO v4 interruption lock (D-IG-01 — human-only
-//     inbox; V1 has no dormant agent path for meta_direct IG). The handler only
-//     stores the inbound message (realtime + inbox via domain receiveMessage).
+//
+// Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE (IG).
+// The handler now ALWAYS emits `agent/whatsapp.message_received` after a
+// successful (non-dedup) store AND the inline audio-transcription block,
+// mirroring the FB wire + ManyChat handler. The agent-vs-silence gate is
+// DOWNSTREAM (webhook-processor.ts — lifecycle_routing_enabled + the
+// router), never here. The handler MUST NOT import or call the router.
+// Agentless workspaces emit too, but the router yields null → silence, so
+// human-only stays byte-identical (Regla 6, D-01/D-02/D-03). The v4-lock
+// block is replicated INERT (v4Path=false for godentist-fb-ig).
 //
 // IGSID stays a STRING end-to-end (Pitfall 3 — an IGSID can exceed
 // Number.MAX_SAFE_INTEGER; never Number-coerce it).
@@ -22,6 +29,8 @@
 // resolveOrCreateContact, linkContactToConversation, receiveMessage.
 // ============================================================================
 
+import { randomUUID } from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   findOrCreateConversation as domainFindOrCreateConversation,
   linkContactToConversation as domainLinkContactToConversation,
@@ -33,6 +42,16 @@ import {
 import { receiveMessage as domainReceiveMessage } from '@/lib/domain/messages'
 import { getInstagramUserName } from '@/lib/meta/instagram-api'
 import type { DomainContext } from '@/lib/domain/types'
+// Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE (IG).
+// All 5 interruption-v2 imports MUST be STATIC (no `await import(...)`,
+// REVISION B4). The v4-only gate (resolvedAgentId === 'somnio-sales-v4')
+// keeps them completely inert for godentist-fb-ig and any future FB/IG
+// agent (Regla 6 — production behavior byte-identical on non-v4 paths).
+import { acquireLock } from '@/lib/agents/interruption-system-v2/lock'
+import { pushToPending } from '@/lib/agents/interruption-system-v2/pending'
+import { redis } from '@/lib/agents/interruption-system-v2/redis-client'
+import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import { resolveAgentIdForWorkspace } from '@/lib/agents/registry-helpers'
 
 // ============================================================================
 // Types
@@ -276,8 +295,92 @@ export async function processInstagramWebhook(
       }
     }
 
-    // D-IG-01: human-only inbox — NO Inngest agent dispatch, NO v4 lock.
-    console.log(`[instagram-webhook] Processed instagram message from IGSID ${igsid} account ${igAccountId}`)
+    // ================================================================
+    // Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE (IG).
+    // Mirrors the FB wire + ManyChat handler. Gate is DOWNSTREAM (never
+    // invoke the router here). Agentless workspaces emit too → router→null →
+    // silence (human-only preserved — Regla 6, D-01/D-02/D-03).
+    // ================================================================
+    const supabase = createAdminClient()
+    const { data: convForContact } = await supabase
+      .from('conversations')
+      .select('contact_id')
+      .eq('id', conversationId)
+      .single()
+
+    const resolvedAgentId = await resolveAgentIdForWorkspace(workspaceId)
+    const v4Path = resolvedAgentId === 'somnio-sales-v4'
+
+    const lockChannel: 'facebook' | 'instagram' = 'instagram'
+    const lockIdentifier = igsid
+
+    let lockHandle: { key: string; holderUuid: string; startedAt: string } | null = null
+    let ownPendingEntryJson: string | null = null
+
+    if (v4Path) {
+      try {
+        lockHandle = await acquireLock(workspaceId, lockChannel, lockIdentifier)
+        const entryUuid = randomUUID()
+        const pendingEntry = {
+          entry_uuid: entryUuid,
+          content: effectiveText,
+          received_at: new Date().toISOString(),
+          msg_id: waMessageId,
+        }
+        if (!lockHandle) {
+          const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+          await redis.set(`interrupt:${workspaceId}:${lockChannel}:${lockIdentifier}`, waMessageId, { ex: 60 })
+          emitLockEvent('lock_acquire_failed_follower', {
+            existing_holder_uuid: 'unknown', my_msg_id: waMessageId,
+            key: `lock:${workspaceId}:${lockChannel}:${lockIdentifier}`,
+          })
+          emitLockEvent('interrupt_written', { msg_id: waMessageId, pending_list_length: push.pendingListLength })
+          console.log(`[interruption-v2] follower path — no Inngest dispatch for IG msg ${waMessageId}`)
+          return { stored: true }
+        }
+        const push = await pushToPending(workspaceId, lockChannel, lockIdentifier, pendingEntry)
+        ownPendingEntryJson = push.exactJson
+        emitLockEvent('lock_acquired', {
+          holder_uuid: lockHandle.holderUuid, msg_id: waMessageId,
+          key: lockHandle.key, ttl: 45, started_at: lockHandle.startedAt,
+        })
+      } catch (lockErr) {
+        emitLockEvent('redis_unavailable_fallback_failed', {
+          error_message: lockErr instanceof Error ? lockErr.message : String(lockErr),
+        })
+        lockHandle = null
+        ownPendingEntryJson = null
+      }
+    }
+
+    try {
+      const { inngest } = await import('@/inngest/client')
+      await (inngest.send as any)({
+        name: 'agent/whatsapp.message_received',
+        data: {
+          conversationId,
+          contactId: convForContact?.contact_id ?? null,
+          messageContent: effectiveText,
+          workspaceId,
+          phone: phoneIdentifier,
+          messageId: waMessageId,
+          messageTimestamp,
+          messageType,
+          mediaUrl: mediaUrl ?? null,
+          mediaMimeType: null,
+          lockHolderUuid: lockHandle?.holderUuid ?? null,
+          lockKey: lockHandle?.key ?? null,
+          ownPendingEntryJson,
+          lockChannel,
+          lockIdentifier,
+          agentId: resolvedAgentId,
+        },
+      })
+    } catch (inngestError) {
+      console.error('[instagram-webhook] Inngest send failed:', inngestError instanceof Error ? inngestError.message : inngestError)
+    }
+
+    console.log(`[instagram-webhook] Dispatched instagram message from IGSID ${igsid} account ${igAccountId}`)
     return { stored: true }
   } catch (error) {
     console.error('[instagram-webhook] Error processing message:', error)

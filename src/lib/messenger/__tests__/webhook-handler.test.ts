@@ -17,14 +17,21 @@
  *   FB-01 — stores the message via `receiveMessage` with `waMessageId: ev.message.mid` (idempotent
  *           dedup key).
  *   PSID  — kept as a STRING throughout (never Number-coerced — Pitfall 5).
- *   D-12  — OMITS any Inngest agent dispatch (human-only inbox) — assert no agent event emitted.
  *
- * RED STATE: `@/lib/messenger/webhook-handler` does not exist until Plan 05 — `await import(...)`
- * rejects with module-not-found, the intended Wave-1 RED. Each test imports lazily so a missing
- * module produces a clear per-test failure rather than a whole-file collection crash. Every domain
- * dependency is mocked so the eventual GREEN run asserts the contract, not a live DB call.
+ * Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
+ * The D-12 human-only assertion is REPLACED: the handler now ALWAYS emits
+ * `agent/whatsapp.message_received` after a successful (non-dedup) store,
+ * mirroring the ManyChat handler. The agent-vs-silence gate is DOWNSTREAM
+ * (webhook-processor.ts); the handler MUST NOT import or call the router.
+ *   wire   — emits agent/whatsapp.message_received once with lockChannel='facebook'.
+ *   dedup  — does NOT dispatch on a dedup no-op (receiveMessage messageId === '').
+ *   D-03   — Regla 6 source-grep gate: the handler source never mentions the router.
+ *
+ * Every domain dependency + the registry-helper + the 4 interruption-v2 modules
+ * are mocked so the run asserts the contract, not live Redis/DB I/O.
  */
 
+import { readFileSync } from 'fs'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -42,51 +49,78 @@ vi.mock('@/lib/domain/messages', () => ({
 
 vi.mock('@/lib/domain/contacts', () => ({
   resolveOrCreateContact: vi.fn(),
+  healPlaceholderContactName: vi.fn(),
 }))
 
 vi.mock('@/lib/meta/messenger-api', () => ({
   getMessengerUserProfile: vi.fn(),
+  getMessengerUserName: vi.fn(async () => 'Ana Pérez'),
 }))
 
-// Inngest — must NOT be invoked (D-12 human-only). Imported by the module if at all; mocked so
-// we can assert zero dispatch.
-vi.mock('@/lib/inngest/client', () => ({
-  inngest: { send: vi.fn() },
+// Plan 02 wire: the handler dynamically imports `@/inngest/client` (NOT the
+// legacy `@/lib/inngest/client` path) — mock the real import target so the
+// spy intercepts the dispatch.
+vi.mock('@/inngest/client', () => ({ inngest: { send: vi.fn() } }))
+
+// Plan 02 wire: the new dependencies the handler pulls in for the agent
+// dispatch — mocked so the handler runs without Redis/registry I/O.
+vi.mock('@/lib/agents/registry-helpers', () => ({
+  resolveAgentIdForWorkspace: vi.fn(async () => 'godentist'),
+}))
+vi.mock('@/lib/agents/interruption-system-v2/lock', () => ({
+  acquireLock: vi.fn(async () => null),
+}))
+vi.mock('@/lib/agents/interruption-system-v2/pending', () => ({
+  pushToPending: vi.fn(async () => ({ exactJson: '{}', pendingListLength: 1 })),
+}))
+vi.mock('@/lib/agents/interruption-system-v2/redis-client', () => ({
+  redis: { set: vi.fn(async () => 'OK') },
+}))
+vi.mock('@/lib/agents/interruption-system-v2/observability', () => ({
+  emitLockEvent: vi.fn(),
 }))
 
-// Supabase admin — the handler may read/write via domain only; provide a no-op chainable builder
-// so any incidental query (e.g. a fuzzy phone search, which we assert is NEVER taken) is observable.
+// Supabase admin — table-aware chainable builder.
+//   - A `.from('contacts').single()` is the FUZZY PHONE SEARCH path we assert is
+//     NEVER taken (D-04/D-05). `phoneSearchSingle` tracks it.
+//   - Plan 02 wire: a `.from('conversations').single()` is the NEW contact_id
+//     fetch for the agent event; it returns the conversation's contact_id.
 const phoneSearchSingle = vi.fn(async () => ({ data: null, error: null }))
+const conversationContactSingle = vi.fn(async () => ({
+  data: { contact_id: 'contact_1' },
+  error: null,
+}))
 vi.mock('@/lib/supabase/admin', () => {
-  const makeBuilder = () => {
+  const makeBuilder = (table: string) => {
     const builder: Record<string, unknown> = {}
     const chain = () => builder
     builder.select = vi.fn(chain)
     builder.eq = vi.fn(chain)
     builder.update = vi.fn(chain)
     builder.insert = vi.fn(() => builder)
-    builder.single = phoneSearchSingle
+    builder.single = table === 'conversations' ? conversationContactSingle : phoneSearchSingle
     builder.then = undefined
     return builder
   }
   return {
     createAdminClient: vi.fn(() => ({
-      from: vi.fn(() => makeBuilder()),
+      from: vi.fn((table: string) => makeBuilder(table)),
     })),
   }
 })
 
 import { findOrCreateConversation, linkContactToConversation } from '@/lib/domain/conversations'
 import { receiveMessage } from '@/lib/domain/messages'
-import { resolveOrCreateContact } from '@/lib/domain/contacts'
-import { getMessengerUserProfile } from '@/lib/meta/messenger-api'
-import { inngest } from '@/lib/inngest/client'
+import { resolveOrCreateContact, healPlaceholderContactName } from '@/lib/domain/contacts'
+import { getMessengerUserName } from '@/lib/meta/messenger-api'
+import { inngest } from '@/inngest/client'
 
 const mockFindOrCreateConversation = findOrCreateConversation as ReturnType<typeof vi.fn>
 const mockLinkContact = linkContactToConversation as ReturnType<typeof vi.fn>
 const mockReceiveMessage = receiveMessage as ReturnType<typeof vi.fn>
 const mockResolveOrCreateContact = resolveOrCreateContact as ReturnType<typeof vi.fn>
-const mockGetProfile = getMessengerUserProfile as ReturnType<typeof vi.fn>
+const mockHealName = healPlaceholderContactName as ReturnType<typeof vi.fn>
+const mockGetName = getMessengerUserName as ReturnType<typeof vi.fn>
 const mockInngestSend = inngest.send as ReturnType<typeof vi.fn>
 
 const WS_ID = 'f0241182-f79b-4bc6-b0ed-b5f6eb20c514'
@@ -110,9 +144,11 @@ beforeEach(() => {
   })
   mockLinkContact.mockResolvedValue({ success: true })
   mockReceiveMessage.mockResolvedValue({ success: true, data: { messageId: 'msg_1' } })
-  mockResolveOrCreateContact.mockResolvedValue({ success: true, data: { id: 'contact_1' } })
-  mockGetProfile.mockResolvedValue({ first_name: 'Ana', last_name: 'Pérez' })
+  mockResolveOrCreateContact.mockResolvedValue({ success: true, data: { contactId: 'contact_1' } })
+  mockHealName.mockResolvedValue({ success: true, data: { healed: true } })
+  mockGetName.mockResolvedValue('Ana Pérez')
   phoneSearchSingle.mockResolvedValue({ data: null, error: null })
+  conversationContactSingle.mockResolvedValue({ data: { contact_id: 'contact_1' }, error: null })
 })
 
 afterEach(() => {
@@ -177,12 +213,35 @@ describe('processMessengerWebhook — message store with mid dedup key (FB-01)',
   })
 })
 
-describe('processMessengerWebhook — D-12 human-only (no agent dispatch)', () => {
-  it('OMITS any Inngest agent dispatch on inbound (human inbox only)', async () => {
+describe('processMessengerWebhook — Plan 02 wire (agent dispatch)', () => {
+  it('emits agent/whatsapp.message_received once with the facebook lockChannel', async () => {
+    const { processMessengerWebhook } = await import('@/lib/messenger/webhook-handler')
+
+    await processMessengerWebhook(makeEvent(), WS_ID, PAGE_ID)
+
+    expect(mockInngestSend).toHaveBeenCalledTimes(1)
+    const arg = mockInngestSend.mock.calls[0][0] as { name: string; data: Record<string, unknown> }
+    expect(arg.name).toBe('agent/whatsapp.message_received')
+    expect(arg.data).toMatchObject({
+      conversationId: 'conv_fb_1',
+      messageId: 'm_inbound_xyz',
+      lockChannel: 'facebook',
+    })
+  })
+
+  it('does NOT dispatch on a dedup no-op (receiveMessage messageId === "")', async () => {
+    mockReceiveMessage.mockResolvedValueOnce({ success: true, data: { messageId: '' } })
     const { processMessengerWebhook } = await import('@/lib/messenger/webhook-handler')
 
     await processMessengerWebhook(makeEvent(), WS_ID, PAGE_ID)
 
     expect(mockInngestSend).not.toHaveBeenCalled()
+  })
+})
+
+describe('processMessengerWebhook — Regla 6 / D-03 (gate stays downstream)', () => {
+  it('D-03/Regla 6 — handler never imports or calls the router (routeAgent absent in source)', () => {
+    const src = readFileSync('src/lib/messenger/webhook-handler.ts', 'utf8')
+    expect(src).not.toMatch(/routeAgent/)
   })
 })

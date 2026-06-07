@@ -20,14 +20,21 @@
  *   IG-01  — stores the message via `receiveMessage` with `waMessageId: ev.message.mid` (idempotent
  *            dedup key).
  *   IGSID  — kept as a STRING throughout (never Number-coerced — Pitfall 3).
- *   D-IG-01 — OMITS any Inngest agent dispatch + v4 lock (human-only inbox) — assert nothing emitted.
  *
- * RED STATE: `@/lib/instagram/webhook-handler` does not exist until Plan 41-05 — `await import(...)`
- * rejects with module-not-found, the intended Wave-1 RED. Each test imports lazily so a missing
- * module produces a clear per-test failure rather than a whole-file collection crash. Every domain
- * dependency is mocked so the eventual GREEN run asserts the contract, not a live DB call.
+ * Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE (IG).
+ * The D-IG-01 human-only assertion is REPLACED: the handler now ALWAYS emits
+ * `agent/whatsapp.message_received` after a successful (non-dedup) store AND
+ * the inline audio-transcription block, mirroring the FB wire. The
+ * agent-vs-silence gate is DOWNSTREAM; the handler MUST NOT call the router.
+ *   wire   — emits agent/whatsapp.message_received once with lockChannel='instagram'.
+ *   dedup  — does NOT dispatch on a dedup no-op (receiveMessage messageId === '').
+ *   D-03   — Regla 6 source-grep gate: the handler source never mentions the router.
+ *
+ * Every domain dependency + the registry-helper + the 4 interruption-v2 modules
+ * are mocked so the run asserts the contract, not live Redis/DB I/O.
  */
 
+import { readFileSync } from 'fs'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -53,29 +60,54 @@ vi.mock('@/lib/meta/instagram-api', () => ({
   getInstagramUserName: vi.fn(),
 }))
 
-// Inngest — must NOT be invoked (D-IG-01 human-only). Mocked so we can assert zero dispatch.
-vi.mock('@/lib/inngest/client', () => ({
-  inngest: { send: vi.fn() },
+// Plan 02 wire: the handler dynamically imports `@/inngest/client` (NOT the
+// legacy `@/lib/inngest/client` path) — mock the real import target so the
+// spy intercepts the dispatch.
+vi.mock('@/inngest/client', () => ({ inngest: { send: vi.fn() } }))
+
+// Plan 02 wire: the new dependencies the handler pulls in for the agent
+// dispatch — mocked so the handler runs without Redis/registry I/O.
+vi.mock('@/lib/agents/registry-helpers', () => ({
+  resolveAgentIdForWorkspace: vi.fn(async () => 'godentist'),
+}))
+vi.mock('@/lib/agents/interruption-system-v2/lock', () => ({
+  acquireLock: vi.fn(async () => null),
+}))
+vi.mock('@/lib/agents/interruption-system-v2/pending', () => ({
+  pushToPending: vi.fn(async () => ({ exactJson: '{}', pendingListLength: 1 })),
+}))
+vi.mock('@/lib/agents/interruption-system-v2/redis-client', () => ({
+  redis: { set: vi.fn(async () => 'OK') },
+}))
+vi.mock('@/lib/agents/interruption-system-v2/observability', () => ({
+  emitLockEvent: vi.fn(),
 }))
 
-// Supabase admin — the handler may read/write via domain only; provide a no-op chainable builder
-// so any incidental query (e.g. a fuzzy phone search, which we assert is NEVER taken) is observable.
+// Supabase admin — table-aware chainable builder.
+//   - A `.from('contacts').single()` is the FUZZY PHONE SEARCH path we assert is
+//     NEVER taken (D-IG-05). `phoneSearchSingle` tracks it.
+//   - Plan 02 wire: a `.from('conversations').single()` is the NEW contact_id
+//     fetch for the agent event; it returns the conversation's contact_id.
 const phoneSearchSingle = vi.fn(async () => ({ data: null, error: null }))
+const conversationContactSingle = vi.fn(async () => ({
+  data: { contact_id: 'contact_1' },
+  error: null,
+}))
 vi.mock('@/lib/supabase/admin', () => {
-  const makeBuilder = () => {
+  const makeBuilder = (table: string) => {
     const builder: Record<string, unknown> = {}
     const chain = () => builder
     builder.select = vi.fn(chain)
     builder.eq = vi.fn(chain)
     builder.update = vi.fn(chain)
     builder.insert = vi.fn(() => builder)
-    builder.single = phoneSearchSingle
+    builder.single = table === 'conversations' ? conversationContactSingle : phoneSearchSingle
     builder.then = undefined
     return builder
   }
   return {
     createAdminClient: vi.fn(() => ({
-      from: vi.fn(() => makeBuilder()),
+      from: vi.fn((table: string) => makeBuilder(table)),
     })),
   }
 })
@@ -84,7 +116,7 @@ import { findOrCreateConversation, linkContactToConversation } from '@/lib/domai
 import { receiveMessage } from '@/lib/domain/messages'
 import { resolveOrCreateContact, healPlaceholderContactName } from '@/lib/domain/contacts'
 import { getInstagramUserName } from '@/lib/meta/instagram-api'
-import { inngest } from '@/lib/inngest/client'
+import { inngest } from '@/inngest/client'
 
 const mockFindOrCreateConversation = findOrCreateConversation as ReturnType<typeof vi.fn>
 const mockLinkContact = linkContactToConversation as ReturnType<typeof vi.fn>
@@ -120,6 +152,7 @@ beforeEach(() => {
   mockHealName.mockResolvedValue({ success: true, data: { healed: true } })
   mockGetName.mockResolvedValue('Ana Pérez')
   phoneSearchSingle.mockResolvedValue({ data: null, error: null })
+  conversationContactSingle.mockResolvedValue({ data: { contact_id: 'contact_1' }, error: null })
 })
 
 afterEach(() => {
@@ -229,14 +262,36 @@ describe('processInstagramWebhook — message store with mid dedup key (IG-01)',
   })
 })
 
-describe('processInstagramWebhook — D-IG-01 human-only (no agent dispatch / no v4 lock)', () => {
-  it('OMITS any Inngest agent dispatch on inbound (human inbox only)', async () => {
+describe('processInstagramWebhook — Plan 02 wire (agent dispatch)', () => {
+  it('emits agent/whatsapp.message_received once with the instagram lockChannel', async () => {
     const { processInstagramWebhook } = await import('@/lib/instagram/webhook-handler')
 
     await processInstagramWebhook(makeEvent(), WS_ID, IG_ACCOUNT_ID, ACCESS_TOKEN)
 
-    // No agent dispatch, no message_received event, no acquireLock — strictly human inbox.
+    expect(mockInngestSend).toHaveBeenCalledTimes(1)
+    const arg = mockInngestSend.mock.calls[0][0] as { name: string; data: Record<string, unknown> }
+    expect(arg.name).toBe('agent/whatsapp.message_received')
+    expect(arg.data).toMatchObject({
+      conversationId: 'conv_ig_1',
+      messageId: 'm_ig_inbound_xyz',
+      lockChannel: 'instagram',
+    })
+  })
+
+  it('does NOT dispatch on a dedup no-op (receiveMessage messageId === "")', async () => {
+    mockReceiveMessage.mockResolvedValueOnce({ success: true, data: { messageId: '' } })
+    const { processInstagramWebhook } = await import('@/lib/instagram/webhook-handler')
+
+    await processInstagramWebhook(makeEvent(), WS_ID, IG_ACCOUNT_ID, ACCESS_TOKEN)
+
     expect(mockInngestSend).not.toHaveBeenCalled()
+  })
+})
+
+describe('processInstagramWebhook — Regla 6 / D-03 (gate stays downstream)', () => {
+  it('D-03/Regla 6 — handler never imports or calls the router (routeAgent absent in source)', () => {
+    const src = readFileSync('src/lib/instagram/webhook-handler.ts', 'utf8')
+    expect(src).not.toMatch(/routeAgent/)
   })
 })
 

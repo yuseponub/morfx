@@ -36,11 +36,11 @@ function sleep(ms: number): Promise<void> {
 async function getChannelCredentials(
   workspaceId: string,
   channel: ChannelType
-): Promise<{ apiKey: string | null; channel: ChannelType }> {
+): Promise<{ apiKey: string | null; channel: ChannelType; metaDirect: boolean }> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('workspaces')
-    .select('settings')
+    .select('settings, messenger_provider, instagram_provider')
     .eq('id', workspaceId)
     .single()
 
@@ -48,16 +48,27 @@ async function getChannelCredentials(
   const settings = data?.settings as any
 
   if (channel === 'facebook' || channel === 'instagram') {
+    // meta_direct FB/IG sends use the Page token (resolved in the domain via
+    // resolveByWorkspace) — NOT the ManyChat API key. Regla 6: the manychat
+    // facebook + instagram paths still require their key (byte-identical).
+    const isMetaDirect =
+      (channel === 'facebook' && data?.messenger_provider === 'meta_direct') ||
+      (channel === 'instagram' && data?.instagram_provider === 'meta_direct')
+    if (isMetaDirect) {
+      return { apiKey: null, channel, metaDirect: true }
+    }
     return {
       apiKey: settings?.manychat_api_key || null,
       channel,
+      metaDirect: false,
     }
   }
 
-  // Default: WhatsApp via 360dialog
+  // Default: WhatsApp via 360dialog (byte-identical — Regla 6)
   return {
     apiKey: settings?.whatsapp_api_key || process.env.WHATSAPP_API_KEY || null,
     channel: 'whatsapp',
+    metaDirect: false,
   }
 }
 
@@ -181,11 +192,11 @@ export class ProductionMessagingAdapter implements MessagingAdapter {
 
     // Get credentials for this channel
     const creds = await getChannelCredentials(wsId, channel)
-    if (!creds.apiKey) {
+    if (!creds.apiKey && !creds.metaDirect) {
       logger.error({ workspaceId: wsId, channel }, 'Channel API key not configured')
       return { messagesSent: 0 }
     }
-    const apiKey = creds.apiKey
+    const apiKey = creds.apiKey ?? '' // meta_direct: empty string; domain ignores it on the meta_direct arm
 
     // For FB/IG, use external_subscriber_id instead of phone
     const recipientId = (channel !== 'whatsapp' && conv?.external_subscriber_id)

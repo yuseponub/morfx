@@ -22,14 +22,25 @@ export async function openSession(
   userDataDir: string,
 ): Promise<{ ctx: BrowserContext; page: Page }> {
   console.log(`[wa-reader] Opening persistent Chrome context (userDataDir=${userDataDir})...`)
-  const ctx = await chromium.launchPersistentContext(userDataDir, {
+  // Base launch opts shared by both the real-Chrome attempt and the bundled-Chromium fallback.
+  const baseOpts = {
     headless: false, // QR scan needs a visible window; also headed = lower detection
-    channel: 'chrome', // real Chrome, not bundled Chromium → fewer fingerprint deltas
     viewport: { width: 1280, height: 900 },
     locale: 'es-CO',
     timezoneId: 'America/Bogota', // align browser tz with Regla 2 / residential reality
     args: ['--disable-blink-features=AutomationControlled'], // hides the obvious CDP automation flag
-  })
+  }
+  // Prefer real Chrome (channel:'chrome') for fewer fingerprint deltas. If it isn't installed,
+  // fall back to Playwright's bundled Chromium — exactly the fallback the README documents
+  // ("Si no hay Chrome del sistema, el Chromium instalado es el fallback"). Read-only either way.
+  let ctx: BrowserContext
+  try {
+    ctx = await chromium.launchPersistentContext(userDataDir, { ...baseOpts, channel: 'chrome' })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.split('\n')[0] : String(err)
+    console.warn(`[wa-reader] Real Chrome (channel:'chrome') unavailable → bundled Chromium fallback. (${msg})`)
+    ctx = await chromium.launchPersistentContext(userDataDir, baseOpts)
+  }
   // single proportionate stealth patch — WA has no Cloudflare/DataDome, webdriver is the only real tell
   await ctx.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined })

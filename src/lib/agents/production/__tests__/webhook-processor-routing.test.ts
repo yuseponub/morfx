@@ -350,3 +350,59 @@ describe('webhook-processor routing gate — Plan 04 (flag OFF parity + 4 reason
     expect(outcome.collectorEvents).toEqual([])
   })
 })
+
+// ===========================================================================
+// Standalone: godentist-fbig-meta-direct-cutover (Plan 02, Task 4)
+//
+// D-03 downstream no-regression. The Meta FB/IG handlers (Plan 02 Tasks 1-2)
+// now ALWAYS emit `agent/whatsapp.message_received` — even for an agentless
+// workspace like Varixcenter (RESEARCH A1: no FB/IG routing rule → the router
+// selects NO agent). This is the BEHAVIORAL counterpart to the handler-level
+// source-grep gate (Plan 02 Task 3): it proves silence happens DOWNSTREAM
+// (in the routing gate), not in the handler. An agentless decision carries
+// `agent_id: null` and resolves to a `silence` disposition → the gate returns
+// success WITHOUT invoking a runner and WITHOUT any outbound message
+// (human-only preserved — Regla 6).
+// ===========================================================================
+
+describe('D-03 — agentless workspace stays human-only (no regression)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('D-03 — flag ON + agentless workspace (routeAgent yields null agent → silence) → no runner, no outbound', async () => {
+    // Varixcenter-shaped: lifecycle routing enabled, but NO FB/IG rule selects
+    // an agent → the router returns `agent_id: null`. That maps to the SAME
+    // silence disposition the human_handoff path uses (no agent to run).
+    const decision: RouteDecision = {
+      agent_id: null, // agentless workspace → no agent selected
+      reason: 'human_handoff',
+      lifecycle_state: 'blocked',
+      fired_classifier_rule_id: null,
+      fired_router_rule_id: 'rt-agentless',
+      latency_ms: 1,
+      facts_snapshot: {},
+    }
+
+    const outcome = await mirrorRoutingGate({
+      contactId: 'contact_varix',
+      workspaceId: 'varixcenter-workspace',
+      conversationId: 'conv_varix',
+      config: {
+        lifecycle_routing_enabled: true,
+        conversational_agent_id: 'somnio-sales-v3',
+      },
+      routeAgentResult: decision,
+    })
+
+    // The router WAS consulted (gate ran), but it produced ZERO outbound work.
+    expect(outcome.routeAgentCalled).toBe(true)
+    // Silence: the gate returned success WITHOUT dispatching a runner.
+    expect(outcome.earlyReturnSuccess).toBe(true)
+    expect(outcome.routerHandledMessage).toBe(false)
+    expect(outcome.routerDecidedAgentId).toBeNull()
+    // The silence collector event is emitted — no runner/outbound modeled.
+    expect(outcome.collectorEvents).toHaveLength(1)
+    expect(outcome.collectorEvents[0].name).toBe('router_human_handoff')
+  })
+})

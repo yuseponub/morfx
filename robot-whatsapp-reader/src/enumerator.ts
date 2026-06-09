@@ -42,6 +42,7 @@ export async function enumerateChats(
       for (const c of arr) {
         if (c.isGroup) continue;               // D-01 exclude groups
         if (c.isNewsletter) continue;          // exclude channels/newsletters
+        if (c.isBroadcast) continue;           // exclude broadcast lists / status (D-01)
         const id = (c.id && c.id._serialized) ? c.id._serialized : String(c.id);
         byId.set(id, { id: id, name: c.name || c.formattedTitle || null, archived: !!c.archive });
       }
@@ -49,9 +50,11 @@ export async function enumerateChats(
     })()
   `)
 
-  // Belt-and-suspenders (RESEARCH line 241 + PATTERNS line 203): drop any id ending in @g.us /
-  // @newsletter / status@broadcast — catches newsletters/status that the users filter may leak on some builds.
-  const filtered = refs.filter((r) => !/@g\.us$|@newsletter$|status@broadcast$/.test(r.id))
+  // Belt-and-suspenders (RESEARCH line 241 + PATTERNS line 203): POSITIVE allowlist — a 1:1 chat id
+  // ends in @c.us (legacy phone) or @lid (linked-id). This drops groups (@g.us), newsletters
+  // (@newsletter), broadcast lists / status (NNN@broadcast, status@broadcast) and the malformed
+  // 0@c.us self/status entry in one rule (D-01), regardless of what the Store flags miss.
+  const filtered = refs.filter((r) => /@(c\.us|lid)$/.test(r.id) && !/^0@/.test(r.id))
 
   const archivedCount = filtered.filter((r) => r.archived).length
   console.log(

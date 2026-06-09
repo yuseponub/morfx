@@ -18,10 +18,20 @@ import type { Page } from 'playwright'
 export async function enumerateChats(
   page: Page,
 ): Promise<Array<{ id: string; name: string | null; archived: boolean }>> {
-  // Pattern 3 (RESEARCH lines 228-239, VERBATIM): one page.evaluate over the injected Store.
+  // Pattern 3 (RESEARCH lines 228-239): one page.evaluate over the injected Store.
+  // NOTE: conn.isMainReady() flips true a moment BEFORE chat.list() is populated (sub-race observed
+  // empirically). Poll the Store until it reports chats (or a generous timeout), then snapshot once.
   const refs = await page.evaluate(async () => {
     const WPP = (window as any).WPP
-    const active = await WPP.chat.list({ onlyUsers: true, count: -1 })
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    const deadline = Date.now() + 90_000
+    let active: any[] = []
+    while (Date.now() < deadline) {
+      active = await WPP.chat.list({ onlyUsers: true, count: -1 })
+      const storeLen = (() => { try { return WPP.whatsapp.ChatStore.getModelsArray().length } catch { return 0 } })()
+      if (active.length > 0 || storeLen > 0) break
+      await sleep(2_000)
+    }
     const archived = await WPP.chat.list({ onlyArchived: true, count: -1 }) // D-02
     const byId = new Map<string, { id: string; name: string | null; archived: boolean }>()
     for (const c of [...active, ...archived]) {

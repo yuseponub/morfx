@@ -1,7 +1,9 @@
 // ============================================================================
 // Multi-Channel Abstraction Types
-// Defines the interface for sending messages across different channels
-// (WhatsApp via 360dialog, Facebook/Instagram via ManyChat).
+// Defines the interface for sending messages across different channels.
+// WhatsApp via 360dialog (or Meta Cloud API for meta_direct workspaces).
+// Facebook/Instagram send via the Meta Direct senders (invoked directly in the
+// domain send chokepoint, not through this registry).
 // ============================================================================
 
 export type ChannelType = 'whatsapp' | 'facebook' | 'instagram'

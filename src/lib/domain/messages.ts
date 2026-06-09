@@ -23,7 +23,6 @@ import {
   sendTemplateMessage as send360Template,
   sendButtonMessage as send360Buttons,
 } from '@/lib/whatsapp/api'
-import { getChannelSender } from '@/lib/channels/registry'
 import type { ChannelType } from '@/lib/channels/types'
 import {
   emitWhatsAppMessageReceived,
@@ -255,67 +254,47 @@ export async function sendTextMessage(
       const response = await send360Text(params.apiKey, params.contactPhone, params.messageBody)
       wamid = response.messages?.[0]?.id
     } else if (channel === 'facebook') {
-      // Facebook messenger provider decision (MIG-02 / D-10) — read messenger_provider
-      // ONCE for this workspace (Regla 3 chokepoint).
+      // ManyChat decommissioned (godentist-fbig-meta-direct-cutover Plan 05) —
+      // facebook is meta_direct only now. Read messenger_provider for parity/observability,
+      // then resolve Meta creds from ctx.workspaceId (NEVER from params/input — T-40-02).
       const mp = await readMessengerProvider(supabase, ctx.workspaceId)
-      if (mp === 'meta_direct') {
-        // Meta Messenger Send API arm. Creds resolve from ctx.workspaceId via
-        // resolveByWorkspace('facebook') — NEVER from params/input (T-40-02).
-        const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
-        if (!creds?.accessToken || !creds.pageId) {
-          return { success: false, error: 'Credenciales Meta no configuradas' }
-        }
-        const resp = await metaFacebookSender.sendText(
-          { accessToken: creds.accessToken, pageId: creds.pageId },
-          params.contactPhone, // PSID string for facebook (external_subscriber_id)
-          params.messageBody,
-          params.tag
-        )
-        wamid = resp.externalMessageId
-      } else {
-        // manychat — BYTE-IDENTICAL to the existing getChannelSender('facebook') path (Regla 6)
-        const sender = getChannelSender(channel)
-        const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
-        if (!result.success) {
-          return { success: false, error: result.error || 'Error al enviar por canal' }
-        }
-        wamid = result.externalMessageId
+      if (mp !== 'meta_direct') {
+        // No workspace remains on manychat (Plan 04). Defensive: surface a clear error.
+        return { success: false, error: 'Credenciales Meta no configuradas' }
       }
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
+      if (!creds?.accessToken || !creds.pageId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaFacebookSender.sendText(
+        { accessToken: creds.accessToken, pageId: creds.pageId },
+        params.contactPhone, // PSID string for facebook (external_subscriber_id)
+        params.messageBody,
+        params.tag
+      )
+      wamid = resp.externalMessageId
     } else if (channel === 'instagram') {
-      // Instagram provider decision (MIG-02 / D-IG-02) — read instagram_provider
-      // ONCE for this workspace (Regla 3 chokepoint).
+      // ManyChat decommissioned (Plan 05) — instagram is meta_direct only now.
+      // Read instagram_provider for parity/observability, then resolve Meta creds
+      // from ctx.workspaceId (NEVER from params/input — T-41-04-03).
       const ip = await readInstagramProvider(supabase, ctx.workspaceId)
-      if (ip === 'meta_direct') {
-        // Meta Instagram Send API arm. Creds resolve from ctx.workspaceId via
-        // resolveByWorkspace('instagram') — NEVER from params/input (T-41-04-03).
-        const creds = await resolveByWorkspace(ctx.workspaceId, 'instagram')
-        if (!creds?.accessToken || !creds.pageId) {
-          return { success: false, error: 'Credenciales Meta no configuradas' }
-        }
-        const resp = await metaInstagramSender.sendText(
-          { accessToken: creds.accessToken, pageId: creds.pageId },
-          params.contactPhone, // IGSID string for instagram (external_subscriber_id)
-          params.messageBody,
-          params.tag
-        )
-        wamid = resp.externalMessageId
-      } else {
-        // manychat — BYTE-IDENTICAL to the previous final-else Instagram-via-ManyChat path (Regla 6)
-        const sender = getChannelSender(channel)
-        const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
-        if (!result.success) {
-          return { success: false, error: result.error || 'Error al enviar por canal' }
-        }
-        wamid = result.externalMessageId
+      if (ip !== 'meta_direct') {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
       }
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'instagram')
+      if (!creds?.accessToken || !creds.pageId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaInstagramSender.sendText(
+        { accessToken: creds.accessToken, pageId: creds.pageId },
+        params.contactPhone, // IGSID string for instagram (external_subscriber_id)
+        params.messageBody,
+        params.tag
+      )
+      wamid = resp.externalMessageId
     } else {
-      // Future channels via ManyChat — untouched (Regla 6)
-      const sender = getChannelSender(channel)
-      const result = await sender.sendText(params.apiKey, params.contactPhone, params.messageBody)
-      if (!result.success) {
-        return { success: false, error: result.error || 'Error al enviar por canal' }
-      }
-      wamid = result.externalMessageId
+      // ChannelType is whatsapp|facebook|instagram — this branch is unreachable.
+      return { success: false, error: 'Canal no soportado' }
     }
 
     // 2. Store message in DB
@@ -420,83 +399,50 @@ export async function sendMediaMessage(
       )
       wamid = response.messages?.[0]?.id
     } else if (channel === 'facebook') {
-      // Messenger provider decision (MIG-02 / D-10) — read messenger_provider ONCE.
+      // ManyChat decommissioned (Plan 05) — facebook is meta_direct only now.
       const mp = await readMessengerProvider(supabase, ctx.workspaceId)
-      if (mp === 'meta_direct') {
-        // Meta Messenger Send API arm — supports image/audio/video/document
-        // (40-08 follow-up; was image-only). Creds from ctx.workspaceId only (T-40-02).
-        const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
-        if (!creds?.accessToken || !creds.pageId) {
-          return { success: false, error: 'Credenciales Meta no configuradas' }
-        }
-        const resp = await metaFacebookSender.sendMedia(
-          { accessToken: creds.accessToken, pageId: creds.pageId },
-          params.contactPhone, // PSID string for facebook
-          params.mediaType,
-          params.mediaUrl,
-          params.caption,
-          params.tag
-        )
-        wamid = resp.externalMessageId
-      } else if (params.mediaType === 'image') {
-        // manychat — BYTE-IDENTICAL to the existing getChannelSender('facebook') path (Regla 6)
-        const sender = getChannelSender(channel)
-        const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
-        if (!result.success) {
-          return { success: false, error: result.error || 'Error al enviar media por canal' }
-        }
-        wamid = result.externalMessageId
-      } else {
-        // manychat facebook — only images supported (unchanged, Regla 6)
-        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}' (manychat)`)
-        return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
+      if (mp !== 'meta_direct') {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
       }
+      // Meta Messenger Send API arm — supports image/audio/video/document
+      // (40-08 follow-up). Creds from ctx.workspaceId only (T-40-02).
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'facebook')
+      if (!creds?.accessToken || !creds.pageId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaFacebookSender.sendMedia(
+        { accessToken: creds.accessToken, pageId: creds.pageId },
+        params.contactPhone, // PSID string for facebook
+        params.mediaType,
+        params.mediaUrl,
+        params.caption,
+        params.tag
+      )
+      wamid = resp.externalMessageId
     } else if (channel === 'instagram') {
-      // Instagram provider decision (MIG-02 / D-IG-02) — read instagram_provider ONCE.
+      // ManyChat decommissioned (Plan 05) — instagram is meta_direct only now.
       const ip = await readInstagramProvider(supabase, ctx.workspaceId)
-      if (ip === 'meta_direct') {
-        // Meta Instagram Send API arm — image (audio/video/document supported by the
-        // sender via attachments). Creds from ctx.workspaceId only (T-41-04-03).
-        const creds = await resolveByWorkspace(ctx.workspaceId, 'instagram')
-        if (!creds?.accessToken || !creds.pageId) {
-          return { success: false, error: 'Credenciales Meta no configuradas' }
-        }
-        const resp = await metaInstagramSender.sendMedia(
-          { accessToken: creds.accessToken, pageId: creds.pageId },
-          params.contactPhone, // IGSID string for instagram
-          params.mediaType,
-          params.mediaUrl,
-          params.caption,
-          params.tag
-        )
-        wamid = resp.externalMessageId
-      } else if (params.mediaType === 'image') {
-        // manychat — BYTE-IDENTICAL to the previous final-else Instagram-via-ManyChat path (Regla 6)
-        const sender = getChannelSender(channel)
-        const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
-        if (!result.success) {
-          return { success: false, error: result.error || 'Error al enviar media por canal' }
-        }
-        wamid = result.externalMessageId
-      } else {
-        // manychat instagram — only images supported (unchanged, Regla 6)
-        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}'`)
-        return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
+      if (ip !== 'meta_direct') {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
       }
+      // Meta Instagram Send API arm — image (audio/video/document supported by the
+      // sender via attachments). Creds from ctx.workspaceId only (T-41-04-03).
+      const creds = await resolveByWorkspace(ctx.workspaceId, 'instagram')
+      if (!creds?.accessToken || !creds.pageId) {
+        return { success: false, error: 'Credenciales Meta no configuradas' }
+      }
+      const resp = await metaInstagramSender.sendMedia(
+        { accessToken: creds.accessToken, pageId: creds.pageId },
+        params.contactPhone, // IGSID string for instagram
+        params.mediaType,
+        params.mediaUrl,
+        params.caption,
+        params.tag
+      )
+      wamid = resp.externalMessageId
     } else {
-      // Future channels via ManyChat — untouched (Regla 6) — only images supported
-      if (params.mediaType === 'image') {
-        const sender = getChannelSender(channel)
-        const result = await sender.sendImage(params.apiKey, params.contactPhone, params.mediaUrl, params.caption)
-        if (!result.success) {
-          return { success: false, error: result.error || 'Error al enviar media por canal' }
-        }
-        wamid = result.externalMessageId
-      } else {
-        // Other media types not yet supported on ManyChat — log and skip
-        console.warn(`[domain/messages] Media type '${params.mediaType}' not supported on channel '${channel}'`)
-        return { success: false, error: `Tipo de media '${params.mediaType}' no soportado en ${channel}` }
-      }
+      // ChannelType is whatsapp|facebook|instagram — this branch is unreachable.
+      return { success: false, error: 'Canal no soportado' }
     }
 
     // 2. Store message in DB

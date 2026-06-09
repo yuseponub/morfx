@@ -18,29 +18,36 @@ import type { Page } from 'playwright'
 export async function enumerateChats(
   page: Page,
 ): Promise<Array<{ id: string; name: string | null; archived: boolean }>> {
-  // Pattern 3 (RESEARCH lines 228-239): one page.evaluate over the injected Store.
-  // NOTE: conn.isMainReady() flips true a moment BEFORE chat.list() is populated (sub-race observed
-  // empirically). Poll the Store until it reports chats (or a generous timeout), then snapshot once.
-  const refs = await page.evaluate(async () => {
-    const WPP = (window as any).WPP
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-    const deadline = Date.now() + 90_000
-    let active: any[] = []
-    while (Date.now() < deadline) {
-      active = await WPP.chat.list({ onlyUsers: true, count: -1 })
-      const storeLen = (() => { try { return WPP.whatsapp.ChatStore.getModelsArray().length } catch { return 0 } })()
-      if (active.length > 0 || storeLen > 0) break
-      await sleep(2_000)
-    }
-    const archived = await WPP.chat.list({ onlyArchived: true, count: -1 }) // D-02
-    const byId = new Map<string, { id: string; name: string | null; archived: boolean }>()
-    for (const c of [...active, ...archived]) {
-      if (c.isGroup) continue // D-01 exclude groups
-      const id = c.id._serialized ?? c.id.toString()
-      byId.set(id, { id, name: c.name ?? c.formattedTitle ?? null, archived: !!c.archive })
-    }
-    return [...byId.values()]
-  })
+  // Pattern 3 (RESEARCH lines 228-239): read the injected Store via page.evaluate.
+  // IMPORTANT: the evaluate body is passed as a STRING, not an arrow function. tsx/esbuild
+  // transpiles arrow callbacks (helpers, name-wrapping) in a way that made the SAME WPP.chat.list
+  // query return 0 here while a string-eval returned 529 (verified empirically). A string runs
+  // verbatim in the page world, immune to the bundler. Keep it dependency-free (no closure vars).
+  const refs: Array<{ id: string; name: string | null; archived: boolean }> = await page.evaluate(`
+    (async () => {
+      const WPP = window.WPP;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Source of truth = ChatStore.getModelsArray() (reliably populated once main is ready;
+      // it includes active + archived, archived being just the c.archive flag). WPP.chat.list()
+      // proved flaky on its first call (returned 0 while the store already held 531) — do not use
+      // it as the gate. Poll the model array until it has entries (or timeout for empty accounts).
+      const deadline = Date.now() + 90000;
+      let arr = [];
+      while (Date.now() < deadline) {
+        try { arr = WPP.whatsapp.ChatStore.getModelsArray(); } catch (e) { arr = []; }
+        if (arr && arr.length > 0) break;
+        await sleep(2000);
+      }
+      const byId = new Map();
+      for (const c of arr) {
+        if (c.isGroup) continue;               // D-01 exclude groups
+        if (c.isNewsletter) continue;          // exclude channels/newsletters
+        const id = (c.id && c.id._serialized) ? c.id._serialized : String(c.id);
+        byId.set(id, { id: id, name: c.name || c.formattedTitle || null, archived: !!c.archive });
+      }
+      return Array.from(byId.values());
+    })()
+  `)
 
   // Belt-and-suspenders (RESEARCH line 241 + PATTERNS line 203): drop any id ending in @g.us /
   // @newsletter / status@broadcast — catches newsletters/status that the users filter may leak on some builds.

@@ -111,7 +111,11 @@ export interface BuildChatBackupArgs {
  * not an error; the caller decides what to do with it.
  */
 export function buildChatBackup(args: BuildChatBackupArgs): ChatBackup {
-  const messages = args.raw.map(normalize)
+  // Guarantee chronological order: the Store array is mostly time-ordered but system notices
+  // (e.g. e2e_notification) can sit slightly out of place. Stable-sort by unix-seconds so the
+  // backed-up conversation always reads in true time order. Equal timestamps keep Store order.
+  const sorted = [...args.raw].sort((a, b) => (a.t ?? 0) - (b.t ?? 0))
+  const messages = sorted.map(normalize)
   return {
     schemaVersion: 1,
     chatId: args.chatId,

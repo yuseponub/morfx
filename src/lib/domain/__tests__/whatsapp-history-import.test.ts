@@ -185,6 +185,7 @@ describe('importHistoricalChat (Plan 01)', () => {
     expect(params.phone).toBe('+573001234567')
     expect(params.name).toBe('Cliente Test')
     expect(res.data?.contactId).toBe('contact-1')
+    expect(res.data?.contactCreated).toBe(true) // stub devuelve created:true → propagado
   })
 
   it('contacto inválido: resolveOrCreateContact falla → {success:false} sin escribir mensajes', async () => {

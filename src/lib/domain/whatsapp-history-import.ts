@@ -55,6 +55,8 @@ export interface ImportHistoricalChatParams {
 
 export interface ImportHistoricalChatResult {
   contactId: string
+  /** true si el contacto se creó en esta corrida; false si ya existía (D-09). */
+  contactCreated: boolean
   conversationId: string
   conversationCreated: boolean
   /** filas realmente nuevas (ignoreDuplicates retorna solo insertadas). */
@@ -86,6 +88,7 @@ export async function importHistoricalChat(
       return { success: false, error: contact.error ?? 'No se pudo resolver el contacto' }
     }
     const contactId = contact.data.contactId
+    const contactCreated = contact.data.created
 
     // 2. Normalizar phone UNA vez — para llavear la conversación con el mismo
     //    valor E.164 que guarda el contacto.
@@ -214,6 +217,7 @@ export async function importHistoricalChat(
       success: true,
       data: {
         contactId,
+        contactCreated,
         conversationId,
         conversationCreated,
         messagesInserted,

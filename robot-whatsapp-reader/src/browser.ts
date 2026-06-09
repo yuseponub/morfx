@@ -67,6 +67,21 @@ export async function injectWaJs(page: Page): Promise<void> {
   await page.addScriptTag({ path: WPP_PATH })
   await page.waitForFunction(() => (window as any).WPP?.isReady === true, { timeout: 60_000 })
   console.log('[wa-reader] window.WPP ready.')
+  // CRITICAL: WPP.isReady flips true BEFORE the chat list (main) finishes syncing — enumerating
+  // here returns 0 chats on slow links. Gate on conn.isMainReady() (the chat store is populated).
+  // Generous timeout: a first-time link on a slow connection can take minutes to sync the list.
+  await page.waitForFunction(
+    () => {
+      const WPP = (window as any).WPP
+      try {
+        return WPP?.conn?.isMainReady?.() === true
+      } catch {
+        return false
+      }
+    },
+    { timeout: 300_000 },
+  )
+  console.log('[wa-reader] WPP main ready (lista de chats sincronizada).')
 }
 
 /**

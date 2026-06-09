@@ -10,8 +10,8 @@
  *   - sendText(creds, psid, text, tag?) → forwards the PSID string + optional HUMAN_AGENT tag to
  *     sendMessengerText, unwraps `message_id` → `externalMessageId`.
  *   - sendImage(creds, psid, imageUrl, caption?, tag?) → calls sendMessengerImage, then a FOLLOW-UP
- *     sendMessengerText when a caption is present (Messenger has no native image caption — parity
- *     with manychatFacebookSender), forwarding the same tag.
+ *     sendMessengerText when a caption is present (Messenger has no native image caption —
+ *     image-as-followup parity), forwarding the same tag.
  *
  * RED STATE: the module does not exist until Plan 02 — `await import(...)` rejects with
  * module-not-found, the intended Wave-1 RED. Each test imports lazily so a missing module
@@ -98,7 +98,7 @@ describe('metaFacebookSender.sendImage (FB-02) — image then follow-up caption 
       'https://cdn.example/x.jpg',
       undefined
     )
-    // Caption sent as a SEPARATE follow-up text (image-as-followup parity with manychatFacebookSender).
+    // Caption sent as a SEPARATE follow-up text (image-as-followup parity).
     expect(api.sendMessengerText).toHaveBeenCalledWith(
       CREDS.accessToken,
       CREDS.pageId,

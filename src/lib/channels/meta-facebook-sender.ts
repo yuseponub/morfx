@@ -9,15 +9,14 @@
 //   - unwrap reads response.message_id (Messenger returns { message_id, recipient_id },
 //     NOT { messages: [{ id }] }).
 //   - image has no native caption: send the image, then a FOLLOW-UP text when a
-//     caption is present (image-as-followup parity with manychatFacebookSender).
+//     caption is present (image-as-followup parity).
 //   - PSID is a STRING, forwarded verbatim (never Number-coerced — Pitfall 5).
 //   - the only emittable message tag is HUMAN_AGENT (out-of-window sends).
 //
 // IMPORTANT (Regla 6 + 40-PATTERNS.md):
 //   - This module is NOT registered in the channel-keyed `senders` map in registry.ts
-//     (that map stays the byte-identical ManyChat path). The domain branch imports it
-//     directly, exactly like metaWhatsappSender.
-//   - manychat-sender.ts (the ManyChat path) is left byte-identical.
+//     (only WhatsApp is mapped there). The domain branch imports it directly, exactly
+//     like metaWhatsappSender. Facebook is meta_direct-only (legacy transport removed).
 // ============================================================================
 
 import type { ChannelSendResult } from './types'
@@ -59,8 +58,8 @@ export const metaFacebookSender = {
 
   /**
    * Send a Messenger image, then a FOLLOW-UP text when a caption is present
-   * (Messenger image attachments have no caption field — image-as-followup parity
-   * with manychatFacebookSender). The same tag is forwarded to both sends.
+   * (Messenger image attachments have no caption field — image-as-followup parity).
+   * The same tag is forwarded to both sends.
    */
   async sendImage(
     creds: MetaPageCreds,

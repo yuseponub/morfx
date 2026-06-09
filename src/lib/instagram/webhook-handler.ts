@@ -11,7 +11,7 @@
 // Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE (IG).
 // The handler now ALWAYS emits `agent/whatsapp.message_received` after a
 // successful (non-dedup) store AND the inline audio-transcription block,
-// mirroring the FB wire + ManyChat handler. The agent-vs-silence gate is
+// mirroring the FB wire + legacy FB/IG dispatch. The agent-vs-silence gate is
 // DOWNSTREAM (webhook-processor.ts — lifecycle_routing_enabled + the
 // router), never here. The handler MUST NOT import or call the router.
 // Agentless workspaces emit too, but the router yields null → silence, so
@@ -297,7 +297,7 @@ export async function processInstagramWebhook(
 
     // ================================================================
     // Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE (IG).
-    // Mirrors the FB wire + ManyChat handler. Gate is DOWNSTREAM (never
+    // Mirrors the FB wire + legacy FB/IG dispatch. Gate is DOWNSTREAM (never
     // invoke the router here). Agentless workspaces emit too → router→null →
     // silence (human-only preserved — Regla 6, D-01/D-02/D-03).
     // ================================================================

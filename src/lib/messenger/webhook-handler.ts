@@ -1,16 +1,16 @@
 // ============================================================================
 // Facebook Messenger Direct — Inbound Webhook Handler (Phase 40, FB-01/03/04)
 //
-// Clone of `processManyChatWebhook` (src/lib/manychat/webhook-handler.ts:65-141)
-// adapted for the Graph `object==='page'` event shape, with two deliberate
-// OMISSIONS vs the ManyChat handler:
+// Originally cloned from the legacy FB/IG inbound handler (now decommissioned)
+// and adapted for the Graph `object==='page'` event shape, with two deliberate
+// OMISSIONS vs that legacy handler:
 //   - NO fuzzy phone/email contact match (D-04/D-05) — contact is resolved
 //     strictly by the (page_id, PSID) identity via `resolveOrCreateContact`
 //     keyed on the `fb-${PSID}` identifier; never a real phone/email search.
 //
 // Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
 // The handler now ALWAYS emits `agent/whatsapp.message_received` after a
-// successful (non-dedup) store, mirroring the ManyChat handler (steps 4+5).
+// successful (non-dedup) store, mirroring the legacy FB/IG dispatch (steps 4+5).
 // The agent-vs-silence gate is DOWNSTREAM (webhook-processor.ts —
 // lifecycle_routing_enabled + the router), never here. The handler MUST NOT
 // import or call the router. Agentless workspaces (Varixcenter) emit too,
@@ -99,7 +99,7 @@ export async function processMessengerWebhook(
     return { stored: false }
   }
 
-  // Messenger-distinct identifier prefix (NOT manychat's `mc-`).
+  // Messenger-distinct identifier prefix (`fb-`, distinct from the WhatsApp keyspace).
   const phoneIdentifier = `fb-${psid}`
 
   // Display name / avatar — best-effort (D-04). Falls back to `FB-${psid}` on
@@ -171,7 +171,7 @@ export async function processMessengerWebhook(
     })
     if (contactResult.success && contactResult.data) {
       contactId = contactResult.data.contactId
-      // Link the resolved contact to the conversation (mirror manychat 119-123).
+      // Link the resolved contact to the conversation.
       await domainLinkContactToConversation(ctx, { conversationId, contactId })
       // Self-heal the first-message-race placeholder: resolveOrCreateContact does NOT
       // update an existing contact's name, so a contact created as `FB-${psid}` (name
@@ -213,7 +213,7 @@ export async function processMessengerWebhook(
 
     // ================================================================
     // Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
-    // Mirror the ManyChat handler dispatch (steps 4 + 5). The gate is
+    // Mirror the legacy FB/IG dispatch (steps 4 + 5). The gate is
     // DOWNSTREAM (processMessageWithAgent → lifecycle_routing_enabled →
     // the router). We NEVER invoke the router here. Agentless workspaces
     // (Varixcenter) emit too, but the router yields null → silence

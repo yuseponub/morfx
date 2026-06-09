@@ -146,8 +146,9 @@ export async function connectWhatsAppNumber(input: {
 // subscribe). See src/lib/meta/messenger-connect.ts.
 //
 // Regla 6 (CRITICAL): connecting a Page must NOT flip the Messenger provider. The
-// row is inserted is_active, but Messenger traffic stays on manychat until the
-// operator runs the manual SQL flip (Plan 08). This action MUST NOT touch that column.
+// row is inserted is_active. Messenger/Instagram is now meta_direct-only (the legacy
+// FB/IG transport was decommissioned); the provider column is flipped by the operator
+// via SQL, never as a side effect of this action. This action MUST NOT touch that column.
 //
 // Security: META_APP_SECRET stays server-side (messenger-connect is SERVER-ONLY); the
 // Page token is AES-256-GCM encrypted before persist; the plaintext token is NEVER

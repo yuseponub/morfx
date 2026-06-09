@@ -15,9 +15,9 @@
 //
 // IMPORTANT (Regla 6 + 41-PATTERNS.md):
 //   - This module is NOT registered in the channel-keyed `senders` map in registry.ts
-//     (that map stays the byte-identical ManyChat IG path). The domain branch imports it
-//     directly, exactly like metaFacebookSender / metaWhatsappSender.
-//   - registry.ts + manychat-sender.ts (the ManyChat path) are left byte-identical.
+//     (only WhatsApp is mapped there). The domain branch imports it directly, exactly
+//     like metaFacebookSender / metaWhatsappSender. Instagram is meta_direct-only
+//     (legacy transport removed).
 // ============================================================================
 
 import type { ChannelSendResult } from './types'

@@ -208,7 +208,7 @@ describe('processInstagramWebhook — contact create-or-get by (ig_account_id, I
 
     await processInstagramWebhook(makeEvent(), WS_ID, IG_ACCOUNT_ID, ACCESS_TOKEN)
 
-    // The ManyChat handler fuzzy-matches by phone via supabase.from('contacts').eq('phone', ...);
+    // The legacy FB/IG handler fuzzy-matched by phone via supabase.from('contacts').eq('phone', ...);
     // the Instagram handler must NEVER do that — assert no such search ran.
     expect(phoneSearchSingle).not.toHaveBeenCalled()
   })

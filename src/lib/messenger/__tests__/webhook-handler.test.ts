@@ -4,7 +4,8 @@
  *
  * Contract under test: `processMessengerWebhook(ev, workspaceId, pageId)` from
  * `@/lib/messenger/webhook-handler` (FUTURE — Plan 05 creates it). Per 40-PATTERNS.md it is a
- * clone of `processManyChatWebhook` adapted for the Graph `object==='page'` event shape:
+ * clone of the legacy FB/IG inbound handler (now decommissioned), adapted for the Graph
+ * `object==='page'` event shape:
  *   - `ev.sender.id`    = PSID (the customer — outbound recipient)
  *   - `ev.recipient.id` = pageId (your page)
  *   - `ev.message.mid`  = dedup key, `ev.message.text` = body
@@ -21,7 +22,7 @@
  * Standalone: godentist-fbig-meta-direct-cutover (Plan 02) — THE WIRE.
  * The D-12 human-only assertion is REPLACED: the handler now ALWAYS emits
  * `agent/whatsapp.message_received` after a successful (non-dedup) store,
- * mirroring the ManyChat handler. The agent-vs-silence gate is DOWNSTREAM
+ * mirroring the legacy FB/IG dispatch. The agent-vs-silence gate is DOWNSTREAM
  * (webhook-processor.ts); the handler MUST NOT import or call the router.
  *   wire   — emits agent/whatsapp.message_received once with lockChannel='facebook'.
  *   dedup  — does NOT dispatch on a dedup no-op (receiveMessage messageId === '').
@@ -191,7 +192,7 @@ describe('processMessengerWebhook — contact create-or-get by (page_id, PSID), 
 
     await processMessengerWebhook(makeEvent(), WS_ID, PAGE_ID)
 
-    // The ManyChat handler fuzzy-matches by phone via supabase.from('contacts').eq('phone', ...);
+    // The legacy FB/IG handler fuzzy-matched by phone via supabase.from('contacts').eq('phone', ...);
     // the Messenger handler must NEVER do that — assert no such search ran.
     expect(phoneSearchSingle).not.toHaveBeenCalled()
   })

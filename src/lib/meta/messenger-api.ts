@@ -79,7 +79,8 @@ export async function sendMessengerText(
  * Send a Messenger image attachment via the Graph Send API (FB-02).
  *
  * The image payload has NO caption field — a caption is sent as a SEPARATE
- * follow-up text by the caller (image-as-followup parity with manychatFacebookSender).
+ * follow-up text by the caller (image-as-followup parity: caption sent as a
+ * separate follow-up text).
  *
  * @param accessToken - Page Access Token (decrypted) — passed only to metaRequest, never logged.
  * @param pageId - The sending Page ID.

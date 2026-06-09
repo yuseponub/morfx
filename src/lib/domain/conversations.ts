@@ -49,7 +49,7 @@ export interface FindOrCreateConversationParams {
   profileName?: string
   /** Channel type — defaults to 'whatsapp' for backward compatibility */
   channel?: 'whatsapp' | 'facebook' | 'instagram'
-  /** ManyChat subscriber ID (for FB/IG conversations) */
+  /** External subscriber ID — PSID (Messenger) / IGSID (Instagram) for FB/IG conversations */
   externalSubscriberId?: string
 }
 

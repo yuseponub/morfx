@@ -82,6 +82,10 @@ export async function injectWaJs(page: Page): Promise<void> {
     { timeout: 300_000 },
   )
   console.log('[wa-reader] WPP main ready (lista de chats sincronizada).')
+  // tsx/esbuild (keepNames) wraps named functions inside page.evaluate callbacks with a `__name`
+  // helper that does NOT exist in the page world → "__name is not defined". Define it as identity
+  // in the page (passed as a STRING so esbuild does not transform it). Covers enumerator/scraper.
+  await page.evaluate('globalThis.__name = globalThis.__name || function (f) { return f }')
 }
 
 /**

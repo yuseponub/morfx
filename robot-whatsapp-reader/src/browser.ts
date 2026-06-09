@@ -28,6 +28,9 @@ export async function openSession(
     viewport: { width: 1280, height: 900 },
     locale: 'es-CO',
     timezoneId: 'America/Bogota', // align browser tz with Regla 2 / residential reality
+    // web.whatsapp.com ships a strict CSP (script-src nonce-only) that blocks page.addScriptTag.
+    // bypassCSP lets Playwright strip it so the wa-js Store bundle can be injected. Read-only only.
+    bypassCSP: true,
     args: ['--disable-blink-features=AutomationControlled'], // hides the obvious CDP automation flag
   }
   // Prefer real Chrome (channel:'chrome') for fewer fingerprint deltas. If it isn't installed,

@@ -56,3 +56,4 @@ supabase/.temp/
 # Playwright
 playwright-report/
 test-results/
+scripts/.import-whatsapp-history.bundle.cjs

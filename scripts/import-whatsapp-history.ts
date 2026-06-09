@@ -2,13 +2,19 @@
  * Standalone whatsapp-history-importer — Plan 02 (T3)
  * CLI para importar historiales de WhatsApp respaldados por Etapa 1 al inbox MorfX.
  *
- * Uso:
- *   npx tsx --env-file=.env.local scripts/import-whatsapp-history.ts \
+ * Uso (vía el runner — NO `npx tsx`, ver nota libphonenumber abajo):
+ *   node --env-file=.env.local scripts/import-whatsapp-history.run.mjs \
  *     --backup robot-whatsapp-reader/output/573202067077 \
  *     --workspace <uuid> --phone-number-id <id> [--apply] [--limit N]
  *
  * Default = DRY-RUN (no escribe). `--apply` escribe vía el domain. `--limit N`
  * procesa solo los primeros N chats `done` (para el piloto, D-06).
+ *
+ * NOTA RUNTIME (descubierto en piloto Plan 03): NO correr con `npx tsx` — tsx
+ * carga el JSON de metadata de libphonenumber-js como `{ default }` y rompe
+ * `normalizePhone` (todos los chats → "Numero de telefono invalido"). El runner
+ * `import-whatsapp-history.run.mjs` transpila con esbuild dejando los paquetes
+ * npm external → node carga la metadata correcta. Ver ese archivo.
  *
  * Regla 3: TODA la escritura pasa por `importHistoricalChat` (domain). CERO acceso
  * directo a Supabase desde este script (sin cliente admin ni SDK — verificable con grep).

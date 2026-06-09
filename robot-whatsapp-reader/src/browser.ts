@@ -57,7 +57,9 @@ export async function openSession(
  * any enumeration.
  */
 export async function injectWaJs(page: Page): Promise<void> {
-  const WPP_PATH = require.resolve('@wppconnect/wa-js/dist/wppconnect-wa.js')
+  // The package only exposes the '.' export (→ dist/wppconnect-wa.js); the explicit
+  // './dist/...' subpath is NOT in the exports map and throws ERR_PACKAGE_PATH_NOT_EXPORTED.
+  const WPP_PATH = require.resolve('@wppconnect/wa-js')
   console.log('[wa-reader] Injecting wa-js Store bundle...')
   await page.addScriptTag({ path: WPP_PATH })
   await page.waitForFunction(() => (window as any).WPP?.isReady === true, { timeout: 60_000 })

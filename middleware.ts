@@ -52,12 +52,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ==================== MANYCHAT DYNAMIC CONTENT ====================
-  // ManyChat calls this endpoint from Dynamic Content blocks in Flows
-  if (pathname.startsWith('/api/manychat')) {
-    return NextResponse.next()
-  }
-
   // ==================== MOBILE API ROUTES ====================
   // Mobile app uses Bearer JWT auth (not cookies), handled by requireMobileAuth()
   // in each route handler. Must bypass the web session middleware.

@@ -83,14 +83,26 @@ export async function scrapeMessages(page: Page, chatId: string): Promise<RawMsg
  *  - unix-seconds 0/undefined → still formatted (no crash); falls back to epoch.
  */
 export function normalize(raw: RawMsg): BackupMessage {
-  const isText = raw.type === 'chat'
-  return {
+  // raw.body already carries body ?? caption (see scrapeMessages). KEEP that text for ANY type that
+  // has it — not just 'chat'. WhatsApp business flows surface real text on non-'chat' types:
+  // interactive (button/list, text in caption) and automated_greeting_message (text in body) were
+  // being silently dropped to placeholder. A faithful backup must preserve their words.
+  const hasText = typeof raw.body === 'string' && raw.body.length > 0
+  const isMedia = raw.type in PLACEHOLDER
+  const msg: BackupMessage = {
     fromMe: !!raw.fromMe,
     timestamp: formatInTimeZone(new Date((raw.t ?? 0) * 1000), TZ, 'yyyy-MM-dd HH:mm:ss XXX'),
-    text: isText ? (raw.body ?? null) : null,
+    text: hasText ? raw.body : null,
     type: raw.type,
-    ...(isText ? {} : { note: PLACEHOLDER[raw.type] ?? `<${raw.type} omitido>` }),
   }
+  if (isMedia) {
+    // media existed (file not downloaded, D-10); any caption is still kept in `text` above.
+    msg.note = PLACEHOLDER[raw.type]
+  } else if (!hasText && raw.type !== 'chat') {
+    // textless system/notice message (e2e_notification, notification_template, protocol, revoked…).
+    msg.note = `<${raw.type} omitido>`
+  }
+  return msg
 }
 
 /** Inputs the caller assembles (number/numberMissing from number-extractor; business from browser). */

@@ -129,7 +129,7 @@ describe('buildGenerationPrompt with FEW_SHOTS (default)', () => {
   it('prompt contains M1 probability framing', () => {
     const prompt = buildGenerationPrompt(mockMaterial)
     expect(prompt).toMatch(/PROBABILIDAD/)
-    expect(prompt).toMatch(/compañero (humano )?experto/)
+    expect(prompt).toMatch(/cumpla FIELMENTE la Posición del negocio/)
   })
 
   it('prompt lists the 5 discrete buckets (M2)', () => {

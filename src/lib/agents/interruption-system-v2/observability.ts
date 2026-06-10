@@ -2,9 +2,14 @@
  * Typed observability emitter for the interruption-system-v2 lock lifecycle.
  *
  * Source: RESEARCH.md Code Example 5 (lines 729-756) + DISCUSSION-LOG.md D-17
- * (13 base lifecycle labels). REVISION B1 (Plan 06) bumps the union to 14
+ * (13 base lifecycle labels). REVISION B1 (Plan 06) bumped the union to 14
  * entries by adding `lock_orphan_swept_by_cron` — emitted by the cron sweep,
  * NOT during normal turn-time lifecycle.
+ *
+ * D-16 (somnio-v4-consolidation): el union pasa de 14 → 11 labels. Se removieron
+ * 3 labels fantasma (`follower_woke`, `lock_force_acquired_after_ttl_expiry`,
+ * `heartbeat_renewed`) que tenían CERO emisores en código no-test — el tipo debe
+ * reflejar la realidad; re-agregarlos en el futuro es barato.
  *
  * Why typed union: passing an arbitrary string to `emitLockEvent` is a
  * compile error. Every label belongs to the D-17 + B1 contract; if a new
@@ -20,7 +25,9 @@
 import { getCollector } from '@/lib/observability'
 
 /**
- * The 14 lifecycle event labels enforceable at compile time.
+ * The 11 lifecycle event labels enforceable at compile time.
+ *
+ * (14 originales − 3 sin emisor removidos en D-16 somnio-v4-consolidation.)
  *
  * Each comment block above a label documents the expected payload shape per
  * D-17 (DISCUSSION-LOG.md lines 121-137) + REVISION B1 (Plan 06 cron). Keep
@@ -42,14 +49,8 @@ export type LockEventLabel =
   | 'msg_aborted_path_b_solo'
   /** Payload: { holder_uuid, duration_ms, templates_sent } — DEL lock at successful end. */
   | 'lock_released_normal'
-  /** Payload: { wait_duration_ms } — follower polled, saw lock free, attempted acquire. */
-  | 'follower_woke'
-  /** Payload: { previous_holder_uuid, expired_ago_estimate_ms } — TTL-expired lock force-acquired. */
-  | 'lock_force_acquired_after_ttl_expiry'
   /** Payload: { my_uuid, current_holder_uuid, at_step } — holder_uuid mismatch detected, clean exit. */
   | 'zombie_lambda_exit'
-  /** Payload: { holder_uuid, new_ttl } — EXPIRE renewed TTL (high-volume; may opt-out in prod). */
-  | 'heartbeat_renewed'
   /** Payload: { entries_count, total_chars } — holder read LRANGE at acquire-time. */
   | 'pending_list_combined'
   /** Payload: { error_message } — Redis unreachable; no fallback per D-08. */

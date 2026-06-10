@@ -1,10 +1,12 @@
 /**
  * Unit tests for observability.ts — covers requirement LOCK-07 (typed emitter
- * with 14 D-17-extended labels — REVISION B1 bumped from 13 to include
- * `lock_orphan_swept_by_cron` for Plan 06 cron sweep).
+ * with 11 lifecycle labels — REVISION B1 added `lock_orphan_swept_by_cron`;
+ * D-16 (somnio-v4-consolidation) removed 3 ghost labels sin emisor —
+ * follower_woke, lock_force_acquired_after_ttl_expiry, heartbeat_renewed —
+ * dejando 11).
  *
  * Test categories:
- *   - All 14 labels are accepted at runtime and routed to
+ *   - All 11 labels are accepted at runtime and routed to
  *     collector.recordEvent('pipeline_decision', label, payload).
  *   - When getCollector() returns null, recordEvent is NOT called but
  *     console.log IS called (D-11 dual emission survives no-collector case).
@@ -28,7 +30,8 @@ vi.mock('@/lib/observability', () => ({
 
 import { emitLockEvent, type LockEventLabel } from '../observability'
 
-// The exhaustive list of 14 labels expected by D-17 + REVISION B1.
+// The exhaustive list of 11 labels expected by D-17 + REVISION B1, post-D-16
+// (3 ghost labels sin emisor removidos en somnio-v4-consolidation).
 const ALL_LABELS: LockEventLabel[] = [
   'lock_acquired',
   'lock_acquire_failed_follower',
@@ -37,10 +40,7 @@ const ALL_LABELS: LockEventLabel[] = [
   'msg_aborted_path_a_combined',
   'msg_aborted_path_b_solo',
   'lock_released_normal',
-  'follower_woke',
-  'lock_force_acquired_after_ttl_expiry',
   'zombie_lambda_exit',
-  'heartbeat_renewed',
   'pending_list_combined',
   'redis_unavailable_fallback_failed',
   'lock_orphan_swept_by_cron',
@@ -58,15 +58,15 @@ beforeEach(() => {
   consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 })
 
-describe('emitLockEvent — LOCK-07 (typed 14-label emitter)', () => {
-  it('exposes exactly 14 labels in the LockEventLabel union (REVISION B1)', () => {
+describe('emitLockEvent — LOCK-07 (typed 11-label emitter)', () => {
+  it('exposes exactly 11 labels in the LockEventLabel union (post-D-16)', () => {
     // Both length and uniqueness — if D-17 ever gains a label, both this
     // assertion AND the union in observability.ts must be updated together.
-    expect(ALL_LABELS).toHaveLength(14)
-    expect(new Set(ALL_LABELS).size).toBe(14)
+    expect(ALL_LABELS).toHaveLength(11)
+    expect(new Set(ALL_LABELS).size).toBe(11)
   })
 
-  it('routes all 14 labels to collector.recordEvent under pipeline_decision', () => {
+  it('routes all 11 labels to collector.recordEvent under pipeline_decision', () => {
     for (const label of ALL_LABELS) {
       recordEvent.mockClear()
       const payload = { test_label: label, foo: 'bar' }
@@ -93,7 +93,7 @@ describe('emitLockEvent — LOCK-07 (typed 14-label emitter)', () => {
     recordEvent.mockClear()
 
     expect(() =>
-      emitLockEvent('heartbeat_renewed', { holder_uuid: 'u', new_ttl: 45 }),
+      emitLockEvent('lock_released_normal', { holder_uuid: 'u', duration_ms: 80, templates_sent: 1 }),
     ).not.toThrow()
     expect(recordEvent).not.toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledTimes(1)

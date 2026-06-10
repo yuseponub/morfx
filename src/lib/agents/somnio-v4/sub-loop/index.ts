@@ -26,7 +26,7 @@ import type {
 // Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.2)
 // CKPT-3 (post-tooling) + CKPT-4 (post-generation) + CKPT-5 (post-compliance)
 // fire in runRagSubLoop. A single combined CKPT (representing 3+4+5) fires in
-// runLegacySubLoop after its sole generateText call (coverage matrix line 881).
+// runCrmMutationSubLoop after its sole generateText call (coverage matrix line 881).
 // All call sites are skip-gated when ctx.lockHandle/lockChannel/lockIdentifier
 // are null — sandbox / pre-v4 / fail-open callers are unaffected.
 // ============================================================================
@@ -262,7 +262,7 @@ function extractStepData(rawResult: any): {
 export async function runSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   // === SWITCH POR REASON ===
   if (args.reason === 'crm_mutation' || args.reason === 'cas_reject') {
-    return runLegacySubLoop(args)
+    return runCrmMutationSubLoop(args)
   }
 
   // === FLUJO NUEVO RAG-generative — low_confidence | razonamiento_libre ===
@@ -737,13 +737,13 @@ function emitRagError(
  */
 /**
  * Variante interna del legacy sub-loop que devuelve TAMBIEN el rawResult del AI SDK
- * (Plan 05 Task 3 — contrato de salida CRM, D-14/D-23/Pitfall 1+6). `runLegacySubLoop`
+ * (Plan 05 Task 3 — contrato de salida CRM, D-14/D-23/Pitfall 1+6). `runCrmMutationSubLoop`
  * la envuelve devolviendo solo el outcome (preserva los callers RAG/cas_reject actuales).
  * `runCrmSubLoop` la usa para derivar `crmActions[]` del rawResult (ground-truth).
  *
  * El prompt crm_mutation inyecta el grounding + crmHint (threadeados via ctx).
  */
-async function runLegacySubLoopRaw(
+async function runCrmMutationSubLoopRaw(
   args: RunSubLoopArgs,
 ): Promise<{ outcome: LoopOutcome; rawResult: any }> {
   const t0 = performance.now()
@@ -946,12 +946,14 @@ async function runLegacySubLoopRaw(
 }
 
 /**
- * Wrapper que preserva la firma publica original `runLegacySubLoop -> Promise<LoopOutcome>`
+ * Wrapper que preserva la firma publica original `runCrmMutationSubLoop -> Promise<LoopOutcome>`
  * para los callers RAG/cas_reject existentes (no requieren el rawResult). Delega en la
  * variante raw y descarta el rawResult.
+ *
+ * Renombrada del antiguo nombre "legacy" (D-17): está VIVA — es el motor del crm-gate vía runCrmSubLoop. El rótulo "legacy" invitaba a borrarla por error.
  */
-async function runLegacySubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
-  const { outcome } = await runLegacySubLoopRaw(args)
+async function runCrmMutationSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
+  const { outcome } = await runCrmMutationSubLoopRaw(args)
   return outcome
 }
 
@@ -977,7 +979,7 @@ export interface SubLoopResult {
  * El grounding + crmHint se threadean via args.ctx (SubLoopContext extends SubLoopToolsContext).
  */
 export async function runCrmSubLoop(args: RunSubLoopArgs): Promise<SubLoopResult> {
-  const { outcome, rawResult } = await runLegacySubLoopRaw(args)
+  const { outcome, rawResult } = await runCrmMutationSubLoopRaw(args)
   const crmActions = deriveCrmActions(rawResult)
   return { outcome, crmActions }
 }

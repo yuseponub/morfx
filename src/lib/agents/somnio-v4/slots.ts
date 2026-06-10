@@ -7,10 +7,10 @@
  *
  * Reuses `decideSubLoopReason` from escalation.ts as the canonical rule for the
  * razonamiento_libre/outro/low_confidence classification per-intent.
- * NOTE: isCrmMutation and casReject are NEVER passed as true here — those reasons
- * are handled by the CRM gate (crm-gate.ts) and CAS retry logic separately
- * (escalation.ts:49-64 prioritizes cas_reject/crm_mutation; those gates run independently
- * of the slot resolver).
+ * NOTE (somnio-v4-consolidation D-12): el crm_mutation/cas_reject NUNCA fue
+ * decisión de este path — lo maneja el CRM gate (crm-gate.ts) vía runCrmSubLoop.
+ * Los flags siempre-false que antes pasaba este resolver fueron borrados; ahora
+ * `decideSubLoopReason` retorna directamente 'low_confidence' | 'razonamiento_libre' | null.
  *
  * Matrix of 4 cases (D-02):
  *   covered+covered → template+template (no RAG)
@@ -111,29 +111,20 @@ export function computeSlots(args: ComputeSlotsArgs): SlotPlan {
   } = args
 
   // ─── Primary slot ───────────────────────────────────────────────────────
+  // `decideSubLoopReason` retorna directamente 'low_confidence' | 'razonamiento_libre' | null
+  // (D-12 — ya no existen crm_mutation/cas_reject en este path).
   const primaryReason = decideSubLoopReason({
     confidence: primaryConfidence,
     threshold,
     intent: primaryIntent,
-    isCrmMutation: false, // CRM gates are separate — never true here
-    casReject: false,     // CAS retry is separate — never true here
   })
 
-  // `decideSubLoopReason` returns: 'low_confidence' | 'razonamiento_libre' | null
-  // (it may also return 'crm_mutation' | 'cas_reject' but we exclude those via the
-  // isCrmMutation:false / casReject:false invariant above — they will never appear).
   const primaryCoverage: SlotCoverage = primaryReason !== null ? 'low' : 'covered'
-
-  // Narrow the reason to the 2 valid slot reasons (TypeScript safety — see comment above)
-  const primarySlotReason: 'low_confidence' | 'razonamiento_libre' | null =
-    primaryReason === 'low_confidence' || primaryReason === 'razonamiento_libre'
-      ? primaryReason
-      : null
 
   const primary: SlotDecision = {
     intent: primaryIntent,
     coverage: primaryCoverage,
-    reason: primarySlotReason,
+    reason: primaryReason,
     // T-2: low primary uses the raw message (unpartitioned — D-04 only segments the secondary).
     ragQuery: primaryCoverage === 'low' ? rawMessage : null,
   }
@@ -149,21 +140,14 @@ export function computeSlots(args: ComputeSlotsArgs): SlotPlan {
       confidence: effectiveSecondaryConfidence,
       threshold,
       intent: secondaryIntent,
-      isCrmMutation: false,
-      casReject: false,
     })
 
     const secondaryCoverage: SlotCoverage = secondaryReason !== null ? 'low' : 'covered'
 
-    const secondarySlotReason: 'low_confidence' | 'razonamiento_libre' | null =
-      secondaryReason === 'low_confidence' || secondaryReason === 'razonamiento_libre'
-        ? secondaryReason
-        : null
-
     secondary = {
       intent: secondaryIntent,
       coverage: secondaryCoverage,
-      reason: secondarySlotReason,
+      reason: secondaryReason,
       // T-2: low secondary uses secondaryQuery (D-04 sub-query); fallback to rawMessage
       // if comprehension didn't produce one (defensive — should not happen in practice).
       ragQuery: secondaryCoverage === 'low' ? (secondaryQuery ?? rawMessage) : null,

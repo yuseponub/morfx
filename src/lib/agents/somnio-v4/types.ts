@@ -280,8 +280,13 @@ export interface V4AgentOutput {
   /**
    * Sub-loop diagnostic surface (Plan 03 D-20 TODO honored Plan 07 debug).
    * Populated by somnio-v4-agent.ts; consumed by engine-v4.ts debugTurn mapping.
+   *
+   * somnio-v4-consolidation D-12: union reducido a lo que el slot resolver del
+   * PATH DEL AGENTE puede emitir. `crm_mutation`/`cas_reject` NUNCA llegan aquí
+   * (los maneja el CRM gate vía runCrmSubLoop con el SubLoopReason completo del
+   * sub-loop/output-schema.ts — que NO se tocó).
    */
-  subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
+  subLoopReason?: 'low_confidence' | 'razonamiento_libre' | null
   /** platform_config.somnio_v4_low_confidence_threshold value used in this turn (D-11). */
   threshold?: number
 

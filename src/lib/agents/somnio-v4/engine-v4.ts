@@ -320,7 +320,9 @@ export class SomnioV4Engine {
         // Sources of the discriminator prefix `interrupted_at_ckpt_`:
         //   - in-agent CKPT-1 (post-comprehension)
         //   - in-agent CKPT-2 (post-state-machine)
-        //   - sub-loop CKPT-3/4/5 propagated via mapOutcomeToAgentOutput
+        //   - sub-loop CKPT-3/4/5 propagated via resolveLowSlot (mapeo inline del
+        //     LoopOutcome → V4AgentOutput; somnio-v4-consolidation D-12 borró el
+        //     mapper muerto que antes documentaba este path)
         // ============================================================
         if (
           output.success === false &&

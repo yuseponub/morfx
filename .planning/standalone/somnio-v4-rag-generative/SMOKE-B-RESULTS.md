@@ -1,6 +1,6 @@
 # SMOKE B — Regression Results (paths NO migrados D-12)
 
-**Run date:** 2026-06-10T21:58:04.660Z
+**Run date:** 2026-06-10T23:30:45.558Z
 **Standalone:** somnio-v4-rag-generative / Plan 06
 **Reviewer:** Jose (pendiente — marcá cada caso después de leerlo)
 
@@ -25,34 +25,27 @@
 **Group:** razonamiento_libre
 **Expected:** handoff silente (divagación, sin KB)
 **Expected status:** `no_match`
-**Latency:** 45600ms
-**Nota re-run (Pitfall 12):** en la corrida completa 2026-06-10 este caso terminó en RUNTIME ERROR de infra Gemini (`AI_RetryError ... high demand` en `generation_call_error` — mismo error y mismo caso que el run 2026-06-05). Se aplicó la política de 1 re-run por caso flaky (`npx vitest run ... smoke-rag-b.test.ts -t "1. razonamiento_libre"`, mismo día). Este bloque es el resultado del re-run: completó sin error de infra pero con auto-check FAIL (got `generated`, expected `no_match`). El re-run está consumido — el FAIL queda como valor del baseline. El bloque original con el error quedó registrado en BASELINE.md.
+**Latency:** 34539ms
 
-
+**RUNTIME ERROR:** ```Failed after 3 attempts. Last error: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.```
 
 **Sub-loop outcome:**
+_(outcome null — runtime error)_
 
-- status: `generated`
-- responseText: "Lamento que estés pasando por esto. Nuestro producto está pensado para acompañar el ritmo del sueño en adultos. No es un medicamento para insomnio crónico. Si llevas meses sin dormir bien, lo mejor es"
-- responseTemplate: `null`
-- sourceTopic: `insomnio_largo_plazo`
-- responseConfidence: `0.95`
-- reason: `rag_generated`
-- requiresHuman: `false`
-
-
-**Auto-check (status match):** ❌ FAIL (got status=`generated`, expected=`no_match`)
+**Auto-check:** ⚠ NO_OUTCOME (runtime error — ver mensaje)
 **Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
 **Jose notes:** _(marcar después)_
 
 ---
+
+**Nota re-run (Pitfall 12 — Plan 06 gate W1):** este bloque es el RE-RUN del caso (la corrida inicial divergió del baseline o cayó en error de infra LLM). Comparación de DECISIÓN vs baseline operativo registrada en GATE-W1.md.
 
 ### Case 2 — "ayer fue un día raro, no pude dormir"
 
 **Group:** razonamiento_libre
 **Expected:** handoff o template empático
 **Expected status:** `no_match`
-**Latency:** 22535ms
+**Latency:** 29359ms
 
 
 
@@ -73,12 +66,14 @@
 
 ---
 
+**Nota re-run (Pitfall 12 — Plan 06 gate W1):** este bloque es el RE-RUN del caso (la corrida inicial divergió del baseline o cayó en error de infra LLM). Comparación de DECISIÓN vs baseline operativo registrada en GATE-W1.md.
+
 ### Case 3 — "el sueño es interesante, no?"
 
 **Group:** razonamiento_libre
 **Expected:** handoff silente
 **Expected status:** `no_match`
-**Latency:** 28860ms
+**Latency:** 19097ms
 
 
 

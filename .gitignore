@@ -57,3 +57,7 @@ supabase/.temp/
 playwright-report/
 test-results/
 scripts/.import-whatsapp-history.bundle.cjs
+
+# Datos crudos de conversaciones (PII pacientes) — solo local
+scripts/varix-data/
+scripts/callbell-data/

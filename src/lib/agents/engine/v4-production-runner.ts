@@ -268,6 +268,14 @@ export class V4ProductionRunner {
         }
       }
 
+      // CRASH-RECOVERY LEGACY `_v3:pendingUserMessage` (D-18 somnio-v4-consolidation — CONSERVAR):
+      // - Por qué existe: cubre el edge de interrupt con pending-list de Redis VACÍA y 0 sends
+      //   (lambda murió tras consumir el mensaje pero antes de enviar nada) — el mensaje del usuario
+      //   se persiste en session_state y se re-combina en la siguiente iteración.
+      // - ORDEN CRÍTICO (Pitfall 7): el drain de CKPT-0 usa `effectiveMessage ?? input.message` ANTES
+      //   de este combine. Reordenar causaría combine doble en interrupt-en-CKPT-0 con pending presente.
+      // - Es funcional, NO código muerto. Borrable cuando v3 muera (D-38 / cosecha S-7).
+      //
       // 1c. Detect pending message from previous 0-send interruption (Path A accumulation)
       //
       // R-03 (debounce-v2-interrupt-reprocess): on iter 1 of the restart
@@ -918,6 +926,7 @@ export class V4ProductionRunner {
             } else if (sendResult.messagesSent === 0) {
               // Interrupt fired but nothing queued + nothing sent → fall back to
               // the legacy cross-lambda defer (next inbound combines via R-03).
+              // D-18: parte del crash-recovery _v3:pendingUserMessage — ver comentario en el site de lectura/combine
               wasInterruptedWithZeroSends = true
               getCollector()?.recordEvent('pipeline_decision', 'interruption_path_a', {
                 sessionId: session.id,
@@ -990,6 +999,7 @@ export class V4ProductionRunner {
       // restart in-lambda above and never reach this block (bug 2026-05-28).
       // ============================================================
       if (wasInterruptedWithZeroSends) {
+        // D-18: parte del crash-recovery _v3:pendingUserMessage — ver comentario en el site de lectura/combine
         // PATH A (CKPT-7.1 edge case): Rollback intents_vistos, save pending
         // message, skip turns. The next inbound's lambda combines via R-03
         // iter-1 legacy path.

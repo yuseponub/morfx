@@ -134,15 +134,21 @@ interrupción — solo **cómo se ejecuta** el envío y la persistencia.
 
 ---
 
-## 6. Caveat conocido (al 2026-05-28)
+## 6. Caveat conocido (al 2026-05-28) — ⚠️ OBSOLETO desde el híbrido
 
-El runner de producción solo **envía** por el path de **templates** (donde vive el
-manejo de interrupción). El modo **RAG-generativo** de v4 produce un mensaje suelto
-(`output.messages` sin `templates`) que el runner **todavía no envía** — gap de
-wiring del standalone `somnio-v4-rag-generative` (en progreso), **no del sistema de
-interrupción**. La lógica de interrupción ya está completa y correcta en ambos
-lados; para que importe en vivo, ese standalone debe terminar de cablear el envío
-de la respuesta RAG. Como v4 está DORMANT, no afecta a clientes hoy.
+> **OBSOLETO (somnio-v4-consolidation, D-17):** este caveat ya **no aplica**. Desde el
+> híbrido del standalone `somnio-v4-rag-generative`, el slot resolver emite
+> **pseudo-templates `rag:*`** que viajan por el **path de templates** real — el texto
+> RAG-generativo se envía como cualquier template (con su manejo de interrupción). El
+> branch fallback sin-templates del runner fue borrado en D-14 (`somnio-v4-consolidation`)
+> y reemplazado por un warning `v4_messages_without_templates`. Se conserva el texto de
+> abajo como contexto histórico; la reducción completa de este doc es D-07 (Plan 12).
+
+**Histórico (al 2026-05-28):** el runner de producción solo **enviaba** por el path de
+**templates** (donde vive el manejo de interrupción). El modo **RAG-generativo** de v4
+producía un mensaje suelto (`output.messages` sin `templates`) que el runner **no
+enviaba** — gap de wiring del standalone `somnio-v4-rag-generative`, **no del sistema
+de interrupción**. Como v4 estaba DORMANT, no afectó a clientes.
 
 ### Caveat CRM (standalone `somnio-v4-crm-subloop`, al 2026-05-29)
 

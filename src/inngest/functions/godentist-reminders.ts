@@ -274,22 +274,6 @@ const godentistReminderSend = inngest.createFunction(
         apiKey,
       })
 
-      // ── TEMPORAL (2026-06-09): aviso de fallas de internet / pagos con tarjeta ──
-      // Solo CABECERA. Se envía junto al recordatorio principal cuando este sale OK.
-      // No-bloqueante (.catch) para no tumbar el step ni reenviar el principal en retry.
-      // REVERTIR: borrar este bloque completo cuando se normalice el servicio.
-      if (sucursal.toUpperCase() === 'CABECERA' && result.success) {
-        await sendTemplateMessage(domainCtx, {
-          conversationId,
-          contactPhone: phone,
-          templateName: 'fallas_internet_pagos',
-          templateLanguage: 'es',
-          components: [],
-          renderedText: 'El día de hoy presentamos fallas en el servicio de internet, por lo que los pagos con tarjeta podrían no estar disponibles temporalmente. Agradecemos su comprensión y ofrecemos disculpas por las molestias.',
-          apiKey,
-        }).catch(err => console.error(`[godentist] fallas_internet_pagos error: ${err}`))
-      }
-
       return result
     })
 

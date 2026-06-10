@@ -81,11 +81,18 @@ export async function checkDentosAvailability(
     const mergedManana = mergeIntervals(mananaSlots, 'manana')
     const mergedTarde = mergeIntervals(tardeSlots, 'tarde')
 
-    console.log(`[dentos-availability] Merged: ${mergedManana.length} mañana + ${mergedTarde.length} tarde blocks`)
+    // Regla operativa GoDentist: los MIÉRCOLES no hay valoraciones en la mañana (todas las sedes).
+    // Se vacía la mañana por encima de lo que reporta el robot. Detección en UTC para evitar
+    // corrimiento por timezone del runtime, idéntico patrón a isSaturday/isNonWorkingDay (Regla 2).
+    const [wy, wm, wd] = date.split('-').map(Number)
+    const isWednesday = new Date(Date.UTC(wy, wm - 1, wd)).getUTCDay() === 3
+    const finalManana = isWednesday ? [] : mergedManana
+
+    console.log(`[dentos-availability] Merged: ${finalManana.length} mañana + ${mergedTarde.length} tarde blocks${isWednesday ? ' (miércoles: mañana bloqueada)' : ''}`)
 
     return {
       success: true,
-      slots: { manana: mergedManana, tarde: mergedTarde },
+      slots: { manana: finalManana, tarde: mergedTarde },
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

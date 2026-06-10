@@ -22,8 +22,8 @@
  * Manual reproduction on Vercel preview is deferred per UAT.md acknowledgment
  * because it would require artificial hang induction in production code.
  *
- * Source: 07-PLAN.md Task 7.1 + LockEventLabel union in observability.ts (14
- * labels post REVISION B1) + DISCUSSION-LOG.md D-17/D-18.
+ * Source: 07-PLAN.md Task 7.1 + LockEventLabel union in observability.ts (11
+ * labels post D-16 somnio-v4-consolidation) + DISCUSSION-LOG.md D-17/D-18.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -236,10 +236,10 @@ describe('e2e scenarios — D-19 Phase 2 (S1, S2, S3, S4)', () => {
     const h2 = await acquireLock(WS, CHANNEL, PHONE)
     expect(h2).not.toBeNull()
     expect(h2!.holderUuid).not.toEqual(h1!.holderUuid)
-    emitLockEvent('lock_force_acquired_after_ttl_expiry', {
-      previous_holder_uuid: h1!.holderUuid,
-      expired_ago_estimate_ms: 0,
-    })
+    // D-16 (somnio-v4-consolidation): `lock_force_acquired_after_ttl_expiry` se
+    // removió del union LockEventLabel (CERO emisores en código no-test). El
+    // force-acquire del TTL-expiry ya quedó verificado por el SET NX que sucede
+    // (h2 no es null) + holderUuid distinto al de h1 — no se necesita el label.
 
     // 4. Holder 2 writes an interrupt key (in the real flow this would be a
     //    follower racing in; here it asserts the path with interrupt context).
@@ -268,12 +268,12 @@ describe('e2e scenarios — D-19 Phase 2 (S1, S2, S3, S4)', () => {
     })
 
     const labels = emittedEvents.map((e) => e.label)
-    expect(labels).toContain('lock_force_acquired_after_ttl_expiry')
+    // D-16: `lock_force_acquired_after_ttl_expiry` ya no se assertea (removido del union).
     expect(labels).toContain('zombie_lambda_exit') // emitted by checkpoint() itself
     expect(labels).toContain('interrupt_written')
     expect(labels).toContain('pending_list_combined')
     expect(labels).toContain('lock_released_normal')
-    expect(emittedEvents.length).toBeGreaterThanOrEqual(5)
+    expect(emittedEvents.length).toBeGreaterThanOrEqual(4)
   })
 
   // ===========================================================================

@@ -62,10 +62,10 @@ import { getCollector } from '@/lib/observability'
 // can detect Path A (no sends yet) and persist pending for next-turn combine.
 // All call sites are skip-gated on the three lock fields being non-null, so
 // sandbox / pre-v4 / fail-open callers are unaffected.
+// D-06 (Plan 07): el boilerplate (skip-gate + lostLock throw + emit) está
+// factorizado en runCheckpointGate; las colocaciones CKPT-1/2 NO se mueven.
 // ============================================================================
-import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
-import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
-import { LostLockError } from '../engine-adapters/production/v4-messaging-adapter'
+import { runCheckpointGate } from './core/checkpoint-gate'
 import type {
   AgentState,
   V4AgentInput,
@@ -341,20 +341,22 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // runner outer catch. interrupted → Path A (no sends possible yet); return
     // a V4AgentOutput with errorMessage discriminator the runner can detect.
     // ========================================================================
-    if (input.lockHandle && input.lockChannel && input.lockIdentifier) {
-      const ck1 = await checkpoint(
-        'ckpt_1_post_comprehension',
-        input.lockHandle,
-        input.workspaceId,
-        input.lockChannel,
-        input.lockIdentifier,
-      )
-      if (ck1.lostLock) throw new LostLockError('ckpt_1_post_comprehension')
-      if (!ck1.proceed && ck1.interrupted) {
-        emitLockEvent('msg_aborted_path_a_combined', {
+    {
+      // D-06 (Plan 07): el boilerplate skip-gate + lostLock throw + emit está
+      // factorizado en runCheckpointGate. La COLOCACIÓN no se mueve; el agente
+      // conserva SU builder de retorno (V4AgentOutput-passthrough).
+      const ck1Gate = await runCheckpointGate({
+        ckptId: 'ckpt_1_post_comprehension',
+        lockHandle: input.lockHandle,
+        workspaceId: input.workspaceId,
+        lockChannel: input.lockChannel,
+        lockIdentifier: input.lockIdentifier,
+        interruptEmit: {
           combined_msg_count: 1, // self only at this point; runner reads pending later
           total_chars: input.message.length,
-        })
+        },
+      })
+      if (typeof ck1Gate === 'object') {
         return {
           success: false,
           messages: [],
@@ -514,20 +516,21 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
     // discriminator so runner detects and persists pending for next-turn combine.
     // Skip-gated on the three lock fields being non-null.
     // ========================================================================
-    if (input.lockHandle && input.lockChannel && input.lockIdentifier) {
-      const ck2 = await checkpoint(
-        'ckpt_2_post_state_machine',
-        input.lockHandle,
-        input.workspaceId,
-        input.lockChannel,
-        input.lockIdentifier,
-      )
-      if (ck2.lostLock) throw new LostLockError('ckpt_2_post_state_machine')
-      if (!ck2.proceed && ck2.interrupted) {
-        emitLockEvent('msg_aborted_path_a_combined', {
+    {
+      // D-06 (Plan 07): boilerplate factorizado en runCheckpointGate; colocación
+      // intacta; el agente conserva SU builder de retorno.
+      const ck2Gate = await runCheckpointGate({
+        ckptId: 'ckpt_2_post_state_machine',
+        lockHandle: input.lockHandle,
+        workspaceId: input.workspaceId,
+        lockChannel: input.lockChannel,
+        lockIdentifier: input.lockIdentifier,
+        interruptEmit: {
           combined_msg_count: 1,
           total_chars: input.message.length,
-        })
+        },
+      })
+      if (typeof ck2Gate === 'object') {
         return {
           success: false,
           messages: [],

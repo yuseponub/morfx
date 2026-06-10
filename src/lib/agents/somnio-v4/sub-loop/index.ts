@@ -30,10 +30,12 @@ import type {
 // All call sites are skip-gated when ctx.lockHandle/lockChannel/lockIdentifier
 // are null — sandbox / pre-v4 / fail-open callers are unaffected.
 // ============================================================================
-import { checkpoint, type CheckpointId } from '@/lib/agents/interruption-system-v2/checkpoints'
-import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
+import type { CheckpointId } from '@/lib/agents/interruption-system-v2/checkpoints'
 import type { LockHandle } from '@/lib/agents/interruption-system-v2/lock'
-import { LostLockError } from '../../engine-adapters/production/v4-messaging-adapter'
+// D-06 (Plan 07): el boilerplate skip-gate + lostLock throw + emit Path A de
+// CKPT-3/4/5 (+ legacy combined) está factorizado en runCheckpointGate; las
+// colocaciones NO se mueven.
+import { runCheckpointGate } from '../core/checkpoint-gate'
 
 export type { SubLoopReason } from './output-schema'
 
@@ -96,40 +98,29 @@ export interface SubLoopContext extends SubLoopToolsContext {
 }
 
 /**
- * Standalone: debounce-interruption-system-v2 (Plan 05 Task 5.2) — sub-loop checkpoint helper.
- *
- * Wraps `checkpoint(ckptId, handle, ws, channel, identifier)` with the sub-loop-specific
- * skip-guard + throw-on-lostLock + Path A emission. Returns { proceed: true } when:
- *   - the lock plumbing is missing (sandbox / pre-v4 / fail-open) — caller continues
- *   - the checkpoint says proceed (happy path)
- *
- * Returns { proceed: false } only when the holder was interrupted by a follower.
- * Throws LostLockError when the holder no longer owns the lock (zombie defense —
- * propagates to V4ProductionRunner's outer catch which emits `zombie_lambda_exit`).
+ * D-06 (somnio-v4-consolidation Plan 07): construye los args del gate factorizado
+ * para los CKPT-3/4/5 del sub-loop. El boilerplate (skip-gate + lostLock throw +
+ * emit Path A) vive ahora en runCheckpointGate (core/checkpoint-gate.ts); las
+ * colocaciones de CKPT-3/4/5 NO se mueven. El emit `msg_aborted_path_a_combined`
+ * { combined_msg_count: 1, total_chars: userMessage.length } se preserva
+ * byte-exacto vía interruptEmit. El caller construye SU LoopOutcome de retorno
+ * (no_match + discriminator interrupted_at_ckpt_N).
  */
-async function ckptInSubLoop(
+function buildSubLoopGateArgs(
   ckptId: CheckpointId,
   ctx: SubLoopContext,
-): Promise<{ proceed: boolean }> {
-  if (!ctx.lockHandle || !ctx.lockChannel || !ctx.lockIdentifier) {
-    return { proceed: true }
-  }
-  const ck = await checkpoint(
+): Parameters<typeof runCheckpointGate>[0] {
+  return {
     ckptId,
-    ctx.lockHandle,
-    ctx.workspaceId,
-    ctx.lockChannel,
-    ctx.lockIdentifier,
-  )
-  if (ck.lostLock) throw new LostLockError(ckptId)
-  if (!ck.proceed && ck.interrupted) {
-    emitLockEvent('msg_aborted_path_a_combined', {
+    lockHandle: ctx.lockHandle,
+    workspaceId: ctx.workspaceId,
+    lockChannel: ctx.lockChannel,
+    lockIdentifier: ctx.lockIdentifier,
+    interruptEmit: {
       combined_msg_count: 1,
       total_chars: ctx.userMessage.length,
-    })
-    return { proceed: false }
+    },
   }
-  return { proceed: true }
 }
 
 /**
@@ -300,8 +291,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   // Fires after the tooling call returns. lostLock → throw. interrupted →
   // escalate to no_match (safe outcome: runner finally-block releases lock).
   // ==========================================================================
-  const ck3 = await ckptInSubLoop('ckpt_3_post_tooling', args.ctx)
-  if (!ck3.proceed) {
+  const ck3 = await runCheckpointGate(buildSubLoopGateArgs('ckpt_3_post_tooling', args.ctx))
+  if (typeof ck3 === 'object') {
     return {
       status: 'no_match',
       responseText: null,
@@ -407,8 +398,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   // escalate to no_match (the candidate text is discarded — runner releases
   // the lock; the combined next-turn handles the user's follow-up).
   // ==========================================================================
-  const ck4 = await ckptInSubLoop('ckpt_4_post_generation', args.ctx)
-  if (!ck4.proceed) {
+  const ck4 = await runCheckpointGate(buildSubLoopGateArgs('ckpt_4_post_generation', args.ctx))
+  if (typeof ck4 === 'object') {
     return {
       status: 'no_match',
       responseText: null,
@@ -465,8 +456,8 @@ async function runRagSubLoop(args: RunSubLoopArgs): Promise<LoopOutcome> {
   // Fires after the compliance check returns. lostLock → throw. interrupted →
   // escalate to no_match (response not yet sent; runner releases lock).
   // ==========================================================================
-  const ck5 = await ckptInSubLoop('ckpt_5_post_compliance', args.ctx)
-  if (!ck5.proceed) {
+  const ck5 = await runCheckpointGate(buildSubLoopGateArgs('ckpt_5_post_compliance', args.ctx))
+  if (typeof ck5 === 'object') {
     return {
       status: 'no_match',
       responseText: null,
@@ -783,25 +774,23 @@ async function runCrmMutationSubLoopRaw(
     // after it covers the three RAG-path checkpoints in aggregate. We emit
     // under the `ckpt_3_post_tooling` CheckpointId (per coverage-matrix
     // convention). lostLock → throw with a disambiguating suffix in the message
-    // (via LostLockError('ckpt_3_post_tooling_legacy_combined')). interrupted →
-    // escalate to no_match.
+    // (LostLockError('ckpt_3_post_tooling_legacy_combined') vía el lostLockLabel
+    // del helper D-06). interrupted → escalate to no_match.
     // ========================================================================
-    if (args.ctx.lockHandle && args.ctx.lockChannel && args.ctx.lockIdentifier) {
-      const ckLegacy = await checkpoint(
-        'ckpt_3_post_tooling',
-        args.ctx.lockHandle,
-        args.ctx.workspaceId,
-        args.ctx.lockChannel,
-        args.ctx.lockIdentifier,
-      )
-      if (ckLegacy.lostLock) {
-        throw new LostLockError('ckpt_3_post_tooling_legacy_combined')
-      }
-      if (!ckLegacy.proceed && ckLegacy.interrupted) {
-        emitLockEvent('msg_aborted_path_a_combined', {
+    {
+      const ckLegacy = await runCheckpointGate({
+        ckptId: 'ckpt_3_post_tooling',
+        lockHandle: args.ctx.lockHandle,
+        workspaceId: args.ctx.workspaceId,
+        lockChannel: args.ctx.lockChannel,
+        lockIdentifier: args.ctx.lockIdentifier,
+        interruptEmit: {
           combined_msg_count: 1,
           total_chars: args.ctx.userMessage.length,
-        })
+        },
+        lostLockLabel: 'ckpt_3_post_tooling_legacy_combined',
+      })
+      if (typeof ckLegacy === 'object') {
         return {
           outcome: {
             status: 'no_match',

@@ -1,0 +1,135 @@
+{
+  "_meta": {
+    "workspace_id": "a3843b3f-c337-4836-92b5-89c58bb98490",
+    "workspace": "Somnio",
+    "exported": "2026-06-10",
+    "count": 12,
+    "note": "Respaldo de las HSM de Somnio ANTES de migrar 360dialog -> Meta Direct. Recrear en el WABA destino si no viajan. quick_replies y agent_templates NO estan aqui (son internos de MorfX y sobreviven)."
+  },
+  "templates": [
+    {
+      "name": "carrito_abandonado",
+      "language": "es",
+      "category": "MARKETING",
+      "status": "APPROVED",
+      "components": [
+        { "type": "HEADER", "format": "IMAGE", "example": { "header_handle": ["https://cdn.shopify.com/s/files/1/0688/9606/3724/files/Diseno_sin_titulo_25.jpg?v=1774566355"] } },
+        { "text": "Vimos tu interes en encontrar noches de descanso 😴 Deseas continuar con la compra de tu ELIXIR DEL SUEÑO?", "type": "BODY" }
+      ],
+      "variable_mapping": {}
+    },
+    {
+      "name": "confirmar_compra",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "type": "HEADER", "format": "IMAGE", "example": { "header_handle": ["https://cdn.shopify.com/s/files/1/0688/9606/3724/files/Diseno_sin_titulo_25.jpg?v=1774566355"] } },
+        { "text": "Deseas confirmar tu compra?", "type": "BODY" }
+      ],
+      "variable_mapping": {}
+    },
+    {
+      "name": "direccion_entrega",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Tu pedido se entregara en esta direccion: {{1}}, {{2}}, {{3}}. Por favor confirma que los datos son correctos.", "type": "BODY", "example": { "body_text": [["Cancha Buenos aires", "Taraza", "Antioquia"]] } }
+      ],
+      "variable_mapping": { "1": "order.shipping_address", "2": "order.shipping_city", "3": "order.department" }
+    },
+    {
+      "name": "informacion_general",
+      "language": "es",
+      "category": "MARKETING",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Informacion general", "type": "HEADER", "format": "TEXT" },
+        { "text": "Hola {{1}}, te contactamos de Somnio para informarte sobre {{2}}. Quedamos pendientes a tu respuesta.", "type": "BODY", "example": { "body_text": [["Maria", "tu pedido fue despachado exitosamente"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "" }
+    },
+    {
+      "name": "intento_entrega_fallido",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "SOMNIO hizo un intento de entrega y no fue posible 😞 {{1}} nos informa que tuvo dificultades para entregar tu ELIXIR DEL SUEÑO con GUIA #{{2}}\n\nRazon: {{3}}\n\nDanos tu opinion para que puedas recibir tu compra!", "type": "BODY", "example": { "body_text": [["COORDINADORA", "53180508649", "Direccion errada"]] } }
+      ],
+      "variable_mapping": { "1": "order.carrier", "2": "order.tracking_number", "3": "order.description" }
+    },
+    {
+      "name": "morfx_notificacion",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Hola, tienes una nueva notificacion de MorfX. Revisa tu cuenta para mas detalles.", "type": "BODY" }
+      ],
+      "variable_mapping": {}
+    },
+    {
+      "name": "notifica_recoger",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Notifica recoger", "type": "HEADER", "format": "TEXT" },
+        { "text": "Hola {{1}}, tu pedido {{2}} de SOMNIO, *HOY* se encuentra disponible para recogida en la oficina de {{3}} en {{4}}. Número de guía: {{5}}. \n\nRecuerda recogerlo en los próximos días. ", "type": "BODY", "example": { "body_text": [["Jose Romero", "1X ELIXIR", "Interrapidismo", "San Gil", "70045678342"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "", "3": "order.carrier", "4": "contact.city", "5": "order.tracking_number" }
+    },
+    {
+      "name": "pedido_despachado",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Hola {{1}} 💙 te informamos que tu pedido fue despachado por la transportadora {{2}}, Guia #{{3}} por un valor de ${{4}}. El dia de reparto te estaremos informando para que estes pendiente para recibir tu producto 😴", "type": "BODY", "example": { "body_text": [["Martha", "COORDINADORA", "53180508649", "77900"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "order.carrier", "3": "order.tracking_number", "4": "order.total_value" }
+    },
+    {
+      "name": "pedido_llega_hoy",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Hola {{1}} 💙 Te informamos que el pedido de tu {{2}} llega hoy por medio de la transportadora {{3}}, Guia #{{4}}. El valor a pagar es de ${{5}}, recuerda tener el efectivo en mano para recibir tu producto 💵🤗", "type": "BODY", "example": { "body_text": [["Miguel", "ELIXIR DEL SUENO", "COORDINADORA", "53180509719", "77900"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "order_products.title", "3": "order.carrier", "4": "order.tracking_number", "5": "order.total_value" }
+    },
+    {
+      "name": "pedido_recibido",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Hola {{1}} 🤗 Bienvenido a Somnio, donde tus sueños se hacen realidad 😴 Tu pedido de {{2}} por un valor de ${{3}} envio gratis fue recibido exitosamente ✅", "type": "BODY", "example": { "body_text": [["David", "1X ELIXIR DEL SUENO", "77900"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "order_products.title", "3": "order.total_value" }
+    },
+    {
+      "name": "pedido_recibido_v2",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Hola {{1}} 🤗 Bienvenido a Somnio, donde tus sueños se hacen realidad 😴 Tu pedido de:\n\n{{2}}\n\nPor un valor total de: ${{3}} - Envío gratis 🚚\n\nFue recibido exitosamente ✅", "type": "BODY", "example": { "body_text": [["Juan Pérez", "- 1X Ashwagandha", "179,800"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "order_products.title", "3": "order.total_value" }
+    },
+    {
+      "name": "reparto_bog",
+      "language": "es",
+      "category": "MARKETING",
+      "status": "APPROVED",
+      "components": [
+        { "text": "Buenos dias {{1}}! Tu ELIXIR DEL SUEÑO llega HOY por un valor de ${{2}}. Quedamos pendientes cualquier inquietud 🤗", "type": "BODY", "example": { "body_text": [["Carlos", "77900"]] } }
+      ],
+      "variable_mapping": { "1": "contact.name", "2": "order.total_value" }
+    }
+  ]
+}

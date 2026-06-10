@@ -42,7 +42,7 @@ DEL SUEÑO) por WhatsApp, con **tres cosas nuevas**:
 | Registry mapping | `'somnio-sales-v3'` → bucket `'somnio-v3'` | `'somnio-sales-v4'` → bucket propio (`registry-helpers.ts:47`) |
 | Runner de prod | `v3-production-runner.ts` (compartido) | `engine/v4-production-runner.ts` (dedicado) |
 | Prefijo de sesión | `_v3:` | **`_v4:`** (`constants.ts:179`) |
-| Mutations CRM | adapters legacy | **crm-mutation-tools** inline (`invocations.ts`) |
+| Mutations CRM | adapters legacy | **crm-gate + sub-loop grounded** (`crm-gate.ts` → `runCrmSubLoop`) — `invocations.ts` eliminado en el big-bang D-06 del standalone `somnio-v4-crm-subloop` |
 | Scope | configurable por workspace | **hardcodeado** a Somnio (`config.ts:12`) |
 
 v4 hereda **verbatim** de v3 (clone mecánico, D-24): la state machine
@@ -56,9 +56,12 @@ timers. Lo nuevo vive en `sub-loop/`, `knowledge*/`, `unknown-cases/`,
 
 ### `src/lib/agents/somnio-v4/`
 
+> **Line counts al 2026-06-10** (post-Plan 01 baseline; cambiarán en W2 cuando el
+> orquestador del turno se extraiga a `core/`). Verificá con `wc -l` si dudás.
+
 | Archivo | Responsabilidad |
 |---|---|
-| `somnio-v4-agent.ts` (1008) | **Orquestador del turno.** `processMessage` → `processUserMessage` / `processSystemEvent`. 15 pasos. CKPT-1/CKPT-2. `mapOutcomeToAgentOutput`. |
+| `somnio-v4-agent.ts` (1475) | **Orquestador del turno.** `processMessage` → `processUserMessage` / `processSystemEvent`. 15 pasos. CKPT-1/CKPT-2. `mapOutcomeToAgentOutput`. |
 | `comprehension.ts` (203) | Capa 2. `comprehend()` — Gemini 2.5 Flash + `Output.object` + parser resiliente. |
 | `comprehension-prompt.ts` (290) | System prompt de comprehension. |
 | `comprehension-schema.ts` (109) | `MessageAnalysisSchema` (Zod): intent + extracted_fields + classification + negations + `intent_confidence`. |
@@ -70,12 +73,12 @@ timers. Lo nuevo vive en `sub-loop/`, `knowledge*/`, `unknown-cases/`,
 | `escalation.ts` (65) | `decideSubLoopReason` — decide si escalar al sub-loop y con qué reason. |
 | `threshold.ts` | `getLowConfidenceThreshold` — lee `platform_config`. |
 | `phase.ts` | `derivePhase` — fase desde acciones ejecutadas. |
-| `invocations.ts` (283) | `executeInvocations` — 4 mutations CRM no-createOrder inline vía crm-mutation-tools. |
+| `crm-gate.ts` | **Gate CRM post-sales-track.** Decide si el turno produce mutación CRM y, en ese caso, invoca `runCrmSubLoop` (sub-loop grounded). Reemplazó al `executeInvocations` inline de `invocations.ts` (eliminado en el big-bang D-06 de `somnio-v4-crm-subloop`). |
 | `delivery-zones.ts` (139) | Lookup de zona de entrega por ciudad (tiempo estimado). |
 | `config.ts` (93) | `somnioV4Config`, `SOMNIO_V4_AGENT_ID`, `SOMNIO_WORKSPACE_ID`. |
 | `constants.ts` (226) | Intents (22), fields críticos, ACTION_TEMPLATE_MAP, timers, prefijo `_v4:`. |
 | `types.ts` (403) | `AgentState`, `V4AgentInput/Output`, `TipoAccion`, `Invocation`. |
-| `engine-v4.ts` (730) | **Engine del sandbox.** `SomnioV4Engine.processMessage` + restart loop + CKPT sintéticos + stream `onMessage`. |
+| `engine-v4.ts` (768) | **Engine del sandbox.** `SomnioV4Engine.processMessage` + restart loop + CKPT sintéticos + stream `onMessage`. |
 | `index.ts` (29) | Self-registra `somnioV4Config` en `agentRegistry` al importar. |
 | `INTERRUPTION-PARITY.md` | Contrato de paridad del sistema de interrupción (§11). |
 
@@ -83,7 +86,7 @@ timers. Lo nuevo vive en `sub-loop/`, `knowledge*/`, `unknown-cases/`,
 
 | Archivo | Responsabilidad |
 |---|---|
-| `index.ts` (914) | `runSubLoop` → `runRagSubLoop` (3 calls) o `runLegacySubLoop` (1 call). CKPT-3/4/5. |
+| `index.ts` (985) | `runSubLoop` → `runRagSubLoop` (3 calls) o `runCrmMutationSubLoop` (1 call). `runCrmSubLoop` (motor del crm-gate). CKPT-3/4/5. |
 | `tooling-call.ts` (250) | RAG **Call 1** — GPT-4.1-mini + `kb_search` → selecciona topic + material. 1 retry transitorio. |
 | `generation-call.ts` (84) | RAG **Call 2** — Gemini 2.5 Flash temp 0.3, SIN tools → redacta `responseText` + `responseConfidence` + `binary`. |
 | `compliance-check.ts` (216) | RAG **Call 3** — Gemini 2.5 Flash verifier (nunca-decir + escalation). |
@@ -153,20 +156,20 @@ WhatsApp inbound (360dialog / Onurix)
             │   │   2. comprehend()            (Gemini 2.5 Flash)
             │   │      CKPT-1  ── post-comprehension
             │   │   3. mergeAnalysis → 4. computeGates → 5. threshold
-            │   │   6. decideSubLoopReason()
+            │   │   6. decideSubLoopReason() / slot resolver
             │   │        low_confidence | razonamiento_libre → runSubLoop ──► §2.4 (RAG)
             │   │   7. checkGuards()  (R0/R1 → handoff)
             │   │      CKPT-2  ── post-state-machine
             │   │   8. resolveSalesTrack()     (state machine — QUÉ hacer)
-            │   │   9. executeInvocations()    (4 mutations CRM; CAS reject → runSubLoop)
-            │   │  10. createOrder inline (shouldCreateOrder)
-            │   │  11. resolveResponseTrack()  (templates — QUÉ decir)
-            │   │  → V4AgentOutput { messages[], templates?[], … }
+            │   │   9. crm-gate (post-sales-track) → runCrmSubLoop grounded
+            │   │        (cascarón createOrder | updateOrder pack | moveOrderToStage)
+            │   │  10. resolveResponseTrack()  (templates — QUÉ decir)
+            │   │  → V4AgentOutput { messages[], templates?[], crmResult?, … }
             │   │
             │   CKPT-6a / CKPT-6b ── pre-send
             │   ── ENVÍO ──
             │      output.templates? → messaging.send(templates)  ✅ enviado
-            │      else output.messages → messaging.send(SIN templates) → ⚠️ DROP (§10, §4)
+            │      (path RAG emite pseudo-templates rag:* por el path de templates desde el híbrido)
             └─ finally: releaseLockIfOwner
 ```
 
@@ -242,8 +245,9 @@ El sub-loop es el corazón nuevo de v4. Se dispara cuando `decideSubLoopReason`
 
 `runSubLoop` (`sub-loop/index.ts:250`) hace **switch por reason**:
 
-- **`crm_mutation` / `cas_reject` → `runLegacySubLoop`** (`:724`): UNA llamada
-  `generateText` con **GPT-4o-mini** (`:734`) + tools + `Output.object(LoopOutcomeSchema)`.
+- **`crm_mutation` / `cas_reject` → `runCrmMutationSubLoop`** (renombrada del antiguo
+  nombre "legacy" por D-17; es el motor del crm-gate vía `runCrmSubLoop`): UNA llamada
+  `generateText` con **GPT-4o-mini** + tools + `Output.object(LoopOutcomeSchema)`.
   Outcomes: `template` (apunta a un intent del catálogo) o `no_match` (handoff).
   En la práctica solo `cas_reject` entra aquí hoy — `crm_mutation` está muerto
   (`isCrmMutation=false`, ver arriba).
@@ -404,38 +408,34 @@ v4 produce respuestas por **dos vías distintas**:
 - `onFirstSendCompleted` → LREM-self del pending + flip `has_sent_anything` (`:129`).
 - `LostLockError` → zombie defense (propaga al outer catch del runner).
 
-### 4.2 ⚠️ GAP CRÍTICO — el texto generativo no se envía en producción
+### 4.2 ✅ GAP CERRADO — el texto generativo viaja por el path de templates
 
-**El path RAG generativo funciona end-to-end pero su respuesta NO se entrega a
-WhatsApp en producción.** Es el **último cable que falta para activar v4 con RAG**
-(standalone `somnio-v4-rag-generative`, en progreso).
+**Histórico (G-1/G-2/G-3, al 2026-05-28):** el path RAG generativo producía
+`messages:[responseText]` sin `templates`, el runner caía a un fallback sin-templates,
+el adapter dropeaba el envío (`messaging.ts` gate `if (!templates || …) return`), y el
+texto quedaba registrado en el turno sin haberse enviado (el log mentía) — además sin
+CKPT-6b ni manejo de interrupción.
 
-Cadena del gap (verificada en código):
+**Resolución:**
+- **G-1 (texto generativo no se enviaba) — CERRADO** por el híbrido del standalone
+  `somnio-v4-rag-generative`: el slot resolver emite **pseudo-templates `rag:*`**
+  (R4-B passthrough + T-7 exclusión del registry) que viajan por el **path de
+  templates** real. El `responseText` generativo ya no depende del fallback
+  sin-templates: se entrega como cualquier template (gana CKPT-6b + interrupción).
+- **G-2 (fallback sin CKPT-6b ni interrupción) — CERRADO** como consecuencia de G-1:
+  al desaparecer la dependencia del fallback, el texto RAG hereda el manejo de
+  interrupción del path de templates.
+- **G-3 (el turno registraba texto no enviado, el log mentía) — CERRADO por D-14 de
+  este standalone (`somnio-v4-consolidation`):** se borra el branch fallback del
+  runner (envío de `output.messages` sin templates) y se reemplaza por un **warning a
+  observability** (`pipeline_decision:v4_messages_without_templates`) cuando
+  `output.messages.length > 0 && !output.templates` — caso que ya no debería ocurrir;
+  si ocurre, se ve en vez de registrarse silenciosamente como "enviado".
 
-1. El sub-loop exitoso devuelve `messages:[responseText]`, `templates:undefined`
-   (`somnio-v4-agent.ts:947-949`).
-2. El runner cae al fallback sin-templates y llama `messaging.send({ messages })`
-   sin campo `templates` (`v4-production-runner.ts:904-916`).
-3. `ProductionMessagingAdapter.send` tiene el gate:
-   `if (!templates || templates.length === 0) { return { messagesSent: 0 } }`
-   (`messaging.ts:159-161`) → **nada se envía**.
-4. Peor: `sentMessageContents.push(...output.messages)` (`v4-production-runner.ts:915`)
-   → el texto **queda registrado** en el turno de la sesión aunque el cliente nunca
-   lo recibió (el log de la conversación miente).
-5. El fallback además **no tiene CKPT-6b ni manejo de interrupción** (a diferencia
-   del path de templates).
-
-**Asimetría con el sandbox:** el engine del sandbox SÍ muestra el texto generativo —
-itera `output.messages` y los stremea con `onMessage` (`engine-v4.ts:385-484`). Por
-eso un smoke en `/sandbox` parece funcionar mientras producción quedaría muda.
-
-Esto también está documentado como caveat en `INTERRUPTION-PARITY.md §6`.
-
-**Para cerrar el gap** (dos opciones de diseño):
-- (a) Convertir el `responseText` generativo en un `ProcessedMessage` a nivel del
-  agente para que viaje por el path de templates (gana CKPT-6b + interrupción), o
-- (b) Wirear un envío real en el fallback (`messaging.ts` aceptaría `messages`
-  cuando no hay `templates`) + replicar el manejo de interrupción.
+**Asimetría histórica con el sandbox:** el engine del sandbox SÍ mostraba el texto
+generativo (stream `onMessage`), por lo que un smoke en `/sandbox` funcionaba mientras
+producción quedaba muda. Con el híbrido `rag:*` esa asimetría desaparece — ambos lados
+entregan el texto por el path de templates.
 
 ---
 
@@ -596,7 +596,7 @@ turno (Inngest-safe).
 | `guard:blocked` / `guard:passed` | `somnio-v4-agent.ts:264/312` |
 | `natural_silence` / `system_event_routed` | `somnio-v4-agent.ts:569/744` |
 | `unknown_case_captured` / `unknown_case_capture_failed` | `unknown-cases/capture.ts:69/81` |
-| `updateOrder_failed` / `moveOrderToStage_failed` / `updateContact_*` | `invocations.ts` |
+| `updateOrder_failed` / `moveOrderToStage_failed` / `updateContact_*` | sub-loop CRM (`crm-gate.ts` → `runCrmSubLoop`; el `invocations.ts` inline fue eliminado) |
 | `retake:*` / `ofi_inter:*` | `sales-track.ts`, `response-track.ts` |
 | **Lock lifecycle** (14 labels: `lock_acquired`, `msg_aborted_path_a_combined`, …) | `interruption-system-v2/observability` (§11) |
 
@@ -671,9 +671,9 @@ Scope completo del módulo en `CLAUDE.md` §"Module Scope: interruption-system-v
 
 | # | Gap | Ubicación | Severidad |
 |---|---|---|---|
-| G-1 | **Texto RAG generativo no se envía en producción** (§4.2) | `v4-production-runner.ts:904-916` + `messaging.ts:159-161` | 🔴 bloquea activación RAG |
-| G-2 | El fallback sin-templates no tiene CKPT-6b ni manejo de interrupción | `v4-production-runner.ts:904-916` | 🟠 (vive bajo G-1) |
-| G-3 | El turno registra texto que no se envió (log miente) | `v4-production-runner.ts:915` | 🟠 |
+| ~~G-1~~ | ✅ **CERRADO** — texto RAG viaja por path de templates vía pseudo-templates `rag:*` (híbrido `somnio-v4-rag-generative`) | §4.2 | — |
+| ~~G-2~~ | ✅ **CERRADO** (bajo G-1) — el texto RAG hereda CKPT-6b + interrupción del path de templates | §4.2 | — |
+| ~~G-3~~ | ✅ **CERRADO por D-14** (`somnio-v4-consolidation`) — branch fallback borrado + warning `v4_messages_without_templates` | §4.2 | — |
 | P1-3 | **Comprehension sin fallback ante saturación de Gemini** | `comprehension.ts:86` | 🟡 diferido |
 
 **P1-3** (`docs/analysis/04-estado-actual-plataforma.md` §P1-3): comprehension usa
@@ -686,13 +686,12 @@ prod**, no antes. El sub-loop RAG también usa Gemini Flash en Call 2/3.
 
 ### Deferred a V1.1 (documentado, no-bloqueante)
 
-- `activeContactId` / `activeOrderId` no se resuelven en el orquestador V1
-  (`somnio-v4-agent.ts:403/407`) → `updateContact` y las mutations come-back se
-  skipean silenciosamente (fire-and-forget). `invocations.ts:225`.
-- `createOrder` se ejecuta vía el runner (`shouldCreateOrder=true`) en vez de
-  `crm-mutation-tools.createOrder` directo — la resolución de UUIDs
-  contactId/pipeline/stage no es trivial inline (`somnio-v4-agent.ts:511-529`).
-- Sync de cédula al contacto no soportado por el tool (`invocations.ts:223`).
+> **Nota histórica:** el CRM inline de V1 (`invocations.ts` + `executeInvocations` +
+> `createOrder` vía `shouldCreateOrder` en el runner) fue **eliminado** en el big-bang
+> D-06 del standalone `somnio-v4-crm-subloop`. Todo el CRM de v4 corre hoy por el
+> **sub-loop grounded** vía `crm-gate.ts` → `runCrmSubLoop` (cascarón createOrder /
+> updateOrder pack / moveOrderToStage), con grounding de 2 vistas + cache
+> `_v4:crm_snapshot` + CAS. Los deferidos de UUID-resolution inline ya no aplican.
 
 ### Standalones relacionados
 

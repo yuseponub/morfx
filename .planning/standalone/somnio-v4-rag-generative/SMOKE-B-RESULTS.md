@@ -1,6 +1,6 @@
 # SMOKE B — Regression Results (paths NO migrados D-12)
 
-**Run date:** 2026-06-05T06:05:25.881Z
+**Run date:** 2026-06-10T21:58:04.660Z
 **Standalone:** somnio-v4-rag-generative / Plan 06
 **Reviewer:** Jose (pendiente — marcá cada caso después de leerlo)
 
@@ -25,34 +25,17 @@
 **Group:** razonamiento_libre
 **Expected:** handoff silente (divagación, sin KB)
 **Expected status:** `no_match`
-**Latency:** 54402ms
-
-**RUNTIME ERROR:** ```[SubLoop RAG reason=razonamiento_libre stage=generation_call_error] AI_RetryError: Failed after 3 attempts. Last error: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.```
-
-**Sub-loop outcome:**
-_(outcome null — runtime error)_
-
-**Auto-check:** ⚠ NO_OUTCOME (runtime error — ver mensaje)
-**Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
-**Jose notes:** _(marcar después)_
-
----
-
-### Case 2 — "ayer fue un día raro, no pude dormir"
-
-**Group:** razonamiento_libre
-**Expected:** handoff o template empático
-**Expected status:** `no_match`
-**Latency:** 36792ms
+**Latency:** 45600ms
+**Nota re-run (Pitfall 12):** en la corrida completa 2026-06-10 este caso terminó en RUNTIME ERROR de infra Gemini (`AI_RetryError ... high demand` en `generation_call_error` — mismo error y mismo caso que el run 2026-06-05). Se aplicó la política de 1 re-run por caso flaky (`npx vitest run ... smoke-rag-b.test.ts -t "1. razonamiento_libre"`, mismo día). Este bloque es el resultado del re-run: completó sin error de infra pero con auto-check FAIL (got `generated`, expected `no_match`). El re-run está consumido — el FAIL queda como valor del baseline. El bloque original con el error quedó registrado en BASELINE.md.
 
 
 
 **Sub-loop outcome:**
 
 - status: `generated`
-- responseText: "Entiendo. Este producto te ayuda a conciliar el sueño y a tener un descanso de calidad. Así evitas la "resaca" al día siguiente. Muchos clientes reportan dormir hasta 7 horas seguidas. Cada cuerpo res"
+- responseText: "Lamento que estés pasando por esto. Nuestro producto está pensado para acompañar el ritmo del sueño en adultos. No es un medicamento para insomnio crónico. Si llevas meses sin dormir bien, lo mejor es"
 - responseTemplate: `null`
-- sourceTopic: `duracion_efecto`
+- sourceTopic: `insomnio_largo_plazo`
 - responseConfidence: `0.95`
 - reason: `rag_generated`
 - requiresHuman: `false`
@@ -64,12 +47,12 @@ _(outcome null — runtime error)_
 
 ---
 
-### Case 3 — "el sueño es interesante, no?"
+### Case 2 — "ayer fue un día raro, no pude dormir"
 
 **Group:** razonamiento_libre
-**Expected:** handoff silente
+**Expected:** handoff o template empático
 **Expected status:** `no_match`
-**Latency:** 5087ms
+**Latency:** 22535ms
 
 
 
@@ -78,9 +61,35 @@ _(outcome null — runtime error)_
 - status: `no_match`
 - responseText: (null/handoff)
 - responseTemplate: `handoff_humano`
-- sourceTopic: `null`
-- responseConfidence: `null`
-- reason: `no_relevant_hit`
+- sourceTopic: `duracion_efecto`
+- responseConfidence: `0.95`
+- reason: `nunca_decir_violation: El producto no causa efecto residual en ninguna persona.`
+- requiresHuman: `true`
+
+
+**Auto-check (status match):** ✅ PASS (status=`no_match` == expected=`no_match`)
+**Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
+**Jose notes:** _(marcar después)_
+
+---
+
+### Case 3 — "el sueño es interesante, no?"
+
+**Group:** razonamiento_libre
+**Expected:** handoff silente
+**Expected status:** `no_match`
+**Latency:** 28860ms
+
+
+
+**Sub-loop outcome:**
+
+- status: `no_match`
+- responseText: (null/handoff)
+- responseTemplate: `handoff_humano`
+- sourceTopic: `duracion_efecto`
+- responseConfidence: `0.2`
+- reason: `low_response_confidence`
 - requiresHuman: `true`
 
 

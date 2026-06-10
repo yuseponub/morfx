@@ -101,10 +101,24 @@ export async function importHistoricalChat(
     //    phone_number_id NO participa en la unicidad → solo en el INSERT (D-10).
     let conversationId: string
     let conversationCreated = false
+    // Snapshot de los campos denormalizados de una conversación YA existente (viva).
+    // El trigger `messages_update_conversation` (AFTER INSERT ON messages) los pisa
+    // por cada fila insertada (sin guard de timestamp) → al importar mensajes viejos
+    // a una convo viva, dejaría last_*/unread/is_read apuntando a un mensaje histórico.
+    // D-05 exige NO alterar el estado de la convo viva → snapshot aquí, restore en paso 5.
+    let liveSnapshot: {
+      last_message_at: string | null
+      last_message_preview: string | null
+      last_customer_message_at: string | null
+      unread_count: number
+      is_read: boolean
+    } | null = null
+    const CONVO_DENORM_COLS =
+      'id, last_message_at, last_message_preview, last_customer_message_at, unread_count, is_read'
 
     const existing = await supabase
       .from('conversations')
-      .select('id')
+      .select(CONVO_DENORM_COLS)
       .eq('workspace_id', ctx.workspaceId)
       .eq('phone', normPhone)
       .eq('channel', 'whatsapp')
@@ -116,6 +130,13 @@ export async function importHistoricalChat(
 
     if (existing.data) {
       conversationId = existing.data.id
+      liveSnapshot = {
+        last_message_at: existing.data.last_message_at,
+        last_message_preview: existing.data.last_message_preview,
+        last_customer_message_at: existing.data.last_customer_message_at,
+        unread_count: existing.data.unread_count,
+        is_read: existing.data.is_read,
+      }
     } else {
       const inserted = await supabase
         .from('conversations')
@@ -137,7 +158,7 @@ export async function importHistoricalChat(
         if (inserted.error.code === '23505') {
           const retry = await supabase
             .from('conversations')
-            .select('id')
+            .select(CONVO_DENORM_COLS)
             .eq('workspace_id', ctx.workspaceId)
             .eq('phone', normPhone)
             .eq('channel', 'whatsapp')
@@ -149,6 +170,14 @@ export async function importHistoricalChat(
             }
           }
           conversationId = retry.data.id
+          // La convo la creó otro proceso concurrente → tratarla como viva (preservar su estado).
+          liveSnapshot = {
+            last_message_at: retry.data.last_message_at,
+            last_message_preview: retry.data.last_message_preview,
+            last_customer_message_at: retry.data.last_customer_message_at,
+            unread_count: retry.data.unread_count,
+            is_read: retry.data.is_read,
+          }
         } else {
           return { success: false, error: inserted.error.message }
         }
@@ -184,9 +213,14 @@ export async function importHistoricalChat(
     }
     const messagesDuplicated = rows.length - messagesInserted
 
-    // 5. Update de conversación CONDICIONAL (D-05) — SOLO si la creamos por import.
-    //    Si la conversación ya existía (viva), NO se toca is_read/unread_count/
-    //    last_*/phone_number_id: archival silencioso, no finge actividad nueva.
+    // 5. Reconciliación del estado denormalizado de la conversación (D-05).
+    //    El trigger `messages_update_conversation` ya pisó last_*/unread/is_read por
+    //    cada fila insertada (sin guard de timestamp). Hay que dejar el estado correcto:
+    //
+    //    a) Convo NUEVA-por-import → estado archival: last_* = datos del historial,
+    //       is_read=true / unread=0 (no finge no-leídos).
+    //    b) Convo VIVA existente → RESTAURAR el snapshot pre-import (deshacer el trigger):
+    //       archival silencioso, no altera posición/no-leídos/preview de la convo real.
     if (conversationCreated && rows.length > 0) {
       // Comparación lexicográfica válida: todos los timestamps son ISO UTC (…Z).
       const lastMsg = params.messages.reduce((a, b) => (a.timestamp > b.timestamp ? a : b))
@@ -210,6 +244,21 @@ export async function importHistoricalChat(
         .eq('id', conversationId)
       if (updated.error) {
         return { success: false, error: updated.error.message }
+      }
+    } else if (!conversationCreated && messagesInserted > 0 && liveSnapshot) {
+      // Convo viva: deshacer la mutación del trigger restaurando el snapshot exacto.
+      const restored = await supabase
+        .from('conversations')
+        .update({
+          last_message_at: liveSnapshot.last_message_at,
+          last_message_preview: liveSnapshot.last_message_preview,
+          last_customer_message_at: liveSnapshot.last_customer_message_at,
+          unread_count: liveSnapshot.unread_count,
+          is_read: liveSnapshot.is_read,
+        })
+        .eq('id', conversationId)
+      if (restored.error) {
+        return { success: false, error: restored.error.message }
       }
     }
 

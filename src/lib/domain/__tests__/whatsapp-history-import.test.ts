@@ -101,9 +101,19 @@ beforeEach(() => {
 })
 
 describe('importHistoricalChat (Plan 01)', () => {
-  it('idempotencia (D-01): re-corrida → inserted=0, duplicated=N (upsert retorna [])', async () => {
+  it('idempotencia (D-01): re-corrida → inserted=0, duplicated=N; CERO update de convo', async () => {
     // Convo ya existe + upsert retorna [] (todas las filas ya estaban).
-    convoMaybeSingleResult = { data: { id: 'convo-existing' }, error: null }
+    convoMaybeSingleResult = {
+      data: {
+        id: 'convo-existing',
+        last_message_at: '2026-06-09T17:00:00.000Z',
+        last_message_preview: 'Hola real',
+        last_customer_message_at: '2026-06-09T17:00:00.000Z',
+        unread_count: 1,
+        is_read: false,
+      },
+      error: null,
+    }
     messagesUpsertResult = { data: [], error: null }
 
     const res = await importHistoricalChat(ctx, baseParams())
@@ -112,6 +122,8 @@ describe('importHistoricalChat (Plan 01)', () => {
     expect(res.data?.messagesInserted).toBe(0)
     expect(res.data?.messagesDuplicated).toBe(2)
     expect(res.data?.conversationCreated).toBe(false)
+    // 0 insertados → el trigger no disparó → no hay nada que restaurar.
+    expect(convoUpdate).not.toHaveBeenCalled()
   })
 
   it('Regla 6 (no-triggers): el fuente NO importa emisores/inngest/runner', () => {
@@ -145,16 +157,37 @@ describe('importHistoricalChat (Plan 01)', () => {
     expect(payload.last_message_preview).toBe('Buenas, en que le ayudo')
   })
 
-  it('merge D-05 — convo EXISTENTE: conversationCreated=false → CERO update (archival silencioso)', async () => {
-    convoMaybeSingleResult = { data: { id: 'convo-existing' }, error: null }
+  it('merge D-05 — convo VIVA: restaura snapshot pre-import (deshace el trigger, no clobber)', async () => {
+    // Convo viva con estado real; al insertar mensajes el trigger lo pisaría →
+    // el importador debe RESTAURAR el snapshot exacto (archival silencioso).
+    convoMaybeSingleResult = {
+      data: {
+        id: 'convo-existing',
+        last_message_at: '2026-06-09T17:18:38.000Z',
+        last_message_preview: 'Hola',
+        last_customer_message_at: '2026-06-09T17:18:38.000Z',
+        unread_count: 1,
+        is_read: false,
+      },
+      error: null,
+    }
+    messagesUpsertResult = { data: [{ id: 'm1' }, { id: 'm2' }], error: null } // 2 insertados → restore
 
     const res = await importHistoricalChat(ctx, baseParams())
 
     expect(res.success).toBe(true)
     expect(res.data?.conversationCreated).toBe(false)
-    // NUNCA se toca la conversación viva (Pitfall 4).
-    expect(convoUpdate).not.toHaveBeenCalled()
     expect(convoInsert).not.toHaveBeenCalled()
+    // Restaura el snapshot EXACTO: NO marca leído, NO cambia posición/preview/unread.
+    expect(convoUpdate).toHaveBeenCalledTimes(1)
+    const payload = convoUpdate.mock.calls[0][0] as Record<string, unknown>
+    expect(payload).toEqual({
+      last_message_at: '2026-06-09T17:18:38.000Z',
+      last_message_preview: 'Hola',
+      last_customer_message_at: '2026-06-09T17:18:38.000Z',
+      unread_count: 1,
+      is_read: false,
+    })
   })
 
   it('mapeo de filas: type=text, content.body, status verbatim, wamid verbatim, onConflict wamid', async () => {

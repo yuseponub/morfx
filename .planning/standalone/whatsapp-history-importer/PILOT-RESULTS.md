@@ -90,9 +90,56 @@ cubierto por el unit test de Plan 01 T3 (`merge D-05 — convo EXISTENTE → CER
 **Gate:** ✅ Técnicamente verde para barrido completo. Pendiente único: confirmación
 visual del operador en el inbox (T3) antes de autorizar el sweep de los 537 chats.
 
+---
+
+## T8 — Barrido completo (537 chats) ✓
+
+Operador autorizó tras revisión visual OK del piloto (chat Dra María Carolina: orden
+cronológico, fechas Colombia, placeholders `<imagen omitida>`/`<contacto omitido>` como
+texto, contenido legible).
+
+```
+Chats procesados:    537  (0 errores, 0 numberMissing)
+Mensajes: insertados 3057  +  duplicados 104 (los 5 del piloto)  = 3161 importados
+          saltados system 745 / no-texto 267
+Contactos: creados 532 / encontrados 5
+Conversaciones: creadas 531 / mergeadas 6
+Reconciliación: 4173 ✓ CUADRA
+```
+Verificado en DB: total `wamid LIKE 'import:%'` = **3161**; `agent_sessions` = **0**;
+todos los importados `type='text'`.
+
+### ⚠️ Hallazgo del barrido: D-05 vs trigger `messages_update_conversation` (RESUELTO)
+
+Uno de los 537 chats (`97616352276726@lid`) resuelve al número **+573137549286**, que
+ya tenía una **conversación viva real** en Varixcenter (1 mensaje "Hola"). Al insertar sus
+7 mensajes históricos, el trigger de DB `messages_update_conversation` (AFTER INSERT ON
+messages, `supabase/migrations/20260130000002`) pisó `last_message_at`/`last_message_preview`/
+`unread_count`/`is_read`/`last_customer_message_at` **por cada fila, sin guard de timestamp**
+→ la convo viva quedó apuntando a un mensaje importado viejo (00:15) en vez del "Hola" real
+(17:18), y `unread_count` 1→2. **El research no detectó este trigger** (RESEARCH §2 solo
+señaló el UPDATE+emit de `receiveMessage`, no el trigger a nivel DB).
+
+**Impacto:** 1 sola conversación (la única viva-real pre-existente; las 5 del piloto no
+recibieron inserts nuevos → intactas).
+
+**Resolución (2 partes):**
+1. **Prod fix inmediato:** se restauró +573137549286 a su estado real recomputado de sus
+   mensajes NO-import: `unread_count=1, is_read=false, last_message_at=17:18:38, preview="Hola"`.
+   Los 7 mensajes históricos permanecen en el hilo (intención archival).
+2. **Hardening del importador** (`importHistoricalChat`): para convos YA existentes, ahora
+   hace **snapshot** de los 5 campos denormalizados ANTES del upsert y los **restaura**
+   después (deshace el trigger) → D-05 garantizado aunque exista el trigger. Para convos
+   nuevas-por-import el UPDATE explícito (max ts / is_read=true / unread=0) ya corregía al
+   trigger. Test nuevo `merge D-05 — convo VIVA: restaura snapshot`. Sin migración (Regla 5
+   no aplica — no se toca schema).
+
 ## Estado actual en producción
 
-- 5 chats piloto (104 mensajes, 5 contactos, 5 conversaciones) **viven en Varixcenter**
-  para la inspección visual. NO se han borrado (son la evidencia del gate).
+- **537 conversaciones / 3161 mensajes** importados a Varixcenter (`c6621640-...`).
+- Conversación viva `+573137549286` **restaurada** a su estado correcto.
+- `agent_sessions=0` (Regla 6 — cero agentes/automatizaciones/envíos por el import).
 - 0 import en cualquier otro workspace.
-- Rollback disponible (ver `OPERATOR-RUNBOOK.md`): `DELETE FROM messages WHERE workspace_id='c6621640-...' AND wamid LIKE 'import:%'`.
+- Rollback total disponible (ver `OPERATOR-RUNBOOK.md`):
+  `DELETE FROM messages WHERE workspace_id='c6621640-...' AND wamid LIKE 'import:%'`.
+  (Tras rollback, recomputar denormalizados de +573137549286 desde sus mensajes reales.)

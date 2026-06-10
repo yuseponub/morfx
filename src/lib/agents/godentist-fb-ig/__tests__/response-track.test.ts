@@ -415,3 +415,54 @@ describe('resolveResponseTrack — sales action mapping', () => {
     expect(capturedIntents).toContain('mostrar_disponibilidad')
   })
 })
+
+// ============================================================================
+// Punto B — bloqueo miércoles mañana en branch fallback (Standalone
+// godentist-block-wednesday-morning, Plan 01)
+// ============================================================================
+
+describe('resolveResponseTrack — bloqueo miércoles mañana (Punto B fallback)', () => {
+  function setupCaptureManana(): { getManana: () => string | undefined } {
+    let capturedManana: string | undefined
+    getTemplatesForIntentsMock.mockImplementation(async () => {
+      const map = new Map()
+      map.set('mostrar_disponibilidad', {
+        templates: [fakeTemplate('{{slots_manana}} / {{slots_tarde}}', 'mostrar_disponibilidad')],
+      })
+      return map
+    })
+    processTemplatesMock.mockImplementation(async (_t: unknown, vars: Record<string, string>) => {
+      capturedManana = vars.slots_manana
+      return []
+    })
+    return { getManana: () => capturedManana }
+  }
+
+  it('miércoles (2026-06-10) + fallback → slots_manana = "No hay disponibilidad"', async () => {
+    const cap = setupCaptureManana()
+    const state = makeState({
+      turnCount: 3,
+      intentsVistos: ['saludo'],
+      datos: { nombre: 'Juan', telefono: '573001234567', sede_preferida: 'cabecera', fecha_preferida: '2026-06-10' },
+    })
+    await resolveResponseTrack({
+      salesAction: 'mostrar_disponibilidad', state, intent: 'datos',
+      workspaceId: 'test-workspace-uuid', availabilityFallback: true,
+    })
+    expect(cap.getManana()).toBe('No hay disponibilidad')
+  })
+
+  it('martes (2026-06-09) + fallback → slots_manana NO bloqueada (anti-regresión)', async () => {
+    const cap = setupCaptureManana()
+    const state = makeState({
+      turnCount: 3,
+      intentsVistos: ['saludo'],
+      datos: { nombre: 'Juan', telefono: '573001234567', sede_preferida: 'cabecera', fecha_preferida: '2026-06-09' },
+    })
+    await resolveResponseTrack({
+      salesAction: 'mostrar_disponibilidad', state, intent: 'datos',
+      workspaceId: 'test-workspace-uuid', availabilityFallback: true,
+    })
+    expect(cap.getManana()).not.toBe('No hay disponibilidad')
+  })
+})

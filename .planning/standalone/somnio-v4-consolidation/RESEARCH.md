@@ -402,7 +402,9 @@ if (output.messages.length > 0 && (!output.templates || output.templates.length 
 
 **Todo lo demás está [VERIFIED] por lectura directa o grep en esta sesión.**
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Las 3 preguntas quedaron resueltas en los planes: OQ1 → Plan 09 (hook `onResultReady` invocado antes del finally-release), OQ2 → Plan 02 (BORRAR `createTimerOrderV4`, grep de usos como gate), OQ3 → Plan 01 (commitear estado git sucio de SMOKE-*-RESULTS.md antes del snapshot baseline).
 
 1. **¿Dónde vive el write `sandbox-result:{id}` respecto al release del lock en el core?** (C4)
    - Sabemos: hoy el engine escribe el resultado a Redis ANTES de que su finally libere el lock (Pitfall 5 del standalone sandbox-integration — el follower long-pollea ese key).

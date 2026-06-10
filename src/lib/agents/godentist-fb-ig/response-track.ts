@@ -382,16 +382,23 @@ function resolveSalesActionTemplates(
         const sedeKey = state.datos.sede_preferida ?? ''
         const horarios = HORARIOS_GENERALES_SEDE[sedeKey]
 
-        // Determine if date is Saturday to show sabado schedule
+        // Determine day-of-week (UTC parse — fecha ya viene en zona Colombia; evita drift por timezone, Regla 2)
         let isSaturday = false
+        let isWednesday = false
         if (state.datos.fecha_preferida) {
           const [y, m, d] = state.datos.fecha_preferida.split('-').map(Number)
-          isSaturday = new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 6
+          const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+          isSaturday = dow === 6
+          isWednesday = dow === 3
         }
 
-        const slotsManana = horarios
-          ? (isSaturday ? (horarios.sabado_manana ?? horarios.manana) : horarios.manana)
-          : '8:00 AM - 11:40 AM'
+        // Regla operativa GoDentist: los MIÉRCOLES no hay valoraciones en la mañana (todas las sedes).
+        // En fallback se fuerza la mañana a 'No hay disponibilidad'; la tarde no se altera.
+        const slotsManana = isWednesday
+          ? 'No hay disponibilidad'
+          : (horarios
+              ? (isSaturday ? (horarios.sabado_manana ?? horarios.manana) : horarios.manana)
+              : '8:00 AM - 11:40 AM')
         const slotsTarde = horarios
           ? (isSaturday ? (horarios.sabado_tarde ?? '') : horarios.tarde)
           : '2:00 PM - 6:15 PM'

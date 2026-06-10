@@ -299,16 +299,6 @@ export interface V4AgentOutput {
   subLoopDebug?: SubLoopDebugPayload
 
   totalTokens: number
-  /** @deprecated D-06 (standalone somnio-v4-crm-subloop Plan 06): el runner ya NO crea
-   * el pedido (el gate CRM lo hace dentro del sub-loop). User path lo emite siempre
-   * false; el timer path lo sigue seteando pero el runner lo IGNORA. Usar `crmResult`. */
-  shouldCreateOrder: boolean
-  /** @deprecated D-06: ver shouldCreateOrder — el runner ya no consume orderData. */
-  orderData?: {
-    datosCapturados: Record<string, string>
-    packSeleccionado: string | null
-    valorOverride?: number
-  }
   /**
    * D-06 / Pitfall 6 (standalone somnio-v4-crm-subloop Plan 06): resultado real de la
    * mutacion CRM ejecutada DENTRO del sub-loop (via el gate runCrmGate). El runner v4

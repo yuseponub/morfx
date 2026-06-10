@@ -16,7 +16,8 @@
  *      (Pitfall 6) → CAE a response-track. createOrder cascaron, updateOrder pack,
  *      moveOrderToStage(CONFIRMADO) ocurren DENTRO del sub-loop (NO en el runner).
  *   8. resolveResponseTrack (templates)
- *   9. Build V4AgentOutput (crmResult re-cableado a EngineOutput, shouldCreateOrder legacy false)
+ *   9. Build V4AgentOutput (crmResult re-cableado a EngineOutput — el campo legacy
+ *      shouldCreateOrder fue borrado en somnio-v4-consolidation D-13)
  *
  * D-60: outcome=no_match del sub-loop → V4AgentOutput.requiresHuman=true + newMode='handoff'.
  *
@@ -228,7 +229,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           turnLedgerDims: errSerialized.turnLedgerDims,
           turnLedgerSummary: buildLedgerSummary(errLedger),
           totalTokens: 0,
-          shouldCreateOrder: false,
           timerSignals,
           subLoopDebug: capturedSubLoopDebug,
         }
@@ -251,7 +251,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           accionesEjecutadas: input.accionesEjecutadas ?? [],
           turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: 0,
-          shouldCreateOrder: false,
           timerSignals,
           subLoopDebug: capturedSubLoopDebug,
         }
@@ -292,7 +291,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           turnLedgerDims: visionSerialized.turnLedgerDims,
           turnLedgerSummary: buildLedgerSummary(visionLedger),
           totalTokens: 0,
-          shouldCreateOrder: false,
           timerSignals,
           subLoopDebug: capturedSubLoopDebug,
         }
@@ -321,7 +319,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         turnLedgerDims: handoffSerialized.turnLedgerDims,
         turnLedgerSummary: buildLedgerSummary(handoffLedger),
         totalTokens: 0,
-        shouldCreateOrder: false,
         timerSignals,
         subLoopDebug: capturedSubLoopDebug,
         decisionInfo: { action: 'handoff', reason: handoffReason },
@@ -371,7 +368,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           // dims del input (default vacío si legacy). Plan 03 mantiene este passthrough.
           turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: tokensUsed,
-          shouldCreateOrder: false,
           timerSignals: [],
         }
       }
@@ -491,7 +487,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         threshold,
         subLoopDebug: capturedSubLoopDebug,
         totalTokens: tokensUsed,
-        shouldCreateOrder: false,
         timerSignals,
         decisionInfo: {
           action: 'handoff',
@@ -546,7 +541,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           // dims del input (default vacío si legacy). Plan 03 mantiene este passthrough.
           turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: tokensUsed,
-          shouldCreateOrder: false,
           timerSignals: [],
         }
       }
@@ -810,7 +804,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         accionesEjecutadas: input.accionesEjecutadas ?? [],
         turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
         totalTokens: tokensUsed,
-        shouldCreateOrder: false,
         timerSignals: [],
         subLoopDebug: capturedSubLoopDebug,
       }
@@ -879,7 +872,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         threshold,
         subLoopDebug: capturedSubLoopDebug,
         totalTokens: tokensUsed,
-        shouldCreateOrder: false,
         timerSignals,
         decisionInfo: {
           action: 'silence',
@@ -979,10 +971,10 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       threshold,
       subLoopDebug: capturedSubLoopDebug,
       totalTokens: tokensUsed,
-      // D-06 big-bang: el runner ya NO crea (Task 3). shouldCreateOrder queda
-      // legacy en false; el runner lee crmResult (Pitfall 6) que pobla el gate
-      // (createOrder cascaron ya ocurrio dentro del sub-loop, NO en el runner).
-      shouldCreateOrder: false,
+      // D-06 big-bang: el runner ya NO crea (standalone #2 Plan 06). El runner lee
+      // crmResult (Pitfall 6) que pobla el gate (createOrder cascaron ya ocurrio
+      // dentro del sub-loop, NO en el runner). somnio-v4-consolidation D-13: el
+      // campo legacy shouldCreateOrder/orderData fue borrado de V4AgentOutput.
       crmResult: crmGateOut.crmResult,
       timerSignals,
       decisionInfo: {
@@ -1032,7 +1024,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       // somnio-v4-turn-ledger Plan 01: catch descarta el turno → preserva dims del input.
       turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
       totalTokens: 0,
-      shouldCreateOrder: false,
       timerSignals: [],
       // Pitfall 7 option (a): closure var preserves payload across the throw
       // — surface it on the error output so the Sub-Loop tab can render the
@@ -1117,11 +1108,6 @@ async function processSystemEvent(
     }
   }
 
-  const isCreateOrder =
-    !!salesResult.accion &&
-    CREATE_ORDER_ACTIONS.has(salesResult.accion) &&
-    !state.accionesEjecutadas.some((a) => typeof a !== 'string' && a.crmAction)
-
   // somnio-v4-turn-ledger Plan 03 (R10): ledger COMPLETO del turno-timer. Sin
   // intent (los timers no tienen comprehension) → comprehension sintético
   // 'timer_expired' confidence 1. atendido: sales_action si hubo acción no-silence;
@@ -1169,16 +1155,6 @@ async function processSystemEvent(
     turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn (origen timer)
     turnLedgerSummary: buildLedgerSummary(ledgerR10), // Plan 04 D-17b: emit a observability
     totalTokens: 0,
-    // D-20: createOrder timer-driven sigue al mismo path que happy (runner valida
-    // success antes de enviar template post-success). Plan 08 (agent-timers-v4)
-    // cablea el invocation a crm-mutation-tools directo.
-    shouldCreateOrder: isCreateOrder,
-    orderData: isCreateOrder
-      ? {
-          datosCapturados: serialized.datosCapturados,
-          packSeleccionado: serialized.packSeleccionado,
-        }
-      : undefined,
     timerSignals,
     decisionInfo: {
       action: responseResult.messages.length === 0 ? 'silence' : 'respond',

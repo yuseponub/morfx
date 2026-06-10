@@ -348,7 +348,6 @@ export const v4Timer = inngest.createFunction(
           newMode: output.newMode,
           messageCount: output.messages.length,
           templateCount: output.templates?.length ?? 0,
-          shouldCreateOrder: output.shouldCreateOrder,
           requiresHuman: output.requiresHuman ?? false,
         },
         'V4 timer processMessage completed'
@@ -420,36 +419,13 @@ export const v4Timer = inngest.createFunction(
         }).eq('id', sessionId)
       }
 
-      // g. Create order if needed — D-07/D-22 INLINE via crm-mutation-tools.
-      //    Pitfall 5: idempotencyKey per timer level distinguishes happy-path
-      //    'somnio-v4-createOrder-{sessionId}-happy' from L3/L4 timer-driven calls.
-      //
-      //    NOTE: crm-mutation-tools.createOrder requires contactId/pipelineId/stageId UUIDs
-      //    inline. Resolution lives in the helper below — uses OrderCreator (shared,
-      //    NOT somnio-v3) for findOrCreateContact + lookups for pipeline/stage. The actual
-      //    mutation runs through tools.createOrder which routes to domain.createOrder
-      //    (Regla 3 — domain layer único punto de mutación).
-      let orderCreated = false
-      let orderError: string | undefined
-      if (output.shouldCreateOrder && output.orderData) {
-        const orderResult = await createTimerOrderV4({
-          workspaceId,
-          sessionId,
-          level: level as 0|1|2|3|4|5|6|7|8,
-          datosCapturados: output.orderData.datosCapturados,
-          packSeleccionado: output.orderData.packSeleccionado,
-          valorOverride: output.orderData.valorOverride,
-          isOfiInter: output.datosCapturados['_v4:ofiInter'] === 'true',
-          cedulaRecoge: output.datosCapturados.cedula_recoge,
-        })
-        orderCreated = orderResult.success
-        orderError = orderResult.error
-        if (orderResult.success) {
-          logger.info({ sessionId, level, orderId: orderResult.orderId }, 'V4 timer order created')
-        } else {
-          logger.error({ sessionId, level, error: orderResult.error, errorCode: orderResult.errorCode }, 'V4 timer order creation failed')
-        }
-      }
+      // g. (creación de pedido por timer ELIMINADA) — somnio-v4-consolidation D-13 / Pitfall 1.
+      //    Ese camino era conductualmente INALCANZABLE: ninguna transición
+      //    `timer_expired:*` produce acciones de CREATE_ORDER_ACTIONS (transitions.ts +
+      //    constants.ts D-19). El big-bang D-06 del crm-subloop ya movió toda creación
+      //    de pedido DENTRO del sub-loop (crm-gate), nunca por timer. Se borró el campo
+      //    legacy de V4AgentOutput y el helper inline (re-construible si algún día un
+      //    timer necesitara mutar CRM).
 
       // h. Return result (include timerSignals for chaining)
       return {
@@ -457,9 +433,6 @@ export const v4Timer = inngest.createFunction(
         action: `timer_L${level}_expired`,
         messagesSent: sentCount,
         newMode: output.newMode,
-        shouldCreateOrder: output.shouldCreateOrder,
-        orderCreated,
-        orderError,
         timerSignals: output.timerSignals ?? [],
       }
     })
@@ -505,228 +478,6 @@ export const v4Timer = inngest.createFunction(
     return result
   }
 )
-
-// ============================================================================
-// Helper: Create order INLINE via crm-mutation-tools (D-07/D-22)
-// ============================================================================
-
-interface CreateTimerOrderArgs {
-  workspaceId: string
-  sessionId: string
-  level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
-  datosCapturados: Record<string, string>
-  packSeleccionado: string | null
-  valorOverride?: number
-  isOfiInter: boolean
-  cedulaRecoge?: string
-}
-
-interface CreateTimerOrderResult {
-  success: boolean
-  orderId?: string
-  contactId?: string
-  error?: string
-  errorCode?: string
-}
-
-/**
- * V4 timer-driven createOrder — INLINE via crm-mutation-tools (D-07/D-22).
- *
- * Replaces the v3 timer's legacy production adapter (`adapters.orders.createOrder` reached
- * through the agent-id specific factory) with a direct call to
- * `crm-mutation-tools.createOrder.execute()`. The contact / pipeline /
- * stage UUID resolution that the tool expects is performed inline using:
- *   - OrderCreator.findOrCreateContact (SHARED helper under @/lib/agents/somnio/, NOT v3)
- *     to resolve / create the contact UUID.
- *   - direct Supabase queries for default pipeline + 'NUEVO PEDIDO' stage by name
- *     (same pattern as ProductionOrdersAdapter — pre-existing infrastructure code, not
- *     agent-specific).
- *
- * Pitfall 5: idempotencyKey carries the timer level tag so repeated runs of the
- * same Inngest function (retries=3) do not duplicate orders, and L3 vs L4 vs happy
- * path each get distinct keys.
- *
- * Anti-patterns:
- * - NO usar el production adapter del agente legacy (D-07 — sin createProductionAdapters)
- * - NO importar @/lib/agents/somnio-v3/* (D-24)
- * - NO retry implícito en stage_changed_concurrently (Pitfall 1) — N/A para createOrder
- *   pero documentado por consistencia con moveOrderToStage.
- */
-async function createTimerOrderV4(args: CreateTimerOrderArgs): Promise<CreateTimerOrderResult> {
-  const { OrderCreator } = await import('@/lib/agents/somnio/order-creator')
-  const { createCrmMutationTools } = await import('@/lib/agents/shared/crm-mutation-tools')
-  const { SOMNIO_V4_AGENT_ID, SOMNIO_WORKSPACE_ID } = await import('@/lib/agents/somnio-v4/config')
-  const { initializeTools } = await import('@/lib/tools/init')
-
-  // findOrCreateContact uses executeToolFromAgent — required initialization.
-  initializeTools()
-
-  const pack = (args.packSeleccionado as '1x' | '2x' | '3x' | null) ?? '1x'
-  const isTimerOrder = args.valorOverride !== undefined
-
-  // Validate required contact data BEFORE we touch CRM.
-  const required = args.isOfiInter
-    ? ['nombre', 'telefono', 'ciudad', 'departamento']
-    : ['nombre', 'telefono', 'direccion', 'ciudad', 'departamento']
-  const missing = required.filter((f) => {
-    const v = args.datosCapturados[f]
-    return !v || v.trim().length === 0 || v === 'N/A'
-  })
-  if (missing.length > 0) {
-    return {
-      success: false,
-      error: `Missing required contact data: ${missing.join(', ')}`,
-      errorCode: 'missing_contact_data',
-    }
-  }
-
-  if (!pack && !isTimerOrder) {
-    return { success: false, error: 'No pack selected', errorCode: 'no_pack' }
-  }
-
-  try {
-    // Step 1: resolve contactId via shared helper.
-    const orderCreator = new OrderCreator(args.workspaceId)
-    const contactData = {
-      nombre: args.datosCapturados.nombre,
-      apellido: args.datosCapturados.apellido,
-      telefono: args.datosCapturados.telefono,
-      direccion: args.datosCapturados.direccion,
-      ciudad: args.datosCapturados.ciudad,
-      departamento: args.datosCapturados.departamento,
-      barrio: args.datosCapturados.barrio,
-      correo: args.datosCapturados.correo,
-      indicaciones_extra: args.datosCapturados.indicaciones_extra,
-    }
-    const { contactId } = await orderCreator.findOrCreateContact(contactData, args.sessionId)
-    if (!contactId) {
-      return { success: false, error: 'No se pudo crear el contacto', errorCode: 'contact_failed' }
-    }
-
-    // Step 2: lookup default pipeline + 'NUEVO PEDIDO' stage.
-    const supabase = createAdminClient()
-    const { data: pipelineData } = await supabase
-      .from('pipelines')
-      .select('id')
-      .eq('workspace_id', args.workspaceId)
-      .eq('is_default', true)
-      .single()
-    const pipelineId = pipelineData?.id ?? (
-      await supabase
-        .from('pipelines')
-        .select('id')
-        .eq('workspace_id', args.workspaceId)
-        .limit(1)
-        .single()
-    ).data?.id
-    if (!pipelineId) {
-      return { success: false, error: 'No pipeline configured', errorCode: 'no_pipeline' }
-    }
-
-    let stageId: string | undefined
-    const { data: namedStage } = await supabase
-      .from('pipeline_stages')
-      .select('id')
-      .eq('pipeline_id', pipelineId)
-      .ilike('name', 'NUEVO PEDIDO')
-      .single()
-    if (namedStage) stageId = namedStage.id
-
-    // Step 3: pack metadata + price.
-    const product = orderCreator.mapPackToProduct(pack)
-    const effectivePrice = isTimerOrder ? (args.valorOverride ?? 0) : product.price
-
-    // Step 4: build shipping address + description.
-    const shippingAddress = args.isOfiInter
-      ? `OFICINA INTER - ${contactData.ciudad}, ${contactData.departamento}`
-      : [
-          contactData.direccion,
-          contactData.barrio ? `Barrio ${contactData.barrio}` : null,
-          contactData.ciudad,
-          contactData.departamento && contactData.departamento !== contactData.ciudad ? contactData.departamento : null,
-        ].filter(Boolean).join(', ')
-
-    // Step 5: createOrder via crm-mutation-tools (D-07/D-22) with idempotencyKey per level (Pitfall 5).
-    const tools = createCrmMutationTools({
-      workspaceId: args.workspaceId || SOMNIO_WORKSPACE_ID,
-      invoker: SOMNIO_V4_AGENT_ID,
-    })
-
-    const idempotencyKey = `somnio-v4-createOrder-${args.sessionId}-timer_L${args.level}`
-
-    const orderName = contactData.apellido
-      ? `${contactData.nombre} ${contactData.apellido}`
-      : contactData.nombre
-
-    const sku = product.productName.substring(0, 50).toUpperCase().replace(/\s+/g, '-')
-
-    // Cast helper — AI SDK v6 typed Tool.execute? signature wraps the runtime call.
-    // Same pattern used in src/lib/agents/somnio-v4/invocations.ts (Plan 07).
-    type CreateOrderInput = {
-      contactId: string
-      pipelineId: string
-      stageId?: string
-      name?: string
-      description?: string
-      shippingAddress?: string
-      shippingCity?: string
-      shippingDepartment?: string
-      items?: Array<{ sku: string; title: string; unitPrice: number; quantity: number }>
-      idempotencyKey?: string
-    }
-    type CreateOrderOutcome = { status: string; data?: { orderId?: string; id?: string }; error?: { code?: string; message?: string } }
-
-    const exec = tools.createOrder.execute as unknown as
-      (input: CreateOrderInput) => Promise<CreateOrderOutcome>
-
-    const result = await exec({
-      contactId,
-      pipelineId,
-      stageId,
-      name: orderName,
-      description: args.isOfiInter
-        ? `OFI INTER | Cedula recoge: ${args.cedulaRecoge || 'No proporcionada'}${contactData.indicaciones_extra ? ` | ${contactData.indicaciones_extra}` : ''}`
-        : (contactData.indicaciones_extra ?? undefined),
-      shippingAddress,
-      shippingCity: contactData.ciudad ?? undefined,
-      shippingDepartment: contactData.departamento ?? undefined,
-      items: [
-        {
-          sku,
-          title: product.productName,
-          unitPrice: effectivePrice,
-          quantity: product.quantity,
-        },
-      ],
-      idempotencyKey,
-    })
-
-    // D-20: validate success BEFORE the outer caller emits the post-success template.
-    // The template send already happened in step 'e' above (templatesToSend) which is
-    // upstream of createOrder. v4 plan acepta gap: el template se envia antes de
-    // crear el pedido (mismo orden que v3). Si la mutación falla, observability
-    // captura el fallo + addOrderNote audit (V1.1 cierra el loop con re-orden).
-    if (result.status !== 'executed' && result.status !== 'duplicate') {
-      return {
-        success: false,
-        contactId,
-        error: result.error?.message ?? 'createOrder failed',
-        errorCode: result.error?.code ?? result.status ?? 'unknown',
-      }
-    }
-
-    const orderId = result.data?.orderId ?? result.data?.id
-
-    return {
-      success: true,
-      orderId,
-      contactId,
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    return { success: false, error: errorMessage, errorCode: 'unexpected' }
-  }
-}
 
 /**
  * All V4 timer functions for export.

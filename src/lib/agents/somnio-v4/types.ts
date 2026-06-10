@@ -265,6 +265,9 @@ export interface V4AgentOutput {
 
   intentInfo?: {
     intent: string
+    /** @deprecated Escala legacy 0-100 (v3) — ver comprehension-schema.ts. Load-bearing
+     *  en guards.ts R0; borrado diferido (D-15 somnio-v4-consolidation, Pitfall 4). Nuevos
+     *  consumidores: usar intent_confidence (0.0-1.0). */
     confidence: number
     /**
      * 0..1 scale (D-10) — Plan 12.1 calibration value used by `decideSubLoopReason`.
@@ -280,8 +283,13 @@ export interface V4AgentOutput {
   /**
    * Sub-loop diagnostic surface (Plan 03 D-20 TODO honored Plan 07 debug).
    * Populated by somnio-v4-agent.ts; consumed by engine-v4.ts debugTurn mapping.
+   *
+   * somnio-v4-consolidation D-12: union reducido a lo que el slot resolver del
+   * PATH DEL AGENTE puede emitir. `crm_mutation`/`cas_reject` NUNCA llegan aquí
+   * (los maneja el CRM gate vía runCrmSubLoop con el SubLoopReason completo del
+   * sub-loop/output-schema.ts — que NO se tocó).
    */
-  subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
+  subLoopReason?: 'low_confidence' | 'razonamiento_libre' | null
   /** platform_config.somnio_v4_low_confidence_threshold value used in this turn (D-11). */
   threshold?: number
 
@@ -294,16 +302,6 @@ export interface V4AgentOutput {
   subLoopDebug?: SubLoopDebugPayload
 
   totalTokens: number
-  /** @deprecated D-06 (standalone somnio-v4-crm-subloop Plan 06): el runner ya NO crea
-   * el pedido (el gate CRM lo hace dentro del sub-loop). User path lo emite siempre
-   * false; el timer path lo sigue seteando pero el runner lo IGNORA. Usar `crmResult`. */
-  shouldCreateOrder: boolean
-  /** @deprecated D-06: ver shouldCreateOrder — el runner ya no consume orderData. */
-  orderData?: {
-    datosCapturados: Record<string, string>
-    packSeleccionado: string | null
-    valorOverride?: number
-  }
   /**
    * D-06 / Pitfall 6 (standalone somnio-v4-crm-subloop Plan 06): resultado real de la
    * mutacion CRM ejecutada DENTRO del sub-loop (via el gate runCrmGate). El runner v4

@@ -5,8 +5,8 @@
  *   1. Comprehension (Gemini 2.5 Flash estructurado + intent_confidence — D-10/D-63)
  *   2. State merge + computeGates
  *   3. Threshold lookup (platform_config.somnio_v4_low_confidence_threshold — D-11)
- *   4. Escalation check #1 (D-02 triggers low_confidence / razonamiento_libre / otro)
- *      → si escala: runSubLoop → mapOutcomeToAgentOutput → return
+ *   4. Slot resolver (D-02 triggers low_confidence / razonamiento_libre / otro)
+ *      → si escala: runSubLoop por slot (resolveLowSlot mapea el LoopOutcome inline)
  *   5. Guards R0/R1 (escape intents)
  *   6. resolveSalesTrack (state machine determinista)
  *   7. GATE CRM (standalone #2 Plan 06 — D-01/D-05/D-06): runCrmGate reemplaza
@@ -16,7 +16,8 @@
  *      (Pitfall 6) → CAE a response-track. createOrder cascaron, updateOrder pack,
  *      moveOrderToStage(CONFIRMADO) ocurren DENTRO del sub-loop (NO en el runner).
  *   8. resolveResponseTrack (templates)
- *   9. Build V4AgentOutput (crmResult re-cableado a EngineOutput, shouldCreateOrder legacy false)
+ *   9. Build V4AgentOutput (crmResult re-cableado a EngineOutput — el campo legacy
+ *      shouldCreateOrder fue borrado en somnio-v4-consolidation D-13)
  *
  * D-60: outcome=no_match del sub-loop → V4AgentOutput.requiresHuman=true + newMode='handoff'.
  *
@@ -228,7 +229,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           turnLedgerDims: errSerialized.turnLedgerDims,
           turnLedgerSummary: buildLedgerSummary(errLedger),
           totalTokens: 0,
-          shouldCreateOrder: false,
           timerSignals,
           subLoopDebug: capturedSubLoopDebug,
         }
@@ -251,7 +251,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           accionesEjecutadas: input.accionesEjecutadas ?? [],
           turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: 0,
-          shouldCreateOrder: false,
           timerSignals,
           subLoopDebug: capturedSubLoopDebug,
         }
@@ -292,7 +291,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           turnLedgerDims: visionSerialized.turnLedgerDims,
           turnLedgerSummary: buildLedgerSummary(visionLedger),
           totalTokens: 0,
-          shouldCreateOrder: false,
           timerSignals,
           subLoopDebug: capturedSubLoopDebug,
         }
@@ -321,7 +319,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         turnLedgerDims: handoffSerialized.turnLedgerDims,
         turnLedgerSummary: buildLedgerSummary(handoffLedger),
         totalTokens: 0,
-        shouldCreateOrder: false,
         timerSignals,
         subLoopDebug: capturedSubLoopDebug,
         decisionInfo: { action: 'handoff', reason: handoffReason },
@@ -371,7 +368,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           // dims del input (default vacío si legacy). Plan 03 mantiene este passthrough.
           turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: tokensUsed,
-          shouldCreateOrder: false,
           timerSignals: [],
         }
       }
@@ -411,8 +407,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       confidence: analysis.intent.intent_confidence,
       threshold,
       intent: analysis.intent.primary,
-      isCrmMutation: false,
-      casReject: false,
     })
 
     // T-1: scaledToSubLoop reflects ANY low slot (primary OR secondary), not
@@ -493,7 +487,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         threshold,
         subLoopDebug: capturedSubLoopDebug,
         totalTokens: tokensUsed,
-        shouldCreateOrder: false,
         timerSignals,
         decisionInfo: {
           action: 'handoff',
@@ -548,7 +541,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
           // dims del input (default vacío si legacy). Plan 03 mantiene este passthrough.
           turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
           totalTokens: tokensUsed,
-          shouldCreateOrder: false,
           timerSignals: [],
         }
       }
@@ -812,7 +804,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         accionesEjecutadas: input.accionesEjecutadas ?? [],
         turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
         totalTokens: tokensUsed,
-        shouldCreateOrder: false,
         timerSignals: [],
         subLoopDebug: capturedSubLoopDebug,
       }
@@ -881,7 +872,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
         threshold,
         subLoopDebug: capturedSubLoopDebug,
         totalTokens: tokensUsed,
-        shouldCreateOrder: false,
         timerSignals,
         decisionInfo: {
           action: 'silence',
@@ -981,10 +971,10 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       threshold,
       subLoopDebug: capturedSubLoopDebug,
       totalTokens: tokensUsed,
-      // D-06 big-bang: el runner ya NO crea (Task 3). shouldCreateOrder queda
-      // legacy en false; el runner lee crmResult (Pitfall 6) que pobla el gate
-      // (createOrder cascaron ya ocurrio dentro del sub-loop, NO en el runner).
-      shouldCreateOrder: false,
+      // D-06 big-bang: el runner ya NO crea (standalone #2 Plan 06). El runner lee
+      // crmResult (Pitfall 6) que pobla el gate (createOrder cascaron ya ocurrio
+      // dentro del sub-loop, NO en el runner). somnio-v4-consolidation D-13: el
+      // campo legacy shouldCreateOrder/orderData fue borrado de V4AgentOutput.
       crmResult: crmGateOut.crmResult,
       timerSignals,
       decisionInfo: {
@@ -1034,7 +1024,6 @@ async function processUserMessage(input: V4AgentInput): Promise<V4AgentOutput> {
       // somnio-v4-turn-ledger Plan 01: catch descarta el turno → preserva dims del input.
       turnLedgerDims: input.turnLedgerDims ?? { atendido: [], crmActions: [] },
       totalTokens: 0,
-      shouldCreateOrder: false,
       timerSignals: [],
       // Pitfall 7 option (a): closure var preserves payload across the throw
       // — surface it on the error output so the Sub-Loop tab can render the
@@ -1119,11 +1108,6 @@ async function processSystemEvent(
     }
   }
 
-  const isCreateOrder =
-    !!salesResult.accion &&
-    CREATE_ORDER_ACTIONS.has(salesResult.accion) &&
-    !state.accionesEjecutadas.some((a) => typeof a !== 'string' && a.crmAction)
-
   // somnio-v4-turn-ledger Plan 03 (R10): ledger COMPLETO del turno-timer. Sin
   // intent (los timers no tienen comprehension) → comprehension sintético
   // 'timer_expired' confidence 1. atendido: sales_action si hubo acción no-silence;
@@ -1171,16 +1155,6 @@ async function processSystemEvent(
     turnLedgerDims: serialized.turnLedgerDims, // somnio-v4-turn-ledger Plan 03: commitTurn (origen timer)
     turnLedgerSummary: buildLedgerSummary(ledgerR10), // Plan 04 D-17b: emit a observability
     totalTokens: 0,
-    // D-20: createOrder timer-driven sigue al mismo path que happy (runner valida
-    // success antes de enviar template post-success). Plan 08 (agent-timers-v4)
-    // cablea el invocation a crm-mutation-tools directo.
-    shouldCreateOrder: isCreateOrder,
-    orderData: isCreateOrder
-      ? {
-          datosCapturados: serialized.datosCapturados,
-          packSeleccionado: serialized.packSeleccionado,
-        }
-      : undefined,
     timerSignals,
     decisionInfo: {
       action: responseResult.messages.length === 0 ? 'silence' : 'respond',
@@ -1196,255 +1170,6 @@ async function processSystemEvent(
       salesTemplateIntents: responseResult.salesTemplateIntents,
       infoTemplateIntents: responseResult.infoTemplateIntents,
       totalMessages: responseResult.messages.length,
-    },
-  }
-}
-
-// ============================================================================
-// Sub-loop outcome → V4AgentOutput mapper
-// ============================================================================
-
-/**
- * Map LoopOutcome → V4AgentOutput.
- *
- * D-60: outcome.status === 'no_match' → requiresHuman=true + newMode='handoff'.
- * Plan 03 RAG-generative: outcome.status === 'generated' → responseText redactado
- *   por Gemini Flash en messages[0]. Reemplaza el path 'canonical' verbatim del KB.
- * outcome.status === 'template' → templates[] resuelto con responseTemplate intent.
- *
- * Comprehension info se incluye porque el sub-loop SÍ ejecutó comprehension.
- */
-function mapOutcomeToAgentOutput(args: {
-  outcome: LoopOutcome
-  state: AgentState
-  analysis: import('./comprehension-schema').MessageAnalysis
-  tokensUsed: number
-  timerSignals: TimerSignal[]
-  /** Sub-loop trigger reason — surfaced to debug panel (Plan 07). */
-  subLoopReason?: 'low_confidence' | 'crm_mutation' | 'cas_reject' | 'razonamiento_libre' | null
-  /** Threshold used in this turn — surfaced to debug panel (Plan 07). */
-  threshold?: number
-  /** Sub-loop debug payload — Plan 03 v4-subloop-debug-view (D-02). */
-  subLoopDebug?: SubLoopDebugPayload
-  /**
-   * somnio-v4-turn-ledger Plan 03 (D-17): modo previo del turno (capturado antes de
-   * decidir en processUserMessage). Para construir modeTransition del ledger RAG/template.
-   */
-  prevMode: string
-}): V4AgentOutput {
-  const { outcome, state, analysis, tokensUsed, timerSignals, subLoopReason, threshold, subLoopDebug, prevMode } = args
-  const serialized = serializeState(state)
-
-  // somnio-v4-turn-ledger Plan 03: el `to` de modeTransition depende del outcome.
-  // generated/template → computeMode(state); no_match (handoff) → 'handoff'.
-  // El comprehension del ledger viene del analysis (el sub-loop SÍ corrió comprehension).
-  const ledgerComprehension = {
-    intent: analysis.intent.primary,
-    secondary:
-      analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
-    confidence: analysis.intent.intent_confidence,
-  }
-
-  /** Construye el subset persistido del ledger (commitTurn) con atendido/crmActions/modeTransition dados. */
-  function buildLedgerDims(
-    atendido: Atendido[],
-    toMode: string,
-    messagesSent: number,
-  ): TurnLedger {
-    return {
-      comprehension: ledgerComprehension,
-      atendido,
-      crmActions: [],
-      modeTransition: { from: prevMode, to: toMode },
-      messagesSent,
-    }
-  }
-
-  const baseOutput = {
-    success: true,
-    intentsVistos: serialized.intentsVistos,
-    templatesEnviados: serialized.templatesEnviados,
-    datosCapturados: serialized.datosCapturados,
-    packSeleccionado: serialized.packSeleccionado,
-    accionesEjecutadas: serialized.accionesEjecutadas,
-    // Standalone somnio-v4-turn-ledger Plan 03: cada rama (no_match/generated/template)
-    // sobrescribe turnLedgerDims con commitTurn(state, ledger) según el outcome.
-    // Este default vacío solo aplica al branch interrupt (errorMessage) que descarta turno.
-    turnLedgerDims: { atendido: [], crmActions: [] },
-    intentInfo: {
-      intent: analysis.intent.primary,
-      confidence: analysis.intent.confidence,
-      intent_confidence: analysis.intent.intent_confidence,
-      secondary:
-        analysis.intent.secondary !== 'ninguno' ? analysis.intent.secondary : undefined,
-      reasoning: analysis.intent.reasoning,
-      timestamp: new Date().toISOString(),
-    },
-    subLoopReason: subLoopReason ?? null,
-    threshold,
-    subLoopDebug,
-    totalTokens: tokensUsed,
-    shouldCreateOrder: false,
-    timerSignals,
-    classificationInfo: {
-      category: analysis.classification.category,
-      sentiment: analysis.classification.sentiment,
-    },
-  }
-
-  // Plan 03 RAG-generative refactor: narrowing por outcome.status sigue válido,
-  // pero los campos responseText/sourceTopic/responseTemplate son nullable.
-  // Null guards explícitos — si null (no debería ocurrir post-invariantCheck
-  // del sub-loop, pero defensivo) → fallback a handoff humano.
-  if (outcome.status === 'no_match') {
-    // ============================================================
-    // Standalone: debounce-v2-interrupt-reprocess (D-05 + Pitfall 7).
-    // Sub-loop CKPT-3/4/5 interrupts surface here with
-    // outcome.reason = 'interrupted_at_ckpt_3_post_tooling' |
-    //                  'interrupted_at_ckpt_4_post_generation' |
-    //                  'interrupted_at_ckpt_5_post_compliance'.
-    // BEFORE FIX: this branch silently converted them to requiresHuman=true
-    // handoffs (a hidden second bug). AFTER FIX: propagate upward as
-    // errorMessage, identical shape to the agent's in-agent CKPT-1/CKPT-2
-    // interrupt returns (lines ~142-155 + ~340-353). The runner's
-    // discriminator detector (Plan 01 Task 1.2) consumes this prefix to
-    // trigger restart with combined effectiveMessage.
-    //
-    // DO NOT add newMode='handoff' or requiresHuman=true here — those would
-    // have user-facing side effects (mode change persisted to session.state)
-    // for what is really just a "we got interrupted mid-process, please
-    // restart" signal.
-    // ============================================================
-    if (typeof outcome.reason === 'string' && outcome.reason.startsWith('interrupted_at_ckpt_')) {
-      return {
-        ...baseOutput,
-        success: false,
-        messages: [],
-        errorMessage: outcome.reason,
-      }
-    }
-    const ledgerR4 = buildLedgerDims([{ kind: 'handoff', reason: outcome.reason }], 'handoff', 0)
-    return {
-      ...baseOutput,
-      messages: [],
-      newMode: 'handoff',
-      requiresHuman: true, // D-60: flag explícito
-      // somnio-v4-turn-ledger Plan 03 (R4): no_match → handoff. atendido handoff.
-      turnLedgerDims: commitTurn(state, ledgerR4).turnLedgerDims,
-      turnLedgerSummary: buildLedgerSummary(ledgerR4), // Plan 04 D-17b
-      decisionInfo: {
-        action: 'handoff',
-        reason: outcome.reason,
-      },
-    }
-  }
-
-  if (outcome.status === 'generated') {
-    // Defensive null check — invariantCheck en sub-loop ya enforca responseText/
-    // sourceTopic/responseConfidence non-null para status='generated', pero el
-    // null-guard mantiene type safety + protección defensiva. Si null (bug) → handoff.
-    if (outcome.responseText === null || outcome.sourceTopic === null) {
-      const ledgerGenNull = buildLedgerDims(
-        [{ kind: 'handoff', reason: `generated_null_field: ${outcome.reason}` }],
-        'handoff',
-        0,
-      )
-      return {
-        ...baseOutput,
-        messages: [],
-        newMode: 'handoff',
-        requiresHuman: true,
-        // somnio-v4-turn-ledger Plan 03: generated con campo null (defensivo) → handoff.
-        turnLedgerDims: commitTurn(state, ledgerGenNull).turnLedgerDims,
-        turnLedgerSummary: buildLedgerSummary(ledgerGenNull), // Plan 04 D-17b
-        decisionInfo: {
-          action: 'handoff',
-          reason: `generated_null_field: ${outcome.reason}`,
-        },
-      }
-    }
-    const generatedMode = computeMode(state)
-    const ledgerR5 = buildLedgerDims(
-      [
-        {
-          kind: 'kb_topic',
-          topic: outcome.sourceTopic,
-          confidence: outcome.responseConfidence ?? 0,
-          texto: outcome.responseText,
-          turno: state.turnCount,
-        },
-      ],
-      generatedMode,
-      1,
-    )
-    return {
-      ...baseOutput,
-      messages: [outcome.responseText],
-      newMode: generatedMode,
-      // ====================================================================
-      // somnio-v4-turn-ledger Plan 03 (R5) — FIX CENTRAL D-05.
-      // ANTES: este return solo serializaba `state` y perdía sourceTopic/
-      // responseConfidence/responseText (la rama RAG no dejaba registro).
-      // AHORA: registra atendido kind:'kb_topic' DESDE outcome.* → todo turno
-      // RAG deja registro canónico. confidence non-null garantizado por
-      // invariantCheck del sub-loop (null guard arriba ya cubre el defensivo).
-      // texto se trunca a 500 chars dentro de commitTurn (T-ledger-01).
-      // ====================================================================
-      turnLedgerDims: commitTurn(state, ledgerR5).turnLedgerDims,
-      turnLedgerSummary: buildLedgerSummary(ledgerR5), // Plan 04 D-17b
-      decisionInfo: {
-        action: 'respond',
-        reason: outcome.reason,
-        templateIntents: [`generated:${outcome.sourceTopic}`],
-      },
-    }
-  }
-
-  // template outcome
-  // Defensive null check — invariantCheck garantiza non-null aquí.
-  if (outcome.responseTemplate === null) {
-    const ledgerTplNull = buildLedgerDims(
-      [{ kind: 'handoff', reason: `template_null_responseTemplate: ${outcome.reason}` }],
-      'handoff',
-      0,
-    )
-    return {
-      ...baseOutput,
-      messages: [],
-      newMode: 'handoff',
-      requiresHuman: true,
-      // somnio-v4-turn-ledger Plan 03: template con responseTemplate null (defensivo) → handoff.
-      turnLedgerDims: commitTurn(state, ledgerTplNull).turnLedgerDims,
-      turnLedgerSummary: buildLedgerSummary(ledgerTplNull), // Plan 04 D-17b
-      decisionInfo: {
-        action: 'handoff',
-        reason: `template_null_responseTemplate: ${outcome.reason}`,
-      },
-    }
-  }
-  const templateMode = computeMode(state)
-  const ledgerR6 = buildLedgerDims(
-    [
-      {
-        kind: 'template_intent',
-        intent: analysis.intent.primary,
-        templateIds: [outcome.responseTemplate],
-      },
-    ],
-    templateMode,
-    1,
-  )
-  return {
-    ...baseOutput,
-    messages: [], // engine resolverá template via responseTemplate intent
-    newMode: templateMode,
-    // somnio-v4-turn-ledger Plan 03 (R6): template outcome → atendido template_intent.
-    turnLedgerDims: commitTurn(state, ledgerR6).turnLedgerDims,
-    turnLedgerSummary: buildLedgerSummary(ledgerR6), // Plan 04 D-17b
-    decisionInfo: {
-      action: 'respond',
-      reason: outcome.reason,
-      templateIntents: [outcome.responseTemplate],
     },
   }
 }

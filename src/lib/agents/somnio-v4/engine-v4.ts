@@ -320,7 +320,9 @@ export class SomnioV4Engine {
         // Sources of the discriminator prefix `interrupted_at_ckpt_`:
         //   - in-agent CKPT-1 (post-comprehension)
         //   - in-agent CKPT-2 (post-state-machine)
-        //   - sub-loop CKPT-3/4/5 propagated via mapOutcomeToAgentOutput
+        //   - sub-loop CKPT-3/4/5 propagated via resolveLowSlot (mapeo inline del
+        //     LoopOutcome → V4AgentOutput; somnio-v4-consolidation D-12 borró el
+        //     mapper muerto que antes documentaba este path)
         // ============================================================
         if (
           output.success === false &&
@@ -594,7 +596,11 @@ export class SomnioV4Engine {
               nextMode: output.newMode ?? input.state.currentMode,
               previousMode: input.state.currentMode,
               modeChanged: !!output.newMode && output.newMode !== input.state.currentMode,
-              shouldCreateOrder: output.shouldCreateOrder,
+              // somnio-v4-consolidation D-13: el campo legacy del V4AgentOutput fue
+              // borrado (el runner ya no crea — el gate CRM lo hace en el sub-loop).
+              // El campo homólogo de DebugTurn.orchestration (src/lib/sandbox/types.ts)
+              // NO se toca (compartido con sandbox v3, fuera de scope D-11) → literal false.
+              shouldCreateOrder: false,
               templatesCount: output.messages.length,
               // D-22 paridad: el gate CRM corrió simulado (simulate:true arriba). Los
               // crmActions del turno viven en turnLedgerDims (origen:'rag') y el

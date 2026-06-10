@@ -77,7 +77,8 @@ export async function captureUnknownCase(
   } catch (err) {
     // Fire-and-forget — fail silently to not break the turn.
     // D-58: doble logging — observability captura el fallo de capture; el flujo
-    // del cliente sigue intacto (handoff_humano se envía vía mapOutcomeToAgentOutput).
+    // del cliente sigue intacto (handoff_humano se envía vía el mapeo del slot
+    // resolver del sub-loop outcome → V4AgentOutput).
     getCollector()?.recordEvent(
       'pipeline_decision',
       'unknown_case_capture_failed',

@@ -61,16 +61,26 @@ Fuente: docs 360dialog / Meta (migración de número entre WABAs).
 > - WABA bajo **BM de 360dialog** → cross-business, probablemente **recrear + re-aprobar templates**. 🟡
 
 ### 1.5 Runbook de migración de número (360dialog → Meta Direct)
-1. **Verificar BM ownership** del WABA (decide si templates sobreviven).
-2. **Pre-flight:** BM verificado, web + correo corporativo OK, número puede recibir PIN, 2FA listo para desactivar.
-3. **Ventana de mantenimiento** (hay caída breve entre deregister y register — coordinar; el número no recibe mensajes ese rato).
-4. **Deregister / iniciar migración** en el dashboard de 360dialog (libera el número).
-5. **Embedded Signup en MorfX** → conectar el número al WABA propio → `registerPhoneNumber(phone_number_id, PIN)`.
-6. **Flip provider** (Regla 5 — operador en prod):
+
+> **"Liberar" de 360dialog = desactivar el 2FA del número.** Una línea solo puede estar registrada en UN BSP/app de Cloud API a la vez, así que 360dialog debe soltarla antes de que MorfX la registre. El mecanismo es el 2FA:
+> - **WABA propio del cliente (en su BM):** el dueño desactiva el 2FA **él mismo** (WhatsApp Manager → Números → Configuración → Verificación en dos pasos → desactivar). **Sin ticket a 360dialog.** ← caso ideal.
+> - **WABA hosteado por 360dialog:** abrir ticket "2FA disable request" → 360dialog lo desactiva en **48-72h** (solo el cliente dueño puede pedirlo).
+> - Meta le **prohíbe a 360dialog bloquear/demorar** la migración. Tras migrar, **cancelar la suscripción 360dialog** del número para no seguir pagando.
+
+1. **GATE §1.3 cerrado** (outbound directo probado en banco de pruebas, incl. template).
+2. **Verificar BM ownership** del WABA (decide si templates sobreviven + si hay ticket de 2FA o no).
+3. **Pre-flight:** BM verificado, web + correo corporativo OK, número puede recibir PIN de 6 dígitos.
+4. **Ventana de bajo tráfico** (hay caída breve durante el re-registro — el número no recibe mensajes ese rato).
+5. **Desactivar 2FA** del número (libera la línea — ver recuadro arriba).
+6. **Embedded Signup en MorfX** → seleccionar el WABA existente + número → `registerPhoneNumber(phone_number_id, PIN_nuevo)`.
+7. **Flip provider** (Regla 5 — operador en prod):
    `UPDATE workspaces SET whatsapp_provider='meta_direct' WHERE id='<ws>';` (NO tocar messenger/instagram).
-7. **Verificar live:** inbound real llega al inbox + outbound texto + **template** salen por directo (no `131047`).
-8. **Templates:** confirmar que los aprobados aparecen en el WABA destino; recrear los que falten.
-9. **Rollback** (antes de verificar): re-migrar a 360dialog + re-flip `whatsapp_provider='360dialog'`.
+8. **Verificar live:** inbound real llega al inbox + outbound texto + **template** salen por directo (no `131047`).
+9. **Templates:** si el WABA no se movió (mismo BM), siguen intactos; si fue cross-BM, recrear/re-aprobar los que falten.
+10. **Cancelar suscripción 360dialog** del número.
+11. **Rollback** (solo antes del paso 8): re-registrar en 360dialog + re-flip `whatsapp_provider='360dialog'` + reactivar 2FA.
+
+> Detalle no confirmado (verificar al ejecutar): si el Embedded Signup de MorfX auto-detecta el WABA existente del BM, o si primero hay que **compartir el WABA con la app de MorfX** (Business Settings → Cuentas → WhatsApp → Asignar socio/app).
 
 ### 1.6 Migración de conversaciones ("desde WPP por QR" — de la nota)
 MorfX tiene un toolkit para respaldar e importar el historial de WhatsApp antes/después de migrar:

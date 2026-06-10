@@ -1,6 +1,6 @@
 # SMOKE B — Regression Results (paths NO migrados D-12)
 
-**Run date:** 2026-06-02T22:14:29.627Z
+**Run date:** 2026-06-05T06:05:25.881Z
 **Standalone:** somnio-v4-rag-generative / Plan 06
 **Reviewer:** Jose (pendiente — marcá cada caso después de leerlo)
 
@@ -25,22 +25,14 @@
 **Group:** razonamiento_libre
 **Expected:** handoff silente (divagación, sin KB)
 **Expected status:** `no_match`
-**Latency:** 27966ms
+**Latency:** 54402ms
 
-
+**RUNTIME ERROR:** ```[SubLoop RAG reason=razonamiento_libre stage=generation_call_error] AI_RetryError: Failed after 3 attempts. Last error: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.```
 
 **Sub-loop outcome:**
+_(outcome null — runtime error)_
 
-- status: `generated`
-- responseText: "Entiendo tu pregunta sobre el insomnio. Nuestro producto está pensado para acompañar el ritmo del sueño en personas adultas. Es importante saber que no es un medicamento para insomnio crónico ni reemp"
-- responseTemplate: `null`
-- sourceTopic: `insomnio_largo_plazo`
-- responseConfidence: `0.8`
-- reason: `rag_generated`
-- requiresHuman: `false`
-
-
-**Auto-check (status match):** ❌ FAIL (got status=`generated`, expected=`no_match`)
+**Auto-check:** ⚠ NO_OUTCOME (runtime error — ver mensaje)
 **Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
 **Jose notes:** _(marcar después)_
 
@@ -51,22 +43,22 @@
 **Group:** razonamiento_libre
 **Expected:** handoff o template empático
 **Expected status:** `no_match`
-**Latency:** 31096ms
+**Latency:** 36792ms
 
 
 
 **Sub-loop outcome:**
 
-- status: `no_match`
-- responseText: (null/handoff)
-- responseTemplate: `handoff_humano`
+- status: `generated`
+- responseText: "Entiendo. Este producto te ayuda a conciliar el sueño y a tener un descanso de calidad. Así evitas la "resaca" al día siguiente. Muchos clientes reportan dormir hasta 7 horas seguidas. Cada cuerpo res"
+- responseTemplate: `null`
 - sourceTopic: `duracion_efecto`
 - responseConfidence: `0.95`
-- reason: `nunca_decir_violation: El producto garantiza un número específico de horas de sueño.`
-- requiresHuman: `true`
+- reason: `rag_generated`
+- requiresHuman: `false`
 
 
-**Auto-check (status match):** ✅ PASS (status=`no_match` == expected=`no_match`)
+**Auto-check (status match):** ❌ FAIL (got status=`generated`, expected=`no_match`)
 **Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
 **Jose notes:** _(marcar después)_
 
@@ -77,22 +69,22 @@
 **Group:** razonamiento_libre
 **Expected:** handoff silente
 **Expected status:** `no_match`
-**Latency:** 26983ms
+**Latency:** 5087ms
 
 
 
 **Sub-loop outcome:**
 
-- status: `generated`
-- responseText: "Sí, el sueño es fascinante. Por eso, nuestro producto busca ayudarte a lograr un descanso de calidad, con un despertar tranquilo y sin 'resaca'. Muchos clientes reportan dormir hasta 7 horas seguidas,"
-- responseTemplate: `null`
-- sourceTopic: `duracion_efecto`
-- responseConfidence: `0.95`
-- reason: `rag_generated`
-- requiresHuman: `false`
+- status: `no_match`
+- responseText: (null/handoff)
+- responseTemplate: `handoff_humano`
+- sourceTopic: `null`
+- responseConfidence: `null`
+- reason: `no_relevant_hit`
+- requiresHuman: `true`
 
 
-**Auto-check (status match):** ❌ FAIL (got status=`generated`, expected=`no_match`)
+**Auto-check (status match):** ✅ PASS (status=`no_match` == expected=`no_match`)
 **Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
 **Jose notes:** _(marcar después)_
 

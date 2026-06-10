@@ -36,7 +36,7 @@ must_haves:
 ---
 
 <objective>
-Wave 2, paso 4a: contratos del core (interface-first) + extracción del `turn-orchestrator.ts` desde el while-loop del runner (D-04). El orquestador queda compilando SIN consumidores; el rewire del runner es el Plan 10 y el del engine el Plan 11.
+Wave 2, paso 4a: contratos del core (interface-first) + extracción del `turn-orchestrator.ts` desde el while-loop del runner (D-04), repartida en dos tareas (shell del loop + flujo invoke/send/cierre). El orquestador queda compilando SIN consumidores; el rewire del runner es el Plan 10 y el del engine el Plan 11.
 
 Purpose: "el sandbox debe ser producción con adapters falsos" (motivación verbatim del usuario) — este archivo ES el mecanismo único que lo hace cierto por construcción.
 Output: core/types.ts + core/turn-orchestrator.ts compilando, con todos los invariantes del Divergence Map codificados.
@@ -92,31 +92,63 @@ Output: core/types.ts + core/turn-orchestrator.ts compilando, con todos los inva
 </task>
 
 <task type="auto">
-  <name>Task 2: core/turn-orchestrator.ts — extraer el restart loop del runner</name>
+  <name>Task 2: core/turn-orchestrator.ts — shell del restart loop (lockCtx + heartbeat + CKPT-0 + seed/legacy/preload)</name>
   <read_first>
-    - src/lib/agents/engine/v4-production-runner.ts (COMPLETO post-Plan-08 — ES el material fuente; el orquestador es una extracción, no una invención)
+    - src/lib/agents/engine/v4-production-runner.ts (COMPLETO post-Plan-08 — ES el material fuente; el orquestador es una extracción, no una invención; para esta tarea: derivación lockCtx, startHeartbeat, restart loop, CKPT-0, fetch de sesión per-iteración, combine legacy D-18, preload)
     - src/lib/agents/somnio-v4/core/types.ts, core/checkpoint-gate.ts, core/drain.ts, core/restart-context.ts
-    - .planning/standalone/somnio-v4-consolidation/RESEARCH.md §Divergence Map filas A1-A18 (qué entra al core y con qué variante) + B-table (qué queda como capability) + Open Question 1
-    - .planning/standalone/somnio-v4-consolidation/PATTERNS.md §turn-orchestrator.ts (snippets verbatim: lockCtx throw, heartbeat, finally, LostLockError catch, discriminator)
+    - .planning/standalone/somnio-v4-consolidation/RESEARCH.md §Divergence Map filas A1-A8 (qué entra al core y con qué variante) + B-table filas B1/B2/B4 (capabilities que esta tarea cablea) + Pitfall 7 (orden CKPT-0 → seed → legacy combine)
+    - .planning/standalone/somnio-v4-consolidation/PATTERNS.md §turn-orchestrator.ts (snippets verbatim: lockCtx throw, heartbeat)
   </read_first>
   <files>src/lib/agents/somnio-v4/core/turn-orchestrator.ts</files>
   <action>
-    Crear `core/turn-orchestrator.ts` exportando `runTurn(input: TurnCoreInput, adapters: TurnCoreAdapters): Promise<TurnResult>`. Extraer del runner (D-04 — la versión del runner manda en toda divergencia) con esta estructura y los invariantes del Divergence Map:
+    Crear `core/turn-orchestrator.ts` exportando `runTurn(input: TurnCoreInput, adapters: TurnCoreAdapters): Promise<TurnResult>`. Extraer del runner (D-04 — la versión del runner manda en toda divergencia) la PRIMERA MITAD del flujo, con estos invariantes del Divergence Map:
     1. **lockCtx + guard** (A1): derivación con THROW defensivo del runner (`'[interruption-v2] lockHandle present but lockChannel/lockIdentifier missing — webhook contract violated'`) — NO la versión silenciosa del engine.
-    2. **Heartbeat** (A2): `startHeartbeat(input.lockHandle)` fuera del loop; stop en finally.
+    2. **Heartbeat** (A2): `startHeartbeat(input.lockHandle)` fuera del loop; el stop va en el finally (provisional en esta tarea — ver punto 5).
     3. **RestartContext** (A3-A6): `createRestartContext(input.ownPendingEntryJson)`.
     4. **Restart loop** (A7): `while (ctx.shouldRestart) { ctx.shouldRestart = false; ... }` con:
        a. CKPT-0 via runCheckpointGate; en interrupt → drainPendingAndCombine path_a con `priorMsg = ctx.effectiveMessage ?? input.message` + continue. (A8)
        b. `await adapters.getSeedState()` per-iteración (B1) y DESPUÉS el combine legacy: `const legacy = adapters.getLegacyPendingMessage?.()` → si presente, combinar como hoy (B2/D-18). ORDEN Pitfall 7: CKPT-0 → seed → legacy combine. Conservar el comentario D-18 del runner.
        c. `adapters.preloadOnce?.()` (B4) y `adapters.beforeAgentInvoke?.(ctx.restartIteration)` (C1).
-       d. Invocación del agente: import ESTÁTICO `import { processMessage as runAgentTurn } from '@/lib/agents/somnio-v4/somnio-v4-agent'` (A13 — specifier absoluto que engine-v4-lock.test.ts YA mockea; verificar nombre del export con grep). Acumular tokens en ctx.
+    5. **Estado compilable al cierre de esta tarea (decisión explícita del planner):** el cuerpo del loop termina, tras el punto 4c, en un stub claramente marcado `throw new Error('task 3 pending: agent invoke + CKPT-6a/6b + send + commit + finally release')`. Añadir un `try { ... } finally { stopHeartbeat?.() }` PROVISIONAL alrededor del loop (solo stop del heartbeat — la Task 3 lo expande con releaseLockIfOwner verbatim A16 y la estructura completa de OQ1). Con el throw, TypeScript acepta el return type `Promise<TurnResult>` sin implementar aún la construcción del resultado.
+    6. SPECIFIERS (Pitfall 8): interruption-system-v2 SOLO con `@/lib/agents/interruption-system-v2/*`. PROHIBIDO importar whatsapp/NDJSON/Supabase (D-05). Aplica desde esta tarea — no introducir imports que la Task 3 tendría que limpiar.
+    7. Gate: `npx tsc --noEmit` verde (el archivo compila aunque el orquestador esté incompleto — el stub del punto 5 lo garantiza; sin consumidores, comportamiento del sistema sin cambios). Commit: `feat(somnio-v4-consolidation 09): core/turn-orchestrator.ts — shell del restart loop: lockCtx + heartbeat + CKPT-0 + seed/legacy combine (D-04)`.
+  </action>
+  <verify>
+    <automated>npx tsc --noEmit && grep -c "webhook contract violated" src/lib/agents/somnio-v4/core/turn-orchestrator.ts && grep -c "task 3 pending" src/lib/agents/somnio-v4/core/turn-orchestrator.ts</automated>
+  </verify>
+  <acceptance_criteria>
+    - `grep -c "export async function runTurn\|export function runTurn" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 1
+    - `grep -c "webhook contract violated" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 1 (throw del runner A1, no el null silencioso del engine)
+    - `grep -c "startHeartbeat" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` ≥ 1 (A2)
+    - `grep -c "getSeedState" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` ≥ 1 (B1 per-iteración)
+    - `grep -c "getLegacyPendingMessage" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` ≥ 1 (B2/D-18, DESPUÉS del seed — orden Pitfall 7)
+    - `grep -c "task 3 pending" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 1 (stub marcado del punto 5)
+    - typecheck verde
+  </acceptance_criteria>
+  <done>El shell del loop existe y compila: lock guard A1, heartbeat A2, restart context A3-A6, CKPT-0 A8, seed B1, legacy combine B2 en orden Pitfall 7, preload B4 — listo para que la Task 3 complete invoke/send/cierre.</done>
+</task>
+
+<task type="auto">
+  <name>Task 3: core/turn-orchestrator.ts — invoke + CKPT-6a/6b + send post-hoc + commit + finally (OQ1)</name>
+  <read_first>
+    - src/lib/agents/engine/v4-production-runner.ts (COMPLETO post-Plan-08 — para esta tarea: invocación del agente, discriminator, CKPT-6a pending-templates, CKPT-6b, filtro rag:*/warning D-14, send + manejo post-hoc del interrupted, bloque commit post-send, finally release verbatim)
+    - src/lib/agents/somnio-v4/core/turn-orchestrator.ts (estado dejado por la Task 2 — el stub `task 3 pending` marca dónde continúa la extracción)
+    - src/lib/agents/somnio-v4/core/types.ts, core/checkpoint-gate.ts, core/drain.ts, core/restart-context.ts
+    - .planning/standalone/somnio-v4-consolidation/RESEARCH.md §Divergence Map filas A9-A18 + B-table filas B3/B5/B6/B7/B8/B10 + Open Question 1
+    - .planning/standalone/somnio-v4-consolidation/PATTERNS.md §turn-orchestrator.ts (snippets verbatim: finally, LostLockError catch, discriminator)
+  </read_first>
+  <files>src/lib/agents/somnio-v4/core/turn-orchestrator.ts</files>
+  <action>
+    Completar `runTurn` reemplazando el stub `task 3 pending` con la SEGUNDA MITAD del flujo extraído del runner (D-04):
+    1. **Invocación del agente** (continuación del loop, sigue al `beforeAgentInvoke` de la Task 2):
+       d. Import ESTÁTICO `import { processMessage as runAgentTurn } from '@/lib/agents/somnio-v4/somnio-v4-agent'` (A13 — specifier absoluto que engine-v4-lock.test.ts YA mockea; verificar nombre del export con grep). Acumular tokens en ctx.
        e. Discriminator (A9): `output.success === false && output.errorMessage?.startsWith('interrupted_at_ckpt_')` → throw si !lockCtx + drain path_a + continue.
        f. CKPT-6a + envío de pending-templates de turno previo, GATED en `if (adapters.getPendingTemplates)` (B3 — el sandbox no lo implementa → rama saltada = paridad actual exacta). Path B desde CKPT-6b con pending ≥1 sends → drain path_b_solo + `ctx.carrySource = 'seed'` (A11/A14 — carry desde SEED: el output de msg1 NO se envió).
        g. CKPT-6b via gate (A10): con `hasSentAnything: <sends acumulados> > 0` cubriendo ambos lados (el sandbox siempre llega con 0).
        h. Filtro `rag:*` fuera de templates_enviados (B6 — es mecanismo, va al CORE) + warning D-14 `v4_messages_without_templates` (B10 — viaja aquí desde el runner) + `adapters.filterOutbound?.(...)` (B5).
        i. Send: `const sendResult = await adapters.send(block)` y manejo POST-HOC del interrupted (A12 — forma del runner, UN solo lugar): 0 sent → drain path_a; ≥1 sent → drain path_b_solo + `ctx.carrySource = 'output'` (A14) + `adapters.savePathARollback?.()` en el edge wasInterruptedWithZeroSends (B2). `if (ctx.shouldRestart) continue` SIN persistir (A15).
        j. Commit del turno: `await adapters.commitTurn?.(committedTurn)` (B7) + `adapters.recordDebug?.(...)` (B8). Construir el TurnResult 'completed'.
-    5. **Estructura de cierre (Open Question 1 RESUELTA):**
+    2. **Estructura de cierre (Open Question 1 RESUELTA)** — reemplaza el `finally` provisional de la Task 2 con la estructura completa:
     ```typescript
     try {
       let result: TurnResult
@@ -137,25 +169,25 @@ Output: core/types.ts + core/turn-orchestrator.ts compilando, con todos los inva
       // releaseLockIfOwner + lock_released_normal / redis_unavailable_fallback_failed (A16, verbatim del runner)
     }
     ```
-    6. SPECIFIERS (Pitfall 8): interruption-system-v2 SOLO con `@/lib/agents/interruption-system-v2/*`. PROHIBIDO importar whatsapp/NDJSON/Supabase (D-05).
-    7. Lo que NO entra al core (queda para los wrappers en Plan 10/11): VersionConflictError retry (B9), shape EngineOutput + agent_routed (B11), SandboxState/DebugTurn (C2/C3), contrato de error divergente (C5 — el core retorna el TurnResult neutral).
-    8. Gate D-09: `npx tsc --noEmit` + SUITE_CMD verdes (el orquestador aún sin consumidores — el comportamiento del sistema no cambia en este plan). Commit: `feat(somnio-v4-consolidation 09): core/turn-orchestrator.ts — restart loop + Path A/B extraídos del runner (D-04)`.
+    3. SPECIFIERS (Pitfall 8): interruption-system-v2 SOLO con `@/lib/agents/interruption-system-v2/*`. PROHIBIDO importar whatsapp/NDJSON/Supabase (D-05).
+    4. Lo que NO entra al core (queda para los wrappers en Plan 10/11): VersionConflictError retry (B9), shape EngineOutput + agent_routed (B11), SandboxState/DebugTurn (C2/C3), contrato de error divergente (C5 — el core retorna el TurnResult neutral).
+    5. Eliminar el stub `throw new Error('task 3 pending: ...')` — al cierre de esta tarea NO queda ningún placeholder.
+    6. Gate D-09: `npx tsc --noEmit` + SUITE_CMD verdes (el orquestador aún sin consumidores — el comportamiento del sistema no cambia en este plan). Commit: `feat(somnio-v4-consolidation 09): core/turn-orchestrator.ts — invoke + CKPT-6a/6b + send post-hoc + finally OQ1 (D-04)`.
   </action>
   <verify>
-    <automated>npx tsc --noEmit && grep -c "interrupted_at_ckpt_" src/lib/agents/somnio-v4/core/turn-orchestrator.ts && grep -c "onResultReady" src/lib/agents/somnio-v4/core/turn-orchestrator.ts</automated>
+    <automated>npx tsc --noEmit && grep -c "interrupted_at_ckpt_" src/lib/agents/somnio-v4/core/turn-orchestrator.ts && grep -c "onResultReady" src/lib/agents/somnio-v4/core/turn-orchestrator.ts && ! grep -q "task 3 pending" src/lib/agents/somnio-v4/core/turn-orchestrator.ts</automated>
   </verify>
   <acceptance_criteria>
-    - `grep -c "export async function runTurn\|export function runTurn" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 1
-    - `grep -c "webhook contract violated" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 1 (throw del runner A1, no el null silencioso del engine)
     - `grep -c "adapters.getPendingTemplates" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` ≥ 1 (capability gate B3, no flag booleano)
     - `grep -cE "if \(.*(isProd|isSandbox|env\.|NODE_ENV)" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 0 (cero gating por entorno)
     - El call a `onResultReady` aparece ANTES (línea menor) que `releaseLockIfOwner` en el archivo
     - `grep -c "carrySource" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` ≥ 2 (seed y output — A14)
     - `grep -cE "from '.*(whatsapp|engine-adapters|ndjson|supabase)" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 0
     - `grep -c "v4_messages_without_templates" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 1 (warning D-14 viaja al core)
+    - `grep -c "task 3 pending" src/lib/agents/somnio-v4/core/turn-orchestrator.ts` = 0 (stub de la Task 2 eliminado)
     - typecheck + SUITE_CMD verdes
   </acceptance_criteria>
-  <done>El mecanismo único existe, codifica A1-A18 con capabilities B1-B8, y compila — listo para sus dos consumidores.</done>
+  <done>El mecanismo único existe completo, codifica A1-A18 con capabilities B1-B8, y compila — listo para sus dos consumidores.</done>
 </task>
 
 </tasks>
@@ -181,7 +213,7 @@ Output: core/types.ts + core/turn-orchestrator.ts compilando, con todos los inva
 
 <success_criteria>
 - Contratos D-05 pinneados con capabilities opcionales (patrón optional-method, cero flags de entorno).
-- Orquestador extraído del runner con los 7 invariantes críticos: throw A1, orden Pitfall 7, dual carryState A14, post-hoc send-interrupt A12, continue-sin-persistir A15, finally A16, onResultReady-antes-de-release (OQ1).
+- Orquestador extraído del runner en dos pasos compilables (Task 2 shell con stub marcado, Task 3 completa y elimina el stub) con los 7 invariantes críticos: throw A1, orden Pitfall 7, dual carryState A14, post-hoc send-interrupt A12, continue-sin-persistir A15, finally A16, onResultReady-antes-de-release (OQ1).
 </success_criteria>
 
 <output>

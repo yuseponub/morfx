@@ -432,9 +432,11 @@ export class V4ProductionRunner {
       // Sources of the discriminator prefix `interrupted_at_ckpt_`:
       //   - in-agent CKPT-1 (post-comprehension) — somnio-v4-agent.ts ~L142
       //   - in-agent CKPT-2 (post-state-machine) — somnio-v4-agent.ts ~L340
-      //   - sub-loop CKPT-3/4/5 propagated via mapOutcomeToAgentOutput
-      //     (Pitfall 7 fix in Task 1.1 — was silently converting to
-      //     requiresHuman=true handoff before this standalone)
+      //   - sub-loop CKPT-3/4/5 propagated today via the slot resolver path
+      //     (`resolveLowSlot`), which surfaces the `interrupted_at_ckpt_*`
+      //     discriminator inline. (El antiguo mapper de outcome del agente fue
+      //     borrado en somnio-v4-consolidation Plan 02; el mecanismo discriminator
+      //     sigue vivo vía el slot resolver.)
       // String prefix is the discriminator (NOT a typed boolean — see R-04:
       // greppable in Vercel logs).
       // ============================================================
@@ -946,18 +948,19 @@ export class V4ProductionRunner {
             }
           }
         }
-      } else if (output.messages.length > 0) {
-        // Fallback: plain messages (no templates)
-        const sendResult = await this.adapters.messaging.send({
+      } else if (output.messages.length > 0 && (!output.templates || output.templates.length === 0)) {
+        // D-14 (somnio-v4-consolidation): el viejo branch fallback enviaba
+        // `output.messages` sin templates — pero el messaging adapter (parent)
+        // DROPEA todo send sin templates desde el passthrough `rag:*`, así que
+        // ese send nunca llegaba a nada y el push a `sentMessageContents`
+        // registraba texto JAMÁS enviado (bug G-3). Reemplazado por un warning
+        // observable: si esto ocurre, queremos VERLO, no fallar en silencio.
+        getCollector()?.recordEvent('pipeline_decision', 'v4_messages_without_templates', {
           sessionId: session.id,
-          conversationId: input.conversationId,
-          messages: output.messages,
-          workspaceId: this.config.workspaceId,
-          contactId: input.contactId,
-          phoneNumber: input.phoneNumber,
+          messageCount: output.messages.length,
+          preview: output.messages[0]?.slice(0, 120) ?? '',
         })
-        messagesSent += sendResult.messagesSent
-        sentMessageContents.push(...output.messages)
+        console.warn('[V4-RUNNER] output.messages sin templates — nunca debería ocurrir (post rag:* passthrough)')
       }
 
       // Bug 2026-05-28: a send-loop interrupt with queued message(s) set

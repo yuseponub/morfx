@@ -33,6 +33,10 @@ export const MessageAnalysisSchema = z.object({
       'E.g: "Hola, cuanto cuesta?" -> primary=saludo, secondary=precio. ' +
       'Use "ninguno" if only one intent.'
     ),
+    /** @deprecated Escala legacy 0-100 (v3). Nuevos consumidores deben usar intent_confidence (0.0-1.0).
+     *  NO BORRAR: load-bearing en guards.ts R0 (gate de handoff — escala auto-reportada DISTINTA a
+     *  intent_confidence, sustituir cambiaría el guard) + columna agent_turns.confidence + tabs del
+     *  debug panel. Borrado diferido a standalone futuro (D-15 somnio-v4-consolidation, Pitfall 4). */
     confidence: z.number().describe(
       '0-100. 90+ clear intent, 70-89 probable, <70 ambiguous. ' +
       'Campo legacy v3 — preservado para compatibilidad. v4 usa intent_confidence (0..1) para escalación.'

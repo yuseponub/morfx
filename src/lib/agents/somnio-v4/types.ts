@@ -265,6 +265,9 @@ export interface V4AgentOutput {
 
   intentInfo?: {
     intent: string
+    /** @deprecated Escala legacy 0-100 (v3) — ver comprehension-schema.ts. Load-bearing
+     *  en guards.ts R0; borrado diferido (D-15 somnio-v4-consolidation, Pitfall 4). Nuevos
+     *  consumidores: usar intent_confidence (0.0-1.0). */
     confidence: number
     /**
      * 0..1 scale (D-10) — Plan 12.1 calibration value used by `decideSubLoopReason`.

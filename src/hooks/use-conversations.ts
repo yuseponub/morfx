@@ -116,6 +116,22 @@ interface UseConversationsReturn {
   sortMode: ConversationSort
   /** Update sort mode */
   setSortMode: React.Dispatch<React.SetStateAction<ConversationSort>>
+  /**
+   * F-5 freeze flag (D-18) — the list sets it true while the user is scrolled
+   * down (> 1 viewport). While true, realtime handlers apply data merges
+   * IN PLACE and defer re-sorts/inserts to the activity banner.
+   */
+  frozenRef: React.MutableRefObject<boolean>
+  /**
+   * F-5 — the list registers a callback here to receive the pending-activity
+   * count (deduped by conversation id) for the banner.
+   */
+  onPendingReorderRef: React.MutableRefObject<(count: number) => void>
+  /**
+   * F-5 — apply the real sort once + page-1 soft merge to pull rows whose
+   * insertion was deferred while frozen (banner click / return-to-top).
+   */
+  applyPendingOrder: () => void
 }
 
 // ============================================================================
@@ -252,6 +268,26 @@ export function useConversations({
   // Ref for the page-1 soft refetch — used by reconnect handler + subscribe callback
   const softRefetchRef = useRef<() => void>(() => {})
 
+  // ---- F-5 freeze policy (D-18/D-19) ----
+  // The LIST owns scroll position; the HOOK owns data. The list sets frozenRef
+  // while the user is scrolled down (> 1 viewport); realtime handlers read it.
+  // While frozen: data merges apply IN PLACE (preview/unread/timestamps) but
+  // re-sorts and new-row inserts are DEFERRED — affected conversation ids
+  // accumulate (deduped) in pendingReorderIdsRef and the list is notified via
+  // onPendingReorderRef so it can render the activity banner. This is the
+  // single place that gates WHEN to reorder (D-19) — geometry is the
+  // virtualizer's job (F-1).
+  const frozenRef = useRef(false)
+  const pendingReorderIdsRef = useRef<Set<string>>(new Set())
+  const onPendingReorderRef = useRef<(count: number) => void>(() => {})
+
+  // Record a deferred reorder for a conversation id and notify the list with
+  // the deduped pending count (banner shows "N conversaciones con actividad").
+  const notifyPendingReorder = useCallback((conversationId: string) => {
+    pendingReorderIdsRef.current.add(conversationId)
+    onPendingReorderRef.current(pendingReorderIdsRef.current.size)
+  }, [])
+
   // Get current user ID for 'mine' filter
   useEffect(() => {
     const supabase = createClient()
@@ -316,6 +352,9 @@ export function useConversations({
       cursorRef.current = page.nextCursor
       setHasMore(page.hasMore)
       setConversations(page.conversations)
+      // Page-1 replace invalidates any reorders deferred while frozen (F-5)
+      pendingReorderIdsRef.current.clear()
+      onPendingReorderRef.current(0)
     } catch (error) {
       console.error('Error fetching conversations:', error)
     } finally {
@@ -411,6 +450,30 @@ export function useConversations({
         setConversations(page.conversations)
         return
       }
+      if (frozenRef.current) {
+        // D-18 freeze: merge latest data into existing rows in their CURRENT
+        // positions (no re-sort — nothing shifts under the viewport). Rows in
+        // page 1 that are new to the loaded window, or whose sort key moved,
+        // are deferred to the banner; applyPendingOrder reconciles on unfreeze.
+        const sortField = sortModeRef.current === 'last_customer_message'
+          ? 'last_customer_message_at'
+          : 'last_message_at'
+        const epoch = (v: string | null | undefined) => (v ? new Date(v).getTime() : 0)
+        const loadedById = new Map(conversationsRef.current.map(c => [c.id, c]))
+        for (const c of page.conversations) {
+          const existing = loadedById.get(c.id)
+          if (!existing) {
+            notifyPendingReorder(c.id) // new row — insert deferred
+          } else if (epoch(existing[sortField]) !== epoch(c[sortField])) {
+            notifyPendingReorder(c.id) // would reorder — sort deferred
+          }
+        }
+        setConversations(prev => {
+          const latestById = new Map(page.conversations.map(c => [c.id, c]))
+          return prev.map(c => latestById.get(c.id) ?? c) // in-place data, keep order
+        })
+        return
+      }
       setConversations(prev => {
         const byId = new Map(prev.map(c => [c.id, c]))
         for (const c of page.conversations) byId.set(c.id, c) // latest wins
@@ -419,7 +482,17 @@ export function useConversations({
     } catch {
       // silent — eventually consistent; realtime is the primary path
     }
-  }, [])
+  }, [notifyPendingReorder])
+
+  // F-5 (D-18): apply the deferred order ONCE — banner click / return-to-top.
+  // Sorts the loaded window immediately (instant visual settle) and runs a
+  // page-1 soft merge to pull rows whose insertion was deferred while frozen
+  // (the caller un-freezes BEFORE calling, so the merge takes the sorted path).
+  const applyPendingOrder = useCallback(() => {
+    pendingReorderIdsRef.current.clear()
+    setConversations(prev => sortConversations(prev, sortModeRef.current))
+    softRefetchPage1()
+  }, [softRefetchPage1])
 
   // Load orders for loaded-page contacts in batch — only on initial page load.
   // Orders are separate data that don't change when conversations update.
@@ -550,6 +623,15 @@ export function useConversations({
               const belongsInWindow = !hasMoreRef.current || !tail || newVal >= tailVal
               if (!belongsInWindow) return
 
+              if (frozenRef.current) {
+                // D-18 freeze: inserting would shift content under the
+                // viewport — defer to the banner; applyPendingOrder's page-1
+                // soft merge pulls the row on unfreeze (delta deferred, not lost).
+                notifyPendingReorder(newRow.id)
+                scheduleSafetyRefetchRef.current()
+                return
+              }
+
               const conv = await getConversation(newRow.id)
               if (!conv || !mountedRef.current) return // D-17 zombie guard
               setConversations(prev => {
@@ -564,6 +646,21 @@ export function useConversations({
               })
               scheduleSafetyRefetchRef.current()
               return
+            }
+
+            // D-18 freeze check BEFORE the state update (no side effects inside
+            // the updater): while frozen, the data merge below applies IN PLACE
+            // (preview/unread/timestamps update visibly) but the re-sort is
+            // deferred — if the sort key moved, the row goes to the banner.
+            const frozen = frozenRef.current
+            if (frozen) {
+              const sortField = sortModeRef.current === 'last_customer_message'
+                ? 'last_customer_message_at'
+                : 'last_message_at'
+              const existing = conversationsRef.current[idx]
+              const oldVal = existing?.[sortField] ? new Date(existing[sortField] as string).getTime() : 0
+              const incoming = newRow[sortField] ? new Date(newRow[sortField]).getTime() : 0
+              if (oldVal !== incoming) notifyPendingReorder(newRow.id)
             }
 
             // Surgical update: spread flat columns from payload onto existing conversation
@@ -587,10 +684,18 @@ export function useConversations({
                 ),
               } as ConversationWithDetails
 
-              return sortConversations(updated, sortModeRef.current)
+              // D-18: frozen → in-place mutation only, NO re-sort
+              return frozen ? updated : sortConversations(updated, sortModeRef.current)
             })
             scheduleSafetyRefetchRef.current()
           } else if (eventType === 'INSERT') {
+            if (frozenRef.current) {
+              // D-18 freeze: a brand-new conversation while scrolled down goes
+              // to the banner, not the live list (prepend would shift content).
+              notifyPendingReorder(newRow.id)
+              scheduleSafetyRefetchRef.current()
+              return
+            }
             // New conversation — need contact + tag join data, fetch just this one
             const conv = await getConversation(newRow.id)
             if (!mountedRef.current) return // D-17 zombie guard
@@ -782,5 +887,8 @@ export function useConversations({
     markAsReadLocally,
     sortMode,
     setSortMode,
+    frozenRef,
+    onPendingReorderRef,
+    applyPendingOrder,
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Bot, Plus, Search as SearchIcon, Tag, UserRoundSearch } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,12 @@ interface VirtualizedConversationListProps {
   /** ~76px v3 (.conv grid) / ~88px v2 / ~100px legacy — measureElement corrects it */
   estimateSize: number
   className: string
+  /** F-5 (D-18) — freeze flag the hook's realtime handlers read; this list owns it */
+  frozenRef: React.MutableRefObject<boolean>
+  /** F-5 — pending-activity count for the banner (deduped by conversation id) */
+  bannerCount: number
+  /** F-5 — apply the real sort once + reset the banner (click / return-to-top) */
+  onApplyPending: () => void
 }
 
 function VirtualizedConversationList({
@@ -77,8 +83,49 @@ function VirtualizedConversationList({
   loadMore,
   estimateSize,
   className,
+  frozenRef,
+  bannerCount,
+  onApplyPending,
 }: VirtualizedConversationListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
+
+  // ---- F-5 scroll-freeze policy (D-18) ----
+  // isFrozen = scrollTop > 1 viewport (clientHeight). While frozen, the hook
+  // defers re-sorts/inserts (it reads frozenRef) so content never shifts under
+  // the viewport; deferred activity accumulates in the banner below.
+  const scrollTopRef = useRef(0)
+  const [isFrozen, setIsFrozen] = useState(false)
+  useEffect(() => {
+    const container = parentRef.current
+    if (!container) return
+    const handleScroll = () => {
+      scrollTopRef.current = container.scrollTop
+      const frozen = container.scrollTop > container.clientHeight // 1 viewport threshold (D-18)
+      frozenRef.current = frozen
+      setIsFrozen(frozen) // React bails out when unchanged
+    }
+    handleScroll() // initialize on mount (e.g. re-mount mid-scroll)
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      frozenRef.current = false // never leave the hook frozen after unmount
+    }
+  }, [frozenRef])
+
+  // Returning to top with pending activity → apply the real order once.
+  // bannerCount only grows while frozen, so this fires exactly on unfreeze.
+  useEffect(() => {
+    if (!isFrozen && bannerCount > 0) {
+      onApplyPending()
+    }
+  }, [isFrozen, bannerCount, onApplyPending])
+
+  const handleBannerClick = () => {
+    frozenRef.current = false // unfreeze BEFORE applying so the soft merge sorts
+    parentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    setIsFrozen(false)
+    onApplyPending()
+  }
 
   const virtualizer = useVirtualizer({
     count: conversations.length,
@@ -103,6 +150,25 @@ function VirtualizedConversationList({
 
   return (
     <div ref={parentRef} className={className} role="list" aria-label="Lista de conversaciones">
+      {/* F-5 activity banner (D-18) — sticky so it stays visible while the
+          user is scrolled down; wording per CONTEXT.md specifics */}
+      {bannerCount > 0 && (
+        <button
+          type="button"
+          onClick={handleBannerClick}
+          className="w-full py-2 px-3 text-center text-xs font-medium cursor-pointer"
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            background: 'var(--ink-1, #1f2937)',
+            color: 'var(--paper-0, #ffffff)',
+          }}
+          aria-live="polite"
+        >
+          {bannerCount} conversaciones con actividad — volver arriba
+        </button>
+      )}
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -205,12 +271,29 @@ export function ConversationList({
     markAsReadLocally,
     sortMode,
     setSortMode,
+    frozenRef,
+    onPendingReorderRef,
+    applyPendingOrder,
   } = useConversations({
     workspaceId,
     initialConversations,
     initialCursor,
     initialHasMore,
   })
+
+  // ---- F-5 banner state (D-18) ----
+  // The hook reports the deduped pending-activity count while frozen; the
+  // banner lives here (shared by the v3 / v2 / legacy render paths).
+  const [bannerCount, setBannerCount] = useState(0)
+  useEffect(() => {
+    onPendingReorderRef.current = setBannerCount
+  }, [onPendingReorderRef])
+
+  // Banner click / return-to-top: apply the real sort once + reset the count.
+  const handleApplyPending = useCallback(() => {
+    applyPendingOrder()
+    setBannerCount(0)
+  }, [applyPendingOrder])
 
   // Resolve the `.theme-editorial`/`.theme-editorial-v3` wrapper for Radix
   // portal re-rooting. Needed when v2 OR v3 (else ref stays null → default
@@ -546,6 +629,9 @@ export function ConversationList({
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             loadMore={loadMore}
+            frozenRef={frozenRef}
+            bannerCount={bannerCount}
+            onApplyPending={handleApplyPending}
           />
         )}
 
@@ -920,6 +1006,9 @@ export function ConversationList({
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           loadMore={loadMore}
+          frozenRef={frozenRef}
+          bannerCount={bannerCount}
+          onApplyPending={handleApplyPending}
         />
       )}
 

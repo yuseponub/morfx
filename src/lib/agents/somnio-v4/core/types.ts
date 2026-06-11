@@ -178,6 +178,10 @@ export interface TurnCoreInput {
   conversationId: string
   contactId?: string
   workspaceId: string
+  /** Teléfono para el envío (el adapter de prod lo usa para enrutar; sandbox lo ignora). */
+  phoneNumber?: string
+  /** ISO timestamp del inbound que disparó el turno (Phase 31 pre-send check). */
+  messageTimestamp?: string
   /** Handle del lock distribuido (null en sandbox sin lock / pre-v4 / fail-open). */
   lockHandle?: import('@/lib/agents/interruption-system-v2/lock').LockHandle | null
   /** Canal del lock (whatsapp/facebook/instagram) — del webhook event.data (W3). */

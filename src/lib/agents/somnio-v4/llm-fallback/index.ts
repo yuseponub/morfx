@@ -20,11 +20,17 @@ export { __resetBreakers } from './breaker'
 
 export async function callWithGeminiFallback<T>(args: {
   callSite: CallSite
-  gemini: (signal: AbortSignal) => Promise<T> // llamada Gemini con maxRetries:0 (lo setea el call-site)
-  anthropic: () => Promise<T>                  // llamada Anthropic (schema saneado si aplica)
+  gemini: (signal: AbortSignal) => Promise<T>    // llamada Gemini con maxRetries:0 (lo setea el call-site)
+  anthropic: (signal: AbortSignal) => Promise<T> // llamada Haiku con maxRetries:0 + abortSignal (M-01)
 }): Promise<T> {
   const { callSite, gemini, anthropic } = args
   const state = effectiveState(callSite)
+
+  // M-01 — la llamada Haiku corre exactamente durante el outage. Debe tener su propio
+  // timeout guard (signal FRESCO, NO el de Gemini que pudo ya vencer) para no dejar la
+  // latencia sin acotar en el peor camino (Gemini saturado + Haiku lento/529 overloaded).
+  // Cada llamada a anthropic() obtiene un budget nuevo via callAnthropic().
+  const callAnthropic = () => anthropic(AbortSignal.timeout(TIMEOUT_MS[callSite]))
 
   // 1. Circuito abierto dentro de cooldown → salta Gemini, directo a fallback.
   if (state === 'open') {
@@ -35,7 +41,7 @@ export async function callWithGeminiFallback<T>(args: {
     // (cooldown 30s), así que el evento de doble fallo (D-10) debe emitirse aquí también,
     // no solo en el path post-saturación (abajo). `return await` para que el catch capture.
     try {
-      return await anthropic()
+      return await callAnthropic()
     } catch (anthropicErr) {
       emitFallbackEvent('fallback_failed', {
         callSite,
@@ -82,7 +88,7 @@ export async function callWithGeminiFallback<T>(args: {
 
     // 3. Fallback a Anthropic. Doble fallo (Pitfall #8) → emite fallback_failed + propaga.
     try {
-      return await anthropic()
+      return await callAnthropic()
     } catch (anthropicErr) {
       emitFallbackEvent('fallback_failed', {
         callSite,

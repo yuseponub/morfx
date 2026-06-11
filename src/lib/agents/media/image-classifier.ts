@@ -168,9 +168,11 @@ export async function classifyImage(
             },
           },
         }),
-      anthropic: () =>
+      anthropic: (signal) =>
         generateText({
           model: anthropic('claude-haiku-4-5'), // D-02/D-03 — Haiku 4.5 con visión (techo absoluto)
+          maxRetries: 0,        // M-01 — N=1 también en el último recurso
+          abortSignal: signal,  // M-01 — timeout guard fresco del helper (no el de Gemini)
           messages: [{ role: 'user', content: visionContent }],
           output: Output.object({ schema: ClassificationSchema }),
           // Pitfall #7 — el branch Anthropic NO lleva safetySettings de Google (son google-only).

@@ -167,10 +167,12 @@ export async function comprehend(
             },
           })
         ),
-      anthropic: () =>
+      anthropic: (signal) =>
         runWithPurpose('comprehension', () =>
           generateText({
             model: anthropic('claude-haiku-4-5'), // D-02 — techo absoluto Haiku 4.5
+            maxRetries: 0,        // M-01 — N=1 también en el último recurso
+            abortSignal: signal,  // M-01 — timeout guard fresco del helper (no el de Gemini)
             system: buildSystemPrompt(existingData, recentBotMessages),
             messages,
             // M-04: JSON Schema saneado ESTRUCTURALMENTE (sin min/max en ningún nivel — Pitfall #1).

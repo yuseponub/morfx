@@ -220,10 +220,12 @@ export async function checkCompliance(args: {
           },
         }),
       ),
-    anthropic: () =>
+    anthropic: (signal) =>
       runWithPurpose('subloop_compliance', () =>
         generateText({
           model: anthropic('claude-haiku-4-5'),  // D-02 — via @ai-sdk/anthropic, NO claude-client.ts
+          maxRetries: 0,        // M-01 — N=1 también en el último recurso
+          abortSignal: signal,  // M-01 — timeout guard fresco del helper
           system: systemPrompt,                   // MISMO prompt — paridad D-09
           messages: userMessages,                 // MISMO user message — paridad D-09
           output: Output.object({ schema: ComplianceCheckSchema }),

@@ -84,6 +84,29 @@ describe('callWithGeminiFallback — orquestación', () => {
     expect(labels).not.toContain('fallback_triggered')
   })
 
+  it('M-01 — el closure anthropic recibe un AbortSignal FRESCO (no el de Gemini)', async () => {
+    let geminiSignal: AbortSignal | undefined
+    let anthropicSignal: AbortSignal | undefined
+    const geminiSpy = vi.fn(async (signal: AbortSignal) => {
+      geminiSignal = signal
+      throw saturation()
+    })
+    const anthropicSpy = vi.fn(async (signal: AbortSignal) => {
+      anthropicSignal = signal
+      return { from: 'anthropic' as const }
+    })
+
+    await callWithGeminiFallback<{ from: string }>({
+      callSite: 'comprehension',
+      gemini: geminiSpy,
+      anthropic: anthropicSpy,
+    })
+
+    expect(anthropicSignal).toBeInstanceOf(AbortSignal)
+    // Signal FRESCO: NO es el mismo objeto que el de Gemini (que pudo ya vencer).
+    expect(anthropicSignal).not.toBe(geminiSignal)
+  })
+
   it('gemini OK (closed) → resultado de gemini SIN llamar anthropic', async () => {
     const geminiSpy = vi.fn(async () => ({ from: 'gemini' as const }))
     const anthropicSpy = vi.fn(async () => ({ from: 'anthropic' as const }))

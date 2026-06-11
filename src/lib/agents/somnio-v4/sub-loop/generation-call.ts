@@ -90,10 +90,12 @@ export async function runGenerationCall(args: {
           },
         }),
       ),
-    anthropic: () =>
+    anthropic: (signal) =>
       runWithPurpose('subloop_generation', () =>
         generateText({
           model: anthropic('claude-haiku-4-5'),  // D-02 — via @ai-sdk/anthropic, NO claude-client.ts
+          maxRetries: 0,        // M-01 — N=1 también en el último recurso; no acumular backoff
+          abortSignal: signal,  // M-01 — timeout guard fresco del helper (no el de Gemini)
           // MISMO prompt + MISMO schema — paridad D-09
           system: args.systemPrompt,
           messages,

@@ -78,14 +78,16 @@ describe('getVarixAvailability — día no hábil (D-09)', () => {
 })
 
 describe('getVarixAvailability — grilla weekday (martes 2026-06-16)', () => {
-  it('genera mañana 8:00..11:10 (último slot termina ≤ 11:30)', async () => {
+  it('genera mañana 8:00..11:00 (último slot termina ≤ 11:30)', async () => {
+    // Grilla de 20min desde 8:00 → :00/:20/:40. El último slot cuyo fin no
+    // excede 11:30 es 11:00-11:20 (11:20 ≤ 11:30). 11:20-11:40 se excluye.
     const { manana } = await getVarixAvailability('2026-06-16')
     expect(manana[0]).toBe('8:00 AM - 8:20 AM')
-    expect(manana).toContain('11:10 AM - 11:30 AM')
+    expect(manana).toContain('11:00 AM - 11:20 AM')
     // 11:20 no cabe (terminaría 11:40 > 11:30)
     expect(manana).not.toContain('11:20 AM - 11:40 AM')
-    // último slot termina exactamente a las 11:30
-    expect(manana[manana.length - 1]).toBe('11:10 AM - 11:30 AM')
+    // último slot termina ≤ 11:30
+    expect(manana[manana.length - 1]).toBe('11:00 AM - 11:20 AM')
   })
 
   it('genera tarde 14:30, 14:50, 15:10', async () => {

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import type { Template } from '@/lib/whatsapp/types'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { TemplateStatusBadge } from '../../components/template-status-badge'
 import { VariableMapper } from '../../components/variable-mapper'
 import {
@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { updateTemplateMapping } from '@/app/actions/templates'
 import { toast } from 'sonner'
-import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 const categoryLabels: Record<string, string> = {
   MARKETING: 'Marketing',
@@ -65,12 +65,8 @@ export function TemplateDetail({ template }: TemplateDetailProps) {
 
   return (
     <div className="space-y-6">
+      <ConfigBackLink href="/configuracion/whatsapp/templates" label="Volver a Templates" />
       <div className="flex items-center gap-4">
-        <Link href="/configuracion/whatsapp/templates">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{template.name}</h1>

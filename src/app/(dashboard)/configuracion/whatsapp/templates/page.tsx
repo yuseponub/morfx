@@ -7,6 +7,7 @@ import {
 } from '@/app/actions/templates'
 import { TemplateList } from './components/template-list'
 import { Button } from '@/components/ui/button'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { RefreshCw, Plus, Sparkles } from 'lucide-react'
 
 async function handleSync(): Promise<void> {
@@ -29,6 +30,9 @@ export default async function TemplatesPage() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="container py-6 px-6">
+        <div className="mb-4">
+          <ConfigBackLink href="/configuracion/whatsapp" label="Volver a WhatsApp" />
+        </div>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Templates de WhatsApp</h1>

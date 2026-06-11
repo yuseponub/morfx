@@ -18,6 +18,7 @@ import { ConnectFacebook } from '@/components/settings/connect-facebook'
 import { ConnectInstagram } from '@/components/settings/connect-instagram'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { ShoppingBag, Settings2, MessageSquare, CreditCard, MessageCircle, Facebook, Instagram } from 'lucide-react'
 
 export default async function IntegracionesPage() {
@@ -59,6 +60,7 @@ export default async function IntegracionesPage() {
   return (
     <div className="flex-1 overflow-y-auto">
     <div className="container mx-auto py-6 space-y-6">
+      <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Integraciones</h1>
         <p className="text-muted-foreground">

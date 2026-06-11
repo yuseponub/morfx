@@ -15,8 +15,8 @@
 // ============================================================================
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Plus, Clock, Loader2, MessageSquare, Trash2 } from 'lucide-react'
+import { Plus, Clock, Loader2, MessageSquare, Trash2 } from 'lucide-react'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { Button } from '@/components/ui/button'
 import { TemplateDraftProvider, useTemplateDraft } from './template-draft-context'
 import { ChatPane } from './chat-pane'
@@ -126,13 +126,7 @@ function TemplateBuilderLayoutInner() {
         <div className="flex items-center justify-between border-b px-4 py-3 bg-background shrink-0 z-10">
           {/* Left: Back link + History toggle */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/configuracion/whatsapp/templates"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Templates</span>
-            </Link>
+            <ConfigBackLink href="/configuracion/whatsapp/templates" label="Volver a Templates" />
             <Button
               variant={showHistory ? 'secondary' : 'ghost'}
               size="icon"

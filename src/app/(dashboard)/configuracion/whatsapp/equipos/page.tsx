@@ -1,7 +1,5 @@
-import Link from 'next/link'
-import { ArrowLeftIcon } from 'lucide-react'
 import { getTeams } from '@/app/actions/teams'
-import { Button } from '@/components/ui/button'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import { TeamList } from './components/team-list'
 
 export default async function TeamsPage() {
@@ -10,15 +8,8 @@ export default async function TeamsPage() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="container py-6 px-6 max-w-4xl space-y-6">
-        {/* Back button */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/configuracion/whatsapp">
-              <ArrowLeftIcon className="mr-2 h-4 w-4" />
-              Volver
-            </Link>
-          </Button>
-        </div>
+        {/* Back link */}
+        <ConfigBackLink href="/configuracion/whatsapp" label="Volver a WhatsApp" />
 
         {/* Header */}
         <div className="flex items-center justify-between">

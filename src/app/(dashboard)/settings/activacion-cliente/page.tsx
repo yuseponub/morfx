@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getClientActivationSettings } from '@/app/actions/client-activation'
 import { getPipelines } from '@/app/actions/pipelines'
 import { ActivationConfigForm } from './components/activation-config-form'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 
 export default async function ClientActivationPage() {
   const supabase = await createClient()
@@ -34,6 +35,7 @@ export default async function ClientActivationPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
+        <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
         <div>
           <h1 className="text-2xl font-bold">Badge de Cliente</h1>
           <p className="text-muted-foreground">

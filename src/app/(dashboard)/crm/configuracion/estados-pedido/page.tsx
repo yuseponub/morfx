@@ -3,6 +3,7 @@ import { getPipelines } from '@/app/actions/pipelines'
 import { getTagsForScope } from '@/app/actions/tags'
 import { OrderStateList } from './components/order-state-list'
 import { ClosureTagConfigPanel } from './components/closure-tag-config'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 
 export default async function OrderStatesPage() {
   const [states, pipelines, closureConfigs, orderTags] = await Promise.all([
@@ -14,6 +15,9 @@ export default async function OrderStatesPage() {
 
   return (
     <div className="container max-w-3xl py-8">
+      <div className="mb-4">
+        <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
+      </div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Estados de Pedido</h1>
         <p className="text-muted-foreground">

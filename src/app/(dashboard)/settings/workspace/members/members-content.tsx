@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { InviteMemberForm } from '@/components/workspace/invite-member-form'
 import { removeMember, updateMemberRole, cancelInvitation } from '@/app/actions/invitations'
 import { firstGrapheme } from '@/lib/utils/initials'
+import { ConfigBackLink } from '@/components/layout/config-back-link'
 import type { WorkspaceWithRole, MemberWithUser, WorkspaceInvitation } from '@/lib/types/database'
 
 interface MembersPageContentProps {
@@ -85,6 +86,7 @@ export function MembersPageContent({
 
   return (
     <div className="space-y-6">
+      <ConfigBackLink href="/configuracion" label="Volver a Configuración" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Equipo</h1>

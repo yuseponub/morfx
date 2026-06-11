@@ -239,6 +239,45 @@ Standalone: `.planning/standalone/crm-mutation-tools/` (shipped 2026-04-29).
 - **Consumidores upstream:** webhook FB/IG inbound — `webhook-processor.ts` branch `agentId === 'godentist-fb-ig'` (paralelo al branch `'godentist'` linea 765, dispatch in-process).
 - **Consumidores downstream:** TemplateManager (cache propio agent_id) + Anthropic Haiku (comprehension via `runWithPurpose('godentist_fb_ig_comprehension', ...)`) + robot Railway Dentos (compartido con godentist) + VAL tag side-effect runner (`v3-production-runner.ts:597`).
 
+### Varixcenter Valoraciones Agent (`varixcenter` — webhook WA/FB/IG inbound)
+- **PUEDE:**
+  - Atender mensajes inbound de WhatsApp (`channel='whatsapp'`), Facebook Messenger (`channel='facebook'`) e Instagram Direct (`channel='instagram'`) en el workspace `c6621640-ba67-43de-9f05-905f09a6dc8f` ("Varixcenter") — multi-canal via fact `channel` (D-02).
+  - Emitir templates del catalogo propio bajo `agent_id='varixcenter'` (~44 templates en `agent_templates`, migracion aplicada en prod Wave 5 count=46):
+    - Saludo D-12 custom de 2 plantillas: CORE (`¡Hola! 👋 Bienvenido a VarixCenter, donde tus várices son cosa del pasado ✨`) + COMP (`¿Deseas agendar tu valoración?`). Una respuesta afirmativa inmediata tras el saludo se clasifica como `quiero_agendar` (D-12).
+    - Templates de precio, tratamiento, sedes, triage (ciudad + tipo_venas), agendamiento, escape, follow-ups, etc.
+  - Consultar disponibilidad real en **varix-clinic** (proyecto Supabase externo, cross-project): READ `appointments` de los 2 doctores (Dr. Ciro Mario Romero `fa3e2e8d-faf4-40b0-a3cb-a8d50780988d` + Dra. María Carolina Romero `aee08e40-5c60-481e-966f-51af351351e8`) via domain `getVarixAvailability` (`src/lib/domain/varix-clinic/availability.ts`). Slot 20min, 2 doctores fusionados.
+  - **CREAR** `patient` (nombre/cédula/teléfono) + `appointment` tipo valoración estado `'programada'` en varix-clinic via domain `bookVarixAppointment` (`src/lib/domain/varix-clinic/booking.ts`) — **D-04, ÚNICA escritura permitida**. Primer agente MorfX que escribe en una DB externa (cross-project, service_role).
+  - Recibir tag `VAL` automaticamente al completar los datos criticos del agente (`nombre` + `telefono` + `cedula` — D-05, D-10; via side-effect runner `v3-production-runner.ts`). Los CRITICAL_FIELDS de varixcenter divergen de godentist (que usa `sede_preferida`).
+- **NO PUEDE:**
+  - Tocar pagos, historias clínicas, medias, cierres, ni cualquier tabla de varix-clinic distinta de `patients` (insert) + `appointments` (insert valoración estado `'programada'`). El scope de escritura está acotado en el domain module `src/lib/domain/varix-clinic/` (D-04).
+  - Mutar `appointments` existentes (reagendar / cancelar / cambiar estado) — D-07; escala a handoff humano.
+  - Crear pacientes con tipos de cita distintos de valoración, ni en estados distintos de `'programada'`.
+  - Crear/editar recursos base en MorfX (tags, pipelines, stages, templates de otro modulo, usuarios) fuera de su workspace.
+  - Operar fuera del workspace target `c6621640-ba67-43de-9f05-905f09a6dc8f` — D-02; routing rule del operador lo acota.
+  - Compartir catalogo con `godentist`, `godentist-fb-ig` u otros agentes — `VARIXCENTER_AGENT_ID = 'varixcenter'` es su `TEMPLATE_LOOKUP_AGENT_ID` propio (anti-regresion del fix provisional `cdc06d9` revertido en somnio-recompra; Pitfall 1).
+  - Importar `createClient` / `createAdminClient` / `@supabase/supabase-js` directamente dentro de `src/lib/agents/varixcenter/**` — Regla 3; toda lectura/escritura a varix-clinic pasa por `@/lib/domain/varix-clinic/*`. El ÚNICO `createClient` del cross-project vive en `src/lib/domain/varix-clinic/client.ts`.
+  - Modificar el comportamiento de `godentist` / `godentist-fb-ig` / `somnio` (Regla 6 — el agente es ADITIVO; el cambio compartido al VAL guard de `v3-production-runner.ts` mantiene `godentist` con `sede_preferida` sin regresión).
+  - Activarse automaticamente — SIN feature flag; requiere routing rule manual del operador (D-02).
+- **Validación (gates verificables):**
+  - `grep -rn "createClient\|createAdminClient\|@supabase/supabase-js" src/lib/agents/varixcenter/` retorna 0 matches no-comentario (Regla 3).
+  - `grep -rn "'godentist'" src/lib/agents/varixcenter/` retorna 0 matches en código NO-test (en `__tests__/` aparecen 5 aserciones anti-regresión `.not.toBe('godentist')` que son intencionales — verifican que el agente NUNCA usa la constante de godentist; Pitfall 1).
+  - **6 sitios de registro (los 6 grep gates de RESEARCH §Pattern 2):**
+    - `grep -c "agentRegistry.register" src/lib/agents/varixcenter/index.ts` → 1.
+    - `grep -c "id: 'varixcenter'" src/lib/agents/agent-catalog.ts` → 1.
+    - `grep -c "import('../varixcenter')" src/lib/agents/production/webhook-processor.ts` → ≥2 (pre-warm + dispatch, anti cold-lambda race).
+    - `grep -c "agentId === 'varixcenter'" src/lib/agents/production/webhook-processor.ts` → 1.
+    - `grep -c "agentModule === 'varixcenter'" src/lib/agents/engine/v3-production-runner.ts` → 1.
+    - `grep -cE "agentModule.*!== 'varixcenter'" src/lib/agents/engine/v3-production-runner.ts` → ≥1 (VAL guard cubre varixcenter).
+  - VAL guard: `CRITICAL_FIELDS_BY_AGENT['varixcenter'] = ['nombre','telefono','cedula']` en `v3-production-runner.ts`; godentist sigue con `sede_preferida` (cero regresión, D-05).
+  - El único `createClient` del cross-project varix-clinic vive en `src/lib/domain/varix-clinic/client.ts`.
+  - Suites: `npx vitest run src/lib/agents/varixcenter/__tests__/ src/lib/domain/varix-clinic/__tests__/` verde + baseline `npx vitest run src/lib/agents/godentist/__tests__/ src/lib/agents/godentist-fb-ig/__tests__/` mantiene 103/103 (Regla 6).
+  - `VARIXCENTER_AGENT_ID = 'varixcenter' as const` literal en `src/lib/agents/varixcenter/config.ts`.
+  - Project skill / standalone shipped: `.planning/standalone/agent-varixcenter/`.
+- **Coexistencia (D-02, Regla 6):** El agente es ADITIVO. `godentist` / `godentist-fb-ig` / `somnio` quedan **intactos**. El único archivo compartido tocado es `v3-production-runner.ts` (VAL guard extendido con un branch para varixcenter sin alterar el comportamiento de los demás agentes). Patrón idéntico a `godentist-fb-ig` vs `godentist`.
+- **Activación (D-02 manual) — SQL pre-formado:** ver `.planning/standalone/agent-varixcenter/12-ROUTING-RULE-USER-ACTION.md`. Pre-requisito #1: env vars `VARIX_CLINIC_SUPABASE_URL` + `VARIX_CLINIC_SERVICE_ROLE_KEY` en Vercel (sin ellas el booking hace fail-open → handoff). El operador crea la routing rule (fact `channel` in `['whatsapp','facebook','instagram']` → `agent_id='varixcenter'`, priority 100, workspace `c6621640-...`) desde `/agentes/routing/editor` o SQL. Workspace sin row en `workspace_agent_config` → el SQL hace INSERT con `lifecycle_routing_enabled=true`.
+- **Consumidores upstream:** webhook WA/FB/IG inbound — `webhook-processor.ts` branch `agentId === 'varixcenter'` (dispatch in-process, pre-warm + dispatch import).
+- **Consumidores downstream:** domain `varix-clinic` (availability READ + booking WRITE) + Supabase de varix-clinic (cross-project, service_role) + Anthropic Haiku (comprehension via `runWithPurpose('varixcenter_comprehension', ...)`) + VAL tag side-effect runner (`v3-production-runner.ts`).
+
 ### Module Scope: interruption-system-v2 (`src/lib/agents/interruption-system-v2/`)
 Atomic distributed-mutex coordination for the v4 inbound message pipeline. Replaces Phase 31 `hasNewInboundMessage` polling for `somnio-sales-v4` ONLY (D-04 + D-07). v3/godentist/recompra/pw-confirmation paths UNTOUCHED (Regla 6). NOT an agent itself — shared infrastructure module any agent can opt into via the gating in webhook-handler.ts.
 - **PUEDE:**

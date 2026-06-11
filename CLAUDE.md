@@ -164,6 +164,9 @@ Razon: El incidente de 20h de mensajes perdidos fue causado por codigo desplegad
   - **crm-writer:** sandbox UI con preview operador antes de commit, audit trail estructurado en `crm_bot_actions`, two-step idempotencia + TTL. Default cuando el flujo requiere humano-en-el-loop.
 - **Consumidores documentados:** (pendientes — agentes que migren se documentarán en standalones follow-up por agente: `crm-mutation-tools-pw-confirmation-integration` y otros. Sin consumidores en prod al ship — D-08 sin feature flag).
 
+### Varixcenter Valoraciones Agent (`varixcenter` — webhook WA/FB/IG inbound)
+Agente de valoraciones flebológicas multi-canal (WhatsApp + Facebook + Instagram via fact `channel`, D-02) en el workspace `c6621640-ba67-43de-9f05-905f09a6dc8f` ("Varixcenter"). **Primer agente MorfX que ESCRIBE en una DB externa** (proyecto Supabase `varix-clinic`, cross-project, service_role): READ availability de 2 doctores + WRITE `patients` + `appointments` tipo valoración estado `'programada'` via domain `src/lib/domain/varix-clinic/` (ÚNICA escritura permitida — D-04). Catálogo propio bajo `agent_id='varixcenter'` (~44 templates, anti-cdc06d9: `VARIXCENTER_AGENT_ID` propio). VAL guard usa `cedula` (godentist usa `sede_preferida`, cero regresión). ADITIVO (Regla 6 — godentist/godentist-fb-ig/somnio intactos). Activación 100% manual via routing rule (D-02, sin feature flag). Env vars Vercel: `VARIX_CLINIC_SUPABASE_URL` + `VARIX_CLINIC_SERVICE_ROLE_KEY`. PUEDE/NO PUEDE/Validación (6 grep gates)/Consumidores/Activación SQL completos en `.claude/rules/agent-scope.md`. Standalone shipped: `.planning/standalone/agent-varixcenter/`.
+
 ---
 
 ## Stack Tecnologico

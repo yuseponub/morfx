@@ -42,6 +42,11 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     name: 'GoDentist Valoraciones — FB/IG',
     description: 'Sibling de GoDentist para FB Messenger / Instagram Direct. Saludo lead-capture (nombre+celular upfront + Habeas Data inline).',
   },
+  {
+    id: 'varixcenter',
+    name: 'Varixcenter Valoraciones',
+    description: 'Agente de agendamiento de valoraciones flebológicas. Slots reales vs varix-clinic. WA + FB + IG.',
+  },
 ]
 
 /**

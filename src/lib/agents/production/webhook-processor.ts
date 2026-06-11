@@ -258,6 +258,7 @@ export async function processMessageWithAgent(
       import('../somnio-pw-confirmation'), // Standalone: somnio-sales-v3-pw-confirmation (D-02)
       import('../somnio-v4'), // Standalone: somnio-sales-v4 (D-13, D-16 — sin preload branch)
       import('../godentist-fb-ig'), // Standalone: agent-godentist-fb-ig (D-03, Pitfall 2)
+      import('../varixcenter'), // Standalone: agent-varixcenter (D-01, Pitfall 2 cold-lambda)
     ])
 
     let disposition: RouterDisposition
@@ -844,6 +845,32 @@ export async function processMessageWithAgent(
         contactId,
       })
       logger.info({ conversationId, agentId }, 'GoDentist FB/IG sibling processing complete')
+    } else if (agentId === 'varixcenter') {
+      // Standalone: agent-varixcenter (D-01)
+      // Agente nuevo (NO sibling) para valoraciones flebologicas — coexiste con godentist (Regla 6).
+      await import('../varixcenter')
+      const { V3ProductionRunner } = await import('../engine/v3-production-runner')
+      const runner = new V3ProductionRunner(adapters, { workspaceId, agentModule: 'varixcenter' })
+
+      getCollector()?.setRespondingAgentId('varixcenter')
+
+      engineOutput = await runner.processMessage({
+        sessionId: '',
+        conversationId,
+        contactId: contactId!,
+        message: messageContent,
+        workspaceId,
+        history: [],
+        phoneNumber: phone,
+        messageTimestamp: input.messageTimestamp,
+      })
+
+      getCollector()?.recordEvent('pipeline_decision', 'webhook_agent_routed', {
+        agentId,
+        conversationId,
+        contactId,
+      })
+      logger.info({ conversationId, agentId }, 'Varixcenter agent processing complete')
     } else if (agentId === 'somnio-sales-v4') {
       // Standalone: somnio-sales-v4-runtime-wiring (Plan 04, D-1, D-13, D-15)
       // V4 path — uses V4ProductionRunner clonado de V3 (D-13).

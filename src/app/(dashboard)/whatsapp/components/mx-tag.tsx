@@ -5,7 +5,9 @@ import { cn } from '@/lib/utils'
 
 // `success` is the additive 6th variant authored under `.theme-editorial-v3`
 // (Plan 00) for the kanban "C" (confirmado) tag — color-mix over --semantic-success.
-type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' | 'success'
+// `violet` + `rose` are additive (Vivificación v3 2026-06) so violet/pink tag
+// colors stop folding into indigo/rubric — CSS recipe via --tc in globals.css.
+type MxTagVariant = 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' | 'success' | 'violet' | 'rose'
 
 interface MxTagProps extends Omit<ComponentProps<'span'>, 'children'> {
   variant: MxTagVariant

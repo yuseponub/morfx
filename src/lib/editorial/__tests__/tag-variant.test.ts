@@ -8,15 +8,12 @@ import { describe, it, expect } from 'vitest'
 import { tagColorToVariant } from '../tag-variant'
 
 describe('tagColorToVariant', () => {
-  describe('red / magenta → rubric', () => {
+  describe('red → rubric', () => {
     it('maps pure red', () => {
       expect(tagColorToVariant('#ff0000')).toBe('rubric')
     })
-    it('maps a rose/crimson (tailwind rose-600)', () => {
+    it('maps a rose/crimson (~347°, tailwind rose-600)', () => {
       expect(tagColorToVariant('#e11d48')).toBe('rubric')
-    })
-    it('maps deep magenta/pink (~315°) back toward rubric', () => {
-      expect(tagColorToVariant('#d6219e')).toBe('rubric')
     })
   })
 
@@ -44,18 +41,39 @@ describe('tagColorToVariant', () => {
     })
   })
 
-  describe('blue / indigo / violet → indigo', () => {
-    it('maps pure blue (~240°)', () => {
+  describe('sky / blue / indigo → indigo', () => {
+    it('maps pure blue (~225°)', () => {
       expect(tagColorToVariant('#2563eb')).toBe('indigo')
     })
-    it('maps indigo (~255°)', () => {
+    it('maps indigo (~243°)', () => {
       expect(tagColorToVariant('#4f46e5')).toBe('indigo')
-    })
-    it('maps violet (~270°)', () => {
-      expect(tagColorToVariant('#8b5cf6')).toBe('indigo')
     })
     it('maps cyan-blue (~200°)', () => {
       expect(tagColorToVariant('#0ea5e9')).toBe('indigo')
+    })
+    it('maps the DB palette Azul (#3b82f6, ~217°)', () => {
+      expect(tagColorToVariant('#3b82f6')).toBe('indigo')
+    })
+    it('maps the DB palette Indigo (#6366f1, ~239°)', () => {
+      expect(tagColorToVariant('#6366f1')).toBe('indigo')
+    })
+  })
+
+  describe('violet → violet (Vivificación v3)', () => {
+    it('maps the DB palette Violeta (#8b5cf6, ~258°)', () => {
+      expect(tagColorToVariant('#8b5cf6')).toBe('violet')
+    })
+    it('maps deep magenta (~318°) into violet', () => {
+      expect(tagColorToVariant('#d6219e')).toBe('violet')
+    })
+  })
+
+  describe('pink / magenta → rose (Vivificación v3)', () => {
+    it('maps the DB palette Rosa (#ec4899, ~330°)', () => {
+      expect(tagColorToVariant('#ec4899')).toBe('rose')
+    })
+    it('maps hot pink (~340°)', () => {
+      expect(tagColorToVariant('#f43f7a')).toBe('rose')
     })
   })
 

@@ -25,6 +25,8 @@ export type MxTagVariant =
   | 'verdigris'
   | 'ink'
   | 'success'
+  | 'violet'
+  | 'rose'
 
 /**
  * Parse a hex color string into 8-bit RGB channels.
@@ -92,13 +94,15 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
  *  - invalid / empty hex          → `ink`   (fail-safe, never throws)
  *  - very low saturation          → `ink`   (greys)
  *  - near-black / near-white       → `ink`
- *  - red / magenta  (~330–20°)     → `rubric`
+ *  - red            (~345–20°)     → `rubric`
  *  - amber / yellow (~20–70°)      → `gold`
  *  - green          (~70–160°)     → `verdigris`, or `success` for a saturated
  *                                    true-green (~110–150°, parity with the
  *                                    kanban "C" confirmado tag)
- *  - cyan / teal    (~160–200°)    → `verdigris`
- *  - blue / indigo / violet (~200–300°) → `indigo`
+ *  - cyan / teal    (~160–195°)    → `verdigris`
+ *  - sky / blue / indigo (~195–245°) → `indigo`
+ *  - violet         (~245–320°)    → `violet`
+ *  - pink / magenta (~320–345°)    → `rose`
  *
  * @param hex The stored tag color (e.g. `#e11d48`). `null`/invalid → `'ink'`.
  */
@@ -115,8 +119,10 @@ export function tagColorToVariant(hex: string | null | undefined): MxTagVariant 
   if (l < 0.08) return 'ink'
   if (l > 0.94) return 'ink'
 
-  // Hue buckets. Reds wrap around 360→0.
-  if (h >= 330 || h < 20) return 'rubric'
+  // Hue buckets. Reds wrap around 360→0. (Vivificación v3 2026-06: violet
+  // and rose split off from indigo/rubric so e.g. RECO #8b5cf6 h≈258 → violet
+  // and Rosa #ec4899 h≈330 → rose, matching the DB palette projection.)
+  if (h >= 345 || h < 20) return 'rubric'
   if (h < 70) return 'gold'
   if (h < 160) {
     // Saturated true-green → success (parity with the kanban "C" confirmado
@@ -125,7 +131,7 @@ export function tagColorToVariant(hex: string | null | undefined): MxTagVariant 
     return 'verdigris'
   }
   if (h < 195) return 'verdigris' // teal / cyan nuance folds into verdigris
-  if (h < 300) return 'indigo' // sky / blue / indigo / violet
-  // 300–330 (magenta/pink) leans back toward rubric.
-  return 'rubric'
+  if (h < 245) return 'indigo'   // azul 217 + indigo 239
+  if (h < 320) return 'violet'   // violeta 258–300
+  return 'rose'                  // 320–345 (rosa 330)
 }

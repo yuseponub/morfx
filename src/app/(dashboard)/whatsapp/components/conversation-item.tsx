@@ -6,26 +6,11 @@ import { TagBadge } from '@/components/contacts/tag-badge'
 import { Badge } from '@/components/ui/badge'
 import { RelativeTime } from '@/components/ui/relative-time'
 import { getStageEmoji, type StageWithOrderState } from '@/lib/orders/stage-phases'
+import { tagColorToVariant } from '@/lib/editorial/tag-variant'
 import { MxTag } from './mx-tag'
 import { useInboxV2 } from './inbox-v2-context'
 import { useInboxV3 } from './inbox-v3-context'
 import type { ConversationWithDetails, OrderSummary } from '@/lib/whatsapp/types'
-
-/**
- * Map a contact/conversation tag color (or name) to the editorial MxTag variant
- * for the v3 row. Colors carry no editorial meaning in the mock, so we map by
- * the tag's own color hue when possible, falling back to ink (neutral).
- */
-function mapTagToMxVariant(
-  tag: { name: string }
-): 'rubric' | 'gold' | 'indigo' | 'verdigris' | 'ink' {
-  const n = tag.name.toLowerCase()
-  if (n.includes('cliente') || n.includes('vip') || n.includes('pagad')) return 'gold'
-  if (n.includes('lead') || n.includes('prospect')) return 'indigo'
-  if (n.includes('mayorista') || n.includes('recompra') || n.includes('wpp')) return 'verdigris'
-  if (n.includes('pendiente') || n.includes('urgente')) return 'rubric'
-  return 'ink'
-}
 
 /**
  * Get initials from a name (up to 2 characters).
@@ -109,12 +94,12 @@ export function ConversationItem({
             </span>
           )}
           {conversation.agent_conversational === true && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--accent-verdigris)] flex items-center justify-center border border-[var(--paper-0)]">
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--viv-teal)] flex items-center justify-center border border-[var(--paper-0)]">
               <Bot className="h-2.5 w-2.5 text-[var(--paper-0)]" />
             </span>
           )}
           {showClientBadge && (
-            <span className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-[var(--accent-gold)] flex items-center justify-center border border-[var(--paper-0)]" title="Cliente">
+            <span className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-[var(--viv-gold)] flex items-center justify-center border border-[var(--paper-0)]" title="Cliente">
               <Check className="h-2.5 w-2.5 text-[var(--paper-0)]" />
             </span>
           )}
@@ -170,7 +155,7 @@ export function ConversationItem({
           {conversation.agent_conversational === true && <span className="agent">Agente</span>}
           {!conversation.assigned_to && <MxTag variant="ink">Sin asignar</MxTag>}
           {conversationTags.slice(0, 2).map((tag) => (
-            <MxTag key={`conv-${tag.id}`} variant={mapTagToMxVariant(tag)}>
+            <MxTag key={`conv-${tag.id}`} variant={tagColorToVariant(tag.color)}>
               {tag.name}
             </MxTag>
           ))}

@@ -119,6 +119,14 @@ Schema varix-clinic (VERIFIED migraciones 006/007/041/052):
 
     **7. Retorno:** `{ manana: string[], tarde: string[] }` (mismo shape que checkDentosAvailability para que mostrar_disponibilidad lo consuma sin cambios).
 
+    **8. Helper de conversión slot → TIMESTAMPTZ (Pitfall 6 / Regla 2):** exportar un helper puro junto a parseTimeToMinutes/minutesToTime:
+    ```typescript
+    export function parseSlotToISO(fecha: string, slotStr: string): { inicio: string; fin: string }
+    // parseSlotToISO('2026-06-15', '8:00 AM - 8:20 AM')
+    //   → { inicio: '2026-06-15T08:00:00-05:00', fin: '2026-06-15T08:20:00-05:00' }
+    ```
+    Implementación: split del slotStr por ' - ', parseTimeToMinutes en cada lado, formatear HH:MM:SS con offset literal `-05:00` (NUNCA `new Date(str)` sin offset). Plan 06 (varixcenter-agent) lo consume para construir fechaHoraInicio/Fin de bookVarixAppointment.
+
     **Header:** documentar que esta es la primera generación de grilla propia en MorfX (godentist recibe slots del robot) + Regla 2.
   </action>
   <verify>
@@ -131,6 +139,7 @@ Schema varix-clinic (VERIFIED migraciones 006/007/041/052):
     - Consulta appointments filtrando `estado NOT IN (cancelada, no_asistio)`
     - Lógica de merge: slot descartado solo si AMBOS doctores ocupados
     - Slot 20min: el último slot de mañana weekday termina ≤ 11:30
+    - `grep -c "export function parseSlotToISO" src/lib/domain/varix-clinic/availability.ts` = 1 y su salida usa offset literal `-05:00`
   </acceptance_criteria>
   <done>availability.ts genera grilla 20min, excluye festivos/domingos, fusiona 2 agendas.</done>
 </task>

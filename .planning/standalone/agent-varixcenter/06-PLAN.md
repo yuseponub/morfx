@@ -163,8 +163,9 @@ Godentist agent availability fail-open: godentist-agent.ts líneas 324-356 (try/
     agendar_cita write-path (NUEVO — sin analog, godentist NO escribe):
     ```typescript
     if (salesResult.accion === 'agendar_cita') {
-      // Construir fechaHoraInicio/Fin con offset -05:00 (Regla 2) a partir de
-      // mergedState.datos.fecha_preferida + horario_seleccionado (20 min de duracion).
+      // Construir fechaHoraInicio/Fin via parseSlotToISO (helper de domain/varix-clinic/availability.ts, Plan 05):
+      const { inicio: fechaHoraInicio, fin: fechaHoraFin } = parseSlotToISO(
+        mergedState.datos.fecha_preferida, mergedState.datos.horario_seleccionado)
       const result = await bookVarixAppointment({
         nombre: mergedState.datos.nombre,
         cedula: mergedState.datos.cedula,
@@ -179,7 +180,7 @@ Godentist agent availability fail-open: godentist-agent.ts líneas 324-356 (try/
       } else { /* reason==='error' -> fail-open a handoff */ }
     }
     ```
-    Construir el TIMESTAMPTZ asi (Pitfall 6): "8:00 AM del 2026-06-15" -> `2026-06-15T08:00:00-05:00`, fin = inicio + 20 min.
+    Construir el TIMESTAMPTZ EXCLUSIVAMENTE via `parseSlotToISO(fecha, slotStr)` importado de `@/lib/domain/varix-clinic/availability` (Pitfall 6): "8:00 AM del 2026-06-15" -> `2026-06-15T08:00:00-05:00`, fin = inicio + 20 min. PROHIBIDO `new Date(string)` sin offset para esta conversión.
 
     Observability (clonar líneas 347-376) con PII redaction (RESEARCH §Security): emitir `getCollector()?.recordEvent('pipeline_decision', ...)` con `agent:'varixcenter'`. Redactar cédula (mostrar solo últimos 4) y teléfono (últimos 4) en cualquier evento — patrón crm-mutation-tools.
   </action>
@@ -191,7 +192,7 @@ Godentist agent availability fail-open: godentist-agent.ts líneas 324-356 (try/
     - Importa y llama `getVarixAvailability` (mostrar_disponibilidad) y `bookVarixAppointment` (agendar_cita)
     - Maneja `result.reason === 'slot_taken'` re-consultando availability
     - Tiene try/catch fail-open en availability (no crashea si varix-clinic falla — Pitfall 8)
-    - Construye fecha_hora con offset `-05:00` (Regla 2)
+    - Construye fecha_hora con `parseSlotToISO` (`grep -c "parseSlotToISO" src/lib/agents/varixcenter/varixcenter-agent.ts` >= 1) — offset `-05:00` garantizado por el helper (Regla 2)
     - `grep -rn "'godentist'" src/lib/agents/varixcenter/varixcenter-agent.ts` = 0 matches
     - PII redaction de cédula/teléfono en eventos de observability
   </acceptance_criteria>

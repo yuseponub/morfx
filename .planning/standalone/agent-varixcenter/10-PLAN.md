@@ -5,7 +5,7 @@ type: execute
 wave: 5
 depends_on: [01, 06]
 files_modified:
-  - supabase/migrations/VARIXCENTER_template_catalog.sql
+  - supabase/migrations/<timestamp>_varixcenter_template_catalog.sql
 autonomous: false
 requirements: [VARIX-TEMPLATES]
 
@@ -17,7 +17,7 @@ must_haves:
     - "La migración fue APLICADA EN PROD ANTES de pushear el código (Regla 5)"
     - "El row count post-apply = ~44 templates"
   artifacts:
-    - path: "supabase/migrations/VARIXCENTER_template_catalog.sql"
+    - path: "supabase/migrations/<timestamp>_varixcenter_template_catalog.sql"
       provides: "catálogo de ~44 templates verbatim de PLANTILLAS.md"
       contains: "agent_id"
   key_links:
@@ -55,7 +55,7 @@ Output: 1 archivo de migración SQL + aplicación en prod confirmada.
     - .planning/standalone/agent-varixcenter/PLANTILLAS.md (TODO el contenido verbatim de los templates)
     - .planning/standalone/agent-varixcenter/00-WAVE0-AUDIT.md (saludo escogido por el cliente — letra A/B/C/D/E)
   </read_first>
-  <files>supabase/migrations/VARIXCENTER_template_catalog.sql</files>
+  <files>supabase/migrations/<timestamp>_varixcenter_template_catalog.sql</files>
   <action>
     Crear `supabase/migrations/<timestamp>_varixcenter_template_catalog.sql` (timestamp en formato YYYYMMDDHHMMSS) clonando la estructura del analog godentist-fb-ig:
 

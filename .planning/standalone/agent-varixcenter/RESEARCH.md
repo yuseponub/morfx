@@ -419,24 +419,23 @@ if (nonWorking) { /* guardar fecha_vaga, pedir otra fecha */ }
 | A5 | No existe servicio/tabla que ligue appointment↔service obligatoriamente para valoración | §booking | BAJO — 013_appointment_services existe pero la cita base no lo exige (motivo_consulta texto basta) |
 | A6 | El workspace MorfX de Varixcenter es `c6621640-ba67-43de-9f05-905f09a6dc8f` | §User Constraints | BAJO — citado en diseño + ANALISIS |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **UUIDs de los 2 doctores en varix-clinic**
    - Qué sabemos: están en `doctors_view` (rol `medico`).
    - Qué falta: los UUIDs concretos (Ciro, Carolina) para el balanceo en booking.ts.
-   - Recomendación: Wave 0 — `SELECT id, nombre, apellido FROM doctors_view` contra el Supabase de varix-clinic; hardcodear en `varix-clinic/constants.ts` o leerlos en runtime.
+   - **RESOLVED:** se obtienen en Wave 0 (Plan 01 Task 2) vía `SELECT id, nombre, apellido FROM doctors_view` contra el Supabase de varix-clinic, y se hardcodean en `src/lib/domain/varix-clinic/constants.ts` (Plan 03 Task 2).
 
 2. **¿La cita necesita un service_id (013_appointment_services) o basta motivo_consulta?**
    - Qué sabemos: `appointments` no tiene FK a service obligatoria; existe tabla puente `appointment_services`.
-   - Qué falta: si la clínica espera ver la valoración ligada al catálogo de servicios.
-   - Recomendación: V1 usar solo `motivo_consulta='Valoración'`; si el reporte de varix-clinic lo requiere, agregar el link en `appointment_services` en follow-up.
+   - **RESOLVED:** V1 usa solo `motivo_consulta='Valoración'`, sin link a `appointment_services`. Si el reporte de varix-clinic lo requiere, se agrega en follow-up.
 
 3. **Cliente debe escoger 1 de 5 saludos (D-12)**
-   - Bloquea la migración de templates (Wave 5). Recomendación: pedir al cliente antes de Wave 5.
+   - **RESOLVED:** se pide al cliente en Plan 01 Task 2 como blocking gate antes de Wave 5 (la migración de templates no avanza sin el saludo escogido).
 
 4. **Reglas de generación de grilla en el quiebre 11:30→14:30**
    - 8:00-11:30 da 10 slots de 20min + el último parcial (11:30 es el fin); 14:30-15:30 da 3 slots.
-   - Recomendación: definir en plan si el slot que termina exactamente en el cierre se ofrece (godentist usa cap operativo). Slots de 20 min: 8:00, 8:20, ..., 11:10 (último que cabe completo antes de 11:30).
+   - **RESOLVED:** solo se ofrecen slots que caben COMPLETOS antes del cierre del bloque (Plan 05 Task 1): mañana weekday 8:00, 8:20, …, 11:10 (último válido); tarde 14:30, 14:50, 15:10; sábado 8:00, …, 11:40.
 
 ## Environment Availability
 

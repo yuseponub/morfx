@@ -3,7 +3,7 @@ phase: agent-varixcenter
 plan: 07
 type: execute
 wave: 3
-depends_on: [02]
+depends_on: [02, 06]
 files_modified:
   - src/lib/agents/agent-catalog.ts
   - src/lib/agents/production/webhook-processor.ts
@@ -189,8 +189,10 @@ varixcenter CRITICAL_FIELDS: VARIX_CRITICAL_FIELDS = ['nombre','telefono','cedul
     - .planning/standalone/agent-varixcenter/RESEARCH.md §Pattern 2 (los 6 grep gates)
     - .planning/standalone/agent-varixcenter/00-WAVE0-AUDIT.md (baseline tests)
   </read_first>
-  <files>src/lib/agents/engine/v3-production-runner.ts</files>
+  <files>.planning/standalone/agent-varixcenter/07-SUMMARY.md</files>
   <action>
+    Tarea de VERIFICACIÓN pura — el output es el registro de resultados en 07-SUMMARY.md. Solo se modifica código fuente si un gate falla y requiere fix (en ese caso el archivo tocado se documenta como deviation en el SUMMARY).
+
     Correr los 6 grep gates de RESEARCH §Pattern 2 y confirmar que todos pasan (NO editar código en este task salvo para fixear un gate que falle):
     ```bash
     grep -c "agentRegistry.register" src/lib/agents/varixcenter/index.ts                  # = 1

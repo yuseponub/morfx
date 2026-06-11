@@ -36,12 +36,33 @@
 
 import { generateText, Output } from 'ai'
 import { google } from '@ai-sdk/google'
+import { anthropic } from '@ai-sdk/anthropic'
+import { z } from 'zod'
 import { runWithPurpose, getCollector } from '@/lib/observability'
 import { MessageAnalysisSchema, type MessageAnalysis } from './comprehension-schema'
 import { buildSystemPrompt } from './comprehension-prompt'
 import { V4_INTENTS } from './constants'
+import { callWithGeminiFallback } from './llm-fallback'
 
 const V4_INTENTS_SET = new Set<string>(V4_INTENTS)
+
+// ============================================================================
+// Schema saneado para el branch Anthropic (Pitfall #1 — gemini-fallback-haiku)
+// ============================================================================
+//
+// Pitfall #1 (RESEARCH): Anthropic via AI SDK devuelve 400 si el JSON Schema lleva
+// minimum/maximum/exclusiveMinimum (issues vercel/ai #14342, #13355). MessageAnalysisSchema
+// usa z.number().min(0).max(1) en intent_confidence/secondary_confidence → el branch
+// Anthropic DEBE usar un schema sin esos bounds. El rango 0..1 se valida en post-parse
+// (clampConfidence en parseAnalysis, que re-parsea contra MessageAnalysisSchema con min/max).
+// Gemini ignora los keywords → su branch usa MessageAnalysisSchema intacto (D-25 lockea
+// comprehension-schema.ts; este schema saneado vive LOCAL en comprehension.ts sin tocarlo).
+export const MessageAnalysisSchemaSanitized = MessageAnalysisSchema.extend({
+  intent: MessageAnalysisSchema.shape.intent.extend({
+    intent_confidence: z.number().describe('0..1 self-reported confidence'),
+    secondary_confidence: z.number().nullable().describe('0..1 o null'),
+  }),
+})
 
 // ============================================================================
 // Comprehension Function
@@ -79,26 +100,51 @@ export async function comprehend(
   // puede ser arrojado dentro del await generateText (no en result.output access).
   // Capturamos el error con todas sus props para identificar la causa real
   // (finishReason, candidates, raw text, safetyRatings, etc.).
+  //
+  // EXTENSIÓN gemini-fallback-haiku (Plan 03): fallback Gemini → Haiku 4.5 ante
+  // saturación (D-01/D-02/D-05/D-06/D-09). El closure `gemini` hace el generateText
+  // LIMPIO (sin try/catch interno) para que un error de saturación llegue como
+  // APICallError crudo al helper (Pitfall #5 — el re-throw diagnóstico de abajo
+  // destruiría la instancia APICallError si envolviera el generateText). El branch
+  // Anthropic usa el schema saneado (sin min/max — Pitfall #1) y SIN
+  // providerOptions.google (Pitfall #7). v4-only: comprehend es invocada SOLO por
+  // somnio-v4-agent.ts → aislamiento Regla 6 automático.
   let result: Awaited<ReturnType<typeof generateText>>
   try {
-    result = await runWithPurpose('comprehension', () =>
-      generateText({
-        model: google('gemini-2.5-flash'),
-        system: buildSystemPrompt(existingData, recentBotMessages),
-        messages,
-        output: Output.object({ schema: MessageAnalysisSchema }),
-        providerOptions: {
-          google: {
-            safetySettings: [
-              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-            ],
-          },
-        },
-      })
-    )
+    result = await callWithGeminiFallback({
+      callSite: 'comprehension',
+      gemini: (signal) =>
+        runWithPurpose('comprehension', () =>
+          generateText({
+            model: google('gemini-2.5-flash'),
+            maxRetries: 0,        // D-05 — saturación detectada al primer fallo
+            abortSignal: signal,  // D-06 — timeout guard del helper
+            system: buildSystemPrompt(existingData, recentBotMessages),
+            messages,
+            output: Output.object({ schema: MessageAnalysisSchema }),
+            providerOptions: {
+              google: {
+                safetySettings: [
+                  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                ],
+              },
+            },
+          })
+        ),
+      anthropic: () =>
+        runWithPurpose('comprehension', () =>
+          generateText({
+            model: anthropic('claude-haiku-4-5'), // D-02 — techo absoluto Haiku 4.5
+            system: buildSystemPrompt(existingData, recentBotMessages),
+            messages,
+            output: Output.object({ schema: MessageAnalysisSchemaSanitized }), // Pitfall #1
+            // SIN providerOptions.google — Pitfall #7 (safetySettings es google-only)
+          })
+        ),
+    })
   } catch (genErr) {
     // Extract diagnostic info from AI SDK error
     const e = genErr as Record<string, unknown>
@@ -166,6 +212,26 @@ export async function comprehend(
 // Resilient Parsing
 // ============================================================================
 
+/**
+ * Clamp defensivo 0..1 de intent_confidence/secondary_confidence (Pitfall #1 — T-fb-05).
+ *
+ * El branch Anthropic usa MessageAnalysisSchemaSanitized (sin min/max) → puede devolver
+ * valores fuera de 0..1. Antes del strict parse contra MessageAnalysisSchema (que SÍ tiene
+ * min(0).max(1)), clampamos esos campos para que un valor improbable fuera de rango (el
+ * modelo auto-reporta confidence) no haga fallar el strict parse. Muta `raw` in-place y lo
+ * retorna. Exportado para test determinista (comprehension-fallback-parity.test.ts).
+ */
+export function clampConfidence(raw: Record<string, unknown>): Record<string, unknown> {
+  const intentObj = raw.intent as Record<string, unknown> | undefined
+  if (intentObj && typeof intentObj.intent_confidence === 'number') {
+    intentObj.intent_confidence = Math.max(0, Math.min(1, intentObj.intent_confidence as number))
+  }
+  if (intentObj && typeof intentObj.secondary_confidence === 'number') {
+    intentObj.secondary_confidence = Math.max(0, Math.min(1, intentObj.secondary_confidence as number))
+  }
+  return raw
+}
+
 function parseAnalysis(rawText: string): MessageAnalysis {
   let raw: Record<string, unknown>
   try {
@@ -173,6 +239,9 @@ function parseAnalysis(rawText: string): MessageAnalysis {
   } catch {
     throw new Error(`[Comprehension-v4] Invalid JSON from Gemini: ${rawText.slice(0, 200)}`)
   }
+
+  // 0. Branch Anthropic usó schema saneado (sin min/max) → clamp 0..1 defensivo (Pitfall #1).
+  clampConfidence(raw)
 
   // 1. Try strict parse
   const strict = MessageAnalysisSchema.safeParse(raw)

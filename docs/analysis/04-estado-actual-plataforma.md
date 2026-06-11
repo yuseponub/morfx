@@ -75,8 +75,8 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Costos:** Tracking por mensaje/pais/categoria (marketing, utility, authentication, service)
 
 #### Inbox (`src/app/(dashboard)/whatsapp/`)
-- **Conversaciones:** Lista con busqueda, filtros por estado/asignado
-- **Chat:** Historial de mensajes con virtual scrolling
+- **Conversaciones:** Lista paginada server-side (keyset RPC `get_conversations_page`, páginas de 50, virtualizada con `@tanstack/react-virtual`) con búsqueda y filtros server-side que cubren TODO el historial (standalone `whatsapp-inbox-reliability`, 2026-06-11)
+- **Chat:** Historial de mensajes con virtual scrolling + estado de error explícito (cargando/error+Reintentar/vacío real)
 - **Quick replies:** Shortcuts (`!promo`) con media opcional (imagenes)
 - **Templates:** Gestion completa (crear, editar, sync con 360dialog, estados PENDING/APPROVED/REJECTED)
 - **Equipos:** Teams con assignment round-robin, last_assigned_at tracking
@@ -94,6 +94,17 @@ Existen **69 issues documentados** en auditorias previas (25 de automaciones, 16
 - **Updates quirurgicos:** No full refetch, spread payload.new
 - **Query ligero:** Sin address/city en lista, solo id/name/color en tags
 - **Funciona:** Todo lo listado
+
+#### Reliability & Performance estructural (standalone `whatsapp-inbox-reliability`, SHIPPED 2026-06-11)
+- **F-1 paginación keyset:** RPC `get_conversations_page` (SECURITY INVOKER, NULL-band, 14 params) + 2 índices `(workspace_id, status, <sort> DESC NULLS LAST, id DESC)`. SSR solo 50 filas. Las 2.564 conversaciones de Somnio alcanzables (antes 1.559 invisibles por el cap de 1.000 de PostgREST). Payload /whatsapp: 1.847KB → 142KB; nodos DOM: 12.953 → ~450.
+- **F-2 iniciales grapheme-safe:** `src/lib/utils/initials.ts` (`Intl.Segmenter`) en 9 call sites — mata el React #418 por surrogate pairs de emoji (0/3 corridas probe418 vs 3/3 baseline).
+- **F-3:** `markAsRead` sin `revalidatePath` (contrato: read-state reconcilia via optimista+realtime).
+- **F-4:** safety-net = softRefetch de 1ª página con merge-por-id + timer coalescido (storm de full-refetches eliminado: 0 acciones >2s).
+- **F-5:** freeze de re-sort con `scrollTop > viewport` + banner "N conversaciones con actividad" (0 shifts de contenido bajo el viewport).
+- **F-6:** chat con 3 estados (skeleton/error+Reintentar/vacío real).
+- **F-7:** `selectedConversation` derivado de `selectedConversationId` (elimina divergencias header/contenido por construcción).
+- **Resultado medido:** chat abre en 2.5-2.6s (baseline 9.8-19.1s o nunca), dead-clicks 0/4 (baseline 4/4 hasta 74s), /tareas SPA 11.4s → 1.4-1.8s (zombies cancelados con mounted-ref).
+- **Harness permanente:** `scripts/_robot-inbox-nav.ts` (fases probe418/case1-4b/flow/sidebar) con baselines en `.planning/standalone/whatsapp-inbox-reliability/robot/`.
 - **Bugs conocidos:**
   - Rate limiting no implementado en API de envio (W-1 audit)
 

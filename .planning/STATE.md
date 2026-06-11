@@ -651,6 +651,9 @@ Conversation Tags to Contact decisions:
 | 044 | Crear nueva etiqueta inline desde popover WhatsApp (applies_to='whatsapp', auto-aplicar a conversacion) | 2026-04-20 | 3bf7814 | [044-whatsapp-crear-etiqueta-inline](./quick/044-whatsapp-crear-etiqueta-inline/) |
 | 045 | Actualizar tabla unidadesPorValor robot Coordinadora a precios nuevos Somnio (79900/129900/169900) + eliminar fallback roundedValue | 2026-04-27 | fa0b04d | [045-update-coord-pricing-table](./quick/045-update-coord-pricing-table/) |
 | 260611-clj | Portar filtro de etiquetas al inbox v3 editorial (chip + popover en .conv-filters, paridad con v2) | 2026-06-11 | 5c358db1 | [260611-clj-portar-el-filtro-de-etiquetas-tags-al-in](./quick/260611-clj-portar-el-filtro-de-etiquetas-tags-al-in/) |
+| 260611-w1a | Parity v3 Contactos: acciones de fila + filtro dinámico tags + TagManager (C-1/C-2/C-3 audit) | 2026-06-11 | c8c0c9d2 | [260611-w1a-contactos-v3-crud-tags](./quick/260611-w1a-contactos-v3-crud-tags/) |
+| 260611-w2b | Parity v3 Pedidos kanban: badge duplicado + WIP + grip + tracking + empty state (C-4/C-5/M-4/M-5/M-7) | 2026-06-11 | ba77ca62 | [260611-w2b-pedidos-kanban-v3-parity](./quick/260611-w2b-pedidos-kanban-v3-parity/) |
+| 260611-w3c | Parity v3 Inbox + nav: chips sin-asignar/sin-respuesta + sort + mobile-nav 14 módulos (C-6/C-7/M-1) | 2026-06-11 | ea1fbae6 | [260611-w3c-inbox-filtros-mobile-nav-v3](./quick/260611-w3c-inbox-filtros-mobile-nav-v3/) |
 
 ### Roadmap Evolution
 

@@ -96,9 +96,11 @@ Módulos sin reskin v3 (siguen con UI legacy + header viejo, accesibles desde si
 
 ## PLAN SUGERIDO (waves)
 
-1. **Wave 1 — Contactos CRUD + tags (C-1, C-2, C-3):** un solo archivo principal (`contacts-table.tsx` + tabla v3), reutiliza handlers existentes.
-2. **Wave 2 — Pedidos kanban (C-4, C-5, M-4, M-5, M-7):** `kanban-card.tsx` + `kanban-column.tsx` + empty state v3 propio.
-3. **Wave 3 — Inbox + nav móvil (C-6, C-7, M-1):** chips nuevos + mobile-nav derivada de `navCategoriesV2`.
-4. **Wave 4 — pulido (M-2, M-3, M-6, M-8, Tier 3):** sort, columnas, search global, decisiones de diseño pendientes.
+1. ✅ **Wave 1 — Contactos CRUD + tags (C-1, C-2, C-3):** SHIPPED 2026-06-11, quick task `260611-w1a` (commits `a2f7ea0b`, `c8c0c9d2`).
+2. ✅ **Wave 2 — Pedidos kanban (C-4, C-5, M-4, M-5, M-7):** SHIPPED 2026-06-11, quick task `260611-w2b` (commits `f3f70799`, `a3e6b5ac`, `ba77ca62`).
+3. ✅ **Wave 3 — Inbox + nav móvil (C-6, C-7, M-1):** SHIPPED 2026-06-11, quick task `260611-w3c` (commits `95b71090`, `f3c2fd04`, `ea1fbae6`). `navCategoriesV2` extraída a `src/components/layout/nav-items.ts`.
+4. ⬜ **Wave 4 — pulido (M-2, M-3, M-6, M-8, Tier 3):** PENDIENTE — sort de columnas Contactos, columnas Dirección/Departamento, tags >4 en Pedidos, search global sidebar (decisión de diseño), fuente user menu, Escape inbox.
+
+**Los 7 críticos están cerrados.** Pendiente QA visual del usuario con el flag ON en un workspace de prueba.
 
 Cada wave es ejecutable como quick task o standalone corto; todos los cambios son aditivos a la rama v3 (Regla 6: legacy/v2 intactos). El flag `ui_editorial_v3` sigue OFF por defecto, así que se puede iterar sin riesgo en producción.

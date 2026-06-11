@@ -53,7 +53,7 @@ describe('classifyImage', () => {
   it('categoria=producto → decision=responder (never from LLM)', async () => {
     // LLM returns ONLY categoria + descripcion (Pitfall 4 — no decision field)
     mockGenerateText.mockResolvedValueOnce({
-      experimental_output: { categoria: 'producto', descripcion: 'Foto del frasco de ELIXIR DEL SUEÑO' },
+      output: { categoria: 'producto', descripcion: 'Foto del frasco de ELIXIR DEL SUEÑO' },
     })
 
     const result: ImageClassification = await classifyImage(
@@ -69,7 +69,7 @@ describe('classifyImage', () => {
 
   it('categoria=comprobante_pago → decision=handoff (never from LLM)', async () => {
     mockGenerateText.mockResolvedValueOnce({
-      experimental_output: { categoria: 'comprobante_pago', descripcion: 'Captura de Nequi con transferencia' },
+      output: { categoria: 'comprobante_pago', descripcion: 'Captura de Nequi con transferencia' },
     })
 
     const result: ImageClassification = await classifyImage(
@@ -83,7 +83,7 @@ describe('classifyImage', () => {
 
   it('categoria=documento_identidad → decision=handoff (never from LLM)', async () => {
     mockGenerateText.mockResolvedValueOnce({
-      experimental_output: { categoria: 'documento_identidad', descripcion: 'Cédula de ciudadanía colombiana' },
+      output: { categoria: 'documento_identidad', descripcion: 'Cédula de ciudadanía colombiana' },
     })
 
     const result: ImageClassification = await classifyImage(
@@ -100,7 +100,7 @@ describe('classifyImage', () => {
 
   it('categoria=pagina → decision=responder (second "responder" path — Pitfall 4)', async () => {
     mockGenerateText.mockResolvedValueOnce({
-      experimental_output: { categoria: 'pagina', descripcion: 'Captura de pantalla de una tienda online' },
+      output: { categoria: 'pagina', descripcion: 'Captura de pantalla de una tienda online' },
     })
 
     const result: ImageClassification = await classifyImage(
@@ -116,7 +116,7 @@ describe('classifyImage', () => {
 
   it('categoria=captura_conversacion → decision=handoff (never from LLM)', async () => {
     mockGenerateText.mockResolvedValueOnce({
-      experimental_output: { categoria: 'captura_conversacion', descripcion: 'Screenshot de conversación de WhatsApp' },
+      output: { categoria: 'captura_conversacion', descripcion: 'Screenshot de conversación de WhatsApp' },
     })
 
     const result: ImageClassification = await classifyImage(
@@ -130,7 +130,7 @@ describe('classifyImage', () => {
 
   it('categoria=ambiguo returned by LLM → decision=handoff (normal LLM path, not fail-safe)', async () => {
     mockGenerateText.mockResolvedValueOnce({
-      experimental_output: { categoria: 'ambiguo', descripcion: 'Imagen borrosa, no se puede clasificar con certeza' },
+      output: { categoria: 'ambiguo', descripcion: 'Imagen borrosa, no se puede clasificar con certeza' },
     })
 
     const result: ImageClassification = await classifyImage(

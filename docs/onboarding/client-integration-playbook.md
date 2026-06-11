@@ -119,6 +119,42 @@ MorfX tiene un toolkit para respaldar e importar el historial de WhatsApp antes/
 - **`whatsapp-history-importer`** (standalone): importa ese backup al inbox de MorfX (archival, sin enviar, sin triggers — Regla 6). `wamid` prefijo `import:` = marcador + idempotencia.
 - Doc: `docs/whatsapp-history-toolkit.md`.
 
+### 1.7 Errores reales encontrados y cómo resolverlos (troubleshooting — caso Somnio 2026-06-11)
+
+Cada uno de estos nos costó tiempo. Si reaparecen, esta es la salida directa.
+
+| Síntoma | Causa real | Solución |
+|---|---|---|
+| **"No encuentro 'Migrate Number' en el Hub de 360dialog"** | **No existe** para SALIR a otro BSP. Solo existe "Migrate between WABAs" (interno, otro caso). | La migración se dispara **desde el destino** = el **Embedded Signup de MorfX**, NO desde 360dialog. En 360dialog solo: pagar facturas + 2FA off + cancelar después. |
+| **"No puedes agregar un método de pago porque estás usando una línea de crédito compartida"** (botón gris en Facturación) | El WABA tiene la **línea de crédito del BSP pegada** (360dialog GmbH). Regla de Meta: una línea de crédito pegada **no se cambia ni se quita** self-serve. | **No pelear con ese WABA — abandonarlo.** El popup de MorfX **crea una WABA NUEVA limpia**; ahí la tarjeta SÍ entra. La calificación viaja con el NÚMERO, no con el WABA → perder el WABA viejo no importa. |
+| **`register` falla con `(#100) Invalid parameter`** (toast MorfX: "No se pudo activar... intenta de nuevo") | Error genérico de Meta; la **causa real está en `error_data.details`** = "Cannot Migrate Phone Number: ...doesn't have a payment method set up." | **Agregar tarjeta a la WABA nueva** → reintentar Conectar. (Fix de código 2026-06-11: MorfX ahora lee `error_data.details` y muestra "falta método de pago" directo.) Otras causas posibles del `(#100)`: 2SV aún activo, o facturas del BSP sin pagar. |
+| **"You have requested a verification code too many times" (`#2494158`)** | Estás usando el **wizard manual** de crear WABA (pide OTP por SMS). Es el camino **equivocado** + rate-limit. | **No usar el wizard manual.** La migración va por el **popup** (valida ownership sin SMS). El 2FA se apaga por **email** (sin rate-limit). Si ya te bloqueaste: esperar ~24h, **no reintentar** (cada intento reinicia el contador). |
+| **Miedo: "¿toca recrear las 12 plantillas?" (precedente Callbell)** | — | **NO se materializó.** Las plantillas **viajaron solas** (Somnio: 22 APPROVED). Igual respaldar antes (barato). Revisar las que lleguen `REJECTED`. |
+| **Después de migrar, el número recibe pero el bot NO responde** | El número ya está en Meta (`CONNECTED`) pero `whatsapp_provider` sigue en `360dialog` → MorfX intenta enviar por un proveedor que ya no tiene el número. **Ventana de downtime.** | **Flip `whatsapp_provider='meta_direct'`.** El outbound vuelve de inmediato. Revisar backlog: inbounds con `processed_by_agent=false` de la ventana. |
+
+**Consultas de diagnóstico que sirvieron (read-only):**
+```sql
+-- Estado del registro + qué WABA usó MorfX (¿nueva limpia o vieja quemada?)
+SELECT channel, waba_id, phone_number_id, registration_status, registration_error, is_active
+FROM workspace_meta_accounts
+WHERE workspace_id='<ws>' AND channel='whatsapp' ORDER BY updated_at DESC;
+
+-- ¿El bot está respondiendo? (outbound + flag processed_by_agent)
+SELECT created_at, direction, type, status, processed_by_agent, error_message
+FROM messages WHERE workspace_id='<ws>' ORDER BY created_at DESC LIMIT 15;
+
+-- ¿El agente se está disparando? (si no hay sesiones nuevas → no procesa)
+SELECT agent_id, status, updated_at FROM agent_sessions
+WHERE workspace_id='<ws>' ORDER BY updated_at DESC LIMIT 6;
+```
+Y por la **Graph API** (con el BISUAT desencriptado del `workspace_meta_accounts`), el error COMPLETO de Meta y el estado real del número:
+```
+GET  /v22.0/{phone_number_id}?fields=status,platform_type,code_verification_status,quality_rating,verified_name,name_status
+POST /v22.0/{phone_number_id}/register {messaging_product:"whatsapp", pin:"<6 dígitos>"}  ← devuelve error_data.details con la causa real
+GET  /v22.0/{waba_id}/message_templates?fields=name,status  ← confirma que las plantillas viajaron a la WABA nueva
+```
+> ⚠️ El `register` por API fija un PIN que MorfX no guarda → preferir reintentar desde la UI ("Conectar WhatsApp") para que persista status + PIN. Y re-abrir el popup **crea otra WABA** — si ya tienes una buena, evita re-abrirlo (reusa la del `workspace_meta_accounts`).
+
 ---
 
 ## 2. Facebook Messenger + Instagram — onboarding a Meta Direct

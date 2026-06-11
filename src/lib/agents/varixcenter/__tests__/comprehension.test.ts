@@ -40,6 +40,8 @@ vi.mock('@anthropic-ai/sdk/helpers/zod', () => ({
 }))
 
 import { comprehend } from '../comprehension'
+import { MessageAnalysisSchema } from '../comprehension-schema'
+import { VARIX_INTENTS } from '../constants'
 
 beforeEach(() => {
   messagesCreateMock.mockReset()
@@ -290,5 +292,97 @@ describe('comprehend — error paths', () => {
     })
 
     await expect(comprehend('hola', [], {}, [])).rejects.toThrow(/No text content/i)
+  })
+})
+
+// ============================================================================
+// MessageAnalysisSchema — 24 intents válidos + tipo_venas mapping + sin sede (diseño §2)
+// ============================================================================
+
+function buildAnalysisPayload(overrides: {
+  primary?: string
+  secondary?: string
+  tipo_venas?: 'grandes' | 'vasitos' | 'ambas' | null
+} = {}) {
+  return {
+    intent: {
+      primary: overrides.primary ?? 'datos',
+      secondary: overrides.secondary ?? 'ninguno',
+      confidence: 90,
+      reasoning: 'schema test',
+    },
+    extracted_fields: {
+      nombre: null, telefono: null, cedula: null, ciudad: null,
+      tipo_venas: overrides.tipo_venas ?? null,
+      fecha_preferida: null, fecha_vaga: null, preferencia_jornada: null, horario_seleccionado: null,
+    },
+    classification: { category: 'pregunta', sentiment: 'neutro', idioma: 'es' },
+  }
+}
+
+describe('MessageAnalysisSchema — los 24 intents son válidos (diseño §1)', () => {
+  it('VARIX_INTENTS tiene exactamente 24 intents', () => {
+    expect(VARIX_INTENTS.length).toBe(24)
+  })
+
+  for (const intent of VARIX_INTENTS) {
+    it(`schema acepta intent.primary="${intent}"`, () => {
+      const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ primary: intent }))
+      expect(parsed.success).toBe(true)
+    })
+  }
+
+  it('schema acepta secondary="ninguno"', () => {
+    const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ secondary: 'ninguno' }))
+    expect(parsed.success).toBe(true)
+  })
+
+  it('schema rechaza un intent.primary inválido', () => {
+    const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ primary: 'intent_que_no_existe' }))
+    expect(parsed.success).toBe(false)
+  })
+})
+
+describe('MessageAnalysisSchema — tipo_venas enum mapping (diseño §2)', () => {
+  it('acepta tipo_venas="vasitos" (arañitas/vasculares/venitas)', () => {
+    const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ tipo_venas: 'vasitos' }))
+    expect(parsed.success).toBe(true)
+  })
+
+  it('acepta tipo_venas="grandes" (vena gruesa/pronunciada/várices grandes)', () => {
+    const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ tipo_venas: 'grandes' }))
+    expect(parsed.success).toBe(true)
+  })
+
+  it('acepta tipo_venas="ambas" (las dos/de todo)', () => {
+    const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ tipo_venas: 'ambas' }))
+    expect(parsed.success).toBe(true)
+  })
+
+  it('acepta tipo_venas=null (no mencionado)', () => {
+    const parsed = MessageAnalysisSchema.safeParse(buildAnalysisPayload({ tipo_venas: null }))
+    expect(parsed.success).toBe(true)
+  })
+
+  it('rechaza un valor tipo_venas fuera del enum', () => {
+    const payload = buildAnalysisPayload()
+    ;(payload.extracted_fields as Record<string, unknown>).tipo_venas = 'medianas'
+    const parsed = MessageAnalysisSchema.safeParse(payload)
+    expect(parsed.success).toBe(false)
+  })
+})
+
+describe('MessageAnalysisSchema — sin campos de sede (diseño §2: 1 sola sede)', () => {
+  it('el schema NO declara sede_preferida en extracted_fields', () => {
+    const parsed = MessageAnalysisSchema.parse(buildAnalysisPayload())
+    expect(Object.keys(parsed.extracted_fields)).not.toContain('sede_preferida')
+    expect(Object.keys(parsed.extracted_fields)).not.toContain('sede')
+  })
+
+  it('un sede_preferida inyectado se descarta (no aparece en el output parseado)', () => {
+    const payload = buildAnalysisPayload()
+    ;(payload.extracted_fields as Record<string, unknown>).sede_preferida = 'Centro'
+    const parsed = MessageAnalysisSchema.parse(payload)
+    expect((parsed.extracted_fields as Record<string, unknown>).sede_preferida).toBeUndefined()
   })
 })

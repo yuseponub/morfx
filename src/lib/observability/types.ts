@@ -34,6 +34,7 @@ export type AgentId =
   | 'somnio-v3'
   | 'godentist'
   | 'godentist-fb-ig' // Standalone: agent-godentist-fb-ig (D-03)
+  | 'varixcenter' // Standalone: agent-varixcenter (D-01)
   | 'somnio-recompra'
   | 'somnio-recompra-v1'
   | 'somnio-v2'

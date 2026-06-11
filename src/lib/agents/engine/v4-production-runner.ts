@@ -57,8 +57,11 @@ import type { V4AgentInput, V4AgentOutput, ProcessedMessage, TurnLedgerDims } fr
 // D-06 (Plan 07): el skip-gate + lostLock throw de CKPT-0/6a/6b está factorizado
 // en runCheckpointGate (specifier absoluto — el runner vive fuera de somnio-v4/).
 import { runCheckpointGate } from '@/lib/agents/somnio-v4/core/checkpoint-gate'
+// D-03 (Plan 08): los acumuladores cross-iteración + el drain de los 7 sites Path A/B
+// viven en core/restart-context + core/drain (consolidación con el engine sandbox).
+import { createRestartContext } from '@/lib/agents/somnio-v4/core/restart-context'
+import { drainPendingAndCombine } from '@/lib/agents/somnio-v4/core/drain'
 import { releaseLockIfOwner, startHeartbeat } from '@/lib/agents/interruption-system-v2/lock'
-import { readAndClearPending, clearInterrupt } from '@/lib/agents/interruption-system-v2/pending'
 import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
 import { LostLockError } from '../engine-adapters/production/v4-messaging-adapter'
 
@@ -112,67 +115,28 @@ export class V4ProductionRunner {
       stopHeartbeat = startHeartbeat(input.lockHandle)
     }
 
-    // Track templates sent so we can branch Path A / Path B on CKPT interrupt
-    // and emit the correct event in the finally block.
-    let templatesSentCount = 0
-
     // ============================================================
-    // Standalone: debounce-v2-interrupt-reprocess outer-scope state.
-    // These persist ACROSS restart-loop iterations within a single lambda
-    // invocation; the restart loop body sets/reads them. The outer
-    // declaration here keeps them alive across `continue` statements
-    // (Pitfall 8: NO DB write during restart iterations — combined message
-    // lives in-memory in `effectiveMessage` until the iteration commits).
+    // D-03 (somnio-v4-consolidation Plan 08): los acumuladores cross-iteración
+    // del restart loop (totalTokensAcrossRestarts, restartIteration,
+    // effectiveMessage, templatesSentCount, carryState, accumulatedSentContents,
+    // ownEntryUuid + dropOwnEntry) viven ahora en un struct ÚNICO RestartContext
+    // (createRestartContext) compartido con el engine sandbox. Antes eran ~7
+    // variables locales duplicadas byte-por-byte en ambos lados (el bug del
+    // 2026-05-28 se arregló DOS veces). Ahora se tocan en UN solo lugar.
+    //
+    // Notas conservadas del comportamiento (sin cambios):
+    //   - effectiveMessage: null en iter 1 (legacy v3 path), non-null tras restart.
+    //   - ownEntryUuid: el webhook RPUSHea el mensaje propio del HOLDER en la
+    //     pending list (crash-recovery D-16); todos los Path A drain sites disparan
+    //     ANTES del primer send → se EXCLUYE por entry_uuid (sino se combina consigo
+    //     mismo: "msg1\nmsg1…", el "hola" fantasma).
+    //   - carryState/carrySource (Pitfall 6 — DUAL): Path B desde CKPT-6b arrastra
+    //     del SEED (output de msg1 NO se envió); Path B desde send-loop arrastra del
+    //     OUTPUT (msg1 parcialmente enviado). El caller setea carrySource; el drain
+    //     no la toca.
+    //   - accumulatedSentContents: todo lo que el cliente vio across iteraciones.
     // ============================================================
-    let totalTokensAcrossRestarts = 0  // R-05: accumulate output.totalTokens per iteration
-    let restartIteration = 0           // observability — Pitfall 3 distinguishes restart 1 vs 5
-    let effectiveMessage: string | null = null  // R-03: null on iter 1 (legacy v3 path), non-null after first restart
-
-    // Bug 2026-05-28 (phantom self-message): the webhook RPUSHes the HOLDER's
-    // OWN inbound message into the pending list (D-16) so it is crash-recoverable
-    // until the first template is sent (the V4MessagingAdapter's
-    // onFirstSendCompleted LREMs it). But ALL 4 Path A drain sites below fire
-    // BEFORE the first send, so the holder's own entry is still present and would
-    // be re-combined with itself (priorMsg === input.message === own entry's
-    // content → "msg1\nmsg1\n…"). Parse the holder's own entry_uuid once and
-    // EXCLUDE it from every Path A drain. Filtering by entry_uuid (vs byte-exact
-    // removeOwnEntry) is robust against JSON drift and needs no Redis round-trip.
-    let ownEntryUuid: string | null = null
-    if (input.ownPendingEntryJson) {
-      try {
-        ownEntryUuid = (JSON.parse(input.ownPendingEntryJson) as { entry_uuid?: string }).entry_uuid ?? null
-      } catch {
-        ownEntryUuid = null
-      }
-    }
-    const dropOwnEntry = <T extends { entry_uuid: string }>(entries: T[]): T[] =>
-      ownEntryUuid ? entries.filter((e) => e.entry_uuid !== ownEntryUuid) : entries
-
-    // Bug 2026-05-28 (Path B clean reprocess): when an interrupt aborts AFTER ≥1
-    // template was already sent, the customer redirected — so we DISCARD the rest
-    // of msg1's response and answer the interrupting message(s) cleanly in the
-    // SAME lambda. `carryState` seeds the reprocess iteration from the aborted
-    // iteration's resulting state so the agent does NOT re-greet and the
-    // no-repetition filter does NOT re-send already-sent templates. Stays null on
-    // Path A combine (which re-runs from the original session state, by design).
-    // `accumulatedSentContents` preserves everything the customer already saw
-    // across iterations for the final assistant-turn record + return payload.
-    // The pending list is drained whole every time + the while loop re-runs on any
-    // new interrupt, so N piled-up messages (msg2,msg3,…) and cascading interrupts
-    // are handled structurally — no per-message special-casing.
-    let carryState: {
-      intentsVistos: string[]
-      templatesEnviados: string[]
-      datosCapturados: Record<string, string>
-      packSeleccionado: string | null
-      accionesEjecutadas: unknown[]
-      currentMode: string
-      // somnio-v4-turn-ledger Plan 04 (Task 1, P3): el reprocess Path B hereda las
-      // dims del output de la iteración previa → no re-registra ni pierde efectos.
-      // turnCount NO vive aquí (vive en mergeAnalysis) → cero double-increment.
-      turnLedgerDims: TurnLedgerDims
-    } | null = null
-    const accumulatedSentContents: string[] = []
+    const ctx = createRestartContext(input.ownPendingEntryJson)
 
     try {
     try {
@@ -189,9 +153,8 @@ export class V4ProductionRunner {
       // wasInterruptedWithZeroSends block are PRESERVED for the rare
       // CKPT-7.1 first-byte abort case (Pitfall 5).
       // ============================================================
-      let shouldRestart = true
-      while (shouldRestart) {
-        shouldRestart = false
+      while (ctx.shouldRestart) {
+        ctx.shouldRestart = false
 
       // 1. Get session via storage adapter
       const session = input.sessionId
@@ -229,43 +192,22 @@ export class V4ProductionRunner {
         if (typeof ck0 === 'object' && lockCtx) {
           // ============================================================
           // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
-          // Path A interrupt at CKPT-0 — restart turn with combined
-          // effectiveMessage instead of silently persisting + returning
-          // (BEFORE FIX: bot stayed mute until a third inbound arrived).
-          // Pitfall 8: NO saveState during restart iterations — the
-          // combined message lives in-memory in `effectiveMessage` until
-          // the iteration completes successfully.
+          // Path A interrupt at CKPT-0 — restart turn con effectiveMessage
+          // combinado en vez de persistir+retornar en silencio. Pitfall 7:
+          // priorMsg = effectiveMessage ?? input.message (drain ANTES del
+          // combine legacy _v3:pendingUserMessage de abajo — NO reordenar).
+          // Pitfall 8: NO saveState durante iteraciones del restart.
+          // D-03 (Plan 08): el drain (dropOwnEntry+readAndClearPending+
+          // clearInterrupt+emit×2+combine cronológico+shouldRestart) está
+          // consolidado en drainPendingAndCombine.
           // ============================================================
-          const pending = dropOwnEntry(await readAndClearPending(
-            this.config.workspaceId,
-            lockCtx.channel,
-            lockCtx.identifier,
-          ))
-          // Consume the interrupt signal too (bug 2026-05-28): else the next
-          // iteration's CKPT-0 re-reads the still-set interrupt key and spins
-          // Path A on an empty pending list until the 60s TTL expires.
-          await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
-          restartIteration++
-          const priorMsg: string = effectiveMessage ?? input.message
-          const combinedTotalChars =
-            pending.reduce((s, p) => s + p.content.length, 0) + priorMsg.length
-          emitLockEvent('msg_aborted_path_a_combined', {
-            at_step: 'ckpt_0_post_acquire',
-            combined_msg_count: pending.length + 1,
-            total_chars: combinedTotalChars,
-            restart_iteration: restartIteration,
+          await drainPendingAndCombine({
+            ctx,
+            lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+            atStep: 'ckpt_0_post_acquire',
+            priorMsg: ctx.effectiveMessage ?? input.message,
+            mode: 'path_a',
           })
-          emitLockEvent('pending_list_combined', {
-            at_step: 'ckpt_0_post_acquire',
-            entries_count: pending.length,
-            total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-            restart_iteration: restartIteration,
-          })
-          // Chronological order: priorMsg (older, was being processed) FIRST,
-          // then pending entries (newer, arrived during processing) LAST.
-          // Pending list is RPUSH-ordered by FOLLOWER arrival time.
-          effectiveMessage = [priorMsg, ...pending.map((p) => p.content)].join('\n')
-          shouldRestart = true
           continue
         }
       }
@@ -289,7 +231,7 @@ export class V4ProductionRunner {
       // (Pitfall 8: no DB write across iterations).
       const currentDatos = session.state.datos_capturados ?? {}
       const pendingUserMessage = currentDatos['_v3:pendingUserMessage'] as string | undefined
-      const turnEffectiveMessage: string = effectiveMessage
+      const turnEffectiveMessage: string = ctx.effectiveMessage
         ?? (pendingUserMessage ? `${pendingUserMessage}\n${input.message}` : input.message)
 
       if (pendingUserMessage) {
@@ -351,7 +293,7 @@ export class V4ProductionRunner {
         // reprocess Path B hereda del output previo vía carryState; aquí default
         // desde la sesión).
         turnLedgerDims: TurnLedgerDims
-      } = carryState ?? {
+      } = ctx.carryState ?? {
         intentsVistos: sessionIntentsVistos,
         templatesEnviados: session.state.templates_enviados ?? [],
         datosCapturados: inputDatosCapturados,
@@ -434,7 +376,7 @@ export class V4ProductionRunner {
       // across restart iterations. The final return uses
       // `totalTokensAcrossRestarts` (NOT `output.totalTokens`) as the single
       // source of truth for cost accounting (Pitfall 2).
-      totalTokensAcrossRestarts += (output.totalTokens ?? 0)
+      ctx.totalTokensAcrossRestarts += (output.totalTokens ?? 0)
 
       // ============================================================
       // R-04 + Pitfall 7 (debounce-v2-interrupt-reprocess): detect Path A
@@ -461,31 +403,15 @@ export class V4ProductionRunner {
           // error handling rather than corrupting state.
           throw new Error(`[V4-RUNNER] agent emitted ${output.errorMessage} but lockCtx is null`)
         }
-        const pending = dropOwnEntry(await readAndClearPending(
-          this.config.workspaceId,
-          lockCtx.channel,
-          lockCtx.identifier,
-        ))
-        // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
-        await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
-        restartIteration++
-        emitLockEvent('msg_aborted_path_a_combined', {
-          at_step: output.errorMessage,
-          combined_msg_count: pending.length + 1,
-          total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-          restart_iteration: restartIteration,
+        // D-03 (Plan 08): drain consolidado. at_step = el discriminator
+        // (output.errorMessage), priorMsg = turnEffectiveMessage.
+        await drainPendingAndCombine({
+          ctx,
+          lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+          atStep: output.errorMessage,
+          priorMsg: turnEffectiveMessage,
+          mode: 'path_a',
         })
-        emitLockEvent('pending_list_combined', {
-          at_step: output.errorMessage,
-          entries_count: pending.length,
-          total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-          restart_iteration: restartIteration,
-        })
-        // Chronological order: turnEffectiveMessage (older, was being processed)
-        // FIRST, then pending entries (newer, arrived during processing) LAST.
-        // Pending list is RPUSH-ordered by FOLLOWER arrival time.
-        effectiveMessage = [turnEffectiveMessage, ...pending.map((p) => p.content)].join('\n')
-        shouldRestart = true
         continue
       }
 
@@ -553,37 +479,18 @@ export class V4ProductionRunner {
         if (typeof ck6a === 'object' && lockCtx) {
           // ============================================================
           // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
-          // Path A interrupt at CKPT-6a (pending-templates pre-send) —
-          // restart turn with combined effectiveMessage instead of silently
-          // persisting + returning. Pitfall 8: NO saveState during restart
-          // iterations.
+          // Path A interrupt at CKPT-6a (pending-templates pre-send) — restart.
+          // D-03 (Plan 08): drain consolidado; templates_sent_before_abort:0
+          // preservado vía pathBEmitExtra. Pitfall 8: NO saveState entre iters.
           // ============================================================
-          const pending = dropOwnEntry(await readAndClearPending(
-            this.config.workspaceId,
-            lockCtx.channel,
-            lockCtx.identifier,
-          ))
-          // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
-          await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
-          restartIteration++
-          emitLockEvent('msg_aborted_path_a_combined', {
-            at_step: 'ckpt_6_pre_send_loop_pending_templates',
-            templates_sent_before_abort: 0,
-            combined_msg_count: pending.length + 1,
-            total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-            restart_iteration: restartIteration,
+          await drainPendingAndCombine({
+            ctx,
+            lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+            atStep: 'ckpt_6_pre_send_loop_pending_templates',
+            priorMsg: turnEffectiveMessage,
+            mode: 'path_a',
+            pathBEmitExtra: { templates_sent_before_abort: 0 },
           })
-          emitLockEvent('pending_list_combined', {
-            at_step: 'ckpt_6_pre_send_loop_pending_templates',
-            entries_count: pending.length,
-            total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-            restart_iteration: restartIteration,
-          })
-          // Chronological order: turnEffectiveMessage (older, was being processed)
-          // FIRST, then pending entries (newer, arrived during processing) LAST.
-          // Pending list is RPUSH-ordered by FOLLOWER arrival time.
-          effectiveMessage = [turnEffectiveMessage, ...pending.map((p) => p.content)].join('\n')
-          shouldRestart = true
           continue
         }
       }
@@ -671,70 +578,48 @@ export class V4ProductionRunner {
         })
         if (typeof ck6b === 'object' && lockCtx) {
           const sentCount = actuallySentIds.length
+          const lockArgs = { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier }
           if (sentCount === 0) {
             // ============================================================
             // Standalone: debounce-v2-interrupt-reprocess (D-01 + D-05).
-            // Path A — restart turn with combined effectiveMessage instead
-            // of silently persisting + returning. Pitfall 8: NO saveState
-            // during restart iterations.
+            // Path A — restart. D-03 (Plan 08): drain consolidado;
+            // templates_sent_before_abort:0 vía pathBEmitExtra. Pitfall 8: NO
+            // saveState durante iteraciones del restart.
             // ============================================================
-            const pending = dropOwnEntry(await readAndClearPending(
-              this.config.workspaceId,
-              lockCtx.channel,
-              lockCtx.identifier,
-            ))
-            // Consume the interrupt signal too (bug 2026-05-28) — see CKPT-0 site.
-            await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
-            restartIteration++
-            emitLockEvent('msg_aborted_path_a_combined', {
-              at_step: 'ckpt_6_pre_send_loop_main',
-              templates_sent_before_abort: 0,
-              combined_msg_count: pending.length + 1,
-              total_chars: pending.reduce((s, p) => s + p.content.length, 0) + turnEffectiveMessage.length,
-              restart_iteration: restartIteration,
+            await drainPendingAndCombine({
+              ctx,
+              lockCtx: lockArgs,
+              atStep: 'ckpt_6_pre_send_loop_main',
+              priorMsg: turnEffectiveMessage,
+              mode: 'path_a',
+              pathBEmitExtra: { templates_sent_before_abort: 0 },
             })
-            emitLockEvent('pending_list_combined', {
-              at_step: 'ckpt_6_pre_send_loop_main',
-              entries_count: pending.length,
-              total_chars: pending.reduce((s, p) => s + p.content.length, 0),
-              restart_iteration: restartIteration,
-            })
-            // Chronological order: turnEffectiveMessage (older, was being processed)
-            // FIRST, then pending entries (newer, arrived during processing) LAST.
-            // Pending list is RPUSH-ordered by FOLLOWER arrival time.
-            effectiveMessage = [turnEffectiveMessage, ...pending.map((p) => p.content)].join('\n')
-            shouldRestart = true
             continue
           }
           // Path B (bug 2026-05-28 — clean reprocess): prior-turn pending
           // templates were just (re)sent and the customer interrupted. Discard
           // THIS turn's msg1 output (not yet sent — 5h-main runs after this) and
           // answer the new message(s) clean in-lambda. If nothing is queued,
-          // finish (keep what was sent). The new message(s) were NOT drained in
-          // the sentCount===0 branch above, so drain them here.
-          const pendingB = dropOwnEntry(await readAndClearPending(
-            this.config.workspaceId,
-            lockCtx.channel,
-            lockCtx.identifier,
-          ))
-          await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
-          emitLockEvent('msg_aborted_path_b_solo', {
-            at_step: 'ckpt_6_pre_send_loop_main',
-            templates_sent_before_abort: sentCount,
+          // finish (keep what was sent). D-03 (Plan 08): drain consolidado en
+          // mode 'path_b_solo' (emite msg_aborted_path_b_solo + condicional
+          // pending_list_combined + setea effectiveMessage sin prior). El
+          // carryState lo setea AQUÍ (Pitfall 6 — fuente SEED: msg1's output NO
+          // se envió, solo los templates del turno previo).
+          const drainB = await drainPendingAndCombine({
+            ctx,
+            lockCtx: lockArgs,
+            atStep: 'ckpt_6_pre_send_loop_main',
+            priorMsg: turnEffectiveMessage,
+            mode: 'path_b_solo',
+            pathBEmitExtra: { templates_sent_before_abort: sentCount },
           })
-          if (pendingB.length > 0) {
-            restartIteration++
-            emitLockEvent('pending_list_combined', {
-              at_step: 'ckpt_6_pre_send_loop_main',
-              entries_count: pendingB.length,
-              total_chars: pendingB.reduce((s, p) => s + p.content.length, 0),
-              restart_iteration: restartIteration,
-            })
+          if (drainB.pendingCount > 0) {
             // msg1's output was NOT sent (only the prior-turn pending templates
             // were) → carry the SESSION state forward (not msg1's output) so the
-            // reprocess does not mark msg1's intents as seen.
-            accumulatedSentContents.push(...sentMessageContents)
-            carryState = {
+            // reprocess does not mark msg1's intents as seen. carrySource='seed'.
+            ctx.carrySource = 'seed'
+            ctx.accumulatedSentContents.push(...sentMessageContents)
+            ctx.carryState = {
               intentsVistos: seed.intentsVistos,
               templatesEnviados: [...inputTemplatesEnviados, ...actuallySentIds],
               datosCapturados: seed.datosCapturados,
@@ -746,18 +631,16 @@ export class V4ProductionRunner {
               // SESIÓN (seed), no las del output de msg1.
               turnLedgerDims: seed.turnLedgerDims,
             }
-            effectiveMessage = pendingB.map((p) => p.content).join('\n')
-            shouldRestart = true
             continue
           }
           // Nothing queued → finish: keep what was sent (this + prior iterations).
-          templatesSentCount = accumulatedSentContents.length + sentCount
+          ctx.templatesSentCount = ctx.accumulatedSentContents.length + sentCount
           return {
             success: true,
             messages: [],
             sessionId: session.id,
-            messagesSent: accumulatedSentContents.length + sentCount,
-            tokensUsed: totalTokensAcrossRestarts,
+            messagesSent: ctx.accumulatedSentContents.length + sentCount,
+            tokensUsed: ctx.totalTokensAcrossRestarts,
           }
         }
       }
@@ -870,46 +753,34 @@ export class V4ProductionRunner {
             if (this.adapters.storage.clearPendingTemplates) {
               await this.adapters.storage.clearPendingTemplates(session.id)
             }
-            const newMsgs = dropOwnEntry(await readAndClearPending(
-              this.config.workspaceId, lockCtx.channel, lockCtx.identifier,
-            ))
-            await clearInterrupt(this.config.workspaceId, lockCtx.channel, lockCtx.identifier)
+            // D-03 (Plan 08): drain consolidado. El MODO depende de cuánto se
+            // envió: 0 enviados → Path A (recombinar prior + new); ≥1 enviado →
+            // Path B (descartar resto de msg1, contestar solo lo nuevo). El at_step
+            // 'send_loop_ckpt7' NO es un CheckpointId (vive en el send-adapter); el
+            // drain lo emite verbatim. drainPendingAndCombine excluye la own-entry,
+            // consume el interrupt, emite los eventos y setea effectiveMessage/
+            // shouldRestart/restartIteration (Path B solo si hay pending).
+            const sendMode = sendResult.messagesSent === 0 ? 'path_a' : 'path_b_solo'
+            const drainSL = await drainPendingAndCombine({
+              ctx,
+              lockCtx: { workspaceId: this.config.workspaceId, channel: lockCtx.channel, identifier: lockCtx.identifier },
+              atStep: 'send_loop_ckpt7',
+              priorMsg: turnEffectiveMessage,
+              mode: sendMode,
+              pathBEmitExtra: sendMode === 'path_a'
+                ? { templates_sent_before_abort: 0 }
+                : { templates_sent_before_abort: sendResult.messagesSent },
+            })
 
-            if (newMsgs.length > 0) {
-              restartIteration++
-              const newChars = newMsgs.reduce((s, p) => s + p.content.length, 0)
-              if (sendResult.messagesSent === 0) {
-                // Path A: nothing delivered → recombine prior + new, re-run.
-                emitLockEvent('msg_aborted_path_a_combined', {
-                  at_step: 'send_loop_ckpt7',
-                  templates_sent_before_abort: 0,
-                  combined_msg_count: newMsgs.length + 1,
-                  total_chars: newChars + turnEffectiveMessage.length,
-                  restart_iteration: restartIteration,
-                })
-                emitLockEvent('pending_list_combined', {
-                  at_step: 'send_loop_ckpt7',
-                  entries_count: newMsgs.length,
-                  total_chars: newChars,
-                  restart_iteration: restartIteration,
-                })
-                effectiveMessage = [turnEffectiveMessage, ...newMsgs.map(p => p.content)].join('\n')
-              } else {
+            if (drainSL.pendingCount > 0) {
+              if (sendMode === 'path_b_solo') {
                 // Path B: ≥1 delivered → answer the NEW message(s) clean.
-                emitLockEvent('msg_aborted_path_b_solo', {
-                  at_step: 'send_loop_ckpt7',
-                  templates_sent_before_abort: sendResult.messagesSent,
-                })
-                emitLockEvent('pending_list_combined', {
-                  at_step: 'send_loop_ckpt7',
-                  entries_count: newMsgs.length,
-                  total_chars: newChars,
-                  restart_iteration: restartIteration,
-                })
                 // Preserve what the customer already saw + carry state forward so
                 // the reprocess does not re-greet or re-send already-sent IDs.
-                accumulatedSentContents.push(...sentMessageContents)
-                carryState = {
+                // carrySource='output' (Pitfall 6 — msg1's output SÍ se envió ≥1).
+                ctx.carrySource = 'output'
+                ctx.accumulatedSentContents.push(...sentMessageContents)
+                ctx.carryState = {
                   intentsVistos: output.intentsVistos,
                   templatesEnviados: [...inputTemplatesEnviados, ...actuallySentIds],
                   datosCapturados: output.datosCapturados,
@@ -921,10 +792,8 @@ export class V4ProductionRunner {
                   // reprocess no re-registre los efectos de atendido/crmActions.
                   turnLedgerDims: output.turnLedgerDims,
                 }
-                effectiveMessage = newMsgs.map(p => p.content).join('\n')
               }
-              shouldRestart = true
-              console.log(`[V4-RUNNER] send-loop interrupt: ${sendResult.messagesSent} sent, reprocessing ${newMsgs.length} new message(s)`)
+              console.log(`[V4-RUNNER] send-loop interrupt: ${sendResult.messagesSent} sent, reprocessing ${drainSL.pendingCount} new message(s)`)
             } else if (sendResult.messagesSent === 0) {
               // Interrupt fired but nothing queued + nothing sent → fall back to
               // the legacy cross-lambda defer (next inbound combines via R-03).
@@ -979,14 +848,14 @@ export class V4ProductionRunner {
       // WITHOUT running the post-send state save for this (aborted) iteration.
       // Pitfall 8: no DB write across restart iterations; carryState +
       // accumulatedSentContents hold the in-memory continuity.
-      if (shouldRestart) continue
+      if (ctx.shouldRestart) continue
 
       // Everything the customer saw across restart iterations (bug 2026-05-28):
       // prior iterations' sends (Path B reprocess) + this final iteration's sends.
       // Used for the assistant-turn record + the return payload so they reflect
       // the full conversation, not just the last iteration.
-      const allSentContents = [...accumulatedSentContents, ...sentMessageContents]
-      const totalMessagesSent = accumulatedSentContents.length + messagesSent
+      const allSentContents = [...ctx.accumulatedSentContents, ...sentMessageContents]
+      const totalMessagesSent = ctx.accumulatedSentContents.length + messagesSent
 
       // ================================================================
       // 5-post. POST-SEND: State save + turns (Path A vs Path B decision)
@@ -1136,7 +1005,7 @@ export class V4ProductionRunner {
           // Pitfall 2 (debounce-v2-interrupt-reprocess): accumulator across
           // restart iterations — captures total agent work for this lambda
           // invocation, not just the last iteration's per-call tokens.
-          tokensUsed: totalTokensAcrossRestarts,
+          tokensUsed: ctx.totalTokensAcrossRestarts,
         })
 
         // Add intent seen
@@ -1187,7 +1056,7 @@ export class V4ProductionRunner {
         turnNumber,
         // Pitfall 2 (debounce-v2-interrupt-reprocess): accumulator across
         // restart iterations.
-        tokensUsed: totalTokensAcrossRestarts,
+        tokensUsed: ctx.totalTokensAcrossRestarts,
         timestamp: new Date().toISOString(),
       })
       if (output.classificationInfo) this.adapters.debug.recordClassification(output.classificationInfo)
@@ -1196,7 +1065,7 @@ export class V4ProductionRunner {
 
       // Update outer counter for finally-block lock_released_normal payload —
       // total across restart iterations (bug 2026-05-28).
-      templatesSentCount = totalMessagesSent
+      ctx.templatesSentCount = totalMessagesSent
 
       // 6. Return EngineOutput compatible with webhook-processor
       return {
@@ -1206,7 +1075,7 @@ export class V4ProductionRunner {
         // Pitfall 2 (debounce-v2-interrupt-reprocess): single source of truth
         // for cost accounting across restart iterations — accumulator instead
         // of per-call output.totalTokens.
-        tokensUsed: totalTokensAcrossRestarts,
+        tokensUsed: ctx.totalTokensAcrossRestarts,
         sessionId: session.id,
         messagesSent: totalMessagesSent,
         response: allSentContents.join('\n'),
@@ -1292,7 +1161,7 @@ export class V4ProductionRunner {
             emitLockEvent('lock_released_normal', {
               holder_uuid: input.lockHandle.holderUuid,
               duration_ms: Date.now() - startMs,
-              templates_sent: templatesSentCount,
+              templates_sent: ctx.templatesSentCount,
             })
           }
         } catch (releaseError) {

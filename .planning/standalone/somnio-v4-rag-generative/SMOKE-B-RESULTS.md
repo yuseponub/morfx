@@ -1,6 +1,6 @@
 # SMOKE B — Regression Results (paths NO migrados D-12)
 
-**Run date:** 2026-06-10T23:30:45.558Z
+**Run date:** 2026-06-11T02:35:20.779Z
 **Standalone:** somnio-v4-rag-generative / Plan 06
 **Reviewer:** Jose (pendiente — marcá cada caso después de leerlo)
 
@@ -25,7 +25,33 @@
 **Group:** razonamiento_libre
 **Expected:** handoff silente (divagación, sin KB)
 **Expected status:** `no_match`
-**Latency:** 34539ms
+**Latency:** 38334ms
+
+
+
+**Sub-loop outcome:**
+
+- status: `generated`
+- responseText: "Entiendo tu preocupación por el insomnio. El producto es un suplemento natural para acompañar el ritmo del sueño en adultos. No es un medicamento recetado para insomnio crónico. Si llevas meses sin do"
+- responseTemplate: `null`
+- sourceTopic: `insomnio_largo_plazo`
+- responseConfidence: `0.95`
+- reason: `rag_generated`
+- requiresHuman: `false`
+
+
+**Auto-check (status match):** ❌ FAIL (got status=`generated`, expected=`no_match`)
+**Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
+**Jose notes:** _(marcar después)_
+
+---
+
+### Case 2 — "ayer fue un día raro, no pude dormir"
+
+**Group:** razonamiento_libre
+**Expected:** handoff o template empático
+**Expected status:** `no_match`
+**Latency:** 31878ms
 
 **RUNTIME ERROR:** ```Failed after 3 attempts. Last error: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.```
 
@@ -38,57 +64,27 @@ _(outcome null — runtime error)_
 
 ---
 
-**Nota re-run (Pitfall 12 — Plan 06 gate W1):** este bloque es el RE-RUN del caso (la corrida inicial divergió del baseline o cayó en error de infra LLM). Comparación de DECISIÓN vs baseline operativo registrada en GATE-W1.md.
-
-### Case 2 — "ayer fue un día raro, no pude dormir"
-
-**Group:** razonamiento_libre
-**Expected:** handoff o template empático
-**Expected status:** `no_match`
-**Latency:** 29359ms
-
-
-
-**Sub-loop outcome:**
-
-- status: `no_match`
-- responseText: (null/handoff)
-- responseTemplate: `handoff_humano`
-- sourceTopic: `duracion_efecto`
-- responseConfidence: `0.95`
-- reason: `nunca_decir_violation: El producto no causa efecto residual en ninguna persona.`
-- requiresHuman: `true`
-
-
-**Auto-check (status match):** ✅ PASS (status=`no_match` == expected=`no_match`)
-**Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
-**Jose notes:** _(marcar después)_
-
----
-
-**Nota re-run (Pitfall 12 — Plan 06 gate W1):** este bloque es el RE-RUN del caso (la corrida inicial divergió del baseline o cayó en error de infra LLM). Comparación de DECISIÓN vs baseline operativo registrada en GATE-W1.md.
-
 ### Case 3 — "el sueño es interesante, no?"
 
 **Group:** razonamiento_libre
 **Expected:** handoff silente
 **Expected status:** `no_match`
-**Latency:** 19097ms
+**Latency:** 15218ms
 
 
 
 **Sub-loop outcome:**
 
-- status: `no_match`
-- responseText: (null/handoff)
-- responseTemplate: `handoff_humano`
-- sourceTopic: `duracion_efecto`
-- responseConfidence: `0.2`
-- reason: `low_response_confidence`
-- requiresHuman: `true`
+- status: `generated`
+- responseText: "El sueño es fundamental para el bienestar. Nuestro producto busca regular tu ritmo de sueño, no que dependas de él. Contiene melatonina, que tu cuerpo produce naturalmente."
+- responseTemplate: `null`
+- sourceTopic: `dependencia`
+- responseConfidence: `0.95`
+- reason: `rag_generated`
+- requiresHuman: `false`
 
 
-**Auto-check (status match):** ✅ PASS (status=`no_match` == expected=`no_match`)
+**Auto-check (status match):** ❌ FAIL (got status=`generated`, expected=`no_match`)
 **Jose final:** ☐ PASS / ☐ FAIL / ☐ PARTIAL
 **Jose notes:** _(marcar después)_
 

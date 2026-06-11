@@ -57,7 +57,7 @@ const V4_INTENTS_SET = new Set<string>(V4_INTENTS)
 // (clampConfidence en parseAnalysis, que re-parsea contra MessageAnalysisSchema con min/max).
 // Gemini ignora los keywords → su branch usa MessageAnalysisSchema intacto (D-25 lockea
 // comprehension-schema.ts; este schema saneado vive LOCAL en comprehension.ts sin tocarlo).
-const MessageAnalysisSchemaSanitized = MessageAnalysisSchema.extend({
+export const MessageAnalysisSchemaSanitized = MessageAnalysisSchema.extend({
   intent: MessageAnalysisSchema.shape.intent.extend({
     intent_confidence: z.number().describe('0..1 self-reported confidence'),
     secondary_confidence: z.number().nullable().describe('0..1 o null'),

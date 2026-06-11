@@ -17,9 +17,11 @@
  */
 import { generateText, Output } from 'ai'
 import { google } from '@ai-sdk/google'
+import { anthropic } from '@ai-sdk/anthropic'
 import { z } from 'zod'
 import { runWithPurpose } from '@/lib/observability'
 import { safeAccessOutput } from './safe-output'
+import { callWithGeminiFallback } from '../llm-fallback'
 
 export const GenerationOutputSchema = z.object({
   responseText: z.string()
@@ -52,32 +54,55 @@ export async function runGenerationCall(args: {
   recentMessages: Array<{ role: 'user' | 'assistant'; content: string }>
 }): Promise<GenerationCallResult> {
   const t0 = performance.now()
-  const rawResult = await runWithPurpose('subloop_generation', () =>
-    generateText({
-      model: google('gemini-2.5-flash'),  // D-08 (NO Lite). A/B Flash-Lite es Plan 05.
-      system: args.systemPrompt,
-      messages: [
-        ...args.recentMessages.slice(-4),  // history corto — el prompt ya tiene material
-        { role: 'user' as const, content: args.userMessage },
-      ],
-      temperature: 0.3,  // D-10
-      output: Output.object({ schema: GenerationOutputSchema }),
-      // Pitfall 6: BLOCK_NONE x4 — sin esto, Gemini bloquea silentemente menciones de
-      // "alcohol"/"embarazo"/"anticoagulantes" → NoOutputGeneratedError con
-      // finishReason='SAFETY'. Verbatim de nunca-decir-check.ts:55-64.
-      // Standalone somnio-sales-v4-runtime-wiring / Plan 07 debug Iter 5b learning.
-      providerOptions: {
-        google: {
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-          ],
-        },
-      },
-    }),
-  )
+  // D-01/D-05/D-06: intenta Gemini (maxRetries:0 + AbortSignal.timeout) y cae a Haiku 4.5
+  // ante saturación. El branch anthropic produce el MISMO shape (GenerationOutputSchema)
+  // → safeAccessOutput posterior funciona idéntico (D-09). Pitfall #7: el branch anthropic
+  // NO lleva providerOptions.google (safetySettings es google-only).
+  const messages = [
+    ...args.recentMessages.slice(-4),  // history corto — el prompt ya tiene material
+    { role: 'user' as const, content: args.userMessage },
+  ]
+  const rawResult = await callWithGeminiFallback({
+    callSite: 'generation',
+    gemini: (signal) =>
+      runWithPurpose('subloop_generation', () =>
+        generateText({
+          model: google('gemini-2.5-flash'),  // D-08 (NO Lite). A/B Flash-Lite es Plan 05.
+          maxRetries: 0,          // D-05 — N=1, error crudo (Pitfall #2)
+          abortSignal: signal,    // D-06 — timeout guard
+          system: args.systemPrompt,
+          messages,
+          temperature: 0.3,  // D-10
+          output: Output.object({ schema: GenerationOutputSchema }),
+          // Pitfall 6: BLOCK_NONE x4 — sin esto, Gemini bloquea silentemente menciones de
+          // "alcohol"/"embarazo"/"anticoagulantes" → NoOutputGeneratedError con
+          // finishReason='SAFETY'. Verbatim de nunca-decir-check.ts:55-64.
+          // Standalone somnio-sales-v4-runtime-wiring / Plan 07 debug Iter 5b learning.
+          providerOptions: {
+            google: {
+              safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+              ],
+            },
+          },
+        }),
+      ),
+    anthropic: () =>
+      runWithPurpose('subloop_generation', () =>
+        generateText({
+          model: anthropic('claude-haiku-4-5'),  // D-02 — via @ai-sdk/anthropic, NO claude-client.ts
+          // MISMO prompt + MISMO schema — paridad D-09
+          system: args.systemPrompt,
+          messages,
+          temperature: 0.3,
+          output: Output.object({ schema: GenerationOutputSchema }),
+          // SIN providerOptions.google — Pitfall #7 (safetySettings es google-only)
+        }),
+      ),
+  })
   const latencyMs = performance.now() - t0
   const output = safeAccessOutput(rawResult, GenerationOutputSchema)
   return { output, rawResult, latencyMs }

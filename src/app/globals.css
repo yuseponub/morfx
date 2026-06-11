@@ -1628,3 +1628,11 @@ html:has(.theme-editorial) body {
 }
 
 .theme-editorial-v3 .kcol-head .c{color:var(--stage-c);font-weight:600}
+
+/* ===== VIVIFICACIÓN v3 — bullets sidebar = punto del logo (2026-06-10, QA) =====
+ * En tema CLARO todos los bullets de titular de sección usan el color del
+ * punto del wordmark morf·x (--rubric-2) vivificado (+35% croma, mismo
+ * factor que --vk). Dark conserva el color por sección (--sec-c). Los
+ * iconos hover/activo siguen con --sec-c en ambos temas. */
+.theme-editorial-v3 nav.sb-nav .cat::before{background:oklch(from var(--rubric-2) l calc(c * 1.35) h)}
+.dark .theme-editorial-v3 nav.sb-nav .cat::before{background:var(--sec-c, var(--rubric-2))}

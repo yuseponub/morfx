@@ -186,6 +186,41 @@ describe('getVarixAvailability — merge 2 agendas', () => {
   })
 })
 
+describe('getVarixAvailability — TZ-safe weekday (Plan 09 — Regla 2)', () => {
+  // En America/Bogota (UTC-5) `new Date('YYYY-MM-DD')` parsea como medianoche UTC
+  // y `getDay()` lo lee 5h antes → corre el día al ANTERIOR. La implementación usa
+  // `Date.UTC(...).getUTCDay()`, que NO corre el día. Estos tests fallarían si
+  // alguien sustituyera el cálculo por `new Date(fecha).getDay()` (regresión TZ).
+  //
+  // Verificado en runtime Bogota:
+  //   2026-06-20 (sábado): getUTCDay()=6  vs getDay()=5 (viernes → elegiría weekday → tendría tarde)
+  //   2026-06-21 (domingo): getUTCDay()=0  vs getDay()=6 (sábado → NO sería no-hábil)
+
+  it('sábado boundary selecciona HORARIOS.saturday (tarde vacío), NO weekday', async () => {
+    // Con `getDay()` local este día se leería como viernes → tendría tarde.
+    // Con `getUTCDay()` se lee correctamente como sábado → tarde = [].
+    const { manana, tarde } = await getVarixAvailability('2026-06-20')
+    expect(tarde).toEqual([]) // sábado no tiene jornada de tarde
+    // y SÍ tiene mañana hasta 12:00 (rango saturday, no weekday que cierra 11:30)
+    expect(manana[manana.length - 1]).toBe('11:40 AM - 12:00 PM')
+  })
+
+  it('domingo boundary es no-hábil (D-09) — getUTCDay()=0, NO se trata como sábado', async () => {
+    // Con `getDay()` local este día se leería como sábado → tendría grilla de mañana.
+    // Con la lógica TZ-safe (isNonWorkingDay + getUTCDay) → { manana:[], tarde:[] }.
+    const result = await getVarixAvailability('2026-06-21')
+    expect(result).toEqual({ manana: [], tarde: [] })
+    expect(getVarixClinicClientMock).not.toHaveBeenCalled()
+  })
+
+  it('lunes boundary selecciona HORARIOS.weekday (tarde presente), NO sábado/domingo', async () => {
+    // 2026-06-22 = lunes. getUTCDay()=1 → weekday (mañana 8:00–11:30 + tarde).
+    const { manana, tarde } = await getVarixAvailability('2026-06-22')
+    expect(manana[manana.length - 1]).toBe('11:00 AM - 11:20 AM') // cierre weekday ≤ 11:30
+    expect(tarde.length).toBeGreaterThan(0) // weekday SÍ tiene tarde
+  })
+})
+
 describe('getVarixAvailability — fail-open', () => {
   it('si getVarixClinicClient lanza, propaga el throw (caller hace fail-open)', async () => {
     clientThrows = true

@@ -86,8 +86,39 @@ describe('isGeminiSaturation — NO matchea parse/schema (Pitfall #4)', () => {
     expect(isGeminiSaturation(err)).toBe(false)
   })
 
-  it('error de red genérico ECONNRESET → false', () => {
-    expect(isGeminiSaturation(new Error('ECONNRESET'))).toBe(false)
+  it('un Error pelado (no APICallError) sin patrón de saturación → false', () => {
+    // Un Error plano "ECONNRESET" NO es el shape que el SDK arroja jamás — el provider-utils
+    // siempre lo envuelve en APICallError (ver test de red abajo). Un Error plano sin patrón
+    // de capacidad NO debe matchear (no enmascarar errores genéricos como saturación).
+    expect(isGeminiSaturation(new Error('algo genérico salió mal'))).toBe(false)
+  })
+})
+
+describe('isGeminiSaturation — error de RED (H-01) → true', () => {
+  it('APICallError de red (statusCode undefined + isRetryable true, "Cannot connect to API") → true', () => {
+    // Shape REAL que @ai-sdk/provider-utils (handleFetchError, dist/index.js:496-513) construye
+    // ante DNS/ECONNRESET/connection refused/TLS: APICallError SIN statusCode + isRetryable=true.
+    // Verificado en node_modules/@ai-sdk/provider-utils@4.0.15.
+    const networkErr = new APICallError({
+      message: 'Cannot connect to API: fetch failed',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models',
+      requestBodyValues: {},
+      statusCode: undefined,
+      isRetryable: true,
+    })
+    expect(networkErr.statusCode).toBeUndefined()
+    expect(isGeminiSaturation(networkErr)).toBe(true)
+  })
+
+  it('APICallError statusCode undefined pero isRetryable=false → false (no es saturación)', () => {
+    const nonRetryable = new APICallError({
+      message: 'some non-retryable client error',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models',
+      requestBodyValues: {},
+      statusCode: undefined,
+      isRetryable: false,
+    })
+    expect(isGeminiSaturation(nonRetryable)).toBe(false)
   })
 
   it('valor no-Error (string) sin patrón de saturación → false', () => {

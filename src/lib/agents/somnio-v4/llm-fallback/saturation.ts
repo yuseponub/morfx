@@ -25,6 +25,14 @@ export function isGeminiSaturation(err: unknown): boolean {
   const e = unwrap(err)
   if (APICallError.isInstance(e)) {
     if (e.statusCode === 503 || e.statusCode === 429 || e.statusCode === 500 || e.statusCode === 504) return true
+    // Fallo a nivel de RED (DNS, ECONNRESET, connection refused, TLS): `@ai-sdk/provider-utils`
+    // (handleFetchError, dist/index.js:496-513) envuelve el fetch error en un APICallError SIN
+    // statusCode (queda undefined) + isRetryable=true + message "Cannot connect to API: ...".
+    // Es la clase de error operacionalmente más cercana a la saturación (la API de Gemini no
+    // responde HTTP) y con maxRetries:0 ya no hay retry del SDK que lo cubra → debe disparar
+    // fallback, o el turno falla duro (H-01 gemini-fallback-haiku). NO matchea parse/schema
+    // (NoObjectGeneratedError no es APICallError) → Pitfall #4 intacto.
+    if (e.statusCode == null && e.isRetryable === true) return true
     if (typeof e.message === 'string' && SATURATION_MSG.test(e.message)) return true
     if (typeof e.responseBody === 'string' && SATURATION_MSG.test(e.responseBody)) return true
   }

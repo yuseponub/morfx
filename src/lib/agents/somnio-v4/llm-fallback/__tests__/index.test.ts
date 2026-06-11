@@ -124,4 +124,46 @@ describe('callWithGeminiFallback — orquestación', () => {
       anthropic_error: 'AnthropicError',
     })
   })
+
+  it('M-02 — circuito OPEN + Haiku falla → emite fallback_failed (gemini_error=circuit_open)', async () => {
+    // 1) Primera llamada: Gemini saturado abre el circuito.
+    const geminiSat = vi.fn(async () => {
+      throw saturation()
+    })
+    const anthropicOk = vi.fn(async () => ({ from: 'anthropic' as const }))
+    await callWithGeminiFallback<{ from: string }>({
+      callSite: 'comprehension',
+      gemini: geminiSat,
+      anthropic: anthropicOk,
+    })
+    recordEvent.mockClear()
+
+    // 2) Segunda llamada dentro del cooldown: state='open' → salta Gemini, va directo a
+    //    Haiku. Si Haiku falla aquí, ANTES de M-02 no se emitía fallback_failed.
+    const anthropicErr = new Error('anthropic 529 overloaded')
+    anthropicErr.name = 'AnthropicError'
+    const geminiSpy = vi.fn(async () => ({ from: 'gemini' as const }))
+    const anthropicFail = vi.fn(async () => {
+      throw anthropicErr
+    })
+
+    await expect(
+      callWithGeminiFallback<{ from: string }>({
+        callSite: 'comprehension',
+        gemini: geminiSpy,
+        anthropic: anthropicFail,
+      }),
+    ).rejects.toBe(anthropicErr)
+
+    // Gemini NO se intenta (circuito abierto); Haiku sí.
+    expect(geminiSpy).not.toHaveBeenCalled()
+    expect(anthropicFail).toHaveBeenCalledTimes(1)
+    const failedCall = recordEvent.mock.calls.find((c) => c[1] === 'fallback_failed')
+    expect(failedCall).toBeDefined()
+    expect(failedCall?.[2]).toMatchObject({
+      callSite: 'comprehension',
+      gemini_error: 'circuit_open',
+      anthropic_error: 'AnthropicError',
+    })
+  })
 })

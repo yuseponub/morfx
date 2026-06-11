@@ -31,7 +31,19 @@ export async function callWithGeminiFallback<T>(args: {
     emitFallbackEvent('fallback_triggered', {
       callSite, provider: 'anthropic', model: FALLBACK_MODEL, errorKind: 'circuit_open',
     })
-    return anthropic()
+    // M-02 — durante un outage sostenido la MAYORÍA de las llamadas van por este path
+    // (cooldown 30s), así que el evento de doble fallo (D-10) debe emitirse aquí también,
+    // no solo en el path post-saturación (abajo). `return await` para que el catch capture.
+    try {
+      return await anthropic()
+    } catch (anthropicErr) {
+      emitFallbackEvent('fallback_failed', {
+        callSite,
+        gemini_error: 'circuit_open',
+        anthropic_error: anthropicErr instanceof Error ? anthropicErr.name : String(anthropicErr),
+      })
+      throw anthropicErr
+    }
   }
 
   // 2. 'closed' o 'half_open' (probe) → intentar Gemini con timeout guard.

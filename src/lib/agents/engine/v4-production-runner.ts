@@ -54,7 +54,9 @@ import type { V4AgentInput, V4AgentOutput, ProcessedMessage, TurnLedgerDims } fr
 // REVISION W3: channel/identifier come from input.lockChannel + input.lockIdentifier
 // (populated by Plan 03 webhook → event.data). The runner does NOT introduce a
 // Supabase conversations-table lookup (NO createAdminClient added here).
-import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
+// D-06 (Plan 07): el skip-gate + lostLock throw de CKPT-0/6a/6b está factorizado
+// en runCheckpointGate (specifier absoluto — el runner vive fuera de somnio-v4/).
+import { runCheckpointGate } from '@/lib/agents/somnio-v4/core/checkpoint-gate'
 import { releaseLockIfOwner, startHeartbeat } from '@/lib/agents/interruption-system-v2/lock'
 import { readAndClearPending, clearInterrupt } from '@/lib/agents/interruption-system-v2/pending'
 import { emitLockEvent } from '@/lib/agents/interruption-system-v2/observability'
@@ -213,18 +215,18 @@ export class V4ProductionRunner {
       //   - msg_aborted_path_a_combined (we're aborting before any send)
       //   - pending_list_combined (telemetry: how many entries + chars)
       // ============================================================
-      if (input.lockHandle && lockCtx) {
-        const ck0 = await checkpoint(
-          'ckpt_0_post_acquire',
-          input.lockHandle,
-          this.config.workspaceId,
-          lockCtx.channel,
-          lockCtx.identifier,
-        )
-        if (ck0.lostLock) {
-          throw new LostLockError('ckpt_0_post_acquire')
-        }
-        if (!ck0.proceed && ck0.interrupted) {
+      {
+        // D-06 (Plan 07): skip-gate + lostLock throw factorizados en
+        // runCheckpointGate (SIN interruptEmit — este site emite en su drain).
+        // La colocación CKPT-0 y el drain/restart NO se mueven.
+        const ck0 = await runCheckpointGate({
+          ckptId: 'ckpt_0_post_acquire',
+          lockHandle: input.lockHandle,
+          workspaceId: this.config.workspaceId,
+          lockChannel: lockCtx?.channel,
+          lockIdentifier: lockCtx?.identifier,
+        })
+        if (typeof ck0 === 'object' && lockCtx) {
           // ============================================================
           // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
           // Path A interrupt at CKPT-0 — restart turn with combined
@@ -536,19 +538,19 @@ export class V4ProductionRunner {
       // previous turn already partially sent). The pending list also gets
       // accumulated by the heading checkpoint detection.
       // ============================================================
-      if (input.lockHandle && lockCtx) {
-        const ck6a = await checkpoint(
-          'ckpt_6_pre_send_loop',
-          input.lockHandle,
-          this.config.workspaceId,
-          lockCtx.channel,
-          lockCtx.identifier,
-          { hasSentAnything: false },
-        )
-        if (ck6a.lostLock) {
-          throw new LostLockError('ckpt_6_pre_send_loop_pending_templates')
-        }
-        if (!ck6a.proceed && ck6a.interrupted) {
+      {
+        // D-06 (Plan 07): gate factorizado; opts hasSentAnything:false y
+        // lostLockLabel _pending_templates preservados byte-exacto; drain intacto.
+        const ck6a = await runCheckpointGate({
+          ckptId: 'ckpt_6_pre_send_loop',
+          lockHandle: input.lockHandle,
+          workspaceId: this.config.workspaceId,
+          lockChannel: lockCtx?.channel,
+          lockIdentifier: lockCtx?.identifier,
+          opts: { hasSentAnything: false },
+          lostLockLabel: 'ckpt_6_pre_send_loop_pending_templates',
+        })
+        if (typeof ck6a === 'object' && lockCtx) {
           // ============================================================
           // Standalone: debounce-v2-interrupt-reprocess (D-04 + R-01).
           // Path A interrupt at CKPT-6a (pending-templates pre-send) —
@@ -655,19 +657,19 @@ export class V4ProductionRunner {
       // actuallySentIds.length > 0 → Path B (we already sent something).
       // Otherwise Path A (nothing sent in this turn).
       // ============================================================
-      if (input.lockHandle && lockCtx) {
-        const ck6b = await checkpoint(
-          'ckpt_6_pre_send_loop',
-          input.lockHandle,
-          this.config.workspaceId,
-          lockCtx.channel,
-          lockCtx.identifier,
-          { hasSentAnything: actuallySentIds.length > 0 },
-        )
-        if (ck6b.lostLock) {
-          throw new LostLockError('ckpt_6_pre_send_loop_main')
-        }
-        if (!ck6b.proceed && ck6b.interrupted) {
+      {
+        // D-06 (Plan 07): gate factorizado; opts hasSentAnything dinámico y
+        // lostLockLabel _main preservados byte-exacto; Path A/B intactos.
+        const ck6b = await runCheckpointGate({
+          ckptId: 'ckpt_6_pre_send_loop',
+          lockHandle: input.lockHandle,
+          workspaceId: this.config.workspaceId,
+          lockChannel: lockCtx?.channel,
+          lockIdentifier: lockCtx?.identifier,
+          opts: { hasSentAnything: actuallySentIds.length > 0 },
+          lostLockLabel: 'ckpt_6_pre_send_loop_main',
+        })
+        if (typeof ck6b === 'object' && lockCtx) {
           const sentCount = actuallySentIds.length
           if (sentCount === 0) {
             // ============================================================

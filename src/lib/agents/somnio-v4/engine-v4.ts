@@ -40,7 +40,9 @@ import type { SystemEvent } from './types'
 // Standalone: debounce-v2-sandbox-integration / Plan 01 (D-04 + D-05 + D-06 + D-15).
 // Wire shipped interruption-system-v2 primitives into the sandbox engine.
 // Module is IMPORTED ONLY — never modified (D-15).
-import { checkpoint } from '@/lib/agents/interruption-system-v2/checkpoints'
+// D-06 (Plan 07): skip-gate + lostLock throw de CKPT-0/6/7.N factorizados en
+// runCheckpointGate (specifier relativo — interno a somnio-v4).
+import { runCheckpointGate } from './core/checkpoint-gate'
 import {
   releaseLockIfOwner,
   startHeartbeat,
@@ -220,16 +222,18 @@ export class SomnioV4Engine {
         const turnEffectiveMessage: string = effectiveMessage ?? input.message
 
         // === CKPT-0 post-acquire ===
-        if (input.lockHandle && lockCtx) {
-          const ck0 = await checkpoint(
-            'ckpt_0_post_acquire',
-            input.lockHandle,
-            input.workspaceId,
-            lockCtx.channel,
-            lockCtx.identifier,
-          )
-          if (ck0.lostLock) throw new LostLockError('ckpt_0_post_acquire')
-          if (!ck0.proceed && ck0.interrupted) {
+        {
+          // D-06 (Plan 07): skip-gate + lostLock throw factorizados en
+          // runCheckpointGate (SIN interruptEmit — el drain emite). Colocación
+          // y drain/restart intactos.
+          const ck0 = await runCheckpointGate({
+            ckptId: 'ckpt_0_post_acquire',
+            lockHandle: input.lockHandle,
+            workspaceId: input.workspaceId,
+            lockChannel: lockCtx?.channel,
+            lockIdentifier: lockCtx?.identifier,
+          })
+          if (typeof ck0 === 'object' && lockCtx) {
             const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
             // Consume the interrupt signal too (bug 2026-05-28): without this the
             // next iteration's CKPT-0 re-reads the still-set interrupt key and
@@ -358,17 +362,18 @@ export class SomnioV4Engine {
         // (at v4-production-runner.ts:464) that we do NOT mirror here — sandbox has
         // no pending-templates pre-send (sandbox doesn't carry pending templates
         // across turns). See top-of-while comment block for the full rationale.
-        if (input.lockHandle && lockCtx) {
-          const ck6 = await checkpoint(
-            'ckpt_6_pre_send_loop',
-            input.lockHandle,
-            input.workspaceId,
-            lockCtx.channel,
-            lockCtx.identifier,
-            { hasSentAnything: false },
-          )
-          if (ck6.lostLock) throw new LostLockError('ckpt_6_pre_send_loop')
-          if (!ck6.proceed && ck6.interrupted) {
+        {
+          // D-06 (Plan 07): gate factorizado; opts hasSentAnything:false
+          // preservado; drain/restart intacto.
+          const ck6 = await runCheckpointGate({
+            ckptId: 'ckpt_6_pre_send_loop',
+            lockHandle: input.lockHandle,
+            workspaceId: input.workspaceId,
+            lockChannel: lockCtx?.channel,
+            lockIdentifier: lockCtx?.identifier,
+            opts: { hasSentAnything: false },
+          })
+          if (typeof ck6 === 'object' && lockCtx) {
             // In sandbox, sentCount is always 0 at this point (the CKPT-7.N
             // synthetic loop runs AFTER CKPT-6). Always Path A → restart.
             const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
@@ -423,17 +428,20 @@ export class SomnioV4Engine {
             )
             await sleep(perTemplateMs)
           }
-          if (input.lockHandle && lockCtx) {
-            const ck7 = await checkpoint(
-              'ckpt_7_pre_template',
-              input.lockHandle,
-              input.workspaceId,
-              lockCtx.channel,
-              lockCtx.identifier,
-              { templateIndex: i, hasSentAnything: i > 0 },
-            )
-            if (ck7.lostLock) throw new LostLockError(`ckpt_7_pre_template_${i}`)
-            if (!ck7.proceed && ck7.interrupted) {
+          {
+            // D-06 (Plan 07): CKPT-7.N sintético (paridad con el send-adapter
+            // sandbox). Gate factorizado con templateIndex + lostLockLabel
+            // dinámico (ckpt_7_pre_template_${i}); Path A/B break intacto.
+            const ck7 = await runCheckpointGate({
+              ckptId: 'ckpt_7_pre_template',
+              lockHandle: input.lockHandle,
+              workspaceId: input.workspaceId,
+              lockChannel: lockCtx?.channel,
+              lockIdentifier: lockCtx?.identifier,
+              opts: { templateIndex: i, hasSentAnything: i > 0 },
+              lostLockLabel: `ckpt_7_pre_template_${i}`,
+            })
+            if (typeof ck7 === 'object' && lockCtx) {
               const pending = dropOwnEntry(await readAndClearPending(input.workspaceId, lockCtx.channel, lockCtx.identifier))
               await clearInterrupt(input.workspaceId, lockCtx.channel, lockCtx.identifier)
               if (i === 0) {

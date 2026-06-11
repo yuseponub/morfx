@@ -19,7 +19,10 @@ export interface DatosCliente {
   nombre: string | null
   telefono: string | null
   cedula: string | null
-  servicio_interes: string | null
+  /** Triage (no bloquea) — diseño §2 */
+  ciudad: string | null
+  /** Triage enum (decide template info) — diseño §2 */
+  tipo_venas: 'grandes' | 'vasitos' | 'ambas' | null
   fecha_preferida: string | null
   fecha_vaga: string | null
   preferencia_jornada: 'manana' | 'tarde' | null
@@ -43,6 +46,8 @@ export interface AgentState {
 // ============================================================================
 
 export interface Gates {
+  /** ciudad + tipo_venas non-null (diseño §4 — triage, no bloquea) */
+  triageCompleto: boolean
   /** nombre + telefono + cedula all non-null (D-05) */
   datosCriticos: boolean
   /** fecha_preferida non-null */

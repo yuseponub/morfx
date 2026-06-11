@@ -45,6 +45,7 @@ type Tab = {
 const TABS: Tab[] = [
   { href: '/crm/contactos', label: 'Contactos' },
   { href: '/crm/pedidos', label: 'Pedidos · kanban' },
+  { href: '/crm/productos', label: 'Productos' },
   { href: '#', label: 'Pipelines', comingSoon: true },
   { href: '/crm/configuracion', label: 'Configuración' },
 ]

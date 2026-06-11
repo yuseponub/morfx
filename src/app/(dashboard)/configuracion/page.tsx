@@ -11,6 +11,7 @@ import {
   Users,
   Truck,
   UserCheck,
+  Shield,
 } from 'lucide-react'
 
 type ConfigSection = {
@@ -69,6 +70,13 @@ const SECTIONS: ConfigSection[] = [
     label: 'Equipo',
     description: 'Miembros del workspace, roles y permisos.',
     Icon: Users,
+    group: 'Workspace',
+  },
+  {
+    href: '/settings/workspace/roles',
+    label: 'Roles y permisos',
+    description: 'Consulta los permisos disponibles para cada rol.',
+    Icon: Shield,
     group: 'Workspace',
   },
   {
